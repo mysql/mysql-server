@@ -177,6 +177,43 @@ TEST_F(PreallocedArrayTest, EraseMiddle)
   EXPECT_EQ(15U, int_10.size());
 }
 
+TEST_F(PreallocedArrayTest, ResizeSame)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  EXPECT_EQ(16U, int_10.size());
+  int_10.resize(16U);
+  EXPECT_EQ(16U, int_10.size());
+}
+
+TEST_F(PreallocedArrayTest, ResizeGrow)
+{
+  int_10.push_back(1);
+  int_10.resize(20);
+  EXPECT_EQ(1, int_10[0]);
+  EXPECT_EQ(0, int_10[1]);
+  EXPECT_EQ(20U, int_10.size());
+  EXPECT_GE(int_10.capacity(), 20U);
+}
+
+TEST_F(PreallocedArrayTest, ResizeGrowVal)
+{
+  int_10.resize(20, 42);
+  EXPECT_EQ(42, int_10[0]);
+  EXPECT_EQ(42, int_10[19]);
+  EXPECT_EQ(20U, int_10.size());
+  EXPECT_GE(int_10.capacity(), 20U);
+}
+
+TEST_F(PreallocedArrayTest, ResizeShrink)
+{
+  for (int ix= 0; ix <= 15; ++ix)
+    int_10.push_back(ix);
+  EXPECT_EQ(16U, int_10.size());
+  int_10.resize(10);
+  EXPECT_EQ(10U, int_10.size());
+}
+
 /*
   A simple class for testing that object copying and destruction is done
   properly when we have to expand the array a few times,
@@ -185,6 +222,10 @@ TEST_F(PreallocedArrayTest, EraseMiddle)
 class IntWrap
 {
 public:
+  IntWrap()
+  {
+    m_int= new int(0);
+  }
   explicit IntWrap(int arg)
   {
     m_int= new int(arg);
@@ -243,6 +284,29 @@ TEST_F(PreallocedArrayTest, NoMemLeaksClearing)
     array.push_back(IntWrap(ix));
   array.clear();
   EXPECT_EQ(0U, array.size());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksResizing)
+{
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array.push_back(IntWrap(ix));
+  array.resize(0);
+  EXPECT_EQ(0U, array.size());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksAssigning)
+{
+  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  Prealloced_array<IntWrap, 1, false> array2(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 10; ++ix)
+    array2.push_back(IntWrap(ix + 100));
+  array2= array1;
+  EXPECT_EQ(array1.size(), array2.size());
+  for (size_t ix= 0; ix < array1.size(); ++ix)
+    EXPECT_EQ(array1[ix].getval(), array2[ix].getval());
 }
 
 /*

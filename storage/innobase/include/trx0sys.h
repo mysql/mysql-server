@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -74,15 +74,14 @@ extern ib_int64_t	trx_sys_mysql_bin_log_pos;
 /** The transaction system */
 extern trx_sys_t*	trx_sys;
 
-/***************************************************************//**
-Checks if a page address is the trx sys header page.
+/** Checks if a page address is the trx sys header page.
+@param[in]	page_id	page id
 @return true if trx sys header page */
 UNIV_INLINE
 bool
 trx_sys_hdr_page(
-/*=============*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no);/*!< in: page number */
+	const page_id_t&	page_id);
+
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
@@ -313,13 +312,6 @@ void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
 /*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
-
-void
-trx_sys_print_mysql_master_log_pos(void);
-/*====================================*/
-/*****************************************************************//**
 Initializes the tablespace tag system. */
 
 void
@@ -534,10 +526,6 @@ We must remember this limit in order to keep file compatibility. */
 #if UNIV_PAGE_SIZE_MIN < 4096
 # error "UNIV_PAGE_SIZE_MIN < 4096"
 #endif
-/** The offset of the MySQL replication info in the trx system header;
-this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
-#define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
-
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
 #define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/*!< magic number which is

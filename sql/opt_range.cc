@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,6 +116,7 @@
 #include "opt_trace.h"
 #include "filesort.h"         // filesort_free_buffers
 #include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
+#include "opt_costmodel.h"
 #include "uniques.h"
 
 using std::min;
@@ -366,7 +367,7 @@ public:
     element itself.
   */
   uint16 elements;
-  /*
+  /**
     Valid only for elements which are RB-tree roots: Number of
     references to this SEL_ARG tree. References may be from
     SEL_ARG::next_key_part of SEL_ARGs from earlier keyparts or
@@ -771,11 +772,19 @@ public:
       estimate for range access on this index is too pessimistic.
   */
   enum Type { IMPOSSIBLE, ALWAYS, MAYBE, KEY, KEY_SMALLER } type;
-  SEL_TREE(enum Type type_arg) :type(type_arg) {}
-  SEL_TREE() :type(KEY)
+
+  SEL_TREE(enum Type type_arg) :type(type_arg), n_ror_scans(0) {}
+  SEL_TREE() :type(KEY), n_ror_scans(0)
   {
     memset(keys, 0, sizeof(keys));
   }
+  /**
+    Constructor that performs deep-copy of the SEL_ARG trees in
+    'keys[]' and the index merge alternatives in 'merges'.
+
+    @param arg     The SEL_TREE to copy
+    @param param   Parameters for range analysis
+  */
   SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param);
   /*
     Possible ways to read rows using a single index because the
@@ -1119,6 +1128,7 @@ int SEL_IMERGE::or_sel_tree(RANGE_OPT_PARAM *param, SEL_TREE *tree)
 
 int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tree)
 {
+  DBUG_ENTER("SEL_IMERGE::or_sel_tree_with_checks");
   for (SEL_TREE** tree = trees;
        tree != trees_next;
        tree++)
@@ -1127,17 +1137,18 @@ int SEL_IMERGE::or_sel_tree_with_checks(RANGE_OPT_PARAM *param, SEL_TREE *new_tr
     {
       *tree = tree_or(param, *tree, new_tree);
       if (!*tree)
-        return 1;
+        DBUG_RETURN(1);
       if (((*tree)->type == SEL_TREE::MAYBE) ||
           ((*tree)->type == SEL_TREE::ALWAYS))
-        return 1;
+        DBUG_RETURN(1);
       /* SEL_TREE::IMPOSSIBLE is impossible here */
-      return 0;
+      DBUG_RETURN(0);
     }
   }
 
   /* New tree cannot be combined with any of existing trees. */
-  return or_sel_tree(param, new_tree);
+  const int ret= or_sel_tree(param, new_tree);
+  DBUG_RETURN(ret);
 }
 
 
@@ -1164,17 +1175,21 @@ int SEL_IMERGE::or_sel_imerge_with_checks(RANGE_OPT_PARAM *param, SEL_IMERGE* im
 }
 
 
-SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
+SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param):
+  Sql_alloc(), n_ror_scans(0)
 {
   keys_map= arg->keys_map;
   type= arg->type;
   for (uint idx= 0; idx < MAX_KEY; idx++)
   {
-    if ((keys[idx]= arg->keys[idx]))
+    if (arg->keys[idx])
     {
+      keys[idx]= arg->keys[idx]->clone_tree(param);
       keys[idx]->use_count++;
       keys[idx]->increment_use_count(1);
     }
+    else 
+      keys[idx]= NULL;
   }
 
   List_iterator<SEL_IMERGE> it(arg->merges);
@@ -1188,6 +1203,14 @@ SEL_TREE::SEL_TREE(SEL_TREE *arg, RANGE_OPT_PARAM *param): Sql_alloc()
     }
     merges.push_back (merge);
   }
+
+  /*
+    SEL_TREEs are only created by get_mm_tree() (and functions called
+    by get_mm_tree()). Index intersection is checked after
+    get_mm_tree() has constructed all ranges. In other words, there
+    should not be any ROR scans to copy when this ctor is called.
+  */
+  DBUG_ASSERT(n_ror_scans == 0);
 }
 
 
@@ -1365,9 +1388,9 @@ SQL_SELECT::SQL_SELECT() :
 }
 
 
-void SQL_SELECT::cleanup()
+SQL_SELECT::~SQL_SELECT()
 {
-  set_quick(NULL);
+  delete quick;
   if (free_cond)
   {
     free_cond=0;
@@ -1376,12 +1399,6 @@ void SQL_SELECT::cleanup()
   }
   close_cached_file(&file);
   traced_before= false;
-}
-
-
-SQL_SELECT::~SQL_SELECT()
-{
-  cleanup();
 }
 
 #undef index					// Fix for Unixware 7
@@ -2593,6 +2610,15 @@ static int fill_used_fields_bitmap(PARAM *param)
   return 0;
 }
 
+void SQL_SELECT::set_quick(QUICK_SELECT_I *new_quick)
+{
+  delete quick;
+  DBUG_ASSERT (quick==NULL || quick != new_quick);
+  quick= new_quick;
+  if (head && head->reginfo.join_tab)
+    head->reginfo.join_tab->type=
+      (new_quick ? calc_join_type(new_quick->get_type()) : JT_ALL);
+}
 
 /*
   Test if a key can be used in different ranges
@@ -2674,20 +2700,29 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
 		      (ulong) keys_to_use.to_ulonglong(), (ulong) prev_tables,
 		      (ulong) const_tables));
 
-  set_quick(NULL);
+  const Cost_model_server *const cost_model= thd->cost_model();
+  if (quick)
+  {
+    mysql_mutex_lock(&thd->LOCK_query_plan);
+    set_quick(NULL);
+    mysql_mutex_unlock(&thd->LOCK_query_plan);
+  }
   needed_reg.clear_all();
   if (keys_to_use.is_clear_all())
     DBUG_RETURN(0);
   records= head->file->stats.records;
   if (!records)
     records++;					/* purecov: inspected */
-  scan_time= records * ROW_EVALUATE_COST + 1;
-  read_time= head->file->scan_time() + scan_time + 1.1;
+  scan_time= cost_model->row_evaluate_cost(records) + 1;
+  const Cost_estimate table_scan_time= head->file->table_scan_cost();
+  read_time= table_scan_time.total_cost() + scan_time + 1.1;
   if (head->force_index)
     scan_time= read_time= DBL_MAX;
   if (limit < records)
-    read_time= (double) records + scan_time + 1; // Force to use index
-  else if (read_time <= 2.0 && !force_quick_range)
+    read_time= head->cost_model()->io_block_read_cost(records) +
+               scan_time + 1; // Force to use index
+  else if (read_time <= head->cost_model()->io_block_read_cost(2.0) &&
+           !force_quick_range)
     DBUG_RETURN(0);				/* No need for quick select */
 
   Opt_trace_context * const trace= &thd->opt_trace;
@@ -2804,10 +2839,10 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     if (!head->covering_keys.is_clear_all())
     {
       int key_for_use= find_shortest_key(head, &head->covering_keys);
-      double key_read_time= 
-        param.table->file->index_only_read_time(key_for_use, 
-                                                rows2double(records)) +
-        records * ROW_EVALUATE_COST;
+      const Cost_estimate index_read_time= 
+        param.table->file->index_scan_cost(key_for_use, 1, records);
+      const double key_read_time= index_read_time.total_cost() +
+                                  cost_model->row_evaluate_cost(records);
 
       bool chosen= false;
       if (key_read_time < read_time)
@@ -2973,10 +3008,12 @@ int SQL_SELECT::test_quick_select(THD *thd, key_map keys_to_use,
     /* If we got a read plan, create a quick select from it. */
     if (best_trp)
     {
+      QUICK_SELECT_I *qck;
       mysql_mutex_lock(&thd->LOCK_query_plan);
       records= best_trp->records;
-      if (!(quick= best_trp->make_quick(&param, TRUE)) || quick->init())
-        set_quick(NULL);
+      if (!(qck= best_trp->make_quick(&param, TRUE)) || qck->init())
+        qck= NULL;
+      set_quick(qck);
       mysql_mutex_unlock(&thd->LOCK_query_plan);
     }
 
@@ -4351,8 +4388,9 @@ static void dbug_print_singlepoint_range(SEL_ARG **start, uint num)
 
       The total cost of reading all needed blocks in one "sweep" is:
 
-      E(n_busy_blocks)*
-       (DISK_SEEK_BASE_COST + DISK_SEEK_PROP_COST*n_blocks/E(n_busy_blocks)).
+        E(n_busy_blocks) * disk_seek_cost(n_blocks/E(n_busy_blocks))
+
+      This cost estimate is calculated in get_sweep_read_cost().
 
     3. Cost of Unique use is calculated in Unique::get_use_cost function.
 
@@ -4387,6 +4425,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   double roru_index_costs;
   ha_rows roru_total_records;
   double roru_intersect_part= 1.0;
+  const Cost_model_table *const cost_model= param->table->cost_model();
+
   DBUG_ENTER("get_best_disjunct_quick");
   DBUG_PRINT("info", ("Full table scan cost: %g", read_time));
 
@@ -4483,10 +4523,11 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
   if (cpk_scan)
   {
     /*
-      Add one ROWID comparison for each row retrieved on non-CPK scan.  (it
-      is done in QUICK_RANGE_SELECT::row_in_ranges)
-     */
-    const double rid_comp_cost= non_cpk_scan_records * ROWID_COMPARE_COST;
+      Add one rowid/key comparison for each row retrieved on non-CPK
+      scan. (it is done in QUICK_RANGE_SELECT::row_in_ranges)
+    */
+    const double rid_comp_cost=
+      cost_model->key_compare_cost(non_cpk_scan_records);
     imerge_cost+= rid_comp_cost;
     trace_best_disjunct.add("cost_of_mapping_rowid_in_non_clustered_pk_scan",
                             rid_comp_cost);
@@ -4536,7 +4577,8 @@ TABLE_READ_PLAN *get_best_disjunct_quick(PARAM *param, SEL_IMERGE *imerge,
       Unique::get_use_cost(param->imerge_cost_buff,
                            (uint)non_cpk_scan_records,
                            param->table->file->ref_length,
-                           param->thd->variables.sortbuff_size);
+                           param->thd->variables.sortbuff_size,
+                           cost_model);
 
     trace_best_disjunct.add("cost_duplicate_removal", dup_removal_cost);
     imerge_cost += dup_removal_cost;
@@ -4599,10 +4641,11 @@ skip_to_ror_scan:
     if ((*cur_child)->is_ror)
     {
       /* Ok, we have index_only cost, now get full rows scan cost */
-      cost= param->table->file->
-        read_time(param->real_keynr[(*cur_child)->key_idx], 1,
-                  (*cur_child)->records) +
-        rows2double((*cur_child)->records) * ROW_EVALUATE_COST;
+      const Cost_estimate read_cost=
+        param->table->file->read_cost(param->real_keynr[(*cur_child)->key_idx],
+                                      1, (*cur_child)->records);
+      cost= read_cost.total_cost() +
+            cost_model->row_evaluate_cost(rows2double((*cur_child)->records));
     }
     else
       cost= read_time;
@@ -4650,9 +4693,9 @@ skip_to_ror_scan:
     get_sweep_read_cost(param->table, roru_total_records, is_interrupted,
                         &sweep_cost);
     roru_total_cost= roru_index_costs +
-                     rows2double(roru_total_records) *
-                     log((double)n_child_scans) * ROWID_COMPARE_COST / M_LN2 +
-                     sweep_cost.total_cost();
+      cost_model->key_compare_cost(rows2double(roru_total_records) *
+                                   log((double)n_child_scans) / M_LN2) +
+      sweep_cost.total_cost();
   }
 
   trace_best_disjunct.add("index_roworder_union_cost", roru_total_cost).
@@ -4737,7 +4780,7 @@ ROR_SCAN_INFO *make_ror_scan(const PARAM *param, int idx, SEL_ARG *sel_arg)
 
   double rows= rows2double(param->table->quick_rows[ror_scan->keynr]);
   ror_scan->index_read_cost=
-    param->table->file->index_only_read_time(ror_scan->keynr, rows);
+    param->table->file->index_scan_cost(ror_scan->keynr, 1, rows).total_cost();
   DBUG_RETURN(ror_scan);
 }
 
@@ -5208,12 +5251,13 @@ static bool ror_intersect_add(ROR_INTERSECT_INFO *info,
   if (is_cpk_scan)
   {
     /*
-      CPK scan is used to filter out rows. We apply filtering for 
-      each record of every scan. Assuming ROWID_COMPARE_COST
-      per check this gives us:
+      CPK scan is used to filter out rows. We apply filtering for each
+      record of every scan. For each record we assume that one key
+      compare is done:
     */
+    const Cost_model_table *const cost_model= info->param->table->cost_model();
     const double idx_cost= 
-      rows2double(info->index_records) * ROWID_COMPARE_COST;
+      cost_model->key_compare_cost(rows2double(info->index_records));
     info->index_scan_costs+= idx_cost;
     trace_costs->add("index_scan_cost", idx_cost);
   }
@@ -6460,7 +6504,7 @@ static SEL_TREE *get_mm_tree(RANGE_OPT_PARAM *param,Item *cond)
     There are limits on what kinds of const items we can evaluate.
     At this stage a subquery in 'cond' might not be fully transformed yet
     (example: semijoin) thus cannot be evaluated. Another reason is that we
-    may be called by test_if_quick_select (), which holds LOCK_query_plan,
+    may be called by test_quick_select (), which holds LOCK_query_plan,
     thus we must not acquire this Mutex here, thus we can neither prepare nor
     optimize any subquery here.
   */
@@ -6658,6 +6702,89 @@ bool is_spatial_operator(Item_func::Functype op_type)
   }
 }
 
+/**
+  Test if 'value' is comparable to 'field' when setting up range
+  access for predicate "field OP value". 'field' is a field in the
+  table being optimized for while 'value' is whatever 'field' is
+  compared to.
+
+  @param cond_func   the predicate item that compares 'field' with 'value'
+  @param field       field in the predicate
+  @param itype       itMBR if indexed field is spatial, itRAW otherwise
+  @param comp_type   comparator for the predicate
+  @param value       whatever 'field' is compared to
+
+  @return true if 'field' and 'value' are comparable, false otherwise
+*/
+
+static bool comparable_in_index(Item *cond_func,
+                                const Field *field,
+                                const Field::imagetype itype,
+                                Item_func::Functype comp_type,
+                                const Item *value)
+{
+  /*
+    Usually an index cannot be used if the column collation differs
+    from the operation collation. However, a case insensitive index
+    may be used for some binary searches:
+
+       WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
+       WHERE latin1_swedish_ci_colimn = BINARY 'a '
+  */
+  if ((field->result_type() == STRING_RESULT &&
+       field->match_collation_to_optimize_range() &&
+       value->result_type() == STRING_RESULT &&
+       itype == Field::itRAW &&
+       field->charset() != cond_func->compare_collation() &&
+       !(cond_func->compare_collation()->state & MY_CS_BINSORT &&
+         (comp_type == Item_func::EQUAL_FUNC ||
+          comp_type == Item_func::EQ_FUNC))))
+    return false;
+
+  /*
+    Temporal values: Cannot use range access if:
+       'indexed_varchar_column = temporal_value'
+    because there are many ways to represent the same date as a
+    string. A few examples: "01-01-2001", "1-1-2001", "2001-01-01",
+    "2001#01#01". The same problem applies to time. Thus, we cannot
+    create a useful range predicate for temporal values into VARCHAR
+    column indexes. @see add_key_field()
+  */
+  if (!field->is_temporal() && value->is_temporal())
+    return false;
+
+  /*
+    Temporal values: Cannot use range access if 
+       'indexed_time = temporal_value_with_date_part'
+    because: 
+      - without index, a TIME column with value '48:00:00' is 
+        equal to a DATETIME column with value 
+        'CURDATE() + 2 days' 
+      - with range access into the TIME column, CURDATE() + 2 
+        days becomes "00:00:00" (Field_timef::store_internal() 
+        simply extracts the time part from the datetime) which 
+        is a lookup key which does not match "48:00:00". On the other
+        hand, we can do ref access for IndexedDatetimeComparedToTime
+        because Field_temporal_with_date::store_time() will convert
+        48:00:00 to CURDATE() + 2 days which is the correct lookup
+        key.
+  */
+  if (field_time_cmp_date(field, value))
+    return false;
+
+  /*
+    We can't always use indexes when comparing a string index to a
+    number. cmp_type() is checked to allow comparison of dates and
+    numbers.
+  */
+  if (field->result_type() == STRING_RESULT &&
+      value->result_type() != STRING_RESULT &&
+      field->cmp_type() != value->result_type())
+    return false;
+
+  return true;
+}
+
 static SEL_TREE *
 get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
 	     Item_func::Functype type,
@@ -6702,9 +6829,20 @@ get_mm_parts(RANGE_OPT_PARAM *param, Item_func *cond_func, Field *field,
       }
       else
       {
-        // This key may be used later
+        /*
+          The index may not be used by dynamic range access unless
+          'field' and 'value' are comparable.
+        */
+        if (!comparable_in_index(cond_func, key_part->field,
+                                 key_part->image_type,
+                                 type, value))
+        {
+          if_explain_warn_index_not_applicable(param, key_part->key, field);
+          DBUG_RETURN(NULL);
+        }
+
         if (!(sel_arg= new SEL_ARG(SEL_ARG::MAYBE_KEY)))
-          DBUG_RETURN(0); // OOM
+          DBUG_RETURN(NULL);  //OOM
       }
       sel_arg->part=(uchar) key_part->part;
       tree->keys[key_part->key]=sel_add(tree->keys[key_part->key],sel_arg);
@@ -6755,7 +6893,8 @@ static bool save_value_and_handle_conversion(SEL_ARG **tree,
     /*
       We cannot evaluate the value yet (i.e. required tables are not yet
       locked.)
-      This is the case of prune_partitions() called during JOIN::prepare().
+      This is the case of prune_partitions() called during
+      SELECT_LEX::prepare().
     */
     return true;
   }
@@ -6982,53 +7121,12 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
   }
 
   /*
-    1. Usually we can't use an index if the column collation
-       differ from the operation collation.
-
-    2. However, we can reuse a case insensitive index for
-       the binary searches:
-
-       WHERE latin1_swedish_ci_column = 'a' COLLATE lati1_bin;
-
-       WHERE latin1_swedish_ci_colimn = BINARY 'a '
+    The range access method cannot be used unless 'field' and 'value'
+    are comparable in the index. Examples of non-comparable
+    field/values: different collation, DATETIME vs TIME etc.
   */
-  if ((field->result_type() == STRING_RESULT &&
-       field->match_collation_to_optimize_range() &&
-       value->result_type() == STRING_RESULT &&
-       key_part->image_type == Field::itRAW &&
-       field->charset() != conf_func->compare_collation() &&
-       !(conf_func->compare_collation()->state & MY_CS_BINSORT &&
-         (type == Item_func::EQUAL_FUNC || type == Item_func::EQ_FUNC))))
-  {
-    if_explain_warn_index_not_applicable(param, key_part->key, field);
-    goto end;
-  }
-
-  /*
-    Temporal values: Cannot use range access if:
-      1) 'temporal_value = indexed_varchar_column' because there are
-         many ways to represent the same date as a string. A few
-         examples: "01-01-2001", "1-1-2001", "2001-01-01",
-         "2001#01#01". The same problem applies to time. Thus, we
-         cannot create a usefull range predicate for temporal values
-         into VARCHAR column indexes. @see add_key_field()
-      2) 'temporal_value_with_date_part = indexed_time' because: 
-         - without index, a TIME column with value '48:00:00' is 
-           equal to a DATETIME column with value 
-           'CURDATE() + 2 days' 
-         - with range access into the TIME column, CURDATE() + 2 
-           days becomes "00:00:00" (Field_timef::store_internal() 
-           simply extracts the time part from the datetime) which 
-           is a lookup key which does not match "48:00:00"; so 
-           ref access is not be able to give the same result as 
-           On the other hand, we can do ref access for
-           IndexedDatetimeComparedToTime because
-           Field_temporal_with_date::store_time() will convert
-           48:00:00 to CURDATE() + 2 days which is the correct
-           lookup key.
-   */
-  if ((!field->is_temporal() && value->is_temporal()) ||   // 1)
-      field_time_cmp_date(field, value))                   // 2)
+  if (!comparable_in_index(conf_func, field, key_part->image_type,
+                           type, value))
   {
     if_explain_warn_index_not_applicable(param, key_part->key, field);
     goto end;
@@ -7146,18 +7244,6 @@ get_mm_leaf(RANGE_OPT_PARAM *param, Item *conf_func, Field *field,
       type != Item_func::EQ_FUNC &&
       type != Item_func::EQUAL_FUNC)
     goto end;                                   // Can't optimize this
-
-  /*
-    We can't always use indexes when comparing a string index to a number
-    cmp_type() is checked to allow compare of dates to numbers
-  */
-  if (field->result_type() == STRING_RESULT &&
-      value->result_type() != STRING_RESULT &&
-      field->cmp_type() != value->result_type())
-  {
-    if_explain_warn_index_not_applicable(param, key_part->key, field);
-    goto end;
-  }
 
   if (save_value_and_handle_conversion(&tree, value, type, field,
                                        &impossible_cond_cause, alloc))
@@ -8316,7 +8402,15 @@ key_or(RANGE_OPT_PARAM *param, SEL_ARG *key1, SEL_ARG *key2)
 
             Move on to next range in key2
           */
-          cur_key2->increment_use_count(-1); // Free not used tree
+          if (cur_key2->next_key_part)
+          {
+            /*
+              cur_key2 will no longer be used. Reduce reference count
+              of SEL_ARGs in its next_key_part.
+            */
+            cur_key2->next_key_part->use_count--;
+            cur_key2->next_key_part->increment_use_count(-1);
+          }
           cur_key2= cur_key2->next;
           continue;
         }
@@ -10608,14 +10702,6 @@ int QUICK_RANGE_SELECT::reset()
     mrr_buf_desc->buffer= mrange_buff;
     mrr_buf_desc->buffer_end= mrange_buff + buf_size;
     mrr_buf_desc->end_of_used_area= mrange_buff;
-#ifdef HAVE_purify
-    /*
-      We need this until ndb will use the buffer efficiently
-      (Now ndb stores  complete row in here, instead of only the used fields
-      which gives us valgrind warnings in compare_record[])
-    */
-    memset(mrange_buff, 0, buf_size);
-#endif
   }
 
   if (!mrr_buf_desc)
@@ -11924,7 +12010,7 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         cause= "no_nongroup_keypart_predicate";
         goto next_index;
       }
-      else if (first_non_group_part && join->conds)
+      else if (first_non_group_part && join->where_cond)
       {
         /*
           If there is no MIN/MAX function in the query, but some index
@@ -11943,8 +12029,9 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         key_part_range[1]= last_part;
 
         /* Check if cur_part is referenced in the WHERE clause. */
-        if (join->conds->walk(&Item::find_item_in_field_list_processor, 0,
-                              (uchar*) key_part_range))
+        if (join->where_cond->walk(&Item::find_item_in_field_list_processor,
+                                   Item::WALK_POSTFIX,
+                                   (uchar*) key_part_range))
         {
           cause= "keypart_reference_from_where_clause";
           goto next_index;
@@ -12045,8 +12132,8 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
     DBUG_RETURN(NULL);
 
   /* Check (SA3) for the where clause. */
-  if (join->conds && min_max_arg_item &&
-      !check_group_min_max_predicates(join->conds, min_max_arg_item,
+  if (join->where_cond && min_max_arg_item &&
+      !check_group_min_max_predicates(join->where_cond, min_max_arg_item,
                                       (index_info->flags & HA_SPATIAL) ?
                                       Field::itMBR : Field::itRAW))
   {
@@ -12563,7 +12650,7 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
                           /* formed by a key infix. */
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
-  double io_cost;
+  double io_blocks;       // Number of blocks to read from table
   DBUG_ENTER("cost_group_min_max");
 
   table_records= table->file->stats.records;
@@ -12602,13 +12689,19 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
       p_overlap= (blocks_per_group * (keys_per_subgroup - 1)) / keys_per_group;
       p_overlap= min(p_overlap, 1.0);
     }
-    io_cost= min<double>(num_groups * (1 + p_overlap), num_blocks);
+    io_blocks= min<double>(num_groups * (1 + p_overlap), num_blocks);
   }
   else
-    io_cost= (keys_per_group > keys_per_block) ?
-             (have_min && have_max) ? (double) (num_groups + 1) :
-                                      (double) num_groups :
-             (double) num_blocks;
+    io_blocks= (keys_per_group > keys_per_block) ?
+               (have_min && have_max) ? (double) (num_groups + 1) :
+                                        (double) num_groups :
+               (double) num_blocks;
+
+  /*
+    Estimate IO cost.
+  */
+  const Cost_model_table *const cost_model= table->cost_model();
+  const double io_cost= cost_model->io_block_read_cost(io_blocks);
 
   /*
     CPU cost must be comparable to that of an index scan as computed
@@ -12623,11 +12716,12 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
              b-tree the number of comparisons will be larger.
        TODO: This cost should be provided by the storage engine.
   */
-  const double tree_traversal_cost= 
+  const double tree_traversal_cost= cost_model->key_compare_cost(
     ceil(log(static_cast<double>(table_records))/
-         log(static_cast<double>(keys_per_block))) * ROWID_COMPARE_COST; 
+         log(static_cast<double>(keys_per_block))));
 
-  const double cpu_cost= num_groups * (tree_traversal_cost + ROW_EVALUATE_COST);
+  const double cpu_cost= num_groups * (tree_traversal_cost +
+                                       cost_model->row_evaluate_cost(1.0));
 
   *read_cost= io_cost + cpu_cost;
   *records= num_groups;
@@ -13942,16 +14036,6 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     return;
   }
 
-  char buff[128];
-  String tmp(buff, sizeof(buff), system_charset_info);
-  tmp.length(0);
-
-  TABLE *table= field->table;
-  my_bitmap_map *old_sets[2];
-
-  dbug_tmp_use_all_columns(table, old_sets, table->read_set,
-                           table->write_set);
-
   uint store_length= key_part->store_length;
 
   if (field->real_maybe_null())
@@ -13964,11 +14048,38 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     if (*key)
     {
       out->append(STRING_WITH_LEN("NULL"));
-      goto restore_col_map;
+      return;
     }
     key++;                                    // Skip null byte
     store_length--;
   }
+
+  /*
+    Binary data cannot be converted to UTF8 which is what the
+    optimizer trace expects. If the column is binary, the hex
+    representation is printed to the trace instead.
+   */
+  if (field->flags & BINARY_FLAG)
+  {
+    out->append("0x");
+    for (uint i= 0; i < store_length; i++)
+    {
+      out->append(_dig_vec_lower[*(key+i) >> 4]);
+      out->append(_dig_vec_lower[*(key+i) & 0x0F]);
+    }
+    return;
+  }    
+
+  char buff[128];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  tmp.length(0);
+
+  TABLE *table= field->table;
+  my_bitmap_map *old_sets[2];
+
+  dbug_tmp_use_all_columns(table, old_sets, table->read_set,
+                           table->write_set);
+
   field->set_key_image(key, key_part->length);
   if (field->type() == MYSQL_TYPE_BIT)
     (void) field->val_int_as_str(&tmp, 1); // may change tmp's charset
@@ -13976,7 +14087,6 @@ print_key_value(String *out, const KEY_PART_INFO *key_part, const uchar *key)
     field->val_str(&tmp); // may change tmp's charset
   out->append(tmp.ptr(), tmp.length(), tmp.charset());
 
-restore_col_map:
   dbug_tmp_restore_column_maps(table->read_set, table->write_set, old_sets);
 }
 

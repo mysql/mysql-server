@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,12 +61,6 @@
 #define IF_WIN(A,B) B
 #endif
 
-#ifdef HAVE_purify
-#define IF_PURIFY(A,B) A
-#else
-#define IF_PURIFY(A,B) B
-#endif
-
 #if defined (_WIN32)
 /*
  off_t is 32 bit long. We do not use C runtime functions
@@ -116,13 +110,13 @@
   performance gains in frequently executed sections of the code, and the
   other reason to use them is for documentation
 */
-
-#if !defined(__GNUC__) || (__GNUC__ == 2 && __GNUC_MINOR__ < 96)
-#define __builtin_expect(x, expected_value) (x)
+#ifdef HAVE_BUILTIN_EXPECT
+#  define likely(x)    __builtin_expect((x),1)
+#  define unlikely(x)  __builtin_expect((x),0)
+#else
+#  define likely(x)    (x)
+#  define unlikely(x)  (x)
 #endif
-
-#define likely(x)	__builtin_expect((x),1)
-#define unlikely(x)	__builtin_expect((x),0)
 
 /* Fix problem with S_ISLNK() on Linux */
 #if defined(TARGET_OS_LINUX) || defined(__GLIBC__)
@@ -232,6 +226,16 @@
 #include <crypt.h>
 #endif
 
+/**
+  Cast a member of a structure to the structure that contains it.
+
+  @param  ptr     Pointer to the member.
+  @param  type    Type of the structure that contains the member.
+  @param  member  Name of the member within the structure.
+*/
+#define my_container_of(ptr, type, member)              \
+  ((type *)((char *)ptr - offsetof(type, member)))
+
 /*
   A lot of our programs uses asserts, so better to always include it
   This also fixes a problem when people uses DBUG_ASSERT without including
@@ -255,7 +259,7 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
 /* Does the system remember a signal handler after a signal ? */
-#if !defined(HAVE_BSD_SIGNALS) && !defined(HAVE_SIGACTION)
+#if !defined(HAVE_SIGACTION)
 #define SIGNAL_HANDLER_RESET_ON_DELIVERY
 #endif
 
@@ -340,29 +344,20 @@ typedef SOCKET my_socket;
 typedef int	my_socket;	/* File descriptor for sockets */
 #define INVALID_SOCKET -1
 #endif
-/* Type for fuctions that handles signals */
-#define sig_handler RETSIGTYPE
 C_MODE_START
 typedef void	(*sig_return)();/* Returns type from signal */
 C_MODE_END
 #if defined(__GNUC__) && !defined(_lint)
 typedef char	pchar;		/* Mixed prototypes can take char */
-typedef char	puchar;		/* Mixed prototypes can take char */
 typedef char	pbool;		/* Mixed prototypes can take char */
-typedef short	pshort;		/* Mixed prototypes can take short int */
-typedef float	pfloat;		/* Mixed prototypes can take float */
 #else
 typedef int	pchar;		/* Mixed prototypes can't take char */
-typedef uint	puchar;		/* Mixed prototypes can't take char */
 typedef int	pbool;		/* Mixed prototypes can't take char */
-typedef int	pshort;		/* Mixed prototypes can't take short int */
-typedef double	pfloat;		/* Mixed prototypes can't take float */
 #endif
 C_MODE_START
 typedef int	(*qsort_cmp)(const void *,const void *);
 typedef int	(*qsort_cmp2)(const void*, const void *,const void *);
 C_MODE_END
-#define qsort_t RETQSORTTYPE	/* Broken GCC cant handle typedef !!!! */
 #ifdef HAVE_SYS_SOCKET_H
 #include <sys/socket.h>
 #endif
@@ -592,25 +587,28 @@ inline unsigned long long my_double2ulonglong(double d)
 #define SIZE_T_MAX      (~((size_t) 0))
 #endif
 
-#ifndef isfinite
-#ifdef HAVE_FINITE
-#define isfinite(x) finite(x)
-#else
-#define finite(x) (1.0 / fabs(x) > 0.0)
-#endif /* HAVE_FINITE */
-#endif /* isfinite */
-
 #include <math.h>
-C_MODE_START
-extern double my_double_isnan(double x);
-C_MODE_END
 
-#ifdef HAVE_ISINF
-/* System-provided isinf() is available and safe to use */
-#define my_isinf(X) isinf(X)
-#else /* !HAVE_ISINF */
-#define my_isinf(X) (!finite(X) && !isnan(X))
-#endif
+#if (__cplusplus >= 201103L)
+  /* For C++11 use the new std functions rather than C99 macros. */
+  #include <cmath>
+  #define my_isfinite(X) std::isfinite(X)
+  #define my_isnan(X) std::isnan(X)
+  #define my_isinf(X) std::isinf(X)
+#else
+  #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
+    #define my_isfinite(X) isfinite(X)
+  #else
+    #define my_isfinite(X) finite(X)
+  #endif
+  #define my_isnan(X) isnan(X)
+  #ifdef HAVE_ISINF
+    /* System-provided isinf() is available and safe to use */
+    #define my_isinf(X) isinf(X)
+  #else /* !HAVE_ISINF */
+    #define my_isinf(X) (!my_isfinite(X) && !my_isnan(X))
+  #endif
+#endif /* __cplusplus >= 201103L */
 
 /* Define missing math constants. */
 #ifndef M_PI
@@ -877,21 +875,9 @@ typedef char		my_bool; /* Small bool */
 #define bool In_C_you_should_use_my_bool_instead()
 #endif
 
-/* Provide __func__ macro definition for platforms that miss it. */
-#if __STDC_VERSION__ < 199901L
-#  if __GNUC__ >= 2
-#    define __func__ __FUNCTION__
-#  else
-#    define __func__ "<unknown>"
-#  endif
-#elif defined(_MSC_VER)
-#  if _MSC_VER < 1300
-#    define __func__ "<unknown>"
-#  else
-#    define __func__ __FUNCTION__
-#  endif
-#else
-#  define __func__ "<unknown>"
+/* Provide __func__ macro definition for Visual Studio. */
+#if defined(_MSC_VER)
+#  define __func__ __FUNCTION__
 #endif
 
 #ifndef HAVE_RINT
@@ -961,18 +947,5 @@ enum loglevel {
    WARNING_LEVEL=     1,
    INFORMATION_LEVEL= 2
 };
-
-
-/*
-  Visual Studio before the version 2010 did not have lldiv_t.
-  In Visual Studio 2010, _MSC_VER is defined as 1600.
-*/
-#if defined(_MSC_VER) && (_MSC_VER < 1600)
-typedef struct
-{
-  long long int quot;   /* Quotient.  */
-  long long int rem;    /* Remainder.  */
-} lldiv_t;
-#endif
 
 #endif  // MY_GLOBAL_INCLUDED

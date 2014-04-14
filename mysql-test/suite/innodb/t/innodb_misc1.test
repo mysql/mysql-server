@@ -1,7 +1,8 @@
 -- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
-
+call mtr.add_suppression("\\[ERROR\\] InnoDB: in ALTER TABLE `test`.`t1`");
+call mtr.add_suppression("\\[ERROR\\] InnoDB: in RENAME TABLE table `test`.`t1`");
 # Save the original values of some variables in order to be able to
 # estimate how much they have changed during the tests. Previously this
 # test assumed that e.g. rows_deleted is 0 here and after deleting 23

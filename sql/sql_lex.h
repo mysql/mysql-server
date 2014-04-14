@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -172,6 +171,7 @@ typedef struct YYLTYPE
 #endif
 
 #include "sql_cmd.h"
+#include "sql_digest_stream.h"
 
 // describe/explain types
 #define DESCRIBE_NONE		0 // Not explain query
@@ -703,6 +703,14 @@ typedef Bounds_checked_array<Item*> Ref_ptr_array;
 */
 class st_select_lex: public Sql_alloc
 {
+public:
+  Item  *where_cond() const { return m_where_cond; }
+  void   set_where_cond(Item *cond) { m_where_cond= cond; }
+  Item **where_cond_ref() { return &m_where_cond; }
+  Item  *having_cond() const { return m_having_cond; }
+  void   set_having_cond(Item *cond) { m_having_cond= cond; }
+
+private:
   /**
     Intrusive double-linked list of all query blocks within the same
     query expression.
@@ -749,10 +757,21 @@ public:
   Resolve_place resolve_place; ///< Indicates part of query being resolved
   TABLE_LIST *resolve_nest;    ///< Used when resolving outer join condition
   char *db;
-  Item *where;                 ///< WHERE clause
-  Item *having;                ///< HAVING clause
-  Item *prep_where; /* saved WHERE clause for prepared statement processing */
-  Item *prep_having;/* saved HAVING clause for prepared statement processing */
+private:
+  /**
+    Condition to be evaluated after all tables in a query block are joined.
+    After all permanent transformations have been conducted by
+    SELECT_LEX::prepare(), this condition is "frozen", any subsequent changes
+    to it must be done with change_item_tree(), unless they only modify AND/OR
+    items and use a copy created by SELECT_LEX::get_optimizable_conditions().
+    Same is true for 'having_cond'.
+  */
+  Item *m_where_cond;
+
+  /// Condition to be evaluated on grouped rows after grouping.
+  Item *m_having_cond;
+public:
+
   /**
     Saved values of the WHERE and HAVING clauses. Allowed values are: 
      - COND_UNDEF if the condition was not specified in the query or if it 
@@ -792,7 +811,7 @@ public:
   List<Item_func_match> *ftfunc_list;
   List<Item_func_match> ftfunc_list_alloc;
   /**
-    After JOIN::prepare it is pointer to corresponding JOIN. This member
+    After SELECT_LEX::prepare it is pointer to corresponding JOIN. This member
     should be changed only when THD::LOCK_query_plan mutex is taken.
   */
   JOIN *join;
@@ -801,7 +820,7 @@ public:
   TABLE_LIST *embedding;          /* table embedding to the above list   */
   /// List of semi-join nests generated for this query block
   List<TABLE_LIST> sj_nests;
-  //Dynamic_array<TABLE_LIST*> sj_nests; psergey-5:
+
   /*
     Beginning of the list of leaves in a FROM clause, where the leaves
     inlcude all base tables including view tables. The tables are connected
@@ -846,6 +865,8 @@ public:
   uint materialized_table_count;
   /// Number of partitioned tables
   uint partitioned_table_count;
+  /// Number of leaf tables (Card(leaf_tables))
+  uint leaf_table_count;
   /*
     number of items in select_list and HAVING clause used to get number
     bigger then can be number of entries that will be added to all item
@@ -873,7 +894,12 @@ public:
   int nest_level;
   /* Circularly linked list of sum func in nested selects */
   Item_sum *inner_sum_func_list;
-  uint with_wild; /* item list contain '*' */
+  /**
+    Number of wildcards used in the SELECT list. For example,
+    SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
+    has 3 wildcards.
+  */
+  uint with_wild;
   bool  braces;   	/* SELECT ... UNION (SELECT ... ) <- this braces */
   /* TRUE when having fix field called in processing of this SELECT */
   bool having_fix_field;
@@ -907,7 +933,7 @@ public:
   */
   bool first_execution;
   bool first_natural_join_processing;
-  bool first_cond_optimization;
+  bool sj_pullout_done;
   /* do not wrap view fields with Item_ref */
   bool no_wrap_view_item;
   /* exclude this select from check of unique_table() */
@@ -1041,13 +1067,13 @@ public:
   /// Assign a default name resolution object for this query block.
   bool set_context(Name_resolution_context *outer_context);
 
-  bool setup_ref_array(THD *thd, uint order_group_num);
+  bool setup_ref_array(THD *thd);
   void print(THD *thd, String *str, enum_query_type query_type);
   static void print_order(String *str,
                           ORDER *order,
                           enum_query_type query_type);
   void print_limit(THD *thd, String *str, enum_query_type query_type);
-  void fix_prepare_information(THD *thd, Item **conds, Item **having_conds);
+  void fix_prepare_information(THD *thd);
   /**
     Cleanup this subtree (this SELECT_LEX and all nested SELECT_LEXes and
     SELECT_LEX_UNITs).
@@ -1133,6 +1159,14 @@ public:
      mutex. This is needed to avoid races when EXPLAIN FOR CONNECTION is used.
   */
   void set_join(JOIN *join_arg);
+  /**
+    Does permanent transformations which are local to a query block (which do
+    not merge it to another block).
+  */
+  bool apply_local_transforms();
+
+  bool get_optimizable_conditions(THD *thd,
+                                  Item **new_where, Item **new_having);
 
 private:
   bool m_non_agg_field_used;
@@ -1143,10 +1177,34 @@ private:
   index_clause_map current_index_hint_clause;
   /* a list of USE/FORCE/IGNORE INDEX */
   List<Index_hint> *index_hints;
-
+  /// Helper for fix_prepare_information()
+  void fix_prepare_information_for_order(THD *thd,
+                                         SQL_I_List<ORDER> *list,
+                                         Group_list_ptrs **list_ptrs);
   static const char *type_str[SLT_total];
 
   friend class st_select_lex_unit;
+
+private:
+  bool record_join_nest_info(List<TABLE_LIST> *tables);
+  bool simplify_joins(THD *thd,
+                      List<TABLE_LIST> *join_list,
+                      bool top, bool in_sj,
+                      Item **new_conds,
+                      uint *changelog= NULL);
+  bool convert_subquery_to_semijoin(Item_exists_subselect *subq_pred);
+  bool resolve_subquery(THD *thd);
+  bool flatten_subqueries();
+  /**
+    Pointer to collection of subqueries candidate for semijoin
+    conversion.
+    Template parameter is "true": no need to run DTORs on pointers.
+  */
+  Mem_root_array<Item_exists_subselect*, true> *sj_candidates;
+public:
+  int setup_conds(THD *thd);
+  int prepare(JOIN *join);
+  void reset_nj_counters(List<TABLE_LIST> *join_list= NULL);
 };
 typedef class st_select_lex SELECT_LEX;
 
@@ -1946,9 +2004,9 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, char *buff, unsigned int length);
+  bool init(THD *thd, const char *buff, size_t length);
 
-  void reset(char *buff, unsigned int length);
+  void reset(const char *buff, size_t length);
 
   /**
     Set the echo mode.
@@ -1980,6 +2038,7 @@ public:
   */
   void skip_binary(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     if (m_echo)
     {
       memcpy(m_cpp_ptr, m_ptr, n);
@@ -1994,6 +2053,7 @@ public:
   */
   unsigned char yyGet()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     char c= *m_ptr++;
     if (m_echo)
       *m_cpp_ptr++ = c;
@@ -2014,6 +2074,7 @@ public:
   */
   unsigned char yyPeek()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     return m_ptr[0];
   }
 
@@ -2023,6 +2084,7 @@ public:
   */
   unsigned char yyPeekn(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     return m_ptr[n];
   }
 
@@ -2043,6 +2105,7 @@ public:
   */
   void yySkip()
   {
+    DBUG_ASSERT(m_ptr <= m_end_of_query);
     if (m_echo)
       *m_cpp_ptr++ = *m_ptr++;
     else
@@ -2055,6 +2118,7 @@ public:
   */
   void yySkipn(int n)
   {
+    DBUG_ASSERT(m_ptr + n <= m_end_of_query);
     if (m_echo)
     {
       memcpy(m_cpp_ptr, m_ptr, n);
@@ -2214,6 +2278,8 @@ public:
                                 const CHARSET_INFO *txt_cs,
                                 const char *end_ptr);
 
+  uint get_lineno(const char *raw_ptr);
+
   /** Current thread. */
   THD *m_thd;
 
@@ -2236,6 +2302,8 @@ public:
 
   /** LALR(2) resolution, value of the look ahead token.*/
   LEX_YYSTYPE lookahead_yylval;
+
+  void add_digest_token(uint token, LEX_YYSTYPE yylval);
 
 private:
   /** Pointer to the current position in the raw input stream. */
@@ -2347,7 +2415,7 @@ public:
   /**
     Current statement digest instrumentation. 
   */
-  PSI_digest_locker* m_digest_psi;
+  sql_digest_state* m_digest;
 };
 
 
@@ -2667,6 +2735,8 @@ public:
   
   bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
+  /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
+  bool in_update_value_clause;
 
   /*
     The set of those tables whose fields are referenced in all subqueries
@@ -2679,6 +2749,9 @@ public:
   table_map  used_tables;
 
   class Explain_format *explain_format;
+
+  // Maximum execution time for a statement.
+  ulong max_statement_time;
 
   LEX();
 
@@ -2921,10 +2994,22 @@ public:
   */
 };
 
+/**
+  Input parameters to the parser.
+*/
+struct Parser_input
+{
+  bool m_compute_digest;
+
+  Parser_input()
+    : m_compute_digest(false)
+  {}
+};
 
 /**
   Internal state of the parser.
   The complete state consist of:
+  - input parameters that control the parser behavior
   - state data used during lexical parsing,
   - state data used during syntactic parsing.
 */
@@ -2932,7 +3017,7 @@ class Parser_state
 {
 public:
   Parser_state()
-    : m_lip(), m_yacc(), m_comment(false)
+    : m_input(), m_lip(), m_yacc(), m_comment(false)
   {}
 
   /**
@@ -2941,7 +3026,7 @@ public:
      @retval FALSE OK
      @retval TRUE  Error
   */
-  bool init(THD *thd, char *buff, unsigned int length)
+  bool init(THD *thd, const char *buff, size_t length)
   {
     return m_lip.init(thd, buff, length);
   }
@@ -2949,7 +3034,7 @@ public:
   ~Parser_state()
   {}
 
-  void reset(char *found_semicolon, unsigned int length)
+  void reset(const char *found_semicolon, size_t length)
   {
     m_lip.reset(found_semicolon, length);
     m_yacc.reset();
@@ -2967,13 +3052,20 @@ public:
   }
 
 public:
+  Parser_input m_input;
   Lex_input_stream m_lip;
   Yacc_state m_yacc;
+  /**
+    Current performance digest instrumentation. 
+  */
+  PSI_digest_locker* m_digest_psi;
 
 private:
   bool m_comment;                ///< True if current query contains comments
 };
 
+extern sql_digest_state *
+digest_add_token(sql_digest_state *state, uint token, LEX_YYSTYPE yylval);
 
 struct st_lex_local: public LEX
 {

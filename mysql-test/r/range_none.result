@@ -2612,9 +2612,10 @@ b
 EXPLAIN SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	b	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+1	SIMPLE	t2	NULL	index	b	b	67	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t1`.`a` = `test`.`t2`.`b`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
 SELECT * FROM t1, t2 WHERE a=b ORDER BY BINARY a, BINARY b;
 a	b
@@ -2627,9 +2628,10 @@ a	b
 EXPLAIN SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	b	NULL	NULL	NULL	5	100.00	Range checked for each record (index map: 0x1)
+1	SIMPLE	t2	NULL	index	b	b	67	NULL	5	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1739	Cannot use ref access on index 'b' due to type or collation conversion on field 'b'
+Warning	1739	Cannot use range access on index 'b' due to type or collation conversion on field 'b'
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` join `test`.`t2` where (`test`.`t2`.`b` = `test`.`t1`.`a`) order by cast(`test`.`t1`.`a` as char charset binary),cast(`test`.`t2`.`b` as char charset binary)
 SELECT * FROM t1, t2 WHERE b=a ORDER BY BINARY a, BINARY b;
 a	b
@@ -3168,4 +3170,20 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t2`.`a` AS `a` from `test`.`t2` where ((NULL,`test`.`t2`.`b`) in (<cache>((0,0)),<cache>((1,1))))
 DROP TABLE t1, t2;
+#
+# Bug#17755540 VALGRIND ERROR WHEN SETTING UP ROW COMPARATORS
+#
+CREATE TABLE t2 (a INT, b INT, c INT, d INT, KEY x(a, b));
+INSERT INTO t2 VALUES (2, 2, 2, 2), (3, 3, 3, 3), (4, 4, 4, 4), (5, 5, 5, 5),
+(6, 6, 6, 6), (7, 7, 7, 7), (8, 8, 8, 8), (9, 9, 9, 9);
+INSERT INTO t2 SELECT * FROM t2;
+INSERT INTO t2 VALUES (0, 0, 0, 0), (1, 1, 1, 1);
+ANALYZE TABLE t2;
+Table	Op	Msg_type	Msg_text
+test.t2	analyze	status	OK
+SELECT a, b FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
+a	b
+0	0
+1	1
+DROP TABLE t2;
 set optimizer_switch=default;

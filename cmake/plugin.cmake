@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,13 +20,17 @@ INCLUDE(${MYSQL_CMAKE_SCRIPT_DIR}/cmake_parse_arguments.cmake)
 # MYSQL_ADD_PLUGIN(plugin_name source1...sourceN
 # [STORAGE_ENGINE]
 # [MANDATORY|DEFAULT]
-# [STATIC_ONLY|DYNAMIC_ONLY]
+# [STATIC_ONLY|MODULE_ONLY]
 # [MODULE_OUTPUT_NAME module_name]
 # [STATIC_OUTPUT_NAME static_name]
 # [NOT_FOR_EMBEDDED]
 # [RECOMPILE_FOR_EMBEDDED]
 # [LINK_LIBRARIES lib1...libN]
 # [DEPENDENCIES target1...targetN]
+
+# MANDATORY   : not actually a plugin, always builtin
+# DEFAULT     : builtin as static by default
+# MODULE_ONLY : build only as shared library
 
 # Append collections files for the plugin to the common files
 # Make sure we don't copy twice if running cmake again
@@ -158,34 +162,25 @@ MACRO(MYSQL_ADD_PLUGIN)
        FORCE)
     ENDIF()
 
-    IF(NOT ARG_NOT_FOR_EMBEDDED)
-      IF(ARG_MANDATORY)
-        SET (mysql_mandatory_plugins  
-          "${mysql_mandatory_plugins} builtin_${target}_plugin," 
+    SET(THIS_PLUGIN_REFERENCE " builtin_${target}_plugin,")
+    IF(ARG_NOT_FOR_EMBEDDED)
+      SET(THIS_PLUGIN_REFERENCE "
+#ifndef EMBEDDED_LIBRARY
+  ${THIS_PLUGIN_REFERENCE}
+#endif
+")
+    ENDIF()
+    SET(PLUGINS_IN_THIS_SCOPE
+      "${PLUGINS_IN_THIS_SCOPE}${THIS_PLUGIN_REFERENCE}")
+
+    IF(ARG_MANDATORY)
+      SET (mysql_mandatory_plugins  
+        "${mysql_mandatory_plugins} ${PLUGINS_IN_THIS_SCOPE}" 
         PARENT_SCOPE)
-      ELSE()
-        SET (mysql_optional_plugins  
-          "${mysql_optional_plugins} builtin_${target}_plugin,"
-        PARENT_SCOPE)
-      ENDIF()
     ELSE()
-      IF(ARG_MANDATORY)
-        SET (mysql_mandatory_plugins  
-          "${mysql_mandatory_plugins}
-#ifndef EMBEDDED_LIBRARY
-  builtin_${target}_plugin,
-#endif
-" 
+      SET (mysql_optional_plugins  
+        "${mysql_optional_plugins} ${PLUGINS_IN_THIS_SCOPE}"
         PARENT_SCOPE)
-      ELSE()
-        SET (mysql_optional_plugins  
-          "${mysql_optional_plugins}
-#ifndef EMBEDDED_LIBRARY
-  builtin_${target}_plugin,
-#endif
-"
-        PARENT_SCOPE)
-      ENDIF()
     ENDIF()
 
   ELSEIF(NOT WITHOUT_${plugin} AND NOT ARG_STATIC_ONLY  AND NOT WITHOUT_DYNAMIC_PLUGINS)
@@ -261,7 +256,7 @@ ENDMACRO()
 
 
 # Add all CMake projects under storage  and plugin 
-# subdirectories, configure sql_builtins.cc
+# subdirectories, configure sql_builtin.cc
 MACRO(CONFIGURE_PLUGINS)
   FILE(GLOB dirs_storage ${CMAKE_SOURCE_DIR}/storage/*)
   FILE(GLOB dirs_plugin ${CMAKE_SOURCE_DIR}/plugin/*)

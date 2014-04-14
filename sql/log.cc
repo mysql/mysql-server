@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1361,7 +1361,7 @@ void log_slow_do(THD *thd)
                                 thd->rewritten_query.c_ptr_safe(),
                                 thd->rewritten_query.length());
   else
-    query_logger.slow_log_write(thd, thd->query(), thd->query_length());
+    query_logger.slow_log_write(thd, thd->query().str, thd->query().length);
 }
 
 
@@ -2060,7 +2060,7 @@ TC_LOG::enum_result TC_LOG_MMAP::commit(THD *thd, bool all)
 {
   DBUG_ENTER("TC_LOG_MMAP::commit");
   ulong cookie= 0;
-  my_xid xid= thd->transaction.xid_state.get_xid()->get_my_xid();
+  my_xid xid= thd->get_transaction()->xid_state()->get_xid()->get_my_xid();
 
   if (all && xid)
     if (!(cookie= log_xid(xid)))

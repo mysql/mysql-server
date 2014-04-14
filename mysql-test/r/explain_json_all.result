@@ -1487,7 +1487,7 @@ AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 EXPLAIN
 {
   "query_block": {
-    "select_id": 3,
+    "select_id": 1,
     "cost_info": {
       "query_cost": "22.82"
     } /* cost_info */,

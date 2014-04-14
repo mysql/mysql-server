@@ -79,6 +79,12 @@ while ($_rpl_server)
 --source include/rpl_sync.inc
 --source include/rpl_stop_slaves.inc
 
+# Revert to default (gtid-mode=off).
+if ($use_gtids == 1)
+{
+  --let $use_gtids= 0
+}
+
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
 --let $rpl_topology= none

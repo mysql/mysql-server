@@ -1,12 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+
+#
+# Tests which require ucs2 character set and myisam engine
+#
 --source include/force_myisam_default.inc
-
-#
-# Tests which require ucs2 character set
-#
-
+--source include/have_myisam.inc
 -- source include/have_ucs2.inc
 
 let $engine_type= MyISAM;

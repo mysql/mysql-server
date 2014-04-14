@@ -279,7 +279,8 @@ bool multi_delete_precheck(THD *thd, TABLE_LIST *tables)
   }
   thd->lex->query_tables_own_last= save_query_tables_own_last;
 
-  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) && !select_lex->where)
+  if ((thd->variables.option_bits & OPTION_SAFE_UPDATES) &&
+      !select_lex->where_cond())
   {
     my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
@@ -1389,11 +1390,11 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "storing table level and column level grants in "
-                        "the privilege tables.", thd->query());
+                        "the privilege tables.", thd->query().str);
   }
   else
     result= result |
-            write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+            write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                           transactional_tables);
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -1402,7 +1403,7 @@ int mysql_table_grant(THD *thd, TABLE_LIST *table_list,
 
   if (!result) /* success */
   {
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
 
@@ -1603,7 +1604,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       else
         sql_print_warning("Did not write failed '%s' into binary log while "
                           "storing routine level grants in the privilege "
-                          "tables.", thd->query());
+                          "tables.", thd->query().str);
     }
     else
     {
@@ -1613,7 +1614,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
       */
       if (!thd->rewritten_query.length())
       {
-        if (write_bin_log(thd, false, thd->query(), thd->query_length(),
+        if (write_bin_log(thd, false, thd->query().str, thd->query().length,
                           transactional_tables))
           result= TRUE;
       }
@@ -1633,7 +1634,7 @@ bool mysql_routine_grant(THD *thd, TABLE_LIST *table_list, bool is_proc,
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (write_to_binlog && !result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1823,7 +1824,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "granting/revoking privileges in databases.",
-                        thd->query());
+                        thd->query().str);
   }
   else
   {
@@ -1835,7 +1836,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
                         transactional_tables);
     else
       result= result |
-              write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+        write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
   }
 
@@ -1845,7 +1846,7 @@ bool mysql_grant(THD *thd, const char *db, List <LEX_USER> &list,
   
   if (!result)
   {
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
     my_ok(thd);
   }
 
@@ -2807,26 +2808,35 @@ bool mysql_show_grants(THD *thd,LEX_USER *lex_user)
     global.append (STRING_WITH_LEN("'@'"));
     global.append(lex_user->host.str,lex_user->host.length,
                   system_charset_info);
-    global.append ('\'');
+    global.append ('\'');    
 #if defined(HAVE_OPENSSL)
-    if (acl_user->plugin.str == sha256_password_plugin_name.str)
+    if (acl_user->plugin.str == sha256_password_plugin_name.str &&
+        acl_user->auth_string.length > 0)
     {
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append((const char *) &acl_user->auth_string.str[0]);
-      global.append('\'');
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append((const char *) &acl_user->auth_string.str[0]);
+        global.append('\'');
+      }
     }
     else
 #endif /* HAVE_OPENSSL */
     if (acl_user->salt_len)
     {
+      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD"));
       char passwd_buff[SCRAMBLED_PASSWORD_CHAR_LENGTH+1];
       if (acl_user->salt_len == SCRAMBLE_LENGTH)
         make_password_from_salt(passwd_buff, acl_user->salt);
       else
         make_password_from_salt_323(passwd_buff, (ulong *) acl_user->salt);
-      global.append(STRING_WITH_LEN(" IDENTIFIED BY PASSWORD '"));
-      global.append(passwd_buff);
-      global.append('\'');
+      if ((thd->security_ctx->master_access & SUPER_ACL) == SUPER_ACL)
+      {
+        global.append(" \'");
+        global.append(passwd_buff);
+        global.append('\'');
+      }
     }
     /* "show grants" SSL related stuff */
     if (acl_user->ssl_type == SSL_TYPE_ANY)
@@ -3316,12 +3326,12 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
     else
       sql_print_warning("Did not write failed '%s' into binary log while "
                         "revoking all_privileges from a list of users.",
-                        thd->query());
+                        thd->query().str);
   }
   else
   {
     result= result |
-      write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+      write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                     transactional_tables);
   }
 
@@ -3330,7 +3340,7 @@ bool mysql_revoke_all(THD *thd,  List <LEX_USER> &list)
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (!result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -3587,12 +3597,12 @@ static bool update_schema_privilege(THD *thd, TABLE *table, char *buff,
   int i= 2;
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
-  table->field[0]->store(buff, (uint) strlen(buff), cs);
+  table->field[0]->store(buff, strlen(buff), cs);
   table->field[1]->store(STRING_WITH_LEN("def"), cs);
   if (db)
-    table->field[i++]->store(db, (uint) strlen(db), cs);
+    table->field[i++]->store(db, strlen(db), cs);
   if (t_name)
-    table->field[i++]->store(t_name, (uint) strlen(t_name), cs);
+    table->field[i++]->store(t_name, strlen(t_name), cs);
   if (column)
     table->field[i++]->store(column, col_length, cs);
   table->field[i++]->store(priv, priv_length, cs);

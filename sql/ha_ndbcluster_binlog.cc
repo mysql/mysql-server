@@ -671,8 +671,6 @@ ndbcluster_binlog_index_purge_file(THD *passed_thd, const char *file)
     error = 1;
   }
 
-  /* Cleanup links between thread and my_thd, then delete it */ 
-  my_thd->restore_globals();
   delete my_thd;
   
   if (passed_thd)

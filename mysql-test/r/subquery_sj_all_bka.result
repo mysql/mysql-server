@@ -3551,7 +3551,7 @@ explain format=json select * from (select a from t0) x where a in (select a from
 EXPLAIN
 {
   "query_block": {
-    "select_id": 3,
+    "select_id": 1,
     "cost_info": {
       "query_cost": "26.98"
     },
@@ -7064,12 +7064,13 @@ t2.Code IN (SELECT Country FROM t3
 WHERE Language='English' AND Percentage > 10 AND
 t2.Population > 100000);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	Population,Country	Population	4	NULL	1	100.00	Using index condition; Using MRR; Start temporary
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY,Population	PRIMARY	3	test.t1.Country	1	100.00	Using where; End temporary; Using join buffer (Batched Key Access)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY,Percentage	PRIMARY	33	test.t1.Country,const	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	<subquery2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	0.00	NULL
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY,Population	PRIMARY	3	<subquery2>.Country	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY,Percentage	PRIMARY	33	<subquery2>.Country,const	1	100.00	Using where; Using join buffer (Batched Key Access)
+2	MATERIALIZED	t1	NULL	range	Population,Country	Population	4	NULL	1	100.00	Using index condition; Using MRR
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`Code` = `test`.`t1`.`Country`) and (`test`.`t3`.`Country` = `test`.`t1`.`Country`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`Code` = `<subquery2>`.`Country`) and (`test`.`t3`.`Country` = `<subquery2>`.`Country`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
 EXPLAIN FORMAT=JSON SELECT Name FROM t2 
 WHERE t2.Code IN (SELECT Country FROM t1 WHERE Population > 5000000)
 AND
@@ -7085,10 +7086,12 @@ EXPLAIN
     },
     "nested_loop": [
       {
-        "duplicates_removal": {
-          "using_temporary_table": true,
-          "nested_loop": [
-            {
+        "table": {
+          "table_name": "<subquery2>",
+          "access_type": "ALL",
+          "materialized_from_subquery": {
+            "using_temporary_table": true,
+            "query_block": {
               "table": {
                 "table_name": "t1",
                 "access_type": "range",
@@ -7117,42 +7120,42 @@ EXPLAIN
                   "Population"
                 ]
               }
-            },
-            {
-              "table": {
-                "table_name": "t2",
-                "access_type": "eq_ref",
-                "possible_keys": [
-                  "PRIMARY",
-                  "Population"
-                ],
-                "key": "PRIMARY",
-                "used_key_parts": [
-                  "Code"
-                ],
-                "key_length": "3",
-                "ref": [
-                  "test.t1.Country"
-                ],
-                "rows_examined_per_scan": 1,
-                "rows_produced_per_join": 1,
-                "filtered": 100,
-                "using_join_buffer": "Batched Key Access",
-                "cost_info": {
-                  "read_cost": "1.00",
-                  "eval_cost": "0.20",
-                  "prefix_cost": "5.90",
-                  "data_read_per_join": "72"
-                },
-                "used_columns": [
-                  "Code",
-                  "Name",
-                  "Population"
-                ],
-                "attached_condition": "(`test`.`t2`.`Population` > 100000)"
-              }
             }
-          ]
+          }
+        }
+      },
+      {
+        "table": {
+          "table_name": "t2",
+          "access_type": "eq_ref",
+          "possible_keys": [
+            "PRIMARY",
+            "Population"
+          ],
+          "key": "PRIMARY",
+          "used_key_parts": [
+            "Code"
+          ],
+          "key_length": "3",
+          "ref": [
+            "<subquery2>.Country"
+          ],
+          "rows_examined_per_scan": 1,
+          "rows_produced_per_join": 1,
+          "filtered": 100,
+          "using_join_buffer": "Batched Key Access",
+          "cost_info": {
+            "read_cost": "1.00",
+            "eval_cost": "0.20",
+            "prefix_cost": "5.90",
+            "data_read_per_join": "72"
+          },
+          "used_columns": [
+            "Code",
+            "Name",
+            "Population"
+          ],
+          "attached_condition": "(`test`.`t2`.`Population` > 100000)"
         }
       },
       {
@@ -7170,7 +7173,7 @@ EXPLAIN
           ],
           "key_length": "33",
           "ref": [
-            "test.t1.Country",
+            "<subquery2>.Country",
             "const"
           ],
           "rows_examined_per_scan": 1,
@@ -7196,7 +7199,7 @@ EXPLAIN
 }
 Warnings:
 Note	1276	Field or reference 'test.t2.Population' of SELECT #3 was resolved in SELECT #1
-Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`Code` = `test`.`t1`.`Country`) and (`test`.`t3`.`Country` = `test`.`t1`.`Country`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
+Note	1003	/* select#1 */ select `test`.`t2`.`Name` AS `Name` from `test`.`t3` semi join (`test`.`t1`) join `test`.`t2` where ((`test`.`t2`.`Code` = `<subquery2>`.`Country`) and (`test`.`t3`.`Country` = `<subquery2>`.`Country`) and (`test`.`t3`.`Language` = 'English') and (`test`.`t3`.`Percentage` > 10) and (`test`.`t2`.`Population` > 100000) and (`test`.`t1`.`Population` > 5000000))
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (
 Code char(3) NOT NULL DEFAULT '',
@@ -8986,7 +8989,7 @@ EXPLAIN
         "dependent": true,
         "cacheable": false,
         "query_block": {
-          "select_id": 3,
+          "select_id": 2,
           "cost_info": {
             "query_cost": "10.00"
           },
@@ -10812,9 +10815,10 @@ outr.col_varchar_key IS NULL
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	outr	NULL	ALL	col_datetime_key	NULL	NULL	NULL	1	100.00	Using where
 1	SIMPLE	innr	NULL	ref	col_int_key	col_int_key	4	test.outr.col_int_nokey	1	100.00	Using where; FirstMatch(outr); Using join buffer (Batched Key Access)
-1	SIMPLE	outr2	NULL	ALL	col_time_key	NULL	NULL	NULL	20	100.00	Range checked for each record (index map: 0x1)
+1	SIMPLE	outr2	NULL	index	col_time_key	col_time_key	4	NULL	20	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
+Warning	1739	Cannot use range access on index 'col_time_key' due to type or collation conversion on field 'col_time_key'
 Note	1003	/* select#1 */ select `test`.`outr`.`col_int_nokey` AS `col_int_nokey` from `test`.`t2` `outr` semi join (`test`.`t1` `innr`) straight_join `test`.`t3` `outr2` where ((`test`.`innr`.`col_int_key` = `test`.`outr`.`col_int_nokey`) and (`test`.`outr`.`col_int_nokey` <= 6) and (`test`.`innr`.`pk` >= `test`.`innr`.`col_int_nokey`) and (`test`.`outr2`.`col_time_key` > `test`.`outr`.`col_datetime_key`))
 SELECT outr.col_int_nokey
 FROM t2 as outr

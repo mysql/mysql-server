@@ -169,8 +169,6 @@ bool servers_init(bool dont_read_servers_table)
   */
   return_val= servers_reload(thd);
   delete thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
 
 end:
   DBUG_RETURN(return_val);
@@ -543,7 +541,7 @@ static inline void store_new_field(TABLE *table,
                                    const LEX_STRING *val)
 {
   if (val->str)
-    table->field[field]->store(val->str, (uint)val->length,
+    table->field[field]->store(val->str, val->length,
                                   system_charset_info);
   else
     table->field[field]->store("", 0U, system_charset_info);
@@ -582,7 +580,7 @@ static inline void store_updated_field(TABLE *table,
                                        const LEX_STRING *new_val)
 {
   if (new_val->str && strcmp(new_val->str, existing_val))
-    table->field[field]->store(new_val->str, (uint) new_val->length,
+    table->field[field]->store(new_val->str, new_val->length,
                                system_charset_info);
 }
 

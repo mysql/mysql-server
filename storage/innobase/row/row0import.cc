@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -111,7 +111,7 @@ struct row_import {
 		m_hostname(),
 		m_table_name(),
 		m_autoinc(),
-		m_page_size(),
+		m_page_size(0, 0, false),
 		m_flags(),
 		m_n_cols(),
 		m_cols(),
@@ -199,7 +199,7 @@ struct row_import {
 
 	ib_uint64_t	m_autoinc;		/*!< Next autoinc value */
 
-	ulint		m_page_size;		/*!< Tablespace page size */
+	page_size_t	m_page_size;		/*!< Tablespace page size */
 
 	ulint		m_flags;		/*!< Table flags */
 
@@ -383,7 +383,7 @@ public:
 	/** @return true if compressed table. */
 	bool is_compressed_table() const UNIV_NOTHROW
 	{
-		return(get_zip_size() > 0);
+		return(get_page_size().is_compressed());
 	}
 
 protected:
@@ -421,7 +421,7 @@ protected:
 	{
 		ulint	offset;
 
-		offset = xdes_calc_descriptor_index(get_zip_size(), page_no);
+		offset = xdes_calc_descriptor_index(get_page_size(), page_no);
 
 		return(page + XDES_ARR_OFFSET + XDES_SIZE * offset);
 	}
@@ -451,7 +451,8 @@ protected:
 
 		if (state != XDES_FREE) {
 
-			m_xdes = new(std::nothrow) xdes_t[m_page_size];
+			m_xdes = new(std::nothrow)
+				xdes_t[m_page_size.physical()];
 
 			/* Trigger OOM */
 			DBUG_EXECUTE_IF("ib_import_OOM_13",
@@ -461,7 +462,7 @@ protected:
 				return(DB_OUT_OF_MEMORY);
 			}
 
-			memcpy(m_xdes, page, m_page_size);
+			memcpy(m_xdes, page, m_page_size.physical());
 		}
 
 		return(DB_SUCCESS);
@@ -482,7 +483,7 @@ protected:
 	@return true if the page is marked as free */
 	bool is_free(ulint page_no) const UNIV_NOTHROW
 	{
-		ut_a(xdes_calc_descriptor_page(get_zip_size(), page_no)
+		ut_a(xdes_calc_descriptor_page(get_page_size(), page_no)
 		     == m_xdes_page_no);
 
 		if (m_xdes != 0) {
@@ -544,35 +545,25 @@ AbstractCallback::init(
 	/* Since we don't know whether it is a compressed table
 	or not, the data is always read into the block->frame. */
 
-	dberr_t	err = set_zip_size(block->frame);
-
-	if (err != DB_SUCCESS) {
-		return(DB_CORRUPTION);
-	}
+	set_page_size(block->frame);
 
 	/* Set the page size used to traverse the tablespace. */
 
-	m_page_size = (is_compressed_table())
-		? get_zip_size() : fsp_flags_get_page_size(m_space_flags);
-
-	if (m_page_size == 0) {
-		ib_logf(IB_LOG_LEVEL_ERROR, "Page size is 0");
-		return(DB_CORRUPTION);
-	} else if (!is_compressed_table() && m_page_size != UNIV_PAGE_SIZE) {
+	if (!is_compressed_table() && !m_page_size.equals_to(univ_page_size)) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page size %lu of ibd file is not the same "
-			"as the server page size %lu",
-			m_page_size, UNIV_PAGE_SIZE);
+			"Page size " ULINTPF " of ibd file is not the same"
+			" as the server page size " ULINTPF,
+			m_page_size.physical(), univ_page_size.physical());
 
 		return(DB_CORRUPTION);
 
-	} else if ((file_size % m_page_size)) {
+	} else if (file_size % m_page_size.physical() != 0) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"File size " UINT64PF " is not a multiple "
-			"of the page size %lu",
-			(ib_uint64_t) file_size, (ulong) m_page_size);
+			"File size " UINT64PF " is not a multiple"
+			" of the page size " ULINTPF,
+			(ib_uint64_t) file_size, m_page_size.physical());
 
 		return(DB_CORRUPTION);
 	}
@@ -583,11 +574,9 @@ AbstractCallback::init(
 	m_free_limit = mach_read_from_4(page + FSP_FREE_LIMIT);
 	m_space = mach_read_from_4(page + FSP_HEADER_OFFSET + FSP_SPACE_ID);
 
-	if ((err = set_current_xdes(0, page)) != DB_SUCCESS) {
-		return(err);
-	}
+	dberr_t	err = set_current_xdes(0, page);
 
-	return(DB_SUCCESS);
+	return(err);
 }
 
 /**
@@ -653,8 +642,8 @@ struct FetchIndexRootPages : public AbstractCallback {
 
 			ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_TABLE_SCHEMA_MISMATCH,
-				"Table has %s row format, .ibd "
-				"file has %s row format.",
+				"Table has %s row format, .ibd"
+				" file has %s row format.",
 				dict_tf_to_row_format_string(m_table->flags),
 				dict_tf_to_row_format_string(ibd_table_flags));
 
@@ -707,24 +696,24 @@ FetchIndexRootPages::operator() (
 
 	ulint	page_type = fil_page_get_type(page);
 
-	if (block->page.offset * m_page_size != offset) {
+	if (block->page.id.page_no() * m_page_size.physical() != offset) {
+
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Page offset doesn't match file offset: "
-			"page offset: %lu, file offset: %lu",
-			(ulint) block->page.offset,
-			(ulint) (offset / m_page_size));
+			"Page offset doesn't match file offset:"
+			" page offset: " UINT32PF ", file offset: " ULINTPF,
+			block->page.id.page_no(),
+			(ulint) (offset / m_page_size.physical()));
 
 		err = DB_CORRUPTION;
 	} else if (page_type == FIL_PAGE_TYPE_XDES) {
-		err = set_current_xdes(block->page.offset, page);
+		err = set_current_xdes(block->page.id.page_no(), page);
 	} else if (page_type == FIL_PAGE_INDEX
-		   && !is_free(block->page.offset)
+		   && !is_free(block->page.id.page_no())
 		   && is_root_page(page)) {
 
 		index_id_t	id = btr_page_get_index_id(page);
-		ulint		page_no = buf_block_get_page_no(block);
 
-		m_indexes.push_back(Index(id, page_no));
+		m_indexes.push_back(Index(id, block->page.id.page_no()));
 
 		if (m_indexes.size() == 1) {
 
@@ -748,7 +737,7 @@ FetchIndexRootPages::build_row_import(row_import* cfg) const UNIV_NOTHROW
 	Indexes::const_iterator end = m_indexes.end();
 
 	ut_a(cfg->m_table == m_table);
-	cfg->m_page_size = m_page_size;
+	cfg->m_page_size.copy_from(m_page_size);
 	cfg->m_n_indexes = m_indexes.size();
 
 	if (cfg->m_n_indexes == 0) {
@@ -875,7 +864,7 @@ private:
 		buf_block_t*	block,
 		ulint&		page_type) UNIV_NOTHROW;
 
-#if defined UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	/**
 	@return true error condition is enabled. */
 	bool trigger_corruption() UNIV_NOTHROW
@@ -1162,8 +1151,8 @@ row_import::match_index_columns(
 		if (cfg_field == 0) {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_TABLE_SCHEMA_MISMATCH,
-				 "Index %s field %s not found in tablespace "
-				 "meta-data file.",
+				 "Index %s field %s not found in tablespace"
+				 " meta-data file.",
 				 index->name, field->name);
 
 			err = DB_ERROR;
@@ -1172,9 +1161,9 @@ row_import::match_index_columns(
 			if (cfg_field->prefix_len != field->prefix_len) {
 				ib_errf(thd, IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Index %s field %s prefix len %lu "
-					 "doesn't match meta-data file value "
-					 "%lu",
+					 "Index %s field %s prefix len %lu"
+					 " doesn't match meta-data file value"
+					 " %lu",
 					 index->name, field->name,
 					 (ulong) field->prefix_len,
 					 (ulong) cfg_field->prefix_len);
@@ -1185,9 +1174,9 @@ row_import::match_index_columns(
 			if (cfg_field->fixed_len != field->fixed_len) {
 				ib_errf(thd, IB_LOG_LEVEL_ERROR,
 					 ER_TABLE_SCHEMA_MISMATCH,
-					 "Index %s field %s fixed len %lu "
-					 "doesn't match meta-data file value "
-					 "%lu",
+					 "Index %s field %s fixed len %lu"
+					 " doesn't match meta-data file value"
+					 " %lu",
 					 index->name, field->name,
 					 (ulong) field->fixed_len,
 					 (ulong) cfg_field->fixed_len);
@@ -1233,9 +1222,9 @@ row_import::match_table_columns(
 
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
 				 ER_TABLE_SCHEMA_MISMATCH,
-				 "Column %s ordinal value mismatch, it's at "
-				 "%lu in the table and %lu in the tablespace "
-				 "meta-data file",
+				 "Column %s ordinal value mismatch, it's at"
+				 " %lu in the table and %lu in the tablespace"
+				 " meta-data file",
 				 col_name,
 				 (ulong) col->ind, (ulong) cfg_col_index);
 
@@ -1321,16 +1310,16 @@ row_import::match_schema(
 
 	if (m_flags != m_table->flags) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			 "Table flags don't match, server table has 0x%lx "
-			 "and the meta-data file has 0x%lx",
+			 "Table flags don't match, server table has 0x%lx"
+			 " and the meta-data file has 0x%lx",
 			 (ulong) m_table->n_cols, (ulong) m_flags);
 
 		return(DB_ERROR);
 	} else if (m_table->n_cols != m_n_cols) {
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			 "Number of columns don't match, table has %lu "
-			 "columns but the tablespace meta-data file has "
-			 "%lu columns",
+			 "Number of columns don't match, table has %lu"
+			 " columns but the tablespace meta-data file has"
+			 " %lu columns",
 			 (ulong) m_table->n_cols, (ulong) m_n_cols);
 
 		return(DB_ERROR);
@@ -1341,9 +1330,9 @@ row_import::match_schema(
 		table matching the IMPORT definition. */
 
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			 "Number of indexes don't match, table has %lu "
-			 "indexes but the tablespace meta-data file has "
-			 "%lu indexes",
+			 "Number of indexes don't match, table has %lu"
+			 " indexes but the tablespace meta-data file has"
+			 " %lu indexes",
 			 (ulong) UT_LIST_GET_LEN(m_table->indexes),
 			 (ulong) m_n_indexes);
 
@@ -1421,8 +1410,8 @@ row_import::set_root_by_heuristic() UNIV_NOTHROW
 			table_name, sizeof(table_name), m_table->name, FALSE);
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Table %s should have %lu indexes but the tablespace "
-			"has %lu indexes",
+			"Table %s should have %lu indexes but the tablespace"
+			" has %lu indexes",
 			table_name,
 			UT_LIST_GET_LEN(m_table->indexes),
 			m_n_indexes);
@@ -1659,8 +1648,8 @@ PageConverter::adjust_cluster_index_blob_column(
 
 		ib_errf(m_trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 			ER_INNODB_INDEX_CORRUPT,
-			"Externally stored column(%lu) has a reference "
-			"length of %lu in the cluster index %s",
+			"Externally stored column(%lu) has a reference"
+			" length of %lu in the cluster index %s",
 			(ulong) i, (ulong) len, index_name);
 
 		return(DB_CORRUPTION);
@@ -1864,7 +1853,7 @@ PageConverter::update_index_page(
 	index_id_t	id;
 	buf_frame_t*	page = block->frame;
 
-	if (is_free(buf_block_get_page_no(block))) {
+	if (is_free(block->page.id.page_no())) {
 		return(DB_SUCCESS);
 	} else if ((id = btr_page_get_index_id(page)) != m_index->m_id) {
 
@@ -1921,21 +1910,19 @@ PageConverter::update_header(
 	buf_block_t*	block) UNIV_NOTHROW
 {
 	/* Check for valid header */
-	switch(fsp_header_get_space_id(get_frame(block))) {
+	switch (fsp_header_get_space_id(get_frame(block))) {
 	case 0:
 		return(DB_CORRUPTION);
 	case ULINT_UNDEFINED:
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Space id check in the header failed "
-			"- ignored");
+			"Space id check in the header failed: ignored");
 	}
 
-	ulint		space_flags = fsp_header_get_flags(get_frame(block));
+	ulint	space_flags = fsp_header_get_flags(get_frame(block));
 
 	if (!fsp_flags_is_valid(space_flags)) {
 
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unsupported tablespace format %lu",
+		ib_logf(IB_LOG_LEVEL_ERROR, "Unsupported tablespace format %lu",
 			(ulong) space_flags);
 
 		return(DB_UNSUPPORTED);
@@ -1970,7 +1957,7 @@ PageConverter::update_page(
 	switch (page_type = fil_page_get_type(get_frame(block))) {
 	case FIL_PAGE_TYPE_FSP_HDR:
 		/* Work directly on the uncompressed page headers. */
-		ut_a(buf_block_get_page_no(block) == 0);
+		ut_a(block->page.id.page_no() == 0);
 		return(update_header(block));
 
 	case FIL_PAGE_INDEX:
@@ -1995,7 +1982,7 @@ PageConverter::update_page(
 
 	case FIL_PAGE_TYPE_XDES:
 		err = set_current_xdes(
-			buf_block_get_page_no(block), get_frame(block));
+			block->page.id.page_no(), get_frame(block));
 	case FIL_PAGE_INODE:
 	case FIL_PAGE_TYPE_TRX_SYS:
 	case FIL_PAGE_IBUF_FREE_LIST:
@@ -2034,15 +2021,15 @@ PageConverter::validate(
 	the file. Flag as corrupt if it doesn't. Disable the check
 	for LSN in buf_page_is_corrupted() */
 
-	if (buf_page_is_corrupted(false, page, get_zip_size())
-	    || (page_get_page_no(page) != offset / m_page_size
+	if (buf_page_is_corrupted(false, page, get_page_size())
+	    || (page_get_page_no(page) != offset / m_page_size.physical()
 		&& page_get_page_no(page) != 0)) {
 
 		return(IMPORT_PAGE_STATUS_CORRUPTED);
 
 	} else if (offset > 0 && page_get_page_no(page) == 0) {
 		const byte*	b = page;
-		const byte*	e = b + m_page_size;
+		const byte*	e = b + m_page_size.physical();
 
 		/* If the page number is zero and offset > 0 then
 		the entire page MUST consist of zeroes. If not then
@@ -2085,7 +2072,7 @@ PageConverter::operator() (
 		ut_ad(m_page_zip_ptr == 0);
 	}
 
-	switch(validate(offset, block)) {
+	switch (validate(offset, block)) {
 	case IMPORT_PAGE_STATUS_OK:
 
 		/* We have to decompress the compressed pages before
@@ -2113,7 +2100,7 @@ PageConverter::operator() (
 			pages for compressed tables explicitly here. */
 
 			buf_flush_update_zip_checksum(
-				get_frame(block), get_zip_size(),
+				get_frame(block), get_page_size().physical(),
 				m_current_lsn);
 		}
 
@@ -2127,7 +2114,8 @@ PageConverter::operator() (
 
 		ib_logf(IB_LOG_LEVEL_WARN,
 			"%s: Page %lu at offset " UINT64PF " looks corrupted.",
-			m_filepath, (ulong) (offset / m_page_size), offset);
+			m_filepath, (ulong) (offset / m_page_size.physical()),
+			offset);
 
 		return(DB_CORRUPTION);
 	}
@@ -2159,8 +2147,7 @@ row_import_discard_changes(
 		table_name, sizeof(table_name),
 		prebuilt->table->name, FALSE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Discarding tablespace of table %s: %s",
+	ib_logf(IB_LOG_LEVEL_INFO, "Discarding tablespace of table %s: %s",
 		table_name, ut_strerr(err));
 
 	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
@@ -2296,8 +2283,8 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			err = btr_root_adjust_on_import(index);
 		} else {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Skip adjustment of root pages for "
-				"index %s.", index->name);
+				"Skip adjustment of root pages for index %s.",
+				index->name);
 
 			err = DB_CORRUPTION;
 		}
@@ -2311,8 +2298,8 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' not found or corrupt, "
-				"you should recreate this index.",
+				"Index '%s' not found or corrupt,"
+				" you should recreate this index.",
 				index_name);
 
 			/* Do not bail out, so that the data
@@ -2348,9 +2335,9 @@ row_import_adjust_root_pages_of_secondary_indexes(
 			ib_errf(trx->mysql_thd,
 				IB_LOG_LEVEL_WARN,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index '%s' contains %lu entries, "
-				"should be %lu, you should recreate "
-				"this index.", index_name,
+				"Index '%s' contains %lu entries,"
+				" should be %lu, you should recreate"
+				" this index.", index_name,
 				(ulong) purge.get_n_rows(),
 				(ulong) n_rows_in_table);
 
@@ -2451,8 +2438,8 @@ row_import_set_sys_max_row_id(
 		ib_errf(prebuilt->trx->mysql_thd,
 			IB_LOG_LEVEL_WARN,
 			ER_INNODB_INDEX_CORRUPT,
-			"Index '%s' corruption detected, invalid DB_ROW_ID "
-			"in index.", index_name);
+			"Index '%s' corruption detected, invalid DB_ROW_ID"
+			" in index.", index_name);
 
 		return(err);
 
@@ -2648,9 +2635,9 @@ row_import_read_index_data(
 			char	msg[BUFSIZ];
 
 			ut_snprintf(msg, sizeof(msg),
-				    "while reading index meta-data, expected "
-				    "to read %lu bytes but read only %lu "
-				    "bytes",
+				    "while reading index meta-data, expected"
+				    " to read %lu bytes but read only %lu"
+				    " bytes",
 				    (ulong) sizeof(row), (ulong) n_bytes);
 
 			ib_senderrf(
@@ -2703,8 +2690,8 @@ row_import_read_index_data(
 		if (len > OS_FILE_MAX_PATH) {
 			ib_errf(thd, IB_LOG_LEVEL_ERROR,
 				ER_INNODB_INDEX_CORRUPT,
-				"Index name length (%lu) is too long, "
-				"the meta-data is corrupt", len);
+				"Index name length (%lu) is too long,"
+				" the meta-data is corrupt", len);
 
 			return(DB_CORRUPTION);
 		}
@@ -3010,8 +2997,8 @@ row_import_read_v1(
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Importing tablespace for table '%s' that was exported "
-		"from host '%s'", cfg->m_table_name, cfg->m_hostname);
+		"Importing tablespace for table '%s' that was exported"
+		" from host '%s'", cfg->m_table_name, cfg->m_hostname);
 
 	byte		row[sizeof(ib_uint32_t) * 3];
 
@@ -3047,22 +3034,28 @@ row_import_read_v1(
 
 	byte*		ptr = row;
 
-	cfg->m_page_size = mach_read_from_4(ptr);
+	const ulint	logical_page_size = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
 
-	if (cfg->m_page_size != UNIV_PAGE_SIZE) {
+	if (logical_page_size != univ_page_size.logical()) {
 
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_TABLE_SCHEMA_MISMATCH,
-			"Tablespace to be imported has a different "
-			"page size than this server. Server page size "
-			"is %lu, whereas tablespace page size is %lu",
-			UNIV_PAGE_SIZE, (ulong) cfg->m_page_size);
+			"Tablespace to be imported has a different"
+			" page size than this server. Server page size"
+			" is " ULINTPF ", whereas tablespace page size"
+			" is " ULINTPF,
+			univ_page_size.logical(),
+			logical_page_size);
 
 		return(DB_ERROR);
 	}
 
 	cfg->m_flags = mach_read_from_4(ptr);
 	ptr += sizeof(ib_uint32_t);
+
+	cfg->m_page_size.copy_from(dict_tf_get_page_size(cfg->m_flags));
+
+	ut_a(logical_page_size == cfg->m_page_size.logical());
 
 	cfg->m_n_cols = mach_read_from_4(ptr);
 
@@ -3121,8 +3114,8 @@ row_import_read_meta_data(
 		return(row_import_read_v1(file, thd, &cfg));
 	default:
 		ib_errf(thd, IB_LOG_LEVEL_ERROR, ER_IO_READ_ERROR,
-			"Unsupported meta-data version number (%lu), "
-			"file ignored", (ulong) cfg.m_version);
+			"Unsupported meta-data version number (%lu),"
+			" file ignored", (ulong) cfg.m_version);
 	}
 
 	return(DB_ERROR);
@@ -3152,8 +3145,8 @@ row_import_read_cfg(
 		char	msg[BUFSIZ];
 
 		ut_snprintf(msg, sizeof(msg),
-			    "Error opening '%s', will attempt to import "
-			    "without schema verification", name);
+			    "Error opening '%s', will attempt to import"
+			    " without schema verification", name);
 
 		ib_senderrf(
 			thd, IB_LOG_LEVEL_WARN, ER_IO_READ_ERROR,
@@ -3279,8 +3272,8 @@ row_import_update_index_root(
 
 			ib_errf(trx->mysql_thd, IB_LOG_LEVEL_ERROR,
 				ER_INTERNAL_ERROR,
-				"While updating the <space, root page "
-				"number> of index %s - %s",
+				"While updating the <space, root page"
+				" number> of index %s - %s",
 				index_name, ut_strerr(err));
 
 			break;
@@ -3367,8 +3360,8 @@ row_import_update_discarded_flag(
 		"PROCEDURE UPDATE_DISCARDED_FLAG() IS\n"
 		"DECLARE FUNCTION my_func;\n"
 		"DECLARE CURSOR c IS\n"
-		" SELECT MIX_LEN "
-		" FROM SYS_TABLES "
+		" SELECT MIX_LEN"
+		" FROM SYS_TABLES"
 		" WHERE ID = :table_id FOR UPDATE;"
 		"\n"
 		"BEGIN\n"
@@ -3518,12 +3511,12 @@ row_import_for_mysql(
 
 		ut_a(err == DB_FAIL);
 
-		cfg.m_page_size = UNIV_PAGE_SIZE;
+		cfg.m_page_size.copy_from(univ_page_size);
 
 		FetchIndexRootPages	fetchIndexRootPages(table, trx);
 
 		err = fil_tablespace_iterate(
-			table, IO_BUFFER_SIZE(cfg.m_page_size),
+			table, IO_BUFFER_SIZE(cfg.m_page_size.physical()),
 			fetchIndexRootPages);
 
 		if (err == DB_SUCCESS) {
@@ -3559,7 +3552,7 @@ row_import_for_mysql(
 	/* Set the IO buffer size in pages. */
 
 	err = fil_tablespace_iterate(
-		table, IO_BUFFER_SIZE(cfg.m_page_size), converter);
+		table, IO_BUFFER_SIZE(cfg.m_page_size.physical()), converter);
 
 	DBUG_EXECUTE_IF("ib_import_reset_space_and_lsn_failure",
 			err = DB_TOO_MANY_CONCURRENT_TRXS;);
@@ -3583,23 +3576,30 @@ row_import_for_mysql(
 	/* If the table is stored in a remote tablespace, we need to
 	determine that filepath from the link file and system tables.
 	Find the space ID in SYS_TABLES since this is an ALTER TABLE. */
+	dict_get_and_save_data_dir_path(table, true);
+
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		dict_get_and_save_data_dir_path(table, true);
 		ut_a(table->data_dir_path);
 
-		filepath = os_file_make_remote_pathname(
-			table->data_dir_path, table->name, "ibd");
+		filepath = fil_make_filepath(
+			table->data_dir_path, table->name, IBD, true);
 	} else {
-		filepath = fil_make_ibd_name(table->name, false);
+		filepath = fil_make_filepath(
+			NULL, table->name, IBD, false);
 	}
-	ut_a(filepath);
+	if (filepath == NULL) {
+		return(DB_OUT_OF_MEMORY);
+	}
 
 	/* Open the tablespace so that we can access via the buffer pool.
 	We set the 2nd param (fix_dict = true) here because we already
-	have an x-lock on dict_operation_lock and dict_sys->mutex. */
+	have an x-lock on dict_operation_lock and dict_sys->mutex.
+	The tablespace is initially opened as a temporary one, because
+	we will not be writing any redo log for it before we have invoked
+	fil_space_set_imported() to declare it a persistent tablespace. */
 
 	err = fil_open_single_table_tablespace(
-		true, true, table->space,
+		true, true, FIL_TYPE_TEMPORARY, table->space,
 		dict_tf_to_fsp_flags(table->flags),
 		table->name, filepath);
 
@@ -3710,9 +3710,10 @@ row_import_for_mysql(
 	if (trx_is_interrupted(trx)) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Phase III - Flush interrupted");
 		return(row_import_error(prebuilt, trx, DB_INTERRUPTED));
-	} else {
-		ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
 	}
+
+	ib_logf(IB_LOG_LEVEL_INFO, "Phase IV - Flush complete");
+	fil_space_set_imported(prebuilt->table->space);
 
 	/* The dictionary latches will be released in in row_import_cleanup()
 	after the transaction commit, for both success and error. */

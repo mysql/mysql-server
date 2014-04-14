@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -126,7 +126,6 @@ enum monitor_id_t {
 	MONITOR_TABLE_OPEN,
 	MONITOR_TABLE_CLOSE,
 	MONITOR_TABLE_REFERENCE,
-	MONITOR_OVLD_META_MEM_POOL,
 
 	/* Lock manager related counters */
 	MONITOR_MODULE_LOCK,
@@ -301,6 +300,7 @@ enum monitor_id_t {
 	MONITOR_OVLD_LOG_WAITS,
 	MONITOR_OVLD_LOG_WRITE_REQUEST,
 	MONITOR_OVLD_LOG_WRITES,
+	MONITOR_OVLD_LOG_PADDED,
 
 	/* Page Manager related counters */
 	MONITOR_MODULE_PAGE,
@@ -702,7 +702,7 @@ monitor counter
 #define	MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)			\
 	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
-		ullint	old_time = (value);				\
+		uintmax_t	old_time = (value);				\
 		value = ut_time_us(NULL);				\
 		MONITOR_VALUE(monitor) += (mon_type_t) (value - old_time);\
 	}

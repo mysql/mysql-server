@@ -1,4 +1,5 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -139,6 +140,7 @@ public:
   static const uint ALTER_CONVERT               = 1L << 10;
 
   // Set for FORCE
+  // Set for ENGINE(same engine)
   // Set by mysql_recreate_table()
   static const uint ALTER_RECREATE              = 1L << 11;
 
@@ -245,7 +247,7 @@ public:
   // Enable or disable keys.
   enum_enable_or_disable        keys_onoff;
   // List of partitions.
-  List<char>                    partition_names;
+  List<String>                  partition_names;
   // Number of partitions.
   uint                          num_parts;
   // Type of ALTER TABLE algorithm.
@@ -380,17 +382,6 @@ public:
   const char *get_tmp_path() const
   { return tmp_path; }
 
-  /**
-    Mark ALTER TABLE as needing to produce foreign key error if
-    it deletes a row from the table being changed.
-  */
-  void set_fk_error_if_delete_row(FOREIGN_KEY_INFO *fk)
-  {
-    fk_error_if_delete_row= true;
-    fk_error_id= fk->foreign_id->str;
-    fk_error_table= fk->foreign_table->str;
-  }
-
 public:
   Create_field *datetime_field;
   bool         error_if_not_empty;
@@ -402,16 +393,6 @@ public:
   char         *new_name;
   char         *new_alias;
   char         tmp_name[80];
-  /**
-    Indicates that if a row is deleted during copying of data from old version
-    of table to the new version ER_FK_CANNOT_DELETE_PARENT error should be
-    emitted.
-  */
-  bool         fk_error_if_delete_row;
-  /** Name of foreign key for the above error. */
-  const char   *fk_error_id;
-  /** Name of table for the above error. */
-  const char   *fk_error_table;
 
 private:
   char new_filename[FN_REFLEN + 1];

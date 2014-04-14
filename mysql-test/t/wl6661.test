@@ -230,7 +230,7 @@ let GREP_PATTERN=Access denied;
   }
   close(FILE);
 
-  rename $file, "old_$file";
+  rename $file, "$file~";
 
   open(FILE, ">", "$file") or die("Unable to open file: $!");
   close(FILE);

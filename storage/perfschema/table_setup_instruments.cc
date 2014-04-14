@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -58,11 +58,10 @@ table_setup_instruments::m_share=
 {
   { C_STRING_WITH_LEN("setup_instruments") },
   &pfs_updatable_acl,
-  &table_setup_instruments::create,
+  table_setup_instruments::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_setup_instruments::get_row_count,
   sizeof(pos_setup_instruments),
   &m_table_lock,
   &m_field_def,
@@ -72,6 +71,16 @@ table_setup_instruments::m_share=
 PFS_engine_table* table_setup_instruments::create(void)
 {
   return new table_setup_instruments();
+}
+
+ha_rows
+table_setup_instruments::get_row_count(void)
+{
+  return wait_class_max
+    + stage_class_max
+    + statement_class_max
+    + transaction_class_max
+    + memory_class_max;
 }
 
 table_setup_instruments::table_setup_instruments()

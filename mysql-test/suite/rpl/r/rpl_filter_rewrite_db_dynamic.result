@@ -13,6 +13,7 @@ CREATE DATABASE db2;
 USE db1;
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 values (12);
+include/sync_slave_sql_with_master.inc
 SELECT * from db1.t1;
 ERROR 42S02: Table 'db1.t1' doesn't exist
 include/diff_tables.inc [master:db1.t1, slave:db2.t1]

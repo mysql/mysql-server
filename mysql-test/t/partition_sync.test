@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/have_partition.inc
 --source include/have_debug.inc
 # Save the initial number of concurrent sessions.
@@ -73,7 +68,7 @@ SELECT * FROM tbl_with_partitions;
 connection con2;
 set session debug="+d,abort_copy_table";
 --error ER_LOCK_WAIT_TIMEOUT
-ALTER TABLE tbl_with_partitions ADD COLUMN f INT;
+ALTER TABLE tbl_with_partitions ADD COLUMN f INT, ALGORITHM=COPY;
 
 --echo # Connection 1
 --echo # Try accessing the table after Alter aborted.

@@ -3,6 +3,8 @@
 #but needs to be kept for tests that would need MyISAM in future.
 --source include/force_myisam_default.inc
 
+--source include/no_valgrind_without_big.inc
+
 # This test  uses grants, which can't get tested for embedded server
 -- source include/not_embedded.inc
 

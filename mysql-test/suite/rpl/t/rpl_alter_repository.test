@@ -4,6 +4,7 @@
 # can run without a problem.
 ###############################################################################
 
+--source include/not_gtid_enabled.inc
 --source include/master-slave.inc
 --source include/have_innodb.inc
 --source include/not_mts_slave_parallel_workers.inc
@@ -57,7 +58,7 @@ call mtr.add_suppression("Error creating.*: Error checking repositories");
 #
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
@@ -97,7 +98,7 @@ UPDATE mysql.slave_relay_log_info SET Number_of_workers= 0;
 #
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 ALTER TABLE mysql.slave_relay_log_info DROP COLUMN Number_of_workers;
 --connection master
 INSERT INTO t_innodb VALUES (1), (2), (3);
@@ -129,7 +130,7 @@ RESET SLAVE ALL;
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 ###############################################################################
 #          Checking if replication can fail safely (I/O Thread)
@@ -220,7 +221,7 @@ RESET SLAVE ALL;
 --eval CHANGE MASTER TO MASTER_HOST= '$_slave_master_host', MASTER_USER= '$_slave_master_user', MASTER_PORT= $_slave_master_port, MASTER_LOG_FILE= '$_slave_master_log_file', MASTER_LOG_POS= $_slave_master_log_pos
 --source include/start_slave.inc
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 ###############################################################################
 # Checking ANALYZE TABLE, CHECK TABLE, CHECKSUM TABLE, OPTIMIZE TABLE,
@@ -267,7 +268,7 @@ EOF
 ###############################################################################
 --connection master
 DROP TABLE t_innodb;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --source include/stop_slave.inc
 

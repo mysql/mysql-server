@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -390,12 +390,8 @@ row_mysql_unfreeze_data_dictionary(
 /*===============================*/
 	trx_t*	trx);	/*!< in/out: transaction */
 /*********************************************************************//**
-Creates a table for MySQL. If the name of the table ends in
-one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also start the printing of monitor
-output by the master thread. If the table name ends in "innodb_mem_validate",
-InnoDB will try to invoke mem_validate(). On failure the transaction will
-be rolled back.
+Creates a table for MySQL. On failure the transaction will be rolled back
+and the 'table' object will be freed.
 @return error code or DB_SUCCESS */
 
 dberr_t
@@ -496,10 +492,7 @@ row_truncate_table_for_mysql(
 	trx_t*		trx)	/*!< in: transaction handle */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
-Drops a table for MySQL.  If the name of the dropped table ends in
-one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also stop the printing of monitor
-output by the master thread.  If the data dictionary was not already locked
+Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
 @return error code or DB_SUCCESS */
@@ -584,16 +577,6 @@ row_scan_index_for_mysql(
 						false=count the rows only */
 	ulint*			n_rows)		/*!< out: number of entries
 						seen in the consistent read */
-	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
-Determines if a table is a magic monitor table.
-@return true if monitor table */
-
-bool
-row_is_magic_monitor_table(
-/*=======================*/
-	const char*	table_name)	/*!< in: name of the table, in the
-					form database/table_name */
 	__attribute__((nonnull, warn_unused_result));
 /*********************************************************************//**
 Initialize this module */

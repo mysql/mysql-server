@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -139,6 +139,9 @@ mysql_load_plugin_v
 mysql_options4
 mysql_plugin_options
 mysql_reset_connection
+mysql_get_option
+mysql_session_track_get_first
+mysql_session_track_get_next
 
 CACHE INTERNAL "Functions exported by client API"
 
@@ -174,6 +177,7 @@ IF (WITH_CLIENT_PROTOCOL_TRACING)
   ADD_DEFINITIONS(-D CLIENT_PROTOCOL_TRACING)
 
   IF (WITH_TEST_TRACE_PLUGIN)
+    MESSAGE(STATUS "Client library contains the test trace plugin")
     LIST(APPEND CLIENT_SOURCES test_trace_plugin.cc)
     ADD_DEFINITIONS(-D TEST_TRACE_PLUGIN)
   ENDIF (WITH_TEST_TRACE_PLUGIN)
@@ -254,6 +258,12 @@ IF(NOT DISABLE_SHARED)
       SOVERSION "${SHARED_LIB_MAJOR_VERSION}")
     CONFIGURE_FILE(libmysql.ver.in ${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver)
 
+    IF(APPLE)
+      SET_TARGET_PROPERTIES(libmysql PROPERTIES
+        INSTALL_NAME_DIR "${CMAKE_INSTALL_PREFIX}/${INSTALL_LIBDIR}"
+      )
+    ENDIF()
+
     GET_TARGET_PROPERTY(libmysql_link_flags libmysql LINK_FLAGS)
     IF(NOT libmysql_link_flag)
       SET(libmysql_link_flags)
@@ -267,7 +277,7 @@ IF(NOT DISABLE_SHARED)
       SET(libmysql_link_flags
         "${libmysql_link_flags} ${LINK_FLAG_NO_UNDEFINED}")
       SET(libmysql_link_flags
-        "${libmysql_link_flags} -Wl,--version-script=libmysql.ver")
+        "${libmysql_link_flags} -Wl,--version-script=${CMAKE_CURRENT_BINARY_DIR}/libmysql.ver")
       SET_TARGET_PROPERTIES(libmysql
         PROPERTIES LINK_FLAGS "${libmysql_link_flags}")
     ENDIF() 
@@ -339,6 +349,7 @@ CONFIGURE_FILE(api_test.c.in ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
 # to run if not all of these symbols are exported by the library.
 #
 ADD_EXECUTABLE(libmysql_api_test ${CMAKE_CURRENT_BINARY_DIR}/api_test.c)
+SET_TARGET_PROPERTIES(libmysql_api_test PROPERTIES LINKER_LANGUAGE CXX)
 
 IF(DISABLE_SHARED)
   TARGET_LINK_LIBRARIES(libmysql_api_test ${LIBS})

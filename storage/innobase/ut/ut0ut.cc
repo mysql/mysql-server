@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -133,8 +133,7 @@ ut_usectime(
 
 		if (ret == -1) {
 			errno_gettimeofday = errno;
-			ut_print_timestamp(stderr);
-			fprintf(stderr, "  InnoDB: gettimeofday(): %s\n",
+			ib_logf(IB_LOG_LEVEL_ERROR, "gettimeofday(): %s",
 				strerror(errno_gettimeofday));
 			os_thread_sleep(100000);  /* 0.1 sec */
 			errno = errno_gettimeofday;
@@ -157,17 +156,17 @@ time(3), the return value is also stored in *tloc, provided
 that tloc is non-NULL.
 @return us since epoch */
 
-ullint
+uintmax_t
 ut_time_us(
 /*=======*/
-	ullint*	tloc)	/*!< out: us since epoch, if non-NULL */
+	uintmax_t*	tloc)	/*!< out: us since epoch, if non-NULL */
 {
 	struct timeval	tv;
-	ullint		us;
+	uintmax_t	us;
 
 	ut_gettimeofday(&tv, NULL);
 
-	us = (ullint) tv.tv_sec * 1000000 + tv.tv_usec;
+	us = static_cast<uintmax_t>(tv.tv_sec) * 1000000 + tv.tv_usec;
 
 	if (tloc != NULL) {
 		*tloc = us;
@@ -505,32 +504,63 @@ ut_2_power_up(
 	return(res);
 }
 
-/**********************************************************************//**
-Outputs a NUL-terminated file name, quoted with apostrophes. */
-
-void
-ut_print_filename(
-/*==============*/
-	FILE*		f,	/*!< in: output stream */
-	const char*	name)	/*!< in: name to print */
-{
-	putc('\'', f);
-	for (;;) {
-		int	c = *name++;
-		switch (c) {
-		case 0:
-			goto done;
-		case '\'':
-			putc(c, f);
-			/* fall through */
-		default:
-			putc(c, f);
-		}
-	}
-done:
-	putc('\'', f);
-}
 #ifndef UNIV_HOTBACKUP
+/**********************************************************************//**
+Get  a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	table_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_name(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name)
+{
+	return(ut_get_namel(trx, table_id, name, strlen(name)));
+}
+
+/**********************************************************************//**
+Get a fixed-length string, quoted as an SQL identifier.
+If the string contains a slash '/', the string will be
+output as two identifiers separated by a period (.),
+as in SQL database_name.identifier.
+Use ut_get_name() as wrapper function, instead of calling this function
+directly.
+ @param		[in]	trx		transaction (NULL=no quotes).
+ @param		[in]	tables_id	TRUE=get a table name,
+					FALSE=get other identifier.
+ @param		[in]	name		name to retrive.
+ @param		[in]	namelen		length of name.
+ @retval	String quoted as an SQL identifier.
+*/
+
+std::string
+ut_get_namel(
+	const trx_t*	trx,
+	ibool		table_id,
+	const char*	name,
+	ulint		namelen)
+{
+	/* 2 * NAME_LEN for database and table name,
+	and some slack for the #mysql50# prefix and quotes */
+	char		buf[3 * NAME_LEN];
+	const char*	bufend;
+
+	bufend = innobase_convert_name(buf, sizeof buf,
+				       name, namelen,
+				       trx ? trx->mysql_thd : NULL,
+				       table_id);
+	buf[bufend - buf] = '\0';
+	return(std::string(buf, 0, bufend - buf));
+}
+
 /**********************************************************************//**
 Outputs a fixed-length string, quoted as an SQL identifier.
 If the string contains a slash '/', the string will be
@@ -714,15 +744,14 @@ ut_snprintf(
 }
 #endif /* _WIN32 */
 
-/*************************************************************//**
-Convert an error number to a human readable text message. The
-returned string is static and should not be freed or modified.
+/** Convert an error number to a human readable text message.
+The returned string is static and should not be freed or modified.
+@param[in]	num	InnoDB internal error number
 @return string, describing the error */
 
 const char*
 ut_strerr(
-/*======*/
-	dberr_t	num)	/*!< in: error number */
+	dberr_t	num)
 {
 	switch (num) {
 	case DB_SUCCESS:
@@ -843,6 +872,12 @@ ut_strerr(
 		return("FTS query exceeds result cache limit");
 	case DB_TEMP_FILE_WRITE_FAILURE:
 		return("Temp file write failure");
+	case DB_CANNOT_OPEN_FILE:
+		return ("Cannot open a file");
+	case DB_TABLE_CORRUPT:
+		return("Table is corrupted");
+	case DB_FTS_TOO_MANY_WORDS_IN_PHRASE:
+		return("Too many words in a FTS phrase or proximity search");
 
 	/* do not add default: in order to produce a warning if new code
 	is added to the enum but not added here */

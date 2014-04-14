@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "filesort_utils.h"
+#include "opt_costmodel.h"
 #include "sql_const.h"
 #include "sql_sort.h"
 #include "table.h"
@@ -28,11 +29,15 @@ namespace {
 /**
   A local helper function. See comments for get_merge_buffers_cost().
  */
-double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size)
+double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size,
+                      const Cost_model_table *cost_model)
 {
-  return 
-    2.0 * ((double) num_elements * elem_size) / IO_SIZE
-    + num_elements * log((double) num_buffers) * ROWID_COMPARE_COST / M_LN2;
+  const double io_ops= static_cast<double>(num_elements * elem_size) / IO_SIZE;
+  const double io_cost= cost_model->io_block_read_cost(io_ops);
+  const double cpu_cost=
+    cost_model->key_compare_cost(num_elements * log((double) num_buffers) /
+                                 M_LN2);
+  return 2 * io_cost + cpu_cost;
 }
 }
 
@@ -45,7 +50,8 @@ double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size)
 */
 double get_merge_many_buffs_cost_fast(ha_rows num_rows,
                                       ha_rows num_keys_per_buffer,
-                                      uint    elem_size)
+                                      uint elem_size,
+                                      const Cost_model_table *cost_model)
 {
   ha_rows num_buffers= num_rows / num_keys_per_buffer;
   ha_rows last_n_elems= num_rows % num_keys_per_buffer;
@@ -53,9 +59,10 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 
   // Calculate CPU cost of sorting buffers.
   total_cost=
-    ( num_buffers * num_keys_per_buffer * log(1.0 + num_keys_per_buffer) +
-      last_n_elems * log(1.0 + last_n_elems) ) * ROWID_COMPARE_COST;
-  
+    num_buffers * cost_model->key_compare_cost(num_keys_per_buffer *
+                                               log(1.0 + num_keys_per_buffer)) +
+    cost_model->key_compare_cost(last_n_elems * log(1.0 + last_n_elems));
+
   // Simulate behavior of merge_many_buff().
   while (num_buffers >= MERGEBUFF2)
   {
@@ -68,14 +75,16 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
     // Cost of merge sort 'num_merge_calls'.
     total_cost+=
       num_merge_calls *
-      get_merge_cost(num_keys_per_buffer * MERGEBUFF, MERGEBUFF, elem_size);
+      get_merge_cost(num_keys_per_buffer * MERGEBUFF, MERGEBUFF, elem_size,
+                     cost_model);
 
     // # of records in remaining buffers.
     last_n_elems+= num_remaining_buffs * num_keys_per_buffer;
 
     // Cost of merge sort of remaining buffers.
     total_cost+=
-      get_merge_cost(last_n_elems, 1 + num_remaining_buffs, elem_size);
+      get_merge_cost(last_n_elems, 1 + num_remaining_buffs, elem_size,
+                     cost_model);
 
     num_buffers= num_merge_calls;
     num_keys_per_buffer*= MERGEBUFF;
@@ -83,7 +92,8 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 
   // Simulate final merge_buff call.
   last_n_elems+= num_keys_per_buffer * num_buffers;
-  total_cost+= get_merge_cost(last_n_elems, 1 + num_buffers, elem_size);
+  total_cost+= get_merge_cost(last_n_elems, 1 + num_buffers, elem_size,
+                              cost_model);
   return total_cost;
 }
 
@@ -93,15 +103,26 @@ uchar *Filesort_buffer::alloc_sort_buffer(uint num_records, uint record_length)
   DBUG_EXECUTE_IF("alloc_sort_buffer_fail",
                   DBUG_SET("+d,simulate_out_of_memory"););
 
+  /*
+    For subqueries we try to re-use the buffer, in order to save
+    expensive malloc/free calls. Both of the sizing parameters may change:
+    - num_records due to e.g. different statistics from the engine.
+    - record_length due to different buffer usage:
+      a heap table may be flushed to myisam, which allows us to sort by
+      <key, addon fields> rather than <key, rowid>
+    If we already have a buffer, but with wrong size, we simply delete it.
+   */
   if (m_rawmem != NULL)
   {
-    DBUG_ASSERT(num_records == m_num_records);
-    DBUG_ASSERT(record_length == m_record_length);
-    return m_rawmem;
+    if (num_records != m_num_records ||
+        record_length != m_record_length)
+      free_sort_buffer();
   }
+
   m_size_in_bytes= ALIGN_SIZE(num_records * (record_length + sizeof(uchar*)));
-  m_rawmem= (uchar*) my_malloc(key_memory_Filesort_buffer_sort_keys,
-                               m_size_in_bytes, MYF(0));
+  if (m_rawmem == NULL)
+    m_rawmem= (uchar*) my_malloc(key_memory_Filesort_buffer_sort_keys,
+                                 m_size_in_bytes, MYF(0));
   if (m_rawmem == NULL)
   {
     m_size_in_bytes= 0;
@@ -134,6 +155,17 @@ inline bool my_mem_compare(const uchar *s1, const uchar *s2, size_t len)
   return false;
 }
 
+#define COMPARE(N) if (s1[N] != s2[N]) return s1[N] < s2[N]
+
+inline bool my_mem_compare_longkey(const uchar *s1, const uchar *s2, size_t len)
+{
+  COMPARE(0);
+  COMPARE(1);
+  COMPARE(2);
+  COMPARE(3);
+  return memcmp(s1 + 4, s2 + 4, len - 4) < 0;
+}
+
 
 class Mem_compare :
   public std::binary_function<const uchar*, const uchar*, bool>
@@ -147,6 +179,24 @@ public:
     return memcmp(s1, s2, m_size) < 0;
 #else
     return my_mem_compare(s1, s2, m_size);
+#endif
+  }
+private:
+  size_t m_size;
+};
+
+class Mem_compare_longkey :
+  public std::binary_function<const uchar*, const uchar*, bool>
+{
+public:
+  Mem_compare_longkey(size_t n) : m_size(n) {}
+  bool operator()(const uchar *s1, const uchar *s2) const
+  {
+#ifdef __sun
+    // Usually faster on SUN, see comment for native_compare()
+    return memcmp(s1, s2, m_size) < 0;
+#else
+    return my_mem_compare_longkey(s1, s2, m_size);
 #endif
   }
 private:
@@ -201,6 +251,13 @@ void Filesort_buffer::sort_buffer(const Sort_param *param, uint count)
     my_qsort2(m_sort_keys, count, sizeof(uchar*), get_ptr_compare(size), &size);
     return;
   }
+  // Heuristics here: avoid function overhead call for short keys.
+  if (param->sort_length < 10)
+  {
+    std::stable_sort(m_sort_keys, m_sort_keys + count,
+                     Mem_compare(param->sort_length));
+    return;
+  }
   std::stable_sort(m_sort_keys, m_sort_keys + count,
-                   Mem_compare(param->sort_length));
+                   Mem_compare_longkey(param->sort_length));
 }

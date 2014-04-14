@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,8 +19,9 @@
 #include <stddef.h>
 
 #include "test_utils.h"
-
+#include "opt_costmodel.h"
 #include "sql_class.h"
+#include "uniques.h"
 
 namespace unique_unittest {
 
@@ -42,6 +43,11 @@ TEST_F(UniqueCostTest, GetUseCost)
 {
   const ulong num_keys= 328238;
   const ulong key_size= 96;
+
+  // Set up the optimizer cost model
+  Cost_model_table cost_model_table;
+  cost_model_table.init(thd()->cost_model());
+
   size_t unique_calc_buff_size=
     Unique::get_cost_calc_buff_size(num_keys, key_size, MIN_SORT_MEMORY);
   void *rawmem= alloc_root(thd()->mem_root,
@@ -49,7 +55,8 @@ TEST_F(UniqueCostTest, GetUseCost)
   Bounds_checked_array<uint> cost_buff=
     Bounds_checked_array<uint>(static_cast<uint*>(rawmem), unique_calc_buff_size);
   const double dup_removal_cost=
-    Unique::get_use_cost(cost_buff, num_keys, key_size, MIN_SORT_MEMORY);
+    Unique::get_use_cost(cost_buff, num_keys, key_size, MIN_SORT_MEMORY,
+                         &cost_model_table);
   EXPECT_GT(dup_removal_cost, 0.0);
 }
 

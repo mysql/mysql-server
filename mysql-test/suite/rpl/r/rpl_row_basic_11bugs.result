@@ -32,6 +32,7 @@ master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
 master-bin.000001	#	Query	#	#	COMMIT
+include/sync_slave_sql_with_master.inc
 **** On Slave ****
 SHOW DATABASES;
 Database
@@ -49,6 +50,7 @@ ERROR 42000: Unknown database 'test_ignore'
 DROP DATABASE test_ignore;
 USE test;
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 USE test;
 include/rpl_reset.inc
 CREATE TABLE t1 (a INT);
@@ -73,10 +75,12 @@ call mtr.add_suppression("Slave SQL.*Could not execute Update_rows event on tabl
 CREATE TABLE t1 (a INT);
 INSERT INTO t1 VALUES (1),(2),(3);
 **** On Slave **** 
+include/sync_slave_sql_with_master.inc
 SET GLOBAL QUERY_CACHE_SIZE=16*1024*1024;
 **** On Master **** 
 INSERT INTO t1 VALUES (4),(5),(6);
 **** On Slave **** 
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 a
 1
@@ -88,6 +92,7 @@ a
 **** On Master **** 
 INSERT INTO t1 VALUES (7),(8),(9);
 **** On Slave **** 
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 a
 1
@@ -104,10 +109,12 @@ DROP TABLE t1;
 ================ Test for BUG#22550 ================
 include/rpl_reset.inc
 CREATE TABLE t1 (a BIT(1), b INT) ENGINE=MYISAM;
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES(1,2);
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 1	2
+include/sync_slave_sql_with_master.inc
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 1	2
@@ -115,10 +122,12 @@ UPDATE t1 SET a=0 WHERE b=2;
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 0	2
+include/sync_slave_sql_with_master.inc
 SELECT HEX(a),b FROM t1;
 HEX(a)	b
 0	2
 DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 ================ Test for BUG#22583 ================
 include/rpl_reset.inc
 **** On Master **** 
@@ -127,6 +136,7 @@ CREATE TABLE t1_innodb (k INT, a BIT(1), b BIT(9)) ENGINE=INNODB;
 CREATE TABLE t2_myisam (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=MYISAM;
 CREATE TABLE t2_innodb (k INT, a BIT(1) NOT NULL, b BIT(4) NOT NULL) ENGINE=INNODB;
 **** On Slave **** 
+include/sync_slave_sql_with_master.inc
 ALTER TABLE t1_myisam ENGINE=INNODB;
 ALTER TABLE t1_innodb ENGINE=MYISAM;
 ALTER TABLE t2_myisam ENGINE=INNODB;
@@ -157,6 +167,7 @@ k	HEX(a)	HEX(b)
 1	0	9
 2	1	8
 **** On Slave **** 
+include/sync_slave_sql_with_master.inc
 SELECT k, HEX(a),HEX(b) FROM t1_myisam;
 k	HEX(a)	HEX(b)
 1	0	101
@@ -195,6 +206,7 @@ k	HEX(a)	HEX(b)
 1	0	9
 2	0	8
 **** On Slave **** 
+include/sync_slave_sql_with_master.inc
 SELECT k, HEX(a),HEX(b) FROM t1_myisam;
 k	HEX(a)	HEX(b)
 1	0	101
@@ -213,6 +225,7 @@ k	HEX(a)	HEX(b)
 2	0	8
 **** On Master **** 
 DROP TABLE IF EXISTS t1_myisam, t1_innodb, t2_myisam, t2_innodb;
+include/sync_slave_sql_with_master.inc
 drop table if exists t1, t2;
 CREATE TABLE `t1` (
 `a` int(11) NOT NULL auto_increment,
@@ -232,16 +245,19 @@ select * from t2 /* must be (3,1), (4,4) */;
 a	b
 3	1
 4	4
+include/sync_slave_sql_with_master.inc
 select * from t2 /* must be (3,1), (4,4) */;
 a	b
 3	1
 4	4
 drop table t1,t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 **** On Master ****
 CREATE TABLE t1 (a INT PRIMARY KEY, b SET('master','slave'));
 INSERT INTO t1 VALUES (1,'master,slave'), (2,'master,slave');
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 UPDATE t1 SET a = 5, b = 'slave' WHERE a = 1;
 SELECT * FROM t1 ORDER BY a;
 a	b
@@ -255,6 +271,7 @@ a	b
 2	master,slave
 5	master
 **** On Slave ****
+include/sync_slave_sql_with_master.inc
 set @@global.slave_exec_mode= default;
 Last_SQL_Error
 

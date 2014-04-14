@@ -48,30 +48,38 @@ UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212;
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          8	          8	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  7	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          2	          2	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  1	STATEMENT         
+thread_id	          4	          4	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  3	STATEMENT         
+thread_id	          6	          6	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  5	STATEMENT         
+thread_id	          8	          8	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  7	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          2	statement/sql/insert          	NULL        	               NULL	NULL              	    0	INSERT INTO t1 VALUES (210, "INSERT 210")
+thread_id	          3	          4	statement/sql/insert          	NULL        	               NULL	NULL              	    0	INSERT INTO t1 VALUES (211, "INSERT 211")
+thread_id	          5	          6	statement/sql/insert          	NULL        	               NULL	NULL              	    0	INSERT INTO t1 VALUES (212, "INSERT 212")
+thread_id	          7	          8	statement/sql/update          	NULL        	               NULL	NULL              	    0	UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/insert     	nesting_event_id	NULL              	INSERT INTO t1 VALUES (210, "INSERT 210")
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	NULL              	INSERT INTO t1 VALUES (211, "INSERT 211")
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	NULL              	INSERT INTO t1 VALUES (212, "INSERT 212")
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/update     	nesting_event_id	NULL              	UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          2	statement/sql/insert     	               NULL	NULL              	INSERT INTO t1 VALUES (210, "INSERT 210")
+thread_id	          2	          2	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          4	statement/sql/insert     	               NULL	NULL              	INSERT INTO t1 VALUES (211, "INSERT 211")
+thread_id	          4	          4	transaction              	                  3	STATEMENT         	<transaction started>
+thread_id	          5	          6	statement/sql/insert     	               NULL	NULL              	INSERT INTO t1 VALUES (212, "INSERT 212")
+thread_id	          6	          6	transaction              	                  5	STATEMENT         	<transaction started>
+thread_id	          7	          8	statement/sql/update     	               NULL	NULL              	UPDATE t1 SET s1 = s1 + 1 WHERE s1 = 212
+thread_id	          8	          8	transaction              	                  7	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -90,24 +98,32 @@ COMMIT;
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          2	          5	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          2	          5	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          2	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          3	          3	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (220, "INSERT 220"), (221, "INSERT 221")
+thread_id	          4	          4	statement/sql/update          	NULL        	                  2	TRANSACTION       	    0	UPDATE t1 SET s2 = "UPDATE 221" WHERE s1 = 221
+thread_id	          5	          5	statement/sql/commit          	NULL        	                  2	TRANSACTION       	    0	COMMIT
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (220, "INSERT 220"), (221, "INSERT 221")
-event_id	statement/sql/update     	nesting_event_id	TRANSACTION       	UPDATE t1 SET s2 = "UPDATE 221" WHERE s1 = 221
-event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          2	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          2	          5	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          3	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (220, "INSERT 220"), (221, "INSERT 221")
+thread_id	          4	          4	statement/sql/update     	                  2	TRANSACTION       	UPDATE t1 SET s2 = "UPDATE 221" WHERE s1 = 221
+thread_id	          5	          5	statement/sql/commit     	                  2	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -134,29 +150,42 @@ COMMIT;
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          3	         10	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  2	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          3	         10	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  2	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          1	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1
+thread_id	          2	          3	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          4	          4	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (310, "INSERT 310")
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (311, "INSERT 311")
+thread_id	          6	          6	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (312, "INSERT 312")
+thread_id	          7	          7	statement/sql/insert          	NULL        	                  3	TRANSACTION       	    0	INSERT INTO t1 VALUES (313, "INSERT 313")
+thread_id	          8	          9	statement/sql/call_procedure  	NULL        	                  3	TRANSACTION       	    0	CALL tp_update()
+thread_id	          9	          9	statement/sp/stmt             	tp_update   	                  8	STATEMENT         	    1	UPDATE t1 SET s1 = s1 + 1
+thread_id	         10	         10	statement/sql/commit          	NULL        	                  3	TRANSACTION       	    0	COMMIT
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (310, "INSERT 310")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (311, "INSERT 311")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (312, "INSERT 312")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (313, "INSERT 313")
-event_id	statement/sql/call_proced	nesting_event_id	TRANSACTION       	CALL tp_update()
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	UPDATE t1 SET s1 = s1 + 1
-event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          1	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_update() UPDATE t1 SET s1 = s1 + 1
+thread_id	          2	          3	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          3	         10	transaction              	                  2	STATEMENT         	<transaction started>
+thread_id	          4	          4	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (310, "INSERT 310")
+thread_id	          5	          5	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (311, "INSERT 311")
+thread_id	          6	          6	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (312, "INSERT 312")
+thread_id	          7	          7	statement/sql/insert     	                  3	TRANSACTION       	INSERT INTO t1 VALUES (313, "INSERT 313")
+thread_id	          8	          9	statement/sql/call_proced	                  3	TRANSACTION       	CALL tp_update()
+thread_id	          9	          9	statement/sp/stmt        	                  8	STATEMENT         	UPDATE t1 SET s1 = s1 + 1
+thread_id	         10	         10	statement/sql/commit     	                  3	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -185,28 +214,40 @@ COMMIT;
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          4	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  3	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          4	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  3	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          1	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_start() START TRANSACTION
+thread_id	          2	          4	statement/sql/call_procedure  	NULL        	               NULL	NULL              	    0	CALL tp_start()
+thread_id	          3	          4	statement/sp/stmt             	tp_start    	                  2	STATEMENT         	    1	START TRANSACTION
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
+thread_id	          6	          6	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
+thread_id	          7	          7	statement/sql/update          	NULL        	                  4	TRANSACTION       	    0	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
+thread_id	          8	          8	statement/sql/select          	NULL        	                  4	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	          9	          9	statement/sql/commit          	NULL        	                  4	TRANSACTION       	    0	COMMIT
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_start() START TRANSACTION
-event_id	statement/sql/call_proced	nesting_event_id	NULL              	CALL tp_start()
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
-event_id	statement/sql/update     	nesting_event_id	TRANSACTION       	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
-event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          1	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_start() START TRANSACTION
+thread_id	          2	          4	statement/sql/call_proced	               NULL	NULL              	CALL tp_start()
+thread_id	          3	          4	statement/sp/stmt        	                  2	STATEMENT         	START TRANSACTION
+thread_id	          4	          9	transaction              	                  3	STATEMENT         	<transaction started>
+thread_id	          5	          5	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (320, "INSERT 320"),(321, "INSERT 321")
+thread_id	          6	          6	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (322, "INSERT 322"),(323, "INSERT 323")
+thread_id	          7	          7	statement/sql/update     	                  4	TRANSACTION       	UPDATE t1 SET s1 = s1 + 1 WHERE s1 > 320
+thread_id	          8	          8	statement/sql/select     	                  4	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
+thread_id	          9	          9	statement/sql/commit     	                  4	TRANSACTION       	COMMIT
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -245,40 +286,58 @@ s1	s2
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	         18	         18	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 17	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          4	          9	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  3	STATEMENT         
+thread_id	         11	         11	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 10	STATEMENT         
+thread_id	         13	         16	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	                 12	STATEMENT         
+thread_id	         18	         18	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 17	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          1	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_rollback() ROLLBACK
+thread_id	          2	          2	statement/sql/create_procedure	NULL        	               NULL	NULL              	    0	CREATE PROCEDURE tp_commit() COMMIT
+thread_id	          3	          4	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
+thread_id	          6	          6	statement/sql/insert          	NULL        	                  4	TRANSACTION       	    0	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
+thread_id	          7	          7	statement/sql/delete          	NULL        	                  4	TRANSACTION       	    0	DELETE FROM t1 WHERE s1 > 331
+thread_id	          8	          9	statement/sql/call_procedure  	NULL        	                  4	TRANSACTION       	    0	CALL tp_commit()
+thread_id	          9	          9	statement/sp/stmt             	tp_commit   	                  8	STATEMENT         	    1	COMMIT
+thread_id	         10	         11	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	         12	         13	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	         14	         14	statement/sql/update          	NULL        	                 13	TRANSACTION       	    0	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
+thread_id	         15	         16	statement/sql/call_procedure  	NULL        	                 13	TRANSACTION       	    0	CALL tp_rollback()
+thread_id	         16	         16	statement/sp/stmt             	tp_rollback 	                 15	STATEMENT         	    1	ROLLBACK
+thread_id	         17	         18	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_rollback() ROLLBACK
-event_id	statement/sql/create_proc	nesting_event_id	NULL              	CREATE PROCEDURE tp_commit() COMMIT
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
-event_id	statement/sql/delete     	nesting_event_id	TRANSACTION       	DELETE FROM t1 WHERE s1 > 331
-event_id	statement/sql/call_proced	nesting_event_id	TRANSACTION       	CALL tp_commit()
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	COMMIT
-event_id	statement/sql/select     	nesting_event_id	NULL              	SELECT * FROM t1 ORDER BY s1
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/update     	nesting_event_id	TRANSACTION       	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
-event_id	statement/sql/call_proced	nesting_event_id	TRANSACTION       	CALL tp_rollback()
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	ROLLBACK
-event_id	statement/sql/select     	nesting_event_id	NULL              	SELECT * FROM t1 ORDER BY s1
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          1	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_rollback() ROLLBACK
+thread_id	          2	          2	statement/sql/create_proc	               NULL	NULL              	CREATE PROCEDURE tp_commit() COMMIT
+thread_id	          3	          4	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          4	          9	transaction              	                  3	STATEMENT         	<transaction started>
+thread_id	          5	          5	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (330, "INSERT 330"),(331, "INSERT 331")
+thread_id	          6	          6	statement/sql/insert     	                  4	TRANSACTION       	INSERT INTO t1 VALUES (332, "INSERT 332"),(333, "INSERT 333")
+thread_id	          7	          7	statement/sql/delete     	                  4	TRANSACTION       	DELETE FROM t1 WHERE s1 > 331
+thread_id	          8	          9	statement/sql/call_proced	                  4	TRANSACTION       	CALL tp_commit()
+thread_id	          9	          9	statement/sp/stmt        	                  8	STATEMENT         	COMMIT
+thread_id	         10	         11	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
+thread_id	         11	         11	transaction              	                 10	STATEMENT         	<transaction started>
+thread_id	         12	         13	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	         13	         16	transaction              	                 12	STATEMENT         	<transaction started>
+thread_id	         14	         14	statement/sql/update     	                 13	TRANSACTION       	UPDATE t1 SET s1 = s1*2 WHERE s1 > 331
+thread_id	         15	         16	statement/sql/call_proced	                 13	TRANSACTION       	CALL tp_rollback()
+thread_id	         16	         16	statement/sp/stmt        	                 15	STATEMENT         	ROLLBACK
+thread_id	         17	         18	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
+thread_id	         18	         18	transaction              	                 17	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -326,33 +385,48 @@ s1	s2
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	         13	         13	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 12	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          2	         11	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
+thread_id	         13	         13	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 12	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          2	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          3	          3	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (410, "INSERT 410")
+thread_id	          4	          4	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (411, "INSERT 411")
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (412, "INSERT 412")
+thread_id	          6	          6	statement/sql/delete          	NULL        	                  2	TRANSACTION       	    0	DELETE FROM t1 WHERE s1 > 410
+thread_id	          7	          7	statement/sql/select          	NULL        	                  2	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	          8	         10	statement/sql/select          	NULL        	                  2	TRANSACTION       	    0	SELECT fn_add(413, 414)
+thread_id	          9	          9	statement/sp/stmt             	fn_add      	                  8	STATEMENT         	    1	INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y")
+thread_id	         10	         10	statement/sp/freturn          	fn_add      	                  8	STATEMENT         	    1	NULL
+thread_id	         11	         11	statement/sql/commit          	NULL        	                  2	TRANSACTION       	    0	COMMIT
+thread_id	         12	         13	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (410, "INSERT 410")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (411, "INSERT 411")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (412, "INSERT 412")
-event_id	statement/sql/delete     	nesting_event_id	TRANSACTION       	DELETE FROM t1 WHERE s1 > 410
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT fn_add(413, 414)
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y")
-event_id	statement/sp/freturn     	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
-event_id	statement/sql/select     	nesting_event_id	NULL              	SELECT * FROM t1 ORDER BY s1
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          2	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          2	         11	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          3	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (410, "INSERT 410")
+thread_id	          4	          4	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (411, "INSERT 411")
+thread_id	          5	          5	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (412, "INSERT 412")
+thread_id	          6	          6	statement/sql/delete     	                  2	TRANSACTION       	DELETE FROM t1 WHERE s1 > 410
+thread_id	          7	          7	statement/sql/select     	                  2	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
+thread_id	          8	         10	statement/sql/select     	                  2	TRANSACTION       	SELECT fn_add(413, 414)
+thread_id	          9	          9	statement/sp/stmt        	                  8	STATEMENT         	INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y")
+thread_id	         10	         10	statement/sp/freturn     	                  8	STATEMENT         	NULL
+thread_id	         11	         11	statement/sql/commit     	                  2	TRANSACTION       	COMMIT
+thread_id	         12	         13	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
+thread_id	         13	         13	transaction              	                 12	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -376,28 +450,38 @@ s1	s2
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          8	          8	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  7	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          2	          6	transaction	ROLLED BACK	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
+thread_id	          8	          8	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                  7	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          2	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          3	          5	statement/sql/select          	NULL        	                  2	TRANSACTION       	    0	SELECT fn_add(415, 416)
+thread_id	          4	          4	statement/sp/stmt             	fn_add      	                  3	STATEMENT         	    1	INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y")
+thread_id	          5	          5	statement/sp/freturn          	fn_add      	                  3	STATEMENT         	    1	NULL
+thread_id	          6	          6	statement/sql/rollback        	NULL        	                  2	TRANSACTION       	    0	ROLLBACK
+thread_id	          7	          8	statement/sql/select          	NULL        	               NULL	NULL              	    0	SELECT * FROM t1 ORDER BY s1
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT fn_add(415, 416)
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y")
-event_id	statement/sp/freturn     	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sql/rollback   	nesting_event_id	TRANSACTION       	ROLLBACK
-event_id	statement/sql/select     	nesting_event_id	NULL              	SELECT * FROM t1 ORDER BY s1
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          2	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          2	          6	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          5	statement/sql/select     	                  2	TRANSACTION       	SELECT fn_add(415, 416)
+thread_id	          4	          4	statement/sp/stmt        	                  3	STATEMENT         	INSERT INTO t1 VALUES (x, "INSERT x"),(y, "INSERT y")
+thread_id	          5	          5	statement/sp/freturn     	                  3	STATEMENT         	NULL
+thread_id	          6	          6	statement/sql/rollback   	                  2	TRANSACTION       	ROLLBACK
+thread_id	          7	          8	statement/sql/select     	               NULL	NULL              	SELECT * FROM t1 ORDER BY s1
+thread_id	          8	          8	transaction              	                  7	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();
@@ -505,41 +589,64 @@ DROP TRIGGER trigger_before_update;
 #========================================================================
 EVENTS_TRANSACTIONS_CURRENT
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 20	STATEMENT         
 
 EVENTS_TRANSACTIONS_HISTORY_LONG
 
-THREAD_ID	EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	NESTING_EVENT_ID	NESTING_EVENT_TYPE
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	nesting_event_id	STATEMENT         
-thread_id	event_id	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	nesting_event_id	STATEMENT         
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME 	STATE      	ACCESS_MODE	ISOLATION_LEVEL 	AUTO	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE
+thread_id	          2	         19	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	NO  	                  1	STATEMENT         
+thread_id	         21	         21	transaction	COMMITTED  	READ WRITE 	REPEATABLE READ 	YES 	                 20	STATEMENT         
+
+EVENTS_STATEMENTS_HISTORY_LONG
+
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME                    	OBJECT_NAME 	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	LEVEL	SQL_TEXT
+thread_id	          1	          2	statement/sql/begin           	NULL        	               NULL	NULL              	    0	START TRANSACTION
+thread_id	          3	          3	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (500, "INSERT 500")
+thread_id	          4	          4	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (501, "INSERT 501")
+thread_id	          5	          5	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (502, "INSERT 502")
+thread_id	          6	          6	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (503, "INSERT 503")
+thread_id	          7	          7	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (504, "INSERT 504")
+thread_id	          8	          8	statement/sql/insert          	NULL        	                  2	TRANSACTION       	    0	INSERT INTO t1 VALUES (505, "INSERT 505")
+thread_id	          9	          9	statement/sql/select          	NULL        	                  2	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	         10	         17	statement/sql/update          	NULL        	                  2	TRANSACTION       	    0	UPDATE t1 SET s1 = s1 * 2 WHERE s1 >= 500
+thread_id	         11	         11	statement/sp/jump_if_not      	trigger_befo	                 10	STATEMENT         	    1	NULL
+thread_id	         12	         12	statement/sp/jump_if_not      	trigger_befo	                 10	STATEMENT         	    1	NULL
+thread_id	         13	         13	statement/sp/jump_if_not      	trigger_befo	                 10	STATEMENT         	    1	NULL
+thread_id	         14	         14	statement/sp/jump_if_not      	trigger_befo	                 10	STATEMENT         	    1	NULL
+thread_id	         15	         15	statement/sp/jump_if_not      	trigger_befo	                 10	STATEMENT         	    1	NULL
+thread_id	         16	         16	statement/sp/jump_if_not      	trigger_befo	                 10	STATEMENT         	    1	NULL
+thread_id	         17	         17	statement/sp/stmt             	trigger_befo	                 10	STATEMENT         	    1	SIGNAL sqlstate '45001' SET message_text = "FORCE ERROR"
+thread_id	         18	         18	statement/sql/select          	NULL        	                  2	TRANSACTION       	    0	SELECT * FROM t1 ORDER BY s1
+thread_id	         19	         19	statement/sql/commit          	NULL        	                  2	TRANSACTION       	    0	COMMIT
+thread_id	         20	         21	statement/sql/drop_trigger    	NULL        	               NULL	NULL              	    0	DROP TRIGGER trigger_before_update
 
 ## Combined statement and transaction event history ordered by event id
 
 EVENTS_STATEMENTS_HISTORY_LONG + EVENTS_TRANSACTIONS_HISTORY_LONG
 
-EVENT_ID	EVENT_NAME               	NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
-event_id	statement/sql/begin      	nesting_event_id	NULL              	START TRANSACTION
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (500, "INSERT 500")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (501, "INSERT 501")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (502, "INSERT 502")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (503, "INSERT 503")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (504, "INSERT 504")
-event_id	statement/sql/insert     	nesting_event_id	TRANSACTION       	INSERT INTO t1 VALUES (505, "INSERT 505")
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
-event_id	statement/sql/update     	nesting_event_id	TRANSACTION       	UPDATE t1 SET s1 = s1 * 2 WHERE s1 >= 500
-event_id	statement/sp/jump_if_not 	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sp/jump_if_not 	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sp/jump_if_not 	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sp/jump_if_not 	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sp/jump_if_not 	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sp/jump_if_not 	nesting_event_id	STATEMENT         	NULL
-event_id	statement/sp/stmt        	nesting_event_id	STATEMENT         	SIGNAL sqlstate '45001' SET message_text = "FORCE ERROR"
-event_id	statement/sql/select     	nesting_event_id	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
-event_id	statement/sql/commit     	nesting_event_id	TRANSACTION       	COMMIT
-event_id	statement/sql/drop_trigge	nesting_event_id	NULL              	DROP TRIGGER trigger_before_update
-event_id	transaction              	nesting_event_id	STATEMENT         	<transaction started>
+THREAD_ID	R_EVENT_ID	R_END_EVENT_ID	EVENT_NAME               	R_NESTING_EVENT_ID	NESTING_EVENT_TYPE	SQL_TXT
+thread_id	          1	          2	statement/sql/begin      	               NULL	NULL              	START TRANSACTION
+thread_id	          2	         19	transaction              	                  1	STATEMENT         	<transaction started>
+thread_id	          3	          3	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (500, "INSERT 500")
+thread_id	          4	          4	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (501, "INSERT 501")
+thread_id	          5	          5	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (502, "INSERT 502")
+thread_id	          6	          6	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (503, "INSERT 503")
+thread_id	          7	          7	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (504, "INSERT 504")
+thread_id	          8	          8	statement/sql/insert     	                  2	TRANSACTION       	INSERT INTO t1 VALUES (505, "INSERT 505")
+thread_id	          9	          9	statement/sql/select     	                  2	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
+thread_id	         10	         17	statement/sql/update     	                  2	TRANSACTION       	UPDATE t1 SET s1 = s1 * 2 WHERE s1 >= 500
+thread_id	         11	         11	statement/sp/jump_if_not 	                 10	STATEMENT         	NULL
+thread_id	         12	         12	statement/sp/jump_if_not 	                 10	STATEMENT         	NULL
+thread_id	         13	         13	statement/sp/jump_if_not 	                 10	STATEMENT         	NULL
+thread_id	         14	         14	statement/sp/jump_if_not 	                 10	STATEMENT         	NULL
+thread_id	         15	         15	statement/sp/jump_if_not 	                 10	STATEMENT         	NULL
+thread_id	         16	         16	statement/sp/jump_if_not 	                 10	STATEMENT         	NULL
+thread_id	         17	         17	statement/sp/stmt        	                 10	STATEMENT         	SIGNAL sqlstate '45001' SET message_text = "FORCE ERROR"
+thread_id	         18	         18	statement/sql/select     	                  2	TRANSACTION       	SELECT * FROM t1 ORDER BY s1
+thread_id	         19	         19	statement/sql/commit     	                  2	TRANSACTION       	COMMIT
+thread_id	         20	         21	statement/sql/drop_trigge	               NULL	NULL              	DROP TRIGGER trigger_before_update
+thread_id	         21	         21	transaction              	                 20	STATEMENT         	<transaction started>
 
 ## Clear statement and transaction history
 CALL test.clear_history();

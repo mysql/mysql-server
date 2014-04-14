@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -61,11 +61,8 @@ mysql_pfs_key_t	log_flush_order_mutex_key;
 # ifndef HAVE_ATOMIC_BUILTINS
 mysql_pfs_key_t	server_mutex_key;
 # endif /* !HAVE_ATOMIC_BUILTINS */
-# ifdef UNIV_MEM_DEBUG
-mysql_pfs_key_t	mem_hash_mutex_key;
-# endif /* UNIV_MEM_DEBUG */
-mysql_pfs_key_t	mem_pool_mutex_key;
 mysql_pfs_key_t	recalc_pool_mutex_key;
+mysql_pfs_key_t	page_cleaner_mutex_key;
 mysql_pfs_key_t	purge_sys_pq_mutex_key;
 mysql_pfs_key_t	recv_sys_mutex_key;
 mysql_pfs_key_t	recv_writer_mutex_key;
@@ -104,7 +101,6 @@ mysql_pfs_key_t	event_mutex_key;
 mysql_pfs_key_t	event_manager_mutex_key;
 mysql_pfs_key_t	sync_array_mutex_key;
 mysql_pfs_key_t	thread_mutex_key;
-mysql_pfs_key_t	ut_list_mutex_key;
 mysql_pfs_key_t zip_pad_mutex_key;
 mysql_pfs_key_t row_drop_list_mutex_key;
 #endif /* UNIV_PFS_MUTEX */
@@ -148,14 +144,14 @@ void
 sync_print_wait_info(FILE* file)
 {
 	fprintf(file,
-		"Mutex spin waits "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-shared spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-excl spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n"
-		"RW-sx spins "UINT64PF", rounds "UINT64PF", "
-		"OS waits "UINT64PF"\n",
+		"Mutex spin waits " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n"
+		"RW-shared spins " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n"
+		"RW-excl spins " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n"
+		"RW-sx spins " UINT64PF ", rounds " UINT64PF ","
+		" OS waits " UINT64PF "\n",
 		(ib_uint64_t) mutex_spin_wait_count,
 		(ib_uint64_t) mutex_spin_round_count,
 		(ib_uint64_t) mutex_os_wait_count,
@@ -170,8 +166,8 @@ sync_print_wait_info(FILE* file)
 		(ib_uint64_t) rw_lock_stats.rw_sx_os_wait_count);
 
 	fprintf(file,
-		"Spin rounds per wait: %.2f mutex, %.2f RW-shared, "
-		"%.2f RW-excl, %.2f RW-sx\n",
+		"Spin rounds per wait: %.2f mutex, %.2f RW-shared,"
+		" %.2f RW-excl, %.2f RW-sx\n",
 		(double) mutex_spin_round_count /
 		(mutex_spin_wait_count_get() ? mutex_spin_wait_count_get() : 1),
 		(double) rw_lock_stats.rw_s_spin_round_count /

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -265,7 +265,7 @@ int opt_sum_query(THD *thd,
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    if (tl->join_cond() || tl->outer_join_nest())
+    if (tl->optim_join_cond() || tl->outer_join_nest())
     /* Don't replace expression on a table that is part of an outer join */
     {
       outer_tables|= tl->table->map;

@@ -568,9 +568,11 @@ void partition_info::set_show_version_string(String *packet)
   else
   {
     if (part_expr)
-      part_expr->walk(&Item::intro_version, 0, (uchar*)&version);
+      part_expr->walk(&Item::intro_version, Item::WALK_POSTFIX,
+                      (uchar*)&version);
     if (subpart_expr)
-      subpart_expr->walk(&Item::intro_version, 0, (uchar*)&version);
+      subpart_expr->walk(&Item::intro_version, Item::WALK_POSTFIX,
+                         (uchar*)&version);
     if (version == 0)
     {
       /* No new functions in partition function */
@@ -1602,11 +1604,11 @@ bool partition_info::check_partition_info(THD *thd, handlerton **eng_type,
     if (!list_of_part_fields)
     {
       DBUG_ASSERT(part_expr);
-      err= part_expr->walk(&Item::check_partition_func_processor, 0,
-                           NULL);
+      err= part_expr->walk(&Item::check_partition_func_processor,
+                           Item::WALK_POSTFIX, NULL);
       if (!err && is_sub_partitioned() && !list_of_subpart_fields)
-        err= subpart_expr->walk(&Item::check_partition_func_processor, 0,
-                                NULL);
+        err= subpart_expr->walk(&Item::check_partition_func_processor,
+                                Item::WALK_POSTFIX, NULL);
     }
     if (err)
     {
@@ -2374,7 +2376,7 @@ bool partition_info::add_column_list_value(THD *thd, Item *item)
   else
     thd->where= "partition function";
 
-  if (item->walk(&Item::check_partition_func_processor, 0,
+  if (item->walk(&Item::check_partition_func_processor, Item::WALK_POSTFIX,
                  NULL))
   {
     my_error(ER_PARTITION_FUNCTION_IS_NOT_ALLOWED, MYF(0));

@@ -1,4 +1,4 @@
-/* Copyright (C) 2000-2003 MySQL AB
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301, USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include <my_global.h>
 #include <mysql_com.h>
@@ -117,5 +117,28 @@ uchar *net_store_length(uchar *packet, ulonglong length)
   *packet++=254;
   int8store(packet,length);
   return packet+8;
+}
+
+
+/**
+  The length of space required to store the resulting length-encoded integer
+  for the given number. This function can be used at places where one needs to
+  dynamically allocate the buffer for a given number to be stored as length-
+  encoded integer.
+
+  @param num [IN]   the input number
+
+  @return length of buffer needed to store this number [1, 3, 4, 9].
+*/
+
+uint net_length_size(ulonglong num)
+{
+  if (num < (ulonglong) LL(252))
+    return 1;
+  if (num < (ulonglong) LL(65536))
+    return 3;
+  if (num < (ulonglong) LL(16777216))
+    return 4;
+  return 9;
 }
 

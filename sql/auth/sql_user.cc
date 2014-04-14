@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -24,7 +24,8 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
-
+#include "prealloced_array.h"
+#include "tztime.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -274,7 +275,23 @@ bool change_password(THD *thd, const char *host, const char *user,
      Accept empty passwords
     */
     if (new_password_len == 0)
+    {
+      /*
+        Since we're changing the password for the user we need to reset the
+        expiration flag.
+      */
+      if (!update_sctx_cache(thd->security_ctx, acl_user, false) &&
+          thd->security_ctx->password_expired)
+      {
+        /* the current user is not the same as the user we operate on */
+        my_error(ER_MUST_CHANGE_PASSWORD, MYF(0));
+        result= 1;
+        mysql_mutex_unlock(&acl_cache->lock);
+        goto end;
+      }
+      acl_user->password_expired= false;
       acl_user->auth_string= empty_lex_str;
+    }
     /*
      Check if password begins with correct magic number
     */
@@ -306,6 +323,13 @@ bool change_password(THD *thd, const char *host, const char *user,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
       }
+      else
+      {
+	my_error(ER_PASSWORD_FORMAT, MYF(0));
+	result= 1;
+	mysql_mutex_unlock(&acl_cache->lock);
+        goto end;
+      }
     } else
     {
       /*
@@ -317,6 +341,9 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
+    thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
+	thd->query_start());
+
   }
   else
 #endif
@@ -372,6 +399,8 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
+    thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
+         thd->query_start());
   }
   else
   {
@@ -387,7 +416,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
                         acl_user->user ? acl_user->user : "",
-                        new_password, new_password_len, password_field, false))
+                        new_password, new_password_len, password_field, false,
+			auth_plugin_is_built_in(acl_user->plugin.str)))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -534,7 +564,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     Dynamic array acl_grant_name used to store pointers to all
     GRANT_NAME objects
   */
-  Dynamic_array<GRANT_NAME *> acl_grant_name;
+  Prealloced_array<GRANT_NAME *, 16> acl_grant_name(PSI_INSTRUMENT_ME);
   HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
@@ -655,7 +685,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           Deleting while traversing a hash table is not valid procedure and
           hence we save pointers to GRANT_NAME objects for later processing.
         */
-        if (acl_grant_name.append(grant_name))
+        if (acl_grant_name.push_back(grant_name))
           DBUG_RETURN(-1);
         break;
 
@@ -686,7 +716,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           Updating while traversing a hash table is not valid procedure and
           hence we save pointers to GRANT_NAME objects for later processing.
         */
-        if (acl_grant_name.append(grant_name))
+        if (acl_grant_name.push_back(grant_name))
           DBUG_RETURN(-1);
         break;
 
@@ -710,9 +740,10 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       Traversing the elements stored in acl_grant_name dynamic array
       to either delete or update them.
     */
-    for (int i= 0; i < acl_grant_name.elements(); ++i)
+    for (GRANT_NAME **iter= acl_grant_name.begin();
+         iter != acl_grant_name.end(); ++iter)
     {
-      grant_name= acl_grant_name.at(i);
+      grant_name= *iter;
 
       if (drop)
       {
@@ -1030,7 +1061,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   if (some_users_created)
   {
     if (!thd->rewritten_query.length())
-      result|= write_bin_log(thd, false, thd->query(), thd->query_length(),
+      result|= write_bin_log(thd, false, thd->query().str, thd->query().length,
                              transactional_tables);
     else
       result|= write_bin_log(thd, false,
@@ -1044,7 +1075,7 @@ bool mysql_create_user(THD *thd, List <LEX_USER> &list)
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (some_users_created && !result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1128,7 +1159,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "DROP USER", wrong_users.c_ptr_safe());
 
   if (some_users_deleted)
-    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+    result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -1136,7 +1167,7 @@ bool mysql_drop_user(THD *thd, List <LEX_USER> &list)
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (some_users_deleted && !result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   thd->variables.sql_mode= old_sql_mode;
   /* Restore the state of binlog format */
@@ -1232,7 +1263,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
     my_error(ER_CANNOT_USER, MYF(0), "RENAME USER", wrong_users.c_ptr_safe());
   
   if (some_users_renamed)
-    result |= write_bin_log(thd, FALSE, thd->query(), thd->query_length(),
+    result |= write_bin_log(thd, FALSE, thd->query().str, thd->query().length,
                             transactional_tables);
 
   mysql_rwlock_unlock(&LOCK_grant);
@@ -1240,7 +1271,7 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (some_users_renamed && !result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -1251,7 +1282,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
 
 /*
-  Mark user's password as expired.
+  Mark user's password as expired or update the days
+  after which the user's password will expire
 
   SYNOPSIS
     mysql_user_password_expire()
@@ -1370,7 +1402,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
                           acl_user->host.get_host() ?
                           acl_user->host.get_host() : "",
                           acl_user->user ? acl_user->user : "",
-                          NULL, 0, password_field, true))
+                          NULL, 0, password_field, true,
+			  auth_plugin_is_built_in(acl_user->plugin.str),
+		          &user_from->alter_status))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
@@ -1378,7 +1412,19 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    acl_user->password_expired= true;
+    acl_user->password_expired= user_from->alter_status.
+      update_password_expired_column;
+    if (!user_from->alter_status.update_password_expired_column)
+    {
+      if (!user_from->alter_status.use_default_password_lifetime)
+      {
+        acl_user->password_lifetime=user_from->alter_status.
+	  expire_after_days;
+	acl_user->use_default_password_lifetime= false;
+      }
+      else
+        acl_user->use_default_password_lifetime= true;
+    }
     some_passwords_expired= true;
   }
 
@@ -1396,9 +1442,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   if (!result && some_passwords_expired)
   {
     const char *query= thd->rewritten_query.length() ?
-      thd->rewritten_query.c_ptr_safe() : thd->query();
+      thd->rewritten_query.c_ptr_safe() : thd->query().str;
     const size_t query_length= thd->rewritten_query.length() ?
-      thd->rewritten_query.length() : thd->query_length();
+      thd->rewritten_query.length() : thd->query().length;
     result= (write_bin_log(thd, false, query, query_length,
                            table->file->has_transactions()) != 0);
   }
@@ -1408,7 +1454,7 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
   result|= acl_trans_commit_and_close_tables(thd);
 
   if (some_passwords_expired && !result)
-    acl_notify_htons(thd, thd->query(), thd->query_length());
+    acl_notify_htons(thd, thd->query().str, thd->query().length);
 
   /* Restore the state of binlog format */
   DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());

@@ -93,9 +93,6 @@ int my_close(File fd, myf MyFlags)
   if ((uint) fd < my_file_limit && my_file_info[fd].type != UNOPEN)
   {
     my_free(my_file_info[fd].name);
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-    mysql_mutex_destroy(&my_file_info[fd].mutex);
-#endif
     my_file_info[fd].type = UNOPEN;
   }
   my_file_opened--;
@@ -124,12 +121,13 @@ int my_close(File fd, myf MyFlags)
 File my_register_filename(File fd, const char *FileName, enum file_type
 			  type_of_file, uint error_message_number, myf MyFlags)
 {
+  char *dup_filename= NULL;
   DBUG_ENTER("my_register_filename");
   if ((int) fd >= MY_FILE_MIN)
   {
     if ((uint) fd >= my_file_limit)
     {
-#if !defined(HAVE_PREAD) 
+#if defined(_WIN32)
       my_errno= EMFILE;
 #else
       thread_safe_increment(my_file_opened,&THR_LOCK_open);
@@ -138,22 +136,18 @@ File my_register_filename(File fd, const char *FileName, enum file_type
     }
     else
     {
-      mysql_mutex_lock(&THR_LOCK_open);
-      if ((my_file_info[fd].name = (char*) my_strdup(key_memory_my_file_info,
-                                                     FileName,MyFlags)))
+      dup_filename= my_strdup(key_memory_my_file_info, FileName, MyFlags);
+      if (dup_filename != NULL)
       {
+        mysql_mutex_lock(&THR_LOCK_open);
+        my_file_info[fd].name= dup_filename;
         my_file_opened++;
         my_file_total_opened++;
         my_file_info[fd].type = type_of_file;
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-        mysql_mutex_init(key_my_file_info_mutex, &my_file_info[fd].mutex,
-                         MY_MUTEX_INIT_FAST);
-#endif
         mysql_mutex_unlock(&THR_LOCK_open);
         DBUG_PRINT("exit",("fd: %d",fd));
         DBUG_RETURN(fd);
       }
-      mysql_mutex_unlock(&THR_LOCK_open);
       my_errno= ENOMEM;
     }
     (void) my_close(fd, MyFlags);

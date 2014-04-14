@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -588,7 +588,7 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     {
       worker= get_free_worker(rli);
       // Update thd info as waiting for workers to finish.
-      thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
+      thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
                        __func__, __FILE__, __LINE__);
       do
       {
@@ -650,7 +650,7 @@ Mts_submode_logical_clock::
   DBUG_PRINT("info",("delegated %d, jobs_done %d", delegated_jobs,
                           jobs_done));
   // Update thd info as waiting for workers to finish.
-  thd->enter_stage(&stage_slave_waiiting_for_workers_to_finish, old_stage,
+  thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
                     __func__, __FILE__, __LINE__);
   while (delegated_jobs > jobs_done && !thd->killed)
   {

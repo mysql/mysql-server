@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -106,7 +106,6 @@ row_sel_sec_rec_is_for_blob(
 {
 	ulint	len;
 	byte	buf[REC_VERSION_56_MAX_INDEX_COL_LEN];
-	ulint	zip_size = dict_tf_get_zip_size(table->flags);
 
 	/* This function should never be invoked on an Antelope format
 	table, because they should always contain enough prefix in the
@@ -117,9 +116,8 @@ row_sel_sec_rec_is_for_blob(
 	ut_ad(prefix_len > 0);
 	ut_a(prefix_len <= sizeof buf);
 
-	if (UNIV_UNLIKELY
-	    (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
-		     field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE))) {
+	if (!memcmp(clust_field + clust_len - BTR_EXTERN_FIELD_REF_SIZE,
+		    field_ref_zero, BTR_EXTERN_FIELD_REF_SIZE)) {
 		/* The externally stored field was not written yet.
 		This record should only be seen by
 		recv_recovery_rollback_active() or any
@@ -127,11 +125,11 @@ row_sel_sec_rec_is_for_blob(
 		return(FALSE);
 	}
 
-	len = btr_copy_externally_stored_field_prefix(buf, prefix_len,
-						      zip_size,
-						      clust_field, clust_len);
+	len = btr_copy_externally_stored_field_prefix(
+		buf, prefix_len, dict_tf_get_page_size(table->flags),
+		clust_field, clust_len);
 
-	if (UNIV_UNLIKELY(len == 0)) {
+	if (len == 0) {
 		/* The BLOB was being deleted as the server crashed.
 		There should not be any secondary index records
 		referring to this clustered index record, because
@@ -447,7 +445,7 @@ row_sel_fetch_columns(
 
 				data = btr_rec_copy_externally_stored_field(
 					rec, offsets,
-					dict_table_zip_size(index->table),
+					dict_table_page_size(index->table),
 					field_no, &len, heap);
 
 				/* data == NULL means that the
@@ -2203,8 +2201,7 @@ fetch_step(
 	sel_node->common.parent = node;
 
 	if (sel_node->state == SEL_NODE_CLOSED) {
-		fprintf(stderr,
-			"InnoDB: Error: fetch called on a closed cursor\n");
+		ib_logf(IB_LOG_LEVEL_ERROR, "fetch called on a closed cursor");
 
 		thr_get_trx(thr)->error_state = DB_ERROR;
 
@@ -2232,7 +2229,7 @@ row_fetch_print(
 
 	UT_NOT_USED(user_arg);
 
-	fprintf(stderr, "row_fetch_print: row %p\n", row);
+	ib_logf(IB_LOG_LEVEL_INFO, "row_fetch_print: row %p", row);
 
 	for (exp = node->select_list;
 	     exp != 0;
@@ -2498,19 +2495,15 @@ row_sel_convert_mysql_key_to_innobase(
 			trick to calculate LIKE 'abc%' type queries there
 			should never be partial-field prefixes in searches. */
 
-			ut_print_timestamp(stderr);
-
-			fputs("  InnoDB: Warning: using a partial-field"
-			      " key prefix in search.\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
-			fprintf(stderr, ". Last data field length %lu bytes,\n"
-				"InnoDB: key ptr now exceeds"
-				" key end by %lu bytes.\n"
-				"InnoDB: Key value in the MySQL format:\n",
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"Using a partial-field key prefix in search,"
+				" index %s of table %s. Last data field length"
+				" %lu bytes, key ptr now exceeds key end by %lu"
+				" bytes. Key value in the MySQL format:",
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(trx, TRUE, index->table_name).c_str(),
 				(ulong) data_field_len,
 				(ulong) (key_ptr - key_end));
-			fflush(stderr);
 			ut_print_buf(stderr, original_key_ptr, key_len);
 			putc('\n', stderr);
 
@@ -2560,14 +2553,17 @@ row_sel_store_row_id_to_prebuilt(
 		dict_index_get_sys_col_pos(index, DATA_ROW_ID), &len);
 
 	if (UNIV_UNLIKELY(len != DATA_ROW_ID_LEN)) {
-		fprintf(stderr,
-			"InnoDB: Error: Row id field is"
-			" wrong length %lu in ", (ulong) len);
-		dict_index_name_print(stderr, prebuilt->trx, index);
-		fprintf(stderr, "\n"
-			"InnoDB: Field number %lu, record:\n",
-			(ulong) dict_index_get_sys_col_pos(index,
-							   DATA_ROW_ID));
+
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Row id field is wrong length %lu in index %s of"
+			" table %s, Field number %lu, record:",
+			(ulong) len,
+			ut_get_name(
+				prebuilt->trx, FALSE, index->name).c_str(),
+			ut_get_name(
+				prebuilt->trx, TRUE, index->table_name).c_str(),
+			(ulong) dict_index_get_sys_col_pos(index, DATA_ROW_ID));
+
 		rec_print_new(stderr, index_rec, offsets);
 		putc('\n', stderr);
 		ut_error;
@@ -2840,7 +2836,7 @@ row_sel_store_mysql_field_func(
 
 		data = btr_rec_copy_externally_stored_field(
 			rec, offsets,
-			dict_table_zip_size(prebuilt->table),
+			dict_table_page_size(prebuilt->table),
 			field_no, &len, heap);
 
 		if (UNIV_UNLIKELY(!data)) {
@@ -3098,13 +3094,15 @@ row_sel_get_clust_rec_for_mysql(
 		if (!rec_get_deleted_flag(rec,
 					  dict_table_is_comp(sec_index->table))
 		    || prebuilt->select_lock_type != LOCK_NONE) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: error clustered record"
-			      " for sec rec not found\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, sec_index);
-			fputs("\n"
-			      "InnoDB: sec index record ", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Clustered record for sec rec not found"
+				" index %s of table %s",
+				ut_get_name(trx, FALSE,
+					    sec_index->name).c_str(),
+				ut_get_name(trx, TRUE,
+					    sec_index->table_name).c_str());
+
+			fputs("InnoDB: sec index record ", stderr);
 			rec_print(stderr, rec, sec_index);
 			fputs("\n"
 			      "InnoDB: clust index record ", stderr);
@@ -3703,6 +3701,8 @@ row_search_for_mysql(
 	rec_offs_init(offsets_);
 
 	ut_ad(index && pcur && search_tuple);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	/* We don't support FTS queries from the HANDLER interfaces, because
 	we implemented FTS as reversed inverted index with auxiliary tables.
@@ -3733,46 +3733,8 @@ row_search_for_mysql(
 
 		return(DB_CORRUPTION);
 
-	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		fprintf(stderr,
-			"InnoDB: Error: trying to free a corrupt\n"
-			"InnoDB: table handle. Magic n %lu, table name ",
-			(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
-		putc('\n', stderr);
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
 	}
 
-#if 0
-	/* August 19, 2005 by Heikki: temporarily disable this error
-	print until the cursor lock count is done correctly.
-	See bugs #12263 and #12456!*/
-
-	if (trx->n_mysql_tables_in_use == 0
-	    && UNIV_UNLIKELY(prebuilt->select_lock_type == LOCK_NONE)) {
-		/* Note that if MySQL uses an InnoDB temp table that it
-		created inside LOCK TABLES, then n_mysql_tables_in_use can
-		be zero; in that case select_lock_type is set to LOCK_X in
-		::start_stmt. */
-
-		fputs("InnoDB: Error: MySQL is trying to perform a SELECT\n"
-		      "InnoDB: but it has not locked"
-		      " any tables in ::external_lock()!\n",
-		      stderr);
-		trx_print(stderr, trx, 600);
-		fputc('\n', stderr);
-	}
-#endif
-
-#if 0
-	fprintf(stderr, "Match mode %lu\n search tuple ",
-		(ulong) match_mode);
-	dtuple_print(search_tuple);
-	fprintf(stderr, "N tables locked %lu\n",
-		(ulong) trx->mysql_n_tables_locked);
-#endif
 	/*-------------------------------------------------------------*/
 	/* PHASE 0: Release a possible s-latch we are holding on the
 	adaptive hash index latch if there is someone waiting behind */
@@ -4086,10 +4048,9 @@ release_search_latch_if_needed:
 		    && !srv_read_only_mode
 		    && prebuilt->select_lock_type == LOCK_NONE) {
 
-			fputs("InnoDB: Error: MySQL is trying to"
-			      " perform a consistent read\n"
-			      "InnoDB: but the read view is not assigned!\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"MySQL is trying to perform a consistent read"
+				" but the read view is not assigned!");
 			trx_print(stderr, trx, 600);
 			fputc('\n', stderr);
 			ut_error;
@@ -4271,27 +4232,25 @@ rec_loop:
 
 wrong_offs:
 		if (srv_force_recovery == 0 || moves_up == FALSE) {
-			ut_print_timestamp(stderr);
-			buf_page_print(page_align(rec), 0,
+			buf_page_print(page_align(rec), univ_page_size,
 				       BUF_PAGE_PRINT_NO_CRASH);
-			fprintf(stderr,
-				"\nInnoDB: rec address %p,"
-				" buf block fix count %lu\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Rec address %p,"
+				" buf block fix count %lu",
 				(void*) rec, (ulong)
 				btr_cur_get_block(btr_pcur_get_btr_cur(pcur))
 				->page.buf_fix_count);
-			fprintf(stderr,
-				"InnoDB: Index corruption: rec offs %lu"
-				" next offs %lu, page no %lu,\n"
-				"InnoDB: ",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Index corruption: rec offs %lu next offs %lu,"
+				" page no %lu, index %s of table %s. Run CHECK"
+				" TABLE. You may need to restore from a backup,"
+				" or dump + drop + reimport the table.",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)));
-			dict_index_name_print(stderr, trx, index);
-			fputs(". Run CHECK TABLE. You may need to\n"
-			      "InnoDB: restore from a backup, or"
-			      " dump + drop + reimport the table.\n",
-			      stderr);
+				(ulong) page_get_page_no(page_align(rec)),
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(
+					trx, TRUE, index->table_name).c_str());
 			ut_ad(0);
 			err = DB_CORRUPTION;
 
@@ -4300,16 +4259,17 @@ wrong_offs:
 			/* The user may be dumping a corrupt table. Jump
 			over the corruption to recover as much as possible. */
 
-			fprintf(stderr,
-				"InnoDB: Index corruption: rec offs %lu"
-				" next offs %lu, page no %lu,\n"
-				"InnoDB: ",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Index corruption: rec offs %lu next offs %lu,"
+				" page no %lu, index %s of table %s."
+				" We try to skip the rest of the page.",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)));
-			dict_index_name_print(stderr, trx, index);
-			fputs(". We try to skip the rest of the page.\n",
-			      stderr);
+				(ulong) page_get_page_no(page_align(rec)),
+				ut_get_name(trx, FALSE,
+					    index->name).c_str(),
+				ut_get_name(trx, TRUE,
+					    index->table_name).c_str());
 
 			btr_pcur_move_to_last_on_page(pcur, &mtr);
 
@@ -4328,16 +4288,16 @@ wrong_offs:
 	if (UNIV_UNLIKELY(srv_force_recovery > 0)) {
 		if (!rec_validate(rec, offsets)
 		    || !btr_index_rec_validate(rec, index, FALSE)) {
-			fprintf(stderr,
-				"InnoDB: Index corruption: rec offs %lu"
-				" next offs %lu, page no %lu,\n"
-				"InnoDB: ",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Index corruption: rec offs %lu next offs %lu,"
+				" page no %lu, index %s of table %s."
+				" We try to skip the record.",
 				(ulong) page_offset(rec),
 				(ulong) next_offs,
-				(ulong) page_get_page_no(page_align(rec)));
-			dict_index_name_print(stderr, trx, index);
-			fputs(". We try to skip the record.\n",
-			      stderr);
+				(ulong) page_get_page_no(page_align(rec)),
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(
+					trx, TRUE, index->table_name).c_str());
 
 			goto next_rec;
 		}
@@ -5213,7 +5173,7 @@ row_search_check_if_query_cache_permitted(
 	saw at the time of the read view creation.  */
 
 	if (lock_table_get_n_locks(table) == 0
-	    && ((trx->id > 0 && trx->id >= table->query_cache_inv_id)
+	    && ((trx->id != 0 && trx->id >= table->query_cache_inv_id)
 		|| !MVCC::is_view_active(trx->read_view)
 		|| trx->read_view->low_limit_id()
 		>= table->query_cache_inv_id)) {
@@ -5301,25 +5261,40 @@ func_exit:
 	return(value);
 }
 
-/*******************************************************************//**
-Get the last row.
-@return current rec or NULL */
+/** Get the maximum and non-delete-marked record in an index.
+@param[in]	index	index tree
+@param[in,out]	mtr	mini-transaction (may be committed and restarted)
+@return maximum record, page s-latched in mtr
+@retval NULL if there are no records, or if all of them are delete-marked */
 static
 const rec_t*
-row_search_autoinc_get_rec(
-/*=======================*/
-	btr_pcur_t*	pcur,		/*!< in: the current cursor */
-	mtr_t*		mtr)		/*!< in: mini transaction */
+row_search_get_max_rec(
+	dict_index_t*	index,
+	mtr_t*		mtr)
 {
+	btr_pcur_t	pcur;
+	const rec_t*	rec;
+	/* Open at the high/right end (false), and init cursor */
+	btr_pcur_open_at_index_side(
+		false, index, BTR_SEARCH_LEAF, &pcur, true, 0, mtr);
+
 	do {
-		const rec_t* rec = btr_pcur_get_rec(pcur);
+		const page_t*	page;
+
+		page = btr_pcur_get_page(&pcur);
+		rec = page_find_rec_max_not_deleted(page);
 
 		if (page_rec_is_user_rec(rec)) {
-			return(rec);
+			break;
+		} else {
+			rec = NULL;
 		}
-	} while (btr_pcur_move_to_prev(pcur, mtr));
+		btr_pcur_move_before_first_on_page(&pcur);
+	} while (btr_pcur_move_to_prev(&pcur, mtr));
 
-	return(NULL);
+	btr_pcur_close(&pcur);
+
+	return(rec);
 }
 
 /*******************************************************************//**
@@ -5334,55 +5309,30 @@ row_search_max_autoinc(
 	const char*	col_name,	/*!< in: name of autoinc column */
 	ib_uint64_t*	value)		/*!< out: AUTOINC value read */
 {
-	ulint		i;
-	ulint		n_cols;
-	dict_field_t*	dfield = NULL;
+	dict_field_t*	dfield = dict_index_get_nth_field(index, 0);
 	dberr_t		error = DB_SUCCESS;
-
-	n_cols = dict_index_get_n_ordering_defined_by_user(index);
-
-	/* Search the index for the AUTOINC column name */
-	for (i = 0; i < n_cols; ++i) {
-		dfield = dict_index_get_nth_field(index, i);
-
-		if (strcmp(col_name, dfield->name) == 0) {
-			break;
-		}
-	}
-
 	*value = 0;
 
-	/* Must find the AUTOINC column name */
-	if (i < n_cols && dfield) {
+	if (strcmp(col_name, dfield->name) != 0) {
+		error = DB_RECORD_NOT_FOUND;
+	} else {
 		mtr_t		mtr;
-		btr_pcur_t	pcur;
+		const rec_t*	rec;
 
 		mtr_start(&mtr);
 
-		/* Open at the high/right end (false), and init cursor */
-		btr_pcur_open_at_index_side(
-			false, index, BTR_SEARCH_LEAF, &pcur, true, 0, &mtr);
+		rec = row_search_get_max_rec(index, &mtr);
 
-		if (!page_is_empty(btr_pcur_get_page(&pcur))) {
-			const rec_t*	rec;
+		if (rec != NULL) {
+			ibool unsigned_type = (
+				dfield->col->prtype & DATA_UNSIGNED);
 
-			rec = row_search_autoinc_get_rec(&pcur, &mtr);
-
-			if (rec != NULL) {
-				ibool unsigned_type = (
-					dfield->col->prtype & DATA_UNSIGNED);
-
-				*value = row_search_autoinc_read_column(
-					index, rec, i,
-					dfield->col->mtype, unsigned_type);
-			}
+			*value = row_search_autoinc_read_column(
+				index, rec, 0,
+				dfield->col->mtype, unsigned_type);
 		}
 
-		btr_pcur_close(&pcur);
-
 		mtr_commit(&mtr);
-	} else {
-		error = DB_RECORD_NOT_FOUND;
 	}
 
 	return(error);

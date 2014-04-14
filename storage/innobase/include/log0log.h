@@ -367,7 +367,6 @@ Reads a specified log segment to a buffer. */
 void
 log_group_read_log_seg(
 /*===================*/
-	ulint		type,		/*!< in: LOG_ARCHIVE or LOG_RECOVER */
 	byte*		buf,		/*!< in: buffer where to read */
 	log_group_t*	group,		/*!< in: log group */
 	lsn_t		start_lsn,	/*!< in: read area start */
@@ -382,6 +381,9 @@ log_group_write_buf(
 	byte*		buf,		/*!< in: buffer */
 	ulint		len,		/*!< in: buffer len; must be divisible
 					by OS_FILE_LOG_BLOCK_SIZE */
+#ifdef UNIV_DEBUG
+	ulint		pad_len,	/*!< in: pad len in the buffer len */
+#endif /* UNIV_DEBUG */
 	lsn_t		start_lsn,	/*!< in: start lsn of the buffer; must
 					be divisible by
 					OS_FILE_LOG_BLOCK_SIZE */
@@ -561,13 +563,11 @@ extern log_t*	log_sys;
 /* Values used as flags */
 #define LOG_FLUSH	7652559
 #define LOG_CHECKPOINT	78656949
-#define LOG_RECOVER	98887331
 
 /* The counting of lsn's starts from this value: this must be non-zero */
 #define LOG_START_LSN		((lsn_t) (16 * OS_FILE_LOG_BLOCK_SIZE))
 
 #define LOG_BUFFER_SIZE		(srv_log_buffer_size * UNIV_PAGE_SIZE)
-#define LOG_ARCHIVE_BUF_SIZE	(srv_log_buffer_size * UNIV_PAGE_SIZE / 4)
 
 /* Offsets of a log block header */
 #define	LOG_BLOCK_HDR_NO	0	/* block number which must be > 0 and
@@ -758,14 +758,6 @@ struct log_t{
 	ulint		max_buf_free;	/*!< recommended maximum value of
 					buf_free, after which the buffer is
 					flushed */
- #ifdef UNIV_LOG_DEBUG
-	ulint		old_buf_free;	/*!< value of buf free when log was
-					last time opened; only in the debug
-					version */
-	ib_uint64_t	old_lsn;	/*!< value of lsn when log was
-					last time opened; only in the
-					debug version */
-#endif /* UNIV_LOG_DEBUG */
 	ibool		check_flush_or_checkpoint;
 					/*!< this is set to TRUE when there may
 					be need to flush the log buffer, or

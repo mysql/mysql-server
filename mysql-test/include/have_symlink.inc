@@ -1,7 +1,6 @@
 # Several partition-related tests include this file, because Valgrind/Purify
-# builds disable symlink support; some partition functionality depends on
-# symlink support, and so does not test correctly under valgrind.  See the
-# comment in mysqld.cc for the --symbolic-links option.
+# builds previously disabled symlink support;
+# Some partition functionality depends on symlink support.
 
 -- require r/have_symlink.require
 

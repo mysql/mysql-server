@@ -3,6 +3,7 @@
 # (Turns off all 6.0 optimizer switches, even MRR)
 # 
 
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 
 --disable_query_log

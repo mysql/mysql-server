@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,9 +90,9 @@ struct purge_node_t{
 	roll_ptr_t	roll_ptr;/* roll pointer to undo log record */
 	ib_vector_t*    undo_recs;/*!< Undo recs to purge */
 
-	undo_no_t	undo_no;/* undo number of the record */
+	undo_no_t	undo_no;/*!< undo number of the record */
 
-	ulint		rec_type;/* undo log record type: TRX_UNDO_INSERT_REC,
+	ulint		rec_type;/*!< undo log record type: TRX_UNDO_INSERT_REC,
 				... */
 	dict_table_t*	table;	/*!< table where purge is done */
 

@@ -6699,7 +6699,7 @@ ER_AUTO_POSITION_REQUIRES_GTID_MODE_ON
   eng "CHANGE MASTER TO MASTER_AUTO_POSITION = 1 can only be executed when @@GLOBAL.GTID_MODE = ON."
 
 ER_CANT_DO_IMPLICIT_COMMIT_IN_TRX_WHEN_GTID_NEXT_IS_SET
-  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT != AUTOMATIC."
+  eng "Cannot execute statements with implicit commit inside a transaction when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 
 ER_GTID_MODE_2_OR_3_REQUIRES_ENFORCE_GTID_CONSISTENCY_ON
   eng "@@GLOBAL.GTID_MODE = ON or UPGRADE_STEP_2 requires @@GLOBAL.ENFORCE_GTID_CONSISTENCY = 1."
@@ -6873,7 +6873,8 @@ ER_FK_COLUMN_CANNOT_CHANGE
 ER_FK_COLUMN_CANNOT_CHANGE_CHILD
   eng "Cannot change column '%-.192s': used in a foreign key constraint '%-.192s' of table '%-.192s'"
 
-ER_FK_CANNOT_DELETE_PARENT
+# No longer used as IGNORE support for ALTER TABLE was removed.
+ER_UNUSED5
   eng "Cannot delete rows from table which is parent in a foreign key constraint '%-.192s' of table '%-.192s'"
 
 ER_MALFORMED_PACKET
@@ -6927,7 +6928,8 @@ ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_FK_CHECK
   eng "Adding foreign keys needs foreign_key_checks=OFF"
 
-ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_IGNORE
+# No longer used as IGNORE support for ALTER TABLE was removed.
+ER_UNUSED6
   eng "Creating unique indexes with IGNORE requires COPY algorithm to remove duplicate rows"
 
 ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOPK
@@ -7033,6 +7035,18 @@ ER_TABLE_CORRUPT
 ER_TEMP_FILE_WRITE_FAILURE
   eng "Temporary file write failure."
 
+ER_INNODB_FT_AUX_NOT_HEX_ID
+  eng "Upgrade index name failed, please use create index(alter table) algorithm copy to rebuild index."
+
+ER_OLD_TEMPORALS_UPGRADED
+  eng "TIME/TIMESTAMP/DATETIME columns of old format have been upgraded to the new format."
+
+ER_INNODB_FORCED_RECOVERY
+  eng "Operation not allowed when innodb_forced_recovery > 0."
+
+ER_AES_INVALID_IV
+  eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
+  bg "Инициализационния вектор подаден на %s е прекалено къс. Трябва да е поне %d байта"
 #
 #  End of 5.6 error messages.
 #
@@ -7076,7 +7090,6 @@ ER_REFERENCED_TRG_DOES_NOT_EXIST
 
 ER_EXPLAIN_NOT_SUPPORTED
         eng "EXPLAIN FOR CONNECTION command is supported only for SELECT/UPDATE/INSERT/DELETE/REPLACE"
-
 ER_INVALID_FIELD_SIZE
         eng "Invalid size for column '%-.192s'."
 
@@ -7091,6 +7104,37 @@ ER_PASSWORD_EXPIRE_ANONYMOUS_USER
 
 ER_SLAVE_SQL_THREAD_MUST_STOP
   eng "This operation cannot be performed with a running slave sql thread; run STOP SLAVE SQL_THREAD first"
+
+ER_NO_FT_MATERIALIZED_SUBQUERY
+  eng "Cannot create FULLTEXT index on materialized subquery"
+
+ER_INNODB_UNDO_LOG_FULL
+  eng "Undo Log error: %s"
+
+ER_INVALID_ARGUMENT_FOR_LOGARITHM 2201E
+  eng "Invalid argument for logarithm"
+
+ER_SLAVE_IO_THREAD_MUST_STOP
+  eng "This operation cannot be performed with a running slave io thread; run STOP SLAVE IO_THREAD first."
+
+ER_WARN_OPEN_TEMP_TABLES_MUST_BE_ZERO
+  eng "This operation may not be safe when the slave has temporary tables. The tables will be kept open until the server restarts or until the tables are deleted by any replicated DROP statement. Suggest to wait until slave_open_temp_tables = 0."
+
+ER_WARN_ONLY_MASTER_LOG_FILE_NO_POS
+  eng "CHANGE MASTER TO with a MASTER_LOG_FILE clause but no MASTER_LOG_POS clause may not be safe. The old position value may not be valid for the new binary log file."
+
+ER_QUERY_TIMEOUT 
+  eng "Query execution was interrupted, max_statement_time exceeded"
+
+ER_NON_RO_SELECT_DISABLE_TIMER
+  eng "Select is not a read only statement, disabling timer"
+
+ER_DUP_LIST_ENTRY
+        eng "Duplicate entry '%-.192s'."
+
+ER_SQL_MODE_NO_EFFECT
+  eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
+
 #
 #  End of 5.7 error messages.
 #

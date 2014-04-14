@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -91,6 +91,7 @@ ins_node_create(
 	node->select = NULL;
 
 	node->trx_id = 0;
+	node->duplicate = NULL;
 
 	node->entry_sys_heap = mem_heap_create(128);
 
@@ -198,6 +199,7 @@ ins_node_set_new_row(
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
+	node->duplicate = NULL;
 
 	node->row = row;
 
@@ -648,25 +650,24 @@ row_ins_cascade_calc_update_vec(
 							&ufield->new_val)));
 
 					if (new_doc_id <= 0) {
-						fprintf(stderr,
-							"InnoDB: FTS Doc ID "
-							"must be larger than "
-							"0 \n");
+						ib_logf(IB_LOG_LEVEL_ERROR,
+							"FTS Doc ID"
+							" must be larger than"
+							" 0");
 						return(ULINT_UNDEFINED);
 					}
 
 					if (new_doc_id < n_doc_id) {
-						fprintf(stderr,
-						       "InnoDB: FTS Doc ID "
-						       "must be larger than "
-						       IB_ID_FMT" for table",
-						       n_doc_id -1);
+						ib_logf(IB_LOG_LEVEL_ERROR,
+							"FTS Doc ID"
+							" must be larger than"
+							" " IB_ID_FMT " for"
+							" table %s",
+							n_doc_id -1,
+							ut_get_name(
+								trx, TRUE,
+								table->name).c_str());
 
-						ut_print_name(stderr, trx,
-							      TRUE,
-							      table->name);
-
-						putc('\n', stderr);
 						return(ULINT_UNDEFINED);
 					}
 
@@ -698,11 +699,12 @@ row_ins_cascade_calc_update_vec(
 				fts_trx_add_op(trx, table, new_doc_id,
 					       FTS_INSERT, NULL);
 			} else {
-				fprintf(stderr, "InnoDB: FTS Doc ID must be "
-					"updated along with FTS indexed "
-					"column for table ");
-				ut_print_name(stderr, trx, TRUE, table->name);
-				putc('\n', stderr);
+				std::string	str = ut_get_name(
+							trx, TRUE, table->name);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"FTS Doc ID must be updated along with"
+					" FTS indexed column for table %s",
+					str.c_str());
 				return(ULINT_UNDEFINED);
 			}
 		}
@@ -1099,12 +1101,14 @@ row_ins_foreign_check_on_constraint(
 		    || btr_pcur_get_low_match(cascade->pcur)
 		    < dict_index_get_n_unique(clust_index)) {
 
-			fputs("InnoDB: error in cascade of a foreign key op\n"
-			      "InnoDB: ", stderr);
-			dict_index_name_print(stderr, trx, index);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"In cascade of a foreign key op"
+				" index %s of table %s",
+				ut_get_name(trx, FALSE, index->name).c_str(),
+				ut_get_name(trx, TRUE,
+					    index->table_name).c_str());
 
-			fputs("\n"
-			      "InnoDB: record ", stderr);
+			fputs("InnoDB: record ", stderr);
 			rec_print(stderr, rec, index);
 			fputs("\n"
 			      "InnoDB: clustered record ", stderr);
@@ -2161,6 +2165,12 @@ row_ins_duplicate_error_in_clust(
 			offsets = rec_get_offsets(rec, cursor->index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
+			ulint lock_type;
+
+			lock_type =
+				trx->isolation_level <= TRX_ISO_READ_COMMITTED
+				? LOCK_REC_NOT_GAP : LOCK_ORDINARY;
+
 			/* We set a lock on the possible duplicate: this
 			is needed in logical logging of MySQL to make
 			sure that in roll-forward we get the same duplicate
@@ -2177,13 +2187,13 @@ row_ins_duplicate_error_in_clust(
 				INSERT ON DUPLICATE KEY UPDATE). */
 
 				err = row_ins_set_exclusive_rec_lock(
-					LOCK_REC_NOT_GAP,
+					lock_type,
 					btr_cur_get_block(cursor),
 					rec, cursor->index, offsets, thr);
 			} else {
 
 				err = row_ins_set_shared_rec_lock(
-					LOCK_REC_NOT_GAP,
+					lock_type,
 					btr_cur_get_block(cursor), rec,
 					cursor->index, offsets, thr);
 			}
@@ -2628,7 +2638,7 @@ row_ins_sec_index_entry_low(
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
-	ut_ad(thr_get_trx(thr)->id);
+	ut_ad(thr_get_trx(thr)->id != 0);
 
 	mtr_start(&mtr);
 
@@ -2756,6 +2766,43 @@ row_ins_sec_index_entry_low(
 			search_mode & ~(BTR_INSERT | BTR_IGNORE_SEC_UNIQUE),
 			&cursor, 0, __FILE__, __LINE__, &mtr);
 	}
+
+	if (dict_index_is_unique(index)
+	    && thr_get_trx(thr)->duplicates
+	    && thr_get_trx(thr)->isolation_level >= TRX_ISO_REPEATABLE_READ) {
+
+		/* When using the REPLACE statement or ON DUPLICATE clause, a
+		gap lock is taken on the position of the to-be-inserted record,
+		to avoid other concurrent transactions from inserting the same
+		record. */
+
+		dberr_t	err;
+		const rec_t* rec = page_rec_get_next_const(
+			btr_cur_get_rec(&cursor));
+
+		ut_ad(!page_rec_is_infimum(rec));
+
+		offsets = rec_get_offsets(rec, index, offsets,
+					  ULINT_UNDEFINED, &offsets_heap);
+
+		err = row_ins_set_exclusive_rec_lock(
+			LOCK_GAP, btr_cur_get_block(&cursor), rec,
+			index, offsets, thr);
+
+		switch (err) {
+		case DB_SUCCESS:
+		case DB_SUCCESS_LOCKED_REC:
+			if (thr_get_trx(thr)->error_state != DB_DUPLICATE_KEY) {
+				break;
+			}
+			/* Fall through (skip actual insert) after we have
+			successfully acquired the gap lock. */
+		default:
+			goto func_exit;
+		}
+	}
+
+	ut_ad(thr_get_trx(thr)->error_state == DB_SUCCESS);
 
 	if (row_ins_must_modify_rec(&cursor)) {
 		/* There is already an index entry with a long enough common
@@ -2940,6 +2987,10 @@ row_ins_sec_index_entry(
 	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 
+	DBUG_EXECUTE_IF("row_ins_sec_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_sec_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
+
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
@@ -2949,7 +3000,7 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	ut_ad(thr_get_trx(thr)->id);
+	ut_ad(thr_get_trx(thr)->id != 0);
 
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
@@ -2991,7 +3042,11 @@ row_ins_index_entry(
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ut_ad(thr_get_trx(thr)->id > 0);
+	ut_ad(thr_get_trx(thr)->id != 0);
+
+	DBUG_EXECUTE_IF("row_ins_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
 
 	if (dict_index_is_clust(index)) {
 		return(row_ins_clust_index_entry(index, entry, thr, 0));
@@ -3188,6 +3243,10 @@ row_ins(
 
 	DBUG_PRINT("row_ins", ("table: %s", node->table->name));
 
+	if (node->duplicate) {
+		thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
+	}
+
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
 		row_ins_alloc_row_id_step(node);
@@ -3213,8 +3272,36 @@ row_ins(
 		if (node->index->type != DICT_FTS) {
 			err = row_ins_index_entry_step(node, thr);
 
-			if (err != DB_SUCCESS) {
+			switch (err) {
+			case DB_SUCCESS:
+				break;
+			case DB_DUPLICATE_KEY:
+				ut_ad(dict_index_is_unique(node->index));
 
+				if (thr_get_trx(thr)->isolation_level
+				    >= TRX_ISO_REPEATABLE_READ
+				    && thr_get_trx(thr)->duplicates) {
+
+					/* When we are in REPLACE statement or
+					INSERT ..  ON DUPLICATE UPDATE
+					statement, we process all the
+					unique secondary indexes, even after we
+					encounter a duplicate error. This is
+					done to take necessary gap locks in
+					secondary indexes to block concurrent
+					transactions from inserting the
+					searched records. */
+					if (!node->duplicate) {
+						/* Save 1st dup error. Ignore
+						subsequent dup errors. */
+						node->duplicate = node->index;
+						thr_get_trx(thr)->error_state
+							= DB_DUPLICATE_KEY;
+					}
+					break;
+				}
+				// fall through
+			default:
 				DBUG_RETURN(err);
 			}
 		}
@@ -3232,13 +3319,29 @@ row_ins(
 			node->index = dict_table_get_next_index(node->index);
 			node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry);
 		}
+
+		/* After encountering a duplicate key error, we process
+		remaining indexes just to place gap locks and no actual
+		insertion will take place.  These gap locks are needed
+		only for unique indexes.  So skipping non-unique indexes. */
+		if (node->duplicate) {
+			while (node->index
+			       && !dict_index_is_unique(node->index)) {
+
+				node->index = dict_table_get_next_index(
+					node->index);
+				node->entry = UT_LIST_GET_NEXT(tuple_list,
+							       node->entry);
+			}
+		}
 	}
 
 	ut_ad(node->entry == NULL);
 
+	thr_get_trx(thr)->error_info = node->duplicate;
 	node->state = INS_NODE_ALLOC_ROW_ID;
 
-	DBUG_RETURN(DB_SUCCESS);
+	DBUG_RETURN(node->duplicate ? DB_DUPLICATE_KEY : DB_SUCCESS);
 }
 
 /***********************************************************//**

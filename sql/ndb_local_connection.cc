@@ -143,12 +143,9 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
   /* Don't allow queries to affect THD's status variables */
   struct system_status_var save_thd_status_var= m_thd->status_var;
 
-  /* Save transaction state */
-  THD_TRANS save_thd_transaction_all= m_thd->transaction.all;
-  THD_TRANS save_thd_transaction_stmt= m_thd->transaction.stmt;
-
   /* Check modified_non_trans_table is false(check if actually needed) */
-  assert(!m_thd->transaction.stmt.has_modified_non_trans_table());
+  assert(!m_thd->get_transaction()->has_modified_non_trans_table(
+    Transaction_ctx::STMT));
 
 #if 0
   /*
@@ -176,8 +173,6 @@ Ndb_local_connection::execute_query_iso(MYSQL_LEX_STRING sql_text,
 #if 0
   m_thd->variables.pseudo_thread_id = save_thd_thread_id;
 #endif
-  m_thd->transaction.all= save_thd_transaction_all;
-  m_thd->transaction.stmt= save_thd_transaction_stmt;
   m_thd->status_var= save_thd_status_var;
 
   return result;

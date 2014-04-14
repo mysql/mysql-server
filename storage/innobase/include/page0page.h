@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -1018,18 +1018,14 @@ page_parse_delete_rec_list(
 	buf_block_t*	block,	/*!< in/out: buffer block or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
-/***********************************************************//**
-Parses a redo log record of creating a page.
-@return end of log record or NULL */
+/** Parses a redo log record of creating a page.
+@param[in,out]	block	buffer block, or NULL
+@param[in]	comp	nonzero=compact page format */
 
-byte*
+void
 page_parse_create(
-/*==============*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
-	ulint		comp,	/*!< in: nonzero=compact page format */
-	buf_block_t*	block,	/*!< in: block or NULL */
-	mtr_t*		mtr);	/*!< in: mtr or NULL */
+	buf_block_t*	block,
+	ulint		comp);
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Prints record contents including the data relevant only in
@@ -1143,6 +1139,14 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
+/** Get the last non-delete-marked record on a page.
+@param[in]	page	index tree leaf page
+@return the last record, not delete-marked
+@retval infimum record if all records are delete-marked */
+
+const rec_t*
+page_find_rec_max_not_deleted(
+	const page_t*	page);
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL

@@ -1191,7 +1191,7 @@ static inline int inline_mysql_cond_wait(
 static inline int inline_mysql_cond_timedwait(
   mysql_cond_t *that,
   mysql_mutex_t *mutex,
-  struct timespec *abstime
+  const struct timespec *abstime
 #ifdef HAVE_PSI_COND_INTERFACE
   , const char *src_file, uint src_line
 #endif

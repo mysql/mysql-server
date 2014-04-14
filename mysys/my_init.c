@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,12 +87,12 @@ my_bool my_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
-  if (my_thread_global_init())
-    return 1;
-
 #if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
+
+  if (my_thread_global_init())
+    return 1;
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
@@ -163,10 +163,6 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
-    /* Purify assumes that rus is uninitialized after getrusage call */
-    memset(&rus, 0, sizeof(rus));
-#endif
     if (!getrusage(RUSAGE_SELF, &rus))
       fprintf(info_file,"\n\
 User time %.2f, System time %.2f\n\
@@ -362,17 +358,8 @@ static void my_win_init(void)
   DBUG_ENTER("my_win_init");
 
 #if defined(_MSC_VER)
-#if _MSC_VER < 1300
-  /*
-    Clear the OS system variable TZ and avoid the 100% CPU usage
-    Only for old versions of Visual C++
-  */
-  _putenv("TZ=");
-#endif
-#if _MSC_VER >= 1400
   /* this is required to make crt functions return -1 appropriately */
   _set_invalid_parameter_handler(my_parameter_handler);
-#endif
 #endif
 
 #ifdef __MSVC_RUNTIME_CHECKS
@@ -461,10 +448,6 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 
 #ifdef HAVE_PSI_INTERFACE
 
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-PSI_mutex_key key_my_file_info_mutex;
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
   key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
@@ -475,9 +458,6 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-  { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
@@ -510,16 +490,16 @@ static PSI_cond_info all_mysys_conds[]=
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
 
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
 PSI_file_key key_file_proc_meminfo;
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 PSI_file_key key_file_charset, key_file_cnf;
 
 static PSI_file_info all_mysys_files[]=
 {
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
   { &key_file_proc_meminfo, "proc_meminfo", 0},
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
   { &key_file_charset, "charset", 0},
   { &key_file_cnf, "cnf", 0}
 };

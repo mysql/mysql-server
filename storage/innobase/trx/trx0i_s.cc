@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -150,7 +150,7 @@ struct i_s_table_cache_t {
 struct trx_i_s_cache_t {
 	rw_lock_t	rw_lock;	/*!< read-write lock protecting
 					the rest of this structure */
-	ullint		last_read;	/*!< last time the cache was read;
+	uintmax_t	last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
 	ib_mutex_t		last_read_mutex;/*!< mutex protecting the
@@ -344,9 +344,9 @@ table_cache_create_empty_row(
 		cache->mem_allocd += got_bytes;
 
 #if 0
-		printf("allocating chunk %d req bytes=%lu, got bytes=%lu, "
-		       "row size=%lu, "
-		       "req rows=%lu, got rows=%lu\n",
+		printf("allocating chunk %d req bytes=%lu, got bytes=%lu,"
+		       " row size=%lu,"
+		       " req rows=%lu, got rows=%lu\n",
 		       i, req_bytes, got_bytes,
 		       table_cache->row_size,
 		       req_rows, got_rows);
@@ -467,13 +467,7 @@ fill_trx_row(
 
 	ut_ad(lock_mutex_own());
 
-	/* RO and transactions whose intentions are unknown (whether they
-	will eventually do a WRITE) don't have an ID assigned to them.
-	The only requirement is that for any given snapshot all the trx
-	identifiers are unique. */
-
-	row->trx_id = ulint(trx);
-
+	row->trx_id = trx_get_id_for_print(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 	row->requested_lock_row = requested_lock_row;
@@ -489,7 +483,7 @@ fill_trx_row(
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_weight = (ullint) TRX_WEIGHT(trx);
+	row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
 
 	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
@@ -717,8 +711,8 @@ fill_lock_data(
 
 	mtr_start(&mtr);
 
-	block = buf_page_try_get(lock_rec_get_space_id(lock),
-				 lock_rec_get_page_no(lock),
+	block = buf_page_try_get(page_id_t(lock_rec_get_space_id(lock),
+					   lock_rec_get_page_no(lock)),
 				 &mtr);
 
 	if (block == NULL) {
@@ -1227,7 +1221,7 @@ can_cache_be_updated(
 /*=================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
+	uintmax_t	now;
 
 	/* Here we read cache->last_read without acquiring its mutex
 	because last_read is only updated when a shared rw lock on the
@@ -1302,7 +1296,7 @@ fetch_data_into_cache_low(
 		/* Note: Read only transactions that modify temporary
 		tables an have a transaction ID */
 		if (trx->state == TRX_STATE_NOT_STARTED
-		    || (!rw_trx_list && trx->id > 0 && !trx->read_only)) {
+		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
 			continue;
 		}
@@ -1484,7 +1478,7 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
+	uintmax_t	now;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S));
@@ -1644,7 +1638,7 @@ trx_i_s_create_lock_id(
 	} else {
 		/* table lock */
 		res_len = ut_snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT":"UINT64PF,
+				      TRX_ID_FMT":" UINT64PF,
 				      row->lock_trx_id,
 				      row->lock_table_id);
 	}

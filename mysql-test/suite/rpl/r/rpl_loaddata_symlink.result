@@ -9,9 +9,11 @@ select * from t1;
 a	b
 1	10
 2	15
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 1	10
 2	15
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

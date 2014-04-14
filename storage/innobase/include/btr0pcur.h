@@ -459,6 +459,13 @@ void
 btr_pcur_move_to_prev_on_page(
 /*==========================*/
 	btr_pcur_t*	cursor);/*!< in/out: persistent cursor */
+/*********************************************************//**
+Moves the persistent cursor to the infimum record on the same page. */
+UNIV_INLINE
+void
+btr_pcur_move_before_first_on_page(
+/*===============================*/
+	btr_pcur_t*	cursor); /*!< in/out: persistent cursor */
 
 /** Position state of persistent B-tree cursor. */
 enum pcur_pos_t {
