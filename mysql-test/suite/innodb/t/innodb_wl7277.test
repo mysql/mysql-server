@@ -103,7 +103,10 @@ SET GLOBAL innodb_fill_factor = 10;
 CREATE INDEX idx_title ON t1(title);
 
 SELECT index_name, stat_name, stat_value, sample_size, stat_description
-	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+FROM mysql.innodb_index_stats
+WHERE table_name = 't1' AND index_name = 'idx_title'
+AND (stat_name = 'n_leaf_pages' OR stat_name = 'size');
+
 
 CHECK TABLE t1;
 
@@ -117,7 +120,9 @@ DROP INDEX idx_title ON t1;
 CREATE INDEX idx_title ON t1(title);
 
 SELECT index_name, stat_name, stat_value, sample_size, stat_description
-	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+FROM mysql.innodb_index_stats
+WHERE table_name = 't1' AND index_name = 'idx_title'
+AND (stat_name = 'n_leaf_pages' OR stat_name = 'size');
 
 CHECK TABLE t1;
 
@@ -132,7 +137,9 @@ DROP INDEX idx_title ON t1;
 CREATE INDEX idx_title ON t1(title);
 
 SELECT index_name, stat_name, stat_value, sample_size, stat_description
-	FROM mysql.innodb_index_stats WHERE table_name = 't1' AND index_name = 'idx_title';
+FROM mysql.innodb_index_stats
+WHERE table_name = 't1' AND index_name = 'idx_title'
+AND (stat_name = 'n_leaf_pages' OR stat_name = 'size');
 
 CHECK TABLE t1;
 
