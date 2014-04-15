@@ -1223,6 +1223,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   LEX *old_lex;
   Item_change_list old_change_list;
   String old_packet;
+  uint old_server_status;
   Reprepare_observer *save_reprepare_observer= thd->m_reprepare_observer;
   Object_creation_ctx *saved_creation_ctx;
   Warning_info *saved_warning_info;
@@ -1357,6 +1358,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
     It is probably safe to use same thd->convert_buff everywhere.
   */
   old_packet.swap(thd->packet);
+  old_server_status= thd->server_status;
 
   /*
     Switch to per-instruction arena here. We can do it since we cleanup
@@ -1486,6 +1488,7 @@ sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->spcont->pop_all_cursors(); // To avoid memory leaks after an error
 
   /* Restore all saved */
+  thd->server_status= old_server_status;
   old_packet.swap(thd->packet);
   DBUG_ASSERT(thd->change_list.is_empty());
   old_change_list.move_elements_to(&thd->change_list);
