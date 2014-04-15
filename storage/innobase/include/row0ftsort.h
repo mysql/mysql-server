@@ -124,6 +124,7 @@ typedef struct fts_tokenize_ctx fts_tokenize_ctx_t;
 /** Structure stores information needed for the insertion phase of FTS
 parallel sort. */
 struct fts_psort_insert {
+	CHARSET_INFO*	charset;	/*!< charset info */
 	mem_heap_t*	heap;		/*!< heap */
 	ibool		opt_doc_id_size;/*!< Whether to use smaller (4 bytes)
 					integer for Doc ID */
@@ -131,7 +132,6 @@ struct fts_psort_insert {
 	dtuple_t*	tuple;		/*!< Tuple to insert */
 
 #ifdef UNIV_DEBUG
-	CHARSET_INFO*	charset;	/*!< charset info */
 	ulint		aux_index_id;	/*!< Auxiliary index id */
 #endif
 };

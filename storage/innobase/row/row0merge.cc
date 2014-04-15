@@ -3292,8 +3292,10 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
 	bool			fts_psort_initiated = false;
+#ifdef BULK_LOAD_PFS_PRINT
 	ulint			start_time_ms;
 	ulint			diff_time;
+#endif
 	DBUG_ENTER("row_merge_build_indexes");
 
 	ut_ad(!srv_read_only_mode);
@@ -3368,9 +3370,11 @@ row_merge_build_indexes(
 	duplicate keys. */
 	innobase_rec_reset(table);
 
+#ifdef BULK_LOAD_PFS_PRINT
+	start_time_ms = ut_time_ms();
+#endif
 	/* Read clustered index of the table and create files for
 	secondary index entries for merge sort */
-	start_time_ms = ut_time_ms();
 	error = row_merge_read_clustered_index(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
@@ -3384,7 +3388,8 @@ row_merge_build_indexes(
 
 #ifdef BULK_LOAD_PFS_PRINT
 	diff_time = ut_time_ms() - start_time_ms;
-	ib_logf(IB_LOG_LEVEL_INFO, "index read cluster time\t : %ld",
+	start_time_ms = ut_time_ms();
+	ib_logf(IB_LOG_LEVEL_INFO, "cluster index read time\t : %ld",
 		diff_time);
 #endif
 
@@ -3461,9 +3466,10 @@ wait_again:
 
 #ifdef BULK_LOAD_PFS_PRINT
 			diff_time = ut_time_ms() - start_time_ms;
+			start_time_ms = ut_time_ms();
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"index build time\t\t : %ld",
-				diff_time);
+				"index %s build time\t : %ld",
+				sort_idx->name, diff_time);
 #endif
 
 #ifdef FTS_INTERNAL_DIAG_PRINT
@@ -3473,17 +3479,16 @@ wait_again:
 			row_merge_dup_t	dup = {
 				sort_idx, table, col_map, 0};
 
-			start_time_ms = ut_time_ms();
-
 			error = row_merge_sort(
 				trx, &dup, &merge_files[i],
 				block, &tmpfd);
 
 #ifdef BULK_LOAD_PFS_PRINT
 			diff_time = ut_time_ms() - start_time_ms;
+			start_time_ms = ut_time_ms();
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"index merge sort time\t : %ld",
-				diff_time);
+				"index %s sort time\t : %ld",
+				sort_idx->name, diff_time);
 #endif
 
 			if (error == DB_SUCCESS) {
@@ -3500,9 +3505,10 @@ wait_again:
 
 #ifdef BULK_LOAD_PFS_PRINT
 			diff_time = ut_time_ms() - start_time_ms;
+			start_time_ms = ut_time_ms();
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"index build time\t\t : %ld",
-				diff_time);
+				"index %s build time\t : %ld",
+				sort_idx->name, diff_time);
 #endif
 		}
 

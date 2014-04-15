@@ -1561,6 +1561,7 @@ row_fts_merge_insert(
 
 	tuple_heap = mem_heap_create(1000);
 
+	ins_ctx.charset = fts_index_get_charset(index);
 	ins_ctx.heap = heap;
 
 	for (i = 0; i < fts_sort_pll_degree; i++) {
@@ -1631,7 +1632,6 @@ row_fts_merge_insert(
 	dfield_set_data(field, &roll_ptr, 7);
 
 #ifdef UNIV_DEBUG
-	ins_ctx.charset = fts_index_get_charset(index);
 	ins_ctx.aux_index_id = id;
 #endif
 
