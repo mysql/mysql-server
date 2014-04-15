@@ -94,15 +94,8 @@ SET(BUILDTYPE_DOCSTRING
  "Choose the type of build, options are: None(CMAKE_CXX_FLAGS or
  CMAKE_C_FLAGS used) Debug Release RelWithDebInfo MinSizeRel")
 
-# Possibly temporary fix: Clang on 32 bit causes non-debug server to crash
-IF(CMAKE_OSX_ARCHITECTURES MATCHES "i386")
-  SET(CMAKE_CXX_COMPILER g++)
-ENDIF()
-
 IF(WITH_DEBUG)
   SET(CMAKE_BUILD_TYPE "Debug" CACHE STRING ${BUILDTYPE_DOCSTRING} FORCE)
-  SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
-      "MySQL maintainer-specific development environment")
   IF(UNIX AND NOT APPLE)
     # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
     # Predefine it to ON, in case user chooses to build embedded. 
@@ -129,6 +122,14 @@ ELSE()
   MARK_AS_ADVANCED(MYSQL_PROJECT_NAME)
 ENDIF()
 PROJECT(${MYSQL_PROJECT_NAME})
+
+# Maintainer mode is default on only for debug builds using GCC/G++
+IF(CMAKE_BUILD_TYPE MATCHES "Debug" OR WITH_DEBUG)
+  IF(CMAKE_COMPILER_IS_GNUCC AND CMAKE_COMPILER_IS_GNUCXX)
+    SET(MYSQL_MAINTAINER_MODE ON CACHE BOOL
+        "MySQL maintainer-specific development environment")
+  ENDIF()
+ENDIF()
 
 OPTION(WITH_DEFAULT_COMPILER_OPTIONS
   "Use flags from cmake/build_configurations/compiler_options.cmake"
@@ -474,7 +475,8 @@ INCLUDE(configure.cmake)
 
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
-INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/libbinlogevents/include
+                   ${CMAKE_CURRENT_BINARY_DIR}/include)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()

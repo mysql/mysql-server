@@ -106,70 +106,8 @@ struct sys_var_with_base
 };
 
 
-/**
-  Bison "location" class
-*/
-typedef struct YYLTYPE
-{
-  // TODO: replace all "char *" types with "const char *"
-  const char *start; // token start in the preprocessed buffer
-  const char *end;   // the 1st byte after the token in the preprocessed buffer
-  const char *raw_start; // token start in the raw buffer
-  const char *raw_end;   // the 1st byte after the token in the raw buffer
-} YYLTYPE;
-
-#define YYLTYPE_IS_DECLARED 1 // signal Bison that we have our own YYLTYPE
-
-
-/**
-  Bison calls this macro:
-  1. each time a rule is matched and
-  2. to compute a syntax error location.
-
-  @param Current [out] location of the whole matched rule
-  @param Rhs           locations of all right hand side elements in the rule
-  @param N             number of right hand side elements in the rule
-*/
-#define YYLLOC_DEFAULT(Current, Rhs, N)                             \
-    do                                                              \
-      if (YYID (N))                                                 \
-      {                                                             \
-        (Current).start=     YYRHSLOC(Rhs, 1).start;                \
-        (Current).end=       YYRHSLOC(Rhs, N).end;                  \
-        (Current).raw_start= YYRHSLOC(Rhs, 1).raw_start;            \
-        (Current).raw_end=   YYRHSLOC(Rhs, N).raw_end;              \
-      }                                                             \
-      else                                                          \
-      {                                                             \
-        (Current).start=     YYRHSLOC(Rhs, 0).start;                \
-        (Current).end=       YYRHSLOC(Rhs, 0).end;                  \
-        (Current).raw_start= YYRHSLOC(Rhs, 0).raw_start;            \
-        (Current).raw_end=   YYRHSLOC(Rhs, 0).raw_end;              \
-      }                                                             \
-    while (YYID (0))
-
-
-#ifdef MYSQL_SERVER
-/*
-  The following hack is needed because mysql_yacc.cc does not define
-  YYSTYPE before including this file
-*/
-#ifdef MYSQL_YACC
-#define LEX_YYSTYPE void *
-#else
-#include "lex_symbol.h"
-#if MYSQL_LEX
-#include "item_func.h"            /* Cast_target used in sql_yacc.h */
-#include "sql_signal.h"
-#include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
-#include "sql_yacc.h"
-#define LEX_YYSTYPE YYSTYPE *
-#else
-#define LEX_YYSTYPE void *
-#endif
-#endif
-#endif
-
+union YYSTYPE;
+typedef YYSTYPE *LEX_YYSTYPE;
 #include "sql_cmd.h"
 #include "sql_digest_stream.h"
 
@@ -360,11 +298,9 @@ public:
   */ 
   LEX_STRING key_name;
 
-  Index_hint (enum index_hint_type type_arg, index_clause_map clause_arg,
-              char *str, uint length) :
-    type(type_arg), clause(clause_arg)
+  Index_hint (const char *str, uint length)
   {
-    key_name.str= str;
+    key_name.str= const_cast<char *>(str);
     key_name.length= length;
   }
 
@@ -853,7 +789,6 @@ public:
   SQL_I_List<ORDER> order_list;
   Group_list_ptrs *order_list_ptrs;
 
-  SQL_I_List<ORDER> gorder_list;
   Item *select_limit, *offset_limit;  /* LIMIT clause parameters */
 
   /// Array of pointers to top elements of all_fields list
@@ -884,7 +819,6 @@ public:
   enum_parsing_context parsing_place; /* where we are parsing expression */
   bool with_sum_func;   /* sum function indicator */
 
-  ulong table_join_options;
   uint in_sum_expr;
   uint select_number; /* number of select (used for EXPLAIN) */
   /**
@@ -1006,14 +940,12 @@ public:
   void invalidate();
 
   bool set_braces(bool value);
-  bool inc_in_sum_expr();
   uint get_in_sum_expr() const { return in_sum_expr; }
 
   bool add_item_to_list(THD *thd, Item *item);
-  bool add_group_to_list(THD *thd, Item *item, bool asc);
+  void add_group_to_list(ORDER *order);
   bool add_ftfunc_to_list(Item_func_match *func);
-  bool add_order_to_list(THD *thd, Item *item, bool asc);
-  bool add_gorder_to_list(THD *thd, Item *item, bool asc);
+  void add_order_to_list(ORDER *order);
   TABLE_LIST* add_table_to_list(THD *thd, Table_ident *table,
 				LEX_STRING *alias,
 				ulong table_options,
@@ -1030,7 +962,6 @@ public:
   TABLE_LIST *convert_right_join();
   List<Item>* get_item_list() { return &item_list; }
 
-  ulong get_table_join_options() const { return table_join_options; }
   void set_lock_for_tables(thr_lock_type lock_type);
   inline void init_order()
   {
@@ -1088,8 +1019,6 @@ public:
   */
   void cleanup_all_joins(bool full);
 
-  void set_index_hint_type(enum index_hint_type type, index_clause_map clause);
-
   /* 
    Add a index hint to the tagged list of hints. The type and clause of the
    hint will be the current ones (set by set_index_hint()) 
@@ -1098,15 +1027,7 @@ public:
 
   /* make a list to hold index hints */
   void alloc_index_hints (THD *thd);
-  /* read and clear the index hints */
-  List<Index_hint>* pop_index_hints(void) 
-  {
-    List<Index_hint> *hints= index_hints;
-    index_hints= NULL;
-    return hints;
-  }
 
-  void clear_index_hints(void) { index_hints= NULL; }
   bool handle_derived(LEX *lex, bool (*processor)(THD*, LEX*, TABLE_LIST*));
   bool is_part_of_union() { return master_unit()->is_union(); }
 
@@ -1168,15 +1089,14 @@ public:
   bool get_optimizable_conditions(THD *thd,
                                   Item **new_where, Item **new_having);
 
+  bool check_outermost_option(THD *thd, const char *wrong_option);
+  bool set_query_block_options(THD *thd, ulonglong options_arg,
+                               ulong max_statement_time);
+
 private:
   bool m_non_agg_field_used;
   bool m_agg_func_used;
 
-  /* current index hint kind. used in filling up index_hints */
-  enum index_hint_type current_index_hint_type;
-  index_clause_map current_index_hint_clause;
-  /* a list of USE/FORCE/IGNORE INDEX */
-  List<Index_hint> *index_hints;
   /// Helper for fix_prepare_information()
   void fix_prepare_information_for_order(THD *thd,
                                          SQL_I_List<ORDER> *list,
@@ -1214,6 +1134,253 @@ inline bool st_select_lex_unit::is_union () const
   return first_select()->next_select() && 
          first_select()->next_select()->linkage == UNION_TYPE;
 }
+
+#ifdef MYSQL_SERVER
+#include "lex_symbol.h"
+#include "item_func.h"            /* Cast_target used in sql_yacc.h */
+#include "sql_signal.h"
+#include "sql_get_diagnostics.h"  /* Types used in sql_yacc.h */
+//#include "sql_yacc.h"
+
+
+struct Cast_type
+{
+  Cast_target target;
+  const CHARSET_INFO *charset;
+  ulong type_flags;
+  const char *length;
+  const char *dec;
+};
+
+
+struct Limit_options
+{
+  Item *limit;
+  Item *opt_offset;
+  /*
+    true for "LIMIT offset,limit" and false for "LIMIT limit OFFSET offset"
+  */
+  bool is_offset_first;
+};
+
+
+struct Query_options {
+  ulonglong query_spec_options;
+  enum SELECT_LEX::e_sql_cache sql_cache;
+  ulong max_statement_time;
+
+  bool merge(const Query_options &a, const Query_options &b);
+  bool save_to(Parse_context *);
+};
+
+
+/**
+  Argument values for PROCEDURE ANALYSE(...)
+*/
+
+struct Proc_analyse_params
+{
+  uint max_tree_elements; //< maximum number of distinct values per column
+  uint max_treemem; //< maximum amount of memory to allocate per column
+
+  static const uint default_max_tree_elements= 256;
+  static const uint default_max_treemem= 8192;
+};
+
+
+struct Select_lock_type
+{
+  bool is_set;
+  thr_lock_type lock_type;
+  bool is_safe_to_cache_query;
+};
+
+
+/**
+  Helper for the sql_exchange class
+*/
+
+struct Line_separators
+{
+  const String *line_term;
+  const String *line_start;
+
+  void cleanup() { line_term= line_start= NULL; }
+  void merge_line_separators(const Line_separators &s)
+  {
+    if (s.line_term != NULL)
+      line_term= s.line_term;
+    if (s.line_start != NULL)
+      line_start= s.line_start;
+  }
+};
+
+
+/**
+  Helper for the sql_exchange class
+*/
+
+struct Field_separators
+{
+  const String *field_term;
+  const String *escaped;
+  const String *enclosed;
+  bool opt_enclosed;
+  
+  void cleanup()
+  {
+    field_term= escaped= enclosed= NULL;
+    opt_enclosed= false;
+  }
+  void merge_field_separators(const Field_separators &s)
+  {
+    if (s.field_term != NULL)
+      field_term= s.field_term;
+    if (s.escaped != NULL)
+      escaped= s.escaped;
+    if (s.enclosed != NULL)
+      enclosed= s.enclosed;
+    // TODO: a bug?
+    // OPTIONALLY ENCLOSED BY x ENCLOSED BY y == OPTIONALLY ENCLOSED BY y
+    if (s.opt_enclosed)
+      opt_enclosed= s.opt_enclosed;
+  }
+};
+
+#define YYSTYPE_IS_DECLARED
+union YYSTYPE {
+  int  num;
+  ulong ulong_num;
+  ulonglong ulonglong_number;
+  longlong longlong_number;
+  LEX_STRING lex_str;
+  LEX_STRING *lex_str_ptr;
+  LEX_SYMBOL symbol;
+  Table_ident *table;
+  char *simple_string;
+  Item *item;
+  Item_num *item_num;
+  List<Item> *item_list;
+  List<String> *string_list;
+  String *string;
+  Key_part_spec *key_part;
+  TABLE_LIST *table_list;
+  udf_func *udf;
+  LEX_USER *lex_user;
+  struct sys_var_with_base variable;
+  enum enum_var_type var_type;
+  Key::Keytype key_type;
+  enum ha_key_alg key_alg;
+  handlerton *db_type;
+  enum row_type row_type;
+  enum ha_rkey_function ha_rkey_mode;
+  enum enum_ha_read_modes ha_read_mode;
+  enum enum_tx_isolation tx_isolation;
+  const char *c_str;
+  struct
+  {
+    const CHARSET_INFO *charset;
+    ulong type_flags;
+  } charset_with_flags;
+  struct
+  {
+    const char *length;
+    const char *dec;
+  } precision;
+  struct Cast_type cast_type;
+  enum Item_udftype udf_type;
+  const CHARSET_INFO *charset;
+  thr_lock_type lock_type;
+  interval_type interval, interval_time_st;
+  timestamp_type date_time_type;
+  st_select_lex *select_lex;
+  chooser_compare_func_creator boolfunc2creator;
+  class sp_condition_value *spcondvalue;
+  struct { int vars, conds, hndlrs, curs; } spblock;
+  sp_name *spname;
+  LEX *lex;
+  sp_head *sphead;
+  struct p_elem_val *p_elem_value;
+  enum index_hint_type index_hint;
+  enum enum_filetype filetype;
+  enum Foreign_key::fk_option m_fk_option;
+  enum enum_yes_no_unknown m_yes_no_unk;
+  enum_condition_item_name da_condition_item_name;
+  Diagnostics_information::Which_area diag_area;
+  Diagnostics_information *diag_info;
+  Statement_information_item *stmt_info_item;
+  Statement_information_item::Name stmt_info_item_name;
+  List<Statement_information_item> *stmt_info_list;
+  Condition_information_item *cond_info_item;
+  Condition_information_item::Name cond_info_item_name;
+  List<Condition_information_item> *cond_info_list;
+  bool is_not_empty;
+  Set_signal_information *signal_item_list;
+  enum enum_trigger_order_type trigger_action_order_type;
+  struct
+  {
+    enum enum_trigger_order_type ordering_clause;
+    LEX_STRING anchor_trigger_name;
+  } trg_characteristics;
+  struct
+  {
+    bool set_password_expire_flag;    /* true if password expires */
+    bool use_default_password_expiry; /* true if password_lifetime is NULL*/
+    uint16 expire_after_days;
+  } user_password_expiration;
+  class Index_hint *key_usage_element;
+  List<Index_hint> *key_usage_list;
+  class PT_subselect *subselect;
+  class PT_item_list *item_list2;
+  class PT_order_expr *order_expr;
+  class PT_order_list *order_list;
+  struct Limit_options limit_options;
+  Query_options select_options;
+  class PT_limit_clause *limit_clause;
+  class Parse_tree_node *node;
+  class PT_select_part2_derived *select_part2_derived;
+  enum olap_type olap_type;
+  class PT_group *group;
+  class PT_order *order;
+  struct Proc_analyse_params procedure_analyse_params;
+  class PT_procedure_analyse *procedure_analyse;
+  Select_lock_type select_lock_type;
+  class PT_union_order_or_limit *union_order_or_limit;
+  class PT_table_expression *table_expression;
+  class PT_table_list *table_list2;
+  class PT_join_table_list *join_table_list;
+  class PT_select_paren_derived *select_paren_derived;
+  class PT_select_lex *select_lex2;
+  class PT_internal_variable_name *internal_variable_name;
+  class PT_option_value_following_option_type *option_value_following_option_type;
+  class PT_option_value_no_option_type *option_value_no_option_type;
+  class PT_option_value_list_head *option_value_list;
+  class PT_start_option_value_list *start_option_value_list;
+  class PT_transaction_access_mode *transaction_access_mode;
+  class PT_isolation_level *isolation_level;
+  class PT_transaction_characteristics *transaction_characteristics;
+  class PT_start_option_value_list_following_option_type
+    *start_option_value_list_following_option_type;
+  class PT_set *set;
+  class PT_union_list *union_list;
+  Line_separators line_separators;
+  Field_separators field_separators;
+  class PT_into_destination *into_destination;
+  class PT_select_var *select_var_ident;
+  class PT_select_var_list *select_var_list;
+  class PT_select_options_and_item_list *select_options_and_item_list;
+  class PT_select_part2 *select_part2;
+  class PT_table_reference_list *table_reference_list;
+  class PT_select_paren *select_paren;
+  class PT_select_init *select_init;
+  class PT_select_init2 *select_init2;
+  class PT_select *select;
+  class Item_param *param_marker;
+  class PTI_text_literal *text_literal;
+};
+
+#endif
+
 
 /// Utility RAII class to save/modify/restore a Resolve_place
 class Switch_resolve_place
@@ -2304,6 +2471,7 @@ public:
   LEX_YYSTYPE lookahead_yylval;
 
   void add_digest_token(uint token, LEX_YYSTYPE yylval);
+  const CHARSET_INFO *query_charset;
 
 private:
   /** Pointer to the current position in the raw input stream. */
@@ -2416,29 +2584,18 @@ public:
     Current statement digest instrumentation. 
   */
   sql_digest_state* m_digest;
+
+  bool text_string_is_7bit() const { return !(tok_bitmap & 0x80); }
 };
 
-
-/**
-  Argument values for PROCEDURE ANALYSE(...)
-*/
-
-struct Proc_analyse_params: public Sql_alloc
-{
-  uint max_tree_elements; //< maximum number of distinct values per column
-  uint max_treemem; //< maximum amount of memory to allocate per column
-
-  Proc_analyse_params()
-    : max_tree_elements(256),
-      max_treemem(8192)
-  {}
-};
 
 
 /* The state of the lex parsing. This is saved in the THD struct */
 
 struct LEX: public Query_tables_list
 {
+  friend bool lex_start(THD *thd);
+
   SELECT_LEX_UNIT *unit;                 ///< Outer-most query expression
   /// @todo: select_lex can be replaced with unit->first-select()
   SELECT_LEX *select_lex;                ///< First query block
@@ -2477,7 +2634,6 @@ public:
   plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
 
   const CHARSET_INFO *charset;
-  bool text_string_is_7bit;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
   TABLE_LIST *leaf_tables_insert;
 
@@ -2733,7 +2889,6 @@ public:
   */
   st_alter_tablespace *alter_tablespace_info;
   
-  bool escape_used;
   bool is_lex_started; /* If lex_start() did run. For debugging. */
   /// Set to true while resolving values in ON DUPLICATE KEY UPDATE clause
   bool in_update_value_clause;
@@ -2772,10 +2927,10 @@ public:
   st_select_lex *new_empty_query_block();
 
   /// Create query expression object that contains one query block.
-  bool new_query();
+  st_select_lex *new_query(st_select_lex *curr_select);
 
   /// Create query block and attach it to the current query expression.
-  bool new_union_query(bool distinct);
+  st_select_lex *new_union_query(st_select_lex *curr_select, bool distinct);
 
   /// Create top-level query expression and query block.
   bool new_top_level_query();
@@ -2800,7 +2955,7 @@ public:
     the outer-most one, but excluding the main query block, are also set
     as uncacheable.
   */
-  void set_uncacheable(uint8 cause)
+  void set_uncacheable(SELECT_LEX *curr_select, uint8 cause)
   {
     safe_to_cache_query= false;
 
@@ -2808,7 +2963,7 @@ public:
       return;
     SELECT_LEX *sl;
     SELECT_LEX_UNIT *un;
-    for (sl= current_select(), un= sl->master_unit();
+    for (sl= curr_select, un= sl->master_unit();
 	 un != unit;
 	 sl= sl->outer_select(), un= sl->master_unit())
     {
@@ -3088,7 +3243,8 @@ extern void lex_init(void);
 extern void lex_free(void);
 extern bool lex_start(THD *thd);
 extern void lex_end(LEX *lex);
-extern int MYSQLlex(void *arg, void *arg2, void *yythd);
+extern int MYSQLlex(union YYSTYPE *yylval, struct YYLTYPE *yylloc,
+                    class THD *thd);
 
 extern void trim_whitespace(const CHARSET_INFO *cs, LEX_STRING *str);
 

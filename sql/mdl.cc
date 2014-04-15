@@ -138,9 +138,7 @@ public:
   */
   void lock_object_used()
   {
-    my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
     my_atomic_add32(&m_unused_lock_objects, -1);
-    my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
   }
 
   /**
@@ -156,11 +154,7 @@ public:
       attempts to delete unused MDL_lock objects in order to avoid infinite
       loops,
     */
-    int32 unused_locks;
-
-    my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
-    unused_locks= my_atomic_add32(&m_unused_lock_objects, 1) + 1;
-    my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
+    int32 unused_locks= my_atomic_add32(&m_unused_lock_objects, 1) + 1;
 
     while (unused_locks > mdl_locks_unused_locks_low_water &&
            (unused_locks > m_locks.count * MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO))
@@ -246,11 +240,6 @@ private:
     this into account.
   */
   volatile int32 m_unused_lock_objects;
-  /**
-    Lock protecting m_unused_lock_objects counter to be used on systems
-    without native atomics support.
-  */
-  my_atomic_rwlock_t m_unused_lock_objects_lock;
 };
 
 
@@ -1024,7 +1013,6 @@ void MDL_map::init()
   m_commit_lock= MDL_lock::create(&commit_lock_key);
 
   m_unused_lock_objects= 0;
-  my_atomic_rwlock_init(&m_unused_lock_objects_lock);
 
   lf_hash_init2(&m_locks, sizeof(MDL_lock), LF_HASH_UNIQUE,
                 0, 0, mdl_locks_key, &my_charset_bin, &murmur3_adapter,
@@ -1041,8 +1029,6 @@ void MDL_map::destroy()
 {
   MDL_lock::destroy(m_global_lock);
   MDL_lock::destroy(m_commit_lock);
-
-  my_atomic_rwlock_destroy(&m_unused_lock_objects_lock);
 
   lf_hash_destroy(&m_locks);
 }
@@ -1108,9 +1094,7 @@ MDL_lock* MDL_map::find_or_insert(LF_PINS *pins, const MDL_key *mdl_key,
       New MDL_lock object is not used yet. So we need to
       increment number of unused lock objects.
     */
-    my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
     my_atomic_add32(&m_unused_lock_objects, 1);
-    my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
   }
   if (lock == MY_ERRPTR)
   {
@@ -1267,9 +1251,7 @@ void MDL_map::remove_random_unused(MDL_context *ctx, LF_PINS *pins,
     else
     {
       /* Success. */
-      my_atomic_rwlock_wrlock(&m_unused_lock_objects_lock);
       *unused_locks= my_atomic_add32(&m_unused_lock_objects, -1) - 1;
-      my_atomic_rwlock_wrunlock(&m_unused_lock_objects_lock);
     }
   }
   else
@@ -2493,26 +2475,6 @@ void MDL_context::materialize_fast_path_locks()
 }
 
 
-#ifdef MY_ATOMIC_MODE_RWLOCKS
-/*
-  In cases when platform lacks support for native atomics we rely on
-  MDL_lock:m_rwlock to ensure atomicity instead of adding additional
-  instance of my_atomic_rwlock_t and using my_atomic_rwlock* macros.
-  This makes sense since we hold MDL_lock::m_rwlock in most of the
-  places (with two important exceptions being "fast" paths in acquire
-  and release) where we are dealing with MDL_lock::m_fast_path_state
-  anyway.
-*/
-#define mysql_prlock_wrlock_if_atomic_mode_rwlocks(A) mysql_prlock_wrlock(A)
-#define mysql_prlock_unlock_if_atomic_mode_rwlocks(A) mysql_prlock_unlock(A)
-#define mysql_prlock_wrlock_if_atomic_mode_native(A)
-#else
-#define mysql_prlock_wrlock_if_atomic_mode_rwlocks(A)
-#define mysql_prlock_unlock_if_atomic_mode_rwlocks(A)
-#define mysql_prlock_wrlock_if_atomic_mode_native(A) mysql_prlock_wrlock(A)
-#endif
-
-
 /**
   Auxiliary method for acquiring lock without waiting.
 
@@ -2650,8 +2612,6 @@ retry:
   */
   DBUG_ASSERT(mdl_locks.is_lock_object_singleton(key) == !pinned);
 
-  mysql_prlock_wrlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
-
   if (! force_slow)
   {
     /*
@@ -2687,7 +2647,6 @@ retry:
       */
       if (old_state & MDL_lock::IS_DESTROYED)
       {
-        mysql_prlock_unlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
         if (pinned)
           lf_hash_search_unpin(m_pins);
         DEBUG_SYNC(get_thd(), "mdl_acquire_lock_is_destroyed_fast_path");
@@ -2725,8 +2684,6 @@ retry:
     while (! lock->fast_path_state_cas(&old_state,
                                        old_state + unobtrusive_lock_increment));
 
-    mysql_prlock_unlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
-
     if (pinned)
       lf_hash_search_unpin(m_pins);
 
@@ -2762,7 +2719,7 @@ slow_path:
 
     Do full-blown check and list manipulation if necessary.
   */
-  mysql_prlock_wrlock_if_atomic_mode_native(&lock->m_rwlock);
+  mysql_prlock_wrlock(&lock->m_rwlock);
 
   /*
     First of all, let us check if hash look-up returned MDL_lock object which
@@ -3701,8 +3658,6 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
       Again, in theory, this algorithm will work correctly if the read will
       return random values.
     */
-    mysql_prlock_wrlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
-
     MDL_lock::fast_path_state_t old_state= lock->m_fast_path_state;
     bool last_use;
 
@@ -3710,7 +3665,7 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
     {
       if (old_state & MDL_lock::HAS_OBTRUSIVE)
       {
-        mysql_prlock_wrlock_if_atomic_mode_native(&lock->m_rwlock);
+        mysql_prlock_wrlock(&lock->m_rwlock);
         /*
           It is possible that obtrusive lock has gone away since we have
           read m_fast_path_state value. This means that there is possibility
@@ -3740,7 +3695,6 @@ void MDL_context::release_lock(enum_mdl_duration duration, MDL_ticket *ticket)
     }
     while (! lock->fast_path_state_cas(&old_state,
                                        old_state - unobtrusive_lock_increment));
-    mysql_prlock_unlock_if_atomic_mode_rwlocks(&lock->m_rwlock);
 
 end_fast_path:
     /* Don't count singleton MDL_lock objects as unused. */

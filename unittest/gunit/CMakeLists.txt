@@ -247,6 +247,7 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
+  my_qsort_vs_stdsort
   my_regex
   mysys_base64
   mysys_lf
@@ -286,6 +287,7 @@ SET(SERVER_TESTS
   handler
   insert_delayed
   item
+  item_filter
   item_func_now_local
   item_timefunc
   item_like

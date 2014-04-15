@@ -1,6 +1,6 @@
 #ifndef INCLUDES_MYSQL_SQL_LIST_H
 #define INCLUDES_MYSQL_SQL_LIST_H
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -809,5 +809,13 @@ list_copy_and_replace_each_value(List<T> &list, MEM_ROOT *mem_root)
 
 void free_list(I_List <i_string_pair> *list);
 void free_list(I_List <i_string> *list);
+
+
+template <class T>
+List<T> *List_merge(T *head, List<T> *tail)
+{
+  tail->push_front(head);
+  return tail;
+}
 
 #endif // INCLUDES_MYSQL_SQL_LIST_H

@@ -100,7 +100,6 @@
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
-#cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
@@ -143,6 +142,7 @@
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
 #cmakedefine HAVE_MALLOC_INFO 1
+#cmakedefine HAVE_MEMRCHR 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
 #cmakedefine HAVE_MMAP64 1
@@ -153,13 +153,10 @@
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_RDTSCLL 1
-#cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_PTHREAD_YIELD_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
-#cmakedefine PTHREAD_ONCE_INITIALIZER @PTHREAD_ONCE_INITIALIZER@
 #cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
@@ -167,7 +164,6 @@
 #cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
-#cmakedefine HAVE_SIGSET 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
@@ -181,7 +177,6 @@
 #cmakedefine HAVE_STRTOK_R 1
 #cmakedefine HAVE_STRTOLL 1
 #cmakedefine HAVE_TELL 1
-#cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
@@ -189,8 +184,6 @@
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BACKTRACE 1
-#cmakedefine HAVE_BACKTRACE_SYMBOLS 1
-#cmakedefine HAVE_BACKTRACE_SYMBOLS_FD 1
 #cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_STRUCT_SOCKADDR_IN6 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
@@ -316,37 +309,6 @@
 #cmakedefine SIGQUIT @SIGQUIT@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
-
-#cmakedefine alloca @alloca@
-#cmakedefine finite @finite@
-#cmakedefine popen @popen@
-#cmakedefine pclose @pclose@
-#cmakedefine strcasecmp @strcasecmp@
-#cmakedefine strncasecmp @strncasecmp@
-#cmakedefine strtoll @strtoll@
-#cmakedefine strtoull @strtoull@
-#cmakedefine snprintf @snprintf@
-#cmakedefine vsnprintf @vsnprintf@
-
-#cmakedefine access @access@
-#cmakedefine chdir @chdir@
-#cmakedefine chmod @chmod@
-#cmakedefine dup @dup@
-#cmakedefine fdopen @fdopen@
-#cmakedefine fileno @fileno@
-#cmakedefine getcwd @getcwd@
-#cmakedefine isatty @isatty@
-#cmakedefine mkdir @mkdir@
-#cmakedefine putenv @putenv@
-#cmakedefine read @read@
-#cmakedefine rmdir @rmdir@
-#cmakedefine strdup @strdup@
-#cmakedefine stricmp @stricmp@
-#cmakedefine tzset @tzset@
-#cmakedefine umask @umask@
-#cmakedefine unlink @unlink@
-
-#cmakedefine strtok_r @strtok_r@
 
 #cmakedefine ssize_t @ssize_t@
 

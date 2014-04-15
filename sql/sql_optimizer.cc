@@ -140,7 +140,6 @@ JOIN::optimize()
   if (optimized)
     DBUG_RETURN(0);
 
-  // We may do transformations (like semi-join):
   Prepare_error_tracker tracker(thd);
 
   optimized= true;
@@ -148,6 +147,22 @@ JOIN::optimize()
   DEBUG_SYNC(thd, "before_join_optimize");
 
   THD_STAGE_INFO(thd, stage_optimizing);
+
+  if (select_lex->first_execution)
+  {
+    /**
+      @todo
+      This query block didn't transform itself in SELECT_LEX::prepare(), so
+      belongs to a parent query block. That parent, or its parents, had to
+      transform us - it has not; maybe it is itself in prepare() and
+      evaluating the present query block as an Item_subselect. Such evaluation
+      in prepare() is expected to be a rare case to be eliminated in the
+      future ("SET x=(subq)" is one such case; because it locks tables before
+      prepare()).
+    */
+    if (select_lex->apply_local_transforms())
+      DBUG_RETURN(error= 1);
+  }
 
   Opt_trace_context * const trace= &thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -2102,8 +2117,15 @@ void JOIN::adjust_access_methods()
           add_alnum("new_type", join_type_str[tab->type]).
           add_alnum("cause", "uses_more_keyparts");
 
-        tab->position->fanout= rows2double(tab->quick->records);
+        tab->position->rows_fetched= rows2double(tab->quick->records);
         tab->use_quick= QS_RANGE;
+
+        const table_map prefix_tables= join_tab->prefix_tables();
+        tab->position->filter_effect=
+          calculate_condition_filter(tab, NULL,
+                                     prefix_tables & ~tab->table->map,
+                                     tab->position->rows_fetched,
+                                     false);
       }
       else
       {
@@ -2262,7 +2284,7 @@ bool JOIN::get_best_combination()
 
     // Copy data from existing join_tab
     *tab= *best_positions[tableno].table;
-    tab->rowcount= (ha_rows) best_positions[tableno].fanout;
+    tab->rowcount= (ha_rows) best_positions[tableno].rows_fetched;
     tab->position= best_positions + tableno;
     if (tab->type != JT_CONST && tab->type != JT_SYSTEM)
     {
@@ -7553,7 +7575,8 @@ void JOIN::mark_const_table(JOIN_TAB *tab, Key_use *key)
   POSITION *const position= positions + const_tables;
   position->table= tab;
   position->key= key;
-  position->fanout= 1.0;               // This is a const table
+  position->rows_fetched= 1.0;               // This is a const table
+  position->filter_effect= 1.0;
   position->prefix_record_count= 1.0;
   position->read_cost= 0.0;
   position->ref_depend_map= 0;
@@ -8509,9 +8532,10 @@ static bool make_join_select(JOIN *join, Item *cond)
             2a) There are conditions only relying on constants
             2b) This is the first non-constant table
             2c) There is a limit of rows to read that is lower than
-                the fanout for this table (i.e., the estimated number
-                of rows that will be produced for this table per row
-                combination of previous tables)
+                the fanout for this table, predicate filters included
+                (i.e., the estimated number of rows that will be
+                produced for this table per row combination of
+                previous tables)
             2d) The query is NOT run with FOUND_ROWS() (because in that
                 case we have to scan through all rows to count them anyway)
           */
@@ -8529,7 +8553,8 @@ static bool make_join_select(JOIN *join, Item *cond)
           else if (!tab->const_keys.is_clear_all() &&                // 2a
                    i == join->const_tables &&                        // 2b
                    (join->unit->select_limit_cnt <
-                    tab->position->fanout) &&                        // 2c
+                    (tab->position->rows_fetched *
+                     tab->position->filter_effect)) &&               // 2c
                    !(join->select_options & OPTION_FOUND_ROWS))      // 2d
             recheck_reason= LOW_LIMIT;
 
@@ -8543,7 +8568,8 @@ static bool make_join_select(JOIN *join, Item *cond)
             else
               trace_table.add_alnum("recheck_reason", "low_limit").
                 add("limit", join->unit->select_limit_cnt).
-                add("row_estimate", tab->position->fanout);
+                add("row_estimate",
+                    tab->position->rows_fetched * tab->position->filter_effect);
 
             /* Join with outer join condition */
             Item *orig_cond=sel->cond;
@@ -8667,9 +8693,23 @@ static bool make_join_select(JOIN *join, Item *cond)
             else
 	      sel->cond=orig_cond;
 
-	    /* Fix for EXPLAIN */
-	    if (sel->quick)
-	      tab->position->fanout= (double)sel->quick->records;
+            /*
+              Access method changed. This is after deciding join order
+              and access method for all other tables so the info
+              updated below will not have any effect on the execution
+              plan. However, if this is EXPLAIN, rows_fetched and
+              filter_effect need to reflect the new access method.
+            */
+            if (sel->quick)
+            {
+              tab->position->rows_fetched= (double)sel->quick->records;
+              tab->position->filter_effect=
+                calculate_condition_filter(tab, NULL,
+                                           used_tables & ~tab->table->map,
+                                           tab->position->rows_fetched,
+                                           false);
+            }
+
           } // end of "if (recheck_reason != DONT_RECHECK)"
           else
             sel->needed_reg= tab->needed_reg;
@@ -10365,22 +10405,31 @@ bool JOIN::compare_costs_of_subquery_strategies(
         /*
           Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
           is the number of times we'll start a loop accessing 'pos'; each such
-          loop will read pos->fanout records of 'pos', so subquery will
-          be evaluated pos[-1].prefix_record_count * pos->fanout times.
+          loop will read pos->rows_fetched records of 'pos', so subquery will
+          be evaluated pos[-1].prefix_record_count * pos->rows_fetched times.
           Exceptions:
           - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
-          - if 'pos' is first of a sjerialization-mat nest, same.
+          - if 'pos' is first of a sj-materialization nest, same.
 
-          If in a sj-materialization nest, pos->fanout and
+          If in a sj-materialization nest, pos->rows_fetched and
           pos[-1].prefix_record_count are of the "nest materialization" plan
           (copied back in fix_semijoin_strategies()), which is
           appropriate as it corresponds to evaluations of our subquery.
-        */
+
+          pos.prefix_record_count is not suitable because if we have:
+          select ... from ot1 where ot1.col in
+            (select it1.col1 from it1 where it1.col2 not in (subq));
+          and subq does subq-mat, and plan is ot1 - it1+firstmatch(ot1),
+          then:
+          - t1.prefix_record_count==1 (due to firstmatch)
+          - subq is attached to it1, and is evaluated for each row read from
+            t1, potentially way more than 1.
+       */
         const uint idx= subs->in_cond_of_tab;
         DBUG_ASSERT((int)idx >= 0 && idx < parent_join->tables);
         trace_parent.add("subq_attached_to_table", true);
         trace_parent.add_utf8_table(parent_join->join_tab[idx].table);
-        parent_fanout= parent_join->join_tab[idx].position->fanout;
+        parent_fanout= parent_join->join_tab[idx].position->rows_fetched;
         if ((idx > parent_join->const_tables) &&
             !sj_is_materialize_strategy(parent_join
                                         ->join_tab[idx].position->sj_strategy))

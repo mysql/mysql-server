@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -54,6 +54,7 @@ ib_heap_free(
 /********************************************************************
 The default ib_vector_t heap resize. Since we can't resize the heap
 we have to copy the elements from the old ptr to the new ptr.
+We always assume new_size >= old_size, so the buffer won't overflow.
 Uses mem_heap_alloc(). */
 UNIV_INLINE
 void*
@@ -67,6 +68,7 @@ ib_heap_resize(
 	void*		new_ptr;
 	mem_heap_t*	heap = (mem_heap_t*) allocator->arg;
 
+	ut_a(new_size >= old_size);
 	new_ptr = mem_heap_alloc(heap, new_size);
 	memcpy(new_ptr, old_ptr, old_size);
 

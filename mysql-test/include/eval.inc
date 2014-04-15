@@ -36,7 +36,6 @@
 #
 # --let $eval_expr= [SHOW SLAVE STATUS, Relay_Log_Pos, 1] + 47
 # [--let $eval_no_result= 1]
-# [--let $eval_quiet= 1]
 # [--let $rpl_debug= 1]
 # --source include/eval.inc
 # --echo Result was '$eval_result'

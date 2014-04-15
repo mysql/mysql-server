@@ -42,6 +42,8 @@ Created 5/11/1994 Heikki Tuuri
 # include "trx0trx.h"
 #endif /* !UNIV_HOTBACKUP */
 
+#include "log.h"
+
 /** A constant to prevent the compiler from optimizing ut_delay() away. */
 ibool	ut_always_false	= FALSE;
 
@@ -891,4 +893,30 @@ ut_strerr(
 	/* NOT REACHED */
 	return("Unknown error");
 }
+
+namespace ib {
+
+info::~info()
+{
+	sql_print_information("InnoDB: %s", m_oss.str().c_str());
+}
+
+warn::~warn()
+{
+	sql_print_warning("InnoDB: %s", m_oss.str().c_str());
+}
+
+error::~error()
+{
+	sql_print_error("InnoDB: %s", m_oss.str().c_str());
+}
+
+fatal::~fatal()
+{
+	sql_print_error("[FATAL] InnoDB: %s", m_oss.str().c_str());
+	ut_error;
+}
+
+} // namespace ib
+
 #endif /* !UNIV_INNOCHECKSUM */

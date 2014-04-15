@@ -570,8 +570,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 {
   bool ret= FALSE;
   *event_name= NULL;
-  my_time_t UNINIT_VAR(last_executed);
-  int UNINIT_VAR(status);
+  my_time_t last_executed= 0;
+  int status= 0;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
   LOCK_QUEUE_DATA();
