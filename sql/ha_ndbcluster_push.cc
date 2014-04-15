@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -295,7 +295,7 @@ ndb_pushed_builder_ctx::ndb_pushed_builder_ctx(const AQP::Join_plan& plan)
       m_tables[i].m_maybe_pushable= 0;
 
       const AQP::Table_access* const table = m_plan.get_table_access(i);
-      if (table->get_table()->file->ht != ndbcluster_hton)
+      if (table->get_table()->s->db_type()->db_type != DB_TYPE_NDBCLUSTER)
       {
         DBUG_PRINT("info", ("Table '%s' not in ndb engine, not pushable", 
                             table->get_table()->alias));

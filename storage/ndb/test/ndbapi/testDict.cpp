@@ -9911,6 +9911,11 @@ fk_define_tables(Fkdef& d)
 static void
 fk_define_keys(Fkdef& d)
 {
+  if (d.nokeys)
+  {
+    d.nkey = 0;
+    return;
+  }
   if (d.testcase == 1)
     fk_define_keys1(d);
   else if (d.testcase == 2)
@@ -10015,8 +10020,6 @@ fk_create_key(Fkdef& d, Ndb* pNdb, int k)
   int result = NDBT_OK;
   do
   {
-    if (d.nokeys)
-      break;
     Fkdef::Key& dk = d.key[k];
     NdbDictionary::ForeignKey key;
     key.setName(dk.keyname);
@@ -10167,8 +10170,6 @@ fk_verify_key(const Fkdef& d, Ndb* pNdb, int k)
   int result = NDBT_OK;
   do
   {
-    if (d.nokeys)
-      break;
     const Fkdef::Key& dk = d.key[k];
     g_info << "verify key " << dk.keyname << endl;
     NdbDictionary::ForeignKey key;
@@ -10384,13 +10385,13 @@ fk_verify_list(Fkdef& d, Ndb* pNdb, bool ignore_keys)
 }
 
 static int
-fk_drop_table(const Fkdef& d, Ndb* pNdb, int i, bool force)
+fk_drop_table(Fkdef& d, Ndb* pNdb, int i, bool force)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    const Fkdef::Tab& dt = d.tab[i];
+    Fkdef::Tab& dt = d.tab[i];
     g_info << "drop table " << dt.tabname
            << (force ? " (force)" : "") << endl;
     if (pDic->dropTable(dt.tabname) != 0)
@@ -10400,13 +10401,31 @@ fk_drop_table(const Fkdef& d, Ndb* pNdb, int i, bool force)
       CHK2(err.code == 709 || err.code == 723, err);
       break;
     }
+    // all indexes are dropped by ndb api
+    for (int k = 0; k < dt.nind; k++)
+    {
+      Fkdef::Ind& di = dt.ind[k];
+      di.retrieved = false;
+      di.pInd = 0;
+    }
+    // all related FKs child/parent are dropped by ndb api
+    for (int k = 0; k < d.nkey; k++)
+    {
+      Fkdef::Key& dk = d.key[k];
+      if (dk.tab0 == &dt || dk.tab1 == &dt)
+      {
+        dk.retrieved = false;
+      }
+    }
+    dt.retrieved = false;
+    dt.pTab = 0;
   }
   while (0);
   return result;
 }
 
 static int
-fk_drop_tables(const Fkdef& d, Ndb* pNdb, bool force)
+fk_drop_tables(Fkdef& d, Ndb* pNdb, bool force)
 {
   int result = NDBT_OK;
   for (int i = 0; i < d.ntab; i++)
@@ -10417,15 +10436,13 @@ fk_drop_tables(const Fkdef& d, Ndb* pNdb, bool force)
 }
 
 static int
-fk_drop_key(const Fkdef& d, Ndb* pNdb, int k, bool force)
+fk_drop_key(Fkdef& d, Ndb* pNdb, int k, bool force)
 {
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
   int result = NDBT_OK;
   do
   {
-    if (d.nokeys)
-      break;
-    const Fkdef::Key& dk = d.key[k];
+    Fkdef::Key& dk = d.key[k];
     g_info << "drop key " << dk.keyname
            << (force ? " (force)" : "") << endl;
     NdbDictionary::ForeignKey key;
@@ -10437,13 +10454,14 @@ fk_drop_key(const Fkdef& d, Ndb* pNdb, int k, bool force)
       break;
     }
     CHK2(pDic->dropForeignKey(key) == 0, pDic->getNdbError());
+    dk.retrieved = false;
   }
   while (0);
   return result;
 }
 
 static int
-fk_drop_keys(const Fkdef& d, Ndb* pNdb, bool force)
+fk_drop_keys(Fkdef& d, Ndb* pNdb, bool force)
 {
   int result = NDBT_OK;
   for (int k = 0; k < d.nkey; k++)
@@ -10454,13 +10472,95 @@ fk_drop_keys(const Fkdef& d, Ndb* pNdb, bool force)
 }
 
 static int
-fk_drop_all(const Fkdef& d, Ndb* pNdb, bool force)
+fk_drop_all(Fkdef& d, Ndb* pNdb, bool force)
 {
   int result = NDBT_OK;
   do
   {
     CHK1(fk_drop_keys(d, pNdb, force) == NDBT_OK);
     CHK1(fk_drop_tables(d, pNdb, force) == NDBT_OK);
+  }
+  while (0);
+  return result;
+}
+
+// for FK_Bug18069680
+
+static int
+fk_create_all_random(Fkdef& d, Ndb* pNdb)
+{
+  int result = NDBT_OK;
+  int ntab = 0;
+  int nkey = 0;
+  do
+  {
+    for (int i = 0; i < d.ntab; i++)
+    {
+      Fkdef::Tab& dt = d.tab[i];
+      if (!dt.retrieved && myRandom48(3) == 0)
+      {
+        CHK1(fk_create_table(d, pNdb, i) == 0);
+        require(dt.retrieved);
+        ntab++;
+      }
+    }
+    CHK1(result == NDBT_OK);
+    for (int k = 0; k < d.nkey; k++)
+    {
+      Fkdef::Key& dk = d.key[k];
+      if (!dk.retrieved && myRandom48(3) == 0 &&
+          dk.tab0->retrieved && dk.tab1->retrieved)
+      {
+        CHK1(fk_create_key(d, pNdb, k) == 0);
+        require(dk.retrieved);
+        nkey++;
+      }
+    }
+    CHK1(result == NDBT_OK);
+    require(ntab <= d.ntab && nkey <= d.nkey);
+  }
+  while (ntab < d.ntab || nkey < d.nkey);
+  return result;
+}
+
+static int
+fk_drop_indexes_under(const Fkdef& d, Ndb* pNdb)
+{
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = NDBT_OK;
+  do
+  {
+    for (int i = 0; i < d.ntab; i++)
+    {
+      const Fkdef::Tab& dt = d.tab[i];
+      for (int k = 1; k < dt.nind; k++) // skip pk
+      {
+        const Fkdef::Ind& di = dt.ind[k];
+        int parent = 0;
+        int child = 0;
+        for (int m = 0; m < d.nkey; m++)
+        {
+          const Fkdef::Key& dk = d.key[m];
+          if (dk.ind0 == &di)
+            parent++;
+          if (dk.ind1 == &di)
+            child++;
+        }
+        if (parent != 0 || child != 0)
+        {
+          // drop must fail
+          g_info << "try to drop index under " << di.indname
+                 << " parent:" << parent << " child:" << child << endl;
+          int ret = pDic->dropIndex(di.indname, dt.tabname);
+          CHK2(ret != 0, "no error on drop underlying index");
+          const NdbError& err = pDic->getNdbError();
+          // could be either error code depending on check order
+          CHK2(err.code == 21081 || err.code == 21082, pDic->getNdbError());
+        }
+      }
+      CHK1(result == NDBT_OK);
+    }
+    CHK1(result == NDBT_OK);
   }
   while (0);
   return result;
@@ -10666,6 +10766,46 @@ runFK_TRANS(NDBT_Context* ctx, NDBT_Step* step)
   if (result != NDBT_OK)
   {
     (void)pDic->endSchemaTrans(abort_flag);
+    if (!d.nodrop)
+      (void)fk_drop_all(d, pNdb, true);
+  }
+  return result;
+}
+
+int
+runFK_Bug18069680(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* pNdb = GETNDB(step);
+  const int loops = ctx->getNumLoops();
+  const int records = ctx->getNumRecords();
+  int result = NDBT_OK;
+
+  Fkdef d;
+  d.testcase = ctx->getProperty("testcase", (Uint32)0);
+  fk_env_options(d);
+  fk_define_all(d);
+
+  do
+  {
+    (void)fk_drop_all(d, pNdb, true);
+
+    for (int loop = 0; loop < loops; loop++)
+    {
+      g_info << "loop " << loop << "<" << loops << endl;
+
+      CHK1(fk_create_all_random(d, pNdb) == NDBT_OK);
+      CHK1(fk_verify_ddl(d, pNdb) == NDBT_OK);
+      CHK1(fk_verify_dml(d, pNdb, records) == NDBT_OK);
+
+      CHK1(fk_drop_indexes_under(d, pNdb) == NDBT_OK);
+      CHK1(fk_drop_tables(d, pNdb, false) == NDBT_OK);
+    }
+    CHK1(result == NDBT_OK);
+  }
+  while (0);
+
+  if (result != NDBT_OK)
+  {
     if (!d.nodrop)
       (void)fk_drop_all(d, pNdb, true);
   }
@@ -11098,16 +11238,22 @@ TESTCASE("FK_SRNR2",
   INITIALIZER(runFK_SRNR);
 }
 TESTCASE("FK_TRANS1",
-         "Foreing keys schema trans, simple case with DDL and DML checks.\n"
+         "Foreign keys schema trans, simple case with DDL and DML checks.\n"
          "Give any tablename as argument (T1)"){
   TC_PROPERTY("testcase", 1);
   INITIALIZER(runFK_TRANS);
 }
 TESTCASE("FK_TRANS2",
-         "Foreing keys schema trans, complex case with DDL checks.\n"
+         "Foreign keys schema trans, complex case with DDL checks.\n"
          "Give any tablename as argument (T1)"){
   TC_PROPERTY("testcase", 2);
   INITIALIZER(runFK_TRANS);
+}
+TESTCASE("FK_Bug18069680",
+         "NDB API drop table with foreign keys.\n"
+         "Give any tablename as argument (T1)"){
+  TC_PROPERTY("testcase", 2);
+  INITIALIZER(runFK_Bug18069680);
 }
 TESTCASE("CreateHashmaps",
          "Create (default) hashmaps")

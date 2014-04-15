@@ -4026,18 +4026,11 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
     return -1;
   }
 
+  // drop FKs before indexes (even if DBDICT may not care)
+
   for (unsigned i = 0; i < list.count; i++) {
     const List::Element& element = list.elements[i];
-    if (DictTabInfo::isIndex(element.type))
-    {
-      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
-      // hence compare with != 0
-      if ((res = dropIndex(element.name, name)) != 0)
-      {
-        return -1;
-      }
-    }
-    else if (DictTabInfo::isForeignKey(element.type))
+    if (DictTabInfo::isForeignKey(element.type))
     {
       NdbDictionary::ForeignKey fk;
       if ((res = getForeignKey(fk, element.name)) != 0)
@@ -4051,6 +4044,19 @@ NdbDictionaryImpl::dropTable(NdbTableImpl & impl)
         return -1;
       }
       if ((res = dropForeignKey(fk)) != 0)
+      {
+        return -1;
+      }
+    }
+  }
+
+  for (unsigned i = 0; i < list.count; i++) {
+    const List::Element& element = list.elements[i];
+    if (DictTabInfo::isIndex(element.type))
+    {
+      // note can also return -2 in error case(INCOMPATIBLE_VERSION),
+      // hence compare with != 0
+      if ((res = dropIndex(element.name, name, true)) != 0)
       {
         return -1;
       }
@@ -4636,13 +4642,21 @@ int
 NdbDictionaryImpl::dropIndex(const char * indexName, 
 			     const char * tableName)
 {
+  return dropIndex(indexName, tableName, false);
+}
+
+int
+NdbDictionaryImpl::dropIndex(const char * indexName, 
+			     const char * tableName,
+                             bool ignoreFKs)
+{
   ASSERT_NOT_MYSQLD;
   NdbIndexImpl * idx = getIndex(indexName, tableName);
   if (idx == 0) {
     m_error.code = 4243;
     return -1;
   }
-  int ret = dropIndex(*idx, tableName);
+  int ret = dropIndex(*idx, tableName, ignoreFKs);
   // If index stored in cache is incompatible with the one in the kernel
   // we must clear the cache and try again
   if (ret == INCOMPATIBLE_VERSION) {
@@ -4665,6 +4679,13 @@ NdbDictionaryImpl::dropIndex(const char * indexName,
 int
 NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
 {
+  return dropIndex(impl, tableName, false);
+}
+
+int
+NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName,
+                             bool ignoreFKs)
+{
   const char * indexName = impl.getName();
   if (tableName || m_ndb.usingFullyQualifiedNames()) {
     NdbTableImpl * timpl = impl.m_table;
@@ -4681,10 +4702,10 @@ NdbDictionaryImpl::dropIndex(NdbIndexImpl & impl, const char * tableName)
       m_ndb.internalize_table_name(indexName)); // Index is also a table
 
     if(impl.m_status == NdbDictionary::Object::New){
-      return dropIndex(indexName, tableName);
+      return dropIndex(indexName, tableName, ignoreFKs);
     }
 
-    int ret= dropIndexGlobal(impl);
+    int ret= dropIndexGlobal(impl, ignoreFKs);
     if (ret == 0)
     {
       m_globalHash->lock();

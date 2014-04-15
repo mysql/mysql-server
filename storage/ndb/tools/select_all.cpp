@@ -146,7 +146,7 @@ int main(int argc, char** argv){
 
   Ndb MyNdb(&con, _dbname );
   if(MyNdb.init() != 0){
-    ERR(MyNdb.getNdbError());
+    NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 
@@ -227,7 +227,7 @@ int scanReadRecords(Ndb* pNdb,
 	retryAttempt++;
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       return -1;
     }
 
@@ -236,7 +236,7 @@ int scanReadRecords(Ndb* pNdb,
       pIOp=pTrans->getNdbIndexScanOperation(pIdx->getName(), pTab->getName());
     
     if (pOp == NULL) {
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return -1;
     }
@@ -267,7 +267,7 @@ int scanReadRecords(Ndb* pNdb,
       break;
     }
     if( rs != 0 ){
-      ERR(pTrans->getNdbError());
+      NDB_ERR(pTrans->getNdbError());
       pNdb->closeTransaction(pTrans);
       return -1;
     }
@@ -326,7 +326,7 @@ int scanReadRecords(Ndb* pNdb,
       if (!nodata)
 	if((row->attributeStore(a) = pOp->getValue(col)) == 0)
 	{
-	  ERR(pTrans->getNdbError());
+	  NDB_ERR(pTrans->getNdbError());
 	  pNdb->closeTransaction(pTrans);
 	  return -1;
 	}
@@ -368,7 +368,7 @@ int scanReadRecords(Ndb* pNdb,
 	retryAttempt++;
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
       return -1;
     }
@@ -492,7 +492,7 @@ int scanReadRecords(Ndb* pNdb,
 	retryAttempt++;
 	continue;
       }
-      ERR(err);
+      NDB_ERR(err);
       pNdb->closeTransaction(pTrans);
       return -1;
     }
