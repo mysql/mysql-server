@@ -215,8 +215,11 @@ a heavier load on the I/O sub system. */
 ulong	srv_insert_buffer_batch_size = 20;
 
 char*	srv_file_flush_method_str = NULL;
-ulint	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#ifndef _WIN32
+enum srv_unix_flush_t	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
+#else
+enum srv_win_flush_t	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#endif /* _WIN32 */
 
 ulint	srv_max_n_open_files	  = 300;
 
@@ -232,8 +235,8 @@ in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
-ulong	srv_max_buf_pool_modified_pct	= 75;
-ulong	srv_max_dirty_pages_pct_lwm	= 50;
+double	srv_max_buf_pool_modified_pct	= 75.0;
+double	srv_max_dirty_pages_pct_lwm	= 0.0;
 
 /* This is the percentage of log capacity at which adaptive flushing,
 if enabled, will kick in. */
@@ -501,11 +504,6 @@ struct srv_sys_t{
 			activity_count;		/*!< For tracking server
 						activity */
 };
-
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-ib_mutex_t	server_mutex;
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 static srv_sys_t*	srv_sys	= NULL;
 
@@ -840,10 +838,6 @@ srv_init(void)
 	ulint	n_sys_threads = 0;
 	ulint	srv_sys_sz = sizeof(*srv_sys);
 
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_create("server", &server_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	mutex_create("srv_innodb_monitor", &srv_innodb_monitor_mutex);
 
 	if (!srv_read_only_mode) {
@@ -897,8 +891,9 @@ srv_init(void)
 	/* Create dummy indexes for infimum and supremum records */
 
 	dict_ind_init();
-
+#ifndef HAVE_ATOMIC_BUILTINS
 	srv_conc_init();
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* Initialize some INFORMATION SCHEMA internal structures */
 	trx_i_s_cache_init(trx_i_s_cache);
@@ -913,12 +908,6 @@ void
 srv_free(void)
 /*==========*/
 {
-	srv_conc_free();
-
-#ifndef HAVE_ATOMIC_BUILTINS
-	mutex_free(&server_mutex);
-#endif /* !HAVE_ATOMIC_BUILTINS */
-
 	mutex_free(&srv_innodb_monitor_mutex);
 	mutex_free(&page_zip_stat_per_index_mutex);
 
@@ -2154,6 +2143,9 @@ DECLARE_THREAD(srv_master_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	my_thread_init();
+	DBUG_ENTER("srv_master_thread");
+
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
@@ -2214,13 +2206,13 @@ suspend_thread:
 
 	os_event_wait(slot->event);
 
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_thread_exit(NULL);
+	if (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+		goto loop;
 	}
 
-	goto loop;
-
-	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+	my_thread_end();
+	os_thread_exit(NULL);
+	DBUG_RETURN(0);
 }
 
 /*********************************************************************//**

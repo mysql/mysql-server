@@ -1,7 +1,7 @@
 #ifndef UNIREG_INCLUDED
 #define UNIREG_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,10 +23,6 @@
 /*  Extra functions used by unireg library */
 
 typedef struct st_ha_create_information HA_CREATE_INFO;
-
-#ifndef NO_ALARM_LOOP
-#define NO_ALARM_LOOP		/* lib5 and popen can't use alarm */
-#endif
 
 /* These paths are converted to other systems (WIN95) before use */
 

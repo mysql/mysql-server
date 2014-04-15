@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,12 @@
 #include "sql_class.h"                          // THD, set_var.h: THD
 #include "set_var.h"
 #include <m_ctype.h>
+#include "parse_tree_helpers.h"
+
+
+Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
+  :Item_str_func(pos, list)
+{}
 
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
@@ -47,6 +53,19 @@ void Item_geometry_func::fix_length_and_dec()
   decimals=0;
   max_length= (uint32) 4294967295U;
   maybe_null= 1;
+}
+
+
+bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  if (arg_count == 1)
+    pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
+  return false;
 }
 
 
@@ -74,6 +93,19 @@ String *Item_func_geometry_from_text::val_str(String *str)
   if ((null_value= !Geometry::create_from_wkt(&buffer, &trs, str, 0)))
     return 0;
   return str;
+}
+
+
+bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  if (arg_count == 1)
+    pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
+  return false;
 }
 
 
@@ -493,15 +525,15 @@ String *Item_func_spatial_collection::val_str(String *str)
         if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
           goto err;
         
-	float8get(x1, data);
+	float8get(&x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
-	float8get(y1, data);
+	float8get(&y1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 
 	data+= (n_points - 2) * POINT_DATA_SIZE;
 
-	float8get(x2, data);
-	float8get(y2, data + SIZEOF_STORED_DOUBLE);
+	float8get(&x2, data);
+	float8get(&y2, data + SIZEOF_STORED_DOUBLE);
 
 	if ((x1 != x2) || (y1 != y2) ||
 	    str->append(org_data, len, 512))
@@ -606,9 +638,9 @@ longlong Item_func_spatial_mbr_rel::val_int()
 }
 
 
-Item_func_spatial_rel::Item_func_spatial_rel(Item *a,Item *b,
+Item_func_spatial_rel::Item_func_spatial_rel(const POS &pos, Item *a,Item *b,
                                              enum Functype sp_rel) :
-    Item_bool_func2(a,b), collector()
+    Item_bool_func2(pos, a,b), collector()
 {
   spatial_rel = sp_rel;
 }

@@ -44,6 +44,7 @@ Created 1/20/1994 Heikki Tuuri
 
 #include <stdarg.h>
 #include <ostream>
+#include <sstream>
 
 /** Index name prefix in fast index creation */
 #define	TEMP_INDEX_PREFIX	'\377'
@@ -494,6 +495,94 @@ const char*
 ut_strerr(
 /*======*/
 	dberr_t	num);	/*!< in: error number */
+
+namespace ib {
+
+/** This is a wrapper class, used to print any unsigned integer type
+in hexadecimal format.  The main purpose of this data type is to
+overload the global operator<<, so that we can print the given
+wrapper value in hex. */
+struct hex {
+	explicit hex(uintmax_t t): m_val(t) {}
+	const uintmax_t	m_val;
+};
+
+/** This is an overload of the global operator<< for the user defined type
+ib::hex.  The unsigned value held in the ib::hex wrapper class will be printed
+into the given output stream in hexadecimal format.
+@param[in,out]	lhs	the output stream into which rhs is written.
+@param[in]	rhs	the object to be written into lhs.
+@retval	reference to the output stream. */
+inline
+std::ostream&
+operator<<(
+	std::ostream&	lhs,
+	const hex&	rhs)
+{
+	std::ios_base::fmtflags	ff = lhs.flags();
+	lhs << std::showbase << std::hex << rhs.m_val;
+	lhs.setf(ff);
+	return(lhs);
+}
+
+/** The class logger is the base class of all the error log related classes.
+It contains a std::ostringstream object.  The main purpose of this class is
+to forward operator<< to the underlying std::ostringstream object.  Do not
+use this class directly, instead use one of the derived classes. */
+class logger {
+public:
+	template<typename T>
+	logger& operator<<(const T& rhs)
+	{
+		m_oss << rhs;
+		return(*this);
+	}
+	std::ostringstream	m_oss;
+protected:
+	/* This class must not be used directly, hence making the default
+	constructor protected. */
+	logger() {}
+};
+
+/** The class info is used to emit informational log messages.  It is to be
+used similar to std::cout.  But the log messages will be emitted only when
+the dtor is called.  The preferred usage of this class is to make use of
+unnamed temporaries as follows:
+
+info() << "The server started successfully.";
+
+In the above usage, the temporary object will be destroyed at the end of the
+statement and hence the log message will be emitted at the end of the
+statement.  If a named object is created, then the log message will be emitted
+only when it goes out of scope or destroyed. */
+class info : public logger {
+public:
+	~info();
+};
+
+/** The class warn is used to emit warnings.  Refer to the documentation of
+class info for further details. */
+class warn : public logger {
+public:
+	~warn();
+};
+
+/** The class error is used to emit error messages.  Refer to the
+documentation of class info for further details. */
+class error : public logger {
+public:
+	~error();
+};
+
+/** The class fatal is used to emit an error message and stop the server
+by crashing it.  Use this class when MySQL server needs to be stopped
+immediately.  Refer to the documentation of class info for usage details. */
+class fatal : public logger {
+public:
+	~fatal();
+};
+
+} // namespace ib
 
 #ifndef UNIV_NONINL
 #include "ut0ut.ic"

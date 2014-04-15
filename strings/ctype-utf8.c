@@ -5117,14 +5117,13 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
                     uchar *dst, size_t dstlen, uint nweights,
                     const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc;
+  my_wc_t wc= 0;
   int res;
   uchar *dst0= dst;
   uchar *de= dst + dstlen;
   const uchar *se= src + srclen;
   const MY_UNICASE_INFO *uni_plane= (cs->state & MY_CS_BINSORT) ?
                                      NULL : cs->caseinfo;
-  LINT_INIT(wc);
   DBUG_ASSERT(src);
 
   for (; dst < de && nweights; nweights--)
@@ -5161,12 +5160,11 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
                              uchar *dst, size_t dstlen, uint nweights,
                              const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc;
+  my_wc_t wc= 0;
   uchar *dst0= dst;
   uchar *de= dst + dstlen;
   const uchar *se = src + srclen;
 
-  LINT_INIT(wc);
   DBUG_ASSERT(src);
   DBUG_ASSERT(cs->state & MY_CS_BINSORT);
 
@@ -5621,7 +5619,7 @@ static int my_strnncoll_utf8(const CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc), t_wc;
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -5689,7 +5687,7 @@ static int my_strnncollsp_utf8(const CHARSET_INFO *cs,
                                my_bool diff_if_only_endspace_difference)
 {
   int s_res, t_res, res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s+slen, *te= t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 

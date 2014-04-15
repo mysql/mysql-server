@@ -38,7 +38,6 @@
 #include "mysql_com.h"
 
 #include "events.h"
-#include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
@@ -1900,14 +1899,6 @@ static Sys_var_ulong Sys_max_binlog_size(
        BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_binlog_size));
 
-static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
-{
-#ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(static_cast<uint>(max_connections + 10));
-#endif
-  return false;
-}
-
 static Sys_var_ulong Sys_max_connections(
        "max_connections", "The number of simultaneous clients allowed",
        GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG),
@@ -1917,7 +1908,7 @@ static Sys_var_ulong Sys_max_connections(
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG,
        ON_CHECK(0),
-       ON_UPDATE(fix_max_connections),
+       ON_UPDATE(0),
        NULL,
        /* max_connections is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
@@ -1947,7 +1938,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
@@ -1958,7 +1949,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_error_count(
@@ -2238,7 +2229,7 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-  "use_index_extensions", "default", NullS
+  "use_index_extensions", "condition_fanout_filter", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2248,8 +2239,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_condition_pushdown, mrr, mrr_cost_based"
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-       ", block_nested_loop, batched_key_access, use_index_extensions"
-       "} and val is one of {on, off, default}",
+       ", block_nested_loop, batched_key_access, use_index_extensions, "
+       "condition_fanout_filter} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
@@ -3370,14 +3361,6 @@ static Sys_var_plugin Sys_default_tmp_storage_engine(
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
 
-//  Alias for @@default_storage_engine
-static Sys_var_plugin Sys_storage_engine(
-       "storage_engine", "Alias for @@default_storage_engine. Deprecated",
-       SESSION_VAR(table_plugin), NO_CMD_LINE,
-       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null),
-       ON_UPDATE(NULL), DEPRECATED("'@@default_storage_engine'"));
-
 #if defined(ENABLED_DEBUG_SYNC)
 /*
   Variable can be set for the session only.
@@ -4068,8 +4051,8 @@ static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
-       "Defaults logging to a file hostname.log or a table mysql.general_log"
-       "if --log-output=TABLE is used",
+       "Defaults to logging to a file hostname.log, "
+       "or if --log-output=TABLE is used, to a table mysql.general_log.",
        GLOBAL_VAR(opt_general_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));

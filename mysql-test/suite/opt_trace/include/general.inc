@@ -397,7 +397,7 @@ create table t2 (
 );
 delimiter |;
 insert into t1 values ("a", 1), ("b", 2) |
-insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0) |
+insert into t2 values ("a", 1, 1.0), ("b", 2, 2.0), ("c", 3, 3.0), ("d", 4, 4.0) |
 create function f1() returns int
 begin
   declare ret int;

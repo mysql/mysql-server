@@ -111,6 +111,10 @@ SET(SQL_SHARED_SOURCES
   opt_trace.cc
   opt_trace2server.cc
   parse_file.cc
+  parse_tree_helpers.cc
+  parse_tree_items.cc
+  parse_tree_node_base.cc
+  parse_tree_nodes.cc
   partition_info.cc
   procedure.cc
   protocol.cc

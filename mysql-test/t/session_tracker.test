@@ -293,7 +293,7 @@ UNINSTALL PLUGIN validate_password;
 --echo # will not send boolean tracker in the OK packet
 
 --echo # reset the session.
---resetconnection
+--reset_connection
 
 CREATE TABLE test.t(i INT);
 SET @@session.session_track_state_change=ON;
@@ -337,7 +337,7 @@ SET @@session.session_track_state_change=OFF;
 SET NAMES 'utf8';
 
 --echo # reset the session.
---resetconnection
+--reset_connection
 
 SET @@session.session_track_state_change=ON;
 --echo # Change database
@@ -349,7 +349,7 @@ SET @@session.session_track_state_change=OFF;
 USE test;
 
 --echo # reset the session.
---resetconnection
+--reset_connection
 
 SET @@session.session_track_state_change=ON;
 --echo # Define a user defined variable
@@ -361,7 +361,7 @@ SET @@session.session_track_state_change=OFF;
 SET @var1=20;
 
 --echo # reset the session.
---resetconnection
+--reset_connection
 
 --echo
 --echo # Test with multiple session attributes
@@ -392,7 +392,7 @@ CREATE TEMPORARY TABLE test.t1(i INT);
 ALTER TABLE test.t1 ADD COLUMN (j INT);
 --echo expect 1
 DROP TEMPORARY TABLE test.t1;
---resetconnection
+--reset_connection
 
 --echo
 --echo # Test cases to check if tracker tracks only what is needed
@@ -452,7 +452,7 @@ PREPARE p1 FROM 'SELECT i FROM test.t';
 DEALLOCATE PREPARE p1;
 
 --echo # reset the session.
---resetconnection
+--reset_connection
 
 --echo
 --echo # Test for all valid values
@@ -525,21 +525,21 @@ SET @@session.session_track_schema=1;
 SET @@session.session_track_state_change=1;
 SET @@session.session_track_state_change=0;
 
---echo # Test if resetconnection sets the OFF the tracker
+--echo # Test if reset_connection sets the OFF the tracker
 
 SET @@session.session_track_state_change=1;
 SELECT @@session.session_track_state_change;
---resetconnection
+--reset_connection
 --echo # expect 0/FALSE
 SELECT @@session.session_track_state_change;
 
 --echo # Test show variables
 
---resetconnection
+--reset_connection
 SHOW VARIABLES like 'session_track_state_change';
 SET @@session.session_track_state_change=1;
 SHOW VARIABLES like 'session_track_state_change';
---resetconnection
+--reset_connection
 SHOW VARIABLES like 'session_track_state_change';
 
 connection default;

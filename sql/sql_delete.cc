@@ -722,7 +722,6 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
     // DELETE does not allow deleting from multi-table views
     if (table_ref->multitable_view)
     {
-      DBUG_ASSERT(table_ref->view && table_ref->table == NULL);
       my_error(ER_VIEW_DELETE_MERGE_VIEW, MYF(0),
                table_ref->view_db.str, table_ref->view_name.str);
       DBUG_RETURN(true);
@@ -735,6 +734,9 @@ int mysql_multi_delete_prepare(THD *thd, uint *table_count)
                delete_target->table_name, "DELETE");
       DBUG_RETURN(true);
     }
+
+    // A view must be merged, and thus cannot have a TABLE 
+    DBUG_ASSERT(!table_ref->view || table_ref->table == NULL);
 
     // Enable the following code if allowing LIMIT with multi-table DELETE
     DBUG_ASSERT(select->select_limit == 0);

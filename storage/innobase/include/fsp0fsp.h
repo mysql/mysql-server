@@ -637,7 +637,6 @@ ulint
 xdes_calc_descriptor_page(
 	const page_size_t&	page_size,
 	ulint			offset);
-
 #endif /* !UNIV_INNOCHECKSUM */
 
 #ifndef UNIV_NONINL

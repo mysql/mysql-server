@@ -786,7 +786,7 @@ public:
   /* Placement version of the above operators */
   static void *operator new(size_t, void* ptr) { return ptr; }
   static void operator delete(void*, void*) { }
-  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, ulong data_length);
+  bool wrapper_my_b_safe_write(IO_CACHE* file, const uchar* buf, size_t data_length);
 
 #ifdef MYSQL_SERVER
   bool write_header(IO_CACHE* file, ulong data_length);
@@ -1365,8 +1365,8 @@ public:        /* !!! Public in this patch to allow old usage */
      */
     return !strncmp(query, "BEGIN", q_len) ||
       !strncmp(query, "COMMIT", q_len) ||
-      !strncasecmp(query, "SAVEPOINT", 9) ||
-      !strncasecmp(query, "ROLLBACK", 8);
+      !native_strncasecmp(query, "SAVEPOINT", 9) ||
+      !native_strncasecmp(query, "ROLLBACK", 8);
   }
   /**
      Notice, DDL queries are logged without BEGIN/COMMIT parentheses
@@ -1378,8 +1378,8 @@ public:        /* !!! Public in this patch to allow old usage */
   {  
     return
       !strncmp(query, "COMMIT", q_len) ||
-      (!strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
-       && strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
+      (!native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK"))
+       && native_strncasecmp(query, STRING_WITH_LEN("ROLLBACK TO ")));
   }
 };
 
@@ -3849,13 +3849,13 @@ inline bool is_gtid_event(Log_event* evt)
  */
 size_t my_strmov_quoted_identifier(THD *thd, char *buffer,
                                    const char* identifier,
-                                   uint length);
+                                   size_t length);
 #else
 size_t my_strmov_quoted_identifier(char *buffer, const char* identifier);
 #endif
 size_t my_strmov_quoted_identifier_helper(int q, char *buffer,
                                           const char* identifier,
-                                          uint length);
+                                          size_t length);
 
 /**
   @} (end of group Replication)

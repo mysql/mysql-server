@@ -31,7 +31,6 @@ class Format_description_log_event;
 class  Logical_clock
 {
 private:
-  my_atomic_rwlock_t m_state_lock;
   int64 state;
 protected:
   void init(){ state= 0; }
@@ -39,7 +38,7 @@ public:
   Logical_clock();
   int64 step();
   int64 get_timestamp();
-  ~Logical_clock();
+  ~Logical_clock() { }
 };
 
 /**
@@ -383,7 +382,6 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint *sync_period_ptr;
   uint sync_counter;
 
-  my_atomic_rwlock_t m_prep_xids_lock;
   mysql_cond_t m_prep_xids_cond;
   volatile int32 m_prep_xids;
 
@@ -392,14 +390,12 @@ class MYSQL_BIN_LOG: public TC_LOG
    */
   void inc_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
-    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
 #ifndef DBUG_OFF
     int result= my_atomic_add32(&m_prep_xids, 1);
 #else
     (void) my_atomic_add32(&m_prep_xids, 1);
 #endif
     DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
-    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
     thd->get_transaction()->m_flags.xid_written= true;
     DBUG_VOID_RETURN;
   }
@@ -411,10 +407,8 @@ class MYSQL_BIN_LOG: public TC_LOG
    */
   void dec_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
-    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
     int32 result= my_atomic_add32(&m_prep_xids, -1);
     DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
-    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
     thd->get_transaction()->m_flags.xid_written= false;
     /* If the old value was 1, it is zero now. */
     if (result == 1)
@@ -427,9 +421,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   }
 
   int32 get_prep_xids() {
-    my_atomic_rwlock_rdlock(&m_prep_xids_lock);
     int32 result= my_atomic_load32(&m_prep_xids);
-    my_atomic_rwlock_rdunlock(&m_prep_xids_lock);
     return result;
   }
 
@@ -766,7 +758,7 @@ public:
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
   int close_crash_safe_index_file();
-  int add_log_to_index(uchar* log_file_name, int name_len,
+  int add_log_to_index(uchar* log_file_name, size_t name_len,
                        bool need_lock_index);
   int move_crash_safe_index_file_to_index_file(bool need_lock_index);
   int set_purge_index_file_name(const char *base_file_name);

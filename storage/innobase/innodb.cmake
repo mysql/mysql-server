@@ -202,9 +202,11 @@ IF(NOT CMAKE_CROSSCOMPILING)
   CHECK_C_SOURCE_RUNS(
   "
   #include <stdio.h>
+  #include <unistd.h>
   #include <errno.h>
   #include <assert.h>
   #include <linux/futex.h>
+  #include <unistd.h>
   #include <sys/syscall.h>
 
    int futex_wait(int* futex, int v) {
@@ -331,7 +333,8 @@ ENDIF()
 
 # Include directories under innobase
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/storage/innobase/include
-		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler)
+		    ${CMAKE_SOURCE_DIR}/storage/innobase/handler
+                    ${CMAKE_SOURCE_DIR}/libbinlogevents/include )
 
 # Sun Studio bug with -xO2
 IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro"

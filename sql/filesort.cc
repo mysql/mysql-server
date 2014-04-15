@@ -810,8 +810,12 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   /* Remember original bitmaps */
   save_read_set=  sort_form->read_set;
   save_write_set= sort_form->write_set;
-  /* Set up temporary column read map for columns used by sort */
-  bitmap_clear_all(&sort_form->tmp_set);
+  /*
+    Set up temporary column read map for columns used by sort and verify
+    it's not used
+  */
+  DBUG_ASSERT(bitmap_is_clear_all(&sort_form->tmp_set));
+
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
   // Include fields used for sorting in the read_set.
@@ -863,7 +867,8 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
         (void) file->extra(HA_EXTRA_NO_CACHE);
         file->ha_rnd_end();
       }
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+      num_records= HA_POS_ERROR;
+      goto cleanup;
     }
     if (error == 0)
       param->examined_rows++;
@@ -878,7 +883,10 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
         if (fs_info->isfull())
         {
           if (write_keys(param, fs_info, idx, chunk_file, tempfile))
-             DBUG_RETURN(HA_POS_ERROR);
+          {
+            num_records= HA_POS_ERROR;
+            goto cleanup;
+          }
           idx= 0;
           indexpos++;
         }
@@ -912,7 +920,10 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   }
 
   if (thd->is_error())
-    DBUG_RETURN(HA_POS_ERROR);
+  {
+    num_records= HA_POS_ERROR;
+    goto cleanup;
+  }
   
   /* Signal we should use orignal column read and write maps */
   sort_form->column_bitmaps_set(save_read_set, save_write_set);
@@ -921,16 +932,25 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   if (error != HA_ERR_END_OF_FILE)
   {
     file->print_error(error,MYF(ME_ERROR | ME_WAITTANG)); // purecov: inspected
-    DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
+    num_records= HA_POS_ERROR;                            // purecov: inspected
+    goto cleanup;
   }
   if (indexpos && idx &&
       write_keys(param, fs_info, idx, chunk_file, tempfile))
-    DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
+  {
+    num_records= HA_POS_ERROR;                            // purecov: inspected
+    goto cleanup;
+  }
 
   if (pq)
     num_records= pq->num_elements();
 
+cleanup:
+  // Clear tmp_set so it can be used elsewhere
+  bitmap_clear_all(&sort_form->tmp_set);
+
   DBUG_PRINT("info", ("find_all_keys return %lu", (ulong) num_records));
+
   DBUG_RETURN(num_records);
 } /* find_all_keys */
 

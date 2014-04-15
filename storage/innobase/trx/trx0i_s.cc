@@ -461,7 +461,6 @@ fill_trx_row(
 						which to copy volatile
 						strings */
 {
-	const char*	stmt;
 	size_t		stmt_len;
 	const char*	s;
 
@@ -496,17 +495,10 @@ fill_trx_row(
 
 	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
 
-	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
+	char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
+	stmt_len = innobase_get_stmt_safe(trx->mysql_thd, query, sizeof(query));
 
-	if (stmt != NULL) {
-		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
-
-		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
-			stmt_len = TRX_I_S_TRX_QUERY_MAX_LEN;
-		}
-
-		memcpy(query, stmt, stmt_len);
-		query[stmt_len] = '\0';
+	if (stmt_len > 0) {
 
 		row->trx_query = static_cast<const char*>(
 			ha_storage_put_memlim(

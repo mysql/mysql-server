@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -42,13 +42,11 @@
 */
 class Example_share : public Handler_share {
 public:
-  mysql_mutex_t mutex;
   THR_LOCK lock;
   Example_share();
   ~Example_share()
   {
     thr_lock_delete(&lock);
-    mysql_mutex_destroy(&mutex);
   }
 };
 
