@@ -13,6 +13,12 @@ a
 2
 3
 4
+SELECT * FROM t1;
+a
+1
+2
+3
+4
 DROP TABLE t1;
 #
 # End of 5.5 tests

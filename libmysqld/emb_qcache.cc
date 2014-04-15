@@ -316,7 +316,8 @@ uint emb_count_querycache_size(THD *thd)
       result+= field->def_length;
   }
   
-  if (thd->protocol == &thd->protocol_binary)
+  if (thd->protocol == &thd->protocol_binary ||
+      thd->command == COM_STMT_EXECUTE)
   {
     result+= (uint) (4*n_rows);
     for (; cur_row; cur_row=cur_row->next)
@@ -379,7 +380,8 @@ void emb_store_querycache_result(Querycache_stream *dst, THD *thd)
     dst->store_safe_str(field->def, field->def_length);
   }
   
-  if (thd->protocol == &thd->protocol_binary)
+  if (thd->protocol == &thd->protocol_binary ||
+      thd->command == COM_STMT_EXECUTE)
   {
     for (; cur_row; cur_row=cur_row->next)
       dst->store_str((char *) cur_row->data, cur_row->length);
@@ -447,7 +449,8 @@ int emb_load_querycache_result(THD *thd, Querycache_stream *src)
   data->rows= rows;
   if (!rows)
     goto return_ok;
-  if (thd->protocol == &thd->protocol_binary)
+  if (thd->protocol == &thd->protocol_binary ||
+      thd->command == COM_STMT_EXECUTE)
   {
     uint length;
     row= (MYSQL_ROWS *)alloc_root(&data->alloc,
