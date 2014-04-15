@@ -60,6 +60,7 @@ var sqlStateMessages = {
   "22001" : "String too long",
   "22003" : "Numeric value out of range",
   "22007" : "Invalid datetime",
+  "23000" : "Column cannot be null",
   "HY000" : "Incorrect numeric value",
   "WCTOR" : 
       "A Domain Object Constructor has overwritten persistent properties "+
@@ -170,7 +171,8 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
     if(typeof value !== 'undefined') {
       definedColumnList.push(column.columnNumber);
       if(value === null) {
-        ndbRecord.setNull(i, buffer);
+        if(column.isNullable) {  ndbRecord.setNull(i, buffer);        } 
+        else                  {  encoderError = "23000"; addError();  }
       }
       else {
         ndbRecord.setNotNull(i, buffer);
