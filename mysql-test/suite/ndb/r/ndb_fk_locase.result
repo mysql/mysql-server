@@ -42,7 +42,16 @@ count(*)
 alter table T2
 drop foreign key MYfk1;
 alter table t2
-drop foreign key myFK2;
+drop foreign key myFK2,
+algorithm=copy;
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `a` int(11) NOT NULL,
+  `b` int(11) DEFAULT NULL,
+  PRIMARY KEY (`a`),
+  KEY `XB` (`b`)
+) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 # test upper case parent database and table
 drop table T2;
 create table T2 (

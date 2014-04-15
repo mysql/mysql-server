@@ -77,7 +77,7 @@ int runTestMaxNdb(NDBT_Context* ctx, NDBT_Step* step){
       ndbVector.push_back(pNdb);
       
       if (pNdb->init()){
-	ERR(pNdb->getNdbError());
+	NDB_ERR(pNdb->getNdbError());
 	errors++;
 	continue;
       }
@@ -123,7 +123,7 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(2048)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -163,7 +163,7 @@ int runTestMaxTransaction(NDBT_Context* ctx, NDBT_Step* step){
       }
       
       if (pCon == NULL){
-	ERR(pNdb->getNdbError());
+	NDB_ERR(pNdb->getNdbError());
 	errors++;
 	continue;
       }
@@ -213,7 +213,7 @@ int runTestMaxOperations(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(2048)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -285,7 +285,7 @@ int runTestGetValue(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(2048)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -318,7 +318,7 @@ int runTestGetValue(NDBT_Context* ctx, NDBT_Step* step){
     for(int a = 0; a<pTab->getNoOfColumns(); a++){
       if (pTab->getColumn(a)->getPrimaryKey() == true){
 	if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	  ERR(pCon->getNdbError());
+	  NDB_ERR(pCon->getNdbError());
 	  pNdb->closeTransaction(pCon);
 	  delete pNdb;
 	  return NDBT_FAILED;
@@ -332,7 +332,7 @@ int runTestGetValue(NDBT_Context* ctx, NDBT_Step* step){
 	
       if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
 	const NdbError err = pCon->getNdbError();
-	ERR(err);
+	NDB_ERR(err);
 	if (err.code == 0)
 	  result = NDBT_FAILED;	
 	errors++;
@@ -354,10 +354,10 @@ int runTestGetValue(NDBT_Context* ctx, NDBT_Step* step){
       case 4257: // NDBAPI - Too much AI
       case 4002: // NDBAPI - send problem
 	// OK errors
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	break;
       default:
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	ndbout << "Illegal error" << endl;
 	result= NDBT_FAILED;
 	break;
@@ -386,7 +386,7 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(2048)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -407,14 +407,14 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
       
       NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
       if (pOp == NULL){
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	pNdb->closeTransaction(pCon);
 	delete pNdb;
 	return NDBT_FAILED;
       }
       
       if (pOp->readTuple() != 0){
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	pNdb->closeTransaction(pCon);
 	delete pNdb;
 	return NDBT_FAILED;
@@ -430,7 +430,7 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
 	    if (pTab->getColumn(a)->getPrimaryKey() == true){
 	      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
 		const NdbError err = pCon->getNdbError();
-		ERR(err);
+		NDB_ERR(err);
 		if (err.code == 0)
 		  result = NDBT_FAILED;
 		errors++;
@@ -443,7 +443,7 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
 	    if (pTab->getColumn(a)->getPrimaryKey() == true){
 	      if(hugoOps.equalForAttr(pOp, a, 1) != 0){
 		const NdbError err = pCon->getNdbError();
-		ERR(err);
+		NDB_ERR(err);
 		if (err.code == 0)
 		  result = NDBT_FAILED;
 		errors++;
@@ -458,7 +458,7 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
       
       if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
         const NdbError err = pCon->getNdbError();
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	pNdb->closeTransaction(pCon);
 	delete pNdb;
         if (err.code == 4225) {
@@ -473,7 +473,7 @@ int runTestEqual(NDBT_Context* ctx, NDBT_Step* step){
       
       int check = pCon->execute(Commit);
       if (check != 0){
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
       }
       
       pNdb->closeTransaction(pCon);
@@ -510,12 +510,12 @@ int runTestDeleteNdb(NDBT_Context* ctx, NDBT_Step* step){
       ndbVector.push_back(pNdb);
       
       if (pNdb->init()){
-	ERR(pNdb->getNdbError());
+	NDB_ERR(pNdb->getNdbError());
 	result = NDBT_FAILED;	
 	goto end_test;
       }
       if (pNdb->waitUntilReady() != 0){
-	ERR(pNdb->getNdbError());
+	NDB_ERR(pNdb->getNdbError());
 	result = NDBT_FAILED;	
 	goto end_test;
       }
@@ -594,7 +594,7 @@ int runTestWaitUntilReady(NDBT_Context* ctx, NDBT_Step* step){
   const NdbError err = pNdb->getNdbError();
   delete pNdb;
 
-  ERR(err);
+  NDB_ERR(err);
   if (err.code != 4256)
     return NDBT_FAILED;
   
@@ -609,7 +609,7 @@ int runGetNdbOperationNoTab(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -624,7 +624,7 @@ int runGetNdbOperationNoTab(NDBT_Context* ctx, NDBT_Step* step){
   NdbOperation* pOp = pCon->getNdbOperation("HUPP76");
   if (pOp == NULL){
     NdbError err = pCon->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     if (err.code == 0){
       pNdb->closeTransaction(pCon);
       delete pNdb;
@@ -650,7 +650,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -672,7 +672,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
     NdbOperation* pOp = (i < 4 ? pCon->getNdbOperation(pTab->getName()):
                          pCon->getNdbScanOperation(pTab->getName()));
     if (pOp == NULL){
-      ERR(pCon->getNdbError());
+      NDB_ERR(pCon->getNdbError());
       pNdb->closeTransaction(pCon);  
       delete pNdb;
       return NDBT_FAILED;
@@ -685,7 +685,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
     switch(i) {
     case 0:
       if (pOp->readTuple() != 0){
-        ERR(pCon->getNdbError());
+        NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
@@ -699,7 +699,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
 
     case 1:
       if (pOp->readTuple() != 0){
-        ERR(pCon->getNdbError());
+        NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
@@ -713,7 +713,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
 
     case 2:
       if (pOp->writeTuple() != 0){
-        ERR(pCon->getNdbError());
+        NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
@@ -724,7 +724,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
         if (pTab->getColumn(a)->getPrimaryKey() == true){
           if(hugoOps.equalForAttr(pOp, a, 1) != 0){
             const NdbError err = pCon->getNdbError();
-            ERR(err);
+            NDB_ERR(err);
             pNdb->closeTransaction(pCon);
             delete pNdb;
             return NDBT_FAILED;
@@ -740,7 +740,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
 
     case 3:
       if (pOp->readTuple() != 0){
-        ERR(pCon->getNdbError());
+        NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
@@ -756,7 +756,7 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
     {
       NdbScanOperation* sop= (NdbScanOperation*) pOp;
       if (sop->readTuples() != 0){
-        ERR(pCon->getNdbError());
+        NDB_ERR(pCon->getNdbError());
         pNdb->closeTransaction(pCon);
         delete pNdb;
         return NDBT_FAILED;
@@ -780,8 +780,8 @@ int runBadColNameHandling(NDBT_Context* ctx, NDBT_Step* step){
     {
       const NdbError opErr= pOp->getNdbError();
       const NdbError transErr = pCon->getNdbError();
-      ERR(opErr);
-      ERR(transErr);
+      NDB_ERR(opErr);
+      NDB_ERR(transErr);
       if (opErr.code != transErr.code) {
         ndbout << "Error reporting mismatch, expected " 
                << expectedError << endl;
@@ -819,7 +819,7 @@ int runMissingOperation(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -833,7 +833,7 @@ int runMissingOperation(NDBT_Context* ctx, NDBT_Step* step){
     
   NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);  
     delete pNdb;
     return NDBT_FAILED;
@@ -844,7 +844,7 @@ int runMissingOperation(NDBT_Context* ctx, NDBT_Step* step){
   // Call getValue should not work
   if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
     const NdbError err = pCon->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     if (err.code == 0){
       ndbout << "hupp" << endl;
       result = NDBT_FAILED;	
@@ -869,7 +869,7 @@ int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -883,7 +883,7 @@ int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
     
   NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);  
     delete pNdb;
     return NDBT_FAILED;
@@ -899,7 +899,7 @@ int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
   if (pOp->getValue(pTab->getColumn(1)->getName()) == NULL) {
     // It didn't work
     const NdbError err = pCon->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     if (err.code == 0){
       pNdb->closeTransaction(pCon);  
       delete pNdb;
@@ -914,7 +914,7 @@ int runGetValueInUpdate(NDBT_Context* ctx, NDBT_Step* step){
 
   int check = pCon->execute(Commit);
   if (check != 0){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
   }
   
   pNdb->closeTransaction(pCon);  
@@ -935,7 +935,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -949,7 +949,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
     
   NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);  
     delete pNdb;
     return NDBT_FAILED;
@@ -957,7 +957,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
   
   if (pOp->updateTuple() != 0){
     pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -965,7 +965,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
   for(int a = 0; a<pTab->getNoOfColumns(); a++){
     if (pTab->getColumn(a)->getPrimaryKey() == true){
       if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	pNdb->closeTransaction(pCon);
 	delete pNdb;
 	return NDBT_FAILED;
@@ -980,7 +980,7 @@ int runUpdateWithoutValues(NDBT_Context* ctx, NDBT_Step* step){
   if (check == 0){
     ndbout << "execute worked" << endl;
   } else {
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     result = NDBT_FAILED;
   }
   
@@ -1001,7 +1001,7 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -1015,7 +1015,7 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
     
   NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);  
     delete pNdb;
     return NDBT_FAILED;
@@ -1023,7 +1023,7 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
   
   if (pOp->updateTuple() != 0){
     pNdb->closeTransaction(pCon);
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -1036,7 +1036,7 @@ int runUpdateWithoutKeys(NDBT_Context* ctx, NDBT_Step* step){
     ndbout << "execute worked" << endl;
     result = NDBT_FAILED;
   } else {
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
   }
   
   pNdb->closeTransaction(pCon);  
@@ -1067,21 +1067,21 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
     
       NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
       if (pOp == NULL){
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	pNdb->closeTransaction(pCon);  
 	return NDBT_FAILED;
       }
   
       if (pOp->readTuple((NdbOperation::LockMode)lm) != 0){
 	pNdb->closeTransaction(pCon);
-	ERR(pOp->getNdbError());
+	NDB_ERR(pOp->getNdbError());
 	return NDBT_FAILED;
       }
     
       for(int a = 0; a<pTab->getNoOfColumns(); a++){
 	if (pTab->getColumn(a)->getPrimaryKey() == true){
 	  if(hugoOps.equalForAttr(pOp, a, 1) != 0){
-	    ERR(pCon->getNdbError());
+	    NDB_ERR(pCon->getNdbError());
 	    pNdb->closeTransaction(pCon);
 	    return NDBT_FAILED;
 	  }
@@ -1095,7 +1095,7 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
       if (check == 0){
 	ndbout << "execute worked" << endl;
       } else {
-	ERR(pCon->getNdbError());
+	NDB_ERR(pCon->getNdbError());
 	result = NDBT_FAILED;
       }
     
@@ -1116,14 +1116,14 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
     
     NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
     if (pOp == NULL){
-      ERR(pCon->getNdbError());
+      NDB_ERR(pCon->getNdbError());
       pNdb->closeTransaction(pCon);  
       return NDBT_FAILED;
     }
     
     if ((pOp->readTuples((NdbOperation::LockMode)lm)) != 0){
       pNdb->closeTransaction(pCon);
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -1135,7 +1135,7 @@ int runReadWithoutGetValue(NDBT_Context* ctx, NDBT_Step* step){
     if (check == 0){
       ndbout << "execute worked" << endl;
     } else {
-      ERR(pCon->getNdbError());
+      NDB_ERR(pCon->getNdbError());
       result = NDBT_FAILED;
     }
   
@@ -1161,7 +1161,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(2048)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -1178,7 +1178,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
   
   NdbOperation* pOp = pCon->getNdbOperation(pTab->getName());
   if (pOp == NULL){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
@@ -1193,7 +1193,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
 	// An error has occured, check that 
 	// it's possible to get the NdbErrorOperation
 	const NdbError err = pCon->getNdbError();
-	ERR(err);
+	NDB_ERR(err);
 	if (err.code == 0)
 	  result = NDBT_FAILED;
 
@@ -1202,7 +1202,7 @@ int runCheckGetNdbErrorOperation(NDBT_Context* ctx, NDBT_Step* step){
 	  result = NDBT_FAILED;
 	else {
 	  const NdbError err2 = pOp2->getNdbError();
-	  ERR(err2);
+	  NDB_ERR(err2);
 	  if (err.code == 0)
 	    result = NDBT_FAILED;
 	}
@@ -1346,7 +1346,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(max)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -1364,7 +1364,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   {
     NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
     if (pOp == NULL){
-      ERR(pCon->getNdbError());
+      NDB_ERR(pCon->getNdbError());
       pNdb->closeTransaction(pCon);  
       delete pNdb;
       return NDBT_FAILED;
@@ -1372,7 +1372,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
     
     if (pOp->readTuples() != 0){
       pNdb->closeTransaction(pCon);
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       delete pNdb;
       return NDBT_FAILED;
     }
@@ -1386,7 +1386,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
   if (check == 0){
     ndbout << "execute worked" << endl;
   } else {
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
   }
   
   for(i= 0; i<scans.size(); i++)
@@ -1395,7 +1395,7 @@ int runScan_4006(NDBT_Context* ctx, NDBT_Step* step){
     while((check= pOp->nextResult()) == 0);
     if(check != 1)
     {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       pNdb->closeTransaction(pCon);
       delete pNdb;
       return NDBT_FAILED;
@@ -1467,7 +1467,7 @@ int createPkIndex(NDBT_Context* ctx, NDBT_Step* step){
   if (pNdb->getDictionary()->createIndex(pIdx) != 0){
     ndbout << "FAILED!" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
 
@@ -1484,7 +1484,7 @@ int createPkIndex_Drop(NDBT_Context* ctx, NDBT_Step* step){
   if (pNdb->getDictionary()->dropIndex(pkIdxName, 
 				       pTab->getName()) != 0){
     ndbout << "FAILED!" << endl;
-    ERR(pNdb->getDictionary()->getNdbError());
+    NDB_ERR(pNdb->getDictionary()->getNdbError());
     return NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
@@ -1778,35 +1778,35 @@ int runTestExecuteAsynch(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init(2048)){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
 
   NdbConnection* pCon = pNdb->startTransaction();
   if (pCon == NULL){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
 
   NdbScanOperation* pOp = pCon->getNdbScanOperation(pTab->getName());
   if (pOp == NULL){
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
   }
 
   if (pOp->readTuples() != 0){
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
   }
 
   if (pOp->getValue(NdbDictionary::Column::FRAGMENT) == 0){
-    ERR(pOp->getNdbError());
+    NDB_ERR(pOp->getNdbError());
     pNdb->closeTransaction(pCon);
     delete pNdb;
     return NDBT_FAILED;
@@ -1816,7 +1816,7 @@ int runTestExecuteAsynch(NDBT_Context* ctx, NDBT_Step* step){
   while(pNdb->pollNdb(100000) == 0)
     ;
   if (res != 0){
-    ERR(pCon->getNdbError());
+    NDB_ERR(pCon->getNdbError());
     ndbout << "Error returned from execute: " << res << endl;
     result= NDBT_FAILED;
   }
@@ -3144,7 +3144,7 @@ int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
     return NDBT_FAILED;  
   }
   if (pNdb->init()){
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     delete pNdb;
     return NDBT_FAILED;
   }
@@ -3177,7 +3177,7 @@ int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
     for(int a = 0; a < numCols; a++){
       if (pTab->getColumn(a)->getPrimaryKey() == true){
 	if(hugoOps.equalForAttr(pOp, a, record) != 0){
-	  ERR(pCon->getNdbError());
+	  NDB_ERR(pCon->getNdbError());
 	  pNdb->closeTransaction(pCon);
 	  delete pNdb;
 	  return NDBT_FAILED;
@@ -3198,7 +3198,7 @@ int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
       NdbRecAttr* recAttr = pOp->getValue(dupColNum);
       if (recAttr == NULL) {
 	const NdbError err = pCon->getNdbError();
-	ERR(err);
+	NDB_ERR(err);
         result = NDBT_FAILED;
         pNdb->closeTransaction(pCon);	
 	break;
@@ -3211,7 +3211,7 @@ int runReadColumnDuplicates(NDBT_Context* ctx, NDBT_Step* step){
 
     if (pCon->execute(Commit) != 0){
       const NdbError err = pCon->getNdbError();
-      ERR(err);
+      NDB_ERR(err);
       result = NDBT_FAILED;
       pNdb->closeTransaction(pCon);
       break;
@@ -3298,7 +3298,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
   NdbTransaction * pTrans1 = pNdb->startTransaction();
   if (pTrans1 == NULL)
   {
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
   TransGuard g1(pTrans1);
@@ -3307,7 +3307,7 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
   if (pTrans2 == NULL)
   {
     pTrans1->close();
-    ERR(pNdb->getNdbError());
+    NDB_ERR(pNdb->getNdbError());
     return NDBT_FAILED;
   }
 
@@ -3317,13 +3317,13 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans1->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
     if (pOp->insertTuple() != 0)
     {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -3335,13 +3335,13 @@ runBug51775(NDBT_Context* ctx, NDBT_Step* step)
     NdbOperation * pOp = pTrans2->getNdbOperation(ctx->getTab()->getName());
     if (pOp == NULL)
     {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
     if (pOp->readTuple() != 0)
     {
-      ERR(pOp->getNdbError());
+      NDB_ERR(pOp->getNdbError());
       return NDBT_FAILED;
     }
     
@@ -3612,7 +3612,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
           (execError != 4002))
       {
         ndbout_c("%u incorrect error code: %u", __LINE__, execError);
-        ERR(trans->getNdbError());
+        NDB_ERR(trans->getNdbError());
         trans->close();
         delete[] buff;
         return NDBT_FAILED;
@@ -3638,7 +3638,7 @@ int runFragmentedScanOtherApi(NDBT_Context* ctx, NDBT_Step* step)
         else
         {
           ndbout_c("%u incorrect error code: %u", __LINE__, execError);
-          ERR(scan->getNdbError());
+          NDB_ERR(scan->getNdbError());
           trans->close();
           delete[] buff;
           return NDBT_FAILED;
@@ -4714,7 +4714,7 @@ int runNdbClusterConnect(NDBT_Context* ctx, NDBT_Step* step)
     Ndb ndb(&con, "TEST_DB");
     if (ndb.init() != 0)
     {
-      ERR(ndb.getNdbError());
+      NDB_ERR(ndb.getNdbError());
       return NDBT_FAILED;
     }
 

@@ -400,7 +400,7 @@ void Dbtc::execCONTINUEB(Signal* signal)
     warningEvent("%s", buf);
 
     jam();
-    if (ERROR_INSERTED(8104))
+    if (ERROR_INSERTED(8101))
     {
       jam();
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
@@ -6834,7 +6834,7 @@ void Dbtc::execLQHKEYREF(Signal* signal)
 
         trigger_op_finished(signal, apiConnectptr, RNIL, opPtr.p, 0);
 
-        if (ERROR_INSERTED(8098))
+        if (ERROR_INSERTED(8105))
         {
           abortTransFromTrigger(signal, apiConnectptr, ZGET_DATAREC_ERROR);
         }
@@ -7710,7 +7710,7 @@ ABORT020:
     tcConnectptr.i = tcConnectptr.p->nextTcConnect;
     if (TloopCount < 1024 &&
         !ERROR_INSERTED(8089) &&
-        !ERROR_INSERTED(8098))
+        !ERROR_INSERTED(8105))
     {
       goto ABORT020;
     }
@@ -13511,7 +13511,7 @@ void Dbtc::releaseAbortResources(Signal* signal)
       jam();
       ok = true;
 #ifdef ERROR_INSERT
-      if (ERROR_INSERTED(8104))
+      if (ERROR_INSERTED(8101))
       {
         char buf[128];
         BaseString::snprintf(buf, sizeof(buf), "Sending CONTINUEB:ZDEBUG_DELAY_TCROLLBACKREP");
@@ -15600,10 +15600,10 @@ void Dbtc::execTCINDXREQ(Signal* signal)
   TcIndexOperationPtr indexOpPtr;
 
 #ifdef ERROR_INSERT
-  if (ERROR_INSERTED(8103))
+  if (ERROR_INSERTED(8100))
   {
     char buf[128];
-    BaseString::snprintf(buf, sizeof(buf), "Inserted 8103, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8100, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
     warningEvent("%s", buf);
     
     if (startFlag == 1)
@@ -15622,15 +15622,15 @@ void Dbtc::execTCINDXREQ(Signal* signal)
       signal->theData[3] = regApiPtr->transid[1];
       signal->theData[4] = ZNODEFAIL_BEFORE_COMMIT;
       signal->theData[5] = RS_TCROLLBACKREP;
-      signal->theData[6] = 8104;
+      signal->theData[6] = 8101;
       sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 100, 6);
       *signal = s;
     }
   }
-  else if (ERROR_INSERTED(8104))
+  else if (ERROR_INSERTED(8101))
   {
     char buf[128];
-    BaseString::snprintf(buf, sizeof(buf), "Inserted 8104, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
+    BaseString::snprintf(buf, sizeof(buf), "Inserted 8101, startFlag %u, regApiPtr->apiConnectstate %u, regApiPtr->abortState %u", startFlag, regApiPtr->apiConnectstate, regApiPtr->abortState);
     warningEvent("%s", buf);
 
     jam();
@@ -17104,7 +17104,7 @@ Dbtc::fk_constructAttrInfoSetNull(const TcFKData * fkPtrP)
   }
 
   Uint32 tmp = RNIL;
-  if (ERROR_INSERTED(8099))
+  if (ERROR_INSERTED(8106))
   {
     return tmp;
   }
@@ -17118,7 +17118,7 @@ Dbtc::fk_constructAttrInfoUpdateCascade(const TcFKData * fkPtrP,
                                         DataBuffer<11>::Head & srchead)
 {
   Uint32 tmp = RNIL;
-  if (ERROR_INSERTED(8100))
+  if (ERROR_INSERTED(8103))
   {
     return tmp;
   }
@@ -17482,7 +17482,7 @@ Dbtc::fk_buildKeyInfo(Uint32& keyIVal, bool& hasNull,
                       TcFKData * fkPtrP,
                       bool parent)
 {
-  if (ERROR_INSERTED(8101))
+  if (ERROR_INSERTED(8104))
   {
     return ZGET_DATAREC_ERROR;
   }

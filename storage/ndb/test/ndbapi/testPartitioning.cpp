@@ -418,7 +418,7 @@ run_create_pk_index(NDBT_Context* ctx, NDBT_Step* step){
   if (pNdb->getDictionary()->createIndex(pIdx) != 0){
     ndbout << "FAILED!" << endl;
     const NdbError err = pNdb->getDictionary()->getNdbError();
-    ERR(err);
+    NDB_ERR(err);
     return NDBT_FAILED;
   }
   
@@ -442,7 +442,7 @@ static int run_create_pk_index_drop(NDBT_Context* ctx, NDBT_Step* step){
   ndbout << "Dropping index " << name.c_str() << " ";
   if (pNdb->getDictionary()->dropIndex(name.c_str(), pTab->getName()) != 0){
     ndbout << "FAILED!" << endl;
-    ERR(pNdb->getDictionary()->getNdbError());
+    NDB_ERR(pNdb->getDictionary()->getNdbError());
     return NDBT_FAILED;
   } else {
     ndbout << "OK!" << endl;
