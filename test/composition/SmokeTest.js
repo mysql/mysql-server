@@ -18,39 +18,20 @@
  02110-1301  USA
  */
 
-// Create a TableMapping from a literal
-// Open a session
-// Attempt an operation on the table
+"use strict";
 
-var nosql = require('../..');
+var test = new harness.SmokeTest("SmokeTest");
 
-var t1 = new harness.ConcurrentTest("useLiteralMapping");
-
-function RowConstructor() {
-};
-
-// Literal Mapping
-var mapping, literalMapping;
-
-literalMapping = {
-  database      : "test",
-  table         : "towns",
-  mapAllColumns : true
-};
-
-mapping = new nosql.TableMapping(literalMapping);
-
-mapping.applyToClass(RowConstructor);
-
-t1.run = function() {
-  fail_openSession(t1, function(session, testCase) {
-    session.persist(RowConstructor, { town: 'Glen Rock', county: 'Bergen'}, function(err) {
-      t1.errorIfError(err);
-      t1.failOnError();
-    });
+test.run = function() {
+  var testCase = this;
+  harness.SQL.create(this.suite, function(error) {
+    if (error) {
+      testCase.fail('createSQL failed: ' + error);
+    } else {
+      testCase.pass();
+    }
   });
-}
-
-module.exports.tests = [ t1 ];
+};
 
 
+exports.tests = [test];

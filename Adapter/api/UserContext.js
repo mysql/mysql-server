@@ -358,8 +358,16 @@ function getTableSpecification(defaultDatabaseName, tableName) {
     result.unqualifiedTableName = tableName;
     result.qualifiedTableName = defaultDatabaseName + '.' + tableName;
   }
+  udebug.log_detail('getTableSpecification for', defaultDatabaseName, ',', tableName, 'returned', result);
   return result;
 }
+/** Construct the table name from possibly empty database name and table name.
+ */
+function constructDatabaseDotTable(databaseName, tableName) {
+  var result = databaseName ? databaseName + '.' + tableName : tableName;
+  return result;
+}
+
 /** Get the table handler for a domain object, table name, or constructor.
  */
 var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTableHandler) {
@@ -465,7 +473,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
   };
     
   // start of getTableHandler 
-  var err, mynode, tableHandler, tableHandlerFactory, tableIndicatorType, tableSpecification;
+  var err, mynode, tableHandler, tableHandlerFactory, tableIndicatorType, tableSpecification, databaseDotTable;
 
   tableIndicatorType = typeof(domainObjectTableNameOrConstructor);
   if (tableIndicatorType === 'string') {
@@ -508,7 +516,8 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             domainObjectTableNameOrConstructor);
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
-        tableSpecification = getTableSpecification(session.sessionFactory.properties.database, mynode.mapping.table);
+        databaseDotTable = constructDatabaseDotTable(mynode.mapping.database, mynode.mapping.table);
+        tableSpecification = getTableSpecification(session.sessionFactory.properties.database, databaseDotTable);
         tableHandlerFactory = new TableHandlerFactory(
             mynode, tableSpecification, session.sessionFactory, session.dbSession, 
             mynode.mapping, domainObjectTableNameOrConstructor, onTableHandler);
@@ -535,7 +544,8 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
                       util.inspect(domainObjectTableNameOrConstructor),
                      'constructor\n', domainObjectTableNameOrConstructor.constructor);
         }
-        tableSpecification = getTableSpecification(session.sessionFactory.properties.database, mynode.mapping.table);
+        databaseDotTable = constructDatabaseDotTable(mynode.mapping.database, mynode.mapping.table);
+        tableSpecification = getTableSpecification(session.sessionFactory.properties.database, databaseDotTable);
         // create the tableHandler
         // getTableMetadata(dbSession, databaseName, tableName, callback(error, DBTable));
         tableHandlerFactory = new TableHandlerFactory(
