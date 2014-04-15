@@ -108,7 +108,7 @@ int main(int argc, char** argv){
 
   Ndb MyNdb(&con, _dbname);
   if(MyNdb.init() != 0){
-    ERR(MyNdb.getNdbError());
+    NDB_ERR(MyNdb.getNdbError());
     return NDBT_ProgramExit(NDBT_FAILED);
   }
 

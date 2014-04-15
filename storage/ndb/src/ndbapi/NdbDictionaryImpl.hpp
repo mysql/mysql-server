@@ -909,7 +909,12 @@ public:
   int createIndex(NdbIndexImpl &ix, NdbTableImpl & tab, bool offline);
   int dropIndex(const char * indexName, 
 		const char * tableName);
+  int dropIndex(const char * indexName, 
+		const char * tableName,
+                bool ignoreFKs);
   int dropIndex(NdbIndexImpl &, const char * tableName);
+  int dropIndex(NdbIndexImpl &, const char * tableName,
+                bool ignoreFKs);
   NdbTableImpl * getIndexTable(NdbIndexImpl * index, 
 			       NdbTableImpl * table);
 

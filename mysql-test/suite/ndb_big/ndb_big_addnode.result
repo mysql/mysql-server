@@ -140,10 +140,10 @@ HashMap DEFAULT-HASHMAP-3840-8
 
 
 ## Simple blob usage of t6
-select count(0) as row_count, min(id) as id_min, max(id) as id_max, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
+select count(0) as row_count, min(abs(id)) as id_min, max(id) as id_max, sum(length(dat)) as data_length, sum(length(txt)) as text_length from t6;
 row_count	id_min	id_max	data_length	text_length
-1000	-4591	9991	29740000	29740000
-select count(0) from t6;
+1000	1	9991	29740000	29740000
+select count(0) from t6 where val = abs(id) and (id between -4991 and -4001 or id between -991 and 9991);
 count(0)
 1000
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3635,7 +3635,7 @@ class Ndb_schema_event_handler {
   uint m_own_nodeid;
   bool m_post_epoch;
 
-  bool is_post_epoch(void) const { return m_post_epoch; };
+  bool is_post_epoch(void) const { return m_post_epoch; }
 
   List<Ndb_schema_op> m_post_epoch_handle_list;
   List<Ndb_schema_op> m_post_epoch_ack_list;
@@ -6115,34 +6115,6 @@ handle_error(NdbEventOperation *pOp)
   NDB_SHARE *share= event_data->share;
   DBUG_ENTER("handle_error");
 
-  int overrun= pOp->isOverrun();
-  if (overrun)
-  {
-    /*
-      ToDo: this error should rather clear the ndb_binlog_index...
-      and continue
-    */
-    sql_print_error("NDB Binlog: Overrun in event buffer, "
-                    "this means we have dropped events. Cannot "
-                    "continue binlog for %s", share->key);
-    pOp->clearError();
-    DBUG_RETURN(-1);
-  }
-
-  if (!pOp->isConsistent())
-  {
-    /*
-      ToDo: this error should rather clear the ndb_binlog_index...
-      and continue
-    */
-    sql_print_error("NDB Binlog: Not Consistent. Cannot "
-                    "continue binlog for %s. Error code: %d"
-                    " Message: %s", share->key,
-                    pOp->getNdbError().code,
-                    pOp->getNdbError().message);
-    pOp->clearError();
-    DBUG_RETURN(-1);
-  }
   sql_print_error("NDB Binlog: unhandled error %d for table %s",
                   pOp->hasError(), share->key);
   pOp->clearError();
@@ -6923,9 +6895,6 @@ restart_cluster_failure:
   // to ensure that the parts of MySQL Server it uses has been created
   thd->init_for_queries();
 
-  /*
-    Main NDB Injector loop
-  */
   while (do_incident && ndb_binlog_running)
   {
     /*
@@ -7098,6 +7067,10 @@ restart_cluster_failure:
     static char db[]= "";
     thd->db= db;
   }
+
+  /*
+    Main NDB Injector loop
+  */
   do_incident = true; // If we get disconnected again...do incident report
   binlog_thread_state= BCCC_running;
   for ( ; !((ndbcluster_binlog_terminating ||
