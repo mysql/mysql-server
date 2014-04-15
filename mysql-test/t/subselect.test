@@ -5884,3 +5884,9 @@ EXPLAIN SELECT * FROM t1 WHERE EXISTS ( SELECT a FROM t1, t2 WHERE b = a GROUP B
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # MDEV-5991: crash in Item_field::used_tables
+--echo #
+create table t1 (c int);
+select exists(select 1 from t1 group by `c` in (select `c` from t1));
+drop table t1;

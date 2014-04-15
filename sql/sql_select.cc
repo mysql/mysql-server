@@ -496,6 +496,7 @@ fix_inner_refs(THD *thd, List<Item> &all_fields, SELECT_LEX *select,
 static
 void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
 {
+  DBUG_ENTER("remove_redundant_subquery_clauses");
   Item_subselect *subq_predicate= subq_select_lex->master_unit()->item;
   /*
     The removal should happen for IN, ALL, ANY and EXISTS subqueries,
@@ -505,7 +506,7 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
        b) SELECT a, (<single row subquery) FROM t1
    */
   if (subq_predicate->substype() == Item_subselect::SINGLEROW_SUBS)
-    return;
+    DBUG_VOID_RETURN;
 
   /* A subquery that is not single row should be one of IN/ALL/ANY/EXISTS. */
   DBUG_ASSERT (subq_predicate->substype() == Item_subselect::EXISTS_SUBS ||
@@ -515,6 +516,7 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
   {
     subq_select_lex->join->select_distinct= false;
     subq_select_lex->options&= ~SELECT_DISTINCT;
+    DBUG_PRINT("info", ("DISTINCT removed"));
   }
 
   /*
@@ -524,8 +526,13 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
   if (subq_select_lex->group_list.elements &&
       !subq_select_lex->with_sum_func && !subq_select_lex->join->having)
   {
+    for (ORDER *ord= subq_select_lex->group_list.first; ord; ord= ord->next)
+    {
+      (*ord->item)->walk(&Item::eliminate_subselect_processor, FALSE, NULL);
+    }
     subq_select_lex->join->group_list= NULL;
     subq_select_lex->group_list.empty();
+    DBUG_PRINT("info", ("GROUP BY removed"));
   }
 
   /*
@@ -540,6 +547,7 @@ void remove_redundant_subquery_clauses(st_select_lex *subq_select_lex)
     subq_select_lex->group_list.empty();
   }
   */
+  DBUG_VOID_RETURN;
 }
 
 
