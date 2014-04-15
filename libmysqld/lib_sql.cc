@@ -40,6 +40,7 @@ C_MODE_START
 extern unsigned int mysql_server_last_errno;
 extern char mysql_server_last_error[MYSQL_ERRMSG_SIZE];
 static my_bool emb_read_query_result(MYSQL *mysql);
+static void emb_free_embedded_thd(MYSQL *mysql);
 
 
 extern "C" void unireg_clear(int exit_code)
@@ -106,6 +107,17 @@ emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
   THD *thd=(THD *) mysql->thd;
   NET *net= &mysql->net;
   my_bool stmt_skip= stmt ? stmt->state != MYSQL_STMT_INIT_DONE : FALSE;
+
+  if (thd->killed != NOT_KILLED)
+  {
+    if (thd->killed < KILL_CONNECTION)
+      thd->killed= NOT_KILLED;
+    else
+    {
+      emb_free_embedded_thd(mysql);
+      thd= 0;
+    }
+  }
 
   if (!thd)
   {
