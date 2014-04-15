@@ -1,6 +1,6 @@
 #ifndef SQL_TRUNCATE_INCLUDED
 #define SQL_TRUNCATE_INCLUDED
-/* Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,11 +47,17 @@ public:
   bool execute(THD *thd);
 
 protected:
+  enum truncate_result{
+    TRUNCATE_OK=0,
+    TRUNCATE_FAILED_BUT_BINLOG,
+    TRUNCATE_FAILED_SKIP_BINLOG
+  };
+
   /** Handle locking a base table for truncate. */
   bool lock_table(THD *, TABLE_LIST *, bool *);
 
   /** Truncate table via the handler method. */
-  int handler_truncate(THD *, TABLE_LIST *, bool);
+  enum truncate_result handler_truncate(THD *, TABLE_LIST *, bool);
 
   /**
     Optimized delete of all rows by doing a full regenerate of the table.
