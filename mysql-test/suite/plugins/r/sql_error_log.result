@@ -33,6 +33,8 @@ insert into t1 values ('aa');
 ERROR 22007: Incorrect integer value: 'aa' for column 'id' at row 1
 SET SQL_MODE = '';
 drop table t1;
+SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'not_exists' AND TABLE_NAME = 'not_exists';
+TABLE_NAME
 uninstall plugin SQL_ERROR_LOG;
 Warnings:
 Warning	1620	Plugin is busy and will be uninstalled on shutdown

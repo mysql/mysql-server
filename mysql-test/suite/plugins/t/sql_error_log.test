@@ -46,6 +46,8 @@ insert into t1 values ('aa');
 SET SQL_MODE = '';
 drop table t1;
 
+SELECT TABLE_NAME FROM information_schema.TABLES WHERE TABLE_SCHEMA = 'not_exists' AND TABLE_NAME = 'not_exists';
+
 uninstall plugin SQL_ERROR_LOG;
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;

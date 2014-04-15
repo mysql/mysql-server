@@ -2608,8 +2608,11 @@ public:
     Clear the current error, if any.
     We do not clear is_fatal_error or is_fatal_sub_stmt_error since we
     assume this is never called if the fatal error is set.
+
     @todo: To silence an error, one should use Internal_error_handler
-    mechanism. In future this function will be removed.
+    mechanism. Issuing an error that can be possibly later "cleared" is not
+    compatible with other installed error handlers and audit plugins.
+    In future this function will be removed.
   */
   inline void clear_error()
   {
