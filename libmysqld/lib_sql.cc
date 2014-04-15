@@ -1238,7 +1238,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 }
 
 
-bool Protocol::net_store_data(const uchar *from, size_t length,
+bool Protocol::net_store_data_cs(const uchar *from, size_t length,
                               CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
 {
   uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;

@@ -64,7 +64,7 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 
 
 /*
-  net_store_data() - extended version with character set conversion.
+  net_store_data_cs() - extended version with character set conversion.
   
   It is optimized for short strings whose length after
   conversion is garanteed to be less than 251, which accupies
@@ -76,8 +76,12 @@ bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 */
 
 #ifndef EMBEDDED_LIBRARY
-bool Protocol::net_store_data(const uchar *from, size_t length,
+bool Protocol::net_store_data_cs(const uchar *from, size_t length,
                               CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+#else
+bool Protocol_binary::net_store_data_cs(const uchar *from, size_t length,
+                              CHARSET_INFO *from_cs, CHARSET_INFO *to_cs)
+#endif
 {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
@@ -117,7 +121,6 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
   packet->length((uint) (to - packet->ptr()));
   return 0;
 }
-#endif
 
 
 /**
@@ -1007,7 +1010,7 @@ bool Protocol::store_string_aux(const char *from, size_t length,
       tocs != &my_charset_bin)
   {
     /* Store with conversion */
-    return net_store_data((uchar*) from, length, fromcs, tocs);
+    return net_store_data_cs((uchar*) from, length, fromcs, tocs);
   }
   /* Store without conversion */
   return net_store_data((uchar*) from, length);
