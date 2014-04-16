@@ -25,7 +25,7 @@ NDBT_ResultRow::NDBT_ResultRow(const NdbDictionary::Table& tab,
 			       char attrib_delimiter)
   : m_table(tab)
 {
-  assert(tab.getObjectStatus() == NdbDictionary::Object::Retrieved);
+  require(tab.getObjectStatus() == NdbDictionary::Object::Retrieved);
 
   cols = tab.getNoOfColumns();
   names = new char *       [cols];
@@ -72,7 +72,7 @@ NDBT_ResultRow::attributeStore(const char* name) const {
     if (strcmp(names[i], name) == 0)
       return data[i];
   }  
-  assert(false);
+  require(false);
   return 0;
 }
 

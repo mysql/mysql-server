@@ -2700,8 +2700,8 @@ ConfigManager::DynamicPorts::set_in_config(Config* config)
       continue; // Not configured as dynamic port
 
     Uint32 n1, n2;
-    require(iter.get(CFG_CONNECTION_NODE_1, &n1) == 0 &&
-            iter.get(CFG_CONNECTION_NODE_2, &n2) == 0);
+    require(iter.get(CFG_CONNECTION_NODE_1, &n1) == 0);
+    require(iter.get(CFG_CONNECTION_NODE_2, &n2) == 0);
 
     int dyn_port;
     if (!get(n1, n2, &dyn_port) || dyn_port == 0)

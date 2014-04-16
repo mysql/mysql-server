@@ -31,7 +31,7 @@ const AccountTypesStruct accountTypes[] = {
   { 0, "KASSA"},
   { 1, "BANKOMAT"},
   { 2, "POSTGIRO"},
-  { 3, "LÖNEKONTO"},
+  { 3, "LONEKONTO"},
   { 4, "SPARKONTO"}
 };
 

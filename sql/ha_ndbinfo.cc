@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,7 @@
 
 #include "ha_ndbcluster_glue.h"
 #include "ha_ndbinfo.h"
+#include "ndb_tdc.h"
 #include "../storage/ndb/src/ndbapi/NdbInfo.hpp"
 
 
@@ -111,7 +112,7 @@ offline_update(THD* thd, struct st_mysql_sys_var* var,
   opt_ndbinfo_offline = new_offline;
 
   // Close any open tables which may be in the old mode
-  (void)close_cached_tables(thd, NULL, false, true, false);
+  (void)ndb_tdc_close_cached_tables();
 
   DBUG_VOID_RETURN;
 }

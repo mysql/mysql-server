@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -101,12 +101,14 @@ SimulatedBlock::SimulatedBlock(BlockNumber blockNumber,
   if (theInstance == 0) {
     ndbrequire(mainBlock == 0);
     mainBlock = this;
+    theMainInstance = mainBlock;
     globalData.setBlock(blockNumber, mainBlock);
+    mainBlock->addInstance(this, theInstance);
   } else {
     ndbrequire(mainBlock != 0);
     mainBlock->addInstance(this, theInstance);
+    theMainInstance = mainBlock;
   }
-  theMainInstance = mainBlock;
 
   c_fragmentIdCounter = 1;
   c_fragSenderRunning = false;
@@ -189,13 +191,20 @@ SimulatedBlock::~SimulatedBlock()
 #endif
 
 #ifdef VM_TRACE
+  enable_global_variables();
   delete [] m_global_variables;
+  m_global_variables = 0;
 #endif
 
   if (theInstanceList != 0) {
     Uint32 i;
     for (i = 0; i < MaxInstances; i++)
-      delete theInstanceList[i];
+    {
+      if (theInstanceList[i] != this)
+      {
+        delete theInstanceList[i];
+      }
+    }
     delete [] theInstanceList;
   }
   theInstanceList = 0;
@@ -2090,6 +2099,25 @@ SimulatedBlock::execSEND_PACKED(Signal* signal)
 {
 }
 
+ATTRIBUTE_NOINLINE
+void
+SimulatedBlock::handle_execute_error(GlobalSignalNumber gsn)
+{
+  /**
+   * This method only called if an error has occurred
+   */
+  char errorMsg[255];
+  if (!(gsn <= MAX_GSN)) {
+    BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d too high)", gsn);
+    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
+  }
+  if (!(theExecArray[gsn] != 0)) {
+    BaseString::snprintf(errorMsg, 255, "Illegal signal received (GSN %d not added)", gsn);
+    ERROR_SET(fatal, NDBD_EXIT_PRGERR, errorMsg, errorMsg);
+  }
+  ndbrequire(false);
+}
+
 // MT LQH callback CONF via signal
 
 const SimulatedBlock::CallbackEntry&
@@ -3776,7 +3804,6 @@ SimulatedBlock::xfrm_attr(Uint32 attrDesc, CHARSET_INFO* cs,
   {
     jam();
     Uint32 len;
-    LINT_INIT(len);
     switch(array){
     case NDB_ARRAYTYPE_SHORT_VAR:
       len = 1 + srcPtr[0];

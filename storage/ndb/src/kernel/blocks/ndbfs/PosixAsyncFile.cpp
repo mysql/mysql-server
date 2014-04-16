@@ -250,7 +250,9 @@ void PosixAsyncFile::openReq(Request *request)
     flags |= FsOpenReq::OM_CREATE;
   }
 
+#ifdef O_DIRECT
 no_odirect:
+#endif
   theFd = ::open(theFileName.c_str(), new_flags, mode);
   if (-1 == theFd)
   {
@@ -358,7 +360,9 @@ no_odirect:
         cnt++;
         size += request->par.open.page_size;
       }
+#ifdef O_DIRECT
   retry:
+#endif
       off_t save_size = size;
       char* buf = (char*)m_page_ptr.p;
       while(size > 0)

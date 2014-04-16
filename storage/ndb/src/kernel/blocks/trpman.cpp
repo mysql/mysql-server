@@ -817,11 +817,13 @@ TrpmanProxy::sendENABLE_COMCONF(Signal *signal, Uint32 ssId)
 void
 TrpmanProxy::execROUTE_ORD(Signal* signal)
 {
-  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
-  Uint32 nodeId = ord->from;
   jamEntry();
 
+#ifdef VM_TRACE
+  RouteOrd* ord = (RouteOrd*)signal->getDataPtr();
+  Uint32 nodeId = ord->from;
   ndbassert(nodeId != 0);
+#endif
 #ifndef NDBD_MULTITHREADED
   Uint32 workerId = 0;
 #else

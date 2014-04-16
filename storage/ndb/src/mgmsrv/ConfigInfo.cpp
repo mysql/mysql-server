@@ -3683,7 +3683,7 @@ static
 const char *
 getInfoString(const Properties * section, 
 	      const char* fname, const char * type){
-  const char* val;
+  const char* val = NULL;
   const Properties * p;
   if (section->get(fname, &p) && p->get(type, &val)) {
     return val;

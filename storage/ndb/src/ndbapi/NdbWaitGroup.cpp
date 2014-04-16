@@ -61,16 +61,17 @@ NdbWaitGroup::NdbWaitGroup(Ndb_cluster_connection *_conn, int ndbs) :
 
   /* Call into the TransporterFacade to set up wakeups */
   bool rc = m_conn->m_impl.m_transporter_facade->setupWakeup();
-  assert(rc);
+  require(rc);
 
   /* Get a new Ndb object to be the dedicated "wakeup object" for the group */
   m_wakeNdb = new Ndb(m_conn);
-  assert(m_wakeNdb);
+  require(m_wakeNdb);
   m_wakeNdb->init(1);
   m_nodeId = m_wakeNdb->theNode;
 
   /* Get a wakeup handler */
   m_multiWaitHandler = new MultiNdbWakeupHandler(m_wakeNdb);
+  require(m_multiWaitHandler);
 }
 
 

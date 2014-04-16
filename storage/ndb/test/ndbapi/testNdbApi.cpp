@@ -4540,7 +4540,7 @@ class NodeIdReservations {
 public:
   void lock(unsigned id)
   {
-    assert(id < NDB_ARRAY_SIZE(m_ids));
+    require(id < NDB_ARRAY_SIZE(m_ids));
     NdbMutex_Lock(&m_mutex);
     //ndbout  << "locking nodeid: " << id << endl;
     if (m_ids[id])
@@ -4555,7 +4555,7 @@ public:
 
   void unlock(unsigned id)
   {
-    assert(id < NDB_ARRAY_SIZE(m_ids));
+    require(id < NDB_ARRAY_SIZE(m_ids));
     NdbMutex_Lock(&m_mutex);
     //ndbout  << "unlocking nodeid: " << id << endl;
     if (!m_ids[id])
@@ -4627,7 +4627,7 @@ int runNdbClusterConnectInit(NDBT_Context* ctx, NDBT_Step* step)
     for(int i = 0; i < cs->no_of_nodes; i++ )
     {
       ndb_mgm_node_state *ns = cs->node_states + i;
-      assert(ns->node_type == NDB_MGM_NODE_TYPE_API);
+      require(ns->node_type == NDB_MGM_NODE_TYPE_API);
       if (ns->node_status == NDB_MGM_NODE_STATUS_CONNECTED)
       {
         // Node is already connected, don't use in test
@@ -4949,7 +4949,7 @@ check_connect_until_no_more_nodeid(const char* constr)
     delete con;
     connections.erase(0);
   }
-  assert(connections.size() == 0);
+  require(connections.size() == 0);
 
   return result;
 }
@@ -5026,7 +5026,7 @@ public:
   virtual int appendToSection(Uint32 secId, LinearSectionPtr ptr)
   {
     /* Potentially expensive re-alloc + copy */
-    assert(secId < 3);
+    require(secId < 3);
     
     Uint32 existingSz = ptrs[secId].sz;
     Uint32* existingBuff = ptrs[secId].p;
@@ -5134,10 +5134,10 @@ public:
                                    &numSecsInFragment) != 0)
           return -1;
         
-        assert(incomingFragId != 0);
+        require(incomingFragId != 0);
         fragId = incomingFragId;
         sourceNode = incomingSourceNode;
-        assert(numSecsInFragment > 0);
+        require(numSecsInFragment > 0);
         
         break;
       }
@@ -5268,7 +5268,7 @@ private:
     Uint32 sigLen = sigHead->theLength;
     
     *numSecsInFragment = sigHead->m_noOfSections;
-    assert(sigLen >= (1 + *numSecsInFragment));
+    require(sigLen >= (1 + *numSecsInFragment));
            
     *incomingFragId = sigBody[sigLen - 1];
     *incomingSourceNode = refToNode(sigHead->theSendersBlockRef);
@@ -5384,7 +5384,7 @@ public:
 
   static Uint32 getSecSz(Uint32 secNum, Uint32 iter)
   {
-    assert(secNum < 3);
+    require(secNum < 3);
     Uint32 numSizes = getNumInterestingSizes();
     Uint32 divisor = (secNum == 0 ? 1 : 
                       secNum == 1 ? numSizes :
@@ -5603,7 +5603,81 @@ int testFragmentedSend(NDBT_Context* ctx, NDBT_Step* step){
   return fsc.runTest(&ss);
 }
 
+static int
+runReceiveTRANSIDAIAfterRollback(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* const ndb = GETNDB(step);
+  NdbRestarter restarter;
 
+  do { 
+    // fill table with 10 rows.
+    const NdbDictionary::Table * pTab = ctx->getTab();
+    HugoTransactions hugoTrans(*pTab);
+    if(hugoTrans.loadTable(ndb, 10) != 0) {
+      g_err << "Failed to load table" << endl;
+      break;
+    }
+    // do error injection in data nodes
+    if (restarter.insertErrorInAllNodes(8107) != 0){
+      g_err << "Failed to insert error 8107" << endl;
+      break;
+    }
+    if (restarter.insertErrorInAllNodes(4037) != 0){
+      g_err << "Failed to insert error 4037" << endl;
+      break;
+    }
+  
+    // do error injection in ndbapi
+    DBUG_SET_INITIAL("+d,ndb_delay_close_txn,ndb_delay_transid_ai");
+  
+    // start transaction
+    NdbTransaction* const trans = ndb->startTransaction();
+    if (trans == NULL)
+    {
+      g_err << "ndb->startTransaction() gave unexpected error : "
+            << ndb->getNdbError() << endl;
+      break;
+    }
+    NdbOperation* const op = trans->getNdbOperation(pTab);
+    if (op == NULL)
+    {
+      g_err << "trans->getNdbOperation() gave unexpected error : "
+            << trans->getNdbError() << endl;
+      break;
+    }
+  
+    // start primary key read with shared lock
+    HugoOperations hugoOps(*ctx->getTab());
+    if(hugoOps.startTransaction(ndb)) {
+      g_err << "hugoOps.startTransaction() gave unexpected error : " 
+            << hugoOps.getTransaction()->getNdbError() << endl;
+      break;
+    }
+    if(hugoOps.pkReadRecord(ndb, 1, 1, NdbOperation::LM_Read)) {
+      g_err << "hugoOps.pkReadRecord() gave unexpected error : " 
+            << hugoOps.getTransaction()->getNdbError() << endl;
+      break;
+    }
+    if(hugoOps.execute_Commit(ndb) != 0) {
+      g_err << "hugoOps.execute_Commit() gave unexpected error : " 
+            << hugoOps.getTransaction()->getNdbError() << endl;
+      break;
+    }
+  
+    // all ok, test passes 
+    ndb->closeTransaction(trans);
+  
+    // clean up 
+    DBUG_SET_INITIAL("-d,ndb_delay_close_txn,ndb_delay_transid_ai");
+    restarter.insertErrorInAllNodes(0);
+    return NDBT_OK;
+  } while(0);
+
+  // clean up for error path 
+  DBUG_SET_INITIAL("-d,ndb_delay_close_txn,ndb_delay_transid_ai");
+  restarter.insertErrorInAllNodes(0);
+  return NDBT_FAILED;
+}
 
 NDBT_TESTSUITE(testNdbApi);
 TESTCASE("MaxNdb", 
@@ -5880,6 +5954,15 @@ TESTCASE("NdbClusterConnectSR",
 TESTCASE("TestFragmentedSend",
          "Test fragmented send behaviour"){
   INITIALIZER(testFragmentedSend);
+}
+TESTCASE("ReceiveTRANSIDAIAfterRollback",
+         "Delay the delivery of TRANSID_AI results from the data node." \
+         "Abort a transaction with a timeout so that the "\
+         "transaction closing and TRANSID_AI processing are interleaved." \
+         "Confirm that this interleaving does not result in a core."
+){
+  STEP(runReceiveTRANSIDAIAfterRollback);
+  FINALIZER(runClearTable);
 }
 NDBT_TESTSUITE_END(testNdbApi);
 

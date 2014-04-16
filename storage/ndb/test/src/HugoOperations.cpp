@@ -751,7 +751,7 @@ HugoOperations_async_callback(int res, NdbTransaction* pCon, void* ho)
 void
 HugoOperations::callback(int res, NdbTransaction* pCon)
 {
-  assert(pCon == pTrans);
+  require(pCon == pTrans);
   m_async_reply= 1;
   if(res)
   {

@@ -1312,23 +1312,6 @@ public:
 #endif
 
 
-static int iii;
-
-static
-int
-recurse(char * buf, int loops, int arg){
-  char * tmp = (char*)alloca(arg);
-  printf("tmp = %p\n", tmp);
-  for(iii = 0; iii<arg; iii += 1024){
-    tmp[iii] = (iii % 23 + (arg & iii));
-  }
-  
-  if(loops == 0)
-    return tmp[345];
-  else
-    return tmp[arg/loops] + recurse(tmp, loops - 1, arg);
-}
-
 #define check_block(block,val) \
 (((val) >= DumpStateOrd::_ ## block ## Min) && ((val) <= DumpStateOrd::_ ## block ## Max))
 
@@ -1378,21 +1361,6 @@ Cmvmi::execDUMP_STATE_ORD(Signal* signal)
    *
    * Here I can dump CMVMI state if needed
    */
-  if(signal->theData[0] == 13){
-#if 0
-    int loop = 100;
-    int len = (10*1024*1024);
-    if(signal->getLength() > 1)
-      loop = signal->theData[1];
-    if(signal->getLength() > 2)
-      len = signal->theData[2];
-    
-    ndbout_c("recurse(%d loop, %dkb per recurse)", loop, len/1024);
-    int a = recurse(0, loop, len);
-    ndbout_c("after...%d", a);
-#endif
-  }
-
   DumpStateOrd * const & dumpState = (DumpStateOrd *)&signal->theData[0];
   Uint32 arg = dumpState->args[0];
   if (arg == DumpStateOrd::CmvmiDumpConnections){
@@ -2831,7 +2799,7 @@ check_threshold(Uint32 last, Uint32 now)
 
   static const Uint32 thresholds[] = { 100, 99, 90, 80, 0 };
 
-  Uint32 passed;
+  Uint32 passed = 0; /* Initialised to silence compiler warning */
   for (size_t i = 0; i < NDB_ARRAY_SIZE(thresholds); i++)
   {
     if (now >= thresholds[i])

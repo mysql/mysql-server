@@ -45,20 +45,20 @@ NDBT_Thread::create(NDBT_ThreadSet* thread_set, int thread_no)
   m_err = 0;
 
   m_mutex = NdbMutex_Create();
-  assert(m_mutex != 0);
+  require(m_mutex != 0);
   m_cond = NdbCondition_Create();
-  assert(m_cond != 0);
+  require(m_cond != 0);
 
   char buf[20];
   sprintf(buf, "NDBT_%04u", (unsigned)thread_no);
   const char* name = strdup(buf);
-  assert(name != 0);
+  require(name != 0);
 
   unsigned stacksize = 512 * 1024;
   NDB_THREAD_PRIO prio = NDB_THREAD_PRIO_LOW;
   m_thread = NdbThread_Create(NDBT_Thread_run,
                               (void**)this, stacksize, name, prio);
-  assert(m_thread != 0);
+  require(m_thread != 0);
 }
 
 NDBT_Thread::~NDBT_Thread()
@@ -80,9 +80,9 @@ NDBT_Thread::~NDBT_Thread()
 void*
 NDBT_Thread_run(void* arg)
 {
-  assert(arg != 0);
+  require(arg != 0);
   NDBT_Thread& thr = *(NDBT_Thread*)arg;
-  assert(thr.m_magic == NDBT_Thread::Magic);
+  require(thr.m_magic == NDBT_Thread::Magic);
   thr.run();
   return 0;
 }
@@ -251,7 +251,7 @@ int
 NDBT_ThreadSet::connect(class Ndb_cluster_connection* ncc, const char* db)
 {
   for (int n = 0; n < m_count; n++) {
-    assert(m_thread[n] != 0);
+    require(m_thread[n] != 0);
     NDBT_Thread& thr = *m_thread[n];
     if (thr.connect(ncc, db) == -1)
       return -1;

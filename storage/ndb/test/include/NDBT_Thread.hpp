@@ -61,7 +61,7 @@ public:
 
   // if part of a set
   inline NDBT_ThreadSet& get_thread_set() const {
-    assert(m_thread_set != 0);
+    require(m_thread_set != 0);
     return *m_thread_set;
   }
   inline int get_thread_no() const {
@@ -189,7 +189,7 @@ public:
     return m_count;
   }
   inline NDBT_Thread& get_thread(int n) {
-    assert(n < m_count && m_thread[n] != 0);
+    require(n < m_count && m_thread[n] != 0);
     return *m_thread[n];
   }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -220,13 +220,8 @@ Lgman::sendSTTORRY(Signal* signal)
 {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 2;
-  signal->theData[5] = 3;
-  signal->theData[6] = 4;
-  signal->theData[7] = 5;
-  signal->theData[8] = 6;
-  signal->theData[9] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 10, JBB);
+  signal->theData[4] = 255; // No more start phases from missra
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
 }
 
 void
@@ -265,6 +260,7 @@ Lgman::execCONTINUEB(Signal* signal){
     break;
   }
   case LgmanContinueB::FIND_LOG_HEAD:
+  {
     jam();
     Ptr<Logfile_group> ptr;
     if(ptrI != RNIL)
@@ -279,6 +275,7 @@ Lgman::execCONTINUEB(Signal* signal){
       init_run_undo_log(signal);
     }
     break;
+  }
   case LgmanContinueB::EXECUTE_UNDO_RECORD:
     jam();
     execute_undo_record(signal);
@@ -1206,7 +1203,9 @@ Lgman::alloc_logbuffer_memory(Ptr<Logfile_group> ptr, Uint32 bytes)
 {
   Uint32 pages= (((bytes + 3) >> 2) + File_formats::NDB_PAGE_SIZE_WORDS - 1)
     / File_formats::NDB_PAGE_SIZE_WORDS;
+#if defined VM_TRACE || defined ERROR_INSERT
   Uint32 requested= pages;
+#endif
   {
     Page_map map(m_data_buffer_pool, ptr.p->m_buffer_pages);
     while(pages)

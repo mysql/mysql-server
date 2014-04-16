@@ -1298,8 +1298,7 @@ RestoreDataIterator::readVarData_drop6(Uint32 *buf_ptr, Uint32 *ptr,
     typedef BackupFormat::DataFile::VariableData VarData;
     VarData * data = (VarData *)ptr;
     Uint32 sz = ntohl(data->Sz);
-    Uint32 id = ntohl(data->Id);
-    assert(id == attrId);
+    assert(ntohl(data->Id) == attrId);
 
     attr_data->null = false;
     attr_data->void_value = &data->Data[0];

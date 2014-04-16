@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,6 +136,9 @@
 #define PACK_TABLE_WORDS (10 + MAX_NDB_PARTITIONS * PACK_FRAGMENT_WORDS)
 #define PACK_TABLE_PAGE_WORDS (2048 - 32)
 #define PACK_TABLE_PAGES ((PACK_TABLE_WORDS + PACK_TABLE_PAGE_WORDS - 1) / PACK_TABLE_PAGE_WORDS)
+
+#define MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE 32
+#define MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE 32
 
 class Dbdih: public SimulatedBlock {
 #ifdef ERROR_INSERT
@@ -346,8 +349,8 @@ public:
     bool m_inclDihLcp;
     Uint8 copyCompleted; // 0 = NO :-), 1 = YES, 2 = yes, first WAITING
 
-    FragmentCheckpointInfo startedChkpt[2];
-    FragmentCheckpointInfo queuedChkpt[2];
+    FragmentCheckpointInfo startedChkpt[MAX_STARTED_FRAG_CHECKPOINTS_PER_NODE];
+    FragmentCheckpointInfo queuedChkpt[MAX_QUEUED_FRAG_CHECKPOINTS_PER_NODE];
 
     Bitmask<1> m_nodefailSteps;
     Uint32 activeTabptr;
@@ -479,7 +482,7 @@ public:
 
     /**
      * rw-lock that protects multiple parallel DIGETNODES (readers) from
-     *   updates to fragmenation changes (e.g CREATE_FRAGREQ)...
+     *   updates to fragmenation changes (e.g UPDATE_FRAG_STATEREQ)...
      *   search for DIH_TAB_WRITE_LOCK
      */
     NdbSeqLock m_lock;
@@ -607,17 +610,19 @@ public:
       ,TO_SELECTING_NEXT = 4       // Selecting next fragment to copy
       ,TO_PREPARE_COPY = 5         // Waiting for local LQH (PREPARE_COPYREQ)
       ,TO_UPDATE_BEFORE_STORED = 6 // Waiting on master (UPDATE_TOREQ)
-      ,TO_CREATE_FRAG_STORED = 7   // Waiting for all (CREATE_FRAGREQ stored)
+      ,TO_UPDATE_FRAG_STATE_STORED = 7
+                        // Waiting for all UPDATE_FRAG_STATEREQ stored
       ,TO_UPDATE_AFTER_STORED = 8  // Waiting for master (UPDATE_TOREQ)
       ,TO_COPY_FRAG = 9            // Waiting for copy node (COPY_FRAGREQ)
       ,TO_COPY_ACTIVE = 10         // Waiting for local LQH (COPY_ACTIVEREQ)
       ,TO_UPDATE_BEFORE_COMMIT = 11// Waiting for master (UPDATE_TOREQ)
-      ,TO_CREATE_FRAG_COMMIT = 12  // Waiting for all (CREATE_FRAGREQ commit)
+      ,TO_UPDATE_FRAG_STATE_COMMIT = 12 
+                            // Waiting for all (UPDATE_FRAG_STATEREQ commit)
       ,TO_UPDATE_AFTER_COMMIT = 13 // Waiting for master (UPDATE_TOREQ)
 
       ,TO_START_LOGGING = 14        // Enabling logging on all fragments
       ,TO_SL_COPY_ACTIVE = 15       // Start logging: Copy active (local)
-      ,TO_SL_CREATE_FRAG = 16       // Start logging: Create Frag (dist)
+      ,TO_SL_UPDATE_FRAG_STATE = 16 // Start logging: Create Frag (dist)
       ,TO_END_TO = 17               // Waiting for master (EBND_TOREQ)
     };
 
@@ -735,8 +740,8 @@ private:
   void execSTART_COPYREQ(Signal *);
   void execSTART_COPYCONF(Signal *);
   void execSTART_COPYREF(Signal *);
-  void execCREATE_FRAGREQ(Signal *);
-  void execCREATE_FRAGCONF(Signal *);
+  void execUPDATE_FRAG_STATEREQ(Signal *);
+  void execUPDATE_FRAG_STATECONF(Signal *);
   void execDIVERIFYREQ(Signal *);
   void execGCP_SAVEREQ(Signal *);
   void execGCP_SAVECONF(Signal *);
@@ -890,10 +895,10 @@ private:
   
   void sendCopyTable(Signal *, CopyTableNode* ctn,
                      BlockReference ref, Uint32 reqinfo);
-  void sendCreateFragReq(Signal *,
-                         Uint32 startGci,
-                         Uint32 storedType,
-                         Uint32 takeOverPtr);
+  void sendUpdateFragStateReq(Signal *,
+                              Uint32 startGci,
+                              Uint32 storedType,
+                              Uint32 takeOverPtr);
   void sendDihfragreq(Signal *,
                       TabRecordPtr regTabPtr,
                       Uint32 fragId);
@@ -1082,7 +1087,6 @@ private:
   void openingCopyGciSkipInitLab(Signal *, FileRecordPtr regFilePtr);
   void startLcpRoundLab(Signal *);
   void gcpBlockedLab(Signal *);
-  void initialStartCompletedLab(Signal *);
   void allNodesLcpCompletedLab(Signal *);
   void nodeRestartPh2Lab(Signal *);
   void nodeRestartPh2Lab2(Signal *);
@@ -1260,7 +1264,7 @@ private:
   void toCopyFragLab(Signal *, Uint32 takeOverPtr);
   void toStartCopyFrag(Signal *, TakeOverRecordPtr);
   void startHsAddFragConfLab(Signal *);
-  void prepareSendCreateFragReq(Signal *, Uint32 takeOverPtr);
+  void prepareSendUpdateFragStateReq(Signal *, Uint32 takeOverPtr);
   void toCopyCompletedLab(Signal *, TakeOverRecordPtr regTakeOverptr);
   void takeOverCompleted(Uint32 aNodeId);
 
@@ -1519,6 +1523,7 @@ public:
     LCP_STATUS_IDLE        = 0,
     LCP_TCGET              = 1,  // Only master
     LCP_STATUS_ACTIVE      = 2,
+    LCP_WAIT_MUTEX         = 3,  // Only master
     LCP_CALCULATE_KEEP_GCI = 4,  // Only master
     LCP_COPY_GCI           = 5,  
     LCP_INIT_TABLES        = 6,
@@ -1663,7 +1668,6 @@ private:
     Uint32 wait;
     Uint32 failNr;
     bool activeState;
-    bool blockLcp;
     Uint32 blockGcp; // 0, 1=ordered, 2=effective
     Uint32 startInfoErrorCode;
     Uint32 m_outstandingGsn;
@@ -1698,7 +1702,7 @@ private:
    */
   SignalCounter c_COPY_GCIREQ_Counter;
   SignalCounter c_COPY_TABREQ_Counter;
-  SignalCounter c_CREATE_FRAGREQ_Counter;
+  SignalCounter c_UPDATE_FRAG_STATEREQ_Counter;
   SignalCounter c_DIH_SWITCH_REPLICA_REQ_Counter;
   SignalCounter c_EMPTY_LCP_REQ_Counter;
   SignalCounter c_GCP_COMMIT_Counter;
@@ -1933,11 +1937,21 @@ private:
   // MT LQH
   Uint32 c_fragments_per_node_;
   Uint32 getFragmentsPerNode();
+  /**
+   * dihGetInstanceKey
+   *
+   * This method maps a fragment to a block instance key
+   * This is the LDM instance which manages the fragment
+   * on this node.
+   * The range of an instance key is 1 to 
+   * NDBMT_MAX_WORKER_INSTANCES inclusive.
+   * 0 is the proxy block instance.
+   */
   Uint32 dihGetInstanceKey(FragmentstorePtr tFragPtr) {
     ndbrequire(!tFragPtr.isNull());
     Uint32 log_part_id = tFragPtr.p->m_log_part_id;
-    Uint32 instanceKey = 1 + (log_part_id % NDBMT_MAX_BLOCK_INSTANCES);
-    return instanceKey;
+    ndbrequire(log_part_id < NDBMT_MAX_WORKER_INSTANCES);
+    return 1 + log_part_id;
   }
   Uint32 dihGetInstanceKey(Uint32 tabId, Uint32 fragId);
 
