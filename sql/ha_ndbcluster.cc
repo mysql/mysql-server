@@ -847,11 +847,15 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     bool table_has_blobs,
                     const char* handling_type,
                     const NdbRecord* key_rec,
-                    const uchar* pk_row,
+                    const NdbRecord* data_rec,
+                    const uchar* old_row,
+                    const uchar* new_row,
                     enum_conflicting_op_type op_type,
                     enum_conflict_cause conflict_cause,
                     const NdbError& conflict_error,
-                    NdbTransaction* conflict_trans);
+                    NdbTransaction* conflict_trans,
+                    const MY_BITMAP *write_set,
+                    Uint64 transaction_id);
 #endif
 
 static const Uint32 error_op_after_refresh_op = 920;
@@ -4489,8 +4493,10 @@ ha_ndbcluster::eventSetAnyValue(THD *thd,
 int
 ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                                           const NdbRecord* key_rec,
+                                          const NdbRecord* data_rec,
                                           const uchar* old_data,
                                           const uchar* new_data,
+                                          const MY_BITMAP *write_set,
                                           NdbTransaction* trans,
                                           NdbInterpretedCode* code,
                                           NdbOperation::OperationOptions* options,
@@ -4547,7 +4553,6 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
     {
       DBUG_PRINT("info", ("Conflict handling for row occurring now"));
       NdbError noRealConflictError;
-      const uchar* row_to_save = (op_type == DELETE_ROW)? old_data : new_data;
 
       /*
          Directly handle the conflict here - e.g refresh/ write to
@@ -4558,11 +4563,15 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
                                 m_share->flags & NSF_BLOB_FLAG,
                                 "Transaction",
                                 key_rec,
-                                row_to_save,
+                                data_rec,
+                                old_data,
+                                new_data,
                                 op_type,
                                 TRANS_IN_CONFLICT,
                                 noRealConflictError,
-                                trans);
+                                trans,
+                                write_set,
+                                transaction_id);
       if (unlikely(res))
         DBUG_RETURN(res);
 
@@ -4637,19 +4646,52 @@ ha_ndbcluster::prepare_conflict_detection(enum_conflicting_op_type op_type,
   g_ndb_slave_state.conflict_flags |= SCS_OPS_DEFINED;
 
   /* Now save data for potential insert to exceptions table... */
-  const uchar* row_to_save = (op_type == DELETE_ROW)? old_data : new_data;
   Ndb_exceptions_data ex_data;
   ex_data.share= m_share;
   ex_data.key_rec= key_rec;
+  ex_data.data_rec= data_rec;
   ex_data.op_type= op_type;
   ex_data.trans_id= transaction_id;
   /*
     We need to save the row data for possible conflict resolution after
     execute().
   */
-  ex_data.row= copy_row_to_buffer(m_thd_ndb, row_to_save);
+  if (old_data)
+    ex_data.old_row= copy_row_to_buffer(m_thd_ndb, old_data);
+  if (old_data != NULL && ex_data.old_row == NULL)
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+  if (new_data)
+    ex_data.new_row= copy_row_to_buffer(m_thd_ndb, new_data);
+  if (new_data !=  NULL && ex_data.new_row == NULL)
+  {
+    DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+  }
+
+  ex_data.bitmap_buf= NULL;
+  ex_data.write_set= NULL;
+  if (table->write_set)
+  {
+    /* Copy table write set */
+    ex_data.bitmap_buf=
+      (my_bitmap_map *) get_buffer(m_thd_ndb, table->s->column_bitmap_size);
+    if (ex_data.bitmap_buf == NULL)
+    {
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    }
+    ex_data.write_set= (MY_BITMAP*) get_buffer(m_thd_ndb, sizeof(MY_BITMAP));
+    if (ex_data.write_set == NULL)
+    {
+      DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+    }
+    bitmap_init(ex_data.write_set, ex_data.bitmap_buf,
+                table->write_set->n_bits, false);
+    bitmap_copy(ex_data.write_set, table->write_set);
+  }
+
   uchar* ex_data_buffer= get_buffer(m_thd_ndb, sizeof(ex_data));
-  if (ex_data.row == NULL || ex_data_buffer == NULL)
+  if (ex_data_buffer == NULL)
   {
     DBUG_RETURN(HA_ERR_OUT_OF_MEM);
   }
@@ -4727,8 +4769,16 @@ handle_conflict_op_error(NdbTransaction* trans,
     memcpy(&ex_data, buffer, sizeof(ex_data));
     NDB_SHARE *share= ex_data.share;
     const NdbRecord* key_rec= ex_data.key_rec;
-    const uchar* row= ex_data.row;
-    enum_conflicting_op_type causing_op_type = ex_data.op_type;
+    const NdbRecord* data_rec= ex_data.data_rec;
+    const uchar* old_row= ex_data.old_row;
+    const uchar* new_row= ex_data.new_row;
+#ifndef DBUG_OFF
+    const uchar* row=
+      (ex_data.op_type == DELETE_ROW)?
+      ex_data.old_row : ex_data.new_row;
+#endif
+    enum_conflicting_op_type causing_op_type= ex_data.op_type;
+    const MY_BITMAP *write_set= ex_data.write_set;
 
     DBUG_PRINT("info", ("Conflict causing op type : %u",
                         causing_op_type));
@@ -4780,11 +4830,19 @@ handle_conflict_op_error(NdbTransaction* trans,
                                     false, /* table_has_blobs */
                                     "Row",
                                     key_rec,
-                                    row,
+                                    data_rec,
+                                    old_row,
+                                    new_row,
                                     causing_op_type,
                                     conflict_cause,
                                     err,
-                                    trans);
+                                    trans,
+                                    write_set,
+                                    /*
+                                      ORIG_TRANSID not available for
+                                      non-transactional conflict detection.
+                                    */
+                                    Ndb_binlog_extra_row_info::InvalidTransactionId);
 
       DBUG_RETURN(res);
     }
@@ -5051,8 +5109,10 @@ int ha_ndbcluster::ndb_write_row(uchar *record,
 
     if (unlikely((error = prepare_conflict_detection(WRITE_ROW,
                                                      key_rec,
+                                                     m_ndb_record,
                                                      NULL,    /* old_data */
                                                      record,  /* new_data */
+                                                     table->write_set,
                                                      trans,
                                                      NULL,    /* code */
                                                      &options,
@@ -5243,7 +5303,7 @@ int ha_ndbcluster::primary_key_cmp(const uchar * old_row, const uchar * new_row)
 #ifdef HAVE_NDB_BINLOG
 
 static Ndb_exceptions_data StaticRefreshExceptionsData=
-{ NULL, NULL, NULL, REFRESH_ROW, 0 };
+  { NULL, NULL, NULL, NULL, NULL, NULL, NULL, REFRESH_ROW, 0 };
 
 static int
 handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
@@ -5251,14 +5311,19 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                     bool table_has_blobs,
                     const char* handling_type,
                     const NdbRecord* key_rec,
-                    const uchar* pk_row,
+                    const NdbRecord* data_rec,
+                    const uchar* old_row,
+                    const uchar* new_row,
                     enum_conflicting_op_type op_type,
                     enum_conflict_cause conflict_cause,
                     const NdbError& conflict_error,
-                    NdbTransaction* conflict_trans)
+                    NdbTransaction* conflict_trans,
+                    const MY_BITMAP *write_set,
+                    Uint64 transaction_id)
 {
   DBUG_ENTER("handle_row_conflict");
 
+  const uchar* row = (op_type == DELETE_ROW)? old_row : new_row;
   /*
      We will refresh the row if the conflict function requires
      it, or if we are handling a transactional conflict.
@@ -5289,7 +5354,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
                         conflict_error.message));
 
     assert(key_rec != NULL);
-    assert(pk_row != NULL);
+    assert(row != NULL);
 
     do
     {
@@ -5389,7 +5454,7 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
       //      Keyless table?
       //      Unique index
       const NdbOperation* refresh_op= conflict_trans->refreshTuple(key_rec,
-                                                                   (const char*) pk_row,
+                                                                   (const char*) row,
                                                                    &options,
                                                                    sizeof(options));
       if (!refresh_op)
@@ -5419,16 +5484,26 @@ handle_row_conflict(NDB_CONFLICT_FN_SHARE* cfn_share,
     } while(0); // End of 'refresh' block
   }
 
+  DBUG_PRINT("info", ("Table %s does%s have an exceptions table",
+                      table_name,
+                      (cfn_share && cfn_share->m_ex_tab_writer.hasTable())
+                      ? "" : " not"));
   if (cfn_share &&
       cfn_share->m_ex_tab_writer.hasTable())
   {
     NdbError err;
     if (cfn_share->m_ex_tab_writer.writeRow(conflict_trans,
                                             key_rec,
+                                            data_rec,
                                             ::server_id,
                                             ndb_mi_get_master_server_id(),
                                             g_ndb_slave_state.current_master_server_epoch,
-                                            pk_row,
+                                            old_row,
+                                            new_row,
+                                            op_type,
+                                            conflict_cause,
+                                            transaction_id,
+                                            write_set,
                                             err) != 0)
     {
       if (err.code != 0)
@@ -5848,8 +5923,10 @@ int ha_ndbcluster::ndb_update_row(const uchar *old_data, uchar *new_data,
 
       if (unlikely((error = prepare_conflict_detection(UPDATE_ROW,
                                                        key_rec,
+                                                       m_ndb_record,
                                                        old_data,
                                                        new_data,
+                                                       table->write_set,
                                                        trans,
                                                        &code,
                                                        &options,
@@ -6167,8 +6244,10 @@ int ha_ndbcluster::ndb_delete_row(const uchar *record,
       /* Conflict resolution in slave thread. */
       if (unlikely((error = prepare_conflict_detection(DELETE_ROW,
                                                        key_rec,
+                                                       m_ndb_record,
                                                        key_row, /* old_data */
                                                        NULL,    /* new_data */
+                                                       table->write_set,
                                                        trans,
                                                        &code,
                                                        &options,

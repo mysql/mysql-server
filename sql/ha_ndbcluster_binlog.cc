@@ -4189,6 +4189,7 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
   Ndb *ndb= thd_ndb->ndb;
   NDBDICT *dict= ndb->getDictionary();
   NDB_CONFLICT_FN_SHARE *cfn_share= share->m_cfn_share;
+  const char *ex_suffix= (char *)NDB_EXCEPTIONS_TABLE_SUFFIX;
   if (cfn_share == NULL)
   {
     share->m_cfn_share= cfn_share= (NDB_CONFLICT_FN_SHARE*)
@@ -4204,12 +4205,18 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
 
   /* Init Exceptions Table Writer */
   new (&cfn_share->m_ex_tab_writer) ExceptionsTableWriter();
+  /* Check for '$EX' or '$ex' suffix in table name */
+  for (int tries= 2;
+       tries-- > 0;
+       ex_suffix= 
+         (tries == 1)
+         ? (const char *)NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER
+         : NullS)
   {
     /* get exceptions table */
     char ex_tab_name[FN_REFLEN];
     strxnmov(ex_tab_name, sizeof(ex_tab_name), share->table_name,
-             lower_case_table_names ? NDB_EXCEPTIONS_TABLE_SUFFIX_LOWER :
-             NDB_EXCEPTIONS_TABLE_SUFFIX, NullS);
+             ex_suffix, NullS);
     ndb->setDatabaseName(share->db);
     Ndb_table_guard ndbtab_g(dict, ex_tab_name);
     const NDBTAB *ex_tab= ndbtab_g.get_table();
@@ -4226,6 +4233,11 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
         /* Ok */
         /* Hold our table reference outside the table_guard scope */
         ndbtab_g.release();
+
+        /* Table looked suspicious, warn user */
+        if (msg)
+          sql_print_warning("%s", msg);
+
         if (opt_ndb_extra_logging)
         {
           sql_print_information("NDB Slave: Table %s.%s logging exceptions to %s.%s",
@@ -4239,6 +4251,7 @@ slave_set_resolve_fn(THD *thd, NDB_SHARE *share,
       {
         sql_print_warning("%s", msg);
       }
+      break;
     } /* if (ex_tab) */
   }
   DBUG_RETURN(0);
