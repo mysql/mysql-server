@@ -878,8 +878,8 @@ runBug18612(NDBT_Context* ctx, NDBT_Step* step){
       
       ndbout_c("nodes %d %d", node1, partition1[i]);
       
-      assert(!nodesmask.get(node1));
-      assert(!nodesmask.get(partition1[i]));
+      require(!nodesmask.get(node1));
+      require(!nodesmask.get(partition1[i]));
       nodesmask.set(node1);
       nodesmask.set(partition1[i]);
     } 
@@ -984,8 +984,8 @@ runBug18612SR(NDBT_Context* ctx, NDBT_Step* step){
       
       ndbout_c("nodes %d %d", node1, partition1[i]);
       
-      assert(!nodesmask.get(node1));
-      assert(!nodesmask.get(partition1[i]));
+      require(!nodesmask.get(node1));
+      require(!nodesmask.get(partition1[i]));
       nodesmask.set(node1);
       nodesmask.set(partition1[i]);
     } 
@@ -4788,8 +4788,8 @@ runMasterFailSlowLCP(NDBT_Context* ctx, NDBT_Step* step)
   int nextMaster = res.getNextMasterNodeId(master);
   nextMaster = (nextMaster == otherVictim) ? res.getNextMasterNodeId(otherVictim) :
     nextMaster;
-  assert(nextMaster != master);
-  assert(nextMaster != otherVictim);
+  require(nextMaster != master);
+  require(nextMaster != otherVictim);
 
   /* Get a node which is not current or next master */
   int slowNode= nextMaster;

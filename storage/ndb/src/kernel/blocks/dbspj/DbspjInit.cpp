@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,7 +78,6 @@ Dbspj::Dbspj(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_TRANSID_AI, &Dbspj::execTRANSID_AI);
   addRecSignal(GSN_SCAN_HBREP, &Dbspj::execSCAN_HBREP);
 
-  ndbout << "Instantiating DBSPJ instanceNo=" << instanceNumber << endl;
 }//Dbspj::Dbspj()
 
 Dbspj::~Dbspj()

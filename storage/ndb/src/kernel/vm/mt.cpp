@@ -1308,7 +1308,6 @@ mt_send_thread_main(void *thr_arg)
     (thr_send_thread_instance*)thr_arg;
 
   Uint32 instance_no = this_send_thread->m_instance_no;
-  ndbout_c("Send thread : %u is started", instance_no);
   g_send_threads->run_send_thread(instance_no);
   return NULL;
 }
@@ -1357,7 +1356,6 @@ thr_send_threads::start_send_threads()
 {
   for (Uint32 i = 0; i < globalData.ndbMtSendThreads; i++)
   {
-    ndbout_c("Start send thread: %u", i);
     m_send_threads[i].m_thread =
       NdbThread_Create(mt_send_thread_main,
                        (void **)&m_send_threads[i],
@@ -2182,7 +2180,6 @@ retry:
       struct thr_job_buffer *jb = seize_buffer(rep, thr_no, false);
       Uint32 * page = reinterpret_cast<Uint32*>(jb);
       tq->m_delayed_signals[i] = page;
-
       /**
        * Init page
        */
@@ -3685,7 +3682,7 @@ execute_signals(thr_data *selfptr,
     }
 #endif
 
-    block->executeFunction(gsn, sig);
+    block->executeFunction_async(gsn, sig);
   }
 
   return num_signals;
@@ -4260,7 +4257,7 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
     // wl4391_todo remove useless assert
     assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
     /* b->send_at_job_buffer_end(); */
-    b->executeFunction(GSN_SEND_PACKED, signal);
+    b->executeFunction_async(GSN_SEND_PACKED, signal);
   }
 }
 
@@ -5706,8 +5703,8 @@ FastScheduler::dumpSignalMemory(Uint32 thr_no, FILE* out)
     SignalT<25> signal;
     const SignalHeader *s = signalSequence[seq_end].ptr;
     unsigned siglen = (sizeof(*s)>>2) + s->theLength;
-    if (siglen > 25)
-      siglen = 25;              // Sanity check
+    if (siglen > MAX_SIGNAL_SIZE)
+      siglen = MAX_SIGNAL_SIZE;              // Sanity check
     memcpy(&signal.header, s, 4*siglen);
     // instance number in trace file is confusing if not MT LQH
     if (globalData.ndbMtLqhWorkers == 0)

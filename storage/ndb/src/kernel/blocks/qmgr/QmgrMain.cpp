@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -286,6 +286,7 @@ void Qmgr::execSTTOR(Signal* signal)
   switch(signal->theData[1]){
   case 1:
     initData(signal);
+    g_eventLogger->info("Starting QMGR phase 1");
     startphase1(signal);
     recompute_version_info(NodeInfo::DB);
     recompute_version_info(NodeInfo::API);
@@ -337,12 +338,17 @@ void Qmgr::execSTTOR(Signal* signal)
   }
   }
   
-  sendSttorryLab(signal);
+  sendSttorryLab(signal, false);
   return;
 }//Qmgr::execSTTOR()
 
-void Qmgr::sendSttorryLab(Signal* signal) 
+void Qmgr::sendSttorryLab(Signal* signal, bool first_phase)
 {
+  if (first_phase)
+  {
+    g_eventLogger->info("Include node protocol completed, phase 1 in QMGR"
+                        " completed");
+  }
 /****************************<*/
 /*< STTORRY                  <*/
 /****************************<*/
@@ -374,6 +380,8 @@ Qmgr::execDIH_RESTARTREF(Signal*signal)
 {
   jamEntry();
 
+  g_eventLogger->info("DIH reported initial start, now starting the"
+                      " Node Inclusion Protocol");
   const DihRestartRef * ref = CAST_CONSTPTR(DihRestartRef,
                                             signal->getDataPtr());
   c_start.m_latest_gci = 0;
@@ -390,6 +398,8 @@ Qmgr::execDIH_RESTARTCONF(Signal*signal)
   const DihRestartConf * conf = CAST_CONSTPTR(DihRestartConf,
                                               signal->getDataPtr());
 
+  g_eventLogger->info("DIH reported normal start, now starting the"
+                      " Node Inclusion Protocol");
   c_start.m_latest_gci = conf->latest_gci;
   c_start.m_no_nodegroup_nodes.assign(NdbNodeBitmask::Size,
                                       conf->no_nodegroup_mask);
@@ -1751,7 +1761,8 @@ incomplete_log:
 }
 
 void
-Qmgr::electionWon(Signal* signal){
+Qmgr::electionWon(Signal* signal)
+{
   NodeRecPtr myNodePtr;
   cpresident = getOwnNodeId(); /* This node becomes president. */
   myNodePtr.i = getOwnNodeId();
@@ -1781,7 +1792,7 @@ Qmgr::electionWon(Signal* signal){
   if (c_start.m_starting_nodes.isclear())
   {
     jam();
-    sendSttorryLab(signal);
+    sendSttorryLab(signal, true);
   }
 }
 
@@ -2236,7 +2247,7 @@ Qmgr::joinedCluster(Signal* signal, NodeRecPtr nodePtr){
 void
 Qmgr::handleEnableComCommitNew(Signal *signal)
 {
-  sendSttorryLab(signal);
+  sendSttorryLab(signal, true);
   
   sendCmAckAdd(signal, getOwnNodeId(), CmAdd::CommitNew);
 }
@@ -2342,7 +2353,7 @@ void Qmgr::execCM_ACKADD(Signal* signal)
       if (c_start.m_starting_nodes.isclear())
       {
 	jam();
-	sendSttorryLab(signal);
+	sendSttorryLab(signal, true);
       }
     }
     return;

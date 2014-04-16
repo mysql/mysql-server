@@ -290,7 +290,7 @@ DLMHashTable<P, T, M>::next(Iterator & iter) const
     }
     else
     {
-      iter.curr.i = RNIL;
+      iter.curr.setNull();
       return false;
     }
   }
@@ -310,7 +310,6 @@ DLMHashTable<P, T, M>::remove(Ptr<T> & ptr, const T & key)
   Uint32 i;
   T * p;
   Ptr<T> prev;
-  LINT_INIT(prev.p);
   prev.i = RNIL;
 
   i = hashValues[hv];
@@ -458,7 +457,7 @@ DLMHashTable<P, T, M>::next(Uint32 bucket, Iterator & iter) const
   if (bucket > mask)
   {
     iter.bucket = bucket;
-    iter.curr.i = RNIL;
+    iter.curr.setNull();
     return false;
   }
 

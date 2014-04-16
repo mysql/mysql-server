@@ -125,7 +125,7 @@ public:
 
   bool connect(const char* connect_string = NULL,
                int num_retries = 12, int retry_delay_in_seconds = 5) {
-    assert(m_handle == NULL);
+    require(m_handle == NULL);
     m_handle= ndb_mgm_create_handle();
     if (!m_handle){
       error("connect: ndb_mgm_create_handle failed");
@@ -254,7 +254,7 @@ public:
 	break;
       case PropertiesType_Uint64:
 	args.get(name, &val_64);
-	if (out.println("%s: %Ld", name, val_64)){
+	if (out.println("%s: %lld", name, val_64)){
           error("call: println failed at line %d", __LINE__);
           return false;
         }

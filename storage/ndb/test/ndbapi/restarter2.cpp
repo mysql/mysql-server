@@ -95,7 +95,7 @@ int main(int argc, const char** argv){
 
     g_info << l << ": restarting all nodes with nostart" << endl;
     const bool b = (restarter.restartAll(false, true, false) == 0);
-    assert(b);
+    require(b);
     
     g_info << "Waiting for cluster to enter nostart" << endl;
     while(restarter.waitClusterNoStart(120) != 0){
@@ -110,7 +110,7 @@ int main(int argc, const char** argv){
 
     g_info << l << ": Telling all nodes to start" << endl;
     const bool b2 = (restarter.startAll() == 0);
-    assert(b2);
+    require(b2);
 
     l++;
   }

@@ -92,14 +92,24 @@ ErrorReporter::get_trace_no(){
    * Read last number from tracefile
    */  
   stream = fopen(file_name, "r+");
-  if (stream == NULL){
+  if (stream == NULL)
+  {
     traceFileNo = 1;
-  } else {
+  }
+  else
+  {
     char buf[255];
-    fgets(buf, 255, stream);
-    const int scan = sscanf(buf, "%u", &traceFileNo);
-    if(scan != 1){
+    if (fgets(buf, 255, stream) == NULL)
+    {
       traceFileNo = 1;
+    }
+    else
+    {
+      const int scan = sscanf(buf, "%u", &traceFileNo);
+      if(scan != 1)
+      {
+        traceFileNo = 1;
+      }
     }
     fclose(stream);
     traceFileNo++;
@@ -329,7 +339,10 @@ WriteMessage(int thrdMessageID,
   } else {
     // Go to the latest position in the file...
     fseek(stream, 40, SEEK_SET);
-    fscanf(stream, "%u", &offset);
+    if (fscanf(stream, "%u", &offset) != 1)
+    {
+      abort();
+    }
     fseek(stream, offset, SEEK_SET);
     
     // ...and write the error-message there...

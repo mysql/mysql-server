@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,7 +57,8 @@
 
 #define JAM_FILE_ID 345
 
-
+// Index pages used by ACC instances, used by CMVMI to report index memory usage
+extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
 
 // Signal entries and statement blocks
 /* --------------------------------------------------------------------------------- */
@@ -420,6 +421,13 @@ void Dbacc::initialiseTableRec(Signal* signal)
   }//for
 }//Dbacc::initialiseTableRec()
 
+void Dbacc::set_tup_fragptr(Uint32 fragptr, Uint32 tup_fragptr)
+{
+  fragrecptr.i = fragptr;
+  ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
+  fragrecptr.p->tupFragptr = tup_fragptr;
+}
+
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
 /* --------------------------------------------------------------------------------- */
@@ -617,6 +625,8 @@ void Dbacc::releaseRootFragResources(Signal* signal, Uint32 tableId)
 
 void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
 {
+  jam();
+  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   FragmentrecPtr regFragPtr;
   regFragPtr.i = fragIndex;
   ptrCheckGuard(regFragPtr, cfragmentsize, fragmentrec);
@@ -639,6 +649,9 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
       cnoOfAllocatedPages -= regFragPtr.p->fullpages.getCount();
       freelist.appendList(regFragPtr.p->fullpages);
       ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+      g_acc_pages_used[instance()] = cnoOfAllocatedPages;
+      if (cnoOfAllocatedPages < m_maxAllocPages)
+        m_oom = false;
     }
     jam();
     Uint32 tab = regFragPtr.p->mytabptr;
@@ -987,6 +1000,9 @@ void Dbacc::execACCKEYREQ(Signal* signal)
 	}
 	opbits |= Operationrec::OP_STATE_RUNNING;
 	opbits |= Operationrec::OP_RUN_QUEUE;
+        c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
+                                operationRecPtr.p->localdata[1],
+                                fragrecptr.p->tupFragptr);
         sendAcckeyconf(signal);
         if (! (opbits & Operationrec::OP_DIRTY_READ)) {
 	  /*---------------------------------------------------------------*/
@@ -1103,6 +1119,7 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   jam();
   OperationrecPtr nextOp;
   OperationrecPtr loPtr;
+  OperationrecPtr tmp;
   nextOp.i = lastOp.p->nextParallelQue;
   loPtr.i = lastOp.p->m_lock_owner_ptr_i;
   Uint32 opbits = lastOp.p->m_op_bits;
@@ -1193,7 +1210,6 @@ Dbacc::startNext(Signal* signal, OperationrecPtr lastOp)
   /**
    * We must check if there are many transactions in parallel queue...
    */
-  OperationrecPtr tmp;
   tmp= loPtr;
   while (tmp.i != RNIL)
   {
@@ -1370,6 +1386,9 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr)
     }//if
     if (return_result == ZPARALLEL_QUEUE) {
       jam();
+      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
+                              operationRecPtr.p->localdata[1],
+                              fragrecptr.p->tupFragptr);
       sendAcckeyconf(signal);
       return;
     } else if (return_result == ZSERIAL_QUEUE) {
@@ -1394,6 +1413,9 @@ Dbacc::accIsLockedLab(Signal* signal, OperationrecPtr lockOwnerPtr)
        * It is a dirty read. We do not lock anything. Set state to
        *IDLE since no COMMIT call will arrive.
        * ---------------------------------------------------------------*/
+      c_tup->prepareTUPKEYREQ(operationRecPtr.p->localdata[0],
+                              operationRecPtr.p->localdata[1],
+                              fragrecptr.p->tupFragptr);
       sendAcckeyconf(signal);
       operationRecPtr.p->m_op_bits = Operationrec::OP_EXECUTED_DIRTY_READ;
       return;
@@ -1473,6 +1495,7 @@ void Dbacc::insertelementLab(Signal* signal)
   /* WE SET THE LOCAL KEY TO MINUS ONE TO INDICATE IT IS NOT YET VALID.      */
   /* ----------------------------------------------------------------------- */
   insertElement(signal);
+  c_tup->prepareTUPKEYREQ(localKey, localKey, fragrecptr.p->tupFragptr);
   sendAcckeyconf(signal);
   return;
 }//Dbacc::insertelementLab()
@@ -2236,9 +2259,12 @@ void Dbacc::execACC_COMMITREQ(Signal* signal)
 {
   Uint8 Toperation;
   jamEntry();
-  Uint32 tmp = operationRecPtr.i = signal->theData[0];
+  operationRecPtr.i = signal->theData[0];
   ptrCheckGuard(operationRecPtr, coprecsize, operationrec);
+#ifdef VM_TRACE
+  Uint32 tmp = operationRecPtr.i;
   void* ptr = operationRecPtr.p;
+#endif
   Uint32 opbits = operationRecPtr.p->m_op_bits;
   fragrecptr.i = operationRecPtr.p->fragptr;
   ptrCheckGuard(fragrecptr, cfragmentsize, fragmentrec);
@@ -4562,8 +4588,8 @@ Dbacc::startNew(Signal* signal, OperationrecPtr newOwner)
   
   Uint32 opbits = newOwner.p->m_op_bits;
   Uint32 op = opbits & Operationrec::OP_MASK;
-  Uint32 opstate = (opbits & Operationrec::OP_STATE_MASK);
-  ndbassert(opstate == Operationrec::OP_STATE_WAITING);
+  ndbassert((opbits & Operationrec::OP_STATE_MASK) ==
+             Operationrec::OP_STATE_WAITING);
   ndbassert(opbits & Operationrec::OP_LOCK_OWNER);
   const bool deleted = opbits & Operationrec::OP_ELEMENT_DISAPPEARED;
   Uint32 errCode = 0;
@@ -6062,7 +6088,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
 }//Dbacc::initFragGeneral()
 
 
-void Dbacc::execACC_SCANREQ(Signal* signal) 
+void Dbacc::execACC_SCANREQ(Signal* signal) //Direct Executed
 {
   jamEntry();
   AccScanReq * req = (AccScanReq*)&signal->theData[0];
@@ -6122,8 +6148,11 @@ void Dbacc::execACC_SCANREQ(Signal* signal)
   signal->theData[3] = fragrecptr.p->fragmentid;
   signal->theData[4] = RNIL;
   signal->theData[7] = AccScanConf::ZNOT_EMPTY_FRAGMENT;
-  sendSignal(scanPtr.p->scanUserblockref, GSN_ACC_SCANCONF, signal, 8, JBB);
-  /* NOT EMPTY FRAGMENT */
+  signal->theData[8] = 0; /* Success */
+  /**
+   * Return with signal->theData[8] == 0 indicates ACC_SCANCONF
+   * return signal.
+   */
   return;
 }//Dbacc::execACC_SCANREQ()
 
@@ -6175,9 +6204,11 @@ void Dbacc::execNEXT_SCANREQ(Signal* signal)
     scanPtr.p->scanOpsAllocated--;
     if (tscanNextFlag == NextScanReq::ZSCAN_COMMIT) {
       jam();
-      signal->theData[0] = scanPtr.p->scanUserptr;
-      Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
-      EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 1);
+      signal->theData[0] = 0; /* Success */
+      /**
+       * signal->theData[0] = 0 indicates NEXT_SCANCONF return
+       * signal for NextScanReq::ZSCAN_COMMIT
+       */
       return;
     }//if
     break;
@@ -6458,12 +6489,16 @@ void Dbacc::releaseScanLab(Signal* signal)
       fragrecptr.p->scan[tmp] = RNIL;
     }//if
   }//for
-  // Stops the heartbeat.
+  // Stops the heartbeat
+  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
   signal->theData[0] = scanPtr.p->scanUserptr;
   signal->theData[1] = RNIL;
   signal->theData[2] = RNIL;
-  sendSignal(scanPtr.p->scanUserblockref, GSN_NEXT_SCANCONF, signal, 3, JBB);
   releaseScanRec(signal);
+  EXECUTE_DIRECT(blockNo,
+                 GSN_NEXT_SCANCONF,
+                 signal,
+                 3);
   return;
 }//Dbacc::releaseScanLab()
 
@@ -6604,7 +6639,10 @@ void Dbacc::execACC_CHECK_SCAN(Signal* signal)
     signal->theData[0] = scanPtr.p->scanUserptr;
     signal->theData[1] = RNIL;
     signal->theData[2] = RNIL;
-    sendSignal(scanPtr.p->scanUserblockref, GSN_NEXT_SCANCONF, signal, 3, JBB);
+    EXECUTE_DIRECT(refToMain(scanPtr.p->scanUserblockref),
+                   GSN_NEXT_SCANCONF,
+                   signal,
+                   3);
     return;
   }//if
   if (TcheckLcpStop == AccCheckScan::ZCHECK_LCP_STOP) {
@@ -7144,19 +7182,27 @@ bool Dbacc::searchScanContainer(Signal* signal)
 /* --------------------------------------------------------------------------------- */
 void Dbacc::sendNextScanConf(Signal* signal) 
 {
-  Uint32 blockNo = refToMain(scanPtr.p->scanUserblockref);
+  const Uint32 localKey1 = operationRecPtr.p->localdata[0];
+  const Uint32 localKey2 = operationRecPtr.p->localdata[1];
+
+  c_tup->prepareTUPKEYREQ(localKey1, localKey2, fragrecptr.p->tupFragptr);
+
+  const Uint32 scanUserPtr = scanPtr.p->scanUserptr;
+  const Uint32 opPtrI = operationRecPtr.i;
+  const Uint32 fid = operationRecPtr.p->fid;
+  BlockReference blockRef = scanPtr.p->scanUserblockref;
 
   jam();
   /** ---------------------------------------------------------------------
    * LQH WILL NOT HAVE ANY USE OF THE TUPLE KEY LENGTH IN THIS CASE AND 
    * SO WE DO NOT PROVIDE IT. IN THIS CASE THESE VALUES ARE UNDEFINED. 
    * ---------------------------------------------------------------------- */
-  signal->theData[0] = scanPtr.p->scanUserptr;
-  signal->theData[1] = operationRecPtr.i;
-  signal->theData[2] = operationRecPtr.p->fid;
-  signal->theData[3] = operationRecPtr.p->localdata[0];
-  signal->theData[4] = operationRecPtr.p->localdata[1];
-  EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 5);
+  signal->theData[0] = scanUserPtr;
+  signal->theData[1] = opPtrI;
+  signal->theData[2] = fid;
+  signal->theData[3] = localKey1;
+  signal->theData[4] = localKey2;
+  EXECUTE_DIRECT(refToMain(blockRef), GSN_NEXT_SCANCONF, signal, 5);
   return;
 }//Dbacc::sendNextScanConf()
 
@@ -7522,14 +7568,13 @@ void Dbacc::releaseOverpage(Signal* signal)
 }//Dbacc::releaseOverpage()
 
 
-extern Uint32 g_acc_pages_used[MAX_NDBMT_LQH_WORKERS];
-
 /* ------------------------------------------------------------------------- */
 /* RELEASE_PAGE                                                              */
 /* ------------------------------------------------------------------------- */
 void Dbacc::releasePage(Signal* signal) 
 {
   jam();
+  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   LocalPage8List freelist(*this, cfreepages);
 #ifdef VM_TRACE
 //  ndbrequire(!freelist.find(rpPageptr));
@@ -7588,6 +7633,7 @@ void Dbacc::zpagesize_error(const char* where){
 void Dbacc::seizePage(Signal* signal) 
 {
   jam();
+  ndbassert(g_acc_pages_used[instance()] == cnoOfAllocatedPages);
   tresult = 0;
   if (cfreepages.isEmpty() || m_oom)
   {

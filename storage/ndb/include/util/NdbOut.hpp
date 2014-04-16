@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
+
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -75,7 +75,8 @@ public:
   NdbOut& endline(void);
   NdbOut& flushline(void);
   NdbOut& setHexFormat(int _format);
-  
+  NdbOut& hexdump(const Uint32 * words, size_t count);  
+
   NdbOut();
   NdbOut(OutputStream &, bool autoflush = true);
   virtual ~NdbOut();

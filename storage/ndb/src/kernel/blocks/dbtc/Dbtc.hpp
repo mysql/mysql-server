@@ -734,6 +734,9 @@ public:
   UintR* c_apiConTimer;
   UintR* c_apiConTimer_line;
 
+  // max cascading scans (FK child scans) per transaction
+  static const Uint8 MaxCascadingScansPerTransaction = 1;
+
   struct ApiConnectRecord {
     ApiConnectRecord(ArrayPool<TcFiredTriggerData> & firedTriggerPool,
 		     ArrayPool<TcIndexOperation> & seizedIndexOpPool):
@@ -887,6 +890,9 @@ public:
       return apiConnectstate == CS_SEND_FIRE_TRIG_REQ ||
         apiConnectstate == CS_WAIT_FIRE_TRIG_REQ ;
     }
+
+    // number of on-going cascading scans (FK child scans)
+    Uint8 cascading_scans_count;
   };
   
   typedef Ptr<ApiConnectRecord> ApiConnectRecordPtr;
@@ -1689,6 +1695,7 @@ private:
   void continueTriggeringOp(Signal* signal, TcConnectRecord* trigOp);
 
   void executeTriggers(Signal* signal, ApiConnectRecordPtr* transPtr);
+  void waitToExecutePendingTrigger(Signal* signal, ApiConnectRecordPtr transPtr);
   void executeTrigger(Signal* signal,
                       TcFiredTriggerData* firedTriggerData,
                       ApiConnectRecordPtr* transPtr,

@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,7 +72,7 @@
 
 #define DEBUG_CRASH() ndbassert(false)
 
-const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr = { 0, RNIL };
+const Ptr<Dbspj::TreeNode> Dbspj::NullTreeNodePtr(0, RNIL );
 const Dbspj::RowRef Dbspj::NullRowRef = { RNIL, GLOBAL_PAGE_SIZE_WORDS, { 0 } };
 
 
@@ -436,9 +436,6 @@ void Dbspj::execSTTOR(Signal* signal)
   const Uint16 tphase = signal->theData[1];
   f_STTOR_REF = signal->getSendersBlockRef();
 
-  ndbout << "Dbspj::execSTTOR() inst:" << instance()
-         << " phase=" << tphase << endl;
-
   if (tphase == 1)
   {
     jam();
@@ -685,7 +682,6 @@ Dbspj::nodeFail_checkRequests(Signal* signal)
   else if (type == 2)
   {
     jam();
-    ndbout_c("Finished with handling node-failure");
   }
 }
 
@@ -711,7 +707,7 @@ void Dbspj::execLQHKEYREQ(Signal* signal)
   const Uint32 keyPtrI = handle.m_ptr[LqhKeyReq::KeyInfoSectionNum].i;
 
   Uint32 err;
-  Ptr<Request> requestPtr = { 0, RNIL };
+  Ptr<Request> requestPtr(0, RNIL);
   do
   {
     ArenaHead ah;
@@ -1022,7 +1018,7 @@ Dbspj::execSCAN_FRAGREQ(Signal* signal)
   handle.getSection(attrPtr, ScanFragReq::AttrInfoSectionNum);
 
   Uint32 err;
-  Ptr<Request> requestPtr = { 0, RNIL };
+  Ptr<Request> requestPtr(0, RNIL);
   do
   {
     ArenaHead ah;
@@ -3611,12 +3607,13 @@ Dbspj::lookup_build(Build_context& ctx,
 
       Uint32 hashValue = src->hashValue;
       Uint32 fragId = src->fragmentData;
-      Uint32 requestInfo = src->requestInfo;
       Uint32 attrLen = src->attrLen; // fragdist-key is in here
 
       /**
        * assertions
        */
+#ifdef VM_TRACE
+      Uint32 requestInfo = src->requestInfo;
       ndbassert(LqhKeyReq::getAttrLen(attrLen) == 0);         // Only long
       ndbassert(LqhKeyReq::getScanTakeOverFlag(attrLen) == 0);// Not supported
       ndbassert(LqhKeyReq::getReorgFlag(attrLen) == ScanFragReq::REORG_ALL);       // Not supported
@@ -3628,6 +3625,7 @@ Dbspj::lookup_build(Build_context& ctx,
       ndbassert(LqhKeyReq::getLastReplicaNo(requestInfo) == 0);
       ndbassert(LqhKeyReq::getApplicationAddressFlag(requestInfo) != 0);
       ndbassert(LqhKeyReq::getSameClientAndTcFlag(requestInfo) == 0);
+#endif
 
 #if TODO
       /**
@@ -3637,11 +3635,13 @@ Dbspj::lookup_build(Build_context& ctx,
       static Uint8 getSimpleFlag(const UintR & requestInfo);
 #endif
 
+#ifdef VM_TRACE
       Uint32 dst_requestInfo = dst->requestInfo;
       ndbassert(LqhKeyReq::getInterpretedFlag(requestInfo) ==
                 LqhKeyReq::getInterpretedFlag(dst_requestInfo));
       ndbassert(LqhKeyReq::getNoDiskFlag(requestInfo) ==
                 LqhKeyReq::getNoDiskFlag(dst_requestInfo));
+#endif
 
       dst->hashValue = hashValue;
       dst->fragmentData = fragId;

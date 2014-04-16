@@ -470,7 +470,8 @@ protected:
   void sendLCP_COMPLETE_REP(Signal*);
 
   void checkSendEMPTY_LCP_CONF_impl(Signal* signal);
-  void checkSendEMPTY_LCP_CONF(Signal* signal) {
+  void checkSendEMPTY_LCP_CONF(Signal* signal)
+  {
     if (c_lcpRecord.m_empty_lcp_req.isclear())
       return;
     checkSendEMPTY_LCP_CONF_impl(signal);

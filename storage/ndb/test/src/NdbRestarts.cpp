@@ -517,7 +517,7 @@ int get50PercentOfNodes(NdbRestarter& restarter,
   // TODO Check nodegroup and return one node from each 
 
   int num50Percent = restarter.getNumDbNodes() / 2;
-  assert(num50Percent <= MAX_NDB_NODES);
+  require(num50Percent <= MAX_NDB_NODES);
 
   // Calculate which nodes to stop, select all even nodes
   for (int i = 0; i < num50Percent; i++){
