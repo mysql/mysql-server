@@ -5055,9 +5055,19 @@ bool user_var_entry::store(void *from, uint length, Item_result type)
     return true;
   if (type == STRING_RESULT)
     m_ptr[length]= 0;     // Store end \0
-  memmove(m_ptr, from, length);
+
+  // Avoid memcpy of a my_decimal object, use copy CTOR instead.
   if (type == DECIMAL_RESULT)
-    ((my_decimal*) m_ptr)->fix_buffer_pointer();
+  {
+    DBUG_ASSERT(length == sizeof(my_decimal));
+    const my_decimal* dec=
+      static_cast<const my_decimal*>(static_cast<const void*>(from));
+    dec->sanity_check();
+    new (m_ptr) my_decimal(*dec);
+  }
+  else
+    memcpy(m_ptr, from, length);
+
   m_length= length;
   m_type= type;
   return false;
@@ -5797,9 +5807,20 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   }
   else
   {
+    // Avoid memcpy of a my_decimal object, use copy CTOR instead.
     user_var_event->length= var_entry->length();
-    memcpy(user_var_event->value, var_entry->ptr(),
-           var_entry->length());
+    if (user_var_event->type == DECIMAL_RESULT)
+    {
+      DBUG_ASSERT(var_entry->length() == sizeof(my_decimal));
+      const my_decimal* dec=
+        static_cast<const my_decimal*>
+        (static_cast<const void*>(var_entry->ptr()));
+      dec->sanity_check();
+      new (user_var_event->value) my_decimal(*dec);
+    }
+    else
+      memcpy(user_var_event->value, var_entry->ptr(),
+             var_entry->length());
   }
   /* Mark that this variable has been used by this query */
   var_entry->used_query_id= thd->query_id;

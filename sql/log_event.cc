@@ -7939,10 +7939,10 @@ bool User_var_log_event::write(IO_CACHE* file)
     case DECIMAL_RESULT:
     {
       my_decimal *dec= (my_decimal *)val;
-      dec->fix_buffer_pointer();
+      dec->sanity_check();
       buf2[0]= (char)(dec->intg + dec->frac);
       buf2[1]= (char)dec->frac;
-      decimal2bin((decimal_t*)val, buf2+2, buf2[0], buf2[1]);
+      decimal2bin(dec, buf2+2, buf2[0], buf2[1]);
       val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
       break;
     }

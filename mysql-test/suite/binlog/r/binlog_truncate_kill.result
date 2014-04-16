@@ -1,0 +1,37 @@
+RESET MASTER;
+connection default;
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=INNODB;
+INSERT INTO t1(a, b) VALUES(1,2),(2,4),(3,6),(4,8),(5,10);
+SET DEBUG_SYNC = "open_and_process_table signal truncate_before_lock wait_for forever";
+TRUNCATE t1;
+connect con1,localhost,root,,;
+SET DEBUG_SYNC = "now wait_for truncate_before_lock";
+SELECT ((@id := id) - id) FROM information_schema.processlist WHERE processlist.info LIKE '%TRUNCATE t1%' AND state LIKE '%open_and_process_table%';
+((@id := id) - id)
+0
+KILL QUERY @id;
+connection default;
+ERROR 70100: Query execution was interrupted
+connection con1;
+include/show_binlog_events.inc
+connection con1;
+connection con1;
+Log_name	Pos	Event_type	Server_id	End_log_pos	Info
+master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=INNODB
+master-bin.000001	#	Query	#	#	BEGIN
+master-bin.000001	#	Intvar	#	#	INSERT_ID=1
+master-bin.000001	#	Query	#	#	use `test`; INSERT INTO t1(a, b) VALUES(1,2),(2,4),(3,6),(4,8),(5,10)
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
+connection con1;
+connection con1;
+disconnect con1;
+connection default;
+SELECT * FROM t1;
+id	a	b
+1	1	2
+2	2	4
+3	3	6
+4	4	8
+5	5	10
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
