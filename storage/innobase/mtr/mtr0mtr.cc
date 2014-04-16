@@ -27,7 +27,6 @@ Created 11/26/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "buf0flu.h"
-#include "fsp0sysspace.h"
 #include "page0types.h"
 #include "mtr0log.h"
 #include "log0log.h"
@@ -390,23 +389,12 @@ mtr_t::is_block_dirtied(const buf_block_t* block)
 
 /** Write the block contents to the REDO log */
 struct mtr_write_log_t {
-	/** Number of bytes to write */
-	mutable ulint	m_len;
-
-	/** Constructor */
-	explicit mtr_write_log_t(ulint len) : m_len (len) {}
-
 	/** Append a block to the redo log buffer.
 	@return whether the appending should continue */
 	bool operator()(const mtr_buf_t::block_t* block) const
 	{
-		ut_ad(m_len > 0);
-
-		ulint	len = ut_min(m_len, block->used());
-
-		log_write_low(block->begin(), len);
-		m_len -= len;
-		return(m_len > 0);
+		log_write_low(block->begin(), block->used());
+		return(true);
 	}
 };
 
@@ -436,6 +424,8 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_n_log_recs = 0;
 	m_impl.m_n_freed_pages = 0;
 	m_impl.m_named_space = TRX_SYS_SPACE;
+	m_impl.m_undo_space = TRX_SYS_SPACE;
+	m_impl.m_modifies_sys_space = false;
 
 	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
@@ -539,7 +529,7 @@ mtr_t::commit_checkpoint()
 }
 
 #ifdef UNIV_DEBUG
-/** Check the tablespace associated with the mini-transaction
+/** Check if a tablespace is associated with the mini-transaction
 (needed for generating a MLOG_FILE_NAME record)
 @param[in]	space	tablespace
 @return whether the mini-transaction is associated with the space */
@@ -553,8 +543,36 @@ mtr_t::is_named_space(ulint space) const
 		return(true);
 	case MTR_LOG_ALL:
 	case MTR_LOG_SHORT_INSERTS:
-		return(m_impl.m_named_space == space
-		       || is_predefined_tablespace(space));
+		if (space == TRX_SYS_SPACE) {
+			return(m_impl.m_modifies_sys_space);
+		} else {
+			return(m_impl.m_undo_space == space
+			       || m_impl.m_named_space == space);
+		}
+	}
+
+	ut_error;
+	return(false);
+}
+
+/** Check if an undo tablespace is associated with the mini-transaction
+(needed for generating a MLOG_FILE_NAME record)
+@param[in]	space	undo tablespace
+@return whether the mini-transaction is associated with the undo */
+
+bool
+mtr_t::is_undo_space(ulint space) const
+{
+	switch (get_log_mode()) {
+	case MTR_LOG_NONE:
+	case MTR_LOG_NO_REDO:
+		return(true);
+	case MTR_LOG_SHORT_INSERTS:
+		ut_ad(0); /* There should be no undo logging in this mode */
+	case MTR_LOG_ALL:
+		return(space == TRX_SYS_SPACE
+		       ? m_impl.m_modifies_sys_space
+		       : m_impl.m_undo_space == space);
 	}
 
 	ut_error;
@@ -615,19 +633,44 @@ mtr_t::Command::prepare_write()
 		log_buffer_extend((len + 1) * 2);
 	}
 
-	fil_space_t*	space
-		= is_predefined_tablespace(m_impl->m_named_space)
-		? NULL
-		: fil_names_write(m_impl->m_named_space, m_impl->m_mtr);
+	fil_space_t*	spaces[3];
+
+	fil_spaces_lookup(spaces,
+			  m_impl->m_named_space,
+			  m_impl->m_undo_space,
+			  m_impl->m_modifies_sys_space);
+
+	if (spaces[0]) {
+		fil_names_write(spaces[0], m_impl->m_mtr);
+	}
 
 	ut_ad(m_impl->m_n_log_recs >= n_recs);
 
 	log_mutex_enter();
 
-	if (space != NULL && fil_names_dirty(space)) {
+	if (spaces[0] && !fil_names_dirty(spaces[0])) {
+		spaces[0] = NULL;
+		m_impl->m_log.set_size(len);
+	}
+
+	bool dirty = spaces[0] != NULL;
+
+	if (spaces[1] && fil_names_dirty(spaces[1])) {
+		/* Write MLOG_FILE_NAME for the undo tablespace. */
+		fil_names_write(spaces[1], m_impl->m_mtr);
+		dirty = true;
+	}
+
+	if (spaces[2] && fil_names_dirty(spaces[2])) {
+		/* Write MLOG_FILE_NAME for the system tablespace. */
+		fil_names_write(spaces[2], m_impl->m_mtr);
+		dirty = true;
+	}
+
+	if (dirty) {
 		/* This mini-transaction was the first one to modify
-		the tablespace since the latest checkpoint. Do include
-		the MLOG_FILE_NAME record that was appended to m_log
+		some tablespace since the latest checkpoint. Do include
+		the MLOG_FILE_NAME records that were appended to m_log
 		by fil_names_write().  In all other cases, we will use
 		the old m_log.size() (omitting the MLOG_FILE_NAME)
 		when copying the log to the global redo log buffer. */
@@ -636,7 +679,7 @@ mtr_t::Command::prepare_write()
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 		len = m_impl->m_log.size();
 	} else {
-		/* This was not the first time of dirtying the
+		/* This was not the first time of dirtying a
 		tablespace since the latest checkpoint. Thus, we
 		should not append any MLOG_FILE_NAME record.
 
@@ -645,12 +688,7 @@ mtr_t::Command::prepare_write()
 		the m_impl->m_log only up to the start of that
 		MLOG_FILE_NAME record, not including the record. */
 
-		ut_ad(space == NULL
-		      ? (n_recs == m_impl->m_n_log_recs)
-		      : (n_recs < m_impl->m_n_log_recs));
-		ut_ad(space == NULL
-		      ? (len == m_impl->m_log.size())
-		      : (len < m_impl->m_log.size()));
+		ut_ad(n_recs <= m_impl->m_n_log_recs);
 
 		if (n_recs <= 1) {
 			ut_ad(n_recs == 1);
@@ -664,26 +702,13 @@ mtr_t::Command::prepare_write()
 			multiple log records, append MLOG_MULTI_REC_END
 			at the end. */
 
-			if (space != NULL) {
-				/* Replace the first byte of the
-				to-be-ignored MLOG_FILE_NAME log
-				record with MLOG_MULTI_REC_END. */
-				byte* tail = m_impl->m_log.at<byte*>(len++);
-				ut_ad(*tail == MLOG_FILE_NAME);
-				*tail = MLOG_MULTI_REC_END;
-				ut_ad(len < m_impl->m_log.size());
-			} else {
-				/* Append MLOG_MULTI_REC_END. */
-				mlog_catenate_ulint(
-					&m_impl->m_log, MLOG_MULTI_REC_END,
-					MLOG_1BYTE);
-				len++;
-				ut_ad(len == m_impl->m_log.size());
-			}
+			mlog_catenate_ulint(
+				&m_impl->m_log, MLOG_MULTI_REC_END,
+				MLOG_1BYTE);
+			len++;
 		}
 	}
 
-	ut_ad(len <= m_impl->m_log.size());
 	return(len);
 }
 
@@ -696,7 +721,7 @@ mtr_t::Command::finish_write(
 {
 	ut_ad(m_impl->m_log_mode == MTR_LOG_ALL);
 	ut_ad(log_mutex_own());
-	ut_ad(m_impl->m_log.size() >= len);
+	ut_ad(m_impl->m_log.size() == len);
 	ut_ad(len > 0);
 
 	if (m_impl->m_log.is_small()) {
@@ -714,7 +739,7 @@ mtr_t::Command::finish_write(
 	/* Open the database log for log_write_low */
 	m_start_lsn = log_reserve_and_open(len);
 
-	mtr_write_log_t	write_log(len);
+	mtr_write_log_t	write_log;
 	m_impl->m_log.for_each_block(write_log);
 
 	m_end_lsn = log_close();

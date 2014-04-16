@@ -750,6 +750,7 @@ dict_create_index_tree_step(
 	sys_indexes */
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	const bool	missing = index->table->ibd_file_missing
 		|| dict_table_is_discarded(index->table);
@@ -1046,6 +1047,7 @@ dict_recreate_index_tree(
 	mtr_commit(mtr);
 
 	mtr_start(mtr);
+	mtr->set_sys_modified();
 	mtr->set_named_space(space);
 	btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 

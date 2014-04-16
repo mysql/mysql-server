@@ -838,7 +838,6 @@ buf_LRU_remove_pages(
 		break;
 
 	case BUF_REMOVE_FLUSH_WRITE:
-		ut_a(trx != 0);
 		buf_flush_dirty_pages(buf_pool, id, true, trx);
 		/* Ensure that all asynchronous IO is completed. */
 		os_aio_wait_until_no_pending_writes();

@@ -172,6 +172,7 @@ trx_sys_flush_max_trx_id(void)
 
 	if (!srv_read_only_mode) {
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		sys_header = trx_sysf_get(&mtr);
 
@@ -565,6 +566,7 @@ trx_sys_create_sys_pages(void)
 	mtr_t	mtr;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	trx_sysf_create(&mtr);
 
@@ -588,6 +590,7 @@ trx_sys_file_format_max_write(
 	ib_uint64_t	tag_value;
 
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 
 	block = buf_page_get(
 		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,

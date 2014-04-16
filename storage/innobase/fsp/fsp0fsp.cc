@@ -3509,6 +3509,7 @@ fseg_free_step_not_header(
 	rw_lock_t*	latch;
 
 	space = page_get_space_id(page_align(header));
+	ut_ad(mtr->is_named_space(space));
 
 	latch = fil_space_get_latch(space, &flags);
 

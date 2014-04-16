@@ -75,7 +75,7 @@ enum dict_check_t {
 /********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
-to what we already read with fil_load_single_table_tablespace().
+to what we already read with fil_load_single_file_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
