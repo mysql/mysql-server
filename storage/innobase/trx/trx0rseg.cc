@@ -396,6 +396,11 @@ trx_rseg_create(
 
 	if (space == srv_tmp_space.space_id()) {
 		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	} else {
+		/* We will modify TRX_SYS_RSEGS in TRX_SYS page. */
+		mtr.set_sys_modified();
+		/* We will modify the undo log tablespace too. */
+		mtr.set_undo_space(space);
 	}
 
 	slot_no = trx_sysf_rseg_find_free(

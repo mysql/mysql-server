@@ -607,6 +607,12 @@ srv_undo_tablespace_open(
 		return(DB_ERROR);
 	}
 
+	err = fil_space_undo_check(name, space_id);
+
+	if (err != DB_TABLESPACE_NOT_FOUND) {
+		return(err);
+	}
+
 	fh = os_file_create(
 		innodb_data_file_key, name,
 		OS_FILE_OPEN_RETRY
@@ -908,16 +914,14 @@ srv_undo_tablespaces_init(
 	if (create_new_db) {
 		mtr_t	mtr;
 
-		mtr_start(&mtr);
-
 		/* The undo log tablespace */
 		for (i = 1; i <= n_undo_tablespaces; ++i) {
-
+			mtr_start(&mtr);
+			mtr.set_undo_space(i);
 			fsp_header_init(
 				i, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+			mtr_commit(&mtr);
 		}
-
-		mtr_commit(&mtr);
 	}
 
 	return(DB_SUCCESS);
@@ -1848,20 +1852,6 @@ files_checked:
 
 	fil_open_log_and_system_tablespace_files();
 
-	err = srv_undo_tablespaces_init(
-		create_new_db,
-		srv_undo_tablespaces,
-		&srv_undo_tablespaces_open);
-
-	/* If the force recovery is set very high then we carry on regardless
-	of all errors. Basically this is fingers crossed mode. */
-
-	if (err != DB_SUCCESS
-	    && srv_force_recovery < SRV_FORCE_NO_UNDO_LOG_SCAN) {
-
-		return(srv_init_abort(err));
-	}
-
 	/* Initialize objects used by dict stats gathering thread, which
 	can also be used by recovery if it tries to drop some table */
 	if (!srv_read_only_mode) {
@@ -1873,10 +1863,18 @@ files_checked:
 	trx_sys_create();
 
 	if (create_new_db) {
-
 		ut_a(!srv_read_only_mode);
 
+		err = srv_undo_tablespaces_init(
+			true, srv_undo_tablespaces,
+			&srv_undo_tablespaces_open);
+
+		if (err != DB_SUCCESS) {
+			return(srv_init_abort(err));
+		}
+
 		mtr_start(&mtr);
+		mtr.set_sys_modified();
 
 		fsp_header_init(0, sum_of_new_sizes, &mtr);
 
@@ -1916,8 +1914,8 @@ files_checked:
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
 
+		buf_flush_sync_all_buf_pools();
 	} else {
-
 		/* Check if we support the max format that is stamped
 		on the system tablespace.
 		Note:  We are NOT allowed to make any modifications to
@@ -1965,10 +1963,23 @@ files_checked:
 		}
 
 		if (err != DB_SUCCESS) {
-			return(srv_init_abort(DB_ERROR));
+			return(srv_init_abort(err));
+		}
+
+		err = srv_undo_tablespaces_init(
+			false, srv_undo_tablespaces,
+			&srv_undo_tablespaces_open);
+
+		if (err != DB_SUCCESS
+		    && srv_force_recovery
+		    < SRV_FORCE_NO_UNDO_LOG_SCAN) {
+
+			return(srv_init_abort(err));
 		}
 
 		purge_queue = trx_sys_init_at_db_start();
+
+		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
 			/* Apply the hashed log records to the
@@ -1994,7 +2005,9 @@ files_checked:
 				" InnoDB database from a backup!");
 		}
 
-		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
+		if (!srv_force_recovery && !srv_read_only_mode) {
+			buf_flush_sync_all_buf_pools();
+		}
 
 		/* The purge system needs to create the purge view and
 		therefore requires that the trx_sys is inited. */
@@ -2015,7 +2028,7 @@ files_checked:
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
 			about space id's from the calls to
-			fil_load_single_table_tablespace().
+			fil_load_single_file_tablespace().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2132,21 +2145,23 @@ files_checked:
 		we have finished the recovery process so that the
 		image of TRX_SYS_PAGE_NO is not stale. */
 		trx_sys_file_format_tag_init();
-	}
 
-	if (!create_new_db && sum_of_new_sizes > 0) {
-		/* New data file(s) were added */
-		mtr_start(&mtr);
+		if (sum_of_new_sizes > 0) {
+			/* New data file(s) were added */
+			mtr_start(&mtr);
+			mtr.set_sys_modified();
 
-		fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
+			fsp_header_inc_size(0, sum_of_new_sizes, &mtr);
 
-		mtr_commit(&mtr);
+			mtr_commit(&mtr);
 
-		/* Immediately write the log record about increased tablespace
-		size to disk, so that it is durable even if mysqld would crash
-		quickly */
+			/* Immediately write the log record about
+			increased tablespace size to disk, so that it
+			is durable even if mysqld would crash
+			quickly */
 
-		log_buffer_flush_to_disk();
+			log_buffer_flush_to_disk();
+		}
 	}
 
 	/* Open temp-tablespace and keep it open until shutdown. */
@@ -2191,11 +2206,6 @@ files_checked:
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
-	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
-	if (!srv_force_recovery && !srv_read_only_mode) {
-		buf_flush_sync_all_buf_pools();
-	}
-
 	if (!srv_read_only_mode) {
 		/* Create the thread which watches the timeouts
 		for lock waits */
@@ -2236,7 +2246,6 @@ files_checked:
 	operations */
 
 	if (!srv_read_only_mode) {
-
 		os_thread_create(
 			srv_master_thread,
 			NULL, thread_ids + (1 + SRV_MAX_N_IO_THREADS));
