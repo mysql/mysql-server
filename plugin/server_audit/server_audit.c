@@ -15,7 +15,7 @@
 
 
 #define PLUGIN_VERSION 0x101
-#define PLUGIN_STR_VERSION "1.1.5"
+#define PLUGIN_STR_VERSION "1.1.7"
 
 #include <stdio.h>
 #include <time.h>

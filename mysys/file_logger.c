@@ -20,6 +20,13 @@
 #include <mysql/service_logger.h>
 #include <my_pthread.h>
 
+#ifndef flogger_mutex_init
+#define flogger_mutex_init(A,B,C) mysql_mutex_init(A,B,C)
+#define flogger_mutex_destroy(A) mysql_mutex_destroy(A)
+#define flogger_mutex_lock(A) mysql_mutex_lock(A)
+#define flogger_mutex_unlock(A) mysql_mutex_unlock(A)
+#endif /*flogger_mutex_init*/
+
 #ifdef HAVE_PSI_INTERFACE
 /* These belong to the service initialization */
 static PSI_mutex_key key_LOCK_logger_service;
@@ -82,7 +89,8 @@ LOGGER_HANDLE *logger_open(const char *path,
     return 0; /* End of memory */
   }
   *l_perm= new_log;
-  mysql_mutex_init(key_LOCK_logger_service, &l_perm->lock, MY_MUTEX_INIT_FAST);
+  flogger_mutex_init(key_LOCK_logger_service, &l_perm->lock,
+                     MY_MUTEX_INIT_FAST);
   return l_perm;
 }
 
@@ -90,7 +98,7 @@ int logger_close(LOGGER_HANDLE *log)
 {
   int result;
   File file= log->file;
-  mysql_mutex_destroy(&log->lock);
+  flogger_mutex_destroy(&log->lock);
   my_free(log);
   if ((result= my_close(file, MYF(0))))
     errno= my_errno;
@@ -147,7 +155,7 @@ int logger_vprintf(LOGGER_HANDLE *log, const char* fmt, va_list ap)
   char cvtbuf[1024];
   size_t n_bytes;
 
-  mysql_mutex_lock(&log->lock);
+  flogger_mutex_lock(&log->lock);
   if (log->rotations > 0)
     if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
         ((unsigned long long)filesize >= log->size_limit &&
@@ -165,7 +173,7 @@ int logger_vprintf(LOGGER_HANDLE *log, const char* fmt, va_list ap)
   result= my_write(log->file, (uchar *) cvtbuf, n_bytes, MYF(0));
 
 exit:
-  mysql_mutex_unlock(&log->lock);
+  flogger_mutex_unlock(&log->lock);
   return result;
 }
 
@@ -175,7 +183,7 @@ int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size)
   int result;
   my_off_t filesize;
 
-  mysql_mutex_lock(&log->lock);
+  flogger_mutex_lock(&log->lock);
   if (log->rotations > 0)
     if ((filesize= my_tell(log->file, MYF(0))) == (my_off_t) -1 ||
         ((unsigned long long)filesize >= log->size_limit &&
@@ -189,7 +197,7 @@ int logger_write(LOGGER_HANDLE *log, const char *buffer, size_t size)
   result= my_write(log->file, (uchar *) buffer, size, MYF(0));
 
 exit:
-  mysql_mutex_unlock(&log->lock);
+  flogger_mutex_unlock(&log->lock);
   return result;
 }
 
@@ -197,9 +205,9 @@ exit:
 int logger_rotate(LOGGER_HANDLE *log)
 {
   int result;
-  mysql_mutex_lock(&log->lock);
+  flogger_mutex_lock(&log->lock);
   result= do_rotate(log);
-  mysql_mutex_unlock(&log->lock);
+  flogger_mutex_unlock(&log->lock);
   return result;
 }
 
