@@ -166,9 +166,18 @@ struct mtr_t {
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
 
-		/** MLOG_FILE_NAME tablespace associated with the
+		/** Persistent user tablespace associated with the
 		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
 		ulint		m_named_space;
+
+		/** Undo tablespace associated with the
+		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
+		ulint		m_undo_space;
+
+		/** Set if this mini-transaction modifies the system
+		tablespace. */
+		bool		m_modifies_sys_space;
+
 #ifdef UNIV_DEBUG
 		/** State of the transaction */
 		mtr_state_t	m_state;
@@ -252,6 +261,26 @@ struct mtr_t {
 	@return	old mode */
 	inline mtr_log_t set_log_mode(mtr_log_t mode);
 
+	/** Note that the mini-transaction is modifying the system tablespace
+	(for example, for the change buffer or for undo logs) */
+	void set_sys_modified()
+	{
+		m_impl.m_modifies_sys_space = true;
+	}
+
+	/** Copy the tablespaces associated with the mini-transaction
+	(needed for generating MLOG_FILE_NAME records) */
+	void set_spaces(const mtr_t& mtr)
+	{
+		ut_ad(!m_impl.m_modifies_sys_space);
+		ut_ad(m_impl.m_named_space == TRX_SYS_SPACE);
+		ut_ad(m_impl.m_undo_space == TRX_SYS_SPACE);
+
+		m_impl.m_modifies_sys_space = mtr.m_impl.m_modifies_sys_space;
+		m_impl.m_named_space = mtr.m_impl.m_named_space;
+		m_impl.m_undo_space = mtr.m_impl.m_undo_space;
+	}
+
 	/** Set the tablespace associated with the mini-transaction
 	(needed for generating a MLOG_FILE_NAME record)
 	@param[in]	space	tablespace */
@@ -259,14 +288,35 @@ struct mtr_t {
 	{
 		ut_ad(m_impl.m_named_space == TRX_SYS_SPACE);
 		m_impl.m_named_space = space;
+		if (space == TRX_SYS_SPACE) {
+			set_sys_modified();
+		}
+	}
+
+	/** Set the undo tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	undo tablespace */
+	void set_undo_space(ulint space)
+	{
+		ut_ad(m_impl.m_undo_space == TRX_SYS_SPACE);
+		m_impl.m_undo_space = space;
+		if (space == TRX_SYS_SPACE) {
+			set_sys_modified();
+		}
 	}
 
 #ifdef UNIV_DEBUG
-	/** Check the tablespace associated with the mini-transaction
+	/** Check if a tablespace is associated with the mini-transaction
 	(needed for generating a MLOG_FILE_NAME record)
 	@param[in]	space	tablespace
 	@return whether the mini-transaction is associated with the space */
 	bool is_named_space(ulint space) const;
+
+	/** Check if an undo tablespace is associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	undo tablespace
+	@return whether the mini-transaction is associated with the undo */
+	bool is_undo_space(ulint space) const;
 #endif /* UNIV_DEBUG */
 
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.

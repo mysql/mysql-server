@@ -49,7 +49,6 @@ Created 9/20/1997 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0rec.h"
 #include "fil0fil.h"
-#include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
 # include "buf0rea.h"
 # include "srv0srv.h"
@@ -204,19 +203,59 @@ fil_name_parse(
 
 	ulint	len = mach_read_from_2(ptr);
 	ptr += 2;
+	char*	name = reinterpret_cast<char*>(ptr);
+	ptr += len;
 
-	if (end < ptr + len) {
+	if (end < ptr) {
 		return(NULL);
 	}
 
-	if (is_predefined_tablespace(space_id)
-	    || first_page_no != 0 // TODO: multi-file user-created tablespaces
-	    || len < sizeof "/a.ibd\0"
-	    || memcmp(ptr + len - 5, DOT_IBD, 5) != 0
-	    || memchr(ptr, OS_PATH_SEPARATOR, len) == NULL) {
-		/* MLOG_FILE_NAME should only be written for
-		user-created tablespaces The name must be long enough
-		and end in .ibd. */
+	if (len > sizeof "/a.ibd" && !memcmp(ptr - 5, DOT_IBD, 5)
+	    && memchr(name, OS_PATH_SEPARATOR, len - 1) != NULL) {
+		/* Single-table tablespace (*.ibd file) */
+	} else if (len > 9 && ptr[-9] == OS_PATH_SEPARATOR
+		   && ptr[-8] == 'u'
+		   && ptr[-7] == 'n'
+		   && ptr[-6] == 'd'
+		   && ptr[-5] == 'o'
+		   && ptr[-4] >= '0' && ptr[-4] <= '9'
+		   && ptr[-3] >= '0' && ptr[-3] <= '9'
+		   && ptr[-2] >= '0' && ptr[-2] <= '9'
+		   && ptr[-1] == 0) {
+		/* Undo tablespace */
+	} else if (space_id == TRX_SYS_SPACE && ptr[-1] == 0) {
+		switch (fil_space_system_check(first_page_no, name)) {
+		case FIL_SPACE_SYSTEM_MISMATCH:
+			if (srv_force_recovery) {
+				break;
+			}
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Redo log refers to system tablespace"
+				" file '%s' starting at page " ULINTPF
+				", which disagrees with innodb_data_file_path"
+				" or the directory settings."
+				" Check the startup parameters"
+				" or ignore this error by setting"
+				" --innodb-force-recovery.",
+				name, first_page_no);
+			exit(1);
+		case FIL_SPACE_SYSTEM_OK:
+			break;
+		case FIL_SPACE_SYSTEM_ALL:
+			/* Insert a dummy entry for the system tablespace. */
+			recv_spaces.insert(
+				std::make_pair(TRX_SYS_SPACE,
+					       file_name_t("", false)));
+			break;
+		}
+		return(ptr);
+	} else {
+		recv_sys->found_corrupt_log = TRUE;
+		return(NULL);
+	}
+
+	if (first_page_no != 0) {
+		// TODO: multi-file tablespaces
 		recv_sys->found_corrupt_log = TRUE;
 		return(NULL);
 	}
@@ -225,7 +264,6 @@ fil_name_parse(
 	further checks can ensure that a MLOG_FILE_NAME record was
 	scanned before applying any page records for the space_id. */
 
-	char*		name = reinterpret_cast<char*>(ptr);
 	os_normalize_path_for_win(name);
 	file_name_t	fname(std::string(name, len - 1), deleted);
 	std::pair<recv_spaces_t::iterator,bool> p = recv_spaces.insert(
@@ -254,7 +292,7 @@ fil_name_parse(
 		the space_id. If not, ignore the file after displaying
 		a note. Abort if there are multiple files with the
 		same space_id. */
-		switch (fil_load_single_table_tablespace(
+		switch (fil_load_single_file_tablespace(
 				space_id, name, len - 1, space)) {
 		case FIL_LOAD_OK:
 			ut_ad(space != NULL);
@@ -351,7 +389,7 @@ fil_name_parse(
 		}
 	}
 
-	return(ptr + len);
+	return(ptr);
 }
 
 /********************************************************//**
@@ -1000,7 +1038,6 @@ recv_parse_or_apply_log_rec_body(
 		/* fall through */
 	case MLOG_FILE_RENAME2:
 		ut_ad(block == NULL);
-		ut_ad(!is_predefined_tablespace(space_id));
 		return(fil_op_log_parse_or_replay(
 			       type, ptr, end_ptr, space_id, apply));
 	default:
@@ -1020,20 +1057,39 @@ recv_parse_or_apply_log_rec_body(
 		page = block->frame;
 		page_zip = buf_block_get_page_zip(block);
 		ut_d(page_type = fil_page_get_type(page));
-	} else if (apply
-		   && !is_predefined_tablespace(space_id)
-		   && recv_spaces.find(space_id) == recv_spaces.end()) {
-		ib_logf(IB_LOG_LEVEL_FATAL,
-			"Missing MLOG_FILE_NAME or MLOG_FILE_DELETE"
-			" for redo log record %d"
-			" (page " ULINTPF ":" ULINTPF ") at " LSN_PF ".",
-			type, space_id, page_no, recv_sys->recovered_lsn);
-		return(NULL);
 	} else {
 		/* Parsing a page log record. */
 		page = NULL;
 		page_zip = NULL;
 		ut_d(page_type = FIL_PAGE_TYPE_ALLOCATED);
+
+		if (apply
+		    && recv_spaces.find(space_id) == recv_spaces.end()) {
+			if (space_id == TRX_SYS_SPACE) {
+				if (!srv_force_recovery) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Some file names in"
+						" innodb_data_file_path"
+						" do not occur in"
+						" the redo log."
+						" Check the startup parameters"
+						" or ignore this error "
+						" by setting "
+						" --innodb-force-recovery.");
+					exit(1);
+				}
+			} else {
+				ib_logf(IB_LOG_LEVEL_FATAL,
+					"Missing MLOG_FILE_NAME"
+					" or MLOG_FILE_DELETE"
+					" for redo log record %d"
+					" (page " ULINTPF ":" ULINTPF
+					") at " LSN_PF ".",
+					type, space_id, page_no,
+					recv_sys->recovered_lsn);
+				return(NULL);
+			}
+		}
 	}
 
 	switch (type) {
@@ -2972,13 +3028,13 @@ recv_init_crash_recovery_spaces(void)
 
 	for (recv_spaces_t::iterator i = recv_spaces.begin();
 	     i != recv_spaces.end(); i++) {
-		ut_ad(!is_predefined_tablespace(i->first));
-
 		if (i->second.deleted) {
 			/* The tablespace was deleted,
 			so we can ignore any redo log for it. */
+			ut_ad(i->first != TRX_SYS_SPACE);
 			flag_deleted = true;
-		} else if (i->second.space != NULL) {
+		} else if (i->second.space != NULL
+			   || i->first == TRX_SYS_SPACE) {
 			/* The tablespace was found, and there
 			are some redo log records for it. */
 		} else if (srv_force_recovery == 0) {
@@ -3025,7 +3081,7 @@ recv_init_crash_recovery_spaces(void)
 				     HASH_GET_NEXT(addr_hash, recv_addr))) {
 				const ulint space = recv_addr->space;
 
-				if (is_predefined_tablespace(space)) {
+				if (space == TRX_SYS_SPACE) {
 					continue;
 				}
 
@@ -3169,7 +3225,7 @@ recv_recovery_from_checkpoint_start(
 
 	if (recv_sys->mlog_checkpoint_lsn == 0) {
 		if (group->scanned_lsn != checkpoint_lsn) {
-			ib_logf(IB_LOG_LEVEL_INFO,
+			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Ignoring the redo log due to"
 				" missing MLOG_CHECKPOINT"
 				" between the checkpoint " LSN_PF " and"

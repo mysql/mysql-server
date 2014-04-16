@@ -6083,7 +6083,7 @@ btr_free_externally_stored_field(
 		buf_block_t*	ext_block;
 
 		mtr_start(&mtr);
-		mtr.set_named_space(space_id);
+		mtr.set_spaces(*local_mtr);
 		mtr.set_log_mode(local_mtr->get_log_mode());
 
 		ut_ad(!dict_table_is_temporary(index->table)

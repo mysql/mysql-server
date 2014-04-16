@@ -514,12 +514,48 @@ fil_delete_tablespace(
 	buf_remove_t	buf_remove);	/*!< in: specify the action to take
 					on the tables pages in the buffer
 					pool */
+#ifndef UNIV_HOTBACKUP
+/** Return values of fil_space_system_check() */
+enum fil_space_system_t {
+	/** One file name matched */
+	FIL_SPACE_SYSTEM_OK,
+	/** All file names matched */
+	FIL_SPACE_SYSTEM_ALL,
+	/** File name or size mismatch */
+	FIL_SPACE_SYSTEM_MISMATCH
+};
+
+/** Check if a file name exists in the system tablespace.
+@param[in]	page_no	first page number (0=first file)
+@param[in]	name	tablespace name
+@return whether the name matches the system tablespace */
+
+enum fil_space_system_t
+fil_space_system_check(
+	ulint		page_no,
+	const char*	name)
+	__attribute__((warn_unused_result));
+
+/** Check if an undo tablespace was opened during crash recovery.
+@param[in]	name		tablespace name
+@param[in]	space_id	undo tablespace id
+@retval DB_SUCCESS		if it was already opened
+@retval DB_TABLESPACE_NOT_FOUND	if not yet opened
+@retval DB_ERROR		if the data is inconsistent */
+
+dberr_t
+fil_space_undo_check(
+	const char*	name,
+	ulint		space_id)
+	__attribute__((warn_unused_result));
+
 /** Check if an index tree is freed by checking a descriptor bit of
 index root page.
 @param[in]	space_id	space id
 @param[in]	root_page_no	root page no of an index tree
 @param[in]	page_size	page size
 @return true if the index tree is freed */
+
 bool
 fil_index_tree_is_freed(
 	ulint			space_id,
@@ -556,7 +592,6 @@ fil_close_tablespace(
 /*=================*/
 	trx_t*	trx,	/*!< in/out: Transaction covering the close */
 	ulint	id);	/*!< in: space id */
-#ifndef UNIV_HOTBACKUP
 /*******************************************************************//**
 Discards a single-table tablespace. The tablespace must be cached in the
 memory cache. Discarding is like deleting a tablespace, but
@@ -693,7 +728,7 @@ enum fil_load_status {
 @return status of the operation */
 
 enum fil_load_status
-fil_load_single_table_tablespace(
+fil_load_single_file_tablespace(
 	ulint		space_id,
 	const char*	filename,
 	ulint		filename_len,
@@ -1075,18 +1110,29 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
-/** Write a MLOG_FILE_NAME record for a non-predefined tablespace.
-@param[in]	space_id	tablespace identifier
-@param[in,out]	mtr		mini-transaction
-@return	tablespace */
+/** Look up some tablespaces for invoking fil_names_write().
+@param[out]	spaces		three tablespace pointers
+@param[in]	user_space_id	modified user tablespace, or 0 if none
+@param[in]	undo_space_id	modified undo tablespace, or 0 if none
+@param[in]	find_system	whether to look up the system tablespace */
 
-fil_space_t*
+void
+fil_spaces_lookup(
+	fil_space_t*	spaces[3],
+	ulint		user_space_id,
+	ulint		undo_space_id,
+	bool		find_system);
+
+/** Write a MLOG_FILE_NAME record for a persistent tablespace.
+@param[in]	space	tablespace
+@param[in,out]	mtr	mini-transaction */
+
+void
 fil_names_write(
-	ulint		space_id,
-	mtr_t*		mtr)
-	__attribute__((warn_unused_result));
+	const fil_space_t*	space,
+	mtr_t*			mtr);
 
-/** Note that a non-predefined persistent tablespace has been modified.
+/** Note that a persistent tablespace has been modified.
 @param[in,out]	space	tablespace
 @return whether this is the first dirtying since fil_names_clear() */
 

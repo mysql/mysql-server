@@ -5540,6 +5540,7 @@ dict_set_corrupted(
 			       + sizeof(que_fork_t) + sizeof(upd_node_t)
 			       + sizeof(upd_t) + 12));
 	mtr_start(&mtr);
+	mtr.set_sys_modified();
 	index->type |= DICT_CORRUPT;
 
 	sys_index = UT_LIST_GET_FIRST(dict_sys->sys_indexes->indexes);

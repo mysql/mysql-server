@@ -337,6 +337,30 @@ public:
 	}
 
 	/**
+	Sets the size of the total stored data.
+	@param[in] new_size	data size in bytes */
+	void set_size(const ulint new_size)
+	{
+		ulint	shrink	= m_size - new_size;
+		ut_ad(new_size <= size());
+
+		do {
+			block_t*	last = back();
+
+			if (last->m_used > shrink) {
+				last->m_used -= shrink;
+				break;
+			}
+
+			shrink -= last->m_used;
+			UT_LIST_REMOVE(m_list, last);
+		} while (shrink > 0);
+
+		m_size = new_size;
+		ut_ad(size() == new_size);
+	}
+
+	/**
 	Iterate over each block and call the functor.
 	@return	false if iteration was terminated. */
 	template <typename Functor>
