@@ -1,0 +1,33 @@
+!include ../my.cnf
+
+# 2 clusters, each with 2 MySQLDs
+# All MySQLDs log-slave-updates
+# Potential infinite loops are broken by both servers
+# on each cluster having the same server-id
+
+[mysqld]
+log-slave-updates
+ndb-log-apply-status
+
+[mysqld.1.1]
+server-id= 1
+log-bin = pref-master-1
+
+[mysqld.2.1]
+server-id= 2
+log-bin = pref-master-2
+
+[mysqld.1.slave]
+server-id= 3
+log-bin = sec-master-1
+skip-slave-start
+
+[mysqld.2.slave]
+server-id= 4
+log-bin = sec-master-2
+skip-slave-start
+
+[ENV]
+
+SLAVE_MYPORT1=		@mysqld.2.slave.port
+SLAVE_MYSOCK1=		@mysqld.2.slave.socket

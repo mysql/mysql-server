@@ -1,6 +1,5 @@
-
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -96,7 +95,11 @@ static struct
   { false, "ndbmtd",            &g_ndbmtd_bin_path },
   { true,  "mysqld",            &g_mysqld_bin_path },
   { true,  "mysql_install_db",  &g_mysql_install_db_bin_path },
+#if defined(__MACH__)
+  { true,  "libmysqlclient.dylib", &g_libmysqlclient_so_path },
+#else
   { true,  "libmysqlclient.so", &g_libmysqlclient_so_path },
+#endif
   { true, 0, 0 }
 };
 

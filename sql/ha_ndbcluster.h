@@ -383,8 +383,10 @@ private:
 #ifdef HAVE_NDB_BINLOG
   int prepare_conflict_detection(enum_conflicting_op_type op_type,
                                  const NdbRecord* key_rec,
+                                 const NdbRecord* data_rec,
                                  const uchar* old_data,
                                  const uchar* new_data,
+                                 const MY_BITMAP *write_set,
                                  NdbTransaction* trans,
                                  NdbInterpretedCode* code,
                                  NdbOperation::OperationOptions* options,
