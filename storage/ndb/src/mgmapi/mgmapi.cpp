@@ -497,11 +497,11 @@ ndb_mgm_call(NdbMgmHandle handle,
       switch(t) {
       case PropertiesType_Uint32:
 	cmd_args->get(name, &val_i);
-	out.println("%s: %d", name, val_i);
+	out.println("%s: %u", name, val_i);
 	break;
       case PropertiesType_Uint64:
 	cmd_args->get(name, &val_64);
-	out.println("%s: %Ld", name, val_64);
+	out.println("%s: %llu", name, val_64);
 	break;
       case PropertiesType_char:
 	cmd_args->get(name, val_s);

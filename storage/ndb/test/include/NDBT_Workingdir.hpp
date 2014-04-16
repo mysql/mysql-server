@@ -35,7 +35,7 @@ public:
     char* ndbt_tmp = getenv("NDBT_TMP_DIR");
     if (ndbt_tmp)
       tmp_path = ndbt_tmp;
-    assert(tmp_path);
+    require(tmp_path);
 
     m_wd.assfmt("%s%s%s%d", tmp_path, DIR_SEPARATOR, dirname,
                 (int)NdbProcess::getpid());

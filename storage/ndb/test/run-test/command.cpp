@@ -39,7 +39,7 @@ MYSQL* find_atrtdb_client(atrt_config& config)
             return NULL; /* No atrt db */
 
           atrt_process* f_mysqld = atrt_client->m_mysqld;
-          assert(f_mysqld);
+          require(f_mysqld);
 
           return &f_mysqld->m_mysql;
         }

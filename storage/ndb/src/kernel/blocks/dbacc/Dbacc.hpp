@@ -1,5 +1,5 @@
-/** **/
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/*
+   Copyright (c) 2003, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -379,6 +379,7 @@ struct Fragmentrec {
     Uint32 fragmentid;
     Uint32 myfid;
   };
+  Uint32 tupFragptr;
   Uint32 roothashcheck;
   Uint32 noOfElements;
   Uint32 m_commit_count;
@@ -522,6 +523,7 @@ public:
 };
 
   typedef Ptr<Fragmentrec> FragmentrecPtr;
+  void set_tup_fragptr(Uint32 fragptr, Uint32 tup_fragptr);
 
 /* --------------------------------------------------------------------------------- */
 /* OPERATIONREC                                                                      */
@@ -657,6 +659,7 @@ public:
   class Dblqh* c_lqh;
 
   void execACCMINUPDATE(Signal* signal);
+  void execREAD_PSEUDO_REQ(Signal* signal);
   void removerow(Uint32 op, const Local_key*);
 
 private:
@@ -670,7 +673,6 @@ private:
   void execSHRINKCHECK2(Signal* signal);
   void execACC_OVER_REC(Signal* signal);
   void execNEXTOPERATION(Signal* signal);
-  void execREAD_PSEUDO_REQ(Signal* signal);
 
   // Received signals
   void execSTTOR(Signal* signal);

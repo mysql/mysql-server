@@ -1563,7 +1563,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     case GSN_STOP_REF:{
       const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-      assert(nodeId == sendNodeId);
+      require(nodeId == sendNodeId);
       if (ref->errorCode == StopRef::MultiNodeShutdownNotMaster)
       {
         assert(use_master_node);
@@ -1579,7 +1579,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const StopConf * const ref = CAST_CONSTPTR(StopConf, signal->getDataPtr());
 #endif
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-      assert(nodeId == sendNodeId);
+      require(nodeId == sendNodeId);
       stoppedNodes.bitOR(ndb_nodes_to_stop);
       break;
     }
@@ -1594,7 +1594,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      require(len == NodeBitmask::Size); // only full length in ndbapi
       NodeBitmask mask;
       mask.assign(len, rep->theAllNodes);
       stoppedNodes.bitOR(mask);
@@ -1843,7 +1843,7 @@ bool MgmtSrvr::is_any_node_starting()
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = getNodeInfo(nodeId);
-    if((node.m_state.startLevel == NodeState::SL_STARTING))
+    if (node.m_state.startLevel == NodeState::SL_STARTING)
       return true; // At least one node was starting
   }
   return false; // No node was starting
@@ -1856,7 +1856,7 @@ bool MgmtSrvr::is_cluster_single_user()
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = getNodeInfo(nodeId);
-    if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
+    if (node.m_state.startLevel == NodeState::SL_SINGLEUSER)
       return true; // Cluster is in single user modes
   }
   return false; // Cluster is not in single user mode
@@ -2348,7 +2348,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      require(len == NodeBitmask::Size); // only full length in ndbapi
       NdbNodeBitmask mask;
       // only care about data nodes
       mask.assign(NdbNodeBitmask::Size, rep->theNodes);
@@ -4527,7 +4527,9 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
                          Vector<SimpleSignal>& events)
 {
   int nodes_counter[MAX_NDB_NODES];
+#ifndef NDEBUG
   NdbNodeBitmask save = nodes;
+#endif
   SignalSender ss(theFacade);
   ss.lock();
 

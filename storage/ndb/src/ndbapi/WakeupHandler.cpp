@@ -53,7 +53,7 @@ MultiNdbWakeupHandler::MultiNdbWakeupHandler(Ndb* _wakeNdb)
   woken = false;
   ignore_wakeups();
   bool rc = wakeNdb->theImpl->m_transporter_facade->registerForWakeup(wakeNdb->theImpl);
-  assert(rc);
+  require(rc);
   wakeNdb->theImpl->wakeHandler = this;
 }
 
@@ -68,7 +68,7 @@ MultiNdbWakeupHandler::~MultiNdbWakeupHandler()
   PollGuard pg(* wakeNdb->theImpl);
   bool rc = wakeNdb->theImpl->m_transporter_facade->
     unregisterForWakeup(wakeNdb->theImpl);
-  assert(rc);
+  require(rc);
 }
 
 

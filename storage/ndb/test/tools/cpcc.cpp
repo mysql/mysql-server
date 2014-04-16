@@ -341,6 +341,11 @@ Operate::evaluate(SimpleCpcClient* c, const SimpleCpcClient::Process & pp){
     }
     return true;
   }
+  else
+  {
+    ndbout_c("No such command supported: cmd = %s", cmd);
+    return false;
+  }
   
   if(res != 0){
     BaseString msg;

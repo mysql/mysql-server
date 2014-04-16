@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -610,6 +610,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
 
     switch (signal->theData[1]) {
     case 1:
+    {
       // ** Print a specific record **
       if (signal->length() >= 3) {
 	PreparePtr prepPtr;
@@ -635,7 +636,7 @@ DbUtil::execDUMP_STATE_ORD(Signal* signal){
 	c_runningPrepares.next(prepPtr);
       }
       return;
-
+    }
     case 2:
       // ** Print a specific record **
       if (signal->length() >= 3) {

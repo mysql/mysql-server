@@ -73,7 +73,7 @@ AtrtClient::writeCommand(AtrtCommandType _type,
         sql.appfmt("'%s', ", val_s.c_str());
         break;
       default:
-        assert(false);
+        require(false);
         break;
       }
     }

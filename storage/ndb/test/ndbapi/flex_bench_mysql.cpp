@@ -1100,7 +1100,7 @@ static void* flexBenchThread(void* pArg)
 	    pOps[countTables]->readTuple();
 	    break;
 	  default:
-	    assert(false);
+	    require(false);
 	  }//switch
 	  
 	  if(useLongKeys){
@@ -1143,7 +1143,7 @@ static void* flexBenchThread(void* pArg)
 	  }//if
 	} else { // !use_ndb
 #ifndef USE_MYSQL
-	  assert(false);
+	  require(false);
 #else
 	  switch (tType)
 	    {
@@ -1266,7 +1266,7 @@ static void* flexBenchThread(void* pArg)
 	      }
 	      break;
 	    default:
-	      assert(false);
+	      require(false);
 	    }
 #endif
 	}
@@ -1310,7 +1310,7 @@ static void* flexBenchThread(void* pArg)
 	    }//if
 	    break;
 	  default:
-	    assert(false);
+	    require(false);
 	  }//switch
 	}//if
 	tSpecialTrans = 0;

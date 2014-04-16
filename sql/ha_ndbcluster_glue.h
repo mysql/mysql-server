@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -55,15 +55,6 @@ static inline
 void my_free(void* ptr, myf MyFlags)
 {
   my_free(ptr);
-}
-
-
-/* close_cached_tables has new signature, emulate old */
-static inline
-bool close_cached_tables(THD *thd, TABLE_LIST *tables, bool have_lock,
-                         bool wait_for_refresh, bool wait_for_placeholders)
-{
-  return close_cached_tables(thd, tables, wait_for_refresh, LONG_TIMEOUT);
 }
 
 /* thd has no version field anymore */

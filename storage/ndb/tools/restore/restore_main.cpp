@@ -785,7 +785,7 @@ o verify nodegroup mapping
     for (src = it.first(); src != NULL; src = it.next()) {
       const char * dst = NULL;
       bool r = g_rewrite_databases.get(src, &dst);
-      assert(r && (dst != NULL));
+      require(r && (dst != NULL));
       info << " (" << src << "->" << dst << ")";
     }
     info << endl;
@@ -933,7 +933,7 @@ static void parse_rewrite_database(char * argument)
     const BaseString dst = args[1];
     const bool replace = true;
     bool r = g_rewrite_databases.put(src.c_str(), dst.c_str(), replace);
-    assert(r);
+    require(r);
     return; // ok
   }
 

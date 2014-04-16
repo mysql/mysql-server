@@ -127,7 +127,6 @@ ClusterMgr::configure(Uint32 nodeId,
       theNode.m_info.m_type = NodeInfo::MGM;
       break;
     default:
-      type = type;
       break;
     }
   }
@@ -809,7 +808,7 @@ ClusterMgr::execAPI_REGCONF(const NdbApiSignal * signal,
   if (freq > UINT_MAX32)
   {
     // In case of overflow.
-    assert(false);
+    assert(false);  /* Note this assert fails on some upgrades... */
     cm_node.hbFrequency = UINT_MAX32;
   }
   else if (freq < minHeartBeatInterval)

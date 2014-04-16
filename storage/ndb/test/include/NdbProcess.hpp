@@ -162,7 +162,7 @@ public:
       }
       NdbSleep_MilliSleep(10);
     }
-    assert(false); // Never reached
+    require(false); // Never reached
   }
 
 private:
@@ -200,7 +200,7 @@ private:
       printf("Started process: %d\n", pid);
       return true;
     }
-    assert(tmp == 0);
+    require(tmp == 0);
 
     if (cwd && chdir(cwd) != 0)
     {

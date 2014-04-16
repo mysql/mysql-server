@@ -20,13 +20,14 @@
 
 #include <my_config.h>
 
+#include <stdlib.h>
 #ifdef __GNUC__
 /* Required for useconds_t and C99 */
+#undef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif
 
 #include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <time.h>

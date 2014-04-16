@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,9 @@ WOPool::init(const Record_info& ri, const Pool_context& pc)
   m_record_info.m_size = ((ri.m_size + 3) >> 2); // Align to word boundary
   m_record_info.m_offset_magic = ((ri.m_offset_magic + 3) >> 2);
   m_memroot = (WOPage*)m_ctx.get_memroot();
+#ifdef VM_TRACE
   ndbout_c("WOPool::init(%x, %d)",ri.m_type_id, m_record_info.m_size);
+#endif
 }
 
 bool
@@ -56,8 +58,7 @@ WOPool::seize_new_page(Ptr<void>& ptr)
     m_current_page_no = page_no;
     m_current_page = page;
     page->m_type_id = m_record_info.m_type_id;
-    bool ret = seize(ptr);
-    assert(ret);
+    seize_in_page(ptr);
     return true;
   }
   return false;

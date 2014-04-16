@@ -68,7 +68,7 @@ use_processor_set(const Uint32 *cpu_ids,
                   Uint32 num_cpu_ids,
                   Uint32 *proc_set_id)
 {
-  int ret;
+  int ret = 0;
   Uint32 i;
   Uint32 ret_proc_set_id = UNDEFINED_PROCESSOR_SET;
   struct processor_set_handler *handler;

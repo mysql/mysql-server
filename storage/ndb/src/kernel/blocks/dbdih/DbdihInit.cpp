@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -178,8 +178,10 @@ Dbdih::Dbdih(Block_context& ctx):
   addRecSignal(GSN_START_COPYREQ, &Dbdih::execSTART_COPYREQ);
   addRecSignal(GSN_START_COPYCONF, &Dbdih::execSTART_COPYCONF);
   addRecSignal(GSN_START_COPYREF, &Dbdih::execSTART_COPYREF);
-  addRecSignal(GSN_CREATE_FRAGREQ, &Dbdih::execCREATE_FRAGREQ);
-  addRecSignal(GSN_CREATE_FRAGCONF, &Dbdih::execCREATE_FRAGCONF);
+  addRecSignal(GSN_UPDATE_FRAG_STATEREQ,
+                 &Dbdih::execUPDATE_FRAG_STATEREQ);
+  addRecSignal(GSN_UPDATE_FRAG_STATECONF,
+                 &Dbdih::execUPDATE_FRAG_STATECONF);
   addRecSignal(GSN_DIVERIFYREQ, &Dbdih::execDIVERIFYREQ);
   addRecSignal(GSN_GCP_SAVEREQ, &Dbdih::execGCP_SAVEREQ);
   addRecSignal(GSN_GCP_SAVEREF, &Dbdih::execGCP_SAVEREF);
