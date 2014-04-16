@@ -151,6 +151,50 @@ Handle<Value> listTables(const Arguments &args) {
 }
 
 
+class DictionaryNameSplitter {
+public:
+  DictionaryNameSplitter()                      {};
+  char part1[65];
+  char part3[65];
+  void splitName(const char * src);
+  bool match(const char *db, const char *table);
+};
+
+/* match() returns true if parts 1 and 3 of split name match db.table 
+*/
+inline bool DictionaryNameSplitter::match(const char *db, const char *table) {
+  return ((strncmp(db, part1, 65) == 0) && (strncmp(table, part3, 65) == 0));
+}
+
+/* Convert a name of the form <database>/<schema>/<table> to database and table 
+   which are allocated by the caller and must each be able to hold 65 characters
+*/
+void DictionaryNameSplitter::splitName(const char * src) {
+  char * dstp = part1;
+  int max_len = 64; // maximum database name
+  // copy first part of name to db
+  while (*src != '/' && *src != 0 && max_len-- > 0) {
+    *dstp++ = *src++;
+  }
+  src++;
+  *dstp = 0;
+  // skip second part of name /<schema>/
+  max_len = 65; // maximum  schema name plus trailing /
+  while (*src != '/' && max_len-- > 0) {
+    ++src;
+  }
+  ++src;
+  // copy third part of name to tbl
+  max_len = 64; // maximum table name
+  dstp = part3;
+  while (*src != 0 && max_len-- > 0) {
+    *dstp++ = *src++;
+  }
+  *dstp = 0;
+  DEBUG_PRINT("splitName for %s => %s %s", src, part1, part3);
+}
+
+
 /*** DBDictionary.getTable()
   **
    **/
@@ -160,20 +204,21 @@ class GetTableCall : public NativeCFunctionCall_3_<int, Ndb *,
 private:
   const NdbDictionary::Table * ndb_table;
   Ndb * per_table_ndb;
-  Ndb * ndb;
-  const char * dbName;
+  Ndb * ndb;                /* this is NativeCFunctionCall_3_  arg0 */
+  const char * dbName;      /* this is NativeCFunctionCall_3_  arg1 */
+  const char * tableName;   /* this is NativeCFunctionCall_3_  arg2 */
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List idx_list;
   NdbDictionary::Dictionary::List fk_list;
   const NdbError * ndbError;
-  char database_name[65];
-  char table_name[65];
   int fk_count;
+  DictionaryNameSplitter splitter;
 
   Handle<Object> buildDBIndex_PK();
   Handle<Object> buildDBIndex(const NdbDictionary::Index *);
-  Handle<Object> buildDBForeignKey(const NdbDictionary::ForeignKey *, const char *, const char *);
+  Handle<Object> buildDBForeignKey(const NdbDictionary::ForeignKey *);
   Handle<Object> buildDBColumn(const NdbDictionary::Column *);
+  bool splitNameMatchesDbAndTable(const char * name);
 
 public:
   /* Constructor */
@@ -181,6 +226,9 @@ public:
     NativeCFunctionCall_3_<int, Ndb *, const char *, const char *>(NULL, args),
     ndb_table(0), per_table_ndb(0), idx_list(), fk_list(), fk_count(0)
   {
+    ndb = arg0; 
+    dbName = arg1;
+    tableName = arg2;
   }
   
   /* UV_WORKER_THREAD part of listTables */
@@ -188,43 +236,17 @@ public:
 
   /* V8 main thread */
   void doAsyncCallback(Local<Object> ctx);  
-
-  /* Convert a name of the form <database>/<schema>/<table> to database and table
-   */
-  void splitName(const char * src, char * db, char * tbl) {
-    char * dstp = db;
-    int max_len = 64; // maximum database name
-    // copy first part of name to db
-    while (*src != '/' && *src != 0 && max_len-- > 0) {
-      *dstp++ = *src++;
-    }
-    src++;
-    *dstp = 0;
-    // skip second part of name /<schema>/
-    max_len = 65; // maximum  schema name plus trailing /
-    while (*src != '/' && max_len-- > 0) {
-      ++src;
-    }
-    ++src;
-    // copy third part of name to tbl
-    max_len = 64; // maximum table name
-    dstp = tbl;
-    while (*src != 0 && max_len-- > 0) {
-      *dstp++ = *src++;
-    }
-    *dstp = 0;
-  }
-
 };
 
+
+inline bool GetTableCall::splitNameMatchesDbAndTable(const char * name) {
+  splitter.splitName(name);
+  return splitter.match(dbName, tableName);
+};                                           
 
 void GetTableCall::run() {
   DEBUG_PRINT("GetTableCall::run() [%s.%s]", arg1, arg2);
   return_val = -1;
-  /* Aliases: */
-  ndb = arg0;
-  dbName = arg1;
-  const char * & tableName = arg2;
 
   /* dbName is optional; if not present, set it from ndb database name */
   if(strlen(dbName)) {
@@ -264,7 +286,7 @@ void GetTableCall::run() {
     }
   }
   else {
-    DEBUG_PRINT("GetTableCall::run() getTable returned %i", return_val);
+    DEBUG_PRINT("listIndexes() returned %i", return_val);
     ndbError = & dict->getNdbError();
     return;
   }
@@ -272,8 +294,8 @@ void GetTableCall::run() {
    * Currently there is no listForeignKeys so we use the more generic listDependentObjects
    * specifying the table metadata object.
    */
-  int fkListCode = dict->listDependentObjects(fk_list, *ndb_table);
-  if (fkListCode == 0) {
+  return_val = dict->listDependentObjects(fk_list, *ndb_table);
+  if (return_val == 0) {
     /* Fetch the foreign keys and associated parent tables now.
      * These calls may perform network IO, populating
      * the (connection) global and (Ndb) local dictionary caches.  Later,
@@ -288,24 +310,21 @@ void GetTableCall::run() {
         int fkGetCode = dict->getForeignKey(fk, fk_name);
         DEBUG_PRINT("getForeignKey for %s returned %i", fk_name, fkGetCode);
         // see if the foreign key child table is this table
-        const char * fk_child_name = fk.getChildTable();
-        splitName(fk_child_name, database_name, table_name);
-        DEBUG_PRINT("Child table splitName for %s returned %s %s", fk_child_name, database_name, table_name);
-        if (strncmp(table_name, tableName, 64) == 0) {
+        if(splitNameMatchesDbAndTable(fk.getChildTable())) {
           // the foreign key child table is this table; get the parent table
           ++fk_count;
-          const char * fk_parent_name = fk.getParentTable();
-          splitName(fk_parent_name, database_name, table_name);
-          DEBUG_PRINT("Parent table splitName for %s returned %s %s", fk_parent_name, database_name, table_name);
-          ndb->setDatabaseName(database_name);
-          const NdbDictionary::Table * parent_table = dict->getTable(table_name);
-          ndb->setDatabaseName(dbName);
+          DEBUG_PRINT("Getting ParentTable");
+          splitter.splitName(fk.getParentTable());
+          ndb->setDatabaseName(splitter.part1);  // temp for next call
+          const NdbDictionary::Table * parent_table = dict->getTable(splitter.part3);
+          ndb->setDatabaseName(dbName);  // back to expected value
           DEBUG_PRINT("Parent table getTable returned %s", parent_table->getName());
         }
       }
     }
   }
   else {
+    DEBUG_PRINT("listDependentObjects() returned %i", return_val);
     ndbError = & dict->getNdbError();
   }
 }
@@ -395,13 +414,10 @@ void GetTableCall::doAsyncCallback(Local<Object> ctx) {
         int fkGetCode = dict->getForeignKey(fk, fk_name);
         DEBUG_PRINT("getForeignKey for %s returned %i", fk_name, fkGetCode);
         // see if the foreign key child table is this table
-        const char * fk_child_name = fk.getChildTable();
-        splitName(fk_child_name, database_name, table_name);
-        DEBUG_PRINT("Child table splitName for %s returned %s %s", fk_child_name, database_name, table_name);
-        if (strncmp(table_name, tableName, 64) == 0) {
+        if(splitNameMatchesDbAndTable(fk.getChildTable())) {
           // the foreign key child table is this table; build the fk object
           DEBUG_PRINT("Adding foreign key for %s at %i", fk.getName(), fk_number);
-          js_fks->Set(fk_number++, buildDBForeignKey(&fk, database_name, table_name));
+          js_fks->Set(fk_number++, buildDBForeignKey(&fk));
         }
       }
     }
@@ -505,61 +521,47 @@ Handle<Object> GetTableCall::buildDBIndex(const NdbDictionary::Index *idx) {
   targetDatabase   : ""    ,  // referenced database name
   targetColumnNames: null  ,  // an ordered array of target column names
 };
- */
-Handle<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *fk,
-                                             const char * child_database_name, const char * child_table_name) {
-    HandleScope scope;
-    Local<Object> js_fk = Object::New();
-    char ignore[65];
-    char fk_name[65];
-    const NdbDictionary::Column *column;
-    int columnNumber;
-    const char * columnName;
-    const NdbDictionary::Table *child_table;
-    unsigned childColumnCount;
-    const NdbDictionary::Table *parent_table;
-    unsigned parentColumnCount;
-    splitName(fk->getName(), ignore, fk_name);
-    DEBUG_PRINT("Processing foreign key %s", fk_name);
-    js_fk->Set(String::NewSymbol("name"), String::New(fk_name));
+*/
+Handle<Object> GetTableCall::buildDBForeignKey(const NdbDictionary::ForeignKey *fk) {
+  HandleScope scope;
+  DictionaryNameSplitter localSplitter;
+  Local<Object> js_fk = Object::New();
 
-    // get child column names
-    child_table = dict->getTable(child_table_name);
-    childColumnCount = fk->getChildColumnCount();
-    Local<Array> fk_child_column_names = Array::New(childColumnCount);
-    for (unsigned i = 0; i < childColumnCount; ++i) {
-      columnNumber = fk->getChildColumnNo(i);
-      column = child_table->getColumn(columnNumber);
-      columnName = column->getName();
-      fk_child_column_names->Set(i, String::New(columnName));
-    }
-    js_fk->Set(String::NewSymbol("columnNames"), fk_child_column_names);
+  localSplitter.splitName(fk->getName());  // e.g. "12/20/fkname"
+  js_fk->Set(String::NewSymbol("name"), String::New(localSplitter.part3));
 
-    // get parent table
-    const char * fk_parent_name = fk->getParentTable();
-    splitName(fk_parent_name, database_name, table_name);
-    DEBUG_PRINT("Parent table splitName for %s returned %s %s", fk_parent_name, database_name, table_name);
-    js_fk->Set(String::NewSymbol("targetTable"), String::New(table_name));
-    js_fk->Set(String::NewSymbol("targetDatabase"), String::New(database_name));
-    // the parent table might be in a different database
-    ndb->setDatabaseName(database_name);
-    parent_table = dict->getTable(table_name);
-    // reset the ndb database in case it was different
-    ndb->setDatabaseName(dbName);
-    DEBUG_PRINT("Parent table getTable returned %s", parent_table->getName());
+  // get child column names
+  unsigned int childColumnCount = fk->getChildColumnCount();
+  Local<Array> fk_child_column_names = Array::New(childColumnCount);
+  for (unsigned i = 0; i < childColumnCount; ++i) {
+    int columnNumber = fk->getChildColumnNo(i);
+    const NdbDictionary::Column * column = ndb_table->getColumn(columnNumber);
+    fk_child_column_names->Set(i, String::New(column->getName()));
+  }
+  js_fk->Set(String::NewSymbol("columnNames"), fk_child_column_names);
 
-    // get parent column names
-    parentColumnCount = fk->getParentColumnCount();
-    Local<Array> fk_parent_column_names = Array::New(parentColumnCount);
-    for (unsigned i = 0; i < parentColumnCount; ++i) {
-      columnNumber = fk->getParentColumnNo(i);
-      column = parent_table->getColumn(columnNumber);
-      columnName = column->getName();
-      fk_parent_column_names->Set(i, String::New(columnName));
-    }
-    js_fk->Set(String::NewSymbol("targetColumnNames"), fk_parent_column_names);
+  // get parent table (which might be in a different database)
+  const char * fk_parent_name = fk->getParentTable();
+  localSplitter.splitName(fk_parent_name);
+  const char * parent_db_name = localSplitter.part1;
+  const char * parent_table_name = localSplitter.part3;
+  js_fk->Set(String::NewSymbol("targetTable"), String::New(parent_table_name));
+  js_fk->Set(String::NewSymbol("targetDatabase"), String::New(parent_db_name));
+  ndb->setDatabaseName(parent_db_name);
+  const NdbDictionary::Table * parent_table = dict->getTable(parent_table_name);
+  ndb->setDatabaseName(dbName);
 
-    return scope.Close(js_fk);
+  // get parent column names
+  unsigned int parentColumnCount = fk->getParentColumnCount();
+  Local<Array> fk_parent_column_names = Array::New(parentColumnCount);
+  for (unsigned i = 0; i < parentColumnCount; ++i) {
+    int columnNumber = fk->getParentColumnNo(i);
+    const NdbDictionary::Column * column = parent_table->getColumn(columnNumber);
+    fk_parent_column_names->Set(i, String::New( column->getName()));
+  }
+  js_fk->Set(String::NewSymbol("targetColumnNames"), fk_parent_column_names);
+
+  return scope.Close(js_fk);
 }
 
 Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
