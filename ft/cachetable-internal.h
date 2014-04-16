@@ -446,6 +446,8 @@ public:
     FILENUM m_next_filenum_to_use;
     uint32_t m_next_hash_id_to_use;
     toku_pthread_rwlock_t m_lock; // this field is publoc so we are still POD
+    toku::omt<CACHEFILE> m_active_filenum;
+    toku::omt<CACHEFILE> m_active_fileid;
 private:    
     CACHEFILE find_cachefile_in_list_unlocked(CACHEFILE start, struct fileid* fileid);
 };

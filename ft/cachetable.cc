@@ -564,10 +564,10 @@ void toku_cachefile_close(CACHEFILE *cfp, bool oplsn_valid, LSN oplsn) {
     // that do not persist across opens/closes
     bjm_destroy(cf->bjm);
     cf->bjm = NULL;
-    cf->filenum = FILENUM_NONE;
 
     // remove the cf from the list of active cachefiles
     ct->cf_list.remove_cf(cf);
+    cf->filenum = FILENUM_NONE;
 
     // Unlink the file if the bit was set
     if (cf->unlink_on_close) {
@@ -4750,9 +4750,13 @@ void cachefile_list::init() {
     m_next_filenum_to_use.fileid = 0;
     m_next_hash_id_to_use = 0;
     toku_pthread_rwlock_init(&m_lock, NULL);
+    m_active_filenum.create();
+    m_active_fileid.create();
 }
 
 void cachefile_list::destroy() {
+    m_active_filenum.destroy();
+    m_active_fileid.destroy();
     toku_pthread_rwlock_destroy(&m_lock);
 }
 
@@ -4804,6 +4808,21 @@ int cachefile_list::cachefile_of_filenum(FILENUM filenum, CACHEFILE *cf) {
     return r;
 }
 
+static int cachefile_find_by_filenum(const CACHEFILE &a_cf, const FILENUM &b) {
+    const FILENUM a = a_cf->filenum;
+    if (a.fileid < b.fileid) {
+        return -1;
+    } else if (a.fileid == b.fileid) {
+        return 0;
+    } else {
+        return 1;
+    }
+}
+
+static int cachefile_find_by_fileid(const CACHEFILE &a_cf, const struct fileid &b) {
+    return toku_fileid_cmp(a_cf->fileid, b);
+}
+
 void cachefile_list::add_cf_unlocked(CACHEFILE cf) {
     invariant(cf->next == NULL);
     invariant(cf->prev == NULL);
@@ -4813,6 +4832,12 @@ void cachefile_list::add_cf_unlocked(CACHEFILE cf) {
         m_active_head->prev = cf;
     }
     m_active_head = cf;
+
+    int r;
+    r = m_active_filenum.insert<FILENUM, cachefile_find_by_filenum>(cf, cf->filenum, nullptr);
+    assert_zero(r);
+    r = m_active_fileid.insert<struct fileid, cachefile_find_by_fileid>(cf, cf->fileid, nullptr);
+    assert_zero(r);
 }
 
 void cachefile_list::add_stale_cf(CACHEFILE cf) {
@@ -4847,6 +4872,19 @@ void cachefile_list::remove_cf(CACHEFILE cf) {
     }
     cf->prev = NULL;
     cf->next = NULL;
+
+    uint32_t idx;
+    int r;
+    r = m_active_filenum.find_zero<FILENUM, cachefile_find_by_filenum>(cf->filenum, nullptr, &idx);
+    assert_zero(r);
+    r = m_active_filenum.delete_at(idx);
+    assert_zero(r);
+
+    r = m_active_fileid.find_zero<struct fileid, cachefile_find_by_fileid>(cf->fileid, nullptr, &idx);
+    assert_zero(r);
+    r = m_active_fileid.delete_at(idx);
+    assert_zero(r);
+
     write_unlock();
 }
 
@@ -4872,18 +4910,23 @@ void cachefile_list::remove_stale_cf_unlocked(CACHEFILE cf) {
 }
 
 FILENUM cachefile_list::reserve_filenum() {
-    CACHEFILE extant;
-    FILENUM filenum;
     // taking a write lock because we are modifying next_filenum_to_use
     write_lock();
-try_again:
-    for (extant = m_active_head; extant; extant = extant->next) {
-        if (m_next_filenum_to_use.fileid==extant->filenum.fileid) {
+    while (1) {
+        int r = m_active_filenum.find_zero<FILENUM, cachefile_find_by_filenum>(m_next_filenum_to_use, nullptr, nullptr);
+        if (r == 0) {
             m_next_filenum_to_use.fileid++;
-            goto try_again;
+            continue;
         }
+        assert(r == DB_NOTFOUND);
+        break;
     }
-    filenum = m_next_filenum_to_use;
+    FILENUM filenum = m_next_filenum_to_use;
+#if TOKU_DEBUG_PARANOID
+    for (CACHEFILE extant = m_active_head; extant; extant = extant->next) {
+        assert(filenum.fileid != extant->filenum.fileid);
+    }
+#endif
     m_next_filenum_to_use.fileid++;
     write_unlock();
     return filenum;
@@ -4916,7 +4959,15 @@ exit:
 }
 
 CACHEFILE cachefile_list::find_cachefile_unlocked(struct fileid* fileid) {
-    return find_cachefile_in_list_unlocked(m_active_head, fileid);
+    CACHEFILE cf = nullptr;
+    int r = m_active_fileid.find_zero<struct fileid, cachefile_find_by_fileid>(*fileid, &cf, nullptr);
+    if (r == 0) {
+        assert(!cf->unlink_on_close);
+    }
+#if TOKU_DEBUG_PARANOID
+    assert(cf == find_cachefile_in_list_unlocked(m_active_head, fileid));
+#endif
+    return cf;
 }
 
 CACHEFILE cachefile_list::find_stale_cachefile_unlocked(struct fileid* fileid) {
@@ -4924,9 +4975,13 @@ CACHEFILE cachefile_list::find_stale_cachefile_unlocked(struct fileid* fileid) {
 }
 
 void cachefile_list::verify_unused_filenum(FILENUM filenum) {
+    int r = m_active_filenum.find_zero<FILENUM, cachefile_find_by_filenum>(filenum, nullptr, nullptr);
+    assert(r == DB_NOTFOUND);
+#if TOKU_DEBUG_PARANOID
     for (CACHEFILE extant = m_active_head; extant; extant = extant->next) {
         invariant(extant->filenum.fileid != filenum.fileid);
     }
+#endif
 }
 
 // returns true if some eviction ran, false otherwise
