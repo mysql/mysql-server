@@ -3292,6 +3292,7 @@ row_merge_build_indexes(
 	fts_psort_t*		merge_info = NULL;
 	ib_int64_t		sig_count = 0;
 	bool			fts_psort_initiated = false;
+	bool			is_redo_skipped;
 #ifdef BULK_LOAD_PFS_PRINT
 	ulint			start_time_ms;
 	ulint			diff_time;
@@ -3395,6 +3396,12 @@ row_merge_build_indexes(
 
 	DEBUG_SYNC_C("row_merge_after_scan");
 
+	/* Check whether we can skip all redo considering we have checkpoint
+	at the end.*/
+	is_redo_skipped = dict_table_is_temporary(new_table)
+		|| (old_table != new_table
+		    && new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE);
+
 	/* Now we have files containing index entries ready for
 	sorting and inserting. */
 
@@ -3405,6 +3412,7 @@ row_merge_build_indexes(
 			os_event_t	fts_parallel_merge_event;
 
 			sort_idx = fts_sort_idx;
+			sort_idx->is_redo_skipped = is_redo_skipped;
 
 			fts_parallel_merge_event
 				= merge_info[0].psort_common->merge_event;
@@ -3492,11 +3500,7 @@ wait_again:
 #endif
 
 			if (error == DB_SUCCESS) {
-				sort_idx->is_redo_skipped =
-					dict_table_is_temporary(new_table)
-					|| (old_table != new_table
-					    && new_table->flags2 &
-					    DICT_TF2_USE_FILE_PER_TABLE);
+				sort_idx->is_redo_skipped = is_redo_skipped;
 
 				error = row_merge_bulk_load_index(
 					trx->id, sort_idx, old_table,
@@ -3614,6 +3618,12 @@ func_exit:
 
 	if (error == DB_SUCCESS) {
 		log_make_checkpoint_at(LSN_MAX, TRUE);
+
+#ifdef BULK_LOAD_PFS_PRINT
+			diff_time = ut_time_ms() - start_time_ms;
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"checkpoint time\t : %ld", diff_time);
+#endif
 	}
 
 	DBUG_RETURN(error);

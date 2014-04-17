@@ -1610,13 +1610,16 @@ row_fts_merge_insert(
 	fts_table.table = index->table;
 	fts_table.suffix = fts_get_suffix(id);
 
-	/* Get aux index, and create BtrBulk instance */
+	/* Get aux index */
 	fts_get_table_name(&fts_table, aux_table_name);
 	aux_table = dict_table_open_on_name(aux_table_name, FALSE, FALSE,
 					    DICT_ERR_IGNORE_NONE);
 	ut_ad(aux_table != NULL);
 	dict_table_close(aux_table, FALSE, FALSE);
 	aux_index = dict_table_get_first_index(aux_table);
+	aux_index->is_redo_skipped = index->is_redo_skipped;
+
+	/* Create bulk load instance */
 	ins_ctx.btr_bulk = new BtrBulk(aux_index, trx->id);
 
 	/* Create tuple for insert */
