@@ -305,6 +305,10 @@ bool mysql_update(THD *thd,
     DBUG_RETURN(1);				/* purecov: inspected */
   }
 
+  if (setup_ftfuncs(select_lex))
+    DBUG_RETURN(true);                          /* purecov: inspected */
+
+
   if (select_lex->inner_refs_list.elements &&
     fix_inner_refs(thd, all_fields, select_lex, select_lex->ref_pointer_array))
     DBUG_RETURN(1);
@@ -1108,8 +1112,6 @@ bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref)
                   table_list, all_fields, all_fields,
                   select_lex->order_list.first))
     DBUG_RETURN(true);
-  if (setup_ftfuncs(select_lex))
-    DBUG_RETURN(true);                          /* purecov: inspected */
 
   // Check that table to be updated is not used in a subquery
   TABLE_LIST *const duplicate= unique_table(thd, update_table_ref,
