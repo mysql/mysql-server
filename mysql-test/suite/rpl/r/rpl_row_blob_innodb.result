@@ -27,6 +27,7 @@ LENGTH(data)
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 3;
 LENGTH(data)
 16384
+include/sync_slave_sql_with_master.inc
 
 **** Data Insert Validation Slave Section test.t1 ****
 
@@ -53,6 +54,7 @@ LENGTH(data)
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
 LENGTH(data)
 17408
+include/sync_slave_sql_with_master.inc
 
 **** Data Update Validation Slave Section test.t1 ****
 
@@ -112,6 +114,7 @@ SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=2;
 c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
 2	20000	b2	30000	dd2
+include/sync_slave_sql_with_master.inc
 
 **** Data Insert Validation Slave Section test.t2 ****
 
@@ -139,6 +142,7 @@ SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=2;
 c1	LENGTH(c2)	SUBSTR(c2,1+2*900,2)	LENGTH(c4)	SUBSTR(c4,1+3*900,3)
 2	2256	b1	3000	dd1
+include/sync_slave_sql_with_master.inc
 
 **** Data Update Validation Slave Section test.t2 ****
 
