@@ -287,7 +287,10 @@ void compute_digest_text(const sql_digest_storage* digest_storage,
       {
         strncpy(digest_output, tok_data->m_token_string, tok_length);
         digest_output+= tok_length;
-        *digest_output++= ' ';
+        if (tok_data->m_append_space)
+        {
+          *digest_output++= ' ';
+        }
         bytes_available-= bytes_needed;
       }
       else
