@@ -2128,8 +2128,8 @@ public:
     lost_gtids(sid_map, sid_lock),
     executed_gtids(sid_map, sid_lock),
     gtids_only_in_table(sid_map, sid_lock),
-    owned_gtids(sid_lock),
-    gtid_counter(0) {}
+    previous_gtids_logged(sid_map, sid_lock),
+    owned_gtids(sid_lock) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
 
@@ -2278,8 +2278,9 @@ public:
   void broadcast_sidnos(const Gtid_set *set);
 #endif // ifdef HAVE_GTID_NEXT_LIST
   /**
-    Ensure that owned_gtids, executed_gtids, lost_gtids, gtids_only_in_table
-    and sid_locks have room for at least as many SIDNOs as sid_map.
+    Ensure that owned_gtids, executed_gtids, lost_gtids, gtids_only_in_table,
+    previous_gtids_logged and sid_locks have room for at least as many SIDNOs
+    as sid_map.
 
     This function must only be called in one place:
     Sid_map::add_sid().
@@ -2318,6 +2319,14 @@ public:
   {
     return &gtids_only_in_table;
   }
+  /*
+    Return a pointer to the Gtid_set that contains the previous stored
+    groups in the last binlog file.
+  */
+  const Gtid_set *get_previous_gtids_logged() const
+  {
+    return &previous_gtids_logged;
+  }
   /// Return a pointer to the Owned_gtids that contains the owned groups.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   /// Return the server's SID's SIDNO
@@ -2334,6 +2343,7 @@ public:
       executed_gtids.get_string_length() +
       lost_gtids.get_string_length() +
       gtids_only_in_table.get_string_length() +
+      previous_gtids_logged.get_string_length() +
       150;
   }
   /// Debug only: Generate a string in the given buffer and return the length.
@@ -2380,15 +2390,6 @@ public:
 #endif
   }
   /**
-    Generate automatic gtid for transaction.
-
-    @param thd Session to commit
-
-    @retval 0    success
-    @retval 1    error
-  */
-  int generate_automatic_gtid(THD *thd);
-  /**
     Save gtid owned by the thd into executed_gtids variable
     and gtid table.
 
@@ -2396,19 +2397,9 @@ public:
     @retval
         0    OK
     @retval
-        1    Error
+        -1   Error
   */
   int save(THD *thd);
-  /**
-    Generate automatic gtid for transaction and save
-    the generated or specified gtid into gtid table.
-
-    @param thd Session to commit
-
-    @retval 0    success
-    @retval 1    error
-  */
-  int generate_and_save_gtid(THD *thd);
   /**
     Insert the gtid set into table.
 
@@ -2417,8 +2408,6 @@ public:
 
     @retval
       0    OK
-    @retval
-      1    The table was not found.
     @retval
       -1   Error
   */
@@ -2453,14 +2442,6 @@ public:
       -1   Error
   */
   int compress(THD *thd);
-  /*
-    Return the count of ongoing transactions' gtids.
-  */
-  uint get_gtid_count() const
-  {
-    global_sid_lock->assert_some_lock();
-    return gtid_counter;
-  }
 private:
 #ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
@@ -2498,12 +2479,12 @@ private:
     binlog files.
   */
   Gtid_set gtids_only_in_table;
+  /* The previous GTIDs in the last binlog. */
+  Gtid_set previous_gtids_logged;
   /// The set of GTIDs that are owned by some thread.
   Owned_gtids owned_gtids;
   /// The SIDNO for this server.
   rpl_sidno server_sidno;
-  /* The count of ongoing transactions' gtids. */
-  uint gtid_counter;
 
   /// Used by unit tests that need to access private members.
 #ifdef FRIEND_OF_GTID_STATE
@@ -2824,6 +2805,7 @@ public:
     @param thd The THD that this Gtid_state belongs to.
     @return RETURN_STATUS_OK or RETURN_STATUS_REPORTED_ERROR
   */
+  enum_return_status generate_automatic_gno(THD *thd);
 #endif // ifndef MYSQL_CLIENT
   /**
     Return true if this Group_cache contains the given GTID.

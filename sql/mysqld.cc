@@ -700,7 +700,6 @@ pthread_t signal_thread_id= 0;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
-mysql_mutex_t LOCK_reset_binlog;
 mysql_mutex_t LOCK_compress_gtid_table;
 mysql_cond_t COND_compress_gtid_table;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
@@ -3285,8 +3284,6 @@ static int init_thread_environment()
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
-  mysql_mutex_init(key_LOCK_reset_binlog,
-                   &LOCK_reset_binlog, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_compress_gtid_table,
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
@@ -4485,8 +4482,11 @@ int mysqld_main(int argc, char **argv)
       */
       Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
       Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set logged_gtids_last_binlog(global_sid_map, global_sid_lock);
       Gtid_set *gtids_only_in_table=
         const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
+      Gtid_set *previous_gtids_logged=
+        const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
 
       if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
                                        &purged_gtids_binlog,
@@ -4497,6 +4497,51 @@ int mysqld_main(int argc, char **argv)
         unireg_abort(1);
 
       global_sid_lock->wrlock();
+
+      if (!logged_gtids_binlog.is_empty())
+      {
+        if (executed_gtids->is_empty())
+        {
+          /*
+            When binlog is enabled, handle the following three cases:
+            1. the upgrade case.
+            2. the case that a slave is provisioned from a backup of
+               the master and the slave is cleaned by RESET MASTER
+               and RESET SLAVE before this.
+            3. the case that no binlog rotation happened from the
+               last RESET MASTER on the server before it crashes.
+          */
+          if (executed_gtids->add_gtid_set(&logged_gtids_binlog) !=
+              RETURN_STATUS_OK)
+          {
+            global_sid_lock->unlock();
+            unireg_abort(1);
+          }
+          /* Save the executed_gtids into gtid table. */
+          if (gtid_state->save(executed_gtids) == -1)
+          {
+            global_sid_lock->unlock();
+            unireg_abort(1);
+          }
+        }
+        else if (!logged_gtids_binlog.is_subset(executed_gtids))
+        {
+          logged_gtids_last_binlog.add_gtid_set(&logged_gtids_binlog);
+          logged_gtids_last_binlog.remove_gtid_set(executed_gtids);
+          /*
+            The set of GTIDs of the last binlog is not saved into the
+            gtid table if server crashes, so we add it into gtid table
+            and executed_gtids during recovery from the crash.
+          */
+          if (gtid_state->save(&logged_gtids_last_binlog) == -1)
+          {
+            global_sid_lock->unlock();
+            unireg_abort(1);
+          }
+          executed_gtids->add_gtid_set(&logged_gtids_last_binlog);
+        }
+      }
+
       /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
       if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
           RETURN_STATUS_OK ||
@@ -4519,26 +4564,14 @@ int mysqld_main(int argc, char **argv)
         unireg_abort(1);
       }
 
-      if (executed_gtids->is_empty() && !logged_gtids_binlog.is_empty())
+      /* Prepare previous_gtids_logged for next binlog */
+      if (previous_gtids_logged->add_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK)
       {
-        /*
-          Handle the upgrade case, and the case that a slave is provisioned
-          from a backup of the master and the slave is cleaned by
-          RESET MASTER and RESET SLAVE before this.
-        */
-        if (executed_gtids->add_gtid_set(&logged_gtids_binlog) !=
-            RETURN_STATUS_OK)
-        {
-          global_sid_lock->unlock();
-          unireg_abort(1);
-        }
-        /* Save the executed_gtids into gtid table. */
-        if (gtid_state->save(executed_gtids) == -1)
-        {
-          global_sid_lock->unlock();
-          unireg_abort(1);
-        }
+        global_sid_lock->unlock();
+        unireg_abort(1);
       }
+
       global_sid_lock->unlock();
 
       /*
@@ -7728,7 +7761,6 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
-PSI_mutex_key key_LOCK_reset_binlog;
 PSI_mutex_key key_LOCK_compress_gtid_table;
 
 static PSI_mutex_info all_server_mutexes[]=
@@ -7806,7 +7838,6 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
-  { &key_LOCK_reset_binlog, "LOCK_reset_binlog", PSI_FLAG_GLOBAL},
   { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
