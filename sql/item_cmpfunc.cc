@@ -4091,10 +4091,6 @@ int cmp_longlong(void *cmp_arg,
     return cmp_longs (a->val, b->val);
 }
 
-static int cmp_double(void *cmp_arg, double *a,double *b)
-{
-  return *a < *b ? -1 : *a == *b ? 0 : 1;
-}
 
 static int cmp_row(void *cmp_arg, cmp_item_row *a, cmp_item_row *b)
 {
@@ -4102,20 +4098,17 @@ static int cmp_row(void *cmp_arg, cmp_item_row *a, cmp_item_row *b)
 }
 
 
-static int cmp_decimal(void *cmp_arg, my_decimal *a, my_decimal *b)
-{
-  a->sanity_check();
-  b->sanity_check();
-  return my_decimal_cmp(a, b);
-}
-
-
-bool in_vector::find(Item *item)
+bool in_vector::find_item(Item *item)
 {
   uchar *result=get_value(item);
   if (!result || !used_count)
     return false;				// Null value
+  return find_value(result);
+}
 
+
+bool in_vector::find_value(const void *result) const
+{
   uint start,end;
   start=0; end=used_count-1;
   while (start != end)
@@ -4293,7 +4286,7 @@ uchar *in_datetime::get_value(Item *item)
 
 
 in_double::in_double(uint elements)
-  :in_vector(elements,sizeof(double),(qsort2_cmp) cmp_double, 0)
+  :in_vector(elements,sizeof(double), NULL, 0)
 {}
 
 void in_double::set(uint pos,Item *item)
@@ -4310,8 +4303,34 @@ uchar *in_double::get_value(Item *item)
 }
 
 
+void in_double::sort()
+{
+  double *begin= static_cast<double*>(static_cast<void*>(base));
+  double *end= begin + used_count;
+  std::sort(begin, end);
+}
+
+
+bool in_double::find_value(const void *value) const
+{
+  const double *begin=
+    static_cast<const double*>(static_cast<const void*>(base));
+  const double *end= begin + used_count;
+  const double *dbl= static_cast<const double*>(value);
+  return std::binary_search(begin, end, *dbl);
+}
+
+
+bool in_double::compare_elems(uint pos1, uint pos2) const
+{
+  const double *begin=
+    static_cast<const double*>(static_cast<const void*>(base));
+  return begin[pos1] != begin[pos2];
+}
+
+
 in_decimal::in_decimal(uint elements)
-  :in_vector(elements, sizeof(my_decimal),(qsort2_cmp) cmp_decimal, 0)
+  :in_vector(elements, sizeof(my_decimal), NULL, 0)
 {
   if (base != NULL)
   {
@@ -4351,6 +4370,25 @@ void in_decimal::sort()
   my_decimal *end= begin + used_count;
   std::sort(begin, end);
 }
+
+
+bool in_decimal::find_value(const void *value) const
+{
+  const my_decimal *begin=
+    static_cast<const my_decimal*>(static_cast<const void*>(base));
+  const my_decimal *end= begin + used_count;
+  const my_decimal *dec= static_cast<const my_decimal*>(value);
+  return std::binary_search(begin, end, *dec);
+}
+
+
+bool in_decimal::compare_elems(uint pos1, uint pos2) const
+{
+  const my_decimal *begin=
+    static_cast<const my_decimal*>(static_cast<const void*>(base));
+  return begin[pos1] != begin[pos2];
+}
+
 
 cmp_item* cmp_item::get_comparator(Item_result type,
                                    const CHARSET_INFO *cs)
@@ -5124,7 +5162,7 @@ longlong Item_func_in::val_int()
   uint value_added_map= 0;
   if (array)
   {
-    bool tmp=array->find(args[0]);
+    bool tmp=array->find_item(args[0]);
     /*
       NULL on left -> UNKNOWN.
       Found no match, and NULL on right -> UNKNOWN.

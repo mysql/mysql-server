@@ -206,6 +206,7 @@ IF(NOT CMAKE_CROSSCOMPILING)
   #include <errno.h>
   #include <assert.h>
   #include <linux/futex.h>
+  #include <unistd.h>
   #include <sys/syscall.h>
 
    int futex_wait(int* futex, int v) {
