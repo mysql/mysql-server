@@ -309,6 +309,23 @@ int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
     goto err;
   }
 
+  /* Do not protect m_count for improving transactions' concurrency */
+  if (0 == error)
+  {
+    m_count++;
+    if ((executed_gtids_compression_period != 0) &&
+        (m_count >= executed_gtids_compression_period ||
+         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
+         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
+         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
+         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
+    {
+      m_count= 0;
+      should_compress= true;
+      mysql_cond_signal(&COND_compress_gtid_table);
+    }
+  }
+
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(-1);
@@ -420,22 +437,6 @@ int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
 
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
-  /* Do not protect m_count for improving transactions' concurrency */
-  if (0 == error)
-  {
-    m_count++;
-    if ((executed_gtids_compression_period != 0) &&
-        (m_count >= executed_gtids_compression_period ||
-         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
-    {
-      m_count= 0;
-      should_compress= true;
-      mysql_cond_signal(&COND_compress_gtid_table);
-    }
-  }
 
   DBUG_RETURN(error);
 }
@@ -534,6 +535,18 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
 
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
+
+  if (1 == error)
+  {
+    /*
+      Gtid table is not ready to be used, so failed to
+      open it. Ignore the error.
+    */
+    thd->clear_error();
+    if (!thd->get_stmt_da()->is_set())
+        thd->get_stmt_da()->set_ok_status(0, 0, NULL);
+    error= 0;
+  }
 
   DBUG_RETURN(error);
 }

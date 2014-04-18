@@ -34,6 +34,7 @@ int Gtid_state::clear(THD *thd)
   lost_gtids.clear();
   executed_gtids.clear();
   gtids_only_in_table.clear();
+  previous_gtids_logged.clear();
   /* Reset gtid table. */
   if ((ret= gtid_table_persistor->reset(thd)) == 1)
   {
@@ -67,8 +68,6 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
       goto err1;
     thd->owned_gtid.sidno= -1;
     thd->owned_sid.clear();
-    /* Increase gtid count after acquired ownership of GTID. */
-    gtid_counter++;
 #else
     DBUG_ASSERT(0);
 #endif
@@ -77,8 +76,6 @@ enum_return_status Gtid_state::acquire_ownership(THD *thd, const Gtid &gtid)
   {
     thd->owned_gtid= gtid;
     thd->owned_sid= sid_map->sidno_to_sid(gtid.sidno);
-    /* Increase gtid count after acquired ownership of GTID. */
-    gtid_counter++;
   }
   RETURN_OK;
 #ifdef HAVE_GTID_NEXT_LIST
@@ -205,24 +202,32 @@ void Gtid_state::update_on_commit(THD *thd)
   DBUG_ENTER("Gtid_state::update_on_commit");
   if (!thd->owned_gtid.is_null())
   {
-    global_sid_lock->rdlock();
     if (!opt_bin_log)
     {
       Gtid *gtid= &thd->owned_gtid;
+      global_sid_lock->rdlock();
       if (!executed_gtids.contains_gtid(*gtid))
       {
+        global_sid_lock->unlock();
         int err= 0;
         /*
           Add every transaction's gtid into global executed_gtids
           if binlog is disabled and gtid_mode is enabled.
         */
+        global_sid_lock->wrlock();
         if (!(err= executed_gtids.ensure_sidno(gtid->sidno)))
           err |= executed_gtids._add_gtid(*gtid);
+        global_sid_lock->unlock();
         DBUG_ASSERT(err == 0);
       }
       else
+      {
+        global_sid_lock->unlock();
         DBUG_ASSERT(0);
+      }
     }
+
+    global_sid_lock->rdlock();
     update_owned_gtids_impl(thd, true);
     global_sid_lock->unlock();
   }
@@ -269,9 +274,6 @@ void Gtid_state::update_owned_gtids_impl(THD *thd, bool is_commit)
       if (g.sidno != prev_sidno)
         sid_locks.lock(g.sidno);
       owned_gtids.remove_gtid(g);
-      /* Decrease gtid count when removing GTID. */
-      DBUG_ASSERT(gtid_counter > 0);
-      gtid_counter--;
       git.next();
       g= git.get();
     }
@@ -283,9 +285,6 @@ void Gtid_state::update_owned_gtids_impl(THD *thd, bool is_commit)
   {
     lock_sidno(thd->owned_gtid.sidno);
     owned_gtids.remove_gtid(thd->owned_gtid);
-    /* Decrease gtid count when removing GTID. */
-    DBUG_ASSERT(gtid_counter > 0);
-    gtid_counter--;
   }
 
   /*
@@ -396,12 +395,14 @@ enum_return_status Gtid_state::ensure_sidno()
     // condition after the calls.
     PROPAGATE_REPORTED_ERROR(executed_gtids.ensure_sidno(sidno));
     PROPAGATE_REPORTED_ERROR(gtids_only_in_table.ensure_sidno(sidno));
+    PROPAGATE_REPORTED_ERROR(previous_gtids_logged.ensure_sidno(sidno));
     PROPAGATE_REPORTED_ERROR(lost_gtids.ensure_sidno(sidno));
     PROPAGATE_REPORTED_ERROR(owned_gtids.ensure_sidno(sidno));
     PROPAGATE_REPORTED_ERROR(sid_locks.ensure_index(sidno));
     sidno= sid_map->get_max_sidno();
     DBUG_ASSERT(executed_gtids.get_max_sidno() >= sidno);
     DBUG_ASSERT(gtids_only_in_table.get_max_sidno() >= sidno);
+    DBUG_ASSERT(previous_gtids_logged.get_max_sidno() >= sidno);
     DBUG_ASSERT(lost_gtids.get_max_sidno() >= sidno);
     DBUG_ASSERT(owned_gtids.get_max_sidno() >= sidno);
     DBUG_ASSERT(sid_locks.get_max_index() >= sidno);
@@ -435,9 +436,6 @@ enum_return_status Gtid_state::add_lost_gtids(const char *text)
 
   PROPAGATE_REPORTED_ERROR(lost_gtids.add_gtid_text(text));
   PROPAGATE_REPORTED_ERROR(executed_gtids.add_gtid_text(text));
-  /* Save the executed_gtids into gtid table. */
-  if (this->save(&executed_gtids) == -1)
-    RETURN_REPORTED_ERROR;
 
   DBUG_RETURN(RETURN_STATUS_OK);
 }
@@ -461,34 +459,6 @@ int Gtid_state::init()
 }
 
 
-int Gtid_state::generate_automatic_gtid(THD *thd)
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::generate_gtid(THD *thd)");
-  DBUG_ASSERT(thd->variables.gtid_next.type == AUTOMATIC_GROUP);
-  DBUG_ASSERT(thd->variables.gtid_next_list.get_gtid_set() == NULL);
-  DBUG_ASSERT(gtid_mode > GTID_MODE_UPGRADE_STEP_1);
-  int error= 0;
-
-  /* Wait until finish resetting binlog files. */
-  mysql_mutex_lock(&LOCK_reset_binlog);
-
-  global_sid_lock->rdlock();
-  Gtid automatic_gtid= { 0, 0 };
-  automatic_gtid.sidno= get_server_sidno();
-  lock_sidno(automatic_gtid.sidno);
-  automatic_gtid.gno= get_automatic_gno(automatic_gtid.sidno);
-  if (automatic_gtid.gno == -1)
-    error= 1;
-  else
-    acquire_ownership(thd, automatic_gtid);
-  unlock_sidno(automatic_gtid.sidno);
-  global_sid_lock->unlock();
-  mysql_mutex_unlock(&LOCK_reset_binlog);
-
-  DBUG_RETURN(error);
-}
-
-
 int Gtid_state::save(THD *thd)
 {
   DBUG_ENTER("Gtid_state::save_gtid_into_table");
@@ -508,29 +478,7 @@ int Gtid_state::save(THD *thd)
         thd->get_stmt_da()->set_ok_status(0, 0, NULL);
   }
   else if (-1 == ret)
-    error= 1;
-
-  DBUG_RETURN(error);
-}
-
-
-int Gtid_state::generate_and_save_gtid(THD *thd)
-{
-  DBUG_ENTER("MYSQL_BIN_LOG::generate_and_save_gtid(THD *thd)");
-  int error= 0;
-  bool is_gtid_generated= false;
-
-  /* Generate gtid for transaction. */
-  if (thd->owned_gtid.is_null() &&
-      thd->variables.gtid_next.type == AUTOMATIC_GROUP)
-  {
-    if (!(error= generate_automatic_gtid(thd)))
-      is_gtid_generated= true;
-  }
-
-  /* Save gtid into mysql.gtid_executed table. */
-  if (is_gtid_generated || thd->variables.gtid_next.type == GTID_GROUP)
-    error= this->save(thd);
+    error= -1;
 
   DBUG_RETURN(error);
 }
