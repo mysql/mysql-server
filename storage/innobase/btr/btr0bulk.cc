@@ -346,9 +346,9 @@ dtuple_t* PageBulk::getNodePtr()
 	return(node_ptr);
 }
 
-/** Get split rec in the page.
+/** Get split rec in left page.
 We split a page in half when compresssion fails, and the split rec
-should be copied to the new page.
+will be copied to right page.
 @return split rec */
 rec_t*	PageBulk::getSplitRec()
 {
@@ -361,6 +361,7 @@ rec_t*	PageBulk::getSplitRec()
 	ut_ad(m_page_zip != NULL);
 	ut_ad(m_rec_no >= 2);
 
+	ut_ad(page_get_free_space_of_empty(m_is_comp) > m_free_space);
 	total_space = page_get_free_space_of_empty(m_is_comp)
 		- m_free_space;
 
@@ -371,22 +372,19 @@ rec_t*	PageBulk::getSplitRec()
 
 	do {
 		rec = page_rec_get_next(rec);
+		ut_ad(page_rec_is_user_rec(rec));
+
 		offsets = rec_get_offsets(rec, m_index,
 					  offsets, ULINT_UNDEFINED,
 					  &(m_heap));
 		incl_data += rec_offs_size(offsets);
 		n++;
+	} while (incl_data + page_dir_calc_reserved_space(n) < total_space / 2);
 
-	} while (!page_rec_is_supremum(rec)
-		 && incl_data + page_dir_calc_reserved_space(n)
-		 < total_space / 2);
-
-	if (page_rec_is_infimum(rec)) {
+	/* Keep at least one record on left page */
+	if (page_rec_is_infimum(page_rec_get_prev(rec))) {
 		rec = page_rec_get_next(rec);
-		ut_ad(page_rec_is_supremum(rec));
-	} else if (page_rec_is_supremum(rec)) {
-		rec = page_rec_get_prev(rec);
-		ut_ad(page_rec_is_infimum(rec));
+		ut_ad(page_rec_is_user_rec(rec));
 	}
 
 	return(rec);
@@ -463,6 +461,10 @@ void PageBulk::copyOut(rec_t*	split_rec)
 		- page_dir_calc_reserved_space(n);
 	ut_ad(m_free_space > 0);
 	m_rec_no = n;
+
+#ifdef UNIV_DEBUG
+	m_total_data -= rec_get_end(last_rec, offsets) - m_heap_top;
+#endif
 }
 
 /** Set next page
