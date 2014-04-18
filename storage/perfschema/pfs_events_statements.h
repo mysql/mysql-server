@@ -95,7 +95,7 @@ struct PFS_events_statements : public PFS_events
   /** Optimizer metric, number of 'no good index used'. */
   ulonglong m_no_good_index_used;
   /** Statement digest. */
-  PSI_digest_storage m_digest_storage;
+  sql_digest_storage m_digest_storage;
 };
 
 void insert_events_statements_history(PFS_thread *thread, PFS_events_statements *statement);

@@ -1,10 +1,7 @@
 #### suite/funcs_1/views/views_master.test
-#
-# Last Change:
-# 2007-10-05 mleich
-#    1. Fix for Bug#31237 Test "ndb_views" fails because of differing order ...
-#    2. Cleanup of test
-# 2007-11-15 hhunger WL#4084: Review and fix all disabled tests ...
+
+# See BUG#18404149
+set optimizer_switch='condition_fanout_filter=off';
 
 --replace_result $engine_type <storage_engine>
 eval SET SESSION default_storage_engine = $engine_type;

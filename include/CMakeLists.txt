@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -53,13 +53,11 @@ SET(HEADERS
   sql_common.h
   keycache.h
   m_ctype.h
-  my_attribute.h 
   my_compiler.h
   mysql_com_server.h
   my_byteorder.h
   byte_order_generic.h
   byte_order_generic_x86.h
-  byte_order_generic_x86_64.h
   little_endian.h
   big_endian.h
   ${HEADERS_GEN_CONFIGURE}

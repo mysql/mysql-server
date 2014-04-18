@@ -40,6 +40,7 @@
 #include "pfs_digest.h"
 #include "pfs_program.h"
 #include "template_utils.h"
+#include "pfs_prepared_stmt.h"
 
 PFS_global_param pfs_param;
 
@@ -60,8 +61,6 @@ void pre_initialize_performance_schema()
   global_idle_stat.reset();
   global_table_io_stat.reset();
   global_table_lock_stat.reset();
-
-  PFS_atomic::init();
 
   if (pthread_key_create(&THR_PFS, destroy_pfs_thread))
     return;
@@ -121,7 +120,8 @@ initialize_performance_schema(PFS_global_param *param)
       init_digest(param) ||
       init_digest_hash() ||
       init_program(param) ||
-      init_program_hash())
+      init_program_hash() ||
+      init_prepared_stmt(param))
   {
     /*
       The performance schema initialization failed.
@@ -237,8 +237,6 @@ static void cleanup_performance_schema(void)
   cleanup_memory_class();
 
   cleanup_instruments();
-
-  PFS_atomic::cleanup();
 }
 
 void shutdown_performance_schema(void)

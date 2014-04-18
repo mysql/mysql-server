@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,31 +205,51 @@ bool net_send_error(NET *net, uint sql_errno, const char *err)
 
 
 /**
-  Return ok to the client.
+  Return OK to the client.
 
-  The ok packet has the following structure:
+  The OK packet has the following structure:
 
-  - 0               : Marker (1 byte)
-  - affected_rows	: Stored in 1-9 bytes
-  - id		: Stored in 1-9 bytes
-  - server_status	: Copy of thd->server_status;  Can be used by client
-  to check if we are inside an transaction.
-  New in 4.0 protocol
-  - warning_count	: Stored in 2 bytes; New in 4.1 protocol
-  - message		: Stored as packed length (1-9 bytes) + message.
-  Is not stored if no message.
+  Here 'n' denotes the length of state change information.
 
-  @param thd		   Thread handler
-  @param server_status     The server status
-  @param statement_warn_count  Total number of warnings
-  @param affected_rows	   Number of rows changed by statement
-  @param id		   Auto_increment id for first row (if used)
-  @param message	   Message to send to the client (Used by mysql_status)
- 
+  Bytes                Name
+  -----                ----
+  1                    [00] the OK header
+  1-9 (lenenc-int)     affected rows
+  1-9 (lenenc-int)     last-insert-id
+
+  if capabilities & CLIENT_PROTOCOL_41 {
+    2                  status_flags; Copy of thd->server_status; Can be used
+                       by client to check if we are inside a transaction.
+    2                  warnings (New in 4.1 protocol)
+  } elseif capabilities & CLIENT_TRANSACTIONS {
+    2                  status_flags
+  }
+
+  if capabilities & CLIENT_ACCEPTS_SERVER_STATUS_CHANGE_INFO {
+    1-9(lenenc_str)    info (message); Stored as length of the message string +
+		       message.
+    if n > 0 {
+      1-9 (lenenc_int) total length of session state change
+		       information to follow (= n)
+      n                session state change information
+    }
+  }
+  else {
+    string[EOF]          info (message); Stored as packed length (1-9 bytes) +
+			 message. Is not stored if no message.
+  }
+
+  @param thd                     Thread handler
+  @param server_status           The server status
+  @param statement_warn_count    Total number of warnings
+  @param affected_rows           Number of rows changed by statement
+  @param id                      Auto_increment id for first row (if used)
+  @param message                 Message to send to the client
+                                 (Used by mysql_status)
+
   @return
     @retval FALSE The message was successfully sent
     @retval TRUE An error occurred and the messages wasn't sent properly
-
 */
 
 bool
@@ -238,7 +258,17 @@ net_send_ok(THD *thd,
             ulonglong affected_rows, ulonglong id, const char *message)
 {
   NET *net= &thd->net;
-  uchar buff[MYSQL_ERRMSG_SIZE+10],*pos;
+  uchar buff[MYSQL_ERRMSG_SIZE + 10];
+  uchar *pos, *start;
+
+  /*
+    To be used to manage the data storage in case session state change
+    information is present.
+  */
+  String store;
+  bool state_changed= false;
+  size_t msg_length;
+
   bool error= FALSE;
   DBUG_ENTER("net_send_ok");
 
@@ -248,21 +278,38 @@ net_send_ok(THD *thd,
     DBUG_RETURN(FALSE);
   }
 
-  buff[0]=0;					// No fields
-  pos=net_store_length(buff+1,affected_rows);
-  pos=net_store_length(pos, id);
+  start= buff;
+
+  /* the Ok header, no fields */
+  buff[0]= 0;
+
+  /* affected rows */
+  pos= net_store_length(buff + 1, affected_rows);
+
+  /* last insert id */
+  pos= net_store_length(pos, id);
+
+  if ((thd->client_capabilities & CLIENT_SESSION_TRACK) &&
+      thd->session_tracker.enabled_any() &&
+      thd->session_tracker.changed_any())
+  {
+    server_status |= SERVER_SESSION_STATE_CHANGED;
+    state_changed= true;
+  }
+
   if (thd->client_capabilities & CLIENT_PROTOCOL_41)
   {
     DBUG_PRINT("info",
 	       ("affected_rows: %lu  id: %lu  status: %u  warning_count: %u",
-		(ulong) affected_rows,		
+		(ulong) affected_rows,
 		(ulong) id,
 		(uint) (server_status & 0xffff),
 		(uint) statement_warn_count));
+    /* server status */
     int2store(pos, server_status);
-    pos+=2;
+    pos+= 2;
 
-    /* We can only return up to 65535 warnings in two bytes */
+    /* warning count: we can only return up to 65535 warnings in two bytes. */
     uint tmp= min(statement_warn_count, 65535U);
     int2store(pos, tmp);
     pos+= 2;
@@ -272,14 +319,43 @@ net_send_ok(THD *thd,
     int2store(pos, server_status);
     pos+=2;
   }
+
   thd->get_stmt_da()->set_overwrite_status(true);
 
   if (message && message[0])
-    pos= net_store_data(pos, (uchar*) message, strlen(message));
-  error= my_net_write(net, buff, (size_t) (pos-buff));
+    msg_length= strlen(message);
+  else
+    msg_length= 0;
+
+  if (thd->client_capabilities & CLIENT_SESSION_TRACK)
+  {
+    pos= net_store_length(pos, msg_length);
+    memcpy(pos, message, msg_length);
+    pos+= msg_length;
+    /* session state change information */
+    if (unlikely(state_changed))
+    {
+      store.set_charset(thd->variables.collation_database);
+
+      /*
+	First append the fields collected so far. In case of malloc, memory
+	for message is also allocated here.
+      */
+      store.append((const char *)start, (pos - start), MYSQL_ERRMSG_SIZE);
+
+      /* .. and then the state change information. */
+      thd->session_tracker.store(thd, store);
+
+      start= (uchar *) store.ptr();
+      pos= start+store.length();
+    }
+  }
+  else
+    pos= net_store_data(pos, (uchar*) message, msg_length);
+
+  error= my_net_write(net, start, (size_t) (pos - start));
   if (!error)
     error= net_flush(net);
-
 
   thd->get_stmt_da()->set_overwrite_status(false);
   DBUG_PRINT("info", ("OK sent, so no more error sending allowed"));
@@ -778,7 +854,7 @@ bool Protocol::send_result_set_metadata(List<Item> *list, uint flags)
       pos= (char*) local_packet->ptr()+local_packet->length();
       *pos++= 12;				// Length of packed fields
       /* inject a NULL to test the client */
-      DBUG_EXECUTE_IF("poison_rs_fields", pos[-1]= 0xfb;);
+      DBUG_EXECUTE_IF("poison_rs_fields", pos[-1]= (char)0xfb;);
       if (item->charset_for_protocol() == &my_charset_bin || thd_charset == NULL)
       {
         /* No conversion */

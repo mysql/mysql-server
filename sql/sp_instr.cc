@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -445,6 +445,7 @@ bool sp_lex_instr::reset_lex_and_exec_core(THD *thd,
 LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 {
   String sql_query;
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   sql_query.set_charset(system_charset_info);
 
@@ -507,8 +508,10 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 
   // Parse the just constructed SELECT-statement.
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   bool parsing_failed= parse_sql(thd, &parser_state, NULL);
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
 
   if (!parsing_failed)
@@ -880,7 +883,6 @@ bool sp_instr_stmt::exec_core(THD *thd, uint *nextp)
   thd->lex->sphead= thd->sp_runtime_ctx->sp;
 
   PSI_statement_locker *statement_psi_saved= thd->m_statement_psi;
-  thd->m_statement_psi= NULL;
 
   bool rc= mysql_execute_command(thd);
 

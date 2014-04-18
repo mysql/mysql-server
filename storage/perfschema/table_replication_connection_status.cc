@@ -188,7 +188,10 @@ void table_replication_connection_status::make_row()
   mysql_mutex_lock(&active_mi->data_lock);
   mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
+  if (active_mi->master_uuid[0] != 0)
+    memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
+  else
+    m_row.source_uuid[0]= 0;
 
   m_row.thread_id= 0;
 
@@ -283,7 +286,8 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** source_uuid */
-        set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        if (m_row.source_uuid[0] != 0)
+          set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
         break;
       case 1: /** thread_id */
         if(m_row.thread_id_is_null)

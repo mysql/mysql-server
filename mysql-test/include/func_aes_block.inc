@@ -127,3 +127,4 @@ eval SELECT COUNT(*) FROM aes_$block_mode WHERE a = AES_DECRYPT(b256, @KEY2, @IV
 
 SET SESSION block_encryption_mode=DEFAULT;
 eval DROP TABLE aes_$block_mode;
+

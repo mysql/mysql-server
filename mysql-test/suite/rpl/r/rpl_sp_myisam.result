@@ -57,6 +57,7 @@ select * from mysqltest1.t1;
 call foo2();
 a
 alter procedure foo2 contains sql;
+set timestamp = DEFAULT;
 drop table t1;
 create table t1 (a int) engine=myisam;
 create table t2 like t1;
@@ -664,7 +665,7 @@ ROLLBACK/*!*/;
 SET TIMESTAMP=t/*!*/;
 SET @@session.pseudo_thread_id=999999999/*!*/;
 SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=134217728/*!*/;
+SET @@session.sql_mode=1073741824/*!*/;
 SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
 /*!\C latin1 *//*!*/;
 SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;

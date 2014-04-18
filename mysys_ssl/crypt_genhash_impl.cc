@@ -29,6 +29,8 @@
 
 #include "crypt_genhash_impl.h"
 
+#include "m_string.h"
+
 /* Pre VS2010 compilers doesn't support stdint.h */
 #ifdef HAVE_STDINT_H
 #include <stdint.h>
@@ -396,13 +398,13 @@ my_crypt_genhash(char *ctbuffer,
   /* 22. Now make the output string */
   if (custom_rounds)
   {
-    (void) snprintf(ctbuffer, ctbufflen,
-                    "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
+    (void) my_snprintf(ctbuffer, ctbufflen,
+                       "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
   }
   else
   {
-    (void) snprintf(ctbuffer, ctbufflen,
-                    "%s$", crypt_alg_magic);
+    (void) my_snprintf(ctbuffer, ctbufflen,
+                       "%s$", crypt_alg_magic);
   }
   (void) strncat(ctbuffer, (const char *)salt, salt_len);
   (void) strlcat(ctbuffer, "$", ctbufflen);

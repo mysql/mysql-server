@@ -38,7 +38,6 @@
 #include "mysql_com.h"
 
 #include "events.h"
-#include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
@@ -327,6 +326,15 @@ static Sys_var_long Sys_pfs_max_program_instances(
        READ_ONLY GLOBAL_VAR(pfs_param.m_program_sizing),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
        DEFAULT(5000),
+       BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
+
+static Sys_var_long Sys_pfs_max_prepared_stmt_instances(
+       "performance_schema_max_prepared_statements_instances",
+       "Maximum number of instrumented prepared statements."
+         " Use 0 to disable, -1 for automated sizing.",
+       READ_ONLY GLOBAL_VAR(pfs_param.m_prepared_stmt_sizing),
+       CMD_LINE(REQUIRED_ARG), VALID_RANGE(-1, 1024*1024),
+       DEFAULT(-1),
        BLOCK_SIZE(1), PFS_TRAILING_PROPERTIES);
 
 static Sys_var_ulong Sys_pfs_max_file_classes(
@@ -652,6 +660,13 @@ static Sys_var_charptr Sys_default_authentication_plugin(
        "used by the server to hash the password.",
        READ_ONLY GLOBAL_VAR(default_auth_plugin), CMD_LINE(REQUIRED_ARG),
        IN_FS_CHARSET, DEFAULT("mysql_native_password"));
+
+static Sys_var_uint Sys_default_password_lifetime(
+       "default_password_lifetime", "The number of days after which the "
+       "password will expire.",
+       GLOBAL_VAR(default_password_lifetime), CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, UINT_MAX16), DEFAULT(360), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD);
 
 #ifndef EMBEDDED_LIBRARY
 static Sys_var_charptr Sys_my_bind_addr(
@@ -1884,14 +1899,6 @@ static Sys_var_ulong Sys_max_binlog_size(
        BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_binlog_size));
 
-static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
-{
-#ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(static_cast<uint>(max_connections + 10));
-#endif
-  return false;
-}
-
 static Sys_var_ulong Sys_max_connections(
        "max_connections", "The number of simultaneous clients allowed",
        GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG),
@@ -1901,7 +1908,7 @@ static Sys_var_ulong Sys_max_connections(
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG,
        ON_CHECK(0),
-       ON_UPDATE(fix_max_connections),
+       ON_UPDATE(0),
        NULL,
        /* max_connections is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
@@ -1931,7 +1938,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
@@ -1942,7 +1949,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_error_count(
@@ -2018,7 +2025,10 @@ static Sys_var_ulong Sys_max_prepared_stmt_count(
        "Maximum number of prepared statements in the server",
        GLOBAL_VAR(max_prepared_stmt_count), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 1024*1024), DEFAULT(16382), BLOCK_SIZE(1),
-       &PLock_prepared_stmt_count);
+       &PLock_prepared_stmt_count, NOT_IN_BINLOG, ON_CHECK(NULL),
+       ON_UPDATE(NULL), NULL,
+       /* max_prepared_stmt_count is used as a sizing hint by the performance schema. */
+       sys_var::PARSE_EARLY);
 
 static bool fix_max_relay_log_size(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -2219,7 +2229,7 @@ static const char *optimizer_switch_names[]=
   "block_nested_loop", "batched_key_access",
   "materialization", "semijoin", "loosescan", "firstmatch",
   "subquery_materialization_cost_based",
-  "use_index_extensions", "default", NullS
+  "use_index_extensions", "condition_fanout_filter", "default", NullS
 };
 static Sys_var_flagset Sys_optimizer_switch(
        "optimizer_switch",
@@ -2229,8 +2239,8 @@ static Sys_var_flagset Sys_optimizer_switch(
        "index_condition_pushdown, mrr, mrr_cost_based"
        ", materialization, semijoin, loosescan, firstmatch,"
        " subquery_materialization_cost_based"
-       ", block_nested_loop, batched_key_access, use_index_extensions"
-       "} and val is one of {on, off, default}",
+       ", block_nested_loop, batched_key_access, use_index_extensions, "
+       "condition_fanout_filter} and val is one of {on, off, default}",
        SESSION_VAR(optimizer_switch), CMD_LINE(REQUIRED_ARG),
        optimizer_switch_names, DEFAULT(OPTIMIZER_SWITCH_DEFAULT),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(NULL), ON_UPDATE(NULL));
@@ -2802,7 +2812,7 @@ static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_error(ER_SLAVE_MUST_STOP, MYF(0));
+      my_error(ER_SLAVE_SQL_THREAD_MUST_STOP, MYF(0));
       result= true;
     }
     mysql_mutex_unlock(&active_mi->rli->run_lock);
@@ -2899,8 +2909,75 @@ static Sys_var_ulong Sys_sort_buffer(
        VALID_RANGE(MIN_SORT_MEMORY, ULONG_MAX), DEFAULT(DEFAULT_SORT_MEMORY),
        BLOCK_SIZE(1));
 
+/**
+  NO_ZERO_DATE, NO_ZERO_IN_DATE and ERROR_FOR_DIVISION_BY_ZERO modes are
+  removed in 5.7 and their functionality is merged with STRICT MODE.
+  However, For backward compatibility during upgrade, these modes are kept
+  but they are not used. Setting these modes in 5.7 will give warning and
+  have no effect.
+*/
+
+void unset_removed_sql_modes(sql_mode_t &sql_mode)
+{
+  /**
+    If sql_mode is set throught the client, the warning should
+    go to the client connection. If it is used as server startup option,
+    it will go the error-log if the removed sql_modes are used.
+  */
+  THD *thd= current_thd;
+  if (thd)
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "ERROR_FOR_DIVISION_BY_ZERO");
+    }
+
+    if (sql_mode & MODE_NO_ZERO_DATE)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "NO_ZERO_DATE");
+    }
+
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    {
+      push_warning_printf(thd, Sql_condition::SL_WARNING,
+                          ER_SQL_MODE_NO_EFFECT,
+                          ER(ER_SQL_MODE_NO_EFFECT),
+                          "NO_ZERO_IN_DATE");
+    }
+  }
+  else
+  {
+    if (sql_mode & MODE_ERROR_FOR_DIVISION_BY_ZERO)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+    if (sql_mode & MODE_NO_ZERO_DATE)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+    if (sql_mode & MODE_NO_ZERO_IN_DATE)
+    {
+      sql_print_warning("'ERROR_FOR_DIVISION_BY_ZERO' mode is removed. "
+                        "Setting this will have no effect.");
+    }
+  }
+  /* Unset removed SQL MODES */
+  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
+               MODE_NO_ZERO_IN_DATE);
+}
+
 export sql_mode_t expand_sql_mode(sql_mode_t sql_mode)
 {
+  unset_removed_sql_modes(sql_mode);
+
   if (sql_mode & MODE_ANSI)
   {
     /*
@@ -2977,7 +3054,8 @@ static const char *sql_mode_names[]=
   "POSTGRESQL", "ORACLE", "MSSQL", "DB2", "MAXDB", "NO_KEY_OPTIONS",
   "NO_TABLE_OPTIONS", "NO_FIELD_OPTIONS", "MYSQL323", "MYSQL40", "ANSI",
   "NO_AUTO_VALUE_ON_ZERO", "NO_BACKSLASH_ESCAPES", "STRICT_TRANS_TABLES",
-  "STRICT_ALL_TABLES", "ALLOW_INVALID_DATES", "TRADITIONAL",
+  "STRICT_ALL_TABLES", "NO_ZERO_IN_DATE", "NO_ZERO_DATE",
+  "ALLOW_INVALID_DATES", "ERROR_FOR_DIVISION_BY_ZERO", "TRADITIONAL",
   "NO_AUTO_CREATE_USER", "HIGH_NOT_PRECEDENCE", "NO_ENGINE_SUBSTITUTION",
   "PAD_CHAR_TO_FULL_LENGTH",
   0
@@ -2985,6 +3063,9 @@ static const char *sql_mode_names[]=
 export bool sql_mode_string_representation(THD *thd, sql_mode_t sql_mode,
                                            LEX_STRING *ls)
 {
+  sql_mode&= ~(MODE_ERROR_FOR_DIVISION_BY_ZERO | MODE_NO_ZERO_DATE |
+               MODE_NO_ZERO_IN_DATE);
+
   set_to_string(thd, ls, sql_mode, sql_mode_names);
   return ls->str == 0;
 }
@@ -3000,6 +3081,12 @@ static Sys_var_set Sys_sql_mode(
        SESSION_VAR(sql_mode), CMD_LINE(REQUIRED_ARG),
        sql_mode_names, DEFAULT(MODE_NO_ENGINE_SUBSTITUTION), NO_MUTEX_GUARD,
        NOT_IN_BINLOG, ON_CHECK(check_sql_mode), ON_UPDATE(fix_sql_mode));
+
+static Sys_var_ulong Sys_max_statement_time(
+       "max_statement_time",
+       "Kill SELECT statement that takes over the specified number of milliseconds",
+       SESSION_VAR(max_statement_time), NO_CMD_LINE,
+       VALID_RANGE(0, ULONG_MAX), DEFAULT(0), BLOCK_SIZE(1));
 
 #if defined(HAVE_OPENSSL) && !defined(EMBEDDED_LIBRARY)
 #define SSL_OPT(X) CMD_LINE(REQUIRED_ARG,X)
@@ -3273,14 +3360,6 @@ static Sys_var_plugin Sys_default_tmp_storage_engine(
        SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
-
-//  Alias for @@default_storage_engine
-static Sys_var_plugin Sys_storage_engine(
-       "storage_engine", "Alias for @@default_storage_engine. Deprecated",
-       SESSION_VAR(table_plugin), NO_CMD_LINE,
-       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null),
-       ON_UPDATE(NULL), DEPRECATED("'@@default_storage_engine'"));
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
@@ -3944,6 +4023,9 @@ static Sys_var_have Sys_have_symlink(
        "have_symlink", "have_symlink",
        READ_ONLY GLOBAL_VAR(have_symlink), NO_CMD_LINE);
 
+static Sys_var_have Sys_have_statement_timeout(
+       "have_statement_timeout", "have_statement_timeout",
+       READ_ONLY GLOBAL_VAR(have_statement_timeout), NO_CMD_LINE);
 
 static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 {
@@ -3969,8 +4051,8 @@ static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
-       "Defaults logging to a file hostname.log or a table mysql.general_log"
-       "if --log-output=TABLE is used",
+       "Defaults to logging to a file hostname.log, "
+       "or if --log-output=TABLE is used, to a table mysql.general_log.",
        GLOBAL_VAR(opt_general_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));
@@ -4148,7 +4230,8 @@ static bool check_slave_skip_counter(sys_var *self, THD *thd, set_var *var)
     mysql_mutex_lock(&active_mi->rli->run_lock);
     if (active_mi->rli->slave_running)
     {
-      my_message(ER_SLAVE_MUST_STOP, ER(ER_SLAVE_MUST_STOP), MYF(0));
+      my_message(ER_SLAVE_SQL_THREAD_MUST_STOP,
+                 ER(ER_SLAVE_SQL_THREAD_MUST_STOP), MYF(0));
       result= true;
     }
     if (gtid_mode == 3)
@@ -4785,3 +4868,67 @@ static Sys_var_enum Sys_block_encryption_mode(
   "block_encryption_mode", "mode for AES_ENCRYPT/AES_DECRYPT",
   SESSION_VAR(my_aes_mode), CMD_LINE(REQUIRED_ARG),
   my_aes_opmode_names, DEFAULT(my_aes_128_ecb));
+
+static bool check_track_session_sys_vars(sys_var *self, THD *thd, set_var *var)
+{
+  DBUG_ENTER("check_sysvar_change_reporter");
+  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->check(thd, var));
+  DBUG_RETURN(false);
+}
+
+static bool update_track_session_sys_vars(sys_var *self, THD *thd,
+                                          enum_var_type type)
+{
+  DBUG_ENTER("check_sysvar_change_reporter");
+  /* Populate map only for session variable. */
+  if (type == OPT_SESSION)
+    DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_SYSVARS_TRACKER)->update(thd));
+  DBUG_RETURN(false);
+}
+
+static Sys_var_charptr Sys_track_session_sys_vars(
+       "session_track_system_variables",
+       "Track changes in registered system variables.",
+       SESSION_VAR(track_sysvars_ptr),
+       CMD_LINE(REQUIRED_ARG),
+       IN_FS_CHARSET,
+       DEFAULT("time_zone,autocommit,character_set_client,character_set_results,"
+               "character_set_connection"),
+       NO_MUTEX_GUARD,
+       NOT_IN_BINLOG,
+       ON_CHECK(check_track_session_sys_vars),
+       ON_UPDATE(update_track_session_sys_vars)
+);
+
+static bool update_session_track_schema(sys_var *self, THD *thd,
+                                        enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_schema");
+  DBUG_RETURN(thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->update(thd));
+}
+
+static Sys_var_mybool Sys_session_track_schema(
+       "session_track_schema",
+       "Track changes to the 'default schema'.",
+       SESSION_VAR(session_track_schema),
+       CMD_LINE(OPT_ARG), DEFAULT(TRUE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_session_track_schema));
+
+static bool update_session_track_state_change(sys_var *self, THD *thd,
+                                              enum_var_type type)
+{
+  DBUG_ENTER("update_session_track_state_change");
+  DBUG_RETURN(thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->update(thd));
+}
+
+static Sys_var_mybool Sys_session_track_state_change(
+       "session_track_state_change",
+       "Track changes to the 'session state'.",
+       SESSION_VAR(session_track_state_change),
+       CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(0),
+       ON_UPDATE(update_session_track_state_change));
+

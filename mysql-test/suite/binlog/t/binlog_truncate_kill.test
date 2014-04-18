@@ -1,0 +1,56 @@
+###############################################################################
+# Bug#17942050:KILL OF TRUNCATE TABLE WILL LEAD TO BINARY LOG WRITTEN WHILE
+# ROWS REMAINS
+#
+# Problem:
+# ========
+# When truncate table fails while using transactional based engines even
+# though the operation errors out we still continue and log it to binlog.
+# Because of this master has data but the truncate will be written to binary
+# log which will cause inconsistency.
+#
+# Test:
+# =====
+# Make master to wait in "open_table" call during the execution of truncate
+# table command and kill the truncate table from other connection. This causes
+# open table to return an error saying truncate failed during open table. This
+# statement should not be binlogged.
+###############################################################################
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+RESET MASTER;
+--enable_connect_log
+--connection default
+CREATE TABLE t1(id INT AUTO_INCREMENT PRIMARY KEY, a INT, b INT) ENGINE=INNODB;
+INSERT INTO t1(a, b) VALUES(1,2),(2,4),(3,6),(4,8),(5,10);
+SET DEBUG_SYNC = "open_and_process_table signal truncate_before_lock wait_for forever";
+--send TRUNCATE t1
+
+connect(con1,localhost,root,,);
+SET DEBUG_SYNC = "now wait_for truncate_before_lock";
+# Wait for one connection to reach open_and_process_table.
+--let $show_statement= SHOW PROCESSLIST
+--let $field= State
+--let $condition= 'debug sync point: open_and_process_table';
+--source include/wait_show_condition.inc
+
+SELECT ((@id := id) - id) FROM information_schema.processlist WHERE processlist.info LIKE '%TRUNCATE t1%' AND state LIKE '%open_and_process_table%';
+# Test killing from mysql server
+KILL QUERY @id;
+
+connection default;
+--ERROR ER_QUERY_INTERRUPTED
+--reap
+
+connection con1;
+--source include/show_binlog_events.inc
+
+disconnect con1;
+--source include/wait_until_disconnected.inc
+connection default;
+
+SELECT * FROM t1;
+
+DROP TABLE t1;
+SET DEBUG_SYNC= 'RESET';
+--disable_connect_log

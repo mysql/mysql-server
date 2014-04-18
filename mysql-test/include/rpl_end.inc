@@ -16,6 +16,7 @@
 #
 # [--let $rpl_only_running_threads= 1]
 # [--let $rpl_debug= 1]
+# [--let $rpl_gtid_utils= 1]
 # --source include/rpl_end.inc
 #
 # Parameters:
@@ -26,6 +27,9 @@
 #
 #   $rpl_debug
 #     See include/rpl_init.inc
+#
+#   $rpl_gtid_utils
+#     Source include/gtid_utils_end.inc on every server.
 #
 # Note:
 #   This script will fail if Last_SQL_Error or Last_IO_Error is
@@ -79,15 +83,10 @@ while ($_rpl_server)
 --source include/rpl_sync.inc
 --source include/rpl_stop_slaves.inc
 
-# Revert to default (gtid-mode=off).
-if ($use_gtids == 1)
-{
-  --let $use_gtids= 0
-}
-
 # mtr configures server 2 to be a slave before it runs the test. We
 # have to restore that state now, so we change topology to 1->2.
 --let $rpl_topology= none
+--let $use_gtids= 0
 --source include/rpl_change_topology.inc
 
 
@@ -96,6 +95,15 @@ if ($use_gtids == 1)
 --let $_rpl_one= _1
 while ($_rpl_server)
 {
+  if ($rpl_gtid_utils)
+  {
+    # Drop gtid_utils
+    --let $rpl_connection_name= server_$_rpl_server
+    --source include/rpl_connection.inc
+    --source include/gtid_utils_end.inc
+    --connection default
+  }
+  # Unconfigure connections
   --disconnect server_$_rpl_server
   --disconnect server_$_rpl_server$_rpl_one
   --dec $_rpl_server
