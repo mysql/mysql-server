@@ -2735,6 +2735,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 		}
 	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
 
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		/* failed to start innodb */
+		goto thread_exit;
+	}
+
 	/* At this point all threads including the master and the purge
 	thread must have been suspended. */
 	ut_a(srv_get_active_thread_type() == SRV_NONE);

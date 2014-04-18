@@ -431,3 +431,36 @@ SET GLOBAL delayed_insert_timeout = DEFAULT;
 SET GLOBAL delayed_queue_size = DEFAULT;
 SET GLOBAL max_insert_delayed_threads = DEFAULT;
 SET GLOBAL max_delayed_threads = DEFAULT;
+
+--echo #
+--echo # Bug#18064775 Assertion failed: fields.elements == values.elements
+--echo #
+
+CREATE TABLE t1(a INTEGER);
+--error ER_WRONG_VALUE_COUNT_ON_ROW
+INSERT INTO t1(a) values();
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#11745889 Traditional: INSERT accepts invalid date from default val
+--echo #
+
+SET sql_mode='';
+
+CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
+
+INSERT INTO default_date VALUES();
+
+SET sql_mode='traditional';
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO default_date VALUES();
+
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO default_date VALUES('0000-00-00');
+
+SELECT * FROM default_date;
+
+DROP TABLE default_date;
+
+SET sql_mode=default;
