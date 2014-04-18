@@ -86,6 +86,20 @@ SET @@session.max_join_size = default;
 SELECT @@session.sql_big_selects;
 
 #
+# Bug #18329348 Bug #18329560 Bug #18328396 Bug #18329452 mysql_change_user()
+# resets all SESSION ONLY system variables
+#
+
+SET INSERT_ID=12;
+SELECT @@INSERT_ID;
+SET TIMESTAMP=200;
+SELECT @@TIMESTAMP;
+--echo change_user
+--change_user
+SELECT @@INSERT_ID;
+SELECT @@TIMESTAMP=200;
+
+#
 # Bug#31418 User locks misfunctioning after mysql_change_user()
 #
 
