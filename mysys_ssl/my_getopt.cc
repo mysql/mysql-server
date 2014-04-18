@@ -709,9 +709,40 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 {
   int err= 0, res= 0;
   bool error= 0;
+  ulong var_type= opts->var_type & GET_TYPE_MASK;
 
   if (!argument)
     argument= enabled_my_option;
+
+  /*
+    Thus check applies only to options that have a defined value
+    storage pointer.
+    We do it for numeric types only, as empty value is a valid
+    option for strings (the only way to reset back to default value).
+    Note: it does not relate to OPT_ARG/REQUIRED_ARG/NO_ARG, since
+    --param="" is not generally the same as --param.
+    TODO: Add an option definition flag to signify whether empty value
+    (i.e. --param="") is an acceptable value or an error and extend
+    the check to all options.
+  */
+  if (!*argument &&
+      (
+       var_type == GET_INT ||
+       var_type == GET_UINT ||
+       var_type == GET_LONG ||
+       var_type == GET_ULONG ||
+       var_type == GET_LL ||
+       var_type == GET_ULL ||
+       var_type == GET_DOUBLE ||
+       var_type == GET_ENUM
+      )
+     )
+  {
+    my_getopt_error_reporter(ERROR_LEVEL,
+                             "%s: Empty value for '%s' specified",
+                             my_progname, opts->name);
+    return EXIT_ARGUMENT_REQUIRED;
+  }
 
   if (value)
   {
@@ -723,7 +754,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       return EXIT_NO_PTR_TO_VARIABLE;
     }
 
-    switch ((opts->var_type & GET_TYPE_MASK)) {
+    switch (var_type) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
       *((my_bool*) value)= get_bool_argument(opts, argument, &error);
       if(error)
@@ -910,7 +941,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   
   *error= 0;
   errno= 0;
-  num= strtoll(argument, &endchar, 10);
+  num= my_strtoll(argument, &endchar, 10);
   if (errno == ERANGE)
   {
     my_getopt_error_reporter(ERROR_LEVEL,
@@ -952,7 +983,7 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_na
 
   *error= 0;
   errno= 0;
-  num= strtoull(argument, &endchar, 10);
+  num= my_strtoull(argument, &endchar, 10);
   if (errno == ERANGE)
   {
     my_getopt_error_reporter(ERROR_LEVEL,

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 
 #include "mysys_priv.h"
 #include "my_static.h"
-#include "my_alarm.h"
 
 PSI_memory_key key_memory_array_buffer;
 PSI_memory_key key_memory_charset_file;
@@ -44,7 +43,6 @@ PSI_memory_key key_memory_MY_STAT;
 PSI_memory_key key_memory_MY_TMPDIR_full_list;
 PSI_memory_key key_memory_QUEUE;
 PSI_memory_key key_memory_DYNAMIC_STRING;
-PSI_memory_key key_memory_ALARM;
 PSI_memory_key key_memory_TREE;
 
 #ifdef _WIN32
@@ -86,14 +84,10 @@ USED_MEM* my_once_root_block=0;			/* pointer to first block */
 uint	  my_once_extra=ONCE_ALLOC_INIT;	/* Memory to alloc / block */
 
 	/* from my_largepage.c */
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
 my_bool my_use_large_pages= 0;
 uint    my_large_page_size= 0;
 #endif
-
-	/* from my_alarm */
-int volatile my_have_got_alarm=0;	/* declare variable to reset */
-ulong my_time_to_wait_for_lock=2;	/* In seconds */
 
 	/* from errors.c */
 void (*error_handler_hook)(uint error, const char *str, myf MyFlags)=

@@ -441,10 +441,10 @@ create_log_files(
 	fil_open_log_and_system_tablespace_files();
 
 	/* Create a log checkpoint. */
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	ut_d(recv_no_log_write = FALSE);
 	recv_reset_logs(lsn);
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	return(DB_SUCCESS);
 }
@@ -476,7 +476,7 @@ create_log_files_rename(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Renaming log file %s to %s", logfile0, logfilename);
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
 	bool success = os_file_rename(
 		innodb_log_file_key, logfile0, logfilename);
@@ -486,7 +486,7 @@ create_log_files_rename(
 
 	/* Replace the first file with ib_logfile0. */
 	strcpy(logfile0, logfilename);
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -1236,15 +1236,6 @@ innobase_start_or_create_for_mysql(void)
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"!!!!!!!! UNIV_LOG_LSN_DEBUG switched on !!!!!!!!!");
 #endif /* UNIV_LOG_LSN_DEBUG */
-#ifdef UNIV_MEM_DEBUG
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"!!!!!!!! UNIV_MEM_DEBUG switched on !!!!!!!!!");
-#endif
-
-	if (srv_use_sys_malloc) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"The InnoDB memory heap is disabled");
-	}
 
 #if defined(COMPILER_HINTS_ENABLED)
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -1283,11 +1274,6 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_start_has_been_called = TRUE;
-
-#ifdef UNIV_DEBUG
-	log_do_write = TRUE;
-#endif /* UNIV_DEBUG */
-	/*	yydebug = TRUE; */
 
 	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
@@ -1332,11 +1318,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
-
-		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-
-		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef _WIN32
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1355,6 +1338,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 		srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 #else
+		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 		srv_use_native_aio = FALSE;
@@ -1601,6 +1585,11 @@ innobase_start_or_create_for_mysql(void)
 	recv_sys_init(buf_pool_get_curr_size());
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
+
+#ifdef UNIV_SYNC_DEBUG
+	/* Switch latching order checks on in sync0debug.cc */
+	sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Create i/o-handler threads: */
 
@@ -1926,10 +1915,6 @@ files_checked:
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc. */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 	} else {
 
@@ -1974,24 +1959,41 @@ files_checked:
 		err = recv_recovery_from_checkpoint_start(
 			min_flushed_lsn, max_flushed_lsn);
 
-		if (err != DB_SUCCESS) {
+		if (err == DB_SUCCESS) {
+			/* Initialize the change buffer. */
+			err = dict_boot();
+		}
 
+		if (err != DB_SUCCESS) {
 			return(srv_init_abort(DB_ERROR));
 		}
 
-		/* Since the insert buffer init is in dict_boot, and the
-		insert buffer is needed in any disk i/o, first we call
-		dict_boot(). Note that trx_sys_init_at_db_start() only needs
-		to access space 0, and the insert buffer at this stage already
-		works for space 0. */
+		purge_queue = trx_sys_init_at_db_start();
 
-		err = dict_boot();
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+			/* Apply the hashed log records to the
+			respective file pages, for the last batch of
+			recv_group_scan_log_recs(). */
 
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
+			recv_apply_hashed_log_recs(TRUE);
+			DBUG_PRINT("ib_log", ("apply completed"));
+
+			if (recv_needed_recovery) {
+				trx_sys_print_mysql_binlog_offset();
+			}
 		}
 
-		purge_queue = trx_sys_init_at_db_start();
+		if (recv_sys->found_corrupt_log) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"The log file may have been corrupt and it"
+				" is possible that the log scan or parsing"
+				" did not proceed far enough in recovery."
+				" Please run CHECK TABLE on your InnoDB tables"
+				" to check that they are ok!"
+				" It may be safest to recover your"
+				" InnoDB database from a backup!");
+		}
+
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
@@ -2012,8 +2014,8 @@ files_checked:
 
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
-			about space id's from the call of
-			fil_load_single_table_tablespaces().
+			about space id's from the calls to
+			fil_load_single_table_tablespace().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2022,9 +2024,7 @@ files_checked:
 			We also determine the maximum tablespace id used. */
 			dict_check_t	dict_check;
 
-			if (recv_needed_recovery) {
-				dict_check = DICT_CHECK_ALL_LOADED;
-			} else if (n_recovered_trx) {
+			if (recv_needed_recovery || n_recovered_trx) {
 				dict_check = DICT_CHECK_SOME_LOADED;
 			} else {
 				dict_check = DICT_CHECK_NONE_LOADED;
@@ -2123,11 +2123,6 @@ files_checked:
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 		recv_recovery_rollback_active();
 
@@ -2381,9 +2376,9 @@ files_checked:
 	}
 
 	if (srv_print_verbose_log) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; log sequence number " LSN_PF "",
-			INNODB_VERSION_STR, srv_start_lsn);
+		ib::info() << INNODB_VERSION_STR
+			<< " started; log sequence number "
+			<< srv_start_lsn;
 	}
 
 	if (srv_force_recovery > 0) {
@@ -2551,19 +2546,15 @@ innobase_shutdown_for_mysql(void)
 	pars_lexer_close();
 	log_mem_free();
 	buf_pool_free(srv_buf_pool_instances);
-
-	mem_close();
+#ifndef HAVE_ATOMIC_BUILTINS
+	srv_conc_free();
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 	/* 6. Free the thread management resoruces. */
 	os_thread_free();
 
 	/* 7. Free the synchronisation infrastructure. */
 	sync_check_close();
-
-	/* ut_free_all_mem() frees all allocated memory not freed yet
-	in shutdown, and it will also free the ut_list_mutex, so it
-	should be the last one for all operation */
-	ut_free_all_mem();
 
 	if (dict_foreign_err_file) {
 		fclose(dict_foreign_err_file);

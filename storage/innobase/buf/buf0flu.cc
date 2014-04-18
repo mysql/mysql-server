@@ -2156,7 +2156,12 @@ ulint
 af_get_pct_for_dirty()
 /*==================*/
 {
-	ulint dirty_pct = buf_get_modified_ratio_pct();
+	double	dirty_pct = buf_get_modified_ratio_pct();
+
+	if (dirty_pct == 0.0) {
+		/* No pages modified */
+		return(0);
+	}
 
 	ut_a(srv_max_dirty_pages_pct_lwm
 	     <= srv_max_buf_pool_modified_pct);
@@ -2164,16 +2169,16 @@ af_get_pct_for_dirty()
 	if (srv_max_dirty_pages_pct_lwm == 0) {
 		/* The user has not set the option to preflush dirty
 		pages as we approach the high water mark. */
-		if (dirty_pct > srv_max_buf_pool_modified_pct) {
+		if (dirty_pct >= srv_max_buf_pool_modified_pct) {
 			/* We have crossed the high water mark of dirty
 			pages In this case we start flushing at 100% of
 			innodb_io_capacity. */
 			return(100);
 		}
-	} else if (dirty_pct > srv_max_dirty_pages_pct_lwm) {
+	} else if (dirty_pct >= srv_max_dirty_pages_pct_lwm) {
 		/* We should start flushing pages gradually. */
-		return((dirty_pct * 100)
-		       / (srv_max_buf_pool_modified_pct + 1));
+		return(static_cast<ulint>((dirty_pct * 100)
+		       / (srv_max_buf_pool_modified_pct + 1)));
 	}
 
 	return(0);
@@ -2729,6 +2734,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			os_thread_sleep(100000);
 		}
 	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		/* failed to start innodb */
+		goto thread_exit;
+	}
 
 	/* At this point all threads including the master and the purge
 	thread must have been suspended. */

@@ -89,7 +89,7 @@ extern	char *strxnmov(char *dst, size_t len, const char *src, ...);
 */
 static inline char *my_stpcpy(char *dst, const char *src)
 {
-#if defined(HAVE_STPCPY) && MY_GNUC_PREREQ(3, 4)
+#if defined(HAVE_BUILTIN_STPCPY)
   return __builtin_stpcpy(dst, src);
 #elif defined(HAVE_STPCPY)
   return stpcpy(dst, src);
@@ -118,6 +118,53 @@ static inline char *my_stpncpy(char *dst, const char *src, size_t n)
 #else
   /* Fallback to implementation supporting overlap. */
   return my_stpnmov(dst, src, n);
+#endif
+}
+
+static inline longlong my_strtoll(const char *nptr, char **endptr, int base)
+{
+#if defined _WIN32
+  return _strtoi64(nptr, endptr, base);
+#else
+  return strtoll(nptr, endptr, base);
+#endif
+}
+
+static inline ulonglong my_strtoull(const char *nptr, char **endptr, int base)
+{
+#if defined _WIN32
+  return _strtoui64(nptr, endptr, base);
+#else
+  return strtoull(nptr, endptr, base);
+#endif
+}
+
+static inline char *my_strtok_r(char *str, const char *delim, char **saveptr)
+{
+#if defined _WIN32
+  return strtok_s(str, delim, saveptr);
+#else
+  return strtok_r(str, delim, saveptr);
+#endif
+}
+
+/* native_ rather than my_ since my_strcasecmp already exists */
+static inline int native_strcasecmp(const char *s1, const char *s2)
+{
+#if defined _WIN32
+  return _stricmp(s1, s2);
+#else
+  return strcasecmp(s1, s2);
+#endif
+}
+
+/* native_ rather than my_ for consistency with native_strcasecmp */
+static inline int native_strncasecmp(const char *s1, const char *s2, size_t n)
+{
+#if defined _WIN32
+  return _strnicmp(s1, s2, n);
+#else
+  return strncasecmp(s1, s2, n);
 #endif
 }
 

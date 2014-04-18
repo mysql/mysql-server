@@ -109,8 +109,6 @@ Global_THD_manager::Global_THD_manager()
   mysql_mutex_init(key_LOCK_thread_created,
                    &LOCK_thread_created, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_thd_count, &COND_thd_count, NULL);
-  my_atomic_rwlock_init(&thread_running_lock);
-  my_atomic_rwlock_init(&thread_id_lock);
 }
 
 
@@ -122,8 +120,6 @@ Global_THD_manager::~Global_THD_manager()
   mysql_mutex_destroy(&LOCK_thd_remove);
   mysql_mutex_destroy(&LOCK_thread_created);
   mysql_cond_destroy(&COND_thd_count);
-  my_atomic_rwlock_destroy(&thread_running_lock);
-  my_atomic_rwlock_destroy(&thread_id_lock);
 }
 
 
@@ -189,36 +185,11 @@ void Global_THD_manager::remove_thd(THD *thd)
 }
 
 
-void Global_THD_manager::inc_thread_running()
-{
-  my_atomic_rwlock_wrlock(&thread_running_lock);
-  my_atomic_add32(&num_thread_running, 1);
-  my_atomic_rwlock_wrunlock(&thread_running_lock);
-}
-
-
-void Global_THD_manager::dec_thread_running()
-{
-  my_atomic_rwlock_wrlock(&thread_running_lock);
-  my_atomic_add32(&num_thread_running, -1);
-  my_atomic_rwlock_wrunlock(&thread_running_lock);
-}
-
-
 void Global_THD_manager::inc_thread_created()
 {
   mysql_mutex_lock(&LOCK_thread_created);
   thread_created++;
   mysql_mutex_unlock(&LOCK_thread_created);
-}
-
-
-my_thread_id Global_THD_manager::get_inc_thread_id()
-{
-  my_atomic_rwlock_wrlock(&thread_id_lock);
-  my_thread_id id= static_cast<my_thread_id>(my_atomic_add64(&thread_id, 1));
-  my_atomic_rwlock_wrunlock(&thread_id_lock);
-  return id;
 }
 
 

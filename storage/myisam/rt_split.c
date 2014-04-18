@@ -175,11 +175,11 @@ static int split_rtree_node(SplitStruct *node, int n_entries,
                    double **d_buffer, int n_dim)
 {
   SplitStruct *cur;
-  SplitStruct *UNINIT_VAR(a), *UNINIT_VAR(b);
+  SplitStruct *a= NULL, *b= NULL;
   double *g1 = reserve_coords(d_buffer, n_dim);
   double *g2 = reserve_coords(d_buffer, n_dim);
-  SplitStruct *UNINIT_VAR(next);
-  int UNINIT_VAR(next_node);
+  SplitStruct *next= NULL;
+  int next_node= 0;
   int i;
   SplitStruct *end = node + n_entries;
 

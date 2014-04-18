@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -590,6 +590,9 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
   if (!cond->fixed)
     cond->fix_fields(thd, &cond);	// can never fail
 
+  // Initialize the cost model that will be used for this table
+  table->init_cost_model(thd->cost_model());
+
   /* Assume that no indexes cover all required fields */
   table->covering_keys.clear_all();
 
@@ -624,7 +627,7 @@ SQL_SELECT *prepare_simple_select(THD *thd, Item *cond,
     #  created SQL_SELECT
 */
 
-SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, uint mlen,
+SQL_SELECT *prepare_select_for_name(THD *thd, const char *mask, size_t mlen,
 				    TABLE_LIST *tables, TABLE *table,
 				    Field *pfname, int *error)
 {
@@ -660,7 +663,7 @@ bool mysqld_help(THD *thd, const char *mask)
   List<String> topics_list, categories_list, subcategories_list;
   String name, description, example;
   int count_topics, count_categories, error;
-  uint mlen= strlen(mask);
+  size_t mlen= strlen(mask);
   size_t i;
   MEM_ROOT *mem_root= thd->mem_root;
   DBUG_ENTER("mysqld_help");
@@ -721,7 +724,7 @@ bool mysqld_help(THD *thd, const char *mask)
 
   if (count_topics == 0)
   {
-    int UNINIT_VAR(key_id);
+    int key_id= 0;
     if (!(select=
           prepare_select_for_name(thd,mask,mlen,tables,tables[3].table,
                                   used_fields[help_keyword_name].field,

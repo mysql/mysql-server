@@ -299,7 +299,8 @@ error 1;
 exec $MYSQL_BINLOG $MYSQL_TEST_DIR/std_data/corrupt-relay-bin.000624 > $MYSQLTEST_VARDIR/tmp/bug31793.sql;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug31793.sql
 
-
+# Set the timestamp back to default
+set timestamp= default;
 #
 # Test --disable-force-if-open and --force-if-open
 #

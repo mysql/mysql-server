@@ -210,3 +210,4 @@ my_bool my_aes_needs_iv(my_aes_opmode opmode)
   DBUG_ASSERT(iv_length == 0 || iv_length == MY_AES_IV_SIZE);
   return iv_length != 0 ? TRUE : FALSE;
 }
+

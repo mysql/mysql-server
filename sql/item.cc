@@ -549,9 +549,15 @@ Item::save_str_value_in_field(Field *field, String *result)
 Item::Item():
   is_expensive_cache(-1), rsize(0),
   marker(0), fixed(0),
-  collation(&my_charset_bin, DERIVATION_COERCIBLE), with_subselect(false),
-  with_stored_program(false), tables_locked_cache(false)
+  collation(&my_charset_bin, DERIVATION_COERCIBLE),
+  runtime_item(false), with_subselect(false),
+  with_stored_program(false), tables_locked_cache(false),
+  is_parser_item(false)
 {
+#ifndef DBUG_OFF
+  contextualized= true;
+#endif//DBUG_OFF
+
   maybe_null=null_value=with_sum_func=unsigned_flag=0;
   decimals= 0; max_length= 0;
   cmp_context= (Item_result)-1;
@@ -560,20 +566,47 @@ Item::Item():
   THD *thd= current_thd;
   next= thd->free_list;
   thd->free_list= this;
+}
+
+
+Item::Item(const POS &):
+  is_expensive_cache(-1), rsize(0),
+  marker(0), fixed(0),
+  collation(&my_charset_bin, DERIVATION_COERCIBLE),
+  runtime_item(false), with_subselect(false),
+  with_stored_program(false), tables_locked_cache(false),
+  is_parser_item(true)
+{
+  maybe_null=null_value=with_sum_func=unsigned_flag=0;
+  decimals= 0; max_length= 0;
+  cmp_context= (Item_result)-1;
+}
+
+
+bool Item::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::contextualize(pc))
+    return true;
+
+  /* Put item in free list so that we can free all items at end */
+  next= pc->thd->free_list;
+  pc->thd->free_list= this;
   /*
     Item constructor can be called during execution other then SQL_COM
-    command => we should check thd->lex->current_select on zero (thd->lex
-    can be uninitialised)
+    command => we should check pc->select on zero
   */
-  if (thd->lex->current_select())
+  if (pc->select)
   {
-    enum_parsing_context place= 
-      thd->lex->current_select()->parsing_place;
+    enum_parsing_context place= pc->select->parsing_place;
     if (place == CTX_SELECT_LIST ||
 	place == CTX_HAVING)
-      thd->lex->current_select()->select_n_having_items++;
+      pc->select->select_n_having_items++;
   }
+  return false;
 }
+
 
 /**
   Constructor used by Item_field, Item_ref & aggregate (sum)
@@ -598,10 +631,17 @@ Item::Item(THD *thd, Item *item):
   fixed(item->fixed),
   collation(item->collation),
   cmp_context(item->cmp_context),
+  runtime_item(false),
   with_subselect(item->has_subquery()),
   with_stored_program(item->with_stored_program),
-  tables_locked_cache(item->tables_locked_cache)
+  tables_locked_cache(item->tables_locked_cache),
+  is_parser_item(false)
 {
+#ifndef DBUG_OFF
+  DBUG_ASSERT(item->contextualized);
+  contextualized= true;
+#endif//DBUG_OFF
+
   next= thd->free_list;				// Put in free list
   thd->free_list= this;
 }
@@ -823,6 +863,31 @@ Item_ident::Item_ident(Name_resolution_context *context_arg,
 }
 
 
+Item_ident::Item_ident(const POS &pos,
+                       const char *db_name_arg,const char *table_name_arg,
+		       const char *field_name_arg)
+  :super(pos), orig_db_name(db_name_arg), orig_table_name(table_name_arg),
+   orig_field_name(field_name_arg),
+   db_name(db_name_arg), table_name(table_name_arg),
+   field_name(field_name_arg),
+   alias_name_used(FALSE), cached_field_index(NO_CACHED_FIELD_INDEX),
+   cached_table(0), depended_from(0)
+{
+  item_name.set(field_name_arg);
+}
+
+
+bool Item_ident::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  context= pc->thd->lex->current_context();
+  return false;
+}
+
+
 /**
   Constructor used by Item_field & Item_*_ref (see Item comment)
 */
@@ -907,6 +972,13 @@ bool Item_field::add_field_to_set_processor(uchar *arg)
   DBUG_RETURN(FALSE);
 }
 
+bool Item_field::add_field_to_cond_set_processor(uchar *unused)
+{
+  DBUG_ENTER("Item_field::add_field_to_cond_set_processor");
+  DBUG_PRINT("info", ("%s", field->field_name ? field->field_name : "noname"));
+  bitmap_set_bit(&field->table->cond_set, field->field_index);
+  DBUG_RETURN(false);
+}
 
 bool Item_field::remove_column_from_bitmap(uchar *argument)
 {
@@ -1814,9 +1886,19 @@ bool Item_name_const::is_null()
 }
 
 
-Item_name_const::Item_name_const(Item *name_arg, Item *val):
-    value_item(val), name_item(name_arg)
+Item_name_const::Item_name_const(const POS &pos, Item *name_arg, Item *val)
+: super(pos), value_item(val), name_item(name_arg)
 {
+  maybe_null= true;
+}
+
+bool Item_name_const::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res) || value_item->itemize(pc, &value_item) ||
+      name_item->itemize(pc, &name_item))
+    return true;
   /*
     The value argument to NAME_CONST can only be a literal 
     constant.   Some extra tests are needed to support
@@ -1831,8 +1913,11 @@ Item_name_const::Item_name_const(Item *name_arg, Item *val):
                       ((((Item_func *) value_item)->functype() ==
                          Item_func::NEG_FUNC) &&
                       (((Item_func *) value_item)->key_item()->basic_const_item())))))))
+  {
     my_error(ER_WRONG_ARGUMENTS, MYF(0), "NAME_CONST");
-  Item::maybe_null= TRUE;
+    return true;
+  }
+  return false;
 }
 
 
@@ -2477,6 +2562,35 @@ Item_field::Item_field(Name_resolution_context *context_arg,
       select->select_n_where_fields++;
 }
 
+Item_field::Item_field(const POS &pos,
+                       const char *db_arg,const char *table_name_arg,
+                       const char *field_name_arg)
+  :Item_ident(pos, db_arg,table_name_arg, field_name_arg),
+   field(0), result_field(0), item_equal(0), no_const_subst(0),
+   have_privileges(0), any_privileges(0)
+{
+  collation.set(DERIVATION_IMPLICIT);
+}
+
+
+bool Item_field::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  SELECT_LEX * const select= pc->select;
+  if (select->parsing_place != CTX_HAVING &&
+      select->parsing_place != CTX_SELECT_LIST)
+    select->select_n_where_fields++;
+
+  if (select->parsing_place == CTX_SELECT_LIST &&
+      field_name && field_name[0] == '*' && field_name[1] == 0)
+    select->with_wild++;
+  return false;
+}
+
+
 /**
   Constructor need to process subselect with temporary tables (see Item)
 */
@@ -2976,11 +3090,11 @@ longlong Item_field::val_int_endpoint(bool left_endp, bool *incl_endp)
 }
 
 /**
-  Create an item from a string we KNOW points to a valid longlong.
+  Init an item from a string we KNOW points to a valid longlong.
   str_arg does not necessary has to be a \\0 terminated string.
   This is always 'signed'. Unsigned values are created with Item_uint()
 */
-Item_int::Item_int(const char *str_arg, uint length)
+void Item_int::init(const char *str_arg, uint length)
 {
   char *end_ptr= (char*) str_arg + length;
   int error;
@@ -3030,8 +3144,9 @@ void Item_uint::print(String *str, enum_query_type query_type)
 }
 
 
-Item_decimal::Item_decimal(const char *str_arg, uint length,
+Item_decimal::Item_decimal(const POS &pos, const char *str_arg, uint length,
                            const CHARSET_INFO *charset)
+  : super(pos)
 {
   str2my_decimal(E_DEC_FATAL_ERROR, str_arg, length, charset, &decimal_value);
   item_name.set(str_arg);
@@ -3317,6 +3432,17 @@ my_decimal *Item_string::val_decimal(my_decimal *decimal_value)
 }
 
 
+bool Item_null::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->type|= EXPLICIT_NULL_FLAG;
+  return false;
+}
+
+
 bool Item_null::eq(const Item *item, bool binary_cmp) const
 { return item->type() == type(); }
 
@@ -3372,7 +3498,7 @@ default_set_param_func(Item_param *param,
 }
 
 
-Item_param::Item_param(uint pos_in_query_arg) :
+Item_param::Item_param(const POS &pos, uint pos_in_query_arg) : super(pos),
   state(NO_VALUE),
   item_result_type(STRING_RESULT),
   /* Don't pretend to be a literal unless value for this item is set. */
@@ -3392,6 +3518,28 @@ Item_param::Item_param(uint pos_in_query_arg) :
   maybe_null= 1;
   cnvitem= new Item_string("", 0, &my_charset_bin, DERIVATION_COERCIBLE);
   cnvstr.set(cnvbuf, sizeof(cnvbuf), &my_charset_bin);
+}
+
+
+bool Item_param::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  /*
+    see commentaries in PTI_limit_option_param_marker::itemize()
+  */
+  DBUG_ASSERT(*res == this);
+
+  LEX *lex= pc->thd->lex;
+  if (! lex->parsing_options.allows_variable)
+  {
+    my_error(ER_VIEW_SELECT_VARIABLE, MYF(0));
+    return true;
+  }
+  return lex->param_list.push_back(this);
 }
 
 
@@ -4514,6 +4662,7 @@ void Item_copy_decimal::copy()
 /* ARGSUSED */
 bool Item::fix_fields(THD *thd, Item **ref)
 {
+  DBUG_ASSERT(is_contextualized());
 
   // We do not check fields which are fixed during construction
   DBUG_ASSERT(fixed == 0 || basic_const_item());
@@ -5076,7 +5225,6 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
               after the original field has been fixed and this is done in the
               fix_inner_refs() function.
             */
-            ;
             if (!(rf= new Item_outer_ref(context, this)))
               return -1;
             thd->change_item_tree(reference, rf);
@@ -6491,7 +6639,7 @@ static uint nr_of_decimals(const char *str, const char *end)
   e.g. it is NOT when called from item_xmlfunc.cc or sql_yacc.yy.
 */
 
-Item_float::Item_float(const char *str_arg, uint length)
+void Item_float::init(const char *str_arg, uint length)
 {
   int error;
   char *end_not_used;
@@ -6575,16 +6723,22 @@ Item_hex_string::Item_hex_string(const char *str, uint str_length)
   hex_string_init(str, str_length);
 }
 
-void Item_hex_string::hex_string_init(const char *str, uint str_length)
+Item_hex_string::Item_hex_string(const POS &pos, const LEX_STRING &literal)
+  : super(pos)
 {
-  max_length=(str_length+1)/2;
+  hex_string_init(literal.str, literal.length);
+}
+
+
+LEX_STRING Item_hex_string::make_hex_str(const char *str, uint str_length)
+{
+  uint32 max_length=(str_length+1)/2;
+  LEX_STRING ret= {(char *)"", 0};
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)
-  {
-    str_value.set("", 0, &my_charset_bin);
-    return;
-  }
-  str_value.set(ptr,max_length,&my_charset_bin);
+    return ret;
+  ret.str= ptr;
+  ret.length= max_length;
   char *end=ptr+max_length;
   if (max_length*2 != str_length)
     *ptr++=char_val(*str++);			// Not even, assume 0 prefix
@@ -6594,6 +6748,15 @@ void Item_hex_string::hex_string_init(const char *str, uint str_length)
     str+=2;
   }
   *ptr=0;					// Keep purify happy
+  return ret;
+}
+
+
+void Item_hex_string::hex_string_init(const char *str, uint str_length)
+{
+  LEX_STRING s= make_hex_str(str, str_length);
+  str_value.set(s.str, s.length, &my_charset_bin);
+  max_length= s.length;
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
   unsigned_flag= 1;
@@ -6704,17 +6867,20 @@ Item *Item_hex_string::safe_charset_converter(const CHARSET_INFO *tocs)
   In number context this is a longlong value.
 */
   
-Item_bin_string::Item_bin_string(const char *str, uint str_length)
+LEX_STRING Item_bin_string::make_bin_str(const char *str, size_t str_length)
 {
   const char *end= str + str_length - 1;
   uchar bits= 0;
   uint power= 1;
 
-  max_length= (str_length + 7) >> 3;
+  size_t max_length= (str_length + 7) >> 3;
   char *ptr= (char*) sql_alloc(max_length + 1);
   if (!ptr)
-    return;
-  str_value.set(ptr, max_length, &my_charset_bin);
+    return NULL_STR;
+
+  LEX_STRING ret;
+  ret.str= ptr;
+  ret.length= max_length;
 
   if (max_length > 0)
   {
@@ -6737,6 +6903,15 @@ Item_bin_string::Item_bin_string(const char *str, uint str_length)
   else
     ptr[0]= 0;
 
+  return ret;
+}
+
+
+void Item_bin_string::bin_string_init(const char *str, size_t str_length)
+{
+  LEX_STRING s= make_bin_str(str, str_length);
+  max_length= s.length;
+  str_value.set(s.str, s.length, &my_charset_bin);
   collation.set(&my_charset_bin, DERIVATION_COERCIBLE);
   fixed= 1;
 }
@@ -6757,7 +6932,7 @@ bool Item_null::send(Protocol *protocol, String *packet)
 
 bool Item::send(Protocol *protocol, String *buffer)
 {
-  bool UNINIT_VAR(result);                       // Will be set if null_value == 0
+  bool result= false;                       // Will be set if null_value == 0
   enum_field_types f_type;
 
   switch ((f_type=field_type())) {
@@ -7056,13 +7231,62 @@ void Item_field::print(String *str, enum_query_type query_type)
   Item_ident::print(str, query_type);
 }
 
+/**
+  Calculate condition filtering effect for "WHERE field", which
+  implicitly means "WHERE field <> 0". The filtering effect is
+  therefore identical to that of Item_func_ne.
+*/
+float Item_field::get_filtering_effect(table_map filter_for_table,
+                                       table_map read_tables,
+                                       const MY_BITMAP *fields_to_ignore,
+                                       double rows_in_table)
+{
+  if (used_tables() != filter_for_table ||
+      bitmap_is_set(fields_to_ignore, field->field_index))
+    return COND_FILTER_ALLPASS;
+
+  return 1.0f - get_cond_filter_default_probability(rows_in_table,
+                                                    COND_FILTER_EQUALITY);
+}
+
+float
+Item_field::get_cond_filter_default_probability(double max_distinct_values,
+                                                float default_filter) const
+{
+  DBUG_ASSERT(max_distinct_values >= 1.0);
+
+  // Some field types have a limited number of possible values
+  const enum_field_types fld_type= field->real_type();
+  switch (fld_type)
+  {
+  case MYSQL_TYPE_ENUM:
+  {
+    // ENUM can only have the values defined in the typelib
+    const uint enum_values= static_cast<Field_enum*>(field)->typelib->count;
+    max_distinct_values= std::min(static_cast<double>(enum_values),
+                                  max_distinct_values);
+    break;
+  }
+  case MYSQL_TYPE_BIT:
+  {
+    // BIT(N) can have no more than 2^N distinct values
+    const uint bits= static_cast<Field_bit*>(field)->field_length;
+    const double combos= pow(2.0, (int)bits);
+    max_distinct_values= std::min(combos, max_distinct_values);
+    break;
+  }
+  default:
+    break;
+  }
+  return std::max(static_cast<float>(1/max_distinct_values), default_filter);
+}
 
 Item_ref::Item_ref(Name_resolution_context *context_arg,
                    Item **item, const char *table_name_arg,
                    const char *field_name_arg,
                    bool alias_name_used_arg)
   :Item_ident(context_arg, NullS, table_name_arg, field_name_arg),
-   result_field(0), ref(item)
+   result_field(0), ref(item), chop_ref(!ref)
 {
   alias_name_used= alias_name_used_arg;
   /*
@@ -7399,6 +7623,8 @@ void Item_ref::cleanup()
   DBUG_ENTER("Item_ref::cleanup");
   Item_ident::cleanup();
   result_field= 0;
+  if (chop_ref)
+    ref= NULL;
   DBUG_VOID_RETURN;
 }
 
@@ -7942,6 +8168,30 @@ bool Item_direct_view_ref::eq(const Item *item, bool binary_cmp) const
   return FALSE;
 }
 
+
+bool Item_default_value::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  
+  if (arg != NULL)
+  {
+    if (arg->itemize(pc, &arg))
+      return true;
+    if (arg->is_splocal())
+    {
+      Item_splocal *il= static_cast<Item_splocal *>(arg);
+
+      my_error(ER_WRONG_COLUMN_NAME, MYF(0), il->m_name.ptr());
+      return true;
+    }
+  }
+  return false;
+}
+
+
 bool Item_default_value::eq(const Item *item, bool binary_cmp) const
 {
   return item->type() == DEFAULT_VALUE_ITEM && 
@@ -8185,7 +8435,7 @@ void Item_trigger_field::setup_field(THD *thd,
     set field_idx properly.
   */
   (void) find_field_in_table(thd, table_triggers->get_subject_table(),
-                             field_name, (uint) strlen(field_name),
+                             field_name, strlen(field_name),
                              0, &field_idx);
   thd->mark_used_columns= save_mark_used_columns;
   triggers= table_triggers;

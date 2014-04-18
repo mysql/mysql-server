@@ -82,10 +82,6 @@ reduce the size of the log.
 /* Global log system variable */
 log_t*	log_sys	= NULL;
 
-#ifdef UNIV_DEBUG
-ibool	log_do_write = TRUE;
-#endif /* UNIV_DEBUG */
-
 /* These control how often we print warnings if the last checkpoint is too
 old */
 ibool	log_has_printed_chkp_warning = FALSE;
@@ -138,7 +134,7 @@ log_buf_pool_get_oldest_modification(void)
 {
 	lsn_t	lsn;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	lsn = buf_pool_get_oldest_modification();
 
@@ -151,8 +147,8 @@ log_buf_pool_get_oldest_modification(void)
 }
 
 /** Extends the log buffer.
-@param[in] len	requested minimum size in bytes */
-static
+@param[in]	len	requested minimum size in bytes */
+
 void
 log_buffer_extend(
 	ulint	len)
@@ -177,6 +173,18 @@ log_buffer_extend(
 			log_mutex_exit();
 			return;
 		}
+	}
+
+	if (len >= log_sys->buf_size / 2) {
+		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
+				DBUG_SUICIDE(););
+
+		/* log_buffer is too small. try to extend instead of crash. */
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"The transaction log size is too large"
+			" for innodb_log_buffer_size (%lu >= %lu / 2)."
+			" Trying to extend it.",
+			len, LOG_BUFFER_SIZE);
 	}
 
 	log_sys->is_extending = true;
@@ -229,56 +237,24 @@ log_buffer_extend(
 		LOG_BUFFER_SIZE);
 }
 
-/************************************************************//**
-Opens the log for log_write_low. The log must be closed with log_close and
-released with log_release.
+/** Open the log for log_write_low. The log must be closed with log_close.
+@param[in]	len	length of the data to be written
 @return start lsn of the log record */
 
 lsn_t
 log_reserve_and_open(
-/*=================*/
-	ulint		len,		/*!< in: length of data to be written */
-	bool		own_mutex)	/*!< in: true if caller owns
-					the mutex */
+	ulint	len)
 {
-	log_t*	log			= log_sys;
 	ulint	len_upper_limit;
 #ifdef UNIV_DEBUG
 	ulint	count			= 0;
 #endif /* UNIV_DEBUG */
 
-	if (len >= log->buf_size / 2) {
-		if (own_mutex) {
-			own_mutex = false;
-
-			log_mutex_exit();
-		}
-
-		DBUG_EXECUTE_IF("ib_log_buffer_is_short_crash",
-				DBUG_SUICIDE(););
-
-		/* log_buffer is too small. try to extend instead of crash. */
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"The transaction log size is too large"
-			" for innodb_log_buffer_size (%lu >= %lu / 2)."
-			" Trying to extend it.",
-			len, LOG_BUFFER_SIZE);
-
-		log_buffer_extend((len + 1) * 2);
-	}
 loop:
-	if (!own_mutex) {
-		log_mutex_enter();
-	} else {
-		ut_ad(mutex_own(&log_sys->mutex));
-	}
-
+	ut_ad(log_mutex_own());
 	ut_ad(!recv_no_log_write);
 
 	if (log_sys->is_extending) {
-
-		own_mutex = false;
-
 		log_mutex_exit();
 
 		/* Log buffer size is extending. Writing up to the next block
@@ -288,6 +264,7 @@ loop:
 
 		ut_ad(++count < 50);
 
+		log_mutex_enter();
 		goto loop;
 	}
 
@@ -297,10 +274,7 @@ loop:
 	len_upper_limit = LOG_BUF_WRITE_MARGIN + srv_log_write_ahead_size
 			  + (5 * len) / 4;
 
-	if (log->buf_free + len_upper_limit > log->buf_size) {
-
-		own_mutex = false;
-
+	if (log_sys->buf_free + len_upper_limit > log_sys->buf_size) {
 		log_mutex_exit();
 
 		/* Not enough free space, do a write of the log buffer */
@@ -311,10 +285,11 @@ loop:
 
 		ut_ad(++count < 50);
 
+		log_mutex_enter();
 		goto loop;
 	}
 
-	return(log->lsn);
+	return(log_sys->lsn);
 }
 
 /************************************************************//**
@@ -332,7 +307,7 @@ log_write_low(
 	ulint	data_len;
 	byte*	log_block;
 
-	ut_ad(mutex_own(&(log->mutex)));
+	ut_ad(log_mutex_own());
 part_loop:
 	ut_ad(!recv_no_log_write);
 	/* Calculate a part length */
@@ -404,7 +379,7 @@ log_close(void)
 	log_t*		log	= log_sys;
 	lsn_t		checkpoint_age;
 
-	ut_ad(mutex_own(&(log->mutex)));
+	ut_ad(log_mutex_own());
 	ut_ad(!recv_no_log_write);
 
 	lsn = log->lsn;
@@ -426,7 +401,7 @@ log_close(void)
 
 	if (log->buf_free > log->max_buf_free) {
 
-		log->check_flush_or_checkpoint = TRUE;
+		log->check_flush_or_checkpoint = true;
 	}
 
 	checkpoint_age = lsn - log->last_checkpoint_lsn;
@@ -467,7 +442,7 @@ log_close(void)
 	    || lsn - oldest_lsn > log->max_modified_age_sync
 	    || checkpoint_age > log->max_checkpoint_age_async) {
 
-		log->check_flush_or_checkpoint = TRUE;
+		log->check_flush_or_checkpoint = true;
 	}
 function_exit:
 
@@ -484,7 +459,7 @@ log_group_get_capacity(
 /*===================*/
 	const log_group_t*	group)	/*!< in: log group */
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	return((group->file_size - LOG_FILE_HDR_SIZE) * group->n_files);
 }
@@ -501,7 +476,7 @@ log_group_calc_size_offset(
 					log group */
 	const log_group_t*	group)	/*!< in: log group */
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	return(offset - LOG_FILE_HDR_SIZE * (1 + offset / group->file_size));
 }
@@ -518,7 +493,7 @@ log_group_calc_real_offset(
 					log group */
 	const log_group_t*	group)	/*!< in: log group */
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	return(offset + LOG_FILE_HDR_SIZE
 	       * (1 + offset / (group->file_size - LOG_FILE_HDR_SIZE)));
@@ -540,7 +515,7 @@ log_group_calc_lsn_offset(
 	lsn_t	group_size;
 	lsn_t	offset;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	gr_lsn = group->lsn;
 
@@ -725,8 +700,6 @@ log_init(void)
 
 	mutex_create("log_flush_order", &log_sys->log_flush_order_mutex);
 
-	log_mutex_enter();
-
 	/* Start the lsn from one log block from zero: this way every
 	log record has a start lsn != zero, a fact which we will use */
 
@@ -745,23 +718,14 @@ log_init(void)
 
 	log_sys->max_buf_free = log_sys->buf_size / LOG_BUF_FLUSH_RATIO
 		- LOG_BUF_FLUSH_MARGIN;
-	log_sys->check_flush_or_checkpoint = TRUE;
+	log_sys->check_flush_or_checkpoint = true;
 	UT_LIST_INIT(log_sys->log_groups, &log_group_t::log_groups);
-
-	log_sys->n_log_ios = 0;
 
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = time(NULL);
 	/*----------------------------*/
 
-	log_sys->buf_next_to_write = 0;
-
-	log_sys->current_flush_lsn = 0;
-	log_sys->flushed_to_disk_lsn = 0;
-
 	log_sys->write_lsn = log_sys->lsn;
-
-	log_sys->n_pending_flushes = 0;
 
 	log_sys->flush_event = os_event_create(0);
 
@@ -769,10 +733,7 @@ log_init(void)
 
 	/*----------------------------*/
 
-	log_sys->next_checkpoint_no = 0;
 	log_sys->last_checkpoint_lsn = log_sys->lsn;
-	log_sys->n_pending_checkpoint_writes = 0;
-
 
 	rw_lock_create(
 		checkpoint_lock_key, &log_sys->checkpoint_lock,
@@ -794,8 +755,6 @@ log_init(void)
 
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
-
-	log_mutex_exit();
 }
 
 /******************************************************************//**
@@ -867,7 +826,7 @@ log_sys_write_completion(void)
 	ulint	move_start;
 	ulint	move_end;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	log_sys->write_lsn = log_sys->lsn;
 	log_sys->buf_next_to_write = log_sys->write_end_offset;
@@ -902,11 +861,20 @@ log_io_complete(
 		/* It was a checkpoint write */
 		group = (log_group_t*)((ulint) group - 1);
 
-		if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC
-		    && srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
-
+#ifdef _WIN32
+		fil_flush(group->space_id);
+#else
+		switch (srv_unix_file_flush_method) {
+		case SRV_UNIX_O_DSYNC:
+		case SRV_UNIX_NOSYNC:
+			break;
+		case SRV_UNIX_FSYNC:
+		case SRV_UNIX_LITTLESYNC:
+		case SRV_UNIX_O_DIRECT:
+		case SRV_UNIX_O_DIRECT_NO_FSYNC:
 			fil_flush(group->space_id);
 		}
+#endif /* _WIN32 */
 
 		DBUG_PRINT("ib_log", ("checkpoint info written to group %u",
 				      unsigned(group->id)));
@@ -934,7 +902,7 @@ log_group_file_header_flush(
 	byte*	buf;
 	lsn_t	dest_offset;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 	ut_ad(!recv_no_log_write);
 	ut_a(nth_file < group->n_files);
 
@@ -944,31 +912,31 @@ log_group_file_header_flush(
 	mach_write_to_8(buf + LOG_FILE_START_LSN, start_lsn);
 
 	/* Wipe over possible label of ibbackup --restore */
-	memcpy(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, "    ", 4);
+	memset(buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP, 0x20, 4);
 
 	dest_offset = nth_file * group->file_size;
 
-	DBUG_PRINT("ib_log", ("write file %u header for group %u",
-			      unsigned(nth_file), unsigned(group->id)));
+	DBUG_PRINT("ib_log", ("write " LSN_PF
+			      " group " ULINTPF
+			      " file " ULINTPF " header",
+			      start_lsn, group->id, nth_file));
 
-	if (log_do_write) {
-		log_sys->n_log_ios++;
+	log_sys->n_log_ios++;
 
-		MONITOR_INC(MONITOR_LOG_IO);
+	MONITOR_INC(MONITOR_LOG_IO);
 
-		srv_stats.os_log_pending_writes.inc();
+	srv_stats.os_log_pending_writes.inc();
 
-		const ulint	page_no
-			= (ulint) (dest_offset / univ_page_size.physical());
+	const ulint	page_no
+		= (ulint) (dest_offset / univ_page_size.physical());
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
-		       page_id_t(group->space_id, page_no),
-		       univ_page_size,
-		       (ulint) (dest_offset % univ_page_size.physical()),
-		       OS_FILE_LOG_BLOCK_SIZE, buf, group);
+	fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+	       page_id_t(group->space_id, page_no),
+	       univ_page_size,
+	       (ulint) (dest_offset % univ_page_size.physical()),
+	       OS_FILE_LOG_BLOCK_SIZE, buf, group);
 
-		srv_stats.os_log_pending_writes.dec();
-	}
+	srv_stats.os_log_pending_writes.dec();
 }
 
 /******************************************************//**
@@ -986,7 +954,7 @@ log_block_store_checksum(
 
 /******************************************************//**
 Writes a buffer to a log file group. */
-
+static
 void
 log_group_write_buf(
 /*================*/
@@ -1006,20 +974,15 @@ log_group_write_buf(
 					header */
 {
 	ulint		write_len;
-	ibool		write_header;
+	bool		write_header	= new_data_offset == 0;
 	lsn_t		next_offset;
 	ulint		i;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 	ut_ad(!recv_no_log_write);
 	ut_a(len % OS_FILE_LOG_BLOCK_SIZE == 0);
 	ut_a(start_lsn % OS_FILE_LOG_BLOCK_SIZE == 0);
 
-	if (new_data_offset == 0) {
-		write_header = TRUE;
-	} else {
-		write_header = FALSE;
-	}
 loop:
 	if (len == 0) {
 
@@ -1028,8 +991,8 @@ loop:
 
 	next_offset = log_group_calc_lsn_offset(start_lsn, group);
 
-	if ((next_offset % group->file_size == LOG_FILE_HDR_SIZE)
-	    && write_header) {
+	if (write_header
+	    && next_offset % group->file_size == LOG_FILE_HDR_SIZE) {
 		/* We start to write a new log file instance in the group */
 
 		ut_a(next_offset / group->file_size <= ULINT_MAX);
@@ -1054,13 +1017,14 @@ loop:
 
 	DBUG_PRINT("ib_log",
 		   ("write " LSN_PF " to " LSN_PF
-		    ": group %u len %u blocks %u..%u",
+		    ": group " ULINTPF " len " ULINTPF
+		    " blocks " ULINTPF ".." ULINTPF,
 		    start_lsn, next_offset,
-		    unsigned(group->id), unsigned(write_len),
-		    unsigned(log_block_get_hdr_no(buf)),
-		    unsigned(log_block_get_hdr_no(
-				     buf + write_len
-				     - OS_FILE_LOG_BLOCK_SIZE))));
+		    group->id, write_len,
+		    log_block_get_hdr_no(buf),
+		    log_block_get_hdr_no(
+			    buf + write_len
+			    - OS_FILE_LOG_BLOCK_SIZE)));
 
 	ut_ad(pad_len >= len
 	      || log_block_get_hdr_no(buf)
@@ -1078,64 +1042,52 @@ loop:
 		log_block_store_checksum(buf + i * OS_FILE_LOG_BLOCK_SIZE);
 	}
 
-	if (log_do_write) {
-		log_sys->n_log_ios++;
+	log_sys->n_log_ios++;
 
-		MONITOR_INC(MONITOR_LOG_IO);
+	MONITOR_INC(MONITOR_LOG_IO);
 
-		srv_stats.os_log_pending_writes.inc();
+	srv_stats.os_log_pending_writes.inc();
 
-		ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
+	ut_a(next_offset / UNIV_PAGE_SIZE <= ULINT_MAX);
 
-		const ulint	page_no
-			= (ulint) (next_offset / univ_page_size.physical());
+	const ulint	page_no
+		= (ulint) (next_offset / univ_page_size.physical());
 
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
-		       page_id_t(group->space_id, page_no),
-		       univ_page_size,
-		       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
-		       group);
+	fil_io(OS_FILE_WRITE | OS_FILE_LOG, true,
+	       page_id_t(group->space_id, page_no),
+	       univ_page_size,
+	       (ulint) (next_offset % UNIV_PAGE_SIZE), write_len, buf,
+	       group);
 
-		srv_stats.os_log_pending_writes.dec();
+	srv_stats.os_log_pending_writes.dec();
 
-		srv_stats.os_log_written.add(write_len);
-		srv_stats.log_writes.inc();
-	}
+	srv_stats.os_log_written.add(write_len);
+	srv_stats.log_writes.inc();
 
 	if (write_len < len) {
 		start_lsn += write_len;
 		len -= write_len;
 		buf += write_len;
 
-		write_header = TRUE;
+		write_header = true;
 
 		goto loop;
 	}
 }
 
-/******************************************************//**
-This function is called, e.g., when a transaction wants to commit. It checks
-that the log has been written to the log file up to the last log entry written
-by the transaction. If there is a flush running, it waits and checks if the
-flush flushed enough. If not, starts a new flush. */
+/** Ensure that the log has been written to the log file up to a given
+log entry (such as that of a transaction commit). Start a new write, or
+wait and check if an already running write is covering the request.
+@param[in]	lsn		log sequence number that should be
+included in the redo log file write
+@param[in]	flush_to_disk	whether the written log should also
+be flushed to the file system */
 
 void
 log_write_up_to(
-/*============*/
-	lsn_t	lsn,	/*!< in: log sequence number up to which
-			the log should be written,
-			LSN_MAX if not specified */
+	lsn_t	lsn,
 	bool	flush_to_disk)
-			/*!< in: TRUE if we want the written log
-			also to be flushed to disk */
 {
-	log_group_t*	group;
-	ulint		start_offset;
-	ulint		end_offset;
-	ulint		area_start;
-	ulint		area_end;
-	ulong		write_ahead_size = srv_log_write_ahead_size;
-	ulint		pad_size;
 #ifdef UNIV_DEBUG
 	ulint		loop_count	= 0;
 #endif /* UNIV_DEBUG */
@@ -1150,11 +1102,7 @@ log_write_up_to(
 	}
 
 loop:
-#ifdef UNIV_DEBUG
-	loop_count++;
-
-	ut_ad(loop_count < 128);
-#endif /* UNUV_DEBUG */
+	ut_ad(++loop_count < 128);
 
 #if UNIV_WORD_SIZE > 7
 	/* We can do a dirty read of LSN. */
@@ -1170,17 +1118,12 @@ loop:
 	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
-	if (flush_to_disk && log_sys->flushed_to_disk_lsn >= lsn) {
+	lsn_t	limit_lsn = flush_to_disk
+		? log_sys->flushed_to_disk_lsn
+		: log_sys->write_lsn;
 
+	if (limit_lsn >= lsn) {
 		log_mutex_exit();
-
-		return;
-	}
-
-	if (!flush_to_disk && log_sys->write_lsn >= lsn) {
-
-		log_mutex_exit();
-
 		return;
 	}
 
@@ -1220,11 +1163,17 @@ loop:
 	if (!flush_to_disk
 	    && log_sys->buf_free == log_sys->buf_next_to_write) {
 		/* Nothing to write and no flush to disk requested */
-
 		log_mutex_exit();
-
 		return;
 	}
+
+	log_group_t*	group;
+	ulint		start_offset;
+	ulint		end_offset;
+	ulint		area_start;
+	ulint		area_end;
+	ulong		write_ahead_size = srv_log_write_ahead_size;
+	ulint		pad_size;
 
 	DBUG_PRINT("ib_log", ("write " LSN_PF " to " LSN_PF,
 			      log_sys->write_lsn,
@@ -1300,11 +1249,13 @@ loop:
 
 	log_sys_write_completion();
 
+#ifndef _WIN32
 	if (srv_unix_file_flush_method == SRV_UNIX_O_DSYNC) {
-		/* O_DSYNC means the OS did not buffer the log file at all:
+		/* O_SYNC means the OS did not buffer the log file at all:
 		so we have also flushed to disk what we have written */
 		log_sys->flushed_to_disk_lsn = log_sys->write_lsn;
 	}
+#endif /* !_WIN32 */
 
 	log_mutex_exit();
 
@@ -1315,7 +1266,12 @@ loop:
 
 	ut_a(log_sys->n_pending_flushes == 1); /* No other threads here */
 
-	if (srv_unix_file_flush_method != SRV_UNIX_O_DSYNC) {
+#ifndef _WIN32
+	bool	do_flush = srv_unix_file_flush_method != SRV_UNIX_O_DSYNC;
+#else
+	bool	do_flush = true;
+#endif
+	if (do_flush) {
 		group = UT_LIST_GET_FIRST(log_sys->log_groups);
 		fil_flush(group->space_id);
 		log_sys->flushed_to_disk_lsn = log_sys->current_flush_lsn;
@@ -1455,7 +1411,7 @@ void
 log_complete_checkpoint(void)
 /*=========================*/
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 	ut_ad(log_sys->n_pending_checkpoint_writes == 0);
 
 	log_sys->next_checkpoint_no++;
@@ -1463,6 +1419,11 @@ log_complete_checkpoint(void)
 	log_sys->last_checkpoint_lsn = log_sys->next_checkpoint_lsn;
 	MONITOR_SET(MONITOR_LSN_CHECKPOINT_AGE,
 		    log_sys->lsn - log_sys->last_checkpoint_lsn);
+
+	DBUG_PRINT("ib_log", ("checkpoint ended at " LSN_PF
+			      ", flushed to " LSN_PF,
+			      log_sys->last_checkpoint_lsn,
+			      log_sys->flushed_to_disk_lsn));
 
 	rw_lock_x_unlock_gen(&(log_sys->checkpoint_lock), LOG_CHECKPOINT);
 }
@@ -1474,14 +1435,13 @@ void
 log_io_complete_checkpoint(void)
 /*============================*/
 {
+	MONITOR_DEC(MONITOR_PENDING_CHECKPOINT_WRITE);
+
 	log_mutex_enter();
 
 	ut_ad(log_sys->n_pending_checkpoint_writes > 0);
 
-	log_sys->n_pending_checkpoint_writes--;
-	MONITOR_DEC(MONITOR_PENDING_CHECKPOINT_WRITE);
-
-	if (log_sys->n_pending_checkpoint_writes == 0) {
+	if (--log_sys->n_pending_checkpoint_writes == 0) {
 		log_complete_checkpoint();
 	}
 
@@ -1534,18 +1494,22 @@ log_group_checkpoint(
 /*=================*/
 	log_group_t*	group)	/*!< in: log group */
 {
-	log_group_t*	group2;
 	lsn_t		lsn_offset;
-	ulint		write_offset;
 	ulint		fold;
 	byte*		buf;
 	ulint		i;
 
 	ut_ad(!srv_read_only_mode);
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 #if LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE
 # error "LOG_CHECKPOINT_SIZE > OS_FILE_LOG_BLOCK_SIZE"
 #endif
+
+	DBUG_PRINT("ib_log", ("checkpoint " UINT64PF " at " LSN_PF
+			      " written to group " ULINTPF,
+			      log_sys->next_checkpoint_no,
+			      log_sys->next_checkpoint_lsn,
+			      group->id));
 
 	buf = group->checkpoint_buf;
 
@@ -1567,12 +1531,10 @@ log_group_checkpoint(
 		log_checkpoint_set_nth_group_info(buf, i, 0, 0);
 	}
 
-	group2 = UT_LIST_GET_FIRST(log_sys->log_groups);
-
-	while (group2) {
+	for (log_group_t* group2 = UT_LIST_GET_FIRST(log_sys->log_groups);
+	     group2 != NULL;
+	     group2 = UT_LIST_GET_NEXT(log_groups, group2)) {
 		log_checkpoint_set_nth_group_info(buf, group2->id, 0, 0);
-
-		group2 = UT_LIST_GET_NEXT(log_groups, group2);
 	}
 
 	fold = ut_fold_binary(buf, LOG_CHECKPOINT_CHECKSUM_1);
@@ -1582,43 +1544,33 @@ log_group_checkpoint(
 			      LOG_CHECKPOINT_CHECKSUM_2 - LOG_CHECKPOINT_LSN);
 	mach_write_to_4(buf + LOG_CHECKPOINT_CHECKSUM_2, fold);
 
-	/* We alternate the physical place of the checkpoint info in the first
-	log file */
+	MONITOR_INC(MONITOR_PENDING_CHECKPOINT_WRITE);
 
-	if ((log_sys->next_checkpoint_no & 1) == 0) {
-		write_offset = LOG_CHECKPOINT_1;
-	} else {
-		write_offset = LOG_CHECKPOINT_2;
+	log_sys->n_log_ios++;
+
+	MONITOR_INC(MONITOR_LOG_IO);
+
+	ut_ad(LOG_CHECKPOINT_1 < univ_page_size.physical());
+	ut_ad(LOG_CHECKPOINT_2 < univ_page_size.physical());
+
+	if (log_sys->n_pending_checkpoint_writes++ == 0) {
+		rw_lock_x_lock_gen(&log_sys->checkpoint_lock,
+				   LOG_CHECKPOINT);
 	}
 
-	if (log_do_write) {
-		if (log_sys->n_pending_checkpoint_writes == 0) {
+	/* We send as the last parameter the group machine address
+	added with 1, as we want to distinguish between a normal log
+	file write and a checkpoint field write */
 
-			rw_lock_x_lock_gen(&(log_sys->checkpoint_lock),
-					   LOG_CHECKPOINT);
-		}
+	fil_io(OS_FILE_WRITE | OS_FILE_LOG, false,
+	       page_id_t(group->space_id, 0),
+	       univ_page_size,
+	       log_sys->next_checkpoint_no & 1
+	       ? LOG_CHECKPOINT_2 : LOG_CHECKPOINT_1,
+	       OS_FILE_LOG_BLOCK_SIZE,
+	       buf, (byte*) group + 1);
 
-		log_sys->n_pending_checkpoint_writes++;
-		MONITOR_INC(MONITOR_PENDING_CHECKPOINT_WRITE);
-
-		log_sys->n_log_ios++;
-
-		MONITOR_INC(MONITOR_LOG_IO);
-
-		/* We send as the last parameter the group machine address
-		added with 1, as we want to distinguish between a normal log
-		file write and a checkpoint field write */
-
-		fil_io(OS_FILE_WRITE | OS_FILE_LOG, false,
-		       page_id_t(group->space_id,
-				 write_offset / univ_page_size.physical()),
-		       univ_page_size,
-		       write_offset % univ_page_size.physical(),
-		       OS_FILE_LOG_BLOCK_SIZE,
-		       buf, ((byte*) group + 1));
-
-		ut_ad(((ulint) group & 0x1UL) == 0);
-	}
+	ut_ad(((ulint) group & 0x1UL) == 0);
 }
 #endif /* !UNIV_HOTBACKUP */
 
@@ -1687,7 +1639,7 @@ log_group_read_checkpoint_info(
 	log_group_t*	group,	/*!< in: log group */
 	ulint		field)	/*!< in: LOG_CHECKPOINT_1 or LOG_CHECKPOINT_2 */
 {
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	log_sys->n_log_ios++;
 
@@ -1699,16 +1651,16 @@ log_group_read_checkpoint_info(
 	       OS_FILE_LOG_BLOCK_SIZE, log_sys->checkpoint_buf, NULL);
 }
 
-/******************************************************//**
-Writes checkpoint info to groups. */
+/** Write checkpoint info to the log header and invoke log_mutex_exit().
+@param[in]	sync	whether to wait for the write to complete */
 
 void
-log_groups_write_checkpoint_info(void)
-/*==================================*/
+log_write_checkpoint_info(
+	bool	sync)
 {
 	log_group_t*	group;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 	if (!srv_read_only_mode) {
 		for (group = UT_LIST_GET_FIRST(log_sys->log_groups);
@@ -1718,26 +1670,31 @@ log_groups_write_checkpoint_info(void)
 			log_group_checkpoint(group);
 		}
 	}
+
+	log_mutex_exit();
+
+	MONITOR_INC(MONITOR_NUM_CHECKPOINT);
+
+	if (sync) {
+		/* Wait for the checkpoint write to complete */
+		rw_lock_s_lock(&log_sys->checkpoint_lock);
+		rw_lock_s_unlock(&log_sys->checkpoint_lock);
+	}
 }
 
-/******************************************************//**
-Makes a checkpoint. Note that this function does not flush dirty
+/** Make a checkpoint. Note that this function does not flush dirty
 blocks from the buffer pool: it only checks what is lsn of the oldest
 modification in the pool, and writes information about the lsn in
-log files. Use log_make_checkpoint_at to flush also the pool.
-@return TRUE if success, FALSE if a checkpoint write was already running */
+log files. Use log_make_checkpoint_at() to flush also the pool.
+@param[in]	sync		whether to wait for the write to complete
+@param[in]	write_always	force a write even if no log
+has been generated since the latest checkpoint
+@return true if success, false if a checkpoint write was already running */
 
-ibool
+bool
 log_checkpoint(
-/*===========*/
-	ibool	sync,		/*!< in: TRUE if synchronous operation is
-				desired */
-	ibool	write_always)	/*!< in: the function normally checks if the
-				the new checkpoint would have a greater
-				lsn than the previous one: if not, then no
-				physical write is done; by setting this
-				parameter TRUE, a physical write will always be
-				made to log files */
+	bool	sync,
+	bool	write_always)
 {
 	lsn_t	oldest_lsn;
 
@@ -1747,90 +1704,114 @@ log_checkpoint(
 		recv_apply_hashed_log_recs(TRUE);
 	}
 
-	if (srv_unix_file_flush_method != SRV_UNIX_NOSYNC) {
+#ifndef _WIN32
+	switch (srv_unix_file_flush_method) {
+	case SRV_UNIX_NOSYNC:
+		break;
+	case SRV_UNIX_O_DSYNC:
+	case SRV_UNIX_FSYNC:
+	case SRV_UNIX_LITTLESYNC:
+	case SRV_UNIX_O_DIRECT:
+	case SRV_UNIX_O_DIRECT_NO_FSYNC:
 		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
+#endif /* !_WIN32 */
 
 	log_mutex_enter();
 
 	ut_ad(!recv_no_log_write);
 	oldest_lsn = log_buf_pool_get_oldest_modification();
 
+	/* Because log also contains headers and dummy log records,
+	log_buf_pool_get_oldest_modification() will return log_sys->lsn
+	if the buffer pool contains no dirty buffers.
+	We must make sure that the log is flushed up to that lsn.
+	If there are dirty buffers in the buffer pool, then our
+	write-ahead-logging algorithm ensures that the log has been
+	flushed up to oldest_lsn. */
+
+	if (!write_always
+	    && oldest_lsn
+	    == log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT) {
+		/* Do nothing, because nothing was logged (other than
+		a MLOG_CHECKPOINT marker) since the previous checkpoint. */
+		log_mutex_exit();
+		return(true);
+	}
+
+	/* Repeat the MLOG_FILE_NAME records after the checkpoint, in
+	case some log records between the checkpoint and log_sys->lsn
+	need them. Finally, write a MLOG_CHECKPOINT marker. If redo
+	log apply fails to see the MLOG_CHECKPOINT marker, the log
+	will be discarded. That is, the system would be recovered as
+	it was at the checkpoint.
+
+	It is important that we write out the redo log before any
+	further dirty pages are flushed to the tablespace files.  At
+	this point, because log_mutex_own(), mtr_commit() in other
+	threads will be blocked, and no pages can be added to the
+	flush lists. The flush lists must be empty, because everything
+	was flushed at the checkpoint.
+
+	If we had written out some data pages before flushing the
+	MLOG_CHECKPOINT marker, recovery would be unable to discard
+	the redo log (some pages would contain changes that are newer
+	than the checkpoint). */
+	lsn_t		flush_lsn	= oldest_lsn;
+	const bool	do_write
+		= (srv_shutdown_state == SRV_SHUTDOWN_NONE
+		   || flush_lsn != log_sys->lsn)
+		&& flush_lsn
+		> log_sys->last_checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT;
+
+	if (fil_names_clear(flush_lsn, do_write)) {
+		flush_lsn = log_sys->lsn;
+	}
+
 	log_mutex_exit();
 
-	/* Because log also contains headers and dummy log records,
-	if the buffer pool contains no dirty buffers, oldest_lsn
-	gets the value log_sys->lsn from the previous function,
-	and we must make sure that the log is flushed up to that
-	lsn. If there are dirty buffers in the buffer pool, then our
-	write-ahead-logging algorithm ensures that the log has been flushed
-	up to oldest_lsn. */
-
-	log_write_up_to(oldest_lsn, true);
+	log_write_up_to(flush_lsn, true);
 
 	log_mutex_enter();
 
 	if (!write_always
 	    && log_sys->last_checkpoint_lsn >= oldest_lsn) {
-
 		log_mutex_exit();
-
-		return(TRUE);
+		return(true);
 	}
 
 	ut_ad(log_sys->flushed_to_disk_lsn >= oldest_lsn);
 
 	if (log_sys->n_pending_checkpoint_writes > 0) {
 		/* A checkpoint write is running */
-
 		log_mutex_exit();
 
 		if (sync) {
 			/* Wait for the checkpoint write to complete */
-			rw_lock_s_lock(&(log_sys->checkpoint_lock));
-			rw_lock_s_unlock(&(log_sys->checkpoint_lock));
+			rw_lock_s_lock(&log_sys->checkpoint_lock);
+			rw_lock_s_unlock(&log_sys->checkpoint_lock);
 		}
 
-		return(FALSE);
+		return(false);
 	}
 
 	log_sys->next_checkpoint_lsn = oldest_lsn;
+	log_write_checkpoint_info(sync);
+	ut_ad(!log_mutex_own());
 
-	DBUG_PRINT("ib_log", ("checkpoint " LSN_PF " at " LSN_PF,
-			      log_sys->next_checkpoint_no,
-			      oldest_lsn));
-
-	log_groups_write_checkpoint_info();
-
-	MONITOR_INC(MONITOR_NUM_CHECKPOINT);
-
-	log_mutex_exit();
-
-	if (sync) {
-		/* Wait for the checkpoint write to complete */
-		rw_lock_s_lock(&(log_sys->checkpoint_lock));
-		rw_lock_s_unlock(&(log_sys->checkpoint_lock));
-	}
-
-	return(TRUE);
+	return(true);
 }
 
-/****************************************************************//**
-Makes a checkpoint at a given lsn or later. */
+/** Make a checkpoint at or after a specified LSN.
+@param[in]	lsn		the log sequence number, or LSN_MAX
+for the latest LSN
+@param[in]	write_always	force a write even if no log
+has been generated since the latest checkpoint */
 
 void
 log_make_checkpoint_at(
-/*===================*/
-	lsn_t	lsn,		/*!< in: make a checkpoint at this or a
-				later lsn, if LSN_MAX, makes
-				a checkpoint at the latest lsn */
-	ibool	write_always)	/*!< in: the function normally checks if
-				the new checkpoint would have a
-				greater lsn than the previous one: if
-				not, then no physical write is done;
-				by setting this parameter TRUE, a
-				physical write will always be made to
-				log files */
+	lsn_t	lsn,
+	bool	write_always)
 {
 	/* Preflush pages synchronously */
 
@@ -1838,7 +1819,7 @@ log_make_checkpoint_at(
 		/* Flush as much as we can */
 	}
 
-	while (!log_checkpoint(TRUE, write_always)) {
+	while (!log_checkpoint(true, write_always)) {
 		/* Force a checkpoint */
 	}
 }
@@ -1858,20 +1839,15 @@ log_checkpoint_margin(void)
 	lsn_t		checkpoint_age;
 	ib_uint64_t	advance;
 	lsn_t		oldest_lsn;
-	ibool		checkpoint_sync;
-	ibool		do_checkpoint;
 	bool		success;
 loop:
-	checkpoint_sync = FALSE;
-	do_checkpoint = FALSE;
 	advance = 0;
 
 	log_mutex_enter();
 	ut_ad(!recv_no_log_write);
 
-	if (log->check_flush_or_checkpoint == FALSE) {
+	if (!log->check_flush_or_checkpoint) {
 		log_mutex_exit();
-
 		return;
 	}
 
@@ -1887,21 +1863,22 @@ loop:
 
 	checkpoint_age = log->lsn - log->last_checkpoint_lsn;
 
+	bool	checkpoint_sync;
+	bool	do_checkpoint;
+
 	if (checkpoint_age > log->max_checkpoint_age) {
 		/* A checkpoint is urgent: we do it synchronously */
-
-		checkpoint_sync = TRUE;
-
-		do_checkpoint = TRUE;
-
+		checkpoint_sync = true;
+		do_checkpoint = true;
 	} else if (checkpoint_age > log->max_checkpoint_age_async) {
 		/* A checkpoint is not urgent: do it asynchronously */
-
-		do_checkpoint = TRUE;
-
-		log->check_flush_or_checkpoint = FALSE;
+		do_checkpoint = true;
+		checkpoint_sync = false;
+		log->check_flush_or_checkpoint = false;
 	} else {
-		log->check_flush_or_checkpoint = FALSE;
+		do_checkpoint = false;
+		checkpoint_sync = false;
+		log->check_flush_or_checkpoint = false;
 	}
 
 	log_mutex_exit();
@@ -1917,7 +1894,7 @@ loop:
 		if (!success) {
 			log_mutex_enter();
 
-			log->check_flush_or_checkpoint = TRUE;
+			log->check_flush_or_checkpoint = true;
 
 			log_mutex_exit();
 			goto loop;
@@ -1948,7 +1925,7 @@ log_group_read_log_seg(
 	ulint	len;
 	lsn_t	source_offset;
 
-	ut_ad(mutex_own(&(log_sys->mutex)));
+	ut_ad(log_mutex_own());
 
 loop:
 	source_offset = log_group_calc_lsn_offset(start_lsn, group);
@@ -1990,7 +1967,7 @@ loop:
 	}
 }
 
-/********************************************************************//**
+/**
 Checks that there is enough free space in the log to start a new query step.
 Flushes the log buffer or makes a new checkpoint if necessary. NOTE: this
 function may only be called if the calling thread owns no synchronization
@@ -1998,24 +1975,17 @@ objects! */
 
 void
 log_check_margins(void)
-/*===================*/
 {
-loop:
-	log_flush_margin();
+	bool	check;
 
-	log_checkpoint_margin();
-
-	log_mutex_enter();
-	ut_ad(!recv_no_log_write);
-
-	if (log_sys->check_flush_or_checkpoint) {
-
+	do {
+		log_flush_margin();
+		log_checkpoint_margin();
+		log_mutex_enter();
+		ut_ad(!recv_no_log_write);
+		check = log_sys->check_flush_or_checkpoint;
 		log_mutex_exit();
-
-		goto loop;
-	}
-
-	log_mutex_exit();
+	} while (check);
 }
 
 /****************************************************************//**
@@ -2029,13 +1999,11 @@ logs_empty_and_mark_files_at_shutdown(void)
 /*=======================================*/
 {
 	lsn_t			lsn;
-	ulint			arch_log_no;
 	ulint			count = 0;
 	ulint			total_trx;
 	ulint			pending_io;
 	enum srv_thread_type	active_thd;
 	const char*		thread_name;
-	ibool			server_busy;
 
 	ib_logf(IB_LOG_LEVEL_INFO, "Starting shutdown...");
 
@@ -2149,17 +2117,16 @@ loop:
 	}
 
 	log_mutex_enter();
-	server_busy = log_sys->n_pending_checkpoint_writes
-		      || log_sys->n_pending_flushes;
+	const ulint	n_write	= log_sys->n_pending_checkpoint_writes;
+	const ulint	n_flush	= log_sys->n_pending_flushes;
 	log_mutex_exit();
 
-	if (server_busy) {
+	if (n_write != 0 || n_flush != 0) {
 		if (srv_print_verbose_log && count > 600) {
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Pending checkpoint_writes: %lu."
-				" Pending log flush writes: %lu",
-				(ulong) log_sys->n_pending_checkpoint_writes,
-				(ulong) log_sys->n_pending_flushes);
+				"Pending checkpoint_writes: " ULINTPF "."
+				" Pending log flush writes: " ULINTPF,
+				n_write, n_flush);
 			count = 0;
 		}
 		goto loop;
@@ -2227,18 +2194,14 @@ loop:
 	log_mutex_enter();
 
 	lsn = log_sys->lsn;
-
-	if (lsn != log_sys->last_checkpoint_lsn
-	    ) {
-
-		log_mutex_exit();
-
-		goto loop;
-	}
-
-	arch_log_no = 0;
+	const bool	is_last	= lsn == log_sys->last_checkpoint_lsn;
+	ut_ad(lsn >= log_sys->last_checkpoint_lsn);
 
 	log_mutex_exit();
+
+	if (!is_last) {
+		goto loop;
+	}
 
 	/* Check that the background threads stay suspended */
 	thread_name = srv_any_background_threads_are_active();
@@ -2292,7 +2255,7 @@ loop:
 	srv_shutdown_lsn = lsn;
 
 	if (!srv_read_only_mode) {
-		fil_write_flushed_lsn_to_data_files(lsn, arch_log_no);
+		fil_write_flushed_lsn_to_data_files(lsn, 0);
 
 		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
@@ -2362,13 +2325,15 @@ log_print(
 	}
 
 	fprintf(file,
-		"%lu pending log flushes, %lu pending chkp writes\n"
-		"%lu log i/o's done, %.2f log i/o's/second\n",
-		(ulong) log_sys->n_pending_flushes,
-		(ulong) log_sys->n_pending_checkpoint_writes,
-		(ulong) log_sys->n_log_ios,
-		((double)(log_sys->n_log_ios - log_sys->n_log_ios_old)
-		 / time_elapsed));
+		ULINTPF " pending log flushes, "
+		ULINTPF " pending chkp writes\n"
+		ULINTPF " log i/o's done, %.2f log i/o's/second\n",
+		log_sys->n_pending_flushes,
+		log_sys->n_pending_checkpoint_writes,
+		log_sys->n_log_ios,
+		static_cast<double>(
+			log_sys->n_log_ios - log_sys->n_log_ios_old)
+		/ time_elapsed);
 
 	log_sys->n_log_ios_old = log_sys->n_log_ios;
 	log_sys->last_printout_time = current_time;

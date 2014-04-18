@@ -119,7 +119,8 @@ const TABLE_FIELD_TYPE event_table_fields[ET_FIELD_COUNT] =
     "'NO_DIR_IN_CREATE','POSTGRESQL','ORACLE','MSSQL','DB2','MAXDB',"
     "'NO_KEY_OPTIONS','NO_TABLE_OPTIONS','NO_FIELD_OPTIONS','MYSQL323','MYSQL40',"
     "'ANSI','NO_AUTO_VALUE_ON_ZERO','NO_BACKSLASH_ESCAPES','STRICT_TRANS_TABLES',"
-    "'STRICT_ALL_TABLES','INVALID_DATES','TRADITIONAL','NO_AUTO_CREATE_USER',"
+    "'STRICT_ALL_TABLES','NO_ZERO_IN_DATE','NO_ZERO_DATE','INVALID_DATES',"
+    "'ERROR_FOR_DIVISION_BY_ZERO','TRADITIONAL','NO_AUTO_CREATE_USER',"
     "'HIGH_NOT_PRECEDENCE','NO_ENGINE_SUBSTITUTION','PAD_CHAR_TO_FULL_LENGTH')") },
     {NULL, 0}
   },
@@ -409,7 +410,6 @@ Event_db_repository::index_read_for_db_for_i_s(THD *thd, TABLE *schema_table,
   KEY *key_info;
   uint key_len;
   uchar *key_buf= NULL;
-  LINT_INIT(key_buf);
 
   DBUG_ENTER("Event_db_repository::index_read_for_db_for_i_s");
 

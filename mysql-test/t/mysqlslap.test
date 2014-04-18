@@ -78,4 +78,11 @@ DROP DATABASE bug58090;
 --exec $MYSQL_SLAP -uroot --password="" --silent --iterations=1 --concurrency=1 --auto-generate-sql 2>&1
 
 --echo
+--echo #
+--echo # Bug#18430704 : MYSQLSLAP CRASHES BY FLOATING POINT EXCEPTION
+--echo #
+
+--exec $MYSQL_SLAP --silent --iterations=0 --auto-generate-sql 2>&1
+
+--echo
 --echo End of tests

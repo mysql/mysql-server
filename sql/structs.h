@@ -85,11 +85,17 @@ public:
 };
 
 /**
+  Data type for records per key estimates that are stored in the 
+  KEY::rec_per_key_float[] array.
+*/
+typedef float rec_per_key_t;
+
+/**
   If an entry for a key part in KEY::rec_per_key_float[] has this value,
   then the storage engine has not provided a value for it and the rec_per_key
   value for this key part is unknown.
 */
-#define REC_PER_KEY_UNKNOWN -1.0
+#define REC_PER_KEY_UNKNOWN -1.0f
 
 typedef struct st_key {
   /** Tot length of key */
@@ -142,13 +148,8 @@ private:
     used. Otherwise the value in rec_per_key will be used.
     @todo In the next release the rec_per_key array above should be
     removed and only this should be used.
-
-    This variable is made protected instead of private in order to be
-    able to delete the array in the unit test (@see Fake_KEY). If the
-    KEY struct is re-written to manage the memory for this array, this
-    should be changed to private.
   */
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
 public:
   union {
     int  bdb_return_if_eq;
@@ -187,7 +188,7 @@ public:
       @retval != REC_PER_KEY_UNKNOWN record per key estimate
   */
 
-  float records_per_key(uint key_part_no) const
+  rec_per_key_t records_per_key(uint key_part_no) const
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
 
@@ -199,7 +200,8 @@ public:
       return rec_per_key_float[key_part_no];
 
     return (rec_per_key[key_part_no] != 0) ? 
-      static_cast<float>(rec_per_key[key_part_no]) : REC_PER_KEY_UNKNOWN;
+      static_cast<rec_per_key_t>(rec_per_key[key_part_no]) :
+      REC_PER_KEY_UNKNOWN;
   }
 
   /**
@@ -210,7 +212,7 @@ public:
     @param rec_per_key_est new records per key estimate
   */
 
-  void set_records_per_key(uint key_part_no, float rec_per_key_est)
+  void set_records_per_key(uint key_part_no, rec_per_key_t rec_per_key_est)
   {
     DBUG_ASSERT(key_part_no < actual_key_parts);
     DBUG_ASSERT(rec_per_key_est == REC_PER_KEY_UNKNOWN || 
@@ -234,7 +236,7 @@ public:
   */
   
   void set_rec_per_key_array(ulong *rec_per_key_arg,
-                             float *rec_per_key_float_arg)
+                             rec_per_key_t *rec_per_key_float_arg)
   {
     rec_per_key= rec_per_key_arg;
     rec_per_key_float= rec_per_key_float_arg;
@@ -283,12 +285,27 @@ extern const char *show_comp_option_name[];
 
 typedef int *(*update_var)(THD *, struct st_mysql_show_var *);
 
+/*
+  This structure holds the specifications relating to
+  ALTER user ... PASSWORD EXPIRE ...
+*/
+typedef struct st_lex_alter {
+  bool update_password_expired_column;
+  bool use_default_password_lifetime;
+  uint16 expire_after_days;
+} LEX_ALTER;
+
 typedef struct	st_lex_user {
-  LEX_STRING user, host, password, plugin, auth;
+  LEX_CSTRING user;
+  LEX_CSTRING host;
+  LEX_CSTRING password;
+  LEX_CSTRING plugin;
+  LEX_CSTRING auth;
   bool uses_identified_by_clause;
   bool uses_identified_with_clause;
   bool uses_authentication_string_clause;
   bool uses_identified_by_password_clause;
+  LEX_ALTER alter_status;
 } LEX_USER;
 
 /*

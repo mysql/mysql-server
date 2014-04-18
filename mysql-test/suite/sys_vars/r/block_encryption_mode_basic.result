@@ -195,3 +195,6 @@ SET @@session.block_encryption_mode = @start_session_value;
 SELECT @@session.block_encryption_mode;
 @@session.block_encryption_mode
 aes-128-ecb
+#
+# End of 5.7 tests
+#

@@ -35,6 +35,8 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
+#include "tztime.h"
+#include "sql_time.h"
 
 /****************************************************************************
    AUTHENTICATION CODE
@@ -43,23 +45,23 @@
    MySQL authentication plugins.
 ****************************************************************************/
 
-LEX_STRING native_password_plugin_name= {
+LEX_CSTRING native_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_native_password")
 };
   
-LEX_STRING old_password_plugin_name= {
+LEX_CSTRING old_password_plugin_name= {
   C_STRING_WITH_LEN("mysql_old_password")
 };
 
-LEX_STRING sha256_password_plugin_name= {
+LEX_CSTRING sha256_password_plugin_name= {
   C_STRING_WITH_LEN("sha256_password")
 };
 
-LEX_STRING validate_password_plugin_name= {
+LEX_CSTRING validate_password_plugin_name= {
   C_STRING_WITH_LEN("validate_password")
 };
 
-LEX_STRING default_auth_plugin_name;
+LEX_CSTRING default_auth_plugin_name;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 plugin_ref old_password_plugin;
@@ -366,7 +368,7 @@ int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
 }
 
 
-void optimize_plugin_compare_by_pointer(LEX_STRING *plugin_name)
+void optimize_plugin_compare_by_pointer(LEX_CSTRING *plugin_name)
 {
 #if defined(HAVE_OPENSSL)
   if (my_strcasecmp(system_charset_info, sha256_password_plugin_name.str,
@@ -403,7 +405,7 @@ int check_password_strength(String *password)
 {
   int res= 0;
   DBUG_ASSERT(password != NULL);
-  plugin_ref plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+  plugin_ref plugin= my_plugin_lock_by_name(0, validate_password_plugin_name,
                                             MYSQL_VALIDATE_PASSWORD_PLUGIN);
   if (plugin)
   {
@@ -426,7 +428,7 @@ int check_password_policy(String *password)
   if (!password)
     password= &empty_string;
 
-  plugin= my_plugin_lock_by_name(0, &validate_password_plugin_name,
+  plugin= my_plugin_lock_by_name(0, validate_password_plugin_name,
                                  MYSQL_VALIDATE_PASSWORD_PLUGIN);
   if (plugin)
   {
@@ -849,6 +851,9 @@ ACL_USER *decoy_user(const LEX_STRING &username,
   user->x509_issuer= empty_c_string;
   user->x509_subject= empty_c_string;
   user->salt_len= 0;
+  user->password_last_changed.time_type= MYSQL_TIMESTAMP_ERROR;
+  user->password_lifetime= 0;
+  user->use_default_password_lifetime= true;
 
   /*
     For now the common default account is used. Improvements might involve
@@ -1208,7 +1213,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     DBUG_RETURN(1);
   }
 
-  char *client_plugin;
+  const char *client_plugin;
   if (mpvio->client_capabilities & CLIENT_PLUGIN_AUTH)
   {
     client_plugin= ptr + 2;
@@ -1463,8 +1468,8 @@ char *get_41_lenc_string(char **buffer,
 
 
 /* the packet format is described in send_client_reply_packet() */
-static ulong parse_client_handshake_packet(MPVIO_EXT *mpvio,
-                                           uchar **buff, ulong pkt_len)
+static size_t parse_client_handshake_packet(MPVIO_EXT *mpvio,
+                                            uchar **buff, size_t pkt_len)
 {
 #ifndef EMBEDDED_LIBRARY
   NET *net= mpvio->net;
@@ -1577,7 +1582,7 @@ skip_to_ssl:
     if ((pkt_len= my_net_read(net)) == packet_error)
     {
       DBUG_PRINT("error", ("Failed to read user information (pkt_len= %lu)",
-                 pkt_len));
+                           static_cast<ulong>(pkt_len)));
       return packet_error;
     }
     /* mark vio as encrypted */
@@ -1713,7 +1718,7 @@ skip_to_ssl:
     mpvio->auth_info.password_used= PASSWORD_USED_YES;
 
   size_t client_plugin_len= 0;
-  char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
+  const char *client_plugin= get_string(&end, &bytes_remaining_in_packet,
                                   &client_plugin_len);
   if (client_plugin == NULL)
     client_plugin= &empty_c_string[0];
@@ -1926,7 +1931,7 @@ static int server_mpvio_write_packet(MYSQL_PLUGIN_VIO *param,
 static int server_mpvio_read_packet(MYSQL_PLUGIN_VIO *param, uchar **buf)
 {
   MPVIO_EXT *mpvio= (MPVIO_EXT *) param;
-  ulong pkt_len;
+  size_t pkt_len;
 
   DBUG_ENTER("server_mpvio_read_packet");
   if (mpvio->packets_written == 0)
@@ -2025,7 +2030,7 @@ static void server_mpvio_info(MYSQL_PLUGIN_VIO *vio,
 
 } // extern "C"
 
-static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
+static int do_auth_once(THD *thd, const LEX_CSTRING &auth_plugin_name,
                         MPVIO_EXT *mpvio)
 {
   DBUG_ENTER("do_auth_once");
@@ -2033,11 +2038,11 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
   bool unlock_plugin= false;
   plugin_ref plugin= NULL;
 
-  if (auth_plugin_name->str == native_password_plugin_name.str)
+  if (auth_plugin_name.str == native_password_plugin_name.str)
     plugin= native_password_plugin;
 #ifndef EMBEDDED_LIBRARY
   else
-  if (auth_plugin_name->str == old_password_plugin_name.str)
+  if (auth_plugin_name.str == old_password_plugin_name.str)
     plugin= old_password_plugin;
   else
   {
@@ -2065,7 +2070,7 @@ static int do_auth_once(THD *thd, LEX_STRING *auth_plugin_name,
     Host_errors errors;
     errors.m_no_auth_plugin= 1;
     inc_host_errors(mpvio->ip, &errors);
-    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), auth_plugin_name->str);
+    my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), auth_plugin_name.str);
     res= CR_ERROR;
   }
 
@@ -2131,6 +2136,53 @@ server_mpvio_update_thd(THD *thd, MPVIO_EXT *mpvio)
     thd->variables.sql_mode|= MODE_IGNORE_SPACE;
 }
 
+/**
+  Calculate the timestamp difference for password expiry
+
+  @param thd			 thread handle
+  @param acl_user		 ACL_USER handle
+
+  @retval 0  password is valid
+  @retval 1  password has expired
+*/
+bool
+check_password_lifetime(THD *thd, const ACL_USER *acl_user)
+{
+
+  bool password_time_expired= false;
+
+  if (likely(acl_user != NULL) && !acl_user->password_expired &&
+      acl_user->password_last_changed.time_type != MYSQL_TIMESTAMP_ERROR
+      && auth_plugin_is_built_in(acl_user->plugin.str)
+      && (acl_user->use_default_password_lifetime ||
+      acl_user->password_lifetime))
+  {
+    MYSQL_TIME cur_time, password_change_by;
+    INTERVAL interval;
+
+    thd->set_time();
+    thd->variables.time_zone->gmt_sec_to_TIME(&cur_time, thd->query_start());
+    password_change_by= acl_user->password_last_changed;
+    memset(&interval, 0, sizeof(interval));
+
+    if (!acl_user->use_default_password_lifetime)
+      interval.day= acl_user->password_lifetime;
+    else
+      interval.day= default_password_lifetime;
+    if (interval.day)
+    {
+      if (!date_add_interval(&password_change_by, INTERVAL_DAY, interval))
+        password_time_expired= my_time_compare(&password_change_by,
+                                               &cur_time) >=0 ? false: true;
+      else
+      {
+        DBUG_ASSERT(FALSE);
+        /* Make the compiler happy. */
+      }
+    }
+  }
+  return password_time_expired;
+}
 
 /**
   Perform the handshake, authorize the client and update thd sctx variables.
@@ -2151,7 +2203,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   MPVIO_EXT mpvio;
   Thd_charset_adapter charset_adapter(thd);
 
-  LEX_STRING auth_plugin_name= default_auth_plugin_name;
+  LEX_CSTRING auth_plugin_name= default_auth_plugin_name;
   enum  enum_server_command command= com_change_user_pkt_len ? COM_CHANGE_USER
                                                              : COM_CONNECT;
 
@@ -2200,7 +2252,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
      the correct plugin.
     */
 
-    res= do_auth_once(thd, &auth_plugin_name, &mpvio);  
+    res= do_auth_once(thd, auth_plugin_name, &mpvio);
   }
 
   /*
@@ -2214,7 +2266,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
                 my_strcasecmp(system_charset_info, auth_plugin_name.str,
                               mpvio.acl_user->plugin.str));
     auth_plugin_name= mpvio.acl_user->plugin;
-    res= do_auth_once(thd, &auth_plugin_name, &mpvio);
+    res= do_auth_once(thd, auth_plugin_name, &mpvio);
     if (res <= CR_OK)
     {
       if (auth_plugin_name.str == native_password_plugin_name.str)
@@ -2295,6 +2347,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
   {
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     bool is_proxy_user= FALSE;
+    bool password_time_expired= false;
     const char *auth_user = acl_user->user ? acl_user->user : "";
     ACL_PROXY_USER *proxy_user;
     /* check if the user is allowed to proxy as another user */
@@ -2370,8 +2423,11 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
-    if (unlikely(acl_user && acl_user->password_expired
-        && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
+    password_time_expired= check_password_lifetime(thd, acl_user);
+
+    if (unlikely(acl_user && (acl_user->password_expired ||
+	password_time_expired) &&
+        !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
         && disconnect_on_expired_password))
     {
       /*
@@ -2401,7 +2457,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
-    sctx->password_expired= acl_user->password_expired;
+    sctx->password_expired= acl_user->password_expired || password_time_expired;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else

@@ -28,6 +28,7 @@ CPackConfig.cmake
 /_CPack_Packages/
 $\\\\.gz
 $\\\\.zip
+$\\\\.bz2
 /CMakeFiles/
 /version_resources/
 /_CPack_Packages/
