@@ -8987,6 +8987,8 @@ copy_data_between_tables(PSI_stage_progress *psi,
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
 
+  mysql_stage_set_work_estimated(psi, from->file->stats.records);
+
   save_sql_mode= thd->variables.sql_mode;
 
   List_iterator<Create_field> it(create);

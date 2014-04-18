@@ -16,35 +16,35 @@ select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
 from performance_schema.events_stages_current
 where (thread_id = @con1_thread_id);
 EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
-stage/sql/copy to tmp table	0	0
+stage/sql/copy to tmp table	0	5
 SET DEBUG_SYNC='now SIGNAL wait_row';
 SET DEBUG_SYNC='now WAIT_FOR found_row';
 select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
 from performance_schema.events_stages_current
 where (thread_id = @con1_thread_id);
 EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
-stage/sql/copy to tmp table	1	0
+stage/sql/copy to tmp table	1	5
 SET DEBUG_SYNC='now SIGNAL wait_row';
 SET DEBUG_SYNC='now WAIT_FOR found_row';
 select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
 from performance_schema.events_stages_current
 where (thread_id = @con1_thread_id);
 EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
-stage/sql/copy to tmp table	2	0
+stage/sql/copy to tmp table	2	5
 SET DEBUG_SYNC='now SIGNAL wait_row';
 SET DEBUG_SYNC='now WAIT_FOR found_row';
 select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
 from performance_schema.events_stages_current
 where (thread_id = @con1_thread_id);
 EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
-stage/sql/copy to tmp table	3	0
+stage/sql/copy to tmp table	3	5
 SET DEBUG_SYNC='now SIGNAL wait_row';
 SET DEBUG_SYNC='now WAIT_FOR found_row';
 select EVENT_NAME, WORK_COMPLETED, WORK_ESTIMATED
 from performance_schema.events_stages_current
 where (thread_id = @con1_thread_id);
 EVENT_NAME	WORK_COMPLETED	WORK_ESTIMATED
-stage/sql/copy to tmp table	4	0
+stage/sql/copy to tmp table	4	5
 SET DEBUG_SYNC='now SIGNAL wait_row';
 select "After payload";
 After payload
@@ -65,7 +65,7 @@ stage/sql/setup	NULL	NULL
 stage/sql/creating table	NULL	NULL
 stage/sql/After create	NULL	NULL
 stage/sql/System lock	NULL	NULL
-stage/sql/copy to tmp table	5	0
+stage/sql/copy to tmp table	5	5
 stage/sql/rename result table	NULL	NULL
 stage/sql/end	NULL	NULL
 stage/sql/query end	NULL	NULL
