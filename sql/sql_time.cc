@@ -1100,6 +1100,57 @@ int my_time_compare(MYSQL_TIME *a, MYSQL_TIME *b)
 }
 
 
+/**
+  Convert TIME to DATETIME.
+  @param   ltime    The value to convert.
+  @return  false on success, true of error (negative time).
+*/
+bool time_to_datetime(MYSQL_TIME *ltime)
+{
+  DBUG_ASSERT(ltime->time_type == MYSQL_TIMESTAMP_TIME);
+  DBUG_ASSERT(ltime->year == 0);
+  DBUG_ASSERT(ltime->month == 0);
+  DBUG_ASSERT(ltime->day == 0);
+  if (ltime->neg)
+    return true;
+  uint day= ltime->hour / 24;
+  ltime->hour%= 24;
+  ltime->month= day / 31;
+  ltime->day= day % 31;  
+  return false;
+}
+
+
+/**
+  Return a valid DATE or DATETIME value from an arbitrary MYSQL_TIME.
+  If ltime is TIME, it's first converted to DATETIME.
+  If ts_type is DATE, hhmmss is set to zero.
+  The date part of the result is checked against fuzzy_date.
+
+  @param   ltime       The value to convert.
+  @param   fuzzy_date  Flags to check date.
+  @param   ts_type     The type to convert to.
+  @return  false on success, true of error (negative time).*/
+bool
+make_date_with_warn(MYSQL_TIME *ltime, ulonglong fuzzy_date,
+                    timestamp_type ts_type)
+{
+  DBUG_ASSERT(ts_type == MYSQL_TIMESTAMP_DATE ||
+              ts_type == MYSQL_TIMESTAMP_DATETIME);
+  if (ltime->time_type == MYSQL_TIMESTAMP_TIME && time_to_datetime(ltime))
+  {
+    /* e.g. negative time */
+    ErrConvTime str(ltime);
+    make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                                 &str, ts_type, 0);
+    return true;
+  }
+  if ((ltime->time_type= ts_type) == MYSQL_TIMESTAMP_DATE)
+    ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
+  return check_date_with_warn(ltime, fuzzy_date, ts_type);
+}
+
+
 /*
   Convert a TIME value to DAY-TIME interval, e.g. for extraction:
     EXTRACT(DAY FROM x), EXTRACT(HOUR FROM x), etc.

@@ -349,6 +349,52 @@ Warning	1292	Incorrect datetime value: '0'
 Warning	1292	Incorrect datetime value: '0'
 SET @@timestamp=DEFAULT;
 #
+# MDEV-5041 Inserting a TIME with hour>24 into a DATETIME column produces a wrong value
+#
+SELECT CAST(TIME('-800:20:30') AS DATE);
+CAST(TIME('-800:20:30') AS DATE)
+NULL
+Warnings:
+Warning	1292	Truncated incorrect date value: '-800:20:30'
+SELECT CAST(TIME('800:20:30') AS DATE);
+CAST(TIME('800:20:30') AS DATE)
+0000-01-02
+SELECT CAST(TIME('33 08:20:30') AS DATE);
+CAST(TIME('33 08:20:30') AS DATE)
+0000-01-02
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (TIME('800:20:30'));
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+INSERT INTO t1 VALUES (TIME('33 08:20:30'));
+Warnings:
+Note	1265	Data truncated for column 'a' at row 1
+SET SQL_MODE=NO_ZERO_IN_DATE;
+INSERT INTO t1 VALUES (TIME('48:20:30'));
+Warnings:
+Warning	1265	Data truncated for column 'a' at row 1
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+a
+0000-01-02
+0000-01-02
+0000-00-00
+DROP TABLE t1;
+CREATE PROCEDURE test5041()
+BEGIN
+DECLARE t TIME;
+DECLARE d DATE;
+SET t= TIME('800:00:00');
+SET d= t;
+SELECT d;
+END;|
+call test5041();
+d
+0000-01-02
+Warnings:
+Note	1265	Data truncated for column 'd' at row 1
+drop procedure test5041;
+#
 # End of 5.3 tests
 #
 #

@@ -4303,10 +4303,12 @@ my_time, id FROM t1_values
 WHERE select_id = 35 OR select_id IS NULL order by id;
 CAST(my_time AS DATE)	my_time	id
 NULL	NULL	1
-0000-00-00	-838:59:59	2
-0000-00-00	838:59:59	3
+NULL	-838:59:59	2
+0000-01-03	838:59:59	3
 0000-00-00	13:00:00	4
 0000-00-00	10:00:00	5
+Warnings:
+Warning	1292	Truncated incorrect date value: '-838:59:59'
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_time` as date) AS `CAST(my_time AS DATE)`,`t1_values`.`my_time` AS `my_time`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -4315,10 +4317,12 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 35 OR select_id IS NULL) order by id;
 CAST(my_time AS DATE)	my_time	id
 NULL	NULL	1
-0000-00-00	-838:59:59	2
-0000-00-00	838:59:59	3
+NULL	-838:59:59	2
+0000-01-03	838:59:59	3
 0000-00-00	13:00:00	4
 0000-00-00	10:00:00	5
+Warnings:
+Warning	1292	Truncated incorrect date value: '-838:59:59'
 DROP VIEW v1;
 
 

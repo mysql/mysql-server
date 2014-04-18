@@ -322,6 +322,34 @@ SELECT
 SET @@timestamp=DEFAULT;
 
 --echo #
+--echo # MDEV-5041 Inserting a TIME with hour>24 into a DATETIME column produces a wrong value
+--echo #
+SELECT CAST(TIME('-800:20:30') AS DATE);
+SELECT CAST(TIME('800:20:30') AS DATE);
+SELECT CAST(TIME('33 08:20:30') AS DATE);
+CREATE TABLE t1 (a DATE);
+INSERT INTO t1 VALUES (TIME('800:20:30'));
+INSERT INTO t1 VALUES (TIME('33 08:20:30'));
+SET SQL_MODE=NO_ZERO_IN_DATE;
+INSERT INTO t1 VALUES (TIME('48:20:30'));
+SET SQL_MODE=DEFAULT;
+SELECT * FROM t1;
+DROP TABLE t1;
+DELIMITER |;
+CREATE PROCEDURE test5041()
+BEGIN
+  DECLARE t TIME;
+  DECLARE d DATE;
+  SET t= TIME('800:00:00');
+  SET d= t;
+  SELECT d;
+END;|
+DELIMITER ;|
+call test5041();
+drop procedure test5041;
+
+
+--echo #
 --echo # End of 5.3 tests
 --echo #
 

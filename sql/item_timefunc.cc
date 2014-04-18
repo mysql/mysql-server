@@ -2443,10 +2443,10 @@ bool Item_date_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   if (get_arg0_date(ltime, fuzzy_date & ~TIME_TIME_ONLY))
     return 1;
 
-  ltime->hour= ltime->minute= ltime->second= ltime->second_part= 0;
-  ltime->time_type= MYSQL_TIMESTAMP_DATE;
-  return (null_value= check_date_with_warn(ltime, fuzzy_date,
-                                           MYSQL_TIMESTAMP_DATE));
+  if (make_date_with_warn(ltime, fuzzy_date, MYSQL_TIMESTAMP_DATE))
+    return (null_value= 1);
+
+  return 0;
 }
 
 
@@ -2458,28 +2458,9 @@ bool Item_datetime_typecast::get_date(MYSQL_TIME *ltime, ulonglong fuzzy_date)
   if (decimals < TIME_SECOND_PART_DIGITS)
     ltime->second_part= sec_part_truncate(ltime->second_part, decimals);
 
+  if (make_date_with_warn(ltime, fuzzy_date, MYSQL_TIMESTAMP_DATETIME))
+    return (null_value= 1);
 
-  /*
-    ltime is valid MYSQL_TYPE_TIME (according to fuzzy_date).
-    But not every valid TIME value is a valid DATETIME value!
-  */
-  if (ltime->time_type == MYSQL_TIMESTAMP_TIME)
-  {
-    if (ltime->neg)
-    {
-      ErrConvTime str(ltime);
-      make_truncated_value_warning(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
-                                   &str, MYSQL_TIMESTAMP_DATETIME, 0);
-      return (null_value= 1);
-    }
-    
-    uint day= ltime->hour/24;
-    ltime->hour %= 24;
-    ltime->month= day / 31;
-    ltime->day= day % 31;
-  }
-
-  ltime->time_type= MYSQL_TIMESTAMP_DATETIME;
   return 0;
 }
 
