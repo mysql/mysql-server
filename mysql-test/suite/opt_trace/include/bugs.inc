@@ -106,10 +106,8 @@ WHERE  ( alias2.col_varchar_key IN (
 );
 
 eval CREATE TABLE where_subselect_19379 $query;
---disable_ps_protocol # because of BUG#12595688
 eval SELECT * FROM where_subselect_19379 WHERE (field1, field2) NOT IN
 ($query); 
---enable_ps_protocol
 
 select * from information_schema.OPTIMIZER_TRACE;
 
@@ -263,4 +261,17 @@ CREATE TABLE t1
 SELECT 1 FROM t1 WHERE 1 LIKE
  (SELECT a FROM t1 WHERE a = 1 ORDER BY c);
 SELECT * FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #18346750 OPTIMIZER_TRACE & DBUG_PRINT CRASH IN ST_SELECT_LEX::PRINT
+--echo #
+
+CREATE TABLE t1 (a INT, PRIMARY KEY (a))
+ PARTITION BY KEY (a) PARTITIONS 2;
+INSERT INTO t1 VALUES (1),(2);
+--ERROR ER_SUBQUERY_NO_1_ROW
+SELECT  1 FROM t1 ,t1 w
+ WHERE t1.a <=> (SELECT a FROM t1 GROUP BY (SELECT 1 FROM t1));
+SELECT TRACE LIKE "%select had some error%" FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 DROP TABLE t1;

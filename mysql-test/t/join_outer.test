@@ -1561,3 +1561,12 @@ eval explain format=json $query;
 eval $query;
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug #18345786 CRASH AROUND ST_JOIN_TABLE::AND_WITH_CONDITION
+--echo #
+
+CREATE TABLE t1(a INT) ENGINE=INNODB;
+SET @a:=(SELECT ROW(1, 2)=
+                ROW((SELECT 1 FROM t1 LEFT JOIN t1 t2 ON 1), 1));
+DROP TABLE t1;

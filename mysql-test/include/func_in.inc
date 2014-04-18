@@ -261,9 +261,9 @@ select some_id from t1 where some_id not in('-1', '0');
 
 drop table t1;
 
-#
-# BUG#20420: optimizer reports wrong keys on left join with IN
-#
+--echo #
+--echo # BUG#20420: optimizer reports wrong keys on left join with IN
+--echo #
 CREATE TABLE t1 (a int, b int, PRIMARY KEY (a));
 INSERT INTO t1 VALUES (1,1),(2,1),(3,1),(4,1),(5,1),(6,1);
 

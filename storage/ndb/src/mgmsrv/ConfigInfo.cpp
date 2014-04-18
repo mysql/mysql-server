@@ -3703,7 +3703,7 @@ ConfigInfo::getDescription(const Properties * section,
 bool
 ConfigInfo::isSection(const char * section) const {
   for (int i = 0; i<m_noOfSectionNames; i++) {
-    if(!strcasecmp(section, m_sectionNames[i])) return true;
+    if(!native_strcasecmp(section, m_sectionNames[i])) return true;
   }
   return false;
 }
@@ -3711,7 +3711,7 @@ ConfigInfo::isSection(const char * section) const {
 const char*
 ConfigInfo::nameToAlias(const char * name) {
   for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
-    if(!strcasecmp(name, m_sectionNameAliases[i].name))
+    if(!native_strcasecmp(name, m_sectionNameAliases[i].name))
       return m_sectionNameAliases[i].alias;
   return 0;
 }
@@ -3719,7 +3719,7 @@ ConfigInfo::nameToAlias(const char * name) {
 const char*
 ConfigInfo::getAlias(const char * section) {
   for (int i = 0; m_sectionNameAliases[i].name != 0; i++)
-    if(!strcasecmp(section, m_sectionNameAliases[i].alias))
+    if(!native_strcasecmp(section, m_sectionNameAliases[i].alias))
       return m_sectionNameAliases[i].name;
   return 0;
 }
@@ -3788,7 +3788,7 @@ section2PrimaryKeys[]={
 static const char*
 sectionPrimaryKeys(const char * name) {
   for (int i = 0; section2PrimaryKeys[i].name != 0; i++)
-    if(!strcasecmp(name, section2PrimaryKeys[i].name))
+    if(!native_strcasecmp(name, section2PrimaryKeys[i].name))
       return section2PrimaryKeys[i].alias;
   return 0;
 }
@@ -4384,17 +4384,17 @@ bool
 checkConnectionSupport(InitConfigFileParser::Context & ctx, const char * data)
 {
   int error= 0;
-  if (strcasecmp("TCP",ctx.fname) == 0)
+  if (native_strcasecmp("TCP",ctx.fname) == 0)
   {
     // always enabled
   }
-  else if (strcasecmp("SHM",ctx.fname) == 0)
+  else if (native_strcasecmp("SHM",ctx.fname) == 0)
   {
 #ifndef NDB_SHM_TRANSPORTER
     error= 1;
 #endif
   }
-  else if (strcasecmp("SCI",ctx.fname) == 0)
+  else if (native_strcasecmp("SCI",ctx.fname) == 0)
   {
 #ifndef NDB_SCI_TRANSPORTER
     error= 1;
@@ -5231,11 +5231,11 @@ fixDeprecated(InitConfigFileParser::Context & ctx, const char * data){
       if(strcmp(p->m_section, ctx.fname) == 0){
 	double mul = p->m_mul;
 	double add = p->m_add;
-	if(strcasecmp(name, p->m_oldName) == 0){
+	if(native_strcasecmp(name, p->m_oldName) == 0){
 	  if(!transform(ctx, tmp, name, p->m_newName, add, mul)){
 	    return false;
 	  }
-	} else if(strcasecmp(name, p->m_newName) == 0) {
+	} else if(native_strcasecmp(name, p->m_newName) == 0) {
 	  if(!transform(ctx, tmp, name, p->m_oldName, -add/mul,1.0/mul)){
 	    return false;
 	  }

@@ -58,18 +58,8 @@ static store_key *get_store_key(THD *thd,
 				uint maybe_null);
 bool const_expression_in_where(Item *conds,Item *item, Item **comp_item);
 uint find_shortest_key(TABLE *table, const key_map *usable_keys);
-static bool test_if_cheaper_ordering(const JOIN_TAB *tab,
-                                     ORDER *order, TABLE *table,
-                                     key_map usable_keys, int key,
-                                     ha_rows select_limit,
-                                     int *new_key, int *new_key_direction,
-                                     ha_rows *new_select_limit,
-                                     uint *new_used_key_parts= NULL,
-                                     uint *saved_best_key_parts= NULL);
-static uint join_buffer_alg(const THD *thd);
-static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
+static void push_index_cond(JOIN_TAB *tab, uint keyno,
                             Opt_trace_object *trace_obj);
-
 /**
   This handles SELECT with and without UNION
 */
@@ -90,12 +80,13 @@ bool handle_select(THD *thd, select_result *result,
     DBUG_RETURN(true);
   }
 
-  if (select_lex->master_unit()->is_union() || 
-      select_lex->master_unit()->fake_select_lex)
-    res= mysql_union(thd, lex, result, lex->unit, setup_tables_done_option);
+  SELECT_LEX_UNIT *const unit= select_lex->master_unit();
+  DBUG_ASSERT(unit == thd->lex->unit);
+
+  if (unit->is_union() || unit->fake_select_lex)
+    res= mysql_union(thd, lex, result, unit, setup_tables_done_option);
   else
   {
-    SELECT_LEX_UNIT *unit= lex->unit;
     unit->set_limit(unit->global_parameters());
     /*
       'options' of mysql_select will be set in JOIN, as far as JOIN for
@@ -103,15 +94,10 @@ bool handle_select(THD *thd, select_result *result,
       setup_tables_done_option changed for next rexecution
     */
     res= mysql_select(thd,
-		      select_lex->table_list.first,
-		      select_lex->with_wild, select_lex->item_list,
-		      select_lex->where,
-		      &select_lex->order_list,
-		      &select_lex->group_list,
-		      select_lex->having,
-		      select_lex->options | thd->variables.option_bits |
+                      select_lex->item_list,
+                      select_lex->options | thd->variables.option_bits |
                       setup_tables_done_option,
-		      result, unit, select_lex);
+                      result, select_lex);
   }
   DBUG_PRINT("info",("res: %d  report_error: %d", res,
 		     thd->is_error()));
@@ -217,42 +203,6 @@ static bool sj_table_is_included(JOIN *join, JOIN_TAB *join_tab)
   return TRUE;
 }
 
-/**
-   Check if the optimizer might choose to use join buffering for this
-   join. If that is the case, and if duplicate weedout semijoin
-   strategy is used, the duplicate generating range must be extended
-   to the first non-const table. 
-
-   This function is called from setup_semijoin_dups_elimination()
-   before the final decision is made on whether or not buffering is
-   used. It is therefore only a rough test that covers all cases where
-   join buffering might be used, but potentially also some cases where
-   join buffering will not be used.
-
-   @param join_buffer_alg      Bitmap with possible join buffer algorithms
-   @param sj_tab               Table that might be joined by BNL/BKA
-
-   @return                     
-      true if join buffering might be used, false otherwise
-
- */
-static bool might_do_join_buffering(uint join_buffer_alg, 
-                                    const JOIN_TAB *sj_tab) 
-{
-  /* 
-     (1) sj_tab is not a const table
-  */
-  int sj_tabno= sj_tab - sj_tab->join->join_tab;
-  return (sj_tabno >= (int)sj_tab->join->const_tables && // (1)
-          sj_tab->use_quick != QS_DYNAMIC_RANGE && 
-          (((join_buffer_alg & JOIN_CACHE::ALG_BNL) && 
-            sj_tab->type == JT_ALL) ||
-           ((join_buffer_alg & 
-             (JOIN_CACHE::ALG_BKA | JOIN_CACHE::ALG_BKA_UNIQUE)) && 
-            (sj_tab->type == JT_REF || 
-             sj_tab->type == JT_EQ_REF ||
-             sj_tab->type == JT_CONST))));
-}
 
 /**
   Setup the strategies to eliminate semi-join duplicates.
@@ -516,31 +466,8 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
              sj_tableno < tableno + pos->n_sj_tables; 
              sj_tableno++)
         {
-          /*
-            The final decision on whether or not join buffering will
-            be used is taken in setup_join_buffering(), which is
-            called from make_join_readinfo()'s main loop.
-            setup_join_buffering() needs to know if duplicate weedout is used,
-            so moving setup_semijoin_dups_elimination() from before the main
-            loop to after it is not possible. I.e.,
-            join->join_tab[sj_tableno]->position->use_join_buffer is not
-            trustworthy at this point.
-          */
-          /**
-            @todo: merge make_join_readinfo() and
-            setup_semijoin_dups_elimination() loops and change the
-            following 'if' to
-
-            "if (join->join_tab[sj_tableno]->position->use_join_buffer && 
-                 sj_tableno <= no_jbuf_after)".
-
-            For now, use a rough criteria:
-          */
-
-          if (sj_tableno <= no_jbuf_after &&
-              might_do_join_buffering(join_buffer_alg(thd), 
-                                      join->join_tab + sj_tableno))
-
+          if (join->join_tab[sj_tableno].use_join_cache &&
+              sj_tableno <= no_jbuf_after)
           {
             /* Join buffering will probably be used */
             first_table= join->const_tables;
@@ -608,7 +535,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         SJ_TMP_TABLE *sjtbl;
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
-          uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
           if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -908,35 +835,15 @@ void JOIN::cleanup_item_list(List<Item> &items) const
 
   @param thd                  thread handler
                               the top-level select_lex for this query
-  @param tables               list of all tables used in this query.
-                              The tables have been pre-opened.
-  @param wild_num             number of wildcards used in the top level 
-                              select of this query.
-                              For example statement
-                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                              has 3 wildcards.
   @param fields               list of items in SELECT list of the top-level
                               select
                               e.g. SELECT a, b, c FROM t1 will have Item_field
                               for a, b and c in this list.
-  @param conds                top level item of an expression representing
-                              WHERE clause of the top level select
-  @param og_num               total number of ORDER BY and GROUP BY clauses
-                              arguments
-  @param order                linked list of ORDER BY agruments
-  @param group                linked list of GROUP BY arguments
-  @param having               top level item of HAVING expression
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param unit                 top-level UNIT of this query
-                              UNIT is an artificial object created by the
-                              parser for every SELECT clause.
-                              e.g.
-                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                              has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
   @param[out] free_join       Will be set to false if select_lex->join does
                               not need to be freed.
@@ -951,10 +858,9 @@ void JOIN::cleanup_item_list(List<Item> &items) const
 
 static bool
 mysql_prepare_select(THD *thd,
-                     TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-                     Item *conds, uint og_num,  ORDER *order, ORDER *group,
-                     Item *having, ulonglong select_options,
-                     select_result *result, SELECT_LEX_UNIT *unit,
+                     List<Item> &fields,
+                     ulonglong select_options,
+                     select_result *result,
                      SELECT_LEX *select_lex, bool *free_join)
 {
   bool err= false;
@@ -983,9 +889,7 @@ mysql_prepare_select(THD *thd,
       }
       else
       {
-        err= join->prepare(tables, wild_num,
-                           conds, og_num, order, group, having,
-                           select_lex, unit);
+        err= select_lex->prepare(join);
         if (err)
           DBUG_RETURN(true);
       }
@@ -998,9 +902,7 @@ mysql_prepare_select(THD *thd,
       DBUG_RETURN(TRUE); /* purecov: inspected */
     THD_STAGE_INFO(thd, stage_init);
     thd->lex->used_tables=0;                         // Updated by setup_fields
-    err= join->prepare(tables, wild_num,
-                       conds, og_num, order, group, having,
-                       select_lex, unit);
+    err= select_lex->prepare(join);
     if (err)
       DBUG_RETURN(true);
   }
@@ -1013,33 +915,15 @@ mysql_prepare_select(THD *thd,
   Prepare and optimize single-unit select (a select without UNION).
 
   @param thd                  thread handler
-  @param tables               list of all tables used in this query.
-                              The tables have been pre-opened.
-  @param wild_num             number of wildcards used in the top level 
-                              select of this query.
-                              For example statement
-                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                              has 3 wildcards.
   @param fields               list of items in SELECT list of the top-level
                               select
                               e.g. SELECT a, b, c FROM t1 will have Item_field
                               for a, b and c in this list.
-  @param conds                top level item of an expression representing
-                              WHERE clause of the top level select
-  @param order                linked list of ORDER BY agruments
-  @param group                linked list of GROUP BY arguments
-  @param having               top level item of HAVING expression
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param unit                 top-level UNIT of this query
-                              UNIT is an artificial object created by the
-                              parser for every SELECT clause.
-                              e.g.
-                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                              has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
   @param free_join [out]      whether the caller should free allocated JOIN
 
@@ -1050,32 +934,14 @@ mysql_prepare_select(THD *thd,
 */
 
 bool
-mysql_prepare_and_optimize_select(THD *thd,
-             TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-             Item *conds, SQL_I_List<ORDER> *order, SQL_I_List<ORDER> *group,
-             Item *having, ulonglong select_options,
-             select_result *result, SELECT_LEX_UNIT *unit,
-             SELECT_LEX *select_lex, bool *free_join)
+mysql_prepare_and_optimize_select(THD *thd, List<Item> &fields,
+                                  ulonglong select_options,
+                                  select_result *result,
+                                  SELECT_LEX *select_lex, bool *free_join)
 {
-  uint og_num= 0;
-  ORDER *first_order= NULL;
-  ORDER *first_group= NULL;
   DBUG_ENTER("mysql_prepare_and_optimize_select");
 
-  if (order)
-  {
-    og_num= order->elements;
-    first_order= order->first;
-  }
-  if (group)
-  {
-    og_num+= group->elements;
-    first_group= group->first;
-  }
-
-  if (mysql_prepare_select(thd, tables, wild_num, fields,
-                           conds, og_num, first_order, first_group, having,
-                           select_options, result, unit,
+  if (mysql_prepare_select(thd, fields, select_options, result,
                            select_lex, free_join))
     DBUG_RETURN(true);
 
@@ -1113,33 +979,15 @@ mysql_prepare_and_optimize_select(THD *thd,
   An entry point to single-unit select (a select without UNION).
 
   @param thd                  thread handler
-  @param tables               list of all tables used in this query.
-                              The tables have been pre-opened.
-  @param wild_num             number of wildcards used in the top level 
-                              select of this query.
-                              For example statement
-                              SELECT *, t1.*, catalog.t2.* FROM t0, t1, t2;
-                              has 3 wildcards.
   @param fields               list of items in SELECT list of the top-level
                               select
                               e.g. SELECT a, b, c FROM t1 will have Item_field
                               for a, b and c in this list.
-  @param conds                top level item of an expression representing
-                              WHERE clause of the top level select
-  @param order                linked list of ORDER BY agruments
-  @param group                linked list of GROUP BY arguments
-  @param having               top level item of HAVING expression
   @param select_options       select options (BIG_RESULT, etc)
   @param result               an instance of result set handling class.
                               This object is responsible for send result
                               set rows to the client or inserting them
                               into a table.
-  @param unit                 top-level UNIT of this query
-                              UNIT is an artificial object created by the
-                              parser for every SELECT clause.
-                              e.g.
-                              SELECT * FROM t1 WHERE a1 IN (SELECT * FROM t2)
-                              has 2 unions.
   @param select_lex           the only SELECT_LEX of this query
 
   @retval
@@ -1150,20 +998,19 @@ mysql_prepare_and_optimize_select(THD *thd,
 
 bool
 mysql_select(THD *thd,
-             TABLE_LIST *tables, uint wild_num, List<Item> &fields,
-             Item *conds, SQL_I_List<ORDER> *order, SQL_I_List<ORDER> *group,
-             Item *having, ulonglong select_options,
-             select_result *result, SELECT_LEX_UNIT *unit,
+             List<Item> &fields,
+             ulonglong select_options,
+             select_result *result,
              SELECT_LEX *select_lex)
 {
   bool free_join= true;
   bool err;
   DBUG_ENTER("mysql_select");
-  if ((err= (mysql_prepare_and_optimize_select(thd, tables, wild_num,fields,
-                                               conds, order, group, having,
-                                               select_options, result, unit,
+  if ((err= (mysql_prepare_and_optimize_select(thd, fields,
+                                               select_options, result,
                                                select_lex, &free_join)) ||
-             mysql_optimize_prepared_inner_units(thd, unit, select_options)))
+       mysql_optimize_prepared_inner_units(thd, select_lex->master_unit(),
+                                           select_options)))
     goto err;
   DBUG_ASSERT(!(select_lex->join->select_options & SELECT_DESCRIBE));
   select_lex->join->exec();
@@ -1181,36 +1028,6 @@ err:
   Go through all combinations of not marked tables and find the one
   which uses least records
 *****************************************************************************/
-
-/**
-   Returns which join buffer algorithms are enabled for this session.
-
-   @param thd the @c THD for this session
-
-   @return bitmap with available join buffer algorithms
-*/
-
-static uint join_buffer_alg(const THD *thd)
-{
-  uint alg= JOIN_CACHE::ALG_NONE;
-
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL))
-    alg|= JOIN_CACHE::ALG_BNL;
-
-  if (thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BKA))
-  {
-    bool use_bka_unique= false;
-    DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique= true;);
-    
-    if (use_bka_unique)
-      alg|= JOIN_CACHE::ALG_BKA_UNIQUE;
-    else
-      alg|= JOIN_CACHE::ALG_BKA;
-  }
-
-  return alg;
-}
-
 
 /**
   Find how much space the prevous read not const tables takes in cache.
@@ -1262,213 +1079,19 @@ void calc_used_field_length(THD *thd, JOIN_TAB *join_tab)
 }
 
 
-/**
-  Set up JOIN_TAB structs according to the picked join order in best_positions.
-  This allocates execution structures so may be called only after we have the
-  very final plan. It must be called after
-  Optimize_table_order::fix_semijoin_strategies().
-
-  @return False if success, True if error
-
-  @details
-    - create join->join_tab array and copy from existing JOIN_TABs in join order
-    - create helper structs for materialized semi-join handling
-    - finalize semi-join strategy choices
-    - Number of intermediate tables "tmp_tables" is calculated.
-    - "tables" and "primary_tables" are recalculated.
-
-   Notice that intermediate tables will not have a POSITION reference; and they
-   will not have a TABLE reference before the final stages of code generation.
-*/
-
-bool JOIN::get_best_combination()
+bool JOIN::init_ref_access()
 {
-  DBUG_ENTER("JOIN::get_best_combination");
-
-  // At this point "tables" and "primary"tables" represent the same:
-  DBUG_ASSERT(tables == primary_tables);
-
-  /*
-    Allocate additional space for tmp tables.
-    Number of plan nodes:
-      # of regular input tables (including semi-joined ones) +
-      # of semi-join nests for materialization +
-      1? + // For GROUP BY
-      1? + // For DISTINCT
-      1? + // For aggregation functions aggregated in outer query
-           // when used with distinct
-      1? + // For ORDER BY
-      1?   // buffer result
-    Up to 2 tmp tables are actually used, but it's hard to tell exact number
-    at this stage.
-  */
-  uint num_tmp_tables= (group_list ? 1 : 0) +
-                       (select_distinct ?
-                        (tmp_table_param.outer_sum_func_count ? 2 : 1) : 0) +
-                       (order ? 1 : 0) +
-       (select_options & (SELECT_BIG_RESULT | OPTION_BUFFER_RESULT) ? 1 : 0) ;
-  if (num_tmp_tables > 2)
-    num_tmp_tables= 2;
-
-  /*
-    Rearrange queries with materialized semi-join nests so that the semi-join
-    nest is replaced with a reference to a materialized temporary table and all
-    materialized subquery tables are placed after the intermediate tables.
-    After the following loop, "inner_target" is the position of the first
-    subquery table (if any). "outer_target" is the position of first outer
-    table, and will later be used to track the position of any materialized
-    temporary tables. 
-  */
-  const bool has_semijoin= !select_lex->sj_nests.is_empty();
-  uint outer_target= 0;                   
-  uint inner_target= primary_tables + num_tmp_tables;
-  uint sjm_nests= 0;
-
-  if (has_semijoin)
-  {
-    for (uint tableno= 0; tableno < primary_tables; )
-    {
-      if (sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
-      {
-        sjm_nests++;
-        inner_target-= (best_positions[tableno].n_sj_tables - 1);
-        tableno+= best_positions[tableno].n_sj_tables;
-      }
-      else
-        tableno++;
-    }
-  }
-
-  if (!(join_tab= 
-        new(thd->mem_root) JOIN_TAB[tables + sjm_nests + num_tmp_tables]))
-    DBUG_RETURN(true);
-
-  int sjm_index= tables;  // Number assigned to materialized temporary table
-  int remaining_sjm_inner= 0;
-  for (uint tableno= 0; tableno < tables; tableno++)
-  {
-    if (has_semijoin &&
-        sj_is_materialize_strategy(best_positions[tableno].sj_strategy))
-    {
-      DBUG_ASSERT(outer_target < inner_target);
-
-      POSITION *const pos_table= best_positions + tableno;
-      TABLE_LIST *const sj_nest= pos_table->table->emb_sj_nest;
-
-      // Handle this many inner tables of materialized semi-join
-      remaining_sjm_inner= pos_table->n_sj_tables;
-
-      Semijoin_mat_exec *const sjm_exec=
-        new (thd->mem_root)
-        Semijoin_mat_exec(sj_nest,
-                          (pos_table->sj_strategy == SJ_OPT_MATERIALIZE_SCAN),
-                          remaining_sjm_inner, outer_target, inner_target);
-      if (!sjm_exec)
-        DBUG_RETURN(true);
-
-      (join_tab + outer_target)->sj_mat_exec= sjm_exec;
-
-      if (setup_materialized_table(join_tab + outer_target, sjm_index,
-                                   pos_table, best_positions + sjm_index))
-        DBUG_RETURN(true);
-
-      map2table[sjm_exec->table->tablenr]= join_tab + outer_target;
-
-      outer_target++;
-      sjm_index++;
-    }
-    /*
-      Locate join_tab target for the table we are considering.
-      (remaining_sjm_inner becomes negative for non-SJM tables, this can be
-       safely ignored).
-    */
-    const uint target=
-      (remaining_sjm_inner--) > 0 ? inner_target++ : outer_target++;
-    JOIN_TAB *const tab= join_tab + target;
-
-    // Copy data from existing join_tab
-    *tab= *best_positions[tableno].table;
-    tab->rowcount= (ha_rows) best_positions[tableno].fanout;
-    tab->position= best_positions + tableno;
-
-    TABLE *const table= tab->table;
-    table->reginfo.join_tab= tab;
-    if (!*tab->on_expr_ref)
-      table->reginfo.not_exists_optimize= false;     // Only with LEFT JOIN
-    map2table[table->tablenr]= tab;
-  }
-
-  // Count the materialized semi-join tables as regular input tables
-  tables+= sjm_nests + num_tmp_tables;
-  // Set the number of non-materialized tables:
-  primary_tables= outer_target;
-
-  if (has_semijoin)
-  {
-    set_semijoin_info();
-
-    // Update equalities and keyuses after having added SJ materialization
-    if (update_equalities_for_sjm())
-      DBUG_RETURN(true);
-  }
-  // sjm is no longer needed, trash it. To reuse it, reset its members!
-  List_iterator<TABLE_LIST> sj_list_it(select_lex->sj_nests);
-  TABLE_LIST *sj_nest;
-  while ((sj_nest= sj_list_it++))
-    TRASH(&sj_nest->nested_join->sjm, sizeof(sj_nest->nested_join->sjm));
-
-  DBUG_RETURN(false);
-}
-
-
-/**
-  Set access methods for the tables of a query plan.
-
-  @return False if success, True if error
-
-  @details
-    We need to fill in data for the case where
-     - There is no key selected (use JT_ALL)
-     - Loose scan semi-join strategy is selected (use JT_ALL)
-     - A ref key can be used (use JT_REF, JT_REF_OR_NULL, JT_EQ_REF or JT_FT)
-
-  @note We cannot setup fields used for ref access before we have sorted
-        the items within multiple equalities according to the final order of
-        the tables involved in the join operation. Currently, this occurs in
-        @see substitute_for_best_equal_field().
-*/
-bool JOIN::set_access_methods()
-{
-  DBUG_ENTER("JOIN::set_access_methods");
-
-  full_join= false;
+  DBUG_ENTER("JOIN::init_ref_access");
 
   for (uint tableno= const_tables; tableno < tables; tableno++)
   {
     JOIN_TAB *const tab= join_tab + tableno;
 
-    if (!tab->position)
-      continue;
-
-    DBUG_PRINT("info",("type: %d", tab->type));
-
-    // Set preliminary join cache setting based on decision from greedy search
-    tab->use_join_cache= tab->position->use_join_buffer ?
-                           JOIN_CACHE::ALG_BNL : JOIN_CACHE::ALG_NONE;
-
-    if (tab->type == JT_CONST || tab->type == JT_SYSTEM)
-      continue;                      // Handled in JOIN::make_join_plan()
-
-    Key_use *const keyuse= tab->position->key;
-    if (!keyuse)
+    if (tab->type == JT_REF) // Here JT_REF means all kinds of ref access
     {
-      tab->type= JT_ALL;
-      if (tableno > const_tables)
-       full_join= true;
-    }
-    else
-    {
-      if (create_ref_for_key(this, tab, keyuse, tab->prefix_tables()))
+      DBUG_ASSERT(tab->position && tab->position->key);
+      if (create_ref_for_key(this, tab, tab->position->key,
+                             tab->prefix_tables()))
         DBUG_RETURN(true);
     }
   }
@@ -1529,6 +1152,53 @@ void JOIN::set_semijoin_info()
 }
 
 
+void calc_length_and_keyparts(Key_use *keyuse, JOIN_TAB *tab, const uint key,
+                              table_map used_tables,Key_use **chosen_keyuses,
+                              uint *length_out, uint *keyparts_out,
+                              table_map *dep_map, bool *maybe_null)
+{
+  DBUG_ASSERT(!dep_map || maybe_null);
+  uint keyparts= 0, length= 0;
+  uint found_part_ref_or_null= 0;
+  TABLE *table= tab->table;
+  KEY *const keyinfo= table->key_info + key;
+
+  do
+  {
+    /*
+      This Key_use is chosen if:
+      - it involves a key part at the right place (if index is (a,b) we
+      can have a search criterion on 'b' only if we also have a criterion
+      on 'a'),
+      - it references only tables earlier in the plan.
+      Moreover, the execution layer is limited to maximum one ref_or_null
+      keypart, as TABLE_REF::null_ref_key is only one byte.
+    */
+    if (!(~used_tables & keyuse->used_tables) &&
+        keyparts == keyuse->keypart &&
+        !(found_part_ref_or_null & keyuse->optimize))
+    {
+      DBUG_ASSERT(keyparts <= MAX_REF_PARTS);
+      if (chosen_keyuses)
+        chosen_keyuses[keyparts]= keyuse;
+      keyparts++;
+      length+= keyinfo->key_part[keyuse->keypart].store_length;
+      found_part_ref_or_null|= keyuse->optimize;
+      if (dep_map)
+      {
+        *dep_map|= keyuse->val->used_tables();
+        *maybe_null|= keyinfo->key_part[keyuse->keypart].null_bit &&
+          (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL);
+      }
+    }
+    keyuse++;
+  } while (keyuse->table == table && keyuse->key == key);
+  DBUG_ASSERT(length > 0 && keyparts != 0);
+  *length_out= length;
+  *keyparts_out= keyparts;
+}
+
+
 /**
   Setup a ref access for looking up rows via an index (a key).
 
@@ -1579,38 +1249,9 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
     keyparts=1;
     ifm->join_key=1;
   }
-  else
-  {
-    keyparts=length=0;
-    uint found_part_ref_or_null= 0;
-    do
-    {
-      /*
-        This Key_use is chosen if:
-        - it involves a key part at the right place (if index is (a,b) we
-        can have a search criterion on 'b' only if we also have a criterion
-        on 'a'),
-        - it references only tables earlier in the plan.
-        Moreover, the execution layer is limited to maximum one ref_or_null
-        keypart, as TABLE_REF::null_ref_key is only one byte.
-      */
-      if (!(~used_tables & keyuse->used_tables) &&
-          keyparts == keyuse->keypart &&
-          !(found_part_ref_or_null & keyuse->optimize))
-      {
-        DBUG_ASSERT(keyparts <= MAX_REF_PARTS);
-        chosen_keyuses[keyparts]= keyuse;
-        keyparts++;
-        length+= keyinfo->key_part[keyuse->keypart].store_length;
-        found_part_ref_or_null|= keyuse->optimize;
-      }
-      keyuse++;
-    } while (keyuse->table == table && keyuse->key == key);
-    DBUG_ASSERT(length > 0 && keyparts != 0);
-  } /* not ftkey */
-
-  DBUG_ASSERT(keyparts > 0);
-
+  else /* not ftkey */
+    calc_length_and_keyparts(keyuse, j, key, used_tables, chosen_keyuses,
+                             &length, &keyparts, NULL, NULL);
   /* set up fieldref */
   j->ref.key_parts=keyparts;
   j->ref.key_length=length;
@@ -1738,9 +1379,13 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       have a 'normal' value or a NULL value.
     */
     j->type=JT_CONST;
+    j->rowcount= 1;
   }
   else
+  {
     j->type=JT_EQ_REF;
+    j->rowcount= 1;
+  }
   DBUG_RETURN(false);
 }
 
@@ -2007,14 +1652,26 @@ static Item *make_cond_remainder(Item *cond, bool exclude_index)
   @param  tab            A join tab that has tab->table->file and its
                          condition in tab->m_condition
   @param  keyno          Index for which extract and push the condition
-  @param  other_tbls_ok  TRUE <=> Fields of other non-const tables are allowed
   @param  trace_obj      trace object where information is to be added
 */
 
-static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
+static void push_index_cond(JOIN_TAB *tab, uint keyno,
                             Opt_trace_object *trace_obj)
 {
   DBUG_ENTER("push_index_cond");
+  if (tab->reversed_access) // @todo: historical limitation, lift it!
+    DBUG_VOID_RETURN;
+  /*
+    Fields of other non-const tables aren't allowed in following cases:
+       tab->type is:
+        (JT_ALL | JT_INDEX_SCAN | JT_RANGE | JT_INDEX_MERGE)
+       and BNL is used.
+    and allowed otherwise.
+  */
+  const bool other_tbls_ok=
+    !((tab->type == JT_ALL || tab->type == JT_INDEX_SCAN ||
+       tab->type == JT_RANGE || tab->type ==  JT_INDEX_MERGE) &&
+      tab->use_join_cache == JOIN_CACHE::ALG_BNL);
 
   /*
     We will only attempt to push down an index condition when the
@@ -2090,7 +1747,6 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
       }
 
       Item *idx_remainder_cond= 0;
-      tab->pre_idx_push_cond= tab->condition();
 
       /*
         For BKA cache we store condition to special BKA cache field
@@ -2160,408 +1816,6 @@ static void push_index_cond(JOIN_TAB *tab, uint keyno, bool other_tbls_ok,
     }
   }
   DBUG_VOID_RETURN;
-}
-
-
-/*
-  Deny usage of join buffer for the specified table
-
-  SYNOPSIS
-    set_join_cache_denial()
-      tab    join table for which join buffer usage is to be denied  
-     
-  DESCRIPTION
-    The function denies usage of join buffer when joining the table 'tab'.
-    The table is marked as not employing any join buffer. If a join cache
-    object has been already allocated for the table this object is destroyed.
-
-  RETURN
-    none    
-*/
-
-static
-void set_join_cache_denial(JOIN_TAB *join_tab)
-{
-  if (join_tab->op)
-  {
-    join_tab->op->free();
-    join_tab->op= 0;
-  }
-  if (join_tab->use_join_cache)
-  {
-    join_tab->use_join_cache= JOIN_CACHE::ALG_NONE;
-    /*
-      It could be only sub_select(). It could not be sub_seject_sjm because we
-      don't do join buffering for the first table in sjm nest. 
-    */
-    join_tab[-1].next_select= sub_select;
-  }
-}
-
-
-/* 
-  Revise usage of join buffer for the specified table and the whole nest   
-
-  SYNOPSIS
-    revise_cache_usage()
-      tab    join table for which join buffer usage is to be revised  
-
-  DESCRIPTION
-    The function revise the decision to use a join buffer for the table 'tab'.
-    If this table happened to be among the inner tables of a nested outer join/
-    semi-join the functions denies usage of join buffers for all of them
-
-  RETURN
-    none    
-*/
-
-static
-void revise_cache_usage(JOIN_TAB *join_tab)
-{
-  JOIN_TAB *tab;
-  JOIN_TAB *first_inner;
-
-  set_join_cache_denial(join_tab);
-
-  if (join_tab->first_inner)
-  {
-    JOIN_TAB *end_tab= join_tab;
-    for (first_inner= join_tab->first_inner; 
-         first_inner;
-         first_inner= first_inner->first_upper)           
-    {
-      for (tab= end_tab-1; tab >= first_inner; tab--)
-        set_join_cache_denial(tab);
-      end_tab= first_inner;
-    }
-  }
-  else if (join_tab->get_sj_strategy() == SJ_OPT_FIRST_MATCH)
-  {
-    first_inner= join_tab->first_sj_inner_tab;
-    for (tab= join_tab-1; tab >= first_inner; tab--)
-    {
-      if (tab->first_sj_inner_tab == first_inner)
-        set_join_cache_denial(tab);
-    }
-  }
-}
-
-
-/**
-  Set up join buffering for a specified table, if possible.
-
-  @param tab             joined table to check join buffer usage for
-  @param join            join for which the check is performed
-  @param options         options of the join
-  @param no_jbuf_after   don't use join buffering after table with this number
-  @param icp_other_tables_ok[out] TRUE if condition pushdown supports
-                                  other tables presence
-
-  @return false if successful, true if error.
-          Currently, allocation errors for join cache objects are ignored,
-          and regular execution is chosen silently.
-
-  @details
-    The function finds out whether the table 'tab' can be joined using a join
-    buffer. This check is performed after the best execution plan for 'join'
-    has been chosen. If the function decides that a join buffer can be employed
-    then it selects the most appropriate join cache object that contains this
-    join buffer.
-    If it has already been decided to not use join buffering for this table,
-    no action is taken.
-
-    Often it is already decided that join buffering will be used earlier in
-    the optimization process, and this will also ensure that the most correct
-    cost for the operation is calculated, and hence the probability of
-    choosing an optimal join plan is higher. However, some join buffering
-    decisions cannot currently be taken before this stage, hence we need this
-    function to decide the most accurate join buffering strategy.
-
-    @todo Long-term it is the goal that join buffering strategy is decided
-    when the plan is selected.
-
-    The result of the check and the type of the the join buffer to be used
-    depend on:
-      - the access method to access rows of the joined table
-      - whether the join table is an inner table of an outer join or semi-join
-      - the optimizer_switch settings for join buffering
-      - the join 'options'.
-    In any case join buffer is not used if the number of the joined table is
-    greater than 'no_jbuf_after'. 
-
-    If block_nested_loop is turned on, and if all other criteria for using
-    join buffering is fulfilled (see below), then join buffer is used 
-    for any join operation (inner join, outer join, semi-join) with 'JT_ALL' 
-    access method.  In that case, a JOIN_CACHE_BNL object is always employed.
-
-    If an index is used to access rows of the joined table and batched_key_access
-    is on, then a JOIN_CACHE_BKA object is employed. (Unless debug flag,
-    test_bka unique, is set, then a JOIN_CACHE_BKA_UNIQUE object is employed
-    instead.) 
-
-    If the function decides that a join buffer can be used to join the table
-    'tab' then it sets @c tab->use_join_cache to reflect the chosen algorithm 
-    and assigns the selected join cache object to the field 'cache' of the 
-    previous join table.  After creating a join cache object, it will be 
-    initialized. Failure to do so, will cause the decision to use join
-    buffering to be reverted.
- 
-  @note
-    For a nested outer join/semi-join, currently, we either use join buffers for
-    all inner tables or for none of them. 
-   
-  @todo
-    Support BKA inside SJ-Materialization nests. When doing this, we'll need
-    to only store sj-inner tables in the join buffer.
-#if 0
-        JOIN_TAB *first_tab= join->join_tab+join->const_tables;
-        uint n_tables= i-join->const_tables;
-        / *
-          We normally put all preceding tables into the join buffer, except
-          for the constant tables.
-          If we're inside a semi-join materialization nest, e.g.
-
-             outer_tbl1  outer_tbl2  ( inner_tbl1, inner_tbl2 ) ...
-                                                       ^-- we're here
-
-          then we need to put into the join buffer only the tables from
-          within the nest.
-        * /
-        if (i >= first_sjm_table && i < last_sjm_table)
-        {
-          n_tables= i - first_sjm_table; // will be >0 if we got here
-          first_tab= join->join_tab + first_sjm_table;
-        }
-#endif
-
-*/
-
-static bool setup_join_buffering(JOIN_TAB *tab, JOIN *join,
-                                 ulonglong options, uint no_jbuf_after,
-                                 bool *icp_other_tables_ok)
-{
-  uint flags;
-  Cost_estimate cost;
-  ha_rows rows;
-  uint bufsz= 4096;
-  JOIN_CACHE *prev_cache;
-  const bool bnl_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BNL);
-  const bool bka_on= join->thd->optimizer_switch_flag(OPTIMIZER_SWITCH_BKA);
-  const uint tableno= tab - join->join_tab;
-  const uint tab_sj_strategy= tab->get_sj_strategy();
-  bool use_bka_unique= false;
-  DBUG_EXECUTE_IF("test_bka_unique", use_bka_unique= true;);
-  *icp_other_tables_ok= TRUE;
-
-  if (!(bnl_on || bka_on) || tableno == join->const_tables)
-  {
-    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-    return false;
-  }
-  if (options & SELECT_NO_JOIN_CACHE)
-    goto no_join_cache;
-  /* 
-    psergey-todo: why the below when execution code seems to handle the
-    "range checked for each record" case?
-  */
-  if (tab->use_quick == QS_DYNAMIC_RANGE)
-    goto no_join_cache;
-
-  /* No join buffering if prevented by no_jbuf_after */
-  if (tableno > no_jbuf_after)
-    goto no_join_cache;
-
-  /*
-    An inner table of an outer join nest must not use join buffering if
-    the first inner table of that outer join nest does not use join buffering.
-    This condition is not handled by earlier optimizer stages.
-  */
-  if (tab->first_inner != NULL &&
-      tab->first_inner != tab &&
-      !tab->first_inner->use_join_cache)
-    goto no_join_cache;
-  /*
-    The first inner table of an outer join nest must not use join buffering
-    if the tables in the embedding outer join nest do not use join buffering.
-    This condition is not handled by earlier optimizer stages.
-  */
-  if (tab->first_upper != NULL &&
-      !tab->first_upper->use_join_cache)
-    goto no_join_cache;
-
-  switch (tab_sj_strategy)
-  {
-  case SJ_OPT_FIRST_MATCH:
-    /*
-      Use join cache with FirstMatch semi-join strategy only when semi-join
-      contains only one table.
-    */
-    if (!tab->is_single_inner_of_semi_join())
-    {
-      DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-      goto no_join_cache;
-    }
-    break;
-
-  case SJ_OPT_LOOSE_SCAN:
-    /* No join buffering if this semijoin nest is handled by loosescan */
-    DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-    goto no_join_cache;
-
-  case SJ_OPT_MATERIALIZE_LOOKUP:
-  case SJ_OPT_MATERIALIZE_SCAN:
-    /*
-      The Materialize strategies reuse the join_tab belonging to the
-      first table that was materialized. Neither table can use join buffering:
-      - The first table in a join never uses join buffering.
-      - The join_tab used for looking up a row in the materialized table, or
-        scanning the rows of a materialized table, cannot use join buffering.
-      We allow join buffering for the remaining tables of the materialized
-      semi-join nest.
-    */
-    if (tab->first_sj_inner_tab == tab)
-    {
-      DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-      goto no_join_cache;
-    }
-    break;
-
-  case SJ_OPT_DUPS_WEEDOUT:
-    // This strategy allows the same join buffering as a regular join would.
-  case SJ_OPT_NONE:
-    break;
-  }
-
-  /*
-    Link with the previous join cache, but make sure that we do not link
-    join caches of two different operations when the previous operation was
-    MaterializeLookup or MaterializeScan, ie if:
-     1. the previous join_tab has join buffering enabled, and
-     2. the previous join_tab belongs to a materialized semi-join nest, and
-     3. this join_tab represents a regular table, or is part of a different
-        semi-join interval than the previous join_tab.
-  */
-  prev_cache= (JOIN_CACHE*)(tab-1)->op;
-  if (prev_cache != NULL &&                                       // 1
-      sj_is_materialize_strategy((tab-1)->get_sj_strategy()) &&   // 2
-      tab->first_sj_inner_tab != (tab-1)->first_sj_inner_tab)     // 3
-    prev_cache= NULL;
-
-  /*
-    The following code prevents use of join buffering when there is an
-    outer join operation and first match semi-join strategy is used, because:
-
-    Outer join needs a "match flag" to track that a row should be
-    NULL-complemented, such flag being attached to first inner table's cache
-    (tracks whether the cached row from outer table got a match, in which case
-    no NULL-complemented row is needed).
-
-    FirstMatch also needs a "match flag", such flag is attached to sj inner
-    table's cache (tracks whether the cached row from outer table already got
-    a first match in the sj-inner table, in which case we don't need to join
-    this cached row again)
-     - but a row in a cache has only one "match flag"
-     - so if "sj inner table"=="first inner", there is a problem. 
-  */
-  if (tab_sj_strategy == SJ_OPT_FIRST_MATCH &&
-      tab->is_inner_table_of_outer_join())
-    goto no_join_cache;
-
-  switch (tab->type) {
-  case JT_ALL:
-    if (!bnl_on)
-    {
-      DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-      goto no_join_cache;
-    }
-
-    if (((tab->op= new JOIN_CACHE_BNL(join, tab, prev_cache)) &&
-         !tab->op->init()))
-    {
-      *icp_other_tables_ok= FALSE;
-      DBUG_ASSERT(might_do_join_buffering(join_buffer_alg(join->thd), tab));
-      tab->use_join_cache= JOIN_CACHE::ALG_BNL;
-      return false;
-    }
-    goto no_join_cache;
-  case JT_SYSTEM:
-  case JT_CONST:
-  case JT_REF:
-  case JT_EQ_REF:
-    if (!bka_on)
-    {
-      DBUG_ASSERT(tab->use_join_cache == JOIN_CACHE::ALG_NONE);
-      goto no_join_cache;
-    }
-
-    /*
-      Disable BKA for materializable derived tables/views as they aren't
-      instantiated yet.
-    */
-    if (tab->table->pos_in_table_list->uses_materialization())
-      goto no_join_cache;
-
-    /*
-      Can't use BKA for subquery if dealing with a subquery that can
-      turn a ref access into a "full scan on NULL key" table scan.
-
-      @see Item_in_optimizer::val_int()
-      @see subselect_single_select_engine::exec()
-      @see TABLE_REF::cond_guards
-      @see push_index_cond()
-
-      @todo: This choice to not use BKA should be done before making
-      cost estimates, e.g. in set_join_buffer_properties(). That
-      happens before cond guards are set up, so instead of doing the
-      check below, BKA should be disabled if
-       - We are in an IN subquery, and
-       - The IN predicate is not a top_level_item, and
-       - The left_expr of the IN predicate may contain NULL values 
-         (left_expr->maybe_null)
-    */
-    if (tab->has_guarded_conds())
-      goto no_join_cache;
-
-    flags= HA_MRR_NO_NULL_ENDPOINTS;
-    if (tab->table->covering_keys.is_set(tab->ref.key))
-      flags|= HA_MRR_INDEX_ONLY;
-    rows= tab->table->file->multi_range_read_info(tab->ref.key, 10, 20,
-                                                  &bufsz, &flags, &cost);
-    /*
-      Cannot use BKA/BKA_UNIQUE if
-      1. MRR scan cannot be performed, or
-      2. MRR default implementation is used
-      Cannot use BKA if
-      3. HA_MRR_NO_ASSOCIATION flag is set
-    */
-    if ((rows == HA_POS_ERROR) ||                               // 1
-        (flags & HA_MRR_USE_DEFAULT_IMPL) ||                    // 2
-        ((flags & HA_MRR_NO_ASSOCIATION) && !use_bka_unique))   // 3
-      goto no_join_cache;
-
-    if (use_bka_unique)
-      tab->op= new JOIN_CACHE_BKA_UNIQUE(join, tab, flags, prev_cache);
-    else
-      tab->op= new JOIN_CACHE_BKA(join, tab, flags, prev_cache);
-
-    if (!tab->op || tab->op->init())
-      goto no_join_cache; /* purecov: inspected */
-     
-    DBUG_ASSERT(might_do_join_buffering(join_buffer_alg(join->thd), tab));
-    if (use_bka_unique)
-      tab->use_join_cache= JOIN_CACHE::ALG_BKA_UNIQUE;
-    else
-      tab->use_join_cache= JOIN_CACHE::ALG_BKA;
-
-    return false;
-  default : ;
-  }
-
-no_join_cache:
-  if (bnl_on || bka_on)
-    revise_cache_usage(tab);
-  tab->use_join_cache= JOIN_CACHE::ALG_NONE;
-  return false;
 }
 
 
@@ -2663,7 +1917,7 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   tab->found_records= tab->records;
   tab->read_time= (ha_rows)emb_sj_nest->nested_join->sjm.scan_cost.total_cost();
 
-  tab->on_expr_ref= tl->join_cond_ref();
+  tab->init_join_cond_ref(tl);
 
   tab->materialize_table= join_materialize_semijoin;
 
@@ -2673,6 +1927,11 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   sjm_pos->sj_strategy= SJ_OPT_NONE;
 
   sjm_pos->use_join_buffer= false;
+  /*
+    No need to recalculate filter_effect since there are no post-read
+    conditions for materialized tables.
+  */
+  sjm_pos->filter_effect= 1.0;
 
   /*
     Key_use objects are required so that create_ref_for_key() can set up
@@ -2688,23 +1947,90 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
                  1.0 : (tab-1)->position->prefix_record_count;
   if (!sjm_exec->is_scan)
   {
+    const double block_read_cost= table->cost_model()->io_block_read_cost(1.0);
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
     tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
-    sjm_pos->set_prefix_costs(1.0, fanout);
-    sjm_pos->fanout= 1.0;   
-    sjm_pos->read_cost= 1.0;      
+    sjm_pos->set_prefix_costs(block_read_cost, fanout);
+    sjm_pos->rows_fetched= 1.0;   
+    sjm_pos->read_cost= block_read_cost;      
+    tab->type= JT_REF;
   }
   else
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
     sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
-    sjm_pos->fanout= tab->records;
+    sjm_pos->rows_fetched= tab->records;
     sjm_pos->read_cost= tab->read_time;
+    tab->type= JT_ALL;
   }
 
   DBUG_RETURN(false);
+}
+
+
+/**
+  A helper function that allocates appropriate join cache object and
+  sets next_select function of previous tab.
+*/
+
+void JOIN_TAB::init_join_cache()
+{
+  JOIN_CACHE *prev_cache= NULL;
+  DBUG_ASSERT((this - join->join_tab) > 0);
+  if (this > (join->join_tab + join->const_tables))
+  {
+    const JOIN_TAB *prev_tab= this - 1;
+    /*
+      Link with the previous join cache, but make sure that we do not link
+      join caches of two different operations when the previous operation was
+      MaterializeLookup or MaterializeScan, ie if:
+       1. the previous join_tab has join buffering enabled, and
+       2. the previous join_tab belongs to a materialized semi-join nest, and
+       3. this join_tab represents a regular table, or is part of a different
+          semi-join interval than the previous join_tab.
+    */
+    prev_cache= (JOIN_CACHE*)(prev_tab)->op;
+    if (prev_cache != NULL &&                                       // 1
+        sj_is_materialize_strategy((prev_tab)->get_sj_strategy()) &&   // 2
+        first_sj_inner_tab != (prev_tab)->first_sj_inner_tab)     // 3
+      prev_cache= NULL;
+  }
+
+  switch (use_join_cache)
+  {
+  case JOIN_CACHE::ALG_BNL:
+    op= new JOIN_CACHE_BNL(join, this, prev_cache);
+    break;
+  case JOIN_CACHE::ALG_BKA:
+    op= new JOIN_CACHE_BKA(join, this, join_cache_flags,
+                           prev_cache);
+    break;
+  case JOIN_CACHE::ALG_BKA_UNIQUE:
+    op= new JOIN_CACHE_BKA_UNIQUE(join, this, join_cache_flags,
+                                  prev_cache);
+    break;
+  default:
+    DBUG_ASSERT(0);
+
+  }
+  DBUG_EXECUTE_IF("jb_alloc_with_prev_fail",
+                  if (prev_cache)
+                  {
+                    DBUG_SET("+d,jb_alloc_fail");
+                    DBUG_SET("-d,jb_alloc_with_prev_fail");
+                  });
+  if (!op || op->init())
+  {
+    use_join_cache= JOIN_CACHE::ALG_NONE;
+    // Unlink cache
+    if (prev_cache)
+      prev_cache->next_cache= NULL;
+    op= NULL;
+  }
+  else
+    this[-1].next_select= sub_select_op;
 }
 
 
@@ -2729,7 +2055,9 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
 bool
 make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 {
-  const bool statistics= MY_TEST(!(join->select_options & SELECT_DESCRIBE));
+  const bool statistics= !(join->select_options & SELECT_DESCRIBE);
+  const bool prep_for_pos= join->need_tmp || join->select_distinct ||
+                           join->group_list || join->order;
 
   DBUG_ENTER("make_join_readinfo");
 
@@ -2746,13 +2074,20 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
     TABLE    *const table= tab->table;
     if (!tab->position)
       continue;
+    /*
+     Need to tell handlers that to play it safe, it should fetch all
+     columns of the primary key of the tables: this is because MySQL may
+     build row pointers for the rows, and for all columns of the primary key
+     the read set has not necessarily been set by the server code.
+    */
+    if (prep_for_pos)
+      table->prepare_for_position();
 
-    bool icp_other_tables_ok;
     tab->read_record.table= table;
     tab->next_select=sub_select;		/* normal select */
     tab->cache_idx_cond= 0;
     table->status= STATUS_GARBAGE | STATUS_NOT_FOUND;
-    tab->read_first_record= NULL; // Access methods not set yet
+    DBUG_ASSERT(!tab->read_first_record);
     tab->read_record.read_record= NULL;
     tab->read_record.unlock_row= rr_unlock_row;
 
@@ -2765,24 +2100,15 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
                                                          loosescan_key_len)))
         DBUG_RETURN(TRUE); /* purecov: inspected */
     }
+    if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
+      tab->init_join_cache();
+
     switch (tab->type) {
     case JT_EQ_REF:
     case JT_REF_OR_NULL:
     case JT_REF:
-      if (tab->select)
-        tab->select->set_quick(NULL);
-      delete tab->quick;
-      tab->quick=0;
-      /* fall through */
-    case JT_SYSTEM: 
+    case JT_SYSTEM:
     case JT_CONST:
-      /* Only happens with outer joins */
-      if (setup_join_buffering(tab, join, options, no_jbuf_after,
-                               &icp_other_tables_ok))
-        DBUG_RETURN(true);
-      if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
-        tab[-1].next_select= sub_select_op;
-
       if (table->covering_keys.is_set(tab->ref.key) &&
           !table->no_keyread)
       {
@@ -2790,129 +2116,64 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
         tab->use_keyread= true;
       }
       else
-        push_index_cond(tab, tab->ref.key, icp_other_tables_ok,
-                        &trace_refine_table);
+        push_index_cond(tab, tab->ref.key, &trace_refine_table);
       break;
     case JT_ALL:
-      if (setup_join_buffering(tab, join, options, no_jbuf_after,
-                               &icp_other_tables_ok))
-        DBUG_RETURN(true);
-      if (tab->use_join_cache != JOIN_CACHE::ALG_NONE)
-        tab[-1].next_select=sub_select_op;
-
-      /* These init changes read_record */
+      join->thd->set_status_no_index_used();
+      /* Fall through */
+    case JT_INDEX_SCAN:
       if (tab->use_quick == QS_DYNAMIC_RANGE)
       {
 	join->thd->set_status_no_good_index_used();
-	tab->read_first_record= join_init_quick_read_record;
 	if (statistics)
 	  join->thd->inc_status_select_range_check();
-        trace_refine_table.add_alnum("access_type", "dynamic_range");
       }
       else
       {
-	tab->read_first_record= join_init_read_record;
-	if (i == join->const_tables)
-	{
-	  if (tab->select && tab->select->quick)
-	  {
-	    if (statistics)
-	      join->thd->inc_status_select_range();
-	  }
-	  else
-	  {
-	    join->thd->set_status_no_index_used();
-	    if (statistics)
-	      join->thd->inc_status_select_scan();
-	  }
-	}
-	else
-	{
-	  if (tab->select && tab->select->quick)
-	  {
-	    if (statistics)
-	      join->thd->inc_status_select_full_range_join();
-	  }
-	  else
-	  {
-	    join->thd->set_status_no_index_used();
-	    if (statistics)
-	      join->thd->inc_status_select_full_join();
-	  }
-	}
-	if (!table->no_keyread)
-	{
-          if (tab->select && tab->select->quick &&
-              tab->select->quick->index != MAX_KEY && //not index_merge
-              table->covering_keys.is_set(tab->select->quick->index))
-          {
-            table->set_keyread(TRUE);
-            tab->use_keyread= true;
-          }
-          else if (!table->covering_keys.is_clear_all() &&
-                   !(tab->select && tab->select->quick))
-	  {					// Only read index tree
-	    /*
-            It has turned out that the below change, while speeding things
-            up for disk-bound loads, slows them down for cases when the data
-            is in disk cache (see BUG#35850):
-	    //  See bug #26447: "Using the clustered index for a table scan
-	    //  is always faster than using a secondary index".
-            if (table->s->primary_key != MAX_KEY &&
-                table->file->primary_key_is_clustered())
-              tab->index= table->s->primary_key;
-            else
-              tab->index=find_shortest_key(table, & table->covering_keys);
-	    */
-            if (!tab->do_loosescan())
-              tab->index=find_shortest_key(table, & table->covering_keys);
-	    tab->read_first_record= join_read_first;
-            tab->type=JT_INDEX_SCAN;      // Read with index_first / index_next
-	  }
-	}
-        if (tab->select && tab->select->quick &&
-            tab->select->quick->index != MAX_KEY && ! tab->table->key_read)
-          push_index_cond(tab, tab->select->quick->index, icp_other_tables_ok,
-                          &trace_refine_table);
-        trace_refine_table.add_alnum("access_type",
-                                     tab->type == JT_INDEX_SCAN ?
-                                     "index_scan" :
-                                     (tab->select && tab->select->quick) ?
-                                     "range" : "table_scan");
+        if (statistics)
+        {
+          if (i == join->const_tables)
+            join->thd->inc_status_select_scan();
+          else
+            join->thd->inc_status_select_full_join();
+        }
       }
-      // Update number of rows
-      tab->table->pos_in_table_list->fetch_number_of_rows();
-      tab->rowcount= tab->table->file->stats.records;
+      break;
+    case JT_RANGE:
+    case JT_INDEX_MERGE:
+      if (statistics)
+      {
+        if (i == join->const_tables)
+          join->thd->inc_status_select_range();
+        else
+          join->thd->inc_status_select_full_range_join();
+      }
+      if (!table->no_keyread && tab->type == JT_RANGE)
+      {
+        if (table->covering_keys.is_set(tab->select->quick->index))
+        {
+          DBUG_ASSERT(tab->select->quick->index != MAX_KEY);
+          table->set_keyread(TRUE);
+          tab->use_keyread= true;
+        }
+        if (!tab->table->key_read)
+          push_index_cond(tab, tab->select->quick->index,
+                          &trace_refine_table);
+      }
       break;
     case JT_FT:
       break;
     default:
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
+      DBUG_ASSERT(0);
       break;					/* purecov: deadcode */
-    case JT_UNKNOWN:
-      abort();					/* purecov: deadcode */
     }
+
+    pick_table_access_method(tab);
+
     // Materialize derived tables prior to accessing them.
     if (tab->table->pos_in_table_list->uses_materialization())
       tab->materialize_table= join_materialize_derived;
-  }
-
-  for (uint i= join->const_tables; i < join->primary_tables; i++)
-  {
-    if (join->join_tab[i].use_join_cache != JOIN_CACHE::ALG_NONE)
-    {
-      /*
-        A join buffer is used for this table. We here inform the optimizer
-        that it should not rely on rows of the first non-const table being in
-        order thanks to an index scan; indeed join buffering of the present
-        table subsequently changes the order of rows.
-      */
-      if (join->order != NULL)
-        join->simple_order= false;
-      if (join->group_list != NULL)
-        join->simple_group= false;
-      break;
-    }
   }
 
   DBUG_RETURN(FALSE);
@@ -3421,948 +2682,7 @@ const_expression_in_where(Item *cond, Item *comp_item, Field *comp_field,
 
 
 /**
-  Test if one can use the key to resolve ORDER BY.
-
-  @param order                 Sort order
-  @param table                 Table to sort
-  @param idx                   Index to check
-  @param used_key_parts [out]  NULL by default, otherwise return value for
-                               used key parts.
-
-
-  @note
-    used_key_parts is set to correct key parts used if return value != 0
-    (On other cases, used_key_part may be changed)
-    Note that the value may actually be greater than the number of index 
-    key parts. This can happen for storage engines that have the primary 
-    key parts as a suffix for every secondary key.
-
-  @retval
-    1   key is ok.
-  @retval
-    0   Key can't be used
-  @retval
-    -1   Reverse key can be used
-*/
-
-int test_if_order_by_key(ORDER *order, TABLE *table, uint idx,
-                         uint *used_key_parts)
-{
-  KEY_PART_INFO *key_part,*key_part_end;
-  key_part=table->key_info[idx].key_part;
-  key_part_end=key_part+table->key_info[idx].user_defined_key_parts;
-  key_part_map const_key_parts=table->const_key_parts[idx];
-  int reverse=0;
-  uint key_parts;
-  my_bool on_pk_suffix= FALSE;
-  DBUG_ENTER("test_if_order_by_key");
-
-  for (; order ; order=order->next, const_key_parts>>=1)
-  {
-
-    /*
-      Since only fields can be indexed, ORDER BY <something> that is
-      not a field cannot be resolved by using an index.
-    */
-    Item *real_itm= (*order->item)->real_item();
-    if (real_itm->type() != Item::FIELD_ITEM)
-      DBUG_RETURN(0);
-
-    Field *field= static_cast<Item_field*>(real_itm)->field;
-    int flag;
-
-    /*
-      Skip key parts that are constants in the WHERE clause.
-      These are already skipped in the ORDER BY by const_expression_in_where()
-    */
-    for (; const_key_parts & 1 ; const_key_parts>>= 1)
-      key_part++; 
-
-    if (key_part == key_part_end)
-    {
-      /* 
-        We are at the end of the key. Check if the engine has the primary
-        key as a suffix to the secondary keys. If it has continue to check
-        the primary key as a suffix.
-      */
-      if (!on_pk_suffix &&
-          (table->file->ha_table_flags() & HA_PRIMARY_KEY_IN_READ_INDEX) &&
-          table->s->primary_key != MAX_KEY &&
-          table->s->primary_key != idx)
-      {
-        on_pk_suffix= TRUE;
-        key_part= table->key_info[table->s->primary_key].key_part;
-        key_part_end=key_part +
-          table->key_info[table->s->primary_key].user_defined_key_parts;
-        const_key_parts=table->const_key_parts[table->s->primary_key];
-
-        for (; const_key_parts & 1 ; const_key_parts>>= 1)
-          key_part++; 
-        /*
-         The primary and secondary key parts were all const (i.e. there's
-         one row).  The sorting doesn't matter.
-        */
-        if (key_part == key_part_end && reverse == 0)
-        {
-          key_parts= 0;
-          reverse= 1;
-          goto ok;
-        }
-      }
-      else
-        DBUG_RETURN(0);
-    }
-
-    if (key_part->field != field || !field->part_of_sortkey.is_set(idx))
-      DBUG_RETURN(0);
-
-    const ORDER::enum_order keypart_order= 
-      (key_part->key_part_flag & HA_REVERSE_SORT) ? 
-      ORDER::ORDER_DESC : ORDER::ORDER_ASC;
-    /* set flag to 1 if we can use read-next on key, else to -1 */
-    flag= (order->direction == keypart_order) ? 1 : -1;
-    if (reverse && flag != reverse)
-      DBUG_RETURN(0);
-    reverse=flag;				// Remember if reverse
-    key_part++;
-  }
-  if (on_pk_suffix)
-  {
-    uint used_key_parts_secondary= table->key_info[idx].user_defined_key_parts;
-    uint used_key_parts_pk=
-      (uint) (key_part - table->key_info[table->s->primary_key].key_part);
-    key_parts= used_key_parts_pk + used_key_parts_secondary;
-
-    if (reverse == -1 &&
-        (!(table->file->index_flags(idx, used_key_parts_secondary - 1, 1) &
-           HA_READ_PREV) ||
-         !(table->file->index_flags(table->s->primary_key,
-                                    used_key_parts_pk - 1, 1) & HA_READ_PREV)))
-      reverse= 0;                               // Index can't be used
-  }
-  else
-  {
-    key_parts= (uint) (key_part - table->key_info[idx].key_part);
-    if (reverse == -1 && 
-        !(table->file->index_flags(idx, key_parts-1, 1) & HA_READ_PREV))
-      reverse= 0;                               // Index can't be used
-  }
-ok:
-  if (used_key_parts != NULL)
-    *used_key_parts= key_parts;
-  DBUG_RETURN(reverse);
-}
-
-
-/**
-  Find shortest key suitable for full table scan.
-
-  @param table                 Table to scan
-  @param usable_keys           Allowed keys
-
-  @note
-     As far as 
-     1) clustered primary key entry data set is a set of all record
-        fields (key fields and not key fields) and
-     2) secondary index entry data is a union of its key fields and
-        primary key fields (at least InnoDB and its derivatives don't
-        duplicate primary key fields there, even if the primary and
-        the secondary keys have a common subset of key fields),
-     then secondary index entry data is always a subset of primary key entry.
-     Unfortunately, key_info[nr].key_length doesn't show the length
-     of key/pointer pair but a sum of key field lengths only, thus
-     we can't estimate index IO volume comparing only this key_length
-     value of secondary keys and clustered PK.
-     So, try secondary keys first, and choose PK only if there are no
-     usable secondary covering keys or found best secondary key include
-     all table fields (i.e. same as PK):
-
-  @return
-    MAX_KEY     no suitable key found
-    key index   otherwise
-*/
-
-uint find_shortest_key(TABLE *table, const key_map *usable_keys)
-{
-  uint best= MAX_KEY;
-  uint usable_clustered_pk= (table->file->primary_key_is_clustered() &&
-                             table->s->primary_key != MAX_KEY &&
-                             usable_keys->is_set(table->s->primary_key)) ?
-                            table->s->primary_key : MAX_KEY;
-  if (!usable_keys->is_clear_all())
-  {
-    uint min_length= (uint) ~0;
-    for (uint nr=0; nr < table->s->keys ; nr++)
-    {
-      if (nr == usable_clustered_pk)
-        continue;
-      if (usable_keys->is_set(nr))
-      {
-        if (table->key_info[nr].key_length < min_length)
-        {
-          min_length=table->key_info[nr].key_length;
-          best=nr;
-        }
-      }
-    }
-  }
-  if (usable_clustered_pk != MAX_KEY)
-  {
-    /*
-     If the primary key is clustered and found shorter key covers all table
-     fields then primary key scan normally would be faster because amount of
-     data to scan is the same but PK is clustered.
-     It's safe to compare key parts with table fields since duplicate key
-     parts aren't allowed.
-     */
-    if (best == MAX_KEY ||
-        table->key_info[best].user_defined_key_parts >= table->s->fields)
-      best= usable_clustered_pk;
-  }
-  return best;
-}
-
-/**
-  Test if a second key is the subkey of the first one.
-
-  @param key_part              First key parts
-  @param ref_key_part          Second key parts
-  @param ref_key_part_end      Last+1 part of the second key
-
-  @note
-    Second key MUST be shorter than the first one.
-
-  @retval
-    1	is a subkey
-  @retval
-    0	no sub key
-*/
-
-inline bool 
-is_subkey(KEY_PART_INFO *key_part, KEY_PART_INFO *ref_key_part,
-	  KEY_PART_INFO *ref_key_part_end)
-{
-  for (; ref_key_part < ref_key_part_end; key_part++, ref_key_part++)
-    if (!key_part->field->eq(ref_key_part->field))
-      return 0;
-  return 1;
-}
-
-/**
-  Test if REF_OR_NULL optimization will be used if the specified
-  ref_key is used for REF-access to 'tab'
-
-  @retval
-    true	JT_REF_OR_NULL will be used
-  @retval
-    false	no JT_REF_OR_NULL access
-*/
-bool
-is_ref_or_null_optimized(const JOIN_TAB *tab, uint ref_key)
-{
-  if (tab->keyuse)
-  {
-    const Key_use *keyuse= tab->keyuse;
-    while (keyuse->key != ref_key && keyuse->table == tab->table)
-      keyuse++;
-
-    const table_map const_tables= tab->join->const_table_map;
-    while (keyuse->key == ref_key && keyuse->table == tab->table)
-    {
-      if (!(keyuse->used_tables & ~const_tables))
-      {
-        if (keyuse->optimize & KEY_OPTIMIZE_REF_OR_NULL)
-          return true;
-      }
-      keyuse++;
-    }
-  }
-  return false;
-}
-
-/**
-  Test if we can use one of the 'usable_keys' instead of 'ref' key
-  for sorting.
-
-  @param ref			Number of key, used for WHERE clause
-  @param usable_keys		Keys for testing
-
-  @return
-    - MAX_KEY			If we can't use other key
-    - the number of found key	Otherwise
-*/
-
-static uint
-test_if_subkey(ORDER *order, JOIN_TAB *tab, uint ref, uint ref_key_parts,
-	       const key_map *usable_keys)
-{
-  uint nr;
-  uint min_length= (uint) ~0;
-  uint best= MAX_KEY;
-  TABLE *table= tab->table;
-  KEY_PART_INFO *ref_key_part= table->key_info[ref].key_part;
-  KEY_PART_INFO *ref_key_part_end= ref_key_part + ref_key_parts;
-
-  for (nr= 0 ; nr < table->s->keys ; nr++)
-  {
-    if (usable_keys->is_set(nr) &&
-	table->key_info[nr].key_length < min_length &&
-	table->key_info[nr].user_defined_key_parts >= ref_key_parts &&
-	is_subkey(table->key_info[nr].key_part, ref_key_part,
-		  ref_key_part_end) &&
-        !is_ref_or_null_optimized(tab, nr) &&
-	test_if_order_by_key(order, table, nr))
-    {
-      min_length= table->key_info[nr].key_length;
-      best= nr;
-    }
-  }
-  return best;
-}
-
-
-/**
-  It is not obvious to see that test_if_skip_sort_order() never changes the
-  plan if no_changes is true. So we double-check: creating an instance of this
-  class saves some important access-path-related information of the current
-  table; when the instance is destroyed, the latest access-path information is
-  compared with saved data.
-*/
-class Plan_change_watchdog
-{
-#ifndef DBUG_OFF
-public:
-  /**
-    @param tab_arg     table whose access path is being determined
-    @param no_changes  whether a change to the access path is allowed
-  */
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg)
-  {
-    // Only to keep gcc 4.1.2-44 silent about uninitialized variables
-    quick= NULL;
-    quick_index= 0;
-    if (no_changes_arg)
-    {
-      tab= tab_arg;
-      type= tab->type;
-      if ((select= tab->select))
-        if ((quick= tab->select->quick))
-          quick_index= quick->index;
-      use_quick= tab->use_quick;
-      ref_key= tab->ref.key;
-      ref_key_parts= tab->ref.key_parts;
-      index= tab->index;
-    }
-    else
-    {
-      tab= NULL;
-      // Only to keep gcc 4.1.2-44 silent about uninitialized variables
-      type= JT_UNKNOWN;
-      select= NULL;
-      ref_key= ref_key_parts= index= 0;
-      use_quick= QS_NONE;
-    }
-  }
-  ~Plan_change_watchdog()
-  {
-    if (tab == NULL)
-      return;
-    // changes are not allowed, we verify:
-    DBUG_ASSERT(tab->type == type);
-    DBUG_ASSERT(tab->select == select);
-    if (select != NULL)
-    {
-      DBUG_ASSERT(tab->select->quick == quick);
-      if (quick != NULL)
-        DBUG_ASSERT(tab->select->quick->index == quick_index);
-    }
-    DBUG_ASSERT(tab->use_quick == use_quick);
-    DBUG_ASSERT(tab->ref.key == ref_key);
-    DBUG_ASSERT(tab->ref.key_parts == ref_key_parts);
-    DBUG_ASSERT(tab->index == index);
-  }
-private:
-  const JOIN_TAB *tab;            ///< table, or NULL if changes are allowed
-  enum join_type type;            ///< copy of tab->type
-  // "Range / index merge" info
-  const SQL_SELECT *select;       ///< copy of tab->select
-  const QUICK_SELECT_I *quick;    ///< copy of tab->select->quick
-  uint quick_index;               ///< copy of tab->select->quick->index
-  enum quick_type use_quick;      ///< copy of tab->use_quick
-  // "ref access" info
-  int ref_key;                    ///< copy of tab->ref.key
-  uint ref_key_parts;/// copy of tab->ref.key_parts
-  // Other index-related info
-  uint index;                     ///< copy of tab->index
-#else // in non-debug build, empty class
-public:
-  Plan_change_watchdog(const JOIN_TAB *tab_arg, const bool no_changes_arg) {}
-#endif
-};
-
-
-/**
-  Test if we can skip the ORDER BY by using an index.
-
-  SYNOPSIS
-    test_if_skip_sort_order()
-      tab
-      order
-      select_limit
-      no_changes
-      map
-
-  If we can use an index, the JOIN_TAB / tab->select struct
-  is changed to use the index.
-
-  The index must cover all fields in <order>, or it will not be considered.
-
-  @param tab           NULL or JOIN_TAB of the accessed table
-  @param order         Linked list of ORDER BY arguments
-  @param select_limit  LIMIT value, or HA_POS_ERROR if no limit
-  @param no_changes    No changes will be made to the query plan.
-  @param map           key_map of applicable indexes.
-  @param clause_type   "ORDER BY" etc for printing in optimizer trace
-
-  @todo
-    - sergeyp: Results of all index merge selects actually are ordered 
-    by clustered PK values.
-
-  @note
-  This function may change tmp_table_param.precomputed_group_by. This
-  affects how create_tmp_table() treats aggregation functions, so
-  count_field_types() must be called again to make sure this is taken
-  into consideration.
-
-  @retval
-    0    We have to use filesort to do the sorting
-  @retval
-    1    We can use an index.
-*/
-
-bool
-test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
-                        const bool no_changes, const key_map *map,
-                        const char *clause_type)
-{
-  int ref_key;
-  uint ref_key_parts;
-  int order_direction= 0;
-  uint used_key_parts;
-  TABLE *table=tab->table;
-  SQL_SELECT *select=tab->select;
-  QUICK_SELECT_I *save_quick= select ? select->quick : NULL;
-  int best_key= -1;
-  Item *orig_cond;
-  bool orig_cond_saved= false, set_up_ref_access_to_key= false;
-  bool can_skip_sorting= false;                  // used as return value
-  int changed_key= -1;
-  DBUG_ENTER("test_if_skip_sort_order");
-  LINT_INIT(ref_key_parts);
-  LINT_INIT(orig_cond);
-
-  /* Check that we are always called with first non-const table */
-  DBUG_ASSERT(tab == tab->join->join_tab + tab->join->const_tables); 
-
-  Plan_change_watchdog watchdog(tab, no_changes);
-
-  /* Sorting a single row can always be skipped */
-  if (tab->type == JT_EQ_REF ||
-      tab->type == JT_CONST  ||
-      tab->type == JT_SYSTEM)
-  {
-    DBUG_RETURN(1);
-  }
-
-  /*
-    Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
-    been taken into account.
-  */
-  key_map usable_keys= *map;
-
-  for (ORDER *tmp_order=order; tmp_order ; tmp_order=tmp_order->next)
-  {
-    Item *item= (*tmp_order->item)->real_item();
-    if (item->type() != Item::FIELD_ITEM)
-    {
-      usable_keys.clear_all();
-      DBUG_RETURN(0);
-    }
-    usable_keys.intersect(((Item_field*) item)->field->part_of_sortkey);
-    if (usable_keys.is_clear_all())
-      DBUG_RETURN(0);					// No usable keys
-  }
-
-  ref_key= -1;
-  /* Test if constant range in WHERE */
-  if (tab->ref.key >= 0 && tab->ref.key_parts)
-  {
-    if (tab->type == JT_REF_OR_NULL || tab->type == JT_FT)
-      DBUG_RETURN(0);
-    ref_key=	   tab->ref.key;
-    ref_key_parts= tab->ref.key_parts;
-  }
-  else if (select && select->quick)		// Range found by opt_range
-  {
-    int quick_type= select->quick->get_type();
-    /* 
-      assume results are not ordered when index merge is used 
-      TODO: sergeyp: Results of all index merge selects actually are ordered 
-      by clustered PK values.
-    */
-  
-    if (quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE || 
-        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION || 
-        quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT)
-      DBUG_RETURN(0);
-    ref_key=	   select->quick->index;
-    ref_key_parts= select->quick->used_key_parts;
-  }
-
-  /*
-    If part of the select condition has been pushed we use the
-    select condition as it was before pushing. The original
-    select condition is saved so that it can be restored when
-    exiting this function (if we have not changed index).
-  */
-  if (tab->pre_idx_push_cond)
-  {
-    orig_cond=
-      tab->set_jt_and_sel_condition(tab->pre_idx_push_cond, __LINE__);
-    orig_cond_saved= true;
-  }
-
-  Opt_trace_context * const trace= &tab->join->thd->opt_trace;
-  Opt_trace_object trace_wrapper(trace);
-  Opt_trace_object
-    trace_skip_sort_order(trace, "reconsidering_access_paths_for_index_ordering");
-  trace_skip_sort_order.add_alnum("clause", clause_type);
-
-  if (ref_key >= 0)
-  {
-    /*
-      We come here when there is a {ref or or ordered range access} key.
-    */
-    if (!usable_keys.is_set(ref_key))
-    {
-      /*
-        We come here when ref_key is not among usable_keys, try to find a
-        usable prefix key of that key.
-      */
-      uint new_ref_key;
-      /*
-	If using index only read, only consider other possible index only
-	keys
-      */
-      if (table->covering_keys.is_set(ref_key))
-	usable_keys.intersect(table->covering_keys);
-
-      if ((new_ref_key= test_if_subkey(order, tab, ref_key, ref_key_parts,
-				       &usable_keys)) < MAX_KEY)
-      {
-	/* Found key that can be used to retrieve data in sorted order */
-	if (tab->ref.key >= 0)
-        {
-          /*
-            We'll use ref access method on key new_ref_key. The actual change
-            is done further down in this function where we update the plan.
-          */
-          set_up_ref_access_to_key= true;
-        }
-	else if (!no_changes)
-	{
-          /*
-            The range optimizer constructed QUICK_RANGE for ref_key, and
-            we want to use instead new_ref_key as the index. We can't
-            just change the index of the quick select, because this may
-            result in an incosistent QUICK_SELECT object. Below we
-            create a new QUICK_SELECT from scratch so that all its
-            parameres are set correctly by the range optimizer.
-
-            Note that the range optimizer is NOT called if
-            no_changes==true. This reason is that the range optimizer
-            cannot find a QUICK that can return ordered result unless
-            index access (ref or index scan) is also able to do so
-            (which test_if_order_by_key () will tell).
-            Admittedly, range access may be much more efficient than
-            e.g. index scan, but the only thing that matters when
-            no_change==true is the answer to the question: "Is it
-            possible to avoid sorting if an index is used to access
-            this table?". The answer does not depend on the outcome of
-            the range optimizer.
-          */
-          key_map new_ref_key_map;  // Force the creation of quick select
-          new_ref_key_map.set_bit(new_ref_key); // only for new_ref_key.
-
-          Opt_trace_object
-            trace_recest(trace, "rows_estimation");
-          trace_recest.add_utf8_table(tab->table).
-          add_utf8("index", table->key_info[new_ref_key].name);
-          select->quick= 0;
-          if (select->test_quick_select(tab->join->thd, 
-                                        new_ref_key_map, 
-                                        0,       // empty table_map
-                                        (tab->join->select_options &
-                                         OPTION_FOUND_ROWS) ?
-                                        HA_POS_ERROR :
-                                        tab->join->unit->select_limit_cnt,
-                                        false,   // don't force quick range
-                                        order->direction) <= 0)
-          {
-            can_skip_sorting= false;
-            goto fix_ICP;
-          }
-	}
-        ref_key= new_ref_key;
-        changed_key= new_ref_key;
-      }
-    }
-    /* Check if we get the rows in requested sorted order by using the key */
-    if (usable_keys.is_set(ref_key) &&
-        (order_direction= test_if_order_by_key(order,table,ref_key,
-					       &used_key_parts)))
-      goto check_reverse_order;
-  }
-  {
-    /*
-      There was no {ref or or ordered range access} key, or it was not
-      satisfying, neither was any prefix of it. Do a cost-based search on all
-      keys:
-    */
-    uint best_key_parts= 0;
-    uint saved_best_key_parts= 0;
-    int best_key_direction= 0;
-    JOIN *join= tab->join;
-    ha_rows table_records= table->file->stats.records;
-
-    test_if_cheaper_ordering(tab, order, table, usable_keys,
-                             ref_key, select_limit,
-                             &best_key, &best_key_direction,
-                             &select_limit, &best_key_parts,
-                             &saved_best_key_parts);
-
-    if (best_key < 0)
-    {
-      // No usable key has been found
-      can_skip_sorting= false;
-      goto fix_ICP;
-    }
-
-    /*
-      Does the query have a "FORCE INDEX [FOR GROUP BY] (idx)" (if
-      clause is group by) or a "FORCE INDEX [FOR ORDER BY] (idx)" (if
-      clause is order by)?
-    */
-    const bool is_group_by= join && join->group && order == join->group_list;
-    const bool is_force_index= table->force_index ||
-      (is_group_by ? table->force_index_group : table->force_index_order);
-
-    /*
-      filesort() and join cache are usually faster than reading in
-      index order and not using join cache. Don't use index scan
-      unless:
-       - the user specified FORCE INDEX [FOR {GROUP|ORDER} BY] (have to assume
-         the user knows what's best)
-       - the chosen index is clustered primary key (table scan is not cheaper)
-    */
-    if (!is_force_index &&
-        (select_limit >= table_records) &&
-        (tab->type == JT_ALL &&
-         tab->join->primary_tables > tab->join->const_tables + 1) &&
-         ((unsigned) best_key != table->s->primary_key ||
-          !table->file->primary_key_is_clustered()))
-    {
-      can_skip_sorting= false;
-      goto fix_ICP;
-    }
-
-    if (select &&
-        table->quick_keys.is_set(best_key) &&
-        !tab->quick_order_tested.is_set(best_key) &&
-        best_key != ref_key)
-    {
-      tab->quick_order_tested.set_bit(best_key);
-      Opt_trace_object
-        trace_recest(trace, "rows_estimation");
-      trace_recest.add_utf8_table(tab->table).
-        add_utf8("index", table->key_info[best_key].name);
-
-      key_map map;           // Force the creation of quick select
-      map.set_bit(best_key); // only best_key.
-      select->quick= 0;
-      select->test_quick_select(join->thd, 
-                                map, 
-                                0,        // empty table_map
-                                join->select_options & OPTION_FOUND_ROWS ?
-                                HA_POS_ERROR :
-                                join->unit->select_limit_cnt,
-                                true,     // force quick range
-                                order->direction);
-    }
-    order_direction= best_key_direction;
-    /*
-      saved_best_key_parts is actual number of used keyparts found by the
-      test_if_order_by_key function. It could differ from keyinfo->key_parts,
-      thus we have to restore it in case of desc order as it affects
-      QUICK_SELECT_DESC behaviour.
-    */
-    used_key_parts= (order_direction == -1) ?
-      saved_best_key_parts :  best_key_parts;
-    changed_key= best_key;
-    // We will use index scan or range scan:
-    set_up_ref_access_to_key= false;
-  }
-
-check_reverse_order:                  
-  DBUG_ASSERT(order_direction != 0);
-
-  if (order_direction == -1)		// If ORDER BY ... DESC
-  {
-    if (select && select->quick)
-    {
-      /*
-	Don't reverse the sort order, if it's already done.
-        (In some cases test_if_order_by_key() can be called multiple times
-      */
-      if (select->quick->reverse_sorted())
-      {
-        can_skip_sorting= true;
-        goto fix_ICP;
-      }
-
-      if (select->quick->reverse_sort_possible())
-        can_skip_sorting= true;
-      else
-      {
-        can_skip_sorting= false;
-        goto fix_ICP;
-      }
-
-      /*
-        test_quick_select() should not create a quick that cannot do
-        reverse ordering
-      */
-      DBUG_ASSERT((select->quick == save_quick) || can_skip_sorting);
-    }
-    else
-    {
-      // Other index access (ref or scan) poses no problem
-      can_skip_sorting= true;
-    }
-  }
-  else
-  {
-    // ORDER BY ASC poses no problem
-    can_skip_sorting= true;
-  }
-
-  DBUG_ASSERT(can_skip_sorting);
-
-  /*
-    Update query plan with access pattern for doing 
-    ordered access according to what we have decided
-    above.
-  */
-  if (!no_changes) // We are allowed to update QEP
-  {
-    if (set_up_ref_access_to_key)
-    {
-      /*
-        We'll use ref access method on key changed_key. In general case 
-        the index search tuple for changed_ref_key will be different (e.g.
-        when one index is defined as (part1, part2, ...) and another as
-        (part1, part2(N), ...) and the WHERE clause contains 
-        "part1 = const1 AND part2=const2". 
-        So we build tab->ref from scratch here.
-      */
-      Key_use *keyuse= tab->keyuse;
-      while (keyuse->key != (uint)changed_key && keyuse->table == tab->table)
-        keyuse++;
-
-      if (create_ref_for_key(tab->join, tab, keyuse, tab->prefix_tables()))
-      {
-        can_skip_sorting= false;
-        goto fix_ICP;
-      }
-
-      DBUG_ASSERT(tab->type != JT_REF_OR_NULL && tab->type != JT_FT);
-    }
-    else if (best_key >= 0)
-    {
-      bool quick_created= 
-        (select && select->quick && select->quick!=save_quick);
-
-      /*
-        If ref_key used index tree reading only ('Using index' in EXPLAIN),
-        and best_key doesn't, then revert the decision.
-      */
-      if(!table->covering_keys.is_set(best_key))
-      {
-        table->set_keyread(false);
-        tab->use_keyread= false;
-      }
-      if (!quick_created)
-      {
-        if (select)                  // Throw any existing quick select
-          select->quick= 0;          // Cleanup either reset to save_quick,
-                                     // or 'delete save_quick'
-        tab->index= best_key;
-        tab->read_first_record= order_direction > 0 ?
-                                join_read_first:join_read_last;
-        tab->type=JT_INDEX_SCAN;       // Read with index_first(), index_next()
-
-        table->file->ha_index_or_rnd_end();
-        if (tab->join->select_options & SELECT_DESCRIBE)
-        {
-          /*
-            @todo this neutralizes add_ref_to_table_cond(); as a result
-            EXPLAIN shows no "using where" though real SELECT has one.
-          */
-          tab->ref.key= -1;
-          tab->ref.key_parts= 0;
-        }
-        if (select_limit < table->file->stats.records) 
-          tab->rowcount= select_limit;
-      }
-      else if (tab->type != JT_ALL)
-      {
-        /*
-          We're about to use a quick access to the table.
-          We need to change the access method so as the quick access
-          method is actually used.
-        */
-        DBUG_ASSERT(tab->select->quick);
-        DBUG_ASSERT(tab->select->quick->index==(uint)best_key);
-        tab->type=JT_ALL;
-        tab->use_quick=QS_RANGE;
-        tab->ref.key= -1;
-        tab->ref.key_parts=0;		// Don't use ref key.
-        tab->read_first_record= join_init_read_record;
-        if (tab->is_using_loose_index_scan())
-          tab->join->tmp_table_param.precomputed_group_by= TRUE;
-        /*
-          TODO: update the number of records in tab->position
-        */
-      }
-    } // best_key >= 0
-
-    if (order_direction == -1)		// If ORDER BY ... DESC
-    {
-      if (select && select->quick)
-      {
-        /* ORDER BY range_key DESC */
-        QUICK_SELECT_I *tmp= select->quick->make_reverse(used_key_parts);
-        if (!tmp)
-        {
-          /* purecov: begin inspected */
-          tab->rowcount= 0;
-          can_skip_sorting= false;      // Reverse sort failed -> filesort
-          goto fix_ICP;
-          /* purecov: end */
-        }
-        if (select->quick == save_quick)
-          save_quick= 0;                // Because set_quick(tmp) frees it
-        select->set_quick(tmp);
-      }
-      else if (tab->type != JT_INDEX_SCAN && tab->type != JT_REF_OR_NULL &&
-               tab->ref.key >= 0 && tab->ref.key_parts <= used_key_parts)
-      {
-        /*
-          SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
-
-          Use a traversal function that starts by reading the last row
-          with key part (A) and then traverse the index backwards.
-        */
-        tab->read_first_record= join_read_last_key;
-        tab->read_record.read_record= join_read_prev_same;
-        tab->read_record.unlock_row= rr_unlock_row;
-
-        /*
-          The current implementation of join_read_prev_same() does not
-          work well in combination with ICP and can lead to increased
-          execution time. Setting changed_key to the current key
-          (based on that we change the access order for the key) will
-          ensure that a pushed index condition will be cancelled.
-        */
-        changed_key= tab->ref.key;
-      }
-    }
-    else if (select && select->quick)
-      select->quick->need_sorted_output();
-  } // QEP has been modified
-
-fix_ICP:
-  /*
-    Cleanup:
-    We may have both a 'select->quick' and 'save_quick' (original)
-    at this point. Delete the one that we won't use.
-  */
-  if (can_skip_sorting && !no_changes)
-  {
-    // Keep current (ordered) select->quick
-    if (select && save_quick != select->quick)
-      delete save_quick;
-  }
-  else
-  {
-    // Restore original save_quick
-    if (select && select->quick != save_quick)
-      select->set_quick(save_quick);
-  }
-
-  Opt_trace_object
-    trace_change_index(trace, "index_order_summary");
-  trace_change_index.add_utf8_table(tab->table)
-    .add("index_provides_order", can_skip_sorting)
-    .add_alnum("order_direction", order_direction == 1 ? "asc" :
-               ((order_direction == -1) ? "desc" :
-                "undefined"));
-
-  if (changed_key >= 0)
-  {
-    bool cancelled_ICP= false;
-    // switching to another index, makes pushed index condition obsolete
-    if (!no_changes && table->file->pushed_idx_cond)
-    {
-      table->file->cancel_pushed_idx_cond();
-      // and thus tab's m_condition must be how it was before ICP
-      orig_cond_saved= false;
-      cancelled_ICP= true;
-    }
-    if (unlikely(trace->is_started()))
-    {
-      if (cancelled_ICP)
-        trace_change_index.add("disabled_pushed_condition_on_old_index", true);
-      trace_change_index.add_utf8("index", table->key_info[changed_key].name);
-      trace_change_index.add("plan_changed", !no_changes);
-      if (!no_changes)
-      {
-        const char *new_type= tab->type == JT_INDEX_SCAN ? "index_scan" :
-          (tab->select && tab->select->quick) ?
-          "range" : join_type_str[tab->type];
-        trace_change_index.add_alnum("access_type", new_type);
-      }
-    }
-  }
-  else if (unlikely(trace->is_started()))
-  {
-    trace_change_index.add_utf8("index",
-                                ref_key >= 0 ?
-                                table->key_info[ref_key].name : "unknown");
-    trace_change_index.add("plan_changed", false);
-  }
-  if (orig_cond_saved)
-  {
-    // ICP set up prior to the call, is still valid:
-    tab->set_jt_and_sel_condition(orig_cond, __LINE__);
-  }
-  DBUG_RETURN(can_skip_sorting);
-}
-
-
-
-/**
-  Update Temp_table_param with count of the different type of fields.
+  Update TMP_TABLE_PARAM with count of the different type of fields.
 
   This function counts the number of fields, functions and sum
   functions (items with type SUM_FUNC_ITEM) for use by
@@ -4972,7 +3292,7 @@ bool JOIN::make_tmp_tables_info()
   uint curr_tmp_table= const_tables;
   TABLE *exec_tmp_table= NULL;
   DBUG_ENTER("JOIN::make_tmp_tables_info");
-  having_for_explain= having;
+  having_for_explain= having_cond;
 
   const bool has_group_by= this->group;
   /*
@@ -5051,12 +3371,12 @@ bool JOIN::make_tmp_tables_info()
       If having is not handled here, it will be checked before the row
       is sent to the client.
     */
-    if (having &&
+    if (having_cond &&
         (sort_and_group || (exec_tmp_table->distinct && !group_list)))
     {
       // Attach HAVING to tmp table's condition
-      join_tab[curr_tmp_table].having= having;
-      having= NULL; // Already done
+      join_tab[curr_tmp_table].having= having_cond;
+      having_cond= NULL; // Already done
     }
 
     /* Change sum_fields reference to calculated fields in tmp_table */
@@ -5198,14 +3518,14 @@ bool JOIN::make_tmp_tables_info()
 
     if (select_distinct && !group_list)
     {
-      if (having)
+      if (having_cond)
       {
-        join_tab[curr_tmp_table].having= having;
-        having->update_used_tables();
+        join_tab[curr_tmp_table].having= having_cond;
+        having_cond->update_used_tables();
+        having_cond= NULL;
       }
       join_tab[curr_tmp_table].distinct= true;
       explain_flags.set(ESC_DISTINCT, ESP_DUPS_REMOVAL);
-      having= NULL;
       select_distinct= false;
     }
     /* Clean tmp_table_param for the next tmp table. */
@@ -5279,14 +3599,14 @@ bool JOIN::make_tmp_tables_info()
     DBUG_PRINT("info",("Sorting for send_result_set_metadata"));
     THD_STAGE_INFO(thd, stage_sorting_result);
     /* If we have already done the group, add HAVING to sorted table */
-    if (having && !group_list && !sort_and_group)
+    if (having_cond && !group_list && !sort_and_group)
     {
-      // Some tables may have been const
-      having->update_used_tables();
+      // Some tables may have become constant
+      having_cond->update_used_tables();
       JOIN_TAB *curr_table= &join_tab[curr_tmp_table];
       table_map used_tables= (const_table_map | curr_table->table->map);
 
-      Item* sort_table_cond= make_cond_for_table(having, used_tables,
+      Item* sort_table_cond= make_cond_for_table(having_cond, used_tables,
                                                  (table_map) 0, false);
       if (sort_table_cond)
       {
@@ -5309,10 +3629,11 @@ bool JOIN::make_tmp_tables_info()
 					 "select and having",
                                          QT_ORDINARY););
 
-        having= make_cond_for_table(having, ~ (table_map) 0,
-                                    ~used_tables, false);
+        having_cond= make_cond_for_table(having_cond, ~ (table_map) 0,
+                                         ~used_tables, false);
         DBUG_EXECUTE("where",
-                     print_where(having, "having after sort", QT_ORDINARY););
+                     print_where(having_cond, "having after sort",
+                     QT_ORDINARY););
       }
     }
 
@@ -5444,6 +3765,9 @@ JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *sort_order)
             can use.
             For impossible ranges (like when doing a lookup on NULL on a NOT NULL
             field, quick will contain an empty record set.
+
+            @TODO This should be either indicated as range or filesort
+            should start using ref directly, without switching to quick.
           */
           if (!(select->quick= (tab->type == JT_FT ?
                                 get_ft_select(thd, table, tab->ref.key) :
@@ -5490,7 +3814,7 @@ JOIN::add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *sort_order)
     (@see get_index_for_order()).
 */
 
-static bool
+bool
 test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
                          key_map usable_keys,  int ref_key,
                          ha_rows select_limit,
@@ -5549,7 +3873,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     read_time= tab->position->read_cost;
     for (const JOIN_TAB *jt= tab + 1;
          jt < join->join_tab + join->primary_tables; jt++)
-      fanout*= jt->position->fanout; // fanout is always >= 1
+    {
+      fanout*= jt->position->rows_fetched * jt->position->filter_effect;
+    }
   }
   else
     read_time= table->file->table_scan_cost().total_cost();
@@ -5864,6 +4190,18 @@ uint actual_key_flags(KEY *key_info)
     optimizer_switch_flag(OPTIMIZER_SWITCH_USE_INDEX_EXTENSIONS) ?
     key_info->actual_flags : key_info->flags;
 }
+
+
+join_type calc_join_type(int quick_type)
+{
+  if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
+      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
+      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
+    return JT_INDEX_MERGE;
+  else
+    return JT_RANGE;
+}
+
 
 /**
   @} (end of group Query_Optimizer)

@@ -55,14 +55,12 @@
 #cmakedefine HAVE_SYS_DIR_H 1
 #cmakedefine HAVE_SYS_CDEFS_H 1
 #cmakedefine HAVE_SYS_IOCTL_H 1
-#cmakedefine HAVE_SYS_IPC_H 1
 #cmakedefine HAVE_SYS_MALLOC_H 1
 #cmakedefine HAVE_SYS_MMAN_H 1
 #cmakedefine HAVE_SYS_NDIR_H 1
 #cmakedefine HAVE_SYS_PRCTL_H 1
 #cmakedefine HAVE_SYS_RESOURCE_H 1
 #cmakedefine HAVE_SYS_SELECT_H 1
-#cmakedefine HAVE_SYS_SHM_H 1
 #cmakedefine HAVE_SYS_SOCKET_H 1
 #cmakedefine HAVE_SYS_STAT_H 1
 #cmakedefine HAVE_SYS_TIMES_H 1
@@ -102,7 +100,6 @@
 
 /* Functions we may want to use. */
 #cmakedefine HAVE_ALIGNED_MALLOC 1
-#cmakedefine HAVE_ALARM 1
 #cmakedefine HAVE_INDEX 1
 #cmakedefine HAVE_CLOCK_GETTIME 1
 #cmakedefine HAVE_CRYPT 1
@@ -135,7 +132,6 @@
 #cmakedefine HAVE_GETGID 1
 #cmakedefine HAVE_GETEGID 1
 #cmakedefine HAVE_ISINF 1
-#cmakedefine HAVE_LARGE_PAGE_OPTION 1
 #cmakedefine HAVE_LRAND48 1
 #cmakedefine HAVE_LOG2 1
 #cmakedefine HAVE_LSTAT 1
@@ -145,8 +141,8 @@
 #cmakedefine HAVE_MADVISE 1
 #cmakedefine HAVE_DECL_MADVISE 1
 #cmakedefine HAVE_DECL_TGOTO 1
-#cmakedefine HAVE_DECL_MHA_MAPSIZE_VA
 #cmakedefine HAVE_MALLOC_INFO 1
+#cmakedefine HAVE_MEMRCHR 1
 #cmakedefine HAVE_MLOCKALL 1
 #cmakedefine HAVE_MMAP 1
 #cmakedefine HAVE_MMAP64 1
@@ -157,13 +153,10 @@
 #cmakedefine HAVE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_FAKE_PAUSE_INSTRUCTION 1
 #cmakedefine HAVE_RDTSCLL 1
-#cmakedefine HAVE_PTHREAD_ATTR_GETGUARDSIZE 1
 #cmakedefine HAVE_PTHREAD_CONDATTR_SETCLOCK 1
 #cmakedefine HAVE_PTHREAD_SETSCHEDPARAM 1
 #cmakedefine HAVE_PTHREAD_SIGMASK 1
-#cmakedefine HAVE_PTHREAD_YIELD_NP 1
 #cmakedefine HAVE_PTHREAD_YIELD_ZERO_ARG 1
-#cmakedefine PTHREAD_ONCE_INITIALIZER @PTHREAD_ONCE_INITIALIZER@
 #cmakedefine HAVE_READDIR_R 1
 #cmakedefine HAVE_READLINK 1
 #cmakedefine HAVE_REALPATH 1
@@ -171,8 +164,6 @@
 #cmakedefine HAVE_SCHED_YIELD 1
 #cmakedefine HAVE_SELECT 1
 #cmakedefine HAVE_SETFD 1
-#cmakedefine HAVE_SETENV 1
-#cmakedefine HAVE_SIGSET 1
 #cmakedefine HAVE_SIGACTION 1
 #cmakedefine HAVE_SLEEP 1
 #cmakedefine HAVE_STPCPY 1
@@ -186,7 +177,6 @@
 #cmakedefine HAVE_STRTOK_R 1
 #cmakedefine HAVE_STRTOLL 1
 #cmakedefine HAVE_TELL 1
-#cmakedefine HAVE_THR_YIELD 1
 #cmakedefine HAVE_TIMES 1
 #cmakedefine HAVE_VASPRINTF 1
 #cmakedefine HAVE_FTRUNCATE 1
@@ -194,8 +184,6 @@
 /* used by stacktrace functions */
 #cmakedefine HAVE_BSS_START 1
 #cmakedefine HAVE_BACKTRACE 1
-#cmakedefine HAVE_BACKTRACE_SYMBOLS 1
-#cmakedefine HAVE_BACKTRACE_SYMBOLS_FD 1
 #cmakedefine HAVE_PRINTSTACK 1
 #cmakedefine HAVE_STRUCT_SOCKADDR_IN6 1
 #cmakedefine HAVE_STRUCT_IN6_ADDR 1
@@ -220,6 +208,13 @@
 #cmakedefine HAVE_SYS_DEVPOLL_H 1
 #cmakedefine HAVE_SYS_EPOLL_H 1
 #cmakedefine HAVE_TAILQFOREACH 1
+
+#cmakedefine HAVE_SIGEV_THREAD_ID 1
+#cmakedefine HAVE_SIGEV_PORT 1
+#cmakedefine HAVE_POSIX_TIMERS 1
+#cmakedefine HAVE_KQUEUE_TIMERS 1
+#cmakedefine HAVE_WINDOWS_TIMERS 1
+#cmakedefine HAVE_MY_TIMER 1
 
 #cmakedefine HAVE_ASAN
 #cmakedefine HAVE_VALGRIND
@@ -278,7 +273,9 @@
 #cmakedefine HAVE_STRDUP 1
 #cmakedefine HAVE_LANGINFO_CODESET 
 
-#cmakedefine HAVE_WEAK_SYMBOL 1
+#cmakedefine HAVE_BUILTIN_UNREACHABLE 1
+#cmakedefine HAVE_BUILTIN_EXPECT 1
+#cmakedefine HAVE_BUILTIN_STPCPY 1
 #cmakedefine HAVE_ABI_CXA_DEMANGLE 1
 
 #cmakedefine HAVE_SOLARIS_STYLE_GETHOST 1
@@ -286,9 +283,7 @@
 #cmakedefine MY_ATOMIC_MODE_RWLOCKS 1
 #cmakedefine HAVE_GCC_ATOMIC_BUILTINS 1
 #cmakedefine HAVE_SOLARIS_ATOMIC 1
-#cmakedefine HAVE_DECL_SHM_HUGETLB 1
-#cmakedefine HAVE_LARGE_PAGES 1
-#cmakedefine HUGETLB_USE_PROC_MEMINFO 1
+#cmakedefine HAVE_LINUX_LARGE_PAGES 1
 #cmakedefine NO_FCNTL_NONBLOCK 1
 
 #cmakedefine _LARGE_FILES 1
@@ -315,43 +310,7 @@
 #cmakedefine SIGPIPE @SIGPIPE@
 #cmakedefine isnan @isnan@
 
-#cmakedefine alloca @alloca@
-#cmakedefine finite @finite@
-#cmakedefine popen @popen@
-#cmakedefine pclose @pclose@
-#cmakedefine strcasecmp @strcasecmp@
-#cmakedefine strncasecmp @strncasecmp@
-#cmakedefine strtoll @strtoll@
-#cmakedefine strtoull @strtoull@
-#cmakedefine snprintf @snprintf@
-#cmakedefine vsnprintf @vsnprintf@
-
-#cmakedefine access @access@
-#cmakedefine chdir @chdir@
-#cmakedefine chmod @chmod@
-#cmakedefine dup @dup@
-#cmakedefine fdopen @fdopen@
-#cmakedefine fileno @fileno@
-#cmakedefine getcwd @getcwd@
-#cmakedefine isatty @isatty@
-#cmakedefine mkdir @mkdir@
-#cmakedefine putenv @putenv@
-#cmakedefine read @read@
-#cmakedefine rmdir @rmdir@
-#cmakedefine strdup @strdup@
-#cmakedefine stricmp @stricmp@
-#cmakedefine tzset @tzset@
-#cmakedefine umask @umask@
-#cmakedefine unlink @unlink@
-
-#cmakedefine strtok_r @strtok_r@
-
 #cmakedefine ssize_t @ssize_t@
-
-#if (_MSC_VER > 1310)
-# define HAVE_SETENV
-#define setenv(a,b,c) _putenv_s(a,b)
-#endif
 
 /*
    Memcached config options
@@ -479,6 +438,7 @@
 #cmakedefine DISABLE_PSI_STAGE 1
 #cmakedefine DISABLE_PSI_STATEMENT 1
 #cmakedefine DISABLE_PSI_SP 1
+#cmakedefine DISABLE_PSI_PS 1
 #cmakedefine DISABLE_PSI_IDLE 1
 #cmakedefine DISABLE_PSI_STATEMENT_DIGEST 1
 #cmakedefine DISABLE_PSI_METADATA 1

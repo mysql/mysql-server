@@ -96,15 +96,23 @@ static bool check_view_single_update(List<Item> &fields, TABLE_LIST *view,
   @param table_list   The table for insert.
   @param fields       The insert fields.
   @param value_count  Number of values supplied
-                      = 0: INSERT ... SELECT, delay field count check
+  @param value_count_known if false, delay field count check
+                      @todo: Eliminate this when preparation is properly phased
   @param check_unique If duplicate values should be rejected.
   @param[out] insert_table_ref resolved reference to base table
 
   @return false if success, true if error
+
+  @todo check_insert_fields() should be refactored as follows:
+        - Remove the argument value_count_known and all predicates involving it.
+        - Rearrange the call to check_insert_fields() from
+          mysql_prepare_insert() so that the value_count is known also when
+          processing a prepared statement.
 */
 
 static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
                                 List<Item> &fields, uint value_count,
+                                bool value_count_known,
                                 bool check_unique,
                                 TABLE_LIST **insert_table_ref)
 {
@@ -114,15 +122,18 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
 
   DBUG_ASSERT(table_list->updatable);
 
-  if (fields.elements == 0)
+  if (fields.elements == 0 && value_count_known && value_count > 0)
   {
-    // No field list supplied, use field list of table being updated.
-
+    /*
+      No field list supplied, but a value list has been supplied.
+      Use field list of table being updated.
+    */
     DBUG_ASSERT(table);    // This branch is not reached with a view:
 
     *insert_table_ref= table_list;
 
-    if (value_count > 0 && value_count != table->s->fields)
+    // Values for all fields in table are needed
+    if (value_count != table->s->fields)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return true;
@@ -147,7 +158,7 @@ static bool check_insert_fields(THD *thd, TABLE_LIST *table_list,
     Name_resolution_context_state ctx_state;
     int res;
 
-    if (value_count > 0 && fields.elements != value_count)
+    if (value_count_known && fields.elements != value_count)
     {
       my_error(ER_WRONG_VALUE_COUNT_ON_ROW, MYF(0), 1L);
       return true;
@@ -1173,8 +1184,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
 
-    res= check_insert_fields(thd, context->table_list, fields, values->elements,
-                             !insert_into_view, insert_table_ref);
+    if (!res)
+      res= check_insert_fields(thd, context->table_list, fields,
+                               values->elements, true,
+                               !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
       map= (*insert_table_ref)->table->map;
@@ -1218,7 +1231,14 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
     thd->dup_field= NULL;
     context->resolve_in_table_list_only(table_list);
 
-    res= check_insert_fields(thd, context->table_list, fields, 0,
+    /*
+      When processing a prepared INSERT ... SELECT statement,
+      mysql_prepare_insert() is called from
+      mysql_insert_select_prepare_tester(), when the values list (aka the
+      SELECT list from the SELECT) is not resolved yet, so pass "false"
+      for value_count_known.
+    */
+    res= check_insert_fields(thd, context->table_list, fields, 0, false,
                              !insert_into_view, insert_table_ref);
     table_map map= 0;
     if (!res)
@@ -1277,8 +1297,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
       update_non_unique_table_error(table_list, "INSERT", duplicate);
       DBUG_RETURN(true);
     }
-    Item *fake_conds= NULL;
-    select_lex->fix_prepare_information(thd, &fake_conds, &fake_conds);
+    select_lex->fix_prepare_information(thd);
     select_lex->first_execution= false;
   }
   if (duplic == DUP_UPDATE || duplic == DUP_REPLACE)
@@ -1767,7 +1786,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            &insert_table_ref, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           &select_lex->where, true, false, false))
+                           select_lex->where_cond_ref(), true, false, false))
     DBUG_RETURN(TRUE);
 
   /*
@@ -1812,8 +1831,8 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 
   /* Errors during check_insert_fields() should not be ignored. */
   lex->current_select()->no_error= FALSE;
-  res= check_insert_fields(thd, table_list, *fields, values.elements,
-                            !insert_into_view, &insert_table_ref);
+  res= check_insert_fields(thd, table_list, *fields, values.elements, true,
+                           !insert_into_view, &insert_table_ref);
   if (!res)
     res= setup_fields(thd, Ref_ptr_array(), values, MARK_COLUMNS_READ, 0, 0);
 
@@ -1829,12 +1848,9 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
     table_list->next_local= NULL;
     context->resolve_in_table_list_only(table_list);
 
-    lex->select_lex->no_wrap_view_item= true;
-    res= res || setup_fields(thd, Ref_ptr_array(),
-                             *update.get_changed_columns(),
-                             MARK_COLUMNS_WRITE, 0, 0);
-
-    lex->select_lex->no_wrap_view_item= false;
+    res= res || setup_fields_with_no_wrap(thd, Ref_ptr_array(),
+                                          *update.get_changed_columns(),
+                                          MARK_COLUMNS_WRITE, 0, 0);
     /*
       When we are not using GROUP BY and there are no ungrouped aggregate
       functions 

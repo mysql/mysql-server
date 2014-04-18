@@ -1696,7 +1696,11 @@ unsigned long ERR_get_error()
       };
 
       TaoCrypt::ASN1_TIME_extract(time->data, time->type, &t);
+#ifdef _WIN32
+      _snprintf(buf, len, "%s %2d %02d:%02d:%02d %d GMT",
+#else
       snprintf(buf, len, "%s %2d %02d:%02d:%02d %d GMT",
+#endif
                month_names[t.tm_mon], t.tm_mday, t.tm_hour, t.tm_min, 
                t.tm_sec, t.tm_year + 1900);
       return buf;

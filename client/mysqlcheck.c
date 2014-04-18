@@ -536,11 +536,10 @@ static char *fix_table_name(char *dest, char *src)
 
 static int process_all_tables_in_db(char *database)
 {
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   uint num_columns;
 
-  LINT_INIT(res);
   if (use_db(database))
     return 1;
   if ((mysql_query(sock, "SHOW /*!50002 FULL*/ TABLES") &&

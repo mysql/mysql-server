@@ -28,6 +28,8 @@
 #include "sql_user_table.h"
 #include "sql_authentication.h"
 
+#include "tztime.h"
+#include "sql_time.h"
 
 static const
 TABLE_FIELD_TYPE mysql_db_table_fields[MYSQL_DB_FIELD_COUNT] = {
@@ -338,7 +340,8 @@ void get_grantor(THD *thd, char *grantor)
   @param new_password_len Length of new password hash
   @param password_field The password field to use 
   @param password_expired Password expiration flag
-
+  @param builtin_plugin Plugin is MySQL server managed
+  @param alter_status LEX structure holding ALTER command details
 
 */
 
@@ -347,7 +350,9 @@ update_user_table(THD *thd, TABLE *table,
                   const char *host, const char *user,
                   const char *new_password, uint new_password_len,
                   enum mysql_user_table_field password_field,
-                  bool password_expired)
+                  bool password_expired,
+		  bool builtin_plugin,
+		  LEX_ALTER *alter_status)
 {
   char user_key[MAX_KEY_LENGTH];
   int error;
@@ -363,7 +368,7 @@ update_user_table(THD *thd, TABLE *table,
   }
 
   table->use_all_columns();
-  DBUG_ASSERT(host != '\0');
+  DBUG_ASSERT(host != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(host, strlen(host),
 					     system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(user, strlen(user),
@@ -397,12 +402,50 @@ update_user_table(THD *thd, TABLE *table,
     }
   }
 
-  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED)
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_EXPIRED
+      && (!alter_status || alter_status->update_password_expired_column))
   {
-    /* update password_expired if present */
+    /* update password_expired if present and if that 
+       column is to be updated */
     table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store(password_expired ?
                                                            "Y" : "N", 1,
                                                            system_charset_info);
+  }
+
+  /*
+    If we have have updated the password we also update the
+    password last changed field
+  */
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED &&
+      !password_expired && builtin_plugin)
+  {
+    /*
+      Calculate time stamp up to seconds elapsed
+      from 1 Jan 1970 00:00:00.
+    */
+    struct timeval password_change_timestamp= thd->query_start_timeval_trunc(0);
+
+    table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
+      (&password_change_timestamp);
+    table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
+  }
+
+  /*
+    If password_expired column is not to be updated and only
+    password_lifetime is to be updated
+  */
+  if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LIFETIME &&
+      builtin_plugin && (alter_status &&
+      !alter_status->update_password_expired_column))
+  {
+    if (!alter_status->use_default_password_lifetime)
+    {
+      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->
+        store((longlong) alter_status->expire_after_days, TRUE);
+      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_notnull();
+    }
+    else
+      table->field[MYSQL_USER_FIELD_PASSWORD_LIFETIME]->set_null();
   }
 
   if ((error=table->file->ha_update_row(table->record[1],table->record[0])) &&
@@ -424,11 +467,12 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   bool old_row_exists=0;
   bool builtin_plugin= true;
   bool update_password;
-  char *password= empty_c_string;
+  const char *password= empty_c_string;
   uint password_len= 0;
   char what= (revoke_grant) ? 'N' : 'Y';
   uchar user_key[MAX_KEY_LENGTH];
   LEX *lex= thd->lex;
+  struct timeval password_change_timestamp= {0, 0};
   DBUG_ENTER("replace_user_table");
 
   mysql_mutex_assert_owner(&acl_cache->lock);
@@ -441,7 +485,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
   }
  
   table->use_all_columns();
-  DBUG_ASSERT(combo->host.str != '\0');
+  DBUG_ASSERT(combo->host.str != NULL);
   table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                              system_charset_info);
   table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -523,7 +567,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     else if (combo->plugin.str[0])
     {
-      if (!plugin_is_ready(&combo->plugin, MYSQL_AUTHENTICATION_PLUGIN))
+      if (!plugin_is_ready(combo->plugin, MYSQL_AUTHENTICATION_PLUGIN))
       {
         my_error(ER_PLUGIN_IS_NOT_LOADED, MYF(0), combo->plugin.str);
         goto end;
@@ -532,7 +576,7 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 
     old_row_exists = 0;
     restore_record(table,s->default_values);
-    DBUG_ASSERT(combo->host.str != '\0');
+    DBUG_ASSERT(combo->host.str != NULL);
     table->field[MYSQL_USER_FIELD_HOST]->store(combo->host.str,combo->host.length,
                                                system_charset_info);
     table->field[MYSQL_USER_FIELD_USER]->store(combo->user.str,combo->user.length,
@@ -587,12 +631,11 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
     }
     
     /* 1. resolve plugins in the LEX_USER struct if needed */
-    LEX_STRING old_plugin;
 
+    LEX_CSTRING old_plugin;
     /*
       Get old plugin value from storage.
     */
-
     old_plugin.str=
       get_field(thd->mem_root, table->field[MYSQL_USER_FIELD_PLUGIN]);
 
@@ -811,6 +854,24 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
       table->field[MYSQL_USER_FIELD_PASSWORD_EXPIRED]->store("N", 1,
                                                              system_charset_info);
     }
+
+    /*
+       if we have a password supplied and plugin is built in we update
+       the password last changed field
+    */
+    if (table->s->fields > MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED &&
+        builtin_plugin && (update_password || !old_row_exists))
+    {
+      /*
+        Calculate time stamp up to seconds elapsed
+        from 1 Jan 1970 00:00:00.
+      */
+      password_change_timestamp= thd->query_start_timeval_trunc(0);
+
+      table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->store_timestamp
+	(&password_change_timestamp);
+      table->field[MYSQL_USER_FIELD_PASSWORD_LAST_CHANGED]->set_notnull();
+    }
   }
 
   if (old_row_exists)
@@ -847,6 +908,17 @@ int replace_user_table(THD *thd, TABLE *table, LEX_USER *combo,
 end:
   if (!error)
   {
+    /*
+       Convert the time when the password was changed from timeval
+       structure to MYSQL_TIME format, to store it in cache.
+    */
+    MYSQL_TIME password_change_time;
+
+    if (builtin_plugin && (update_password || !old_row_exists))
+      thd->variables.time_zone->gmt_sec_to_TIME(&password_change_time,
+        (my_time_t)password_change_timestamp.tv_sec);
+    else
+      password_change_time.time_type= MYSQL_TIMESTAMP_ERROR;
     acl_cache->clear(1);			// Clear privilege cache
     if (old_row_exists)
       acl_update_user(combo->user.str, combo->host.str,
@@ -857,8 +929,9 @@ end:
 		      lex->x509_subject,
 		      &lex->mqh,
 		      rights,
-		      &combo->plugin,
-		      &combo->auth);
+		      combo->plugin,
+		      combo->auth,
+                      password_change_time);
     else
       acl_insert_user(combo->user.str, combo->host.str, password, password_len,
 		      lex->ssl_type,
@@ -867,8 +940,9 @@ end:
 		      lex->x509_subject,
 		      &lex->mqh,
 		      rights,
-		      &combo->plugin,
-		      &combo->auth);
+		      combo->plugin,
+		      combo->auth,
+                      password_change_time);
   }
   DBUG_RETURN(error);
 }
@@ -1009,8 +1083,8 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
   }
 
   table->use_all_columns();
-  ACL_PROXY_USER::store_pk (table, &user->host, &user->user, 
-                            &proxied_user->host, &proxied_user->user);
+  ACL_PROXY_USER::store_pk (table, user->host, user->user,
+                            proxied_user->host, proxied_user->user);
 
   key_copy(user_key, table->record[0], table->key_info,
            table->key_info->key_length);
@@ -1036,9 +1110,9 @@ int replace_proxies_priv_table(THD *thd, TABLE *table, const LEX_USER *user,
     }
     old_row_exists= 0;
     restore_record(table, s->default_values);
-    ACL_PROXY_USER::store_data_record(table, &user->host, &user->user,
-                                      &proxied_user->host,
-                                      &proxied_user->user,
+    ACL_PROXY_USER::store_data_record(table, user->host, user->user,
+                                      proxied_user->host,
+                                      proxied_user->user,
                                       with_grant_arg,
                                       grantor);
   }
@@ -1736,8 +1810,6 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
   TABLE *table= tables[table_no].table;
   Field *host_field= table->field[0];
   Field *user_field= table->field[table_no && table_no != 5 ? 2 : 1];
-  char *host_str= user_from->host.str;
-  char *user_str= user_from->user.str;
   const char *host;
   const char *user;
   uchar user_key[MAX_KEY_LENGTH];
@@ -1758,9 +1830,15 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
       by the searched record, if it exists.
     */
     DBUG_PRINT("info",("read table: '%s'  search: '%s'@'%s'",
-                       table->s->table_name.str, user_str, host_str));
-    host_field->store(host_str, user_from->host.length, system_charset_info);
-    user_field->store(user_str, user_from->user.length, system_charset_info);
+                       table->s->table_name.str,
+                       user_from->user.str,
+                       user_from->host.str));
+    host_field->store(user_from->host.str,
+                      user_from->host.length,
+                      system_charset_info);
+    user_field->store(user_from->user.str,
+                      user_from->user.length,
+                      system_charset_info);
     
     if (!table->key_info)
     {
@@ -1808,7 +1886,9 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
     {
 #ifdef EXTRA_DEBUG
       DBUG_PRINT("info",("scan table: '%s'  search: '%s'@'%s'",
-                         table->s->table_name.str, user_str, host_str));
+                         table->s->table_name.str,
+                         user_from->user.str,
+                         user_from->host.str));
 #endif
       while ((error= table->file->ha_rnd_next(table->record[0])) != 
              HA_ERR_END_OF_FILE)
@@ -1835,8 +1915,8 @@ int handle_grant_table(TABLE_LIST *tables, uint table_no, bool drop,
                                        table->field[4]) /*column*/));
         }
 #endif
-        if (strcmp(user_str, user) ||
-            my_strcasecmp(system_charset_info, host_str, host))
+        if (strcmp(user_from->user.str, user) ||
+            my_strcasecmp(system_charset_info, user_from->host.str, host))
           continue;
 
         /* If requested, delete or update the record. */

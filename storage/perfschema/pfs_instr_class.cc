@@ -468,8 +468,8 @@ LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 */
 static void set_table_share_key(PFS_table_share_key *key,
                                 bool temporary,
-                                const char *schema_name, uint schema_name_length,
-                                const char *table_name, uint table_name_length)
+                                const char *schema_name, size_t schema_name_length,
+                                const char *table_name, size_t table_name_length)
 {
   DBUG_ASSERT(schema_name_length <= NAME_LEN);
   DBUG_ASSERT(table_name_length <= NAME_LEN);

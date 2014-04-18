@@ -198,10 +198,10 @@ my_bool check_datetime_range(const MYSQL_TIME *ltime)
     In case of MYSQL_TIMESTAMP_DATETIME it cannot be bigger than 23.
   */
   return
-    ltime->year > 9999 || ltime->month > 12  || ltime->day > 31 || 
-    ltime->minute > 59 || ltime->second > 59 || ltime->second_part > 999999 ||
+    ltime->year > 9999U || ltime->month > 12U  || ltime->day > 31U || 
+    ltime->minute > 59U || ltime->second > 59U || ltime->second_part > 999999U ||
     (ltime->hour >
-     (ltime->time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23));
+     (ltime->time_type == MYSQL_TIMESTAMP_TIME ? TIME_MAX_HOUR : 23U));
 }
 
 
@@ -269,20 +269,18 @@ my_bool
 str_to_datetime(const char *str, size_t length, MYSQL_TIME *l_time,
                 my_time_flags_t flags, MYSQL_TIME_STATUS *status)
 {
-  uint field_length, UNINIT_VAR(year_length), digits, i, number_of_fields;
+  uint field_length= 0, year_length= 0, digits, i, number_of_fields;
   uint date[MAX_DATE_PARTS], date_len[MAX_DATE_PARTS];
   uint add_hours= 0, start_loop;
   ulong not_zero_date, allow_space;
   my_bool is_internal_format;
-  const char *pos, *UNINIT_VAR(last_field_pos);
+  const char *pos, *last_field_pos= NULL;
   const char *end=str+length;
   const uchar *format_position;
   my_bool found_delimitier= 0, found_space= 0;
   uint frac_pos, frac_len;
   DBUG_ENTER("str_to_datetime");
   DBUG_PRINT("ENTER", ("str: %.*s", (int)length, str));
-
-  LINT_INIT(field_length);
 
   my_time_status_init(status);
 
@@ -676,7 +674,7 @@ my_bool str_to_time(const char *str, size_t length, MYSQL_TIME *l_time,
   for (; str != end && my_isspace(&my_charset_latin1, str[0]) ; str++)
     ;
 
-  LINT_INIT(state);
+  state= 0;
   found_days=found_hours=0;
   if ((uint) (end-str) > 1 && str != end_of_days &&
       my_isdigit(&my_charset_latin1, *str))

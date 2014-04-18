@@ -24,7 +24,7 @@
 # adding a 'SHOW WARNINGS' after the statement.
 
 set sql_mode='';
-set storage_engine=MyISAM;
+set default_storage_engine=MyISAM;
 
 ALTER TABLE user add File_priv enum('N','Y') COLLATE utf8_general_ci NOT NULL;
 
@@ -389,7 +389,10 @@ ALTER TABLE proc MODIFY name char(64) DEFAULT '' NOT NULL,
                             'NO_BACKSLASH_ESCAPES',
                             'STRICT_TRANS_TABLES',
                             'STRICT_ALL_TABLES',
+                            'NO_ZERO_IN_DATE',
+                            'NO_ZERO_DATE',
                             'INVALID_DATES',
+                            'ERROR_FOR_DIVISION_BY_ZERO',
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE',
@@ -510,7 +513,10 @@ ALTER TABLE event MODIFY sql_mode
                             'NO_BACKSLASH_ESCAPES',
                             'STRICT_TRANS_TABLES',
                             'STRICT_ALL_TABLES',
+                            'NO_ZERO_IN_DATE',
+                            'NO_ZERO_DATE',
                             'INVALID_DATES',
+                            'ERROR_FOR_DIVISION_BY_ZERO',
                             'TRADITIONAL',
                             'NO_AUTO_CREATE_USER',
                             'HIGH_NOT_PRECEDENCE',
@@ -730,3 +736,11 @@ DROP PROCEDURE mysql.warn_host_table_nonempty;
 ALTER TABLE help_category MODIFY url TEXT NOT NULL;
 ALTER TABLE help_topic MODIFY url TEXT NOT NULL;
 
+--
+-- Add timestamp and expiry columns
+--
+
+ALTER TABLE user ADD password_last_changed timestamp NULL;
+UPDATE user SET password_last_changed = CURRENT_TIMESTAMP WHERE plugin in ('mysql_native_password','mysql_old_password','sha256_password') and password_last_changed is NULL;
+
+ALTER TABLE user ADD password_lifetime smallint unsigned NULL;

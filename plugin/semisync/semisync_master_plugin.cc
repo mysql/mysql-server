@@ -30,6 +30,19 @@ enum enum_wait_point {
 
 static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
 
+static bool SEMI_SYNC_DUMP= true;
+
+pthread_key(bool *, THR_RPL_SEMI_SYNC_DUMP);
+
+static inline bool is_semi_sync_dump()
+{
+  /*
+    The key is only set for semisync dump threads, so it just checks if
+    the key is not NULL.
+  */
+  return my_pthread_getspecific_ptr(bool *, THR_RPL_SEMI_SYNC_DUMP) != NULL;
+}
+
 C_MODE_START
 
 int repl_semi_report_binlog_update(Binlog_storage_param *param,
@@ -89,9 +102,16 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
 				 const char *log_file,
 				 my_off_t log_pos)
 {
-  bool semi_sync_slave= repl_semisync.is_semi_sync_slave();
-  
-  if (semi_sync_slave)
+  long long semi_sync_slave= 0;
+
+  /*
+    semi_sync_slave will be 0 if the user variable doesn't exist. Otherwise, it
+    will be set to the value of the user variable.
+    'rpl_semi_sync_slave = 0' means that it is not a semisync slave.
+  */
+  get_user_var_int("rpl_semi_sync_slave", &semi_sync_slave, NULL);
+
+  if (semi_sync_slave != 0)
   {
     if (ack_receiver.add_slave(current_thd))
     {
@@ -99,8 +119,12 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
                       "thread.");
       return -1;
     }
+
+    my_pthread_setspecific_ptr(THR_RPL_SEMI_SYNC_DUMP, &SEMI_SYNC_DUMP);
+
     /* One more semi-sync slave */
     repl_semisync.add_slave();
+
     /* Tell server it will observe the transmission.*/
     param->set_observe_flag();
 
@@ -114,16 +138,16 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
     param->set_dont_observe_flag();
 
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
-			semi_sync_slave ? "semi-sync" : "asynchronous",
+			semi_sync_slave != 0 ? "semi-sync" : "asynchronous",
 			param->server_id, log_file, (unsigned long)log_pos);
-  
+
   return 0;
 }
 
 int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
 {
-  bool semi_sync_slave= repl_semisync.is_semi_sync_slave();
-  
+  bool semi_sync_slave= is_semi_sync_dump();
+
   sql_print_information("Stop %s binlog_dump to slave (server_id: %d)",
                         semi_sync_slave ? "semi-sync" : "asynchronous",
                         param->server_id);
@@ -132,6 +156,7 @@ int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
     ack_receiver.remove_slave(current_thd);
     /* One less semi-sync slave */
     repl_semisync.remove_slave();
+    my_pthread_setspecific_ptr(THR_RPL_SEMI_SYNC_DUMP, NULL);
   }
   return 0;
 }
@@ -140,7 +165,8 @@ int repl_semi_reserve_header(Binlog_transmit_param *param,
 			     unsigned char *header,
 			     unsigned long size, unsigned long *len)
 {
-  *len +=  repl_semisync.reserveSyncHeader(header, size);
+  if (is_semi_sync_dump())
+    *len +=  repl_semisync.reserveSyncHeader(header, size);
   return 0;
 }
 
@@ -148,6 +174,9 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
                                 unsigned char *packet, unsigned long len,
                                 const char *log_file, my_off_t log_pos)
 {
+  if (!is_semi_sync_dump())
+    return 0;
+
   return repl_semisync.updateSyncHeader(packet,
 					log_file,
 					log_pos,
@@ -159,7 +188,7 @@ int repl_semi_after_send_event(Binlog_transmit_param *param,
                                const char * skipped_log_file,
                                my_off_t skipped_log_pos)
 {
-  if (repl_semisync.is_semi_sync_slave())
+  if (is_semi_sync_dump())
   {
     if(skipped_log_pos>0)
       repl_semisync.skipSlaveReply(event_buf, param->server_id,
@@ -536,6 +565,8 @@ static int semi_sync_master_plugin_init(void *p)
   init_semisync_psi_keys();
 #endif
 
+  pthread_key_create(&THR_RPL_SEMI_SYNC_DUMP, NULL);
+
   if (repl_semisync.initObject())
     return 1;
   if (register_trans_observer(&trans_observer, p))
@@ -550,6 +581,7 @@ static int semi_sync_master_plugin_init(void *p)
 static int semi_sync_master_plugin_deinit(void *p)
 {
   ack_receiver.stop();
+  pthread_key_delete(THR_RPL_SEMI_SYNC_DUMP);
 
   if (unregister_trans_observer(&trans_observer, p))
   {

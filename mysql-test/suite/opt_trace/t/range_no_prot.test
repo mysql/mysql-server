@@ -26,3 +26,32 @@ EXPLAIN SELECT * FROM t WHERE b IS NULL;
 SELECT trace FROM information_schema.optimizer_trace;
 
 drop table t;
+
+--source include/show_json_object.inc
+
+--echo #
+--echo # Test trace of geometry fields
+--echo #
+
+# Must be an engine that supports spatial indexes
+CREATE TABLE t1(
+ pk INT AUTO_INCREMENT PRIMARY KEY,
+ col_geom GEOMETRY NOT NULL
+) ENGINE=MyISAM;
+
+INSERT INTO t1 VALUES (1, GeomFromText('POINT(10 10)'));
+INSERT INTO t1 VALUES (2, GeomFromText('POINT(11 11)'));
+
+CREATE SPATIAL INDEX idx3 on t1(col_geom DESC);
+
+--echo # Show that geometry data is traced as "unprintable_geometry_value"
+EXPLAIN
+SELECT pk, AsText(col_geom)
+FROM t1 
+WHERE MBREqual(t1.col_geom, GeomFromText('POINT(12 13)'));
+
+SELECT show_json_object('"range_scan_alternatives": [', TRACE)
+FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+DROP TABLE t1;
+DROP FUNCTION show_json_object;

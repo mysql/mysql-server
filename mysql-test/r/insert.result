@@ -576,10 +576,10 @@ DROP TABLE t1;
 CREATE TABLE t1( a INT );
 INSERT DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1887	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
+Warning	1888	INSERT DELAYED is no longer supported. The statement was converted to INSERT.
 REPLACE DELAYED INTO t1 VALUES ( 1 );
 Warnings:
-Warning	1887	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
+Warning	1888	REPLACE DELAYED is no longer supported. The statement was converted to REPLACE.
 DROP TABLE t1;
 SET GLOBAL delayed_insert_limit = DEFAULT;
 Warnings:
@@ -596,3 +596,26 @@ Warning	1287	'@@max_insert_delayed_threads' is deprecated and will be removed in
 SET GLOBAL max_delayed_threads = DEFAULT;
 Warnings:
 Warning	1287	'@@max_delayed_threads' is deprecated and will be removed in a future release.
+#
+# Bug#18064775 Assertion failed: fields.elements == values.elements
+#
+CREATE TABLE t1(a INTEGER);
+INSERT INTO t1(a) values();
+ERROR 21S01: Column count doesn't match value count at row 1
+DROP TABLE t1;
+#
+# Bug#11745889 Traditional: INSERT accepts invalid date from default val
+#
+SET sql_mode='';
+CREATE TABLE default_date(a DATE NOT NULL DEFAULT '0000-00-00');
+INSERT INTO default_date VALUES();
+SET sql_mode='traditional';
+INSERT INTO default_date VALUES();
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+INSERT INTO default_date VALUES('0000-00-00');
+ERROR 22007: Incorrect date value: '0000-00-00' for column 'a' at row 1
+SELECT * FROM default_date;
+a
+0000-00-00
+DROP TABLE default_date;
+SET sql_mode=default;

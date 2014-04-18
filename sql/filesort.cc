@@ -35,6 +35,7 @@
 #include "opt_trace.h"
 #include "sql_optimizer.h"              // JOIN
 #include "sql_base.h"
+#include "opt_costmodel.h"
 
 #include <algorithm>
 #include <utility>
@@ -556,7 +557,7 @@ void Filesort::cleanup()
 {
   if (select && own_select)
   {
-    select->cleanup();
+    delete select;
     select= NULL;
   }
 }
@@ -809,8 +810,12 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   /* Remember original bitmaps */
   save_read_set=  sort_form->read_set;
   save_write_set= sort_form->write_set;
-  /* Set up temporary column read map for columns used by sort */
-  bitmap_clear_all(&sort_form->tmp_set);
+  /*
+    Set up temporary column read map for columns used by sort and verify
+    it's not used
+  */
+  DBUG_ASSERT(bitmap_is_clear_all(&sort_form->tmp_set));
+
   /* Temporary set for register_used_fields and register_field_in_read_map */
   sort_form->read_set= &sort_form->tmp_set;
   // Include fields used for sorting in the read_set.
@@ -862,7 +867,8 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
         (void) file->extra(HA_EXTRA_NO_CACHE);
         file->ha_rnd_end();
       }
-      DBUG_RETURN(HA_POS_ERROR);		/* purecov: inspected */
+      num_records= HA_POS_ERROR;
+      goto cleanup;
     }
     if (error == 0)
       param->examined_rows++;
@@ -877,7 +883,10 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
         if (fs_info->isfull())
         {
           if (write_keys(param, fs_info, idx, chunk_file, tempfile))
-             DBUG_RETURN(HA_POS_ERROR);
+          {
+            num_records= HA_POS_ERROR;
+            goto cleanup;
+          }
           idx= 0;
           indexpos++;
         }
@@ -911,7 +920,10 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   }
 
   if (thd->is_error())
-    DBUG_RETURN(HA_POS_ERROR);
+  {
+    num_records= HA_POS_ERROR;
+    goto cleanup;
+  }
   
   /* Signal we should use orignal column read and write maps */
   sort_form->column_bitmaps_set(save_read_set, save_write_set);
@@ -920,16 +932,25 @@ static ha_rows find_all_keys(Sort_param *param, SQL_SELECT *select,
   if (error != HA_ERR_END_OF_FILE)
   {
     file->print_error(error,MYF(ME_ERROR | ME_WAITTANG)); // purecov: inspected
-    DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
+    num_records= HA_POS_ERROR;                            // purecov: inspected
+    goto cleanup;
   }
   if (indexpos && idx &&
       write_keys(param, fs_info, idx, chunk_file, tempfile))
-    DBUG_RETURN(HA_POS_ERROR);			/* purecov: inspected */
+  {
+    num_records= HA_POS_ERROR;                            // purecov: inspected
+    goto cleanup;
+  }
 
   if (pq)
     num_records= pq->num_elements();
 
+cleanup:
+  // Clear tmp_set so it can be used elsewhere
+  bitmap_clear_all(&sort_form->tmp_set);
+
   DBUG_PRINT("info", ("find_all_keys return %lu", (ulong) num_records));
+
   DBUG_RETURN(num_records);
 } /* find_all_keys */
 
@@ -1516,23 +1537,24 @@ bool check_if_pq_applicable(Opt_trace_context *trace,
     }
     else
     {
+      const Cost_model_table *cost_model= table->cost_model();
       const double sort_merge_cost=
         get_merge_many_buffs_cost_fast(num_rows,
                                        num_available_keys,
-                                       row_length);
+                                       row_length, cost_model);
       trace_addon.add("sort_merge_cost", sort_merge_cost);
       /*
         PQ has cost:
-        (insert + qsort) * log(queue size) * ROWID_COMPARE_COST +
+        (insert + qsort) * log(queue size) * key_compare_cost() +
         cost of file lookup afterwards.
-        The lookup cost is a bit pessimistic: we take scan_time and assume
-        that on average we find the row after scanning half of the file.
+        The lookup cost is a bit pessimistic: we take table scan cost and
+        assume that on average we find the row after scanning half of the file.
         A better estimate would be lookup cost, but note that we are doing
         random lookups here, rather than sequential scan.
       */
       const double pq_cpu_cost= 
         (PQ_slowness * num_rows + param->max_keys_per_buffer) *
-        log((double) param->max_keys_per_buffer) * ROWID_COMPARE_COST;
+        cost_model->key_compare_cost(log((double) param->max_keys_per_buffer));
       const Cost_estimate scan_cost= table->file->table_scan_cost();
       const double pq_io_cost=
         param->max_rows * scan_cost.total_cost() / 2.0;

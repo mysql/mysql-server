@@ -623,9 +623,9 @@ enum enum_schema_tables
 struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
-typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
-                             const char *file, uint file_len,
-                             const char *status, uint status_len);
+typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
+                             const char *file, size_t file_len,
+                             const char *status, size_t status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 extern st_plugin_int *hton2plugin[MAX_HA];
 
@@ -748,6 +748,8 @@ struct handlerton
      this storage engine was accessed in this connection
    */
    int  (*close_connection)(handlerton *hton, THD *thd);
+   /* Terminate connection/statement notification. */
+   void (*kill_connection)(handlerton *hton, THD *thd);
    /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
@@ -1534,10 +1536,6 @@ private:
   double mem_cost;                              ///< memory used (bytes)
   
 public:
-
-  /// The cost of one I/O operation
-  static double IO_BLOCK_READ_COST() { return  1.0; } 
-
   Cost_estimate() :
     io_cost(0),
     cpu_cost(0),
@@ -2101,24 +2099,13 @@ public:
   /**
     Cost estimate for doing a complete table scan.
 
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
-
     @note For this version it is recommended that storage engines continue
     to override scan_time() instead of this function.
 
     @returns the estimated cost
   */
 
-  virtual Cost_estimate table_scan_cost()
-  {
-    const double io_cost= scan_time() * Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate table_scan_cost();
 
   /**
     Cost estimate for reading a number of ranges from an index.
@@ -2126,11 +2113,6 @@ public:
     The cost estimate will only include the cost of reading data that
     is contained in the index. If the records need to be read, use
     read_cost() instead.
-
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
 
     @note The ranges parameter is currently ignored and is not taken
     into account in the cost estimate.
@@ -2145,26 +2127,12 @@ public:
     @returns the estimated cost
   */
   
-  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows)
-  {
-    DBUG_ASSERT(ranges >= 0.0);
-    DBUG_ASSERT(rows >= 0.0);
-    const double io_cost= index_only_read_time(index, rows) *
-                          Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows);
 
   /**
     Cost estimate for reading a set of ranges from the table using an index
     to access it.
 
-    This function returns a Cost_estimate object. The function should be
-    implemented in a way that allows the compiler to use "return value
-    optimization" to avoid creating the temporary object for the return value
-    and use of the copy constructor.
- 
     @note For this version it is recommended that storage engines continue
     to override read_time() instead of this function.
 
@@ -2175,17 +2143,7 @@ public:
     @returns the estimated cost
   */
 
-  virtual Cost_estimate read_cost(uint index, double ranges, double rows)
-  {
-    DBUG_ASSERT(ranges >= 0.0);
-    DBUG_ASSERT(rows >= 0.0);
-    const double io_cost= read_time(index, static_cast<uint>(ranges),
-                                    static_cast<ha_rows>(rows)) *
-                          Cost_estimate::IO_BLOCK_READ_COST();
-    Cost_estimate cost;
-    cost.add_io(io_cost);
-    return cost;
-  }
+  virtual Cost_estimate read_cost(uint index, double ranges, double rows);
   
   /**
     Return an estimate on the amount of memory the storage engine will
@@ -3498,6 +3456,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_connection(THD *thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
@@ -3596,7 +3555,7 @@ int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
-                         const char *query, uint query_length,
+                         const char *query, size_t query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
 

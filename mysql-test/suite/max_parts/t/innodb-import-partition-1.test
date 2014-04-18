@@ -1,0 +1,109 @@
+#------------------------------------------------------------------------------
+# Wl6868/wl6867 - Transportable tablespace with partitioned table
+# Test creates table with 8192 partition and does import/export of idb files
+#------------------------------------------------------------------------------
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+--source include/have_partition.inc
+
+# Test take time to run due to max partitions
+--source include/big_test.inc
+
+LET MYSQLD_DATADIR = `select @@datadir`;
+
+--disable_result_log
+DROP TABLE IF EXISTS t1;
+--enable_result_log
+
+perl;
+
+    my $tmpd = $ENV{'MYSQLTEST_VARDIR'} . "/tmp";
+    open FH,">$tmpd/part_table.txt";
+    my $partition_clause = " create table t1 (i int) engine = innodb PARTITION BY RANGE (MOD(i,8192)) (";
+    my $insert_clause = "INSERT INTO t1 VALUES ";
+    for($i=0;$i<8191;$i++){
+       $partition_clause = $partition_clause . " PARTITION p$i VALUES LESS THAN ($i),";
+       $insert_clause = $insert_clause . " ($i) ,";
+    }
+    $partition_clause = $partition_clause . " PARTITION p$i VALUES LESS THAN (8192)) ;";
+    $insert_clause = " $insert_clause (8191) ;";
+    print FH "$partition_clause\n";
+    print FH "$insert_clause\n";
+    close(FH);
+EOF
+
+# Create table with 8192(max) partitions and insert 8192 rows
+# log is disabled to avoid long create/insert in result file
+--disable_query_log
+source $MYSQLTEST_VARDIR/tmp/part_table.txt;
+--enable_query_log
+
+SELECT COUNT(*) FROM t1;
+FLUSH TABLES t1 FOR EXPORT;
+
+--disable_result_log
+perl;
+do 'include/innodb-util.inc';
+for($i=0;$i<=8191;$i++){
+   ib_backup_tablespaces("test", "t1#P#p$i");
+}
+EOF
+--enable_result_log
+
+UNLOCK TABLES;
+
+DROP TABLE t1;
+
+# Create table with 8192 partitions and insert 8192 rows
+# log is disabled to avoid long create/insert in result file
+--disable_query_log
+source $MYSQLTEST_VARDIR/tmp/part_table.txt;
+--enable_query_log
+select count(*) from t1;
+DELETE FROM t1;
+select count(*) from t1;
+ALTER TABLE t1 DISCARD PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
+
+perl;
+do 'include/innodb-util.inc';
+ib_discard_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2","t1#P#p3","t1#P#p4","t1#P#p5","t1#P#p6","t1#P#p7","t1#P#p8");
+ib_restore_tablespaces("test", "t1#P#p0", "t1#P#p1", "t1#P#p2","t1#P#p3","t1#P#p4","t1#P#p5","t1#P#p6","t1#P#p7","t1#P#p8");
+EOF
+
+ALTER TABLE t1 IMPORT PARTITION p0,p1,p2,p3,p4,p5,p6,p7,p8 TABLESPACE;
+SELECT * FROM t1 PARTITION (p0,p1,p2,p3,p4,p5,p6,p7,p8) ORDER BY i;
+SELECT * FROM t1 ORDER BY i;
+ALTER TABLE t1 DISCARD PARTITION p9,p10 TABLESPACE;
+SELECT * FROM t1 PARTITION (p0,p1,p2,p3,p4,p5,p6,p7,p8) ORDER BY i;
+ALTER TABLE t1 DISCARD PARTITION all TABLESPACE;
+
+--disable_result_log
+perl;
+do 'include/innodb-util.inc';
+for($i=0;$i<=8191;$i++){
+   ib_discard_tablespaces("test", "t1#P#p$i");
+   ib_restore_tablespaces("test", "t1#P#p$i");
+}
+EOF
+--enable_result_log
+
+ALTER TABLE t1 IMPORT PARTITION all TABLESPACE;
+SELECT * FROM t1 PARTITION (p0,p1,p2,p3,p4,p5,p6,p7,p8) ORDER BY i;
+SELECT COUNT(*) FROM t1 ORDER BY i;
+SELECT * FROM t1 WHERE i%1000 = 0 ORDER BY i;
+DROP TABLE t1;
+
+#cleanup
+call mtr.add_suppression("InnoDB: Cannot calculate statistics for table .* because the .ibd file is missing");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace .* in DISCARD TABLESPACE. Tablespace not found");
+call mtr.add_suppression("InnoDB: Cannot delete tablespace .* because it is not found in the tablespace memory cache.");
+call mtr.add_suppression("InnoDB: Trying to import a tablespace, but could not open the tablespace file");
+call mtr.add_suppression("InnoDB: Operating system error number 2 in a file operation.");
+call mtr.add_suppression("InnoDB: The error means the system cannot find the path specified.");
+
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.ibd
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp t1*.cfg
+--remove_files_wildcard $MYSQLTEST_VARDIR/tmp part_table*.txt

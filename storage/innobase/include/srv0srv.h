@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -257,11 +257,6 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-#ifndef UNIV_HOTBACKUP
-extern my_bool	srv_use_sys_malloc;
-#else
-extern ibool	srv_use_sys_malloc;
-#endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 #define SRV_BUF_POOL_INSTANCES_NOT_SET	0
 extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
@@ -275,7 +270,6 @@ extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
 					pool during BP dump */
-extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
@@ -303,15 +297,13 @@ as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
 
 extern char*	srv_file_flush_method_str;
-extern ulint	srv_unix_file_flush_method;
-extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
 extern ulong	srv_n_page_cleaners;
 
-extern ulong	srv_max_dirty_pages_pct;
-extern ulong	srv_max_dirty_pages_pct_lwm;
+extern double	srv_max_dirty_pages_pct;
+extern double	srv_max_dirty_pages_pct_lwm;
 
 extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
@@ -339,7 +331,7 @@ extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
-extern ulong	srv_max_buf_pool_modified_pct;
+extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 
@@ -368,7 +360,6 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
 
-extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -382,11 +373,6 @@ extern my_bool	srv_purge_view_update_only_debug;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
-
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-extern ib_mutex_t	server_mutex;
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #define SRV_MAX_N_IO_THREADS	130
 
@@ -448,9 +434,10 @@ do {								\
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef _WIN32
 /** Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
-enum {
+enum srv_unix_flush_t {
 	SRV_UNIX_FSYNC = 1,	/*!< fsync, the default */
 	SRV_UNIX_O_DSYNC,	/*!< open log files in O_SYNC mode */
 	SRV_UNIX_LITTLESYNC,	/*!< do not call os_file_flush()
@@ -471,12 +458,15 @@ enum {
 				this case user/DBA should be sure about
 				the integrity of the meta-data */
 };
-
+extern enum srv_unix_flush_t	srv_unix_file_flush_method;
+#else
 /** Alternatives for file i/o in Windows */
-enum {
+enum srv_win_flush_t {
 	SRV_WIN_IO_NORMAL = 1,	/*!< buffered I/O */
 	SRV_WIN_IO_UNBUFFERED	/*!< unbuffered I/O; this is the default */
 };
+extern enum srv_win_flush_t	srv_win_file_flush_method;
+#endif /* _WIN32 */
 
 /** Alternatives for srv_force_recovery. Non-zero values are intended
 to help the user get a damaged database up so that he can dump intact

@@ -604,6 +604,7 @@ fsp_space_modify_check(
 	case MTR_LOG_NO_REDO:
 		ut_ad(id == srv_tmp_space.space_id()
 		      || srv_is_tablespace_truncated(id)
+		      || fil_space_is_being_truncated(id)
 		      || fil_space_get_flags(id) == ULINT_UNDEFINED
 		      || fil_space_get_type(id) == FIL_TYPE_TEMPORARY);
 		return;
@@ -613,6 +614,7 @@ fsp_space_modify_check(
 		ut_ad(id != srv_tmp_space.space_id());
 		/* If we write redo log, the tablespace must exist. */
 		ut_ad(fil_space_get_type(id) == FIL_TYPE_TABLESPACE);
+		ut_ad(mtr->is_named_space(id));
 		return;
 	}
 
@@ -1159,6 +1161,7 @@ fsp_fill_free_list(
 				mtr_t	ibuf_mtr;
 
 				mtr_start(&ibuf_mtr);
+				ibuf_mtr.set_named_space(space);
 
 				/* Avoid logging while truncate table
 				fix-up is active. */
