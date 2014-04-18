@@ -13608,7 +13608,7 @@ optimize_cond(JOIN *join, COND *conds,
     conds= remove_eq_conds(thd, conds, cond_value);
     if (conds && conds->type() == Item::COND_ITEM &&
         ((Item_cond*) conds)->functype() == Item_func::COND_AND_FUNC)
-      join->cond_equal= &((Item_cond_and*) conds)->cond_equal;
+      *cond_equal= &((Item_cond_and*) conds)->cond_equal;
     DBUG_EXECUTE("info",print_where(conds,"after remove", QT_ORDINARY););
   }
   DBUG_RETURN(conds);

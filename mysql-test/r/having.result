@@ -637,3 +637,32 @@ Note	1003	select min(`test`.`t1`.`f10`) AS `field1` from `test`.`t1` where <expr
 set optimizer_switch=@save_optimizer_switch;
 drop table t1,t2,t3;
 End of 5.2 tests
+#
+# Bug mdev-6116: an equality in the conjunction of HAVING
+#                and IN subquery in WHERE
+# (The bug is caused by the same problem as bug mdev-5927)
+#
+CREATE TABLE t1 (f_key varchar(1), f_nokey varchar(1), INDEX(f_key));
+INSERT INTO t1 VALUES ('v','v'),('s','s');
+CREATE TABLE t2 (f_int int, f_key varchar(1), INDEX(f_key));
+INSERT INTO t2 VALUES 
+(4,'j'),(6,'v'),(3,'c'),(5,'m'),(3,'d'),(2,'d'),(2,'y'),
+(9,'t'),(3,'d'),(8,'s'),(1,'r'),(8,'m'),(8,'b'),(5,'x');
+SELECT t2.f_int FROM t1 INNER JOIN t2 ON (t2.f_key = t1.f_nokey) 
+WHERE t1.f_nokey IN ( 
+SELECT t1.f_key FROM t1, t2 WHERE t1.f_key = t2.f_key 
+) HAVING t2.f_int >= 0 AND t2.f_int != 0;
+f_int
+6
+8
+DROP TABLE t1,t2;
+#
+# Bug mdev-5927: an equality in the conjunction of HAVING
+#                and an equality in WHERE
+#
+CREATE TABLE t1 (pk int PRIMARY KEY, f int NOT NULL, INDEX(f));
+INSERT INTO t1 VALUES (1,0), (2,8);
+SELECT * FROM t1 WHERE f = 2 HAVING ( pk IN ( SELECT 9 ) AND f != 0 );
+pk	f
+DROP TABLE t1;
+End of 5.3 tests
