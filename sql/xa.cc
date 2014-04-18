@@ -22,7 +22,6 @@
 #include "log.h"                // tc_log
 #include <pfs_transaction_provider.h>
 #include <mysql/psi/mysql_transaction.h>
-#include "binlog.h"
 
 const char *XID_STATE::xa_state_names[]={
   "NON-EXISTING", "ACTIVE", "IDLE", "PREPARED", "ROLLBACK ONLY"
@@ -444,17 +443,6 @@ bool trans_xa_end(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_end");
-
-  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 && opt_bin_log &&
-      trans_has_updated_trans_table(thd))
-  {
-    /*
-      Generate gtid and save it into table for real transaction
-      on the top of XA_END.
-    */
-    if (gtid_state->generate_and_save_gtid(thd))
-      xid_state->set_state(XID_STATE::XA_ROLLBACK_ONLY);
-  }
 
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
   if (thd->lex->xa_opt != XA_NONE)

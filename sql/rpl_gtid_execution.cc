@@ -46,9 +46,6 @@ int gtid_acquire_ownership_single(THD *thd)
   const Gtid gtid_next= thd->variables.gtid_next.gtid;
   while (true)
   {
-    /* Wait until finish resetting binlog files. */
-    if (opt_bin_log)
-      mysql_mutex_lock(&LOCK_reset_binlog);
     global_sid_lock->rdlock();
     // acquire lock before checking conditions
     gtid_state->lock_sidno(gtid_next.sidno);
@@ -75,12 +72,6 @@ int gtid_acquire_ownership_single(THD *thd)
     else
     {
       DBUG_ASSERT(owner != thd->id);
-      /*
-        Release LOCK_reset_binlog before wait for signal
-        on the condition variable of SIDNO .
-      */
-      if (opt_bin_log)
-        mysql_mutex_unlock(&LOCK_reset_binlog);
       // The call below releases the read lock on global_sid_lock and
       // the mutex lock on SIDNO.
       gtid_state->wait_for_gtid(thd, gtid_next);
@@ -108,9 +99,6 @@ int gtid_acquire_ownership_single(THD *thd)
   gtid_state->unlock_sidno(gtid_next.sidno);
 
   global_sid_lock->unlock();
-
-  if (opt_bin_log)
-    mysql_mutex_unlock(&LOCK_reset_binlog);
 
 #ifdef HAVE_PSI_TRANSACTION_INTERFACE
   /* Set the transaction GTID in the Performance Schema */
@@ -140,9 +128,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
     Gtid g= git.get();
     my_thread_id owner= 0;
     rpl_sidno last_sidno= 0;
-    /* Wait until finish resetting binlog files. */
-    if (opt_bin_log)
-      mysql_mutex_lock(&LOCK_reset_binlog);
     global_sid_lock->rdlock();
     while (g.sidno != 0)
     {
@@ -176,12 +161,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
       if (gtid_next_list->contains_sidno(sidno))
         gtid_state->unlock_sidno(sidno);
 
-    /*
-      Release LOCK_reset_binlog before wait for signal
-      on the condition variable of SIDNO .
-    */
-    if (opt_bin_log)
-      mysql_mutex_unlock(&LOCK_reset_binlog);
     // wait. this call releases the read lock on global_sid_lock and
     // the mutex lock on SIDNO
     gtid_state->wait_for_gtid(thd, g);
@@ -242,9 +221,6 @@ int gtid_acquire_ownership_multiple(THD *thd)
       gtid_state->unlock_sidno(sidno);
 
   global_sid_lock->unlock();
-
-  if (opt_bin_log)
-    mysql_mutex_unlock(&LOCK_reset_binlog);
 
   /*
     TODO: If this code is enabled, set the GTID in the Performance Schema,

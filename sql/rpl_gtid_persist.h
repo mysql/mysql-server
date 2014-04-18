@@ -168,8 +168,6 @@ public:
     @retval
       0    OK
     @retval
-      1    The table was not found.
-    @retval
       -1   Error
   */
   int save(Gtid_set *gtid_set);
@@ -323,8 +321,6 @@ private:
 
     @retval
       0    OK
-    @retval
-      1    The table was not found.
     @retval
       -1   Error
   */
