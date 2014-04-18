@@ -5173,6 +5173,13 @@ int Field_temporal::store_time_dec(MYSQL_TIME *ltime, uint dec)
   int error = 0, have_smth_to_conv= 1;
   MYSQL_TIME l_time= *ltime;
   Lazy_string_time str(ltime);
+  
+  if (l_time.time_type == MYSQL_TIMESTAMP_TIME && time_to_datetime(&l_time))
+  {
+    have_smth_to_conv= 0;
+    error= 1;
+    goto store;
+  }
   /*
     We don't perform range checking here since values stored in TIME
     structure always fit into DATETIME range.
@@ -5181,6 +5188,7 @@ int Field_temporal::store_time_dec(MYSQL_TIME *ltime, uint dec)
                                  (current_thd->variables.sql_mode &
                                    (MODE_NO_ZERO_IN_DATE | MODE_NO_ZERO_DATE |
                                     MODE_INVALID_DATES)), &error);
+store:
   return store_TIME_with_warning(&l_time, &str, error, have_smth_to_conv);
 }
 

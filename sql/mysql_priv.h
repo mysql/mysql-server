@@ -2526,6 +2526,7 @@ bool str_to_time_with_warn(const char *str,uint length,MYSQL_TIME *l_time,
                            ulong fuzzydate);
 timestamp_type str_to_datetime_with_warn(const char *str, uint length,
                                          MYSQL_TIME *l_time, ulong flags);
+bool time_to_datetime(MYSQL_TIME *l_time);
 void time_to_daytime_interval(MYSQL_TIME *l_time);
 void localtime_to_TIME(MYSQL_TIME *to, struct tm *from);
 void calc_time_from_sec(MYSQL_TIME *to, long seconds, long microseconds);
@@ -2581,6 +2582,8 @@ check_date(const MYSQL_TIME *ltime, ulonglong flags, int *was_cut)
 }
 bool check_date_with_warn(const MYSQL_TIME *ltime, uint fuzzy_date,
                           timestamp_type ts_type);
+bool make_date_with_warn(MYSQL_TIME *ltime,
+                         uint fuzzy_date, timestamp_type ts_type);
 bool adjust_time_range_with_warn(MYSQL_TIME *ltime, uint dec);
 int test_if_number(char *str,int *res,bool allow_wildcards);
 void change_byte(uchar *,uint,char,char);
