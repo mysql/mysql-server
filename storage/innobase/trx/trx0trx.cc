@@ -2000,6 +2000,7 @@ trx_commit(
 	if (trx_is_rseg_updated(trx)) {
 		mtr = &local_mtr;
 		mtr_start_sync(mtr);
+		mtr->set_sys_modified();
 	} else {
 		mtr = NULL;
 	}
