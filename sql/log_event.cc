@@ -1259,15 +1259,22 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
-      /* Corrupt the event for Dump thread*/
+      /*
+        Corrupt the event for Dump thread.
+        We also need to exclude Previous_gtids_log_event and Gtid_log_event
+        events from injected corruption to allow dump thread to move forward
+        on binary log until the missing transactions from slave when
+        MASTER_AUTO_POSITION= 1.
+      */
       DBUG_EXECUTE_IF("corrupt_read_log_event",
 	uchar *debug_event_buf_c = (uchar*) packet->ptr() + ev_offset;
-        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+            debug_event_buf_c[EVENT_TYPE_OFFSET] != PREVIOUS_GTIDS_LOG_EVENT &&
+            debug_event_buf_c[EVENT_TYPE_OFFSET] != GTID_LOG_EVENT)
         {
           int debug_cor_pos = rand() % (data_len + sizeof(buf) - BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
-          DBUG_SET("-d,corrupt_read_log_event");
 	}
       );                                                                                           
       /*
