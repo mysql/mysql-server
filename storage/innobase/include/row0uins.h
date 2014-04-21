@@ -45,7 +45,8 @@ anyway, it will remove it in the rollback.
 dberr_t
 row_undo_ins(
 /*=========*/
-	undo_node_t*	node)	/*!< in: row undo node */
+	undo_node_t*	node,	/*!< in: row undo node */
+	que_thr_t*	thr)	/*!< in: query thread */
 	__attribute__((nonnull, warn_unused_result));
 #ifndef UNIV_NONINL
 #include "row0uins.ic"

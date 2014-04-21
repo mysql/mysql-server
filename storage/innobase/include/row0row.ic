@@ -126,7 +126,7 @@ row_build_index_entry(
 	dtuple_t*	entry;
 
 	ut_ad(dtuple_check_typed(row));
-	entry = row_build_index_entry_low(row, ext, index, heap);
+	entry = row_build_index_entry_low(row, ext, index, heap, false);
 	ut_ad(!entry || dtuple_check_typed(entry));
 	return(entry);
 }

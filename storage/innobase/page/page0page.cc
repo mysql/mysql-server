@@ -673,6 +673,9 @@ page_copy_rec_list_end(
 	page_t*		page		= page_align(rec);
 	rec_t*		ret		= page_rec_get_next(
 		page_get_infimum_rec(new_page));
+	ulint		num_moved	= 0;
+	rtr_rec_move_t*	rec_move	= NULL;
+	mem_heap_t*	heap		= NULL;
 
 #ifdef UNIV_ZIP_DEBUG
 	if (new_page_zip) {
@@ -702,8 +705,27 @@ page_copy_rec_list_end(
 		page_copy_rec_list_end_to_created_page(new_page, rec,
 						       index, mtr);
 	} else {
-		page_copy_rec_list_end_no_locks(new_block, block, rec,
-						index, mtr);
+		if (dict_index_is_spatial(index)) {
+			ulint	max_to_move = page_get_n_recs(
+						buf_block_get_frame(block));
+			heap = mem_heap_create(256);
+
+			rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+					heap,
+					sizeof (*rec_move) * max_to_move));
+
+			/* For spatial index, we need to insert recs one by one
+			to keep recs ordered. */
+			rtr_page_copy_rec_list_end_no_locks(new_block,
+							    block, rec, index,
+							    heap, rec_move,
+							    max_to_move,
+							    &num_moved,
+							    mtr);
+		} else {
+			page_copy_rec_list_end_no_locks(new_block, block, rec,
+							index, mtr);
+		}
 	}
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
@@ -746,6 +768,11 @@ page_copy_rec_list_end(
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
+
+				if (heap) {
+					mem_heap_free(heap);
+				}
+
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -761,7 +788,15 @@ page_copy_rec_list_end(
 
 	/* Update the lock table and possible hash index */
 
-	lock_move_rec_list_end(new_block, block, rec);
+	if (dict_index_is_spatial(index) && rec_move) {
+		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
+	} else {
+		lock_move_rec_list_end(new_block, block, rec);
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -795,6 +830,8 @@ page_copy_rec_list_start(
 	page_cur_t	cur1;
 	rec_t*		cur2;
 	mem_heap_t*	heap		= NULL;
+	ulint		num_moved	= 0;
+	rtr_rec_move_t*	rec_move	= NULL;
 	rec_t*		ret
 		= page_rec_get_prev(page_get_supremum_rec(new_page));
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -821,20 +858,33 @@ page_copy_rec_list_start(
 	cur2 = ret;
 
 	/* Copy records from the original page to the new page */
+	if (dict_index_is_spatial(index)) {
+		ulint		max_to_move = page_get_n_recs(
+						buf_block_get_frame(block));
+		heap = mem_heap_create(256);
 
-	while (page_cur_get_rec(&cur1) != rec) {
-		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
-		offsets = rec_get_offsets(cur1_rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		cur2 = page_cur_insert_rec_low(cur2, index,
-					       cur1_rec, offsets, mtr);
-		ut_a(cur2);
+		rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+					heap,
+					sizeof (*rec_move) * max_to_move));
 
-		page_cur_move_to_next(&cur1);
-	}
+		/* For spatial index, we need to insert recs one by one
+		to keep recs ordered. */
+		rtr_page_copy_rec_list_start_no_locks(new_block,
+						      block, rec, index, heap,
+						      rec_move, max_to_move,
+						      &num_moved, mtr);
+	} else {
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
+		while (page_cur_get_rec(&cur1) != rec) {
+			rec_t*	cur1_rec = page_cur_get_rec(&cur1);
+			offsets = rec_get_offsets(cur1_rec, index, offsets,
+						  ULINT_UNDEFINED, &heap);
+			cur2 = page_cur_insert_rec_low(cur2, index,
+						       cur1_rec, offsets, mtr);
+			ut_a(cur2);
+
+			page_cur_move_to_next(&cur1);
+		}
 	}
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
@@ -882,6 +932,11 @@ zip_reorganize:
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
+
+				if (UNIV_LIKELY_NULL(heap)) {
+					mem_heap_free(heap);
+				}
+
 				return(NULL);
 			}
 
@@ -892,7 +947,15 @@ zip_reorganize:
 
 	/* Update the lock table and possible hash index */
 
-	lock_move_rec_list_start(new_block, block, rec, ret);
+	if (dict_index_is_spatial(index)) {
+		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
+	} else {
+		lock_move_rec_list_start(new_block, block, rec, ret);
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -1292,6 +1355,8 @@ page_move_rec_list_end(
 	ulint		new_data_size;
 	ulint		old_n_recs;
 	ulint		new_n_recs;
+
+	ut_ad(!dict_index_is_spatial(index));
 
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
@@ -2415,6 +2480,12 @@ page_validate(
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
 
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		fprintf(stderr, "Page no: %lu\n", page_get_page_no(page));
+	}
+#endif /* UNIV_DEBUG */
+
 	if (UNIV_UNLIKELY((ibool) !!page_is_comp(page)
 			  != dict_table_is_comp(index->table))) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "'compact format' flag mismatch");
@@ -2514,11 +2585,25 @@ page_validate(
 					(ulong) page_get_space_id(page),
 					(ulong) page_get_page_no(page),
 					index->name);
+
 				fputs("\nInnoDB: previous record ", stderr);
-				rec_print_new(stderr, old_rec, old_offsets);
-				fputs("\nInnoDB: record ", stderr);
-				rec_print_new(stderr, rec, offsets);
-				putc('\n', stderr);
+				/* For spatial index, print the mbr info.*/
+				if (index->type & DICT_SPATIAL) {
+					putc('\n', stderr);
+					rec_print_mbr_rec(stderr,
+						old_rec, old_offsets);
+					fputs("\nInnoDB: record ", stderr);
+					putc('\n', stderr);
+					rec_print_mbr_rec(stderr, rec, offsets);
+					putc('\n', stderr);
+					putc('\n', stderr);
+
+				} else {
+					rec_print_new(stderr, old_rec, old_offsets);
+					fputs("\nInnoDB: record ", stderr);
+					rec_print_new(stderr, rec, offsets);
+					putc('\n', stderr);
+				}
 
 				goto func_exit;
 			}
@@ -2528,6 +2613,14 @@ page_validate(
 		if (page_rec_is_user_rec(rec)) {
 
 			data_size += rec_offs_size(offsets);
+
+#ifdef UNIV_DEBUG
+			/* For spatial index, print the mbr info.*/
+			if (index->type & DICT_SPATIAL) {
+				rec_print_mbr_rec(stderr, rec, offsets);
+				putc('\n', stderr);
+			}
+#endif /* UNIV_DEBUG */
 		}
 
 		offs = page_offset(rec_get_start(rec, offsets));

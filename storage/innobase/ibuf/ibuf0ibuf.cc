@@ -3465,6 +3465,7 @@ ibuf_insert_low(
 	mtr_t		bitmap_mtr;
 
 	ut_a(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
 	ut_a(op < IBUF_OP_COUNT);
@@ -4256,6 +4257,7 @@ ibuf_delete(
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
+	ut_ad(!dict_index_is_spatial(index));
 
 	low_match = page_cur_search(block, index, entry, &page_cur);
 

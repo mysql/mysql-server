@@ -209,7 +209,7 @@ page_cur_search(
 	ut_ad(dtuple_check_typed(tuple));
 
 	page_cur_search_with_match(block, index, tuple, mode,
-				   &up_match, &low_match, cursor);
+				   &up_match, &low_match, cursor, NULL);
 	return(low_match);
 }
 

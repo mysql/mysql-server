@@ -187,6 +187,24 @@ innobase_fulltext_exist(
 	return(false);
 }
 
+/** Determine if spatial indexes exist in a given table.
+@param table MySQL table
+@return whether spatial indexes exist on the table */
+static
+bool
+innobase_spatial_exist(
+/*===================*/
+	const	TABLE*	table)
+{
+	for (uint i = 0; i < table->s->keys; i++) {
+		if (table->key_info[i].flags & HA_SPATIAL) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info the DDL operation
@@ -265,6 +283,14 @@ ha_innobase::check_if_supported_inplace_alter(
 		    & Alter_inplace_info::ALTER_COLUMN_TYPE)
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ADD_SPATIAL_INDEX)
+	    || ((ha_alter_info->handler_flags
+		 & Alter_inplace_info::ADD_PK_INDEX)
+		&& innobase_spatial_exist(altered_table))) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -685,7 +711,8 @@ innobase_find_equiv_index(
 	for (uint i = 0; i < n_add; i++) {
 		const KEY*	key = &keys[add[i]];
 
-		if (key->user_defined_key_parts < n_cols) {
+		if (key->user_defined_key_parts < n_cols
+		    || key->flags & HA_SPATIAL) {
 no_match:
 			continue;
 		}
