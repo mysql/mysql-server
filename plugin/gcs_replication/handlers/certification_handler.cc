@@ -26,16 +26,21 @@ Certification_handler::Certification_handler()
 int
 Certification_handler::initialize()
 {
+  DBUG_ENTER("Certification_handler::initialize");
+  DBUG_ASSERT(cert_module == NULL);
   cert_module= new Certifier();
-  if(cert_module != NULL)
-    return 0;
-  return 1;
+  int error= cert_module->initialize();
+  DBUG_RETURN(error);
 }
 
 int
 Certification_handler::terminate()
 {
-  return 0;
+  DBUG_ENTER("Certification_handler::terminate");
+  int error= cert_module->terminate();
+  delete cert_module;
+  cert_module= NULL;
+  DBUG_RETURN(error);
 }
 
 int
@@ -44,7 +49,6 @@ Certification_handler::handle(PipelineEvent *pevent, Continuation* cont)
   DBUG_ENTER("Certification_handler::handle");
 
   Log_event_type ev_type= pevent->get_event_type();
-
   switch (ev_type)
   {
     case TRANSACTION_CONTEXT_EVENT:
@@ -67,7 +71,8 @@ Certification_handler::certify(PipelineEvent *pevent, Continuation *cont)
   pevent->get_LogEvent(&event);
 
   Transaction_context_log_event *tcle= (Transaction_context_log_event*) event;
-  rpl_gno seq_number= cert_module->certify(tcle);
+  rpl_gno seq_number= cert_module->certify(tcle->get_snapshot_timestamp(),
+                                           tcle->get_write_set());
 
   // FIXME: This needs to be improved before 0.2
   if (!strncmp(tcle->get_server_uuid(), server_uuid, UUID_LENGTH))
@@ -159,10 +164,10 @@ Certification_handler::extract_certification_db(PipelineEvent *pevent,
   View_change_log_event *vchange_event= (View_change_log_event*)event;
 
   rpl_gno sequence_number= 0;
-  std::map<std::string, rpl_gno> *cert_db= NULL;
+  std::map<std::string, rpl_gno> cert_db;
   cert_module->get_certification_info(&cert_db, &sequence_number);
 
-  vchange_event->set_certification_db_snapshot(cert_db);
+  vchange_event->set_certification_db_snapshot(&cert_db);
   vchange_event->set_seq_number(sequence_number);
 
   next(pevent, cont);
@@ -186,4 +191,10 @@ bool Certification_handler::is_unique()
 Handler_role Certification_handler::get_role()
 {
   return CERTIFIER;
+}
+
+Certifier_interface*
+Certification_handler::get_certifier()
+{
+  return cert_module;
 }

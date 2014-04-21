@@ -352,8 +352,8 @@ Recovery_module::recovery_thread_handle()
   donor_transfer_finished= false;
 
   set_recovery_thread_context();
-  Certification_handler* cert_handler =
-    applier_module->get_certification_handler();
+  Certifier_interface *certifier=
+    applier_module->get_certification_handler()->get_certifier();
 
   mysql_mutex_lock(&run_lock);
   recovery_running= true;
@@ -391,10 +391,10 @@ Recovery_module::recovery_thread_handle()
   }
   mysql_mutex_unlock(&recovery_lock);
 
-  //if there is not certification handler, just ignore the info
-  if (cert_handler != NULL)
+  //if there is no certifier, just ignore the info
+  if (certifier != NULL)
   {
-    cert_handler->set_certification_info(get_retrieved_cert_db(),
+    certifier->set_certification_info(get_retrieved_cert_db(),
                                          get_retrieved_seq_number());
   }
 

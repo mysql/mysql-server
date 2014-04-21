@@ -33,10 +33,11 @@ namespace GCS
 */
 typedef enum enum_payload_type
 {
-  PAYLOAD_TRANSACTION_EVENT, // WL#6822
-  PAYLOAD_RECOVERY_EVENT,    // recovery generated message
-  PAYLOAD_STATE_EXCHANGE,    // WL#7332
-  PAYLOAD_END                // enum end
+  PAYLOAD_CERTIFICATION_EVENT,
+  PAYLOAD_TRANSACTION_EVENT,
+  PAYLOAD_RECOVERY_EVENT,
+  PAYLOAD_STATE_EXCHANGE,
+  PAYLOAD_END                  // enum end
 } Payload_code;
 
 class MessageBuffer;

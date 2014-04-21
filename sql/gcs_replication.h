@@ -219,4 +219,28 @@ void reset_retrieved_seq_number();
 */
 void get_server_host_port_uuid(char **hostname, uint *port, char** uuid);
 
+/**
+  Returns the server GTID_EXECUTED encoded as a binary string.
+
+  @note Memory allocated to encoded_gtid_executed must be release by caller.
+
+  @param[out] encoded_gtid_executed binary string
+  @param[out] length                binary string length
+*/
+bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
+                                      uint *length);
+#if !defined(DBUG_OFF)
+/**
+  Returns a text representation of a encoded GTID set.
+
+  @note Memory allocated to returned pointer must be release by caller.
+
+  @param[in] encoded_gtid_set      binary string
+  @param[in] length                binary string length
+
+  @return a pointer to text representation of the encoded set
+*/
+char* encoded_gtid_set_to_string(uchar *encoded_gtid_set, uint length);
+#endif
+
 #endif /* GCS_REPLICATION_INCLUDED */

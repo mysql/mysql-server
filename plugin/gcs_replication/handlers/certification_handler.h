@@ -30,6 +30,16 @@ public:
   bool is_unique();
   Handler_role get_role();
 
+  Certifier_interface *get_certifier();
+
+  void set_certification_info(std::map<std::string, rpl_gno>* cert_db,
+                             rpl_gno seq_number);
+
+private:
+  Certifier* cert_module;
+
+  rpl_gno seq_number;
+
   /**
     Sets the value of the transaction sequence number.
 
@@ -54,13 +64,6 @@ public:
     return res;
   }
 
-  void set_certification_info(std::map<std::string, rpl_gno>* cert_db,
-                             rpl_gno seq_number);
-
-private:
-  Certifier* cert_module;
-
-  rpl_gno seq_number;
   /*
     This method is used to call the certification method of the plugin
     and based on the output it updates the condition variable map and

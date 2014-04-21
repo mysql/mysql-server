@@ -65,6 +65,8 @@ bool wait_on_engine_initialization= false;
 
 //The plugin applier
 Applier_module *applier_module= NULL;
+char applier_relay_log_name[] = "sql_applier";
+char applier_relay_log_info_name[]= "sql_applier_relay_log.info";
 //The plugin recovery module
 Recovery_module *recovery_module= NULL;
 // Specific/configured GCS module

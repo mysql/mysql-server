@@ -15,14 +15,13 @@
 
 #include "gcs_event_handlers.h"
 #include "gcs_plugin.h"
+#include "gcs_certifier.h"
 #include "gcs_recovery.h"
 #include <sql_class.h>
 #include "gcs_message.h"
 #include "gcs_protocol.h"
-#include "gcs_corosync.h" // todo: describe needs
 #include "gcs_payload.h"
 #include "gcs_recovery_message.h"
-#include "sql_get_diagnostics.h"
 #include <set>
 #include <string>
 
@@ -105,6 +104,9 @@ void handle_view_change(GCS::View& view, GCS::Member_set& total,
 
   DBUG_ASSERT(view.get_view_id() == 0 || quorate);
   log_view_change(view.get_view_id(), total, left, joined);
+
+  Certifier_interface *certifier= applier_module->get_certification_handler()->get_certifier();
+  certifier->handle_view_change();
 }
 
 void handle_message_delivery(GCS::Message *msg, const GCS::View& view)
@@ -113,6 +115,10 @@ void handle_message_delivery(GCS::Message *msg, const GCS::View& view)
   {
   case GCS::PAYLOAD_TRANSACTION_EVENT:
     handle_transactional_message(msg);
+    break;
+
+  case GCS::PAYLOAD_CERTIFICATION_EVENT:
+    handle_certifier_message(msg);
     break;
 
   case GCS::PAYLOAD_RECOVERY_EVENT:
@@ -239,6 +245,22 @@ void handle_transactional_message(GCS::Message *msg)
   else
   {
     log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
+  }
+}
+
+void handle_certifier_message(GCS::Message *msg)
+{
+  if (applier_module == NULL)
+  {
+    log_message(MY_ERROR_LEVEL, "Message received without a proper applier");
+    return;
+  }
+
+  Certifier_interface *certifier= applier_module->get_certification_handler()->get_certifier();
+  if (certifier->handle_certifier_data((const char*) GCS::get_payload_data(msg),
+                                       GCS::get_data_len(msg)))
+  {
+      log_message(MY_ERROR_LEVEL, "Error processing payload information event");
   }
 }
 

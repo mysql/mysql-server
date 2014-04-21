@@ -23,13 +23,9 @@ int Applier_sql_thread::initialize()
 {
   DBUG_ENTER("Applier_sql_thread::initialize");
 
-   int error= 0;
+  int error= sql_thread_interface.initialize_repositories(applier_relay_log_name,
+                                                          applier_relay_log_info_name);
 
-  char relay_log_name[]= "sql_applier";
-  char relay_log_info_name[]= "sql_applier_relay_log.info";
-
-  error= sql_thread_interface.initialize_repositories(relay_log_name,
-                                                      relay_log_info_name);
   if(error)
   {
     if (error == REPLICATION_THREAD_REPOSITORY_CREATION_ERROR)
@@ -55,6 +51,7 @@ int Applier_sql_thread::initialize()
 
   //Initialize only the SQL thread
   int thread_mask= SLAVE_SQL;
+  DBUG_EXECUTE_IF("gcs_applier_do_not_start_sql_thread", thread_mask=0;);
   error= sql_thread_interface.start_replication_threads(thread_mask ,false);
   if (error)
   {

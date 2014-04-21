@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -1000,6 +1000,8 @@ public:
   /// Return true iff the given GTID exists in this set.
   bool contains_gtid(const Gtid &gtid) const
   { return contains_gtid(gtid.sidno, gtid.gno); }
+  // Get last gno or 0 if this set is empty.
+  rpl_gno get_last_gno(rpl_sidno sidno) const;
   /// Returns the maximal sidno that this Gtid_set currently has space for.
   rpl_sidno get_max_sidno() const
   {
@@ -2185,7 +2187,7 @@ public:
   */
   rpl_gno get_automatic_gno(rpl_sidno sidno) const;
   /**
-    Return the last GNO for a given SIDNO without gaps, e.g.
+    Return the last executed GNO for a given SIDNO without gaps, e.g.
     for the following set: UUID:1-10, UUID:12, UUID:15-20
     10 will be returned.
 
@@ -2193,7 +2195,17 @@ public:
 
     @retval The GNO or 0 if set is empty.
   */
-  rpl_gno get_last_gno_without_gaps(rpl_sidno sidno) const;
+  rpl_gno get_last_executed_gno_without_gaps(rpl_sidno sidno) const;
+  /**
+    Return the last executed GNO for a given SIDNO, e.g.
+    for the following set: UUID:1-10, UUID:12, UUID:15-20
+    20 will be returned.
+
+    @param sidno The group's SIDNO.
+
+    @retval The GNO or 0 if set is empty.
+  */
+  rpl_gno get_last_executed_gno(rpl_sidno sidno) const;
   /// Locks a mutex for the given SIDNO.
   void lock_sidno(rpl_sidno sidno) { sid_locks.lock(sidno); }
   /// Unlocks a mutex for the given SIDNO.
@@ -2905,10 +2917,15 @@ rpl_sidno get_sidno_from_global_sid_map(rpl_sid sid);
 
 /**
   Return last gno without gaps for a given sidno, see
-  Gtid_state::get_last_gno_without_gaps() for details.
+  Gtid_state::get_last__executed_gno_without_gaps() for details.
 */
-rpl_gno get_last_gno_without_gaps(rpl_sidno sidno);
+rpl_gno get_last_executed_gno_without_gaps(rpl_sidno sidno);
 
+/**
+  Return last gno for a given sidno, see
+  Gtid_state::get_last_executed_gno() for details.
+*/
+rpl_gno get_last_executed_gno(rpl_sidno sidno);
 #endif // ifndef MYSQL_CLIENT
 
 #endif /* RPL_GTID_H_INCLUDED */

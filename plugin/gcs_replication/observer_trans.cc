@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,7 +133,7 @@ int gcs_trans_before_commit(Trans_param *param)
                            stmt_cache_log_position));
 
   // Get transaction snapshot timestamp.
-  snapshot_timestamp= get_last_gno_without_gaps(gcs_cluster_sidno);
+  snapshot_timestamp= get_last_executed_gno_without_gaps(gcs_cluster_sidno);
   DBUG_PRINT("snapshot_timestamp", ("snapshot_timestamp: %llu",
                                     snapshot_timestamp));
 

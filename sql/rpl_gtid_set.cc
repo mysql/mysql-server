@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -757,6 +757,29 @@ bool Gtid_set::contains_gtid(rpl_sidno sidno, rpl_gno gno) const
     ivit.next();
   }
   DBUG_RETURN(false);
+}
+
+rpl_gno Gtid_set::get_last_gno(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid_set::get_last_gno");
+  rpl_gno gno= 0;
+
+  if (sid_lock != NULL)
+    sid_lock->assert_some_lock();
+
+  if (sidno > get_max_sidno())
+    DBUG_RETURN(gno);
+
+  Const_interval_iterator ivit(this, sidno);
+  const Gtid_set::Interval *iv= ivit.get();
+  while(iv != NULL)
+  {
+    gno= iv->end-1;
+    ivit.next();
+    iv= ivit.get();
+  }
+
+  DBUG_RETURN(gno);
 }
 
 int Gtid_set::to_string(char **buf_arg, const Gtid_set::String_format *sf_arg) const

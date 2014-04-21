@@ -169,6 +169,18 @@ public:
   int wait_for_gtid_execution(longlong timeout);
 
   /**
+    Returns last GNO from applier relay log from a given UUID.
+
+    @param sidno    the SIDNO of the cluster UUID, so that we get the
+                    last GNO of cluster already certified transactions
+                    on relay log.
+
+    @return
+      @retval       GNO value
+  */
+  rpl_gno get_last_delivered_gno(rpl_sidno sidno);
+
+  /**
     Sets the threads shutdown timeout.
 
     @param[in]  timeout      the timeout

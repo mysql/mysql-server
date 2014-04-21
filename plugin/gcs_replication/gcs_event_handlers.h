@@ -1,3 +1,18 @@
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software Foundation,
+   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+
 #ifndef GCS_EVENT_HANDLERS_INCLUDE
 #define GCS_EVENT_HANDLERS_INCLUDE
 
@@ -63,6 +78,13 @@ void handle_leaving_nodes(GCS::Member_set& left,
   @param msg  the received message
  */
 void handle_transactional_message(GCS::Message *msg);
+
+/**
+  Handle a certifier based message received through gcs
+
+  @param msg  the received message
+ */
+void handle_certifier_message(GCS::Message *msg);
 
 /**
   Handle a recovery based message received through gcs

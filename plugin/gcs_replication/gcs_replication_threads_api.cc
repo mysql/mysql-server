@@ -369,4 +369,26 @@ Replication_thread_api::wait_for_gtid_execution(longlong timeout)
   DBUG_RETURN(error);
 }
 
+rpl_gno
+Replication_thread_api::get_last_delivered_gno(rpl_sidno sidno)
+{
+  DBUG_ENTER("Replication_thread_api::get_last_delivered_gno");
+  rpl_gno last_gno= 0;
 
+  global_sid_lock->rdlock();
+  last_gno= mi->rli->get_gtid_set()->get_last_gno(sidno);
+  global_sid_lock->unlock();
+
+#if !defined(DBUG_OFF)
+  const Gtid_set *retrieved_gtid_set= mi->rli->get_gtid_set();
+  char *retrieved_gtid_set_string= NULL;
+  global_sid_lock->wrlock();
+  retrieved_gtid_set->to_string(&retrieved_gtid_set_string);
+  global_sid_lock->unlock();
+  DBUG_PRINT("info", ("get_last_delivered_gno retrieved_set_string: %s",
+                      retrieved_gtid_set_string));
+  my_free(retrieved_gtid_set_string);
+#endif
+
+  DBUG_RETURN(last_gno);
+}

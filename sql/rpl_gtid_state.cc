@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -270,9 +270,9 @@ rpl_gno Gtid_state::get_automatic_gno(rpl_sidno sidno) const
 }
 
 
-rpl_gno Gtid_state::get_last_gno_without_gaps(rpl_sidno sidno) const
+rpl_gno Gtid_state::get_last_executed_gno_without_gaps(rpl_sidno sidno) const
 {
-  DBUG_ENTER("Gtid_state::get_last_gno_without_gaps");
+  DBUG_ENTER("Gtid_state::get_last_executed_gno_without_gaps");
   gtid_state->lock_sidno(sidno);
 
   Gtid_set::Const_interval_iterator ivit(&logged_gtids, sidno);
@@ -280,6 +280,19 @@ rpl_gno Gtid_state::get_last_gno_without_gaps(rpl_sidno sidno) const
   rpl_gno gno= iv != NULL ? iv->end-1 : 0;
 
   gtid_state->unlock_sidno(sidno);
+  DBUG_RETURN(gno);
+}
+
+
+rpl_gno Gtid_state::get_last_executed_gno(rpl_sidno sidno) const
+{
+  DBUG_ENTER("Gtid:state::get_last_executed_gno");
+  rpl_gno gno= 0;
+
+  gtid_state->lock_sidno(sidno);
+  gno= logged_gtids.get_last_gno(sidno);
+  gtid_state->unlock_sidno(sidno);
+
   DBUG_RETURN(gno);
 }
 

@@ -336,3 +336,40 @@ void get_server_host_port_uuid(char **hostname, uint *port, char** uuid)
   *uuid= server_uuid;
   return;
 }
+
+bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
+                                      uint *length)
+{
+  DBUG_ASSERT(gtid_mode > 0);
+
+  global_sid_lock->wrlock();
+  const Gtid_set *logged_gtids= gtid_state->get_logged_gtids();
+  *length= logged_gtids->get_encoded_length();
+  *encoded_gtid_executed= (uchar*) my_malloc(key_memory_Gtid_set_to_string,
+                                             *length, MYF(MY_WME));
+  if (*encoded_gtid_executed == NULL)
+  {
+    global_sid_lock->unlock();
+    return true;
+  }
+
+  logged_gtids->encode(*encoded_gtid_executed);
+  global_sid_lock->unlock();
+  return false;
+}
+
+#if !defined(DBUG_OFF)
+char* encoded_gtid_set_to_string(uchar *encoded_gtid_set,
+                                 uint length)
+{
+  /* No sid_lock because this is a completely local object. */
+  Sid_map sid_map(NULL);
+  Gtid_set set(&sid_map);
+
+  if (set.add_gtid_encoding(encoded_gtid_set, length) !=
+      RETURN_STATUS_OK)
+    return NULL;
+
+  return set.to_string();
+}
+#endif

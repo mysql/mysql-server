@@ -28,6 +28,9 @@
 //Define the action packet type
 #define ACTION_PACKET_TYPE  2
 
+extern char applier_relay_log_name[];
+extern char applier_relay_log_info_name[];
+
 enum enum_packet_action
 {
   TERMINATION_PACKET=0,  //Packet for a termination action
