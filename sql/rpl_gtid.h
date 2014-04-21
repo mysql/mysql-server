@@ -2397,6 +2397,17 @@ public:
   */
   int save(Gtid_set *gtid_set);
   /**
+    Save the set of gtids logged in the last binlog into gtid table.
+
+    @param on_rotation  true if it is on binlog rotation.
+
+    @retval
+      0    OK
+    @retval
+      -1   Error
+  */
+  int save_gtids_of_last_binlog_into_table(bool on_rotation);
+  /**
     Fetch gtids from gtid table and store them into
     gtid_executed set.
 

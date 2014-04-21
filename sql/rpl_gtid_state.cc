@@ -492,6 +492,38 @@ int Gtid_state::save(Gtid_set *gtid_set)
 }
 
 
+int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
+{
+  DBUG_ENTER("Gtid_state::save_gtids_of_last_binlog_into_table");
+  int ret= 0;
+
+  Gtid_set logged_gtids_last_binlog(global_sid_map, global_sid_lock);
+  /*
+    logged_gtids_last_binlog= executed_gtids - previous_gtids_logged -
+                              gtids_only_in_table
+  */
+  global_sid_lock->wrlock();
+  if ((ret = (logged_gtids_last_binlog.add_gtid_set(&executed_gtids) !=
+              RETURN_STATUS_OK ||
+              logged_gtids_last_binlog.
+              remove_gtid_set(&previous_gtids_logged) !=
+              RETURN_STATUS_OK ||
+              logged_gtids_last_binlog.remove_gtid_set(&gtids_only_in_table) !=
+              RETURN_STATUS_OK)) == 0 &&
+              !logged_gtids_last_binlog.is_empty())
+  {
+    /* Save set of GTIDs of the last binlog into table */
+    ret= save(&logged_gtids_last_binlog);
+    /* Prepare previous_gtids_logged for next binlog on binlog rotation */
+    if (!ret && on_rotation)
+      ret= previous_gtids_logged.add_gtid_set(&logged_gtids_last_binlog);
+  }
+  global_sid_lock->unlock();
+
+  DBUG_RETURN(ret);
+}
+
+
 int Gtid_state::fetch_gtids(Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_state::fetch_gtids");

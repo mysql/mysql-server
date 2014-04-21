@@ -5230,33 +5230,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
   if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
   {
-    global_sid_lock->wrlock();
-
-    Gtid_set logged_gtids_last_binlog(global_sid_map, global_sid_lock);
-    const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
-    const Gtid_set *gtids_only_in_table= gtid_state->get_gtids_only_in_table();
-    Gtid_set *previous_gtids_logged=
-      const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
-    /*
-      logged_gtids_last_binlog= executed_gtids -
-      previous_gtids_logged - gtids_only_in_table
-    */
-    if ((error = (logged_gtids_last_binlog.add_gtid_set(executed_gtids) !=
-        RETURN_STATUS_OK ||
-        logged_gtids_last_binlog.remove_gtid_set(previous_gtids_logged) !=
-        RETURN_STATUS_OK ||
-        logged_gtids_last_binlog.remove_gtid_set(gtids_only_in_table) !=
-        RETURN_STATUS_OK ||
-        /* Prepare previous_gtids_logged for next binlog */
-        previous_gtids_logged->add_gtid_set(&logged_gtids_last_binlog) !=
-        RETURN_STATUS_OK)) == 0)
-    {
-      /* Save set of GTIDs of the last binlog into table on binlog rotation */
-      if (!logged_gtids_last_binlog.is_empty())
-        error= gtid_state->save(&logged_gtids_last_binlog);
-    }
-
-    global_sid_lock->unlock();
+    /* Save set of GTIDs of the last binlog into table on binlog rotation */
+    error= gtid_state->save_gtids_of_last_binlog_into_table(true);
   }
 
   /*
