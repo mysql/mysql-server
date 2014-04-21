@@ -1095,7 +1095,7 @@ String *Item_str_conv::val_str(String *str)
   if (multiply == 1)
   {
     uint len;
-    res= copy_if_not_alloced(str,res,res->length());
+    res= copy_if_not_alloced(&tmp_value, res, res->length());
     len= converter(collation.collation, (char*) res->ptr(), res->length(),
                                         (char*) res->ptr(), res->length());
     DBUG_ASSERT(len <= res->length());
@@ -1296,8 +1296,10 @@ void Item_func_substr_index::fix_length_and_dec()
 String *Item_func_substr_index::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff,sizeof(buff),system_charset_info);
   String *res= args[0]->val_str(str);
-  String *delimiter= args[1]->val_str(&tmp_value);
+  String *delimiter= args[1]->val_str(&tmp);
   int32 count= (int32) args[2]->val_int();
   uint offset;
 
