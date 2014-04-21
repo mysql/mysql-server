@@ -1436,11 +1436,22 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   MDL_request mdl_request;
   bool release_mdl= false;
   bool need_clear_owned_gtid= false;
-  bool rw_trans= false;
-  uint rw_ha_count= 0;
+  /*
+    When binlog is disabled, save transaction's gtid into table
+    before transaction prepare if the transaction owned a gtid.
+  */
+  if (!opt_bin_log && (all || !thd->in_multi_stmt_transaction_mode()) &&
+      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
+  {
+    error= gtid_state->save(thd);
+    need_clear_owned_gtid= true;
+  }
 
   if (ha_info)
   {
+    uint rw_ha_count;
+    bool rw_trans;
+
     DBUG_EXECUTE_IF("crash_commit_before", DBUG_SUICIDE(););
 
     /* Close all cursors that can not survive COMMIT */
@@ -1458,21 +1469,6 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
                       DBUG_ASSERT(!debug_sync_set_action(current_thd,
                                                          STRING_WITH_LEN(act)));
                     };);
-  }
-
-  /*
-    When binlog is disabled, save transaction's gtid into table
-    before transaction prepare if the transaction owned a gtid.
-  */
-  if (!opt_bin_log && (all || !thd->in_multi_stmt_transaction_mode()) &&
-      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
-  {
-    error= gtid_state->save(thd);
-    need_clear_owned_gtid= true;
-  }
-
-  if (ha_info)
-  {
     if (rw_trans && !ignore_global_read_lock)
     {
       /*

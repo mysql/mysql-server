@@ -257,6 +257,8 @@ static inline bool is_already_logged_transaction(const THD *thd)
       else
         DBUG_ASSERT(thd->owned_gtid.equals(gtid_next->gtid));
     }
+    else
+      DBUG_ASSERT(thd->owned_gtid.sidno == 0);
   }
   else
   {
