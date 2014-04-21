@@ -1,2 +1,2 @@
---plugin_dir=$FEDERATED_PLUGIN_DIR
+$FEDERATED_PLUGIN_OPT
 --loose-federated=ON

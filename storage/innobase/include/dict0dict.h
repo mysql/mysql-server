@@ -387,15 +387,17 @@ dict_table_rename_in_cache(
 					to preserve the original table name
 					in constraints which reference it */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Removes an index from the dictionary cache. */
+
+/** Removes an index from the dictionary cache.
+@param[in,out]	table	table whose index to remove
+@param[in,out]	index	index to remove, this object is destroyed and must not
+be accessed by the caller afterwards */
 
 void
 dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
-	__attribute__((nonnull));
+	dict_table_t*	table,
+	dict_index_t*	index);
+
 /**********************************************************************//**
 Change the id of a table object in the dictionary cache. This is used in
 DISCARD TABLESPACE. */
@@ -731,6 +733,15 @@ dict_index_is_unique(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
+Check whether the index is a Spatial Index.
+@return	nonzero for Spatial Index, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_is_spatial(
+/*==================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull, pure, warn_unused_result));
+/********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE
@@ -1039,15 +1050,6 @@ dict_index_add_to_cache(
 				if records could be too big to fit in
 				an B-tree page */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Removes an index from the dictionary cache. */
-
-void
-dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
-	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
@@ -1486,15 +1488,6 @@ dict_tables_have_same_db(
 	const char*	name2)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
-Removes an index from the cache */
-
-void
-dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
-	__attribute__((nonnull));
 /**********************************************************************//**
 Get index by name
 @return index, NULL if does not exist */

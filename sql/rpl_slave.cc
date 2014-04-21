@@ -1655,6 +1655,12 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   MYSQL_ROW master_row= NULL;
   int ret= 0;
 
+  DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID",
+                  {
+                    mi->master_uuid[0]= 0;
+                    return 0;
+                  };);
+
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
                     const char act[]= "now wait_for signal.get_master_uuid";
@@ -1718,6 +1724,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   }
   else if (!master_row && master_res)
   {
+    mi->master_uuid[0]= 0;
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_UUID' on master. "
                "A probable cause is that the variable is not supported on the "

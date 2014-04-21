@@ -2187,7 +2187,8 @@ loop:
 		}
 	}
 
-	while (srv_master_do_shutdown_tasks(&last_print_time)) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
+	       && srv_master_do_shutdown_tasks(&last_print_time)) {
 
 		/* Shouldn't loop here in case of very fast shutdown */
 		ut_ad(srv_fast_shutdown < 2);

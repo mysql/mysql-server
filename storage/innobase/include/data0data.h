@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -126,6 +126,15 @@ dfield_set_data(
 	dfield_t*	field,	/*!< in: field */
 	const void*	data,	/*!< in: data */
 	ulint		len)	/*!< in: length or UNIV_SQL_NULL */
+	__attribute__((nonnull(1)));
+/*********************************************************************//**
+Sets pointer to the data and length in a field. */
+UNIV_INLINE
+void
+dfield_write_mbr(
+/*=============*/
+	dfield_t*	field,	/*!< in: field */
+	const double*	mbr)	/*!< in: data */
 	__attribute__((nonnull(1)));
 /*********************************************************************//**
 Sets a data field to SQL NULL. */
