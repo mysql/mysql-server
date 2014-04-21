@@ -104,6 +104,52 @@ page_update_max_trx_id(
 	}
 }
 
+/*************************************************************//**
+Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
+@return	SPLIT SEQUENCE NUMBER */
+UNIV_INLINE
+ib_uint32_t
+page_get_ssn_id(
+/*============*/
+	const page_t*	page)	/*!< in: page */
+{
+	ut_ad(page);
+
+	return(mach_read_from_8(page + FIL_RTREE_SPLIT_SEQ_NUM));
+}
+
+/*************************************************************//**
+Sets the RTREE SPLIT SEQUENCE NUMBER field value */
+UNIV_INLINE
+void
+page_set_ssn_id(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
+	node_seq_t	ssn_id,	/*!< in: transaction id */
+	mtr_t*		mtr)	/*!< in/out: mini-transaction */
+{
+	page_t*	page = buf_block_get_frame(block);
+#ifndef UNIV_HOTBACKUP
+	ut_ad(!mtr || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_SX_FIX)
+	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+#endif /* !UNIV_HOTBACKUP */
+
+	if (page_zip) {
+		mach_write_to_8(page + FIL_RTREE_SPLIT_SEQ_NUM, ssn_id);
+		page_zip_write_header(page_zip,
+				      page + FIL_RTREE_SPLIT_SEQ_NUM,
+				      8, mtr);
+#ifndef UNIV_HOTBACKUP
+	} else if (mtr) {
+		mlog_write_ull(page + FIL_RTREE_SPLIT_SEQ_NUM, ssn_id, mtr);
+#endif /* !UNIV_HOTBACKUP */
+	} else {
+		mach_write_to_8(page + FIL_RTREE_SPLIT_SEQ_NUM, ssn_id);
+	}
+}
+
 #endif /* !UNIV_INNOCHECKSUM */
 
 /*************************************************************//**
