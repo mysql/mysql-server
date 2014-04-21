@@ -185,7 +185,8 @@ insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 -- error 1416
 insert IGNORE into t1 values ('Garbage');
---error 1464
+
+# Now we support spatial index
 alter table t1 add spatial index(a);
 
 drop table t1;
@@ -822,7 +823,7 @@ CREATE TABLE t3 (
   col2 POINT
 );
 
---error 1464
+--error 1210
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
 
 

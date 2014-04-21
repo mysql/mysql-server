@@ -765,7 +765,6 @@ buf_flush_update_zip_checksum(
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
 	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
-	memset(page + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
@@ -944,7 +943,6 @@ buf_flush_write_block_low(
 
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
-		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;
@@ -2765,6 +2763,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			os_thread_sleep(100000);
 		}
 	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
+
+	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		/* failed to start innodb */
+		goto thread_exit;
+	}
 
 	/* At this point all threads including the master and the purge
 	thread must have been suspended. */

@@ -469,6 +469,17 @@ dict_mem_index_create(
 
 	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
 
+	if (type & DICT_SPATIAL) {
+		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
+		index->rtr_track = static_cast<rtr_info_track_t*>(
+					mem_heap_alloc(
+						heap,
+						sizeof(*index->rtr_track)));
+		mutex_create("rtr_active_mutex",
+			     &index->rtr_track->rtr_active_mutex);
+		index->rtr_track->rtr_active = new(std::nothrow) rtr_info_active();
+	}
+
 	return(index);
 }
 
@@ -599,6 +610,22 @@ dict_mem_index_free(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	mutex_destroy(&index->zip_pad.mutex);
+
+	if (dict_index_is_spatial(index)) {
+		rtr_info_active::iterator	it;
+		rtr_info_t*			rtr_info;
+
+		for (it = index->rtr_track->rtr_active->begin();
+		     it != index->rtr_track->rtr_active->end(); ++it) {
+			rtr_info = *it;
+
+			rtr_info->index = NULL;
+                }
+
+		mutex_destroy(&index->rtr_ssn.mutex);
+		mutex_destroy(&index->rtr_track->rtr_active_mutex);
+		delete index->rtr_track->rtr_active;
+	}
 
 	mem_heap_free(index->heap);
 }

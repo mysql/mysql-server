@@ -718,6 +718,7 @@ handle_new_error:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
+	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete insertion
 			or update */
@@ -949,6 +950,10 @@ row_prebuilt_free(
 		}
 
 		ut_free(base);
+	}
+
+	if (prebuilt->rtr_info) {
+		rtr_clean_rtr_info(prebuilt->rtr_info, true);
 	}
 
 	dict_table_close(prebuilt->table, dict_locked, TRUE);
@@ -2559,6 +2564,9 @@ row_unlock_for_mysql(
 			" innodb_locks_unsafe_for_binlog is FALSE and"
 			" this session is not using"
 			" READ COMMITTED isolation level.");
+		return;
+	}
+	if (dict_index_is_spatial(prebuilt->index)) {
 		return;
 	}
 
@@ -5334,6 +5342,9 @@ row_scan_index_for_mysql(
 	rec_offs_init(offsets_);
 
 	*n_rows = 0;
+
+	/* Don't support RTree Leaf level scan */
+	ut_ad(!dict_index_is_spatial(index));
 
 	if (dict_index_is_clust(index)) {
 		/* The clustered index of a table is always available.

@@ -1598,6 +1598,25 @@ row_upd_store_row(
 }
 
 /***********************************************************//**
+Print a MBR data from disk */
+static
+void
+srv_mbr_print(const byte* data)
+{
+        double a, b, c, d;
+        a = mach_double_read(data);
+        data += sizeof(double);
+        b = mach_double_read(data);
+        data += sizeof(double);
+        c = mach_double_read(data);
+        data += sizeof(double);
+        d = mach_double_read(data);
+        ib_logf(IB_LOG_LEVEL_INFO, "GIS MBR INFO: %f and %f, %f, %f\n",
+		a, b , c, d);
+}
+
+
+/***********************************************************//**
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
@@ -1712,6 +1731,8 @@ row_upd_sec_index_entry(
 		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
+
+		ut_ad(!dict_index_is_spatial(index) || mode & BTR_DELETE_MARK);
 	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be
@@ -1748,6 +1769,11 @@ row_upd_sec_index_entry(
 			break;
 		}
 
+		if (dict_index_is_spatial(index) && btr_cur->rtr_info->fd_del) {
+			/* We found the record, but a delete marked */
+			break;
+		}
+
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -1762,7 +1788,13 @@ row_upd_sec_index_entry(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
+		srv_mbr_print((unsigned char*)entry->fields[0].data);
+#ifdef UNIV_DEBUG
+		mtr_commit(&mtr);
+		mtr_start(&mtr);
+		ut_ad(btr_validate_index(index, 0, false));
 		ut_ad(0);
+#endif /* UNIV_DEBUG */
 		break;
 	case ROW_FOUND:
 		ut_ad(err == DB_SUCCESS);

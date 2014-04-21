@@ -7546,7 +7546,8 @@ bool sel_trees_can_be_ored(SEL_TREE *tree1, SEL_TREE *tree2,
     {
       key1= tree1->keys + key_no;
       key2= tree2->keys + key_no;
-      if ((*key1)->part == (*key2)->part)
+      /* GIS_OPTIMIZER_FIXME: temp solution. key1 could be all nulls */
+      if (*key1 && *key2 && (*key1)->part == (*key2)->part)
         DBUG_RETURN(TRUE);
     }
   }

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -89,4 +89,77 @@ lock_get_min_heap_no(
 			       + rec_get_next_offs(page + PAGE_OLD_INFIMUM,
 						   FALSE)));
 	}
+}
+
+/*************************************************************//**
+Moves the locks of a record to another record and resets the lock bits of
+the donating record. */
+UNIV_INLINE
+void
+lock_rec_move(
+/*==========*/
+	const buf_block_t*	receiver,       /*!< in: buffer block containing
+						the receiving record */
+	const buf_block_t*	donator,        /*!< in: buffer block containing
+						the donating record */
+	ulint			receiver_heap_no,/*!< in: heap_no of the record
+						which gets the locks; there
+						must be no lock requests
+						on it! */
+	ulint			donator_heap_no)/*!< in: heap_no of the record
+                                                which gives the locks */
+{
+	lock_rec_move_low(lock_sys->rec_hash, receiver, donator,
+			  receiver_heap_no, donator_heap_no);
+}
+
+/*************************************************************//**
+Get the lock hash table */
+UNIV_INLINE
+hash_table_t*
+lock_hash_get(
+/*==========*/
+	ulint	mode)	/*!< in: lock mode */
+{
+	if (mode & LOCK_PREDICATE) {
+		return(lock_sys->prdt_hash);
+	} else if (mode & LOCK_PRDT_PAGE) {
+		return(lock_sys->prdt_page_hash);
+	} else {
+		return(lock_sys->rec_hash);
+	}
+}
+
+/*********************************************************************//**
+Creates a new record lock and inserts it to the lock queue. Does NOT check
+for deadlocks or lock compatibility!
+@return created lock */
+UNIV_INLINE
+lock_t*
+lock_rec_create(
+/*============*/
+	ulint			type_mode,/*!< in: lock mode and wait
+					flag, type is ignored and
+					replaced by LOCK_REC */
+	const buf_block_t*	block,	/*!< in: buffer block containing
+					the record */
+	ulint			heap_no,/*!< in: heap number of the record */
+	dict_index_t*		index,	/*!< in: index of record */
+	trx_t*			trx,	/*!< in/out: transaction */
+	ibool			caller_owns_trx_mutex)
+					/*!< in: TRUE if caller owns
+					trx mutex */
+{
+	ulint           page_no;
+	ulint           space;
+	const page_t*   page;
+
+	space = block->page.id.space();
+	page_no = block->page.id.page_no();
+	page = block->frame;
+
+	btr_assert_not_corrupted(block, index);
+
+	return(lock_rec_create_low(type_mode, space, page_no, page, heap_no,
+				   index, trx, caller_owns_trx_mutex));
 }
