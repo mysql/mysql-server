@@ -4610,7 +4610,7 @@ int mysqld_main(int argc, char **argv)
           logged_gtids_last_binlog.remove_gtid_set(executed_gtids);
           /*
             The set of GTIDs of the last binlog is not saved into the
-            gtid table if server crashes, so we add it into gtid table
+            gtid table if server crashes, so we save it into gtid table
             and executed_gtids during recovery from the crash.
           */
           if (gtid_state->save(&logged_gtids_last_binlog) == -1)
@@ -4824,7 +4824,9 @@ int mysqld_main(int argc, char **argv)
   create_shutdown_thread();
 #endif
   start_handle_manager();
-  create_compress_gtid_table_thread();
+
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+    create_compress_gtid_table_thread();
 
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
@@ -4871,7 +4873,16 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
-  terminate_compress_gtid_table_thread();
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  {
+    /* Save set of GTIDs of the last binlog into table on server shutdown */
+    if (gtid_state->save_gtids_of_last_binlog_into_table(false))
+      sql_print_warning("Failed to save set of GTIDs of the last binlog "
+                        "into table on server shutdown, so we save it "
+                        "into gtid table and executed_gtids during next "
+                        "server startup.");
+    terminate_compress_gtid_table_thread();
+  }
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
