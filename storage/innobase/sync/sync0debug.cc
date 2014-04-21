@@ -986,6 +986,22 @@ sync_latch_meta_init()
 		  rw_lock_debug_mutex_key);
 #endif /* UNIV_SYNC_DEBUG */
 
+	LATCH_ADD(SrvLatches, "rtr_ssn_mutex",
+		  SYNC_ANY_LATCH,
+		  rtr_ssn_mutex_key);
+
+	LATCH_ADD(SrvLatches, "rtr_active_mutex",
+		  SYNC_ANY_LATCH,
+		  rtr_active_mutex_key);
+
+	LATCH_ADD(SrvLatches, "rtr_match_mutex",
+		  SYNC_ANY_LATCH,
+		  rtr_match_mutex_key);
+
+	LATCH_ADD(SrvLatches, "rtr_path_mutex",
+		  SYNC_ANY_LATCH,
+		  rtr_path_mutex_key);
+
 	LATCH_ADD(SrvLatches, "rw_lock_list",
 		  SYNC_NO_ORDER_CHECK,
 		  rw_lock_list_mutex_key);

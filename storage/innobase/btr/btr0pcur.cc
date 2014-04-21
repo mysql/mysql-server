@@ -123,9 +123,23 @@ btr_pcur_store_position(
 	page = page_align(rec);
 	offs = page_offset(rec);
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
-	      || dict_table_is_intrinsic(index->table));
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		/* For spatial index, when we do positioning on parent
+		buffer if necessary, it might not hold latches, but the
+		tree must be locked to prevent change on the page */
+		ut_ad((mtr_memo_contains_flagged(
+				mtr, dict_index_get_lock(index),
+				MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
+		       || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
+		       || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX))
+		      && (block->page.buf_fix_count > 0));
+	} else {
+		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
+		      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX)
+		      || dict_table_is_intrinsic(index->table));
+	}
+#endif /* UNIV_DEBUG */
 
 	if (page_is_empty(page)) {
 		/* It must be an empty index tree; NOTE that in this case

@@ -163,11 +163,12 @@ columns in row.
 @param[out]	entry	index entry to make
 @param[in]	row	row */
 
-void
+dberr_t
 row_ins_index_entry_set_vals(
 	const dict_index_t*	index,
 	dtuple_t*		entry,
 	const dtuple_t*		row);
+
 /***************************************************************//**
 Tries to insert the externally stored fields (off-page columns)
 of a clustered index entry.

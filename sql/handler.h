@@ -1155,6 +1155,9 @@ public:
   */
   static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
 
+  // Add spatial index
+  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1L << 31;
+
   /**
     Create options (like MAX_ROWS) for the new version of table.
 

@@ -46,6 +46,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "trx0types.h"
 #include "fts0fts.h"
 #include "buf0buf.h"
+#include "gis0type.h"
 #include "os0once.h"
 
 /* Forward declaration. */
@@ -63,8 +64,10 @@ combination of types */
 				in SYS_INDEXES.TYPE */
 #define	DICT_FTS	32	/* FTS index; can't be combined with the
 				other flags */
+#define	DICT_SPATIAL	64	/* SPATIAL index; can't be combined with the
+				other flags */
 
-#define	DICT_IT_BITS	6	/*!< number of bits used for
+#define	DICT_IT_BITS	7	/*!< number of bits used for
 				SYS_INDEXES.TYPE */
 /* @} */
 
@@ -747,6 +750,9 @@ struct dict_index_t{
 				Limited to intrinsic table as this is common
 				share and can't be used without protection
 				if table is accessible to multiple-threads. */
+	rtr_ssn_t	rtr_ssn;/*!< Node sequence number for RTree */
+	rtr_info_track_t*
+			rtr_track;/*!< tracking all R-Tree search cursors */
 #endif /* !UNIV_HOTBACKUP */
 #ifdef UNIV_DEBUG
 	ulint		magic_n;/*!< magic number */
