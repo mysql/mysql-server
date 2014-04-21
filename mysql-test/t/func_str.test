@@ -1409,6 +1409,34 @@ drop table t1;
 
 --echo End of 5.1 tests
 
+--echo #
+--echo # Start of 5.3 tests
+--echo #
+
+--echo #
+--echo # Bug#11829861: SUBSTRING_INDEX() RESULTS IN MISSING CHARACTERS WHEN USED
+--echo # INSIDE LOWER()
+--echo #
+SET @user_at_host = 'root@mytinyhost-PC.local';
+SELECT LOWER(SUBSTRING_INDEX(@user_at_host, '@', -1));
+--echo # End of test  BUG#11829861
+
+--echo #
+--echo # Bug#42404: SUBSTRING_INDEX() RESULTS ARE INCONSISTENT
+--echo #
+
+CREATE TABLE t (i INT NOT NULL, c CHAR(255) NOT NULL);
+INSERT INTO t VALUES (0,'.www.mysql.com'),(1,'.wwwmysqlcom');
+SELECT i, SUBSTRING_INDEX(c, '.', -2) FROM t WHERE i = 1;
+SELECT i, SUBSTRING_INDEX(c, '.', -2) FROM t;
+DROP TABLE t;
+--echo # End of test  BUG#42404
+
+--echo #
+--echo # End of 5.3 tests
+--echo #
+
+
 --echo Start of 5.4 tests
 #
 # WL#4584 Internationalized number format
