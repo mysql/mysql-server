@@ -2007,6 +2007,8 @@ dict_index_too_big_for_undo(
 	in trx_undo_page_report_modify() right after trx_undo_page_init(). */
 
 	ulint			i;
+	ulint			is_spatial = false;
+
 	const dict_index_t*	clust_index
 		= dict_table_get_first_index(table);
 	ulint			undo_page_len
@@ -2089,6 +2091,14 @@ dict_index_too_big_for_undo(
 							 field->prefix_len;
 					}
 
+					/* If this is spatial index field,
+					we will write at least its MBR to
+					redo log if needed */
+					if (dict_index_is_spatial(new_index)
+					    && j == 0) {
+						is_spatial = true;
+					}
+
 					goto is_ord_part;
 				}
 			}
@@ -2109,6 +2119,10 @@ is_ord_part:
 			A long enough prefix must be written to the
 			undo log.  See trx_undo_page_fetch_ext(). */
 			max_size = ut_min(max_size, max_field_len);
+
+			if (is_spatial) {
+				max_size += DATA_MBR_LEN;
+			}
 
 			/* We only store the needed prefix length in undo log */
 			if (max_prefix) {
@@ -2478,6 +2492,10 @@ too_big:
 			= dict_index_get_nth_field(new_index, i);
 		const dict_col_t*	col
 			= dict_field_get_col(field);
+		bool	is_spatial = (dict_index_is_spatial(new_index)
+				      && (i == 0)
+				      && (field->col->mtype
+						 == DATA_GEOMETRY));
 
 		/* In dtuple_convert_big_rec(), variable-length columns
 		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
@@ -2489,12 +2507,13 @@ too_big:
 		capacity of the undo log whenever new_index includes
 		a column prefix on a column that may be stored externally. */
 
-		if (field->prefix_len /* prefix index */
-		    && (!col->ord_part /* not yet ordering column */
-			|| field->prefix_len > col->max_prefix)
-		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
-		    && dict_col_get_max_size(col)
-		    > BTR_EXTERN_LOCAL_STORED_MAX_SIZE /* long enough */) {
+		if ((field->prefix_len /* prefix index */
+		     && (!col->ord_part /* not yet ordering column */
+		 	 || field->prefix_len > col->max_prefix)
+		     && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
+		     && dict_col_get_max_size(col)
+		     > BTR_EXTERN_LOCAL_STORED_MAX_SIZE /* long enough */)
+		    || is_spatial) {
 
 			if (dict_index_too_big_for_undo(table, new_index)) {
 				/* An undo log record might not fit in
@@ -2816,6 +2835,10 @@ dict_index_copy_types(
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
+		if (dict_index_is_spatial(index)
+		    && DATA_GEOMETRY_MTYPE(dfield_type->mtype)) {
+			dfield_type->prtype |= DATA_GIS_MBR;
+		}
 	}
 }
 
@@ -3107,6 +3130,11 @@ dict_index_build_internal_non_clust(
 		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, table, field->col,
 					   field->prefix_len);
+		} else if (dict_index_is_spatial(index)) {
+			/*For spatial index, we still need to add the
+			field to index. */
+			dict_index_add_col(new_index, table, field->col,
+					   field->prefix_len);
 		}
 	}
 
@@ -3369,6 +3397,7 @@ dict_foreign_find_index(
 	while (index != NULL) {
 		if (types_idx != index
 		    && !(index->type & DICT_FTS)
+		    && !dict_index_is_spatial(index)
 		    && !index->to_be_dropped
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,

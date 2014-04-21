@@ -308,7 +308,7 @@ row_undo(
 
 	if (node->state == UNDO_NODE_INSERT) {
 
-		err = row_undo_ins(node);
+		err = row_undo_ins(node, thr);
 
 		node->state = UNDO_NODE_FETCH_NEXT;
 	} else {

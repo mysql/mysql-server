@@ -37,6 +37,8 @@ Created 5/7/1996 Heikki Tuuri
 #include "hash0hash.h"
 #include "srv0srv.h"
 #include "ut0vec.h"
+#include "gis0rtree.h"
+#include "lock0prdt.h"
 
 // Forward declaration
 class ReadView;
@@ -288,6 +290,85 @@ lock_rec_insert_check_and_lock(
 				LOCK_GAP type locks from the successor
 				record */
 	__attribute__((nonnull, warn_unused_result));
+
+/*********************************************************************//**
+Enqueues a waiting request for a lock which cannot be granted immediately.
+Checks for deadlocks.
+@return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
+DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
+there was a deadlock, but another transaction was chosen as a victim,
+and we got the lock immediately: no need to wait then */
+
+dberr_t
+lock_rec_enqueue_waiting(
+/*=====================*/
+	ulint			type_mode,/*!< in: lock mode this
+					transaction is requesting:
+					LOCK_S or LOCK_X, possibly
+					ORed with LOCK_GAP or
+					LOCK_REC_NOT_GAP, ORed with
+					LOCK_INSERT_INTENTION if this
+					waiting lock request is set
+					when performing an insert of
+					an index record */
+	const buf_block_t*	block,	/*!< in: buffer block containing
+					the record */
+	ulint			heap_no,/*!< in: heap number of the record */
+	dict_index_t*		index,	/*!< in: index of record */
+	que_thr_t*		thr,	/*!< in: query thread */
+	lock_prdt_t*		prdt);	/*!< in: Minimum Bounding Box */
+
+/*************************************************************//**
+Removes a record lock request, waiting or granted, from the queue and
+grants locks to other transactions in the queue if they now are entitled
+to a lock. NOTE: all record locks contained in in_lock are removed. */
+
+void
+lock_rec_dequeue_from_page(
+/*=======================*/
+        lock_t*         in_lock);        /*!< in: record lock object: all
+                                        record locks which are contained in
+                                        this lock object are removed;
+                                        transactions waiting behind will
+                                        get their lock requests granted,
+                                        if they are now qualified to it */
+
+/*************************************************************//**
+Moves the locks of a record to another record and resets the lock bits of
+the donating record. */
+UNIV_INLINE
+void
+lock_rec_move(
+/*==========*/
+        const buf_block_t*      receiver,       /*!< in: buffer block containing
+                                                the receiving record */
+        const buf_block_t*      donator,        /*!< in: buffer block containing
+                                                the donating record */
+        ulint                   receiver_heap_no,/*!< in: heap_no of the record
+                                                which gets the locks; there
+                                                must be no lock requests
+                                                on it! */
+        ulint                   donator_heap_no);/*!< in: heap_no of the record
+                                                which gives the locks */
+
+/*************************************************************//**
+Moves the locks of a record to another record and resets the lock bits of
+the donating record. */
+
+void
+lock_rec_move_low(
+/*==============*/
+	hash_table_t*		lock_hash,	/*!< in: hash  table to use */
+        const buf_block_t*      receiver,       /*!< in: buffer block containing
+                                                the receiving record */
+        const buf_block_t*      donator,        /*!< in: buffer block containing
+                                                the donating record */
+        ulint                   receiver_heap_no,/*!< in: heap_no of the record
+                                                which gets the locks; there
+                                                must be no lock requests
+                                                on it! */
+        ulint                   donator_heap_no);/*!< in: heap_no of the record
+                                                which gives the locks */
 /*********************************************************************//**
 Checks if locks of other transactions prevent an immediate modify (update,
 delete mark, or delete unmark) of a clustered index record. If they do,
@@ -530,6 +611,14 @@ lock_rec_hash(
 /*==========*/
 	ulint	space,	/*!< in: space */
 	ulint	page_no);/*!< in: page number */
+
+/*************************************************************//**
+Get the lock hash table */
+UNIV_INLINE
+hash_table_t*
+lock_hash_get(
+/*==========*/
+	ulint	mode);	/*!< in: lock mode */
 
 /**********************************************************************//**
 Looks for a set bit in a record lock bitmap. Returns ULINT_UNDEFINED,
@@ -867,7 +956,27 @@ lock_trx_has_rec_x_lock(
 	const dict_table_t*	table,	/*!< in: table to check */
 	const buf_block_t*	block,	/*!< in: buffer block of the record */
 	ulint			heap_no)/*!< in: record heap number */
-	__attribute__((warn_unused_result));
+	__attribute__((nonnull, warn_unused_result));
+/*********************************************************************//**
+Checks if some other transaction has a lock request in the queue.
+@return lock or NULL */
+
+const lock_t*
+lock_rec_other_has_expl_req(
+/*========================*/
+	enum lock_mode		mode,	/*!< in: LOCK_S or LOCK_X */
+	ulint			gap,	/*!< in: LOCK_GAP if also gap
+					locks are taken into account,
+					or 0 if not */
+	ulint			wait,	/*!< in: LOCK_WAIT if also
+					waiting locks are taken into
+					account, or 0 if not */
+	const buf_block_t*	block,	/*!< in: buffer block containing
+					the record */
+	ulint			heap_no,/*!< in: heap number of the record */
+	const trx_t*		trx);	/*!< in: transaction, or NULL if
+					requests by all transactions
+					are taken into account */
 #endif /* UNIV_DEBUG */
 
 /**
@@ -922,11 +1031,14 @@ lock_trx_alloc_locks(trx_t* trx);
 				remains set when the waiting lock is granted,
 				or if the lock is inherited to a neighboring
 				record */
+#define LOCK_PREDICATE	8192	/*!< Predicate lock */
+#define LOCK_PRDT_PAGE	16384	/*!< Page lock */
 
-#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION)&LOCK_MODE_MASK
+
+#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION|LOCK_PREDICATE|LOCK_PRDT_PAGE)&LOCK_MODE_MASK
 # error
 #endif
-#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION)&LOCK_TYPE_MASK
+#if (LOCK_WAIT|LOCK_GAP|LOCK_REC_NOT_GAP|LOCK_INSERT_INTENTION|LOCK_PREDICATE|LOCK_PRDT_PAGE)&LOCK_TYPE_MASK
 # error
 #endif
 /* @} */
@@ -945,6 +1057,10 @@ struct lock_sys_t{
 						locks */
 	hash_table_t*	rec_hash;		/*!< hash table of the record
 						locks */
+	hash_table_t*	prdt_hash;		/*!< hash table of the predicate
+						lock */
+	hash_table_t*	prdt_page_hash;		/*!< hash table of the page
+						lock */
 	LockMutex	wait_mutex;		/*!< Mutex protecting the
 						next two fields */
 	srv_slot_t*	waiting_threads;	/*!< Array  of user threads
@@ -971,6 +1087,91 @@ struct lock_sys_t{
 	bool		timeout_thread_active;	/*!< True if the timeout thread
 						is running */
 };
+
+/*********************************************************************//**
+Creates a new record lock and inserts it to the lock queue. Does NOT check
+for deadlocks or lock compatibility!
+@return created lock */
+UNIV_INLINE
+lock_t*
+lock_rec_create(
+/*============*/
+	ulint			type_mode,/*!< in: lock mode and wait
+					flag, type is ignored and
+					replaced by LOCK_REC */
+	const buf_block_t*	block,	/*!< in: buffer block containing
+					the record */
+	ulint			heap_no,/*!< in: heap number of the record */
+	dict_index_t*		index,	/*!< in: index of record */
+	trx_t*			trx,	/*!< in/out: transaction */
+	ibool			caller_owns_trx_mutex);
+					/*!< in: TRUE if caller owns
+					trx mutex */
+
+/*************************************************************//**
+Removes a record lock request, waiting or granted, from the queue. */
+
+void
+lock_rec_discard(
+/*=============*/
+	lock_t*		in_lock);	/*!< in: record lock object: all
+					record locks which are contained
+					in this lock object are removed */
+
+/*********************************************************************//**
+Creates a new record lock and inserts it to the lock queue. Does NOT check
+for deadlocks or lock compatibility!
+@return created lock */
+
+lock_t*
+lock_rec_create_low(
+/*================*/
+	ulint			type_mode,/*!< in: lock mode and wait
+					flag, type is ignored and
+					replaced by LOCK_REC */
+	ulint			space,	/*!< in: space number */
+	ulint			pageno,	/*!< in: page number */
+	const page_t*		page,	/*!< in: buffer page or NULL*/
+	ulint			heap_no,/*!< in: heap number of the record */
+	dict_index_t*		index,	/*!< in: index of record */
+	trx_t*			trx,	/*!< in/out: transaction */
+	ibool			caller_owns_trx_mutex);
+					/*!< in: TRUE if caller owns
+					trx mutex */
+/*************************************************************//**
+Moves the explicit locks on user records to another page if a record
+list start is moved to another page. */
+
+void
+lock_rtr_move_rec_list(
+/*===================*/
+	const buf_block_t*	new_block,	/*!< in: index page to
+						move to */
+	const buf_block_t*	block,		/*!< in: index page */
+	rtr_rec_move_t*		rec_move,	/*!< in: recording records
+						moved */
+	ulint			num_move);	/*!< in: num of rec to move */
+
+/*************************************************************//**
+Removes record lock objects set on an index page which is discarded. This
+function does not move locks, or check for waiting locks, therefore the
+lock bitmaps must already be reset when this function is called. */
+
+void
+lock_rec_free_all_from_discard_page(
+/*================================*/
+	const buf_block_t*	block);		/*!< in: page to be discarded */
+
+/** Reset the nth bit of a record lock.
+@param[in,out]	lock record lock
+@param[in] i	index of the bit that will be reset
+@param[in] type	whether the lock is in wait mode  */
+
+void
+lock_rec_trx_wait(
+	lock_t*		lock,
+	ulint		i,
+	ulint		type);
 
 /** The lock system */
 extern lock_sys_t*	lock_sys;

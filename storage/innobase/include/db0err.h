@@ -129,6 +129,8 @@ enum dberr_t {
 	DB_FTS_EXCEED_RESULT_CACHE_LIMIT,	/*!< FTS query memory
 					exceeds result cache limit */
 	DB_TEMP_FILE_WRITE_FAILURE,	/*!< Temp file write failure */
+	DB_CANT_CREATE_GEOMETRY_OBJECT,	/*!< Cannot create specified Geometry
+					data object */
 	DB_CANNOT_OPEN_FILE,		/*!< Cannot open a file */
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
 					/*< Too many words in a phrase */

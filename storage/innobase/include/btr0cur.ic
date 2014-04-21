@@ -209,4 +209,22 @@ btr_blob_op_is_update(
 	ut_ad(0);
 	return(FALSE);
 }
+/******************************************************//**
+The following function is used to set the deleted bit of a record. */
+UNIV_INLINE
+void
+btr_rec_set_deleted_flag(
+/*=====================*/
+	rec_t*		rec,	/*!< in/out: physical record */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
+	ulint		flag)	/*!< in: nonzero if delete marked */
+{
+	if (page_rec_is_comp(rec)) {
+		rec_set_deleted_flag_new(rec, page_zip, flag);
+	} else {
+		ut_ad(!page_zip);
+		rec_set_deleted_flag_old(rec, flag);
+	}
+}
+
 #endif /* !UNIV_HOTBACKUP */

@@ -175,6 +175,30 @@ dfield_set_data(
 }
 
 /*********************************************************************//**
+Sets pointer to the data and length in a field. */
+UNIV_INLINE
+void
+dfield_write_mbr(
+/*=============*/
+	dfield_t*	field,	/*!< in: field */
+	const double*	mbr)	/*!< in: data */
+{
+	ut_ad(field);
+
+#ifdef UNIV_VALGRIND_DEBUG
+	if (len != UNIV_SQL_NULL) UNIV_MEM_ASSERT_RW(data, len);
+#endif /* UNIV_VALGRIND_DEBUG */
+	field->ext = 0;
+
+	for (int i = 0; i < SPDIMS * 2; i++) {
+		mach_double_write(static_cast<byte*>(field->data)
+				  + i * sizeof(double), mbr[i]);
+	}
+
+	field->len = DATA_MBR_LEN;
+}
+
+/*********************************************************************//**
 Sets a data field to SQL NULL. */
 UNIV_INLINE
 void
