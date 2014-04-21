@@ -753,6 +753,15 @@ dict_index_is_unique(
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
+Check whether the index is a Spatial Index.
+@return	nonzero for Spatial Index, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_is_spatial(
+/*==================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull, pure, warn_unused_result));
+/********************************************************************//**
 Check whether the index is the insert buffer tree.
 @return nonzero for insert buffer, zero for other indexes */
 UNIV_INLINE

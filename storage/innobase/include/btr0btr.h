@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -34,6 +34,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "page0cur.h"
 #include "mtr0mtr.h"
 #include "btr0types.h"
+#include "gis0type.h"
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum record size which can be stored on a page, without using the
@@ -109,9 +110,14 @@ to insert record only. It is used to optimize block->lock range.*/
 to delete record only. It is used to optimize block->lock range.*/
 #define BTR_LATCH_FOR_DELETE	65536
 
+/** This flag is for undo insert of rtree. For rtree, we need this flag
+to find proper rec to undo insert.*/
+#define BTR_RTREE_UNDO_INS	131072
+
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
 	((latch_mode) & ~(BTR_INSERT			\
 			  | BTR_DELETE_MARK		\
+			  | BTR_RTREE_UNDO_INS		\
 			  | BTR_DELETE			\
 			  | BTR_ESTIMATE		\
 			  | BTR_IGNORE_SEC_UNIQUE	\
@@ -433,6 +439,7 @@ btr_page_get_split_rec_to_right(
 				the first record on upper half page,
 				or NULL if tuple should be first */
 	__attribute__((nonnull, warn_unused_result));
+
 /*************************************************************//**
 Splits an index page to halves and inserts the tuple. It is assumed
 that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
@@ -470,8 +477,7 @@ btr_insert_on_non_leaf_level_func(
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
-	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull));
+	mtr_t*		mtr);	/*!< in: mtr */
 # define btr_insert_on_non_leaf_level(f,i,l,t,m)			\
 	btr_insert_on_non_leaf_level_func(f,i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
@@ -619,6 +625,18 @@ btr_page_free(
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
 /**************************************************************//**
+Creates a new index page (not the root, and also not
+used in page reorganization).  @see btr_page_empty(). */
+
+void
+btr_page_create(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page to be created */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
+	dict_index_t*	index,	/*!< in: index */
+	ulint		level,	/*!< in: the B-tree level of the page */
+	mtr_t*		mtr);	/*!< in: mtr */
+/**************************************************************//**
 Frees a file page used in an index tree. Can be used also to BLOB
 external storage pages. */
 
@@ -630,6 +648,18 @@ btr_page_free_low(
 	ulint		level,	/*!< in: page level (ULINT_UNDEFINED=BLOB) */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
+/**************************************************************//**
+Gets the root node of a tree and x- or s-latches it.
+@return root page, x- or s-latched */
+
+buf_block_t*
+btr_root_block_get(
+/*===============*/
+	const dict_index_t*	index,	/*!< in: index tree */
+	ulint			mode,	/*!< in: either RW_S_LATCH
+					or RW_X_LATCH */
+	mtr_t*			mtr);	/*!< in: mtr */
+
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */

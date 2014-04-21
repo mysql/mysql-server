@@ -5,7 +5,6 @@
 
 --source include/have_geometry.inc
 --source include/not_embedded.inc
---source include/have_debug.inc
 
 SELECT ST_WITHIN( LINESTRINGFROMTEXT('  LINESTRING( 5 9 , 3 4 , 4 1 , 4
 4 , 4 9 ) ') , ST_SYMDIFFERENCE( ST_UNION( ST_ENVELOPE( POLYGONFROMTEXT('

@@ -43,6 +43,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
+#include "gis0rtree.h"
 #include "mach0data.h"
 #include "que0que.h"
 #include "row0upd.h"
@@ -241,12 +242,32 @@ row_sel_sec_rec_is_for_clust_rec(
 			}
 		}
 
-		if (0 != cmp_data_data(col->mtype, col->prtype,
-				       clust_field, len,
-				       sec_field, sec_len)) {
+		if (dict_index_is_spatial(sec_index)) {
+			rtr_mbr_t	tmp_mbr;
+			rtr_mbr_t	sec_mbr;
+			byte*		dptr =
+				const_cast<byte*>(clust_field);
+
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   clust_len - GEO_DATA_HEADER_SIZE,
+					   SPDIMS,
+					   reinterpret_cast<double*>(
+						&tmp_mbr));
+			rtr_read_mbr(sec_field, &sec_mbr);
+
+			if (!MBR_CONTAIN_CMP(&sec_mbr, &tmp_mbr)) {
+				is_equal = FALSE;
+				goto func_exit;
+			}
+		} else {
+
+			if (0 != cmp_data_data(col->mtype, col->prtype,
+					       clust_field, len,
+					       sec_field, sec_len)) {
 inequal:
-			is_equal = FALSE;
-			goto func_exit;
+				is_equal = FALSE;
+				goto func_exit;
+			}
 		}
 	}
 
@@ -972,6 +993,179 @@ err_exit:
 	return(err);
 }
 
+typedef std::vector<rtr_rec_t>             rtr_rec_vector;
+
+/*********************************************************************//**
+Sets a lock on a page of R-Tree record. This is all or none action,
+mostly due to we cannot reposition a record in R-Tree (with the
+nature of splitting)
+@return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
+UNIV_INLINE
+dberr_t
+sel_set_rtr_rec_lock(
+/*=================*/
+	btr_pcur_t*		pcur,	/*!< in: cursor */
+	const rec_t*		first_rec,/*!< in: record */
+	dict_index_t*		index,	/*!< in: index */
+	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
+	ulint			mode,	/*!< in: lock mode */
+	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
+					LOC_REC_NOT_GAP */
+	que_thr_t*		thr,	/*!< in: query thread */
+	mtr_t*			mtr)	/*!< in: mtr */
+{
+	matched_rec_t*  match = pcur->btr_cur.rtr_info->matches;
+	mem_heap_t*     heap = NULL;
+	dberr_t		err = DB_SUCCESS;
+	trx_t*		trx = thr_get_trx(thr);
+	buf_block_t*	cur_block = btr_pcur_get_block(pcur);
+	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*          my_offsets = const_cast<ulint*>(offsets);
+	rec_t*		rec = const_cast<rec_t*>(first_rec);
+	rtr_rec_vector*	match_rec;
+	rtr_rec_vector::iterator end;
+
+	rec_offs_init(offsets_);
+
+	if (match->locked || page_rec_is_supremum(first_rec)) {
+		return(DB_SUCCESS_LOCKED_REC);
+	}
+
+	ut_ad(page_align(first_rec) == cur_block->frame);
+	ut_ad(match->valid);
+
+	rw_lock_x_lock(&(match->block.lock));
+retry:
+	cur_block = btr_pcur_get_block(pcur);
+#ifdef UNIV_SYNC_DEBUG
+        ut_ad(rw_lock_own(&(match->block.lock), RW_LOCK_X)
+              || rw_lock_own(&(match->block.lock), RW_LOCK_S));
+#endif /* UNIV_SYNC_DEBUG */
+	ut_ad(page_is_leaf(buf_block_get_frame(cur_block)));
+
+	err = lock_sec_rec_read_check_and_lock(
+		0, cur_block, rec, index, my_offsets,
+		static_cast<enum lock_mode>(mode), type, thr);
+
+	if (err == DB_LOCK_WAIT) {
+re_scan:
+		mtr_commit(mtr);
+		trx->error_state = err;
+		que_thr_stop_for_mysql(thr);
+		thr->lock_state = QUE_THR_LOCK_ROW;
+		if (row_mysql_handle_errors(
+			&err, trx, thr, NULL)) {
+			thr->lock_state = QUE_THR_LOCK_NOLOCK;
+			mtr_start(mtr);
+
+			mutex_enter(&match->rtr_match_mutex);
+			if (!match->valid && match->matched_recs->empty()) {
+				mutex_exit(&match->rtr_match_mutex);
+				err = DB_RECORD_NOT_FOUND;
+				goto func_end;
+			}
+			mutex_exit(&match->rtr_match_mutex);
+
+			ulint		page_no = page_get_page_no(
+						btr_pcur_get_page(pcur));
+			page_id_t	page_id(dict_index_get_space(index),
+						page_no);
+
+			cur_block = buf_page_get_gen(
+				page_id, dict_table_page_size(index->table),
+				RW_X_LATCH, NULL, BUF_GET,
+				__FILE__, __LINE__, mtr);
+		} else {
+			mtr_start(mtr);
+			goto func_end;
+		}
+
+		DEBUG_SYNC_C("rtr_set_lock_wait");
+
+		if (!match->valid) {
+			/* Page got deleted */
+			mtr_commit(mtr);
+			mtr_start(mtr);
+			err = DB_RECORD_NOT_FOUND;
+			goto func_end;
+		}
+
+		match->matched_recs->clear();
+
+		rtr_cur_search_with_match(
+			cur_block, index,
+			pcur->btr_cur.rtr_info->search_tuple,
+			pcur->btr_cur.rtr_info->search_mode,
+			&pcur->btr_cur.page_cur,
+			pcur->btr_cur.rtr_info);
+
+		if (!page_is_leaf(buf_block_get_frame(cur_block))) {
+			/* Page got splitted and promoted (only for
+			root page it is possible).  Release the
+			page and ask for a re-search */
+			mtr_commit(mtr);
+			mtr_start(mtr);
+			err = DB_RECORD_NOT_FOUND;
+			goto func_end;
+		}
+
+		rec = btr_pcur_get_rec(pcur);
+		my_offsets = offsets_;
+		my_offsets = rec_get_offsets(rec, index, my_offsets,
+					     ULINT_UNDEFINED, &heap);
+
+		/* No match record */
+		if (page_rec_is_supremum(rec) || !match->valid) {
+			mtr_commit(mtr);
+			mtr_start(mtr);
+			err = DB_RECORD_NOT_FOUND;
+			goto func_end;
+		}
+
+		goto retry;
+	}
+
+	my_offsets = offsets_;
+	match_rec = match->matched_recs;
+	end = match_rec->end();
+
+	for (rtr_rec_vector::iterator it = match_rec->begin();
+	     it != end; ++it) {
+		rtr_rec_t*	rtr_rec = &(*it);
+
+		my_offsets = rec_get_offsets(
+				rtr_rec->r_rec, index, my_offsets,
+				ULINT_UNDEFINED, &heap);
+
+		err = lock_sec_rec_read_check_and_lock(
+			0, &match->block, rtr_rec->r_rec, index,
+			my_offsets, static_cast<enum lock_mode>(mode),
+			type, thr);
+
+		if (err == DB_SUCCESS || err == DB_SUCCESS_LOCKED_REC) {
+			rtr_rec->locked = true;
+		} else if (err == DB_LOCK_WAIT) {
+			goto re_scan;
+		} else {
+			goto func_end;
+		}
+
+	}
+
+	match->locked = true;
+
+
+func_end:
+	rw_lock_x_unlock(&(match->block.lock));
+	if (heap) {
+		mem_heap_free(heap);
+	}
+
+	ut_ad(err != DB_LOCK_WAIT);
+
+	return(err);
+}
+
 /*********************************************************************//**
 Sets a lock on a record.
 @return DB_SUCCESS, DB_SUCCESS_LOCKED_REC, or error code */
@@ -979,17 +1173,21 @@ UNIV_INLINE
 dberr_t
 sel_set_rec_lock(
 /*=============*/
-	const buf_block_t*	block,	/*!< in: buffer block of rec */
+	btr_pcur_t*		pcur,	/*!< in: cursor */
 	const rec_t*		rec,	/*!< in: record */
 	dict_index_t*		index,	/*!< in: index */
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
 	ulint			mode,	/*!< in: lock mode */
 	ulint			type,	/*!< in: LOCK_ORDINARY, LOCK_GAP, or
 					LOC_REC_NOT_GAP */
-	que_thr_t*		thr)	/*!< in: query thread */
+	que_thr_t*		thr,	/*!< in: query thread */
+	mtr_t*			mtr)	/*!< in: mtr */
 {
-	trx_t*		trx;
-	dberr_t		err;
+	trx_t*			trx;
+	dberr_t			err = DB_SUCCESS;
+	const buf_block_t*	block;
+
+	block = btr_pcur_get_block(pcur);
 
 	trx = thr_get_trx(thr);
 
@@ -1005,9 +1203,21 @@ sel_set_rec_lock(
 			0, block, rec, index, offsets,
 			static_cast<enum lock_mode>(mode), type, thr);
 	} else {
-		err = lock_sec_rec_read_check_and_lock(
-			0, block, rec, index, offsets,
-			static_cast<enum lock_mode>(mode), type, thr);
+
+		if (dict_index_is_spatial(index)) {
+			if (type == LOCK_GAP || type == LOCK_ORDINARY) {
+				ut_ad(0);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Incorrectly request GAP lock on RTree");
+				return(DB_SUCCESS);
+			}
+			err = sel_set_rtr_rec_lock(pcur, rec, index, offsets,
+						   mode, type, thr, mtr);
+		} else {
+			err = lock_sec_rec_read_check_and_lock(
+				0, block, rec, index, offsets,
+				static_cast<enum lock_mode>(mode), type, thr);
+		}
 	}
 
 	return(err);
@@ -1492,6 +1702,9 @@ rec_loop:
 	if (!node->asc && cursor_just_opened
 	    && !page_rec_is_supremum(rec)) {
 
+		/* Do not support "descending search" for Spatial index */
+		ut_ad(!dict_index_is_spatial(index));
+
 		/* When we open a cursor for a descending search, we must set
 		a next-key lock on the successor record: otherwise it would
 		be possible to insert new records next to the cursor position,
@@ -1528,10 +1741,10 @@ rec_loop:
 				lock_type = LOCK_ORDINARY;
 			}
 
-			err = sel_set_rec_lock(btr_pcur_get_block(&plan->pcur),
+			err = sel_set_rec_lock(&plan->pcur,
 					       next_rec, index, offsets,
 					       node->row_lock_mode,
-					       lock_type, thr);
+					       lock_type, thr, &mtr);
 
 			switch (err) {
 			case DB_SUCCESS_LOCKED_REC:
@@ -1577,7 +1790,8 @@ skip_lock:
 		trx = thr_get_trx(thr);
 
 		if (srv_locks_unsafe_for_binlog
-		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED) {
+		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
+		    || dict_index_is_spatial(index)) {
 
 			if (page_rec_is_supremum(rec)) {
 
@@ -1589,9 +1803,10 @@ skip_lock:
 			lock_type = LOCK_ORDINARY;
 		}
 
-		err = sel_set_rec_lock(btr_pcur_get_block(&plan->pcur),
+		err = sel_set_rec_lock(&plan->pcur,
 				       rec, index, offsets,
-				       node->row_lock_mode, lock_type, thr);
+				       node->row_lock_mode, lock_type,
+				       thr, &mtr);
 
 		switch (err) {
 		case DB_SUCCESS_LOCKED_REC:
@@ -2407,33 +2622,39 @@ row_sel_convert_mysql_key_to_innobase(
 		}
 
 		/* Calculate data length and data field total length */
-                /* Temporarily, prefix index on geometry data follow
-                the current behavior (currently geometry is treated as
-                BLOB), and it will be replaced by R-tree index in another
-                worklog. */
 		if (DATA_LARGE_MTYPE(type)) {
-			/* The key field is a column prefix of a BLOB or
-			TEXT */
 
-			ut_a(field->prefix_len > 0);
+			/* For R-tree index, data length should be the
+			total size of the wkb data.*/
+			if (dict_index_is_spatial(index)) {
+				ut_ad(DATA_GEOMETRY_MTYPE(type));
+				data_len = key_len;
+				data_field_len = data_offset + data_len;
+			} else {
+				/* The key field is a column prefix of a BLOB or
+				TEXT */
 
-			/* MySQL stores the actual data length to the first 2
-			bytes after the optional SQL NULL marker byte. The
-			storage format is little-endian, that is, the most
-			significant byte at a higher address. In UTF-8, MySQL
-			seems to reserve field->prefix_len bytes for
-			storing this field in the key value buffer, even
-			though the actual value only takes data_len bytes
-			from the start. */
+				ut_a(field->prefix_len > 0);
 
-			data_len = key_ptr[data_offset]
-				+ 256 * key_ptr[data_offset + 1];
-			data_field_len = data_offset + 2 + field->prefix_len;
+				/* MySQL stores the actual data length to the first 2
+				bytes after the optional SQL NULL marker byte. The
+				storage format is little-endian, that is, the most
+				significant byte at a higher address. In UTF-8, MySQL
+				seems to reserve field->prefix_len bytes for
+				storing this field in the key value buffer, even
+				though the actual value only takes data_len bytes
+				from the start. */
 
-			data_offset += 2;
+				data_len = key_ptr[data_offset]
+					+ 256 * key_ptr[data_offset + 1];
+				data_field_len = data_offset + 2 + field->prefix_len;
 
-			/* Now that we know the length, we store the column
-			value like it would be a fixed char field */
+				data_offset += 2;
+
+				/* Now that we know the length, we store the column
+				value like it would be a fixed char field */
+			}
+
 
 		} else if (field->prefix_len > 0) {
 			/* Looks like MySQL pads unused end bytes in the
@@ -3081,19 +3302,85 @@ row_sel_get_clust_rec_for_mysql(
 	if (!page_rec_is_user_rec(clust_rec)
 	    || btr_pcur_get_low_match(&prebuilt->clust_pcur)
 	    < dict_index_get_n_unique(clust_index)) {
+		btr_cur_t*	btr_cur = btr_pcur_get_btr_cur(&prebuilt->pcur);
 
-		/* In a rare case it is possible that no clust rec is found
-		for a delete-marked secondary index record: if in row0umod.cc
-		in row_undo_mod_remove_clust_low() we have already removed
-		the clust rec, while purge is still cleaning and removing
-		secondary index records associated with earlier versions of
-		the clustered index record. In that case we know that the
-		clustered index record did not exist in the read view of
-		trx. */
+		/* If this is a spatial index scan, and we are reading
+		from a shadow buffer, the record could be already
+		deleted (due to rollback etc.). So get the original
+		page and verify that */
+		if  (dict_index_is_spatial(sec_index)
+		     && btr_cur->rtr_info->matches
+		     && (page_align(rec)
+			== btr_cur->rtr_info->matches->block.frame
+			|| rec != btr_pcur_get_rec(&prebuilt->pcur))) {
+#ifdef UNIV_DEBUG
+			rtr_info_t*	rtr_info = btr_cur->rtr_info;
+			mutex_enter(&rtr_info->matches->rtr_match_mutex);
+			/* The page could be deallocated (by rollback etc.) */
+			if (!rtr_info->matches->valid) {
+				mutex_exit(&rtr_info->matches->rtr_match_mutex);
+				clust_rec = NULL;
 
-		if (!rec_get_deleted_flag(rec,
+                                err = DB_SUCCESS;
+                                goto func_exit;
+			}
+			mutex_exit(&rtr_info->matches->rtr_match_mutex);
+
+			if (rec_get_deleted_flag(rec,
+                                          dict_table_is_comp(sec_index->table))
+                                  && prebuilt->select_lock_type == LOCK_NONE) {
+
+				clust_rec = NULL;
+
+				err = DB_SUCCESS;
+				goto func_exit;
+			}
+
+			if (rec != btr_pcur_get_rec(&prebuilt->pcur)) {
+				clust_rec = NULL;
+
+                                err = DB_SUCCESS;
+                                goto func_exit;
+			}
+
+			ulint		page_no = page_get_page_no(
+						btr_pcur_get_page(
+							&prebuilt->pcur));
+
+			page_id_t	page_id(dict_index_get_space(sec_index),
+						page_no);
+
+			buf_block_t*	block = buf_page_get_gen(
+				page_id,
+				dict_table_page_size(sec_index->table),
+				RW_NO_LATCH, NULL, BUF_GET,
+				__FILE__, __LINE__, mtr);
+
+			mem_heap_t*	heap = mem_heap_create(256);
+			dtuple_t*       tuple = dict_index_build_data_tuple(
+				sec_index, const_cast<rec_t*>(rec),
+				dict_index_get_n_fields(sec_index), heap);;
+			page_cur_t     page_cursor;
+
+		        ulint		low_match = page_cur_search(
+						block, sec_index, tuple,
+						PAGE_CUR_LE, &page_cursor);
+
+			ut_ad(low_match < dtuple_get_n_fields_cmp(tuple));
+			mem_heap_free(heap);
+#endif /* UNIV_DEBUG */
+		} else if (!rec_get_deleted_flag(rec,
 					  dict_table_is_comp(sec_index->table))
 		    || prebuilt->select_lock_type != LOCK_NONE) {
+			/* In a rare case it is possible that no clust
+			rec is found for a delete-marked secondary index
+			record: if in row0umod.cc in
+			row_undo_mod_remove_clust_low() we have already removed
+			the clust rec, while purge is still cleaning and
+			removing secondary index records associated with
+			earlier versions of the clustered index record.
+			In that case we know that the clustered index
+			record did not exist in the read view of trx. */
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Clustered record for sec rec not found"
 				" index %s of table %s",
@@ -3990,6 +4277,7 @@ row_search_for_mysql_for_shared_table(
 	ulint*		offsets				= offsets_;
 	ibool		table_lock_waited		= FALSE;
 	byte*		next_buf			= 0;
+	bool		spatial_search			= false;
 
 	rec_offs_init(offsets_);
 
@@ -4125,6 +4413,14 @@ row_search_for_mysql_for_shared_table(
 			err = DB_RECORD_NOT_FOUND;
 			goto func_exit;
 		}
+	}
+
+	/* We don't support sequencial scan for Rtree index, because it
+	is no meaning to do so. */
+	if (dict_index_is_spatial(index)
+		&& !RTREE_SEARCH_MODE(mode)) {
+		err = DB_END_OF_INDEX;
+		goto func_exit;
 	}
 
 	mtr_start(&mtr);
@@ -4263,6 +4559,9 @@ release_search_latch_if_needed:
 		trx->has_search_latch = false;
 	}
 
+	spatial_search = dict_index_is_spatial(index)
+			 && mode >= PAGE_CUR_CONTAIN;
+
 	/* The state of a running trx can only be changed by the
 	thread that is currently serving the transaction. Because we
 	are that thread, we can read trx->state without holding any
@@ -4294,7 +4593,8 @@ release_search_latch_if_needed:
 	otherwise downward */
 
 	if (UNIV_UNLIKELY(direction == 0)) {
-		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
+		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G
+		    || mode >= PAGE_CUR_CONTAIN) {
 			moves_up = TRUE;
 		}
 	} else if (direction == ROW_SEL_NEXT) {
@@ -4349,6 +4649,12 @@ wait_table_again:
 	/* Open or restore index cursor position */
 
 	if (UNIV_LIKELY(direction != 0)) {
+		if (spatial_search) {
+			/* R-Tree access does not need to do
+			cursor position and resposition */
+			goto next_rec;
+		}
+
 		ibool	need_to_process = sel_restore_position_for_mysql(
 			&same_user_rec, BTR_SEARCH_LEAF,
 			pcur, moves_up, &mtr);
@@ -4375,6 +4681,34 @@ wait_table_again:
 		}
 
 	} else if (dtuple_get_n_fields(search_tuple) > 0) {
+		pcur->btr_cur.thr = thr;
+
+		if (dict_index_is_spatial(index)) {
+			bool	need_pred_lock;
+
+			need_pred_lock = (set_also_gap_locks
+					  && !(srv_locks_unsafe_for_binlog
+					      || trx->isolation_level
+						 <= TRX_ISO_READ_COMMITTED)
+					  && prebuilt->select_lock_type
+						 != LOCK_NONE);
+
+			if (!prebuilt->rtr_info) {
+				prebuilt->rtr_info = rtr_create_rtr_info(
+					need_pred_lock, true,
+					btr_pcur_get_btr_cur(pcur), index);
+				prebuilt->rtr_info->search_tuple = search_tuple;
+				prebuilt->rtr_info->search_mode = mode;
+				rtr_info_update_btr(btr_pcur_get_btr_cur(pcur),
+						    prebuilt->rtr_info);
+			} else {
+				rtr_info_reinit_in_cursor(
+					btr_pcur_get_btr_cur(pcur),
+					index, need_pred_lock);
+				prebuilt->rtr_info->search_tuple = search_tuple;
+				prebuilt->rtr_info->search_mode = mode;
+			}
+		}
 
 		btr_pcur_open_with_no_init(index, search_tuple, mode,
 					   BTR_SEARCH_LEAF,
@@ -4389,7 +4723,8 @@ wait_table_again:
 		    && set_also_gap_locks
 		    && !(srv_locks_unsafe_for_binlog
 			 || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
-		    && prebuilt->select_lock_type != LOCK_NONE) {
+		    && prebuilt->select_lock_type != LOCK_NONE
+		    && !dict_index_is_spatial(index)) {
 
 			/* Try to place a gap lock on the next index record
 			to prevent phantoms in ORDER BY ... DESC queries */
@@ -4397,10 +4732,10 @@ wait_table_again:
 
 			offsets = rec_get_offsets(next_rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
-			err = sel_set_rec_lock(btr_pcur_get_block(pcur),
+			err = sel_set_rec_lock(pcur,
 					       next_rec, index, offsets,
 					       prebuilt->select_lock_type,
-					       LOCK_GAP, thr);
+					       LOCK_GAP, thr, &mtr);
 
 			switch (err) {
 			case DB_SUCCESS_LOCKED_REC:
@@ -4420,7 +4755,9 @@ wait_table_again:
 rec_loop:
 	DEBUG_SYNC_C("row_search_rec_loop");
 	if (trx_is_interrupted(trx)) {
-		btr_pcur_store_position(pcur, &mtr);
+		if (!spatial_search) {
+			btr_pcur_store_position(pcur, &mtr);
+		}
 		err = DB_INTERRUPTED;
 		goto normal_return;
 	}
@@ -4446,7 +4783,8 @@ rec_loop:
 		if (set_also_gap_locks
 		    && !(srv_locks_unsafe_for_binlog
 			 || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
-		    && prebuilt->select_lock_type != LOCK_NONE) {
+		    && prebuilt->select_lock_type != LOCK_NONE
+		    && !dict_index_is_spatial(index)) {
 
 			/* Try to place a lock on the index record */
 
@@ -4457,10 +4795,10 @@ rec_loop:
 
 			offsets = rec_get_offsets(rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
-			err = sel_set_rec_lock(btr_pcur_get_block(pcur),
+			err = sel_set_rec_lock(pcur,
 					       rec, index, offsets,
 					       prebuilt->select_lock_type,
-					       LOCK_ORDINARY, thr);
+					       LOCK_ORDINARY, thr, &mtr);
 
 			switch (err) {
 			case DB_SUCCESS_LOCKED_REC:
@@ -4588,7 +4926,8 @@ wrong_offs:
 			    && !(srv_locks_unsafe_for_binlog
 				 || trx->isolation_level
 				 <= TRX_ISO_READ_COMMITTED)
-			    && prebuilt->select_lock_type != LOCK_NONE) {
+			    && prebuilt->select_lock_type != LOCK_NONE
+			    && !dict_index_is_spatial(index)) {
 
 				/* Try to place a gap lock on the index
 				record only if innodb_locks_unsafe_for_binlog
@@ -4596,10 +4935,10 @@ wrong_offs:
 				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(
-					btr_pcur_get_block(pcur),
+					pcur,
 					rec, index, offsets,
 					prebuilt->select_lock_type, LOCK_GAP,
-					thr);
+					thr, &mtr);
 
 				switch (err) {
 				case DB_SUCCESS_LOCKED_REC:
@@ -4637,7 +4976,8 @@ wrong_offs:
 			    && !(srv_locks_unsafe_for_binlog
 				 || trx->isolation_level
 				 <= TRX_ISO_READ_COMMITTED)
-			    && prebuilt->select_lock_type != LOCK_NONE) {
+			    && prebuilt->select_lock_type != LOCK_NONE
+			    && !dict_index_is_spatial(index)) {
 
 				/* Try to place a gap lock on the index
 				record only if innodb_locks_unsafe_for_binlog
@@ -4645,10 +4985,10 @@ wrong_offs:
 				using a READ COMMITTED isolation level. */
 
 				err = sel_set_rec_lock(
-					btr_pcur_get_block(pcur),
+					pcur,
 					rec, index, offsets,
 					prebuilt->select_lock_type, LOCK_GAP,
-					thr);
+					thr, &mtr);
 
 				switch (err) {
 				case DB_SUCCESS_LOCKED_REC:
@@ -4698,7 +5038,8 @@ wrong_offs:
 		if (!set_also_gap_locks
 		    || srv_locks_unsafe_for_binlog
 		    || trx->isolation_level <= TRX_ISO_READ_COMMITTED
-		    || (unique_search && !rec_get_deleted_flag(rec, comp))) {
+		    || (unique_search && !rec_get_deleted_flag(rec, comp))
+		    || dict_index_is_spatial(index)) {
 
 			goto no_gap_lock;
 		} else {
@@ -4726,10 +5067,10 @@ no_gap_lock:
 			lock_type = LOCK_REC_NOT_GAP;
 		}
 
-		err = sel_set_rec_lock(btr_pcur_get_block(pcur),
+		err = sel_set_rec_lock(pcur,
 				       rec, index, offsets,
 				       prebuilt->select_lock_type,
-				       lock_type, thr);
+				       lock_type, thr, &mtr);
 
 		switch (err) {
 			const rec_t*	old_vers;
@@ -4745,6 +5086,9 @@ no_gap_lock:
 		case DB_SUCCESS:
 			break;
 		case DB_LOCK_WAIT:
+			/* Lock wait for R-tree should already
+			be handled in sel_set_rtr_rec_lock() */
+			ut_ad(!dict_index_is_spatial(index));
 			/* Never unlock rows that were part of a conflict. */
 			prebuilt->new_rec_locks = 0;
 
@@ -4781,6 +5125,7 @@ no_gap_lock:
 			case DB_DEADLOCK:
 				goto lock_wait_or_error;
 			case DB_LOCK_WAIT:
+				ut_ad(!dict_index_is_spatial(index));
 				err = DB_SUCCESS;
 				break;
 			default:
@@ -4796,6 +5141,13 @@ no_gap_lock:
 			did_semi_consistent_read = TRUE;
 			rec = old_vers;
 			break;
+		case DB_RECORD_NOT_FOUND:
+			if (dict_index_is_spatial(index)) {
+				goto next_rec;
+			} else {
+				goto lock_wait_or_error;
+			}
+
 		default:
 
 			goto lock_wait_or_error;
@@ -4964,7 +5316,8 @@ requires_clust_rec:
 		case DB_SUCCESS:
 			if (clust_rec == NULL) {
 				/* The record did not exist in the read view */
-				ut_ad(prebuilt->select_lock_type == LOCK_NONE);
+				ut_ad(prebuilt->select_lock_type == LOCK_NONE
+				      || dict_index_is_spatial(index));
 
 				goto next_rec;
 			}
@@ -5184,7 +5537,9 @@ idx_cond_failed:
 
 		/* Inside an update always store the cursor position */
 
-		btr_pcur_store_position(pcur, &mtr);
+		if (!spatial_search) {
+			btr_pcur_store_position(pcur, &mtr);
+		}
 
 		if (prebuilt->innodb_api) {
 			prebuilt->innodb_api_rec = result_rec;
@@ -5215,21 +5570,29 @@ next_rec:
 	the cursor. What prevents us from buffer-fixing all leaf pages
 	within the mini-transaction is the btr_leaf_page_release()
 	call in btr_pcur_move_to_next_page(). Only the leaf page where
-	the cursor is positioned will remain buffer-fixed. */
+	the cursor is positioned will remain buffer-fixed.
+	For R-tree spatial search, we also commit the mini-transaction
+	each time  */
 
-	if (UNIV_UNLIKELY(mtr_has_extra_clust_latch)) {
-		/* We must commit mtr if we are moving to the next
-		non-clustered index record, because we could break the
-		latching order if we would access a different clustered
+	if (mtr_has_extra_clust_latch || spatial_search) {
+		/* If we have extra cluster latch, we must commit
+		mtr if we are moving to the next non-clustered
+		index record, because we could break the latching
+		order if we would access a different clustered
 		index page right away without releasing the previous. */
 
-		btr_pcur_store_position(pcur, &mtr);
+		/* No need to do store restore for R-tree */
+		if (!spatial_search) {
+			btr_pcur_store_position(pcur, &mtr);
+		}
 
 		mtr_commit(&mtr);
 		mtr_has_extra_clust_latch = FALSE;
 
 		mtr_start(&mtr);
-		if (sel_restore_position_for_mysql(&same_user_rec,
+
+		if (!spatial_search
+		    && sel_restore_position_for_mysql(&same_user_rec,
 						   BTR_SEARCH_LEAF,
 						   pcur, moves_up, &mtr)) {
 			goto rec_loop;
@@ -5237,9 +5600,20 @@ next_rec:
 	}
 
 	if (moves_up) {
-		if (UNIV_UNLIKELY(!btr_pcur_move_to_next(pcur, &mtr))) {
+		bool	 move;
+
+		if (spatial_search) {
+			move = rtr_pcur_move_to_next(
+				search_tuple, mode, pcur, 0, &mtr);
+		} else {
+			move = btr_pcur_move_to_next(pcur, &mtr);
+		}
+
+		if (!move) {
 not_moved:
-			btr_pcur_store_position(pcur, &mtr);
+			if (!spatial_search) {
+				btr_pcur_store_position(pcur, &mtr);
+			}
 
 			if (match_mode != 0) {
 				err = DB_RECORD_NOT_FOUND;
@@ -5266,8 +5640,9 @@ lock_wait_or_error:
 	did_semi_consistent_read = FALSE;
 
 	/*-------------------------------------------------------------*/
-
-	btr_pcur_store_position(pcur, &mtr);
+	if (!dict_index_is_spatial(index)) {
+		btr_pcur_store_position(pcur, &mtr);
+	}
 
 lock_table_wait:
 	mtr_commit(&mtr);
@@ -5277,7 +5652,9 @@ lock_table_wait:
 
 	/* The following is a patch for MySQL */
 
-	que_thr_stop_for_mysql(thr);
+	if (thr->is_active) {
+		que_thr_stop_for_mysql(thr);
+	}
 
 	thr->lock_state = QUE_THR_LOCK_ROW;
 
@@ -5295,9 +5672,11 @@ lock_table_wait:
 			goto wait_table_again;
 		}
 
-		sel_restore_position_for_mysql(&same_user_rec,
-					       BTR_SEARCH_LEAF, pcur,
-					       moves_up, &mtr);
+		if (!dict_index_is_spatial(index)) {
+			sel_restore_position_for_mysql(
+				&same_user_rec, BTR_SEARCH_LEAF, pcur,
+				moves_up, &mtr);
+		}
 
 		if ((srv_locks_unsafe_for_binlog
 		     || trx->isolation_level <= TRX_ISO_READ_COMMITTED)
@@ -5337,6 +5716,8 @@ normal_return:
 
 	mtr_commit(&mtr);
 
+	DEBUG_SYNC_C("row_search_for_mysql_before_return");
+
 	if (prebuilt->idx_cond != 0) {
 
 		/* When ICP is active we don't write to the MySQL buffer
@@ -5358,6 +5739,15 @@ normal_return:
 		DEBUG_SYNC_C("row_search_cached_row");
 		err = DB_SUCCESS;
 	}
+
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index) && err != DB_SUCCESS
+	    && err != DB_END_OF_INDEX && err != DB_INTERRUPTED) {
+		rtr_node_path_t*	path = pcur->btr_cur.rtr_info->path;
+
+		ut_ad(path->empty());
+	}
+#endif
 
 func_exit:
 	trx->op_info = "";
@@ -5420,7 +5810,6 @@ position and fetch next or fetch prev must not be tried to the cursor!
 
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-
 dberr_t
 row_search_for_mysql(
 	byte*		buf,
@@ -5469,6 +5858,116 @@ row_search_for_mysql(
 			buf, mode, prebuilt, match_mode,
 			direction, ins_sel_stmt));
 	}
+}
+
+/********************************************************************//**
+Count rows in a R-Tree leaf level.
+@return DB_SUCCESS if successful */
+
+dberr_t
+row_count_rtree_recs(
+/*=================*/
+	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct for the
+					table handle; this contains the info
+					of search_tuple, index; if search
+					tuple contains 0 fields then we
+					position the cursor at the start or
+					the end of the index, depending on
+					'mode' */
+	ulint*		n_rows)		/*!< out: number of entries
+					seen in the consistent read */
+{
+	dict_index_t*	index		= prebuilt->index;
+	dberr_t		err		= DB_SUCCESS;
+	mtr_t		mtr;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	const rec_t*	rec;
+	ibool		comp		= dict_table_is_comp(index->table);
+	bool		move;
+	buf_block_t*    block;
+
+	ut_a(dict_index_is_spatial(index));
+
+	*n_rows = 0;
+
+	mtr_start(&mtr);
+
+	/*-------------------------------------------------------------*/
+	/* Since the record on page is sorted in binary order, there is no
+	direct relation between index record on page, and their position in
+	a tree level. So it will need to search backwards to find the first
+	page */
+	rw_lock_sx_lock(dict_index_get_lock(index));
+
+	/* PHASE 0: Open index cursor position */
+	btr_pcur_open_at_index_side(
+		true, index, BTR_SEARCH_LEAF,
+		pcur, false, 0, &mtr);
+
+	while (btr_page_get_prev(btr_pcur_get_page(pcur), &mtr) != FIL_NULL) {
+		page_t*		page = btr_pcur_get_page(pcur);
+		ulint		prev_page_no = btr_page_get_prev(page, &mtr);
+		ulint		space = 0;
+
+		const page_size_t& page_size = dict_table_page_size(
+						index->table);
+
+		space = btr_pcur_get_block(pcur)->page.id.space();
+		page_id_t	prev_page_id(space, prev_page_no);
+
+		mtr_commit(&mtr);
+
+	        mtr_start(&mtr);
+
+		block = btr_block_get(prev_page_id, page_size,
+                                      BTR_SEARCH_LEAF, index, &mtr);
+
+		page_cur_set_before_first(block, btr_pcur_get_page_cur(pcur));
+	}
+
+	rw_lock_sx_unlock(dict_index_get_lock(index));
+
+	/*-------------------------------------------------------------*/
+	/* PHASE 1: Look for record in a loop */
+rec_loop:
+
+	rec = btr_pcur_get_rec(pcur);
+	ut_ad(!!page_rec_is_comp(rec) == comp);
+
+	if (page_rec_is_infimum(rec)) {
+		goto next_rec;
+	}
+
+	if (page_rec_is_supremum(rec)) {
+		goto next_rec;
+	}
+
+	ut_ad(fil_page_get_type(btr_pcur_get_page(pcur)) == FIL_PAGE_INDEX);
+	ut_ad(btr_page_get_index_id(btr_pcur_get_page(pcur)) == index->id);
+
+	if (rec_get_deleted_flag(rec, comp)) {
+		/* The record is delete-marked: we can skip it */
+		goto next_rec;
+	}
+
+	*n_rows = *n_rows + 1;
+
+next_rec:
+	/*-------------------------------------------------------------*/
+	/* PHASE 2: Move the cursor to the next index record */
+
+	move = btr_pcur_move_to_next(pcur, &mtr);
+	if (!move) {
+		goto normal_return;
+	}
+
+	goto rec_loop;
+
+normal_return:
+
+	mtr_commit(&mtr);
+
+	return(err);
 }
 
 /*******************************************************************//**

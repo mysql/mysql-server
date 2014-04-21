@@ -30,6 +30,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "btr0types.h"
+#include "gis0type.h"
 
 /** Mode flags for btr_cur operations; these can be ORed */
 enum {
@@ -834,10 +835,10 @@ btr_cur_set_deleted_flag_for_ibuf(
 	rec_t*		rec,		/*!< in/out: record */
 	page_zip_des_t*	page_zip,	/*!< in/out: compressed page
 					corresponding to rec, or NULL
-					when the tablespace is
-					uncompressed */
+					when the tablespace is uncompressed */
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+
 /******************************************************//**
 The following function is used to set the deleted bit of a record. */
 UNIV_INLINE
@@ -847,6 +848,23 @@ btr_rec_set_deleted_flag(
 	rec_t*		rec,	/*!< in/out: physical record */
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
 	ulint		flag);	/*!< in: nonzero if delete marked */
+
+/** Latches the leaf page or pages requested.
+@param[in]	block		leaf page where the search converged
+@param[in]	page_id		page id of the leaf
+@param[in]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in]	cursor		cursor
+@param[in]	mtr		mini-transaction */
+
+void
+btr_cur_latch_leaves(
+	buf_block_t*		block,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			latch_mode,
+	btr_cur_t*		cursor,
+	mtr_t*			mtr);
+
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
@@ -950,7 +968,21 @@ struct btr_cur_t {
 					rows in range, we store in this array
 					information of the path through
 					the tree */
+	rtr_info_t*	rtr_info;	/*!< rtree search info */
+	btr_cur_t():thr(NULL), rtr_info(NULL) {}
+					/* default values */
 };
+
+/******************************************************//**
+The following function is used to set the deleted bit of a record. */
+UNIV_INLINE
+void
+btr_rec_set_deleted_flag(
+/*=====================*/
+	rec_t*		rec,	/*!< in/out: physical record */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
+	ulint		flag);	/*!< in: nonzero if delete marked */
+
 
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Try this many
