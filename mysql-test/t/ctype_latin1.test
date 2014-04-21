@@ -79,6 +79,10 @@ select 'a' regexp 'A' collate latin1_general_cs;
 select 'a' regexp 'A' collate latin1_bin;
 
 
+SET @test_character_set= 'latin1';
+SET @test_collation= 'latin1_swedish_ci';
+-- source include/ctype_common.inc
+
 SET collation_connection='latin1_swedish_ci';
 -- source include/ctype_filesort.inc
 -- source include/ctype_like_escape.inc
