@@ -119,7 +119,7 @@ substring_index('aaaaaaaaa1','aaa',-3)
 aaaaaa1
 select substring_index('aaaaaaaaa1','aaa',-4);
 substring_index('aaaaaaaaa1','aaa',-4)
-
+aaaaaaaaa1
 select substring_index('the king of thethe hill','the',-2);
 substring_index('the king of thethe hill','the',-2)
 the hill

@@ -1579,6 +1579,8 @@ String *Item_func_substr_index::val_str(String *str)
 	  break;
 	}
       }
+      if (count)
+        return res;                     // Didn't find, return org string
     }
   }
   /*
