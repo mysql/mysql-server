@@ -574,7 +574,8 @@ Returns true if swapped, ptr is pointer to target, old_val is value to
 compare to, new_val is the value to swap in. */
 
 # define os_compare_and_swap_uint32(ptr, old_val, new_val) \
-	(InterlockedCompareExchange(ptr, new_val, old_val) == old_val)
+	(InterlockedCompareExchange(reinterpret_cast<volatile long*>(ptr), \
+				    new_val, old_val) == old_val)
 
 # define os_compare_and_swap_ulint(ptr, old_val, new_val) \
 	(win_cmp_and_xchg_ulint(ptr, new_val, old_val) == old_val)
