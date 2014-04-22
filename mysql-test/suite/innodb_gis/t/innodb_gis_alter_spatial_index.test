@@ -277,7 +277,7 @@ SELECT c1,Astext(c2),Astext(c4) FROM tab ORDER BY c1;
 
 SET @g1 = GeomFromText('LINESTRING( 3010 3010,4010 4010,5010 5010)');
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Intersects(tab.c4, @g1);
+SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Intersects(tab.c4, @g1) order by c1;
 
 --error 1062
 UPDATE tab SET c2 = GeomFromText('POINT(4000 4000)')
@@ -290,7 +290,7 @@ SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Intersects(tab.c4, @g1) ORDER BY 
 
 DELETE FROM tab WHERE Intersects(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Overlaps(tab.c4, @g1);
+SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Overlaps(tab.c4, @g1) ORDER BY c1;
 
 INSERT INTO tab SELECT * FROM tab1;
 
@@ -316,7 +316,7 @@ SHOW CREATE TABLE temp_tab;
 
 SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 
-SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
+SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
 
 EXPLAIN SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
 
@@ -334,7 +334,7 @@ EXPLAIN DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
 # Sever crashes Here so commented, will be removed later
 DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
+SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
 
 # Check Unique constraint on spatial index column POINT
 
@@ -484,11 +484,11 @@ EXPLAIN DELETE FROM tab WHERE Contains(tab.c4, @g1);
 UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)') 
 WHERE Contains(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
+SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1;
 
 DELETE FROM tab WHERE Contains(tab.c4, @g1);
 
-SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
+SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1;
 
 ALTER TABLE tab MODIFY COLUMN c2 POLYGON NOT NULL;
 
@@ -516,18 +516,18 @@ WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
 EXPLAIN DELETE FROM tab WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
 
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1) 
-AND Equals(tab.c3,@g2);
+AND Equals(tab.c3,@g2) ORDER BY c1;
 
 UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
 WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
 
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1) 
-AND Equals(tab.c3,@g2);
+AND Equals(tab.c3,@g2) ORDER BY c1;
 
 DELETE FROM tab WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
 
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1)
-AND Equals(tab.c3,@g2);
+AND Equals(tab.c3,@g2) ORDER BY c1;
 
 ANALYZE TABLE tab;
 
