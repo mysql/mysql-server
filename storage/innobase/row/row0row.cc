@@ -166,9 +166,11 @@ row_build_index_entry_low(
 						tmp_mbr[i * 2 + 1] = -DBL_MAX;
 					}
 				} else {
-					rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-							   dlen - GEO_DATA_HEADER_SIZE,
-							   SPDIMS, tmp_mbr);
+					rtree_mbr_from_wkb(
+						dptr + GEO_DATA_HEADER_SIZE,
+						static_cast<uint>(dlen)
+						- GEO_DATA_HEADER_SIZE,
+						SPDIMS, tmp_mbr);
 				}
 				dfield_write_mbr(dfield, tmp_mbr);
 				if (temp_heap) {
