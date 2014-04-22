@@ -79,10 +79,10 @@ void PageBulk::init()
 			btr_page_set_level(new_page, NULL, m_level, mtr);
 		}
 
-		btr_page_set_next(new_page, new_page_zip, FIL_NULL, mtr);
-		btr_page_set_prev(new_page, new_page_zip, FIL_NULL, mtr);
+		btr_page_set_next(new_page, NULL, FIL_NULL, mtr);
+		btr_page_set_prev(new_page, NULL, FIL_NULL, mtr);
 
-		btr_page_set_index_id(new_page, new_page_zip, m_index->id, mtr);
+		btr_page_set_index_id(new_page, NULL, m_index->id, mtr);
 	} else {
 		page_id_t	page_id(dict_index_get_space(m_index), m_page_no);
 		page_size_t	page_size(dict_table_page_size(m_index->table));
@@ -97,7 +97,7 @@ void PageBulk::init()
 
 		ut_ad(page_dir_get_n_heap(new_page) == PAGE_HEAP_NO_USER_LOW);
 
-		btr_page_set_level(new_page, new_page_zip, m_level, mtr);
+		btr_page_set_level(new_page, NULL, m_level, mtr);
 	}
 
 	new_block->check_index_page_at_flush = FALSE;
@@ -105,7 +105,7 @@ void PageBulk::init()
         if (dict_index_is_sec_or_ibuf(m_index)
             && !dict_table_is_temporary(m_index->table)
 	    && page_is_leaf(new_page)) {
-		page_update_max_trx_id(new_block, new_page_zip, m_trx_id, mtr);
+		page_update_max_trx_id(new_block, NULL, m_trx_id, mtr);
 	}
 
 	m_mtr = mtr;
@@ -471,14 +471,14 @@ void PageBulk::copyOut(rec_t*	split_rec)
 @param[in]	next_page_no	next page no */
 void PageBulk::setNext(ulint	next_page_no)
 {
-	btr_page_set_next(m_page, m_page_zip, next_page_no, m_mtr);
+	btr_page_set_next(m_page, NULL, next_page_no, m_mtr);
 }
 
 /** Set previous page
 @param[in]	prev_page_no	previous page no */
 void PageBulk::setPrev(ulint	prev_page_no)
 {
-	btr_page_set_prev(m_page, m_page_zip, prev_page_no, m_mtr);
+	btr_page_set_prev(m_page, NULL, prev_page_no, m_mtr);
 }
 
 /** Check if required length is available in the page.
@@ -631,7 +631,6 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
 			    bool insert_father)
 {
 	dberr_t		err = DB_SUCCESS;
-	const	ulint	flush_threshold = 500;
 
 	page_bulk->finish();
 
@@ -641,6 +640,9 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
 
 		page_bulk->setNext(next_page_bulk->getPageNo());
 		next_page_bulk->setPrev(page_bulk->getPageNo());
+	} else {
+		/*Important: we should make sure the page is modified. */
+		page_bulk->setNext(FIL_NULL);
 	}
 
 	/* Compress page if it's a compressed table. */
@@ -662,10 +664,6 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
 	/* Commit mtr. */
 	page_bulk->commit(true);
 
-	if (m_finished_pages++ % flush_threshold) {
-		m_need_flush = true;
-	}
-
 	return(err);
 }
 
@@ -678,14 +676,6 @@ void BtrBulk::logFreeCheck()
 		PageBulk*    page_bulk = m_page_bulks->at(level);
 
 		page_bulk->release();
-	}
-
-	if (m_need_flush) {
-		/* Wake up page cleaner to flush dirty pages. */
-                srv_inc_activity_count();
-                os_event_set(buf_flush_event);
-
-		m_need_flush = false;
 	}
 
 	log_free_check();
@@ -772,7 +762,13 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 
 		/* Important: log_free_check whether we need a checkpoint. */
 		if (page_is_leaf(sibling_page_bulk->getPage())) {
-			logFreeCheck();
+			/* Wake up page cleaner to flush dirty pages. */
+			srv_inc_activity_count();
+			os_event_set(buf_flush_event);
+
+			if (!m_index->is_redo_skipped) {
+				logFreeCheck();
+			}
 		}
 	}
 
