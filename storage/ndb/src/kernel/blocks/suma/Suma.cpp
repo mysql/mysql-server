@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +63,7 @@
 
 #include <signaldata/DbinfoScan.hpp>
 #include <signaldata/TransIdAI.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 
 #include <ndb_version.h>
 #include <EventLogger.hpp>
@@ -1808,13 +1809,14 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     infoEvent("-- End dump of pending subscribers --");
   }
 
-  if (tCase == 7019 && signal->getLength() == 2)
+  if (tCase == DumpStateOrd::DihTcSumaNodeFailCompleted &&
+      signal->getLength() == 2)
   {
     jam();
     Uint32 nodeId = signal->theData[1];
     if (nodeId < MAX_NODES)
     {
-      warningEvent(" Suma 7019 %u line: %u", nodeId,
+      warningEvent(" Suma %u %u line: %u", tCase, nodeId,
                    c_failedApiNodesState[nodeId]);
       warningEvent("   c_connected_nodes.get(): %u",
                    c_connected_nodes.get(nodeId));
@@ -1827,7 +1829,7 @@ Suma::execDUMP_STATE_ORD(Signal* signal){
     }
     else
     {
-      warningEvent(" SUMP: dump-7019 to unknown node: %u", nodeId);
+      warningEvent(" SUMA: dump-%u to unknown node: %u", tCase, nodeId);
     }
   }
 }
