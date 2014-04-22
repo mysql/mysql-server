@@ -14056,7 +14056,8 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
   }
 #endif
 
-  if (arg == 7019 && signal->getLength() == 2)
+  if (arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
+      signal->getLength() == 2)
   {
     jam();
     Uint32 nodeId = signal->theData[1];
@@ -14067,7 +14068,7 @@ Dbtc::execDUMP_STATE_ORD(Signal* signal)
     }
     else
     {
-      warningEvent(" DBTC: dump-7019 to unknown node: %u", nodeId);
+      warningEvent(" DBTC: dump-%u to unknown node: %u", arg, nodeId);
     }
   }
 
