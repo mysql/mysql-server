@@ -231,8 +231,8 @@ class BtrBulk
 public:
 	/** Constructor */
 	BtrBulk(dict_index_t* index, ulint trx_id):
-		m_index(index), m_trx_id(trx_id), m_root_level(0),
-		m_finished_pages(0), m_need_flush(false)
+		m_index(index), m_trx_id(trx_id),
+		m_root_level(0)
 	{
 		m_heap = mem_heap_create(1000);
 
@@ -315,12 +315,6 @@ private:
 
 	/* Page cursor vector for all level */
 	page_bulk_vector*	m_page_bulks;
-
-	/* Finished page number. */
-	ulint			m_finished_pages;
-
-	/* Falg whether a flush needed. */
-	bool			m_need_flush;
 };
 
 #endif
