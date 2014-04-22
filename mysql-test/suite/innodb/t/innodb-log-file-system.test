@@ -7,7 +7,8 @@
 
 let MYSQLD_DATADIR= `select @@datadir`;
 let OLD_IBDATA= `select @@innodb_data_file_path`;
-let NEW_IBDATA_PREFIX= `select replace(@@innodb_data_file_path, 'ibdata1:10M:autoextend', 'ibdata1:12M')`;
+let NEW_IBDATA_PREFIX= `select replace(@@innodb_data_file_path, 'ibdata1:10M:autoextend', 'ibdata1:10M')`;
+
 let NEW_CNF= $MYSQLTEST_VARDIR/tmp/new-my.cnf;
 
 if ($OLD_IBDATA == $NEW_IBDATA_PREFIX)
@@ -24,15 +25,23 @@ my $new_cnf = $ENV{NEW_CNF};
 $cnf =~ s/.*--defaults-file=([^ ]*).*/$1/ || die "no --defaults-file in $cmd";
 $cmd =~ s/--defaults-file=([^ ]*)/--defaults-file=$ENV{NEW_CNF}/ || die;
 
+$ENV{NEW_IBDATA_PREFIX} =~ s/:[0-9]+[MG]$//;
+my @files = split(';', $ENV{NEW_IBDATA_PREFIX});
+my $file = $ENV{MYSQLD_DATADIR} . '/' . $files[$#files];
+
+my $size = (stat($file))[7] || die "cannot stat $file";
+
 open(FILE, ">$ENV{NEW_CNF_VARS}") || die "cannot open $ENV{NEW_CNF_VARS}";
 print FILE "let NEW_CMD= $cmd;\n";
 close(FILE);
+
+my $path = "$ENV{NEW_IBDATA_PREFIX}:" . ($size / 1048576) . "M;foo:1M";
 
 open(CNF, "<$cnf") || die "cannot read $cnf";
 open(NEW_CNF, ">$new_cnf") || die "cannot write $new_cnf";
 
 while (<CNF>) {
-      s/innodb_data_file_path=.*/innodb_data_file_path=$ENV{NEW_IBDATA_PREFIX};foo:1M/;
+      s/innodb_data_file_path=.*/innodb_data_file_path=$path/;
       print NEW_CNF;
 }
 close(CNF);
