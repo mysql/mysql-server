@@ -890,6 +890,11 @@ void toku_ftnode_clone_callback(
     for (int i = 0; i < node->n_children-1; i++) {
         toku_clone_dbt(&cloned_node->childkeys[i], node->childkeys[i]);
     }
+    if (node->height > 0) {
+        // need to move messages here so that we don't serialize stale
+        // messages to the fresh tree - ft verify code complains otherwise.
+        toku_move_ftnode_messages_to_stale(ft, node);
+    }
     // clone partition
     ftnode_clone_partitions(node, cloned_node);
 
@@ -932,11 +937,14 @@ void toku_ftnode_flush_callback(
     int height = ftnode->height;
     if (write_me) {
         toku_assert_entire_node_in_memory(ftnode);
-        if (height == 0) {
+        if (height > 0 && !is_clone) {
+            // cloned nodes already had their stale messages moved, see toku_ftnode_clone_callback()
+            toku_move_ftnode_messages_to_stale(h, ftnode);
+        } else if (height == 0) {
             ft_leaf_run_gc(h, ftnode);
-        }
-        if (height == 0 && !is_clone) {
-            ftnode_update_disk_stats(ftnode, h, for_checkpoint);
+            if (!is_clone) {
+                ftnode_update_disk_stats(ftnode, h, for_checkpoint);
+            }
         }
         int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint);
         assert_zero(r);
@@ -1150,11 +1158,20 @@ int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *write_ext
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
                     NONLEAF_CHILDINFO bnc;
-                    if (ft_compress_buffers_before_eviction) {
-                        // When partially evicting, always compress with quicklz
+                    if (ft_compress_buffers_before_eviction &&
+                        // We may not serialize and compress a partition in memory if its
+                        // in memory layout version is different than what's on disk (and
+                        // therefore requires upgrade).
+                        //
+                        // Auto-upgrade code assumes that if a node's layout version read
+                        // from disk is not current, it MUST require upgrade. Breaking
+                        // this rule would cause upgrade code to upgrade this partition
+                        // again after we serialize it as the current version, which is bad.
+                        node->layout_version == node->layout_version_read_from_disk) {
                         bnc = compress_internal_node_partition(
                             node,
                             i,
+                            // Always compress with quicklz
                             TOKU_QUICKLZ_METHOD
                             );
                     } else {
