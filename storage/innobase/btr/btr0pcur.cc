@@ -123,7 +123,7 @@ btr_pcur_store_position(
 	page = page_align(rec);
 	offs = page_offset(rec);
 
-#if UNIV_DEBUG
+#ifdef UNIV_DEBUG
 	if (dict_index_is_spatial(index)) {
 		/* For spatial index, when we do positioning on parent
 		buffer if necessary, it might not hold latches, but the
