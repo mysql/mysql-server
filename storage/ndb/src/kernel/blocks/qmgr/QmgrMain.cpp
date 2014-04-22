@@ -40,6 +40,7 @@
 #include <signaldata/RouteOrd.hpp>
 #include <signaldata/NodePing.hpp>
 #include <signaldata/DihRestart.hpp>
+#include <signaldata/DumpStateOrd.hpp>
 #include <ndb_version.h>
 
 #include <TransporterRegistry.hpp> // Get connect address
@@ -2923,7 +2924,7 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
               /**
                * Also dump DIH nf-state
                */
-              signal->theData[0] = 7019;
+              signal->theData[0] = DumpStateOrd::DihTcSumaNodeFailCompleted;
               signal->theData[1] = nodePtr.i;
               sendSignal(DBDIH_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
             }
