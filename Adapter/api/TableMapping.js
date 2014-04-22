@@ -26,6 +26,8 @@
 var udebug       = unified_debug.getLogger("TableMapping.js"),
     doc          = require(path.join(api_doc_dir, "TableMapping"));
 
+/* file scope mapping id used to uniquely identify a mapped domain object */
+var mappingId = 0;
 
 /* Code to verify the validity of a TableMapping */
 
@@ -52,20 +54,35 @@ function isValidConstructor(constructor) {
   return (constructor != null && typeof constructor === 'function');
 }
 
+function Relationship() {
+}
+Relationship.prototype.relationship = true;
+Relationship.prototype.persistent   = true;
+
 function OneToOneMapping() {
 }
+OneToOneMapping.prototype = Relationship.prototype;
+
 function OneToManyMapping() {
 }
+OneToManyMapping.prototype = Relationship.prototype;
+OneToManyMapping.prototype.toMany = true;
+
 function ManyToOneMapping() {
 }
+ManyToOneMapping.prototype = Relationship.prototype;
+
 function ManyToManyMapping() {
 }
+ManyToManyMapping.prototype = Relationship.prototype;
+OneToManyMapping.prototype.toMany = true;
 
 var fieldMappingProperties = {
   "fieldName"    : isNonEmptyString,
   "columnName"   : isString,
   "persistent"   : isBool,
   "converter"    : isValidConverterObject,
+  "relationship" : isBool,
   "user"         : function() { return true; }
 };
 
@@ -108,7 +125,7 @@ var oneToOneMappingProperties = {
   "type"           : "OneToOne",
   "foreignKey"     : isNonEmptyString,
   "target"         : isValidConstructor,
-  "targetField": isNonEmptyString,
+  "targetField"    : isNonEmptyString,
   "fieldName"      : isNonEmptyString,
   "columnName"     : isString,
   "converter"      : isValidConverterObject,
@@ -187,7 +204,7 @@ function buildMappingFromObject(mapping, literal, verifier) {
   }
 }
 
-/* A canoncial TableMapping has a "fields" array,
+/* A canonical TableMapping has a "fields" array,
    though a literal one may have a "field" or "fields" object or array
 */
 function makeCanonical(tableMapping) {
@@ -248,6 +265,7 @@ TableMapping.prototype = doc.TableMapping;
 function FieldMapping(fieldName) {
   this.fieldName  = fieldName;
   this.columnName = fieldName; 
+  this.relationship = false;
 }
 FieldMapping.prototype = doc.FieldMapping;
 
@@ -276,6 +294,7 @@ TableMapping.prototype.mapField = function() {
   }
 
   /* mapField() starts here */
+  
   if(typeof args[0] === 'string') {
     fieldName = args[0];
     fieldMapping = getFieldMapping(this, fieldName);
@@ -355,6 +374,7 @@ TableMapping.prototype.mapOneToOne = function(literalMapping) {
   var mapping;
   if (typeof literalMapping === 'object') {
     mapping = createRelationshipFieldFromLiteral(oneToOneMappingProperties, this, literalMapping);
+    this.fields.push(mapping);
   } else {
     throw new Error('mapOneToOne supports only literal field mapping');
   }
@@ -368,6 +388,7 @@ TableMapping.prototype.mapManyToOne = function(literalMapping) {
   var mapping;
   if (typeof literalMapping === 'object') {
     mapping = createRelationshipFieldFromLiteral(manyToOneMappingProperties, this, literalMapping);
+    this.fields.push(mapping);
   } else {
     throw new Error('mapManyToOne supports only literal field mapping');
   }
@@ -381,6 +402,7 @@ TableMapping.prototype.mapOneToMany = function(literalMapping) {
   var mapping;
   if (typeof literalMapping === 'object') {
     mapping = createRelationshipFieldFromLiteral(oneToManyMappingProperties, this, literalMapping);
+    this.fields.push(mapping);
   } else {
     throw new Error('mapManyToOne supports only literal field mapping');
   }
@@ -394,6 +416,7 @@ TableMapping.prototype.mapManyToMany = function(literalMapping) {
   var mapping;
   if (typeof literalMapping === 'object') {
     mapping = createRelationshipFieldFromLiteral(manyToManyMappingProperties, this, literalMapping);
+    this.fields.push(mapping);
   } else {
     throw new Error('mapManyToOne supports only literal field mapping');
   }
@@ -405,11 +428,11 @@ TableMapping.prototype.mapManyToMany = function(literalMapping) {
    IMMEDIATE
 */
 TableMapping.prototype.applyToClass = function(ctor) {
-  udebug.log("applyToClass", this);
   if (typeof ctor === 'function') {
     ctor.prototype.mynode = {};
     ctor.prototype.mynode.mapping = this;
     ctor.prototype.mynode.constructor = ctor;
+    ctor.prototype.mynode.mappingId = ++mappingId;
   }
   else {
     throw new Error("applyToClass() parameter must be constructor");

@@ -53,11 +53,22 @@ function emptyRejectedCallback(err) {
  * otherwise, if the callback provided by "then" returns a value, fulfill the new_promise with that value
  * if the callback provided by "then" throws an Error, reject the new_promise with that Error
  */
-var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rejected_callback, new_promise, result) {
+var thenPromiseFulfilledOrRejected = function(original_promise, fulfilled_or_rejected_callback, new_promise, result, isRejected) {
   var new_result;
   try {
     if(udebug.is_detail()) { udebug.log(original_promise.name, 'thenPromiseFulfilledOrRejected before'); }
-    new_result = fulfilled_or_rejected_callback.call(undefined, result);
+    if (fulfilled_or_rejected_callback) {
+      new_result = fulfilled_or_rejected_callback.call(undefined, result);
+    } else {
+      if (isRejected) {
+        // 2.2.7.4 If onRejected is not a function and promise1 is rejected, promise2 must be rejected with the same reason.
+        new_promise.reject(result);
+      } else {
+        // 2.2.7.3 If onFulfilled is not a function and promise1 is fulfilled, promise2 must be fulfilled with the same value.
+        new_promise.fulfill(result);
+      }
+      return;
+    }
     if(udebug.is_detail()) { udebug.log(original_promise.name, 'thenPromiseFulfilledOrRejected after', new_result); }
     var new_result_type = typeof new_result;
     if ((new_result_type === 'object' && new_result_type != null) | new_result_type === 'function') { 
@@ -142,7 +153,7 @@ Promise.prototype.then = function(fulfilled_callback, rejected_callback, progres
       if(udebug.is_detail()) { udebug.log(self.name, 'UserContext.Promise.then resolved calling (delayed) rejected_callback', rejected_callback); }
       global.setImmediate(function() {
         if(udebug.is_detail()) { udebug.log(self.name, 'UserContext.Promise.then resolved calling rejected_callback', fulfilled_callback); }
-        thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, self.err);
+        thenPromiseFulfilledOrRejected(self, rejected_callback, new_promise, self.err, true);
       });
     } else {
       // this promise was already fulfilled, possibly with a null or undefined result
@@ -1569,6 +1580,112 @@ exports.UserContext.prototype.closeSession = function() {
   };
   // first, close the dbSession
   userContext.session.dbSession.close(closeSessionOnDBSessionClose);
+  return userContext.promise;
+};
+
+
+/** Apply the projection to future find and query operations on the domain object.
+ */
+exports.UserContext.prototype.useProjection = function() {
+  var userContext = this;
+  var session = userContext.session;
+  var err;
+  var domainObject;
+  var domainObjectName;
+  var projections;
+  var projection;
+  var mappingIds;
+  var mappingId;
+  var relationships;
+  var relationship;
+  var dbField;
+  var index;
+  var errors;
+
+  function validateProjectionOnTableHandler(err, tableHandler) {
+    // currently validating projections[index] with the just-acquired tableHandler
+    projection = projections[index];
+    domainObject = projection.constructor;
+    domainObjectName = domainObject.prototype.constructor.name;
+    udebug.log_detail('validateProjectionOnTableHandler with index ' + index + ' for ' + domainObjectName);
+    if (!err) {
+      // validate using table handler
+      if (typeof(domainObject) === 'function' &&
+          typeof(domainObject.prototype.mynode) === 'object' &&
+          typeof(domainObject.prototype.mynode.mapping) === 'object') {
+        // good domainObject; have we seen this one before?
+        mappingId = domainObject.prototype.mynode.mappingId;
+        if (mappingIds.indexOf(mappingId) === -1) {
+          // have not seen this one before; add its mappingId to list of mappingIds
+          mappingIds.push(mappingId);
+          // validate all fields in projection are mapped
+          if (projection.fields) {
+            projection.fields.forEach(function(fieldName) {
+              dbField = tableHandler.fieldNameToFieldMap[fieldName];
+              if (dbField) {
+                if (dbField.isRelationship) {
+                  errors += '\nBad projection for ' +  domainObjectName + ': field' + fieldName + ' must not be a relationship';
+                }
+              } else {
+                // error: fields must be mapped
+                errors += '\nBad projection for ' +  domainObjectName + ': field ' + fieldName + ' is not mapped';
+              }
+            });
+          }
+          // add relationship domain objects to the list of domain objects
+          relationships = projection.relationships;
+          if (relationships) {
+            Object.keys(relationships).forEach(function(key) {
+              // each key is the name of a relationship that must be a field in the table handler
+              dbField = tableHandler.fieldNameToFieldMap[key];
+              if (dbField) {
+                relationship = relationships[key];
+                // add each relationship to list of projections
+                projections.push(relationship);
+              } else {
+                // error: relationships must be mapped
+                errors += '\nBad relationship for ' +  domainObjectName + ': field ' + key + ' is not mapped';
+              }
+            });
+          }
+        } else {
+          // recursive projection
+          errors += '\nRecursive mapping for ' + domainObjectName;
+        }
+      } else {
+        // domainObject was not mapped
+        errors += '\nBad domain object ' + domainObjectName + ' not mapped.';
+      } 
+    } else {
+        errors += '\nUnable to acquire tableHandler for ' + domainObjectName + ' : ' + err.message;
+    }
+    // finished validating this projection; are there any more?
+    if (projections.length > ++index) {
+      // do the next projection
+      getTableHandler(projections[index].constructor, session, validateProjectionOnTableHandler);
+    } else {
+      // we are done
+      if (errors === '') {
+        // no errors
+        session.projections[projections[0].constructor.prototype.mynode.mappingId] = projections[0];
+        userContext.applyCallback(null);
+      } else {
+        // report errors and call back user
+        err = new Error(errors);
+        userContext.applyCallback(err);
+      }
+    }
+  }
+  
+  // useProjection starts here
+  // projection: {constructor:<constructor>, fields: [field, field], relationships: {field: {projection}, field: {projection}}
+  // set up to iteratively validate projection
+  projections = [this.user_arguments[0]]; // projections will grow at the end as validation proceeds
+  index = 0;                              // the projection being validated
+  errors = '';                            // errors in validation
+  mappingIds = [];                        // mapping ids seen so far
+
+  getTableHandler(projections[index].constructor, userContext.session, validateProjectionOnTableHandler);
   return userContext.promise;
 };
 
