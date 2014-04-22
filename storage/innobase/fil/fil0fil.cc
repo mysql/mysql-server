@@ -2829,11 +2829,11 @@ fil_space_undo_check(
 	const char*	name,
 	ulint		space_id)
 {
-	dberr_t	err;
+	dberr_t		err	= DB_SUCCESS;
 
 	mutex_enter(&fil_system->mutex);
 
-	fil_space_t*	space = fil_space_get_by_id(space_id);
+	fil_space_t*	space	= fil_space_get_by_id(space_id);
 	ut_ad(space == NULL || space->purpose == FIL_TYPE_TABLESPACE);
 	ut_ad(space == NULL || UT_LIST_GET_LEN(space->chain) == 1);
 
@@ -2851,10 +2851,10 @@ fil_space_undo_check(
 			UT_LIST_GET_FIRST(space->chain)->name,
 			space->flags);
 		err = DB_ERROR;
-	} else {
-		if (fil_space_belongs_in_lru(space)) {
-			fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+	} else if (fil_space_belongs_in_lru(space)) {
+		fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
 
+		if (node->is_open) {
 			ut_a(UT_LIST_GET_LEN(fil_system->LRU) > 0);
 			ut_d(UT_LIST_CHECK(fil_system->LRU));
 
@@ -2862,8 +2862,6 @@ fil_space_undo_check(
 			UT_LIST_REMOVE(fil_system->LRU, node);
 			ut_d(UT_LIST_CHECK(fil_system->LRU));
 		}
-
-		err = DB_SUCCESS;
 	}
 
 	mutex_exit(&fil_system->mutex);
