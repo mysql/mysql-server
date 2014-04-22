@@ -18068,9 +18068,11 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
     }
   }
 
-  if(arg == 7019 && signal->getLength() == 2 &&
+  if(arg == DumpStateOrd::DihTcSumaNodeFailCompleted &&
+     signal->getLength() == 2 &&
      signal->theData[1] < MAX_NDB_NODES)
   {
+    jam();
     char buf2[8+1];
     NodeRecordPtr nodePtr;
     nodePtr.i = signal->theData[1];
@@ -18441,6 +18443,7 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
    */
   if (arg == DumpStateOrd::DihAddFragFailCleanedUp && signal->length() == 2)
   {
+    jam();
     TabRecordPtr tabPtr;
     tabPtr.i = signal->theData[1];
     if (tabPtr.i >= ctabFileSize)
@@ -18448,10 +18451,20 @@ Dbdih::execDUMP_STATE_ORD(Signal* signal)
 
     ptrCheckGuard(tabPtr, ctabFileSize, tabRecord);
 
-    if (tabPtr.p->m_new_map_ptr_i != RNIL)
+    if (tabPtr.p->m_new_map_ptr_i == RNIL)
+    {
+      jam();
+      infoEvent("DIH : Add frag fail clean up ok for table %u", tabPtr.i);
+    }
+    else
     {
       jam();
       warningEvent("new_map_ptr_i to table id %d is not NIL", tabPtr.i);
+      /*
+        This ndbrequire is needed by the runFailAddPartition() test case.
+        This dump code is *not* intended for interactive usage, as the node
+        is likely to crash.
+      */
       ndbrequire(false);
     }
   }
