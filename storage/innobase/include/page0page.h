@@ -215,7 +215,7 @@ page_update_max_trx_id(
 Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
 @return SPLIT SEQUENCE NUMBER */
 UNIV_INLINE
-ib_uint32_t
+node_seq_t
 page_get_ssn_id(
 /*============*/
 	const page_t*	page);	/*!< in: page */
