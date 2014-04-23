@@ -200,9 +200,9 @@ The following options may be given as the first argument:
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
  --executed-gtids-compression-period[=#] 
- A background thread wakes up to compress the
- gtid_executed table every
- executed_gtids_compression_period transactions. As a
+ When binlog is disabled, a background thread wakes up to
+ compress the gtid_executed table every
+ executed_gtids_compression_period transactions, as a
  special case, if variable is 0, the thread never wakes up
  to compress the gtid_executed table.
  -T, --exit-info[=#] Used for debugging. Use at your own risk.

@@ -13,6 +13,7 @@
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
 
+SET @debug_save= @@GLOBAL.DEBUG;
 call mtr.add_suppression("test the suppression statement");
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 SHOW CREATE TABLE mysql.gtid_executed;
@@ -49,7 +50,9 @@ CREATE TABLE t2 (a INT) ENGINE=MyISAM;
 --echo #
 --echo # Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
 --echo #
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 
@@ -78,7 +81,9 @@ DROP TABLE t3;
 --echo #
 --echo # Store gtids MASTER_UUID:1-8 in gtid_executed table on binlog rotation
 --echo #
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 
@@ -106,7 +111,9 @@ COMMIT;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_EXECUTED]" = "$master_uuid:1-11"
 --source include/assert.inc
 --eval SET GTID_NEXT='AUTOMATIC'
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 --echo #
 --echo # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
 --echo #
@@ -130,6 +137,7 @@ ROLLBACK;
 FLUSH LOGS;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
+SET GLOBAL DEBUG= @debug_save;
 
 
 --source include/sync_slave_sql_with_master.inc
