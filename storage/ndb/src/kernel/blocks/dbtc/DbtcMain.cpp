@@ -9245,6 +9245,26 @@ void Dbtc::execLQH_TRANSCONF(Signal* signal)
 {
   jamEntry();
   LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
+
+  if (ERROR_INSERTED(8102))
+  {
+    jam();
+    if ((((LqhTransConf::OperationStatus)lqhTransConf->operationStatus) ==
+         LqhTransConf::LastTransConf) &&
+        signal->getSendersBlockRef() != reference())
+    {
+      jam();
+      ndbout_c("Delaying final LQH_TRANSCONF from Lqh @ node %u",
+               refToNode(signal->getSendersBlockRef()));
+      ((LqhTransConf*)lqhTransConf)->maxInstanceId = 4; // Force multi-tc takeover
+      sendSignalWithDelay(reference(),
+                          GSN_LQH_TRANSCONF,
+                          signal,
+                          5000,
+                          signal->getLength());
+      return;
+    }
+  }
   
   CRASH_INSERTION(8060);
 
@@ -9564,6 +9584,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
      * one more attempt on the same TC instance.
      */
     jam();
+    tfailedNodeId = tcNodeFailptr.p->takeOverNode;
     startTakeOverLab(signal, tcNodeFailptr.p->takeOverInstanceId);
     return;
   }
@@ -9575,6 +9596,7 @@ void Dbtc::completeTransAtTakeOverDoLast(Signal* signal, UintR TtakeOverInd)
      * with the next instance.
      */
     jam();
+    tfailedNodeId = tcNodeFailptr.p->takeOverNode;
     startTakeOverLab(signal, tcNodeFailptr.p->takeOverInstanceId + 1);
     return;
   }
