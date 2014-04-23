@@ -558,52 +558,58 @@ struct zip_pad_info_t {
 				rounds */
 };
 
-struct rec_cache_t {
-	ulint		rec_size;	/*!< record size */
-	bool		fixed_len_key;	/*!< if true, then key part
-					is unique. */
-	ulint*		offsets;	/*!< offsets array if
-					key is fixed_len. */
-	ulint		sz_of_offsets;	/*!< size of offset array. */
-	bool		offsets_cached;	/*!< if true, then offsets
-					are cached and can be re-used. */
-	bool		key_has_null_cols;
-					/*!< if true, then key part
-					can have columns that can
-					take NULL value. */
-
+/** If key is fixed length key then cache the record offsets on first
+computation. This will help save computation cycle that generate same
+redundant data. */
+class rec_cache_t
+{
+public:
+	/** Constructor */
 	rec_cache_t()
-	: rec_size(0),
-	  fixed_len_key(false),
+	: rec_size(),
 	  offsets(),
 	  sz_of_offsets(),
-	  offsets_cached(false),
-	  key_has_null_cols(false) {
+	  fixed_len_key(),
+	  offsets_cached(),
+	  key_has_null_cols() {
 	}
-};
-
-struct last_ops_cur_t {
-	rec_t*		rec;	/*!< last inserted/selected record. */
-	buf_block_t*	block;	/*!< block where record reside. */
-	mtr_t		mtr;	/*!< active mtr that will be re-used
-				for next insert. */
-	bool		disable_caching;
-				/*!< if true, disable caching.
-				Once disabled can't be re-enabled */
-	bool		invalid;
-				/*!< if true, cache record is invalid.
-				Can happen if index structure chances
-				while cursor is active especially
-				UPDATE with SELECT case. */
 
 public:
+	/** Record size. (for fixed length key record size is constant) */
+	ulint		rec_size;
+
+	/** Holds reference to cached offsets for record. */
+	ulint*		offsets;
+
+	/** Size of offset array */
+	uint32_t	sz_of_offsets;
+
+	/** If true, then key is fixed length key. */
+	bool		fixed_len_key;
+
+	/** If true, then offset has been cached for re-use. */
+	bool		offsets_cached;
+
+	/** If true, then key part can have columns that can take
+	NULL values. */
+	bool		key_has_null_cols;
+};
+
+/** Cache position of last inserted or selected record by caching record
+and holding reference to the block where record resides.
+Note: We don't commit mtr and hold it beyond a transaction lifetime as this is
+a special case (intrinsic table) that are not shared accross connection. */
+class last_ops_cur_t
+{
+public:
+	/** Constructor */
 	last_ops_cur_t()
 		:
 		rec(),
 		block(),
 		mtr(),
-		disable_caching(false),
-		invalid(false) {
+		disable_caching(),
+		invalid() {
 	}
 
 	/* Commit mtr and re-initialize cache record and block to NULL. */
@@ -616,6 +622,24 @@ public:
 		block = NULL;
 		invalid = false;
 	}
+
+public:
+	/** last inserted/selected record. */
+	rec_t*		rec;
+
+	/** block where record reside. */
+	buf_block_t*	block;
+
+	/** active mtr that will be re-used for next insert/select. */
+	mtr_t		mtr;
+
+	/** disable caching. (disabled when table involves blob/text.) */
+	bool		disable_caching;
+
+	/** If index structure is undergoing structural change viz.
+	split then invalidate the cached position as it would be no more
+	remain valid. Will be re-cached on post-split insert. */
+	bool		invalid;
 };
 
 /** "GEN_CLUST_INDEX" is the name reserved for InnoDB default

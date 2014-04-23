@@ -171,13 +171,6 @@ public:
 		return(m_max_flushed_lsn);
 	}
 
-	/**
-	@return read only status for tablespace. */
-	bool get_ignore_read_only()
-	{
-		return(m_ignore_read_only);
-	}
-
 	/** Set Ignore Read Only Status for tablespace.
 	@param[in]      read_only_status        read only status indicator */
 	void set_ignore_read_only(bool read_only_status)
