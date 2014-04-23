@@ -239,7 +239,7 @@ static void mstr(char *s,const char *src,size_t l1, size_t l2)
 
 static int my_xml_leave(MY_XML_PARSER *p, const char *str, size_t slen)
 {
-  char *e;
+  char *e, *tag;
   size_t glen;
   char s[32];
   char g[32];
@@ -248,13 +248,14 @@ static int my_xml_leave(MY_XML_PARSER *p, const char *str, size_t slen)
   /* Find previous '/' or beginning */
   for (e=p->attrend; (e>p->attr) && (e[0] != '/') ; e--);
   glen = (size_t) ((e[0] == '/') ? (p->attrend-e-1) : p->attrend-e);
-  
-  if (str && (slen != glen))
+  tag= e[0] == '/' ? e + 1 : e;
+
+  if (str && (slen != glen || memcmp(str, tag, slen)))
   {
     mstr(s,str,sizeof(s)-1,slen);
     if (glen)
     {
-      mstr(g,e+1,sizeof(g)-1,glen),
+      mstr(g, tag, sizeof(g)-1, glen);
       sprintf(p->errstr,"'</%s>' unexpected ('</%s>' wanted)",s,g);
     }
     else

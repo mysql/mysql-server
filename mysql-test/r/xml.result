@@ -132,7 +132,7 @@ xb1 xc1
 SELECT extractValue(@xml,'/a//@x[2]');
 extractValue(@xml,'/a//@x[2]')
 xb2 xc2
-SET @xml='<a><b>b1</b><b>b2</b><c><b>c1b1</b><b>c1b2</b></c><c><b>c2b1</c></b></a>';
+SET @xml='<a><b>b1</b><b>b2</b><c><b>c1b1</b><b>c1b2</b></c><c><b>c2b1</b></c></a>';
 SELECT extractValue(@xml,'//b[1]');
 extractValue(@xml,'//b[1]')
 b1 c1b1 c2b1
@@ -1133,6 +1133,24 @@ NULL
 Warnings:
 Warning	1525	Incorrect XML value: 'parse error at line 1 pos 11: STRING unexpected (ident or '/' wanted)'
 End of 5.1 tests
+#
+# Start of 5.3 tests
+#
+#
+# MDEV-5338 XML parser accepts malformed data
+#
+SELECT ExtractValue('<a>xxx</c>','/a/b');
+ExtractValue('<a>xxx</c>','/a/b')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 10: '</c>' unexpected ('</a>' wanted)'
+SELECT ExtractValue('<a><b>xxx</c></a>','/a/b');
+ExtractValue('<a><b>xxx</c></a>','/a/b')
+NULL
+Warnings:
+Warning	1525	Incorrect XML value: 'parse error at line 1 pos 13: '</c>' unexpected ('</b>' wanted)'
+#
+# End of 5.3 tests
 #
 # Start of 5.5 tests
 #
