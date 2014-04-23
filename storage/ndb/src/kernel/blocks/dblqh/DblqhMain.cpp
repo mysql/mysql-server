@@ -4812,8 +4812,7 @@ void Dblqh::execLQHKEYREQ(Signal* signal)
       markerPtr.p->transid2 = sig2;
       markerPtr.p->apiRef   = sig3;
       markerPtr.p->apiOprec = sig4;
-      const NodeId tcNodeId  = refToNode(sig5);
-      markerPtr.p->tcNodeId = tcNodeId;
+      markerPtr.p->tcReference = sig5;
       markerPtr.p->reference_count = 1;
       m_commitAckMarkerHash.add(markerPtr);
 
@@ -9841,6 +9840,7 @@ Dblqh::scanMarkers(Signal* signal,
   tcNodeFailPtr.i = tcNodeFail;
   ptrCheckGuard(tcNodeFailPtr, ctcNodeFailrecFileSize, tcNodeFailRecord);
   const Uint32 crashedTcNodeId = tcNodeFailPtr.p->oldNodeId;
+  const Uint32 crashedTcInstance = tcNodeFailPtr.p->takeOverInstanceId;
 
   if (tcNodeFailPtr.p->tcFailStatus == TcNodeFailRecord::TC_STATE_BREAK)
   {
@@ -9868,8 +9868,25 @@ Dblqh::scanMarkers(Signal* signal,
   }
 
   const Uint32 RT_BREAK = 256;
+  Uint32 lastIval = RNIL;
+  
   for(i = 0; i<RT_BREAK || iter.bucket == startBucket; i++){
     jam();
+
+    /* Sanity */
+    if ((i >= RT_BREAK) && (i % 2048 == 0))
+    {
+      g_eventLogger->info("LQH (%u) scanMarkers busy NF %u i %u iter.bucket %u iter.i %u",
+                          refToInstance(reference()),
+                          crashedTcNodeId,
+                          i,
+                          iter.bucket,
+                          iter.curr.i);
+
+      /* No infinite loops */
+      ndbrequire(iter.curr.i != lastIval);
+    }
+    
     
     if(iter.curr.i == RNIL){
       /**
@@ -9888,29 +9905,44 @@ Dblqh::scanMarkers(Signal* signal,
       return;
     }
     
-    if(iter.curr.p->tcNodeId == crashedTcNodeId){
-      jam();
+    /* Only interested in markers from the failed node */
+    if(refToNode(iter.curr.p->tcReference) == crashedTcNodeId)
+    {
+      Uint32 instance = refToInstance(iter.curr.p->tcReference);
       
-      /**
-       * Found marker belonging to crashed node
-       */
-      LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
-      lqhTransConf->tcRef     = tcNodeFailPtr.p->newTcRef;
-      lqhTransConf->lqhNodeId = cownNodeid;
-      lqhTransConf->operationStatus = LqhTransConf::Marker;
-      lqhTransConf->transId1 = iter.curr.p->transid1;
-      lqhTransConf->transId2 = iter.curr.p->transid2;
-      lqhTransConf->apiRef   = iter.curr.p->apiRef;
-      lqhTransConf->apiOpRec = iter.curr.p->apiOprec;
-      sendSignal(tcNodeFailPtr.p->newTcBlockref, GSN_LQH_TRANSCONF, 
-		 signal, 7, JBB);
+      /* Track max known TC instance id */
+      if (instance > tcNodeFailPtr.p->maxInstanceId)
+      {
+        tcNodeFailPtr.p->maxInstanceId = instance;
+      }
       
-      signal->theData[0] = ZSCAN_MARKERS;
-      signal->theData[1] = tcNodeFailPtr.i;
-      signal->theData[2] = iter.bucket;
-      signal->theData[3] = iter.curr.i;
-      sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
-      return;
+      /* Send marker iff it's for the node + instance we're currently handling */
+      if (refToInstance(iter.curr.p->tcReference) == crashedTcInstance ||
+          crashedTcInstance == RNIL)
+      {
+        jam();
+        
+        /**
+         * Found marker belonging to crashed node
+         */
+        LqhTransConf * const lqhTransConf = (LqhTransConf *)&signal->theData[0];
+        lqhTransConf->tcRef     = tcNodeFailPtr.p->newTcRef;
+        lqhTransConf->lqhNodeId = cownNodeid;
+        lqhTransConf->operationStatus = LqhTransConf::Marker;
+        lqhTransConf->transId1 = iter.curr.p->transid1;
+        lqhTransConf->transId2 = iter.curr.p->transid2;
+        lqhTransConf->apiRef   = iter.curr.p->apiRef;
+        lqhTransConf->apiOpRec = iter.curr.p->apiOprec;
+        sendSignal(tcNodeFailPtr.p->newTcBlockref, GSN_LQH_TRANSCONF, 
+                   signal, 7, JBB);
+        
+        signal->theData[0] = ZSCAN_MARKERS;
+        signal->theData[1] = tcNodeFailPtr.i;
+        signal->theData[2] = iter.bucket;
+        signal->theData[3] = iter.curr.i;
+        sendSignal(cownref, GSN_CONTINUEB, signal, 4, JBB);
+        return;
+      }
     }
     
     m_commitAckMarkerHash.next(iter);
@@ -23129,13 +23161,14 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     for(m_commitAckMarkerHash.first(iter); iter.curr.i != RNIL;
 	m_commitAckMarkerHash.next(iter)){
       infoEvent("CommitAckMarker: i = %d (H'%.8x, H'%.8x)"
-		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d, ref_count: %u",
+		" ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d, TcInstance: %d ref_count: %u",
 		iter.curr.i,
 		iter.curr.p->transid1,
 		iter.curr.p->transid2,
 		iter.curr.p->apiRef,
 		iter.curr.p->apiOprec,
-		iter.curr.p->tcNodeId,
+		refToNode(iter.curr.p->tcReference),
+                refToInstance(iter.curr.p->tcReference),
                 iter.curr.p->reference_count);
     }
   }
@@ -23841,13 +23874,14 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
             m_commitAckMarkerHash.next(iter))
         {
           ndbout_c("CommitAckMarker: i = %d (H'%.8x, H'%.8x)"
-                   " ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d ref_count: %u",
+                   " ApiRef: 0x%x apiOprec: 0x%x TcNodeId: %d tcInstance: %u ref_count: %u",
                    iter.curr.i,
                    iter.curr.p->transid1,
                    iter.curr.p->transid2,
                    iter.curr.p->apiRef,
                    iter.curr.p->apiOprec,
-                   iter.curr.p->tcNodeId,
+                   refToNode(iter.curr.p->tcReference),
+                   refToInstance(iter.curr.p->tcReference),
                    iter.curr.p->reference_count);
         }
       }

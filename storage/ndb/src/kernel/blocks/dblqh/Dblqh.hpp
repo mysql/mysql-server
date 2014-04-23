@@ -3272,7 +3272,7 @@ public:
     
     Uint32 apiRef;    // Api block ref
     Uint32 apiOprec;  // Connection Object in NDB API
-    Uint32 tcNodeId;  
+    Uint32 tcReference;  
     union { Uint32 nextPool; Uint32 nextHash; };
     Uint32 prevHash;
     Uint32 reference_count;
