@@ -9899,7 +9899,7 @@ Dblqh::scanMarkers(Signal* signal,
       lqhTransConf->tcRef     = tcNodeFailPtr.p->newTcRef;
       lqhTransConf->lqhNodeId = cownNodeid;
       lqhTransConf->operationStatus = LqhTransConf::LastTransConf;
-      lqhTransConf->maxInstanceId = tcNodeFailptr.p->maxInstanceId;
+      lqhTransConf->maxInstanceId = tcNodeFailPtr.p->maxInstanceId;
       sendSignal(tcNodeFailPtr.p->newTcBlockref, GSN_LQH_TRANSCONF, 
 		 signal, LqhTransConf::SignalLength, JBB);
       return;
