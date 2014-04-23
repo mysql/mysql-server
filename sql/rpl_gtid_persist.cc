@@ -309,23 +309,6 @@ int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
     goto err;
   }
 
-  /* Do not protect m_count for improving transactions' concurrency */
-  if (0 == error)
-  {
-    m_count++;
-    if ((executed_gtids_compression_period != 0) &&
-        (m_count >= executed_gtids_compression_period ||
-         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("fetch_compression_thread_stage_info", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table", 1, 0) ||
-         DBUG_EVALUATE_IF("simulate_crash_on_compress_gtid_table", 1, 0)))
-    {
-      m_count= 0;
-      should_compress= true;
-      mysql_cond_signal(&COND_compress_gtid_table);
-    }
-  }
-
   DBUG_RETURN(0);
 err:
   DBUG_RETURN(-1);
@@ -438,82 +421,21 @@ int Gtid_table_persistor::save(THD *thd, Gtid *gtid)
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
 
-  DBUG_RETURN(error);
-}
-
-
-int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table)
-{
-  DBUG_ENTER("Gtid_table_persistor::compress_first_consecutive_range");
-  int ret= 0;
-  int err= 0;
-  /* Record the source id of the first consecutive gtid. */
-  string sid;
-  /* Record the first GNO of the first consecutive gtid. */
-  rpl_gno gno_start= 0;
-  /* Record the last GNO of the last consecutive gtid. */
-  rpl_gno gno_end= 0;
-  /* Record the gtid interval of the current gtid. */
-  string cur_sid;
-  rpl_gno cur_gno_start= 0;
-  rpl_gno cur_gno_end= 0;
-  /*
-    Indicate if we have consecutive gtids in the table.
-    Set the flag to true if we find the first consecutive gtids.
-    The first consecutive range of gtids will be compressed if
-    the flag is true.
-  */
-  bool find_first_consecutive_gtids= false;
-
-  if ((err= table->file->ha_index_init(0, true)))
-    DBUG_RETURN(-1);
-
-  /* Read each row by the PK(sid, gno_start) in increasing order. */
-  err= table->file->ha_index_first(table->record[0]);
-  /* Compress the first consecutive range of gtids. */
-  while(!err)
+  /* Do not protect m_count for improving transactions' concurrency */
+  if (0 == error)
   {
-    get_gtid_interval(table, cur_sid, cur_gno_start, cur_gno_end);
-    /*
-      Check if gtid intervals of previous gtid and current gtid
-      are consecutive.
-    */
-    if (sid == cur_sid && gno_end + 1 == cur_gno_start)
+    m_count++;
+    if ((executed_gtids_compression_period != 0) &&
+        (m_count >= executed_gtids_compression_period ||
+         DBUG_EVALUATE_IF("compress_gtid_table", 1, 0)))
     {
-      find_first_consecutive_gtids= true;
-      gno_end= cur_gno_end;
-      /* Delete the consecutive gtid. We do not delete the first
-         consecutive gtid, so that we can update it later. */
-      if ((err= table->file->ha_delete_row(table->record[0])))
-      {
-        table->file->print_error(err, MYF(0));
-        break;
-      }
+      m_count= 0;
+      should_compress= true;
+      mysql_cond_signal(&COND_compress_gtid_table);
     }
-    else
-    {
-      if (find_first_consecutive_gtids)
-        break;
-
-      /* Record the gtid interval of the first consecutive gtid. */
-      sid= cur_sid;
-      gno_start= cur_gno_start;
-      gno_end= cur_gno_end;
-    }
-    err= table->file->ha_index_next(table->record[0]);
   }
 
-  table->file->ha_index_end();
-  if (err != HA_ERR_END_OF_FILE && err != 0)
-    ret= -1;
-  else if (find_first_consecutive_gtids)
-    /*
-      Update the gno_end of the first consecutive gtid with the gno_end of
-      the last consecutive gtid for the first consecutive range of gtids.
-    */
-    ret= update_row(table, sid.c_str(), gno_start, gno_end);
-
-  DBUG_RETURN(ret);
+  DBUG_RETURN(error);
 }
 
 
@@ -535,6 +457,13 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
 
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
+
+  /* Notify compression thread to compress gtid table. */
+  if (0 == error)
+  {
+    should_compress= true;
+    mysql_cond_signal(&COND_compress_gtid_table);
+  }
 
   if (1 == error)
   {
@@ -630,6 +559,30 @@ int Gtid_table_persistor::compress(THD *thd)
 {
   DBUG_ENTER("Gtid_table_persistor::compress");
   int error= 0;
+  bool is_complete= false;
+
+  do {
+    if ((error= compress_in_single_transaction(thd, is_complete)))
+      break;
+  } while (!is_complete);
+
+  DBUG_EXECUTE_IF("compress_gtid_table",
+                  {
+                    const char act[]= "now signal complete_compression";
+                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
+                    DBUG_ASSERT(!debug_sync_set_action(thd,
+                                                       STRING_WITH_LEN(act)));
+                  };);
+
+  DBUG_RETURN(error);
+}
+
+
+int Gtid_table_persistor::compress_in_single_transaction(THD *thd,
+                                                         bool &is_complete)
+{
+  DBUG_ENTER("Gtid_table_persistor::compress_in_single_transaction");
+  int error= 0;
   TABLE *table= NULL;
   Gtid_table_access_context table_access_ctx;
 
@@ -646,7 +599,7 @@ int Gtid_table_persistor::compress(THD *thd)
   */
   THD_STAGE_INFO(thd, stage_compressing_gtid_table);
 
-  if ((error= compress_first_consecutive_range(table)))
+  if ((error= compress_first_consecutive_range(table, is_complete)))
     goto end;
 
 #ifndef DBUG_OFF
@@ -656,15 +609,90 @@ int Gtid_table_persistor::compress(THD *thd)
 end:
   table_access_ctx.deinit(thd, table, 0 != error, true);
   mysql_mutex_unlock(&LOCK_compress_gtid_table);
-  DBUG_EXECUTE_IF("compress_gtid_table",
-                  {
-                    const char act[]= "now signal complete_compression";
-                    DBUG_ASSERT(opt_debug_sync_timeout > 0);
-                    DBUG_ASSERT(!debug_sync_set_action(thd,
-                                                       STRING_WITH_LEN(act)));
-                  };);
 
   DBUG_RETURN(error);
+}
+
+
+int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
+                                                           bool &is_complete)
+{
+  DBUG_ENTER("Gtid_table_persistor::compress_first_consecutive_range");
+  int ret= 0;
+  int err= 0;
+  /* Record the source id of the first consecutive gtid. */
+  string sid;
+  /* Record the first GNO of the first consecutive gtid. */
+  rpl_gno gno_start= 0;
+  /* Record the last GNO of the last consecutive gtid. */
+  rpl_gno gno_end= 0;
+  /* Record the gtid interval of the current gtid. */
+  string cur_sid;
+  rpl_gno cur_gno_start= 0;
+  rpl_gno cur_gno_end= 0;
+  /*
+    Indicate if we have consecutive gtids in the table.
+    Set the flag to true if we find the first consecutive gtids.
+    The first consecutive range of gtids will be compressed if
+    the flag is true.
+  */
+  bool find_first_consecutive_gtids= false;
+
+  if ((err= table->file->ha_index_init(0, true)))
+    DBUG_RETURN(-1);
+
+  /* Read each row by the PK(sid, gno_start) in increasing order. */
+  err= table->file->ha_index_first(table->record[0]);
+  /* Compress the first consecutive range of gtids. */
+  while(!err)
+  {
+    get_gtid_interval(table, cur_sid, cur_gno_start, cur_gno_end);
+    /*
+      Check if gtid intervals of previous gtid and current gtid
+      are consecutive.
+    */
+    if (sid == cur_sid && gno_end + 1 == cur_gno_start)
+    {
+      find_first_consecutive_gtids= true;
+      gno_end= cur_gno_end;
+      /* Delete the consecutive gtid. We do not delete the first
+         consecutive gtid, so that we can update it later. */
+      if ((err= table->file->ha_delete_row(table->record[0])))
+      {
+        table->file->print_error(err, MYF(0));
+        break;
+      }
+    }
+    else
+    {
+      if (find_first_consecutive_gtids)
+        break;
+
+      /* Record the gtid interval of the first consecutive gtid. */
+      sid= cur_sid;
+      gno_start= cur_gno_start;
+      gno_end= cur_gno_end;
+    }
+    err= table->file->ha_index_next(table->record[0]);
+  }
+
+  table->file->ha_index_end();
+  /* Indicate if the gtid table is compressd completely. */
+  if (err == HA_ERR_END_OF_FILE)
+    is_complete= true;
+  else
+    is_complete= false;
+
+  if (err != HA_ERR_END_OF_FILE && err != 0)
+    ret= -1;
+  else if (find_first_consecutive_gtids)
+    /*
+      Update the gno_end of the first consecutive gtid with the gno_end of
+      the last consecutive gtid for the first consecutive range of gtids.
+    */
+    ret= update_row(table, sid.c_str(), gno_start, gno_end);
+
+  DBUG_RETURN(ret);
 }
 
 
