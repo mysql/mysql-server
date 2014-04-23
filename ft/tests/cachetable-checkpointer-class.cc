@@ -165,6 +165,7 @@ void checkpointer_test::test_begin_checkpoint() {
     }
     ctbl.list.destroy();
     m_cp.destroy();
+    cfl.destroy();
 }
 
 //------------------------------------------------------------------------------
@@ -257,6 +258,7 @@ void checkpointer_test::test_pending_bits() {
 
     ctbl.list.destroy();
     m_cp.destroy();
+    cfl.destroy();
 }
 
 //------------------------------------------------------------------------------
@@ -394,6 +396,7 @@ void checkpointer_test::test_end_checkpoint() {
     }
     m_cp.destroy();
     ctbl.list.destroy();
+    cfl.destroy();
 }
 
 
