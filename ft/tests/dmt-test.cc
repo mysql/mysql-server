@@ -1013,7 +1013,9 @@ test_clone(uint32_t nelts)
         assert(l == i);
     }
     dest->destroy();
+    toku_free(dest);
     src->destroy();
+    toku_free(src);
 }
 
 int
