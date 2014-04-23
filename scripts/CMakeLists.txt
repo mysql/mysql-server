@@ -294,7 +294,6 @@ ELSE()
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     mysql_config
-    mysql_zap
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi

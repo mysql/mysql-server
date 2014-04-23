@@ -37,7 +37,6 @@ scripts/mysql_config$
 scripts/mysql_install_db$
 scripts/mysql_secure_installation$
 scripts/mysql_server_config$
-scripts/mysql_zap$
 scripts/mysqld_multi$
 scripts/mysqld_safe$
 scripts/mysqldumpslow$
