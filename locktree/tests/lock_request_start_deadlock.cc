@@ -158,6 +158,9 @@ void lock_request_unit_test::test_start_deadlock(void) {
     request_a.destroy();
     request_b.destroy();
     request_c.destroy();
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

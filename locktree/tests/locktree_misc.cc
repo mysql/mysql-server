@@ -134,6 +134,9 @@ void locktree_unit_test::test_misc(void) {
     expected_descriptor = &d2;
     r = lt.m_cmp->compare(&dbt_a, &dbt_b);
     invariant(r == expected_comparison_magic);
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

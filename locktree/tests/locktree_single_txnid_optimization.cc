@@ -169,6 +169,9 @@ void locktree_unit_test::test_single_txnid_optimization(void) {
 
         buffer.destroy();
     }
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

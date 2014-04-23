@@ -203,6 +203,9 @@ void locktree_unit_test::test_overlapping_relock(void) {
 
     // remove the other txnid's lock now
     lt.remove_overlapping_locks_for_txnid(the_other_txnid, hundred, hundred);
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

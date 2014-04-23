@@ -162,6 +162,9 @@ void locktree_unit_test::test_infinity(void) {
     invariant(r == DB_LOCK_NOTGRANTED);
 
     lt.remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), toku_dbt_positive_infinity());
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */
