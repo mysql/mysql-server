@@ -162,6 +162,7 @@ dict_stats_should_ignore_index(
 {
 	return((index->type & DICT_FTS)
 	       || dict_index_is_corrupted(index)
+	       || dict_index_is_spatial(index)
 	       || index->to_be_dropped
 	       || *index->name == TEMP_INDEX_PREFIX);
 }
@@ -904,7 +905,7 @@ dict_stats_update_transient(
 
 		ut_ad(!dict_index_is_univ(index));
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
 		}
 
@@ -1820,7 +1821,8 @@ dict_stats_index_set_n_diff(
 			/* If we know the number of records on level 1, then
 			this number is the same as the number of pages on
 			level 0 (leaf). */
-			n_ordinary_leaf_pages = data->n_recs_on_level;
+			n_ordinary_leaf_pages = static_cast<ulint>(
+					data->n_recs_on_level);
 		} else {
 			/* If we analyzed D ordinary leaf pages and found E
 			external pages in total linked from those D ordinary
@@ -1832,9 +1834,10 @@ dict_stats_index_set_n_diff(
 			T * D / (D + E). */
 			n_ordinary_leaf_pages
 				= index->stat_n_leaf_pages
-				* data->n_leaf_pages_to_analyze
-				/ (data->n_leaf_pages_to_analyze
-				   + data->n_external_pages_sum);
+				* static_cast<ulint>(
+					data->n_leaf_pages_to_analyze
+					/ (data->n_leaf_pages_to_analyze
+					   + data->n_external_pages_sum));
 		}
 
 		/* See REF01 for an explanation of the algorithm */
@@ -1888,6 +1891,11 @@ dict_stats_analyze_index(
 
 	DBUG_PRINT("info", ("index: %s, online status: %d", index->name,
 			    dict_index_get_online_status(index)));
+
+	/* Disable update statistic for Rtree */
+	if (dict_index_is_spatial(index)) {
+		DBUG_VOID_RETURN;
+	}
 
 	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name);
 
@@ -2214,7 +2222,7 @@ dict_stats_update_persistent(
 
 		ut_ad(!dict_index_is_univ(index));
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
 		}
 

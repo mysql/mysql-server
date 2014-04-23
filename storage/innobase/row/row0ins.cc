@@ -52,6 +52,8 @@ Created 4/20/1996 Heikki Tuuri
 #include "buf0lru.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "m_string.h"
+#include "gis0geo.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -2641,11 +2643,13 @@ row_ins_sec_index_entry_low(
 	ulint		n_unique;
 	mtr_t		mtr;
 	ulint*		offsets	= NULL;
+	rtr_info_t	rtr_info;
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
+	cursor.rtr_info = NULL;
 	ut_ad(thr_get_trx(thr)->id != 0);
 
 	mtr_start(&mtr);
@@ -2658,7 +2662,7 @@ row_ins_sec_index_entry_low(
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
-	} else {
+	} else if (!dict_index_is_spatial(index)) {
 		/* Enable insert buffering if not temp-table */
 		search_mode |= BTR_INSERT;
 	}
@@ -2693,11 +2697,41 @@ row_ins_sec_index_entry_low(
 		search_mode |= BTR_IGNORE_SEC_UNIQUE;
 	}
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
+	if (dict_index_is_spatial(index)) {
+		cursor.index = index;
+		rtr_init_rtr_info(&rtr_info, false, &cursor, index, false);
+		rtr_info_update_btr(&cursor, &rtr_info);
+
+		btr_cur_search_to_nth_level(
+			index, 0, entry, PAGE_CUR_RTREE_INSERT,
+			search_mode,
+			&cursor, 0, __FILE__, __LINE__, &mtr);
+
+		if (mode == BTR_MODIFY_LEAF && rtr_info.mbr_adj) {
+			mtr_commit(&mtr);
+			rtr_clean_rtr_info(&rtr_info, true);
+			rtr_init_rtr_info(&rtr_info, false, &cursor,
+					  index, false);
+			rtr_info_update_btr(&cursor, &rtr_info);
+			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
+			search_mode &= ~BTR_MODIFY_LEAF;
+			search_mode |= BTR_MODIFY_TREE;
+			btr_cur_search_to_nth_level(
+				index, 0, entry, PAGE_CUR_RTREE_INSERT,
+				search_mode,
+				&cursor, 0, __FILE__, __LINE__, &mtr);
+			mode = BTR_MODIFY_TREE;
+		}
+	} else {
+		btr_cur_search_to_nth_level(
+			index, 0, entry, PAGE_CUR_LE,
+			search_mode,
+			&cursor, 0, __FILE__, __LINE__, &mtr);
+	}
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
+		ut_ad(!dict_index_is_spatial(index));
 		/* The insert was buffered during the search: we are done */
 		goto func_exit;
 	}
@@ -2754,6 +2788,9 @@ row_ins_sec_index_entry_low(
 			}
 			/* fall through */
 		default:
+			if (dict_index_is_spatial(index)) {
+				rtr_clean_rtr_info(&rtr_info, true);
+			}
 			DBUG_RETURN(err);
 		}
 
@@ -2822,6 +2859,11 @@ row_ins_sec_index_entry_low(
 		err = row_ins_sec_index_entry_by_modify(
 			flags, mode, &cursor, &offsets,
 			offsets_heap, heap, entry, thr, &mtr);
+
+		if (err == DB_SUCCESS && dict_index_is_spatial(index)
+		    && rtr_info.mbr_adj) {
+			err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+		}
 	} else {
 		rec_t*		insert_rec;
 		big_rec_t*	big_rec;
@@ -2831,6 +2873,11 @@ row_ins_sec_index_entry_low(
 				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
+			if (err == DB_SUCCESS
+			    && dict_index_is_spatial(index)
+			    && rtr_info.mbr_adj) {
+				err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+			}
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 			if (buf_LRU_buf_pool_running_out()) {
@@ -2851,6 +2898,11 @@ row_ins_sec_index_entry_low(
 					entry, &insert_rec,
 					&big_rec, 0, thr, &mtr);
 			}
+			if (err == DB_SUCCESS
+				   && dict_index_is_spatial(index)
+				   && rtr_info.mbr_adj) {
+				err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+			}
 		}
 
 		if (err == DB_SUCCESS && trx_id) {
@@ -2864,6 +2916,10 @@ row_ins_sec_index_entry_low(
 	}
 
 func_exit:
+	if (dict_index_is_spatial(index)) {
+		rtr_clean_rtr_info(&rtr_info, true);
+	}
+
 	mtr_commit(&mtr);
 	DBUG_RETURN(err);
 }
@@ -3063,11 +3119,43 @@ row_ins_index_entry(
 	}
 }
 
+
+/*****************************************************************//**
+This function generate MBR (Minimum Bounding Box) for spatial objects
+and set it to spatial index field. */
+static
+void
+row_ins_spatial_index_entry_set_mbr_field(
+/*======================================*/
+	dfield_t*	field,		/*!< in/out: mbr field */
+	const dfield_t*	row_field)	/*!< in: row field */
+{
+	uchar*		dptr = NULL;
+	ulint		dlen = 0;
+	double		mbr[SPDIMS * 2];
+
+	/* This must be a GEOMETRY datatype */
+	ut_ad(DATA_GEOMETRY_MTYPE(field->type.mtype));
+
+	dptr = static_cast<uchar*>(dfield_get_data(row_field));
+	dlen = dfield_get_len(row_field);
+
+	/* obtain the MBR */
+	rtree_mbr_from_wkb(
+		dptr + GEO_DATA_HEADER_SIZE,
+		static_cast<uint>(dlen) - GEO_DATA_HEADER_SIZE,
+		SPDIMS, mbr);
+
+	/* Set mbr as index entry data */
+	dfield_write_mbr(field, mbr);
+}
+
 /***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
-columns in row. */
+columns in row.
+@return DB_SUCCESS if the set is successful */
 static __attribute__((nonnull))
-void
+dberr_t
 row_ins_index_entry_set_vals(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -3107,12 +3195,25 @@ row_ins_index_entry_set_vals(
 			ut_ad(!dfield_is_ext(row_field));
 		}
 
+		/* Handle spatial index. For the first field, replace
+		the data with its MBR (Minimum Bounding Box). */
+		if ((i == 0) && dict_index_is_spatial(index)) {
+			if (!row_field->data) {
+				return(DB_CANT_CREATE_GEOMETRY_OBJECT);
+			}
+			row_ins_spatial_index_entry_set_mbr_field(
+				field, row_field);
+			continue;
+		}
+
 		dfield_set_data(field, dfield_get_data(row_field), len);
 		if (dfield_is_ext(row_field)) {
 			ut_ad(dict_index_is_clust(index));
 			dfield_set_ext(field);
 		}
 	}
+
+	return(DB_SUCCESS);
 }
 
 /***********************************************************//**
@@ -3132,7 +3233,11 @@ row_ins_index_entry_step(
 
 	ut_ad(dtuple_check_typed(node->row));
 
-	row_ins_index_entry_set_vals(node->index, node->entry, node->row);
+	err = row_ins_index_entry_set_vals(node->index, node->entry, node->row);
+
+	if (err != DB_SUCCESS) {
+		DBUG_RETURN(err);
+	}
 
 	ut_ad(dtuple_check_typed(node->entry));
 

@@ -33,6 +33,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "fsp0fsp.h"
 #include "page0page.h"
 #include "page0zip.h"
+#include "gis0rtree.h"
 
 #ifndef UNIV_HOTBACKUP
 #include "btr0cur.h"
@@ -43,6 +44,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "ibuf0ibuf.h"
 #include "trx0trx.h"
 #include "srv0mon.h"
+#include "gis0geo.h"
 
 /**************************************************************//**
 Checks if the page in the cursor can be merged with given page.
@@ -162,7 +164,7 @@ btr_root_fseg_validate(
 /**************************************************************//**
 Gets the root node of a tree and x- or s-latches it.
 @return root page, x- or s-latched */
-static
+
 buf_block_t*
 btr_root_block_get(
 /*===============*/
@@ -365,7 +367,7 @@ btr_root_adjust_on_import(
 /**************************************************************//**
 Creates a new index page (not the root, and also not
 used in page reorganization).  @see btr_page_empty(). */
-static
+
 void
 btr_page_create(
 /*============*/
@@ -388,6 +390,11 @@ btr_page_create(
 	}
 
 	block->check_index_page_at_flush = TRUE;
+
+	/* For Spatial Index, initialize the Split Sequence Number */
+	if (dict_index_is_spatial(index)) {
+		page_set_ssn_id(block, page_zip, 0, mtr);
+	}
 
 	btr_page_set_index_id(page, page_zip, index->id, mtr);
 }
@@ -625,6 +632,13 @@ btr_page_free_low(
 		seg_header = root + PAGE_HEADER + PAGE_BTR_SEG_TOP;
 	}
 
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		fprintf(stderr, "GIS_DIAG: Freed  %ld\n",
+			(long) block->page.id.page_no());
+	}
+#endif
+
 	fseg_free_page(seg_header,
 		       block->page.id.space(),
 		       block->page.id.page_no(),
@@ -761,9 +775,20 @@ btr_page_get_father_node_ptr_func(
 	ut_a(page_rec_is_user_rec(user_rec));
 	tuple = dict_index_build_node_ptr(index, user_rec, 0, heap, level);
 
-	btr_cur_search_to_nth_level(index, level + 1, tuple, PAGE_CUR_LE,
-				    latch_mode, cursor, 0,
-				    file, line, mtr);
+	if (!dict_index_is_spatial(index)) {
+		btr_cur_search_to_nth_level(index, level + 1, tuple,
+					    PAGE_CUR_LE, latch_mode, cursor, 0,
+					    file, line, mtr);
+	} else {
+		/* For R-tree, only latch mode from caller would be
+		BTR_CONT_MODIFY_TREE */
+		ut_ad(latch_mode == BTR_CONT_MODIFY_TREE);
+
+		/* Try to avoid traverse from the root, and get the
+		father node from parent_path vector */
+		rtr_get_father_node(index, level + 1, tuple,
+				    NULL, cursor, page_no, mtr);
+	}
 
 	node_ptr = btr_cur_get_rec(cursor);
 	ut_ad(!page_rec_is_comp(node_ptr)
@@ -1577,6 +1602,11 @@ btr_root_raise_and_insert(
 		lock_move_rec_list_end(new_block, root_block,
 				       page_get_infimum_rec(root));
 
+		/* Move any existing predicate locks */
+		if (dict_index_is_spatial(index)) {
+			lock_prdt_rec_move(new_block, root_block);
+		}
+
 		btr_search_move_or_delete_hash_entries(new_block, root_block,
 						       index);
 	}
@@ -1647,8 +1677,14 @@ btr_root_raise_and_insert(
 	page_cur_search(new_block, index, tuple, page_cursor);
 
 	/* Split the child and insert tuple */
-	return(btr_page_split_and_insert(flags, cursor, offsets, heap,
-					 tuple, n_ext, mtr));
+	if (dict_index_is_spatial(index)) {
+		/* Split rtree page and insert tuple */
+		return(rtr_page_split_and_insert(flags, cursor, offsets, heap,
+						 tuple, n_ext, mtr));
+	} else {
+		return(btr_page_split_and_insert(flags, cursor, offsets, heap,
+						 tuple, n_ext, mtr));
+	}
 }
 
 /*************************************************************//**
@@ -1987,12 +2023,26 @@ btr_insert_on_non_leaf_level_func(
 	rec_t*		rec;
 	ulint*		offsets	= NULL;
 	mem_heap_t*	heap = NULL;
+	rtr_info_t	rtr_info;
 
 	ut_ad(level > 0);
 
-	btr_cur_search_to_nth_level(index, level, tuple, PAGE_CUR_LE,
-				    BTR_CONT_MODIFY_TREE,
-				    &cursor, 0, file, line, mtr);
+	if (!dict_index_is_spatial(index)) {
+		btr_cur_search_to_nth_level(index, level, tuple, PAGE_CUR_LE,
+					    BTR_CONT_MODIFY_TREE,
+					    &cursor, 0, file, line, mtr);
+	} else {
+		/* For spatial index, initialize structures to track
+		its parents etc. */
+		rtr_init_rtr_info(&rtr_info, false, &cursor, index, false);
+
+		rtr_info_update_btr(&cursor, &rtr_info);
+
+		btr_cur_search_to_nth_level(index, level, tuple,
+					    PAGE_CUR_RTREE_INSERT,
+					    BTR_CONT_MODIFY_TREE,
+					    &cursor, 0, file, line, mtr);
+	}
 
 	ut_ad(cursor.flag == BTR_CUR_BINARY);
 
@@ -2014,7 +2064,14 @@ btr_insert_on_non_leaf_level_func(
 						 &dummy_big_rec, 0, NULL, mtr);
 		ut_a(err == DB_SUCCESS);
 	}
+
 	mem_heap_free(heap);
+
+	if (dict_index_is_spatial(index)) {
+		ut_ad(cursor.rtr_info);
+
+		rtr_clean_rtr_info(&rtr_info, true);
+	}
 }
 
 /**************************************************************//**
@@ -2249,6 +2306,15 @@ btr_page_split_and_insert(
 	ulint		n_iterations = 0;
 	rec_t*		rec;
 	ulint		n_uniq;
+	dict_index_t*	index;
+
+	index = btr_cur_get_index(cursor);
+
+	if (dict_index_is_spatial(index)) {
+		/* Split rtree page and update parent */
+		return(rtr_page_split_and_insert(flags, cursor, offsets, heap,
+						 tuple, n_ext, mtr));
+	}
 
 	if (!*heap) {
 		*heap = mem_heap_create(1024);
@@ -2260,8 +2326,7 @@ func_start:
 
 	ut_ad(mtr_memo_contains_flagged(mtr,
 					dict_index_get_lock(cursor->index),
-					MTR_MEMO_X_LOCK
-					| MTR_MEMO_SX_LOCK));
+					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK));
 	ut_ad(!dict_index_is_online_ddl(cursor->index)
 	      || (flags & BTR_CREATE_FLAG)
 	      || dict_index_is_clust(cursor->index));
@@ -2470,6 +2535,8 @@ insert_empty:
 			/* Update the lock table and possible hash index. */
 
 			lock_move_rec_list_end(new_block, block, move_limit);
+
+			ut_ad(!dict_index_is_spatial(index));
 
 			btr_search_move_or_delete_hash_entries(
 				new_block, block, cursor->index);
@@ -2909,6 +2976,11 @@ btr_lift_page_up(
 		lock_move_rec_list_end(father_block, block,
 				       page_get_infimum_rec(page));
 
+		/* Also update the predicate locks */
+		if (dict_index_is_spatial(index)) {
+			lock_prdt_rec_move(father_block, block);
+		}
+
 		btr_search_move_or_delete_hash_entries(father_block, block,
 						       index);
 	}
@@ -2927,6 +2999,10 @@ btr_lift_page_up(
 		ut_a(!page_zip || page_zip_validate(page_zip, page, index));
 #endif /* UNIV_ZIP_DEBUG */
 	}
+
+        if (dict_index_is_spatial(index)) {
+                rtr_check_discard_page(index, NULL, block);
+        }
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
@@ -2978,6 +3054,7 @@ btr_compress(
 	mem_heap_t*	heap;
 	ulint*		offsets;
 	ulint		nth_rec = 0; /* remove bogus warning */
+	bool		mbr_changed = false;
 #ifdef UNIV_DEBUG
 	bool		leftmost_child;
 #endif
@@ -2989,9 +3066,17 @@ btr_compress(
 
 	btr_assert_not_corrupted(block, index);
 
-	ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
-					MTR_MEMO_X_LOCK
-					| MTR_MEMO_SX_LOCK));
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+						MTR_MEMO_X_LOCK));
+	} else {
+		ut_ad(mtr_memo_contains_flagged(mtr, dict_index_get_lock(index),
+						MTR_MEMO_X_LOCK
+						| MTR_MEMO_SX_LOCK));
+	}
+#endif /* UNIV_DEBUG */
+
 	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 	space = dict_index_get_space(index);
 
@@ -3011,8 +3096,28 @@ btr_compress(
 #endif /* UNIV_DEBUG */
 
 	heap = mem_heap_create(100);
-	offsets = btr_page_get_father_block(NULL, heap, index, block, mtr,
-					    &father_cursor);
+
+	if (dict_index_is_spatial(index)) {
+		offsets = rtr_page_get_father_block(
+			NULL, heap, index, block, mtr, cursor, &father_cursor);
+		ut_ad(cursor->page_cur.block->page.id.page_no()
+		      == block->page.id.page_no());
+		rec_t*  my_rec = father_cursor.page_cur.rec;
+
+		ulint page_no = btr_node_ptr_get_child_page_no(my_rec, offsets);
+
+		if (page_no != block->page.id.page_no()) {
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"father positioned on page %lu" 
+				"instead of " UINT32PF, page_no,
+				block->page.id.page_no());
+			offsets = btr_page_get_father_block(
+				NULL, heap, index, block, mtr, &father_cursor);
+		}
+	} else {
+		offsets = btr_page_get_father_block(
+			NULL, heap, index, block, mtr, &father_cursor);
+	}
 
 	if (adjust) {
 		nth_rec = page_rec_get_n_recs_before(btr_cur_get_rec(cursor));
@@ -3041,10 +3146,13 @@ btr_compress(
 					  &merge_block, mtr);
 
 	DBUG_EXECUTE_IF("ib_always_merge_right", is_left = FALSE;);
-
+retry:
 	if (!is_left
 	   && !btr_can_merge_with_page(cursor, right_page_no, &merge_block,
 				       mtr)) {
+		if (!merge_block) {
+			merge_page = NULL;
+		}
 		goto err_exit;
 	}
 
@@ -3059,6 +3167,18 @@ btr_compress(
                      == block->page.id.page_no());
 	}
 #endif /* UNIV_BTR_DEBUG */
+
+#ifdef UNIV_GIS_DEBUG
+	if (dict_index_is_spatial(index)) {
+		if (is_left) {
+			fprintf(stderr, "GIS_DIAG: merge left  %ld to %ld \n",
+				(long) block->page.id.page_no(), left_page_no);
+		} else {
+			fprintf(stderr, "GIS_DIAG: merge right %ld to %ld\n",
+				(long) block->page.id.page_no(), right_page_no);
+		}
+	}
+#endif /* UNIV_GIS_DEBUG */
 
 	ut_ad(page_validate(merge_page, index));
 
@@ -3075,6 +3195,33 @@ btr_compress(
 
 	/* Move records to the merge page */
 	if (is_left) {
+		btr_cur_t	cursor2;
+		rtr_mbr_t	new_mbr;
+		ulint*		offsets2 = NULL;
+
+		/* For rtree, we need to update father's mbr. */
+		if (dict_index_is_spatial(index)) {
+			/* We only support merge pages with the same parent
+			page */
+			if (!rtr_check_same_block(
+				index, &cursor2,
+				btr_cur_get_block(&father_cursor),
+				merge_block, heap)) {
+				is_left = false;
+				goto retry;
+			}
+
+			offsets2 = rec_get_offsets(
+				btr_cur_get_rec(&cursor2), index,
+				NULL, ULINT_UNDEFINED, &heap);
+
+			/* Check if parent entry needs to be updated */
+			mbr_changed = rtr_merge_mbr_changed(
+				&cursor2, &father_cursor,
+				offsets2, offsets, &new_mbr,
+				merge_block, block, index);
+		}
+
 		rec_t*	orig_pred = page_copy_rec_list_start(
 			merge_block, block, page_get_supremum_rec(page),
 			index, mtr);
@@ -3088,8 +3235,45 @@ btr_compress(
 		/* Remove the page from the level list */
 		btr_level_list_remove(space, page_size, page, index, mtr);
 
-		btr_node_ptr_delete(index, block, mtr);
-		lock_update_merge_left(merge_block, orig_pred, block);
+		if (dict_index_is_spatial(index)) {
+			rec_t*  my_rec = father_cursor.page_cur.rec;
+
+			ulint page_no = btr_node_ptr_get_child_page_no(
+						my_rec, offsets);
+
+			if (page_no != block->page.id.page_no()) {
+				ib_logf(IB_LOG_LEVEL_FATAL,
+					"father positioned on %ld instead of %ld",
+					(long)page_no,
+					(long)block->page.id.page_no());
+				ut_ad(0);
+			}
+
+			if (mbr_changed) {
+#ifdef UNIV_DEBUG
+				bool	success = rtr_update_mbr_field(
+					&cursor2, offsets2, &father_cursor,
+					merge_page, &new_mbr, NULL, mtr);
+
+				ut_ad(success);
+#else
+				rtr_update_mbr_field(
+					&cursor2, offsets2, &father_cursor,
+					merge_page, &new_mbr, NULL, mtr);
+#endif
+			} else {
+				rtr_node_ptr_delete(index, &father_cursor, block, mtr);
+			}
+
+			/* No GAP lock needs to be worrying about */
+			lock_mutex_enter();
+			lock_rec_free_all_from_discard_page(block);
+			lock_mutex_exit();
+		} else {
+			btr_node_ptr_delete(index, block, mtr);
+			lock_update_merge_left(merge_block, orig_pred, block);
+		}
+
 
 		if (adjust) {
 			nth_rec += page_rec_get_n_recs_before(orig_pred);
@@ -3105,7 +3289,22 @@ btr_compress(
 		byte		fil_page_prev[4];
 #endif /* UNIV_BTR_DEBUG */
 
-		btr_page_get_father(index, merge_block, mtr, &cursor2);
+		if (dict_index_is_spatial(index)) {
+			cursor2.rtr_info = NULL;
+
+			/* For spatial index, we disallow merge of blocks
+			with different parents, since the merge would need
+			to update entry (for MBR and Primary key) in the
+			parent of block being merged */
+			if (!rtr_check_same_block(
+				index, &cursor2,
+				btr_cur_get_block(&father_cursor),
+				merge_block, heap)) {
+				goto err_exit;
+			}
+		} else {
+			btr_page_get_father(index, merge_block, mtr, &cursor2);
+		}
 
 		if (merge_page_zip && left_page_no == FIL_NULL) {
 
@@ -3157,6 +3356,10 @@ btr_compress(
 		/* Remove the page from the level list */
 		btr_level_list_remove(space, page_size, page, index, mtr);
 
+		ut_ad(btr_node_ptr_get_child_page_no(
+			btr_cur_get_rec(&father_cursor), offsets)
+			== block->page.id.page_no());
+
 		/* Replace the address of the old child node (= page) with the
 		address of the merge page to the right */
 		btr_node_ptr_set_child_page_no(
@@ -3164,16 +3367,51 @@ btr_compress(
 			btr_cur_get_page_zip(&father_cursor),
 			offsets, right_page_no, mtr);
 
-		compressed = btr_cur_pessimistic_delete(&err, TRUE, &cursor2,
-							BTR_CREATE_FLAG,
-							false, mtr);
-		ut_a(err == DB_SUCCESS);
+#ifdef UNIV_DEBUG
+		if (!page_is_leaf(page) && left_page_no == FIL_NULL) {
+			ut_ad(REC_INFO_MIN_REC_FLAG & rec_get_info_bits(
+				page_rec_get_next(page_get_infimum_rec(
+					buf_block_get_frame(merge_block))),
+				page_is_comp(page)));
+		}
+#endif /* UNIV_DEBUG */
 
-		if (!compressed) {
-			btr_cur_compress_if_useful(&cursor2, FALSE, mtr);
+		/* For rtree, we need to update father's mbr. */
+		if (dict_index_is_spatial(index)) {
+			ulint*	offsets2;
+			offsets2 = rec_get_offsets(
+				btr_cur_get_rec(&cursor2),
+				index, NULL, ULINT_UNDEFINED, &heap);
+
+			ut_ad(btr_node_ptr_get_child_page_no(
+				btr_cur_get_rec(&cursor2), offsets2)
+				== right_page_no);
+
+			rtr_merge_and_update_mbr(&father_cursor,
+						 &cursor2,
+						 offsets, offsets2,
+						 merge_page, merge_block,
+						 block, index, mtr);
+			lock_mutex_enter();
+			lock_rec_free_all_from_discard_page(block);
+			lock_mutex_exit();
+		} else {
+
+			compressed = btr_cur_pessimistic_delete(&err, TRUE,
+								&cursor2,
+								BTR_CREATE_FLAG,
+								false, mtr);
+			ut_a(err == DB_SUCCESS);
+
+			if (!compressed) {
+				btr_cur_compress_if_useful(&cursor2,
+							   FALSE,
+							   mtr);
+			}
+
+			lock_update_merge_right(merge_block, orig_succ, block);
 		}
 
-		lock_update_merge_right(merge_block, orig_succ, block);
 	}
 
 	if (!dict_index_is_clust(index)
@@ -3224,6 +3462,17 @@ btr_compress(
 	ut_a(!merge_page_zip || page_zip_validate(merge_page_zip, merge_page,
 						  index));
 #endif /* UNIV_ZIP_DEBUG */
+
+	if (dict_index_is_spatial(index)) {
+#ifdef UNIV_GIS_DEBUG
+		fprintf(stderr, "GIS_DIAG: compressed away  %ld\n",
+			(long) block->page.id.page_no());
+		fprintf(stderr, "GIS_DIAG: merged to %ld\n",
+			(long) merge_block->page.id.page_no());
+#endif
+
+		rtr_check_discard_page(index, NULL, block);
+	}
 
 	/* Free the file page */
 	btr_page_free(index, block, mtr);
@@ -3293,6 +3542,11 @@ btr_discard_only_page_on_level(
 
 		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
 		btr_search_drop_page_hash_index(block);
+
+		if (dict_index_is_spatial(index)) {
+			/* Check any concurrent search having this page */
+			rtr_check_discard_page(index, NULL, block);
+		}
 
 		btr_page_get_father(index, block, mtr, &cursor);
 		father = btr_cur_get_block(&cursor);
@@ -3457,6 +3711,10 @@ btr_discard_page(
 		lock_update_discard(merge_block,
 				    lock_get_min_heap_no(merge_block),
 				    block);
+	}
+
+	if (dict_index_is_spatial(index)) {
+		rtr_check_discard_page(index, cursor, block);
 	}
 
 	/* Free the file page */
@@ -3645,7 +3903,16 @@ btr_check_node_ptr(
 		index, page_rec_get_next(page_get_infimum_rec(page)), 0, heap,
 		btr_page_get_level(page, mtr));
 
-	ut_a(!cmp_dtuple_rec(tuple, btr_cur_get_rec(&cursor), offsets));
+	/* For spatial index, the MBR in the parent rec could be different
+	with that of first rec of child, their relationship should be
+	"WITHIN" relationship */
+	if (dict_index_is_spatial(index)) {
+		ut_a(!cmp_dtuple_rec_with_gis(
+			tuple, btr_cur_get_rec(&cursor),
+			offsets, PAGE_CUR_WITHIN));
+	} else {
+		ut_a(!cmp_dtuple_rec(tuple, btr_cur_get_rec(&cursor), offsets));
+	}
 func_exit:
 	mem_heap_free(heap);
 
@@ -3931,6 +4198,7 @@ btr_validate_level(
 	page_zip_des_t*	page_zip;
 #endif /* UNIV_ZIP_DEBUG */
 	ulint		savepoint = 0;
+	ulint		savepoint2 = 0;
 	ulint		parent_page_no = FIL_NULL;
 	ulint		parent_right_page_no = FIL_NULL;
 	bool		rightmost_child = false;
@@ -3948,6 +4216,13 @@ btr_validate_level(
 	block = btr_root_block_get(index, RW_SX_LATCH, &mtr);
 	page = buf_block_get_frame(block);
 	seg = page + PAGE_HEADER + PAGE_BTR_SEG_TOP;
+
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		fprintf(stderr, "Root page no: %lu\n",
+			(ulong) page_get_page_no(page));
+	}
+#endif
 
 	const ulint		space = dict_index_get_space(index);
 	const page_size_t	table_page_size(
@@ -3997,8 +4272,37 @@ btr_validate_level(
 		node_ptr = page_cur_get_rec(&cursor);
 		offsets = rec_get_offsets(node_ptr, index, offsets,
 					  ULINT_UNDEFINED, &heap);
+
+		savepoint2 = mtr_set_savepoint(&mtr);
 		block = btr_node_ptr_get_child(node_ptr, index, offsets, &mtr);
 		page = buf_block_get_frame(block);
+
+		/* For R-Tree, since record order might not be the same as
+		linked index page in the lower level, we need to travers
+		backwards to get the first page rec in this level.
+		This is only used for index validation. Spatial index
+		does not use such scan for any of its DML or query
+		operations  */
+		if (dict_index_is_spatial(index)) {
+			left_page_no = btr_page_get_prev(page, &mtr);
+
+			while (left_page_no != FIL_NULL) {
+				page_id_t	left_page_id(space, left_page_no);
+				/* To obey latch order of tree blocks,
+				we should release the right_block once to
+				obtain lock of the uncle block. */
+				mtr_release_block_at_savepoint(
+					&mtr, savepoint2, block);
+
+				savepoint2 = mtr_set_savepoint(&mtr);
+				block = btr_block_get(
+					left_page_id,
+					table_page_size,
+					RW_SX_LATCH, index, &mtr);
+				page = buf_block_get_frame(block);
+				left_page_no = btr_page_get_prev(page, &mtr);
+			}
+		}
 	}
 
 	/* Now we are on the desired level. Loop through the pages on that
@@ -4111,8 +4415,13 @@ loop:
 					  offsets, ULINT_UNDEFINED, &heap);
 		offsets2 = rec_get_offsets(right_rec, index,
 					   offsets2, ULINT_UNDEFINED, &heap);
-		if (cmp_rec_rec(rec, right_rec, offsets, offsets2,
-			        index) >= 0) {
+
+		/* For spatial index, we cannot guarantee the key ordering
+		across pages, so skip the record compare verification for
+		now. Will enhanced in special R-Tree index validation scheme */
+		if (!dict_index_is_spatial(index)
+		    && cmp_rec_rec(rec, right_rec,
+				   offsets, offsets2, index) >= 0) {
 
 			btr_validate_report2(index, level, block, right_block);
 
@@ -4144,10 +4453,16 @@ loop:
 			     page_is_comp(page)));
 	}
 
-	if (block->page.id.page_no() != dict_index_get_page(index)) {
+	/* Similarly skip the father node check for spatial index for now,
+	for a couple of reasons:
+	1) As mentioned, there is no ordering relationship between records
+	in parent level and linked pages in the child level.
+	2) Search parent from root is very costly for R-tree.
+	We will add special validation mechanism for R-tree later (WL #7520) */
+	if (!dict_index_is_spatial(index)
+	    && block->page.id.page_no() != dict_index_get_page(index)) {
 
 		/* Check father node pointers */
-
 		rec_t*	node_ptr;
 
 		btr_cur_position(
@@ -4165,8 +4480,10 @@ loop:
 					page_rec_get_next(node_ptr));
 
 		btr_cur_position(
-			index, page_rec_get_prev(page_get_supremum_rec(page)),
+			index,
+			page_rec_get_prev(page_get_supremum_rec(page)),
 			block, &node_cur);
+
 		offsets = btr_page_get_father_node_ptr_for_validate(
 				offsets, heap, &node_cur, &mtr);
 
@@ -4415,6 +4732,47 @@ node_ptr_fails:
 }
 
 /**************************************************************//**
+Do an index level validation of spaital index tree.
+@return	true if no error found */
+
+bool
+btr_validate_spatial_index(
+/*=======================*/
+	dict_index_t*	index,	/*!< in: index */
+	const trx_t*	trx)	/*!< in: transaction or NULL */
+{
+
+	mtr_t	mtr;
+	bool	ok = true;
+
+	mtr_start(&mtr);
+
+	mtr_x_lock(dict_index_get_lock(index), &mtr);
+
+	page_t*	root = btr_root_get(index, &mtr);
+	ulint	n = btr_page_get_level(root, &mtr);
+
+#ifdef UNIV_RTR_DEBUG
+	fprintf(stderr, "R-tree level is %lu\n", n);
+#endif /* UNIV_RTR_DEBUG */
+
+	for (ulint i = 0; i <= n; ++i) {
+#ifdef UNIV_RTR_DEBUG
+		fprintf(stderr, "Level %lu:\n", n - i);
+#endif /* UNIV_RTR_DEBUG */
+
+		if (!btr_validate_level(index, trx, n - i, true)) {
+			ok = false;
+			break;
+		}
+	}
+
+	mtr_commit(&mtr);
+
+	return(ok);
+}
+
+/**************************************************************//**
 Checks the consistency of an index tree.
 @return true if ok */
 
@@ -4429,6 +4787,10 @@ btr_validate_index(
 	not the B-tree */
 	if (dict_index_is_online_ddl(index) || (index->type & DICT_FTS)) {
 		return(true);
+	}
+
+	if (dict_index_is_spatial(index)) {
+		return(btr_validate_spatial_index(index, trx));
 	}
 
 	mtr_t		mtr;

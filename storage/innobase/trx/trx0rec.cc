@@ -493,8 +493,11 @@ trx_undo_page_report_modify_ext(
 	ulint			prefix_len,
 	const page_size_t&	page_size,
 	const byte**		field,
-	ulint*			len)
+	ulint*			len,
+	bool			is_spatial)
 {
+	ulint	spatial_len = is_spatial ? DATA_MBR_LEN : 0;
+
 	if (ext_buf) {
 		ut_a(prefix_len > 0);
 
@@ -509,13 +512,50 @@ trx_undo_page_report_modify_ext(
 		*field = trx_undo_page_fetch_ext(ext_buf, prefix_len,
 						 page_size, *field, len);
 
-		ptr += mach_write_compressed(ptr, *len);
+		ptr += mach_write_compressed(ptr, *len + spatial_len);
 	} else {
 		ptr += mach_write_compressed(ptr, UNIV_EXTERN_STORAGE_FIELD
-					     + *len);
+					     + *len + spatial_len);
 	}
 
 	return(ptr);
+}
+
+/** Get MBR from a Geometry column stored externally
+@param[out]	mbr		MBR to fill
+@param[in]	pagesize	table pagesize
+@param[in]	field		field contain the geometry data
+@param[in,out]	len		length of field, in bytes
+*/
+static
+void
+trx_undo_get_mbr_from_ext(
+/*======================*/
+	double*			mbr,
+	const page_size_t&      page_size,
+	const byte*             field,
+	ulint*			len)
+{
+	uchar*		dptr = NULL;
+	ulint		dlen;
+	mem_heap_t*	heap = mem_heap_create(100);
+
+	dptr = btr_copy_externally_stored_field(
+		&dlen, field, page_size, *len, heap);
+
+	if (dlen <= GEO_DATA_HEADER_SIZE) {
+		for (uint i = 0; i < SPDIMS; ++i) {
+			mbr[i * 2] = DBL_MAX;
+			mbr[i * 2 + 1] = -DBL_MAX;
+		}
+	} else {
+		rtree_mbr_from_wkb(
+			dptr + GEO_DATA_HEADER_SIZE,
+			static_cast<uint>(dlen) - GEO_DATA_HEADER_SIZE,
+			SPDIMS, mbr);
+	}
+
+	mem_heap_free(heap);
 }
 
 /**********************************************************************//**
@@ -716,7 +756,7 @@ trx_undo_page_report_modify(
 					&& flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 					? ext_buf : NULL, prefix_len,
 					dict_table_page_size(table),
-					&field, &flen);
+					&field, &flen, false);
 
 				/* Notify purge that it eventually has to
 				free the old externally stored field */
@@ -756,6 +796,7 @@ trx_undo_page_report_modify(
 
 	if (!update || !(cmpl_info & UPD_NODE_NO_ORD_CHANGE)) {
 		byte*	old_ptr = ptr;
+		double	mbr[SPDIMS * 2];
 
 		undo_ptr->update_undo->del_marks = TRUE;
 
@@ -777,6 +818,7 @@ trx_undo_page_report_modify(
 
 			if (col->ord_part) {
 				ulint	pos;
+				bool	is_spatial = false;
 
 				/* Write field number to undo log */
 				if (trx_undo_left(undo_page, ptr) < 5 + 15) {
@@ -802,13 +844,29 @@ trx_undo_page_report_modify(
 
 					ut_a(prefix_len < sizeof ext_buf);
 
+
+					/* If prefix is 0, and this GEOMETRY
+					col is ord entry, then there is a
+					spatial index on it, log its MBR */
+					if (col->mtype == DATA_GEOMETRY
+					    && col->max_prefix == 0) {
+						is_spatial = true;
+
+						trx_undo_get_mbr_from_ext(
+							mbr,
+							dict_table_page_size(
+								table),
+							field, &flen);
+					}
+
 					ptr = trx_undo_page_report_modify_ext(
 						ptr,
 						flen < REC_ANTELOPE_MAX_INDEX_COL_LEN
 						&& !ignore_prefix
 						? ext_buf : NULL, prefix_len,
 						dict_table_page_size(table),
-						&field, &flen);
+						&field, &flen,
+						is_spatial);
 				} else {
 					ptr += mach_write_compressed(
 						ptr, flen);
@@ -823,6 +881,20 @@ trx_undo_page_report_modify(
 
 					ut_memcpy(ptr, field, flen);
 					ptr += flen;
+				}
+
+				if (is_spatial) {
+					if (trx_undo_left(undo_page, ptr)
+					    < DATA_MBR_LEN) {
+						return(0);
+					}
+
+					for (int i = 0; i < SPDIMS * 2;
+					     i++) {
+						mach_double_write(
+							ptr, mbr[i]);
+						ptr +=  sizeof(double);
+					}
 				}
 			}
 		}
@@ -1078,8 +1150,19 @@ trx_undo_rec_get_partial_row(
 
 		if (len != UNIV_SQL_NULL
 		    && len >= UNIV_EXTERN_STORAGE_FIELD) {
-			dfield_set_len(dfield,
-				       len - UNIV_EXTERN_STORAGE_FIELD);
+			if (col->mtype == DATA_GEOMETRY
+			    && col->max_prefix == 0
+			    && col->ord_part) {
+				dfield_set_len(
+					dfield,
+					len - UNIV_EXTERN_STORAGE_FIELD
+					- DATA_MBR_LEN);
+			} else {
+				dfield_set_len(
+					dfield,
+					len - UNIV_EXTERN_STORAGE_FIELD);
+			}
+
 			dfield_set_ext(dfield);
 			/* If the prefix of this column is indexed,
 			ensure that enough prefix is stored in the

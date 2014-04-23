@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0btr.h"
 #include "btr0types.h"
+#include "gis0rtree.h"
 
 /* Relative positions for a stored cursor position */
 #define BTR_PCUR_ON			1

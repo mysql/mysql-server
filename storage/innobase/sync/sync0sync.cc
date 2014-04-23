@@ -72,6 +72,10 @@ mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
 # ifdef UNIV_SYNC_DEBUG
 mysql_pfs_key_t	rw_lock_debug_mutex_key;
 # endif /* UNIV_SYNC_DEBUG */
+mysql_pfs_key_t rtr_active_mutex_key;
+mysql_pfs_key_t	rtr_match_mutex_key;
+mysql_pfs_key_t	rtr_path_mutex_key;
+mysql_pfs_key_t rtr_ssn_mutex_key;
 mysql_pfs_key_t	rw_lock_list_mutex_key;
 mysql_pfs_key_t	rw_lock_mutex_key;
 mysql_pfs_key_t	srv_dict_tmpfile_mutex_key;

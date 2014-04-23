@@ -156,6 +156,9 @@ extern fil_addr_t	fil_addr_null;
 					data file (ibdata*, not *.ibd):
 					the file has been flushed to disk
 					at least up to this lsn */
+#define	FIL_RTREE_SPLIT_SEQ_NUM	26	/*!< This overloads
+					FIL_PAGE_FILE_FLUSH_LSN for RTREE
+					Split Sequence Number */
 #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
 					contains the space id of the page */
 #define FIL_PAGE_SPACE_ID  FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
@@ -334,6 +337,14 @@ ulint
 fil_space_get_flags(
 /*================*/
 	ulint	id);	/*!< in: space id */
+
+/** Check if table is mark for truncate.
+@param[in]	id	space id
+@return true if tablespace is marked for truncate. */
+
+bool
+fil_space_is_being_truncated(
+	ulint id);
 
 /** Returns the page size of the space and whether it is compressed or not.
 The tablespace must be cached in the memory cache.
