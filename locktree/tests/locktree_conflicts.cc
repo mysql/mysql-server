@@ -165,6 +165,9 @@ void locktree_unit_test::test_conflicts(void) {
         lt.remove_overlapping_locks_for_txnid(txnid_a, three, four);
         invariant(no_row_locks(&lt));
     }
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

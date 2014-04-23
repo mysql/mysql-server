@@ -144,6 +144,9 @@ void lock_request_unit_test::test_start_pending(void) {
     locktree_unit_test::locktree_test_release_lock(&lt, txnid_a, one, one);
 
     request.destroy();
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

@@ -161,7 +161,9 @@ void lock_request_unit_test::test_wait_time_callback(void) {
 
     release_lock_and_retry_requests(&lt, txnid_a, one, one);
     request_a.destroy();
-    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

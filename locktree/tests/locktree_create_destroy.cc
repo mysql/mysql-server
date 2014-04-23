@@ -112,6 +112,9 @@ void locktree_unit_test::test_create_destroy(void) {
     invariant(info->pending_lock_requests.size() == 0);
     invariant(lt.m_sto_end_early_count == 0);
     invariant(lt.m_sto_end_early_time == 0);
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */
