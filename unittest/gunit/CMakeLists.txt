@@ -267,6 +267,8 @@ SET(TESTS
   strtoll
   thread_utils
   my_timer
+  path
+  auth_utils
   )
   
 IF(WIN32)
