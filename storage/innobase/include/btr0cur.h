@@ -410,9 +410,10 @@ btr_cur_pessimistic_update(
 				big_rec and the index tuple */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
-	const upd_t*	update,	/*!< in: update vector; this is allowed also
-				contain trx id and roll ptr fields, but
-				the values in update vector have no effect */
+	upd_t*		update,	/*!< in/out: update vector; this is allowed to
+				also contain trx id and roll ptr fields.
+				Non-updated columns that are moved offpage will
+				be appended to this. */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -650,20 +651,21 @@ file segment of the index tree.
 dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
-	dict_index_t*	index,		/*!< in: index of rec; the index tree
-					MUST be X-latched */
-	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
-	rec_t*		rec,		/*!< in/out: record */
+	btr_pcur_t*	pcur,		/*!< in/out: a persistent cursor. if
+					btr_mtr is restarted, then this can
+					be repositioned. */
+	const upd_t*	upd,		/*!< in: update vector */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
-	mtr_t*		btr_mtr,	/*!< in: mtr containing the
-					latches to the clustered index */
+	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
+					latches to the clustered index. can be
+					committed and restarted. */
 	enum blob_op	op)		/*! in: operation code */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
