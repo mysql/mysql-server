@@ -18,11 +18,9 @@
 # Test case 5: Write test case to cover error branches of resetting gtid table.
 #
 
---source include/not_valgrind.inc
+--source include/have_log_bin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc
---source include/have_innodb.inc
---source include/have_log_bin.inc
 --source include/have_gtid.inc
 
 call mtr.add_suppression("Failed to compress the gtid table.");

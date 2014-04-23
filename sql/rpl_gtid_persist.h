@@ -172,21 +172,6 @@ public:
   */
   int save(Gtid_set *gtid_set);
   /**
-    Compress the gtid table, read each row by the PK(sid, gno_start)
-    in increasing order, compress the first consecutive range of
-    gtids within a single transaction.
-
-    @param  thd Thread requesting to compress the table
-
-    @retval
-      0    OK
-    @retval
-      1    The table was not found.
-    @retval
-      -1   Error
-  */
-  int compress(THD *thd);
-  /**
     Delete all rows from the table.
 
     @param  thd Thread requesting to reset the table
@@ -214,10 +199,64 @@ public:
       -1   Error
   */
   int fetch_gtids(Gtid_set *gtid_set);
+  /**
+    Compress the gtid table completely by employing one
+    or more transactions.
+
+    @param  thd Thread requesting to compress the table
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int compress(THD *thd);
 
 private:
   /* Count the append size of the table */
   ulong m_count;
+  /**
+    Compress the gtid table, read each row by the PK(sid, gno_start)
+    in increasing order, compress the first consecutive range of
+    gtids within a single transaction.
+
+    @param      thd          Thread requesting to compress the table
+    @param[out] is_complete  True if the gtid table is compressd completely.
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int compress_in_single_transaction(THD *thd, bool &is_complete);
+  /**
+    Read each row by the PK(sid, gno_start) in increasing order,
+    compress the first consecutive range of gtids.
+    For example,
+      1 1
+      2 2
+      3 3
+      6 6
+      7 7
+      8 8
+    After the compression, the gtids in the table is compressed as following:
+      1 3
+      6 6
+      7 7
+      8 8
+
+    @param      table        Reference to a table object.
+    @param[out] is_complete  True if the gtid table is compressd completely.
+
+    @return
+      @retval 0    OK.
+      @retval -1   Error.
+  */
+  int compress_first_consecutive_range(TABLE *table, bool &is_complete);
   /**
     Fill a gtid interval into fields of the gtid table.
 
@@ -272,29 +311,6 @@ private:
       @retval -1   Error.
   */
   int delete_all(TABLE *table);
-  /**
-    Read each row by the PK(sid, gno_start) in increasing order,
-    compress the first consecutive range of gtids.
-    For example,
-      1 1
-      2 2
-      3 3
-      6 6
-      7 7
-      8 8
-    After the compression, the gtids in the table is compressed as following:
-      1 3
-      6 6
-      7 7
-      8 8
-
-    @param  table Reference to a table object.
-
-    @return
-      @retval 0    OK.
-      @retval -1   Error.
-  */
-  int compress_first_consecutive_range(TABLE *table);
   /**
     Encode the current row fetched from the table into gtid text.
 

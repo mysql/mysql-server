@@ -5217,6 +5217,16 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
 
+  if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  {
+    /* Save set of GTIDs of the last binlog into table on binlog rotation */
+    if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
+    {
+      close_on_error= TRUE;
+      goto end;
+    }
+  }
+
   old_name=name;
   name=0;				// Don't free name
   close(LOG_CLOSE_TO_BE_OPENED | LOG_CLOSE_INDEX);
@@ -5227,13 +5237,6 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     DBUG_ASSERT(binlog_checksum_options != checksum_alg_reset);
     binlog_checksum_options= checksum_alg_reset;
   }
-
-  if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
-  {
-    /* Save set of GTIDs of the last binlog into table on binlog rotation */
-    error= gtid_state->save_gtids_of_last_binlog_into_table(true);
-  }
-
   /*
      Note that at this point, log_state != LOG_CLOSED (important for is_open()).
   */
@@ -5248,12 +5251,8 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   */
 
   /* reopen index binlog file, BUG#34582 */
-  if (!error)
-  {
-    file_to_open= index_file_name;
-    error= open_index_file(index_file_name, 0, false/*need_lock_index=false*/);
-  }
-
+  file_to_open= index_file_name;
+  error= open_index_file(index_file_name, 0, false/*need_lock_index=false*/);
   if (!error)
   {
     /* reopen the binary log file. */

@@ -3,6 +3,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
+SET @debug_save= @@GLOBAL.DEBUG;
 call mtr.add_suppression("test the suppression statement");
 SHOW CREATE TABLE mysql.gtid_executed;
 Table	Create Table
@@ -40,13 +41,12 @@ include/assert.inc [committed gtids MASTER_UUID:1-4]
 #
 # Store gtids MASTER_UUID:1-4 in gtid_executed table on binlog rotation
 #
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
-MASTER_UUID	1	1
-MASTER_UUID	2	2
-MASTER_UUID	3	3
-MASTER_UUID	4	4
+MASTER_UUID	1	4
 #
 # Verify that these gtids can be reported from global.gtid_executed
 # and are stored into gtid table for compound statement with regular
@@ -61,14 +61,12 @@ include/assert.inc [committed gtids MASTER_UUID:1-8]
 #
 # Store gtids MASTER_UUID:1-8 in gtid_executed table on binlog rotation
 #
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
-MASTER_UUID	1	1
-MASTER_UUID	2	2
-MASTER_UUID	3	3
-MASTER_UUID	4	4
-MASTER_UUID	5	8
+MASTER_UUID	1	8
 #
 # Verify that transactions' gtids can be reported from
 # global.gtid_executed correctly and are stored into
@@ -90,18 +88,15 @@ INSERT INTO t1 VALUES(3);
 COMMIT;
 include/assert.inc [committed gtids MASTER_UUID:1-11]
 SET GTID_NEXT='AUTOMATIC';
+SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
+SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 #
 # Store gtids MASTER_UUID:1-11 in gtid_executed table on binlog rotation
 #
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
-MASTER_UUID	1	1
-MASTER_UUID	2	2
-MASTER_UUID	3	3
-MASTER_UUID	4	4
-MASTER_UUID	5	8
-MASTER_UUID	9	11
+MASTER_UUID	1	11
 #
 # Verify that transaction's gtid can not be reported from
 # global.gtid_executed and is not stored into gtid table
@@ -117,12 +112,8 @@ include/assert.inc [committed gtids MASTER_UUID:1-11]
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
-MASTER_UUID	1	1
-MASTER_UUID	2	2
-MASTER_UUID	3	3
-MASTER_UUID	4	4
-MASTER_UUID	5	8
-MASTER_UUID	9	11
+MASTER_UUID	1	11
+SET GLOBAL DEBUG= @debug_save;
 include/sync_slave_sql_with_master.inc
 #
 # connection slave

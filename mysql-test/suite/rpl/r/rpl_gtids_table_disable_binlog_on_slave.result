@@ -96,9 +96,7 @@ SET GLOBAL DEBUG= @debug_save;
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
 MASTER_UUID	1	5
-MASTER_UUID	16	16
-MASTER_UUID	17	17
-MASTER_UUID	18	18
+MASTER_UUID	16	18
 #
 # Verify that gtid_executed and gtid_purged are always same
 # when binlog is disabled.
@@ -118,9 +116,7 @@ DROP TABLE t3;
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
 MASTER_UUID	1	5
-MASTER_UUID	16	16
-MASTER_UUID	17	17
-MASTER_UUID	18	18
+MASTER_UUID	16	18
 DROP TABLE t1, t2;
 include/sync_slave_sql_with_master.inc
 CREATE TABLE t3 (a INT);
@@ -144,9 +140,7 @@ sid	gno_start	gno_end
 MASTER_UUID	1	5
 MASTER_UUID	6	6
 MASTER_UUID	7	7
-MASTER_UUID	16	16
-MASTER_UUID	17	17
-MASTER_UUID	18	18
+MASTER_UUID	16	18
 include/assert.inc [committed gtids MASTER_UUID:1-7:16-17]
 include/assert.inc [Table t3 must not contain 1]
 DROP TABLE t3;
