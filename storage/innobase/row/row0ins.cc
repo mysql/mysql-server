@@ -3398,8 +3398,10 @@ row_ins_spatial_index_entry_set_mbr_field(
 	dlen = dfield_get_len(row_field);
 
 	/* obtain the MBR */
-	rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-			   dlen - GEO_DATA_HEADER_SIZE, SPDIMS, mbr);
+	rtree_mbr_from_wkb(
+		dptr + GEO_DATA_HEADER_SIZE,
+		static_cast<uint>(dlen) - GEO_DATA_HEADER_SIZE,
+		SPDIMS, mbr);
 
 	/* Set mbr as index entry data */
 	dfield_write_mbr(field, mbr);
