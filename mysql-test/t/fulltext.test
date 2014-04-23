@@ -646,3 +646,42 @@ DEALLOCATE PREPARE stmt;
 DROP TABLE t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Start of 5.5 tests
+--echo #
+
+--echo #
+--echo # MDEV-6146 Can't mix (latin1_swedish_ci,NUMERIC) and (utf8_unicode_ci,IMPLICIT) for MATCH
+--echo #
+SET NAMES utf8;
+CREATE TABLE t1
+(
+  txt text COLLATE utf8_unicode_ci NOT NULL,
+  uid int(11) NOT NULL,
+  id2 int(11) NOT NULL,
+  KEY uid (uid),
+  KEY id2 (id2)
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO t1 VALUES ('txt1',1234,5678);
+SELECT * FROM t1 WHERE MATCH (id2, uid, txt) AGAINST ('txt1' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (id2, uid, txt) AGAINST ('1234' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (id2, uid, txt) AGAINST ('5678' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+CREATE TABLE t1 (
+  txt1 text COLLATE utf8_unicode_ci NOT NULL,
+  txt2 text COLLATE latin1_swedish_ci NOT NULL
+) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_unicode_ci;
+INSERT INTO t1 VALUES ('nnn1 x1 y1 ööö1','mmm1 ùùù1');
+INSERT INTO t1 VALUES ('nnn2 x2 y2 ööö2','mmm2 ùùù2');
+INSERT INTO t1 VALUES ('nnn3 x3 y3 ööö3','mmm3 ùùù3');
+INSERT INTO t1 VALUES ('nnn4 x4 y4 ööö4','mmm4 ùùù4');
+INSERT INTO t1 VALUES ('nnn5 x5 y5 ööö5','mmm5 	');
+SELECT * FROM t1 WHERE MATCH (txt1,txt2) AGAINST ('ööö1' IN BOOLEAN MODE);
+SELECT * FROM t1 WHERE MATCH (txt1,txt2) AGAINST ('ùùù2' IN BOOLEAN MODE);
+DROP TABLE t1;
+
+--echo #
+--echo # End of 5.5 tests
+--echo #

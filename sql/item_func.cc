@@ -6295,8 +6295,7 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     return 1;
   }
   table->fulltext_searched=1;
-  return agg_item_collations_for_comparison(cmp_collation, func_name(),
-                                            args+1, arg_count-1, 0);
+  return agg_arg_charsets_for_comparison(cmp_collation, args+1, arg_count-1);
 }
 
 bool Item_func_match::fix_index()
