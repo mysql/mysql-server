@@ -282,20 +282,10 @@ temp_tab	CREATE TEMPORARY TABLE `temp_tab` (
 SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
 c1	Astext(c2)	Astext(c4)
-EXPLAIN SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	temp_tab	NULL	ALL	idx4	NULL	NULL	NULL	1	100.00	Using where
-EXPLAIN UPDATE temp_tab SET C2 = GeomFromText('POINT(1000 1000)')
-WHERE Contains(temp_tab.c4, @g1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	temp_tab	NULL	ALL	idx4	NULL	NULL	NULL	1	100.00	Using where
 UPDATE temp_tab SET C2 = GeomFromText('POINT(1000 1000)')
 WHERE Contains(temp_tab.c4, @g1);
 SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
 c1	Astext(c2)	Astext(c4)
-EXPLAIN DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	temp_tab	NULL	ALL	idx4	NULL	NULL	NULL	1	100.00	Using where
 DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
 SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
 c1	Astext(c2)	Astext(c4)
@@ -464,18 +454,6 @@ tab	1	idx4	1	c4	A	#	32	NULL		SPATIAL		testing spatial index on Polygon
 tab	1	idx5	1	c5	A	#	32	NULL		SPATIAL		testing spatial index on Geometry
 tab	1	idx6	1	c4	A	#	25	NULL		BTREE		
 SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
-EXPLAIN SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	ALL	idx4,idx6	NULL	NULL	NULL	1	100.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c2`) AS `Astext(c2)`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where mbrcontains(`test`.`tab`.`c4`,(@`g1`))
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)')
-WHERE Contains(tab.c4, @g1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	index	idx4	PRIMARY	4	NULL	1	100.00	Using where
-EXPLAIN DELETE FROM tab WHERE Contains(tab.c4, @g1);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	ALL	idx4	NULL	NULL	NULL	1	100.00	Using where
 UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)') 
 WHERE Contains(tab.c4, @g1);
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1) ORDER BY c1;
@@ -515,19 +493,6 @@ Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SET @g1 = GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 5010,5010 5010))');
 SET @g2 = GeomFromText('LINESTRING(140 140,150 150,160 160)');
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1)
-AND Equals(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3,idx4,idx6	idx3	34	NULL	2	22.22	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c2`) AS `Astext(c2)`,st_astext(`test`.`tab`.`c3`) AS `AsText(c3)`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where (mbrequals(`test`.`tab`.`c4`,(@`g1`)) and mbrequals(`test`.`tab`.`c3`,(@`g2`)))
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3,idx4	idx3	34	const	2	100.00	Using where
-EXPLAIN DELETE FROM tab WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3,idx4	idx3	34	const	2	100.00	Using where
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1) 
 AND Equals(tab.c3,@g2) ORDER BY c1;
 c1	Astext(c2)	AsText(c3)	Astext(c4)
@@ -547,12 +512,6 @@ Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SET @g1 = GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 4010,4010 4010))');
 SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1)
-AND Equals(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3,idx4,idx6	idx3	34	NULL	2	25.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c2`) AS `Astext(c2)`,st_astext(`test`.`tab`.`c3`) AS `AsText(c3)`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where (mbrequals(`test`.`tab`.`c4`,(@`g1`)) and mbrequals(`test`.`tab`.`c3`,(@`g2`)))
 ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL;
 ALTER TABLE tab MODIFY COLUMN c4 POLYGON NOT NULL;
@@ -584,32 +543,6 @@ Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-AND Touches(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3,idx4,idx6	idx3	34	NULL	2	25.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c2`) AS `Astext(c2)`,st_astext(`test`.`tab`.`c3`) AS `AsText(c3)`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where (st_touches(`test`.`tab`.`c4`,(@`g1`)) and st_touches(`test`.`tab`.`c3`,(@`g2`)))
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Touches(tab.c4, @g1) AND Touches(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3,idx4	idx3	34	const	2	100.00	Using where
-EXPLAIN DELETE FROM tab WHERE Touches(tab.c4, @g1) AND Touches(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx3,idx4	idx3	34	const	2	100.00	Using where
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-OR Touches(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	ALL	idx3,idx4,idx6	NULL	NULL	NULL	8	100.00	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c2`) AS `Astext(c2)`,st_astext(`test`.`tab`.`c3`) AS `AsText(c3)`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where (st_touches(`test`.`tab`.`c4`,(@`g1`)) or st_touches(`test`.`tab`.`c3`,(@`g2`)))
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	index	idx3,idx4	PRIMARY	4	NULL	8	100.00	Using where
-EXPLAIN DELETE FROM tab WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	ALL	idx3,idx4	NULL	NULL	NULL	8	100.00	Using where
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1) 
 AND Touches(tab.c3,@g2);
 c1	Astext(c2)	AsText(c3)	Astext(c4)
@@ -644,19 +577,6 @@ Table	Op	Msg_type	Msg_text
 test.tab	analyze	status	OK
 SET @g1 = GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
 SET @g2 = GeomFromText('LINESTRING(400 400,500 500,600 700)');
-EXPLAIN SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	tab	NULL	range	idx3,idx4,idx6	idx3	34	NULL	2	28.57	Using where
-Warnings:
-Note	1003	/* select#1 */ select `test`.`tab`.`c1` AS `c1`,st_astext(`test`.`tab`.`c2`) AS `AsText(c2)`,st_astext(`test`.`tab`.`c3`) AS `AsText(c3)`,st_astext(`test`.`tab`.`c4`) AS `Astext(c4)` from `test`.`tab` where (mbrwithin(`test`.`tab`.`c4`,(@`g1`)) and mbrwithin(`test`.`tab`.`c3`,(@`g2`)))
-EXPLAIN UPDATE tab SET c2 = GeomFromText('POINT(2000 2000)'),
-c3=GeomFromText('POINT(2000 2000)')
-WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	tab	NULL	range	idx3,idx4	idx3	34	const	2	100.00	Using where; Using temporary
-EXPLAIN DELETE FROM tab WHERE Within(tab.c2, @g1) AND Within(tab.c3, @g2);
-id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	DELETE	tab	NULL	range	idx2,idx3	idx2	34	const	2	100.00	Using where
 SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
 c1	AsText(c2)	AsText(c3)	Astext(c4)
 5	POINT(3 3)	LINESTRING(400 400,500 500,600 700)	POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))
