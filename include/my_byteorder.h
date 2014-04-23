@@ -28,6 +28,78 @@
 #include "byte_order_generic.h"
 #endif
 
+static inline int32 sint3korr(const uchar *A)
+{
+  return
+    ((int32) (((A[2]) & 128) ?
+              (((uint32) 255L << 24) |
+               (((uint32) A[2]) << 16) |
+               (((uint32) A[1]) << 8) |
+               ((uint32) A[0])) :
+              (((uint32) A[2]) << 16) |
+              (((uint32) A[1]) << 8) |
+              ((uint32) A[0])))
+    ;
+}
+
+static inline uint32 uint3korr(const uchar *A)
+{
+  return
+    (uint32) (((uint32) (A[0])) +
+              (((uint32) (A[1])) << 8) +
+              (((uint32) (A[2])) << 16))
+    ;
+}
+
+static inline ulonglong uint5korr(const uchar *A)
+{
+  return
+    ((ulonglong)(((uint32) (A[0])) +
+                 (((uint32) (A[1])) << 8) +
+                 (((uint32) (A[2])) << 16) +
+                 (((uint32) (A[3])) << 24)) +
+     (((ulonglong) (A[4])) << 32))
+    ;
+}
+
+static inline ulonglong uint6korr(const uchar *A)
+{
+  return
+    ((ulonglong)(((uint32) (A[0]))          +
+                 (((uint32) (A[1])) << 8)   +
+                 (((uint32) (A[2])) << 16)  +
+                 (((uint32) (A[3])) << 24)) +
+     (((ulonglong) (A[4])) << 32) +
+     (((ulonglong) (A[5])) << 40))
+    ;
+}
+
+static inline void int3store(uchar *T, uint A)
+{
+  *(T)=   (uchar) (A);
+  *(T+1)= (uchar) (A >> 8);
+  *(T+2)= (uchar) (A >> 16);
+}
+
+static inline void int5store(uchar *T, ulonglong A)
+{
+  *(T)=   (uchar) (A);
+  *(T+1)= (uchar) (A >> 8);
+  *(T+2)= (uchar) (A >> 16);
+  *(T+3)= (uchar) (A >> 24);
+  *(T+4)= (uchar) (A >> 32);
+}
+
+static inline void int6store(uchar *T, ulonglong A)
+{
+  *(T)=   (uchar) (A);
+  *(T+1)= (uchar) (A >> 8);
+  *(T+2)= (uchar) (A >> 16);
+  *(T+3)= (uchar) (A >> 24);
+  *(T+4)= (uchar) (A >> 32);
+  *(T+5)= (uchar) (A >> 40);
+}
+
 #ifdef __cplusplus
 
 static inline int16 sint2korr(const char *pT)

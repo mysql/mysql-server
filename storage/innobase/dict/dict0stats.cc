@@ -1821,7 +1821,8 @@ dict_stats_index_set_n_diff(
 			/* If we know the number of records on level 1, then
 			this number is the same as the number of pages on
 			level 0 (leaf). */
-			n_ordinary_leaf_pages = data->n_recs_on_level;
+			n_ordinary_leaf_pages = static_cast<ulint>(
+					data->n_recs_on_level);
 		} else {
 			/* If we analyzed D ordinary leaf pages and found E
 			external pages in total linked from those D ordinary
@@ -1833,9 +1834,10 @@ dict_stats_index_set_n_diff(
 			T * D / (D + E). */
 			n_ordinary_leaf_pages
 				= index->stat_n_leaf_pages
-				* data->n_leaf_pages_to_analyze
-				/ (data->n_leaf_pages_to_analyze
-				   + data->n_external_pages_sum);
+				* static_cast<ulint>(
+					data->n_leaf_pages_to_analyze
+					/ (data->n_leaf_pages_to_analyze
+					   + data->n_external_pages_sum));
 		}
 
 		/* See REF01 for an explanation of the algorithm */
