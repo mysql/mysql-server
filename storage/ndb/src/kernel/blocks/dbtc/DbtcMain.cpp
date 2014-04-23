@@ -9128,6 +9128,8 @@ void Dbtc::remove_from_transid_fail_hash(Signal *signal)
       {
         jam();
         /* We were first in the hash linked list */
+        ndbassert(ctransidFailHash[hash] == locApiConnectptr.i);
+        
         ctransidFailHash[hash] = apiConnectptr.p->nextApiConnect;
       }
       else
@@ -9138,6 +9140,7 @@ void Dbtc::remove_from_transid_fail_hash(Signal *signal)
         prevApiConptr.p->nextApiConnect = apiConnectptr.p->nextApiConnect;
       }
       apiConnectptr.p->nextApiConnect = RNIL;
+      return;
     }
     else
     {
@@ -9146,6 +9149,9 @@ void Dbtc::remove_from_transid_fail_hash(Signal *signal)
       locApiConnectptr.i = locApiConnectptr.p->nextApiConnect;
     }
   } while (locApiConnectptr.i != RNIL);
+  
+  /* Not found */
+  ndbrequire(false);
 }
 
 Uint32
@@ -9195,7 +9201,7 @@ void Dbtc::remove_from_tc_fail_hash(Signal *signal)
   TcConnectRecordPtr prevTcConnectptr;
 
   remTcConnectptr.i = apiConnectptr.p->firstTcConnect;
-  while (loopTcConnectptr.i != RNIL)
+  while (remTcConnectptr.i != RNIL)
   {
     jam();
     ptrCheckGuard(remTcConnectptr, ctcConnectFilesize, tcConnectRecord);
@@ -9213,6 +9219,7 @@ void Dbtc::remove_from_tc_fail_hash(Signal *signal)
         {
           jam();
           /* We were first in the hash linked list */
+          ndbassert(ctcConnectFailHash[hash] == remTcConnectptr.i);
           ctcConnectFailHash[hash] = remTcConnectptr.p->nextTcFailHash;
         }
         else
@@ -9224,6 +9231,7 @@ void Dbtc::remove_from_tc_fail_hash(Signal *signal)
             remTcConnectptr.p->nextTcFailHash;
         }
         remTcConnectptr.p->nextTcFailHash = RNIL;
+        break;
       }
       else
       {
