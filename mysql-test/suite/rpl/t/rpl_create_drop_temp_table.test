@@ -16,11 +16,18 @@
 #  7) Wait till SQL thread applies all events
 #     (which includes newly generated Format Description event)
 #  8) Now verify that Slave_open_temp_tables has '0' value
+
+# This same test steps with gtid enabled mode, works to test the following
+# bug as well.
+# Bug#18069107 SLAVE CRASHES WITH GTIDS,TEMP TABLE, STOP IO_THREAD, START SLAVE
+# Problem & Analysis : When Slave SQL thread detects that Master was restarted
+#  with the help of information sent by Master through 'FormatDescription'
+#  event, slave SQL drops all the opened temporary tables in order to have
+#  proper cleanup. When Gtid mode is on and while slave SQL thread is
+#  generating DROP TEMPORARY statement for all these temporary tables,
+#  server is hitting an assert DEBUG_ASSERT(gtid.spec_type != UNDEF_GROUP)
 ###############################################################################
 
-# Due to bug#18069107, this test scenario will not work with
-# gtid mode. Should remove this restriction after fixing that bug
---source include/not_gtid_enabled.inc
 # Statement mode is enough (row based temporary
 # tables are not replicated)
 --source include/have_binlog_format_statement.inc
@@ -48,6 +55,8 @@ CREATE TEMPORARY TABLE temp (i INT);
 # 6. Start slave io_thread
 --connection slave
 --source include/start_slave_io.inc
+--connection master
+--source include/sync_slave_io_with_master.inc
 
 # 7. Wait for slave thread to apply all events (including the newly generated
 # FormatDescription event which tells slave SQL thread to drop all temporary

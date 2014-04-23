@@ -211,6 +211,25 @@ page_update_max_trx_id(
 				uncompressed part will be updated, or NULL */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+/*************************************************************//**
+Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
+@return SPLIT SEQUENCE NUMBER */
+UNIV_INLINE
+node_seq_t
+page_get_ssn_id(
+/*============*/
+	const page_t*	page);	/*!< in: page */
+/*************************************************************//**
+Sets the RTREE SPLIT SEQUENCE NUMBER field value */
+UNIV_INLINE
+void
+page_set_ssn_id(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
+	node_seq_t	ssn_id,	/*!< in: split sequence id */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 
 #endif /* !UNIV_INNOCHECKSUM */
 /*************************************************************//**

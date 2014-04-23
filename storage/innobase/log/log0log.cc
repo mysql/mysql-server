@@ -1750,8 +1750,7 @@ log_checkpoint(
 	further dirty pages are flushed to the tablespace files.  At
 	this point, because log_mutex_own(), mtr_commit() in other
 	threads will be blocked, and no pages can be added to the
-	flush lists. The flush lists must be empty, because everything
-	was flushed at the checkpoint.
+	flush lists.
 
 	If we had written out some data pages before flushing the
 	MLOG_CHECKPOINT marker, recovery would be unable to discard

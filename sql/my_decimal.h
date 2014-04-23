@@ -92,8 +92,8 @@ inline int my_decimal_int_part(uint precision, uint decimals)
   my_decimal class limits 'decimal_t' type to what we need in MySQL.
 
   It contains internally all necessary space needed by the instance so
-  no extra memory is needed. One should call fix_buffer_pointer() function
-  when he moves my_decimal objects in memory.
+  no extra memory is needed. Objects should be moved using copy CTOR
+  or assignment operator, rather than memcpy/memmove.
 */
 
 class my_decimal :public decimal_t
@@ -119,13 +119,14 @@ public:
 
   my_decimal(const my_decimal &rhs) : decimal_t(rhs)
   {
+    rhs.sanity_check();
 #if !defined(DBUG_OFF)
     foo1= test_value;
     foo2= test_value;
 #endif
     for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
       buffer[i]= rhs.buffer[i];
-    fix_buffer_pointer();
+    buf= buffer;
   }
 
   my_decimal& operator=(const my_decimal &rhs)
@@ -137,7 +138,7 @@ public:
     decimal_t::operator=(rhs);
     for (uint i= 0; i < DECIMAL_BUFF_LENGTH; i++)
       buffer[i]= rhs.buffer[i];
-    fix_buffer_pointer();
+    buf= buffer;
     return *this;
   }
 
@@ -166,8 +167,6 @@ public:
     DBUG_ASSERT(foo2 == test_value);
     DBUG_ASSERT(buf  == buffer);
   }
-
-  void fix_buffer_pointer() { buf= buffer; }
 
   bool sign() const { return decimal_t::sign; }
   void sign(bool s) { decimal_t::sign= s; }
@@ -223,7 +222,7 @@ inline int check_result_and_overflow(uint mask, int result, my_decimal *val)
   if (val->check_result(mask, result) & E_DEC_OVERFLOW)
   {
     bool sign= val->sign();
-    val->fix_buffer_pointer();
+    val->sanity_check();
     max_internal_decimal(val);
     val->sign(sign);
   }
@@ -508,6 +507,11 @@ bool operator<(const my_decimal &lhs, const my_decimal &rhs)
   return my_decimal_cmp(&lhs, &rhs) < 0;
 }
 
+inline
+bool operator!=(const my_decimal &lhs, const my_decimal &rhs)
+{
+  return my_decimal_cmp(&lhs, &rhs) != 0;
+}
 
 inline
 int my_decimal_intg(const my_decimal *a)
