@@ -3318,9 +3318,9 @@ row_ins_index_entry(
 			return(DB_LOCK_WAIT);});
 
 	if (dict_index_is_clust(index)) {
-		return(row_ins_clust_index_entry(index, entry, thr, 0));
+		return(row_ins_clust_index_entry(index, entry, thr, 0, false));
 	} else {
-		return(row_ins_sec_index_entry(index, entry, thr));
+		return(row_ins_sec_index_entry(index, entry, thr, false));
 	}
 }
 

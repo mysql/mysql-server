@@ -1377,10 +1377,10 @@ row_insert_for_mysql_using_cursor(
 
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry(
-				node->index, node->entry, thr, 0);
+				node->index, node->entry, thr, 0, false);
 		} else {
 			err = row_ins_sec_index_entry(
-				node->index, node->entry, thr);
+				node->index, node->entry, thr, false);
 		}
 
 		if (err == DB_SUCCESS) {
@@ -2073,11 +2073,12 @@ row_update_for_mysql_using_cursor(
 		if (dict_index_is_clust(index)) {
 			err = row_ins_clust_index_entry(
 				index, entry, thr,
-				node->upd_ext ? node->upd_ext->n_ext : 0);
+				node->upd_ext ? node->upd_ext->n_ext : 0,
+				false);
 			/* Commit the open mtr as we are processing UPDATE. */
 			index->last_ins_cur->release();
 		} else {
-			err = row_ins_sec_index_entry(index, entry, thr);
+			err = row_ins_sec_index_entry(index, entry, thr, false);
 		}
 
 		/* Too big record is valid error and suggestion is to use
