@@ -4218,6 +4218,10 @@ btr_cur_pessimistic_update(
 			ibuf_update_free_bits_zip(block, mtr);
 		}
 
+		if (big_rec_vec != NULL) {
+			dtuple_big_rec_free(big_rec_vec);
+		}
+
 		return(err);
 	}
 
