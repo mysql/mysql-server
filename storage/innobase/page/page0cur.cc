@@ -212,10 +212,10 @@ page_cur_rec_field_extends(
 cached version.
 @param[in]	rec	B-Tree record for which offset needs to be
 			populated.
-@param[in/out]	index	index handler
+@param[in,out]	index	index handler
 @param[in]	tuple	data tuple
-@param[in/out]	offsets	default offsets array
-@param[in/out]	heap	heap
+@param[in,out]	offsets	default offsets array
+@param[in,out]	heap	heap
 @return reference to populate offsets. */
 static
 ulint*
