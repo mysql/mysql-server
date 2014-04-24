@@ -309,7 +309,7 @@ row_update_for_mysql(
 	__attribute__((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
-@param[in/out]	table	table handler
+@param[in,out]	table	table handler
 @return error code or DB_SUCCESS */
 
 dberr_t
@@ -450,7 +450,7 @@ fields than mentioned in the constraint.
 @param[in]	sql_length	length of sql_string
 @param[in]	name		table full name in normalized form
 @param[in]	is_temp_table	true if table is temporary
-@param[in/out]	handler		table handler if table is intrinsic
+@param[in,out]	handler		table handler if table is intrinsic
 @param[in]	reject_fks	if TRUE, fail with error code
 				DB_CANNOT_ADD_CONSTRAINT if any
 				foreign keys are found.

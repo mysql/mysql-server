@@ -287,7 +287,7 @@ page_cur_tuple_insert(
 /** Insert a record next to page cursor. Record is directly copied to
 the page from tuple without creating intermediate copy of the record.
 
-@param[in/out]	cursor	a page cursor
+@param[in,out]	cursor	a page cursor
 @param[in]	tuple	pointer to a data tuple
 @param[in]	index	record descriptor
 @param[in]	n_ext	number of externally stored columns
