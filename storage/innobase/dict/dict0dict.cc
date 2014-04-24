@@ -2773,12 +2773,12 @@ dict_index_find_cols(
 
 				/* Check if same column is being assigned again
 				which suggest that column has duplicate name. */
-				bool found =
+				bool exists =
 					std::find(col_added.begin(),
-						col_added.end(), j)
+						  col_added.end(), j)
 					!= col_added.end();
 
-				if (found) {
+				if (exists) {
 					/* Duplicate column found. */
 					break;
 				}

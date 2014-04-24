@@ -2091,7 +2091,7 @@ btr_insert_on_non_leaf_level_func(
 		ut_a(err == DB_SUCCESS);
 	}
 
-	if (heap) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
