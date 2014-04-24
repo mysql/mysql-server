@@ -20,6 +20,8 @@ extern "C"
 {
 #include <stdio.h>
 #include <stdint.h>
+#include <sys/stat.h>
+#include <fcntl.h>
 #include <unistd.h>
 #include <pwd.h>
 }
@@ -182,6 +184,39 @@ void escape_string(string *str)
 */
 struct Sql_user
 {
+  Sql_user(string opt_host,
+           string opt_user,
+           string opt_password,
+           Access_privilege opt_priv,
+           string opt_ssl_type,
+           string opt_ssl_cipher,
+           string opt_x509_issuer,
+           string opt_x509_subject,
+           int opt_max_questions,
+           int opt_max_updates,
+           int opt_max_connections,
+           int opt_max_user_connections,
+           string opt_plugin,
+           string opt_authentication_string,
+           bool opt_password_expired,
+           int opt_password_lifetime) :
+              host(opt_host),
+              user(opt_user),
+              password(opt_password),
+              priv(opt_priv),
+              ssl_type(opt_ssl_type),
+              ssl_cipher(opt_ssl_cipher),
+              x509_issuer(opt_x509_issuer),
+              x509_subject(opt_x509_subject),
+              max_questions(opt_max_questions),
+              max_updates(opt_max_updates),
+              max_connections(opt_max_connections),
+              max_user_connections(opt_max_user_connections),
+              plugin(opt_plugin),
+              authentication_string(opt_authentication_string),
+              password_expired(opt_password_expired),
+              password_lifetime(opt_password_lifetime) {}
+
   string host;
   string user;
   string password;
@@ -268,45 +303,6 @@ struct Sql_user
   }
 
 };
-
-/**
-  Helper function for gathering parameters under the Sql_user umbrella.
-*/
-void create_user(Sql_user *u,
-                 const string &host,
-                 const string &user,
-                 const string &pass,
-                 const Access_privilege &priv,
-                 const string &ssl_type,
-                 const string &ssl_cipher,
-                 const string &x509_issuer,
-                 const string &x509_subject,
-                 int max_questions,
-                 int max_updates,
-                 int max_connections,
-                 int max_user_connections,
-                 const string &plugin,
-                 const string &authentication_string,
-                 bool password_expired,
-                 int password_lifetime)
-{
-  u->host= host;
-  u->user= user;
-  u->password= pass;
-  u->priv= priv;
-  u->ssl_type= ssl_type;
-  u->ssl_cipher= ssl_cipher;
-  u->x509_issuer= x509_issuer;
-  u->x509_subject= x509_subject;
-  u->max_questions= max_questions;
-  u->max_updates= max_updates;
-  u->max_connections= max_connections;
-  u->max_user_connections= max_user_connections;
-  u->plugin= plugin;
-  u->authentication_string= authentication_string;
-  u->password_expired= password_expired;
-  u->password_lifetime= password_lifetime;
-}
 
 static const char *load_default_groups[]= { "mysql_install_db", 0 };
 
@@ -687,8 +683,9 @@ class Process_reader
 {
 public:
   Process_reader(string *buffer) : m_buffer(buffer) {}
-  void operator()(int fh)
+  bool operator()(int fh)
   {
+    errno= 0;
     stringstream ss;
     int ch= 0;
     size_t n= 1;
@@ -699,6 +696,7 @@ public:
         ss << (char)ch;
     }
     m_buffer->append(ss.str());
+    return true;
   }
 
 private:
@@ -711,8 +709,9 @@ class Process_writer
 public:
   Process_writer(Sql_user *user, const string &opt_sqlfile) : m_user(user),
     m_opt_sqlfile(opt_sqlfile) {}
-  void operator()(int fh)
+  bool operator()(int fh)
   {
+    errno= 0;
     cout << Datetime()
          << "Creating system tables..." << flush;
     unsigned s= 0;
@@ -724,10 +723,8 @@ public:
     }   
     if (errno != 0)
     {
-      cout << "failed." << endl;
-      cerr << Datetime()
-            << "[ERROR] Errno= " << errno << endl;
-      return;
+      cout << "failed." << flush << endl;
+      return false;
     }
     else
       cout << "done." << endl;
@@ -741,10 +738,8 @@ public:
     }
     if (errno != 0)
     {
-      cout << "failed." << endl;
-      cerr << Datetime()
-            << "[ERROR] Errno= " << errno << endl;
-      return;
+      cout << "failed." << flush << endl;
+      return false;
     }
     else
     {
@@ -758,12 +753,7 @@ public:
     m_user->to_sql(&create_user_cmd);
     write(fh, create_user_cmd.c_str(), create_user_cmd.length());
     if (errno != 0)
-    {
-      cerr << Datetime()
-           << "[ERROR] Failed to create user. Errno = "
-           << errno << endl << flush;
-      return;
-    }
+      return false;
 
     /* Execute optional SQL from a file */
     if (m_opt_sqlfile.length() > 0)
@@ -774,7 +764,7 @@ public:
       {
         cerr << Datetime()
              << "[ERROR] No such file " << extra_sql.to_str() << endl;
-        return;
+        return false;
       }
       cout << Datetime()
        << "Executing extra SQL commands from " << extra_sql.to_str()
@@ -788,6 +778,7 @@ public:
       }
       fin.close();
     }
+    return true;
   }
 private:
   Sql_user *m_user;
@@ -857,11 +848,14 @@ bool process_execute(const string &exec, Fwd_iterator begin,
     /* Parent thread */
     ::close(read_pipe[0]);
     ::close(write_pipe[1]);
-    writer(read_pipe[1]);
-    if (errno == EPIPE)
+    if (!writer(read_pipe[1]) || errno != 0)
     {
-      cerr << Datetime() << "[ERROR] The child process terminated prematurely."
+      cerr << Datetime() 
+           << "[ERROR] The child process terminated prematurely. "
+           << "Errno= " << errno   
            << endl;
+      if (errno != EPIPE)
+        reader(write_pipe[0]);
       ::close(read_pipe[1]);
       ::close(write_pipe[0]);
       return false;
@@ -891,9 +885,13 @@ int generate_password_file(Path &pwdfile, const string &adminuser,
     ['#'][bytes]['\n']['password bytes']['\n']|[EOF])
   */
   ofstream fout;
+  mode_t old_mask= umask(~(S_IRWXU));
   fout.open(pwdfile.to_str().c_str());
   if (!fout.is_open())
+  {
+    umask(old_mask);
     return ERR_FILE;
+  }
 
   fout << "# Password set for user '"
        << adminuser << "@" << adminhost << "' at "
@@ -901,6 +899,7 @@ int generate_password_file(Path &pwdfile, const string &adminuser,
        << password << "\n";
   fout.close();
   cout << "done." << endl << flush;
+  umask(old_mask);
   return ALL_OK;
 }
 
@@ -1030,14 +1029,16 @@ int main(int argc,char *argv[])
   {
     cout << Datetime() << "Creating data directory "
          << data_directory << endl;
-    umask(0);
-    if (my_mkdir(data_directory.to_str().c_str(), 0770, MYF(0)) != 0)
+    mode_t old_mask= umask(0);
+    if (my_mkdir(data_directory.to_str().c_str(), S_IRWXU|S_IRWXG, MYF(0)) != 0)
     {
       cerr << Datetime()
            << "[ERROR] Failed to create the data directory '"
            << data_directory << "'" << endl;
+      umask(old_mask);
       return 1;
     }
+    umask(old_mask);
   }
 
   if (opt_euid && geteuid() == 0)
@@ -1116,24 +1117,22 @@ int main(int argc,char *argv[])
   copy(command_line.begin(), command_line.end(),
        ostream_iterator<Path>(cout, " "));
   cout << endl << flush;
-  Sql_user user;
-  create_user(&user,
-              adminhost,
-              adminuser,
-              password,
-              Access_privilege(Access_privilege::acl_all()),
-              ssl_type, // ssl_type
-              ssl_cipher, // ssl_cipher
-              x509_issuer, // x509_issuer
-              x509_subject, // x509_subject
-              0, // max_questions
-              0, // max updates
-              0, // max connections
-              0, // max user connections
-              create_string(opt_authplugin),
-              string(""),
-              true,
-              0);
+  Sql_user user(adminhost,
+                adminuser,
+                password,
+                Access_privilege(Access_privilege::acl_all()),
+                ssl_type, // ssl_type
+                ssl_cipher, // ssl_cipher
+                x509_issuer, // x509_issuer
+                x509_subject, // x509_subject
+                0, // max_questions
+                0, // max updates
+                0, // max connections
+                0, // max user connections
+                create_string(opt_authplugin),
+                string(""),
+                !opt_insecure, // Expire password if not insecure
+                0);
   string output;
   bool success= process_execute(mysqld_exec.to_str(),
                   command_line.begin(),
