@@ -1329,8 +1329,7 @@ thd_create_intrinsic(
 	return(THDVAR(thd, create_intrinsic));
 }
 
-/********************************************************************//**
-Obtain the private handler of InnoDB session specific data.
+/** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
 __attribute__((warn_unused_result, nonnull))
@@ -1348,8 +1347,7 @@ thd_to_innodb_private(
 	return(*(innodb_private_t**) thd_ha_data(thd, innodb_hton_ptr));
 }
 
-/********************************************************************//**
-Obtain the InnoDB transaction of a MySQL thread.
+/** Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 __attribute__((warn_unused_result, nonnull))
@@ -1385,8 +1383,7 @@ thd_is_ins_sel_stmt(THD* user_thd)
 	return (innodb_priv->count_register_table_handler() > 0 ? true : false);
 }
 
-/********************************************************************//**
-Add the table handler to thread cache.
+/** Add the table handler to thread cache.
 Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	table		table handler
 @param[in]	table_norm_name	table normalized name
@@ -11586,8 +11583,7 @@ ha_innobase::info(
 	return(this->info_low(flag, false /* not ANALYZE */));
 }
 
-/*********************************************************************//**
-Enable indexes.
+/** Enable indexes.
 @param[in]	mode	enable index mode.
 @return HA_ERR_* error code or 0 */
 int
@@ -11616,8 +11612,7 @@ ha_innobase::enable_indexes(
 	return(error);
 }
 
-/*********************************************************************//**
-Disable indexes.
+/** Disable indexes.
 @param[in]	mode	disable index mode.
 @return HA_ERR_* error code or 0 */
 int

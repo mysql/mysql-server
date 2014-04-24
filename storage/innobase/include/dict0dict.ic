@@ -1521,8 +1521,7 @@ dict_table_get_index_on_first_col(
 	return(0);
 }
 
-/********************************************************************//**
-Get table localized row-id and increment the row-id counter for next use.
+/** Get table localized row-id and increment the row-id counter for next use.
 @param[in,out]	table	table handler
 @return next table local row-id. */
 UNIV_INLINE
@@ -1533,8 +1532,7 @@ dict_table_get_table_localized_row_id(
 	return(++table->localized_row_id);
 }
 
-/********************************************************************//**
-Get table localized trx-id and increment the trx-id counter for next use.
+/** Get table localized trx-id and increment the trx-id counter for next use.
 @param[in,out]	table	table handler
 @return next table local trx-id. */
 UNIV_INLINE
