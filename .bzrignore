@@ -1433,3 +1433,4 @@ storage/tokudb/ft-index/utils/tokudb_dump
 storage/tokudb/ft-index/utils/tokudb_gen
 storage/tokudb/ft-index/utils/tokudb_load
 libmysql/libmysql_versions.ld
+scripts/mysql_config.pl

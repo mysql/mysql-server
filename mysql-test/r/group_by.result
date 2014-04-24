@@ -2473,3 +2473,12 @@ c	1c
 v	2v,2v
 NULL	1c,2v,2v
 DROP TABLE t1,t2;
+#
+# MDEV-6129: Server crashes during UNION with ORDER BY field IS NULL
+#
+SET sql_mode='ONLY_FULL_GROUP_BY';
+SELECT 1 AS test UNION SELECT 2 AS test ORDER BY test IS NULL ASC;
+test
+1
+2
+SET sql_mode='';
