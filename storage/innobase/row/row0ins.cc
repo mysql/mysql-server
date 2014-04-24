@@ -2556,8 +2556,8 @@ last successful insert. To be used when data is sorted.
 @param[in]	mode	BTR_MODIFY_LEAF or BTR_MODIFY_TREE.
 			depending on whether we wish optimistic or
 			pessimistic descent down the index tree
-@param[in/out]	index	clustered index
-@param[in/out]	entry	index entry to insert
+@param[in,out]	index	clustered index
+@param[in,out]	entry	index entry to insert
 @param[in]	thr	query thread
 
 @return error code */
