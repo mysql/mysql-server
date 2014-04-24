@@ -1158,7 +1158,7 @@ re_scan:
 
 func_end:
 	rw_lock_x_unlock(&(match->block.lock));
-	if (heap) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -3926,11 +3926,10 @@ row_search_idx_cond_check(
 	return(result);
 }
 
-/********************************************************************//**
-Searches for rows in the database using cursor.
+/** Searches for rows in the database using cursor.
 function is meant for temporary table that are not shared accross connection
 and so lot of complexity is reduced especially locking and transaction related.
-Cursor simply act as iterator over table.
+The cursor is an iterator over the table/index.
 
 @param[out]	buf		buffer for the fetched row in MySQL format
 @param[in]	mode		search mode PAGE_CUR_L
@@ -3947,7 +3946,7 @@ Cursor simply act as iterator over table.
 @return DB_SUCCESS or error code */
 static
 dberr_t
-row_search_for_mysql_for_session_local_table(
+row_search_no_mvcc(
 	byte*		buf,
 	ulint		mode,
 	row_prebuilt_t*	prebuilt,
@@ -4019,9 +4018,7 @@ row_search_for_mysql_for_session_local_table(
 				index, tuple, pcur->search_mode,
 				BTR_SEARCH_LEAF, pcur, 0, mtr);
 
-			if (heap) {
-				mem_heap_free(heap);
-			}
+			mem_heap_free(heap);
 		} else {
 			/* Restore the cursor for reading next record from cache
 			information. */
@@ -4130,8 +4127,8 @@ rec_loop:
 	/* Step-4: Check if row is part of the consistent view that was captured
 	while SELECT statement started execution. */
 	{
-		trx_id_t	trx_id =
-			row_get_rec_trx_id(result_rec, clust_index, offsets);
+		trx_id_t	trx_id;
+		trx_id = row_get_rec_trx_id(result_rec, clust_index, offsets);
 		if (trx_id > index->trx_id) {
 			goto next_rec;
 		}
@@ -4204,14 +4201,13 @@ final_return:
 	index->last_sel_cur->release();
 
 normal_return:
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 	return(err);
 }
 
-/********************************************************************//**
-Searches for rows in the database using cursor.
+/** Searches for rows in the database using cursor.
 Function is mainly used for tables that are shared accorss connection and
 so it employs technique that can help re-construct the rows that
 transaction is suppose to see.
@@ -4241,7 +4237,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 @return DB_SUCCESS or error code */
 static
 dberr_t
-row_search_for_mysql_for_shared_table(
+row_search_mvcc(
 	byte*		buf,
 	ulint		mode,
 	row_prebuilt_t*	prebuilt,
@@ -5781,8 +5777,7 @@ func_exit:
 	return(err);
 }
 
-/********************************************************************//**
-Searches for rows in the database. This is used in the interface to
+/** Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
@@ -5852,10 +5847,10 @@ row_search_for_mysql(
 	avoid MVCC, locking and transaction semantics if table is intrinsic
 	temporary. Rest of logic is same as both interface uses cursor. */
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_search_for_mysql_for_session_local_table(
+		return(row_search_no_mvcc(
 			buf, mode, prebuilt, match_mode, direction));
 	} else {
-		return(row_search_for_mysql_for_shared_table(
+		return(row_search_mvcc(
 			buf, mode, prebuilt, match_mode,
 			direction, ins_sel_stmt));
 	}
