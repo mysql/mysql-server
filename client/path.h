@@ -17,6 +17,7 @@
 extern "C"
 {
 #include <dirent.h>
+#include <pwd.h>
 #include "my_dir.h"
 }
 #include <string>
@@ -36,39 +37,26 @@ extern "C"
 class Path
 {
 public:
-  Path(std::string *path) : m_ptr(path), m_fptr(&m_filename)
-  {
-    trim();
-    m_path.clear();
-  }
+  Path() : m_path(""), m_filename("") {}
 
-  Path(std::string *path, std::string *filename) : m_ptr(path),
-    m_fptr(filename)
-  {
-    trim();
-    m_path.clear();
-  }
+  Path(const std::string &s) : m_filename("") { path(s); }
 
-  Path(void) { m_ptr= &m_path; m_fptr= &m_filename; trim(); }
-
-  Path(const std::string &s) { path(s); m_fptr= &m_filename; }
-
-  Path(const Path &p) { m_path= p.m_path; m_filename= p.m_filename; m_ptr= &m_path; m_fptr= &m_filename; }
+  Path(const Path &p) { m_filename= p.m_filename; m_path= p.m_path; }
 
   bool getcwd(void)
   {
     char path[MAX_PATH_LENGTH];
     if (::getcwd(path, MAX_PATH_LENGTH) == 0)
        return false;
-    m_ptr->clear();
-    m_ptr->append(path);
+    m_path.clear();
+    m_path.append(path);
     trim();
     return true;
   }
 
   bool validate_filename()
   {
-    size_t idx= m_fptr->find(PATH_SEPARATOR);
+    size_t idx= m_filename.find(PATH_SEPARATOR);
     if (idx != std::string::npos)
       return false;
     return true;
@@ -76,68 +64,68 @@ public:
 
   void trim()
   {
-    if (m_ptr->length() <= 1)
+    if (m_path.length() <= 1)
       return;
-    std::string::iterator it= m_ptr->end();
+    std::string::iterator it= m_path.end();
     --it;
 
     while((*it) == PATH_SEPARATOR_C)
     {
-      m_ptr->erase(it--);
+      m_path.erase(it--);
     }
   }
 
   void parent_directory(Path *out)
   {
-    size_t idx= m_ptr->rfind(PATH_SEPARATOR);
+    size_t idx= m_path.rfind(PATH_SEPARATOR);
     if (idx == std::string::npos)
     {
       out->path("");
     }
-    out->path(m_ptr->substr(0, idx));
+    out->path(m_path.substr(0, idx));
   }
 
   Path &up()
   {
-    size_t idx= m_ptr->rfind(PATH_SEPARATOR);
+    size_t idx= m_path.rfind(PATH_SEPARATOR);
     if (idx == std::string::npos)
     {
-      m_ptr->clear();
+      m_path.clear();
     }
-    m_ptr->assign(m_ptr->substr(0, idx));
+    m_path.assign(m_path.substr(0, idx));
     return *this;
   }
 
   Path &append(const std::string &path)
   {
-    if (m_ptr->length() > 1 && path[0] != PATH_SEPARATOR_C)
-      m_ptr->append(PATH_SEPARATOR);
-    m_ptr->append(path);
+    if (m_path.length() > 1 && path[0] != PATH_SEPARATOR_C)
+      m_path.append(PATH_SEPARATOR);
+    m_path.append(path);
     trim();
     return *this;
   }
 
-  void path(std::string *p)
+  Path &filename_append(const std::string &ext)
   {
-    m_ptr= p;
+    m_filename.append(ext);
     trim();
+    return *this;
   }
 
   void path(const std::string &p)
   {
     m_path.clear();
     m_path.append(p);
-    m_ptr= &m_path;
     trim();
   }
 
   void filename(const std::string &f)
   {
     m_filename= f;
-    m_fptr= &m_filename;
   }
-  void filename(std::string *f) { m_fptr= f; m_filename.clear(); }
+
   void path(const Path &p) { path(p.m_path); }
+
   void filename(const Path &p) { path(p.m_filename); }
 
   void qpath(const std::string &qp)
@@ -147,8 +135,6 @@ public:
     {
       m_filename= qp;
       m_path.clear();
-      m_ptr= &m_path;
-      m_fptr= &m_filename;
       return;
     }
     filename(qp.substr(idx + 1, qp.size() - idx));
@@ -157,14 +143,14 @@ public:
 
   bool is_qualified_path()
   {
-    return m_fptr->length() > 0;
+    return m_filename.length() > 0;
   }
 
   bool exists()
   {
     if (!is_qualified_path())
     {
-      DIR *dir= opendir(m_ptr->c_str());
+      DIR *dir= opendir(m_path.c_str());
       if (dir == 0)
         return false;
       return true;
@@ -172,8 +158,8 @@ public:
     else
     {
       MY_STAT s;
-      std::string qpath(*m_ptr);
-      qpath.append(PATH_SEPARATOR).append(*m_fptr);
+      std::string qpath(m_path);
+      qpath.append(PATH_SEPARATOR).append(m_filename);
       if (my_stat(qpath.c_str(), &s, MYF(0)) == NULL)
         return false;
       return true;
@@ -182,11 +168,11 @@ public:
 
   const std::string to_str()
   {
-    std::string qpath(*m_ptr);
-    if (m_fptr->length() != 0)
+    std::string qpath(m_path);
+    if (m_filename.length() != 0)
     {
       qpath.append(PATH_SEPARATOR);
-      qpath.append(*m_fptr);
+      qpath.append(m_filename);
     }
     return qpath;
   }
@@ -198,7 +184,7 @@ public:
     DIR *dir;
     struct dirent *ent;
     bool ret= false;
-    if ((dir= opendir(m_ptr->c_str())) == NULL)
+    if ((dir= opendir(m_path.c_str())) == NULL)
       ret= false;
     else
     {
@@ -233,18 +219,16 @@ public:
   friend std::ostream &operator<<(std::ostream &op, const Path &p);
 private:
   std::string m_path;
-  std::string *m_ptr;
-  std::string *m_fptr;
   std::string m_filename;
 };
 
 std::ostream &operator<<(std::ostream &op, const Path &p)
 {
-  std::string qpath(*(p.m_ptr));
-  if (p.m_fptr->length() != 0)
+  std::string qpath(p.m_path);
+  if (p.m_filename.length() != 0)
   {
     qpath.append(PATH_SEPARATOR);
-    qpath.append(*(p.m_fptr));
+    qpath.append(p.m_filename);
   }
   return op << qpath;
 }

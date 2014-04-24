@@ -44,9 +44,9 @@ TEST(Client, Path)
   EXPECT_STREQ("/root/subdir/subdir",p1.to_str().c_str());
   p1.append("/subdir/");
   EXPECT_STREQ("/root/subdir/subdir/subdir",p1.to_str().c_str());
-  p1.filename(&filename);
+  p1.filename(filename);
   EXPECT_STREQ("/root/subdir/subdir/subdir/filename",p1.to_str().c_str());
-  filename.append(".exe");
+  p1.filename_append(".exe");
   EXPECT_STREQ("/root/subdir/subdir/subdir/filename.exe",p1.to_str().c_str());
   p1.filename(filename2);
   EXPECT_STREQ("/root/subdir/subdir/subdir/filename2",p1.to_str().c_str());
