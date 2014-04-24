@@ -1684,8 +1684,6 @@ fsp_free_page(
 			    mtr);
 		fsp_free_extent(page_id, page_size, mtr);
 	}
-
-	mtr->add_freed_pages();
 }
 
 /** Returns an extent to the free list of a space.
@@ -3327,8 +3325,6 @@ crash:
 			    descr + XDES_FLST_NODE, mtr);
 		fsp_free_extent(page_id, page_size, mtr);
 	}
-
-	mtr->add_freed_pages();
 }
 
 /**********************************************************************//**
@@ -3534,7 +3530,8 @@ fseg_free_step(
 	inode = fseg_inode_try_get(header, space, page_size, mtr);
 
 	if (UNIV_UNLIKELY(inode == NULL)) {
-		ib_logf(IB_LOG_LEVEL_INFO,
+		ut_ad(0);
+		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Double free of inode from %u:%u",
 			(unsigned) space, (unsigned) header_page);
 		return(TRUE);
