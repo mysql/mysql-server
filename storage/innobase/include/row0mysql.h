@@ -306,7 +306,7 @@ dberr_t
 row_update_for_mysql(
 	const byte*	mysql_rec,
 	row_prebuilt_t*	prebuilt)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
 @param[in/out]	table	table handler
@@ -315,7 +315,7 @@ row_update_for_mysql(
 dberr_t
 row_delete_all_rows(
 	dict_table_t*	table)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*********************************************************************//**
 This can only be used when srv_locks_unsafe_for_binlog is TRUE or this

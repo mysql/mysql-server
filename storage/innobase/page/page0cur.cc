@@ -1245,7 +1245,7 @@ page_cur_inline_insert_rec_low(
 
 	/* 2. Try to find suitable space from page memory management */
 	free_rec = page_header_get_ptr(page, PAGE_FREE);
-	if (UNIV_LIKELY_NULL(free_rec)) {
+	if (free_rec) {
 		/* Try to allocate from the head of the free list. */
 		ulint		foffsets_[REC_OFFS_NORMAL_SIZE];
 		ulint*		foffsets	= foffsets_;
@@ -1256,7 +1256,7 @@ page_cur_inline_insert_rec_low(
 		foffsets = rec_get_offsets(
 			free_rec, index, foffsets, ULINT_UNDEFINED, &heap);
 		if (rec_offs_size(foffsets) < rec_size) {
-			if (UNIV_LIKELY_NULL(heap)) {
+			if (heap != NULL) {
 				mem_heap_free(heap);
 			}
 
@@ -1277,7 +1277,7 @@ page_cur_inline_insert_rec_low(
 					rec_size);
 		}
 
-		if (UNIV_LIKELY_NULL(heap)) {
+		if (heap != NULL) {
 			mem_heap_free(heap);
 		}
 	} else {
@@ -1286,7 +1286,7 @@ use_heap:
 		insert_buf = page_mem_alloc_heap(page, NULL,
 						 rec_size, &heap_no);
 
-		if (UNIV_UNLIKELY(insert_buf == NULL)) {
+		if (insert_buf == NULL) {
 			return(NULL);
 		}
 	}
@@ -1332,7 +1332,7 @@ use_heap:
 	      || rec_get_node_ptr_flag(last_insert)
 	      == rec_get_node_ptr_flag(insert_rec));
 
-	if (UNIV_UNLIKELY(last_insert == NULL)) {
+	if (last_insert == NULL) {
 		page_header_set_field(page, NULL, PAGE_DIRECTION,
 				      PAGE_NO_DIRECTION);
 		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
@@ -1380,7 +1380,7 @@ use_heap:
 		record. If the number exceeds PAGE_DIR_SLOT_MAX_N_OWNED,
 		we have to split the corresponding directory slot in two. */
 
-		if (UNIV_UNLIKELY(n_owned == PAGE_DIR_SLOT_MAX_N_OWNED)) {
+		if (n_owned == PAGE_DIR_SLOT_MAX_N_OWNED) {
 			page_dir_split_slot(
 				page, NULL,
 				page_dir_find_owner_slot(owner_rec));
