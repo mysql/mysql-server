@@ -17,7 +17,7 @@
 extern "C"
 {
 #include <dirent.h>
-#include <my_dir.h>
+#include "my_dir.h"
 }
 #include <string>
 
@@ -180,7 +180,7 @@ public:
     }
   }
 
-  std::string to_str()
+  const std::string to_str()
   {
     std::string qpath(*m_ptr);
     if (m_fptr->length() != 0)
@@ -189,6 +189,45 @@ public:
       qpath.append(*m_fptr);
     }
     return qpath;
+  }
+
+  bool empty()
+  {
+    if (!exists())
+      return true;
+    DIR *dir;
+    struct dirent *ent;
+    bool ret= false;
+    if ((dir= opendir(m_ptr->c_str())) == NULL)
+      ret= false;
+    else
+    {
+      int c= 0;
+      ent= readdir(dir);
+      while (ent != NULL && c < 4)
+      {
+        //std::cout << "[DEBUG] c= " << c << " "
+        //     << ent->d_name << std::endl;
+        ent= readdir(dir);
+        ++c;
+      }
+      if (c == 2) // Don't count . and ..
+       ret= true;
+    }
+    closedir(dir);
+    return ret;
+  }
+  
+  void get_homedir()
+  {
+    struct passwd *pwd;
+    pwd= getpwuid(geteuid());
+    if (pwd == NULL)
+      return;
+    if (pwd->pw_dir != 0)
+      path(pwd->pw_dir);
+    else
+      path("");
   }
 
   friend std::ostream &operator<<(std::ostream &op, const Path &p);
@@ -201,5 +240,11 @@ private:
 
 std::ostream &operator<<(std::ostream &op, const Path &p)
 {
-  return op << *(p.m_ptr);
+  std::string qpath(*(p.m_ptr));
+  if (p.m_fptr->length() != 0)
+  {
+    qpath.append(PATH_SEPARATOR);
+    qpath.append(*(p.m_fptr));
+  }
+  return op << qpath;
 }
