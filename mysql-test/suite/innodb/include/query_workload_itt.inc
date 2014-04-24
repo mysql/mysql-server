@@ -184,8 +184,8 @@ set optimizer_switch=default;
 # system table
 if (!`select @@innodb_create_intrinsic`) {
 	explain format = json select * from information_schema.character_sets order by 1 limit 3;
+	select * from information_schema.character_sets order by 1 limit 3;
 }
-select * from information_schema.character_sets order by 1 limit 3;
 
 #
 # muti-update

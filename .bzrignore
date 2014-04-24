@@ -528,7 +528,6 @@ examples/udf_example/udf_example.def
 extra/.deps/comp_err.Po
 extra/.deps/innochecksum.Po
 extra/.deps/my_print_defaults.Po
-extra/.deps/mysql_waitpid.Po
 extra/.deps/perror.Po
 extra/.deps/replace.Po
 extra/.deps/resolve_stack_dump.Po
@@ -539,7 +538,6 @@ extra/innochecksum
 extra/my_print_defaults
 extra/mysql_install
 extra/mysql_tzinfo_to_sql
-extra/mysql_waitpid
 extra/mysqld_ername.h
 extra/mysqld_error.h
 extra/perror
@@ -1845,7 +1843,6 @@ scripts/mysql_server_config
 scripts/mysql_tableinfo
 scripts/mysql_upgrade
 scripts/mysql_upgrade_shell
-scripts/mysql_zap
 scripts/mysqld_multi
 scripts/mysqld_safe
 scripts/mysqldumpslow
