@@ -318,18 +318,11 @@ SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 
 SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1) ORDER BY c1;
 
-EXPLAIN SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
-
-EXPLAIN UPDATE temp_tab SET C2 = GeomFromText('POINT(1000 1000)')
-WHERE Contains(temp_tab.c4, @g1);
-
 # The following comments will be removed once the patch is available
 UPDATE temp_tab SET C2 = GeomFromText('POINT(1000 1000)')
 WHERE Contains(temp_tab.c4, @g1);
 
 SELECT c1,Astext(c2),Astext(c4) FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
-
-EXPLAIN DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
 
 # Sever crashes Here so commented, will be removed later
 DELETE FROM temp_tab WHERE Contains(temp_tab.c4, @g1);
@@ -474,13 +467,6 @@ SHOW INDEX FROM tab;
 
 SET @g1 = GeomFromText( 'POLYGON((7 1,6 2,6 3,10 3,10 1,7 1))');
 
-EXPLAIN SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Contains(tab.c4, @g1);
-
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(0 0)')
-WHERE Contains(tab.c4, @g1);
-
-EXPLAIN DELETE FROM tab WHERE Contains(tab.c4, @g1);
-
 UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)') 
 WHERE Contains(tab.c4, @g1);
 
@@ -507,14 +493,6 @@ SET @g1 = GeomFromText('POLYGON((5010 5010,5020 5020,5030 5030,5040 5030,5020 50
 
 SET @g2 = GeomFromText('LINESTRING(140 140,150 150,160 160)');
 
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1)
-AND Equals(tab.c3,@g2);
-
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
-
-EXPLAIN DELETE FROM tab WHERE Equals(tab.c4, @g1) AND Equals(tab.c3,@g2);
-
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1) 
 AND Equals(tab.c3,@g2) ORDER BY c1;
 
@@ -535,9 +513,6 @@ SET @g1 = GeomFromText('POLYGON((4010 4010,4020 4020,4030 4030,4040 4030,4020 40
 
 SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
 
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Equals(tab.c4, @g1)
-AND Equals(tab.c3,@g2);
-
 ALTER TABLE tab MODIFY COLUMN c2 POINT NOT NULL;
 
 ALTER TABLE tab MODIFY COLUMN c3 LINESTRING NOT NULL;
@@ -554,22 +529,6 @@ ANALYZE TABLE tab;
 SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 
 SET @g2 = GeomFromText('LINESTRING(1 1,2 2,3 3)');
-
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-AND Touches(tab.c3,@g2);
-
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Touches(tab.c4, @g1) AND Touches(tab.c3,@g2);
-
-EXPLAIN DELETE FROM tab WHERE Touches(tab.c4, @g1) AND Touches(tab.c3,@g2);
-
-EXPLAIN SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
-OR Touches(tab.c3,@g2);
-
-EXPLAIN UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
-WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
-
-EXPLAIN DELETE FROM tab WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
 
 # Should be 0 rows affected
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1) 
@@ -621,14 +580,6 @@ ANALYZE TABLE tab;
 SET @g1 = GeomFromText('POLYGON((1010 1010,1020 1020,1030 1030,1040 1030,1020 1010,1010 1010))');
 
 SET @g2 = GeomFromText('LINESTRING(400 400,500 500,600 700)');
-
-EXPLAIN SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
-
-EXPLAIN UPDATE tab SET c2 = GeomFromText('POINT(2000 2000)'),
-           c3=GeomFromText('POINT(2000 2000)')
-WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
-
-EXPLAIN DELETE FROM tab WHERE Within(tab.c2, @g1) AND Within(tab.c3, @g2);
 
 SELECT c1,AsText(c2),AsText(c3),Astext(c4) FROM tab WHERE Within(tab.c4, @g1) AND Within(tab.c3, @g2);
 

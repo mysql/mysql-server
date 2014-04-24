@@ -40,6 +40,7 @@ Created 5/30/1994 Heikki Tuuri
 /** Storage for overflow data in a big record, that is, a clustered
 index record which needs external storage of data fields */
 struct big_rec_t;
+struct upd_t;
 
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
@@ -482,10 +483,11 @@ big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
 	dict_index_t*	index,	/*!< in: index */
+	upd_t*		upd,	/*!< in/out: update vector */
 	dtuple_t*	entry,	/*!< in/out: index entry */
 	ulint*		n_ext)	/*!< in/out: number of
 				externally stored columns */
-	__attribute__((nonnull, malloc, warn_unused_result));
+	__attribute__((malloc, warn_unused_result));
 /**************************************************************//**
 Puts back to entry the data stored in vector. Note that to ensure the
 fields in entry can accommodate the data, vector must have been created
@@ -517,6 +519,12 @@ struct dfield_t{
 	unsigned	ext:1;	/*!< TRUE=externally stored, FALSE=local */
 	unsigned	len:32;	/*!< data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/*!< type of data */
+
+	/** Create a deep copy of this object
+	@param[in]	heap	the memory heap in which the clone will be
+				created.
+	@return	the cloned object. */
+	dfield_t* clone(mem_heap_t* heap);
 };
 
 /** Structure for an SQL data tuple of fields (logical record) */
@@ -545,8 +553,20 @@ struct dtuple_t {
 #endif /* UNIV_DEBUG */
 };
 
+
 /** A slot for a field in a big rec vector */
 struct big_rec_field_t {
+
+	/** Constructor.
+	@param[in]	field_no_	the field number
+	@param[in]	len_		the data length
+	@param[in]	data_		the data */
+	big_rec_field_t(ulint field_no_, ulint len_, const void* data_)
+		: field_no(field_no_),
+		  len(len_),
+		  data(data_)
+	{}
+
 	ulint		field_no;	/*!< field number in record */
 	ulint		len;		/*!< stored data length, in bytes */
 	const void*	data;		/*!< stored data */
@@ -557,8 +577,36 @@ clustered index record which needs external storage of data fields */
 struct big_rec_t {
 	mem_heap_t*	heap;		/*!< memory heap from which
 					allocated */
+	const ulint	capacity;	/*!< fields array size */
 	ulint		n_fields;	/*!< number of stored fields */
 	big_rec_field_t*fields;		/*!< stored fields */
+
+	/** Constructor.
+	@param[in]	max	the capacity of the array of fields. */
+	explicit big_rec_t(const ulint max)
+		: heap(0),
+		  capacity(max),
+		  n_fields(0),
+		  fields(0)
+	{}
+
+	/** Append one big_rec_field_t object to the end of array of fields */
+	void append(const big_rec_field_t& field)
+	{
+		ut_ad(n_fields < capacity);
+		fields[n_fields] = field;
+		n_fields++;
+	}
+
+	/** Allocate a big_rec_t object in the given memory heap, and for
+	storing n_fld number of fields.
+	@param[in]	heap	memory heap in which this object is allocated
+	@param[in]	n_fld	maximum number of fields that can be stored in
+			this object
+	@return the allocated object */
+	static big_rec_t* alloc(
+		mem_heap_t*	heap,
+		ulint		n_fld);
 };
 
 #ifndef UNIV_NONINL

@@ -4706,6 +4706,8 @@ loop:
 		the block is io-fixed. Other threads must not try to
 		latch an io-fixed block. */
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
+	} else if (update_ibuf_bitmap) {
+		mtr.set_named_space(page_id.space());
 	}
 
 	if (!btr_pcur_is_on_user_rec(&pcur)) {
@@ -4863,7 +4865,7 @@ loop:
 	}
 
 reset_bit:
-	if (update_ibuf_bitmap && block != NULL) {
+	if (update_ibuf_bitmap) {
 		page_t*	bitmap_page;
 
 		bitmap_page = ibuf_bitmap_get_map_page(page_id, *page_size,
@@ -4873,16 +4875,18 @@ reset_bit:
 			bitmap_page, page_id, *page_size,
 			IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 
-		ulint old_bits = ibuf_bitmap_page_get_bits(
-			bitmap_page, page_id, *page_size,
-			IBUF_BITMAP_FREE, &mtr);
-
-		ulint new_bits = ibuf_index_page_calc_free(block);
-
-		if (old_bits != new_bits) {
-			ibuf_bitmap_page_set_bits(
+		if (block != NULL) {
+			ulint old_bits = ibuf_bitmap_page_get_bits(
 				bitmap_page, page_id, *page_size,
-				IBUF_BITMAP_FREE, new_bits, &mtr);
+				IBUF_BITMAP_FREE, &mtr);
+
+			ulint new_bits = ibuf_index_page_calc_free(block);
+
+			if (old_bits != new_bits) {
+				ibuf_bitmap_page_set_bits(
+					bitmap_page, page_id, *page_size,
+					IBUF_BITMAP_FREE, new_bits, &mtr);
+			}
 		}
 	}
 
