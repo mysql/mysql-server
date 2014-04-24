@@ -197,10 +197,10 @@ should be used only for cases where-in latching is not needed.
 @param[in]	mode	PAGE_CUR_L, ....
 			Insert should always be made using PAGE_CUR_LE
 			to search the position.
-@param[in/out]	cursor	tree cursor; points to record of interest.
+@param[in,out]	cursor	tree cursor; points to record of interest.
 @param[in]	file	file name
 @param[in[	line	line where called from
-@param[in/out]	mtr	mtr
+@param[in,out]	mtr	mtr
 @param[in]	mark_dirty
 			if true then mark the block as dirty */
 
@@ -244,10 +244,10 @@ as they are not shared and so there is no need of latching.
 				to high end.
 @param[in]	index		index
 @param[in]	latch_mode	latch mode
-@param[in/out]	cursor		cursor
+@param[in,out]	cursor		cursor
 @param[in]	file		file name
 @param[in]	line		line where called
-@param[in/out]	mtr		mini transaction
+@param[in,out]	mtr		mini transaction
 */
 
 void
