@@ -101,7 +101,7 @@ row_ins_clust_index_entry_low(
 	bool		dup_chk_only = false)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /***************************************************************//**
 This is a specialized function meant for direct insertion to
@@ -127,7 +127,7 @@ row_ins_sorted_clust_index_entry(
 	dtuple_t*	entry,
 	ulint		n_ext,
 	que_thr_t*	thr)
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***************************************************************//**
 Tries to insert an entry into a secondary index. If a record with exactly the
 same fields is found, the other record is necessarily marked deleted.
@@ -155,7 +155,7 @@ row_ins_sec_index_entry_low(
 	bool		dup_chk_only = false)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
@@ -212,7 +212,7 @@ row_ins_clust_index_entry(
 	bool		dup_chk_only = false)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***************************************************************//**
 Inserts an entry into a secondary index. Tries first optimistic,
 then pessimistic descent down the tree. If the entry matches enough
@@ -229,7 +229,7 @@ row_ins_sec_index_entry(
 	bool		dup_chk_only = false)
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 /***********************************************************//**
 Inserts a row to a table. This is a high-level function used in
 SQL execution graphs.
