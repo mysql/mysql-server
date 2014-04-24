@@ -858,7 +858,7 @@ btr_cur_search_to_nth_level(
 # ifdef UNIV_SEARCH_PERF_STAT
 	info->n_searches++;
 # endif
-	/* Use of AHI is disabled for intrinsic table as these tables re-uses
+	/* Use of AHI is disabled for intrinsic table as these tables re-use
 	the index-id and AHI validation is based on index-id. */
 	if (rw_lock_get_writer(&btr_search_latch) == RW_LOCK_NOT_LOCKED
 	    && latch_mode <= BTR_MODIFY_LEAF
@@ -1862,17 +1862,17 @@ func_exit:
 This function will avoid latching the traversal path and so should be
 used only for cases where-in latching is not needed.
 
-@param[in/out]	index	index
+@param[in,out]	index	index
 @param[in]	level	the tree level of search
 @param[in]	tuple	data tuple; Note: n_fields_cmp in compared
 			to the node ptr page node field
 @param[in]	mode	PAGE_CUR_L, ....
 			Insert should always be made using PAGE_CUR_LE
 			to search the position.
-@param[in/out]	cursor	tree cursor; points to record of interest.
+@param[in,out]	cursor	tree cursor; points to record of interest.
 @param[in]	file	file name
 @param[in[	line	line where called from
-@param[in/out]	mtr	mtr
+@param[in,out]	mtr	mtr
 @param[in]	mark_dirty
 			if true then mark the block as dirty */
 
@@ -1918,7 +1918,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 #ifdef UNIV_DEBUG
 	cursor->up_match = ULINT_UNDEFINED;
 	cursor->low_match = ULINT_UNDEFINED;
-#endif
+#endif /* UNIV_DEBUG */
 
 	cursor->flag = BTR_CUR_BINARY;
 	cursor->index = index;
@@ -1953,66 +1953,67 @@ btr_cur_search_to_nth_level_with_no_latch(
 	}
 
 	/* Loop and search until we arrive at the desired level */
+	bool at_desired_level = false;
+	while (!at_desired_level) {
+		buf_mode = BUF_GET;
+		rw_latch = RW_NO_LATCH;
 
-search_loop:
-	buf_mode = BUF_GET;
-	rw_latch = RW_NO_LATCH;
+		ut_ad(n_blocks < BTR_MAX_LEVELS);
 
-	ut_ad(n_blocks < BTR_MAX_LEVELS);
+		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
+				buf_mode, file, line, mtr, mark_dirty);
 
-	block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
-				 buf_mode, file, line, mtr, mark_dirty);
+		block->check_index_page_at_flush = TRUE;
+		page = buf_block_get_frame(block);
 
-	block->check_index_page_at_flush = TRUE;
-	page = buf_block_get_frame(block);
+		if (height == ULINT_UNDEFINED) {
+			/* We are in the root node */
 
-	if (UNIV_UNLIKELY(height == ULINT_UNDEFINED)) {
-		/* We are in the root node */
+			height = btr_page_get_level(page, mtr);
+			root_height = height;
+			cursor->tree_height = root_height + 1;
+		}
 
-		height = btr_page_get_level(page, mtr);
-		root_height = height;
-		cursor->tree_height = root_height + 1;
-	}
+		if (height == 0) {
+			/* On leaf level. Switch back to original search mode. */
+			page_mode = mode;
+		}
 
-	if (height == 0) {
-		/* On leaf level. Switch back to original search mode. */
-		page_mode = mode;
-	}
+		page_cur_search_with_match(
+				block, index, tuple, page_mode, &up_match,
+				&low_match, page_cursor, NULL);
 
-	page_cur_search_with_match(
-		block, index, tuple, page_mode, &up_match,
-		&low_match, page_cursor, NULL);
+		/* If this is the desired level, leave the loop */
+		ut_ad(height == btr_page_get_level(page_cur_get_page(page_cursor),
+					mtr));
 
-	/* If this is the desired level, leave the loop */
-	ut_ad(height == btr_page_get_level(page_cur_get_page(page_cursor),
-					   mtr));
+		if (level != height) {
 
-	if (level != height) {
+			const rec_t*	node_ptr;
+			ut_ad(height > 0);
 
-		const rec_t*	node_ptr;
-		ut_ad(height > 0);
+			height--;
 
-		height--;
+			node_ptr = page_cur_get_rec(page_cursor);
 
-		node_ptr = page_cur_get_rec(page_cursor);
+			offsets = rec_get_offsets(
+					node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
 
-		offsets = rec_get_offsets(
-			node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+			/* Go to the child node */
+			page_id.reset(
+					space,
+					btr_node_ptr_get_child_page_no(node_ptr, offsets));
 
-		/* Go to the child node */
-		page_id.reset(
-			space,
-			btr_node_ptr_get_child_page_no(node_ptr, offsets));
-
-		n_blocks++;
-
-		goto search_loop;
+			n_blocks++;
+		} else {
+			at_desired_level = true;
+		}
 	}
 
 	cursor->low_match = low_match;
 	cursor->up_match = up_match;
 
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -2388,10 +2389,10 @@ as they are not shared and so there is no need of latching.
 				to high end.
 @param[in]	index		index
 @param[in]	latch_mode	latch mode
-@param[in/out]	cursor		cursor
+@param[in,out]	cursor		cursor
 @param[in]	file		file name
 @param[in]	line		line where called
-@param[in/out]	mtr		mini transaction
+@param[in,out]	mtr		mini transaction
 */
 
 void
@@ -2481,7 +2482,7 @@ btr_cur_open_at_index_side_with_no_latch_func(
 		n_blocks++;
 	}
 
-	if (heap) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 }
@@ -3134,7 +3135,7 @@ fail_err:
 			err = btr_cur_ins_lock_and_undo(flags, cursor, entry,
 							thr, mtr, &inherit);
 
-			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
+			if (err != DB_SUCCESS) {
 				goto fail_err;
 			}
 
@@ -3161,7 +3162,7 @@ fail_err:
 	} else {
 
 		/* For intrinsic table we take a consistent path
-		to re-organize using pessmisitic path. */
+		to re-organize using pessimistic path. */
 		if (dict_table_is_intrinsic(index->table)) {
 			goto fail;
 		}
@@ -3200,7 +3201,7 @@ fail_err:
 			btr_search_update_hash_on_insert(cursor);
 		}
 	}
-#endif
+#endif /* BTR_CUR_HASH_ADAPT */
 
 	if (!(flags & BTR_NO_LOCKING_FLAG) && inherit) {
 
@@ -6450,11 +6451,11 @@ btr_store_big_rec_extern_fields(
 				&n_reserved, index->space,
 				n_extents, FSP_NORMAL, &reserve_mtr);
 
+			mtr_commit(&reserve_mtr);
+
 			if (!success) {
 				return(DB_OUT_OF_FILE_SPACE);
 			}
-
-			mtr_commit(&reserve_mtr);
 		}
 
 		prev_page_no = FIL_NULL;

@@ -73,27 +73,28 @@ dict_mem_fill_index_struct(
 	index->disable_ahi = false;
 	index->auto_gen_clust_index = false;
 
-	if (heap) {
+	if (heap != NULL) {
 		index->last_ins_cur =
-			(last_ops_cur_t*) mem_heap_alloc(
-				heap, sizeof(last_ops_cur_t));
+			static_cast<last_ops_cur_t*>(mem_heap_alloc(
+				heap, sizeof(last_ops_cur_t)));
 
 		new (index->last_ins_cur) last_ops_cur_t();
 	}
 
-	if (heap) {
+	if (heap != NULL) {
 		index->last_sel_cur =
-			(last_ops_cur_t*) mem_heap_alloc(
-				heap, sizeof(last_ops_cur_t));
+			static_cast<last_ops_cur_t*>(mem_heap_alloc(
+				heap, sizeof(last_ops_cur_t)));
 
 		new (index->last_sel_cur) last_ops_cur_t();
 	}
 
 	new (&index->rec_cache) rec_cache_t();
 
-	if (heap) {
-		index->rec_cache.offsets = (ulint*) mem_heap_alloc(
-			heap, sizeof(ulint) * OFFS_IN_REC_NORMAL_SIZE);
+	if (heap != NULL) {
+		index->rec_cache.offsets =
+			static_cast<ulint*>(mem_heap_alloc(
+				heap, sizeof(ulint) * OFFS_IN_REC_NORMAL_SIZE));
 
 		index->rec_cache.sz_of_offsets = OFFS_IN_REC_NORMAL_SIZE;
 	}
