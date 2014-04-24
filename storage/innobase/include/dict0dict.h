@@ -355,8 +355,7 @@ dict_table_add_system_columns(
 	mem_heap_t*	heap)	/*!< in: temporary heap */
 	__attribute__((nonnull));
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Mark if table has big rows.
+/** Mark if table has big rows.
 @param[in,out]	table	table handler */
 void
 dict_table_set_big_rows(
@@ -503,8 +502,7 @@ dict_table_get_foreign_constraint(
 	dict_table_t*	table,	/*!< in: InnoDB table */
 	dict_index_t*	index)	/*!< in: InnoDB index */
 	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
-Scans a table create SQL string and adds to the data dictionary
+/** Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in
@@ -1563,8 +1561,7 @@ dict_table_move_from_lru_to_non_lru(
 /*================================*/
 	dict_table_t*	table)	/*!< in: table to move from LRU to non-LRU */
 	__attribute__((nonnull));
-/**********************************************************************//**
-Looks for an index with the given id given a table instance.
+/** Looks for an index with the given id given a table instance.
 @param[in]	table	table instance
 @param[in]	id	index id
 @return index or NULL */
@@ -1842,8 +1839,7 @@ dict_disable_redo_if_temporary(
 	mtr_t*			mtr)	/*!< out: mini-transaction */
 	__attribute__((nonnull));
 
-/********************************************************************//**
-Get table localized row-id and increment the row-id counter for next use.
+/** Get table localized row-id and increment the row-id counter for next use.
 @param[in,out]	table	table handler
 @return next table local row-id. */
 UNIV_INLINE
@@ -1852,8 +1848,7 @@ dict_table_get_table_localized_row_id(
 	dict_table_t*		table)
 	__attribute__((nonnull));
 
-/********************************************************************//**
-Get table localized trx-id and increment the trx-id counter for next use.
+/** Get table localized trx-id and increment the trx-id counter for next use.
 @param[in,out]	table	table handler
 @return next table local trx-id. */
 UNIV_INLINE

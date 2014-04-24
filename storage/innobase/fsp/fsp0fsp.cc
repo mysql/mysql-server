@@ -274,8 +274,7 @@ fsp_flags_is_valid(
 	return(true);
 }
 
-/********************************************************************//**
-Check if tablespace is system temporary.
+/** Check if tablespace is system temporary.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if tablespace is system temporary. */
 
@@ -286,8 +285,7 @@ fsp_is_system_temporary(
 	return(space_id == srv_tmp_space.space_id());
 }
 
-/********************************************************************//**
-Check if checksum is disabled for the given space.
+/** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
 

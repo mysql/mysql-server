@@ -1128,8 +1128,7 @@ dict_table_add_system_columns(
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Mark if table has big rows.
+/** Mark if table has big rows.
 @param[in,out]	table	table handler */
 void
 dict_table_set_big_rows(
@@ -1378,8 +1377,7 @@ dict_table_move_from_lru_to_non_lru(
 	table->can_be_evicted = FALSE;
 }
 
-/**********************************************************************//**
-Looks for an index with the given id given a table instance.
+/** Looks for an index with the given id given a table instance.
 @param[in]	table	table instance
 @param[in]	id	index id
 @return index or NULL */
@@ -4908,8 +4906,7 @@ dict_str_starts_with_keyword(
 	return(success);
 }
 
-/*********************************************************************//**
-Scans a table create SQL string and adds to the data dictionary
+/** Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in

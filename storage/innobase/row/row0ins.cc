@@ -3355,8 +3355,7 @@ row_ins_spatial_index_entry_set_mbr_field(
 	dfield_write_mbr(field, mbr);
 }
 
-/***********************************************************//**
-Sets the values of the dtuple fields in entry from the values of appropriate
+/** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
 @param[in]	index	index handler
 @param[out]	entry	index entry to make

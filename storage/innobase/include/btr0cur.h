@@ -236,8 +236,7 @@ btr_cur_open_at_index_side_func(
 #define btr_cur_open_at_index_side(f,i,l,c,lv,m)			\
 	btr_cur_open_at_index_side_func(f,i,l,c,lv,__FILE__,__LINE__,m)
 
-/*****************************************************************//**
-Opens a cursor at either end of an index.
+/** Opens a cursor at either end of an index.
 Avoid taking latches on buffer, just pin (by incrementing fix_count)
 to keep them in buffer pool. This mode is used by intrinsic table
 as they are not shared and so there is no need of latching.
