@@ -129,8 +129,7 @@ fsp_flags_is_valid(
 	ulint	flags)		/*!< in: tablespace flags */
 	__attribute__((warn_unused_result, const));
 
-/********************************************************************//**
-Check if tablespace is system temporary.
+/** Check if tablespace is system temporary.
 @param[in]      space_id        verify is checksum is enabled for given space.
 @return true if tablespace is system temporary. */
 
@@ -138,8 +137,7 @@ bool
 fsp_is_system_temporary(
 	ulint	space_id);
 
-/********************************************************************//**
-Check if checksum is disabled for the given space.
+/** Check if checksum is disabled for the given space.
 @param[in]	space_id	verify is checksum is enabled for given space.
 @return true if checksum is disabled for given space. */
 

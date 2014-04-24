@@ -103,8 +103,7 @@ row_ins_clust_index_entry_low(
 				and return. don't execute actual insert. */
 	__attribute__((warn_unused_result));
 
-/***************************************************************//**
-This is a specialized function meant for direct insertion to
+/** This is a specialized function meant for direct insertion to
 auto-generated clustered index based on cached position from
 last successful insert. To be used when data is sorted.
 
@@ -156,8 +155,7 @@ row_ins_sec_index_entry_low(
 				/*!< in: if true, just do duplicate check
 				and return. don't execute actual insert. */
 	__attribute__((warn_unused_result));
-/***********************************************************//**
-Sets the values of the dtuple fields in entry from the values of appropriate
+/** Sets the values of the dtuple fields in entry from the values of appropriate
 columns in row.
 @param[in]	index	index handler
 @param[out]	entry	index entry to make
