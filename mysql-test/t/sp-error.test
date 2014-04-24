@@ -3822,3 +3822,16 @@ SELECT @msg;
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 DROP TABLE t1;
+
+
+--echo #
+--echo # Bug #17903490 "ASSERT FAILURE IN MDL.H WHEN DROP FUNCTION CALLED
+--echo #                WITH INVALID FUNCTION NAME".
+--echo #
+--error ER_TOO_LONG_IDENT
+drop function f111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjjkk;
+--error ER_TOO_LONG_IDENT
+drop function test.f111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjjjjjjjjkk;
+--error ER_WRONG_DB_NAME 
+drop function mysqltest111111111122222222223333333333444444444455555555556666666666777777777788888888889999999999aaaaaaaaaabbbbbbbbbbccccccccccddddddddddeeeeeeeeeeffffffffffgggggggggghhhhhhhhhhiiiiiiiiiijjjj.test;
+
