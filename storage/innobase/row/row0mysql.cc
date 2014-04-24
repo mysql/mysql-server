@@ -1263,8 +1263,7 @@ run_again:
 	return(err);
 }
 
-/*********************************************************************//**
-Perform explicit rollback in absence of UNDO logs.
+/** Perform explicit rollback in absence of UNDO logs.
 @param[in]	index	apply rollback action on this index
 @param[in]	entry	entry to remove/rollback.
 @param[in,out]	thr	thread handler.
@@ -1279,14 +1278,14 @@ row_explicit_rollback(
 	mtr_t*			mtr)
 {
 	btr_cur_t	cursor;
-	ulint		flags =
-		BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
+	ulint		flags;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets;
 	mem_heap_t*	heap = NULL;
 	dberr_t		err;
 
 	rec_offs_init(offsets_);
+	flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 
 	btr_cur_search_to_nth_level_with_no_latch(
 		index, 0, entry, PAGE_CUR_LE,
@@ -1323,8 +1322,7 @@ row_explicit_rollback(
 	return(err);
 }
 
-/*********************************************************************//**
-Does an insert for MySQL using cursor interface.
+/** Does an insert for MySQL using cursor interface.
 Cursor interface is low level interface that directly interacts at
 Storage Level by-passing all the locking and transaction semantics.
 For InnoDB case, this will also by-pass hidden column generation.
@@ -1341,6 +1339,7 @@ row_insert_for_mysql_using_cursor(
 	ins_node_t*	node	= NULL;
 	que_thr_t*	thr	= NULL;
 	mtr_t		mtr;
+	trx_id_t	trx_id;
 
 	/* Step-1: Get the reference of row to insert. */
 	row_get_prebuilt_insert_row(prebuilt);
@@ -1360,8 +1359,7 @@ row_insert_for_mysql_using_cursor(
 		dict_sys_write_row_id(node->row_id_buf, row_id);
 	}
 
-	trx_id_t	trx_id =
-			dict_table_get_table_localized_trx_id(prebuilt->table);
+	trx_id = dict_table_get_table_localized_trx_id(prebuilt->table);
 	trx_write_trx_id(node->trx_id_buf, trx_id);
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
@@ -1429,8 +1427,7 @@ row_insert_for_mysql_using_cursor(
 	return(err);
 }
 
-/*********************************************************************//**
-Does an insert for MySQL using INSERT graph. This function will run/execute
+/** Does an insert for MySQL using INSERT graph. This function will run/execute
 INSERT graph.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
@@ -1618,8 +1615,7 @@ error_exit:
 	return(err);
 }
 
-/*********************************************************************//**
-Does an insert for MySQL.
+/** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS*/
@@ -1629,10 +1625,9 @@ row_insert_for_mysql(
 	const byte*	mysql_rec,
 	row_prebuilt_t*	prebuilt)
 {
-	/* For intrinsic tables there lot of restrictions that can be
+	/* For intrinsic tables there a lot of restrictions that can be
 	relaxed including locking of table, transaction handling, etc.
-	Given that will use direct cursor interface for inserting to intrinsic
-	temporary tables. */
+	Use direct cursor interface for inserting to intrinsic tables. */
 	if (dict_table_is_intrinsic(prebuilt->table)) {
 		return(row_insert_for_mysql_using_cursor(mysql_rec, prebuilt));
 	} else {
@@ -1859,8 +1854,7 @@ private:
 typedef	std::vector<btr_pcur_t>	cursors_t;
 typedef	std::vector<bool>	index_update_t;
 
-/*********************************************************************//**
-Delete row from table (corresponding entries from all the indexes).
+/** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
 just incase update action following delete fails.
 
@@ -1912,7 +1906,7 @@ row_delete_for_mysql_using_cursor(
 		ut_ad(!cmp_dtuple_rec(
 			entry, btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
 			offsets));
-#endif
+#endif /* UNIV_DEBUG */
 
 		ut_ad(!rec_get_deleted_flag(
 			btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
@@ -1960,7 +1954,7 @@ row_delete_for_mysql_using_cursor(
 				BTR_MODIFY_LEAF, &(*it), &mtr);
 
 			if (!success) {
-				ut_error;
+				ut_a(success);
 			} else {
 				btr_cur_t* btr_cur = btr_pcur_get_btr_cur(
 					&(*it));
@@ -1994,8 +1988,7 @@ row_delete_for_mysql_using_cursor(
 	return(err);
 }
 
-/*********************************************************************//**
-Does an update of a row for MySQL by inserting new entry with update values.
+/** Does an update of a row for MySQL by inserting new entry with update values.
 @param[in]	node		update node carrying information to delete.
 @param[out]	delete_entries	vector of cursor to deleted entries.
 @param[in]	thr		thread handler
@@ -2014,16 +2007,17 @@ row_update_for_mysql_using_cursor(
 	dict_table_t*	table = node->table;
 	mem_heap_t*	heap = mem_heap_create(1000);
 	dtuple_t*	entry;
+	trx_id_t        trx_id;
+	dfield_t*	trx_id_field;
 
 	/* Step-1: Update row-id column if table has auto-generated index.
 	Every update will result in update of auto-generated index. */
 	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
 		/* Update the row_id column. */
-		row_id_t	row_id =
-			dict_table_get_table_localized_row_id(node->table);
-
+		row_id_t	row_id;
 		dfield_t*	row_id_field;
 
+		row_id = dict_table_get_table_localized_row_id(node->table);
 		row_id_field = dtuple_get_nth_field(
 			node->upd_row, dict_table_get_n_cols(table) - 2);
 
@@ -2032,10 +2026,8 @@ row_update_for_mysql_using_cursor(
 	}
 
 	/* Step-2: Update the trx_id column. */
-	trx_id_t        trx_id =
-		dict_table_get_table_localized_trx_id(node->table);
-	dfield_t*	trx_id_field =
-		dtuple_get_nth_field(
+	trx_id = dict_table_get_table_localized_trx_id(node->table);
+	trx_id_field = dtuple_get_nth_field(
 		node->upd_row, dict_table_get_n_cols(table) - 1);
 	trx_write_trx_id(static_cast<byte*>(trx_id_field->data), trx_id);
 
@@ -2068,10 +2060,9 @@ row_update_for_mysql_using_cursor(
 		Avoid executing update. Rollback DELETE action. */
 		row_delete_for_mysql_using_cursor(
 			node, delete_entries, true, update_index);
-		goto func_exit;
 	}
 
-	/* Step-4: It is now safe to execute update. */
+	/* Step-4: It is now safe to execute update if there is no error */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL && err == DB_SUCCESS;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {
@@ -2099,15 +2090,13 @@ row_update_for_mysql_using_cursor(
 		}
 	}
 
-func_exit:
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 	return(err);
 }
 
-/*********************************************************************//**
-Does an update or delete of a row for MySQL.
+/** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
@@ -2152,35 +2141,29 @@ row_del_upd_for_mysql_using_cursor(
 			dict_table_n_rows_dec(prebuilt->table);
 			srv_stats.n_rows_deleted.inc();
 		}
-		goto del_upd_exit;
 	}
 
-	if (err != DB_SUCCESS) {
-		goto del_upd_exit;
+	if (err == DB_SUCCESS && !node->is_delete) {
+		/* Step-4: Complete UPDATE operation by inserting new row with
+		updated data. */
+		err = row_update_for_mysql_using_cursor(
+				node, delete_entries, thr, update_index);
+
+		if (err == DB_SUCCESS) {
+			srv_stats.n_rows_updated.inc();
+		}
 	}
 
-	/* Step-4: Complete UPDATE operation by inserting new row with
-	updated data. */
-	err = row_update_for_mysql_using_cursor(
-		node, delete_entries, thr, update_index);
-
-	if (err == DB_SUCCESS) {
-		srv_stats.n_rows_updated.inc();
-	}
-
-del_upd_exit:
 	thr_get_trx(thr)->error_state = DB_SUCCESS;
 	cursors_t::iterator	end = delete_entries.end();
 	for (cursors_t::iterator it = delete_entries.begin(); it != end; ++it) {
 		btr_pcur_close(&(*it));
 	}
-	delete_entries.clear();
 
 	return(err);
 }
 
-/*********************************************************************//**
-Does an update or delete of a row for MySQL.
+/** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
@@ -2478,8 +2461,7 @@ error:
 	DBUG_RETURN(err);
 }
 
-/*********************************************************************//**
-Does an update or delete of a row for MySQL.
+/** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
 @return error code or DB_SUCCESS */
@@ -4360,22 +4342,15 @@ check_next_foreign:
 		if (!dict_table_is_intrinsic(table)) {
 			dict_table_remove_from_cache(table);
 		} else {
-
-			dict_index_t* index = NULL;
-
-			while (true) {
-				index = UT_LIST_GET_FIRST(table->indexes);
-
-				if (index == NULL) {
-					break;
-				}
-
+			for (dict_index_t* index
+				= UT_LIST_GET_FIRST(table->indexes);
+			     index != NULL;
+			     index = UT_LIST_GET_FIRST(table->indexes)) {
 				rw_lock_free(&index->lock);
 
 				UT_LIST_REMOVE(table->indexes, index);
 
 				dict_mem_index_free(index);
-				index = NULL;
 			}
 
 			dict_mem_table_free(table);

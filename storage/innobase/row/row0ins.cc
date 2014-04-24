@@ -1764,7 +1764,7 @@ do_possible_lock_wait:
 	}
 
 exit_func:
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 	DBUG_RETURN(err);
@@ -2460,7 +2460,7 @@ err_exit:
 		mem_heap_t*	entry_heap	= mem_heap_create(1024);
 
 		/* If the existing record is being modified and the new record
-		is doesn't fit the provided slot then existing record is added
+		doesn't fit the provided slot then existing record is added
 		to free list and new record is inserted. This also means
 		cursor that we have cached for SELECT is now invalid. */
 		index->last_sel_cur->invalid = true;
@@ -2510,7 +2510,7 @@ err_exit:
 			}
 		}
 
-		if (big_rec) {
+		if (big_rec != NULL) {
 			mtr_commit(&mtr);
 
 			/* Online table rebuild could read (and
@@ -2539,7 +2539,7 @@ err_exit:
 	}
 
 func_exit:
-	if (offsets_heap) {
+	if (offsets_heap != NULL) {
 		mem_heap_free(offsets_heap);
 	}
 
@@ -2548,8 +2548,7 @@ func_exit:
 	DBUG_RETURN(err);
 }
 
-/***************************************************************//**
-This is a specialized function meant for direct insertion to
+/** This is a specialized function meant for direct insertion to
 auto-generated clustered index based on cached position from
 last successful insert. To be used when data is sorted.
 
@@ -2642,6 +2641,7 @@ row_ins_sorted_clust_index_entry(
 		}
 
 	} else {
+		/* TODO: Check if this is needed for intrinsic table. */
 		if (buf_LRU_buf_pool_running_out()) {
 			err = DB_LOCK_TABLE_FULL;
 			goto err_exit;
@@ -2658,7 +2658,7 @@ row_ins_sorted_clust_index_entry(
 		}
 	}
 
-	if (big_rec) {
+	if (big_rec != NULL) {
 		/* If index involves big-record optimization is turned-off. */
 		index->last_ins_cur->release();
 		index->last_ins_cur->disable_caching = true;
@@ -2687,7 +2687,7 @@ err_exit:
 	index->last_ins_cur->release();
 
 func_exit:
-	if (offsets_heap) {
+	if (offsets_heap != NULL) {
 		mem_heap_free(offsets_heap);
 	}
 
