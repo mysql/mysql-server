@@ -25,11 +25,11 @@ extern "C"
 }
 
 // MySQL headers
-#include <my_global.h>
-#include <my_default.h>
-#include <my_getopt.h>
-#include <welcome_copyright_notice.h>
-#include <mysql_version.h>
+#include "my_global.h"
+#include "my_default.h"
+#include "my_getopt.h"
+#include "welcome_copyright_notice.h"
+#include "mysql_version.h"
 #include "auth_utils.h"
 #include "path.h"
 
@@ -67,7 +67,7 @@ char default_authplugin[]= "mysql_native_password";
 char *opt_authplugin= 0;
 char *opt_mysqldfile= 0;
 char *opt_randpwdfile= 0;
-char default_randpwfile[]= "/root/.mysql_secret";
+char default_randpwfile[]= ".mysql_secret";
 char *opt_langpath= 0;
 char *opt_lang= 0;
 char default_lang[]= "en_US";
@@ -117,7 +117,7 @@ static struct my_option my_connection_options[]=
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"random-password-file", 0, "Specifies the qualified path to the "
      ".mysql_secret temporary password file", &opt_randpwdfile,
-   0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_randpwfile,
+   0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0,
    0, 0, 0, 0, 0},
   {"insecure", 0, "Disables random passwords for the default admin account",
    &opt_insecure, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0,
@@ -438,9 +438,12 @@ bool assert_valid_datadir(const string &datadir, Path *target)
 
   if (target->exists())
   {
-    cerr << Datetime() << "[ERROR] The data directory '"<< datadir.c_str()
-         << "' already exist." << endl;
-    return false;
+    if (!target->empty())
+    {
+      cerr << Datetime() << "[ERROR] The data directory '"<< datadir.c_str()
+           << "' already exist and is not empty." << endl;
+      return false;
+    }
   }
   return true;
 }
@@ -875,6 +878,29 @@ bool process_execute(const string &exec, Fwd_iterator begin,
   return true;
 }
 
+int generate_password_file(Path &pwdfile, const string &adminuser, 
+                           const string &adminhost,
+                           const string &password)
+{
+
+  /*
+    The format of the password file is
+    ['#'][bytes]['\n']['password bytes']['\n']|[EOF])
+  */
+  ofstream fout;
+  fout.open(pwdfile.to_str().c_str());
+  if (!fout.is_open())
+    return ERR_FILE;
+
+  fout << "# Password set for user '"
+       << adminuser << "@" << adminhost << "' at "
+       << Datetime() << "\n"
+       << password << "\n";
+  fout.close();
+  cout << "done." << endl << flush;
+  return ALL_OK;
+}
+
 int main(int argc,char *argv[])
 {
   /*
@@ -991,15 +1017,24 @@ int main(int argc,char *argv[])
     return 1;
   }
 
-  cout << Datetime() << "Creating data directory "
-       << data_directory.to_str() << endl;
-  umask(0);
-  if (my_mkdir(data_directory.to_str().c_str(), 0770, MYF(0)) != 0)
+  if (data_directory.exists())
   {
-    cerr << Datetime()
-         << "[ERROR] Failed to create the data directory '"
-         << data_directory.to_str() << "'";
-    return 1;
+    cout << Datetime() << "Using existing directory "
+         << data_directory
+         << endl;
+  }
+  else
+  {
+    cout << Datetime() << "Creating data directory "
+         << data_directory << endl;
+    umask(0);
+    if (my_mkdir(data_directory.to_str().c_str(), 0770, MYF(0)) != 0)
+    {
+      cerr << Datetime()
+           << "[ERROR] Failed to create the data directory '"
+           << data_directory << "'" << endl;
+      return 1;
+    }
   }
 
   if (opt_euid && geteuid() == 0)
@@ -1043,30 +1078,30 @@ int main(int argc,char *argv[])
   /* Generate a random password is no password was found previously */
   if (password.length() == 0 && !opt_insecure)
   {
+    Path randpwdfile;
+    if (opt_randpwdfile != 0)
+    {
+      randpwdfile.qpath(opt_randpwdfile);
+    }
+    else
+    {
+      randpwdfile.get_homedir();
+      randpwdfile.filename(default_randpwfile);
+    }
     cout << Datetime()
          << "Generating random password to "
-         << opt_randpwdfile << "..." << flush;
+         << randpwdfile << "..." << flush;
     generate_password(&password,12);
-    /*
-      The format of the password file is
-      ['#'][bytes]['\n']['password bytes']['\n']|[EOF])
-    */
-    ofstream fout;
-    fout.open(opt_randpwdfile);
-    if (!fout.is_open())
+    if (generate_password_file(randpwdfile, adminuser, adminhost,
+                               password) != ALL_OK)
     {
-      cout << "failed." << endl << flush;
       cerr << Datetime()
-           << "[ERROR] Can't create password file " << opt_randpwdfile << endl;
-      return 1;
+           << "[ERROR] Can't create password file "
+           << randpwdfile
+           << endl;
     }
-    fout << "# The random password set for user '"
-         << adminuser << "' at "
-         << Datetime() << "\n"
-         << password << "\n";
-    fout.close();
-    cout << "done." << endl << flush;
   }
+
   string ssl_type;
   string ssl_cipher;
   string x509_issuer;
