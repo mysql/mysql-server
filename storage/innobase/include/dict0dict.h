@@ -1809,7 +1809,7 @@ bool
 dict_table_is_temporary(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((pure, warn_unused_result));
 
 /** Check whether the table is intrinsic.
 An intrinsic table is a special kind of temporary table that
@@ -1827,7 +1827,19 @@ UNIV_INLINE
 bool
 dict_table_is_intrinsic(
 	const dict_table_t*	table)
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((pure, warn_unused_result));
+
+/** Check whether locking is disabled for this table.
+Currently this is done for intrinsic table as their visibility is limited
+to the connection only.
+
+@param[in]	table	table to check
+@return true if locking is disabled. */
+UNIV_INLINE
+bool
+dict_table_is_locking_disabled(
+	const dict_table_t*	table)
+	__attribute__((pure, warn_unused_result));
 
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */

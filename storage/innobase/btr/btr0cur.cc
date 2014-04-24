@@ -4022,7 +4022,7 @@ any_extern:
 	/* Ok, we may do the replacement. Store on the page infimum the
 	explicit locks on rec, before deleting rec (see the comment in
 	btr_cur_pessimistic_update). */
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		lock_rec_store_on_page_infimum(block, rec);
 	}
 
@@ -4046,7 +4046,7 @@ any_extern:
 	ut_a(rec); /* <- We calculated above the insert would fit */
 
 	/* Restore the old explicit lock state on the record */
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		lock_rec_restore_from_page_infimum(block, rec, block);
 	}
 
@@ -4341,7 +4341,7 @@ btr_cur_pessimistic_update(
 	btr_root_raise_and_insert. Therefore we cannot in the lock system
 	delete the lock structs set on the root page even if the root
 	page carries just node pointers. */
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		lock_rec_store_on_page_infimum(block, rec);
 	}
 
@@ -4362,7 +4362,7 @@ btr_cur_pessimistic_update(
 	if (rec) {
 		page_cursor->rec = rec;
 
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!dict_table_is_locking_disabled(index->table)) {
 			lock_rec_restore_from_page_infimum(
 				btr_cur_get_block(cursor), rec, block);
 		}
@@ -4492,7 +4492,7 @@ btr_cur_pessimistic_update(
 					     rec, index, *offsets, mtr);
 	}
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		lock_rec_restore_from_page_infimum(
 			btr_cur_get_block(cursor), rec, block);
 	}
@@ -4502,7 +4502,7 @@ btr_cur_pessimistic_update(
 	record was nonexistent, the supremum might have inherited its locks
 	from a wrong record. */
 
-	if (!was_first && !dict_table_is_intrinsic(index->table)) {
+	if (!was_first && !dict_table_is_locking_disabled(index->table)) {
 		btr_cur_pess_upd_restore_supremum(btr_cur_get_block(cursor),
 						  rec, mtr);
 	}

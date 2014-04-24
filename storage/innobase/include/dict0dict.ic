@@ -1469,6 +1469,20 @@ dict_table_is_intrinsic(
 	return(DICT_TF2_FLAG_IS_SET(table, DICT_TF2_INTRINSIC));
 }
 
+/** Check whether locking is disabled for this table.
+Currently this is done for intrinsic table as their visibility is limited
+to the connection only.
+
+@param[in]	table	table to check
+@return true if locking is disabled. */
+UNIV_INLINE
+bool
+dict_table_is_locking_disabled(
+	const dict_table_t*	table)
+{
+	return(dict_table_is_intrinsic(table));
+}
+
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */
 UNIV_INLINE

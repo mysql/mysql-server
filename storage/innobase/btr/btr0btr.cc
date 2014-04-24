@@ -1299,7 +1299,7 @@ btr_page_reorganize_low(
 
 #ifndef UNIV_HOTBACKUP
 	/* No locks are acquried for intrinsic tables. */
-	if (!recovery && !dict_table_is_intrinsic(index->table)) {
+	if (!recovery && !dict_table_is_locking_disabled(index->table)) {
 		/* Update the record lock bitmaps */
 		lock_move_reorganize_page(block, temp_block);
 	}
@@ -1612,7 +1612,7 @@ btr_root_raise_and_insert(
 
 		/* Update the lock table and possible hash index. */
 
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!dict_table_is_locking_disabled(index->table)) {
 			lock_move_rec_list_end(new_block, root_block,
 					       page_get_infimum_rec(root));
 		}
@@ -1631,7 +1631,7 @@ btr_root_raise_and_insert(
 	information of the record to be inserted on the infimum of the
 	root page: we cannot discard the lock structs on the root page */
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		lock_update_root_raise(new_block, root_block);
 	}
 
@@ -2525,7 +2525,8 @@ insert_empty:
 
 			/* Update the lock table and possible hash index. */
 
-			if (!dict_table_is_intrinsic(cursor->index->table)) {
+			if (!dict_table_is_locking_disabled(
+				cursor->index->table)) {
 				lock_move_rec_list_start(
 					new_block, block, move_limit,
 					new_page + PAGE_NEW_INFIMUM);
@@ -2543,7 +2544,7 @@ insert_empty:
 		left_block = new_block;
 		right_block = block;
 
-		if (!dict_table_is_intrinsic(cursor->index->table)) {
+		if (!dict_table_is_locking_disabled(cursor->index->table)) {
 			lock_update_split_left(right_block, left_block);
 		}
 	} else {
@@ -2569,7 +2570,8 @@ insert_empty:
 						   cursor->index, mtr);
 
 			/* Update the lock table and possible hash index. */
-			if (!dict_table_is_intrinsic(cursor->index->table)) {
+			if (!dict_table_is_locking_disabled(
+				cursor->index->table)) {
 				lock_move_rec_list_end(
 					new_block, block, move_limit);
 			}
@@ -2590,7 +2592,7 @@ insert_empty:
 		left_block = block;
 		right_block = new_block;
 
-		if (!dict_table_is_intrinsic(cursor->index->table)) {
+		if (!dict_table_is_locking_disabled(cursor->index->table)) {
 			lock_update_split_right(right_block, left_block);
 		}
 	}
@@ -3001,7 +3003,7 @@ btr_lift_page_up(
 
 		/* Update the lock table and possible hash index. */
 
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!dict_table_is_locking_disabled(index->table)) {
 			lock_move_rec_list_end(father_block, block,
 					       page_get_infimum_rec(page));
 		}
@@ -3015,7 +3017,7 @@ btr_lift_page_up(
 						       index);
 	}
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		lock_update_copy_and_discard(father_block, block);
 	}
 
@@ -3295,7 +3297,8 @@ retry:
 					merge_page, &new_mbr, NULL, mtr);
 #endif
 			} else {
-				rtr_node_ptr_delete(index, &father_cursor, block, mtr);
+				rtr_node_ptr_delete(
+					index, &father_cursor, block, mtr);
 			}
 
 			/* No GAP lock needs to be worrying about */
@@ -3304,7 +3307,7 @@ retry:
 			lock_mutex_exit();
 		} else {
 			btr_node_ptr_delete(index, block, mtr);
-			if (!dict_table_is_intrinsic(index->table)) {
+			if (!dict_table_is_locking_disabled(index->table)) {
 				lock_update_merge_left(
 					merge_block, orig_pred, block);
 			}
@@ -3444,7 +3447,7 @@ retry:
 							   mtr);
 			}
 
-			if (!dict_table_is_intrinsic(index->table)) {
+			if (!dict_table_is_locking_disabled(index->table)) {
 				lock_update_merge_right(
 					merge_block, orig_succ, block);
 			}
@@ -3589,7 +3592,7 @@ btr_discard_only_page_on_level(
 		btr_page_get_father(index, block, mtr, &cursor);
 		father = btr_cur_get_block(&cursor);
 
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!dict_table_is_locking_disabled(index->table)) {
 			lock_update_discard(
 				father, PAGE_HEAP_NO_SUPREMUM, block);
 		}
@@ -3748,7 +3751,7 @@ btr_discard_page(
 	}
 #endif /* UNIV_ZIP_DEBUG */
 
-	if (!dict_table_is_intrinsic(index->table)) {
+	if (!dict_table_is_locking_disabled(index->table)) {
 		if (left_page_no != FIL_NULL) {
 			lock_update_discard(merge_block, PAGE_HEAP_NO_SUPREMUM,
 					    block);

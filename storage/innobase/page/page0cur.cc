@@ -1260,28 +1260,35 @@ page_cur_inline_insert_rec_low(
 				mem_heap_free(heap);
 			}
 
-			goto use_heap;
-		}
+			free_rec = NULL;
+			insert_buf = page_mem_alloc_heap(
+				page, NULL, rec_size, &heap_no);
 
-		insert_buf = free_rec - rec_offs_extra_size(foffsets);
+			if (insert_buf == NULL) {
+				return(NULL);
+			}
+		} else {
+			insert_buf = free_rec - rec_offs_extra_size(foffsets);
 
-		if (page_is_comp(page)) {
-			heap_no = rec_get_heap_no_new(free_rec);
-			page_mem_alloc_free(page, NULL,
+			if (page_is_comp(page)) {
+				heap_no = rec_get_heap_no_new(free_rec);
+				page_mem_alloc_free(
+					page, NULL,
 					rec_get_next_ptr(free_rec, TRUE),
 					rec_size);
-		} else {
-			heap_no = rec_get_heap_no_old(free_rec);
-			page_mem_alloc_free(page, NULL,
+			} else {
+				heap_no = rec_get_heap_no_old(free_rec);
+				page_mem_alloc_free(
+					page, NULL,
 					rec_get_next_ptr(free_rec, FALSE),
 					rec_size);
-		}
+			}
 
-		if (heap != NULL) {
-			mem_heap_free(heap);
+			if (heap != NULL) {
+				mem_heap_free(heap);
+			}
 		}
 	} else {
-use_heap:
 		free_rec = NULL;
 		insert_buf = page_mem_alloc_heap(page, NULL,
 						 rec_size, &heap_no);
