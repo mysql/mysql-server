@@ -2583,7 +2583,7 @@ page_validate(
 
 			int	ret = cmp_rec_rec(
 				rec, old_rec, offsets, old_offsets, index);
-			
+
 			if (ret <= 0) {
 
 				ib_logf(IB_LOG_LEVEL_ERROR,
