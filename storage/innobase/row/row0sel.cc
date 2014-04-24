@@ -3926,6 +3926,40 @@ row_search_idx_cond_check(
 	return(result);
 }
 
+/** Traverse to next/previous record.
+@param[in]	moves_up	if true, move to next record else previous
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in,out]	pcur		cursor to record
+@param[in]	mtr		mini transaction
+
+@return DB_SUCCESS or error code */
+static
+dberr_t
+row_search_traverse(
+	bool		moves_up,
+	ulint		match_mode,
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr)
+{
+	dberr_t		err = DB_SUCCESS;
+
+	if (moves_up) {
+		if (!btr_pcur_move_to_next(pcur, mtr)) {
+			err = (match_mode != 0)
+				? DB_RECORD_NOT_FOUND : DB_END_OF_INDEX;
+			return(err);
+		}
+	} else {
+		if (!btr_pcur_move_to_prev(pcur, mtr)) {
+			err = (match_mode != 0)
+				? DB_RECORD_NOT_FOUND : DB_END_OF_INDEX;
+			return(err);
+		}
+	}
+
+	return(err);
+}
+
 /** Searches for rows in the database using cursor.
 function is meant for temporary table that are not shared accross connection
 and so lot of complexity is reduced especially locking and transaction related.
@@ -3993,10 +4027,9 @@ row_search_no_mvcc(
 	}
 
 	/* Step-2: Open or Restore the cursor.
-	If search key is specified the cursor is open using the key else
+	If search key is specified, cursor is open using the key else
 	cursor is open to return all the records. */
 	if (direction != 0) {
-
 		if (index->last_sel_cur->invalid) {
 
 			/* Index tree has changed and so active cached cursor
@@ -4028,10 +4061,13 @@ row_search_no_mvcc(
 			pcur->btr_cur.page_cur.block =
 				index->last_sel_cur->block;
 
-			goto next_rec;
+			err = row_search_traverse(
+				moves_up, match_mode, pcur, mtr);
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
 		}
 	} else {
-
 		/* There could be previous uncommitted transaction if SELECT
 		is operation as part of SELECT (IF NOT FOUND) INSERT
 		(IF DUPLICATE) UPDATE plan. */
@@ -4059,148 +4095,134 @@ row_search_no_mvcc(
 		}
 	}
 
-	/* Step-3: Traverse the records selected filtering non-qualifiying
-	records. */
-rec_loop:
-	rec = btr_pcur_get_rec(pcur);
+	/* Step-3: Traverse the records filtering non-qualifiying records. */
+	for (;
+	     err == DB_SUCCESS;
+	     err = row_search_traverse(moves_up, match_mode, pcur, mtr)) {
 
-	if (page_rec_is_infimum(rec)
-	    || page_rec_is_supremum(rec)
-	    || rec_get_deleted_flag(rec, dict_table_is_comp(index->table))) {
+		rec = btr_pcur_get_rec(pcur);
 
-		/* The infimum record on a page cannot be in the result set,
-		and neither can a record lock be placed on it: we skip such
-		a record. */
+		if (page_rec_is_infimum(rec)
+		    || page_rec_is_supremum(rec)
+		    || rec_get_deleted_flag(
+			rec, dict_table_is_comp(index->table))) {
 
-		goto next_rec;
-	}
-
-	offsets = rec_get_offsets(rec, index, offsets, ULINT_UNDEFINED, &heap);
-
-	/* Note that we cannot trust the up_match value in the cursor at this
-	place because we can arrive here after moving the cursor! Thus
-	we have to recompare rec and search_tuple to determine if they
-	match enough. */
-	if (match_mode == ROW_SEL_EXACT) {
-		/* Test if the index record matches completely to search_tuple
-		in prebuilt: if not, then we return with DB_RECORD_NOT_FOUND */
-
-		if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
-
-			err = DB_RECORD_NOT_FOUND;
-			goto final_return;
+			/* The infimum record on a page cannot be in the
+			result set, and neither can a record lock be placed on
+			it: we skip such a record. */
+			continue;
 		}
-
-	} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
-
-		if (!cmp_dtuple_is_prefix_of_rec(search_tuple, rec, offsets)) {
-
-			err = DB_RECORD_NOT_FOUND;
-			goto final_return;
-		}
-	}
-
-	/* Get the clustered index. We always need clustered index record for
-	snapshort verification. */
-	if (index != clust_index) {
-
-		err = row_sel_get_clust_rec_for_mysql(
-			prebuilt, index, rec, thr, &clust_rec,
-			&offsets, &heap, mtr);
-
-		if (err != DB_SUCCESS) {
-			goto final_return;
-		}
-
-		if (rec_get_deleted_flag(
-			clust_rec, dict_table_is_comp(index->table))) {
-
-			/* The record is delete marked: we can skip it */
-			goto next_rec;
-		}
-
-		result_rec = clust_rec;
-	} else {
-		result_rec = rec;
-	}
-
-	/* Step-4: Check if row is part of the consistent view that was captured
-	while SELECT statement started execution. */
-	{
-		trx_id_t	trx_id;
-		trx_id = row_get_rec_trx_id(result_rec, clust_index, offsets);
-		if (trx_id > index->trx_id) {
-			goto next_rec;
-		}
-	}
-
-	/* Step-5: Cache the row-id of selected row to prebuilt cache. */
-	if (prebuilt->clust_index_was_generated) {
-		row_sel_store_row_id_to_prebuilt(
-			prebuilt, result_rec, clust_index, offsets);
-	}
-
-	/* Step-6: Convert selected record to MySQL format and store it. */
-	if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
-
-		const rec_t*	ret_rec =
-			(index != clust_index
-			 && prebuilt->need_to_access_clustered)
-			? result_rec : rec;
 
 		offsets = rec_get_offsets(
-			ret_rec, index, offsets, ULINT_UNDEFINED, &heap);
+			rec, index, offsets, ULINT_UNDEFINED, &heap);
 
-		memcpy(buf + 4, ret_rec - rec_offs_extra_size(offsets),
-		       rec_offs_size(offsets));
+		/* Note that we cannot trust the up_match value in the cursor
+		at this place because we can arrive here after moving the
+		cursor! Thus we have to recompare rec and search_tuple to
+		determine if they match enough. */
+		if (match_mode == ROW_SEL_EXACT) {
+			/* Test if the index record matches completely to
+			search_tuple in prebuilt: if not, then we return with
+			DB_RECORD_NOT_FOUND */
+			if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
+				err = DB_RECORD_NOT_FOUND;
+				continue;
+			}
+		} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
+			if (!cmp_dtuple_is_prefix_of_rec(
+				search_tuple, rec, offsets)) {
+				err = DB_RECORD_NOT_FOUND;
+				continue;
+			}
+		}
 
-		mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
+		/* Get the clustered index. We always need clustered index
+		record for snapshort verification. */
+		if (index != clust_index) {
 
-	} else if (!row_sel_store_mysql_rec(
-			buf, prebuilt, result_rec, TRUE,
-			clust_index, offsets)) {
-		goto next_rec;
+			err = row_sel_get_clust_rec_for_mysql(
+				prebuilt, index, rec, thr, &clust_rec,
+				&offsets, &heap, mtr);
+
+			if (err != DB_SUCCESS) {
+				continue;
+			}
+
+			if (rec_get_deleted_flag(
+				clust_rec, dict_table_is_comp(index->table))) {
+
+				/* The record is delete marked in clustered
+				index. We can skip this record. */
+				continue;
+			}
+
+			result_rec = clust_rec;
+		} else {
+			result_rec = rec;
+		}
+
+		/* Step-4: Check if row is part of the consistent view that was
+		captured while SELECT statement started execution. */
+		{
+			trx_id_t	trx_id;
+			trx_id = row_get_rec_trx_id(
+				result_rec, clust_index, offsets);
+			if (trx_id > index->trx_id) {
+				/* This row was recently added skip it from
+				SELECT view. */
+				continue;
+			}
+		}
+
+		/* Step-5: Cache the row-id of selected row to prebuilt cache.*/
+		if (prebuilt->clust_index_was_generated) {
+			row_sel_store_row_id_to_prebuilt(
+				prebuilt, result_rec, clust_index, offsets);
+		}
+
+		/* Step-6: Convert selected record to MySQL format and
+		store it. */
+		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
+
+			const rec_t*	ret_rec =
+				(index != clust_index
+			 	 && prebuilt->need_to_access_clustered)
+				? result_rec : rec;
+
+			offsets = rec_get_offsets(ret_rec, index, offsets,
+						  ULINT_UNDEFINED, &heap);
+
+			memcpy(buf + 4, ret_rec - rec_offs_extra_size(offsets),
+		       	rec_offs_size(offsets));
+
+			mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
+
+		} else if (!row_sel_store_mysql_rec(
+				buf, prebuilt, result_rec, TRUE,
+				clust_index, offsets)) {
+			continue;
+		}
+
+		/* Step-7: Store cursor position to fetch next record.
+		MySQL calls this function iteratively get_next(), get_next()
+		fashion. */
+		ut_ad(err == DB_SUCCESS);
+		index->last_sel_cur->rec = btr_pcur_get_rec(pcur);
+		index->last_sel_cur->block = btr_pcur_get_block(pcur);
+
+		/* This is needed in order to restore the cursor if index
+		structure changes while SELECT is still active. */
+		pcur->old_rec = dict_index_copy_rec_order_prefix(
+			index, rec, &pcur->old_n_fields,
+			&pcur->old_rec_buf, &pcur->buf_size);
+
+		break;
 	}
 
-	/* Step-7: Store cursor position to fetch next record.
-	MySQL calls this function iteratively get_next(), get_next() fashion. */
-	ut_ad(err == DB_SUCCESS);
-	index->last_sel_cur->rec = btr_pcur_get_rec(pcur);
-	index->last_sel_cur->block = btr_pcur_get_block(pcur);
-
-	/* This is needed in order to restore the cursor if index structure
-	changes while SELECT is still active. */
-	pcur->old_rec = dict_index_copy_rec_order_prefix(
-		index, rec, &pcur->old_n_fields,
-		&pcur->old_rec_buf, &pcur->buf_size);
-
-	goto normal_return;
-
-next_rec:
-	if (moves_up) {
-		if (!btr_pcur_move_to_next(pcur, mtr)) {
-
-			err = (match_mode != 0)
-				? DB_RECORD_NOT_FOUND : DB_END_OF_INDEX;
-
-			goto final_return;
-		}
-	} else {
-		if (!btr_pcur_move_to_prev(pcur, mtr)) {
-
-			err = (match_mode != 0)
-				? DB_RECORD_NOT_FOUND : DB_END_OF_INDEX;
-
-			goto final_return;
-		}
+	if (err != DB_SUCCESS) {
+		index->last_sel_cur->release();
 	}
 
-	goto rec_loop;
-
-final_return:
-	index->last_sel_cur->release();
-
-normal_return:
 	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
