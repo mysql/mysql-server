@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -47,10 +47,27 @@ template<typename Element_type, bool has_trivial_destructor>
 class Mem_root_array
 {
 public:
-  Mem_root_array(MEM_ROOT *root)
+  /// Convenience typedef, same typedef name as std::vector
+  typedef Element_type value_type;
+
+  /**
+    Empty container constructor.
+    Constructs an empty container, with no elements.
+  */
+  explicit Mem_root_array(MEM_ROOT *root)
     : m_root(root), m_array(NULL), m_size(0), m_capacity(0)
   {
     DBUG_ASSERT(m_root != NULL);
+  }
+
+  /**
+    Fill constructor.
+    Constructs a container with n elements. Each element is a copy of val.
+  */
+  Mem_root_array(MEM_ROOT *root, size_t n, const value_type &val= value_type())
+    : m_root(root), m_array(NULL), m_size(0), m_capacity(0)
+  {
+    resize(n, val);
   }
 
   ~Mem_root_array()
@@ -86,20 +103,26 @@ public:
   Element_type &back() { return at(size() - 1); }
   const Element_type &back() const { return at(size() - 1); }
 
-  // Returns a pointer to the first element in the array.
+  /// Random access iterators to value_type and const value_type.
+  typedef Element_type *iterator;
+  typedef const Element_type *const_iterator;
+
+  /// Returns a pointer to the first element in the array.
   Element_type *begin() { return &m_array[0]; }
+  const Element_type *begin() const { return &m_array[0]; }
 
-  // Returns a pointer to the past-the-end element in the array.
+  /// Returns a pointer to the past-the-end element in the array.
   Element_type *end() { return &m_array[size()]; }
+  const Element_type *end() const { return &m_array[size()]; }
 
-  // Erases all of the elements. 
+  /// Erases all of the elements. 
   void clear()
   {
     if (!empty())
       chop(0);
   }
 
-  /*
+  /**
     Chops the tail off the array, erasing all tail elements.
     @param pos Index of first element to erase.
   */
@@ -117,7 +140,7 @@ public:
     m_size= pos;
   }
 
-  /*
+  /**
     Reserves space for array elements.
     Copies over existing elements, in case we are re-expanding the array.
 
@@ -139,9 +162,9 @@ public:
     {
       Element_type *new_p= &array[ix];
       Element_type *old_p= &m_array[ix];
-      new (new_p) Element_type(*old_p);         // Copy into new location.
+      ::new (new_p) Element_type(*old_p);   // Copy into new location.
       if (!has_trivial_destructor)
-        old_p->~Element_type();                 // Destroy the old element.
+        old_p->~Element_type();             // Destroy the old element.
     }
 
     // Forget the old array.
@@ -150,7 +173,7 @@ public:
     return false;
   }
 
-  /*
+  /**
     Adds a new element at the end of the array, after its current last
     element. The content of this new element is initialized to a copy of
     the input argument.
@@ -167,7 +190,7 @@ public:
     if (m_size == m_capacity && reserve(m_capacity * expansion_factor))
       return true;
     Element_type *p= &m_array[m_size++];
-    new (p) Element_type(element);
+    ::new (p) Element_type(element);
     return false;
   }
 
@@ -202,7 +225,7 @@ public:
     Notice that this function changes the actual content of the
     container by inserting or erasing elements from it.
    */
-  void resize(size_t n, Element_type val= Element_type())
+  void resize(size_t n, const value_type &val= value_type())
   {
     if (n == m_size)
       return;

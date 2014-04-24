@@ -5997,7 +5997,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
       Item *value_item= op->array->create_item();
       param->thd->mem_root= tmp_root;
 
-      if (op->array->count > NOT_IN_IGNORE_THRESHOLD || !value_item)
+      if (op->array->used_count > NOT_IN_IGNORE_THRESHOLD || !value_item)
         return NULL;
 
       /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
@@ -6012,13 +6012,13 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
           break;
         i++;
       }
-      while (i < op->array->count && tree->type == SEL_TREE::IMPOSSIBLE);
+      while (i < op->array->used_count && tree->type == SEL_TREE::IMPOSSIBLE);
 
       if (!tree || tree->type == SEL_TREE::IMPOSSIBLE)
         /* We get here in cases like "t.unsigned NOT IN (-1,-2,-3) */
         return NULL;
       SEL_TREE *tree2;
-      for (; i < op->array->count; i++)
+      for (; i < op->array->used_count; i++)
       {
         if (op->array->compare_elems(i, i - 1))
         {
