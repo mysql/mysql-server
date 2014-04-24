@@ -791,7 +791,7 @@ page_copy_rec_list_end(
 	if (dict_index_is_spatial(index) && rec_move) {
 		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
 	} else {
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!dict_table_is_locking_disabled(index->table)) {
 			lock_move_rec_list_end(new_block, block, rec);
 		}
 	}
@@ -952,7 +952,7 @@ zip_reorganize:
 	if (dict_index_is_spatial(index)) {
 		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
 	} else {
-		if (!dict_table_is_intrinsic(index->table)) {
+		if (!dict_table_is_locking_disabled(index->table)) {
 			lock_move_rec_list_start(new_block, block, rec, ret);
 		}
 	}
