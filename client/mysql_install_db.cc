@@ -589,6 +589,7 @@ bool assert_valid_language_directory(const string &opt_langpath,
                                          Path *language_directory)
 {
   vector<Path > search_paths;
+  bool found_subdir= false;
   if (opt_langpath.length() > 0)
   {
     search_paths.push_back(opt_langpath);
@@ -615,6 +616,7 @@ bool assert_valid_language_directory(const string &opt_langpath,
     }
     search_paths.push_back(Path("/usr/share/mysql/english"));
     search_paths.push_back(Path("/opt/mysql/share/english"));
+    found_subdir= true;
   }
 
   if (!locate_file("", &search_paths, language_directory))
@@ -626,7 +628,8 @@ bool assert_valid_language_directory(const string &opt_langpath,
     cout << endl;
     return false;
   }
-  language_directory->up();
+  if (found_subdir)
+    language_directory->up();
   return true;
 }
 
