@@ -1,7 +1,7 @@
 The script to run the load the air traffic ontime database and run queries against it
 is called run.atc.ontime.bas.
 
-The queries are in the ft-engine/scripts/atc.ontime directory.
+The queries are in the tokudb-engine/scripts/atc.ontime directory.
 
 The data for the ontime database is in the amazon s3 bucket called tokutek-mysql-data.
 
