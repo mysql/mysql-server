@@ -396,7 +396,9 @@ static inline bool do_ignore_flag_optimization(THD* thd, TABLE* table, bool opt_
         if (is_replace_into(thd) || is_insert_ignore(thd)) {
             uint pk_insert_mode = get_pk_insert_mode(thd);
             if ((!table->triggers && pk_insert_mode < 2) || pk_insert_mode == 0) {
-                if (mysql_bin_log.is_open() && thd->variables.binlog_format == BINLOG_FORMAT_STMT) {
+                if (mysql_bin_log.is_open() && thd->variables.binlog_format != BINLOG_FORMAT_STMT) {
+                    do_opt = false;
+                } else {
                     do_opt = true;
                 }
             }
