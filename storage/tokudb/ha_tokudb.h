@@ -274,6 +274,7 @@ private:
     //
     uchar *key_buff2; 
     uchar *key_buff3; 
+    uchar *key_buff4;
     //
     // buffer used to temporarily store a "packed key" 
     // data pointer of a DBT will end up pointing to this
