@@ -575,7 +575,7 @@ private:
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
   void check_wait_handover_timeout(Signal* signal);
-  void check_wait_handover_message(NDB_TICKS now);
+  void check_wait_handover_message(Signal* signal, NDB_TICKS now);
   void send_handover_req(Signal* signal, Uint32 type);
 
   Uint32 get_responsible_node(Uint32 B) const;

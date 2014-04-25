@@ -797,6 +797,10 @@ Suma::check_start_handover(Signal* signal)
     tmp.bitAND(c_subscriber_nodes);
     if(!c_subscriber_nodes.equal(tmp))
     {
+      char buf[tmp.TextLength + 1];
+      tmp.assign(c_subscriber_nodes);
+      tmp.bitANDC(c_connected_nodes);
+      g_eventLogger->info("bug18496153: %s: %u: %s: subscribers not connected: %s", __FILE__, __LINE__, __func__, tmp.getText(buf));
       return;
     }
     
@@ -836,7 +840,7 @@ Suma::check_wait_handover_timeout(Signal* signal)
         jam();
 
         /* Not expired, consider a log message, then wait some more */
-        check_wait_handover_message(now);
+        check_wait_handover_message(signal, now);
         
         signal->theData[0] = SumaContinueB::HANDOVER_WAIT_TIMEOUT;
         sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
@@ -880,8 +884,16 @@ Suma::check_wait_handover_timeout(Signal* signal)
             /**
              * Force API_FAILREQ
              */
-            signal->theData[0] = nodeId;
-            sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+            if (ERROR_INSERTED(13048))
+            {
+              g_eventLogger->info("Skipping forced disconnect of %u",
+                                  nodeId);
+            }
+            else
+            {
+              signal->theData[0] = nodeId;
+              sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+            }
           }
 
           /* Restart timing checks, but if we expire again
@@ -903,6 +915,7 @@ Suma::check_wait_handover_timeout(Signal* signal)
            */
           g_eventLogger->critical("Failed to establish direct connection to all subscribers, shutting down.  (%s)",
                                   BaseString::getPrettyTextShort(subscribers_not_connected).c_str());
+          CRASH_INSERTION(13048);
           progError(__LINE__, 
                     NDBD_EXIT_GENERIC,
                     "Failed to establish direct connection to all subscribers");
@@ -912,13 +925,13 @@ Suma::check_wait_handover_timeout(Signal* signal)
     else
     {
       /* Unbounded wait, display message */
-      check_wait_handover_message(now);
+      check_wait_handover_message(signal, now);
     }
   }
 }
 
 void
-Suma::check_wait_handover_message(NDB_TICKS now)
+Suma::check_wait_handover_message(Signal* signal, NDB_TICKS now)
 {
   jam();
 
@@ -955,6 +968,12 @@ Suma::check_wait_handover_message(NDB_TICKS now)
                           BaseString::getPrettyTextShort(subscribers_not_connected).c_str());
       c_startup.m_wait_handover_message_expire = NdbTick_AddMilliseconds(now, 10000);
     }
+
+    // bug18496153 diagnostics
+    // DUMP 1 0 - dump phases of all nodes
+    signal->theData[0] = 1;
+    signal->theData[1] = 0;
+    sendSignal(CMVMI_REF, GSN_DUMP_STATE_ORD, signal, 2, JBB);
   }
 }
 
