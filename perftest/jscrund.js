@@ -64,8 +64,8 @@ function usage() {
   "   -d      :  Enable debug output\n" +
   "   -df=file:  Enable debug output only from source file <file>\n" +
   "   -i <n>  :  Specify number of iterations per test (default 4000)\n" +
-  "   --delay=<n>\n" +
-  "           :  Delay <n> seconds before starting test\n" + 
+  "   --delay=<m>,<n>\n" +
+  "           :  Delay <m> seconds before starting and <n> seconds before exiting\n" + 
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
   "   --tests :\n" +
@@ -206,7 +206,9 @@ function parse_command_line(options) {
           unified_debug.set_file_level(values[1], 5);
           break;
         case '--delay':
-          options.delay = values[1];
+          var delays = values[1].split(',');
+          options.delay_pre = delays[0];
+          options.delay_post = delays[1];
           break;
 
         default:
@@ -292,7 +294,8 @@ function main() {
     'log': false,
     'nRuns': 1,
     'setProp' : {},
-    'delay' : 0
+    'delay_pre' : 0,
+    'delay_post' : 0
   };
 
   /* Options from config file */
@@ -672,7 +675,12 @@ function main() {
           JSCRUND.stats.peek();
         }
         JSCRUND.implementation.close(function(err) {
-          process.exit(err ? 1 : 0);
+          if(options.delay_post > 0) {
+            console.log("Delaying", options.delay_post, "seconds");
+            setTimeout(process.exit, 1000 * options.delay_post);
+          } else { 
+            process.exit(err ? 1 : 0);
+          }
         });
       } else {
         console.log('\nRun #' + nRun + ' of ' + nRuns);
@@ -700,9 +708,9 @@ function main() {
         process.exit(1);
       } else {
         testsDoneCallback = modeLoop;
-        if(options.delay > 0) { 
-          console.log("Waiting", options.delay, "seconds...");
-          setTimeout(mainTestLoop, 1000 * options.delay);
+        if(options.delay_pre > 0) { 
+          console.log("Waiting", options.delay_pre, "seconds...");
+          setTimeout(mainTestLoop, 1000 * options.delay_pre);
         } else {
           mainTestLoop();
         }
