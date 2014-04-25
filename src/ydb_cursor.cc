@@ -587,7 +587,7 @@ c_getf_set_range(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_ft_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
-        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
+        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, nullptr, c_getf_set_range_callback, &context);
         if (r == DB_LOCK_NOTGRANTED) {
             r = toku_db_wait_range_lock(context.base.db, context.base.txn, &context.base.request);
         } else {
@@ -628,6 +628,27 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
     }
 
     //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range
+    return r;
+}
+
+static int
+c_getf_set_range_with_bound(DBC *c, uint32_t flag, DBT *key, DBT *key_bound, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
+
+    int r = 0;
+    QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
+    while (r == 0) {
+        //toku_ft_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, key_bound, c_getf_set_range_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED) {
+            r = toku_db_wait_range_lock(context.base.db, context.base.txn, &context.base.request);
+        } else {
+            break;
+        }
+    }
+    query_context_base_destroy(&context.base);
     return r;
 }
 
@@ -835,6 +856,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_getf_current);
     SCRS(c_getf_set_range);
     SCRS(c_getf_set_range_reverse);
+    SCRS(c_getf_set_range_with_bound);
     SCRS(c_set_bounds);
     SCRS(c_remove_restriction);
     SCRS(c_set_check_interrupt_callback);

@@ -4935,6 +4935,19 @@ ft_cursor_shortcut (
     void **val
     );
 
+// Return true if this key is within the search bound.  If there is no search bound then the tree search continues.
+static bool search_continue(ft_search *search, void *key, uint32_t key_len) {
+    bool result = true;
+    if (search->direction == FT_SEARCH_LEFT && search->k_bound) {
+        FT_HANDLE CAST_FROM_VOIDP(ft_handle, search->context);
+        FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
+        DBT this_key = { .data = key, .size = key_len };
+        // search continues if this key <= key bound
+        result = (ft_handle->ft->compare_fun(&db, &this_key, search->k_bound) <= 0);
+    }
+    return result;
+}
+
 // This is a bottom layer of the search functions.
 static int
 ft_search_basement_node(
@@ -4974,12 +4987,14 @@ ok: ;
         goto got_a_good_value;        // leaf mode cursors see all leaf entries
     if (is_le_val_del(le,ftcursor)) {
         // Provisionally deleted stuff is gone.
-        // So we need to scan in the direction to see if we can find something
-        while (1) {
+        // So we need to scan in the direction to see if we can find something.
+        // Every 100 deleted leaf entries check if the leaf's key is within the search bounds.
+        for (uint n_deleted = 1; ; n_deleted++) {
             switch (search->direction) {
             case FT_SEARCH_LEFT:
                 idx++;
-                if (idx >= bn->data_buffer.omt_size()) {
+                if (idx >= bn->data_buffer.omt_size() ||
+                    ((n_deleted % 64) == 0 && !search_continue(search, key, keylen))) {
                     if (ftcursor->interrupt_cb && ftcursor->interrupt_cb(ftcursor->interrupt_cb_extra)) {
                         return TOKUDB_INTERRUPTED;
                     }
@@ -5311,6 +5326,26 @@ maybe_search_save_bound(
     }
 }
 
+// Returns true if there are still children left to search in this node within the search bound (if any).
+static bool search_try_again(FTNODE node, int child_to_search, ft_search_t *search) {
+    bool try_again = false;
+    if (search->direction == FT_SEARCH_LEFT) {
+        if (child_to_search < node->n_children-1) {
+            try_again = true;
+            // if there is a search bound and the bound is within the search pivot then continue the search
+            if (search->k_bound) {
+                FT_HANDLE CAST_FROM_VOIDP(ft_handle, search->context);
+                FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
+                try_again = (ft_handle->ft->compare_fun(&db, search->k_bound, &search->pivot_bound) > 0);
+            }
+        }
+    } else if (search->direction == FT_SEARCH_RIGHT) {
+        if (child_to_search > 0)
+            try_again = true;
+    }
+    return try_again;
+}
+
 static int
 ft_search_node(
     FT_HANDLE brt,
@@ -5398,12 +5433,12 @@ ft_search_node(
     // If we got a DB_NOTFOUND, then the pivot is too small if searching from left to right (too large if searching from right to left).
     // So save the pivot key in the search object.
     maybe_search_save_bound(node, child_to_search, search);
+
     // as part of #5770, if we can continue searching,
     // we MUST return TOKUDB_TRY_AGAIN,
     // because there is no guarantee that messages have been applied
     // on any other path.
-    if ((search->direction == FT_SEARCH_LEFT && child_to_search < node->n_children-1) ||
-        (search->direction == FT_SEARCH_RIGHT && child_to_search > 0)) {
+    if (search_try_again(node, child_to_search, search)) {
         r = TOKUDB_TRY_AGAIN;
     }
 
@@ -5604,7 +5639,8 @@ toku_ft_cursor_current(FT_CURSOR cursor, int op, FT_GET_CALLBACK_FUNCTION getf, 
     cursor->direction = 0;
     if (op == DB_CURRENT) {
         struct ft_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
-        ft_search_t search; ft_search_init(&search, ft_cursor_compare_set, FT_SEARCH_LEFT, &cursor->key, cursor->ft_handle);
+        ft_search_t search; 
+        ft_search_init(&search, ft_cursor_compare_set, FT_SEARCH_LEFT, &cursor->key, nullptr, cursor->ft_handle);
         int r = toku_ft_search(cursor->ft_handle, &search, ft_cursor_current_getf, &bcss, cursor, false);
         ft_search_finish(&search);
         return r;
@@ -5616,7 +5652,8 @@ int
 toku_ft_cursor_first(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = 0;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_one, FT_SEARCH_LEFT, 0, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_one, FT_SEARCH_LEFT, nullptr, nullptr, cursor->ft_handle);
     int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
     ft_search_finish(&search);
     return r;
@@ -5626,7 +5663,8 @@ int
 toku_ft_cursor_last(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = 0;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_one, FT_SEARCH_RIGHT, 0, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_one, FT_SEARCH_RIGHT, nullptr, nullptr, cursor->ft_handle);
     int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
     ft_search_finish(&search);
     return r;
@@ -5702,7 +5740,8 @@ int
 toku_ft_cursor_next(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = +1;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_next, FT_SEARCH_LEFT, &cursor->key, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_next, FT_SEARCH_LEFT, &cursor->key, nullptr, cursor->ft_handle);
     int r = ft_cursor_search(cursor, &search, getf, getf_v, true);
     ft_search_finish(&search);
     if (r == 0) ft_cursor_set_prefetching(cursor);
@@ -5749,7 +5788,8 @@ int
 toku_ft_cursor_prev(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = -1;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_prev, FT_SEARCH_RIGHT, &cursor->key, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_prev, FT_SEARCH_RIGHT, &cursor->key, nullptr, cursor->ft_handle);
     int r = ft_cursor_search(cursor, &search, getf, getf_v, true);
     ft_search_finish(&search);
     return r;
@@ -5764,17 +5804,19 @@ int
 toku_ft_cursor_set(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = 0;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_set_range, FT_SEARCH_LEFT, key, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_set_range, FT_SEARCH_LEFT, key, nullptr, cursor->ft_handle);
     int r = ft_cursor_search_eq_k_x(cursor, &search, getf, getf_v);
     ft_search_finish(&search);
     return r;
 }
 
 int
-toku_ft_cursor_set_range(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
+toku_ft_cursor_set_range(FT_CURSOR cursor, DBT *key, DBT *key_bound, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = 0;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_set_range, FT_SEARCH_LEFT, key, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_set_range, FT_SEARCH_LEFT, key, key_bound, cursor->ft_handle);
     int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
     ft_search_finish(&search);
     return r;
@@ -5789,7 +5831,8 @@ int
 toku_ft_cursor_set_range_reverse(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
 {
     cursor->direction = 0;
-    ft_search_t search; ft_search_init(&search, ft_cursor_compare_set_range_reverse, FT_SEARCH_RIGHT, key, cursor->ft_handle);
+    ft_search_t search; 
+    ft_search_init(&search, ft_cursor_compare_set_range_reverse, FT_SEARCH_RIGHT, key, nullptr, cursor->ft_handle);
     int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
     ft_search_finish(&search);
     return r;
@@ -5828,7 +5871,7 @@ toku_ft_cursor_get (FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, v
     case DB_SET:
         return toku_ft_cursor_set(cursor, key, getf, getf_v);
     case DB_SET_RANGE:
-        return toku_ft_cursor_set_range(cursor, key, getf, getf_v);
+        return toku_ft_cursor_set_range(cursor, key, nullptr, getf, getf_v);
     default: ;// Fall through
     }
     return EINVAL;
@@ -6313,7 +6356,7 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
         struct unlock_ftnode_extra unlock_extra = {ft_h, root, false};
         struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS) nullptr};
         ft_search_t search;
-        ft_search_init(&search, (start_key == nullptr ? ft_cursor_compare_one : ft_cursor_compare_set_range), FT_SEARCH_LEFT, start_key, ft_h);
+        ft_search_init(&search, (start_key == nullptr ? ft_cursor_compare_one : ft_cursor_compare_set_range), FT_SEARCH_LEFT, start_key, nullptr, ft_h);
         
         int r;
         // We can't do this because of #5768, there may be dictionaries in the wild that have negative stats.  This won't affect mongo so it's ok:
