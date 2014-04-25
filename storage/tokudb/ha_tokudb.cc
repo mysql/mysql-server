@@ -3253,8 +3253,13 @@ cleanup:
     return ret_val;
 }
 
+#if MYSQL_VERSION_ID >= 100000
+void ha_tokudb::start_bulk_insert(ha_rows rows, uint flags) {
+    TOKUDB_HANDLER_DBUG_ENTER("%llu %u txn %p", (unsigned long long) rows, flags, transaction);
+#else
 void ha_tokudb::start_bulk_insert(ha_rows rows) {
-    TOKUDB_HANDLER_DBUG_ENTER("txn %p", transaction);
+    TOKUDB_HANDLER_DBUG_ENTER("%llu txn %p", (unsigned long long) rows, transaction);
+#endif
     THD* thd = ha_thd();
     tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
     delay_updating_ai_metadata = true;
