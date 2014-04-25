@@ -4967,7 +4967,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   statements and therefore not included in optimized builds.
 */
 #ifndef DBUG_OFF
-static bool is_fixed_or_outer_ref(Item *ref)
+bool is_fixed_or_outer_ref(Item *ref)
 {
   /*
     The requirements are that the Item pointer
