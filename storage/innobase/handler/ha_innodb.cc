@@ -2893,8 +2893,7 @@ innobase_space_shutdown()
 	DBUG_ENTER("innobase_space_shutdown");
 
 	srv_sys_space.shutdown();
-	if (srv_tmp_space.get_sanity_check_status()
-	    && !srv_read_only_mode) {
+	if (srv_tmp_space.get_sanity_check_status()) {
 		srv_tmp_space.delete_files();
 	}
 	srv_tmp_space.shutdown();
