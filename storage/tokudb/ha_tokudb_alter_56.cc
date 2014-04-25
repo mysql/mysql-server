@@ -414,6 +414,12 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
     } else
     if (only_flags(ctx->handler_flags, Alter_inplace_info::CHANGE_CREATE_OPTION)) {
         HA_CREATE_INFO *create_info = ha_alter_info->create_info;
+#if TOKU_INCLUDE_OPTION_STRUCTS
+        // set the USED_ROW_FORMAT flag for use later in this file for changes in the table's 
+        // compression
+        if (create_info->option_struct->row_format != table_share->option_struct->row_format)
+            create_info->used_fields |= HA_CREATE_USED_ROW_FORMAT;
+#endif
         // alter auto_increment
         if (only_flags(create_info->used_fields, HA_CREATE_USED_AUTO)) {
             // do a sanity check that the table is what we think it is
@@ -723,7 +729,8 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
             ha_alter_info->group_commit_ctx = NULL;
         }
 #endif
-#if (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599)
+#if (50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599) || \
+    (100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099)
         if (TOKU_PARTITION_WRITE_FRM_DATA || altered_table->part_info == NULL) {
             int error = write_frm_data(share->status_block, ctx->alter_txn, altered_table->s->path.str);
             if (error) {

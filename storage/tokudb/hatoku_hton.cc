@@ -128,9 +128,7 @@ typedef struct savepoint_info {
 
 #if TOKU_INCLUDE_OPTION_STRUCTS
 ha_create_table_option tokudb_table_options[] = {
-    HA_TOPTION_ENUM("compression", row_format,
-                    "TOKUDB_UNCOMPRESSED,TOKUDB_ZLIB,TOKUDB_QUICKLZ,"
-                    "TOKUDB_LZMA,TOKUDB_FAST,TOKUDB_SMALL", 0),
+    HA_TOPTION_SYSVAR("compression", row_format, row_format),
     HA_TOPTION_END
 };
 
