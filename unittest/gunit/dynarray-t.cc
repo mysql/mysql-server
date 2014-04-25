@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -445,11 +445,10 @@ TEST_F(MemRootTest, ResizeGrow)
   size_t counter= 0;
   DestroyCounter foo(&counter);
   array.resize(10, foo);
-  // resize() takes element by value, which will also be destroyed.
-  EXPECT_EQ(1U, counter);
+  EXPECT_EQ(0U, counter);
   array.clear();
   EXPECT_EQ(0U, MemRootTest::destroy_counter);
-  EXPECT_EQ(11U, counter);
+  EXPECT_EQ(10U, counter);
 }
 
 TEST_F(MemRootTest, ResizeShrink)
@@ -459,10 +458,9 @@ TEST_F(MemRootTest, ResizeShrink)
   size_t counter= 0;
   DestroyCounter foo(&counter);
   array.resize(10, foo);
-  // resize() takes element by value, which will also be destroyed.
-  EXPECT_EQ(1U, counter);
+  EXPECT_EQ(0U, counter);
   array.resize(5);
-  EXPECT_EQ(6U, counter);
+  EXPECT_EQ(5U, counter);
 }
 
 
