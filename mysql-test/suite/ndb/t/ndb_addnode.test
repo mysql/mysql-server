@@ -13,7 +13,7 @@ CREATE LOGFILE GROUP lg_1
 CREATE TABLESPACE ts_1
     ADD DATAFILE 'data_1.dat'
     USE LOGFILE GROUP lg_1
-    INITIAL_SIZE 12M
+    INITIAL_SIZE 16M
     ENGINE NDB;
 
 create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
