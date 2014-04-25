@@ -484,6 +484,8 @@ static int tokudb_killed_callback(void) {
     return thd->killed;
 }
 
+static MYSQL_THDVAR_BOOL(open_table_check_empty, 0, "Check if table is empty at first open", NULL /*check*/, NULL /*update*/, true /*default*/);
+
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
 extern uint32_t tokudb_write_status_frequency;
