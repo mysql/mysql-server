@@ -365,7 +365,17 @@ template <class InputIterator, class UnaryPredicate >
 }
 #endif
 
-bool my_legal_characters(const char &c)
+bool my_legal_username_chars(const char &c)
+{
+  return isalnum(c) || c == '_';
+}
+
+bool my_legal_hostname_chars(const char &c)
+{
+  return isalnum(c) || c == '_' || c == '.';
+}
+
+bool my_legal_plugin_chars(const char &c)
 {
   return isalnum(c) || c == '_';
 }
@@ -394,8 +404,8 @@ bool assert_valid_root_account(const string &username, const string &host,
          << endl;
     return false;
   }
-  if (!all_of(username.begin(), username.end(), my_legal_characters) ||
-      !all_of(host.begin(), host.end(), my_legal_characters))   
+  if (!all_of(username.begin(), username.end(), my_legal_username_chars) ||
+      !all_of(host.begin(), host.end(), my_legal_hostname_chars))   
   {
     cerr << Datetime()
          << "[ERROR] Recommended practice is to use only alpha-numericals in "
@@ -403,7 +413,7 @@ bool assert_valid_root_account(const string &username, const string &host,
          << endl;
     return false;
   }
-  if (!all_of(plugin.begin(), plugin.end(), my_legal_characters))
+  if (!all_of(plugin.begin(), plugin.end(), my_legal_plugin_chars))
   {
     cerr << Datetime()
          << "[ERROR] Only use alpha-numericals in the the plugin name."
