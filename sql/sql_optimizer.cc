@@ -1040,7 +1040,7 @@ void JOIN::test_skip_sort()
 
 
 /**
-  Test if one can use the key to resolve ORDER BY.
+  Test if one can use the key to resolve ordering. 
 
   @param order                 Sort order
   @param table                 Table to sort
@@ -1425,18 +1425,11 @@ public:
 
 
 /**
-  Test if we can skip the ORDER BY by using an index.
+  Test if we can skip ordering by using an index.
 
-  SYNOPSIS
-    test_if_skip_sort_order()
-      tab
-      order
-      select_limit
-      no_changes
-      map
-
-  If we can use an index, the JOIN_TAB / tab->select struct
-  is changed to use the index.
+  If the current plan is to use an index that provides ordering, the
+  plan will not be changed. Otherwise, if an index can be used, the
+  JOIN_TAB / tab->select struct is changed to use the index.
 
   The index must cover all fields in <order>, or it will not be considered.
 
@@ -1540,6 +1533,12 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
   }
+  else if (tab->type == JT_INDEX_SCAN)
+  {
+    // The optimizer has decided to use an index scan.
+    ref_key=       tab->index;
+    ref_key_parts= actual_key_parts(&table->key_info[tab->index]);
+  }
 
   Opt_trace_context * const trace= &tab->join->thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -1550,7 +1549,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   if (ref_key >= 0)
   {
     /*
-      We come here when there is a {ref or or ordered range access} key.
+      We come here when ref/index scan/range scan access has been set
+      up for this table. Do not change access method if ordering is
+      provided already.
     */
     if (!usable_keys.is_set(ref_key))
     {
@@ -1634,9 +1635,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   }
   {
     /*
-      There was no {ref or or ordered range access} key, or it was not
-      satisfying, neither was any prefix of it. Do a cost-based search on all
-      keys:
+      There is no ref/index scan/range scan access set up for this
+      table, or it does not provide the requested ordering. Do a
+      cost-based search on all keys.
     */
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
@@ -1644,8 +1645,17 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     JOIN *join= tab->join;
     ha_rows table_records= table->file->stats.records;
 
+    /*
+      If an index scan that cannot provide ordering has been selected
+      then do not use the index scan key as starting hint to
+      test_if_cheaper_ordering()
+    */
+    const int ref_key_hint= (order_direction == 0 &&
+                             tab->type == JT_INDEX_SCAN) ? -1 : ref_key;
+
     test_if_cheaper_ordering(tab, order, table, usable_keys,
-                             ref_key, select_limit,
+                             ref_key_hint,
+                             select_limit,
                              &best_key, &best_key_direction,
                              &select_limit, &best_key_parts,
                              &saved_best_key_parts);
@@ -1829,8 +1839,6 @@ check_reverse_order:
           tab->ref.key= -1;
           tab->ref.key_parts= 0;
         }
-        if (select_limit < table->file->stats.records) 
-          tab->rowcount= select_limit;
       }
       else if (tab->type != JT_ALL)
       {
@@ -1871,7 +1879,8 @@ check_reverse_order:
           save_quick= 0;                // Because set_quick(tmp) frees it
         select->set_quick(tmp);
       }
-      else if (tab->type == JT_REF && tab->ref.key_parts <= used_key_parts)
+      else if ((tab->type == JT_REF || tab->type == JT_INDEX_SCAN) && 
+               tab->ref.key_parts <= used_key_parts)
       {
         /*
           SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
@@ -1903,6 +1912,9 @@ fix_ICP:
   */
   if (can_skip_sorting && !no_changes)
   {
+    if (tab->type == JT_INDEX_SCAN && select_limit < table->file->stats.records)
+      tab->rowcount= select_limit;
+
     // Keep current (ordered) select->quick
     if (select && save_quick != select->quick)
       delete save_quick;
