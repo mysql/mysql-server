@@ -727,7 +727,7 @@ Optimize_table_order::calculate_scan_cost(const JOIN_TAB *tab,
   {
     const float const_cond_filter=
       calculate_condition_filter(tab, NULL, 0,
-                                 tab->found_records, true);
+                                 tab->found_records, !disable_jbuf);
 
     /*
       For high found_records values, multiplication by float may
@@ -1058,14 +1058,21 @@ void Optimize_table_order::best_access_path(JOIN_TAB *tab,
 
       if (tab->found_records)
       {
-       const float full_filter=
-         calculate_condition_filter(tab, NULL,
-                                    ~remaining_tables & ~excluded_tables,
-                                    tab->found_records,
-                                    false);
-       filter_effect=
-         std::min(1.0,
-                  tab->found_records * full_filter / rows_after_filtering);
+        /*
+          Although join buffering may be used for this table, this
+          filter calculation is not done to calculate the cost of join
+          buffering itself (that is done inside
+          calculate_scan_cost()). The is_join_buffering parameter is
+          therefore 'false'.
+        */
+        const float full_filter=
+          calculate_condition_filter(tab, NULL,
+                                     ~remaining_tables & ~excluded_tables,
+                                     tab->found_records,
+                                     false);
+        filter_effect=
+          std::min(1.0,
+                   tab->found_records * full_filter / rows_after_filtering);
       }
       best_ref=       NULL;
       best_uses_jbuf= !disable_jbuf;
@@ -1155,6 +1162,11 @@ float calculate_condition_filter(const JOIN_TAB *const tab,
         cost of some of the duplicate elimination strategies depends
         on the size of the output, or
     2e) Statement is EXPLAIN
+
+    Note: Even in the case of a single table query, the filtering
+    effect may effect the QEP because the cost of sorting fewer rows
+    is lower. This is currently ignored since single table
+    optimization performance is so important.
   */
   const THD *thd= tab->join->thd;
   const table_map remaining_tables=
