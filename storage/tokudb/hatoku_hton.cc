@@ -633,9 +633,6 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
     int error = 0;
     tokudb_trx_data* trx = NULL;
     trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
-    if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-        TOKUDB_TRACE("trx %p", trx);
-    }
     if (trx && trx->checkpoint_lock_taken) {
         error = db_env->checkpointing_resume(db_env);
     }
@@ -645,7 +642,6 @@ static int tokudb_close_connection(handlerton * hton, THD * thd) {
     struct tokudb_map_pair key = { thd, NULL };
     struct tokudb_map_pair *found_key = (struct tokudb_map_pair *) tree_search(&tokudb_map, &key, NULL);
     if (found_key) {
-        if (0) TOKUDB_TRACE("thd %p %p", thd, found_key->last_lock_timeout);
         tokudb_my_free(found_key->last_lock_timeout);
         tree_delete(&tokudb_map, found_key, sizeof *found_key, NULL);
     }
@@ -739,7 +735,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     DB_TXN *this_txn = *txn;
     if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("commit trx %u trx %p txn %p", all, trx, this_txn);
+            TOKUDB_TRACE("commit trx %u txn %p", all, this_txn);
         }
         // test hook to induce a crash on a debug build
         DBUG_EXECUTE_IF("tokudb_crash_commit_before", DBUG_SUICIDE(););
@@ -768,7 +764,7 @@ static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     DB_TXN *this_txn = *txn;
     if (this_txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
-            TOKUDB_TRACE("rollback %u trx %p txn %p", all, trx, this_txn);
+            TOKUDB_TRACE("rollback %u txn %p", all, this_txn);
         }
         tokudb_cleanup_handlers(trx, this_txn);
         abort_txn_with_progress(this_txn, thd);
@@ -1959,7 +1955,6 @@ static void tokudb_lock_timeout_callback(DB *db, uint64_t requesting_txnid, cons
             THDVAR(thd, last_lock_timeout) = new_lock_timeout;
             tokudb_my_free(old_lock_timeout);
 #if TOKU_THDVAR_MEMALLOC_BUG
-            if (0) TOKUDB_TRACE("thd %p %p %p", thd, old_lock_timeout, new_lock_timeout);
             tokudb_pthread_mutex_lock(&tokudb_map_mutex);
             struct tokudb_map_pair old_key = { thd, old_lock_timeout };
             tree_delete(&tokudb_map, &old_key, sizeof old_key, NULL);
