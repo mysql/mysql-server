@@ -1809,7 +1809,8 @@ int ha_tokudb::open(const char *name, int mode, uint test_if_locked) {
     alloc_ptr = tokudb_my_multi_malloc(MYF(MY_WME),
         &key_buff, max_key_length, 
         &key_buff2, max_key_length, 
-        &key_buff3, max_key_length, 
+        &key_buff3, max_key_length,
+        &key_buff4, max_key_length,                               
         &prelocked_left_range, max_key_length, 
         &prelocked_right_range, max_key_length, 
         &primary_key_buff, (hidden_primary_key ? 0 : max_key_length),
@@ -4864,31 +4865,31 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
 
     flags = SET_PRELOCK_FLAG(0);
     switch (find_flag) {
-    case HA_READ_KEY_EXACT: /* Find first record else error */
+    case HA_READ_KEY_EXACT: /* Find first record else error */ {
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
+        DBT lookup_bound;
+        pack_key(&lookup_bound, tokudb_active_index, key_buff4, key, key_len, COL_POS_INF);
         if (tokudb_debug & TOKUDB_DEBUG_INDEX_KEY) {
             TOKUDB_DBUG_DUMP("tokudb key=", lookup_key.data, lookup_key.size);
         }
         ir_info.orig_key = &lookup_key;
-        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
+        error = cursor->c_getf_set_range_with_bound(cursor, flags, &lookup_key, &lookup_bound, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
         if (ir_info.cmp) {
             error = DB_NOTFOUND;
         }
         break;
+    }
     case HA_READ_AFTER_KEY: /* Find next rec. after key-record */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
-        error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     case HA_READ_BEFORE_KEY: /* Find next rec. before key-record */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
-        error = cursor->c_getf_set_range_reverse(cursor, flags, 
-                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     case HA_READ_KEY_OR_NEXT: /* Record or next record */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
-        error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     //
     // This case does not seem to ever be used, it is ok for it to be slow
@@ -4896,8 +4897,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     case HA_READ_KEY_OR_PREV: /* Record or previous */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_NEG_INF);
         ir_info.orig_key = &lookup_key;
-        error = cursor->c_getf_set_range(cursor, flags,
-                &lookup_key, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
+        error = cursor->c_getf_set_range(cursor, flags, &lookup_key, SMART_DBT_IR_CALLBACK(key_read), &ir_info);
         if (error == DB_NOTFOUND) {
             error = cursor->c_getf_last(cursor, flags, SMART_DBT_CALLBACK(key_read), &info);
         }
@@ -4907,8 +4907,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
         break;
     case HA_READ_PREFIX_LAST_OR_PREV: /* Last or prev key with the same prefix */
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
-        error = cursor->c_getf_set_range_reverse(cursor, flags, 
-                &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
+        error = cursor->c_getf_set_range_reverse(cursor, flags, &lookup_key, SMART_DBT_CALLBACK(key_read), &info);
         break;
     case HA_READ_PREFIX_LAST:
         pack_key(&lookup_key, tokudb_active_index, key_buff3, key, key_len, COL_POS_INF);
