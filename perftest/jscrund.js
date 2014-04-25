@@ -64,6 +64,8 @@ function usage() {
   "   -d      :  Enable debug output\n" +
   "   -df=file:  Enable debug output only from source file <file>\n" +
   "   -i <n>  :  Specify number of iterations per test (default 4000)\n" +
+  "   --delay=<n>\n" +
+  "           :  Delay <n> seconds before starting test\n" + 
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
   "   --tests :\n" +
@@ -203,6 +205,9 @@ function parse_command_line(options) {
           unified_debug.register_client(client);
           unified_debug.set_file_level(values[1], 5);
           break;
+        case '--delay':
+          options.delay = values[1];
+          break;
 
         default:
           console.log('Invalid option ' + val);
@@ -286,7 +291,8 @@ function main() {
     'spi': false,
     'log': false,
     'nRuns': 1,
-    'setProp' : {}
+    'setProp' : {},
+    'delay' : 0
   };
 
   /* Options from config file */
@@ -694,7 +700,12 @@ function main() {
         process.exit(1);
       } else {
         testsDoneCallback = modeLoop;
-        mainTestLoop();
+        if(options.delay > 0) { 
+          console.log("Waiting", options.delay, "seconds...");
+          setTimeout(mainTestLoop, 1000 * options.delay);
+        } else {
+          mainTestLoop();
+        }
       }
     });
   };
