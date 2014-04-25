@@ -5023,59 +5023,6 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
           {
             "reconsidering_access_paths_for_index_ordering": {
               "clause": "ORDER BY",
-              "rows_estimation": {
-                "table": "`t1`",
-                "index": "k1",
-                "range_analysis": {
-                  "table_scan": {
-                    "rows": 2,
-                    "cost": 4.5049
-                  } /* table_scan */,
-                  "potential_range_indexes": [
-                    {
-                      "index": "k1",
-                      "usable": true,
-                      "key_parts": [
-                        "i1"
-                      ] /* key_parts */
-                    },
-                    {
-                      "index": "k2",
-                      "usable": false,
-                      "cause": "not_applicable"
-                    }
-                  ] /* potential_range_indexes */,
-                  "best_covering_index_scan": {
-                    "index": "k1",
-                    "cost": 1.4233,
-                    "chosen": true
-                  } /* best_covering_index_scan */,
-                  "setup_range_conditions": [
-                  ] /* setup_range_conditions */,
-                  "group_index_range": {
-                    "chosen": false,
-                    "cause": "cannot_do_reverse_ordering"
-                  } /* group_index_range */,
-                  "analyzing_range_alternatives": {
-                    "range_scan_alternatives": [
-                      {
-                        "index": "k1",
-                        "ranges": [
-                          "1 <= i1"
-                        ] /* ranges */,
-                        "index_dives_for_eq_ranges": true,
-                        "rowid_ordered": false,
-                        "using_mrr": false,
-                        "index_only": true,
-                        "rows": 2,
-                        "cost": 1.4333,
-                        "chosen": false,
-                        "cause": "cost"
-                      }
-                    ] /* range_scan_alternatives */
-                  } /* analyzing_range_alternatives */
-                } /* range_analysis */
-              } /* rows_estimation */,
               "index_order_summary": {
                 "table": "`t1`",
                 "index_provides_order": true,
@@ -5118,8 +5065,7 @@ EXPLAIN SELECT DISTINCT i1 FROM t1 WHERE i1 >= '1' ORDER BY i1 DESC	{
                 "index_provides_order": true,
                 "order_direction": "desc",
                 "index": "k1",
-                "plan_changed": true,
-                "access_type": "index_scan"
+                "plan_changed": false
               } /* index_order_summary */
             } /* reconsidering_access_paths_for_index_ordering */
           },
