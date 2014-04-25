@@ -494,7 +494,6 @@ private:
     // 0 <= active_index < table_share->keys || active_index == MAX_KEY
     // tokudb_active_index = active_index if active_index < table_share->keys, else tokudb_active_index = primary_key = table_share->keys
     uint tokudb_active_index;
-    bool index_init_sorted;
  
 public:
     ha_tokudb(handlerton * hton, TABLE_SHARE * table_arg);
