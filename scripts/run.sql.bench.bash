@@ -121,7 +121,7 @@ while read l ; do
             status=PASS
         fi
      else
-        if [[ $l =~ "Got error|Died" ]] ; then
+        if [[ $l =~ Got\ error|Died ]] ; then
             status=FAIL
         fi
     fi
