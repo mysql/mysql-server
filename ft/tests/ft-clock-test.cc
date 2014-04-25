@@ -230,13 +230,7 @@ test2(int fd, FT ft_h, FTNODE *dn) {
     fill_bfe_for_subset_read(
         &bfe_subset,
         ft_h,
-        ft_search_init(
-            &search_t, 
-            search_cmp, 
-            FT_SEARCH_LEFT, 
-            NULL, 
-            NULL
-            ),
+        ft_search_init(&search_t, search_cmp, FT_SEARCH_LEFT, nullptr, nullptr, nullptr),
         &left,
         &right,
         true,
