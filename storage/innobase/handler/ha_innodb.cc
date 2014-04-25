@@ -12463,6 +12463,14 @@ ha_innobase::start_stmt(
 
 	update_thd(thd);
 
+	ut_ad(prebuilt->table);
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		if (thd_sql_command(thd) == SQLCOM_ALTER_TABLE) {
+			return(HA_ERR_WRONG_COMMAND);
+		}
+		return(0);
+	}
+
 	trx = prebuilt->trx;
 
 	/* Here we release the search latch and the InnoDB thread FIFO ticket
