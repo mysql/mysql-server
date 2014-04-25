@@ -646,7 +646,7 @@ int get_admin_credentials(const string &opt_adminlogin,
                           string *password)
 {
   Path path;
-  if (!path.qpath(opt_adminlogin))
+  if (!path.qpath(opt_adminlogin) || !path.exists())
     return ERR_FILE;
 
   ifstream fin(opt_adminlogin.c_str(), ifstream::binary);

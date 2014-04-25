@@ -130,11 +130,6 @@ public:
 
   bool qpath(const std::string &qp)
   {
-    MY_STAT s;
-    if (my_stat(qp.c_str(), &s, MYF(0)) == NULL)
-      return false;
-    if (!S_ISREG(s.st_mode))
-      return false;
     size_t idx= qp.rfind(PATH_SEPARATOR);
     if (idx == std::string::npos)
     {
@@ -146,7 +141,10 @@ public:
       filename(qp.substr(idx + 1, qp.size() - idx));
       path(qp.substr(0, idx));
     }
-    return true;
+    if (is_qualified_path())
+      return true;
+    else
+      return false;
   }
 
   bool is_qualified_path()
@@ -169,6 +167,8 @@ public:
       std::string qpath(m_path);
       qpath.append(PATH_SEPARATOR).append(m_filename);
       if (my_stat(qpath.c_str(), &s, MYF(0)) == NULL)
+        return false;
+      if (!S_ISREG(s.st_mode))
         return false;
       return true;
     }
