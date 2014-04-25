@@ -342,7 +342,7 @@ my_arguments_get_one_option(int optid,
 
 
 /**
-  The string class will berak if constructed with a NULL pointer. This wrapper
+  The string class will break if constructed with a NULL pointer. This wrapper
  provides a systematic protection when importing char pointers.
 */
 string create_string(char *ptr)
@@ -630,7 +630,10 @@ bool assert_valid_language_directory(const string &opt_langpath,
 }
 
 /**
- Parse the login.cnf file and extract the admin credentials
+ Parse the login.cnf file and extract the missing admin credentials.
+ If any of adminuser or adminhost contains information, it won't be overwritten
+ by new data. Password is always updated.
+
  @return Error
    @retval ALL_OK Reporting success
    @retval ERR_FILE File not found
@@ -638,13 +641,12 @@ bool assert_valid_language_directory(const string &opt_langpath,
    @retval ERR_SYNTAX Error while parsing
 */
 int get_admin_credentials(const string &opt_adminlogin,
-                             string *adminuser,
-                             string *adminhost,
-                             string *password)
+                          string *adminuser,
+                          string *adminhost,
+                          string *password)
 {
   Path path;
-  path.qpath(opt_adminlogin);
-  if (!path.exists())
+  if (!path.qpath(opt_adminlogin))
     return ERR_FILE;
 
   ifstream fin(opt_adminlogin.c_str(), ifstream::binary);
@@ -659,9 +661,9 @@ int get_admin_credentials(const string &opt_adminlogin,
   for( map<string, string >::iterator it= options.begin();
        it != options.end(); ++it)
   {
-    if (it->first == "user")
+    if (it->first == "user" && adminuser->length() == 0)
       *adminuser= it->second;
-    if (it->first == "host")
+    if (it->first == "host" && adminhost->length() == 0)
       *adminhost= it->second;
     if (it->first == "password")
       *password= it->second;
@@ -928,6 +930,7 @@ int main(int argc,char *argv[])
     return 1;
   }
 
+  bool expire_password= !opt_insecure;
   string adminuser(create_string(opt_adminuser));
   string adminhost(create_string(opt_adminhost));
   string authplugin(create_string(opt_authplugin));
@@ -963,7 +966,7 @@ int main(int argc,char *argv[])
                                    &password);
     switch(ret)
     {
-      case ALL_OK: 
+      case ALL_OK: expire_password= false;
       break;
       case ERR_FILE:
         cerr << Datetime() << "[Error] Can't read the login config file: "
@@ -1133,7 +1136,7 @@ int main(int argc,char *argv[])
                 0, // max user connections
                 create_string(opt_authplugin),
                 string(""),
-                !opt_insecure, // Expire password if not insecure
+                expire_password,
                 0);
   string output;
   bool success= process_execute(mysqld_exec.to_str(),
