@@ -40,30 +40,31 @@ INSERT INTO t1(I,J,L) SELECT I,5,I FROM t1 ORDER BY K;
 INSERT INTO t1(I,J,L) SELECT I,6,I FROM t1 ORDER BY K;
 INSERT INTO t1(I,J,L) SELECT I,7,I FROM t1 ORDER BY K;
 INSERT INTO t1(I,J,L) SELECT I,8,I FROM t1 ORDER BY K;
+INSERT INTO t1(I,J,L) SELECT I,9,I FROM t1 ORDER BY K;
 select i, count(*) from t1 group by 1 order by 1;
 i	count(*)
-0	256
-1	256
-2	256
-3	256
-4	256
-5	256
-6	256
-7	256
-8	256
-9	256
+0	512
+1	512
+2	512
+3	512
+4	512
+5	512
+6	512
+7	512
+8	512
+9	512
 select l, count(*) from t1 group by 1 order by 1;
 l	count(*)
-0	256
-1	256
-2	256
-3	256
-4	256
-5	256
-6	256
-7	256
-8	256
-9	256
+0	512
+1	512
+2	512
+3	512
+4	512
+5	512
+6	512
+7	512
+8	512
+9	512
 ANALYZE TABLE t1;
 Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
@@ -86,25 +87,25 @@ and rr.query = p8.query
 order by rr.no;
 WHERE	count_rows	p1_val	p8_val	p1_err_pct	p8_err_pct
 WHERE i = 10	0	2	2	-	-
-WHERE i = 9	256	256	-	<45	<45
-WHERE i = 8	256	256	-	<45	<45
-WHERE i = 7	256	256	-	<45	<45
-WHERE i = 6	256	256	-	<45	<45
-WHERE i = 5	256	256	-	<45	<45
-WHERE i = 4	256	256	-	<45	<45
-WHERE i = 3	256	256	-	<45	<45
-WHERE i = 2	256	256	-	<45	<45
-WHERE i = 1	256	256	-	<45	<45
+WHERE i = 9	512	512	-	<45	<45
+WHERE i = 8	512	512	-	<45	<45
+WHERE i = 7	512	512	-	<45	<45
+WHERE i = 6	512	512	-	<45	<45
+WHERE i = 5	512	512	-	<45	<45
+WHERE i = 4	512	512	-	<45	<45
+WHERE i = 3	512	512	-	<45	<45
+WHERE i = 2	512	512	-	<45	<45
+WHERE i = 1	512	512	-	<45	<45
 WHERE l = 10	0	2	2	-	-
-WHERE l = 9	256	256	-	<45	<45
-WHERE l = 8	256	256	-	<45	<45
-WHERE l = 7	256	256	-	<45	<45
-WHERE l = 6	256	256	-	<45	<45
-WHERE l = 5	256	256	-	<45	<45
-WHERE l = 4	256	256	-	<45	<45
-WHERE l = 3	256	256	-	<45	<45
-WHERE l = 2	256	256	-	<45	<45
-WHERE l = 1	256	256	-	<45	<45
+WHERE l = 9	512	512	-	<45	<45
+WHERE l = 8	512	512	-	<45	<45
+WHERE l = 7	512	512	-	<45	<45
+WHERE l = 6	512	512	-	<45	<45
+WHERE l = 5	512	512	-	<45	<45
+WHERE l = 4	512	512	-	<45	<45
+WHERE l = 3	512	512	-	<45	<45
+WHERE l = 2	512	512	-	<45	<45
+WHERE l = 1	512	512	-	<45	<45
 DROP TABLE t1, record_in_range;
 End of 5.1 tests
 set @is_enable = @is_enable_default;
