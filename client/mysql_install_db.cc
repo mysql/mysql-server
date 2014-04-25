@@ -632,7 +632,7 @@ bool assert_valid_language_directory(const string &opt_langpath,
 /**
  Parse the login.cnf file and extract the admin credentials
  @return Error
-   @retval 0
+   @retval ALL_OK Reporting success
    @retval ERR_FILE File not found
    @retval ERR_ENCRYPTION Error while decrypting 
    @retval ERR_SYNTAX Error while parsing
@@ -666,7 +666,7 @@ int get_admin_credentials(const string &opt_adminlogin,
     if (it->first == "password")
       *password= it->second;
   }
-  return 0;
+  return ALL_OK;
 }
 
 void create_ssl_policy(string *ssl_type, string *ssl_cipher,
@@ -963,6 +963,8 @@ int main(int argc,char *argv[])
                                    &password);
     switch(ret)
     {
+      case ALL_OK: 
+      break;
       case ERR_FILE:
         cerr << Datetime() << "[Error] Can't read the login config file: "
              << opt_adminlogin << endl;
