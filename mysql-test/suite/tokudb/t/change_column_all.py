@@ -116,49 +116,6 @@ class Field_blob(Field):
             self.idx += 1
         return Field_blob(self.name, self.size, self.is_nullible, self.idx)
 
-def main():
-    experiments = 1000
-    nrows = 10
-    seed = 0
-    for arg in sys.argv[1:]:
-        match = re.match("--(.*)=(.*)", arg)
-        if match:
-            exec("%s = %s" % (match.group(1),match.group(2)))
-    random.seed(seed)
-    header()
-    for experiment in range(experiments):
-        # generate a schema
-        fields = create_fields()
-
-        # create a table with the schema
-        print create_table(fields)
-
-        # insert some rows
-        for r in range(nrows):
-            print insert_row(fields) % ('t')
-        print "CREATE TABLE ti LIKE t;"
-        print "ALTER TABLE ti ENGINE=myisam;"
-        print "INSERT INTO ti SELECT * FROM t;"
-
-        # transform table schema and contents
-        for f in [ 0, 2, 3, 5, 6, 7 ]:
-            fields[f] = fields[f].next_field()
-            print "ALTER TABLE t CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
-            print "ALTER TABLE ti CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
-        
-            new_row = insert_row(fields)
-            print new_row % ('t')
-            print new_row % ('ti')
-
-        # compare tables
-        print "let $diff_tables = test.t, test.ti;"
-        print "source include/diff_tables.inc;"
-
-        # cleanup
-        print "DROP TABLE t, ti;"
-        print
-    return 0
-
 def create_fields():
     fields = []
     fields.append(create_int('a'))
@@ -185,12 +142,16 @@ def create_varchar(name):
 def create_blob(name):
     return Field_blob(name, random.randint(1,2), random.randint(0,1), random.randint(0,3))
 
-def create_table(fields):
-    t = "CREATE TABLE t ("
+def create_table(fields, tablename, engine):
+    if engine == "tokudb":
+        key_type = "CLUSTERING KEY"
+    else:
+        key_type = "KEY"
+    t = "CREATE TABLE %s (" % (tablename)
     for f in fields:
         t += "%s %s, " % (f.name, f.get_type())
-    t += "KEY(b), CLUSTERING KEY(e), PRIMARY KEY(id)"
-    t += ");"
+    t += "KEY(b), %s(e), PRIMARY KEY(id)" % (key_type)
+    t += ") ENGINE=%s;" % (engine)
     return t
 
 def insert_row(fields):
@@ -206,11 +167,55 @@ def insert_row(fields):
 def header():
     print "# generated from change_column_all.py"
     print "# test random column change on wide tables"
+    print "source include/have_tokudb.inc;"
     print "--disable_warnings"
     print "DROP TABLE IF EXISTS t, ti;"
     print "--enable_warnings"
     print "SET SESSION TOKUDB_DISABLE_SLOW_ALTER=1;"
     print "SET SESSION DEFAULT_STORAGE_ENGINE='TokuDB';"
     print
+
+def main():
+    experiments = 1000
+    nrows = 10
+    seed = 0
+    for arg in sys.argv[1:]:
+        match = re.match("--(.*)=(.*)", arg)
+        if match:
+            exec("%s = %s" % (match.group(1),match.group(2)))
+    random.seed(seed)
+    header()
+    for experiment in range(experiments):
+        # generate a schema
+        fields = create_fields()
+
+        # create a table with the schema
+        print create_table(fields, "t", "tokudb")
+
+        # insert some rows
+        for r in range(nrows):
+            print insert_row(fields) % ('t')
+
+        print create_table(fields, "ti", "myisam");
+        print "INSERT INTO ti SELECT * FROM t;"
+
+        # transform table schema and contents
+        for f in [ 0, 2, 3, 5, 6, 7 ]:
+            fields[f] = fields[f].next_field()
+            print "ALTER TABLE t CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
+            print "ALTER TABLE ti CHANGE COLUMN %s %s %s;" % (fields[f].name, fields[f].name, fields[f].get_type())
+        
+            new_row = insert_row(fields)
+            print new_row % ('t')
+            print new_row % ('ti')
+
+        # compare tables
+        print "let $diff_tables = test.t, test.ti;"
+        print "source include/diff_tables.inc;"
+
+        # cleanup
+        print "DROP TABLE t, ti;"
+        print
+    return 0    
 
 sys.exit(main())
