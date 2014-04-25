@@ -88,8 +88,8 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#ifndef _HATOKU_HTON
-#define _HATOKU_HTON
+#ifndef _HATOKU_HTON_H
+#define _HATOKU_HTON_H
 
 #include "db.h"
 
@@ -107,6 +107,100 @@ enum srv_row_format_enum {
     SRV_ROW_FORMAT_DEFAULT = 6
 };
 typedef enum srv_row_format_enum srv_row_format_t;
+
+static inline srv_row_format_t toku_compression_method_to_row_format(toku_compression_method method) {
+    switch (method) {
+    case TOKU_NO_COMPRESSION:
+        return SRV_ROW_FORMAT_UNCOMPRESSED;        
+    case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
+    case TOKU_ZLIB_METHOD:
+        return SRV_ROW_FORMAT_ZLIB;
+    case TOKU_QUICKLZ_METHOD:
+        return SRV_ROW_FORMAT_QUICKLZ;
+    case TOKU_LZMA_METHOD:
+        return SRV_ROW_FORMAT_LZMA;
+    case TOKU_DEFAULT_COMPRESSION_METHOD:
+        return SRV_ROW_FORMAT_DEFAULT;
+    case TOKU_FAST_COMPRESSION_METHOD:
+        return SRV_ROW_FORMAT_FAST;
+    case TOKU_SMALL_COMPRESSION_METHOD:
+        return SRV_ROW_FORMAT_SMALL;
+    default:
+        assert(0);
+    }
+}
+
+static inline toku_compression_method row_format_to_toku_compression_method(srv_row_format_t row_format) {
+    switch (row_format) {
+    case SRV_ROW_FORMAT_UNCOMPRESSED:
+        return TOKU_NO_COMPRESSION;
+    case SRV_ROW_FORMAT_QUICKLZ:
+    case SRV_ROW_FORMAT_FAST:
+        return TOKU_QUICKLZ_METHOD;
+    case SRV_ROW_FORMAT_ZLIB:
+    case SRV_ROW_FORMAT_DEFAULT:
+        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
+    case SRV_ROW_FORMAT_LZMA:
+    case SRV_ROW_FORMAT_SMALL:
+        return TOKU_LZMA_METHOD;
+    default:
+        assert(0);
+    }
+}
+
+static inline enum row_type row_format_to_row_type(srv_row_format_t row_format) {
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
+    switch (row_format) {
+    case SRV_ROW_FORMAT_UNCOMPRESSED:
+        return ROW_TYPE_TOKU_UNCOMPRESSED;
+    case SRV_ROW_FORMAT_ZLIB:
+        return ROW_TYPE_TOKU_ZLIB;
+    case SRV_ROW_FORMAT_QUICKLZ:
+        return ROW_TYPE_TOKU_QUICKLZ;
+    case SRV_ROW_FORMAT_LZMA:
+        return ROW_TYPE_TOKU_LZMA;
+    case SRV_ROW_FORMAT_SMALL:
+        return ROW_TYPE_TOKU_SMALL;
+    case SRV_ROW_FORMAT_FAST:
+        return ROW_TYPE_TOKU_FAST;
+    case SRV_ROW_FORMAT_DEFAULT:
+        return ROW_TYPE_DEFAULT;
+    }
+#endif
+    return ROW_TYPE_DEFAULT;
+}
+
+static inline srv_row_format_t row_type_to_row_format(enum row_type type) {
+#if TOKU_INCLUDE_ROW_TYPE_COMPRESSION
+    switch (type) {
+    case ROW_TYPE_TOKU_UNCOMPRESSED:
+        return SRV_ROW_FORMAT_UNCOMPRESSED;
+    case ROW_TYPE_TOKU_ZLIB:
+        return SRV_ROW_FORMAT_ZLIB;
+    case ROW_TYPE_TOKU_QUICKLZ:
+        return SRV_ROW_FORMAT_QUICKLZ;
+    case ROW_TYPE_TOKU_LZMA:
+        return SRV_ROW_FORMAT_LZMA;
+    case ROW_TYPE_TOKU_SMALL:
+        return SRV_ROW_FORMAT_SMALL;
+    case ROW_TYPE_TOKU_FAST:
+        return SRV_ROW_FORMAT_FAST;
+    case ROW_TYPE_DEFAULT:
+        return SRV_ROW_FORMAT_DEFAULT;
+    default:
+        return SRV_ROW_FORMAT_DEFAULT;
+    }
+#endif
+    return SRV_ROW_FORMAT_DEFAULT;
+}
+
+static inline enum row_type toku_compression_method_to_row_type(toku_compression_method method) {
+    return row_format_to_row_type(toku_compression_method_to_row_format(method));
+}
+
+static inline toku_compression_method row_type_to_toku_compression_method(enum row_type type) {
+    return row_format_to_toku_compression_method(row_type_to_row_format(type));
+}
 
 // thread variables
 
@@ -338,7 +432,7 @@ static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_OPCMDARG,
                          "TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
                          NULL, NULL, SRV_ROW_FORMAT_ZLIB, &tokudb_row_format_typelib);
 
-static srv_row_format_t get_row_format(THD *thd) {
+static inline srv_row_format_t get_row_format(THD *thd) {
     return (srv_row_format_t) THDVAR(thd, row_format);
 }
 
