@@ -1634,14 +1634,9 @@ int ha_tokudb::initialize_share(
         goto exit;
     }
 
-#if TOKU_PARTITION_WRITE_FRM_DATA
-    // verify frm data for all tables
-    error = verify_frm_data(table->s->path.str, txn);
-    if (error)
-        goto exit;
-#else
+#if WITH_PARTITION_STORAGE_ENGINE
     // verify frm data for non-partitioned tables
-    if (table->part_info == NULL) {
+    if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
         error = verify_frm_data(table->s->path.str, txn);
         if (error)
             goto exit;
@@ -1651,6 +1646,10 @@ int ha_tokudb::initialize_share(
         if (error)
             goto exit;
     }
+#else
+    error = verify_frm_data(table->s->path.str, txn);
+    if (error)
+        goto exit;
 #endif
 
     error = initialize_key_and_col_info(
@@ -6891,16 +6890,16 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     error = write_auto_inc_create(status_block, create_info->auto_increment_value, txn);
     if (error) { goto cleanup; }
 
-#if TOKU_PARTITION_WRITE_FRM_DATA
-    error = write_frm_data(status_block, txn, form->s->path.str);
-    if (error) { goto cleanup; }
-#else
-    // only for tables that are not partitioned
-    if (form->part_info == NULL) {
+#if WITH_PARTITION_STORAGE_ENGINE
+    if (TOKU_PARTITION_WRITE_FRM_DATA || form->part_info == NULL) {
         error = write_frm_data(status_block, txn, form->s->path.str);
         if (error) { goto cleanup; }
     }
+#else
+    error = write_frm_data(status_block, txn, form->s->path.str);
+    if (error) { goto cleanup; }
 #endif
+
     error = allocate_key_and_col_info(form->s, &kc_info);
     if (error) { goto cleanup; }
 
