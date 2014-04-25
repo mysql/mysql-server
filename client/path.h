@@ -128,17 +128,25 @@ public:
 
   void filename(const Path &p) { path(p.m_filename); }
 
-  void qpath(const std::string &qp)
+  bool qpath(const std::string &qp)
   {
+    MY_STAT s;
+    if (my_stat(qp.c_str(), &s, MYF(0)) == NULL)
+      return false;
+    if (!S_ISREG(s.st_mode))
+      return false;
     size_t idx= qp.rfind(PATH_SEPARATOR);
     if (idx == std::string::npos)
     {
       m_filename= qp;
       m_path.clear();
-      return;
     }
-    filename(qp.substr(idx + 1, qp.size() - idx));
-    path(qp.substr(0, idx));
+    else
+    {
+      filename(qp.substr(idx + 1, qp.size() - idx));
+      path(qp.substr(0, idx));
+    }
+    return true;
   }
 
   bool is_qualified_path()
