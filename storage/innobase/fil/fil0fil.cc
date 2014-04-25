@@ -1251,10 +1251,9 @@ fil_space_free_low(
 	}
 
 	/* Could fil_names_dirty() access a tablespace that is being
-	freed or has been freed here? The answer is no:
-	fil_names_write() will check space->stop_new_ops,
-	and return NULL if it was set. Thus, fil_names_dirty() would
-	not be invoked if we are preparing to drop a tablespace. */
+	freed or has been freed here? As noted in fil_names_write(),
+	the answer is no: space->n_pending_flushes > 0 will prevent
+	fil_check_pending_operations() from completing. */
 	if (space->max_lsn != 0) {
 		UT_LIST_REMOVE(fil_system->named_spaces, space);
 	}
@@ -6302,22 +6301,31 @@ fil_names_write(
 	fil_space_t*	space	= fil_space_get_by_id(space_id);
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	const bool	skip	= space == NULL
-		|| (space->stop_new_ops && !space->is_being_truncated);
+
+	/* We are serving mtr_commit(). While there is an active
+	mini-transaction, we should have !space->stop_new_ops. This is
+	guaranteed by meta-data locks or transactional locks, or
+	dict_operation_lock (X-lock in DROP, S-lock in purge).
+
+	However, a file I/O thread can invoke change buffer merge
+	while fil_check_pending_operations() is waiting for operations
+	to quiesce. This is not a problem, because
+	ibuf_merge_or_delete_for_page() would call
+	fil_inc_pending_ops() before mtr_start() and
+	fil_decr_pending_ops() after mtr_commit(). This is why
+	n_pending_ops should not be zero if stop_new_ops is set. */
+	ut_ad(!space->stop_new_ops
+	      || space->is_being_truncated /* TRUNCATE sets stop_new_ops */
+	      || space->n_pending_ops > 0);
+
 	mutex_exit(&fil_system->mutex);
 
-	if (skip) {
-		/* This should be prevented by meta-data locks
-		or transactional locks on tables or tablespaces. */
-		ut_ad(0);
-		space = NULL;
-	} else {
+	if (space) {
 		fil_names_write_low(space, mtr);
 	}
 
 	return(space);
 }
-
 
 /** Note that a non-predefined persistent tablespace has been modified.
 @param[in,out]	space	tablespace
