@@ -974,9 +974,8 @@ static int tokudb_discover3(handlerton *hton, THD* thd, const char *db, const ch
     DB* status_db = NULL;
     DB_TXN* txn = NULL;
     HA_METADATA_KEY curr_key = hatoku_frm_data;
-    DBT key, value;    
-    memset(&key, 0, sizeof(key));
-    memset(&value, 0, sizeof(&value));
+    DBT key = {};
+    DBT value = {};
     bool do_commit;
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
