@@ -202,6 +202,11 @@ PATENT RIGHTS GRANT:
 #ifndef _TOKUDB_DEBUG_H
 #define _TOKUDB_DEBUG_H
 
+#define TOKU_INCLUDE_BACKTRACE 0
+#if TOKU_INCLUDE_BACKTRACE
+static void tokudb_backtrace(void);
+#endif
+
 extern ulong tokudb_debug;
 
 // tokudb debug tracing

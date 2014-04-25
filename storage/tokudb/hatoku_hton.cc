@@ -316,6 +316,7 @@ static void handle_ydb_error(int error) {
 
 static int tokudb_init_func(void *p) {
     TOKUDB_DBUG_ENTER("");
+
     int r;
 
 #if defined(_WIN64)
@@ -2210,6 +2211,16 @@ static SHOW_VAR toku_global_status_variables_export[]= {
     {"Tokudb", (char*)&show_tokudb_vars, SHOW_FUNC},
     {NullS, NullS, SHOW_LONG}
 };
+
+#if TOKU_INCLUDE_BACKTRACE
+#include <execinfo.h>
+static void tokudb_backtrace(void) {
+    const int N_POINTERS = 30;
+    void *backtrace_pointers[N_POINTERS];
+    int n = backtrace(backtrace_pointers, N_POINTERS);
+    backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
+}
+#endif
 
 mysql_declare_plugin(tokudb) 
 {
