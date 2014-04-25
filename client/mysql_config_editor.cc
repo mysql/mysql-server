@@ -417,7 +417,7 @@ static int do_handle_options(int argc, char *argv[])
   command_list[i]= NULL;
 
   if ((rc= my_handle_options(&argc, &argv, my_program_long_options,
-                             my_program_get_one_option, command_list)))
+                             my_program_get_one_option, command_list, FALSE)))
     exit(rc);
 
   if (argc == 0)                                /* No command specified. */
