@@ -22,6 +22,15 @@
 
 "use strict";
 
+var stats = {
+	"TableHandlerFactory" : 0,
+	"TableHandler" : {
+		"success"    : 0,
+		"idempotent" : 0,
+		"cache_hit"  : 0
+	}
+};
+
 var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js")),
     apiSession = require("./Session.js"),
     sessionFactory = require("./SessionFactory.js"),
@@ -30,8 +39,9 @@ var commonDBTableHandler = require(path.join(spi_dir,"common","DBTableHandler.js
     spi        = require(path.join(spi_dir,"SPI")),
     udebug     = unified_debug.getLogger("UserContext.js"),
     stats_module = require(path.join(api_dir, "./stats.js")),
-    stats      = stats_module.getWriter(["api", "UserContext"]),
     util       = require("util");
+
+stats_module.register(stats, "api", "UserContext");
 
 function Promise() {
   // implement Promises/A+ http://promises-aplus.github.io/promises-spec/
@@ -394,7 +404,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     this.mynode = mynode;
     this.ctor = ctor;
     this.tableSpecification = tableSpecification;
-    stats.incr(["TableHandlerFactory"]);
+    stats["TableHandlerFactory"]++;
     
     this.createTableHandler = function() {
       var tableHandlerFactory = this;
@@ -438,7 +448,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
           if (tableHandlerFactory.ctor) {
             if (typeof(tableHandlerFactory.ctor.prototype.mynode.tableHandler) === 'undefined') {
               // if a domain object mapping, cache the table handler in the prototype
-              stats.incr( [ "TableHandler","success" ] );
+              stats.TableHandler.success++;
               tableHandler = new commonDBTableHandler.DBTableHandler(tableMetadata, tableHandlerFactory.mapping,
                   tableHandlerFactory.ctor);
               if (tableHandler.isValid) {
@@ -452,7 +462,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
               }
             } else {
               tableHandler = tableHandlerFactory.ctor.prototype.mynode.tableHandler;
-              stats.incr( [ "TableHandler","idempotent" ] );
+              stats.TableHandler.idempotent++;
               if(udebug.is_detail()) {
                 udebug.log('UserContext got tableHandler but someone else put it in the prototype first.');
               }
@@ -534,7 +544,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
             mynode.mapping, domainObjectTableNameOrConstructor, onTableHandler);
         tableHandlerFactory.createTableHandler();
       } else {
-        stats.incr( [ "TableHandler","cache_hit" ] );
+        stats.TableHandler.cache_hit++;
         if(udebug.is_detail()) { udebug.log('UserContext.getTableHandler found cached tableHandler for constructor.'); }
         // prototype has been annotated; return the table handler
         onTableHandler(null, tableHandler);
