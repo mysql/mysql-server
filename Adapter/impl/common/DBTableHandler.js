@@ -22,14 +22,25 @@
 
 "use strict";
 
+var stats = {
+	"constructor_calls"      : 0,
+	"created"                : {},
+	"default_mappings"       : 0,
+	"explicit_mappings"      : 0,
+	"return_null"            : 0,
+	"result_objects_created" : 0,
+	"DBIndexHandler_created" : 0
+};
+
 var TableMapping    = require(path.join(api_dir, "TableMapping")).TableMapping,
     FieldMapping    = require(path.join(api_dir, "TableMapping")).FieldMapping,
-    stats_module    = require(path.join(api_dir, "stats")),
-    stats           = stats_module.getWriter(["spi","DBTableHandler"]),
+    stats_module    = require(path.join(api_dir, "stats")), 
     udebug          = unified_debug.getLogger("DBTableHandler.js");
 
 // forward declaration of DBIndexHandler to avoid lint issue
 var DBIndexHandler;
+
+stats_module.register(stats,"spi","DBTableHandler");
 
 /* A DBTableHandler (DBT) combines dictionary metadata with user mappings.  
    It manages setting and getting of columns based on the fields of a 
@@ -114,14 +125,18 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       stubFields,      // fields created through default mapping
       nMappedFields;
 
-  stats.incr(["constructor_calls"]);
+  stats.constructor_calls++;
 
   if(! ( dbtable && dbtable.columns)) {
-    stats.incr(["return_null"]);
+    stats.return_null++;
     return null;
   }
 
-  stats.incr( [ "created", dbtable.database, dbtable.name ] );
+	if(typeof stats.created[dbtable.name] === 'undefined') {
+		stats.created[dbtable.name] = 1;
+	} else { 
+		stats.created[dbtable.name]++;
+	}
   
   this.dbTable = dbtable;
 
@@ -130,11 +145,11 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
 
   if(tablemapping) {     
-    stats.incr(["explicit_mappings"]);
+    stats.explicit_mappings++;
     this.mapping = tablemapping;
   }
   else {                                          // Create a default mapping
-    stats.incr(["default_mappings"]);
+    stats.default_mappings++;
     this.mapping          = new TableMapping(this.dbTable.name);
     this.mapping.database = this.dbTable.database;
   }
@@ -274,7 +289,7 @@ DBTableHandler.prototype = proto;     // Connect prototype to constructor
 */
 DBTableHandler.prototype.newResultObject = function(values, adapter) {
   udebug.log("newResultObject");
-  stats.incr(["result_objects_created"]);
+  stats.result_objects_created++;
   var newDomainObj;
   
   if(this.newObjectConstructor && this.newObjectConstructor.prototype) {
@@ -582,7 +597,7 @@ DBTableHandler.prototype.setFields = function(obj, values, adapter) {
 /* DBIndexHandler constructor and prototype */
 function DBIndexHandler(parent, dbIndex) {
   udebug.log("DBIndexHandler constructor");
-  stats.incr( [ "DBIndexHandler","created" ] );
+  stats.DBIndexHandler_created++;
   var i, colNo;
 
   this.tableHandler = parent;

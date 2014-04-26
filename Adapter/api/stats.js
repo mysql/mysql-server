@@ -123,10 +123,12 @@ exports.register = function() {
 	assert(typeof userStatsContainer === 'object');
 	globalStatsNode = getStatsDomain(global_stats, statParts, statParts.length);
 	globalStatsNode[statsDomain] = userStatsContainer;
+	return this;
 };
 
 
 exports.getWriter = function(domainPath) {
+	console.log("DEPRECATED CALL to getWriter for", domainPath)
   var statWriter = {};
   var thisDomain = getStatsDomain(global_stats, domainPath, domainPath.length);
   var prefix = dot(domainPath, domainPath.length);

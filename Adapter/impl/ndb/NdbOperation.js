@@ -20,6 +20,21 @@
 
 "use strict";
 
+/* This corresponds to OperationCodes */
+var op_stats = { 
+	"read"				: 0,
+	"insert"			: 0,
+	"update"			: 0,
+	"write"				: 0,
+	"delete"			: 0,
+	"scan_read"		: 0,
+	"scan_count"	: 0,
+	"scan_delete" : 0
+};
+
+var index_stats = {
+};
+
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
     stats_module  = require(path.join(api_dir,"stats.js")),
@@ -27,8 +42,6 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     getIndexBounds = require("../common/IndexBounds.js").getIndexBounds,
     markQuery     = require("../common/IndexBounds.js").markQuery,
-    stats         = stats_module.getWriter(["spi","ndb","DBOperation"]),
-    index_stats   = stats_module.getWriter(["spi","ndb","key_access"]),
     COMMIT        = adapter.ndbapi.Commit,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
@@ -38,6 +51,9 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     BoundHelper   = constants.IndexBound.helper,
     opcodes       = doc.OperationCodes,
     udebug        = unified_debug.getLogger("NdbOperation.js");
+
+stats_module.register(op_stats, "spi","ndb","DBOperation","created");
+stats_module.register(index_stats, "spi","ndb","key_access");
 
 var storeNativeConstructorInMapping;
 
@@ -128,18 +144,28 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   this.columnMask   = [];
   this.scan         = {};
 
-  stats.incr(["created",opcode]);
+  op_stats[opcodes[opcode]]++;
 };
 
+
+function makeStatsForIndexes(dbTable) {
+	var i, idxStats;
+	idxStats = { "PrimaryKey" : 0 };
+	for(i = 1 ; i < dbTable.indexes.length ; i++) {
+		idxStats[dbTable.indexes[i].name] = 0;
+	}
+	index_stats[dbTable.name] = idxStats;
+}
 
 function allocateKeyBuffer(op) {
   assert(op.buffers.key === null);
   op.buffers.key = new Buffer(op.index.record.getBufferSize());
-
-  index_stats.incr([ op.tableHandler.dbTable.database,
-                     op.tableHandler.dbTable.name,
-                    (op.index.isPrimaryKey ? "PrimaryKey" : op.index.name)
-                   ]);
+	
+	var keyName = (op.index.isPrimaryKey ? "PrimaryKey" : op.index.name);
+	if(typeof index_stats[op.tableHandler.dbTable.name] === 'undefined') {
+		makeStatsForIndexes(op.tableHandler.dbTable);
+	}
+	index_stats[op.tableHandler.dbTable.name][keyName]++;
 }
 
 function releaseKeyBuffer(op) {
