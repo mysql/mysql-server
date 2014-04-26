@@ -22,9 +22,9 @@
 
 var stats = {
 	"wait_until_ready_timeouts" : 0 ,
-	"node_ids"  							  : [],
-	"connections" 							: { "successful" : 0, "failed" : 0 },
-	"connect"    								: { "join" : 0, "connect" : 0, "queued" : 0 },
+  "node_ids"                  : [],
+  "connections"               : { "successful" : 0, "failed" : 0 },
+  "connect"                   : { "join" : 0, "connect" : 0, "queued" : 0 },
 	"simultaneous_disconnects"  : 0  // this should always be zero
 };
 

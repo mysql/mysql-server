@@ -22,7 +22,7 @@
 
 var stats = {
 	"created" : 0
-}
+};
 
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndboperation   = require("./NdbOperation.js"),

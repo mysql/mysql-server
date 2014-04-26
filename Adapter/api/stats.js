@@ -67,9 +67,8 @@ function dotted_name(base, keyPath) {
 
 /* registerStats(statsObject, keyPart, ...)
 */
-exports.register = function() {
-	var userStatsContainer, statParts, statsDomain, globalStatsNode, i;
-	userStatsContainer = arguments[0];
+exports.register = function(userStatsContainer) {
+	var statParts, statsDomain, globalStatsNode, i;
 	statParts = [];
 	for(i = 1 ; i < arguments.length - 1; i++) {
 		statParts.push(arguments[i]);

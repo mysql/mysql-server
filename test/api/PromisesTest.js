@@ -30,7 +30,7 @@ var bad_properties = {
   "mysql_user"        : "_BAD_USER_",
   "mysql_password"    : "_NOT_A_REAL_PASSWORD!_", 
   "ndb_connectstring" : "this_host_does_not_exist"
-}
+};
 
 var tests = [];
 
@@ -51,8 +51,7 @@ t_222.run = function() {
     assert(n === 1);  // 2.2.2.3 ; could happen after test has already passed
     test.errorIfUnset("PromisesTest.t_222 onFulfilled gets a value", session);   // 2.2.2.1
     test.errorIfNotEqual("PromisesTest.t_222 Not a session", typeof session.find, "function");
-    test.errorIfNotEqual("typeof this (2.2.5) " + this, "undefined", typeof this);
-
+    test.errorIfNotEqual("typeof this (2.2.5) " + this, "undefined", typeof this); 
     session.close(function() {
       test.failOnError();
       });
@@ -332,7 +331,7 @@ t_2273.run = function() {
   test = this;
   
   function p2OnFulfilled(v) {
-    v.close(function(){test.failOnError()});
+    v.close(function(){test.failOnError();});
   }
 
   p1 = mynode.openSession(good_properties, null);
@@ -495,7 +494,7 @@ function createHelpers(testCase, session, errorSqlStateMatch, errorMessageMatch)
       testCase.failOnError();
     }
   };
-};
+}
 
 var testIdleCommit = new harness.ConcurrentTest('Idle commit must fail');
 testIdleCommit.run = function() {
