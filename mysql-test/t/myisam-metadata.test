@@ -51,3 +51,4 @@ SHOW TABLE STATUS LIKE 't1';
 --connection default
 --disconnect con1
 DROP TABLE t1;
+set debug_sync='reset';

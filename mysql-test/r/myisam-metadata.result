@@ -13,3 +13,4 @@ SHOW TABLE STATUS LIKE 't1';
 Name	Engine	Version	Row_format	Rows	Avg_row_length	Data_length	Max_data_length	Index_length	Data_free	Auto_increment	Create_time	Update_time	Check_time	Collation	Checksum	Create_options	Comment
 t1	MyISAM	10	Dynamic	100000	27	#	#	#	0	NULL	#	#	#	latin1_swedish_ci	NULL		
 DROP TABLE t1;
+set debug_sync='reset';
