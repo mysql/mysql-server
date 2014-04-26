@@ -5108,6 +5108,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
         delete save_result;
     }
   }
+  DEBUG_SYNC(thd, "after_table_open");
   return res;
 }
 
