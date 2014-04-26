@@ -20,6 +20,10 @@
 
 "use strict";
 
+var stats = {
+	"created" : 0
+}
+
 var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     ndboperation   = require("./NdbOperation.js"),
     dbtxhandler    = require("./NdbTransactionHandler.js"),
@@ -27,9 +31,9 @@ var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
     util           = require("util"),
     assert         = require("assert"),
     udebug         = unified_debug.getLogger("NdbSession.js"),
-    stats          = require(path.join(api_dir,"stats.js")).getWriter(["spi","ndb","DBSession"]),
     NdbSession;
 
+require(path.join(api_dir,"stats.js")).register(stats, "spi","ndb","DBSession");
 
 /** 
   A session has a single transaction visible to the user at any time: 
@@ -68,7 +72,7 @@ exports.newDBSession = function(pool, impl) {
 /* DBSession Simple Constructor
 */
 NdbSession = function() { 
-  stats.incr(["created"]);
+  stats.created++;
   this.tx                  = null;
   this.execQueue           = [];
   this.startTxQueue        = [];

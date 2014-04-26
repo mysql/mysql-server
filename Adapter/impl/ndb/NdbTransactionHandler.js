@@ -20,12 +20,20 @@
 
 "use strict";
 
+var stats = {
+	"created"		: 0,
+	"run_async" : 0,
+	"run_sync"  : 0,
+	"execute"   : { "commit": 0, "no_commit" : 0}, 
+	"commit"    : 0,
+	"rollback"  : 0
+};
+
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     ndbsession      = require("./NdbSession.js"),
     ndboperation    = require("./NdbOperation.js"),
     doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
     stats_module    = require(path.join(api_dir,"stats.js")),
-    stats           = stats_module.getWriter(["spi","ndb","DBTransactionHandler"]),
     udebug          = unified_debug.getLogger("NdbTransactionHandler.js"),
     QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     AutoIncHandler  = require("./NdbAutoIncrement.js").AutoIncHandler,
@@ -38,6 +46,8 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption,
     modeNames       = [],
     serial          = 1;
+
+stats_module.register(stats, "spi","ndb","DBTransactionHandler");
 
 modeNames[COMMIT] = 'commit';
 modeNames[NOCOMMIT] = 'noCommit';
@@ -58,7 +68,7 @@ function DBTransactionHandler(dbsession) {
   this.moniker            = "(" + this.serial + ")";
   this.retries            = 0;
   udebug.log("NEW ", this.moniker);
-  stats.incr(["created"]);
+  stats.created++;
 }
 DBTransactionHandler.prototype = proto;
 
@@ -85,13 +95,13 @@ function run(self, execMode, abortFlag, callback) {
     var force_send = 1;
 
     if(this.tx.asyncContext) {
-      stats.incr(["run","async"]);
+      stats.run_async++;
       this.tx.asyncContext.executeAsynch(this.tx.ndbtx,
                                          this.execMode, this.abortFlag,
                                          force_send, this.callback);
     }
     else {
-      stats.incr(["run","sync"]);
+      stats.run_sync++;
       this.tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
     }
   };
@@ -417,13 +427,13 @@ proto.execute = function(dbOperationList, userCallback) {
   
   if(this.autocommit) {
     if(udebug.is_debug()) udebug.log("Execute -- AutoCommit", this.moniker);
-    stats.incr(["execute","commit"]);
+    stats.execute.commit++;
     ndbsession.closeActiveTransaction(this);
     execute(this, COMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
   else {
     if(udebug.is_debug()) udebug.log("Execute -- NoCommit", this.moniker);
-    stats.incr(["execute","no_commit"]);
+    stats.execute.no_commit++;
     execute(this, NOCOMMIT, AO_IGNORE, dbOperationList, userCallback);
   }
 };
@@ -436,7 +446,7 @@ proto.execute = function(dbOperationList, userCallback) {
 */
 proto.commit = function commit(userCallback) {
   assert(this.autocommit === false);
-  stats.incr(["commit"]);
+  stats.commit++;
   var self = this;
   var execId = getExecIdForOperationList(self, [], null);
 
@@ -464,7 +474,7 @@ proto.commit = function commit(userCallback) {
 */
 proto.rollback = function rollback(callback) {
   assert(this.autocommit === false);
-  stats.incr(["rollback"]);
+  stats.rollback++;
   var self = this;
   var execId = getExecIdForOperationList(self, [], null);
 
