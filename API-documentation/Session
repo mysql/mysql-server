@@ -490,7 +490,17 @@ listTables(databaseName, callback);
 getTableMetadata(databaseName, tableName, callback);
 }
 
-
+/** Use the projection for find and query operations on the domain object.
+ * projection:= {constructor: domainObject, 
+ *   fields: [field, field...], 
+ *   relationships: [relationship, relationship...]}
+ * The domain object must be mapped and will be validated by this function.
+ * If fields is omitted, all fields in the mapping will be fetched.
+ * If relationships is omitted, no relationships in the mapping will be fetched.
+ * This method returns a promise and can use a callback.
+ * ASYNC
+ */
+useProjection(projection, callback);
 
 /* 
  * Users may find useful a "user" property of session and batch.
