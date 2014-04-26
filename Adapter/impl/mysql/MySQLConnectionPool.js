@@ -24,14 +24,22 @@
 
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
+var stats = {
+	"created"             : 0,
+  "list_tables"         : 0,
+  "get_table_metadata"  : 0,
+	"connections"  				: { "successful" : 0, "failed" : 0 }	
+};
+
 var mysql = require("mysql");
 var mysqlConnection = require("./MySQLConnection.js");
 var mysqlDictionary = require("./MySQLDictionary.js");
 var udebug = unified_debug.getLogger("MySQLConnectionPool.js");
 var util = require('util');
 var stats_module = require(path.join(api_dir, "stats.js"));
-var stats = stats_module.getWriter(["spi","mysql","DBConnectionPool"]);
 var MySQLTime = require("../common/MySQLTime.js");
+
+stats_module.register(stats, "spi","mysql","DBConnectionPool");
 
 /* Translate our properties to the driver's */
 function getDriverProperties(props) {
@@ -151,7 +159,7 @@ exports.DBConnectionPool = function(props) {
   this.domainTypeConverterMap = {};
   this.domainTypeConverterMap.TIMESTAMP = new DomainTypeConverterDateTime();
   this.domainTypeConverterMap.DATETIME = new DomainTypeConverterDateTime();
-  stats.incr( [ "created" ]);
+  stats.created++;
 };
 
 /** Register a user-specified domain type converter for this connection pool.
@@ -183,7 +191,6 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
   var pooledConnection;
-  stats.incr( [ "connect" ]);
   var error;
   
   if (this.is_connected) {
@@ -193,7 +200,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     pooledConnection = mysql.createConnection(this.driverproperties);
     pooledConnection.connect(function(err) {
     if (err) {
-      stats.incr( [ "connections","failed" ] );
+      stats.connections.failed++;
       // create a new Error with a message and this stack
       error = new Error('Connection failed.');
       // add cause to the error
@@ -202,7 +209,7 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
       error.sqlstate = '08000';
       callback(error);
     } else {
-      stats.incr( [ "connections","succesful" ]);
+      stats.connections.successful++;
       connectionPool.pooledConnections[0] = pooledConnection;
       connectionPool.is_connected = true;
       callback(null, connectionPool);
@@ -362,7 +369,7 @@ exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tab
   // getTableMetadata starts here
   // getTableMetadata = function(databaseName, tableName, dbSession, user_callback)
   var pooledConnection, dictionary;
-  stats.incr(["getTableMetadata"]);
+  stats.get_table_metadata++;
 
   if (dbSession) {
     // dbSession exists; call the dictionary directly
@@ -428,7 +435,7 @@ exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession
   // listTables starts here
   // listTables = function(databaseName, dbSession, user_callback)
   var pooledConnection, dictionary;
-  stats.incr( [ "listTables" ]);
+  stats.list_tables++;
   
   if (dbSession) {
     // dbSession exists; call the dictionary directly

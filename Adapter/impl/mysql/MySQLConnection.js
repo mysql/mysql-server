@@ -24,13 +24,37 @@
 
 "use strict";
 
+var session_stats = {
+	"created" : 0,
+	"closed"  : 0	
+};
+
+var transaction_stats = {
+	"execute"   : { "commit": 0, "no_commit" : 0},
+	"closed"    : 0,
+	"commit"    : 0,
+	"rollback"  : 0
+};
+
+var op_stats = {
+	"read"				: 0,
+	"insert"			: 0,
+	"update"			: 0,
+	"write"				: 0,
+	"delete"			: 0,
+	"scan_read"		: 0,
+	"scan_count"	: 0,
+	"scan_delete" : 0
+};
+
 var mysql  = require("mysql"),
     udebug = unified_debug.getLogger("MySQLConnection.js"),
     stats_module  = require(path.join(api_dir, "stats.js")),
-    session_stats  = stats_module.getWriter(["spi","mysql","DBSession"]),
-    transaction_stats = stats_module.getWriter(["spi","mysql","DBTransactionHandler"]),
-    op_stats = stats_module.getWriter(["spi","mysql","DBOperation"]),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
+
+stats_module.register(session_stats, "spi","mysql","DBSession");
+stats_module.register(transaction_stats, "spi","mysql","DBTransactionHandler");
+stats_module.register(op_stats, "spi","mysql","DBOperation");
     
 /** Convert the raw data in the driver to the type expected by the adapter.
  * Felix driver would normally convert DATE, DATETIME, and TIMESTAMP to
@@ -89,7 +113,7 @@ exports.DBSession = function(pooledConnection, connectionPool, index) {
     this.transactionHandler = null;
     this.autocommit = true;
     this.index = index;
-    session_stats.incr(["created"]);
+    session_stats.created++;
   }
 };
 
@@ -210,12 +234,12 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
     // execute begin operation the first time for non-autocommit
     if (this.firstTime) {
-      transaction_stats.incr( [ "execute","no_commit" ] );
+      transaction_stats.execute.no_commit++;
       transactionHandler.operationsList = operationsList;
       transactionHandler.transactionExecuteCallback = transactionExecuteCallback;
       this.dbSession.pooledConnection.query('begin', executeOnBegin);
     } else {
-      transaction_stats.incr( [ "execute","commit" ] );
+      transaction_stats.execute.commit++;
       if (transactionHandler.numberOfOperations > 0) {
         // there are pending batches, so just put this request on the list
         transactionHandler.pendingBatches.push(
@@ -233,7 +257,7 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   
   this.close = function() {
-    transaction_stats.incr( [ "closed" ] );
+    transaction_stats.closed++;
   };
 
   this.batchComplete = function() {
@@ -308,14 +332,14 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
 
   this.commit = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
-    transaction_stats.incr( [ "commit" ]);
+    transaction_stats.commit++;
     this.dbSession.pooledConnection.query('commit', callback);
     this.dbSession.transactionHandler = null;
   };
 
   this.rollback = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.rollback.');
-    transaction_stats.incr( [ "rollback" ]);
+    transaction_stats.rollback++;
     this.dbSession.pooledConnection.query('rollback', callback);
     this.dbSession.transactionHandler = null;
   };
@@ -362,7 +386,7 @@ function InsertOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","insert" ]);
+  op_stats.insert++;
 
   function onInsert(err, status) {
     if (err) {
@@ -401,7 +425,7 @@ function WriteOperation(sql, data, callback) {
   this.data = data;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","write" ]);
+  op_stats.write++;
 
   function onWrite(err, status) {
     if (err) {
@@ -438,7 +462,7 @@ function DeleteOperation(sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","delete" ]);
+  op_stats.delete++;
 
   function onDelete(err, status) {
     if (err) {
@@ -482,7 +506,7 @@ function ReadOperation(dbSession, dbTableHandler, sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","read" ]);
+  op_stats.read++;
 
   function onRead(err, rows) {
     if (err) {
@@ -547,7 +571,7 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
   this.parameters = parameters;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","scan" ]);
+  op_stats.scan_read++;
 
   function onScan(err, rows) {
     var i;
@@ -593,7 +617,7 @@ function UpdateOperation(sql, keys, values, callback) {
   this.values = values;
   this.callback = callback;
   this.result = {};
-  op_stats.incr( [ "created","update" ]);
+  op_stats.update++;
 
   function onUpdate(err, status) {
     if (err) {
@@ -1057,7 +1081,7 @@ exports.DBSession.prototype.rollback = function(callback) {
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
   var dbSession = this;
-  session_stats.incr(["closed"]);
+  session_stats.closed++;
   if (dbSession.pooledConnection) {
     dbSession.pooledConnection.end(function(err) {
       udebug.log('close dbSession', dbSession);
