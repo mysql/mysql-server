@@ -404,7 +404,7 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     this.mynode = mynode;
     this.ctor = ctor;
     this.tableSpecification = tableSpecification;
-    stats["TableHandlerFactory"]++;
+    stats.TableHandlerFactory++;
     
     this.createTableHandler = function() {
       var tableHandlerFactory = this;

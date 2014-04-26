@@ -28,6 +28,29 @@ function Customer(id, first, last) {
   }
 }
 
+function ShoppingCart(id, customerid) {
+  if (typeof id !== 'undefined') {
+    this.id = id;
+    this.customerid = customerid;
+  }
+}
+
+function LineItem(line, shoppingcartid, quantity, itemid) {
+  if (typeof line !== 'undefined') {
+    this.line = line;
+    this.shoppingcartid = shoppingcartid;
+    this.quantity = quantity;
+    this.itemid = itemid;
+  }  
+}
+
+function Item(id, description) {
+  if (typeof id !== 'undefined') {
+    this.id = id;
+    this.description = description;
+  }  
+}
+
 function mapCustomer() {
   // map customer
   var customerMapping = new mynode.TableMapping('customer');
@@ -41,13 +64,6 @@ function mapCustomer() {
   } ); 
 
   customerMapping.applyToClass(Customer);
-}
-
-function ShoppingCart(id, customerid) {
-  if (typeof id !== 'undefined') {
-    this.id = id;
-    this.customerid = customerid;
-  }
 }
 
 function mapShoppingCart() {
@@ -68,15 +84,6 @@ function mapShoppingCart() {
   } );
 
   shoppingCartMapping.applyToClass(ShoppingCart);
-}
-
-function LineItem(line, shoppingcartid, quantity, itemid) {
-  if (typeof line !== 'undefined') {
-    this.line = line;
-    this.shoppingcartid = shoppingcartid;
-    this.quantity = quantity;
-    this.itemid = itemid;
-  }  
 }
 
 function mapLineItem() {
@@ -100,13 +107,6 @@ function mapLineItem() {
   });
 
   lineItemMapping.applyToClass(LineItem);
-}
-
-function Item(id, description) {
-  if (typeof id !== 'undefined') {
-    this.id = id;
-    this.description = description;
-  }  
 }
 
 function mapItem() {

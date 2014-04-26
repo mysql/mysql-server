@@ -25,10 +25,10 @@
 /* Requires version 2.0 of Felix Geisendoerfer's MySQL client */
 
 var stats = {
-	"created"             : 0,
+  "created"             : 0,
   "list_tables"         : 0,
   "get_table_metadata"  : 0,
-	"connections"  				: { "successful" : 0, "failed" : 0 }	
+  "connections"         : { "successful" : 0, "failed" : 0 }	
 };
 
 var mysql = require("mysql");
