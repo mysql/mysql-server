@@ -109,6 +109,22 @@ function stats_push(baseDomain, basePrefix, keyPath, value) {
 }
 
 
+/* registerStats(statsObject, keyPart, ...)
+*/
+exports.register = function() {
+	var userStatsContainer, statParts, statsDomain, globalStatsNode, i;
+	userStatsContainer = arguments[0];
+	statParts = [];
+	for(i = 1 ; i < arguments.length - 1; i++) {
+		statParts.push(arguments[i]);
+	}
+	statsDomain = arguments[i];  // the final part of the domain
+	
+	assert(typeof userStatsContainer === 'object');
+	globalStatsNode = getStatsDomain(global_stats, statParts, statParts.length);
+	globalStatsNode[statsDomain] = userStatsContainer;
+};
+
 
 exports.getWriter = function(domainPath) {
   var statWriter = {};
