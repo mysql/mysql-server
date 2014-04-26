@@ -145,6 +145,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.fieldNumberToFieldMap  = [];
   this.fieldNameToFieldMap    = {};
   this.dbIndexHandlers        = [];
+  this.relationshipFields     = [];
 
   /* Build the first draft of the columnNumberToFieldMap, using only the
      explicitly mapped fields. */
@@ -153,25 +154,31 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   }
   for(i = 0 ; i < this.mapping.fields.length ; i++) {
     f = this.mapping.fields[i];
+    udebug.log_detail('DBTableHandler<ctor> field:', f, 'persistent', f.persistent, 'relationship', f.relationship);
     if(f && f.persistent) {
-      c = getColumnByName(this.dbTable, f.columnName);
-      if(c) {
-        n = c.columnNumber;
-        this.columnNumberToFieldMap[n] = f;
-        f.columnNumber = n;
-        f.defaultValue = c.defaultValue;
-        f.databaseTypeConverter = c.databaseTypeConverter;
-        // use converter or default domain type converter
-        if (f.converter) {
-          udebug.log_detail('domain type converter for ', f.columnName, ' is user-specified ', f.converter);
-          f.domainTypeConverter = f.converter;
+      if (!f.relationship) {
+        c = getColumnByName(this.dbTable, f.columnName);
+        if(c) {
+          n = c.columnNumber;
+          this.columnNumberToFieldMap[n] = f;
+          f.columnNumber = n;
+          f.defaultValue = c.defaultValue;
+          f.databaseTypeConverter = c.databaseTypeConverter;
+          // use converter or default domain type converter
+          if (f.converter) {
+            udebug.log_detail('domain type converter for ', f.columnName, ' is user-specified ', f.converter);
+            f.domainTypeConverter = f.converter;
+          } else {
+            udebug.log_detail('domain type converter for ', f.columnName, ' is system-specified ', c.domainTypeConverter);
+            f.domainTypeConverter = c.domainTypeConverter;
+          }
         } else {
-          udebug.log_detail('domain type converter for ', f.columnName, ' is system-specified ', c.domainTypeConverter);
-          f.domainTypeConverter = c.domainTypeConverter;
+          this.appendErrorMessage(
+              'for table ' + dbtable.name + ', field ' + f.fieldName + ': column ' + f.columnName + ' does not exist.');
         }
       } else {
-        this.appendErrorMessage(
-            'for table ' + dbtable.name + ', field ' + f.fieldName + ': column ' + f.columnName + ' does not exist.');
+        // relationship field
+        this.relationshipFields.push(f);
       }
     }
   }
@@ -228,9 +235,15 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       this.resolvedMapping.fields[i].fieldName = f.fieldName;
       this.resolvedMapping.fields[i].persistent = true;
     }
-  }  
-  if (nMappedFields !== this.fieldNumberToColumnMap.length) {
-    this.appendErrorMessage();
+  }
+  var map = this.fieldNameToFieldMap;
+  // add the relationship fields that are not mapped to columns
+  this.relationshipFields.forEach(function(relationship) {
+    map[relationship.fieldName] = relationship;
+  });
+  
+  if (nMappedFields !== this.fieldNumberToColumnMap.length + this.relationshipFields.length) {
+    this.appendErrorMessage('Mismatch between number of mapped fields and columns for ' + ctor.prototype.constructor.name);
   }
 
   // build dbIndexHandlers; one for each dbIndex, starting with primary key index 0
