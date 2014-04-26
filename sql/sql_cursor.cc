@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
 #include "sql_tmp_table.h"                   // tmp tables
+#include "debug_sync.h"
 
 /****************************************************************************
   Declarations.
@@ -115,6 +116,7 @@ bool mysql_open_cursor(THD *thd, select_result *result,
   parent_locker= thd->m_statement_psi;
   thd->m_statement_psi= NULL;
   bool rc= mysql_execute_command(thd);
+  DEBUG_SYNC(thd, "after_table_close");
   thd->m_statement_psi= parent_locker;
   MYSQL_QUERY_EXEC_DONE(rc);
 
@@ -413,6 +415,14 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
     materialized_cursor= 0;
     return TRUE;
   }
+
+  /*
+    close_thread_tables() will be called in mysql_execute_command() which
+    will close all tables except the cursor temporary table. Hence set the
+    orig_table in the field definition to NULL.
+  */
+  for (Field **fld= this->table->field; *fld; fld++)
+     (*fld)->orig_table= NULL;
 
   return FALSE;
 }
