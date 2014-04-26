@@ -65,7 +65,7 @@ function usage() {
   "   -df=file:  Enable debug output only from source file <file>\n" +
   "   -i <n>  :  Specify number of iterations per test (default 4000)\n" +
   "   --delay=<m>,<n>\n" +
-  "           :  Delay <m> seconds before starting and <n> seconds before exiting\n" + 
+  "           :  Delay <m> seconds after first iteration and <n> seconds before exiting\n" + 
   "   --modes :\n" +
   "   --mode  :  Specify modes to run (default indy,each,bulk)\n" +
   "   --tests :\n" +
@@ -685,7 +685,13 @@ function main() {
       } else {
         console.log('\nRun #' + nRun + ' of ' + nRuns);
         batchLoopNumber = 0;
-        batchSizeLoop();
+        if(nRun === 2 && (options.delay_pre > 0)) { 
+          console.log("Waiting", options.delay_pre, "seconds...");
+          setTimeout(batchSizeLoop, 1000 * options.delay_pre);
+          options.delay_pre = 0;
+        } else {
+          batchSizeLoop();
+        }
       }
     };
 
@@ -708,12 +714,7 @@ function main() {
         process.exit(1);
       } else {
         testsDoneCallback = modeLoop;
-        if(options.delay_pre > 0) { 
-          console.log("Waiting", options.delay_pre, "seconds...");
-          setTimeout(mainTestLoop, 1000 * options.delay_pre);
-        } else {
-          mainTestLoop();
-        }
+        mainTestLoop();
       }
     });
   };
