@@ -64,50 +64,6 @@ function dotted_name(base, keyPath) {
   return base + "." + dot(keyPath, keyPath.length);
 }
 
-function stats_incr(baseDomain, basePrefix, keyPath) {
-  var len = keyPath.length - 1;
-  var domain = getStatsDomain(baseDomain, keyPath, len);
-  var key = keyPath[len];
-
-  if(domain[key]) {
-    domain[key] += 1;
-  }
-  else { 
-    domain[key] = 1;
-  }
-
-  if(DETAIL) {
-    udebug.log_detail(dotted_name(basePrefix, keyPath), 
-                      "INCR", "(" + domain[key] + ")");
-  }
-}
-
-function stats_set(baseDomain, basePrefix, keyPath, value) {
-  var len = keyPath.length - 1;
-  var domain = getStatsDomain(baseDomain, keyPath, len);
-  var key = keyPath[(len)];
-   
-  domain[key] = value;
-  if(DETAIL) {
-    udebug.log_detail(dotted_name(basePrefix, keyPath), "SET", value);
-  }
-}
-
-function stats_push(baseDomain, basePrefix, keyPath, value) {
-  var len = keyPath.length - 1;
-  var domain = getStatsDomain(baseDomain, keyPath, len);
-  var key = keyPath[(len)];
-
-  if(! Array.isArray(domain[key])) {
-    domain[key] = [];
-  }  
-  domain[key].push(value);
-
-  if(DETAIL) {
-    udebug.log_detail(dotted_name(basePrefix, keyPath), "PUSH", value);
-  }
-}
-
 
 /* registerStats(statsObject, keyPart, ...)
 */
@@ -124,31 +80,6 @@ exports.register = function() {
 	globalStatsNode = getStatsDomain(global_stats, statParts, statParts.length);
 	globalStatsNode[statsDomain] = userStatsContainer;
 	return this;
-};
-
-
-exports.getWriter = function(domainPath) {
-	console.log("DEPRECATED CALL to getWriter for", domainPath)
-  var statWriter = {};
-  var thisDomain = getStatsDomain(global_stats, domainPath, domainPath.length);
-  var prefix = dot(domainPath, domainPath.length);
-  
-  statWriter.incr = function(path) {
-    assert(Array.isArray(path));
-    return stats_incr(thisDomain, prefix, path);
-  };
-
-  statWriter.set = function(path, value) {
-    assert(Array.isArray(path));
-    return stats_set(thisDomain, prefix, path, value);
-  };
-  
-  statWriter.push = function(path, value) {
-    assert(Array.isArray(path));
-    return stats_push(thisDomain, prefix, path, value);      
-  };
-  
-  return statWriter;
 };
 
 
