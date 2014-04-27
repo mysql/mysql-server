@@ -130,4 +130,66 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 # so the following command should never fail.
 --remove_file $MYSQLD_DATADIR/mysql_upgrade_info
 
+
+# 5.5-only test (involves manual modification of system tables)
+--echo #
+--echo # MDEV-4332 Increase username length from 16 characters
+--echo # MDEV-6068, MDEV-6178 mysql_upgrade breaks databases with long user names
+--echo #
+
+alter table mysql.user         modify User         char(80)  binary not null default '';
+alter table mysql.db           modify User         char(80)  binary not null default '';
+alter table mysql.tables_priv  modify User         char(80)  binary not null default '';
+alter table mysql.columns_priv modify User         char(80)  binary not null default '';
+alter table mysql.procs_priv   modify User         char(80)  binary not null default '';
+alter table mysql.proc         modify definer      char(141) collate utf8_bin not null default '';
+alter table mysql.event        modify definer      char(141) collate utf8_bin not null default '';
+alter table mysql.proxies_priv modify User         char(80)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Proxied_user char(80)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Grantor      char(141) COLLATE utf8_bin not null default '';
+alter table mysql.servers      modify Username     char(80)                   not null default '';
+alter table mysql.procs_priv   modify Grantor      char(141) COLLATE utf8_bin not null default '';
+alter table mysql.tables_priv  modify Grantor      char(141) COLLATE utf8_bin not null default '';
+flush privileges;
+
+connection default;
+GRANT SELECT ON mysql.* TO very_long_user_name_number_1;
+GRANT SELECT ON mysql.* TO very_long_user_name_number_2;
+GRANT ALL ON *.* TO even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost WITH GRANT OPTION;
+--change_user even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length
+
+GRANT INSERT ON mysql.user TO very_long_user_name_number_1;
+GRANT INSERT ON mysql.user TO very_long_user_name_number_2;
+GRANT UPDATE (User) ON mysql.db TO very_long_user_name_number_1;
+GRANT UPDATE (User) ON mysql.db TO very_long_user_name_number_2;
+
+CREATE PROCEDURE test.pr() BEGIN END;
+
+--change_user root
+
+--replace_result $MYSQLTEST_VARDIR var
+--exec $MYSQL_UPGRADE --force 2>&1
+
+SELECT definer FROM mysql.proc WHERE db = 'test' AND name = 'pr';
+SELECT grantor FROM mysql.tables_priv WHERE db = 'mysql' AND table_name = 'user';
+DROP USER very_long_user_name_number_1, very_long_user_name_number_2, even_longer_user_name_number_3_to_test_the_grantor_and_definer_field_length@localhost;
+DROP PROCEDURE test.pr;
+
+# Restore system tables
+
+alter table mysql.user         modify User         char(16)  binary not null default '';
+alter table mysql.db           modify User         char(16)  binary not null default '';
+alter table mysql.tables_priv  modify User         char(16)  binary not null default '';
+alter table mysql.columns_priv modify User         char(16)  binary not null default '';
+alter table mysql.procs_priv   modify User         char(16)  binary not null default '';
+alter table mysql.proc         modify definer      char(77) collate utf8_bin not null default '';
+alter table mysql.event        modify definer      char(77) collate utf8_bin not null default '';
+alter table mysql.proxies_priv modify User         char(16)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Proxied_user char(16)  COLLATE utf8_bin not null default '';
+alter table mysql.proxies_priv modify Grantor      char(77) COLLATE utf8_bin not null default '';
+alter table mysql.servers      modify Username     char(64)                   not null default '';
+alter table mysql.procs_priv   modify Grantor      char(77) COLLATE utf8_bin not null default '';
+alter table mysql.tables_priv  modify Grantor      char(77) COLLATE utf8_bin not null default '';
+flush privileges;
+
 --echo End of tests
