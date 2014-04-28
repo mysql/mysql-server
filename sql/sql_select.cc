@@ -17299,6 +17299,11 @@ bool mysql_explain_union(THD *thd, SELECT_LEX_UNIT *unit, select_result *result)
     unit->fake_select_lex->options|= SELECT_DESCRIBE;
     if (!(res= unit->prepare(thd, result, SELECT_NO_UNLOCK | SELECT_DESCRIBE)))
       res= unit->exec();
+    /*
+      Reset select option. Needed if fake_select_lex is used and not called
+      from select describe.
+    */
+    unit->fake_select_lex->options&= ~SELECT_DESCRIBE;
     res|= unit->cleanup();
   }
   else

@@ -511,6 +511,35 @@ bool st_select_lex_unit::exec()
           (select_limit_cnt == HA_POS_ERROR || sl->braces) ?
           sl->options & ~OPTION_FOUND_ROWS : sl->options | found_rows_for_union;
 	saved_error= sl->join->optimize();
+
+        /*
+          If called by explain statement then we may need to save the original
+          JOIN LAYOUT so that we can display the plan. Otherwise original plan
+          will be replaced by a simple scan on temp table if subquery uses temp
+          table.
+          We check for following conditions to force join_tmp creation
+          1. This is an EXPLAIN statement, and
+          2. JOIN not yet saved in JOIN::optimize(), and
+          3. Not called directly from select_describe(), and
+          4. Belongs to a subquery that is const, and
+          5. Need a temp table.
+        */
+        if (thd->lex->describe && // 1
+            !sl->uncacheable &&   // 2
+            !(sl->join->select_options & SELECT_DESCRIBE) && // 3
+            item && item->const_item()) // 4
+        {
+          /*
+            Force join->join_tmp creation, because this subquery will be
+            replaced by a simple select from the materialization temp table
+            by optimize() called by EXPLAIN and we need to preserve the
+            initial query structure so we can display it.
+          */
+          sl->uncacheable|= UNCACHEABLE_EXPLAIN;
+          sl->master_unit()->uncacheable|= UNCACHEABLE_EXPLAIN;
+          if (sl->join->need_tmp && sl->join->init_save_join_tab()) // 5
+            DBUG_RETURN(1);
+        }
       }
       if (!saved_error)
       {
