@@ -1255,10 +1255,9 @@ fil_space_free_low(
 	}
 
 	/* Could fil_names_dirty() access a tablespace that is being
-	freed or has been freed here? The answer is no:
-	fil_names_write() will check space->stop_new_ops,
-	and return NULL if it was set. Thus, fil_names_dirty() would
-	not be invoked if we are preparing to drop a tablespace. */
+	freed or has been freed here? As noted in fil_names_write(),
+	the answer is no: space->n_pending_flushes > 0 will prevent
+	fil_check_pending_operations() from completing. */
 	if (space->max_lsn != 0) {
 		UT_LIST_REMOVE(fil_system->named_spaces, space);
 	}
@@ -4672,7 +4671,7 @@ fil_write_zeros(
 
 		offset += n_bytes;
 
-		n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
+		n_bytes = ut_min(n_bytes, end - offset);
 
 		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
 				DBUG_SUICIDE(););
@@ -4761,8 +4760,7 @@ retry:
 	ut_a(node_start != (os_offset_t) -1);
 
 	/* Number of physical pages in the node/file */
-	ulint		n_node_physical_pages;
-	n_node_physical_pages = static_cast<int>(node_start) / page_size;
+	ulint		n_node_physical_pages = node_start / page_size;
 
 	/* Number of pages to extend in the node/file */
 	lint		n_node_extend;
@@ -4804,8 +4802,7 @@ retry:
 
 		if (success) {
 			success = fil_write_zeros(
-				node, page_size, node_start,
-				static_cast<ulint>(len),
+				node, page_size, node_start, len,
 				(fsp_is_system_temporary(space_id)
 				? false : srv_read_only_mode));
 
@@ -4823,7 +4820,7 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = static_cast<ulint>(end - node_start) / page_size;
+		pages_added = (end - node_start) / page_size;
 
 	} else {
 		success = true;
@@ -6328,22 +6325,31 @@ fil_names_write(
 	fil_space_t*	space	= fil_space_get_by_id(space_id);
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	const bool	skip	= space == NULL
-		|| (space->stop_new_ops && !space->is_being_truncated);
+
+	/* We are serving mtr_commit(). While there is an active
+	mini-transaction, we should have !space->stop_new_ops. This is
+	guaranteed by meta-data locks or transactional locks, or
+	dict_operation_lock (X-lock in DROP, S-lock in purge).
+
+	However, a file I/O thread can invoke change buffer merge
+	while fil_check_pending_operations() is waiting for operations
+	to quiesce. This is not a problem, because
+	ibuf_merge_or_delete_for_page() would call
+	fil_inc_pending_ops() before mtr_start() and
+	fil_decr_pending_ops() after mtr_commit(). This is why
+	n_pending_ops should not be zero if stop_new_ops is set. */
+	ut_ad(!space->stop_new_ops
+	      || space->is_being_truncated /* TRUNCATE sets stop_new_ops */
+	      || space->n_pending_ops > 0);
+
 	mutex_exit(&fil_system->mutex);
 
-	if (skip) {
-		/* This should be prevented by meta-data locks
-		or transactional locks on tables or tablespaces. */
-		ut_ad(0);
-		space = NULL;
-	} else {
+	if (space) {
 		fil_names_write_low(space, mtr);
 	}
 
 	return(space);
 }
-
 
 /** Note that a non-predefined persistent tablespace has been modified.
 @param[in,out]	space	tablespace
