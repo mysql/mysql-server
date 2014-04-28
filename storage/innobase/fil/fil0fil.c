@@ -458,6 +458,21 @@ fil_space_get_by_id(
 }
 
 /*******************************************************************//**
+Returns the table space name for a given id, NULL if not found. */
+const char*
+fil_space_get_name(
+/*================*/
+	ulint	id)	/*!< in: space id */
+{
+	fil_space_t*    space;
+
+	mutex_enter(&fil_system->mutex);
+	space = fil_space_get_by_id(id);
+	mutex_exit(&fil_system->mutex);
+
+	return (space == NULL ? NULL : space->name);
+}
+/*******************************************************************//**
 Returns the table space by a given name, NULL if not found. */
 UNIV_INLINE
 fil_space_t*

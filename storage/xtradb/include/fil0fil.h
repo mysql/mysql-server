@@ -794,6 +794,14 @@ fil_mtr_rename_log(
 	const char*	tmp_name);	/*!< in: temp table name used while
 					swapping */
 
+
 typedef	struct fil_space_struct	fil_space_t;
+
+/*******************************************************************//**
+Returns the table space name for a given id, NULL if not found. */
+const char*
+fil_space_get_name(
+/*================*/
+	ulint	id);	/*!< in: space id */
 
 #endif
