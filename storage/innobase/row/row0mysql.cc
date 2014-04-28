@@ -2083,7 +2083,9 @@ row_update_for_mysql_using_cursor(
 
 		/* Too big record is valid error and suggestion is to use
 		bigger page-size or different format. */
-		ut_ad(err == DB_SUCCESS || err == DB_TOO_BIG_RECORD);
+		ut_ad(err == DB_SUCCESS
+		      || err == DB_TOO_BIG_RECORD
+		      || err == DB_OUT_OF_FILE_SPACE);
 
 		if (err == DB_TOO_BIG_RECORD) {
 			row_delete_for_mysql_using_cursor(
