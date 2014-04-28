@@ -794,4 +794,23 @@ SELECT * FROM t2;
 col_int_key	pk_1	pk_2	col_int
 1	7	11	4
 DROP TABLE t1,t2;
+#
+# MDEV-6139: UPDATE w/ join against MRG_MyISAM table with read-only
+# sub-table fails
+#
+CREATE TABLE t1 (
+id int(10) unsigned,
+a int(11)
+) ENGINE=MyISAM;
+CREATE TABLE t3 (
+id int(10) unsigned,
+b int(11)
+) ENGINE=MyISAM;
+CREATE TABLE t2 (
+id int(10) unsigned,
+b int(11)
+) ENGINE=MRG_MyISAM UNION=(t3);
+FLUSH TABLES;
+update t1 join t2 using (id) set t1.a=t2.b;
+drop table t2, t3, t1;
 end of 5.5 tests

@@ -2952,6 +2952,8 @@ public:
   inline int ha_write_tmp_row(uchar *buf);
   inline int ha_update_tmp_row(const uchar * old_data, uchar * new_data);
 
+  virtual void ha_set_lock_type(enum thr_lock_type lock);
+
   friend enum icp_result handler_index_cond_check(void* h_arg);
 };
 

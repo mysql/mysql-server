@@ -1713,6 +1713,24 @@ my_bool ha_myisammrg::register_query_cache_dependant_tables(THD *thd
   DBUG_RETURN(FALSE);
 }
 
+
+void ha_myisammrg::ha_set_lock_type(enum thr_lock_type lock)
+{
+  handler::ha_set_lock_type(lock);
+  if (children_l != NULL)
+  {
+    for (TABLE_LIST *child_table= children_l;;
+         child_table= child_table->next_global)
+    {
+      child_table->lock_type=
+        child_table->table->reginfo.lock_type= lock;
+
+      if (&child_table->next_global == children_last_l)
+        break;
+    }
+  }
+}
+
 extern int myrg_panic(enum ha_panic_function flag);
 int myisammrg_panic(handlerton *hton, ha_panic_function flag)
 {

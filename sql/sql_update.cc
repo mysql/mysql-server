@@ -1304,7 +1304,7 @@ int mysql_multi_update_prepare(THD *thd)
       tl->updating= 0;
       /* Update TABLE::lock_type accordingly. */
       if (!tl->placeholder() && !using_lock_tables)
-        tl->table->reginfo.lock_type= tl->lock_type;
+        tl->table->file->ha_set_lock_type(tl->lock_type);
     }
   }
   for (tl= table_list; tl; tl= tl->next_local)

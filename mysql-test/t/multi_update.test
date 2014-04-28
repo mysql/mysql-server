@@ -808,5 +808,37 @@ SELECT * FROM t2;
 
 DROP TABLE t1,t2;
 
+--echo #
+--echo # MDEV-6139: UPDATE w/ join against MRG_MyISAM table with read-only
+--echo # sub-table fails
+--echo #
+
+CREATE TABLE t1 (
+  id int(10) unsigned,
+  a int(11)
+) ENGINE=MyISAM;
+
+CREATE TABLE t3 (
+  id int(10) unsigned,
+  b int(11)
+) ENGINE=MyISAM;
+
+CREATE TABLE t2 (
+  id int(10) unsigned,
+  b int(11)
+) ENGINE=MRG_MyISAM UNION=(t3);
+
+FLUSH TABLES;
+
+let $MYSQLD_DATADIR= `select @@datadir`;
+--disable_result_log
+--exec $MYISAMPACK -f $MYSQLD_DATADIR/test/t3
+--exec $MYISAMCHK -rq $MYSQLD_DATADIR/test/t3
+--enable_result_log
+
+update t1 join t2 using (id) set t1.a=t2.b;
+
+drop table t2, t3, t1;
+
 --echo end of 5.5 tests
 

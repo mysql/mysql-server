@@ -155,4 +155,5 @@ public:
                                           Query_cache *cache,
                                           Query_cache_block_table **block,
                                           uint *n);
+  virtual void ha_set_lock_type(enum thr_lock_type lock);
 };
