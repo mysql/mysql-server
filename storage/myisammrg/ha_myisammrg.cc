@@ -1714,9 +1714,9 @@ my_bool ha_myisammrg::register_query_cache_dependant_tables(THD *thd
 }
 
 
-void ha_myisammrg::ha_set_lock_type(enum thr_lock_type lock)
+void ha_myisammrg::set_lock_type(enum thr_lock_type lock)
 {
-  handler::ha_set_lock_type(lock);
+  handler::set_lock_type(lock);
   if (children_l != NULL)
   {
     for (TABLE_LIST *child_table= children_l;;
