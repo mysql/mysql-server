@@ -1157,11 +1157,11 @@ row_merge_write_fts_word(
 		ins_ctx->charset, word->text.f_str, word->text.f_len));
 
 	/* Pop out each fts_node in word->nodes write them to auxiliary table */
-	while (ib_vector_size(word->nodes) > 0) {
+	for (ulint i = 0; i < ib_vector_size(word->nodes); i++) {
 		dberr_t		error;
 		fts_node_t*	fts_node;
 
-		fts_node = static_cast<fts_node_t*>(ib_vector_pop(word->nodes));
+		fts_node = static_cast<fts_node_t*>(ib_vector_get(word->nodes, i));
 
 		error = row_merge_write_fts_node(ins_ctx, &word->text, fts_node);
 
@@ -1176,6 +1176,8 @@ row_merge_write_fts_word(
 		ut_free(fts_node->ilist);
 		fts_node->ilist = NULL;
 	}
+
+	ib_vector_reset(word->nodes);
 
 	return(ret);
 }
