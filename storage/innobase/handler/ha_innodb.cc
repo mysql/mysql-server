@@ -6355,10 +6355,17 @@ ha_innobase::innobase_lock_autoinc(void)
 /*====================================*/
 {
 	dberr_t		error = DB_SUCCESS;
+	long		lock_mode = innobase_autoinc_lock_mode;
 
 	ut_ad(!srv_read_only_mode || dict_table_is_intrinsic(prebuilt->table));
 
-	switch (innobase_autoinc_lock_mode) {
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		/* Intrinsic table are not shared accorss connection
+		so there is no need to AUTOINC lock the table. */
+		lock_mode = AUTOINC_NO_LOCKING;
+	}
+
+	switch (lock_mode) {
 	case AUTOINC_NO_LOCKING:
 		/* Acquire only the AUTOINC mutex. */
 		dict_table_autoinc_lock(prebuilt->table);
