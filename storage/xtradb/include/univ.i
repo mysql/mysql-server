@@ -67,7 +67,7 @@ component, i.e. we show M.N.P as M.N */
 #define PERCONA_INNODB_VERSION 34.0
 #endif
 
-#define INNODB_VERSION_STR	MYSQL_SERVER_VERSION "-" IB_TO_STR(PERCONA_INNODB_VERSION)
+#define INNODB_VERSION_STR	"5.5.37-MariaDB-" IB_TO_STR(PERCONA_INNODB_VERSION)
 
 #define REFMAN "http://dev.mysql.com/doc/refman/"	\
 	IB_TO_STR(MYSQL_MAJOR_VERSION) "."		\
