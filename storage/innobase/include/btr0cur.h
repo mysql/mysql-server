@@ -570,7 +570,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 Estimates the number of rows in a given index range.
 @return estimated number of rows */
 
-ib_int64_t
+int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */

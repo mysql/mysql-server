@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -126,7 +126,7 @@ struct os_event {
 		mutex_exit(&mutex);
 	}
 
-	ib_int64_t reset() UNIV_NOTHROW
+	int64_t reset() UNIV_NOTHROW
 	{
 #ifdef _WIN32
 		if (!srv_use_native_conditions) {
@@ -140,7 +140,7 @@ struct os_event {
 			m_set = false;
 		}
 
-		ib_int64_t	ret = signal_count;
+		int64_t	ret = signal_count;
 
 		mutex_exit(&mutex);
 
@@ -164,7 +164,7 @@ struct os_event {
 	Where such a scenario is possible, to avoid infinite wait, the
 	value returned by reset() should be passed in as
 	reset_sig_count. */
-	void wait_low(ib_int64_t reset_sig_count) UNIV_NOTHROW;
+	void wait_low(int64_t reset_sig_count) UNIV_NOTHROW;
 
 	/**
 	Waits for an event object until it is in the signaled state or
@@ -176,7 +176,7 @@ struct os_event {
 	@return	0 if success, OS_SYNC_TIME_EXCEEDED if timeout was exceeded */
 	ulint wait_time_low(
 		ulint		time_in_usec,
-		ib_int64_t	reset_sig_count) UNIV_NOTHROW;
+		int64_t		reset_sig_count) UNIV_NOTHROW;
 
 	/** @return true if the event is in the signalled state. */
 	bool is_set() const UNIV_NOTHROW
@@ -283,7 +283,7 @@ private:
 						not stop if it tries to wait
 						for this event */
 
-	ib_int64_t		signal_count;	/*!< this is incremented
+	int64_t			signal_count;	/*!< this is incremented
 						each time the event becomes
 						signaled */
 
@@ -420,7 +420,7 @@ value returned by reset() should be passed in as
 reset_sig_count. */
 void
 os_event::wait_low(
-	ib_int64_t	reset_sig_count) UNIV_NOTHROW
+	int64_t		reset_sig_count) UNIV_NOTHROW
 {
 #ifdef _WIN32
 	if (!srv_use_native_conditions) {
@@ -461,7 +461,7 @@ a timeout is exceeded.
 ulint
 os_event::wait_time_low(
 	ulint		time_in_usec,
-	ib_int64_t	reset_sig_count) UNIV_NOTHROW
+	int64_t		reset_sig_count) UNIV_NOTHROW
 {
 	bool		timed_out = false;
 
@@ -654,7 +654,7 @@ os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low().
 @return	current signal_count. */
 
-ib_int64_t
+int64_t
 os_event_reset(
 /*===========*/
 	os_event_t	event)			/*!< in/out: event to reset */
@@ -674,7 +674,7 @@ os_event_wait_time_low(
 	ulint		time_in_usec,		/*!< in: timeout in
 						microseconds, or
 						OS_SYNC_INFINITE_TIME */
-	ib_int64_t	reset_sig_count)	/*!< in: zero or the value
+	int64_t		reset_sig_count)	/*!< in: zero or the value
 						returned by previous call of
 						os_event_reset(). */
 {
@@ -692,7 +692,7 @@ void
 os_event_wait_low(
 /*==============*/
 	os_event_t	event,			/*!< in: event to wait */
-	ib_int64_t	reset_sig_count)	/*!< in: zero or the value
+	int64_t		reset_sig_count)	/*!< in: zero or the value
 						returned by previous call of
 						os_event_reset(). */
 {
