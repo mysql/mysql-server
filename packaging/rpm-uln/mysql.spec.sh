@@ -570,7 +570,6 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 # TODO / FIXME: needed ?  install -d $RBR%{mysqldatadir}/mysql
 # TODO / FIXME: needed ?  install -d $RBR%{_datadir}/mysql-test
-# TODO / FIXME: needed ?  install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 # TODO / FIXME: needed ?  install -d $RBR%{_includedir}
 # TODO / FIXME: needed ?  install -d $RBR%{_libdir}
 # TODO / FIXME: needed ?  install -d $RBR%{_mandir}
