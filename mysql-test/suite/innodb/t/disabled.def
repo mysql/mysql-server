@@ -10,3 +10,5 @@
 #
 ##############################################################################
 innodb_mysql : BUG#18449085 disabled this on 2014-04-01 due to failing too often
+innodb_wl6501_crash_2 : BUG#16963396 2014-04-25 by Prabeen it is failing on daily
+innodb_wl6501_crash_7 : BUG#16963396 2014-04-25 by Prabeen it is failing on daily
