@@ -1,3 +1,5 @@
+call mtr.add_suppression("InnoDB: Tablespace innodb_temporary_tablespace ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
+call mtr.add_suppression("The table \'t1\' is full");
 set session innodb_create_intrinsic = 1;
 create temporary table t1 (i int, j int, primary key pk(i)) engine = innodb;
 create temporary table t2 (i int, j int, primary key pk(i)) engine = innodb;
@@ -1111,6 +1113,27 @@ i	j
 check table t1;
 Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
+drop table t1;
+"Restarting Server with temp-tablespace auto-extension turned off"
+set session innodb_create_intrinsic = 1;
+use test;
+create temporary table t1
+(keyc int, c1 varchar(1024), c2 varchar(1024),
+primary key(keyc)) engine = innodb;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i INT DEFAULT 1;
+while (i <= 2000) DO
+insert into t1 values (i, repeat('a', 1000), repeat('b', 1000));
+SET i = i + 1;
+END WHILE;
+END|
+call populate_t1();
+ERROR HY000: The table 't1' is full
+select count(*) from t1;
+count(*)
+1571
+drop procedure populate_t1;
 drop table t1;
 "Restarting Server in normal mode"
 set session innodb_create_intrinsic = 0;
