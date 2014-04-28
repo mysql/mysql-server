@@ -3436,9 +3436,8 @@ fseg_free_step(
 
 	inode = fseg_inode_try_get(header, space, page_size, mtr);
 
-	if (UNIV_UNLIKELY(inode == NULL)) {
-		ut_ad(0);
-		ib_logf(IB_LOG_LEVEL_ERROR,
+	if (inode == NULL) {
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"Double free of inode from %u:%u",
 			(unsigned) space, (unsigned) header_page);
 		return(TRUE);
