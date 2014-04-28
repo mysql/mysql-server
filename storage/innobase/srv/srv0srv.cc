@@ -669,7 +669,7 @@ srv_reserve_slot(
 Suspends the calling thread to wait for the event in its thread slot.
 @return the current signal count of the event. */
 static
-ib_int64_t
+int64_t
 srv_suspend_thread_low(
 /*===================*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
@@ -718,14 +718,14 @@ srv_suspend_thread_low(
 Suspends the calling thread to wait for the event in its thread slot.
 @return the current signal count of the event. */
 static
-ib_int64_t
+int64_t
 srv_suspend_thread(
 /*===============*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
 {
 	srv_sys_mutex_enter();
 
-	ib_int64_t	sig_count = srv_suspend_thread_low(slot);
+	int64_t		sig_count = srv_suspend_thread_low(slot);
 
 	srv_sys_mutex_exit();
 
@@ -1414,7 +1414,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	ib_int64_t	sig_count;
+	int64_t		sig_count;
 	double		time_elapsed;
 	time_t		current_time;
 	time_t		last_monitor_time;
@@ -1532,7 +1532,7 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 	ulint		fatal_cnt	= 0;
 	lsn_t		old_lsn;
 	lsn_t		new_lsn;
-	ib_int64_t	sig_count;
+	int64_t		sig_count;
 	/* longest waiting thread for a semaphore */
 	os_thread_id_t	waiter		= os_thread_get_curr_id();
 	os_thread_id_t	old_waiter	= waiter;
@@ -2452,7 +2452,7 @@ srv_purge_coordinator_suspend(
 	/** Maximum wait time on the purge event, in micro-seconds. */
 	static const ulint SRV_PURGE_MAX_TIMEOUT = 10000;
 
-	ib_int64_t	sig_count = srv_suspend_thread(slot);
+	int64_t		sig_count = srv_suspend_thread(slot);
 
 	do {
 		ulint		ret;

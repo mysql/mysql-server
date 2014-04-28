@@ -145,8 +145,8 @@ can be released by page reorganize, then it is reorganized */
 @param ext_size external stored data size
 @param not_empty table not empty
 @return estimated table wide stats from sampled value */
-#define BTR_TABLE_STATS_FROM_SAMPLE(value, index, sample, ext_size, not_empty)\
-	(((value) * (ib_int64_t) index->stat_n_leaf_pages		\
+#define BTR_TABLE_STATS_FROM_SAMPLE(value, index, sample, ext_size, not_empty) \
+	(((value) * static_cast<int64_t>(index->stat_n_leaf_pages) \
 	  + (sample) - 1 + (ext_size) + (not_empty)) / ((sample) + (ext_size)))
 
 /* @} */
@@ -4989,13 +4989,13 @@ the number of pages between slot1->page and slot2->page (which is
 n_rows_on_prev_level). In this case we set is_n_rows_exact to FALSE.
 @return number of rows (exact or estimated) */
 static
-ib_int64_t
+int64_t
 btr_estimate_n_rows_in_range_on_level(
 /*==================================*/
 	dict_index_t*	index,			/*!< in: index */
 	btr_path_t*	slot1,			/*!< in: left border */
 	btr_path_t*	slot2,			/*!< in: right border */
-	ib_int64_t	n_rows_on_prev_level,	/*!< in: number of rows
+	int64_t		n_rows_on_prev_level,	/*!< in: number of rows
 						on the previous level for the
 						same descend paths; used to
 						determine the numbe of pages
@@ -5004,7 +5004,7 @@ btr_estimate_n_rows_in_range_on_level(
 						value is exact i.e. not an
 						estimation */
 {
-	ib_int64_t	n_rows;
+	int64_t		n_rows;
 	ulint		n_pages_read;
 	ulint		level;
 
@@ -5137,7 +5137,7 @@ inexact:
 Estimates the number of rows in a given index range.
 @return estimated number of rows */
 
-ib_int64_t
+int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -5154,11 +5154,11 @@ btr_estimate_n_rows_in_range(
 	ibool		diverged;
 	ibool		diverged_lot;
 	ulint		divergence_level;
-	ib_int64_t	n_rows;
+	int64_t		n_rows;
 	ibool		is_n_rows_exact;
 	ulint		i;
 	mtr_t		mtr;
-	ib_int64_t	table_n_rows;
+	int64_t		table_n_rows;
 
 	table_n_rows = dict_table_get_n_rows(index->table);
 
@@ -5374,7 +5374,7 @@ btr_estimate_number_of_different_key_vals(
 				  + sizeof *offsets_next_rec));
 
 	n_diff = (ib_uint64_t*) mem_heap_zalloc(
-		heap, n_cols * sizeof(ib_int64_t));
+		heap, n_cols * sizeof(n_diff[0]));
 
 	n_not_null = NULL;
 

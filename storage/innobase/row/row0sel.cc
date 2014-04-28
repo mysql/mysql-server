@@ -5749,7 +5749,7 @@ row_search_autoinc_read_column(
 		ut_error;
 	}
 
-	if (!unsigned_type && (ib_int64_t) value < 0) {
+	if (!unsigned_type && static_cast<int64_t>(value) < 0) {
 		value = 0;
 	}
 

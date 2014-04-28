@@ -52,7 +52,7 @@ ibool	ut_always_false	= FALSE;
 NOTE: The Windows epoch starts from 1601/01/01 whereas the Unix
 epoch starts from 1970/1/1. For selection of constant see:
 http://support.microsoft.com/kb/167296/ */
-#define WIN_TO_UNIX_DELTA_USEC  ((ib_int64_t) 11644473600000000ULL)
+#define WIN_TO_UNIX_DELTA_USEC	11644473600000000LL
 
 
 /*****************************************************************//**
@@ -66,7 +66,7 @@ ut_gettimeofday(
 	void*		tz)	/*!< in: not used */
 {
 	FILETIME	ft;
-	ib_int64_t	tm;
+	int64_t		tm;
 
 	if (!tv) {
 		errno = EINVAL;
@@ -75,7 +75,7 @@ ut_gettimeofday(
 
 	GetSystemTimeAsFileTime(&ft);
 
-	tm = (ib_int64_t) ft.dwHighDateTime << 32;
+	tm = (int64_t) ft.dwHighDateTime << 32;
 	tm |= ft.dwLowDateTime;
 
 	ut_a(tm >= 0);	/* If tm wraps over to negative, the quotient / 10

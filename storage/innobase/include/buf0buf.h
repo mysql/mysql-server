@@ -1225,7 +1225,7 @@ buf_page_init_for_read(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	ibool			unzip,
-	ib_int64_t		tablespace_version);
+	int64_t			tablespace_version);
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from

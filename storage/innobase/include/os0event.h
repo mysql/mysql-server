@@ -1,5 +1,5 @@
 /*****************************************************************************
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,7 +79,7 @@ that this thread should not wait in case of an intervening call to
 os_event_set() between this os_event_reset() and the
 os_event_wait_low() call. See comments for os_event_wait_low(). */
 
-ib_int64_t
+int64_t
 os_event_reset(
 /*===========*/
 	os_event_t	event);	/*!< in/out: event to reset */
@@ -114,7 +114,7 @@ void
 os_event_wait_low(
 /*==============*/
 	os_event_t	event,		/*!< in/out: event to wait */
-	ib_int64_t	reset_sig_count);/*!< in: zero or the value
+	int64_t		reset_sig_count);/*!< in: zero or the value
 					returned by previous call of
 					os_event_reset(). */
 
@@ -134,7 +134,7 @@ os_event_wait_time_low(
 	ulint		time_in_usec,		/*!< in: timeout in
 						microseconds, or
 						OS_SYNC_INFINITE_TIME */
-	ib_int64_t	reset_sig_count);	/*!< in: zero or the value
+	int64_t		reset_sig_count);	/*!< in: zero or the value
 						returned by previous call of
 						os_event_reset(). */
 
