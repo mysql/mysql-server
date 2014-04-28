@@ -187,6 +187,24 @@ innobase_fulltext_exist(
 	return(false);
 }
 
+/** Determine if spatial indexes exist in a given table.
+@param table MySQL table
+@return whether spatial indexes exist on the table */
+static
+bool
+innobase_spatial_exist(
+/*===================*/
+	const	TABLE*	table)
+{
+	for (uint i = 0; i < table->s->keys; i++) {
+		if (table->key_info[i].flags & HA_SPATIAL) {
+			return(true);
+		}
+	}
+
+	return(false);
+}
+
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info the DDL operation
@@ -265,6 +283,14 @@ ha_innobase::check_if_supported_inplace_alter(
 		    & Alter_inplace_info::ALTER_COLUMN_TYPE)
 			ha_alter_info->unsupported_reason = innobase_get_err_msg(
 				ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_COLUMN_TYPE);
+		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
+	}
+
+	if ((ha_alter_info->handler_flags
+	     & Alter_inplace_info::ADD_SPATIAL_INDEX)
+	    || ((ha_alter_info->handler_flags
+		 & Alter_inplace_info::ADD_PK_INDEX)
+		&& innobase_spatial_exist(altered_table))) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
@@ -685,7 +711,8 @@ innobase_find_equiv_index(
 	for (uint i = 0; i < n_add; i++) {
 		const KEY*	key = &keys[add[i]];
 
-		if (key->user_defined_key_parts < n_cols) {
+		if (key->user_defined_key_parts < n_cols
+		    || key->flags & HA_SPATIAL) {
 no_match:
 			continue;
 		}
@@ -5955,11 +5982,15 @@ ha_innobase::commit_inplace_alter_table(
 			/* Generate the redo log for the file
 			operations that will be performed in
 			commit_cache_rebuild(). */
-			fil_mtr_rename_log(ctx->old_table->space,
-					   ctx->old_table->name,
-					   ctx->new_table->space,
-					   ctx->new_table->name,
-					   ctx->tmp_name, &mtr);
+			if (!fil_mtr_rename_log(ctx->old_table,
+						ctx->new_table,
+						ctx->tmp_name, &mtr)) {
+				/* Out of memory. */
+				mtr.set_log_mode(MTR_LOG_NO_REDO);
+				mtr_commit(&mtr);
+				trx_rollback_for_mysql(trx);
+				fail = true;
+			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
@@ -5972,9 +6003,7 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
-		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
@@ -5983,7 +6012,11 @@ ha_innobase::commit_inplace_alter_table(
 		log_buffer_flush_to_disk() returns. In the
 		logical sense the commit in the file-based
 		data structures happens here. */
-		trx_commit_low(trx, &mtr);
+		if (!fail) {
+			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+			ut_ad(trx_is_rseg_updated(trx));
+			trx_commit_low(trx, &mtr);
+		}
 
 		/* If server crashes here, the dictionary in
 		InnoDB and MySQL will differ.  The .ibd files

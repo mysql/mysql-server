@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,6 +31,7 @@ Created 12/19/1997 Heikki Tuuri
 #include "que0types.h"
 #include "dict0types.h"
 #include "trx0types.h"
+#include "read0types.h"
 #include "row0types.h"
 #include "que0types.h"
 #include "pars0sym.h"
@@ -168,6 +169,24 @@ row_search_for_mysql(
 					with stored position! In opening of a
 					cursor 'direction' should be 0. */
 	__attribute__((nonnull, warn_unused_result));
+
+/********************************************************************//**
+Count rows in a R-Tree leaf level.
+@return DB_SUCCESS if successful */
+
+dberr_t
+row_count_rtree_recs(
+/*=================*/
+	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct for the
+					table handle; this contains the info
+					of search_tuple, index; if search
+					tuple contains 0 fields then we
+					position the cursor at the start or
+					the end of the index, depending on
+					'mode' */
+	ulint*		n_rows);	/*!< out: number of entries
+					seen in the consistent read */
+
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.

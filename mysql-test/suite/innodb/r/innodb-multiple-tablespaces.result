@@ -441,7 +441,6 @@ SELECT * FROM yy;
 c1	c2
 1	yy
 2	yy
-SET SESSION debug="+d,crash_commit_before";
 COMMIT;
 ERROR HY000: Lost connection to MySQL server during query
 #
@@ -474,22 +473,22 @@ ny.ibd
 wy.ibd
 yw.ibd
 yy.ibd
-#
-# Start the server with innodb-force-recovery=1 so that it does not quit
-# when it finds multiple possible locations for yy, wy and yw.
-#
+# restoring yn.ibd, yw.ibd
 SELECT * FROM ny;
 c1	c2
 1	ny
 SELECT * FROM wy;
-ERROR 42S02: Table 'test.wy' doesn't exist
+c1	c2
+1	wy
 SELECT * FROM yn;
 c1	c2
 1	yn
 SELECT * FROM yw;
-ERROR 42S02: Table 'test.yw' doesn't exist
+c1	c2
+1	yw
 SELECT * FROM yy;
-ERROR 42S02: Table 'test.yy' doesn't exist
+c1	c2
+1	yy
 SHOW CREATE TABLE ny;
 Table	Create Table
 ny	CREATE TABLE `ny` (
@@ -498,18 +497,33 @@ ny	CREATE TABLE `ny` (
   PRIMARY KEY (`c1`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE wy;
-ERROR 42S02: Table 'test.wy' doesn't exist
+Table	Create Table
+wy	CREATE TABLE `wy` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yn;
 Table	Create Table
 yn	CREATE TABLE `yn` (
   `c1` int(11) NOT NULL,
   `c2` text,
   PRIMARY KEY (`c1`)
-) ENGINE=InnoDB DEFAULT CHARSET=latin1
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yw;
-ERROR 42S02: Table 'test.yw' doesn't exist
+Table	Create Table
+yw	CREATE TABLE `yw` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SHOW CREATE TABLE yy;
-ERROR 42S02: Table 'test.yy' doesn't exist
+Table	Create Table
+yy	CREATE TABLE `yy` (
+  `c1` int(11) NOT NULL,
+  `c2` text,
+  PRIMARY KEY (`c1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT path FROM information_schema.innodb_sys_datafiles
 WHERE path LIKE '%test%' ORDER BY space;
 path
@@ -519,55 +533,23 @@ MYSQL_TMP_DIR/alt_dir/test/yn.ibd
 MYSQL_TMP_DIR/alt_dir/test/yw.ibd
 MYSQL_TMP_DIR/alt_dir/test/yy.ibd
 #
-# Shutdown the server and remove extra tablespace files.
-#
-#
 # List of files before removing unused files
-#
----- MYSQLD_DATADIR/test
-ny.frm
-ny.isl
-wy.frm
-wy.ibd
-wy.isl
-yn.frm
-yn.ibd
-yn.isl
-yw.frm
-yw.ibd
-yw.isl
-yy.frm
-yy.ibd
-yy.isl
----- MYSQL_TMP_DIR/alt_dir/test
-nolink.ibd.bak
-ny.ibd
-wy.ibd
-yw.ibd
-yy.ibd
-#
-# List of files before restart and DROP TABLES
-#
----- MYSQLD_DATADIR/test
-ny.frm
-wy.frm
-yn.frm
-yw.frm
-yy.frm
----- MYSQL_TMP_DIR/alt_dir/test
-#
-# Start the server without using force_recover.
 #
 DROP TABLE ny;
 DROP TABLE wy;
 DROP TABLE yn;
 DROP TABLE yw;
 DROP TABLE yy;
+---- MYSQLD_DATADIR/test
+wy.ibd
+yy.ibd
+---- MYSQL_TMP_DIR/alt_dir/test
+nolink.ibd.bak
 #
 # List of files after DROP TABLES
 #
 ---- MYSQLD_DATADIR/test
+wy.ibd
+yy.ibd
 ---- MYSQL_TMP_DIR/alt_dir/test
-#
-# Cleanup
-#
+nolink.ibd.bak

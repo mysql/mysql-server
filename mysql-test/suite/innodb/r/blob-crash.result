@@ -12,9 +12,8 @@ INSERT INTO t1 (a, b) VALUES (2, '2');
 INSERT INTO t1 (a, b) VALUES (3, '3');
 INSERT INTO t1 (a, b) VALUES (4, '4');
 INSERT INTO t1 (a, b) VALUES (5, '5');
-SET SESSION debug='d,crash_commit_before';
-INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 20*1024*1024));
-ERROR HY000: Lost connection to MySQL server during query
+begin;
+INSERT INTO t1 (a, b) VALUES (6, REPEAT('a', 4*1024*1024));
 SELECT a, right(b, 50) FROM t1;
 a	right(b, 50)
 1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -26,9 +25,8 @@ a	right(b, 50)
 # Uncompressed Table - UPDATE Operation - Crash Test
 # Update of non-blob column so that blob is needed.
 #
-SET SESSION debug='d,crash_commit_before';
-UPDATE t1 set b = REPEAT('a', 20*1024*1024) where a = 5 ;
-ERROR HY000: Lost connection to MySQL server during query
+begin;
+UPDATE t1 set b = REPEAT('a', 4*1024*1024) where a = 5 ;
 SELECT a, right(b, 50) FROM t1;
 a	right(b, 50)
 1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -40,9 +38,8 @@ a	right(b, 50)
 # Uncompressed Table - UPDATE Operation - Crash Test
 # Update of blob column to blob.
 #
-SET SESSION debug='d,crash_commit_before';
+begin;
 UPDATE t1 set b = REPEAT('$', 50000) where a = 1 ;
-ERROR HY000: Lost connection to MySQL server during query
 SELECT a, right(b, 50) FROM t1;
 a	right(b, 50)
 1	^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -52,57 +49,26 @@ a	right(b, 50)
 5	5
 DROP TABLE t1;
 #
-# Uncompressed Table - UPDATE Operation - Crash Test
-# Update that moves non-updated column to blob
-#
-create table t2 (f1 bigint primary key, f2 longblob, f3 longblob,
-index(f2(10), f3(10))) engine=innodb;
-insert into t2 values (1, repeat('%', 7000), repeat('+', 30));
-select f1, length(f2), length(f3) from t2;
-f1	length(f2)	length(f3)
-1	7000	30
-# Connection con1:
-SET SESSION debug='d,crash_commit_before';
-set debug_sync='ib_mv_nonupdated_column_offpage SIGNAL s1 WAIT_FOR go_update';
-update t2 set f3 = repeat('[', 3000);
-# Connection default:
-set debug_sync='now WAIT_FOR s1';
-set debug_sync='now SIGNAL go_update';
-# Connection con1:
-# reap: update t2 set f3 = repeat('[', 3000);
-ERROR HY000: Lost connection to MySQL server during query
-# Connection default:
-select f1, length(f2), length(f3) from t2;
-f1	length(f2)	length(f3)
-1	7000	30
-select f1, right(f2, 40), right(f3, 40) from t2;
-f1	right(f2, 40)	right(f3, 40)
-1	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	++++++++++++++++++++++++++++++
-check table t2;
-Table	Op	Msg_type	Msg_text
-test.t2	check	status	OK
-#
 # Uncompressed Table - Rollback of UPDATE operation
 # Update moves offpage data to inline data.
 #
+create table t2 (f1 bigint primary key, f2 longblob, f3 longblob,
+index(f2(10), f3(10))) engine=innodb;
 insert into t2 values (10, repeat('.', 40000), repeat('?', 40000));
 start transaction;
 update t2 set f2 = '=';
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
-1	=	++++++++++++++++++++
 10	=	????????????????????
 update t2 set f3 = '&';
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
-1	=	&
 10	=	&
 set session debug='d,ib_blob_update_rollback';
 rollback;
 ERROR HY000: Lost connection to MySQL server during query
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
-1	%%%%%%%%%%%%%%%%%%%%	++++++++++++++++++++
 10	....................	????????????????????
 check table t2;
 Table	Op	Msg_type	Msg_text
@@ -113,14 +79,12 @@ test.t2	check	status	OK
 insert into t2 values (20, repeat('.', 40000), repeat('?', 40000));
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
-1	%%%%%%%%%%%%%%%%%%%%	++++++++++++++++++++
 10	....................	????????????????????
 20	....................	????????????????????
 start transaction;
 update t2 set f2 = repeat('$', 60000) where f1 = 20;
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
-1	%%%%%%%%%%%%%%%%%%%%	++++++++++++++++++++
 10	....................	????????????????????
 20	$$$$$$$$$$$$$$$$$$$$	????????????????????
 SET GLOBAL innodb_log_checkpoint_now=ON;
@@ -128,7 +92,6 @@ SET GLOBAL innodb_log_checkpoint_now=ON;
 # Restarting server in normal mode
 select f1, right(f2, 20), right(f3, 20) from t2;
 f1	right(f2, 20)	right(f3, 20)
-1	%%%%%%%%%%%%%%%%%%%%	++++++++++++++++++++
 10	....................	????????????????????
 20	....................	????????????????????
 check table t2;
@@ -136,57 +99,18 @@ Table	Op	Msg_type	Msg_text
 test.t2	check	status	OK
 drop table t2;
 #
-# Compressed Table - Update Operation
-# update that moves a non-updated column to BLOB
+# Compressed Table - Insert Operation - Crash Test
+# fresh insert with BLOBs
 #
+set global innodb_compression_level = 0;
 set global innodb_file_format = 'Barracuda';
 create table t3 (f1 bigint primary key, f2 longblob, f3 longblob,
 index(f2(10), f3(10))) engine=innodb row_format=compressed;
 set global innodb_file_format = Antelope;
-insert into t3 values (2, repeat('!', 30), repeat('+', 30));
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
-1	8000	30
-2	30	30
-3	300001	300001
-# Connection con2:
-SET SESSION debug='d,crash_commit_before';
-set debug_sync='ib_mv_nonupdated_column_offpage SIGNAL s1 WAIT_FOR go_upd';
-# Connection default:
-set debug_sync='now WAIT_FOR s1';
-set debug_sync='now SIGNAL go_upd';
-# Connection con2:
-ERROR HY000: Lost connection to MySQL server during query
-# Connection default:
-select f1, length(f2), length(f3) from t3;
-f1	length(f2)	length(f3)
-1	8000	30
-2	30	30
-3	300001	300001
 select f1, right(f2, 30), right(f3, 20) from t3;
 f1	right(f2, 30)	right(f3, 20)
-1	OPp14QtriBjZH4U1wktzExRYlgxxZb	++++++++++++++++++++
-2	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	++++++++++++++++++++
-3	R6dtE2mFE0xlZNX28fhW32vbS07BaL	xlZNX28fhW32vbS07BaL
-check table t3;
-Table	Op	Msg_type	Msg_text
-test.t3	check	status	OK
-#
-# Compressed Table - Insert Operation - Crash Test
-# fresh insert with BLOBs
-#
-SET SESSION debug='d,crash_commit_before';
-ERROR HY000: Lost connection to MySQL server during query
-select f1, length(f2), length(f3) from t3;
-f1	length(f2)	length(f3)
-1	8000	30
-2	30	30
-3	300001	300001
-select f1, right(f2, 30), right(f3, 20) from t3;
-f1	right(f2, 30)	right(f3, 20)
-1	OPp14QtriBjZH4U1wktzExRYlgxxZb	++++++++++++++++++++
-2	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	++++++++++++++++++++
-3	R6dtE2mFE0xlZNX28fhW32vbS07BaL	xlZNX28fhW32vbS07BaL
 check table t3;
 Table	Op	Msg_type	Msg_text
 test.t3	check	status	OK
@@ -194,19 +118,16 @@ test.t3	check	status	OK
 # Compressed Table - Update Operation - Crash Test
 # update of a non-BLOB column so that BLOB is needed
 #
-SET SESSION debug='d,crash_commit_before';
-UPDATE t3 set f2 = load_file('$blob_file') where f1 = 2;
-ERROR HY000: Lost connection to MySQL server during query
+set global innodb_compression_level = 0;
+insert into t3 values (2, repeat('!', 30), repeat('+', 30));
+begin;
+UPDATE t3 set f2 = repeat('>', 40000) where f1 = 2;
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
-1	8000	30
 2	30	30
-3	300001	300001
 select f1, right(f2, 30), right(f3, 20) from t3;
 f1	right(f2, 30)	right(f3, 20)
-1	OPp14QtriBjZH4U1wktzExRYlgxxZb	++++++++++++++++++++
 2	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	++++++++++++++++++++
-3	R6dtE2mFE0xlZNX28fhW32vbS07BaL	xlZNX28fhW32vbS07BaL
 check table t3;
 Table	Op	Msg_type	Msg_text
 test.t3	check	status	OK
@@ -214,19 +135,18 @@ test.t3	check	status	OK
 # Compressed Table - Update Operation - Crash Test
 # update blob to blob
 #
-SET SESSION debug='d,crash_commit_before';
+set global innodb_compression_level = 0;
+insert into t3 values (3, repeat('%', 40000), repeat('~', 40000));
+begin;
 UPDATE t3 set f2 = concat(f2, repeat(',', 10)) where f1 = 3;
-ERROR HY000: Lost connection to MySQL server during query
 select f1, length(f2), length(f3) from t3;
 f1	length(f2)	length(f3)
-1	8000	30
 2	30	30
-3	300001	300001
+3	40000	40000
 select f1, right(f2, 30), right(f3, 20) from t3;
 f1	right(f2, 30)	right(f3, 20)
-1	OPp14QtriBjZH4U1wktzExRYlgxxZb	++++++++++++++++++++
 2	!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!	++++++++++++++++++++
-3	R6dtE2mFE0xlZNX28fhW32vbS07BaL	xlZNX28fhW32vbS07BaL
+3	%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%	~~~~~~~~~~~~~~~~~~~~
 check table t3;
 Table	Op	Msg_type	Msg_text
 test.t3	check	status	OK

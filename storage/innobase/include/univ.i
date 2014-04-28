@@ -664,4 +664,8 @@ typedef void* os_thread_ret_t;
 extern ulong	srv_page_size_shift;
 extern ulong	srv_page_size;
 
+/* Dimension of spatial object we support so far. It has its root in
+myisam/sp_defs.h. We only support 2 dimension data */
+#define SPDIMS          2
+
 #endif

@@ -59,6 +59,7 @@ dict_index_t*	dict_ind_compact;
 #include "lock0lock.h"
 #include "mach0data.h"
 #include "mem0mem.h"
+#include "os0once.h"
 #include "page0page.h"
 #include "page0zip.h"
 #include "pars0pars.h"
@@ -270,6 +271,82 @@ dict_mutex_exit_for_mysql(void)
 	mutex_exit(&(dict_sys->mutex));
 }
 
+/** Allocate and init a dict_table_t's stats latch.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table_void	table whose stats latch to create */
+static
+void
+dict_table_stats_latch_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+
+	table->stats_latch = new(std::nothrow) rw_lock_t;
+
+	ut_a(table->stats_latch != NULL);
+
+	rw_lock_create(dict_table_stats_key, table->stats_latch,
+		       SYNC_INDEX_TREE);
+}
+
+/** Deinit and free a dict_table_t's stats latch.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table	table whose stats latch to free */
+static
+void
+dict_table_stats_latch_free(
+	dict_table_t*	table)
+{
+	rw_lock_free(table->stats_latch);
+	delete table->stats_latch;
+}
+
+/** Create a dict_table_t's stats latch or delay for lazy creation.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to create
+@param[in]	enabled	if false then the latch is disabled
+and dict_table_stats_lock()/unlock() become noop on this table. */
+
+void
+dict_table_stats_latch_create(
+	dict_table_t*	table,
+	bool		enabled)
+{
+	if (!enabled) {
+		table->stats_latch = NULL;
+		table->stats_latch_created = os_once::DONE;
+		return;
+	}
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	/* We create this lazily the first time it is used. */
+	table->stats_latch = NULL;
+	table->stats_latch_created = os_once::NEVER_DONE;
+#else /* HAVE_ATOMIC_BUILTINS */
+
+	dict_table_stats_latch_alloc(table);
+
+	table->stats_latch_created = os_once::DONE;
+#endif /* HAVE_ATOMIC_BUILTINS */
+}
+
+/** Destroy a dict_table_t's stats latch.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to destroy */
+
+void
+dict_table_stats_latch_destroy(
+	dict_table_t*	table)
+{
+	if (table->stats_latch_created == os_once::DONE
+	    && table->stats_latch != NULL) {
+
+		dict_table_stats_latch_free(table);
+	}
+}
+
 /** Lock the appropriate latch to protect a given table's statistics.
 @param[in]	table		table whose stats to lock
 @param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
@@ -281,6 +358,14 @@ dict_table_stats_lock(
 {
 	ut_ad(table != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_once::do_or_wait_for_done(
+		&table->stats_latch_created,
+		dict_table_stats_latch_alloc, table);
+#else /* HAVE_ATOMIC_BUILTINS */
+	ut_ad(table->stats_latch_created == os_once::DONE);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (table->stats_latch == NULL) {
 		/* This is a dummy table object that is private in the current
@@ -1432,36 +1517,35 @@ dict_table_rename_in_cache(
 		ut_free(filepath);
 
 	} else if (!is_system_tablespace(table->space)) {
-		char*	new_path = NULL;
-
 		if (table->dir_path_of_temp_table != NULL) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Trying to rename a TEMPORARY TABLE %s ( %s )",
 				ut_get_name(NULL, TRUE, old_name).c_str(),
 				table->dir_path_of_temp_table);
 			return(DB_ERROR);
+		}
 
-		} else if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-			char*		old_path;
+		char*	new_path = NULL;
+		char*	old_path = fil_space_get_first_path(table->space);
 
-			old_path = fil_space_get_first_path(table->space);
-
+		if (DICT_TF_HAS_DATA_DIR(table->flags)) {
 			new_path = os_file_make_new_pathname(
 				old_path, new_name);
-
-			ut_free(old_path);
 
 			dberr_t	err = RemoteDatafile::create_link_file(
 				new_name, new_path);
 
 			if (err != DB_SUCCESS) {
 				ut_free(new_path);
+				ut_free(old_path);
 				return(DB_TABLESPACE_EXISTS);
 			}
 		}
 
 		bool	success = fil_rename_tablespace(
-			old_name, table->space, new_name, new_path);
+			table->space, old_path, new_name, new_path);
+
+		ut_free(old_path);
 
 		/* If the tablespace is remote, a new .isl file was created
 		If success, delete the old one. If not, delete the new one.  */
@@ -1923,6 +2007,8 @@ dict_index_too_big_for_undo(
 	in trx_undo_page_report_modify() right after trx_undo_page_init(). */
 
 	ulint			i;
+	ulint			is_spatial = false;
+
 	const dict_index_t*	clust_index
 		= dict_table_get_first_index(table);
 	ulint			undo_page_len
@@ -2005,6 +2091,14 @@ dict_index_too_big_for_undo(
 							 field->prefix_len;
 					}
 
+					/* If this is spatial index field,
+					we will write at least its MBR to
+					redo log if needed */
+					if (dict_index_is_spatial(new_index)
+					    && j == 0) {
+						is_spatial = true;
+					}
+
 					goto is_ord_part;
 				}
 			}
@@ -2025,6 +2119,10 @@ is_ord_part:
 			A long enough prefix must be written to the
 			undo log.  See trx_undo_page_fetch_ext(). */
 			max_size = ut_min(max_size, max_field_len);
+
+			if (is_spatial) {
+				max_size += DATA_MBR_LEN;
+			}
 
 			/* We only store the needed prefix length in undo log */
 			if (max_prefix) {
@@ -2394,6 +2492,10 @@ too_big:
 			= dict_index_get_nth_field(new_index, i);
 		const dict_col_t*	col
 			= dict_field_get_col(field);
+		bool	is_spatial = (dict_index_is_spatial(new_index)
+				      && (i == 0)
+				      && (field->col->mtype
+						 == DATA_GEOMETRY));
 
 		/* In dtuple_convert_big_rec(), variable-length columns
 		that are longer than BTR_EXTERN_LOCAL_STORED_MAX_SIZE
@@ -2405,12 +2507,13 @@ too_big:
 		capacity of the undo log whenever new_index includes
 		a column prefix on a column that may be stored externally. */
 
-		if (field->prefix_len /* prefix index */
-		    && (!col->ord_part /* not yet ordering column */
-			|| field->prefix_len > col->max_prefix)
-		    && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
-		    && dict_col_get_max_size(col)
-		    > BTR_EXTERN_LOCAL_STORED_MAX_SIZE /* long enough */) {
+		if ((field->prefix_len /* prefix index */
+		     && (!col->ord_part /* not yet ordering column */
+		 	 || field->prefix_len > col->max_prefix)
+		     && !dict_col_get_fixed_size(col, TRUE) /* variable-length */
+		     && dict_col_get_max_size(col)
+		     > BTR_EXTERN_LOCAL_STORED_MAX_SIZE /* long enough */)
+		    || is_spatial) {
 
 			if (dict_index_too_big_for_undo(table, new_index)) {
 				/* An undo log record might not fit in
@@ -2732,6 +2835,10 @@ dict_index_copy_types(
 		ifield = dict_index_get_nth_field(index, i);
 		dfield_type = dfield_get_type(dtuple_get_nth_field(tuple, i));
 		dict_col_copy_type(dict_field_get_col(ifield), dfield_type);
+		if (dict_index_is_spatial(index)
+		    && DATA_GEOMETRY_MTYPE(dfield_type->mtype)) {
+			dfield_type->prtype |= DATA_GIS_MBR;
+		}
 	}
 }
 
@@ -3023,6 +3130,11 @@ dict_index_build_internal_non_clust(
 		if (!indexed[field->col->ind]) {
 			dict_index_add_col(new_index, table, field->col,
 					   field->prefix_len);
+		} else if (dict_index_is_spatial(index)) {
+			/*For spatial index, we still need to add the
+			field to index. */
+			dict_index_add_col(new_index, table, field->col,
+					   field->prefix_len);
 		}
 	}
 
@@ -3285,6 +3397,7 @@ dict_foreign_find_index(
 	while (index != NULL) {
 		if (types_idx != index
 		    && !(index->type & DICT_FTS)
+		    && !dict_index_is_spatial(index)
 		    && !index->to_be_dropped
 		    && dict_foreign_qualify_index(
 			    table, col_names, columns, n_cols,

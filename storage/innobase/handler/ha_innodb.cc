@@ -342,6 +342,10 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #ifndef HAVE_ATOMIC_BUILTINS_64
 	PSI_KEY(monitor_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
+	PSI_KEY(rtr_active_mutex),
+	PSI_KEY(rtr_match_mutex),
+	PSI_KEY(rtr_path_mutex),
+	PSI_KEY(rtr_ssn_mutex),
 	PSI_KEY(trx_sys_mutex),
 	PSI_KEY(zip_pad_mutex),
 };
@@ -480,6 +484,39 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_stmt_begin
 };
 
+/******************************************************************//**
+Function used to loop a thread (for debugging/instrumentation
+purpose). */
+
+void
+srv_debug_loop(void)
+/*================*/
+{
+        ibool set = TRUE;
+
+        while (set) {
+                os_thread_yield();
+        }
+}
+
+/******************************************************************//**
+Debug function used to read a MBR data */
+
+#ifdef UNIV_DEBUG
+void
+srv_mbr_debug(const byte* data)
+{
+	double a, b, c , d;
+        a = mach_double_read(data);
+        data += sizeof(double);
+        b = mach_double_read(data);
+        data += sizeof(double);
+        c = mach_double_read(data);
+        data += sizeof(double);
+        d = mach_double_read(data);
+	ut_ad(a && b && c &&d);
+}
+#endif
 /*************************************************************//**
 Check whether valid argument given to innodb_ft_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -1364,6 +1401,10 @@ convert_error_code_to_mysql(
 		my_error(ER_FK_DEPTH_EXCEEDED, MYF(0), FK_MAX_CASCADE_DEL);
 		return(HA_ERR_FK_DEPTH_EXCEEDED);
 
+	case DB_CANT_CREATE_GEOMETRY_OBJECT:
+		my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+		return(HA_ERR_NULL_IN_SPATIAL);
+
 	case DB_ERROR:
 	default:
 		return(-1); /* unspecified error */
@@ -2224,6 +2265,7 @@ ha_innobase::ha_innobase(
 		  HA_CAN_FULLTEXT |
 		  HA_CAN_FULLTEXT_EXT |
 		  HA_CAN_EXPORT |
+		  HA_CAN_RTREEKEYS |
 		  HA_HAS_RECORDS
 		  ),
 	start_of_scan(0),
@@ -4001,6 +4043,8 @@ ha_innobase::index_type(
 
 	if (index && index->type & DICT_FTS) {
 		return("FULLTEXT");
+	} else if (dict_index_is_spatial(index)) {
+		return("SPATIAL");
 	} else {
 		return("BTREE");
 	}
@@ -4028,11 +4072,19 @@ ha_innobase::index_flags(
 	uint,
 	bool) const
 {
-	return((table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT)
-		 ? 0
-		 : (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
-		  | HA_READ_RANGE | HA_KEYREAD_ONLY
-		  | HA_DO_INDEX_COND_PUSHDOWN));
+	if (table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT) {
+		return(0);
+	}
+
+	ulong flags = HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+		      | HA_READ_RANGE | HA_KEYREAD_ONLY
+		      | HA_DO_INDEX_COND_PUSHDOWN;
+
+	if (table_share->key_info[key].flags & HA_SPATIAL) {
+		flags |= HA_KEY_SCAN_NOT_ROR;
+	}
+
+	return(flags);
 }
 
 /****************************************************************//**
@@ -5885,6 +5937,11 @@ build_template_field(
 		prebuilt->need_to_access_clustered = TRUE;
 	}
 
+	/* For spatial index, we need to access cluster index.*/
+	if (dict_index_is_spatial(index)) {
+		prebuilt->need_to_access_clustered = TRUE;
+	}
+
 	if (prebuilt->mysql_prefix_len < templ->mysql_col_offset
 	    + templ->mysql_col_len) {
 		prebuilt->mysql_prefix_len = templ->mysql_col_offset
@@ -6679,6 +6736,15 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
+
+			/* If the length of new geometry object is 0, means
+			this object is invalid geometry object, we need
+			to block it. */
+			if (col_type == DATA_GEOMETRY
+			    && o_len != 0 && n_len == 0) {
+				return(DB_CANT_CREATE_GEOMETRY_OBJECT);
+			}
+
 			if (n_len != UNIV_SQL_NULL) {
 				dict_col_copy_type(prebuilt->table->cols + i,
 						   dfield_get_type(&dfield));
@@ -7131,12 +7197,17 @@ convert_search_mode_to_innobase(
 	case HA_READ_PREFIX_LAST:
 	case HA_READ_PREFIX_LAST_OR_PREV:
 		return(PAGE_CUR_LE);
-	case HA_READ_PREFIX:
 	case HA_READ_MBR_CONTAIN:
+		return(PAGE_CUR_CONTAIN);
 	case HA_READ_MBR_INTERSECT:
+		return(PAGE_CUR_INTERSECT);
 	case HA_READ_MBR_WITHIN:
+		return(PAGE_CUR_WITHIN);
 	case HA_READ_MBR_DISJOINT:
+		return(PAGE_CUR_DISJOINT);
 	case HA_READ_MBR_EQUAL:
+		return(PAGE_CUR_MBR_EQUAL);
+	case HA_READ_PREFIX:
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
@@ -7247,6 +7318,12 @@ ha_innobase::index_read(
 
 	if (index->type & DICT_FTS) {
 		DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+	}
+
+	/* For R-Tree index, we will always place the page lock to
+	pages being searched */
+	if (dict_index_is_spatial(index)) {
+		prebuilt->trx->will_lock++;
 	}
 
 	/* Note that if the index for which the search template is built is not
@@ -8529,9 +8606,17 @@ create_index(
 	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
 	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
-	if (key->flags & HA_FULLTEXT) {
+	ind_type = 0;
+	if (key->flags & HA_SPATIAL) {
+		ind_type = DICT_SPATIAL;
+	} else if (key->flags & HA_FULLTEXT) {
+		ind_type = DICT_FTS;
+	}
+
+	if (ind_type != 0)
+	{
 		index = dict_mem_index_create(table_name, key->name, 0,
-					      DICT_FTS,
+					      ind_type,
 					      key->user_defined_key_parts);
 
 		for (ulint i = 0; i < key->user_defined_key_parts; i++) {
@@ -10357,6 +10442,12 @@ ha_innobase::records_in_range(
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
 		goto func_exit;
 	}
+	/* GIS_FIXME: Currently, we can't support estimate records on
+	R-tree index.*/
+	if (dict_index_is_spatial(index)) {
+		n_rows = 2;
+		goto func_exit;
+	}
 
 	heap = mem_heap_create(2 * (key->actual_key_parts * sizeof(dfield_t)
 				    + sizeof(dtuple_t)));
@@ -10672,7 +10763,7 @@ Calculate Record Per Key value. Need to exclude the NULL value if
 innodb_stats_method is set to "nulls_ignored"
 @return estimated record per key value */
 static
-ha_rows
+rec_per_key_t
 innodb_rec_per_key(
 /*===============*/
 	dict_index_t*	index,		/*!< in: dict_index_t structure */
@@ -10680,18 +10771,24 @@ innodb_rec_per_key(
 					calculating rec per key */
 	ha_rows		records)	/*!< in: estimated total records */
 {
-	ha_rows		rec_per_key;
+	rec_per_key_t	rec_per_key;
 	ib_uint64_t	n_diff;
 
 	ut_a(index->table->stat_initialized);
 
 	ut_ad(i < dict_index_get_n_unique(index));
 
+	if (records == 0) {
+		/* "Records per key" is meaningless for empty tables.
+		Return 1.0 because that is most convenient to the Optimizer. */
+		return(1.0);
+	}
+
 	n_diff = index->stat_n_diff_key_vals[i];
 
 	if (n_diff == 0) {
 
-		rec_per_key = records;
+		rec_per_key = static_cast<rec_per_key_t>(records);
 	} else if (srv_innodb_stats_method == SRV_STATS_NULLS_IGNORED) {
 		ib_uint64_t	n_null;
 		ib_uint64_t	n_non_null;
@@ -10714,16 +10811,23 @@ innodb_rec_per_key(
 		consider that the table consists mostly of NULL value.
 		Set rec_per_key to 1. */
 		if (n_diff <= n_null) {
-			rec_per_key = 1;
+			rec_per_key = 1.0;
 		} else {
 			/* Need to exclude rows with NULL values from
 			rec_per_key calculation */
-			rec_per_key = (ha_rows)
-				((records - n_null) / (n_diff - n_null));
+			rec_per_key
+				= static_cast<rec_per_key_t>(records - n_null)
+				/ (n_diff - n_null);
 		}
 	} else {
 		DEBUG_SYNC_C("after_checking_for_0");
-		rec_per_key = (ha_rows) (records / n_diff);
+		rec_per_key = static_cast<rec_per_key_t>(records) / n_diff;
+	}
+
+	if (rec_per_key < 1.0) {
+		/* Values below 1.0 are meaningless and must be due to the
+		stats being imprecise. */
+		rec_per_key = 1.0;
 	}
 
 	return(rec_per_key);
@@ -10741,7 +10845,6 @@ ha_innobase::info_low(
 	bool	is_analyze)
 {
 	dict_table_t*	ib_table;
-	ha_rows		rec_per_key;
 	ib_uint64_t	n_rows;
 	char		path[FN_REFLEN];
 	os_file_stat_t	stat_info;
@@ -11019,12 +11122,15 @@ ha_innobase::info_low(
 				break;
 			}
 
-			for (j = 0; j < table->key_info[i].actual_key_parts; j++) {
+			KEY*	key = &table->key_info[i];
 
-				if (table->key_info[i].flags & HA_FULLTEXT) {
+			for (j = 0; j < key->actual_key_parts; j++) {
+
+				if (key->flags & HA_FULLTEXT) {
 					/* The whole concept has no validity
 					for FTS indexes. */
-					table->key_info[i].rec_per_key[j] = 1;
+					key->rec_per_key[j] = 1;
+					key->set_records_per_key(j, 1.0);
 					continue;
 				}
 
@@ -11044,23 +11150,48 @@ ha_innobase::info_low(
 					break;
 				}
 
-				rec_per_key = innodb_rec_per_key(
-					index, j, stats.records);
+				/* innodb_rec_per_key() will use
+				index->stat_n_diff_key_vals[] and the value we
+				pass index->table->stat_n_rows. Both are
+				calculated by ANALYZE and by the background
+				stats gathering thread (which kicks in when too
+				much of the table has been changed). In
+				addition table->stat_n_rows is adjusted with
+				each DML (e.g. ++ on row insert). Those
+				adjustments are not MVCC'ed and not even
+				reversed on rollback. So,
+				index->stat_n_diff_key_vals[] and
+				index->table->stat_n_rows could have been
+				calculated at different time. This is
+				acceptable. */
+				const rec_per_key_t	rec_per_key
+					= innodb_rec_per_key(
+						index, j,
+						index->table->stat_n_rows);
+
+				key->set_records_per_key(j, rec_per_key);
+
+				/* The code below is legacy and should be
+				removed together with this comment once we
+				are sure the new floating point rec_per_key,
+				set via set_records_per_key(), works fine. */
+
+				ulong	rec_per_key_int = static_cast<ulong>(
+					innodb_rec_per_key(index, j,
+							   stats.records));
 
 				/* Since MySQL seems to favor table scans
 				too much over index searches, we pretend
 				index selectivity is 2 times better than
 				our estimate: */
 
-				rec_per_key = rec_per_key / 2;
+				rec_per_key_int = rec_per_key_int / 2;
 
-				if (rec_per_key == 0) {
-					rec_per_key = 1;
+				if (rec_per_key_int == 0) {
+					rec_per_key_int = 1;
 				}
 
-				table->key_info[i].rec_per_key[j] =
-				  rec_per_key >= ~(ulong) 0 ? ~(ulong) 0 :
-				  (ulong) rec_per_key;
+				key->rec_per_key[j] = rec_per_key_int;
 			}
 		}
 
@@ -11193,6 +11324,7 @@ ha_innobase::check(
 	bool		is_ok		= true;
 	ulint		old_isolation_level;
 	ibool		table_corrupted;
+	dberr_t		ret;
 
 	DBUG_ENTER("ha_innobase::check");
 	DBUG_ASSERT(thd == ha_thd());
@@ -11235,7 +11367,6 @@ ha_innobase::check(
 	>= READ COMMITTED, because a dirty read can see a wrong number
 	of records in some index; to play safe, we use always
 	REPEATABLE READ here */
-
 	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	/* Check whether the table is already marked as corrupted
@@ -11335,8 +11466,12 @@ ha_innobase::check(
 		prebuilt->select_lock_type = LOCK_NONE;
 
 		/* Scan this index. */
-		dberr_t ret = row_scan_index_for_mysql(
-			prebuilt, index, true, &n_rows);
+		if (dict_index_is_spatial(index)) {
+			ret = row_count_rtree_recs(prebuilt, &n_rows);
+		} else {
+			ret = row_scan_index_for_mysql(
+				prebuilt, index, true, &n_rows);
+		}
 
 		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
@@ -11366,15 +11501,13 @@ ha_innobase::check(
 				index, prebuilt->trx, "CHECK TABLE-check index");
 		}
 
-#if 0
-		fprintf(stderr, "%lu entries in index %s\n", n_rows,
-			index->name);
-#endif
-
 		if (index == dict_table_get_first_index(prebuilt->table)) {
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
-			   && (n_rows != n_rows_in_table)) {
+			   && (n_rows != n_rows_in_table)
+			/* GIS_FIXME: Will address the transient count
+			mistmatch for R-Tree in WL #7740 */
+			   && !dict_index_is_spatial(index)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NOT_KEYFILE,
@@ -14148,6 +14281,7 @@ innodb_make_page_dirty(
 	ulong space_id = *static_cast<const ulong*>(save);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(space_id);
 
 	buf_block_t* block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
@@ -15133,7 +15267,9 @@ checkpoint_now_set(
 						check function */
 {
 	if (*(my_bool*) save) {
-		while (log_sys->last_checkpoint_lsn < log_sys->lsn) {
+		while (log_sys->last_checkpoint_lsn
+		       + 1 /* MLOG_CHECKPOINT */
+		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
@@ -16800,8 +16936,8 @@ innobase_convert_to_filename_charset(
 	CHARSET_INFO*	cs_to = &my_charset_filename;
 	CHARSET_INFO*	cs_from = system_charset_info;
 
-	return(strconvert(
-		cs_from, from, cs_to, to, len, &errors));
+	return(static_cast<uint>(strconvert(
+		cs_from, from, cs_to, to, static_cast<size_t>(len), &errors)));
 }
 
 /**********************************************************************
@@ -16818,6 +16954,6 @@ innobase_convert_to_system_charset(
 	CHARSET_INFO*	cs1 = &my_charset_filename;
 	CHARSET_INFO*	cs2 = system_charset_info;
 
-	return(strconvert(
-		cs1, from, cs2, to, len, errors));
+	return(static_cast<uint>(strconvert(
+		cs1, from, cs2, to, static_cast<size_t>(len), errors)));
 }

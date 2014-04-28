@@ -30,7 +30,6 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "fil0fil.h"
-#include "fsp0types.h"
 #include "trx0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
@@ -471,15 +470,10 @@ trx_sys_validate_trx_list();
 /*========================*/
 #endif /* UNIV_DEBUG */
 
-/* The automatically created system rollback segment has this id */
+/** The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
-/* Space id and page no where the trx system file copy resides */
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-#include "fsp0fsp.h"
-#define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
-
-/* The offset of the transaction system header on the page */
+/** The offset of the transaction system header on the page */
 #define	TRX_SYS		FSEG_PAGE_DATA
 
 /** Transaction system header */

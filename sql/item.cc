@@ -6867,13 +6867,13 @@ Item *Item_hex_string::safe_charset_converter(const CHARSET_INFO *tocs)
   In number context this is a longlong value.
 */
   
-LEX_STRING Item_bin_string::make_bin_str(const char *str, uint str_length)
+LEX_STRING Item_bin_string::make_bin_str(const char *str, size_t str_length)
 {
   const char *end= str + str_length - 1;
   uchar bits= 0;
   uint power= 1;
 
-  uint32 max_length= (str_length + 7) >> 3;
+  size_t max_length= (str_length + 7) >> 3;
   char *ptr= (char*) sql_alloc(max_length + 1);
   if (!ptr)
     return NULL_STR;
@@ -6907,7 +6907,7 @@ LEX_STRING Item_bin_string::make_bin_str(const char *str, uint str_length)
 }
 
 
-void Item_bin_string::bin_string_init(const char *str, uint str_length)
+void Item_bin_string::bin_string_init(const char *str, size_t str_length)
 {
   LEX_STRING s= make_bin_str(str, str_length);
   max_length= s.length;

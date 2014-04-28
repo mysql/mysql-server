@@ -3194,7 +3194,9 @@ public:
     : super(pos), m_cs_specified(FALSE)
   {
     str_value.set_or_copy_aligned(literal.str ? literal.str : "",
-                                  literal.str ? literal.length : 0, cs);
+                                  literal.str ? static_cast<uint32>(
+                                  literal.length) : 0,
+                                  cs);
     collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     item_name= name_par;
@@ -3441,15 +3443,15 @@ class Item_bin_string: public Item_hex_string
   typedef Item_hex_string super;
 
 public:
-  Item_bin_string(const char *str,uint str_length)
+  Item_bin_string(const char *str, size_t str_length)
   { bin_string_init(str, str_length); }
   Item_bin_string(const POS &pos, const LEX_STRING &literal) : super(pos)
   { bin_string_init(literal.str, literal.length); }
 
-  static LEX_STRING make_bin_str(const char *str, uint str_length);
+  static LEX_STRING make_bin_str(const char *str, size_t str_length);
 
 private:
-  void bin_string_init(const char *str, uint str_length);
+  void bin_string_init(const char *str, size_t str_length);
 };
 
 class Item_result_field :public Item	/* Item with result field */
@@ -3949,8 +3951,6 @@ public:
 */
 class Item_datetime_with_ref :public Item_temporal_with_ref
 {
-private:
-  enum_field_types cached_field_type;
 public:
   /**
     Constructor for Item_datetime_with_ref.
@@ -3961,8 +3961,7 @@ public:
   */
   Item_datetime_with_ref(enum_field_types field_type_arg,
                          uint8 decimals_arg, longlong i, Item *ref_arg):
-    Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true),
-    cached_field_type(field_type_arg)
+    Item_temporal_with_ref(field_type_arg, decimals_arg, i, ref_arg, true)
   {
   }
   Item *clone_item();

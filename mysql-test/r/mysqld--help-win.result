@@ -231,8 +231,8 @@ The following options may be given as the first argument:
  Use stopwords from this file instead of built-in list
  --gdb               Set up signals usable for debugging.
  --general-log       Log connections and queries to a table or log file.
- Defaults logging to a file hostname.log or a table
- mysql.general_logif --log-output=TABLE is used
+ Defaults to logging to a file hostname.log, or if
+ --log-output=TABLE is used, to a table mysql.general_log.
  --general-log-file=name 
  Log connections and queries to given file
  --group-concat-max-len=# 

@@ -1590,6 +1590,25 @@ row_upd_store_row(
 }
 
 /***********************************************************//**
+Print a MBR data from disk */
+static
+void
+srv_mbr_print(const byte* data)
+{
+        double a, b, c, d;
+        a = mach_double_read(data);
+        data += sizeof(double);
+        b = mach_double_read(data);
+        data += sizeof(double);
+        c = mach_double_read(data);
+        data += sizeof(double);
+        d = mach_double_read(data);
+        ib_logf(IB_LOG_LEVEL_INFO, "GIS MBR INFO: %f and %f, %f, %f\n",
+		a, b , c, d);
+}
+
+
+/***********************************************************//**
 Updates a secondary index entry of a row.
 @return DB_SUCCESS if operation successfully completed, else error
 code or DB_LOCK_WAIT */
@@ -1632,14 +1651,15 @@ row_upd_sec_index_entry(
 			    "before_row_upd_sec_index_entry");
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
@@ -1697,6 +1717,8 @@ row_upd_sec_index_entry(
 		mode = (referenced || dict_table_is_temporary(index->table))
 			? BTR_MODIFY_LEAF
 			: BTR_MODIFY_LEAF | BTR_DELETE_MARK;
+
+		ut_ad(!dict_index_is_spatial(index) || mode & BTR_DELETE_MARK);
 	}
 
 	/* Set the query thread, so that ibuf_insert_low() will be
@@ -1733,6 +1755,11 @@ row_upd_sec_index_entry(
 			break;
 		}
 
+		if (dict_index_is_spatial(index) && btr_cur->rtr_info->fd_del) {
+			/* We found the record, but a delete marked */
+			break;
+		}
+
 		fputs("InnoDB: error in sec index entry update in\n"
 		      "InnoDB: ", stderr);
 		dict_index_name_print(stderr, trx, index);
@@ -1747,9 +1774,17 @@ row_upd_sec_index_entry(
 		fputs("\n"
 		      "InnoDB: Submit a detailed bug report"
 		      " to http://bugs.mysql.com\n", stderr);
+		srv_mbr_print((unsigned char*)entry->fields[0].data);
+#ifdef UNIV_DEBUG
+		mtr_commit(&mtr);
+		mtr_start(&mtr);
+		ut_ad(btr_validate_index(index, 0, false));
 		ut_ad(0);
+#endif /* UNIV_DEBUG */
 		break;
 	case ROW_FOUND:
+		ut_ad(err == DB_SUCCESS);
+
 		/* Delete mark the old index record; it can already be
 		delete marked if we return after a lock wait in
 		row_ins_sec_index_entry() below */
@@ -1757,21 +1792,26 @@ row_upd_sec_index_entry(
 			    rec, dict_table_is_comp(index->table))) {
 			err = btr_cur_del_mark_set_sec_rec(
 				flags, btr_cur, TRUE, thr, &mtr);
-
-			if (err == DB_SUCCESS && referenced) {
-
-				ulint*	offsets;
-
-				offsets = rec_get_offsets(
-					rec, index, NULL, ULINT_UNDEFINED,
-					&heap);
-
-				/* NOTE that the following call loses
-				the position of pcur ! */
-				err = row_upd_check_references_constraints(
-					node, &pcur, index->table,
-					index, offsets, thr, &mtr);
+			if (err != DB_SUCCESS) {
+				break;
 			}
+		}
+
+		ut_ad(err == DB_SUCCESS);
+
+		if (referenced) {
+
+			ulint*	offsets;
+
+			offsets = rec_get_offsets(
+				rec, index, NULL, ULINT_UNDEFINED,
+				&heap);
+
+			/* NOTE that the following call loses
+			the position of pcur ! */
+			err = row_upd_check_references_constraints(
+				node, &pcur, index->table,
+				index, offsets, thr, &mtr);
 		}
 		break;
 	}
@@ -1979,6 +2019,18 @@ row_upd_clust_rec_by_insert(
 					  ULINT_UNDEFINED, &heap);
 		ut_ad(page_rec_is_user_rec(rec));
 
+		if (rec_get_deleted_flag(rec, rec_offs_comp(offsets))) {
+			/* If the clustered index record is already delete
+			marked, then we are here after a DB_LOCK_WAIT.
+			Skip delete marking clustered index and disowning
+			its blobs. */
+			ut_ad(rec_get_trx_id(rec, index) == trx->id);
+			ut_ad(!trx_undo_roll_ptr_is_insert(
+			              row_get_rec_roll_ptr(rec, index,
+							   offsets)));
+			goto check_fk;
+		}
+
 		err = btr_cur_del_mark_set_clust_rec(
 			flags, btr_cur_get_block(btr_cur), rec, index, offsets,
 			thr, mtr);
@@ -2007,7 +2059,7 @@ err_exit:
 					mtr);
 			}
 		}
-
+check_fk:
 		if (referenced) {
 			/* NOTE that the following call loses
 			the position of pcur ! */
@@ -2106,14 +2158,15 @@ row_upd_clust_rec(
 	down the index tree */
 
 	mtr_start(mtr);
+	mtr->set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr->set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	/* NOTE: this transaction has an s-lock or x-lock on the record and
@@ -2253,14 +2306,15 @@ row_upd_clust_step(
 	/* We have to restore the cursor to its position */
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	/* If the restoration does not succeed, then the same
@@ -2311,6 +2365,7 @@ row_upd_clust_step(
 		mtr_commit(&mtr);
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 
 		success = btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur,
 						    &mtr);

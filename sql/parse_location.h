@@ -26,7 +26,7 @@ struct Symbol_location
   const char *end;   // the 1st byte after the token
 
   bool is_empty() const { return length() == 0; }
-  uint length() const { return end - start; }
+  size_t length() const { return static_cast<size_t>(end - start); }
 };
 
 

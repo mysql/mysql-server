@@ -10769,6 +10769,8 @@ drop:
             if ($4.str &&
                 (check_and_convert_db_name(&$4, FALSE) != IDENT_NAME_OK))
                MYSQL_YYABORT;
+            if (sp_check_name(&$6))
+               MYSQL_YYABORT;
             if (lex->sphead)
             {
               my_error(ER_SP_NO_DROP_SP, MYF(0), "FUNCTION");
@@ -10784,6 +10786,15 @@ drop:
           }
         | DROP FUNCTION_SYM if_exists ident
           {
+            /*
+              Unlike DROP PROCEDURE, "DROP FUNCTION ident" should work
+              even if there is no current database. In this case it
+              applies only to UDF.
+              Hence we can't merge rules for "DROP FUNCTION ident.ident"
+              and "DROP FUNCTION ident" into one "DROP FUNCTION sp_name"
+              rule. sp_name assumes that database name should be always
+              provided - either explicitly or implicitly.
+            */
             THD *thd= YYTHD;
             LEX *lex= thd->lex;
             LEX_STRING db= {0, 0};
@@ -10795,6 +10806,8 @@ drop:
             }
             if (thd->db && lex->copy_db_to(&db.str, &db.length))
               MYSQL_YYABORT;
+            if (sp_check_name(&$4))
+               MYSQL_YYABORT;
             lex->sql_command = SQLCOM_DROP_FUNCTION;
             lex->drop_if_exists= $3;
             spname= new sp_name(db, $4, false);

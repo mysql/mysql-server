@@ -4440,7 +4440,7 @@ String *Item_func_compress::val_str(String *str)
   ulong new_size;
   String *res;
   Byte *body;
-  char *tmp, *last_char;
+  char *last_char;
   DBUG_ASSERT(fixed == 1);
 
   if (!(res= args[0]->val_str(str)))
@@ -4482,8 +4482,7 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
 
-  tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
-  int4store(tmp, res->length() & 0x3FFFFFFF);
+  int4store(const_cast<char*>(buffer.ptr()), res->length() & 0x3FFFFFFF);
 
   /* This is to ensure that things works for CHAR fields, which trim ' ': */
   last_char= ((char*)body)+new_size-1;

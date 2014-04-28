@@ -4265,7 +4265,6 @@ public:
    which is confusing.
 */
 class select_create: public select_insert {
-  ORDER *group;
   TABLE_LIST *create_table;
   HA_CREATE_INFO *create_info;
   TABLE_LIST *select_tables;
@@ -4915,7 +4914,7 @@ class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables; /* query/update command tables */
   TABLE_LIST *leaves;     /* list of leves of join table tree */
-  TABLE_LIST *update_tables, *table_being_updated;
+  TABLE_LIST *update_tables;
   TABLE **tmp_tables, *main_table, *table_to_update;
   Temp_table_param *tmp_table_param;
   ha_rows updated, found;

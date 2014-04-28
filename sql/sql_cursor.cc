@@ -47,7 +47,7 @@ public:
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
   virtual bool is_open() const { return table != 0; }
   virtual int open(JOIN *join __attribute__((unused)));
-  virtual void fetch(ulong num_rows);
+  virtual bool fetch(ulong num_rows);
   virtual void close();
   virtual ~Materialized_cursor();
 };
@@ -319,7 +319,7 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
     SERVER_STATUS_LAST_ROW_SENT along with the last row.
 */
 
-void Materialized_cursor::fetch(ulong num_rows)
+bool Materialized_cursor::fetch(ulong num_rows)
 {
   THD *thd= table->in_use;
 
@@ -332,10 +332,11 @@ void Materialized_cursor::fetch(ulong num_rows)
     /* Send data only if the read was successful. */
     /*
       If network write failed (i.e. due to a closed socked),
-      the error has already been set. Just return.
+      the error has already been set. Return true if the error
+      is set.
     */
     if (result->send_data(item_list))
-      return;
+      return true;
   }
 
   switch (res) {
@@ -351,8 +352,10 @@ void Materialized_cursor::fetch(ulong num_rows)
   default:
     table->file->print_error(res, MYF(0));
     close();
-    break;
+    return true;
   }
+
+  return false;
 }
 
 

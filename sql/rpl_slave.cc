@@ -35,7 +35,6 @@
 #include "rpl_filter.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
-#include <thr_alarm.h>
 #include <my_dir.h>
 #include <sql_common.h>
 #include <errmsg.h>
@@ -1061,7 +1060,7 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
+    int err __attribute__((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
     thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -1653,6 +1652,12 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   MYSQL_ROW master_row= NULL;
   int ret= 0;
 
+  DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID",
+                  {
+                    mi->master_uuid[0]= 0;
+                    return 0;
+                  };);
+
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
                     const char act[]= "now wait_for signal.get_master_uuid";
@@ -1716,6 +1721,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   }
   else if (!master_row && master_res)
   {
+    mi->master_uuid[0]= 0;
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_UUID' on master. "
                "A probable cause is that the variable is not supported on the "
@@ -4511,6 +4517,10 @@ log space");
       );
       DBUG_EXECUTE_IF("stop_io_after_reading_xid_log_event",
         if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
+           thd->killed= THD::KILLED_NO_VALUE;
+      );
+      DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
            thd->killed= THD::KILLED_NO_VALUE;
       );
     }

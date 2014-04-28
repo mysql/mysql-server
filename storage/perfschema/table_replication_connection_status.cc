@@ -287,10 +287,11 @@ void table_replication_connection_status::make_row()
   mysql_mutex_lock(&active_mi->data_lock);
   mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  if (!m_row.is_gcs_plugin_loaded)
-    memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
-  else if (!m_row.group_name_is_null)
+  m_row.source_uuid[0]= 0;
+  if (m_row.is_gcs_plugin_loaded && !m_row.group_name_is_null)
     memcpy(m_row.source_uuid, gcs_replication_group, UUID_LENGTH);
+  else if (active_mi->master_uuid[0] != 0)
+    memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
 
   m_row.thread_id= 0;
 
@@ -422,10 +423,10 @@ int table_replication_connection_status::read_row_values(TABLE *table,
           f->set_null();
         break;
       case 1: /** source_uuid */
-        if (m_row.is_gcs_plugin_loaded && m_row.group_name_is_null)
-          f->set_null();
-        else
+        if (m_row.source_uuid[0] != 0)
           set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        else
+          f->set_null();
         break;
       case 2: /** thread_id */
         if (m_row.thread_id_is_null)

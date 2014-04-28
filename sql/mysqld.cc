@@ -104,7 +104,6 @@
 #include <sys/prctl.h>
 #endif
 
-#include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
@@ -1179,7 +1178,7 @@ static void close_connections(void)
   while (socket_listener_active)
   {
     DBUG_PRINT("info",("Killing socket listener"));
-    if (pthread_kill(main_thread_id, thr_client_alarm))
+    if (pthread_kill(main_thread_id, SIGUSR1))
     {
       DBUG_ASSERT(false);
       break;
@@ -1208,7 +1207,6 @@ static void close_connections(void)
     shared_mem_acceptor= NULL;
   }
 #endif
-  end_thr_alarm(0);      // Abort old alarms.
 
   /*
     First signal all threads that it's time to die
@@ -1457,7 +1455,6 @@ void clean_up(bool print_message)
   key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
   free_status_vars();
-  end_thr_alarm(1);     /* Free allocated memory */
   query_logger.cleanup();
   my_free_open_file_info();
   if (defaults_argv)
@@ -2117,7 +2114,7 @@ void my_init_signals(void)
     l_s.sa_handler= print_signal_warning; // Should never be called!
     l_s.sa_mask= l_set;
     l_s.sa_flags= 0;
-    sigaction(thr_server_alarm, &l_s, NULL);
+    sigaction(SIGALRM, &l_s, NULL);
   }
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
@@ -2132,9 +2129,7 @@ void my_init_signals(void)
     sa.sa_handler=handle_fatal_signal;
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
-#ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
-#endif
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
   }
@@ -2168,19 +2163,14 @@ void my_init_signals(void)
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
-  sigaction(SIGTERM, &sa, (struct sigaction*) 0);
+  sigaction(SIGTERM, &sa, NULL);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
-  sigaction(SIGHUP, &sa, (struct sigaction*) 0);
-#ifdef SIGTSTP
+  sigaction(SIGHUP, &sa, NULL);
   sigaddset(&set,SIGTSTP);
-#endif
-  sigaddset(&set,thr_server_alarm);
-  if (test_flags & TEST_SIGINT)
-    sigdelset(&set,SIGINT);
-  else
+  sigaddset(&set,SIGALRM);
+  if (!(test_flags & TEST_SIGINT))
     sigaddset(&set,SIGINT);
-  sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
 }
@@ -2232,6 +2222,12 @@ static void start_signal_handler(void)
 }
 
 
+extern "C" {
+static void empty_signal_handler(int sig __attribute__((unused)))
+{ }
+}
+
+
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
 pthread_handler_t signal_hand(void *arg __attribute__((unused)))
@@ -2242,10 +2238,21 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 
   /*
     Setup alarm handler
-    This should actually be '+ max_number_of_slaves' instead of +10,
-    but the +10 should be quite safe.
   */
-  init_thr_alarm(Connection_handler_manager::max_threads + 10);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= empty_signal_handler;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGUSR1, &l_s, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+  }
+
   if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
@@ -2253,7 +2260,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
-  (void) sigaddset(&set,thr_server_alarm);  // For alarms
+  (void) sigaddset(&set,SIGALRM);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
   (void) sigaddset(&set,SIGTERM);
@@ -2316,18 +2323,15 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
         int not_used;
-  mysql_print_status();   // Print some debug info
-  reload_acl_and_cache((THD*) 0,
-           (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-            REFRESH_GRANT |
-            REFRESH_THREADS | REFRESH_HOSTS),
-           (TABLE_LIST*) 0, &not_used); // Flush logs
+        mysql_print_status();   // Print some debug info
+        reload_acl_and_cache((THD*) 0,
+                             (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+                              REFRESH_GRANT |
+                              REFRESH_THREADS | REFRESH_HOSTS),
+                             (TABLE_LIST*) 0, &not_used); // Flush logs
+        /* reenable query logs after the options were reloaded */
+        query_logger.set_handlers(log_output_options);
       }
-      /* reenable query logs after the options were reloaded */
-      query_logger.set_handlers(log_output_options);
-      break;
-    case thr_server_alarm:
-      process_alarm(sig);     // Trigger alarms.
       break;
     default:
       break;          /* purecov: tested */

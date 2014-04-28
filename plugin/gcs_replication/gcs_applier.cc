@@ -17,7 +17,6 @@
 #include "handlers/certification_handler.h"
 #include <mysqld.h>
 #include <mysqld_thd_manager.h>  // Global_THD_manager
-#include <thr_alarm.h>
 #include <rpl_slave.h>
 #include <gcs_replication.h>
 #include <debug_sync.h>
@@ -322,7 +321,7 @@ Applier_module::terminate_applier_thread()
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    int err __attribute__((unused))= pthread_kill(applier_thd->real_id, thr_client_alarm);
+    int err __attribute__((unused))= pthread_kill(applier_thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
     applier_thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&applier_thd->LOCK_thd_data);

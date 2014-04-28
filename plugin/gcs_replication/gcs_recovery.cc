@@ -23,7 +23,6 @@
 #include <mysqld_thd_manager.h>  // Global_THD_manager
 #include <rpl_info_factory.h>
 #include <rpl_slave.h>
-#include <thr_alarm.h>
 #include <debug_sync.h>
 
 /** Default user for donor connection*/
@@ -185,7 +184,7 @@ Recovery_module::stop_recovery()
       ESRCH: thread already killed (can happen, should be ignored)
     */
     int err __attribute__((unused))= pthread_kill(recovery_thd->real_id,
-                                                  thr_client_alarm);
+                                                  SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
     recovery_thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&recovery_thd->LOCK_thd_data);

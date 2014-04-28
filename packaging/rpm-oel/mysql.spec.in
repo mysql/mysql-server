@@ -88,7 +88,7 @@ Name:           mysql-%{product_suffix}
 Summary:        A very fast and reliable SQL database server
 Group:          Applications/Databases
 Version:        @MYSQL_NO_DASH_VERSION@
-Release:        0.1%{?milestone:.%{milestone}}%{?dist}
+Release:        0.1%{?milestone:.%{milestone}}%{?commercial:.1}%{?dist}
 License:        Copyright (c) 2000, @MYSQL_COPYRIGHT_YEAR@, %{mysql_vendor}. All rights reserved. Under %{?license_type} license as shown in the Description field.
 Source0:        https://cdn.mysql.com/Downloads/MySQL-@MYSQL_BASE_VERSION@/%{src_dir}.tar.gz
 URL:            http://www.mysql.com/
@@ -106,7 +106,7 @@ Source90:       filter-provides.sh
 Source91:       filter-requires.sh
 Patch0:         mysql-5.6.16-mysql-install.patch
 Patch1:         mysql-5.7-libmysqlclient-symbols.patch
-BuildRequires:  cmake
+BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
 %{?el7:BuildRequires: perl(Env)}
@@ -157,13 +157,17 @@ Requires:       procps
 Requires:       shadow-utils
 Requires:       net-tools
 %if 0%{?commercial}
+Provides:       MySQL-server-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-server-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-server < %{version}-%{release}
 Requires:       mysql-enterprise-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
 %else
+Provides:       MySQL-server%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mariadb-server
 Provides:       mysql-server = %{version}-%{release}
@@ -203,15 +207,21 @@ to run and administer a MySQL server.
 Summary:        MySQL database client applications and tools
 Group:          Applications/Databases
 %if 0%{?commercial}
+Provides:       MySQL-client-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-client-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-client < %{version}-%{release}
 Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
 %else
+Provides:       MySQL-client%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
-Obsoletes:      mysql < %{version}-%{release}
+Obsoletes:      MySQL-client < %{version}-%{release}
 Obsoletes:      mariadb
+%if 0%{?rhel} > 5
+Obsoletes:      mysql < %{version}-%{release}
 Provides:       mysql = %{version}-%{release}
 Provides:       mysql%{?_isa} = %{version}-%{release}
+%endif
 
 %description    client
 This package contains the standard MySQL clients and administration
@@ -225,6 +235,7 @@ Obsoletes:      mysql-community-common < %{version}-%{release}
 %endif
 Provides:       mysql-common = %{version}-%{release}
 Provides:       mysql-common%{?_isa} = %{version}-%{release}
+%{?el5:Requires: mysql%{?_isa} = %{version}-%{release}} 
 
 %description    common
 This packages contains common files needed by MySQL client library,
@@ -235,11 +246,15 @@ MySQL database server, and MySQL embedded server.
 Summary:        Test suite for the MySQL database server
 Group:          Applications/Databases
 %if 0%{?commercial}
+Provides:       MySQL-test-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-test-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-test < %{version}-%{release}
 Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
 %else
+Provides:       MySQL-test%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      MySQL-test < %{version}-%{release}
 Obsoletes:      mysql-test < %{version}-%{release}
 Obsoletes:      mariadb-test
 Provides:       mysql-test = %{version}-%{release}
@@ -255,11 +270,15 @@ database server.
 Summary:        Development header files and libraries for MySQL database client applications
 Group:          Applications/Databases
 %if 0%{?commercial}
+Provides:       MySQL-devel-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-devel-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-devel < %{version}-%{release}
 Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
 %else
+Provides:       MySQL-devel%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      MySQL-devel < %{version}-%{release}
 Obsoletes:      mysql-devel < %{version}-%{release}
 Obsoletes:      mariadb-devel
 Provides:       mysql-devel = %{version}-%{release}
@@ -273,11 +292,15 @@ to develop MySQL client applications.
 Summary:        Shared libraries for MySQL database client applications
 Group:          Applications/Databases
 %if 0%{?commercial}
+Provides:       MySQL-shared-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-shared-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-libs < %{version}-%{release}
 Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
 %else
+Provides:       MySQL-shared%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      MySQL-shared < %{version}-%{release}
 Obsoletes:      mysql-libs < %{version}-%{release}
 Obsoletes:      mariadb-libs
 Provides:       mysql-libs = %{version}-%{release}
@@ -294,6 +317,19 @@ Group:          Applications/Databases
 Obsoletes:      mysql-libs-compat < %{version}-%{release}
 Provides:       mysql-libs-compat = %{version}-%{release}
 Provides:       mysql-libs-compat%{?_isa} = %{version}-%{release}
+%if 0%{?commercial}
+Provides:       MySQL-shared-compat-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-shared-compat-advanced < %{version}-%{release}
+Obsoletes:      mysql-community-libs-compat < %{version}-%{release}
+Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+%else
+Provides:       MySQL-shared-compat%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+%endif
+Obsoletes:      MySQL-shared-compat < %{version}-%{release}
+%if 0%{?rhel} > 5
+Obsoletes:      mysql-libs < %{version}-%{release}
+%endif
 
 %description    libs-compat
 This package contains the shared compat libraries for MySQL %{compatver} client
@@ -304,11 +340,15 @@ applications.
 Summary:        MySQL embedded library
 Group:          Applications/Databases
 %if 0%{?commercial}
+Provides:       MySQL-embedded-advanced%{?_isa} = %{version}-%{release}
+Obsoletes:      MySQL-embedded-advanced < %{version}-%{release}
 Obsoletes:      mysql-community-embedded < %{version}-%{release}
 Requires:       mysql-enterprise-common%{?_isa} = %{version}-%{release}
 %else
+Provides:       MySQL-embedded%{?_isa} = %{version}-%{release}
 Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 %endif
+Obsoletes:      MySQL-embedded < %{version}-%{release}
 Obsoletes:      mysql-embedded < %{version}-%{release}
 Provides:       mysql-embedded = %{version}-%{release}
 Provides:       mysql-emdedded%{?_isa} = %{version}-%{release}
@@ -341,8 +381,30 @@ Provides:       mysql-embedded-devel = %{version}-%{release}
 Provides:       mysql-embedded-devel%{?_isa} = %{version}-%{release}
 
 %description    embedded-devel
-This package contains files needed for developing applicatison using
+This package contains files needed for developing applications using
 the embedded version of the MySQL server.
+
+%if 0%{?rhel} == 5
+%package -n     mysql
+Summary:        Convenience package for easy upgrades of MySQL package set
+Group:          Applications/Databases
+%if 0%{?commercial}
+Requires:       mysql-enterprise-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-enterprise-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-enterprise-libs-compat%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-client%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs%{?_isa} = %{version}-%{release}
+Requires:       mysql-community-libs-compat%{?_isa} = %{version}-%{release}
+%endif
+
+%description -n mysql
+This package has as sole purpose to require other MySQL packages such
+that upgrades will be more convenient.
+
+Technical background: this is done to reflect the fact that mysql
+package has been split into several subpackages.
+%endif
 
 %prep
 %if 0%{?compatlib}
@@ -406,20 +468,18 @@ popd
 )
 %endif # 0%{?compatlib}
 
-export CFLAGS="%{optflags} %{?el7:-DTAOCRYPT_DISABLE_X86ASM}"
-export CXXFLAGS="%{optflags} %{?el7:-DTAOCRYPT_DISABLE_X86ASM}"
-
 # Build debug versions of mysqld and libmysqld.a
 mkdir debug
 (
   cd debug
   # Attempt to remove any optimisation flags from the debug build
-  CFLAGS=$(echo "${CFLAGS}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
-  CXXFLAGS=$(echo "${CFLAGS}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /') 
+  optflags=$(echo "%{optflags}" | sed -e 's/-O2 / /' -e 's/-Wp,-D_FORTIFY_SOURCE=2/ /')
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=Debug \
+           -DCMAKE_C_FLAGS="$optflags" \
+           -DCMAKE_CXX_FLAGS="$optflags" \
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -442,6 +502,8 @@ mkdir release
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
            -DCMAKE_BUILD_TYPE=RelWithDebInfo \
+           -DCMAKE_C_FLAGS="%{optflags}" \
+           -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DWITH_INNODB_MEMCACHED=1 \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
@@ -642,6 +704,7 @@ fi
 %dir %{_libdir}/mysql/plugin
 %attr(755, root, root) %{_libdir}/mysql/plugin/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/mypluglib.so
@@ -651,13 +714,21 @@ fi
 %dir %{_libdir}/mysql/plugin/debug
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/adt_null.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/auth_socket.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/ha_example.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/innodb_engine.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/libmemcached.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/mypluglib.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_master.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/semisync_slave.so
 %attr(755, root, root) %{_libdir}/mysql/plugin/debug/validate_password.so
-
+%if 0%{?commercial}
+%attr(755, root, root) %{_libdir}/mysql/plugin/audit_log.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/thread_pool.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/audit_log.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/authentication_pam.so
+%attr(755, root, root) %{_libdir}/mysql/plugin/debug/thread_pool.so
+%endif
 %attr(644, root, root) %{_datadir}/mysql/fill_help_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables.sql
 %attr(644, root, root) %{_datadir}/mysql/mysql_system_tables_data.sql
@@ -808,7 +879,30 @@ fi
 %attr(644, root, root) %{_libdir}/mysql/libmysqld-debug.a
 %attr(755, root, root) %{_libdir}/mysql/libmysqld.so
 
+%if 0%{?rhel} == 5
+%files -n mysql
+%defattr(-, root, root, -)
+%doc %{?license_files_server}
+%endif
+
 %changelog
+* Thu Apr 24 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.5-0.1.m15
+- Updated for 5.7.5
+
+* Mon Apr 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.5.m14
+- Fix Cflags for el7 
+
+* Mon Mar 31 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.4.m14
+- Support for enterprise packages
+- Upgrade from MySQL-* packages
+
+* Wed Mar 12 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.3.m14
+- Resolve conflict with mysql-libs-compat 
+
+* Thu Mar 06 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.2.m14
+- Resolve conflict issues during upgrade
+- Add ha_example.so plugin which is now included
+
 * Fri Feb 07 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.7.4-0.1.m14
 - 5.7.4
 - Enable shared libmysqld by cmake option

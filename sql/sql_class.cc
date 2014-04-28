@@ -46,7 +46,6 @@
 #include "sql_audit.h"
 #include <m_ctype.h>
 #include <sys/stat.h>
-#include <thr_alarm.h>
 #ifdef	_WIN32
 #include <io.h>
 #endif
@@ -913,8 +912,6 @@ THD::THD(bool enable_plugins)
    m_parser_da(false),
    m_stmt_da(&main_da)
 {
-  ulong tmp;
-  reset_first_successful_insert_id();
   mdl_context.init(this);
   /*
     Pass nominal parameters to init_alloc_root only to ensure that
@@ -945,11 +942,6 @@ THD::THD(bool enable_plugins)
   // Must be reset to handle error with THD's created for init of mysqld
   lex->thd= NULL;
   lex->set_current_select(0);
-  user_time.tv_sec= 0;
-  user_time.tv_usec= 0;
-  start_time.tv_sec= 0;
-  start_time.tv_usec= 0;
-  start_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -1023,8 +1015,6 @@ THD::THD(bool enable_plugins)
   protocol_binary.init(this);
 
   tablespace_op=FALSE;
-  tmp= sql_rnd_with_mutex();
-  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
 
@@ -1358,6 +1348,23 @@ void THD::init(void)
   */
   variables.pseudo_thread_id= thread_id;
   mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  /*
+    NOTE: reset_connection command will reset the THD to its default state.
+    All system variables whose scope is SESSION ONLY should be set to their
+    default values here.
+  */
+  reset_first_successful_insert_id();
+  user_time.tv_sec= user_time.tv_usec= 0;
+  start_time.tv_sec= start_time.tv_usec= 0;
+  set_time();
+  auto_inc_intervals_forced.empty();
+  {
+    ulong tmp;
+    tmp= sql_rnd_with_mutex();
+    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+  }
+
   server_status= SERVER_STATUS_AUTOCOMMIT;
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
@@ -1459,6 +1466,12 @@ void THD::cleanup_connection(void)
   sp_cache_clear(&sp_func_cache);
 
   clear_error();
+  // clear the warnings
+  get_stmt_da()->reset_condition_info(this);
+  // clear profiling information
+#if defined(ENABLED_PROFILING)
+  profiling.cleanup();
+#endif
 
 #ifndef DBUG_OFF
     /* DEBUG code only (begin) */
@@ -1529,8 +1542,6 @@ void THD::cleanup(void)
 
   delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
-  if (gtid_mode > 0)
-    variables.gtid_next.set_automatic();
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -1808,9 +1819,6 @@ void THD::awake(THD::killed_state state_to_set)
 
       shutdown_active_vio();
     }
-
-    /* Mark the target thread's alarm request expired, and signal alarm. */
-    thr_alarm_kill(thread_id);
 
     /* Send an event to the scheduler that a thread should be killed. */
     if (!slave_thread)

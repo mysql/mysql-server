@@ -606,6 +606,8 @@ rm -f $RBR%{_mandir}/man1/mysql_setpermission.1*
 rm -f $RBR%{_mandir}/man1/msql2mysql.1*
 rm -f $RBR%{_mandir}/man1/mysql_find_rows.1*
 rm -f $RBR%{_mandir}/man1/mysqlaccess.1*
+rm -f $RBR%{_mandir}/man1/mysql_waitpid.1*
+rm -f $RBR%{_mandir}/man1/mysql_zap.1*
 rm -rf $RBR%{_mandir}/man1/mysqlbug.1*
 
 ##############################################################################
@@ -1089,7 +1091,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_zap.1*
 %doc %attr(644, root, man) %{_mandir}/man1/perror.1*
 %doc %attr(644, root, man) %{_mandir}/man1/replace.1*
 %doc %attr(644, root, man) %{_mandir}/man1/resolve_stack_dump.1*
@@ -1108,7 +1109,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_secure_installation
 %attr(755, root, root) %{_bindir}/mysql_tzinfo_to_sql
 %attr(755, root, root) %{_bindir}/mysql_upgrade
-%attr(755, root, root) %{_bindir}/mysql_zap
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqldumpslow
@@ -1138,8 +1138,6 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %defattr(-, root, root, 0755)
 %attr(755, root, root) %{_bindir}/mysql
-%attr(755, root, root) %{_bindir}/mysql_waitpid
-# XXX: This should be moved to %{_sysconfdir}
 %attr(755, root, root) %{_bindir}/mysqladmin
 %attr(755, root, root) %{_bindir}/mysqlbinlog
 %attr(755, root, root) %{_bindir}/mysqlcheck
@@ -1150,7 +1148,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysql_config_editor
 
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysql_waitpid.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqladmin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlbinlog.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlcheck.1*

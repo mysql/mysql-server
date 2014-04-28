@@ -129,6 +129,15 @@ dfield_set_data(
 	ulint		len)	/*!< in: length or UNIV_SQL_NULL */
 	__attribute__((nonnull(1)));
 /*********************************************************************//**
+Sets pointer to the data and length in a field. */
+UNIV_INLINE
+void
+dfield_write_mbr(
+/*=============*/
+	dfield_t*	field,	/*!< in: field */
+	const double*	mbr)	/*!< in: data */
+	__attribute__((nonnull(1)));
+/*********************************************************************//**
 Sets a data field to SQL NULL. */
 UNIV_INLINE
 void

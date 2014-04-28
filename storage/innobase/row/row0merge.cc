@@ -2284,6 +2284,7 @@ row_merge_insert_index_tuples(
 			log_free_check();
 
 			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
 			/* Insert after the last user record. */
 			btr_cur_open_at_index_side(
 				false, index, BTR_MODIFY_LEAF,
@@ -2317,6 +2318,7 @@ row_merge_insert_index_tuples(
 				ut_ad(!big_rec);
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
+				mtr.set_named_space(index->space);
 				btr_cur_open_at_index_side(
 					false, index,
 					BTR_MODIFY_TREE | BTR_LATCH_FOR_INSERT,

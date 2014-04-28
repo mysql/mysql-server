@@ -170,7 +170,21 @@ public:
 		return(*this);
 	}
 
-	/** Initialize the name, size and order of this datafile */
+	/** Initialize the name, size and order of this datafile
+	@param[in]	name		space name, shutdown() will free it
+	@param[in]	filepath	file name, shutdown() fill free it;
+	can be NULL if not determined
+	@param[in]	filepath	file name, or NULL if not determined
+	@param[in]	size		size in database pages
+	@param[in]	order		ordinal position or the datafile
+	in the tablespace */
+	void init(char* name, char* filepath, ulint size, ulint order);
+
+	/** Initialize the name, size and order of this datafile
+	@param[in]	name	tablespace name, will be copied
+	@param[in]	size	size in database pages
+	@param[in]	order	ordinal position or the datafile
+	in the tablespace */
 	void init(const char* name, ulint size, ulint order);
 
 	/** Release the resources. */
@@ -178,8 +192,9 @@ public:
 
 	/** Open a data file in read-only mode to check if it exists
 	so that it can be validated.
+	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	virtual dberr_t open_read_only()
+	virtual dberr_t open_read_only(bool strict)
 		__attribute__((warn_unused_result));
 
 	/** Open a data file in read-write mode during start-up so that
@@ -233,8 +248,10 @@ public:
 	/** Checks the consistency of the first page of a datafile when the
 	tablespace is opened.  This occurs before the fil_space_t is created
 	so the Space ID found here must not already be open.
-	@retval DB_SUCCESS on success, else DB_ERROR
-		m_is_valid is also set true on success, else false. */
+	m_is_valid is set true on success, else false.
+	@retval DB_SUCCESS on if the datafile is valid
+	@retval DB_CORRUPTION if the datafile is not readable
+	@retval DB_TABLESPACE_EXISTS if there is a duplicate space_id */
 	dberr_t validate_first_page()
 		__attribute__((warn_unused_result));
 
@@ -478,8 +495,9 @@ public:
 
 	/** Open a handle to the file linked to in an InnoDB Symbolic Link file
 	in read-only mode so that it can be validated.
+	@param[in]	strict	whether to issue error messages
 	@return DB_SUCCESS or error code */
-	dberr_t open_read_only()
+	dberr_t open_read_only(bool strict)
 		__attribute__((warn_unused_result));
 
 	/** Opens a handle to the file linked to in an InnoDB Symbolic Link

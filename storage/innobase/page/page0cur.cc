@@ -37,6 +37,7 @@ Created 10/4/1994 Heikki Tuuri
 #include "log0recv.h"
 #ifndef UNIV_HOTBACKUP
 #include "rem0cmp.h"
+#include "gis0rtree.h"
 
 #include <algorithm>
 
@@ -225,7 +226,8 @@ page_cur_search_with_match(
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	page_cur_t*		cursor)	/*!< out: page cursor */
+	page_cur_t*		cursor,	/*!< out: page cursor */
+	rtr_info_t*		rtr_info)/*!< in/out: rtree search stack */
 {
 	ulint		up;
 	ulint		low;
@@ -256,7 +258,8 @@ page_cur_search_with_match(
 		if (mode != PAGE_CUR_LE_OR_EXTENDS)
 # endif /* PAGE_CUR_LE_OR_EXTENDS */
 			ut_ad(mode == PAGE_CUR_L || mode == PAGE_CUR_LE
-			      || mode == PAGE_CUR_G || mode == PAGE_CUR_GE);
+			      || mode == PAGE_CUR_G || mode == PAGE_CUR_GE
+			      || dict_index_is_spatial(index));
 #endif /* UNIV_DEBUG */
 	page = buf_block_get_frame(block);
 #ifdef UNIV_ZIP_DEBUG
@@ -268,6 +271,7 @@ page_cur_search_with_match(
 #ifdef PAGE_CUR_ADAPT
 	if (page_is_leaf(page)
 	    && (mode == PAGE_CUR_LE)
+	    && !dict_index_is_spatial(index)
 	    && (page_header_get_field(page, PAGE_N_DIRECTION) > 3)
 	    && (page_header_get_ptr(page, PAGE_LAST_INSERT))
 	    && (page_header_get_field(page, PAGE_DIRECTION) == PAGE_RIGHT)) {
@@ -286,6 +290,21 @@ page_cur_search_with_match(
 	}
 # endif
 #endif
+
+	/* If the mode is for R-tree indexes, use the special MBR
+	related compare functions */
+	if (dict_index_is_spatial(index) && mode > PAGE_CUR_LE) {
+		/* For leaf level insert, we still use the traditional
+		compare function for now */
+		if (mode == PAGE_CUR_RTREE_INSERT && page_is_leaf(page)){
+			mode = PAGE_CUR_LE;
+		} else {
+			rtr_cur_search_with_match(
+				block, (dict_index_t*)index, tuple, mode,
+				cursor, rtr_info);
+			return;
+		}
+	}
 
 	/* The following flag does not work for non-latin1 char sets because
 	cmp_full_field does not tell how many bytes matched */
@@ -350,7 +369,6 @@ up_slot_match:
 			   || mode == PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
 			   ) {
-
 			goto low_slot_match;
 		} else {
 
@@ -402,6 +420,22 @@ up_rec_match:
 			   || mode == PAGE_CUR_LE_OR_EXTENDS
 #endif /* PAGE_CUR_LE_OR_EXTENDS */
 			   ) {
+			if (!cmp && !cur_matched_fields) {
+#ifdef UNIV_DEBUG
+				mtr_t	mtr;
+				mtr_start(&mtr);
+
+				/* We got a match, but cur_matched_fields is
+				0, it must have REC_INFO_MIN_REC_FLAG */
+				ulint   rec_info = rec_get_info_bits(mid_rec,
+                                                     rec_offs_comp(offsets));
+				ut_ad(rec_info & REC_INFO_MIN_REC_FLAG);
+				ut_ad(btr_page_get_prev(page, &mtr) == FIL_NULL);
+				mtr_commit(&mtr);
+#endif
+
+				cur_matched_fields = dtuple_get_n_fields_cmp(tuple);
+			}
 
 			goto low_rec_match;
 		} else {
@@ -482,6 +516,7 @@ page_cur_insert_rec_write_log(
 	}
 
 	ut_a(rec_size < UNIV_PAGE_SIZE);
+	ut_ad(mtr->is_named_space(index->space));
 	ut_ad(page_align(insert_rec) == page_align(cursor_rec));
 	ut_ad(!page_rec_is_comp(insert_rec)
 	      == !dict_table_is_comp(index->table));
@@ -990,34 +1025,36 @@ use_heap:
 	      || rec_get_node_ptr_flag(last_insert)
 	      == rec_get_node_ptr_flag(insert_rec));
 
-	if (UNIV_UNLIKELY(last_insert == NULL)) {
-		page_header_set_field(page, NULL, PAGE_DIRECTION,
-				      PAGE_NO_DIRECTION);
-		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+	if (!dict_index_is_spatial(index)) {
+		if (UNIV_UNLIKELY(last_insert == NULL)) {
+			page_header_set_field(page, NULL, PAGE_DIRECTION,
+					      PAGE_NO_DIRECTION);
+			page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
 
-	} else if ((last_insert == current_rec)
-		   && (page_header_get_field(page, PAGE_DIRECTION)
-		       != PAGE_LEFT)) {
+		} else if ((last_insert == current_rec)
+			   && (page_header_get_field(page, PAGE_DIRECTION)
+			       != PAGE_LEFT)) {
 
-		page_header_set_field(page, NULL, PAGE_DIRECTION,
-							PAGE_RIGHT);
-		page_header_set_field(page, NULL, PAGE_N_DIRECTION,
-				      page_header_get_field(
-					      page, PAGE_N_DIRECTION) + 1);
+			page_header_set_field(page, NULL, PAGE_DIRECTION,
+					      PAGE_RIGHT);
+			page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+					      page_header_get_field(
+						page, PAGE_N_DIRECTION) + 1);
 
-	} else if ((page_rec_get_next(insert_rec) == last_insert)
-		   && (page_header_get_field(page, PAGE_DIRECTION)
-		       != PAGE_RIGHT)) {
+		} else if ((page_rec_get_next(insert_rec) == last_insert)
+			   && (page_header_get_field(page, PAGE_DIRECTION)
+			       != PAGE_RIGHT)) {
 
-		page_header_set_field(page, NULL, PAGE_DIRECTION,
-							PAGE_LEFT);
-		page_header_set_field(page, NULL, PAGE_N_DIRECTION,
-				      page_header_get_field(
-					      page, PAGE_N_DIRECTION) + 1);
-	} else {
-		page_header_set_field(page, NULL, PAGE_DIRECTION,
-							PAGE_NO_DIRECTION);
-		page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+			page_header_set_field(page, NULL, PAGE_DIRECTION,
+					      PAGE_LEFT);
+			page_header_set_field(page, NULL, PAGE_N_DIRECTION,
+					      page_header_get_field(
+						page, PAGE_N_DIRECTION) + 1);
+		} else {
+			page_header_set_field(page, NULL, PAGE_DIRECTION,
+					      PAGE_NO_DIRECTION);
+			page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
+		}
 	}
 
 	page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, insert_rec);
@@ -1445,34 +1482,38 @@ use_heap:
 	      || rec_get_node_ptr_flag(last_insert)
 	      == rec_get_node_ptr_flag(insert_rec));
 
-	if (UNIV_UNLIKELY(last_insert == NULL)) {
-		page_header_set_field(page, page_zip, PAGE_DIRECTION,
-							PAGE_NO_DIRECTION);
-		page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
+	if (!dict_index_is_spatial(index)) {
+		if (UNIV_UNLIKELY(last_insert == NULL)) {
+			page_header_set_field(page, page_zip, PAGE_DIRECTION,
+					      PAGE_NO_DIRECTION);
+			page_header_set_field(page, page_zip,
+					      PAGE_N_DIRECTION, 0);
 
-	} else if ((last_insert == cursor->rec)
-		   && (page_header_get_field(page, PAGE_DIRECTION)
-		       != PAGE_LEFT)) {
+		} else if ((last_insert == cursor->rec)
+			   && (page_header_get_field(page, PAGE_DIRECTION)
+			       != PAGE_LEFT)) {
 
-		page_header_set_field(page, page_zip, PAGE_DIRECTION,
-							PAGE_RIGHT);
-		page_header_set_field(page, page_zip, PAGE_N_DIRECTION,
-				      page_header_get_field(
-					      page, PAGE_N_DIRECTION) + 1);
+			page_header_set_field(page, page_zip, PAGE_DIRECTION,
+					      PAGE_RIGHT);
+			page_header_set_field(page, page_zip, PAGE_N_DIRECTION,
+					      page_header_get_field(
+						page, PAGE_N_DIRECTION) + 1);
 
-	} else if ((page_rec_get_next(insert_rec) == last_insert)
-		   && (page_header_get_field(page, PAGE_DIRECTION)
-		       != PAGE_RIGHT)) {
+		} else if ((page_rec_get_next(insert_rec) == last_insert)
+			   && (page_header_get_field(page, PAGE_DIRECTION)
+			       != PAGE_RIGHT)) {
 
-		page_header_set_field(page, page_zip, PAGE_DIRECTION,
-							PAGE_LEFT);
-		page_header_set_field(page, page_zip, PAGE_N_DIRECTION,
-				      page_header_get_field(
-					      page, PAGE_N_DIRECTION) + 1);
-	} else {
-		page_header_set_field(page, page_zip, PAGE_DIRECTION,
-							PAGE_NO_DIRECTION);
-		page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
+			page_header_set_field(page, page_zip, PAGE_DIRECTION,
+					      PAGE_LEFT);
+			page_header_set_field(page, page_zip, PAGE_N_DIRECTION,
+					      page_header_get_field(
+						page, PAGE_N_DIRECTION) + 1);
+		} else {
+			page_header_set_field(page, page_zip, PAGE_DIRECTION,
+					      PAGE_NO_DIRECTION);
+			page_header_set_field(page, page_zip,
+					      PAGE_N_DIRECTION, 0);
+		}
 	}
 
 	page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, insert_rec);
@@ -1523,6 +1564,7 @@ page_copy_rec_list_to_created_page_write_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_is_comp(page) == dict_table_is_comp(index->table));
+	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, page, index,
 					    page_is_comp(page)
@@ -1585,9 +1627,12 @@ page_parse_copy_rec_list_to_created_page(
 	page_zip = buf_block_get_page_zip(block);
 
 	page_header_set_ptr(page, page_zip, PAGE_LAST_INSERT, NULL);
-	page_header_set_field(page, page_zip, PAGE_DIRECTION,
-							PAGE_NO_DIRECTION);
-	page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
+
+	if (!dict_index_is_spatial(index)) {
+		page_header_set_field(page, page_zip, PAGE_DIRECTION,
+				      PAGE_NO_DIRECTION);
+		page_header_set_field(page, page_zip, PAGE_N_DIRECTION, 0);
+	}
 
 	return(rec_end);
 }
@@ -1769,8 +1814,9 @@ page_copy_rec_list_end_to_created_page(
 	page_header_set_field(new_page, NULL, PAGE_N_RECS, n_recs);
 
 	page_header_set_ptr(new_page, NULL, PAGE_LAST_INSERT, NULL);
+
 	page_header_set_field(new_page, NULL, PAGE_DIRECTION,
-							PAGE_NO_DIRECTION);
+			      PAGE_NO_DIRECTION);
 	page_header_set_field(new_page, NULL, PAGE_N_DIRECTION, 0);
 
 	/* Restore the log mode */
@@ -1791,6 +1837,7 @@ page_cur_delete_rec_write_log(
 	byte*	log_ptr;
 
 	ut_ad(!!page_rec_is_comp(rec) == dict_table_is_comp(index->table));
+	ut_ad(mtr->is_named_space(index->space));
 
 	log_ptr = mlog_open_and_write_index(mtr, rec, index,
 					    page_rec_is_comp(rec)
@@ -1904,6 +1951,7 @@ page_cur_delete_rec(
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID) == index->id
 	      || (mtr ? mtr->is_inside_ibuf() : dict_index_is_ibuf(index))
 	      || recv_recovery_is_on());
+	ut_ad(mtr == NULL || mtr->is_named_space(index->space));
 
 	/* The record must not be the supremum or infimum record. */
 	ut_ad(page_rec_is_user_rec(current_rec));

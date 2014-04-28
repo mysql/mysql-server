@@ -21,7 +21,6 @@ using namespace std;
 #include <gcs_protocol.h>
 #include <gcs_message.h>
 #include <gcs_replication.h>
-#include <thr_alarm.h>
 
 
 static void *launch_broadcast_thread(void* arg)
@@ -90,7 +89,7 @@ int Certifier_broadcast_thread::terminate()
   while (broadcast_pthd_running)
   {
     DBUG_PRINT("loop", ("killing certifier broadcast thread"));
-    pthread_kill(broadcast_pthd, thr_client_alarm);
+    pthread_kill(broadcast_pthd, SIGUSR1);
     pthread_cond_wait(&broadcast_pthd_cond, &broadcast_pthd_lock);
   }
   pthread_mutex_unlock(&broadcast_pthd_lock);
