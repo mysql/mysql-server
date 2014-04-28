@@ -2627,66 +2627,69 @@ row_ins_sorted_clust_index_entry(
 	dict_disable_redo_if_temporary(index->table, mtr);
 	flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 
-	rec_t*	insert_rec;
+	for (;;) {
+		rec_t*	insert_rec;
 
-	if (mode != BTR_MODIFY_TREE) {
+		if (mode != BTR_MODIFY_TREE) {
+			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
+				== BTR_MODIFY_LEAF);
 
-		ut_ad((mode & ~BTR_ALREADY_S_LATCHED) == BTR_MODIFY_LEAF);
-
-		err = btr_cur_optimistic_insert(
-			flags, &cursor, &offsets, &offsets_heap, entry,
-			&insert_rec, &big_rec, n_ext, thr, mtr);
-		if (err != DB_SUCCESS) {
-			goto err_exit;
-		}
-
-	} else {
-		/* TODO: Check if this is needed for intrinsic table. */
-		if (buf_LRU_buf_pool_running_out()) {
-			err = DB_LOCK_TABLE_FULL;
-			goto err_exit;
-		}
-
-		err = btr_cur_optimistic_insert(
-			flags, &cursor, &offsets, &offsets_heap, entry,
-			&insert_rec, &big_rec, n_ext, thr, mtr);
-
-		if (err == DB_FAIL) {
-			err = btr_cur_pessimistic_insert(
+			err = btr_cur_optimistic_insert(
 				flags, &cursor, &offsets, &offsets_heap, entry,
 				&insert_rec, &big_rec, n_ext, thr, mtr);
-		}
-	}
-
-	if (big_rec != NULL) {
-		/* If index involves big-record optimization is turned-off. */
-		index->last_ins_cur->release();
-		index->last_ins_cur->disable_caching = true;
-
-		err = row_ins_index_entry_big_rec(
-			entry, big_rec, offsets, &offsets_heap, index,
-			thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
-
-		dtuple_convert_back_big_rec(index, entry, big_rec);
-
-	} else if (err == DB_SUCCESS ) {
-		if (!commit_mtr && !index->last_ins_cur->disable_caching) {
-
-			index->last_ins_cur->rec = insert_rec;
-
-			index->last_ins_cur->block = cursor.page_cur.block;
-
+			if (err != DB_SUCCESS) {
+				break;
+			}
 		} else {
-			index->last_ins_cur->release();
+			/* TODO: Check if this is needed for intrinsic table. */
+			if (buf_LRU_buf_pool_running_out()) {
+				err = DB_LOCK_TABLE_FULL;
+				break;
+			}
+
+			err = btr_cur_optimistic_insert(
+				flags, &cursor, &offsets, &offsets_heap, entry,
+				&insert_rec, &big_rec, n_ext, thr, mtr);
+
+			if (err == DB_FAIL) {
+				err = btr_cur_pessimistic_insert(
+					flags, &cursor, &offsets, &offsets_heap,
+					entry, &insert_rec, &big_rec, n_ext,
+					thr, mtr);
+			}
 		}
+
+		if (big_rec != NULL) {
+			/* If index involves big-record optimization is
+			turned-off. */
+			index->last_ins_cur->release();
+			index->last_ins_cur->disable_caching = true;
+
+			err = row_ins_index_entry_big_rec(
+				entry, big_rec, offsets, &offsets_heap, index,
+				thr_get_trx(thr)->mysql_thd, __FILE__, __LINE__);
+
+			dtuple_convert_back_big_rec(index, entry, big_rec);
+
+		} else if (err == DB_SUCCESS ) {
+			if (!commit_mtr
+			    && !index->last_ins_cur->disable_caching) {
+				index->last_ins_cur->rec = insert_rec;
+
+				index->last_ins_cur->block
+					= cursor.page_cur.block;
+			} else {
+				index->last_ins_cur->release();
+			}
+		}
+
+		break;
 	}
 
-	goto func_exit;
+	if (err != DB_SUCCESS) {
+		index->last_ins_cur->release();
+	}
 
-err_exit:
-	index->last_ins_cur->release();
-
-func_exit:
 	if (offsets_heap != NULL) {
 		mem_heap_free(offsets_heap);
 	}
