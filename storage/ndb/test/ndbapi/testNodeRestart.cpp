@@ -27,6 +27,8 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
+#include <my_sys.h>
+#include <ndb_rand.h>
 
 int runLoadTable(NDBT_Context* ctx, NDBT_Step* step){
 
@@ -5770,6 +5772,247 @@ runBug16766493(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+/* Bug16895311 */
+
+struct Bug16895311 {
+  struct Row {
+    int bytelen;
+    int chrlen;
+    uchar* data;
+    bool exist;
+    Row() {
+      bytelen = -1;
+      chrlen = -1;
+      data = 0;
+      exist = false;
+    }
+  };
+  const char* tabname;
+  int maxbytelen;
+  CHARSET_INFO* cs;
+  const NdbDictionary::Table* pTab;
+  int records;
+  Row* rows;
+  Bug16895311() {
+    tabname = "tBug16895311";
+    maxbytelen = 0;
+    cs = 0;
+    pTab = 0;
+    records = 0;
+    rows = 0;
+  };
+};
+
+static Bug16895311 bug16895311;
+
+int
+runBug16895311_create(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Bug16895311& bug = bug16895311;
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = 0;
+  ndb_srand((unsigned)getpid());
+  do
+  {
+    (void)pDic->dropTable(bug.tabname);
+    NdbDictionary::Table tab;
+    tab.setName(bug.tabname);
+    const char* csname = "utf8_unicode_ci";
+    bug.cs = get_charset_by_name(csname, MYF(0));
+    require(bug.cs != 0);
+    // can hit too small xfrm buffer in 2 ways
+    // ndbrequire line numbers are from 7.1 revno: 4997
+    if (ndb_rand() % 100 < 50)
+      bug.maxbytelen = 255 * 3; // line 732
+    else
+      bug.maxbytelen = MAX_KEY_SIZE_IN_WORDS * 4 - 2; // line 1862
+    g_err << "char key: maxbytelen=" << bug.maxbytelen << endl;
+    {
+      NdbDictionary::Column c;
+      c.setName("a");
+      c.setType(NdbDictionary::Column::Longvarchar);
+      c.setCharset(bug.cs);
+      c.setLength(bug.maxbytelen);
+      c.setNullable(false);
+      c.setPrimaryKey(true);
+      tab.addColumn(c);
+    }
+    CHK2(pDic->createTable(tab) == 0, pDic->getNdbError());
+    CHK2((bug.pTab = pDic->getTable(bug.tabname)) != 0,
+         pDic->getNdbError());
+    // allocate rows
+    bug.records = ctx->getNumRecords();
+    bug.rows = new Bug16895311::Row [bug.records];
+  } while (0);
+  return result;
+}
+
+void
+doBug16895311_data(int i)
+{
+  Bug16895311& bug = bug16895311;
+  require(0 <= i && i < bug.records);
+  Bug16895311::Row& row = bug.rows[i];
+  const uchar chr[][3] = {
+    { 0xE2, 0x82, 0xAC }, // U+20AC
+    { 0xE2, 0x84, 0xB5 }, // U+2135
+    { 0xE2, 0x88, 0xAB }  // U+222B
+  };
+  const int chrcnt = sizeof(chr) / sizeof(chr[0]);
+  while (1)
+  {
+    if (row.data != 0)
+      delete [] row.data;
+    int len;
+    if (ndb_rand() % 100 < 50)
+      len = bug.maxbytelen;
+    else
+      len = ndb_rand() % (bug.maxbytelen + 1);
+    row.chrlen = len / 3;
+    row.bytelen = row.chrlen * 3;
+    row.data = new uchar [2 + row.bytelen];
+    row.data[0] = uint(row.bytelen) & 0xFF;
+    row.data[1] = uint(row.bytelen) >> 8;
+    for (int j = 0; j < row.chrlen; j++)
+    {
+      int k = ndb_rand() % chrcnt;
+      memcpy(&row.data[2 + j * 3], chr[k], 3);
+    }
+    int not_used;
+    int wflen = (int)(*bug.cs->cset->well_formed_len)(
+                bug.cs,
+                (const char*)&row.data[2],
+                (const char*)&row.data[2] + row.bytelen,
+                row.chrlen,
+                &not_used);
+    require(wflen == row.bytelen);
+    bool dups = false;
+    for (int i2 = 0; i2 < bug.records; i2++)
+    {
+      if (i2 != i)
+      {
+        Bug16895311::Row& row2 = bug.rows[i2];
+        if (row2.exist &&
+            row2.bytelen == row.bytelen &&
+            memcmp(row2.data, row.data, 2 + row.bytelen) == 0)
+        {
+          dups = true;
+          break;
+        }
+      }
+    }
+    if (dups)
+      continue;
+    break;
+  }
+  require(row.data != 0);
+}
+
+int
+doBug16895311_op(Ndb* pNdb, const char* op, int i)
+{
+  Bug16895311& bug = bug16895311;
+  int result = NDBT_OK;
+  require(strcmp(op, "I") == 0 || strcmp(op, "D") == 0);
+  Bug16895311::Row& row = bug.rows[i];
+  int tries = 0;
+  while (1)
+  {
+    tries++;
+    Uint32 acol = 0;
+    const char* aval = (const char*)row.data;
+    require(aval != 0);
+    NdbTransaction* pTx = 0;
+    CHK2((pTx = pNdb->startTransaction()) != 0, pNdb->getNdbError());
+    NdbOperation* pOp = 0;
+    CHK2((pOp = pTx->getNdbOperation(bug.pTab)) != 0, pTx->getNdbError());
+    if (*op == 'I')
+    {
+      CHK2(pOp->insertTuple() == 0, pOp->getNdbError());
+    }
+    if (*op == 'D')
+    {
+      CHK2(pOp->deleteTuple() == 0, pOp->getNdbError());
+    }
+    CHK2(pOp->equal(acol, aval) == 0, pOp->getNdbError());
+    int ret = pTx->execute(NdbTransaction::Commit);
+    if (ret != 0) {
+      const NdbError& error = pTx->getNdbError();
+      g_info << "i=" << i << " op=" << op << ": " << error << endl;
+      CHK2(error.status == NdbError::TemporaryError, error);
+      CHK2(tries < 100, error << ": tries=" << tries);
+      NdbSleep_MilliSleep(100);
+      pNdb->closeTransaction(pTx);
+      continue;
+    }
+    pNdb->closeTransaction(pTx);
+    if (*op == 'I')
+    {
+      require(!row.exist);
+      row.exist = true;
+    }
+    if (*op == 'D')
+    {
+      require(row.exist);
+      row.exist = false;
+    }
+    break;
+  }
+  return result;
+}
+
+int
+runBug16895311_load(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Bug16895311& bug = bug16895311;
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  for (int i = 0; i < bug.records; i++)
+  {
+    doBug16895311_data(i);
+    CHK2(doBug16895311_op(pNdb, "I", i) == 0, "-");
+  }
+  return result;
+}
+
+int
+runBug16895311_update(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Bug16895311& bug = bug16895311;
+  Ndb* pNdb = GETNDB(step);
+  int result = NDBT_OK;
+  int i = 0;
+  while (!ctx->isTestStopped())
+  {
+    // the delete/insert can turn into update on recovering node
+    // TODO: investigate what goes on
+    CHK2(doBug16895311_op(pNdb, "D", i) == 0, "-");
+    CHK2(doBug16895311_op(pNdb, "I", i) == 0, "-");
+    i++;
+    if (i >= bug.records)
+      i = 0;
+  }
+  return result;
+}
+
+int
+runBug16895311_drop(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Bug16895311& bug = bug16895311;
+  Ndb* pNdb = GETNDB(step);
+  NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
+  int result = 0;
+  do
+  {
+    CHK2(pDic->dropTable(bug.tabname) == 0, pDic->getNdbError());
+    // free rows
+    delete [] bug.rows;
+    bug.rows = 0;
+  } while (0);
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -6369,6 +6612,16 @@ TESTCASE("NodeFailGCPOpen",
 TESTCASE("Bug16766493", "")
 {
   INITIALIZER(runBug16766493);
+}
+TESTCASE("Bug16895311",
+         "Test NR with long UTF8 PK.\n"
+         "Give any tablename as argument (T1)")
+{
+  INITIALIZER(runBug16895311_create);
+  INITIALIZER(runBug16895311_load);
+  STEP(runBug16895311_update);
+  STEP(runRestarter);
+  FINALIZER(runBug16895311_drop);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);
