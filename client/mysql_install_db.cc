@@ -726,12 +726,19 @@ public:
     errno= 0;
     cout << Datetime()
          << "Creating system tables..." << flush;
+
+    string create_db("CREATE DATABASE mysql;\n");
+    string use_db("USE mysql;\n");
+    write(fh, create_db.c_str(), create_db.length());
+    write(fh, use_db.c_str(), use_db.length());
+
     unsigned s= 0;
     s= sizeof(mysql_system_tables)/sizeof(*mysql_system_tables);
-    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0; ++i)
+    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0 &&
+        mysql_system_tables[i] != NULL; ++i)
     {
-      n= write(fh, mysql_system_tables[i].c_str(),
-            mysql_system_tables[i].length());
+      n= write(fh, mysql_system_tables[i],
+               strlen(mysql_system_tables[i]));
     }   
     if (errno != 0)
     {
@@ -743,10 +750,11 @@ public:
     cout << Datetime()
          << "Filling system tables with data..." << flush;
     s= sizeof(mysql_system_data)/sizeof(*mysql_system_data);
-    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0; ++i)
+    for(unsigned i=0, n= 1; i< s && errno != EPIPE && n != 0 &&
+        mysql_system_data[i] != NULL; ++i)
     {
-      n= write(fh, mysql_system_data[i].c_str(),
-            mysql_system_data[i].length());
+      n= write(fh, mysql_system_data[i],
+               strlen(mysql_system_data[i]));
     }
     if (errno != 0)
     {
