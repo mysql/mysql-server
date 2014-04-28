@@ -1959,3 +1959,7 @@ max-time : 600
 cmd: testNodeRestart
 args: -n Bug16766493 D1
 
+max-time : 600
+cmd: testNodeRestart
+args: -n Bug16895311 T1
+
