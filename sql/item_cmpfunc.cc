@@ -549,8 +549,8 @@ void Item_bool_func2::fix_length_and_dec()
   */
 
   DTCollation coll;
-  if (args[0]->result_type() == STRING_RESULT &&
-      args[1]->result_type() == STRING_RESULT &&
+  if (args[0]->cmp_type() == STRING_RESULT &&
+      args[1]->cmp_type() == STRING_RESULT &&
       agg_arg_charsets_for_comparison(coll, args, 2))
     return;
     

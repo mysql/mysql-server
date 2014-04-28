@@ -3282,5 +3282,15 @@ SELECT COALESCE(IF(test1=1, NULL, 1), test2) FROM t1;
 COALESCE(IF(test1=1, NULL, 1), test2)
 DROP TABLE t1;
 #
+# MDEV-5459 Illegal mix of collations for datetime
+#
+SET NAMES cp1251;
+CREATE TABLE t1 (dt DATETIME);
+INSERT INTO t1 VALUES ('2014-01-02 10:20:30');
+SELECT date(dt) FROM t1 WHERE (CASE WHEN 1 THEN date(dt) ELSE null END >= '2013-12-01 00:00:00');
+date(dt)
+2014-01-02
+DROP TABLE t1;
+#
 # End of 5.5 tests
 #
