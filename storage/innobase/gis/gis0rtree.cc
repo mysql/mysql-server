@@ -1060,10 +1060,9 @@ func_start:
 	insert_size = rec_get_converted_size(cursor->index, tuple, n_ext);
 	total_data = page_get_data_size(page) + insert_size;
 	first_rec_group = split_rtree_node(rtr_split_node_array,
-					   static_cast<int>(n_recs),
-					   static_cast<int>(total_data),
-					   static_cast<int>(insert_size),
-					   0, 2, 2, &buf_pos, SPDIMS,
+					   n_recs, total_data,
+					   insert_size, 0, 2, 2,
+					   &buf_pos, SPDIMS,
 					   static_cast<uchar*>(first_rec));
 
 	/* Allocate a new page to the index */
@@ -1807,7 +1806,7 @@ rtr_rec_cal_increase(
 	ret = rtree_area_increase(
 		rec_b_ptr,
 		static_cast<const byte*>(dfield_get_data(dtuple_field)),
-		static_cast<int>(dtuple_f_len), area);
+		dtuple_f_len, area);
 
 	return(ret);
 }
