@@ -197,16 +197,25 @@ test_big_merge (void) {
 
 	uint64_t an = twoG;
 	uint64_t bn = 1;
-	struct block_allocator_blockpair *MALLOC_N(an+bn, a); 
+	struct block_allocator_blockpair *MALLOC_N(an+bn, a);
+        struct block_allocator_blockpair *MALLOC_N(bn,    b);
+        if (a == nullptr) {
+            fprintf(stderr, "%s:%u malloc failed, continuing\n", __FUNCTION__, __LINE__);
+            goto malloc_failed;
+        }
+        if (b == nullptr) {
+            fprintf(stderr, "%s:%u malloc failed, continuing\n", __FUNCTION__, __LINE__);
+            goto malloc_failed;
+        }
         assert(a);
-	struct block_allocator_blockpair *MALLOC_N(bn,    b);
         assert(b);
-	for (uint64_t i=0; i<an; i++) a[i].offset=i+1;
-	b[0].offset = 0;
-	block_allocator_merge_blockpairs_into(an, a, bn, b);
-	for (uint64_t i=0; i<an+bn; i++) assert(a[i].offset == i);
-	toku_free(a);
-	toku_free(b);
+        for (uint64_t i=0; i<an; i++) a[i].offset=i+1;
+        b[0].offset = 0;
+        block_allocator_merge_blockpairs_into(an, a, bn, b);
+        for (uint64_t i=0; i<an+bn; i++) assert(a[i].offset == i);
+    malloc_failed:
+        toku_free(a);
+        toku_free(b);
     }
 }
 
