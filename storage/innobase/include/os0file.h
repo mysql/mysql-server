@@ -409,7 +409,7 @@ bigger than 4000 bytes */
 struct os_file_stat_t {
 	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
 	os_file_type_t	type;			/*!< file type */
-	ib_int64_t	size;			/*!< file size */
+	int64_t		size;			/*!< file size */
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */
 	time_t		atime;			/*!< access time */

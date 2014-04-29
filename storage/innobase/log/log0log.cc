@@ -544,7 +544,7 @@ Calculates where in log files we find a specified lsn.
 ulint
 log_calc_where_lsn_is(
 /*==================*/
-	ib_int64_t*	log_file_offset,	/*!< out: offset in that file
+	int64_t*	log_file_offset,	/*!< out: offset in that file
 						(including the header) */
 	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
 						lsn */
@@ -552,18 +552,18 @@ log_calc_where_lsn_is(
 						determine */
 	ulint		n_log_files,		/*!< in: total number of log
 						files */
-	ib_int64_t	log_file_size)		/*!< in: log file size
+	int64_t		log_file_size)		/*!< in: log file size
 						(including the header) */
 {
-	ib_int64_t	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
+	int64_t		capacity	= log_file_size - LOG_FILE_HDR_SIZE;
 	ulint		file_no;
-	ib_int64_t	add_this_many;
+	int64_t		add_this_many;
 
 	if (lsn < first_header_lsn) {
 		add_this_many = 1 + (first_header_lsn - lsn)
-			/ (capacity * (ib_int64_t) n_log_files);
+			/ (capacity * static_cast<int64_t>(n_log_files));
 		lsn += add_this_many
-			* capacity * (ib_int64_t) n_log_files;
+			* capacity * static_cast<int64_t>(n_log_files);
 	}
 
 	ut_a(lsn >= first_header_lsn);

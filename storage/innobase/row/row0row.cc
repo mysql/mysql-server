@@ -962,7 +962,7 @@ row_raw_format_int(
 
 		ret = ut_snprintf(
 			buf, buf_size,
-			unsigned_type ? UINT64PF : INT64PF, value) + 1;
+			unsigned_type ? UINT64PF : "%" PRId64, value) + 1;
 	} else {
 
 		*format_in_hex = TRUE;

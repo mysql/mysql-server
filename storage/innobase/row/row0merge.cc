@@ -1135,7 +1135,7 @@ row_merge_read_clustered_index(
 	ibool			add_doc_id = FALSE;
 	os_event_t		fts_parallel_sort_event = NULL;
 	ibool			fts_pll_sort = FALSE;
-	ib_int64_t		sig_count = 0;
+	int64_t			sig_count = 0;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
@@ -3369,7 +3369,7 @@ row_merge_build_indexes(
 	dict_index_t*		fts_sort_idx = NULL;
 	fts_psort_t*		psort_info = NULL;
 	fts_psort_t*		merge_info = NULL;
-	ib_int64_t		sig_count = 0;
+	int64_t			sig_count = 0;
 	bool			fts_psort_initiated = false;
 	DBUG_ENTER("row_merge_build_indexes");
 
