@@ -6264,16 +6264,37 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
   }
 
   const_item_cache=0;
+  table= 0;
   for (uint i=1 ; i < arg_count ; i++)
   {
     item=args[i];
     if (item->type() == Item::REF_ITEM)
       args[i]= item= *((Item_ref *)item)->ref;
-    if (item->type() != Item::FIELD_ITEM)
+    /*
+      When running in PS mode, some Item_field's can already be replaced
+      to Item_func_conv_charset during PREPARE time. This is possible
+      in case of "MATCH (f1,..,fN) AGAINST (... IN BOOLEAN MODE)"
+      when running without any fulltext indexes and when fields f1..fN
+      have different character sets.
+      So we check for FIELD_ITEM only during prepare time and in non-PS mode,
+      and do not check in PS execute time.
+    */
+    if (!thd->stmt_arena->is_stmt_execute() &&
+        item->type() != Item::FIELD_ITEM)
     {
       my_error(ER_WRONG_ARGUMENTS, MYF(0), "AGAINST");
       return TRUE;
     }
+    /*
+      During the prepare-time execution of fix_fields() of a PS query some
+      Item_fields's could have been already replaced to Item_func_conv_charset
+      (by the call for agg_arg_charsets_for_comparison below()).
+      But agg_arg_charsets_for_comparison() is written in a way that
+      at least *one* of the Item_field's is not replaced.
+      This makes sure that "table" gets initialized during PS execution time.
+    */
+    if (item->type() == Item::FIELD_ITEM)
+      table= ((Item_field *)item)->field->table;
   }
   /*
     Check that all columns come from the same table.
@@ -6288,7 +6309,6 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"MATCH");
     return TRUE;
   }
-  table=((Item_field *)item)->field->table;
   if (!(table->file->ha_table_flags() & HA_CAN_FULLTEXT))
   {
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
