@@ -104,7 +104,7 @@ public:
 
 	/** Count of register table handler.
 	@return number of register table handlers */
-	uint count_register_table_handler()
+	uint count_register_table_handler() const
 	{
 		return(m_open_tables.size());
 	}

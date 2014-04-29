@@ -1848,26 +1848,23 @@ void
 dict_disable_redo_if_temporary(
 /*===========================*/
 	const dict_table_t*	table,	/*!< in: table to check */
-	mtr_t*			mtr)	/*!< out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*			mtr);	/*!< out: mini-transaction */
 
-/** Get table localized row-id and increment the row-id counter for next use.
+/** Get table session row-id and increment the row-id counter for next use.
 @param[in,out]	table	table handler
 @return next table local row-id. */
 UNIV_INLINE
 row_id_t
-dict_table_get_table_localized_row_id(
-	dict_table_t*		table)
-	__attribute__((nonnull));
+dict_table_get_table_sess_row_id(
+	dict_table_t*		table);
 
-/** Get table localized trx-id and increment the trx-id counter for next use.
+/** Get table session trx-id and increment the trx-id counter for next use.
 @param[in,out]	table	table handler
 @return next table local trx-id. */
 UNIV_INLINE
 trx_id_t
-dict_table_get_table_localized_trx_id(
-	dict_table_t*		table)
-	__attribute__((nonnull));
+dict_table_get_table_sess_trx_id(
+	dict_table_t*		table);
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**

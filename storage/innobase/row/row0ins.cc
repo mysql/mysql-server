@@ -2572,12 +2572,11 @@ row_ins_sorted_clust_index_entry(
 	ulint		n_ext,
 	que_thr_t*	thr)
 {
-	btr_cur_t	cursor;
 	dberr_t		err;
-	big_rec_t*	big_rec		= NULL;
 	mtr_t*		mtr;
-	mem_heap_t*	offsets_heap	= NULL;
 	bool		commit_mtr	= false;
+
+	mem_heap_t*	offsets_heap	= NULL;
 	ulint           offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*          offsets         = offsets_;
 	rec_offs_init(offsets_);
@@ -2589,6 +2588,7 @@ row_ins_sorted_clust_index_entry(
 	      && dict_table_is_intrinsic(index->table)
 	      && dict_index_is_auto_gen_clust(index));
 
+	btr_cur_t	cursor;
 	cursor.thr = thr;
 	mtr = &index->last_ins_cur->mtr;
 
@@ -2628,7 +2628,8 @@ row_ins_sorted_clust_index_entry(
 	flags |= BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
 
 	for (;;) {
-		rec_t*	insert_rec;
+		rec_t*		insert_rec;
+		big_rec_t*	big_rec		= NULL;
 
 		if (mode != BTR_MODIFY_TREE) {
 			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)

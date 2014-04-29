@@ -1194,13 +1194,13 @@ struct dict_table_t {
 	Given intrinsic table semantics, row-id can be locally maintained
 	instead of getting it from central generator which involves mutex
 	locking. */
-	ib_uint64_t				localized_row_id;
+	ib_uint64_t				sess_row_id;
 
 	/** trx_id counter for use by intrinsic table for getting trx-id.
 	Intrinsic table are not shared so don't need a central trx-id
 	but just need a increased counter to track consistent view while
-	proceeding SELECT as part of UPDATE. */ 
-	ib_uint64_t				localized_trx_id;
+	proceeding SELECT as part of UPDATE. */
+	ib_uint64_t				sess_trx_id;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG
