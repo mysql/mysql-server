@@ -1845,13 +1845,15 @@ fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
 // Local status struct used to get information from memory.c
 typedef enum {
     MEMORY_MALLOC_COUNT = 0,
-    MEMORY_FREE_COUNT,  
+    MEMORY_FREE_COUNT,
     MEMORY_REALLOC_COUNT,
-    MEMORY_MALLOC_FAIL,  
-    MEMORY_REALLOC_FAIL, 
-    MEMORY_REQUESTED,    
-    MEMORY_USED,         
-    MEMORY_FREED,        
+    MEMORY_MALLOC_FAIL,
+    MEMORY_REALLOC_FAIL,
+    MEMORY_REQUESTED,
+    MEMORY_USED,
+    MEMORY_FREED,
+    MEMORY_MAX_REQUESTED_SIZE,
+    MEMORY_LAST_FAILED_SIZE,
     MEMORY_MAX_IN_USE,
     MEMORY_MALLOCATOR_VERSION,
     MEMORY_MMAP_THRESHOLD,
@@ -1879,6 +1881,8 @@ memory_status_init(void) {
     STATUS_INIT(MEMORY_REQUESTED,          nullptr, UINT64,  "number of bytes requested", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_USED,               nullptr, UINT64,  "number of bytes used (requested + overhead)", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_FREED,              nullptr, UINT64,  "number of bytes freed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MAX_REQUESTED_SIZE, nullptr, UINT64,  "largest attempted allocation size", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_LAST_FAILED_SIZE,   nullptr, UINT64,  "size of the last failed allocation attempt", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_MAX_IN_USE,         MEM_ESTIMATED_MAXIMUM_MEMORY_FOOTPRINT, UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(MEMORY_MALLOCATOR_VERSION, nullptr, CHARSTR, "mallocator version", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_MMAP_THRESHOLD,     nullptr, UINT64,  "mmap threshold", TOKU_ENGINE_STATUS);
