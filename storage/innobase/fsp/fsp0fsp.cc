@@ -205,18 +205,18 @@ fsp_get_space_header(
 	return(header);
 }
 
-/********************************************************************//**
-Validate and return the tablespace flags, which are stored in the
+/** Validate and return the tablespace flags, which are stored in the
 tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
 ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
 COMPRESSED and DYNAMIC, use a file format > Antelope so they should
 have a file format number plus the DICT_TF_COMPACT bit set.
+
+@param[in]	flags	tablespace flags
 @return true if check ok */
 
 bool
 fsp_flags_is_valid(
-/*===============*/
-	ulint	flags)		/*!< in: tablespace flags */
+	ulint	flags)
 {
 	ulint	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
 	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
@@ -226,8 +226,8 @@ fsp_flags_is_valid(
 
 	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
 
-	/* fsp_flags is zero unless atomic_blobs is set. */
-	/* Make sure there are no bits that we do not know about. */
+	/* fsp_flags is zero unless atomic_blobs is set.
+	Make sure there are no bits that we do not know about. */
 	if (unused != 0 || flags == 1) {
 		return(false);
 	} else if (post_antelope) {

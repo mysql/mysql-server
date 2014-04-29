@@ -296,7 +296,7 @@ the page from tuple without creating intermediate copy of the record.
 @return pointer to record if succeed, NULL otherwise */
 UNIV_INLINE
 rec_t*
-page_cur_tuple_inline_insert(
+page_cur_tuple_direct_insert(
 	page_cur_t*	cursor,
 	const dtuple_t*	tuple,
 	dict_index_t*	index,
@@ -307,7 +307,7 @@ page_cur_tuple_inline_insert(
 
 	ut_ad(dict_table_is_intrinsic(index->table));
 
-	rec = page_cur_inline_insert_rec_low(
+	rec = page_cur_direct_insert_rec_low(
 		cursor->rec, index, tuple, n_ext, mtr);
 
 	return(rec);

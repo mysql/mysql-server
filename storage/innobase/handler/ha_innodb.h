@@ -56,34 +56,21 @@ typedef struct st_innobase_share {
 
 /** InnoDB private data that is cached in THD */
 typedef std::map<std::string, dict_table_t*>    table_cache_t;
-class innodb_private_t {
-
-public:
-	trx_t*		trx;            /*!< transaction handler. */
-	table_cache_t*	open_tables;    /*!< handler of tables that are
-					created or open but not added to
-					InnoDB dictionary as they are
-					session specific.
-					Currently, limited to intrinsic
-					temporary tables only. */
-
+class innodb_session_t {
 public:
 	/** Constructor */
-	innodb_private_t()
-		: trx(),
-		  open_tables()
+	innodb_session_t()
+		: m_trx(),
+		  m_open_tables()
 	{
-		open_tables = new table_cache_t();
+		/* Do nothing. */
 	}
 
 	/** Destructor */
-	~innodb_private_t()
+	~innodb_session_t()
 	{
-		open_tables->clear();
-		delete open_tables;
-
-		trx = NULL;
-		open_tables = NULL;
+		m_trx = NULL;
+		m_open_tables.clear();
 	}
 
 	/** Cache table handler.
@@ -94,7 +81,7 @@ public:
 		dict_table_t*	table)
 	{
 		ut_ad(lookup_table_handler(table_name) == NULL);
-		(*open_tables).insert(std::pair<std::string, dict_table_t*>(
+		m_open_tables.insert(table_cache_t::value_type(
 			table_name, table));
 	}
 
@@ -103,8 +90,8 @@ public:
 	dict_table_t* lookup_table_handler(
 		const char*	table_name)
 	{
-		table_cache_t::iterator it = (*open_tables).find(table_name);
-		return((it == (*open_tables).end()) ? NULL : it->second);
+		table_cache_t::iterator it = m_open_tables.find(table_name);
+		return((it == m_open_tables.end()) ? NULL : it->second);
 	}
 
 	/** Remove table handler entry.
@@ -112,15 +99,25 @@ public:
 	void unregister_table_handler(
 		const char*	table_name)
 	{
-		(*open_tables).erase(table_name);
+		m_open_tables.erase(table_name);
 	}
 
 	/** Count of register table handler.
 	@return number of register table handlers */
 	uint count_register_table_handler()
 	{
-		return((*open_tables).size());
+		return(m_open_tables.size());
 	}
+
+public:
+
+	/** transaction handler. */
+	trx_t*		m_trx;
+
+	/** Handler of tables that are created or open but not added
+	to InnoDB dictionary as they are session specific.
+	Currently, limited to intrinsic temporary tables only. */
+	table_cache_t	m_open_tables;
 };
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
