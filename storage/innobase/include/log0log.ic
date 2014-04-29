@@ -430,7 +430,20 @@ void
 log_free_check(void)
 /*================*/
 {
-	dict_sync_check	check(true);
+	/* During row_log_table_apply(), this function will be called while we
+	are holding some latches. This is OK, as long as we are not holding
+	any latches on buffer blocks. */
+
+	static const latch_level_t latches[] = {
+		SYNC_DICT,		/* dict_sys->mutex during
+					commit_try_rebuild() */
+		SYNC_DICT_OPERATION,	/* dict_operation_lock X-latch during
+					commit_try_rebuild() */
+		SYNC_INDEX_TREE		/* index->lock */
+	};
+
+	sync_allowed_latches check(latches,
+				   latches + sizeof(latches)/sizeof(*latches));
 
         ut_ad(!sync_check_iterate(check));
 

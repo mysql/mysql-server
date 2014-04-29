@@ -570,7 +570,6 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 # TODO / FIXME: needed ?  install -d $RBR%{mysqldatadir}/mysql
 # TODO / FIXME: needed ?  install -d $RBR%{_datadir}/mysql-test
-# TODO / FIXME: needed ?  install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 # TODO / FIXME: needed ?  install -d $RBR%{_includedir}
 # TODO / FIXME: needed ?  install -d $RBR%{_libdir}
 # TODO / FIXME: needed ?  install -d $RBR%{_mandir}
@@ -663,6 +662,8 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
 rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
+rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql_waitpid.1*
+rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql_zap.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysqlbug.1*
 
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
@@ -790,7 +791,6 @@ fi
 
 %{_bindir}/mysql
 %{_bindir}/mysql_config
-%{_bindir}/mysql_waitpid
 %{_bindir}/mysqladmin
 %{_bindir}/mysqlbinlog
 %{_bindir}/mysqlcheck
@@ -803,7 +803,6 @@ fi
 
 %{_mandir}/man1/mysql.1*
 %{_mandir}/man1/mysql_config.1*
-%{_mandir}/man1/mysql_waitpid.1*
 %{_mandir}/man1/mysqladmin.1*
 %{_mandir}/man1/mysqldump.1*
 %{_mandir}/man1/mysqlshow.1*
@@ -867,7 +866,6 @@ fi
 %{_bindir}/mysql_secure_installation
 %{_bindir}/mysql_tzinfo_to_sql
 %{_bindir}/mysql_upgrade
-%{_bindir}/mysql_zap
 %{_bindir}/mysqldumpslow
 %{_bindir}/mysqld_multi
 %{_bindir}/mysqld_safe
@@ -899,7 +897,6 @@ fi
 %{_mandir}/man1/mysql_plugin.1*
 %{_mandir}/man1/mysql_secure_installation.1*
 %{_mandir}/man1/mysql_upgrade.1*
-%{_mandir}/man1/mysql_zap.1*
 %{_mandir}/man1/mysqldumpslow.1*
 %{_mandir}/man1/mysqlbinlog.1*
 %{_mandir}/man1/mysqlcheck.1*

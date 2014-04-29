@@ -7664,5 +7664,18 @@ f1	sum
 DROP TABLE t1;
 # End of test for Bug#18014565
 set @@optimizer_switch=@old_opt_switch;
+#
+# Bug #18486607 ASSERTION FAILED:
+# IN_SUBQ_PRED->LEFT_EXPR->FIXED IN CONVERT_SUBQUERY_TO_SEMIJOIN 
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+SELECT (SELECT 1 FROM t2
+WHERE a IN (SELECT 1 FROM t2)
+) AS scalar
+FROM t1
+GROUP BY a;
+scalar
+DROP TABLE t1,t2;
 set optimizer_switch=default;
 set optimizer_switch=default;
