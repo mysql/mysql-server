@@ -1484,6 +1484,14 @@ bool close_temporary_tables(THD *thd)
 
     DBUG_RETURN(FALSE);
   }
+  /* We are about to generate DROP TEMPORARY TABLE statements for all
+    the left out temporary tables. If this part of the code is reached
+    when GTIDs are enabled, we must make sure that it will be able to
+    generate GTIDs for the statements with this server's UUID. Thence
+    gtid_next is set to AUTOMATIC_GROUP below.
+  */
+  if (gtid_mode > 0)
+    thd->variables.gtid_next.set_automatic();
 
   /* Better add "if exists", in case a RESET MASTER has been done */
   const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
@@ -4345,25 +4353,16 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   if (tables->schema_table)
   {
     /*
-      If this information_schema table is merged into a mergeable
-      view, ignore it for now -- it will be filled when its respective
-      TABLE_LIST is processed. This code works only during re-execution.
+      Since we no longer set TABLE_LIST::schema_table/table for table
+      list elements representing mergeable view, we can't meet a table
+      list element which represent information_schema table and a view
+      at the same time. Otherwise, acquiring metadata lock om the view
+      would have been necessary.
     */
-    if (tables->view)
-    {
-      MDL_ticket *mdl_ticket;
-      /*
-        We still need to take a MDL lock on the merged view to protect
-        it from concurrent changes.
-      */
-      if (!open_table_get_mdl_lock(thd, ot_ctx, &tables->mdl_request,
-                                   flags, &mdl_ticket) &&
-          mdl_ticket != NULL)
-        goto process_view_routines;
-      /* Fall-through to return error. */
-    }
-    else if (!mysql_schema_table(thd, lex, tables) &&
-             !check_and_update_table_version(thd, tables, tables->table->s))
+    DBUG_ASSERT(!tables->view);
+
+    if (!mysql_schema_table(thd, lex, tables) &&
+        !check_and_update_table_version(thd, tables, tables->table->s))
     {
       goto end;
     }

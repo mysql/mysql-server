@@ -6117,7 +6117,16 @@ static bool fill_alter_inplace_info(THD *thd,
       }
     }
     else
-      ha_alter_info->handler_flags|= Alter_inplace_info::ADD_INDEX;
+    {
+      if (new_key->flags & HA_SPATIAL)
+      {
+        ha_alter_info->handler_flags|= Alter_inplace_info::ADD_SPATIAL_INDEX;
+      }
+      else
+      {
+        ha_alter_info->handler_flags|= Alter_inplace_info::ADD_INDEX;
+      }
+    }
   }
 
   DBUG_RETURN(false);
