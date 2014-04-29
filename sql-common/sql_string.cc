@@ -28,7 +28,9 @@
 using std::min;
 using std::max;
 
+#ifdef MYSQL_SERVER
 PSI_memory_key key_memory_String_value;
+#endif
 
 /*****************************************************************************
 ** String functions
@@ -44,7 +46,7 @@ bool String::real_alloc(uint32 length)
   if (Alloced_length < arg_length)
   {
     free();
-    if (!(Ptr=(char*) my_malloc(key_memory_String_value,
+    if (!(Ptr=(char*) my_malloc(STRING_PSI_MEMORY_KEY,
                                 arg_length,MYF(MY_WME))))
       return TRUE;
     Alloced_length=arg_length;
@@ -93,11 +95,11 @@ bool String::realloc(uint32 alloc_length)
     char *new_ptr;
     if (alloced)
     {
-      if (!(new_ptr= (char*) my_realloc(key_memory_String_value,
+      if (!(new_ptr= (char*) my_realloc(STRING_PSI_MEMORY_KEY,
                                         Ptr,len,MYF(MY_WME))))
         return TRUE;				// Signal error
     }
-    else if ((new_ptr= (char*) my_malloc(key_memory_String_value,
+    else if ((new_ptr= (char*) my_malloc(STRING_PSI_MEMORY_KEY,
                                          len,MYF(MY_WME))))
     {
       if (str_length > len - 1)
@@ -530,6 +532,7 @@ bool String::append(const char *s,uint32 arg_length, const CHARSET_INFO *cs)
   }
   return FALSE;
 }
+
 
 bool String::append(IO_CACHE* file, uint32 arg_length)
 {
