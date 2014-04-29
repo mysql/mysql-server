@@ -3126,7 +3126,7 @@ fail_err:
 
 			index->rec_cache.rec_size = rec_size;
 
-			*rec = page_cur_tuple_inline_insert(
+			*rec = page_cur_tuple_direct_insert(
 				page_cursor, entry, index, n_ext, mtr);
 		} else {
 			/* Check locks and write to the undo log,

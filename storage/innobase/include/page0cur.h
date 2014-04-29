@@ -234,7 +234,7 @@ page_cur_insert_rec_low(
 @return pointer to record if succeed, NULL otherwise */
 
 rec_t*
-page_cur_inline_insert_rec_low(
+page_cur_direct_insert_rec_low(
 	rec_t*		current_rec,
 	dict_index_t*	index,
 	const dtuple_t*	tuple,

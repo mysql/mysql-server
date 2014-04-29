@@ -2613,8 +2613,8 @@ undo_size_ok:
 		new_index->rec_cache.fixed_len_key = true;
 		for (i = 0; i < new_index->n_uniq; i++) {
 
-			const dict_field_t*	field
-				= dict_index_get_nth_field(new_index, i);
+			const dict_field_t*	field;
+			field = dict_index_get_nth_field(new_index, i);
 
 			if (!field->fixed_len) {
 				new_index->rec_cache.fixed_len_key = false;
@@ -2625,8 +2625,8 @@ undo_size_ok:
 		new_index->rec_cache.key_has_null_cols = false;
 		for (i = 0; i < new_index->n_uniq; i++) {
 
-			const dict_field_t*	field
-				= dict_index_get_nth_field(new_index, i);
+			const dict_field_t*	field;
+			field = dict_index_get_nth_field(new_index, i);
 
 			if (!(field->col->prtype & DATA_NOT_NULL)) {
 				new_index->rec_cache.key_has_null_cols = true;

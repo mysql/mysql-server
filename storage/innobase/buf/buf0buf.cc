@@ -322,15 +322,14 @@ buf_pool_get_oldest_modification(void)
 
 		buf_page_t*	bpage;
 
-		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
-
 		/* We don't let log-checkpoint halt because pages from system
 		temporary are not yet flushed to the disk. Anyway, object
 		residing in system temporary doesn't generate REDO logging. */
-		for (;
-		     bpage != NULL && fsp_is_system_temporary(bpage->id.space())
-		     ;) {
-		     bpage = UT_LIST_GET_PREV(list, bpage);
+		for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		     bpage != NULL
+			&& fsp_is_system_temporary(bpage->id.space());
+		     bpage = UT_LIST_GET_PREV(list, bpage)) {
+			/* Do nothing. */
 		}
 
 		if (bpage != NULL) {
@@ -2913,8 +2912,8 @@ got_block:
 
 	case BUF_BLOCK_FILE_PAGE:
 		bpage = &block->page;
-		if (fsp_is_system_temporary(page_id.space())) {
-			if (buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+		if (fsp_is_system_temporary(page_id.space())
+		    && buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
 				/* This suggest that page is being flushed.
 				Avoid returning reference to this page.
 				Instead wait for flush action to complete.
@@ -2923,8 +2922,6 @@ got_block:
 				buf_block_unfix(fix_block);
 				os_thread_sleep(WAIT_FOR_WRITE);
 				goto loop;
-
-			}
 		}
 		break;
 

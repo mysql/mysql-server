@@ -780,7 +780,8 @@ buf_flush_init_for_writing(
 				to the page */
 	bool	skip_checksum)	/*!< in: if true, disable/skip checksum. */
 {
-	ib_uint32_t	checksum = 0 /* silence bogus gcc warning */;
+	ib_uint32_t	checksum = BUF_NO_CHECKSUM_MAGIC;
+					/* silence bogus gcc warning */
 
 	ut_ad(page);
 
@@ -829,10 +830,7 @@ buf_flush_init_for_writing(
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			newest_lsn);
 
-	/* Disable checksum for shared temporary tablespace. */
-	if (skip_checksum) {
-		checksum = BUF_NO_CHECKSUM_MAGIC;
-	} else {
+	if (!skip_checksum) {
 		/* Store the new formula checksum */
 
 		switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {

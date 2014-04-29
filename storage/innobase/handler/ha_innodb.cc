@@ -1334,17 +1334,17 @@ thd_create_intrinsic(
 @return reference to private handler */
 __attribute__((warn_unused_result, nonnull))
 static inline
-innodb_private_t*&
-thd_to_innodb_private(
+innodb_session_t*&
+thd_to_innodb_session(
 	THD*	thd)
 {
-	innodb_private_t*& innodb_private =
-		*(innodb_private_t**) thd_ha_data(thd, innodb_hton_ptr);
-	if (innodb_private == NULL) {
-		innodb_private = new innodb_private_t();
+	innodb_session_t*& innodb_session =
+		*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr);
+	if (innodb_session == NULL) {
+		innodb_session = new innodb_session_t();
 	}
 
-	return(*(innodb_private_t**) thd_ha_data(thd, innodb_hton_ptr));
+	return(*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr));
 }
 
 /** Obtain the InnoDB transaction of a MySQL thread.
@@ -1356,10 +1356,10 @@ trx_t*&
 thd_to_trx(
 	THD*	thd)
 {
-	innodb_private_t*& innodb_private = thd_to_innodb_private(thd);
-	ut_ad(innodb_private != NULL);
+	innodb_session_t*& innodb_session = thd_to_innodb_session(thd);
+	ut_ad(innodb_session != NULL);
 
-	return(innodb_private->trx);
+	return(innodb_session->m_trx);
 }
 
 /** Check if statement is of type INSERT .... SELECT that involves
@@ -1379,7 +1379,7 @@ thd_is_ins_sel_stmt(THD* user_thd)
 
 	Why is this needed ?
 	Use of AHI is blocked if statement is insert .... select statement. */
-	innodb_private_t*	innodb_priv = thd_to_innodb_private(user_thd);
+	innodb_session_t*	innodb_priv = thd_to_innodb_session(user_thd);
 	return (innodb_priv->count_register_table_handler() > 0 ? true : false);
 }
 
@@ -1401,7 +1401,7 @@ add_table_to_thread_cache(
 
 	dict_table_set_big_rows(table);
 
-	innodb_private_t*& priv = thd_to_innodb_private(thd);
+	innodb_session_t*& priv = thd_to_innodb_session(thd);
 	priv->register_table_handler(table_norm_name, table);
 }
 
@@ -4004,8 +4004,8 @@ innobase_close_connection(
 		trx_free_for_mysql(trx);
 	}
 
-	delete thd_to_innodb_private(thd);
-	thd_to_innodb_private(thd) = NULL;
+	delete thd_to_innodb_session(thd);
+	thd_to_innodb_session(thd) = NULL;
 
 	DBUG_RETURN(0);
 }
@@ -4853,7 +4853,7 @@ ha_innobase::open(
 
 	/* Get pointer to a table object in InnoDB dictionary cache.
 	For intrinsic table, get it from session private data */
-	ib_table = thd_to_innodb_private(thd)->lookup_table_handler(norm_name);
+	ib_table = thd_to_innodb_session(thd)->lookup_table_handler(norm_name);
 
 	if (ib_table == NULL) {
 		ib_table = dict_table_open_on_name(
@@ -8847,7 +8847,7 @@ create_index(
 	index = dict_mem_index_create(table_name, key->name, 0,
 				      ind_type, key->user_defined_key_parts);
 
-	innodb_private_t*& priv = thd_to_innodb_private(trx->mysql_thd);
+	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 	dict_table_t* handler = priv->lookup_table_handler(table_name);
 
 	if (handler) {
@@ -8979,7 +8979,7 @@ create_clustered_index_when_no_primary(
 				      0, DICT_CLUSTERED, 0);
 	index->auto_gen_clust_index = true;
 
-	innodb_private_t*& priv = thd_to_innodb_private(trx->mysql_thd);
+	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 
 	dict_table_t* handler = priv->lookup_table_handler(table_name);
 
@@ -9854,8 +9854,8 @@ ha_innobase::create(
 
 	if (stmt) {
 
-		innodb_private_t*&	priv
-				= thd_to_innodb_private(trx->mysql_thd);
+		innodb_session_t*&	priv
+				= thd_to_innodb_session(trx->mysql_thd);
 		dict_table_t*		handler
 				= priv->lookup_table_handler(norm_name);
 		ut_ad(handler == NULL
@@ -9912,7 +9912,7 @@ ha_innobase::create(
 		log_buffer_flush_to_disk();
 	}
 
-	innobase_table = thd_to_innodb_private(thd)->lookup_table_handler(
+	innobase_table = thd_to_innodb_session(thd)->lookup_table_handler(
 		norm_name);
 
 	if (innobase_table == NULL) {
@@ -9997,10 +9997,10 @@ cleanup:
 	} else {
 
 		dict_table_t* intrinsic_table =
-			thd_to_innodb_private(thd)->lookup_table_handler(
+			thd_to_innodb_session(thd)->lookup_table_handler(
 			norm_name);
 
-		thd_to_innodb_private(thd)->unregister_table_handler(norm_name);
+		thd_to_innodb_session(thd)->unregister_table_handler(norm_name);
 
 		dict_index_t* index = NULL;
 
@@ -10224,7 +10224,7 @@ ha_innobase::delete_table(
 	extension, in contrast to ::create */
 	normalize_table_name(norm_name, name);
 
-	innodb_private_t*& priv = thd_to_innodb_private(thd);
+	innodb_session_t*& priv = thd_to_innodb_session(thd);
 	dict_table_t* handler = priv->lookup_table_handler(norm_name);
 	if (handler != NULL) {
 		is_intrinsic_temp_table = true;
