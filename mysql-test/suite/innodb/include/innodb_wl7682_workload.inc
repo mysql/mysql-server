@@ -137,7 +137,7 @@ drop table t1;
 # 5. Multiple + Cascade key DML (with auto-gen-clustered index)
 #
 create temporary table t1
-	(a int not null, d int not null, b varchar(198) not null, c char(179), 
+	(a int not null, d int not null, b varchar(198) not null, c char(179),
 	 unique key (b(10), a, d), index (d), index(a), index (c(99), b(33)),
 	 index (b(5), c(10), a) ) engine=InnoDB;
 #
