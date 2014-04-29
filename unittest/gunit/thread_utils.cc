@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,7 @@
 #include <gtest/gtest.h>
 
 #include "thread_utils.h"
-#include "mysql/psi/mysql_thread.h"
+#include "mutex_lock.h"
 
 namespace thread {
 
@@ -146,19 +146,6 @@ void Thread::run_wrapper(Thread_start_arg *start_arg)
   start_arg->m_thread_running.notify();
   thread->run();
   my_thread_end();
-}
-
-
-Mutex_lock::Mutex_lock(mysql_mutex_t *mutex) : m_mutex(mutex)
-{
-  mysql_mutex_lock(m_mutex);
-}
-
-
-Mutex_lock::~Mutex_lock()
-{
-  const int failed= mysql_mutex_unlock(m_mutex);
-  LOCAL_ASSERT_FALSE(failed);
 }
 
 

@@ -407,11 +407,6 @@ log_close(void)
 	checkpoint_age = lsn - log->last_checkpoint_lsn;
 
 	if (checkpoint_age >= log->log_group_capacity) {
-		/* TODO: split btr_store_big_rec_extern_fields() into small
-		steps so that we can release all latches in the middle, and
-		call log_free_check() to ensure we never write over log written
-		after the latest checkpoint. In principle, we should split all
-		big_rec operations, but other operations are smaller. */
 
 		if (!log_has_printed_chkp_warning
 		    || difftime(time(NULL), log_last_warning_time) > 15) {
@@ -422,11 +417,7 @@ log_close(void)
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"The age of the last checkpoint is"
 				" " LSN_PF ", which exceeds the log group"
-				" capacity " LSN_PF ".  If you are using"
-				" big BLOB or TEXT rows, you must set the"
-				" combined size of log files at least 10"
-				" times bigger than the largest such row.",
-				checkpoint_age,
+				" capacity " LSN_PF ".", checkpoint_age,
 				log->log_group_capacity);
 		}
 	}
@@ -553,7 +544,7 @@ Calculates where in log files we find a specified lsn.
 ulint
 log_calc_where_lsn_is(
 /*==================*/
-	ib_int64_t*	log_file_offset,	/*!< out: offset in that file
+	int64_t*	log_file_offset,	/*!< out: offset in that file
 						(including the header) */
 	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
 						lsn */
@@ -561,18 +552,18 @@ log_calc_where_lsn_is(
 						determine */
 	ulint		n_log_files,		/*!< in: total number of log
 						files */
-	ib_int64_t	log_file_size)		/*!< in: log file size
+	int64_t		log_file_size)		/*!< in: log file size
 						(including the header) */
 {
-	ib_int64_t	capacity	= log_file_size - LOG_FILE_HDR_SIZE;
+	int64_t		capacity	= log_file_size - LOG_FILE_HDR_SIZE;
 	ulint		file_no;
-	ib_int64_t	add_this_many;
+	int64_t		add_this_many;
 
 	if (lsn < first_header_lsn) {
 		add_this_many = 1 + (first_header_lsn - lsn)
-			/ (capacity * (ib_int64_t) n_log_files);
+			/ (capacity * static_cast<int64_t>(n_log_files));
 		lsn += add_this_many
-			* capacity * (ib_int64_t) n_log_files;
+			* capacity * static_cast<int64_t>(n_log_files);
 	}
 
 	ut_a(lsn >= first_header_lsn);
@@ -1750,8 +1741,7 @@ log_checkpoint(
 	further dirty pages are flushed to the tablespace files.  At
 	this point, because log_mutex_own(), mtr_commit() in other
 	threads will be blocked, and no pages can be added to the
-	flush lists. The flush lists must be empty, because everything
-	was flushed at the checkpoint.
+	flush lists.
 
 	If we had written out some data pages before flushing the
 	MLOG_CHECKPOINT marker, recovery would be unable to discard

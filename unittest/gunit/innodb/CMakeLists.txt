@@ -39,6 +39,8 @@ IF (MERGE_UNITTESTS)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_INNODB_TESTS} "// Merging InnoDB unit tests\n")
+  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"my_config.h\"\n")
+  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"univ.i\"\n")
 
   FOREACH(test ${TESTS})
     FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"${test}-t.cc\"\n")

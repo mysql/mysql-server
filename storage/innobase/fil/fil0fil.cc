@@ -159,9 +159,9 @@ struct fil_node_t {
 	bool		being_extended;
 				/*!< true if the node is currently
 				being extended. */
-	ib_int64_t	modification_counter;/*!< when we write to the file we
+	int64_t		modification_counter;/*!< when we write to the file we
 				increment this by one */
-	ib_int64_t	flush_counter;/*!< up to what
+	int64_t		flush_counter;/*!< up to what
 				modification_counter value we have
 				flushed the modifications to disk */
 	UT_LIST_NODE_T(fil_node_t) chain;
@@ -179,7 +179,7 @@ struct fil_space_t {
 	char*		name;	/*!< space name = the path to the first file in
 				it */
 	ulint		id;	/*!< space id */
-	ib_int64_t	tablespace_version;
+	int64_t		tablespace_version;
 				/*!< in DISCARD/IMPORT this timestamp
 				is used to check if we should ignore
 				an insert buffer merge request for a
@@ -299,7 +299,7 @@ struct fil_system_t {
 	ulint		n_open;		/*!< number of files currently open */
 	ulint		max_n_open;	/*!< n_open is not allowed to exceed
 					this */
-	ib_int64_t	modification_counter;/*!< when we write to a file we
+	int64_t		modification_counter;/*!< when we write to a file we
 					increment this by one */
 	ulint		max_assigned_id;/*!< maximum space id in the existing
 					tables, or assigned during the time
@@ -307,7 +307,7 @@ struct fil_system_t {
 					startup we scan the data dictionary
 					and set here the maximum of the
 					space id's of the tables there */
-	ib_int64_t	tablespace_version;
+	int64_t		tablespace_version;
 					/*!< a counter which is incremented for
 					every space object memory creation;
 					every space mem object gets a
@@ -533,13 +533,13 @@ Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
 memory cache */
 
-ib_int64_t
+int64_t
 fil_space_get_version(
 /*==================*/
 	ulint	id)	/*!< in: space id */
 {
 	fil_space_t*	space;
-	ib_int64_t	version		= -1;
+	int64_t		version = -1;
 
 	ut_ad(fil_system);
 
@@ -1251,10 +1251,9 @@ fil_space_free_low(
 	}
 
 	/* Could fil_names_dirty() access a tablespace that is being
-	freed or has been freed here? The answer is no:
-	fil_names_write() will check space->stop_new_ops,
-	and return NULL if it was set. Thus, fil_names_dirty() would
-	not be invoked if we are preparing to drop a tablespace. */
+	freed or has been freed here? As noted in fil_names_write(),
+	the answer is no: space->n_pending_flushes > 0 will prevent
+	fil_check_pending_operations() from completing. */
 	if (space->max_lsn != 0) {
 		UT_LIST_REMOVE(fil_system->named_spaces, space);
 	}
@@ -4245,13 +4244,12 @@ fil_load_single_table_tablespace(
 	if (file.space_id() == ULINT_UNDEFINED || file.space_id() == 0) {
 		char*	new_path;
 
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"Renaming tablespace '%s' of id " ULINTPF ", to"
-			" %s_ibbackup_old_vers_<timestamp> because its size"
-			INT64PF " is too small (< 4 pages 16 kB each), or the"
+		ib::info << "Renaming tablespace '" << filename << "' of id "
+			<< file.space_id() << ", to " << file.name()
+			<< "_ibbackup_old_vers_<timestamp> because its size"
+			<< size " is too small (< 4 pages 16 kB each), or the"
 			" space id in the file header is not sensible. This can"
-			" happen in an ibbackup run, and is not dangerous.",
-			filename, file.space_id(), file.name(), size);
+			" happen in an ibbackup run, and is not dangerous.";
 		file.close();
 
 		new_path = fil_make_ibbackup_old_name(filename);
@@ -4364,7 +4362,7 @@ bool
 fil_tablespace_deleted_or_being_deleted_in_mem(
 /*===========================================*/
 	ulint		id,	/*!< in: space id */
-	ib_int64_t	version)/*!< in: tablespace_version should be this; if
+	int64_t		version)/*!< in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 {
@@ -4384,7 +4382,7 @@ fil_tablespace_deleted_or_being_deleted_in_mem(
 			       && !space->is_being_truncated));
 
 	if (!already_deleted) {
-		being_deleted = (version != ib_int64_t(-1)
+		being_deleted = (version != -1
 				 && space->tablespace_version != version);
 	}
 
@@ -5515,7 +5513,7 @@ fil_flush(
 	     node != NULL;
 	     node = UT_LIST_GET_NEXT(chain, node)) {
 
-		ib_int64_t old_mod_counter = node->modification_counter;;
+		int64_t	old_mod_counter = node->modification_counter;
 
 		if (old_mod_counter <= node->flush_counter) {
 			continue;
@@ -5547,8 +5545,7 @@ retry:
 			not know what bugs OS's may contain in file
 			i/o */
 
-			ib_int64_t sig_count =
-				os_event_reset(node->sync_event);
+			int64_t	sig_count = os_event_reset(node->sync_event);
 
 			mutex_exit(&fil_system->mutex);
 
@@ -6300,22 +6297,31 @@ fil_names_write(
 	fil_space_t*	space	= fil_space_get_by_id(space_id);
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
-	const bool	skip	= space == NULL
-		|| (space->stop_new_ops && !space->is_being_truncated);
+
+	/* We are serving mtr_commit(). While there is an active
+	mini-transaction, we should have !space->stop_new_ops. This is
+	guaranteed by meta-data locks or transactional locks, or
+	dict_operation_lock (X-lock in DROP, S-lock in purge).
+
+	However, a file I/O thread can invoke change buffer merge
+	while fil_check_pending_operations() is waiting for operations
+	to quiesce. This is not a problem, because
+	ibuf_merge_or_delete_for_page() would call
+	fil_inc_pending_ops() before mtr_start() and
+	fil_decr_pending_ops() after mtr_commit(). This is why
+	n_pending_ops should not be zero if stop_new_ops is set. */
+	ut_ad(!space->stop_new_ops
+	      || space->is_being_truncated /* TRUNCATE sets stop_new_ops */
+	      || space->n_pending_ops > 0);
+
 	mutex_exit(&fil_system->mutex);
 
-	if (skip) {
-		/* This should be prevented by meta-data locks
-		or transactional locks on tables or tablespaces. */
-		ut_ad(0);
-		space = NULL;
-	} else {
+	if (space) {
 		fil_names_write_low(space, mtr);
 	}
 
 	return(space);
 }
-
 
 /** Note that a non-predefined persistent tablespace has been modified.
 @param[in,out]	space	tablespace
