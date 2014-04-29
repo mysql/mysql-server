@@ -4912,5 +4912,8 @@ extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 extern const String my_null_string;
 void convert_and_print(String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
+#ifndef DBUG_OFF
+bool is_fixed_or_outer_ref(Item *ref);
+#endif
 
 #endif /* ITEM_INCLUDED */

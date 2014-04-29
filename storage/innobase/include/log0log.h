@@ -63,7 +63,7 @@ Calculates where in log files we find a specified lsn.
 ulint
 log_calc_where_lsn_is(
 /*==================*/
-	ib_int64_t*	log_file_offset,	/*!< out: offset in that file
+	int64_t*	log_file_offset,	/*!< out: offset in that file
 						(including the header) */
 	ib_uint64_t	first_header_lsn,	/*!< in: first log file start
 						lsn */
@@ -71,7 +71,7 @@ log_calc_where_lsn_is(
 						determine */
 	ulint		n_log_files,		/*!< in: total number of log
 						files */
-	ib_int64_t	log_file_size);		/*!< in: log file size
+	int64_t		log_file_size);		/*!< in: log file size
 						(including the header) */
 #ifndef UNIV_HOTBACKUP
 /** Append a string to the log.

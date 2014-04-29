@@ -29,6 +29,7 @@
 #include "sql_time.h"                  // make_truncated_value_warning
 #include "opt_trace.h"
 #include "parse_tree_helpers.h"
+#include "template_utils.h"
 
 #include <algorithm>
 using std::min;
@@ -4048,7 +4049,6 @@ static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
 
   SYNOPSIS
     cmp_longlong()
-      cmp_arg   an argument passed to the calling function (my_qsort2)
       a         left argument
       b         right argument
 
@@ -4066,9 +4066,8 @@ static inline int cmp_ulongs (ulonglong a_val, ulonglong b_val)
     0           left argument is equal to the right argument.
     1           left argument is greater than the right argument.
 */
-int cmp_longlong(void *cmp_arg, 
-                 in_longlong::packed_longlong *a,
-                 in_longlong::packed_longlong *b)
+int cmp_longlong(const in_longlong::packed_longlong *a,
+                 const in_longlong::packed_longlong *b)
 {
   if (a->unsigned_flag != b->unsigned_flag)
   { 
@@ -4092,9 +4091,68 @@ int cmp_longlong(void *cmp_arg,
 }
 
 
-static int cmp_row(void *cmp_arg, cmp_item_row *a, cmp_item_row *b)
+class Cmp_longlong :
+  public std::binary_function<const in_longlong::packed_longlong &,
+                              const in_longlong::packed_longlong &, bool>
 {
-  return a->compare(b);
+public:
+  bool operator()(const in_longlong::packed_longlong &a,
+                  const in_longlong::packed_longlong &b)
+  {
+    return cmp_longlong(&a, &b) < 0;
+  }
+};
+
+
+void in_longlong::sort()
+{
+  std::sort(base.begin(), base.end(), Cmp_longlong());
+}
+
+
+bool in_longlong::find_value(const void *value) const
+{
+  const in_longlong::packed_longlong *val=
+    static_cast<const in_longlong::packed_longlong*>(value);
+
+  return std::binary_search(base.begin(), base.end(), *val, Cmp_longlong());
+}
+
+
+bool in_longlong::compare_elems(uint pos1, uint pos2) const
+{
+  return cmp_longlong(&base[pos1], &base[pos2]) != 0;
+}
+
+
+class Cmp_row :
+  public std::binary_function<const cmp_item_row *, const cmp_item_row *, bool>
+{
+public:
+  bool operator()(const cmp_item_row *a, const cmp_item_row *b)
+  {
+    return a->compare(b) < 0;
+  }
+};
+
+
+void in_row::sort()
+{
+  std::sort(base_pointers.begin(), base_pointers.end(), Cmp_row());
+}
+
+
+bool in_row::find_value(const void *value) const
+{
+  const cmp_item_row *row= static_cast<const cmp_item_row*>(value);
+  return std::binary_search(base_pointers.begin(), base_pointers.end(),
+                            row, Cmp_row());
+}
+
+
+bool in_row::compare_elems(uint pos1, uint pos2) const
+{
+  return base_pointers[pos1]->compare(base_pointers[pos2]) != 0;
 }
 
 
@@ -4107,44 +4165,33 @@ bool in_vector::find_item(Item *item)
 }
 
 
-bool in_vector::find_value(const void *result) const
-{
-  uint start,end;
-  start=0; end=used_count-1;
-  while (start != end)
-  {
-    uint mid=(start+end+1)/2;
-    int res;
-    if ((res=(*compare)(collation, base+mid*size, result)) == 0)
-      return true;
-    if (res < 0)
-      start=mid;
-    else
-      end=mid-1;
-  }
-  return ((*compare)(collation, base+start*size, result) == 0);
-}
-
-in_string::in_string(uint elements,qsort2_cmp cmp_func,
+in_string::in_string(THD *thd, uint elements, qsort2_cmp cmp_func,
                      const CHARSET_INFO *cs)
-  :in_vector(elements, sizeof(String), cmp_func, cs),
-   tmp(buff, sizeof(buff), &my_charset_bin)
-{}
+  : in_vector(elements),
+    tmp(buff, sizeof(buff), &my_charset_bin),
+    base_objects(thd->mem_root, elements),
+    base_pointers(thd->mem_root, elements),
+    compare(cmp_func),
+    collation(cs)
+{
+  for (uint ix= 0; ix < elements; ++ix)
+  {
+    base_pointers[ix]= &base_objects[ix];
+  }
+}
 
 in_string::~in_string()
 {
-  if (base)
+  for (uint i= 0; i < base_objects.size(); i++)
   {
-    // base was allocated with help of sql_alloc => following is OK
-    for (uint i=0 ; i < count ; i++)
-      ((String*) base)[i].free();
+    base_objects[i].free();
   }
 }
 
-void in_string::set(uint pos,Item *item)
+void in_string::set(uint pos, Item *item)
 {
-  String *str=((String*) base)+pos;
-  String *res=item->val_str(str);
+  String *str= base_pointers[pos];
+  String *res= item->val_str(str);
   if (res && res != str)
   {
     if (res->uses_buffer_owned_by(str))
@@ -4169,23 +4216,60 @@ uchar *in_string::get_value(Item *item)
   return (uchar*) item->val_str(&tmp);
 }
 
-in_row::in_row(uint elements, Item * item)
+
+class Cmp_string :
+  public std::binary_function<const String *, const String *, bool>
 {
-  base= (char*) new cmp_item_row[count= elements];
-  size= sizeof(cmp_item_row);
-  compare= (qsort2_cmp) cmp_row;
-  /*
-    We need to reset these as otherwise we will call sort() with
-    uninitialized (even if not used) elements
-  */
-  used_count= elements;
-  collation= 0;
+public:
+  Cmp_string(qsort2_cmp cmp_func, const CHARSET_INFO *cs)
+    : compare(cmp_func), collation(cs)
+  {}
+  bool operator()(const String *a, const String *b)
+  {
+    return compare(collation, a, b) < 0;
+  }
+private:
+  qsort2_cmp compare;
+  const CHARSET_INFO *collation;
+};
+
+
+// Our String objects have strange copy semantics, sort pointers instead.
+void in_string::sort()
+{
+  std::sort(base_pointers.begin(), base_pointers.end(),
+            Cmp_string(compare, collation));
+}
+
+
+bool in_string::find_value(const void *value) const
+{
+  const String *str= static_cast<const String*>(value);
+  return std::binary_search(base_pointers.begin(), base_pointers.end(),
+                            str, Cmp_string(compare, collation));
+}
+
+
+bool in_string::compare_elems(uint pos1, uint pos2) const
+{
+  return compare(collation, base_pointers[pos1], base_pointers[pos2]) != 0;
+}
+
+
+in_row::in_row(THD *thd, uint elements, Item * item)
+  : in_vector(elements),
+    base_objects(thd->mem_root, elements),
+    base_pointers(thd->mem_root, elements)
+{
+  for (uint ix= 0; ix < elements; ++ix)
+  {
+    base_pointers[ix]= &base_objects[ix];
+  }
 }
 
 in_row::~in_row()
 {
-  if (base)
-    delete [] (cmp_item_row*) base;
+  delete_container_pointers(base_pointers);
 }
 
 uchar *in_row::get_value(Item *item)
@@ -4200,17 +4284,19 @@ void in_row::set(uint pos, Item *item)
 {
   DBUG_ENTER("in_row::set");
   DBUG_PRINT("enter", ("pos: %u  item: 0x%lx", pos, (ulong) item));
-  ((cmp_item_row*) base)[pos].store_value_by_template(&tmp, item);
+  base_pointers[pos]->store_value_by_template(&tmp, item);
   DBUG_VOID_RETURN;
 }
 
-in_longlong::in_longlong(uint elements)
-  :in_vector(elements,sizeof(packed_longlong),(qsort2_cmp) cmp_longlong, 0)
-{}
+in_longlong::in_longlong(THD *thd, uint elements)
+  : in_vector(elements),
+    base(thd->mem_root, elements)
+{
+}
 
 void in_longlong::set(uint pos,Item *item)
 {
-  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+  struct packed_longlong *buff= &base[pos];
   
   buff->val= item->val_int();
   buff->unsigned_flag= item->unsigned_flag;
@@ -4228,7 +4314,7 @@ uchar *in_longlong::get_value(Item *item)
 
 void in_time_as_longlong::set(uint pos,Item *item)
 {
-  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+  struct packed_longlong *buff= &base[pos];
   buff->val= item->val_time_temporal();
   buff->unsigned_flag= item->unsigned_flag;
 }
@@ -4246,7 +4332,7 @@ uchar *in_time_as_longlong::get_value(Item *item)
 
 void in_datetime_as_longlong::set(uint pos,Item *item)
 {
-  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+  struct packed_longlong *buff= &base[pos];
   buff->val= item->val_date_temporal();
   buff->unsigned_flag= item->unsigned_flag;
 }
@@ -4266,7 +4352,7 @@ void in_datetime::set(uint pos,Item *item)
 {
   Item **tmp_item= &item;
   bool is_null;
-  struct packed_longlong *buff= &((packed_longlong*) base)[pos];
+  struct packed_longlong *buff= &base[pos];
 
   buff->val= get_datetime_value(thd, &tmp_item, 0, warn_item, &is_null);
   buff->unsigned_flag= 1L;
@@ -4285,13 +4371,15 @@ uchar *in_datetime::get_value(Item *item)
 }
 
 
-in_double::in_double(uint elements)
-  :in_vector(elements,sizeof(double), NULL, 0)
-{}
+in_double::in_double(THD *thd, uint elements)
+  : in_vector(elements),
+    base(thd->mem_root, elements)
+{
+}
 
 void in_double::set(uint pos,Item *item)
 {
-  ((double*) base)[pos]= item->val_real();
+  base[pos]= item->val_real();
 }
 
 uchar *in_double::get_value(Item *item)
@@ -4305,49 +4393,34 @@ uchar *in_double::get_value(Item *item)
 
 void in_double::sort()
 {
-  double *begin= static_cast<double*>(static_cast<void*>(base));
-  double *end= begin + used_count;
-  std::sort(begin, end);
+  std::sort(base.begin(), base.end());
 }
 
 
 bool in_double::find_value(const void *value) const
 {
-  const double *begin=
-    static_cast<const double*>(static_cast<const void*>(base));
-  const double *end= begin + used_count;
   const double *dbl= static_cast<const double*>(value);
-  return std::binary_search(begin, end, *dbl);
+  return std::binary_search(base.begin(), base.end(), *dbl);
 }
 
 
 bool in_double::compare_elems(uint pos1, uint pos2) const
 {
-  const double *begin=
-    static_cast<const double*>(static_cast<const void*>(base));
-  return begin[pos1] != begin[pos2];
+  return base[pos1] != base[pos2];
 }
 
 
-in_decimal::in_decimal(uint elements)
-  :in_vector(elements, sizeof(my_decimal), NULL, 0)
+in_decimal::in_decimal(THD *thd, uint elements)
+  : in_vector(elements),
+    base(thd->mem_root, elements)
 {
-  if (base != NULL)
-  {
-    // Array placement new is not portable, so loop instead.
-    my_decimal *elt= static_cast<my_decimal*>(static_cast<void*>(base));
-    for (uint ix= 0; ix < elements; ++ix)
-    {
-      new (elt++) my_decimal;
-    }
-  }
 }
 
 
 void in_decimal::set(uint pos, Item *item)
 {
   /* as far as 'item' is constant, we can store reference on my_decimal */
-  my_decimal *dec= ((my_decimal *)base) + pos;
+  my_decimal *dec= &base[pos];
   my_decimal *res= item->val_decimal(dec);
   /* if item->val_decimal() is evaluated to NULL then res == 0 */ 
   if (!item->null_value && res != dec)
@@ -4366,27 +4439,20 @@ uchar *in_decimal::get_value(Item *item)
 
 void in_decimal::sort()
 {
-  my_decimal *begin= static_cast<my_decimal*>(static_cast<void*>(base));
-  my_decimal *end= begin + used_count;
-  std::sort(begin, end);
+  std::sort(base.begin(), base.end());
 }
 
 
 bool in_decimal::find_value(const void *value) const
 {
-  const my_decimal *begin=
-    static_cast<const my_decimal*>(static_cast<const void*>(base));
-  const my_decimal *end= begin + used_count;
   const my_decimal *dec= static_cast<const my_decimal*>(value);
-  return std::binary_search(begin, end, *dec);
+  return std::binary_search(base.begin(), base.end(), *dec);
 }
 
 
 bool in_decimal::compare_elems(uint pos1, uint pos2) const
 {
-  const my_decimal *begin=
-    static_cast<const my_decimal*>(static_cast<const void*>(base));
-  return begin[pos1] != begin[pos2];
+  return base[pos1] != base[pos2];
 }
 
 
@@ -4544,7 +4610,7 @@ int cmp_item_row::cmp(Item *arg)
 }
 
 
-int cmp_item_row::compare(cmp_item *c)
+int cmp_item_row::compare(const cmp_item *c) const
 {
   cmp_item_row *l_cmp= (cmp_item_row *) c;
   for (uint i=0; i < n; i++)
@@ -4575,7 +4641,7 @@ int cmp_item_decimal::cmp(Item *arg)
 }
 
 
-int cmp_item_decimal::compare(cmp_item *arg)
+int cmp_item_decimal::compare(const cmp_item *arg) const
 {
   cmp_item_decimal *l_cmp= (cmp_item_decimal*) arg;
   return my_decimal_cmp(&value, &l_cmp->value);
@@ -4607,7 +4673,7 @@ int cmp_item_datetime::cmp(Item *arg)
 }
 
 
-int cmp_item_datetime::compare(cmp_item *ci)
+int cmp_item_datetime::compare(const cmp_item *ci) const
 {
   cmp_item_datetime *l_cmp= (cmp_item_datetime *)ci;
   return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
@@ -4924,7 +4990,7 @@ void Item_func_in::fix_length_and_dec()
       cmp_item_row *cmp= 0;
       if (bisection_possible)
       {
-        array= new in_row(arg_count-1, 0);
+        array= new in_row(thd, arg_count-1, 0);
         cmp= &((in_row*)array)->tmp;
       }
       else
@@ -5001,7 +5067,7 @@ void Item_func_in::fix_length_and_dec()
   if (bisection_possible)
   {
     if (compare_as_datetime)
-      array= new in_datetime(date_arg, arg_count - 1);
+      array= new in_datetime(thd, date_arg, arg_count - 1);
     else
     {
       /*
@@ -5035,18 +5101,18 @@ void Item_func_in::fix_length_and_dec()
       }
       switch (cmp_type) {
       case STRING_RESULT:
-        array=new in_string(arg_count-1,(qsort2_cmp) srtcmp_in, 
+        array=new in_string(thd, arg_count-1, (qsort2_cmp) srtcmp_in, 
                             cmp_collation.collation);
         break;
       case INT_RESULT:
         array= datetime_as_longlong ?
                args[0]->field_type() == MYSQL_TYPE_TIME ?
-               (in_vector*) new in_time_as_longlong(arg_count - 1) :
-               (in_vector*) new in_datetime_as_longlong(arg_count - 1) :
-               (in_vector*) new in_longlong(arg_count - 1);
+          (in_vector*) new in_time_as_longlong(thd, arg_count - 1) :
+          (in_vector*) new in_datetime_as_longlong(thd, arg_count - 1) :
+          (in_vector*) new in_longlong(thd, arg_count - 1);
         break;
       case REAL_RESULT:
-        array= new in_double(arg_count-1);
+        array= new in_double(thd, arg_count-1);
         break;
       case ROW_RESULT:
         /*
@@ -5054,7 +5120,7 @@ void Item_func_in::fix_length_and_dec()
         */
         break;
       case DECIMAL_RESULT:
-        array= new in_decimal(arg_count - 1);
+        array= new in_decimal(thd, arg_count - 1);
         break;
       default:
         DBUG_ASSERT(0);
@@ -5079,7 +5145,12 @@ void Item_func_in::fix_length_and_dec()
       }
     }
     if ((array->used_count= j))
+    {
+      DBUG_ASSERT(array->used_count <= array->count);
+      if (array->used_count < array->count)
+        array->shrink_array(j);
       array->sort();
+    }
   }
   else
   {
