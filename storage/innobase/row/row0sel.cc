@@ -4073,7 +4073,7 @@ row_search_no_mvcc(
 		index->last_sel_cur->release();
 
 		/* Capture table snapshot in form of trx-id. */
-		index->trx_id = index->table->localized_trx_id;
+		index->trx_id = index->table->sess_trx_id;
 
 		/* Fresh search commences. */
 		mtr_start(mtr);
@@ -4185,14 +4185,14 @@ row_search_no_mvcc(
 
 			const rec_t*	ret_rec =
 				(index != clust_index
-			 	 && prebuilt->need_to_access_clustered)
+				 && prebuilt->need_to_access_clustered)
 				? result_rec : rec;
 
 			offsets = rec_get_offsets(ret_rec, index, offsets,
 						  ULINT_UNDEFINED, &heap);
 
 			memcpy(buf + 4, ret_rec - rec_offs_extra_size(offsets),
-		       	rec_offs_size(offsets));
+			rec_offs_size(offsets));
 
 			mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
 

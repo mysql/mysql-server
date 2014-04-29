@@ -1236,7 +1236,7 @@ page_cur_direct_insert_rec_low(
 	ut_ad(fil_page_get_type(page) == FIL_PAGE_INDEX);
 
 	ut_ad(mach_read_from_8(page + PAGE_HEADER + PAGE_INDEX_ID)
-		== index->id);
+	      == index->id);
 
 	ut_ad(!page_rec_is_supremum(current_rec));
 
@@ -1258,6 +1258,7 @@ page_cur_direct_insert_rec_low(
 		if (rec_offs_size(foffsets) < rec_size) {
 			if (heap != NULL) {
 				mem_heap_free(heap);
+				heap = NULL;
 			}
 
 			free_rec = NULL;
@@ -1286,6 +1287,7 @@ page_cur_direct_insert_rec_low(
 
 			if (heap != NULL) {
 				mem_heap_free(heap);
+				heap = NULL;
 			}
 		}
 	} else {
