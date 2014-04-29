@@ -891,8 +891,8 @@ next_file:
 
 		strcpy(info->name, (char*) lpFindFileData->cFileName);
 
-		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
-			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
+		info->size = static_cast<int64_t>(lpFindFileData->nFileSizeLow)
+			+ (static_cast<int64_t>(lpFindFileData->nFileSizeHigh)
 			   << 32);
 
 		if (lpFindFileData->dwFileAttributes
@@ -1008,7 +1008,7 @@ next_file:
 		return(-1);
 	}
 
-	info->size = (ib_int64_t) statinfo.st_size;
+	info->size = static_cast<int64_t>(statinfo.st_size);
 
 	if (S_ISDIR(statinfo.st_mode)) {
 		info->type = OS_FILE_TYPE_DIR;

@@ -2372,7 +2372,7 @@ ulint
 pc_sleep_if_needed(
 /*===============*/
 	ulint		next_loop_time,
-	ib_int64_t	sig_count)
+	int64_t		sig_count)
 {
 	ulint	cur_time = ut_time_ms();
 
@@ -2636,7 +2636,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	buf_page_cleaner_is_active = TRUE;
 
 	ulint		ret_sleep = 0;
-	ib_int64_t	sig_count = os_event_reset(buf_flush_event);
+	int64_t		sig_count = os_event_reset(buf_flush_event);
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is

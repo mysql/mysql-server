@@ -3754,7 +3754,7 @@ buf_page_init_for_read(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	ibool			unzip,
-	ib_int64_t		tablespace_version)
+	int64_t			tablespace_version)
 {
 	buf_block_t*	block;
 	buf_page_t*	bpage	= NULL;
