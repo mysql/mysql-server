@@ -14,56 +14,20 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
 SET(FEATURE_SET "community" CACHE STRING 
-" Selection of features. Options are
- - xsmall : 
- - small: embedded
- - classic: embedded + archive + federated + blackhole 
- - large :  embedded + archive + federated + blackhole + innodb
- - xlarge:  embedded + archive + federated + blackhole + innodb + partition
- - community:  all  features (currently == xlarge)
-"
+" Selection of features. This option is deprecated"
 )
 
-SET(FEATURE_SET_xsmall  1)
-SET(FEATURE_SET_small   2)
-SET(FEATURE_SET_classic 3)
-SET(FEATURE_SET_large   5)
-SET(FEATURE_SET_xlarge  6)
-SET(FEATURE_SET_community 7)
-
 IF(FEATURE_SET AND NOT WITHOUT_SERVER)
-  STRING(TOLOWER ${FEATURE_SET} feature_set)
-  SET(num ${FEATURE_SET_${feature_set}})
-  IF(NOT num)
-   MESSAGE(FATAL_ERROR "Invalid FEATURE_SET option '${feature_set}'. 
-   Should be xsmall, small, classic, large, or community
-   ")
-  ENDIF()
-  SET(WITH_PARTITION_STORAGE_ENGINE OFF)
-  IF(num EQUAL FEATURE_SET_xsmall)
-    SET(WITH_NONE ON)
-  ENDIF()
-  
-  IF(num GREATER FEATURE_SET_xsmall)
-    SET(WITH_EMBEDDED_SERVER ON CACHE BOOL "")
-  ENDIF()
-  IF(num GREATER FEATURE_SET_small)
-    SET(WITH_ARCHIVE_STORAGE_ENGINE  ON)
-    SET(WITH_BLACKHOLE_STORAGE_ENGINE ON)
-    SET(WITH_FEDERATED_STORAGE_ENGINE ON)
-  ENDIF()
-  IF(num GREATER FEATURE_SET_classic)
-    SET(WITH_INNOBASE_STORAGE_ENGINE ON)
-  ENDIF()
-  IF(num GREATER FEATURE_SET_large)
-    SET(WITH_PARTITION_STORAGE_ENGINE ON)
-  ENDIF()
-  IF(num GREATER FEATURE_SET_xlarge)
-   # OPTION(WITH_ALL ON) 
-   # better no set this, otherwise server would be linked 
-   # statically with experimental stuff like audit_null
-  ENDIF()
-  
+  SET(WITH_EMBEDDED_SERVER ON CACHE BOOL "")
+
+  # Set these ON by default. They can be disabled with
+  # -DWITHOUT_${eng}_STORAGE_ENGINE
+  SET(WITH_ARCHIVE_STORAGE_ENGINE  ON)
+  SET(WITH_BLACKHOLE_STORAGE_ENGINE ON)
+  SET(WITH_FEDERATED_STORAGE_ENGINE ON)
+  SET(WITH_INNOBASE_STORAGE_ENGINE ON)
+  SET(WITH_PARTITION_STORAGE_ENGINE ON)
+
   # Update cache with current values, remove engines we do not care about
   # from build.
   FOREACH(eng ARCHIVE BLACKHOLE FEDERATED INNOBASE PARTITION)

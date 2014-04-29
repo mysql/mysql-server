@@ -57,7 +57,7 @@ extern char		trx_sys_mysql_master_log_name[];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-extern ib_int64_t	trx_sys_mysql_master_log_pos;
+extern int64_t		trx_sys_mysql_master_log_pos;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -67,7 +67,7 @@ here. */
 /** Binlog file name */
 extern char		trx_sys_mysql_bin_log_name[];
 /** Binlog file position, or -1 if unknown */
-extern ib_int64_t	trx_sys_mysql_bin_log_pos;
+extern int64_t		trx_sys_mysql_bin_log_pos;
 /* @} */
 
 /** The transaction system */
@@ -299,7 +299,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/*!< in: MySQL log file name */
-	ib_int64_t	offset,	/*!< in: position in that log file */
+	int64_t		offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr);	/*!< in: mtr */

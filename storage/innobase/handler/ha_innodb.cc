@@ -3630,11 +3630,11 @@ innobase_commit(
 			If the binary log is not enabled, or the transaction
 			is not written to the binary log, the file name will
 			be a NULL pointer. */
-			unsigned long long pos;
+			unsigned long long	pos;
 
 			thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
 
-			trx->mysql_log_offset = static_cast<ib_int64_t>(pos);
+			trx->mysql_log_offset = static_cast<int64_t>(pos);
 
 			/* Don't do write + flush right now. For group commit
 			to work we want to do the flush later. */
@@ -3806,7 +3806,7 @@ innobase_rollback_to_savepoint(
 					be rolled back to savepoint */
 	void*		savepoint)	/*!< in: savepoint data */
 {
-	ib_int64_t	mysql_binlog_cache_pos;
+	int64_t		mysql_binlog_cache_pos;
 	dberr_t		error;
 	trx_t*		trx;
 	char		name[64];
@@ -3944,7 +3944,7 @@ innobase_savepoint(
 	char name[64];
 	longlong2str((ulint) savepoint,name,36);
 
-	error = trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
+	error = trx_savepoint_for_mysql(trx, name, 0);
 
 	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
 		fts_savepoint_take(trx, trx->fts_trx, name);
@@ -9641,7 +9641,7 @@ ha_innobase::create(
 	char		temp_path[FN_REFLEN];	/* absolute path of temp frm */
 	char		remote_path[FN_REFLEN];	/* absolute path of table */
 	THD*		thd = ha_thd();
-	ib_int64_t	auto_inc_value;
+	int64_t		auto_inc_value;
 	ulint		flags;
 	ulint		flags2;
 	dict_table_t*	innobase_table = NULL;
@@ -10730,7 +10730,7 @@ ha_innobase::records_in_range(
 	dict_index_t*	index;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
-	ib_int64_t	n_rows;
+	int64_t		n_rows;
 	ulint		mode1;
 	ulint		mode2;
 	mem_heap_t*	heap;
@@ -13809,10 +13809,9 @@ ulonglong
 ha_innobase::get_mysql_bin_log_pos()
 /*================================*/
 {
-	/* trx... is ib_int64_t, which is a typedef for a 64-bit integer
-	(__int64 or longlong) so it's ok to cast it to ulonglong. */
+	ut_ad(trx_sys_mysql_bin_log_pos >= 0);
 
-	return(trx_sys_mysql_bin_log_pos);
+	return(static_cast<ulonglong>(trx_sys_mysql_bin_log_pos));
 }
 
 /******************************************************************//**
