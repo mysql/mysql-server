@@ -212,7 +212,7 @@ public:
     OS_COMMITTED = 5,
     OS_COMPLETING = 6,
     OS_COMPLETED = 7,
-    OS_RESTART = 8,
+
     OS_ABORTING = 9,
     OS_ABORT_SENT = 10,
     OS_TAKE_OVER = 11,
@@ -1165,7 +1165,7 @@ public:
     ScanFragRec(){ 
       stopFragTimer();
       lqhBlockref = 0;
-      scanFragState = IDLE;
+      scanFragState = COMPLETED;
       scanRec = RNIL;
     }
     /**
