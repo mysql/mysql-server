@@ -1332,7 +1332,7 @@ thd_create_intrinsic(
 /** Obtain the private handler of InnoDB session specific data.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
-__attribute__((warn_unused_result, nonnull))
+__attribute__((warn_unused_result))
 static inline
 innodb_session_t*&
 thd_to_innodb_session(
@@ -1341,7 +1341,10 @@ thd_to_innodb_session(
 	innodb_session_t*& innodb_session =
 		*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr);
 	if (innodb_session == NULL) {
-		innodb_session = new innodb_session_t();
+		innodb_session = new (std::nothrow) innodb_session_t();
+		if (innodb_session == NULL) {
+			return(innodb_session);
+		}
 	}
 
 	return(*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr));
@@ -1350,7 +1353,7 @@ thd_to_innodb_session(
 /** Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
-__attribute__((warn_unused_result, nonnull))
+__attribute__((warn_unused_result))
 static inline
 trx_t*&
 thd_to_trx(
@@ -3983,7 +3986,7 @@ innobase_close_connection(
 	Re-invocation of innodb_close_connection on same thd should
 	get trx as NULL. */
 
-	if (trx) {
+	if (trx != NULL) {
 		if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
 			sql_print_error("Transaction not registered for MySQL"
@@ -4729,7 +4732,7 @@ ha_innobase::innobase_initialize_autoinc()
 
 		/* For intrinsic table, name of field has to be prefixed with
 		table name to maintain column-name uniqueness. */
-		if (prebuilt->table
+		if (prebuilt->table != NULL
 		    && dict_table_is_intrinsic(prebuilt->table)) {
 
 			ulint	col_no = dict_col_get_no(dict_table_get_nth_col(
@@ -8619,12 +8622,13 @@ create_table_def(
 
 		if (dict_table_is_intrinsic(table) && field->orig_table) {
 
-			strcpy(field_name, field->orig_table->alias);
-			strcat(field_name, "_");
-			strcat(field_name, field->field_name);
+			ut_snprintf(field_name, sizeof(field_name),
+				    "%s_%s", field->orig_table->alias,
+				    field->field_name);
 
 		} else {
-			strcpy(field_name, field->field_name);
+			ut_snprintf(field_name, sizeof(field_name),
+				    "%s", field->field_name);
 		}
 
 		col_type = get_innobase_type_from_mysql_type(&unsigned_type,
@@ -8850,7 +8854,7 @@ create_index(
 	innodb_session_t*& priv = thd_to_innodb_session(trx->mysql_thd);
 	dict_table_t* handler = priv->lookup_table_handler(table_name);
 
-	if (handler) {
+	if (handler != NULL) {
 		/* This setting will enforce SQL NULL == SQL NULL.
 		For now this is turned-on for intrinsic tables
 		only but can be turned on for other tables if needed arises. */
@@ -8899,7 +8903,7 @@ create_index(
 		ut_error;
 found:
 		const char*	field_name = key_part->field->field_name;
-		if (handler && dict_table_is_intrinsic(handler)) {
+		if (handler != NULL && dict_table_is_intrinsic(handler)) {
 
 			ulint	col_no = dict_col_get_no(dict_table_get_nth_col(
 					handler, key_part->field->field_index));
@@ -8983,7 +8987,7 @@ create_clustered_index_when_no_primary(
 
 	dict_table_t* handler = priv->lookup_table_handler(table_name);
 
-	if (handler) {
+	if (handler != NULL) {
 		/* Disable use of AHI for intrinsic table indexes as AHI
 		validates the predicated entry using index-id which has to be
 		system-wide unique that is not the case with indexes of
@@ -9648,7 +9652,6 @@ ha_innobase::create(
 	const char*	stmt;
 	size_t		stmt_len;
 	bool		use_file_per_table;
-	bool		is_intrinsic_temp_table;
 
 	DBUG_ENTER("ha_innobase::create");
 
@@ -9689,8 +9692,9 @@ ha_innobase::create(
 		DBUG_RETURN(-1);
 	}
 
-	is_intrinsic_temp_table = (flags2 & DICT_TF2_TEMPORARY)
-		&& (flags2 & DICT_TF2_INTRINSIC);
+	bool		is_intrinsic_temp_table
+		= (flags2 & DICT_TF2_TEMPORARY)
+		  && (flags2 & DICT_TF2_INTRINSIC);
 
 	if (srv_read_only_mode && !is_intrinsic_temp_table) {
 		DBUG_RETURN(HA_ERR_INNODB_READ_ONLY);
@@ -10002,9 +10006,8 @@ cleanup:
 
 		thd_to_innodb_session(thd)->unregister_table_handler(norm_name);
 
-		dict_index_t* index = NULL;
-
-		while (true) {
+		for (;;) {
+			dict_index_t*	index;
 			index = UT_LIST_GET_FIRST(intrinsic_table->indexes);
 			if (index == NULL) {
 				break;

@@ -1355,19 +1355,18 @@ row_insert_for_mysql_using_cursor(
 
 	if (dict_index_is_auto_gen_clust(clust_index)) {
 		row_id_t	row_id =
-			dict_table_get_table_localized_row_id(prebuilt->table);
+			dict_table_get_table_sess_row_id(prebuilt->table);
 		dict_sys_write_row_id(node->row_id_buf, row_id);
 	}
 
-	trx_id = dict_table_get_table_localized_trx_id(prebuilt->table);
+	trx_id = dict_table_get_table_sess_trx_id(prebuilt->table);
 	trx_write_trx_id(node->trx_id_buf, trx_id);
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
-	ulint		inserted_upto = 0;
-	dict_index_t*	index;
-	for (index = UT_LIST_GET_FIRST(node->table->indexes),
-	     node->entry = UT_LIST_GET_FIRST(node->entry_list);
-	     index != NULL && err == DB_SUCCESS;
+	dict_index_t*	inserted_upto = NULL;
+	node->entry = UT_LIST_GET_FIRST(node->entry_list);
+	for (dict_index_t* index = UT_LIST_GET_FIRST(node->table->indexes);
+	     index != NULL;
 	     index = UT_LIST_GET_NEXT(indexes, index),
 	     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
 
@@ -1384,7 +1383,9 @@ row_insert_for_mysql_using_cursor(
 		}
 
 		if (err == DB_SUCCESS) {
-			inserted_upto++;
+			inserted_upto = index;
+		} else {
+			break;
 		}
 	}
 
@@ -1399,21 +1400,21 @@ row_insert_for_mysql_using_cursor(
 		mtr_start(&mtr);
 		dict_disable_redo_if_temporary(node->table, &mtr);
 
-		ulint k = 0;
 		for (dict_index_t* index =
 			UT_LIST_GET_FIRST(node->table->indexes);
-		     index != NULL && k < inserted_upto;
+		     inserted_upto != NULL;
 		     index = UT_LIST_GET_NEXT(indexes, index),
-		     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry),
-		     k++) {
+		     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
 
 			row_explicit_rollback(index, node->entry, thr, &mtr);
+
+			if (index == inserted_upto) {
+				break;
+			}
 		}
 
 		mtr_commit(&mtr);
-	}
-
-	if (err == DB_SUCCESS) {
+	} else {
 		/* Not protected by dict_table_stats_lock() for performance
 		reasons, we would rather get garbage in stat_n_rows (which is
 		just an estimate anyway) than protecting the following code
@@ -2017,7 +2018,7 @@ row_update_for_mysql_using_cursor(
 		row_id_t	row_id;
 		dfield_t*	row_id_field;
 
-		row_id = dict_table_get_table_localized_row_id(node->table);
+		row_id = dict_table_get_table_sess_row_id(node->table);
 		row_id_field = dtuple_get_nth_field(
 			node->upd_row, dict_table_get_n_cols(table) - 2);
 
@@ -2026,7 +2027,7 @@ row_update_for_mysql_using_cursor(
 	}
 
 	/* Step-2: Update the trx_id column. */
-	trx_id = dict_table_get_table_localized_trx_id(node->table);
+	trx_id = dict_table_get_table_sess_trx_id(node->table);
 	trx_id_field = dtuple_get_nth_field(
 		node->upd_row, dict_table_get_n_cols(table) - 1);
 	trx_write_trx_id(static_cast<byte*>(trx_id_field->data), trx_id);
