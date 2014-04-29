@@ -36,6 +36,7 @@ select * from performance_schema.setup_instruments
 select * from performance_schema.setup_instruments
   where name like 'Wait/Synch/Cond/sql/%'
   and name not in (
+    'wait/synch/cond/sql/COND_open',
     'wait/synch/cond/sql/COND_handler_count',
     'wait/synch/cond/sql/DEBUG_SYNC::cond',
     'wait/synch/cond/sql/COND_socket_listener_active',
