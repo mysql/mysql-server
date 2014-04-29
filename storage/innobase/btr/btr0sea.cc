@@ -832,6 +832,9 @@ btr_search_guess_on_hash(
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
 	      || (latch_mode == BTR_MODIFY_LEAF));
 
+	/* Not supported for spatial index */
+	ut_ad(!dict_index_is_spatial(index));
+
 	/* Note that, for efficiency, the struct info may not be protected by
 	any latch here! */
 

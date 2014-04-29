@@ -1612,8 +1612,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   {
     Item_in_subselect *in_subq_pred= (Item_in_subselect *)subq_pred;
 
-    /* Left side of IN predicate is already resolved */
-    DBUG_ASSERT(in_subq_pred->left_expr->fixed);
+    DBUG_ASSERT(is_fixed_or_outer_ref(in_subq_pred->left_expr));
 
     in_subq_pred->exec_method= Item_exists_subselect::EXEC_SEMI_JOIN;
     /*

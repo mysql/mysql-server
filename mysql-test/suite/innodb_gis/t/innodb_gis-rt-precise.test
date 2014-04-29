@@ -1,5 +1,5 @@
 #*****************************************************************
-# This was a Myisam testcase, converted to InnoDB 
+# This was a Myisam testcase, converted to InnoDB
 # Since Innodb does not support the spatial key, hence converted
 # Orginal name of the testcase : gis_rt_precise.test
 #*****************************************************************
@@ -14,7 +14,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 
 CREATE TABLE t1 (
-  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   g GEOMETRY NOT NULL,
   KEY gis_key(g(5))
 ) ENGINE=InnoDB;
@@ -40,7 +40,7 @@ SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, GeomFromText('Polygon((140 140,
 DROP TABLE t1;
 
 CREATE TABLE t1 (
-  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY, 
+  fid INT NOT NULL AUTO_INCREMENT PRIMARY KEY,
   g GEOMETRY NOT NULL
 ) ENGINE=InnoDB;
 
@@ -58,14 +58,11 @@ while ($1)
 }
 --enable_query_log
 
---error 1464
+#--error 1464
 ALTER TABLE t1 ADD SPATIAL KEY(g);
 SHOW CREATE TABLE t1;
 SELECT count(*) FROM t1;
---replace_column 10 #
-EXPLAIN SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, 
-  GeomFromText('Polygon((40 40,60 40,60 60,40 40))'));
-SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g, 
+SELECT fid, AsText(g) FROM t1 WHERE ST_Within(g,
   GeomFromText('Polygon((40 40,60 40,60 60,40 40))'));
 
 DROP TABLE t1;
