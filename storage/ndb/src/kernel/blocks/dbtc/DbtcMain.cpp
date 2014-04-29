@@ -11379,7 +11379,17 @@ Dbtc::initScanrec(ScanRecordPtr scanptr,
       &c_counters.c_scan_count))++;
   return 0;
 errout:
-  while (list.releaseFirst());
+  {
+    ScanFragRecPtr ptr;
+    bool found = list.first(ptr);
+    while (found)
+    {
+      ScanFragRecPtr old_ptr = ptr;
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      found = list.next(ptr);
+      list.release(old_ptr);
+    }
+  }
   return ZSCAN_FRAGREC_ERROR;
 }//Dbtc::initScanrec()
 
@@ -11835,8 +11845,23 @@ void Dbtc::releaseScanResources(Signal* signal,
     jam();
     ScanFragList run(c_scan_frag_pool, scanPtr.p->m_running_scan_frags);
     ScanFragList queue(c_scan_frag_pool, scanPtr.p->m_queued_scan_frags);
-    while (run.releaseFirst());
-    while (queue.releaseFirst());
+    ScanFragRecPtr ptr;
+    bool found = run.first(ptr);
+    while (found)
+    {
+      ScanFragRecPtr old_ptr = ptr;
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      found = run.next(ptr);
+      run.release(old_ptr);
+    }
+    found = queue.first(ptr);
+    while (found)
+    {
+      ScanFragRecPtr old_ptr = ptr;
+      ptr.p->scanFragState = ScanFragRec::COMPLETED;
+      found = queue.next(ptr);
+      queue.release(old_ptr);
+    }
   }
 
   if (scanPtr.p->scanKeyInfoPtr != RNIL)
@@ -12079,6 +12104,7 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
         err = tabPtr.p->getErrorCode(schemaVersion);
       }
       {
+        scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
         ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
         run.release(scanFragptr);
       }
@@ -12094,6 +12120,7 @@ void Dbtc::startFragScanLab(Signal* signal, Uint32 tableId,
     jam();
     updateBuddyTimer(apiConnectptr);
     {
+      scanFragptr.p->scanFragState = ScanFragRec::COMPLETED;
       ScanFragList run(c_scan_frag_pool, scanptr.p->m_running_scan_frags);
       run.release(scanFragptr);
     }
@@ -12663,6 +12690,7 @@ Dbtc::close_scan_req(Signal* signal, ScanRecordPtr scanPtr, bool req_received){
       case ScanFragRec::IDLE:
 	jam(); // real early abort
 	ndbrequire(old == ScanRecord::WAIT_AI || old == ScanRecord::RUNNING);
+        curr.p->scanFragState = ScanFragRec::COMPLETED;
 	running.release(curr);
 	continue;
       case ScanFragRec::WAIT_GET_PRIMCONF:
@@ -12755,17 +12783,6 @@ Dbtc::close_scan_req_send_conf(Signal* signal, ScanRecordPtr scanPtr){
   ndbrequire(scanPtr.p->m_delivered_scan_frags.isEmpty());
   //ndbrequire(scanPtr.p->m_running_scan_frags.isEmpty());
 
-#if 0
-  {
-    ScanFragList comp(c_scan_frag_pool, scanPtr.p->m_completed_scan_frags);
-    ScanFragRecPtr ptr;
-    for(comp.first(ptr); !ptr.isNull(); comp.next(ptr)){
-      ndbrequire(ptr.p->scanFragTimer == 0);
-      ndbrequire(ptr.p->scanFragState == ScanFragRec::COMPLETED);
-    } 
-  }
-#endif
-  
   if(!scanPtr.p->m_running_scan_frags.isEmpty()){
     jam();
     return;
@@ -13445,7 +13462,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     jam();
     ptrAss(tcConnectptr, tcConnectRecord);
     new (tcConnectptr.p) TcConnectRecord();
-    tcConnectptr.p->tcConnectstate = OS_RESTART;
+    tcConnectptr.p->tcConnectstate = OS_CONNECTED;
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
@@ -13463,7 +13480,7 @@ void Dbtc::initialiseTcConnect(Signal* signal)
     jam();
     ptrAss(tcConnectptr, tcConnectRecord);
     new (tcConnectptr.p) TcConnectRecord();
-    tcConnectptr.p->tcConnectstate = OS_RESTART;
+    tcConnectptr.p->tcConnectstate = OS_CONNECTED;
     tcConnectptr.p->apiConnect = RNIL;
     tcConnectptr.p->noOfNodes = 0;
     tcConnectptr.p->nextTcConnect = tcConnectptr.i + 1;
@@ -13706,6 +13723,7 @@ void Dbtc::releaseTcConnectFail(Signal* signal)
 {
   ptrGuard(tcConnectptr);
   tcConnectptr.p->nextTcConnect = cfirstfreeTcConnectFail;
+  tcConnectptr.p->tcConnectstate = OS_CONNECTED;
   cfirstfreeTcConnectFail = tcConnectptr.i;
 }//Dbtc::releaseTcConnectFail()
 
