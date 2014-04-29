@@ -3928,6 +3928,7 @@ int ha_tokudb::write_row(uchar * record) {
     tokudb_trx_data *trx = NULL;
     uint curr_num_DBs;
     bool create_sub_trans = false;
+    bool num_DBs_locked = false;
 
     //
     // some crap that needs to be done because MySQL does not properly abstract
@@ -3975,6 +3976,7 @@ int ha_tokudb::write_row(uchar * record) {
     //
     if (!num_DBs_locked_in_bulk) {
         rw_rdlock(&share->num_DBs_lock);
+        num_DBs_locked = true;
     }
     else {
         lock_count++;
@@ -4065,7 +4067,7 @@ int ha_tokudb::write_row(uchar * record) {
         track_progress(thd);
     }
 cleanup:
-    if (!num_DBs_locked_in_bulk) {
+    if (num_DBs_locked) {
        rw_unlock(&share->num_DBs_lock);
     }
     if (error == DB_KEYEXIST) {
@@ -4156,7 +4158,11 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     //
     // grab reader lock on numDBs_lock
     //
-    rw_rdlock(&share->num_DBs_lock);
+    bool num_DBs_locked = false;
+    if (!num_DBs_locked_in_bulk) {
+        rw_rdlock(&share->num_DBs_lock);
+        num_DBs_locked = true;
+    }
     curr_num_DBs = share->num_DBs;
 
     if (using_ignore) {
@@ -4250,7 +4256,9 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
 
 
 cleanup:
-    rw_unlock(&share->num_DBs_lock);
+    if (num_DBs_locked) {
+        rw_unlock(&share->num_DBs_lock);
+    }
     if (error == DB_KEYEXIST) {
         error = HA_ERR_FOUND_DUPP_KEY;
     }
@@ -4290,7 +4298,11 @@ int ha_tokudb::delete_row(const uchar * record) {
     //
     // grab reader lock on numDBs_lock
     //
-    rw_rdlock(&share->num_DBs_lock);
+    bool num_DBs_locked = false;
+    if (!num_DBs_locked_in_bulk) {
+        rw_rdlock(&share->num_DBs_lock);
+        num_DBs_locked = true;
+    }
     curr_num_DBs = share->num_DBs;
 
     create_dbt_key_from_table(&prim_key, primary_key, key_buff, record, &has_null);
@@ -4325,7 +4337,9 @@ int ha_tokudb::delete_row(const uchar * record) {
         track_progress(thd);
     }
 cleanup:
-    rw_unlock(&share->num_DBs_lock);
+    if (num_DBs_locked) {
+        rw_unlock(&share->num_DBs_lock);
+    }
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
@@ -6052,7 +6066,9 @@ int ha_tokudb::reset(void) {
 //
 int ha_tokudb::acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt) {
     int error = ENOSYS;
-    rw_rdlock(&share->num_DBs_lock);
+    if (!num_DBs_locked_in_bulk) {
+        rw_rdlock(&share->num_DBs_lock);
+    }
     uint curr_num_DBs = share->num_DBs;
     if (lt == lock_read) {
         error = 0;
@@ -6077,7 +6093,9 @@ int ha_tokudb::acquire_table_lock (DB_TXN* trans, TABLE_LOCK_TYPE lt) {
 
     error = 0;
 cleanup:
-    rw_unlock(&share->num_DBs_lock);
+    if (!num_DBs_locked_in_bulk) {
+        rw_unlock(&share->num_DBs_lock);
+    }
     return error;
 }
 
