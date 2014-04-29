@@ -3534,6 +3534,20 @@ end:
   Wait until the subject share is removed from the table
   definition cache and make sure it's destroyed.
 
+  @note This method may access the share concurrently with another
+  thread if the share is in the process of being opened, i.e., that
+  m_open_in_progress is true. In this case, close_cached_tables() may
+  iterate over elements in the table definition cache, and call this
+  method regardless of the share being opened or not. This works anyway
+  since a new flush ticket is added below, and LOCK_open ensures
+  that the share may not be destroyed by another thread in the time
+  between finding this share (having an old version) and adding the flush
+  ticket. Thus, after this thread has added the flush ticket, the thread
+  opening the table will eventually call free_table_share (as a result of
+  releasing the share after using it, or as a result of a failing
+  open_table_def()), which will notify the owners of the flush tickets,
+  and the last one being notified will actually destroy the share.
+
   @param mdl_context     MDL context for thread which is going to wait.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
