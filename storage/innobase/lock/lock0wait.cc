@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -198,8 +198,8 @@ lock_wait_suspend_thread(
 	trx_t*		trx;
 	ulint		had_dict_lock;
 	ibool		was_declared_inside_innodb;
-	ib_int64_t	start_time			= 0;
-	ib_int64_t	finish_time;
+	int64_t		start_time = 0;
+	int64_t		finish_time;
 	ulint		sec;
 	ulint		ms;
 	ulong		lock_wait_timeout;
@@ -251,7 +251,7 @@ lock_wait_suspend_thread(
 		if (ut_usectime(&sec, &ms) == -1) {
 			start_time = -1;
 		} else {
-			start_time = (ib_int64_t) sec * 1000000 + ms;
+			start_time = static_cast<int64_t>(sec) * 1000000 + ms;
 		}
 	}
 
@@ -346,7 +346,7 @@ lock_wait_suspend_thread(
 		if (ut_usectime(&sec, &ms) == -1) {
 			finish_time = -1;
 		} else {
-			finish_time = (ib_int64_t) sec * 1000000 + ms;
+			finish_time = static_cast<int64_t>(sec) * 1000000 + ms;
 		}
 
 		diff_time = (finish_time > start_time) ?
@@ -481,7 +481,7 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 			/* in: a dummy parameter required by
 			os_thread_create */
 {
-	ib_int64_t	sig_count = 0;
+	int64_t		sig_count = 0;
 	os_event_t	event = lock_sys->timeout_event;
 
 	ut_ad(!srv_read_only_mode);
