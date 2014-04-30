@@ -167,18 +167,20 @@ position and fetch next or fetch prev must not be tried to the cursor!
 				above will not stand valid instead this is
 				traced using alternative condition
 				at caller level.
+@param[in,out]	session		session handler
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 
 dberr_t
 row_search_for_mysql(
-	byte*		buf,
-	ulint		mode,
-	row_prebuilt_t*	prebuilt,
-	ulint		match_mode,
-	ulint		direction,
-	bool		ins_sel_stmt = false)
-	__attribute__((nonnull, warn_unused_result));
+	byte*			buf,
+	ulint			mode,
+	row_prebuilt_t*		prebuilt,
+	ulint			match_mode,
+	ulint			direction,
+	bool			ins_sel_stmt = false,
+	innodb_session_t*	session = NULL)
+	__attribute__((warn_unused_result));
 
 /********************************************************************//**
 Count rows in a R-Tree leaf level.
