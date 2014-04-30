@@ -26,6 +26,7 @@
 #    is greater than MAX_BINLOG_CACHE_SIZE and vice-versa. In both cases, We expect
 #    that BINLOG_CACHE_SIZE will be set to MAX_BINLOG_CACHE_SIZE. (BUG#55377)
 ########################################################################################
+--source include/have_myisam.inc
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
 call mtr.add_suppression("Option binlog_cache_size ");
 call mtr.add_suppression("Slave SQL: The incident LOST_EVENTS occured on the master.");

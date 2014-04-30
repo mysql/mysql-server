@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,6 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "fil0fil.h"
-#include "fsp0types.h"
 #include "trx0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
@@ -58,7 +57,7 @@ extern char		trx_sys_mysql_master_log_name[];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-extern ib_int64_t	trx_sys_mysql_master_log_pos;
+extern int64_t		trx_sys_mysql_master_log_pos;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -68,21 +67,20 @@ here. */
 /** Binlog file name */
 extern char		trx_sys_mysql_bin_log_name[];
 /** Binlog file position, or -1 if unknown */
-extern ib_int64_t	trx_sys_mysql_bin_log_pos;
+extern int64_t		trx_sys_mysql_bin_log_pos;
 /* @} */
 
 /** The transaction system */
 extern trx_sys_t*	trx_sys;
 
-/***************************************************************//**
-Checks if a page address is the trx sys header page.
+/** Checks if a page address is the trx sys header page.
+@param[in]	page_id	page id
 @return true if trx sys header page */
 UNIV_INLINE
 bool
 trx_sys_hdr_page(
-/*=============*/
-	ulint	space,	/*!< in: space */
-	ulint	page_no);/*!< in: page number */
+	const page_id_t&	page_id);
+
 /*****************************************************************//**
 Creates and initializes the central memory structures for the transaction
 system. This is called when the database is started.
@@ -301,7 +299,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/*!< in: MySQL log file name */
-	ib_int64_t	offset,	/*!< in: position in that log file */
+	int64_t		offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr);	/*!< in: mtr */
@@ -312,13 +310,6 @@ the magic number shows it valid. */
 void
 trx_sys_print_mysql_binlog_offset(void);
 /*===================================*/
-/*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
-
-void
-trx_sys_print_mysql_master_log_pos(void);
-/*====================================*/
 /*****************************************************************//**
 Initializes the tablespace tag system. */
 
@@ -479,15 +470,10 @@ trx_sys_validate_trx_list();
 /*========================*/
 #endif /* UNIV_DEBUG */
 
-/* The automatically created system rollback segment has this id */
+/** The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
-/* Space id and page no where the trx system file copy resides */
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-#include "fsp0fsp.h"
-#define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
-
-/* The offset of the transaction system header on the page */
+/** The offset of the transaction system header on the page */
 #define	TRX_SYS		FSEG_PAGE_DATA
 
 /** Transaction system header */
@@ -534,10 +520,6 @@ We must remember this limit in order to keep file compatibility. */
 #if UNIV_PAGE_SIZE_MIN < 4096
 # error "UNIV_PAGE_SIZE_MIN < 4096"
 #endif
-/** The offset of the MySQL replication info in the trx system header;
-this contains the same fields as TRX_SYS_MYSQL_LOG_INFO below */
-#define TRX_SYS_MYSQL_MASTER_LOG_INFO	(UNIV_PAGE_SIZE - 2000)
-
 /** The offset of the MySQL binlog offset info in the trx system header */
 #define TRX_SYS_MYSQL_LOG_INFO		(UNIV_PAGE_SIZE - 1000)
 #define	TRX_SYS_MYSQL_LOG_MAGIC_N_FLD	0	/*!< magic number which is

@@ -866,7 +866,8 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   uint i;
-  uint int_count, comment_length=0;
+  uint int_count;
+  size_t comment_length= 0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
   DBUG_ENTER("pack_fields");

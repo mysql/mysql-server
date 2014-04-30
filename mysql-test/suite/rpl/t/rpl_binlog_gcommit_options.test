@@ -8,6 +8,7 @@
 #		that there is no crash/assertion when 
 #		that code executed.
 ############################################################
+source include/not_gtid_enabled.inc;
 source include/have_innodb.inc;
 source include/have_log_bin.inc;
 source include/master-slave.inc;
@@ -47,7 +48,7 @@ enable_query_log;
 echo # Master results;
 connection master;
 SELECT COUNT(a) FROM t;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 echo # Slave results;
 SELECT COUNT(a) FROM t;
 
@@ -55,6 +56,6 @@ SELECT COUNT(a) FROM t;
 echo # Clean up;
 connection master;
 DROP TABLE t;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/stop_slave.inc;
 echo # End of tests;

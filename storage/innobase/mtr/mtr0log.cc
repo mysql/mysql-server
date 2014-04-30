@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -96,8 +96,8 @@ Parses an initial log record written by mlog_write_initial_log_record.
 byte*
 mlog_parse_initial_log_record(
 /*==========================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mlog_id_t*	type,	/*!< out: log record type: MLOG_1BYTE, ... */
 	ulint*		space,	/*!< out: space id */
 	ulint*		page_no)/*!< out: page number */
@@ -117,16 +117,13 @@ mlog_parse_initial_log_record(
 		return(NULL);
 	}
 
-	ptr = mach_parse_compressed(ptr, end_ptr, space);
+	*space = mach_parse_compressed(&ptr, end_ptr);
 
-	if (ptr == NULL) {
-
-		return(NULL);
+	if (ptr != NULL) {
+		*page_no = mach_parse_compressed(&ptr, end_ptr);
 	}
 
-	ptr = mach_parse_compressed(ptr, end_ptr, page_no);
-
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /********************************************************//**
@@ -137,8 +134,8 @@ byte*
 mlog_parse_nbytes(
 /*==============*/
 	mlog_id_t	type,	/*!< in: log record type: MLOG_1BYTE, ... */
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	byte*		page,	/*!< in: page where to apply the log
 				record, or NULL */
 	void*		page_zip)/*!< in/out: compressed page, or NULL */
@@ -165,7 +162,7 @@ mlog_parse_nbytes(
 	}
 
 	if (type == MLOG_8BYTES) {
-		ptr = mach_ull_parse_compressed(ptr, end_ptr, &dval);
+		dval = mach_u64_parse_compressed(&ptr, end_ptr);
 
 		if (ptr == NULL) {
 
@@ -181,10 +178,10 @@ mlog_parse_nbytes(
 			mach_write_to_8(page + offset, dval);
 		}
 
-		return(ptr);
+		return(const_cast<byte*>(ptr));
 	}
 
-	ptr = mach_parse_compressed(ptr, end_ptr, &val);
+	val = mach_parse_compressed(&ptr, end_ptr);
 
 	if (ptr == NULL) {
 
@@ -234,7 +231,7 @@ mlog_parse_nbytes(
 		ptr = NULL;
 	}
 
-	return(ptr);
+	return(const_cast<byte*>(ptr));
 }
 
 /********************************************************//**
@@ -308,7 +305,7 @@ mlog_write_ull(
 			mach_write_to_2(log_ptr, page_offset(ptr));
 			log_ptr += 2;
 
-			log_ptr += mach_ull_write_compressed(log_ptr, val);
+			log_ptr += mach_u64_write_compressed(log_ptr, val);
 
 			mlog_close(mtr, log_ptr);
 		}

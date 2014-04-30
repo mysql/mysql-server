@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -57,11 +57,10 @@ table_mutex_instances::m_share=
 {
   { C_STRING_WITH_LEN("mutex_instances") },
   &pfs_readonly_acl,
-  &table_mutex_instances::create,
+  table_mutex_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_mutex_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -71,6 +70,12 @@ table_mutex_instances::m_share=
 PFS_engine_table* table_mutex_instances::create(void)
 {
   return new table_mutex_instances();
+}
+
+ha_rows
+table_mutex_instances::get_row_count(void)
+{
+  return mutex_max;
 }
 
 table_mutex_instances::table_mutex_instances()
@@ -226,11 +231,10 @@ table_rwlock_instances::m_share=
 {
   { C_STRING_WITH_LEN("rwlock_instances") },
   &pfs_readonly_acl,
-  &table_rwlock_instances::create,
+  table_rwlock_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_rwlock_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -240,6 +244,12 @@ table_rwlock_instances::m_share=
 PFS_engine_table* table_rwlock_instances::create(void)
 {
   return new table_rwlock_instances();
+}
+
+ha_rows
+table_rwlock_instances::get_row_count(void)
+{
+  return rwlock_max;
 }
 
 table_rwlock_instances::table_rwlock_instances()
@@ -392,11 +402,10 @@ table_cond_instances::m_share=
 {
   { C_STRING_WITH_LEN("cond_instances") },
   &pfs_readonly_acl,
-  &table_cond_instances::create,
+  table_cond_instances::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_cond_instances::get_row_count,
   sizeof(PFS_simple_index),
   &m_table_lock,
   &m_field_def,
@@ -406,6 +415,12 @@ table_cond_instances::m_share=
 PFS_engine_table* table_cond_instances::create(void)
 {
   return new table_cond_instances();
+}
+
+ha_rows
+table_cond_instances::get_row_count(void)
+{
+  return cond_max;
 }
 
 table_cond_instances::table_cond_instances()

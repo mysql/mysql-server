@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,8 +79,11 @@ fts_trx_table_cmp(
 	const void*	p1,			/*!< in: id1 */
 	const void*	p2)			/*!< in: id2 */
 {
-	const dict_table_t* table1 = (*(const fts_trx_table_t**) p1)->table;
-	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
+	const dict_table_t*	table1
+		= (*static_cast<const fts_trx_table_t* const*>(p1))->table;
+
+	const dict_table_t*	table2
+		= (*static_cast<const fts_trx_table_t* const*>(p2))->table;
 
 	return((table1->id > table2->id)
 	       ? 1
@@ -99,8 +102,9 @@ fts_trx_table_id_cmp(
 	const void*	p1,			/*!< in: id1 */
 	const void*	p2)			/*!< in: id2 */
 {
-	const ullint* table_id = (const ullint*) p1;
-	const dict_table_t* table2 = (*(const fts_trx_table_t**) p2)->table;
+	const uintmax_t*	table_id = static_cast<const uintmax_t*>(p1);
+	const dict_table_t*	table2
+		= (*static_cast<const fts_trx_table_t* const*>(p2))->table;
 
 	return((*table_id > table2->id)
 	       ? 1

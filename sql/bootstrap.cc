@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -112,7 +112,8 @@ static void handle_bootstrap_impl(THD *thd)
     }
     memcpy(query, buffer, length);
     query[length]= '\0';
-    thd->set_query_and_id(query, length, next_query_id());
+    thd->set_query(query, length);
+    thd->set_query_id(next_query_id());
     DBUG_PRINT("query",("%-.4096s",thd->query().str));
 #if defined(ENABLED_PROFILING)
     thd->profiling.start_new_query();
@@ -141,7 +142,7 @@ static void handle_bootstrap_impl(THD *thd)
       break;
 
     free_root(thd->mem_root,MYF(MY_KEEP_PREALLOC));
-    free_root(&thd->transaction.mem_root,MYF(MY_KEEP_PREALLOC));
+    thd->get_transaction()->free_memory(MYF(MY_KEEP_PREALLOC));
   }
 
   DBUG_VOID_RETURN;

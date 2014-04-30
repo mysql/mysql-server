@@ -193,7 +193,9 @@ col2
 #       server_unix_socket are already checked
 #     - the stability of results is already checked
 #       So we con go with the results of the first run.
-# 4.6.1 The SUM_OF_BYTES_WRITE value is the same for all Connects.
+# 4.6.1 The SUM_OF_BYTES_WRITE value depends on length of database
+#       since the database name is written in OK packet.
+#       Hence the value 2.
 # 4.6.2 The SUM_OF_BYTES_WRITE value hast to be > 100.
 # 4.6.3 COUNT_READ, COUNT_WRITE and COUNT_MISC have to be to be > 0
 # 4.6.4 Checks based on comparison of results for connects

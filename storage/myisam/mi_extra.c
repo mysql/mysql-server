@@ -264,7 +264,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
       flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
-#ifdef HAVE_PWRITE
+#ifndef _WIN32
     _mi_decrement_open_count(info);
 #endif
     if (share->not_flushed)

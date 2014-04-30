@@ -1304,6 +1304,9 @@ void Protocol_text::prepare_for_resend()
 
 bool Protocol_text::store_null()
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
   *(next_field++)= NULL;
   ++next_mysql_field;
   return false;
@@ -1327,10 +1330,6 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
   ++next_mysql_field;
   return FALSE;
 }
-
-#if defined(_MSC_VER) && _MSC_VER < 1400
-#define vsnprintf _vsnprintf
-#endif
 
 void error_log_print(enum loglevel level __attribute__((unused)),
                      const char *format, va_list argsi)

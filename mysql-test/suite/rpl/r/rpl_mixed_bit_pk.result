@@ -28,5 +28,7 @@ INSERT INTO `t7` ( `bit` ) VALUES ( 0 );
 DELETE FROM `t7` WHERE `bit` < 2 LIMIT 4;
 INSERT INTO `t8` ( `bit` ) VALUES ( 0 );
 DELETE FROM `t8` WHERE `bit` < 2 LIMIT 4;
+include/sync_slave_sql_with_master.inc
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

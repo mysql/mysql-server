@@ -15,7 +15,7 @@
 --source include/install_semisync.inc
 
 CREATE TABLE t1(c1 INT) ENGINE=InnoDB;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source extra/rpl_tests/rpl_semi_sync_after_sync.test
 
 --source include/rpl_connection_master.inc

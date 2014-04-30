@@ -1,4 +1,3 @@
-DROP DATABASE IF EXISTS geotest;
 CREATE DATABASE geotest;
 use geotest;
 CREATE TABLE tmp (id int unsigned NOT NULL PRIMARY KEY);

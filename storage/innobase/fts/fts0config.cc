@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -151,7 +151,7 @@ fts_config_create_index_param_name(
 	/* Caller is responsible for deleting name. */
 	name = static_cast<char*>(ut_malloc(
 		len + FTS_AUX_MIN_TABLE_ID_LENGTH + 2));
-	strcpy(name, param);
+	::strcpy(name, param);
 	name[len] = '_';
 
 	fts_write_object_id(index->id, name + len + 1,
@@ -431,10 +431,9 @@ fts_config_set_ulint(
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
 	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
 
-	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
-	value.f_len = snprintf(
+	value.f_len = my_snprintf(
 		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 	error = fts_config_set_value(trx, fts_table, name, &value);
@@ -518,8 +517,7 @@ fts_config_increment_value(
 
 		ut_a(FTS_MAX_CONFIG_VALUE_LEN > FTS_MAX_INT_LEN);
 
-		// FIXME: Get rid of snprintf
-		value.f_len = snprintf(
+		value.f_len = my_snprintf(
 			(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 		fts_config_set_value(trx, fts_table, name, &value);

@@ -83,7 +83,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 let $diff_tables= master:t1, slave:t1;
 source include/diff_tables.inc;
@@ -95,8 +95,7 @@ begin;
 delete from t1;
 commit;
 
-sync_slave_with_master;
-
+--source include/sync_slave_sql_with_master.inc
 
 #
 # 2. the event size is bigger than the cache's buffer
@@ -125,8 +124,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
-sync_slave_with_master;
-
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t2, slave:t2
 source include/diff_tables.inc;
 
@@ -137,8 +135,7 @@ begin;
 delete from t2;
 commit;
 
-sync_slave_with_master;
-
+--source include/sync_slave_sql_with_master.inc
 #
 # 3. the event size if approximately the same as the cache's buffer
 #
@@ -167,8 +164,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
-sync_slave_with_master;
-
+--source include/sync_slave_sql_with_master.inc
 --let $diff_tables= master:t3, slave:t3
 source include/diff_tables.inc;
 
@@ -179,8 +175,7 @@ begin;
 delete from t3;
 commit;
 
-sync_slave_with_master;
-
+--source include/sync_slave_sql_with_master.inc
 
 #
 # 4. all in above
@@ -226,7 +221,7 @@ show status like "binlog_cache_use";
 --echo *** binlog_cache_disk_use must be non-zero ***
 show status like "binlog_cache_disk_use";
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --let $diff_tables= master:t1, slave:t1
 source include/diff_tables.inc;

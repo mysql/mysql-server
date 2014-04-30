@@ -72,11 +72,6 @@ typedef struct st_stack
 /* The following stack size is enough for ulong ~0 elements */
 #define STACK_SIZE	(8 * sizeof(unsigned long int))
 #define THRESHOLD_FOR_INSERT_SORT 10
-#if defined(QSORT_TYPE_IS_VOID)
-#define SORT_RETURN return
-#else
-#define SORT_RETURN return 0
-#endif
 
 /****************************************************************************
 ** 'standard' quicksort with the following extensions:
@@ -89,10 +84,10 @@ typedef struct st_stack
 *****************************************************************************/
 
 #ifdef QSORT_EXTRA_CMP_ARGUMENT
-qsort_t my_qsort2(void *base_ptr, size_t count, size_t size, qsort2_cmp cmp,
-                  const void *cmp_argument)
+void my_qsort2(void *base_ptr, size_t count, size_t size, qsort2_cmp cmp,
+               const void *cmp_argument)
 #else
-qsort_t my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
+void my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
 #endif
 {
   char *low, *high, *pivot;
@@ -101,7 +96,7 @@ qsort_t my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
   /* Handle the simple case first */
   /* This will also make the rest of the code simpler */
   if (count <= 1)
-    SORT_RETURN;
+    return;
 
   low  = (char*) base_ptr;
   high = low+ size * (count - 1);
@@ -206,5 +201,5 @@ qsort_t my_qsort(void *base_ptr, size_t count, size_t size, qsort_cmp cmp)
     }
   } while (stack_ptr > stack);
   my_afree(pivot);
-  SORT_RETURN;
+  return;
 }

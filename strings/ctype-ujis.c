@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved. & tommy@valley.ne.jp.
    
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -67323,6 +67323,7 @@ CHARSET_INFO my_charset_ujis_japanese_ci=
     2,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     0,			/* min_sort_char */
     0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -67357,6 +67358,7 @@ CHARSET_INFO my_charset_ujis_bin=
     2,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,			/* mbmaxlenlen  */
     0,			/* min_sort_char */
     0xFEFE,		/* max_sort_char */
     ' ',                /* pad char      */

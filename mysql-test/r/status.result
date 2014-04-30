@@ -341,5 +341,26 @@ Table_open_cache_overflows	5
 # Cleanup
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;
+SHOW STATUS LIKE 'max_used_connections_time';
+Variable_name	Value
+Max_used_connections_time	DTVALUE
+# Should report 4
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	4
+# Should report 4
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	4
+# This should report 0 as it must have the same value as above
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+0
+# This should report 0 as timestamp is updated only when connection count strictly exceeds the previos highest value
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+0
+FLUSH STATUS;
+# This should not report 0 as FLUSH STATUS is called.
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+1
 set @@global.concurrent_insert= @old_concurrent_insert;
 SET GLOBAL log_output = @old_log_output;

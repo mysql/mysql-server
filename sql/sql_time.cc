@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,7 +20,7 @@
 #include "unireg.h"                      // REQUIRED by other includes
 #include "sql_time.h"
 #include "tztime.h"                             // struct Time_zone
-#include "sql_class.h"   // THD, MODE_INVALID_DATES, MODE_NO_ZERO_DATE
+#include "sql_class.h"  // THD, MODE_STRICT_ALL_TABLES, MODE_STRICT_TRANS_TABLES
 #include <m_ctype.h>
 
 
@@ -250,7 +250,8 @@ to_ascii(const CHARSET_INFO *cs,
 
 /* Character set-aware version of str_to_time() */
 bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
-                 MYSQL_TIME *l_time, uint flags, MYSQL_TIME_STATUS *status)
+                 MYSQL_TIME *l_time, my_time_flags_t flags,
+                 MYSQL_TIME_STATUS *status)
 {
   char cnv[MAX_TIME_FULL_WIDTH + 3]; // +3 for nanoseconds (for rounding)
   if ((cs->state & MY_CS_NONASCII) != 0)
@@ -268,7 +269,7 @@ bool str_to_time(const CHARSET_INFO *cs, const char *str, size_t length,
 /* Character set-aware version of str_to_datetime() */
 bool str_to_datetime(const CHARSET_INFO *cs,
                      const char *str, size_t length,
-                     MYSQL_TIME *l_time, uint flags,
+                     MYSQL_TIME *l_time, my_time_flags_t flags,
                      MYSQL_TIME_STATUS *status)
 {
   char cnv[MAX_DATETIME_FULL_WIDTH + 3]; // +3 for nanoseconds (for rounding)
@@ -380,14 +381,16 @@ bool datetime_add_nanoseconds_with_round(MYSQL_TIME *ltime,
     See description of str_to_datetime() for more information.
 */
 bool
-str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
+str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time,
+                          my_time_flags_t flags)
 {
   MYSQL_TIME_STATUS status;
   THD *thd= current_thd;
-  bool ret_val= str_to_datetime(str, l_time,
-                                (flags | (thd->variables.sql_mode &
-                                 (MODE_INVALID_DATES | MODE_NO_ZERO_DATE))),
-                                &status);
+  if (thd->is_strict_mode())
+    flags|= TIME_NO_ZERO_DATE;
+  if (thd->variables.sql_mode & MODE_INVALID_DATES)
+    flags|= TIME_INVALID_DATES;
+  bool ret_val= str_to_datetime(str, l_time, flags, &status);
   if (ret_val || status.warnings)
     make_truncated_value_warning(ErrConvString(str), l_time->time_type);
   return ret_val;
@@ -403,8 +406,8 @@ str_to_datetime_with_warn(String *str, MYSQL_TIME *l_time, uint flags)
   @param[in,out] warnings Warning flags.
   @return                False on success, true on error.
 */
-static bool
-lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
+static bool lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime,
+                                my_time_flags_t flags, int *warnings)
 {
   if (lld.rem < 0 || // Catch negative numbers with zero int part, e.g: -0.1
       number_to_datetime(lld.quot, ltime, flags, warnings) == LL(-1))
@@ -441,9 +444,8 @@ lldiv_t_to_datetime(lldiv_t lld, MYSQL_TIME *ltime, uint flags, int *warnings)
   @param       flags   Conversion flags.
   @return              False on success, true on error.
 */
-bool
-my_decimal_to_datetime_with_warn(const my_decimal *decimal,
-                                 MYSQL_TIME *ltime, uint flags)
+bool my_decimal_to_datetime_with_warn(const my_decimal *decimal,
+                                      MYSQL_TIME *ltime, my_time_flags_t flags)
 {
   lldiv_t lld;
   int warnings= 0;
@@ -470,8 +472,8 @@ my_decimal_to_datetime_with_warn(const my_decimal *decimal,
   @param       flags   Conversion flags.
   @return              False on success, true on error.
 */
-bool
-my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags)
+bool my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime,
+                                     my_time_flags_t flags)
 {
   lldiv_t lld;
   int warnings= 0;
@@ -497,8 +499,8 @@ my_double_to_datetime_with_warn(double nr, MYSQL_TIME *ltime, uint flags)
   @param[out]  ltime   The variable to convert to.
   @return              False on success, true on error.
 */
-bool
-my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime, uint flags)
+bool my_longlong_to_datetime_with_warn(longlong nr, MYSQL_TIME *ltime,
+                                       my_time_flags_t flags)
 {
   int warnings= 0;
   bool rc= number_to_datetime(nr, ltime, flags, &warnings) == LL(-1);
@@ -536,7 +538,6 @@ static bool lldiv_t_to_time(lldiv_t lld, MYSQL_TIME *ltime, int *warnings)
   Convert decimal number to TIME
   @param      decimal_value  The number to convert from.
   @param[out] ltime          The variable to convert to.
-  @param      flags          Conversion flags.
   @return     False on success, true on error.
 */
 bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
@@ -564,7 +565,6 @@ bool my_decimal_to_time_with_warn(const my_decimal *decimal, MYSQL_TIME *ltime)
 
   @param      nr      The number to convert from.
   @param[out] ltime   The variable to convert to.
-  @param      flags   Conversion flags.
   @return     False on success, true on error.
 */
 bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
@@ -592,7 +592,6 @@ bool my_double_to_time_with_warn(double nr, MYSQL_TIME *ltime)
   Convert longlong number to TIME
   @param      nr     The number to convert from.
   @param[out] ltime  The variable to convert to.
-  @param      flags  Conversion flags.
   @return     False on success, true on error.
 */
 bool my_longlong_to_time_with_warn(longlong nr, MYSQL_TIME *ltime)
@@ -859,8 +858,7 @@ bool parse_date_time_format(timestamp_type format_type,
   {
     if (*ptr == '%' && ptr+1 != end)
     {
-      uint position;
-      LINT_INIT(position);
+      uint position= 0;
       switch (*++ptr) {
       case 'y':					// Year
       case 'Y':

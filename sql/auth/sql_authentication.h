@@ -51,7 +51,7 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
   LEX_STRING db;            ///< db name from the handshake packet
   /** when restarting a plugin this caches the last client reply */
   struct {
-    char *plugin, *pkt;     ///< pointers into NET::buff
+    const char *plugin, *pkt;     ///< pointers into NET::buff
     uint pkt_len;
   } cached_client_reply;
   /** this caches the first plugin packet for restart request on the client */
@@ -75,7 +75,7 @@ struct MPVIO_EXT : public MYSQL_PLUGIN_VIO
   char *ip;
   char *host;
   Thd_charset_adapter *charset_adapter;
-  LEX_STRING acl_user_plugin;
+  LEX_CSTRING acl_user_plugin;
   int vio_is_encrypted;
   bool can_authenticate()
   {
@@ -129,11 +129,11 @@ public:
 
 /* Data Structures */
 
-extern LEX_STRING native_password_plugin_name;
-extern LEX_STRING old_password_plugin_name;
-extern LEX_STRING sha256_password_plugin_name;
-extern LEX_STRING validate_password_plugin_name;
-extern LEX_STRING default_auth_plugin_name;
+extern LEX_CSTRING native_password_plugin_name;
+extern LEX_CSTRING old_password_plugin_name;
+extern LEX_CSTRING sha256_password_plugin_name;
+extern LEX_CSTRING validate_password_plugin_name;
+extern LEX_CSTRING default_auth_plugin_name;
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
 extern bool allow_all_hosts;

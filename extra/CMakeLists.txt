@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -107,9 +107,11 @@ IF(UNIX)
   MYSQL_ADD_EXECUTABLE(resolve_stack_dump resolve_stack_dump.c)
   TARGET_LINK_LIBRARIES(resolve_stack_dump mysys mysys_ssl)
   SET_TARGET_PROPERTIES(resolve_stack_dump PROPERTIES LINKER_LANGUAGE CXX)
-
-  MYSQL_ADD_EXECUTABLE(mysql_waitpid mysql_waitpid.c)
-  TARGET_LINK_LIBRARIES(mysql_waitpid mysys mysys_ssl)
-  SET_TARGET_PROPERTIES(mysql_waitpid PROPERTIES LINKER_LANGUAGE CXX)
 ENDIF()
 
+# In published release builds on Solaris, we need to bundle gcc source.
+# PB2 will take care of putting it in extra/ when needed
+IF(EXISTS ${CMAKE_CURRENT_SOURCE_DIR}/gcc-4.8.1.tar.bz2)
+  INSTALL(FILES gcc-4.8.1.tar.bz2 
+          DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Development)
+ENDIF()

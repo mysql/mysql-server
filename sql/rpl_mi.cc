@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -556,23 +556,18 @@ bool Master_info::write_info(Rpl_info_handler *to)
   DBUG_RETURN(FALSE);
 }
 
-bool Master_info::set_password(const char* password_arg,
-                               int password_arg_size __attribute__((unused)))
+void Master_info::set_password(const char* password_arg)
 {
-  bool ret= true;
   DBUG_ENTER("Master_info::set_password");
 
+  DBUG_ASSERT(password_arg);
+
   if (password_arg && start_user_configured)
-  {
     strmake(start_password, password_arg, sizeof(start_password) - 1);
-    ret= false;
-  }
   else if (password_arg)
-  {
     strmake(password, password_arg, sizeof(password) - 1);
-    ret= false;
-  }
-  DBUG_RETURN(ret);
+
+  DBUG_VOID_RETURN;
 }
 
 bool Master_info::get_password(char *password_arg, int *password_arg_size)

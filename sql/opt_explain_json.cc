@@ -1542,6 +1542,8 @@ public:
   { return unit_ctx::format_unit(json); }
   virtual void set_sort(sort_ctx *ctx)
   { return join_ctx::set_sort(ctx); }
+  virtual qep_row *entry()
+  { return join_ctx::entry(); }
 
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)

@@ -19,7 +19,7 @@
 --source include/not_embedded.inc
 
 -- source include/have_innodb.inc
-# *nix specific command to remove write permission 
+# *nix specific command to remove write permission
 # wanted to use perl to save original permission of file and restore back after
 # chnage but could not find way to do.(with perl we could run test on windows too)
 -- source include/not_windows.inc
@@ -49,8 +49,8 @@ CREATE DATABASE testdb_wl6445;
 
 #------------------------------------------------------------------------------
 # Testcase covers
-# a) Create table/data , 
-# b) remove write permission of ibdata , ib_logfile0  
+# a) Create table/data ,
+# b) remove write permission of ibdata , ib_logfile0
 # c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
 --echo case # 1
@@ -62,7 +62,7 @@ CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
-# remove write permissions 
+# remove write permissions
 --exec chmod a-w $MYSQLD_DATADIR/ibdata1
 --exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
@@ -121,7 +121,7 @@ DROP DATABASE IF EXISTS testdb_wl6445;
 
 #------------------------------------------------------------------------------
 # Testcase covers
-# a) Create table/data , 
+# a) Create table/data ,
 # b) remove write permission of ibdata , ib_logfile0 when server is running
 # c) restart server in --innodb-read-only mode and verfiy DDL/DML/DCL in read only mode
 #------------------------------------------------------------------------------
@@ -136,12 +136,12 @@ CREATE TABLE t1 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t1 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t1 ORDER BY i;
 
-# remove write permissions 
+# remove write permissions
 --exec chmod a-w $MYSQLD_DATADIR/ibdata1
 --exec chmod a-w $MYSQLD_DATADIR/testdb_wl6445/t1.ibd
 --exec chmod a-w $MYSQLD_DATADIR/ib_logfile0
 #
-# check dml/ddl after removing write permission 
+# check dml/ddl after removing write permission
 CREATE TABLE t2 ( i int PRIMARY KEY , j blob) ENGINE = InnoDB;
 INSERT INTO t2 VALUES (1,repeat('a',200)),(2,repeat('b',200)),(3,repeat('c',200));
 SELECT i,LEFT(j,20) FROM t2 ORDER BY i;
@@ -189,9 +189,9 @@ UNLOCK TABLES;
 
 #------------------------------------------------------------------------------
 # Testcase covers
-# a) Create table/data , 
-# b) remove write permission of ibdata , ib_logfile0  
-# c) try to restart server without --innodb-read-only mode 
+# a) Create table/data ,
+# b) remove write permission of ibdata , ib_logfile0
+# c) try to restart server without --innodb-read-only mode
 #------------------------------------------------------------------------------
 #  Note : write permission is already removed in previous case so we just
 #         start server without --innodb-read-only option
@@ -220,12 +220,12 @@ let SEARCH_FILE= $error_log;
 --exec $MYSQLD_CMD --loose-console > $error_log 2>&1
 
 # We get depending on the platform either "./ibdata1" or ".\ibdata1".
-let SEARCH_PATTERN=InnoDB: The system tablespace must be writable;
+let SEARCH_PATTERN=InnoDB: The innodb_system_tablespace data file 'ibdata1' must be writable;
 --source include/search_pattern_in_file.inc
 
 
 #------------------------------------------------------------------------------
-#clenaup
+# Cleanup
 #------------------------------------------------------------------------------
 #
 # Do something while server is down

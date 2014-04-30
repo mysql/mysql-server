@@ -8,6 +8,7 @@
 # seamlessly.
 
 --source include/have_debug.inc
+--source include/have_myisam.inc
 --source include/master-slave.inc
 --let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_150';
@@ -99,7 +100,7 @@ SET GLOBAL slave_parallel_type='DATABASE';
 --connection master
 DROP DATABASE db1;
 DROP DATABASE db2;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection slave
 

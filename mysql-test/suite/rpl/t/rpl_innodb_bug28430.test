@@ -139,7 +139,7 @@ SELECT count(*) as "Master bykey" FROM test.bykey_tbl;
 CALL test.proc_byrange();
 SELECT count(*) as "Master byrange" FROM test.byrange_tbl;
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 show create table test.byrange_tbl;
 SELECT count(*) "Slave norm" FROM test.regular_tbl;

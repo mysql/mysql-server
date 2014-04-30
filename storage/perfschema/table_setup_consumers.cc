@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -146,11 +146,10 @@ table_setup_consumers::m_share=
 {
   { C_STRING_WITH_LEN("setup_consumers") },
   &pfs_updatable_acl,
-  &table_setup_consumers::create,
+  table_setup_consumers::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
-  NULL, /* get_row_count */
-  COUNT_SETUP_CONSUMERS, /* records */
+  table_setup_consumers::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -160,6 +159,12 @@ table_setup_consumers::m_share=
 PFS_engine_table* table_setup_consumers::create(void)
 {
   return new table_setup_consumers();
+}
+
+ha_rows
+table_setup_consumers::get_row_count(void)
+{
+  return COUNT_SETUP_CONSUMERS;
 }
 
 table_setup_consumers::table_setup_consumers()

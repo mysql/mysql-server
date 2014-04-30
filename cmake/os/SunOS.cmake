@@ -20,9 +20,6 @@ INCLUDE(CheckCSourceCompiles)
 # Enable 64 bit file offsets
 SET(_FILE_OFFSET_BITS 64)
 
-# Legacy option, without it  my_pthread is having problems
-ADD_DEFINITIONS(-DHAVE_RWLOCK_T)
-
 # On  Solaris, use of intrinsics will screw the lib search logic
 # Force using -lm, so rint etc are found.
 SET(LIBM m)
@@ -32,12 +29,7 @@ SET(LIBM m)
 SET(CMAKE_THREADS_LIBS_INIT -lpthread CACHE INTERNAL "" FORCE)
 
 # Solaris specific large page support
-CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_DECL_MHA_MAPSIZE_VA)
-IF(HAVE_DECL_MHA_MAPSIZE_VA)
- SET(HAVE_SOLARIS_LARGE_PAGES 1)
- SET(HAVE_LARGE_PAGE_OPTION 1)
-ENDIF()
-
+CHECK_SYMBOL_EXISTS(MHA_MAPSIZE_VA sys/mman.h  HAVE_SOLARIS_LARGE_PAGES)
 
 # Solaris atomics
 CHECK_C_SOURCE_RUNS(

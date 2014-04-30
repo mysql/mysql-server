@@ -96,6 +96,8 @@ protected:
     /* Save original and install our custom error hook. */
     m_old_error_handler_hook= error_handler_hook;
     error_handler_hook= test_error_handler_hook;
+    mdl_locks_unused_locks_low_water= MDL_LOCKS_UNUSED_LOCKS_LOW_WATER_DEFAULT;
+
   }
 
   static void TearDownTestCase()
@@ -2300,6 +2302,346 @@ TEST_F(MDLTest, RescheduleSharedNoWrite)
   mdl_thread2.join();
   mdl_thread3.join();
   mdl_thread4.join();
+}
+
+
+/**
+  Verify that try_acquire_lock() operation for lock correctly
+  cleans up after itself.
+*/
+
+TEST_F(MDLTest, ConcurrentSharedTryExclusive)
+{
+  Notification first_grabbed, second_grabbed, third_grabbed;
+  Notification first_release, second_release;
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED,
+                         &first_grabbed, &first_release,
+                         NULL, NULL);
+  MDL_thread mdl_thread2(table_name1, MDL_SHARED,
+                         &second_grabbed, &second_release,
+                         NULL, NULL);
+  MDL_thread mdl_thread3(table_name1, MDL_SHARED,
+                         &third_grabbed, NULL, NULL, NULL);
+
+  /* Start the first thread which will acquire S lock. */
+  mdl_thread1.start();
+  first_grabbed.wait_for_notification();
+
+  /* Acquire global IX lock to satisfy asserts in MDL subsystem. */
+  EXPECT_FALSE(m_mdl_context.acquire_lock(&m_global_request, long_timeout));
+  EXPECT_NE(m_null_ticket, m_global_request.ticket);
+
+  MDL_REQUEST_INIT(&m_request,
+                   MDL_key::TABLE, db_name, table_name1, MDL_EXCLUSIVE,
+                   MDL_TRANSACTION);
+
+  /*
+    Attempt to acquire X lock on table should fail.
+    But it should correctly cleanup after itself.
+  */
+  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+  EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+  first_release.notify();
+  mdl_thread1.join();
+
+  /* After S lock is released. MDL_lock should be counted as unused. */
+  EXPECT_EQ(1, mdl_get_unused_locks_count());
+
+  /* Start the second thread which will acquire S lock again. */
+  mdl_thread2.start();
+  second_grabbed.wait_for_notification();
+
+  /* Attempt to acquire X lock on table should fail again. */
+  EXPECT_FALSE(m_mdl_context.try_acquire_lock(&m_request));
+  EXPECT_EQ(m_null_ticket, m_request.ticket);
+
+  /* Grabbing another S lock after that should not be a problem. */
+  mdl_thread3.start();
+  third_grabbed.wait_for_notification();
+
+  second_release.notify();
+  mdl_thread2.join();
+  mdl_thread3.join();
+
+  m_mdl_context.release_transactional_locks();
+}
+
+
+/**
+  Basic test which checks that unused MDL_lock objects are freed at all.
+*/
+
+TEST_F(MDLTest, UnusedBasic)
+{
+  mdl_locks_unused_locks_low_water= 0;
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+  test_one_simple_shared_lock(MDL_SHARED);
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+}
+
+
+/**
+  More complex test in which we test freeing couple of unused
+  MDL_lock objects while having another one still used and around.
+*/
+
+TEST_F(MDLTest, UnusedConcurrentThree)
+{
+  Notification first_grabbed, first_release,
+               second_grabbed, second_release,
+               third_grabbed, third_release;
+
+  MDL_thread mdl_thread1(table_name1, MDL_SHARED, &first_grabbed,
+                         &first_release, NULL, NULL);
+  MDL_thread mdl_thread2(table_name2, MDL_SHARED, &second_grabbed,
+                         &second_release, NULL, NULL);
+  MDL_thread mdl_thread3(table_name3, MDL_SHARED_UPGRADABLE, &third_grabbed,
+                         &third_release, NULL, NULL);
+
+  mdl_locks_unused_locks_low_water= 0;
+
+  /* Start thread which will use one MDL_lock object and will keep it used. */
+  mdl_thread1.start();
+  first_grabbed.wait_for_notification();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /*
+    Start thread which will acquire lock on another table, i.e. will use
+    another MDL_lock object.
+  */
+  mdl_thread2.start();
+  second_grabbed.wait_for_notification();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /* Now let 2nd thread to release its lock and thus unuse MDL_lock object. */
+  second_release.notify();
+  mdl_thread2.join();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /*
+    Start 3rd thread which will acquire "slow path" lock and release it.
+    By doing this we test freeing of unused on "slow path" release.
+  */
+  mdl_thread3.start();
+  third_grabbed.wait_for_notification();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /* Now let 3nd thread to release its lock and thus unuse MDL_lock object. */
+  third_release.notify();
+  mdl_thread3.join();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /*
+    Let the 1st thread to release its lock and unuse its MDL_lock object
+    as well.
+  */
+  first_release.notify();
+  mdl_thread1.join();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+}
+
+
+/**
+  Finally test which involves many threads using, unusing and
+  freeing MDL_lock objects.
+*/
+
+TEST_F(MDLTest, UnusedConcurrentMany)
+{
+  const uint THREADS= 50, TABLES= 10;
+  const char *table_names_group_a[TABLES]= {"0","1","2","3","4","5","6","7","8","9"};
+  const char *table_names_group_b[TABLES]= {"a","b","c","d","e","f","g","h","i","j"};
+  MDL_thread *mdl_thread_group_a[THREADS];
+  MDL_thread *mdl_thread_group_b[THREADS];
+  Notification group_a_grabbed[THREADS], group_a_release,
+               group_b_grabbed[THREADS], group_b_release;
+  uint i;
+
+
+  for (i= 0; i < THREADS; ++i)
+    mdl_thread_group_a[i]= new MDL_thread(table_names_group_a[i % TABLES],
+                                 /*
+                                   To make things more interesting for the
+                                   first 2 tables in the group on of threads
+                                   will also acquire SU lock.
+                                 */
+                                 ((i % TABLES < 2) && (i % TABLES == i)) ?
+                                 MDL_SHARED_UPGRADABLE : MDL_SHARED,
+                                 &group_a_grabbed[i], &group_a_release, NULL,
+                                 NULL);
+
+  for (i= 0; i < THREADS; ++i)
+    mdl_thread_group_b[i]= new MDL_thread(table_names_group_b[i % TABLES],
+                                 /*
+                                   To make things more interesting for the
+                                   first 2 tables in the group on of threads
+                                   will also acquire SU lock.
+                                 */
+                                 ((i % TABLES < 2) && (i % TABLES == i)) ?
+                                 MDL_SHARED_UPGRADABLE : MDL_SHARED,
+                                 &group_b_grabbed[i], &group_b_release, NULL,
+                                 NULL);
+
+
+  mdl_locks_unused_locks_low_water= 0;
+
+  /* Start both groups of threads. */
+  for (i= 0; i < THREADS; ++i)
+    mdl_thread_group_a[i]->start();
+  for (i= 0; i < THREADS; ++i)
+    mdl_thread_group_b[i]->start();
+
+  /* Wait until both groups acquire their locks. */
+  for (i= 0; i < THREADS; ++i)
+    group_a_grabbed[i].wait_for_notification();
+  for (i= 0; i < THREADS; ++i)
+    group_b_grabbed[i].wait_for_notification();
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /*
+    Now let the second group to release its locks and free unused MDL_lock
+    objects. The first group will keep its objects used.
+  */
+  group_b_release.notify();
+
+  /* Wait until it is done. */
+  for (i= 0; i < THREADS; ++i)
+  {
+    mdl_thread_group_b[i]->join();
+    delete mdl_thread_group_b[i];
+  }
+
+  /*
+    At this point we should not have more than
+    TABLES*MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO/(1-MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO
+    unused objects. It is OK to have less.
+  */
+  EXPECT_GE((TABLES*MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO/
+             (1-MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO)),
+            mdl_get_unused_locks_count());
+
+  /* Now let the first group go as well. */
+  group_a_release.notify();
+  for (i= 0; i < THREADS; ++i)
+  {
+    mdl_thread_group_a[i]->join();
+    delete mdl_thread_group_a[i];
+  }
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+}
+
+
+/**
+  Test that unused locks low water threshold works as expected,
+  i.e. that we don't free unused objects unless their number
+  exceeds threshold.
+*/
+
+TEST_F(MDLTest, UnusedLowWater)
+{
+  const uint TABLES= 10;
+  const char *table_names[TABLES]= {"0","1","2","3","4","5","6","7","8","9"};
+  MDL_request request;
+  uint i;
+
+  mdl_locks_unused_locks_low_water= 4;
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /* Acquire some locks and then release them all at once. */
+
+  for (i= 0; i < TABLES; ++i)
+  {
+    MDL_REQUEST_INIT(&request,
+                     MDL_key::TABLE, db_name, table_names[i], MDL_SHARED,
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  }
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /* Release all locks. */
+  m_mdl_context.release_transactional_locks();
+
+  /* Number of unused lock objects should not go below threshold. */
+  EXPECT_EQ(4, mdl_get_unused_locks_count());
+}
+
+
+/**
+  Test that we don't free unused MDL_lock objects if unused/total objects
+  ratio is below MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO.
+*/
+
+TEST_F(MDLTest, UnusedMinRatio)
+{
+  const uint TABLES= 10;
+  const char *table_names_a[TABLES]= {"0","1","2","3","4","5","6","7","8","9"};
+  const char *table_names_b[TABLES]= {"0","1","2","3","4","5","6","7","8","9"};
+  MDL_request request;
+  uint i;
+
+  mdl_locks_unused_locks_low_water= 0;
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /* Acquire some locks. */
+
+  for (i= 0; i < TABLES; ++i)
+  {
+    MDL_REQUEST_INIT(&request,
+                     MDL_key::TABLE, db_name, table_names_a[i], MDL_SHARED,
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  }
+
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
+
+  /* Take a savepoint to be able to release part of the locks in future. */
+  MDL_savepoint savepoint= m_mdl_context.mdl_savepoint();
+
+  /* Acquire a few more locks. */
+  for (i= 0; i < TABLES; ++i)
+  {
+    MDL_REQUEST_INIT(&request,
+                     MDL_key::TABLE, db_name, table_names_b[i], MDL_SHARED,
+                     MDL_TRANSACTION);
+    EXPECT_FALSE(m_mdl_context.acquire_lock(&request, long_timeout));
+  }
+
+  /* Now release part of the locks we hold. */
+  m_mdl_context.rollback_to_savepoint(savepoint);
+
+  /*
+    At this point we should not have more than
+    TABLES*MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO/(1-MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO
+    unused objects.
+
+    This is equivalent to:
+    "unused objects" <= (("used objects (i.e.TABLES)" + "unused objects") *
+                         MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO).
+  */
+  EXPECT_GE((TABLES*MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO/
+             (1-MDL_LOCKS_UNUSED_LOCKS_MIN_RATIO)),
+            mdl_get_unused_locks_count());
+
+  /* Release all locks. */
+  m_mdl_context.release_transactional_locks();
+
+  /*
+    There should be no unused MDL_lock objects after this
+    since low water threshold is zero.
+  */
+  EXPECT_EQ(0, mdl_get_unused_locks_count());
 }
 
 

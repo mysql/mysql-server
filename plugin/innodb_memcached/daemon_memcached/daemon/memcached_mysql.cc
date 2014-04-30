@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it
 under the terms of the GNU General Public License as published by the
@@ -91,18 +91,25 @@ static int daemon_memcached_plugin_deinit(void *p)
 	struct mysql_memcached_context*	con = NULL;
 	int				loop_count = 0;
 
-	/* If initialization is already running, wait till it complete,
-	or 25 seconds. */
-	while (!initialize_complete() && loop_count < 25) {
-		sleep(1);
-		loop_count++;
+        /* If memcached plugin is still initializing, wait for a
+        while.*/
+	while (!init_complete() && loop_count < 15 ) {
+                sleep(1);
+                loop_count++;
 	}
+
+        if (!init_complete()) {
+		fprintf(stderr," InnoDB_Memcached: Memcached plugin is still"
+			" initializing. Can't shut down it.\n");
+                return(0);
+        }
 
 	loop_count = 0;
 	if (!shutdown_complete()) {
 		shutdown_server();
 	}
 
+        loop_count = 0;
 	while (!shutdown_complete() && loop_count < 25) {
 		sleep(2);
 		loop_count++;

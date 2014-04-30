@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -473,17 +473,6 @@ private:
 };
 
 
-static join_type calc_join_type(int quick_type)
-{
-  if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
-    return JT_INDEX_MERGE;
-  else
-    return JT_RANGE;
-}
-
-
 /* Explain class functions ****************************************************/
 
 
@@ -721,7 +710,7 @@ bool Explain_no_table::shallow_explain()
   return (fmt->begin_context(CTX_MESSAGE) ||
           Explain::shallow_explain() ||
           (can_walk_clauses() &&
-           mark_subqueries(select_lex->where, fmt->entry())) ||
+           mark_subqueries(select_lex->where_cond(), fmt->entry())) ||
           fmt->end_context(CTX_MESSAGE));
 }
 
@@ -1261,10 +1250,10 @@ bool Explain_join::explain_join_tab(size_t tab_num)
   select= (tab->filesort && tab->filesort->select) ?
            tab->filesort->select : tab->select;
 
-  if (tab->type == JT_ALL && select && select->quick)
+  if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE)
   {
+    DBUG_ASSERT(select && select->quick);
     quick_type= select->quick->get_type();
-    tab->type= calc_join_type(quick_type);
   }
 
   if (tab->starts_weedout())
@@ -1393,7 +1382,9 @@ bool Explain_join::explain_key_and_len()
                                      tab->ref.key_parts);
   else if (tab->type == JT_INDEX_SCAN)
     return explain_key_and_len_index(tab->index);
-  else if (select && select->quick)
+  else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
+      ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+       select && select->quick))
     return explain_key_and_len_quick(select);
   else
   {
@@ -1440,7 +1431,7 @@ static void human_readable_size(char *buf, int buf_len, double data_size)
   for (i= 0; data_size > 1024 && i < 5; i++)
     data_size/= 1024;
   const char mult= i == 0 ? 0 : size[i];
-  snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
+  my_snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
   buf[buf_len - 1]= 0;
 }
 
@@ -1451,26 +1442,53 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
-  if (select && select->quick)
+  double access_method_fanout= tab->position->rows_fetched;
+  if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
+      ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+       select && select->quick))
+  {
+    /*
+      Because filesort can't handle REF it's converted into quick select,
+      but type is kept as is. This is an exception and the only case when
+      REF has quick select.
+    */
+    DBUG_ASSERT(!(tab->type == JT_REF || tab->type == JT_REF_OR_NULL) ||
+                tab->filesort);
     examined_rows= rows2double(select->quick->records);
-  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
-    examined_rows= rows2double(tab->rowcount);
+
+    /*
+      Unlike the "normal" range access method, dynamic range access
+      method does not set
+      tab->position->fanout=select->quick->records. If this is EXPLAIN
+      FOR CONNECTION of a table with dynamic range,
+      tab->position->fanout reflects that fanout of table/index scan,
+      not the fanout of the current dynamic range scan.
+    */
+    if (tab->use_quick == QS_DYNAMIC_RANGE)
+      access_method_fanout= examined_rows;
+  }
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL ||
+           tab->type == JT_CONST || tab->type == JT_SYSTEM)
+    examined_rows= tab->rowcount;
   else
-    examined_rows= tab->position->fanout;
+    examined_rows= tab->position->rows_fetched;
 
   fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
   /* Add "filtered" field */
   {
-    float f= 0.0;
+    float filter= 0.0;
     if (examined_rows)
-      f= 100.0 * tab->position->fanout / examined_rows;
-    fmt->entry()->col_filtered.set(f);
+    {
+      filter= 100.0 * (access_method_fanout / examined_rows) *
+        tab->position->filter_effect;
+    }
+    fmt->entry()->col_filtered.set(filter);
   }
   // Print cost-related info
   double prefix_rows= tab->position->prefix_record_count;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
-  double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
+  double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
   fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?
@@ -1527,7 +1545,7 @@ bool Explain_join::explain_extra()
     uint keyno= MAX_KEY;
     if (tab->ref.key_parts)
       keyno= tab->ref.key;
-    else if (select && select->quick)
+    else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE)
       keyno = select->quick->index;
 
     if (explain_extra_common(select, tab, quick_type, keyno))
@@ -1742,7 +1760,7 @@ bool Explain_table::shallow_explain()
 
   if (Explain::shallow_explain() ||
       (can_walk_clauses() &&
-       mark_subqueries(select_lex->where, fmt->entry())))
+       mark_subqueries(select_lex->where_cond(), fmt->entry())))
     return true;
 
   if (fmt->end_context(CTX_JOIN_TAB))
@@ -1924,7 +1942,7 @@ bool explain_single_table_modification(THD *ethd,
 
     For queries with top-level JOIN the caller provides pre-allocated
     select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in JOIN::prepare(),
+    object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to

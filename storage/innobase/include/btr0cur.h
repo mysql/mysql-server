@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,6 +30,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "btr0types.h"
+#include "gis0type.h"
 
 /** Mode flags for btr_cur operations; these can be ORed */
 enum {
@@ -121,6 +122,27 @@ btr_cur_position(
 	rec_t*		rec,	/*!< in: record in tree */
 	buf_block_t*	block,	/*!< in: buffer block of rec */
 	btr_cur_t*	cursor);/*!< in: cursor */
+
+/** Optimistically latches the leaf page or pages requested.
+@param[in]	block		guessed buffer block
+@param[in]	modify_clock	modify clock value
+@param[in,out]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in,out]	cursor		cursor
+@param[in]	file		file name
+@param[in]	line		line where called
+@param[in]	mtr		mini-transaction
+@return true if success */
+
+bool
+btr_cur_optimistic_latch_leaves(
+	buf_block_t*	block,
+	ib_uint64_t	modify_clock,
+	ulint*		latch_mode,
+	btr_cur_t*	cursor,
+	const char*	file,
+	ulint		line,
+	mtr_t*		mtr);
+
 /********************************************************************//**
 Searches an index tree and positions a tree cursor on a given level.
 NOTE: n_fields_cmp in tuple must be set so that it cannot be compared
@@ -388,9 +410,10 @@ btr_cur_pessimistic_update(
 				big_rec and the index tuple */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
-	const upd_t*	update,	/*!< in: update vector; this is allowed also
-				contain trx id and roll ptr fields, but
-				the values in update vector have no effect */
+	upd_t*		update,	/*!< in/out: update vector; this is allowed to
+				also contain trx id and roll ptr fields.
+				Non-updated columns that are moved offpage will
+				be appended to this. */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -547,7 +570,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 Estimates the number of rows in a given index range.
 @return estimated number of rows */
 
-ib_int64_t
+int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -569,6 +592,17 @@ void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
+
+/** Gets the externally stored size of a record, in units of a database page.
+@param[in]	rec	record
+@param[in]	offsets	array returned by rec_get_offsets()
+@return externally stored part, in units of a database page */
+
+ulint
+btr_rec_get_externally_stored_len(
+	const rec_t*	rec,
+	const ulint*	offsets);
+
 /*******************************************************************//**
 Marks non-updated off-page fields as disowned by this record. The ownership
 must be transferred to the updated record which is inserted elsewhere in the
@@ -617,20 +651,21 @@ file segment of the index tree.
 dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
-	dict_index_t*	index,		/*!< in: index of rec; the index tree
-					MUST be X-latched */
-	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
-	rec_t*		rec,		/*!< in/out: record */
+	btr_pcur_t*	pcur,		/*!< in/out: a persistent cursor. if
+					btr_mtr is restarted, then this can
+					be repositioned. */
+	const upd_t*	upd,		/*!< in: update vector */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
-	mtr_t*		btr_mtr,	/*!< in: mtr containing the
-					latches to the clustered index */
+	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
+					latches to the clustered index. can be
+					committed and restarted. */
 	enum blob_op	op)		/*! in: operation code */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
@@ -662,56 +697,61 @@ btr_free_externally_stored_field(
 	mtr_t*		local_mtr);	/*!< in: mtr containing the latch to
 					data an an X-latch to the index
 					tree */
-/*******************************************************************//**
-Copies the prefix of an externally stored field of a record.  The
-clustered index record must be protected by a lock or a page latch.
+/** Copies the prefix of an externally stored field of a record.
+The clustered index record must be protected by a lock or a page latch.
+@param[out]	buf		the field, or a prefix of it
+@param[in]	len		length of buf, in bytes
+@param[in]	page_size	BLOB page size
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part; must be protected by
+a lock or a page latch
+@param[in]	local_len	length of data, in bytes
 @return the length of the copied field, or 0 if the column was being
 or has been deleted */
-
 ulint
 btr_copy_externally_stored_field_prefix(
-/*====================================*/
-	byte*		buf,	/*!< out: the field, or a prefix of it */
-	ulint		len,	/*!< in: length of buf, in bytes */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	const byte*	data,	/*!< in: 'internally' stored part of the
-				field containing also the reference to
-				the external part; must be protected by
-				a lock or a page latch */
-	ulint		local_len);/*!< in: length of data, in bytes */
-/*******************************************************************//**
-Copies an externally stored field of a record to mem heap.  The
-clustered index record must be protected by a lock or a page latch.
-@return the whole field copied to heap */
+	byte*			buf,
+	ulint			len,
+	const page_size_t&	page_size,
+	const byte*		data,
+	ulint			local_len);
 
+/** Copies an externally stored field of a record to mem heap.
+The clustered index record must be protected by a lock or a page latch.
+@param[out]	len		length of the whole field
+@param[in]	data		'internally' stored part of the field
+containing also the reference to the external part; must be protected by
+a lock or a page latch
+@param[in]	page_size	BLOB page size
+@param[in]	local_len	length of data
+@param[in,out]	heap		mem heap
+@return the whole field copied to heap */
 byte*
 btr_copy_externally_stored_field(
-/*=============================*/
-	ulint*		len,	/*!< out: length of the whole field */
-	const byte*	data,	/*!< in: 'internally' stored part of the
-				field containing also the reference to
-				the external part; must be protected by
-				a lock or a page latch */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	ulint		local_len,/*!< in: length of data */
-	mem_heap_t*	heap);	/*!< in: mem heap */
-/*******************************************************************//**
-Copies an externally stored field of a record to mem heap.
-@return the field copied to heap, or NULL if the field is incomplete */
+	ulint*			len,
+	const byte*		data,
+	const page_size_t&	page_size,
+	ulint			local_len,
+	mem_heap_t*		heap);
 
+/** Copies an externally stored field of a record to mem heap.
+@param[in]	rec		record in a clustered index; must be
+protected by a lock or a page latch
+@param[in]	offset		array returned by rec_get_offsets()
+@param[in]	page_size	BLOB page size
+@param[in]	no		field number
+@param[out]	len		length of the field
+@param[in,out]	heap		mem heap
+@return the field copied to heap, or NULL if the field is incomplete */
 byte*
 btr_rec_copy_externally_stored_field(
-/*=================================*/
-	const rec_t*	rec,	/*!< in: record in a clustered index;
-				must be protected by a lock or a page latch */
-	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
-	ulint		zip_size,/*!< in: nonzero=compressed BLOB page size,
-				zero for uncompressed BLOBs */
-	ulint		no,	/*!< in: field number */
-	ulint*		len,	/*!< out: length of the field */
-	mem_heap_t*	heap);	/*!< in: mem heap */
+	const rec_t*		rec,
+	const ulint*		offsets,
+	const page_size_t&	page_size,
+	ulint			no,
+	ulint*			len,
+	mem_heap_t*		heap);
+
 /*******************************************************************//**
 Flags the data tuple fields that are marked as extern storage in the
 update vector.  We use this function to remember which fields we must
@@ -739,6 +779,23 @@ btr_cur_set_deleted_flag_for_ibuf(
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+
+/** Latches the leaf page or pages requested.
+@param[in]	block		leaf page where the search converged
+@param[in]	page_id		page id of the leaf
+@param[in]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in]	cursor		cursor
+@param[in]	mtr		mini-transaction */
+
+void
+btr_cur_latch_leaves(
+	buf_block_t*		block,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			latch_mode,
+	btr_cur_t*		cursor,
+	mtr_t*			mtr);
+
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
@@ -842,7 +899,21 @@ struct btr_cur_t {
 					rows in range, we store in this array
 					information of the path through
 					the tree */
+	rtr_info_t*	rtr_info;	/*!< rtree search info */
+	btr_cur_t():thr(NULL), rtr_info(NULL) {}
+					/* default values */
 };
+
+/******************************************************//**
+The following function is used to set the deleted bit of a record. */
+UNIV_INLINE
+void
+btr_rec_set_deleted_flag(
+/*=====================*/
+	rec_t*		rec,	/*!< in/out: physical record */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
+	ulint		flag);	/*!< in: nonzero if delete marked */
+
 
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Try this many

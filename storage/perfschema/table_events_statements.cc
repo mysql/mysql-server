@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -249,11 +249,10 @@ table_events_statements_current::m_share=
 {
   { C_STRING_WITH_LEN("events_statements_current") },
   &pfs_truncatable_acl,
-  &table_events_statements_current::create,
+  table_events_statements_current::create,
   NULL, /* write_row */
-  &table_events_statements_current::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_events_statements_current::delete_all_rows,
+  table_events_statements_current::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -267,11 +266,10 @@ table_events_statements_history::m_share=
 {
   { C_STRING_WITH_LEN("events_statements_history") },
   &pfs_truncatable_acl,
-  &table_events_statements_history::create,
+  table_events_statements_history::create,
   NULL, /* write_row */
-  &table_events_statements_history::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_events_statements_history::delete_all_rows,
+  table_events_statements_history::get_row_count,
   sizeof(pos_events_statements_history), /* ref length */
   &m_table_lock,
   &table_events_statements_current::m_field_def,
@@ -285,11 +283,10 @@ table_events_statements_history_long::m_share=
 {
   { C_STRING_WITH_LEN("events_statements_history_long") },
   &pfs_truncatable_acl,
-  &table_events_statements_history_long::create,
+  table_events_statements_history_long::create,
   NULL, /* write_row */
-  &table_events_statements_history_long::delete_all_rows,
-  NULL, /* get_row_count */
-  10000, /* records */
+  table_events_statements_history_long::delete_all_rows,
+  table_events_statements_history_long::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &table_events_statements_current::m_field_def,
@@ -307,7 +304,7 @@ table_events_statements_common::table_events_statements_common
   @param statement                      the statement the cursor is reading
 */
 void table_events_statements_common::make_row_part_1(PFS_events_statements *statement,
-                                                     PSI_digest_storage *digest)
+                                                     sql_digest_storage *digest)
 {
   const char *base;
   const char *safe_source_file;
@@ -387,25 +384,24 @@ void table_events_statements_common::make_row_part_1(PFS_events_statements *stat
   /*
     Making a copy of digest storage.
   */
-  digest_copy(digest, & statement->m_digest_storage);
+  digest->copy(& statement->m_digest_storage);
 
   m_row_exists= true;
   return;
 }
 
-void table_events_statements_common::make_row_part_2(PSI_digest_storage *digest)
+void table_events_statements_common::make_row_part_2(const sql_digest_storage *digest)
 {
   /*
     Filling up statement digest information.
   */
   int safe_byte_count= digest->m_byte_count;
   if (safe_byte_count > 0 &&
-      safe_byte_count <= PSI_MAX_DIGEST_STORAGE_SIZE)
+      safe_byte_count <= MAX_DIGEST_STORAGE_SIZE)
   {
+    bool truncated;
     PFS_digest_key md5;
-    compute_md5_hash((char *) md5.m_md5,
-                     (char *) digest->m_token_array,
-                     safe_byte_count);
+    compute_digest_md5(digest, md5.m_md5);
 
     /* Generate the DIGEST string from the MD5 digest  */
     MD5_HASH_TO_STRING(md5.m_md5,
@@ -413,7 +409,10 @@ void table_events_statements_common::make_row_part_2(PSI_digest_storage *digest)
     m_row.m_digest.m_digest_length= MD5_HASH_TO_STRING_LENGTH;
 
     /* Generate the DIGEST_TEXT string from the token array */
-    get_digest_text(m_row.m_digest.m_digest_text, digest);
+    compute_digest_text(digest,
+                        m_row.m_digest.m_digest_text,
+                        sizeof(m_row.m_digest.m_digest_text),
+                        & truncated);
     m_row.m_digest.m_digest_text_length= strlen(m_row.m_digest.m_digest_text);
 
     if (m_row.m_digest.m_digest_text_length == 0)
@@ -741,11 +740,11 @@ int table_events_statements_current::rnd_pos(const void *pos)
 void table_events_statements_current::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
   pfs_optimistic_state lock;
   pfs_optimistic_state stmt_lock;
 
-  digest_reset(&digest);
+  digest.reset();
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
   /* Protect this reader against writing on statement information. */
@@ -767,6 +766,12 @@ int table_events_statements_current::delete_all_rows(void)
 {
   reset_events_statements_current();
   return 0;
+}
+
+ha_rows
+table_events_statements_current::get_row_count(void)
+{
+  return thread_max * statement_stack_max;
 }
 
 PFS_engine_table* table_events_statements_history::create(void)
@@ -869,10 +874,10 @@ int table_events_statements_history::rnd_pos(const void *pos)
 void table_events_statements_history::make_row(PFS_thread *pfs_thread,
                                                PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
   pfs_optimistic_state lock;
 
-  digest_reset(&digest);
+  digest.reset();
   /* Protect this reader against thread termination. */
   pfs_thread->m_lock.begin_optimistic_lock(&lock);
 
@@ -892,6 +897,12 @@ int table_events_statements_history::delete_all_rows(void)
 {
   reset_events_statements_history();
   return 0;
+}
+
+ha_rows
+table_events_statements_history::get_row_count(void)
+{
+  return events_statements_history_per_thread * thread_max;
 }
 
 PFS_engine_table* table_events_statements_history_long::create(void)
@@ -974,9 +985,9 @@ int table_events_statements_history_long::rnd_pos(const void *pos)
 
 void table_events_statements_history_long::make_row(PFS_events_statements *statement)
 {
-  PSI_digest_storage digest;
+  sql_digest_storage digest;
 
-  digest_reset(&digest);
+  digest.reset();
   table_events_statements_common::make_row_part_1(statement, &digest);
 
   table_events_statements_common::make_row_part_2(&digest);
@@ -987,5 +998,11 @@ int table_events_statements_history_long::delete_all_rows(void)
 {
   reset_events_statements_history_long();
   return 0;
+}
+
+ha_rows
+table_events_statements_history_long::get_row_count(void)
+{
+  return events_statements_history_long_size;
 }
 

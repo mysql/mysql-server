@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-SET storage_engine=ndbcluster;
+SET default_storage_engine=ndbcluster;
 
 CREATE DATABASE IF NOT EXISTS jscrund;
 USE jscrund;

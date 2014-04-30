@@ -1,6 +1,6 @@
 #!/bin/sh
 
-# Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -138,15 +138,11 @@ fi
 
 # Set flags for various build configurations.
 # Used in -valgrind builds
-# Override -DFORCE_INIT_OF_VARS from debug_cflags. It enables the macro
-# LINT_INIT(), which is only useful for silencing spurious warnings
-# of static analysis tools. We want LINT_INIT() to be a no-op in Valgrind.
-valgrind_flags="-UFORCE_INIT_OF_VARS -DHAVE_purify "
-valgrind_flags="$valgrind_flags -DMYSQL_SERVER_SUFFIX=-valgrind-max"
+valgrind_flags="-DMYSQL_SERVER_SUFFIX=-valgrind-max"
 valgrind_configs="--with-valgrind"
 #
 # Used in -debug builds
-debug_cflags="-DEXTRA_DEBUG -DFORCE_INIT_OF_VARS "
+debug_cflags="-DEXTRA_DEBUG "
 debug_cflags="$debug_cflags -DSAFE_MUTEX"
 error_inject="--with-error-inject "
 #

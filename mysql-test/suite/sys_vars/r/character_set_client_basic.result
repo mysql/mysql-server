@@ -22,7 +22,7 @@ SELECT @@session.character_set_client;
 @@session.character_set_client
 utf8
 SET global.character_set_client=utf8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'character_set_client=utf8' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_client=utf8' at line 1
 SET session character_set_client=utf8;
 SELECT session character_set_client;
 ERROR 42S22: Unknown column 'session' in 'field list'
@@ -301,6 +301,10 @@ SET @@global.character_set_client = gbk;
 SELECT @@global.character_set_client;
 @@global.character_set_client
 gbk
+SET @@global.character_set_client = gb18030;
+SELECT @@global.character_set_client;
+@@global.character_set_client
+gb18030
 SET @@global.character_set_client = latin5;
 SELECT @@global.character_set_client;
 @@global.character_set_client
@@ -430,7 +434,7 @@ ERROR 42000: Unknown character set: '100'
 SET @total_charset = (SELECT count(*) FROM INFORMATION_SCHEMA.CHARACTER_SETS);
 SELECT @total_charset;
 @total_charset
-40
+41
 '#--------------------FN_DYNVARS_010_10-------------------------#'
 SET @@character_set_client = abc;
 ERROR 42000: Unknown character set: 'abc'

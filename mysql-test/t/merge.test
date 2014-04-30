@@ -1864,8 +1864,7 @@ DROP DATABASE IF EXISTS mysql_test1;
 --enable_warnings
 CREATE DATABASE mysql_test1;
 --disable_query_log
-# data/index directory don't work in HAVE_purify builds. Disable
-# build-dependent warnings.
+# Disable build-dependent warnings.
 --disable_warnings
 --echo CREATE TABLE t1 ... DATA DIRECTORY=... INDEX DIRECTORY=...
 eval CREATE TABLE t1 (c1 INT)

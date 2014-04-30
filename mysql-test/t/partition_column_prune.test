@@ -69,6 +69,8 @@ insert into t1 select * from t1;
 analyze table t1;
 explain partitions select * from t1 where a=2;
 explain partitions select * from t1 where a=4;
+# Somewhat unstable filtering numbers
+--replace_regex /5.56/5.55/
 explain partitions select * from t1 where a=2 and b < 22;
 
 drop table t1;

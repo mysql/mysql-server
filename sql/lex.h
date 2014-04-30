@@ -1,7 +1,7 @@
 #ifndef LEX_INCLUDED
 #define LEX_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@ SYM_GROUP sym_group_rtree= {"RTree keys", "HAVE_RTREE_KEYS"};
 #ifdef NO_YACC_SYMBOLS
 #define SYM_OR_NULL(A) 0
 #else
+#include <sql_yacc.h>
 #define SYM_OR_NULL(A) A
 #endif
 
@@ -352,6 +353,7 @@ static SYMBOL symbols[] = {
   { "MATCH",		SYM(MATCH)},
   { "MAX_CONNECTIONS_PER_HOUR", SYM(MAX_CONNECTIONS_PER_HOUR)},
   { "MAX_QUERIES_PER_HOUR", SYM(MAX_QUERIES_PER_HOUR)},
+  { "MAX_STATEMENT_TIME",   SYM(MAX_STATEMENT_TIME_SYM)},
   { "MAX_ROWS",		SYM(MAX_ROWS)},
   { "MAX_SIZE",		SYM(MAX_SIZE_SYM)},
   { "MAX_UPDATES_PER_HOUR", SYM(MAX_UPDATES_PER_HOUR)},
@@ -388,6 +390,7 @@ static SYMBOL symbols[] = {
   { "NDB",              SYM(NDBCLUSTER_SYM)},
   { "NDBCLUSTER",       SYM(NDBCLUSTER_SYM)},
   { "NCHAR",		SYM(NCHAR_SYM)},
+  { "NEVER",            SYM(NEVER_SYM)},
   { "NEW",              SYM(NEW_SYM)},
   { "NEXT",		SYM(NEXT_SYM)},
   { "NO",		SYM(NO_SYM)},

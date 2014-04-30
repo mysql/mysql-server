@@ -65,7 +65,7 @@ SELECT name, n_cols, file_format, row_format
 SELECT name, file_format, row_format
        FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESPACES
        WHERE name LIKE 'test%';
---replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR
+--replace_result  ./ MYSQLD_DATADIR/  $MYSQLD_DATADIR MYSQLD_DATADIR/
 --sorted_result
 SELECT path FROM INFORMATION_SCHEMA.INNODB_SYS_DATAFILES
        WHERE path LIKE '%test%';
@@ -101,7 +101,7 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 INSERT INTO parent VALUES(1);
 
 --sorted_result
-SELECT name, num_rows, ref_count 
+SELECT name, num_rows, ref_count
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
 
@@ -156,7 +156,7 @@ INSERT INTO parent VALUES(1, 9);
 SELECT * FROM parent WHERE id IN (SELECT id FROM parent);
 
 --sorted_result
-SELECT name, num_rows, ref_count 
+SELECT name, num_rows, ref_count
 FROM INFORMATION_SCHEMA.INNODB_SYS_TABLESTATS
 WHERE name LIKE "%parent";
 

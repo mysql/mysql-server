@@ -1,4 +1,7 @@
-/* Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+#ifndef ATOMIC_SOLARIS_INCLUDED
+#define ATOMIC_SOLARIS_INCLUDED
+
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,12 +16,7 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#ifndef _atomic_h_cleanup_
-#define _atomic_h_cleanup_ "atomic/solaris.h"
-
 #include <atomic.h>
-
-#define	MY_ATOMIC_MODE	"solaris-atomic"
 
 #if defined(__GNUC__)
 #define atomic_typeof(T,V)      __typeof__(V)
@@ -26,47 +24,84 @@
 #define atomic_typeof(T,V)      T
 #endif
 
-#define uintptr_t void *
-#define atomic_or_ptr_nv(X,Y) (void *)atomic_or_ulong_nv((volatile ulong_t *)X, Y)
-
-#define make_atomic_cas_body(S)                         \
-  atomic_typeof(uint ## S ## _t, *cmp) sav;             \
-  sav = atomic_cas_ ## S(                               \
-           (volatile uint ## S ## _t *)a,               \
-           (uint ## S ## _t)*cmp,                       \
-           (uint ## S ## _t)set);                       \
-  if (! (ret= (sav == *cmp)))                           \
+static inline int my_atomic_cas32(int32 volatile *a, int32 *cmp, int32 set)
+{
+  int ret;
+  atomic_typeof(uint32_t, *cmp) sav;
+  sav= atomic_cas_32((volatile uint32_t *)a, (uint32_t)*cmp, (uint32_t)set);
+  ret= (sav == *cmp);
+  if (!ret)
     *cmp= sav;
+  return ret;
+}
 
-#define make_atomic_add_body(S)                         \
-  int ## S nv;  /* new value */                         \
-  nv= atomic_add_ ## S ## _nv((volatile uint ## S ## _t *)a, v); \
-  v= nv - v
+static inline int my_atomic_cas64(int64 volatile *a, int64 *cmp, int64 set)
+{
+  int ret;
+  atomic_typeof(uint64_t, *cmp) sav;
+  sav= atomic_cas_64((volatile uint64_t *)a, (uint64_t)*cmp, (uint64_t)set);
+  ret= (sav == *cmp);
+  if (!ret)
+    *cmp= sav;
+  return ret;
+}
 
-/* ------------------------------------------------------------------------ */
+static inline int my_atomic_casptr(void * volatile *a, void **cmp, void *set)
+{
+  int ret;
+  atomic_typeof(void *, *cmp) sav;
+  sav= atomic_cas_ptr((volatile void **)a, (void *)*cmp, (void *)set);
+  ret= (sav == *cmp);
+  if (!ret)
+    *cmp= sav;
+  return ret;
+}
 
-#ifdef MY_ATOMIC_MODE_DUMMY
+static inline int32 my_atomic_add32(int32 volatile *a, int32 v)
+{
+  int32 nv= atomic_add_32_nv((volatile uint32_t *)a, v);
+  return nv - v;
+}
 
-#define make_atomic_load_body(S)  ret= *a
-#define make_atomic_store_body(S)   *a= v
+static inline int64 my_atomic_add64(int64 volatile *a, int64 v)
+{
+  int64 nv= atomic_add_64_nv((volatile uint64_t *)a, v);
+  return nv - v;
+}
 
-#else /* MY_ATOMIC_MODE_DUMMY */
+static inline int32 my_atomic_fas32(int32 volatile *a, int32 v)
+{
+  return atomic_swap_32((volatile uint32_t *)a, (uint32_t)v);
+}
 
-#define make_atomic_load_body(S)                        \
-  ret= atomic_or_ ## S ## _nv((volatile uint ## S ## _t *)a, 0)
+static inline int64 my_atomic_fas64(int64 volatile *a, int64 v)
+{
+  return atomic_swap_64((volatile uint64_t *)a, (uint64_t)v);
+}
 
-#define make_atomic_store_body(S)                       \
-  (void) atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
+static inline int32 my_atomic_load32(int32 volatile *a)
+{
+  return atomic_or_32_nv((volatile uint32_t *)a, 0);
+}
 
-#endif
+static inline int64 my_atomic_load64(int64 volatile *a)
+{
+  return atomic_or_64_nv((volatile uint64_t *)a, 0);
+}
 
-#define make_atomic_fas_body(S)                        \
-  v= atomic_swap_ ## S((volatile uint ## S ## _t *)a, (uint ## S ## _t)v)
+static inline void my_atomic_store32(int32 volatile *a, int32 v)
+{
+  (void) atomic_swap_32((volatile uint32_t *)a, (uint32_t)v);
+}
 
-#else /* cleanup */
+static inline void my_atomic_store64(int64 volatile *a, int64 v)
+{
+  (void) atomic_swap_64((volatile uint64_t *)a, (uint64_t)v);
+}
 
-#undef uintptr_t
-#undef atomic_or_ptr_nv
+static inline void my_atomic_storeptr(void * volatile *a, void *v)
+{
+  (void) atomic_swap_ptr((volatile void **)a, (void *)v);
+}
 
-#endif
-
+#endif /* ATOMIC_SOLARIS_INCLUDED */

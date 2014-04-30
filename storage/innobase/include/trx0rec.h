@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -79,15 +79,6 @@ undo_no_t
 trx_undo_rec_get_undo_no(
 /*=====================*/
 	const trx_undo_rec_t*	undo_rec);	/*!< in: undo log record */
-/**********************************************************************//**
-Returns the start of the undo record data area.
-@return offset to the data area */
-UNIV_INLINE
-ulint
-trx_undo_rec_get_offset(
-/*====================*/
-	undo_no_t	undo_no)	/*!< in: undo no read from node */
-	__attribute__((const));
 
 /**********************************************************************//**
 Returns the start of the undo record data area. */
@@ -146,7 +137,7 @@ version.
 byte*
 trx_undo_update_rec_get_sys_cols(
 /*=============================*/
-	byte*		ptr,		/*!< in: remaining part of undo
+	const byte*	ptr,		/*!< in: remaining part of undo
 					log record after reading
 					general parameters */
 	trx_id_t*	trx_id,		/*!< out: trx id */
@@ -160,7 +151,7 @@ means that the record is corrupted */
 byte*
 trx_undo_update_rec_get_update(
 /*===========================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
+	const byte*	ptr,	/*!< in: remaining part in update undo log
 				record, after reading the row reference
 				NOTE that this copy of the undo log record must
 				be preserved as long as the update vector is
@@ -188,7 +179,7 @@ Any missing columns are indicated by col->mtype == DATA_MISSING.
 byte*
 trx_undo_rec_get_partial_row(
 /*=========================*/
-	byte*		ptr,	/*!< in: remaining part in update undo log
+	const byte*	ptr,	/*!< in: remaining part in update undo log
 				record of a suitable type, at the start of
 				the stored index columns;
 				NOTE that this copy of the undo log record must

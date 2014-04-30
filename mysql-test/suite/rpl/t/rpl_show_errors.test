@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 -- source include/master-slave.inc
 
 # There is no point in running this test in more
@@ -21,7 +16,7 @@
 
 -- connection master
 CREATE TABLE t1 (a INT, b blob, PRIMARY KEY(b(512)));
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 # action: remove table on the slave to force SQL error
 DROP TABLE t1;
 

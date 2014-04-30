@@ -78,7 +78,7 @@ getEntryType(const char * type)
 {
   for (Uint32 i = 0; i<NDB_ARRAY_SIZE(m_entries); i++)
   {
-    if (strcasecmp(type, m_entries[i].m_name) == 0)
+    if (native_strcasecmp(type, m_entries[i].m_name) == 0)
       return i;
   }
 
@@ -793,7 +793,7 @@ parseParams(char * str, ParamValue values[], BaseString& err)
         continue;
 #endif
 
-      if (strncasecmp(str, m_params[idx].name, strlen(m_params[idx].name)) == 0)
+      if (native_strncasecmp(str, m_params[idx].name, strlen(m_params[idx].name)) == 0)
       {
         str += strlen(m_params[idx].name);
         break;

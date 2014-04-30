@@ -308,6 +308,19 @@ drop function if exists f1;
 ## two continuations, one starting
 #select state from information_schema.profiling where seq=1 order by query_id desc limit 3;
 
+--echo End of 5.0 tests
+
+
+--echo #
+--echo # Bug#18483776: ASSERTION FAILED: QUERY_SOURCE == 0,
+--echo #               FILE SQL_PROFILE.CC, LINE 297
+--echo #
+
+SET profiling= 1;
+PREPARE s FROM 'DO 1';
+EXECUTE s;
+DEALLOCATE PREPARE s;
+
 
 ## last thing in the file
 --disable_warnings
@@ -315,4 +328,3 @@ set session profiling = OFF;
 set global profiling_history_size= @start_value;
 --enable_warnings
 ##
---echo End of 5.0 tests

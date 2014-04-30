@@ -232,7 +232,6 @@ SET(TESTS
   bounds_checked_array
   bitmap
   byteorder
-##  client_string TODO: move to a client test directory
   cost_estimate
   dbug
   decimal
@@ -245,6 +244,7 @@ SET(TESTS
   my_error
   my_fileutils
   my_murmur3
+  my_qsort_vs_stdsort
   my_regex
   mysys_base64
   mysys_lf
@@ -253,8 +253,11 @@ SET(TESTS
   mysys_my_malloc
   mysys_my_pwrite
   mysys_my_rdtsc
+  mysys_my_symlink
   mysys_my_vsnprintf
   mysys_my_write
+  opt_costmodel
+  opt_recperkey
   prealloced_array
   sql_list
   sql_plist
@@ -263,6 +266,7 @@ SET(TESTS
   strings_skip_trailing
   strtoll
   thread_utils
+  my_timer
   )
   
 IF(WIN32)
@@ -280,12 +284,14 @@ SET(SERVER_TESTS
   handler
   insert_delayed
   item
+  item_filter
   item_func_now_local
   item_timefunc
   item_like
   join_tab_sort
   log_throttle
   make_sortkey
+  mdl_sync
   my_decimal
   opt_range
   opt_ref

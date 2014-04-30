@@ -102,6 +102,8 @@ user	CREATE TABLE `user` (
   `plugin` char(64) COLLATE utf8_bin NOT NULL DEFAULT 'mysql_native_password',
   `authentication_string` text COLLATE utf8_bin,
   `password_expired` enum('N','Y') CHARACTER SET utf8 NOT NULL DEFAULT 'N',
+  `password_last_changed` timestamp NULL DEFAULT NULL,
+  `password_lifetime` smallint(5) unsigned DEFAULT NULL,
   PRIMARY KEY (`Host`,`User`)
 ) ENGINE=MyISAM DEFAULT CHARSET=utf8 COLLATE=utf8_bin COMMENT='Users and global privileges'
 show create table func;

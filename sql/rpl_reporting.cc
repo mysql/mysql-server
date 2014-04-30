@@ -130,7 +130,8 @@ Slave_reporting_capability::va_report(loglevel level, int err_code,
   uint pbuffsize= sizeof(buff);
 
   if (thd && level == ERROR_LEVEL && has_temporary_error(thd, err_code) &&
-      !thd->transaction.all.cannot_safely_rollback())
+      !thd->get_transaction()->cannot_safely_rollback(
+          Transaction_ctx::SESSION))
     level= WARNING_LEVEL;
 
   mysql_mutex_lock(&err_lock);

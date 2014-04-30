@@ -28,7 +28,7 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
   my_bool auto_key_changed=0;
   ulonglong changed;
   MYISAM_SHARE *share=info->s;
-  ha_checksum UNINIT_VAR(old_checksum);
+  ha_checksum old_checksum= 0;
   DBUG_ENTER("mi_update");
 
   DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",

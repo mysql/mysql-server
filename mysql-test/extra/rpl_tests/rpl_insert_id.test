@@ -42,7 +42,7 @@ eval create table t2(b int auto_increment, c int, key(b)) engine=$engine_type;
 insert into t1 values (1),(2),(3);
 insert into t1 values (null);
 insert into t2 values (null,last_insert_id());
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 connection master;
@@ -61,7 +61,7 @@ insert into t1 values (null),(null),(null);
 insert into t2 values (5,0);
 insert into t2 values (null,last_insert_id());
 SET FOREIGN_KEY_CHECKS=1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1;
 select * from t2;
 connection master;
@@ -80,13 +80,13 @@ insert into t2 values (5,0);
 --disable_warnings ONCE
 insert into t2 (c) select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 ORDER BY a;
 select * from t2 ORDER BY b;
 connection master;
 drop table t1;
 drop table t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # Bug#8412: Error codes reported in binary log for CHARACTER SET,
@@ -100,10 +100,10 @@ SET FOREIGN_KEY_CHECKS=0;
 # Duplicate Key Errors
 --error 1022, ER_DUP_ENTRY
 INSERT INTO t1 VALUES (1),(1);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # Bug#14553: NULL in WHERE resets LAST_INSERT_ID
@@ -119,7 +119,7 @@ insert into t2 (a) select a from t1 where a is null;
 insert into t2 (a) select a from t1 where a is null;
 --enable_warnings
 select * from t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 select * from t2;
 connection master;
@@ -205,7 +205,7 @@ call foo();
 
 select * from t1;
 select * from t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1;
 select * from t2;
 connection master;
@@ -232,7 +232,7 @@ set sql_log_bin=1;
 
 insert into t1 values(null,100);
 select * from t1 order by n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # make slave's table autoinc counter bigger
 insert into t1 values(null,200),(null,300);
 delete from t1 where b <> 100;
@@ -243,7 +243,7 @@ select * from t1 order by n;
 connection master;
 replace into t1 values(null,100),(null,350);
 select * from t1 order by n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by n;
 
 # Same test as for REPLACE, but for ON DUPLICATE KEY UPDATE
@@ -255,7 +255,7 @@ connection master;
 --disable_warnings ONCE
 insert into t1 values (NULL,400),(3,500),(NULL,600) on duplicate key UPDATE n=1000;
 select * from t1 order by n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by n;
 
 # and now test for the bug:
@@ -265,7 +265,7 @@ eval create table t1 (n int primary key auto_increment not null,
                       b int, unique(b)) engine=$engine_type;
 insert into t1 values(null,100);
 select * from t1 order by n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 insert into t1 values(null,200),(null,300);
 delete from t1 where b <> 100;
 select * from t1 order by n;
@@ -274,12 +274,12 @@ connection master;
 --disable_warnings ONCE
 insert into t1 values(null,100),(null,350) on duplicate key update n=2;
 select * from t1 order by n;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by n;
 
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #
 # BUG#24432 "INSERT... ON DUPLICATE KEY UPDATE skips auto_increment values"
@@ -292,7 +292,7 @@ eval CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY AUTO_INCREMENT, b INT,
 --disable_warnings ONCE
 INSERT INTO t1(b) VALUES(1),(1),(2) ON DUPLICATE KEY UPDATE t1.b=10;
 SELECT * FROM t1 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 connection master;
 drop table t1;
@@ -335,7 +335,7 @@ ON DUPLICATE KEY UPDATE
 t1.field_3 = t2.field_c;
 --enable_warnings
 SELECT * FROM t1 ORDER BY id;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY id;
 connection master;
 drop table t1, t2;
@@ -382,7 +382,7 @@ CALL p1();
 SELECT * FROM t1 ORDER BY id;
 SELECT * FROM t2 ORDER BY id;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY id;
 SELECT * FROM t2 ORDER BY id;
 
@@ -463,7 +463,7 @@ SELECT f3();
 SELECT * FROM t1 ORDER BY i;
 SELECT * FROM t2 ORDER BY i;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 SELECT * FROM t2;
 
@@ -475,7 +475,7 @@ DROP FUNCTION f3;
 DROP TABLE t1, t2;
 
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 --echo #
 --echo # End of 5.0 tests
@@ -521,7 +521,7 @@ insert into t1 select insid();
 select * from t1 order by id;
 select * from t2 order by id;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by id;
 select * from t2 order by id;
 
@@ -546,7 +546,7 @@ call foo();
 select * from t1 order by n;
 select * from t2 order by id;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1 order by n;
 select * from t2 order by id;
 

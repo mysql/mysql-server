@@ -1811,3 +1811,22 @@ Level	Code	Message
 
 DROP TABLE t1;
 SET SESSION query_cache_type=@qc_type;
+#
+# Bug#18383169: QUERIES WITH RANDOM_BYTES() ENTER QUERY CACHE
+#
+CREATE TABLE t1(a INT);
+FLUSH STATUS;
+# Test that RANDOM_BYTES queries are not cached
+SELECT * FROM t1 WHERE RANDOM_BYTES(16);
+a
+SHOW STATUS LIKE 'Qcache_not_cached';
+Variable_name	Value
+Qcache_not_cached	1
+# same with AES_ENCRYPT
+SELECT * FROM t1 WHERE AES_ENCRYPT('a','a');
+a
+SHOW STATUS LIKE 'Qcache_not_cached';
+Variable_name	Value
+Qcache_not_cached	2
+DROP TABLE t1;
+FLUSH STATUS;

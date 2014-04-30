@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -88,6 +88,8 @@ row_undo_mod_clust_low(
 				before the update, or NULL if
 				the table is not being rebuilt online or
 				the PRIMARY KEY definition does not change */
+	byte*		sys,	/*!< out: DB_TRX_ID, DB_ROLL_PTR
+				for row_log_table_delete() */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr,	/*!< in: mtr; must be committed before
 				latching any further pages */
@@ -117,7 +119,7 @@ row_undo_mod_clust_low(
 	    && dict_index_is_online_ddl(btr_cur_get_index(btr_cur))) {
 		*rebuilt_old_pk = row_log_table_get_pk(
 			btr_cur_get_rec(btr_cur),
-			btr_cur_get_index(btr_cur), NULL, &heap);
+			btr_cur_get_index(btr_cur), NULL, sys, &heap);
 	} else {
 		*rebuilt_old_pk = NULL;
 	}
@@ -270,6 +272,7 @@ row_undo_mod_clust(
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
@@ -282,12 +285,13 @@ row_undo_mod_clust(
 	mem_heap_t*	offsets_heap	= NULL;
 	ulint*		offsets		= NULL;
 	const dtuple_t*	rebuilt_old_pk;
+	byte		sys[DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN];
 
 	/* Try optimistic processing of the record, keeping changes within
 	the index page */
 
 	err = row_undo_mod_clust_low(node, &offsets, &offsets_heap,
-				     heap, &rebuilt_old_pk,
+				     heap, &rebuilt_old_pk, sys,
 				     thr, &mtr, online
 				     ? BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED
 				     : BTR_MODIFY_LEAF);
@@ -299,10 +303,12 @@ row_undo_mod_clust(
 		descent down the index tree */
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		err = row_undo_mod_clust_low(
-			node, &offsets, &offsets_heap, heap, &rebuilt_old_pk,
+			node, &offsets, &offsets_heap,
+			heap, &rebuilt_old_pk, sys,
 			thr, &mtr, BTR_MODIFY_TREE);
 		ut_ad(err == DB_SUCCESS || err == DB_OUT_OF_FILE_SPACE);
 	}
@@ -330,8 +336,7 @@ row_undo_mod_clust(
 			break;
 		case TRX_UNDO_UPD_DEL_REC:
 			row_log_table_delete(
-				btr_pcur_get_rec(pcur), index, offsets,
-				true, node->trx->id);
+				btr_pcur_get_rec(pcur), index, offsets, sys);
 			break;
 		default:
 			ut_ad(0);
@@ -347,6 +352,7 @@ row_undo_mod_clust(
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		/* It is not necessary to call row_log_table,
@@ -361,6 +367,7 @@ row_undo_mod_clust(
 			pessimistic descent down the index tree */
 
 			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
 			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(
@@ -405,10 +412,16 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_t			mtr;
 	mtr_t			mtr_vers;
 	row_search_result	search_result;
+	ibool			modify_leaf = false;
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
+
+	if (mode == BTR_MODIFY_LEAF) {
+		modify_leaf = true;
+	}
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -434,6 +447,14 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+	if (dict_index_is_spatial(index)) {
+		if (mode & BTR_MODIFY_LEAF) {
+			btr_cur->thr = thr;
+			mode |= BTR_DELETE_MARK;
+		}
+		mode |= BTR_RTREE_UNDO_INS;
+	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -465,7 +486,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	we should delete mark the record. */
 
 	mtr_start(&mtr_vers);
-	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
 					    &mtr_vers);
@@ -481,7 +501,18 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	} else {
 		/* Remove the index record */
 
-		if (BTR_LATCH_MODE_WITHOUT_INTENTION(mode) != BTR_MODIFY_TREE) {
+		if (dict_index_is_spatial(index)) {
+			rec_t*	rec = btr_pcur_get_rec(&pcur);
+			if (rec_get_deleted_flag(rec,
+						 dict_table_is_comp(index->table))) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Record found in index %s is deleted marked"
+					" on rollback update.",
+					index->name);
+			}
+		}
+
+		if (modify_leaf) {
 			success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
 			if (success) {
 				err = DB_SUCCESS;
@@ -576,10 +607,11 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		= BTR_KEEP_SYS_FLAG | BTR_NO_LOCKING_FLAG;
 	row_search_result	search_result;
 
-	ut_ad(trx->id > 0);
+	ut_ad(trx->id != 0);
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
@@ -604,6 +636,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		index->name starts with TEMP_INDEX_PREFIX. */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
+
+	btr_pcur_get_btr_cur(&pcur)->thr = thr;
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -701,6 +735,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		err = btr_cur_del_mark_set_sec_rec(
 			BTR_NO_LOCKING_FLAG,
 			btr_cur, FALSE, thr, &mtr);
+
 		ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(
 			sizeof(upd_t)

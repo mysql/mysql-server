@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -225,7 +225,7 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 
-const upd_t*
+upd_t*
 row_upd_build_difference_binary(
 /*============================*/
 	dict_index_t*	index,	/*!< in: clustered index */
@@ -379,8 +379,8 @@ Parses the log data of system field values.
 byte*
 row_upd_parse_sys_vals(
 /*===================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	ulint*		pos,	/*!< out: TRX_ID position in record */
 	trx_id_t*	trx_id,	/*!< out: trx id */
 	roll_ptr_t*	roll_ptr);/*!< out: roll ptr */
@@ -404,8 +404,8 @@ Parses the log data written by row_upd_index_write_log.
 byte*
 row_upd_index_parse(
 /*================*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	mem_heap_t*	heap,	/*!< in: memory heap where update vector is
 				built */
 	upd_t**		update_out);/*!< out: update vector */
@@ -432,10 +432,30 @@ struct upd_field_t{
 
 /* Update vector structure */
 struct upd_t{
+	mem_heap_t*	heap;		/*!< heap from which memory allocated */
 	ulint		info_bits;	/*!< new value of info bits to record;
 					default is 0 */
 	ulint		n_fields;	/*!< number of update fields */
 	upd_field_t*	fields;		/*!< array of update fields */
+
+	/** Append an update field to the end of array
+	@param[in]	field	an update field */
+	void append(const upd_field_t& field)
+	{
+		fields[n_fields++] = field;
+	}
+
+	/** Determine if the given field_no is modified.
+	@return true if modified, false otherwise.  */
+	bool is_modified(const ulint field_no) const
+	{
+		for (ulint i = 0; i < n_fields; ++i) {
+			if (field_no == fields[i].field_no) {
+				return(true);
+			}
+		}
+		return(false);
+	}
 };
 
 #ifndef UNIV_HOTBACKUP
@@ -540,11 +560,6 @@ struct upd_node_t{
 #define UPD_NODE_INSERT_CLUSTERED  3	/* clustered index record should be
 					inserted, old record is already delete
 					marked */
-#define UPD_NODE_INSERT_BLOB	   4	/* clustered index record should be
-					inserted, old record is already
-					delete-marked; non-updated BLOBs
-					should be inherited by the new record
-					and disowned by the old record */
 #define UPD_NODE_UPDATE_ALL_SEC	   5	/* an ordering field of the clustered
 					index record was changed, or this is
 					a delete operation: should update

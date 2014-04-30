@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -20,7 +20,6 @@
 #include "sql_const.h"
 /* memcpy */
 #include "string.h"
-using std::min;
 
 /**
   @file storage/perfschema/pfs_stat.h
@@ -67,6 +66,19 @@ struct PFS_single_stat
 
   inline void aggregate(const PFS_single_stat *stat)
   {
+    if (stat->m_count != 0)
+    {
+      m_count+= stat->m_count;
+      m_sum+= stat->m_sum;
+      if (unlikely(m_min > stat->m_min))
+        m_min= stat->m_min;
+      if (unlikely(m_max < stat->m_max))
+        m_max= stat->m_max;
+    }
+  }
+
+  inline void aggregate_no_check(const PFS_single_stat *stat)
+  {
     m_count+= stat->m_count;
     m_sum+= stat->m_sum;
     if (unlikely(m_min > stat->m_min))
@@ -102,33 +114,43 @@ struct PFS_byte_stat : public PFS_single_stat
   /** Byte count statistics */
   ulonglong m_bytes;
 
-  /* Aggregate wait stats, event count and byte count */
+  /** Aggregate wait stats, event count and byte count */
   inline void aggregate(const PFS_byte_stat *stat)
   {
-    PFS_single_stat::aggregate(stat);
+    if (stat->m_count != 0)
+    {
+      PFS_single_stat::aggregate_no_check(stat);
+      m_bytes+= stat->m_bytes;
+    }
+  }
+
+  /** Aggregate wait stats, event count and byte count */
+  inline void aggregate_no_check(const PFS_byte_stat *stat)
+  {
+    PFS_single_stat::aggregate_no_check(stat);
     m_bytes+= stat->m_bytes;
   }
 
-  /* Aggregate individual wait time, event count and byte count */
+  /** Aggregate individual wait time, event count and byte count */
   inline void aggregate(ulonglong wait, ulonglong bytes)
   {
     aggregate_value(wait);
     m_bytes+= bytes;
   }
 
-  /* Aggregate wait stats and event count */
+  /** Aggregate wait stats and event count */
   inline void aggregate_waits(const PFS_byte_stat *stat)
   {
     PFS_single_stat::aggregate(stat);
   }
 
-  /* Aggregate event count and byte count */
+  /** Aggregate event count and byte count */
   inline void aggregate_counted()
   {
     PFS_single_stat::aggregate_counted();
   }
 
-  /* Aggregate event count and byte count */
+  /** Aggregate event count and byte count */
   inline void aggregate_counted(ulonglong bytes)
   {
     PFS_single_stat::aggregate_counted();
@@ -152,22 +174,28 @@ struct PFS_mutex_stat
 {
   /** Wait statistics. */
   PFS_single_stat m_wait_stat;
+#ifdef PFS_LATER
   /**
     Lock statistics.
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_lock_stat;
+#endif
 
   inline void aggregate(const PFS_mutex_stat *stat)
   {
     m_wait_stat.aggregate(&stat->m_wait_stat);
+#ifdef PFS_LATER
     m_lock_stat.aggregate(&stat->m_lock_stat);
+#endif
   }
 
   inline void reset(void)
   {
     m_wait_stat.reset();
+#ifdef PFS_LATER
     m_lock_stat.reset();
+#endif
   }
 };
 
@@ -176,6 +204,7 @@ struct PFS_rwlock_stat
 {
   /** Wait statistics. */
   PFS_single_stat m_wait_stat;
+#ifdef PFS_LATER
   /**
     RWLock read lock usage statistics.
     This statistic is not exposed in user visible tables yet.
@@ -186,19 +215,24 @@ struct PFS_rwlock_stat
     This statistic is not exposed in user visible tables yet.
   */
   PFS_single_stat m_write_lock_stat;
+#endif
 
   inline void aggregate(const PFS_rwlock_stat *stat)
   {
     m_wait_stat.aggregate(&stat->m_wait_stat);
+#ifdef PFS_LATER
     m_read_lock_stat.aggregate(&stat->m_read_lock_stat);
     m_write_lock_stat.aggregate(&stat->m_write_lock_stat);
+#endif
   }
 
   inline void reset(void)
   {
     m_wait_stat.reset();
+#ifdef PFS_LATER
     m_read_lock_stat.reset();
     m_write_lock_stat.reset();
+#endif
   }
 };
 
@@ -207,6 +241,7 @@ struct PFS_cond_stat
 {
   /** Wait statistics. */
   PFS_single_stat m_wait_stat;
+#ifdef PFS_LATER
   /**
     Number of times a condition was signalled.
     This statistic is not exposed in user visible tables yet.
@@ -217,19 +252,24 @@ struct PFS_cond_stat
     This statistic is not exposed in user visible tables yet.
   */
   ulonglong m_broadcast_count;
+#endif
 
   inline void aggregate(const PFS_cond_stat *stat)
   {
     m_wait_stat.aggregate(&stat->m_wait_stat);
+#ifdef PFS_LATER
     m_signal_count+= stat->m_signal_count;
     m_broadcast_count+= stat->m_broadcast_count;
+#endif
   }
 
   inline void reset(void)
   {
     m_wait_stat.reset();
+#ifdef PFS_LATER
     m_signal_count= 0;
     m_broadcast_count= 0;
+#endif
   }
 };
 
@@ -240,7 +280,7 @@ struct PFS_file_io_stat
   PFS_byte_stat m_read;
   /** WRITE statistics */
   PFS_byte_stat m_write;
-  /** Miscelleanous statistics */
+  /** Miscellaneous statistics */
   PFS_byte_stat m_misc;
 
   inline void reset(void)
@@ -308,7 +348,7 @@ struct PFS_stage_stat
   inline void aggregate_value(ulonglong value)
   { m_timer1_stat.aggregate_value(value); }
 
-  inline void aggregate(PFS_stage_stat *stat)
+  inline void aggregate(const PFS_stage_stat *stat)
   { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
 };
 
@@ -326,11 +366,33 @@ struct PFS_sp_stat
   inline void aggregate_value(ulonglong value)
   { m_timer1_stat.aggregate_value(value); }
 
+  inline void aggregate(const PFS_stage_stat *stat)
+  { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
+};
+
+/** Statistics for prepared statement usage. */
+struct PFS_prepared_stmt_stat
+{
+  PFS_single_stat m_timer1_stat;
+
+  inline void reset(void)
+  { m_timer1_stat.reset(); }
+
+  inline void aggregate_counted()
+  { m_timer1_stat.aggregate_counted(); }
+
+  inline void aggregate_value(ulonglong value)
+  { m_timer1_stat.aggregate_value(value); }
+
   inline void aggregate(PFS_stage_stat *stat)
   { m_timer1_stat.aggregate(& stat->m_timer1_stat); }
 };
 
-/** Statistics for statement usage. */
+/**
+  Statistics for statement usage.
+  This structure uses lazy initialization,
+  controlled by member @c m_timer1_stat.m_count.
+*/
 struct PFS_statement_stat
 {
   PFS_single_stat m_timer1_stat;
@@ -356,80 +418,87 @@ struct PFS_statement_stat
 
   PFS_statement_stat()
   {
-    m_error_count= 0;
-    m_warning_count= 0;
-    m_rows_affected= 0;
-    m_lock_time= 0;
-    m_rows_sent= 0;
-    m_rows_examined= 0;
-    m_created_tmp_disk_tables= 0;
-    m_created_tmp_tables= 0;
-    m_select_full_join= 0;
-    m_select_full_range_join= 0;
-    m_select_range= 0;
-    m_select_range_check= 0;
-    m_select_scan= 0;
-    m_sort_merge_passes= 0;
-    m_sort_range= 0;
-    m_sort_rows= 0;
-    m_sort_scan= 0;
-    m_no_index_used= 0;
-    m_no_good_index_used= 0;
+    reset();
   }
 
-  inline void reset(void)
+  inline void reset()
   {
-    m_timer1_stat.reset();
-    m_error_count= 0;
-    m_warning_count= 0;
-    m_rows_affected= 0;
-    m_lock_time= 0;
-    m_rows_sent= 0;
-    m_rows_examined= 0;
-    m_created_tmp_disk_tables= 0;
-    m_created_tmp_tables= 0;
-    m_select_full_join= 0;
-    m_select_full_range_join= 0;
-    m_select_range= 0;
-    m_select_range_check= 0;
-    m_select_scan= 0;
-    m_sort_merge_passes= 0;
-    m_sort_range= 0;
-    m_sort_rows= 0;
-    m_sort_scan= 0;
-    m_no_index_used= 0;
-    m_no_good_index_used= 0;
+    m_timer1_stat.m_count= 0;
   }
 
+  inline void mark_used()
+  {
+    delayed_reset();
+  }
+
+private:
+  inline void delayed_reset(void)
+  {
+    if (m_timer1_stat.m_count == 0)
+    {
+      m_timer1_stat.reset();
+      m_error_count= 0;
+      m_warning_count= 0;
+      m_rows_affected= 0;
+      m_lock_time= 0;
+      m_rows_sent= 0;
+      m_rows_examined= 0;
+      m_created_tmp_disk_tables= 0;
+      m_created_tmp_tables= 0;
+      m_select_full_join= 0;
+      m_select_full_range_join= 0;
+      m_select_range= 0;
+      m_select_range_check= 0;
+      m_select_scan= 0;
+      m_sort_merge_passes= 0;
+      m_sort_range= 0;
+      m_sort_rows= 0;
+      m_sort_scan= 0;
+      m_no_index_used= 0;
+      m_no_good_index_used= 0;
+    }
+  }
+
+public:
   inline void aggregate_counted()
-  { m_timer1_stat.aggregate_counted(); }
+  {
+    delayed_reset();
+    m_timer1_stat.aggregate_counted();
+  }
 
   inline void aggregate_value(ulonglong value)
-  { m_timer1_stat.aggregate_value(value); }
-
-  inline void aggregate(PFS_statement_stat *stat)
   {
-    m_timer1_stat.aggregate(& stat->m_timer1_stat);
+    delayed_reset();
+    m_timer1_stat.aggregate_value(value);
+  }
 
-    m_error_count+= stat->m_error_count;
-    m_warning_count+= stat->m_warning_count;
-    m_rows_affected+= stat->m_rows_affected;
-    m_lock_time+= stat->m_lock_time;
-    m_rows_sent+= stat->m_rows_sent;
-    m_rows_examined+= stat->m_rows_examined;
-    m_created_tmp_disk_tables+= stat->m_created_tmp_disk_tables;
-    m_created_tmp_tables+= stat->m_created_tmp_tables;
-    m_select_full_join+= stat->m_select_full_join;
-    m_select_full_range_join+= stat->m_select_full_range_join;
-    m_select_range+= stat->m_select_range;
-    m_select_range_check+= stat->m_select_range_check;
-    m_select_scan+= stat->m_select_scan;
-    m_sort_merge_passes+= stat->m_sort_merge_passes;
-    m_sort_range+= stat->m_sort_range;
-    m_sort_rows+= stat->m_sort_rows;
-    m_sort_scan+= stat->m_sort_scan;
-    m_no_index_used+= stat->m_no_index_used;
-    m_no_good_index_used+= stat->m_no_good_index_used;
+  inline void aggregate(const PFS_statement_stat *stat)
+  {
+    if (stat->m_timer1_stat.m_count != 0)
+    {
+      delayed_reset();
+      m_timer1_stat.aggregate_no_check(& stat->m_timer1_stat);
+
+      m_error_count+= stat->m_error_count;
+      m_warning_count+= stat->m_warning_count;
+      m_rows_affected+= stat->m_rows_affected;
+      m_lock_time+= stat->m_lock_time;
+      m_rows_sent+= stat->m_rows_sent;
+      m_rows_examined+= stat->m_rows_examined;
+      m_created_tmp_disk_tables+= stat->m_created_tmp_disk_tables;
+      m_created_tmp_tables+= stat->m_created_tmp_tables;
+      m_select_full_join+= stat->m_select_full_join;
+      m_select_full_range_join+= stat->m_select_full_range_join;
+      m_select_range+= stat->m_select_range;
+      m_select_range_check+= stat->m_select_range_check;
+      m_select_scan+= stat->m_select_scan;
+      m_sort_merge_passes+= stat->m_sort_merge_passes;
+      m_sort_range+= stat->m_sort_range;
+      m_sort_rows+= stat->m_sort_rows;
+      m_sort_scan+= stat->m_sort_scan;
+      m_no_index_used+= stat->m_no_index_used;
+      m_no_good_index_used+= stat->m_no_good_index_used;
+    }
   }
 };
 
@@ -464,7 +533,7 @@ struct PFS_transaction_stat
     m_release_savepoint_count= 0;
   }
 
-  inline void aggregate(PFS_transaction_stat *stat)
+  inline void aggregate(const PFS_transaction_stat *stat)
   {
     m_read_write_stat.aggregate(&stat->m_read_write_stat);
     m_read_only_stat.aggregate(&stat->m_read_only_stat);
@@ -699,7 +768,7 @@ struct PFS_socket_io_stat
   PFS_byte_stat m_read;
   /** WRITE statistics */
   PFS_byte_stat m_write;
-  /** Miscelleanous statistics */
+  /** Miscellaneous statistics */
   PFS_byte_stat m_misc;
 
   inline void reset(void)

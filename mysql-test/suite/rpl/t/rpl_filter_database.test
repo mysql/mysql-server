@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # BUG#46110: --replicate-wild-do-table invalidates 
 #            --replicate-do-db matching rule
@@ -46,7 +41,7 @@ if (!`SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = '
   -- die
 }
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 if (!`SELECT count(*) = 1 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
@@ -70,7 +65,7 @@ if (!`SELECT DEFAULT_CHARACTER_SET_NAME='latin5' FROM information_schema.SCHEMAT
   -- die
 }
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 if (!`SELECT DEFAULT_CHARACTER_SET_NAME='latin5' FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
@@ -93,7 +88,7 @@ if (!`SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = '
   -- die
 }
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 if (!`SELECT count(*) = 0 FROM information_schema.SCHEMATA WHERE schema_name = 'dbx'`)
 {
