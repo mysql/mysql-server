@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -123,16 +123,16 @@ int init_host(const PFS_global_param *param)
 
   for (index= 0; index < host_max; index++)
   {
-    host_array[index].m_instr_class_waits_stats=
-      &host_instr_class_waits_array[index * wait_class_max];
-    host_array[index].m_instr_class_stages_stats=
-      &host_instr_class_stages_array[index * stage_class_max];
-    host_array[index].m_instr_class_statements_stats=
-      &host_instr_class_statements_array[index * statement_class_max];
-    host_array[index].m_instr_class_transactions_stats=
-      &host_instr_class_transactions_array[index * transaction_class_max];
-    host_array[index].m_instr_class_memory_stats=
-      &host_instr_class_memory_array[index * memory_class_max];
+    host_array[index].set_instr_class_waits_stats(
+      &host_instr_class_waits_array[index * wait_class_max]);
+    host_array[index].set_instr_class_stages_stats(
+      &host_instr_class_stages_array[index * stage_class_max]);
+    host_array[index].set_instr_class_statements_stats(
+      &host_instr_class_statements_array[index * statement_class_max]);
+    host_array[index].set_instr_class_transactions_stats(
+      &host_instr_class_transactions_array[index * transaction_class_max]);
+    host_array[index].set_instr_class_memory_stats(
+      &host_instr_class_memory_array[index * memory_class_max]);
   }
 
   return 0;
@@ -336,42 +336,54 @@ void PFS_host::aggregate_waits()
 
 void PFS_host::aggregate_stages()
 {
+  if (read_instr_class_stages_stats() == NULL)
+    return;
+
   /*
     Aggregate EVENTS_STAGES_SUMMARY_BY_HOST_BY_EVENT_NAME to:
     -  EVENTS_STAGES_SUMMARY_GLOBAL_BY_EVENT_NAME
   */
-  aggregate_all_stages(m_instr_class_stages_stats,
+  aggregate_all_stages(write_instr_class_stages_stats(),
                        global_instr_class_stages_array);
 }
 
 void PFS_host::aggregate_statements()
 {
+  if (read_instr_class_statements_stats() == NULL)
+    return;
+
   /*
     Aggregate EVENTS_STATEMENTS_SUMMARY_BY_HOST_BY_EVENT_NAME to:
     -  EVENTS_STATEMENTS_SUMMARY_GLOBAL_BY_EVENT_NAME
   */
-  aggregate_all_statements(m_instr_class_statements_stats,
+  aggregate_all_statements(write_instr_class_statements_stats(),
                            global_instr_class_statements_array);
 }
 
 void PFS_host::aggregate_transactions()
 {
+  if (read_instr_class_transactions_stats() == NULL)
+    return;
+
   /*
     Aggregate EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME to:
     -  EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
   */
-  aggregate_all_transactions(m_instr_class_transactions_stats,
+  aggregate_all_transactions(write_instr_class_transactions_stats(),
                              &global_transaction_stat);
 }
 
 void PFS_host::aggregate_memory(bool alive)
 {
+  if (read_instr_class_memory_stats() == NULL)
+    return;
+
   /*
     Aggregate MEMORY_SUMMARY_BY_HOST_BY_EVENT_NAME to:
     - MEMORY_SUMMARY_GLOBAL_BY_EVENT_NAME
   */
   aggregate_all_memory(alive,
-                       m_instr_class_memory_stats,
+                       write_instr_class_memory_stats(),
                        global_instr_class_memory_array);
 }
 
@@ -388,11 +400,13 @@ void PFS_host::release()
 
 void PFS_host::carry_memory_stat_delta(PFS_memory_stat_delta *delta, uint index)
 {
+  PFS_memory_stat *event_name_array;
   PFS_memory_stat *stat;
   PFS_memory_stat_delta delta_buffer;
   PFS_memory_stat_delta *remaining_delta;
 
-  stat= & m_instr_class_memory_stats[index];
+  event_name_array= write_instr_class_memory_stats();
+  stat= & event_name_array[index];
   remaining_delta= stat->apply_delta(delta, &delta_buffer);
 
   if (remaining_delta != NULL)

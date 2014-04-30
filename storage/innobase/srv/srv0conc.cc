@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -69,6 +69,8 @@ we could get a deadlock. Value of 0 will disable the concurrency check. */
 ulong	srv_thread_concurrency	= 0;
 
 #ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
+ib_mutex_t	server_mutex;
 
 /** This mutex protects srv_conc data structures */
 static SysMutex	srv_conc_mutex;
@@ -118,13 +120,12 @@ struct srv_conc_t {
 /* Control variables for tracking concurrency. */
 static srv_conc_t	srv_conc;
 
-/*********************************************************************//**
-Initialise the concurrency management data structures */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Initialise the concurrency management data structures. */
+
 void
 srv_conc_init(void)
-/*===============*/
 {
-#ifndef HAVE_ATOMIC_BUILTINS
 	ulint		i;
 
 	/* Init the server concurrency restriction data structures */
@@ -142,21 +143,21 @@ srv_conc_init(void)
 		conc_slot->event = os_event_create("conc_event");
 		ut_a(conc_slot->event);
 	}
-#endif /* !HAVE_ATOMIC_BUILTINS */
+
+	mutex_create("server", &server_mutex);
 }
 
-/*********************************************************************//**
-Free the concurrency management data structures */
+/** Free the concurrency management data structures. */
+
 void
 srv_conc_free(void)
-/*===============*/
 {
-#ifndef HAVE_ATOMIC_BUILTINS
+	mutex_free(&server_mutex);
 	mutex_free(&srv_conc_mutex);
 	ut_free(srv_conc_slots);
 	srv_conc_slots = NULL;
-#endif /* !HAVE_ATOMIC_BUILTINS */
 }
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #ifdef HAVE_ATOMIC_BUILTINS
 /*********************************************************************//**
@@ -266,7 +267,7 @@ srv_conc_enter_innodb_with_atomics(
 		    && sleep_in_us > srv_adaptive_max_sleep_delay) {
 
 			sleep_in_us = srv_adaptive_max_sleep_delay;
-			srv_thread_sleep_delay = (ulong) sleep_in_us;
+			srv_thread_sleep_delay = static_cast<ulong>(sleep_in_us);
 		}
 
 		os_thread_sleep(sleep_in_us);

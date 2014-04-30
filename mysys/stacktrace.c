@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -13,7 +13,6 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
-#include <my_global.h>
 #include <my_stacktrace.h>
 
 #ifndef _WIN32
@@ -130,7 +129,7 @@ static int safe_print_str(const char *addr, int max_len)
   return 0;
 }
 
-#endif
+#endif /* __linux __ */
 
 void my_safe_puts_stderr(const char* val, int max_len)
 {
@@ -174,9 +173,9 @@ void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
       MYSQL_VERSION_MAJOR, MYSQL_VERSION_MINOR);
 }
 
-#elif HAVE_BACKTRACE && (HAVE_BACKTRACE_SYMBOLS || HAVE_BACKTRACE_SYMBOLS_FD)
+#elif HAVE_BACKTRACE
 
-#if BACKTRACE_DEMANGLE
+#if HAVE_ABI_CXA_DEMANGLE
 
 char __attribute__ ((weak)) *
 my_demangle(const char *mangled_name __attribute__((unused)),
@@ -215,7 +214,7 @@ static void my_demangle_symbols(char **addrs, int n)
   }
 }
 
-#endif /* BACKTRACE_DEMANGLE */
+#endif /* HAVE_ABI_CXA_DEMANGLE */
 
 void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
 {
@@ -224,31 +223,20 @@ void my_print_stacktrace(uchar* stack_bottom, ulong thread_stack)
   int n = backtrace(addrs, array_elements(addrs));
   my_safe_printf_stderr("stack_bottom = %p thread_stack 0x%lx\n",
                         stack_bottom, thread_stack);
-#if BACKTRACE_DEMANGLE
+#if HAVE_ABI_CXA_DEMANGLE
   if ((strings= backtrace_symbols(addrs, n)))
   {
     my_demangle_symbols(strings, n);
     free(strings);
   }
 #endif
-#if HAVE_BACKTRACE_SYMBOLS_FD
   if (!strings)
   {
     backtrace_symbols_fd(addrs, n, fileno(stderr));
   }
-#endif
 }
 
-#elif defined(TARGET_OS_LINUX)
-
-void my_print_stacktrace(uchar* stack_bottom __attribute__((unused)),
-                         ulong thread_stack __attribute__((unused)))
-{
-  my_safe_printf_stderr("%s",
-    "\nFunction backtrace() not found in glibc though it should \n"
-    "be available from version 2.1 on ... Omitting stacktrace.\n\n");
-}
-#endif /* TARGET_OS_LINUX */
+#endif /* HAVE_PRINTSTACK || HAVE_BACKTRACE */
 #endif /* HAVE_STACKTRACE */
 
 /* Produce a core for the thread */
@@ -703,8 +691,11 @@ static size_t my_safe_vsnprintf(char *to, size_t size,
             my_safe_utoa(base, uval, &buff[sizeof(buff)-1]) :
             my_safe_itoa(base, ival, &buff[sizeof(buff)-1]);
 
-          /* Strip off "ffffffff" if we have 'x' format without 'll' */
-          if (*format == 'x' && !have_longlong && ival < 0)
+          /*
+            Strip off "ffffffff" if we have 'x' format without 'll'
+            Similarly for 'p' format on 32bit systems.
+          */
+          if (base == 16 && !have_longlong && ival < 0)
             val_as_str+= 8;
 
           while (*val_as_str && to < end)

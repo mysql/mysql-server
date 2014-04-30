@@ -45,7 +45,6 @@ void lf_dynarray_init(LF_DYNARRAY *array, uint element_size)
 {
   memset(array, 0, sizeof(*array));
   array->size_of_element= element_size;
-  my_atomic_rwlock_init(&array->lock);
 }
 
 static void recursive_free(void **alloc, int level)
@@ -69,7 +68,6 @@ void lf_dynarray_destroy(LF_DYNARRAY *array)
   int i;
   for (i= 0; i < LF_DYNARRAY_LEVELS; i++)
     recursive_free(array->level[i], i);
-  my_atomic_rwlock_destroy(&array->lock);
 }
 
 static const ulong dynarray_idxes_in_prev_levels[LF_DYNARRAY_LEVELS]=
@@ -96,7 +94,7 @@ static const ulong dynarray_idxes_in_prev_level[LF_DYNARRAY_LEVELS]=
   Returns a valid lvalue pointer to the element number 'idx'.
   Allocates memory if necessary.
 */
-void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
+void *lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
 {
   void * ptr, * volatile * ptr_ptr= 0;
   int i;
@@ -151,7 +149,7 @@ void *_lf_dynarray_lvalue(LF_DYNARRAY *array, uint idx)
   Returns a pointer to the element number 'idx'
   or NULL if an element does not exists
 */
-void *_lf_dynarray_value(LF_DYNARRAY *array, uint idx)
+void *lf_dynarray_value(LF_DYNARRAY *array, uint idx)
 {
   void * ptr, * volatile * ptr_ptr= 0;
   int i;
@@ -192,14 +190,14 @@ static int recursive_iterate(LF_DYNARRAY *array, void *ptr, int level,
 
   DESCRIPTION
     lf_dynarray consists of a set of arrays, LF_DYNARRAY_LEVEL_LENGTH elements
-    each. _lf_dynarray_iterate() calls user-supplied function on every array
+    each. lf_dynarray_iterate() calls user-supplied function on every array
     from the set. It is the fastest way to scan the array, faster than
-      for (i=0; i < N; i++) { func(_lf_dynarray_value(dynarray, i)); }
+      for (i=0; i < N; i++) { func(lf_dynarray_value(dynarray, i)); }
 
   NOTE
     if func() returns non-zero, the scan is aborted
 */
-int _lf_dynarray_iterate(LF_DYNARRAY *array, lf_dynarray_func func, void *arg)
+int lf_dynarray_iterate(LF_DYNARRAY *array, lf_dynarray_func func, void *arg)
 {
   int i, res;
   for (i= 0; i < LF_DYNARRAY_LEVELS; i++)

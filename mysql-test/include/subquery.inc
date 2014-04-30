@@ -484,8 +484,10 @@ drop table t1,t2,t3;
 create table t1 (a float);
 -- error ER_NOT_SUPPORTED_YET
 select 10.5 IN (SELECT * from t1 LIMIT 1);
--- error ER_NOT_SUPPORTED_YET
+-- error ER_WRONG_USAGE
 select 10.5 IN (SELECT * from t1 LIMIT 1 UNION SELECT 1.5);
+-- error ER_NOT_SUPPORTED_YET
+select 10.5 IN (SELECT * from t1 UNION SELECT 1.5 LIMIT 1);
 drop table t1;
 
 create table t1 (a int, b int, c varchar(10));
@@ -6154,5 +6156,40 @@ SELECT 1 FROM t2 WHERE c > ANY (SELECT a FROM t1 WHERE b >= 3) IS TRUE;
 
 DROP TABLE t1, t2;
 
+--echo # Bug #18014565 - WRONG RESULT COMPUTATION USING ALL() AND GROUP BY
+--echo #
+
+CREATE TABLE t1 (
+  f1 INTEGER,
+  f2 INTEGER
+);
+
+INSERT INTO t1 VALUES (1,3),(1,6),(2,3),(2,6);
+
+SELECT f1, SUM(f2) AS sum FROM t1 GROUP BY f1 HAVING sum > ALL (SELECT 1);
+
+DROP TABLE t1;
+
+--echo # End of test for Bug#18014565
+
 set @@optimizer_switch=@old_opt_switch;
 # New tests go here.
+
+--echo #
+--echo # Bug #18486607 ASSERTION FAILED:
+--echo # IN_SUBQ_PRED->LEFT_EXPR->FIXED IN CONVERT_SUBQUERY_TO_SEMIJOIN 
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+
+# not with prepared statements because of Bug#16926177
+--disable_ps_protocol
+SELECT (SELECT 1 FROM t2
+        WHERE a IN (SELECT 1 FROM t2)
+       ) AS scalar
+FROM t1
+GROUP BY a;
+--enable_ps_protocol
+
+DROP TABLE t1,t2;

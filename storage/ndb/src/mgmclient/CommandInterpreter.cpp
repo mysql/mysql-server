@@ -1179,23 +1179,23 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
   char* firstToken = strtok(line, " ");
   char* allAfterFirstToken = strtok(NULL, "");
 
-  if (strcasecmp(firstToken, "HELP") == 0 ||
-      strcasecmp(firstToken, "?") == 0) {
+  if (native_strcasecmp(firstToken, "HELP") == 0 ||
+      native_strcasecmp(firstToken, "?") == 0) {
     m_error = executeHelp(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if (strcasecmp(firstToken, "CONNECT") == 0) {
+  else if (native_strcasecmp(firstToken, "CONNECT") == 0) {
     m_error = executeConnect(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }
-  else if (strcasecmp(firstToken, "SLEEP") == 0) {
+  else if (native_strcasecmp(firstToken, "SLEEP") == 0) {
     if (allAfterFirstToken)
       NdbSleep_SecSleep(atoi(allAfterFirstToken));
     DBUG_RETURN(true);
   }
-  else if((strcasecmp(firstToken, "QUIT") == 0 ||
-	  strcasecmp(firstToken, "EXIT") == 0 ||
-	  strcasecmp(firstToken, "BYE") == 0) && 
+  else if((native_strcasecmp(firstToken, "QUIT") == 0 ||
+	  native_strcasecmp(firstToken, "EXIT") == 0 ||
+	  native_strcasecmp(firstToken, "BYE") == 0) && 
 	  allAfterFirstToken == NULL){
     DBUG_RETURN(false);
   }
@@ -1211,65 +1211,65 @@ CommandInterpreter::execute_impl(const char *_line, bool interactive)
     connect(interactive);
   }
 
-  if (strcasecmp(firstToken, "SHOW") == 0) {
+  if (native_strcasecmp(firstToken, "SHOW") == 0) {
     Guard g(m_print_mutex);
     m_error = executeShow(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if (strcasecmp(firstToken, "SHUTDOWN") == 0) {
+  else if (native_strcasecmp(firstToken, "SHUTDOWN") == 0) {
     m_error= executeShutdown(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if (strcasecmp(firstToken, "CLUSTERLOG") == 0){
+  else if (native_strcasecmp(firstToken, "CLUSTERLOG") == 0){
     executeClusterLog(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if(strcasecmp(firstToken, "START") == 0 &&
+  else if(native_strcasecmp(firstToken, "START") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
+	  native_strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
     m_error= executeStartBackup(allAfterFirstToken, interactive);
     DBUG_RETURN(true);
   }
-  else if(strcasecmp(firstToken, "ABORT") == 0 &&
+  else if(native_strcasecmp(firstToken, "ABORT") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
+	  native_strncasecmp(allAfterFirstToken, "BACKUP", sizeof("BACKUP") - 1) == 0){
     m_error = executeAbortBackup(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if (strcasecmp(firstToken, "PURGE") == 0) {
+  else if (native_strcasecmp(firstToken, "PURGE") == 0) {
     m_error = executePurge(allAfterFirstToken);
     DBUG_RETURN(true);
   }                
-  else if(strcasecmp(firstToken, "ENTER") == 0 &&
+  else if(native_strcasecmp(firstToken, "ENTER") == 0 &&
 	  allAfterFirstToken != NULL &&
 	  allAfterFirstToken != NULL &&
-	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
+	  native_strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     m_error = executeEnterSingleUser(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if(strcasecmp(firstToken, "EXIT") == 0 &&
+  else if(native_strcasecmp(firstToken, "EXIT") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
+	  native_strncasecmp(allAfterFirstToken, "SINGLE USER MODE ", 
 		  sizeof("SINGLE USER MODE") - 1) == 0){
     m_error = executeExitSingleUser(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if(strcasecmp(firstToken, "CREATE") == 0 &&
+  else if(native_strcasecmp(firstToken, "CREATE") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncasecmp(allAfterFirstToken, "NODEGROUP",
+	  native_strncasecmp(allAfterFirstToken, "NODEGROUP",
                       sizeof("NODEGROUP") - 1) == 0){
     m_error = executeCreateNodeGroup(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if(strcasecmp(firstToken, "DROP") == 0 &&
+  else if(native_strcasecmp(firstToken, "DROP") == 0 &&
 	  allAfterFirstToken != NULL &&
-	  strncasecmp(allAfterFirstToken, "NODEGROUP",
+	  native_strncasecmp(allAfterFirstToken, "NODEGROUP",
                       sizeof("NODEGROUP") - 1) == 0){
     m_error = executeDropNodeGroup(allAfterFirstToken);
     DBUG_RETURN(true);
   }
-  else if (strcasecmp(firstToken, "ALL") == 0) {
+  else if (native_strcasecmp(firstToken, "ALL") == 0) {
     m_error = analyseAfterFirstToken(-1, allAfterFirstToken);
   } else {
     /**
@@ -1360,7 +1360,7 @@ CommandInterpreter::analyseAfterFirstToken(int processId,
   ExecuteFunction fun = 0;
   const char * command = 0;
   for(int i = 0; i<tmpSize; i++){
-    if(strcasecmp(secondToken, commands[i].command) == 0){
+    if(native_strcasecmp(secondToken, commands[i].command) == 0){
       fun = commands[i].executeFunction;
       command = commands[i].command;
       break;
@@ -1389,17 +1389,17 @@ CommandInterpreter::executeCommand(Vector<BaseString> &command_list,
   const char *cmd= command_list[command_pos].c_str();
   int retval = 0;
 
-  if (strcasecmp("STOP", cmd) == 0)
+  if (native_strcasecmp("STOP", cmd) == 0)
   {
     retval = executeStop(command_list, command_pos+1, node_ids, no_of_nodes);
     return retval;
   }
-  if (strcasecmp("RESTART", cmd) == 0)
+  if (native_strcasecmp("RESTART", cmd) == 0)
   {
     retval = executeRestart(command_list, command_pos+1, node_ids, no_of_nodes);
     return retval;
   }
-  if (strcasecmp("START", cmd) == 0)
+  if (native_strcasecmp("START", cmd) == 0)
   {
     retval = executeStart(command_list, command_pos+1, node_ids, no_of_nodes);
     return retval;
@@ -1454,14 +1454,14 @@ CommandInterpreter::executeForAll(const char * cmd, ExecuteFunction fun,
   int nodeId = 0;
   int retval = 0;
 
-  if(strcasecmp(cmd, "STOP") == 0) {
+  if(native_strcasecmp(cmd, "STOP") == 0) {
     ndbout_c("Executing STOP on all nodes.");
     retval = (this->*fun)(nodeId, allAfterSecondToken, true);
-  } else if(strcasecmp(cmd, "RESTART") == 0) {
+  } else if(native_strcasecmp(cmd, "RESTART") == 0) {
     retval = (this->*fun)(nodeId, allAfterSecondToken, true);
-  } else if (strcasecmp(cmd, "STATUS") == 0) {
+  } else if (native_strcasecmp(cmd, "STATUS") == 0) {
     (this->*fun)(nodeId, allAfterSecondToken, true);
-  } else if (strcasecmp(cmd, "REPORT") == 0) {
+  } else if (native_strcasecmp(cmd, "REPORT") == 0) {
     Guard g(m_print_mutex);
     retval = executeReport(nodeId, allAfterSecondToken, true);
   } else {
@@ -1505,7 +1505,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
     firstTokenAfterLog[i] = toupper(firstTokenAfterLog[i]);
   }
   
-  if (strcasecmp(firstTokenAfterLog, "BLOCK") != 0) {
+  if (native_strcasecmp(firstTokenAfterLog, "BLOCK") != 0) {
     ndbout << "Unexpected value: " << firstTokenAfterLog 
 	   << ". Expected BLOCK." << endl;
     return false;
@@ -1518,7 +1518,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
   }
 
   char* secondTokenAfterLog = strtok(allAfterFirstToken, " ");
-  if (strcasecmp(secondTokenAfterLog, "=") != 0) {
+  if (native_strcasecmp(secondTokenAfterLog, "=") != 0) {
     ndbout << "Unexpected value: " << secondTokenAfterLog 
 	   << ". Expected =." << endl;
     return false;
@@ -1526,7 +1526,7 @@ CommandInterpreter::parseBlockSpecification(const char* allAfterLog,
 
   char* blockName = strtok(NULL, " ");
   bool all = false;
-  if (blockName != NULL && (strcasecmp(blockName, "ALL") == 0)) {
+  if (blockName != NULL && (native_strcasecmp(blockName, "ALL") == 0)) {
     all = true;
   }
   while (blockName != NULL) {
@@ -1584,7 +1584,7 @@ CommandInterpreter::executeHelp(char* parameters)
     int i = 0;
     for (i = 0; help_items[i].cmd != NULL; i++) 
     {
-      if (strcasecmp(parameters, help_items[i].cmd) == 0)
+      if (native_strcasecmp(parameters, help_items[i].cmd) == 0)
       {
         if (help_items[i].help)
           ndbout << help_items[i].help;
@@ -1682,7 +1682,7 @@ print_nodes(ndb_mgm_cluster_state *state, ndb_mgm_configuration_iterator *it,
 	const char *hostname= node_state->connect_address;
 	if (hostname == 0
 	    || strlen(hostname) == 0
-	    || strcasecmp(hostname,"0.0.0.0") == 0)
+	    || native_strcasecmp(hostname,"0.0.0.0") == 0)
 	  ndbout << " ";
 	else
 	  ndbout << "\t@" << hostname;
@@ -1737,9 +1737,9 @@ CommandInterpreter::executePurge(char* parameters)
       break;
     char* firstToken = strtok(parameters, " ");
     char* nextToken = strtok(NULL, " \0");
-    if (strcasecmp(firstToken,"STALE") == 0 &&
+    if (native_strcasecmp(firstToken,"STALE") == 0 &&
 	nextToken &&
-	strcasecmp(nextToken, "SESSIONS") == 0) {
+	native_strcasecmp(nextToken, "SESSIONS") == 0) {
       command_ok= 1;
       break;
     }
@@ -1892,7 +1892,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
 
   NdbAutoPtr<char> ap1(tmpString);
   char * tmpPtr = 0;
-  char * item = strtok_r(tmpString, " ", &tmpPtr);
+  char * item = my_strtok_r(tmpString, " ", &tmpPtr);
   int enable;
 
   ndb_mgm_severity enabled[NDB_MGM_EVENT_SEVERITY_ALL] = 
@@ -1914,7 +1914,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
   /********************
    * CLUSTERLOG INFO
    ********************/
-  if (strcasecmp(item, "INFO") == 0) {
+  if (native_strcasecmp(item, "INFO") == 0) {
     DBUG_PRINT("info",("INFO"));
     if(enabled[0].value == 0)
     {
@@ -1942,17 +1942,17 @@ CommandInterpreter::executeClusterLog(char* parameters)
     DBUG_VOID_RETURN;
 
   } 
-  else if (strcasecmp(item, "FILTER") == 0 ||
-	   strcasecmp(item, "TOGGLE") == 0)
+  else if (native_strcasecmp(item, "FILTER") == 0 ||
+	   native_strcasecmp(item, "TOGGLE") == 0)
   {
     DBUG_PRINT("info",("TOGGLE"));
     enable= -1;
   } 
-  else if (strcasecmp(item, "OFF") == 0) 
+  else if (native_strcasecmp(item, "OFF") == 0) 
   {
     DBUG_PRINT("info",("OFF"));
     enable= 0;
-  } else if (strcasecmp(item, "ON") == 0) {
+  } else if (native_strcasecmp(item, "ON") == 0) {
     DBUG_PRINT("info",("ON"));
     enable= 1;
   } else {
@@ -1962,7 +1962,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
   }
 
   int res_enable;
-  item = strtok_r(NULL, " ", &tmpPtr);
+  item = my_strtok_r(NULL, " ", &tmpPtr);
   if (item == NULL) {
     res_enable=
       ndb_mgm_set_clusterlog_severity_filter(m_mgmsrv,
@@ -1982,22 +1982,22 @@ CommandInterpreter::executeClusterLog(char* parameters)
 
   do {
     severity= NDB_MGM_ILLEGAL_EVENT_SEVERITY;
-    if (strcasecmp(item, "ALL") == 0) {
+    if (native_strcasecmp(item, "ALL") == 0) {
       severity = NDB_MGM_EVENT_SEVERITY_ALL;	
-    } else if (strcasecmp(item, "ALERT") == 0) {
+    } else if (native_strcasecmp(item, "ALERT") == 0) {
       severity = NDB_MGM_EVENT_SEVERITY_ALERT;
-    } else if (strcasecmp(item, "CRITICAL") == 0) { 
+    } else if (native_strcasecmp(item, "CRITICAL") == 0) { 
       severity = NDB_MGM_EVENT_SEVERITY_CRITICAL;
-    } else if (strcasecmp(item, "ERROR") == 0) {
+    } else if (native_strcasecmp(item, "ERROR") == 0) {
       severity = NDB_MGM_EVENT_SEVERITY_ERROR;
-    } else if (strcasecmp(item, "WARNING") == 0) {
+    } else if (native_strcasecmp(item, "WARNING") == 0) {
       severity = NDB_MGM_EVENT_SEVERITY_WARNING;
-    } else if (strcasecmp(item, "INFO") == 0) {
+    } else if (native_strcasecmp(item, "INFO") == 0) {
       severity = NDB_MGM_EVENT_SEVERITY_INFO;
-    } else if (strcasecmp(item, "DEBUG") == 0) {
+    } else if (native_strcasecmp(item, "DEBUG") == 0) {
       severity = NDB_MGM_EVENT_SEVERITY_DEBUG;
-    } else if (strcasecmp(item, "OFF") == 0 ||
-	       strcasecmp(item, "ON") == 0) {
+    } else if (native_strcasecmp(item, "OFF") == 0 ||
+	       native_strcasecmp(item, "ON") == 0) {
       if (enable < 0) // only makes sense with toggle
 	severity = NDB_MGM_EVENT_SEVERITY_ON;
     }
@@ -2018,7 +2018,7 @@ CommandInterpreter::executeClusterLog(char* parameters)
     }
     ndbout << BaseString(item).ndb_toupper().c_str() << " " << (res_enable ? "enabled":"disabled") << endl;
 
-    item = strtok_r(NULL, " ", &tmpPtr);	
+    item = my_strtok_r(NULL, " ", &tmpPtr);	
   } while(item != NULL);
   
   m_error = 0;
@@ -2058,12 +2058,12 @@ CommandInterpreter::executeStop(Vector<BaseString> &command_list,
   for (; command_pos < command_list.size(); command_pos++)
   {
     const char *item= command_list[command_pos].c_str();
-    if (strcasecmp(item, "-A") == 0)
+    if (native_strcasecmp(item, "-A") == 0)
     {
       abort= 1;
       continue;
     }
-    if (strcasecmp(item, "-F") == 0)
+    if (native_strcasecmp(item, "-F") == 0)
     {
       force = 1;
       continue;
@@ -2227,22 +2227,22 @@ CommandInterpreter::executeRestart(Vector<BaseString> &command_list,
   for (; command_pos < command_list.size(); command_pos++)
   {
     const char *item= command_list[command_pos].c_str();
-    if (strcasecmp(item, "-N") == 0)
+    if (native_strcasecmp(item, "-N") == 0)
     {
       nostart= 1;
       continue;
     }
-    if (strcasecmp(item, "-I") == 0)
+    if (native_strcasecmp(item, "-I") == 0)
     {
       initialstart= 1;
       continue;
     }
-    if (strcasecmp(item, "-A") == 0)
+    if (native_strcasecmp(item, "-A") == 0)
     {
       abort= 1;
       continue;
     }
-    if (strcasecmp(item, "-F") == 0)
+    if (native_strcasecmp(item, "-F") == 0)
     {
       force = 1;
       continue;
@@ -2446,15 +2446,15 @@ CommandInterpreter::executeDumpState(int processId, const char* parameters,
   {
     const char* arg = args[i].c_str();
 
-    if (strtoll(arg, NULL, 0) < 0 ||
-        strtoll(arg, NULL, 0) > 0xffffffff)
+    if (my_strtoll(arg, NULL, 0) < 0 ||
+        my_strtoll(arg, NULL, 0) > 0xffffffff)
     {
       ndbout_c("ERROR: Illegal value '%s' in argument to signal.\n"
                "(Value must be between 0 and 0xffffffff.)", arg);
       return -1;
     }
     assert(num_params < (int)max_params);
-    params[num_params] = (int)strtoll(arg, NULL, 0);
+    params[num_params] = (int)my_strtoll(arg, NULL, 0);
     num_params++;
   }
 
@@ -2616,7 +2616,7 @@ CommandInterpreter::executeReport(int nodeid, const char* parameters,
   const st_report_cmd* report_cmd = report_cmds;
   for (; report_cmd->name; report_cmd++)
   {
-    if (strncasecmp(report_cmd->name, args[0].c_str(),
+    if (native_strncasecmp(report_cmd->name, args[0].c_str(),
                     args[0].length()) == 0)
       break;
   }

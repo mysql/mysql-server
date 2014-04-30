@@ -1,6 +1,6 @@
 #!/bin/sh
 #
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -81,8 +81,8 @@ if [ -n "$INSTALL" ] ; then
     cd "$mybasedir"
     scripts/mysql_install_db \
 	  --rpm \
-	  --random-passwords \
 	  --user=mysql \
+	  --skip-random-passwords \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )

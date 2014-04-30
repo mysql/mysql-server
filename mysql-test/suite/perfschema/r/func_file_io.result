@@ -3,6 +3,7 @@ UPDATE performance_schema.setup_instruments SET enabled = 'YES'
 WHERE name LIKE 'wait/io/file/%';
 update performance_schema.threads SET instrumented = 'YES'
   WHERE PROCESSLIST_ID=connection_id();
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (id INT PRIMARY KEY, b CHAR(100) DEFAULT 'initial value')
@@ -145,6 +146,7 @@ Performance_schema_metadata_lock_lost	0
 Performance_schema_mutex_classes_lost	0
 Performance_schema_mutex_instances_lost	0
 Performance_schema_nested_statement_lost	0
+Performance_schema_prepared_statements_lost	0
 Performance_schema_program_lost	0
 Performance_schema_rwlock_classes_lost	0
 Performance_schema_rwlock_instances_lost	0

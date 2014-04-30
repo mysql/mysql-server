@@ -23,6 +23,7 @@ change master to IGNORE_SERVER_IDS= (5, 1, 4, 3, 1);
 ignore server id list: 1, 3, 4, 5
 *** ignore master (server 1) queries for a while ***
 start slave;
+include/sync_slave_sql_with_master.inc
 create table t1 (n int);
 include/wait_for_slave_param.inc [Exec_Master_Log_Pos]
 *** must be empty as the event is to be filtered out ***
@@ -42,10 +43,12 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 start slave;
+include/sync_slave_sql_with_master.inc
 *** must have caught create table ***
 show tables;
 Tables_in_test
 t1
 drop table t1;
+include/sync_slave_sql_with_master.inc
 end of the tests
 include/rpl_end.inc

@@ -92,7 +92,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
-  LINT_INIT(m_info);
+  m_info= NULL;
   kfile= -1;
   lock_error=1;
   errpos=0;
@@ -702,8 +702,7 @@ err:
 uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf)
 {
   uint extra;
-  uint32 UNINIT_VAR(old_length);
-  LINT_INIT(old_length);
+  uint32 old_length= 0;
 
   if (! *buf || length > (old_length=mi_get_rec_buff_len(info, *buf)))
   {

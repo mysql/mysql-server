@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2011, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -28,20 +28,15 @@ CPackConfig.cmake
 /_CPack_Packages/
 $\\\\.gz
 $\\\\.zip
+$\\\\.bz2
 /CMakeFiles/
 /version_resources/
 /_CPack_Packages/
 scripts/make_binary_distribution$
-scripts/msql2mysql$
 scripts/mysql_config$
-scripts/mysql_convert_table_format$
-scripts/mysql_find_rows$
-scripts/mysql_fix_extensions$
 scripts/mysql_install_db$
 scripts/mysql_secure_installation$
-scripts/mysql_setpermission$
-scripts/mysql_zap$
-scripts/mysqlaccess$
+scripts/mysql_server_config$
 scripts/mysqld_multi$
 scripts/mysqld_safe$
 scripts/mysqldumpslow$

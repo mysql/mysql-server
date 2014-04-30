@@ -22,7 +22,7 @@ SELECT @@session.character_set_server;
 @@session.character_set_server
 utf8
 SET global.character_set_server=utf8;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'character_set_server=utf8' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.character_set_server=utf8' at line 1
 SET session character_set_server=utf8;
 SELECT session character_set_server;
 ERROR 42S22: Unknown column 'session' in 'field list'
@@ -152,6 +152,10 @@ SET @@session.character_set_server = gbk;
 SELECT @@session.character_set_server;
 @@session.character_set_server
 gbk
+SET @@session.character_set_server = gb18030;
+SELECT @@session.character_set_server;
+@@session.character_set_server
+gb18030
 SET @@session.character_set_server = latin5;
 SELECT @@session.character_set_server;
 @@session.character_set_server
@@ -297,6 +301,10 @@ SET @@global.character_set_server = gbk;
 SELECT @@global.character_set_server;
 @@global.character_set_server
 gbk
+SET @@global.character_set_server = gb18030;
+SELECT @@global.character_set_server;
+@@global.character_set_server
+gb18030
 SET @@global.character_set_server = latin5;
 SELECT @@global.character_set_server;
 @@global.character_set_server

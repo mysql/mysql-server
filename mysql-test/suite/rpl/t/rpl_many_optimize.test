@@ -1,10 +1,6 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test for BUG#7658 "optimize crashes slave thread (1 in 1000)]"
 
+source include/no_valgrind_without_big.inc;
 source include/master-slave.inc;
 
 create table t1 (a int not null auto_increment primary key, b int, key(b));
@@ -22,7 +18,7 @@ enable_result_log;
 enable_query_log;
 drop table t1;
 # Bug was that slave segfaulted after ~ a hundred of OPTIMIZE (or ANALYZE)
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

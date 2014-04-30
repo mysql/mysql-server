@@ -35,6 +35,7 @@ Variable_name	Value
 Slave_running	ON
 Slave_IO_Running= Yes
 Slave_SQL_Running= Yes
+include/sync_slave_sql_with_master.inc
 set global debug= '';
 SET DEBUG_SYNC= 'RESET';
 End of tests

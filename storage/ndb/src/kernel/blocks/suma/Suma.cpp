@@ -6281,7 +6281,6 @@ loop:
   ptr.p->m_free = count;
 
   Buffer_page* page;
-  LINT_INIT(page);
   for(Uint32 i = 0; i<count; i++)
   {
     page = c_page_pool.getPtr(ref);

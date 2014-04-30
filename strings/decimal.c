@@ -1433,7 +1433,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
   if (intg0x)
   {
     int i=dig2bytes[intg0x];
-    dec1 UNINIT_VAR(x);
+    dec1 x= 0;
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1474,7 +1474,7 @@ int bin2decimal(const uchar *from, decimal_t *to, int precision, int scale)
   if (frac0x)
   {
     int i=dig2bytes[frac0x];
-    dec1 UNINIT_VAR(x);
+    dec1 x= 0;
     switch (i)
     {
       case 1: x=mi_sint1korr(from); break;
@@ -1559,7 +1559,7 @@ decimal_round(const decimal_t *from, decimal_t *to, int scale,
               decimal_round_mode mode)
 {
   int frac0=scale>0 ? ROUND_UP(scale) : (scale + 1)/DIG_PER_DEC1,
-    frac1=ROUND_UP(from->frac), UNINIT_VAR(round_digit),
+    frac1=ROUND_UP(from->frac), round_digit= 0,
     intg0=ROUND_UP(from->intg), error=E_DEC_OK, len=to->len;
 
   dec1 *buf0=from->buf, *buf1=to->buf, x, y, carry=0;
@@ -2209,7 +2209,7 @@ static int do_div_mod(const decimal_t *from1, const decimal_t *from2,
 {
   int frac1=ROUND_UP(from1->frac)*DIG_PER_DEC1, prec1=from1->intg+frac1,
       frac2=ROUND_UP(from2->frac)*DIG_PER_DEC1, prec2=from2->intg+frac2,
-      UNINIT_VAR(error), i, intg0, frac0, len1, len2, dintg, div_mod=(!mod);
+      error= 0, i, intg0, frac0, len1, len2, dintg, div_mod=(!mod);
   dec1 *buf0, *buf1=from1->buf, *buf2=from2->buf, *tmp1,
        *start2, *stop2, *stop1, *stop0, norm2, carry, *start1, dcarry;
   dec2 norm_factor, x, guess, y;

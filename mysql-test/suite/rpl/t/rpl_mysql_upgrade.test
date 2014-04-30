@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################################################################
 # BUG#43579 mysql_upgrade tries to alter log tables on replicated database
 # Master and slave should be upgraded separately.  All statements executed by
@@ -22,7 +17,7 @@ connection master;
 DROP DATABASE IF EXISTS `#mysql50#mysqltest-1`;
 CREATE DATABASE `#mysql50#mysqltest-1`;
 --enable_warnings
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 let $before_position= query_get_value(SHOW MASTER STATUS, Position, 1);
@@ -30,7 +25,7 @@ let $before_position= query_get_value(SHOW MASTER STATUS, Position, 1);
 #With '--force' option, mysql_upgrade always executes all sql statements for upgrading.
 #binlog is disabled by default.
 --exec $MYSQL_UPGRADE --skip-verbose --force --user=root > $MYSQLTEST_VARDIR/log/mysql_upgrade.log 2>&1
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 let $after_position= query_get_value(SHOW MASTER STATUS, Position, 1);

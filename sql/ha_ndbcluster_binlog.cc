@@ -1320,7 +1320,7 @@ static int ndbcluster_find_all_databases(THD *thd)
         query[query_length]= 0;
         build_table_filename(name, sizeof(name), db, "", "", 0);
         int database_exists= !my_access(name, F_OK);
-        if (strncasecmp("CREATE", query, 6) == 0)
+        if (native_strncasecmp("CREATE", query, 6) == 0)
         {
           /* Database should exist */
           if (!database_exists)
@@ -1332,7 +1332,7 @@ static int ndbcluster_find_all_databases(THD *thd)
                       no_print_error);
           }
         }
-        else if (strncasecmp("ALTER", query, 5) == 0)
+        else if (native_strncasecmp("ALTER", query, 5) == 0)
         {
           /* Database should exist */
           if (!database_exists)
@@ -1347,7 +1347,7 @@ static int ndbcluster_find_all_databases(THD *thd)
                       no_print_error);
           }
         }
-        else if (strncasecmp("DROP", query, 4) == 0)
+        else if (native_strncasecmp("DROP", query, 4) == 0)
         {
           /* Database should not exist */
           if (database_exists)
@@ -1404,7 +1404,7 @@ int ndbcluster_find_all_files(THD *thd)
   Ndb* ndb;
   char key[FN_REFLEN + 1];
   NDBDICT *dict;
-  int unhandled, retries= 5, skipped;
+  int unhandled= 0, retries= 5, skipped= 0;
   DBUG_ENTER("ndbcluster_find_all_files");
 
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -1412,8 +1412,6 @@ int ndbcluster_find_all_files(THD *thd)
 
   dict= ndb->getDictionary();
 
-  LINT_INIT(unhandled);
-  LINT_INIT(skipped);
   do
   {
     NdbDictionary::Dictionary::List list;

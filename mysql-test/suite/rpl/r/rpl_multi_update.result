@@ -24,5 +24,6 @@ a	b
 1	0
 2	1
 UPDATE t1, t2 SET t1.b = t2.b WHERE t1.a = t2.a;
+include/sync_slave_sql_with_master.inc
 drop table t1, t2;
 include/rpl_end.inc

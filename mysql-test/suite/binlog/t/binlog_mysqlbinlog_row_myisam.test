@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 # mysqlbinlog_row.test
 #
@@ -14,7 +10,7 @@
 # See there for more informaton.
 #
 
-#--source include/force_myisam_default.inc
+--source include/have_myisam.inc
 --source include/not_gtid_enabled.inc
 let $engine_type=MyISAM;
 

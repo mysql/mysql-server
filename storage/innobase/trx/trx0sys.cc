@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 #include "read0read.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /** The file format tag structure with id and name. */
 struct file_format_t {
@@ -67,7 +67,7 @@ char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+int64_t	trx_sys_mysql_master_log_pos = -1;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -77,7 +77,7 @@ here. */
 /** Binlog file name */
 char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Binlog file position, or -1 if unknown */
-ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
+int64_t	trx_sys_mysql_bin_log_pos = -1;
 /* @} */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -193,7 +193,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/*!< in: MySQL log file name */
-	ib_int64_t	offset,	/*!< in: position in that log file */
+	int64_t		offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -278,8 +278,8 @@ trx_sys_print_mysql_binlog_offset(void)
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
 	trx_sys_mysql_bin_log_pos
-		= (((ib_int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (ib_int64_t) trx_sys_mysql_bin_log_pos_low;
+		= (((int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
+		+ (int64_t) trx_sys_mysql_bin_log_pos_low;
 
 	ut_memcpy(trx_sys_mysql_bin_log_name,
 		  sys_header + TRX_SYS_MYSQL_LOG_INFO
@@ -291,59 +291,6 @@ trx_sys_print_mysql_binlog_offset(void)
 		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
 		trx_sys_mysql_bin_log_name);
 
-	mtr_commit(&mtr);
-}
-
-/*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
-
-void
-trx_sys_print_mysql_master_log_pos(void)
-/*====================================*/
-{
-	trx_sysf_t*	sys_header;
-	mtr_t		mtr;
-
-	mtr_start(&mtr);
-
-	sys_header = trx_sysf_get(&mtr);
-
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
-		mtr_commit(&mtr);
-
-		return;
-	}
-
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"In a MySQL replication slave the last master binlog file"
-		" position %lu %lu, file name %s",
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_NAME);
-	/* Copy the master log position info to global variables we can
-	use in ha_innobase.cc to initialize glob_mi to right values */
-
-	ut_memcpy(trx_sys_mysql_master_log_name,
-		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME,
-		  TRX_SYS_MYSQL_LOG_NAME_LEN);
-
-	trx_sys_mysql_master_log_pos
-		= (((ib_int64_t) mach_read_from_4(
-			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_int64_t) mach_read_from_4(
-			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
 }
 
@@ -450,7 +397,7 @@ trx_sysf_create(
 			    mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
-	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
+	ut_a(block->page.id.page_no() == TRX_SYS_PAGE_NO);
 
 	page = buf_block_get_frame(block);
 
@@ -487,8 +434,8 @@ trx_sysf_create(
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
-					 mtr);
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
+					 ULINT_MAX, slot_no, mtr);
 
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
@@ -643,7 +590,8 @@ trx_sys_file_format_max_write(
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
+		RW_X_LATCH, &mtr);
 
 	file_format_max.id = format_id;
 	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
@@ -680,7 +628,8 @@ trx_sys_file_format_max_read(void)
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
+		RW_X_LATCH, &mtr);
 
 	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);

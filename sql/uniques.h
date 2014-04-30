@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,8 @@
 #include "prealloced_array.h"
 #include "sql_array.h"
 #include "sql_sort.h"
+
+class Cost_model_table;
 
 /*
    Unique -- class for unique (removing of duplicates). 
@@ -61,7 +63,8 @@ public:
 
   static double get_use_cost(Imerge_cost_buf_type buffer,
                              uint nkeys, uint key_size, 
-                             ulonglong max_in_memory_size);
+                             ulonglong max_in_memory_size,
+                             const Cost_model_table *cost_model);
 
   // Returns the number of elements needed in Imerge_cost_buf_type.
   inline static size_t get_cost_calc_buff_size(ulong nkeys, uint key_size, 

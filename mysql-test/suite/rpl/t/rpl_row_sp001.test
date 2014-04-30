@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################################################################
 # This test is being created to test out the non deterministic items with   #
 # row based replication.                                                    #
@@ -68,7 +63,7 @@ while ($1)
 ## Used for debugging
 #show binlog events;
 #select * from test.t1;
-#sync_slave_with_master;
+#--source include/sync_slave_sql_with_master.inc
 #select * from test.t1;
 #connection master;
 
@@ -95,26 +90,26 @@ delimiter ;//
 INSERT INTO test.t2 VALUES(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW'),(NULL,'NEW');
 
 SELECT * FROM t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 
 connection master;
 call test.p2(1);
 SELECT * FROM t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 
 
 connection master;
 call test.p2(2);
 SELECT * FROM t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 
 connection master;
 call test.p2(3);
 SELECT * FROM t2 ORDER BY a;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 SELECT * FROM t2 ORDER BY a;
 
 ##Used for debugging
@@ -132,7 +127,7 @@ DROP PROCEDURE test.p1;
 DROP PROCEDURE test.p2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # Lets compare. Note: If they match test will pass, if they do not match
 # the test will show that the diff statement failed and not reject file

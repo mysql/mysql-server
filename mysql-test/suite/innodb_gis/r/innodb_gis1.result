@@ -477,7 +477,6 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 alter table t1 add spatial index(a);
-ERROR HY000: The used table type doesn't support SPATIAL indexes
 drop table t1;
 create table t1(a geometry not null, index(a(5)));
 insert into t1 values
@@ -963,7 +962,7 @@ INSERT INTO t2 VALUES (POINTFROMTEXT('POINT(1 2)'));
 EXPLAIN 
 SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (`test`.`t1`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t1 WHERE p=POINTFROMTEXT('POINT(1 2)');
@@ -981,7 +980,7 @@ COUNT(*)
 EXPLAIN 
 SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=POINTFROMTEXT('POINT(1 2)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t2` IGNORE INDEX (`p`) where (`test`.`t2`.`p` = <cache>(st_geometryfromtext('POINT(1 2)')))
 SELECT COUNT(*) FROM t2 IGNORE INDEX(p) WHERE p=POINTFROMTEXT('POINT(1 2)');
@@ -1092,7 +1091,7 @@ col1 POINT,
 col2 POINT
 );
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
-ERROR HY000: The used table type doesn't support SPATIAL indexes
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
 CREATE TABLE t4 (
 col0 INTEGER NOT NULL,
 col1 POINT,

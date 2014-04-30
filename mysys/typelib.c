@@ -68,7 +68,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 int find_type(const char *x, const TYPELIB *typelib, uint flags)
 {
   int find,pos;
-  int UNINIT_VAR(findpos);                       /* guarded by find */
+  int findpos= 0;                       /* guarded by find */
   const char *i;
   const char *j;
   DBUG_ENTER("find_type");

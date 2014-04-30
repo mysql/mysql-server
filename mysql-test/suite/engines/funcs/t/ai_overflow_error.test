@@ -3,7 +3,7 @@ DROP TABLE IF EXISTS t1;
 --enable_warnings
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -16,7 +16,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -29,7 +29,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -42,7 +42,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -55,7 +55,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -68,7 +68,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -81,7 +81,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -94,7 +94,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -107,7 +107,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -120,7 +120,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -133,7 +133,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -146,7 +146,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -159,7 +159,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -172,7 +172,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -185,7 +185,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -198,7 +198,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -211,7 +211,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -224,7 +224,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -237,7 +237,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -250,7 +250,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -263,7 +263,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -276,7 +276,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -289,7 +289,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -302,7 +302,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -315,7 +315,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -328,7 +328,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -341,7 +341,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -354,7 +354,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -367,7 +367,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -380,7 +380,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -393,7 +393,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -406,7 +406,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -419,7 +419,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -432,7 +432,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -445,7 +445,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -458,7 +458,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -471,7 +471,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -484,7 +484,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -497,7 +497,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -510,7 +510,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -523,7 +523,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -536,7 +536,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -549,7 +549,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -562,7 +562,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -575,7 +575,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -588,7 +588,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -601,7 +601,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -614,7 +614,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -627,7 +627,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -640,7 +640,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -653,7 +653,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -666,7 +666,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -679,7 +679,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -692,7 +692,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -705,7 +705,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -718,7 +718,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -731,7 +731,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -744,7 +744,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -757,7 +757,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264
@@ -770,7 +770,7 @@ SHOW TABLES;
 SET SQL_MODE='';
 SET SQL_MODE='TRADITIONAL';
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY );
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 --error 1264

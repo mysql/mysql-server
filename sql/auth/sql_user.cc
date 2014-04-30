@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
    the Free Software Foundation; version 2 of the License.
@@ -24,7 +24,8 @@
 #include "auth_internal.h"
 #include "sql_auth_cache.h"
 #include "sql_authentication.h"
-
+#include "prealloced_array.h"
+#include "tztime.h"
 
 /**
   Auxiliary function for constructing a  user list string.
@@ -135,7 +136,7 @@ enum enum_acl_lists
 
 
 int check_change_password(THD *thd, const char *host, const char *user,
-                           char *new_password, uint new_password_len)
+                          const char *new_password, uint new_password_len)
 {
   if (!initialized)
   {
@@ -322,6 +323,13 @@ bool change_password(THD *thd, const char *host, const char *user,
                                                        new_password_len + 1);
         acl_user->auth_string.length= new_password_len;
       }
+      else
+      {
+	my_error(ER_PASSWORD_FORMAT, MYF(0));
+	result= 1;
+	mysql_mutex_unlock(&acl_cache->lock);
+        goto end;
+      }
     } else
     {
       /*
@@ -333,6 +341,9 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
+    thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
+	thd->query_start());
+
   }
   else
 #endif
@@ -388,6 +399,8 @@ bool change_password(THD *thd, const char *host, const char *user,
       mysql_mutex_unlock(&acl_cache->lock);
       goto end;
     }
+    thd->variables.time_zone->gmt_sec_to_TIME(&acl_user->password_last_changed,
+         thd->query_start());
   }
   else
   {
@@ -403,7 +416,8 @@ bool change_password(THD *thd, const char *host, const char *user,
   if (update_user_table(thd, table,
                         acl_user->host.get_host() ? acl_user->host.get_host() : "",
                         acl_user->user ? acl_user->user : "",
-                        new_password, new_password_len, password_field, false))
+                        new_password, new_password_len, password_field, false,
+			auth_plugin_is_built_in(acl_user->plugin.str)))
   {
     mysql_mutex_unlock(&acl_cache->lock); /* purecov: deadcode */
     goto end;
@@ -540,8 +554,8 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
   int result= 0;
   uint idx;
   uint elements;
-  const char *user;
-  const char *host;
+  const char *user= NULL;
+  const char *host= NULL;
   ACL_USER *acl_user= NULL;
   ACL_DB *acl_db= NULL;
   ACL_PROXY_USER *acl_proxy_user= NULL;
@@ -550,14 +564,11 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
     Dynamic array acl_grant_name used to store pointers to all
     GRANT_NAME objects
   */
-  Dynamic_array<GRANT_NAME *> acl_grant_name;
+  Prealloced_array<GRANT_NAME *, 16> acl_grant_name(PSI_INSTRUMENT_ME);
   HASH *grant_name_hash= NULL;
   DBUG_ENTER("handle_grant_struct");
   DBUG_PRINT("info",("scan struct: %u  search: '%s'@'%s'",
                      struct_no, user_from->user.str, user_from->host.str));
-
-  LINT_INIT(user);
-  LINT_INIT(host);
 
   mysql_mutex_assert_owner(&acl_cache->lock);
 
@@ -671,7 +682,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           Deleting while traversing a hash table is not valid procedure and
           hence we save pointers to GRANT_NAME objects for later processing.
         */
-        if (acl_grant_name.append(grant_name))
+        if (acl_grant_name.push_back(grant_name))
           DBUG_RETURN(-1);
         break;
 
@@ -702,7 +713,7 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
           Updating while traversing a hash table is not valid procedure and
           hence we save pointers to GRANT_NAME objects for later processing.
         */
-        if (acl_grant_name.append(grant_name))
+        if (acl_grant_name.push_back(grant_name))
           DBUG_RETURN(-1);
         break;
 
@@ -726,9 +737,10 @@ static int handle_grant_struct(enum enum_acl_lists struct_no, bool drop,
       Traversing the elements stored in acl_grant_name dynamic array
       to either delete or update them.
     */
-    for (int i= 0; i < acl_grant_name.elements(); ++i)
+    for (GRANT_NAME **iter= acl_grant_name.begin();
+         iter != acl_grant_name.end(); ++iter)
     {
-      grant_name= acl_grant_name.at(i);
+      grant_name= *iter;
 
       if (drop)
       {
@@ -1267,7 +1279,8 @@ bool mysql_rename_user(THD *thd, List <LEX_USER> &list)
 
 
 /*
-  Mark user's password as expired.
+  Mark user's password as expired or update the days
+  after which the user's password will expire
 
   SYNOPSIS
     mysql_user_password_expire()
@@ -1386,7 +1399,9 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
                           acl_user->host.get_host() ?
                           acl_user->host.get_host() : "",
                           acl_user->user ? acl_user->user : "",
-                          NULL, 0, password_field, true))
+                          NULL, 0, password_field, true,
+			  auth_plugin_is_built_in(acl_user->plugin.str),
+		          &user_from->alter_status))
     {
       result= true;
       append_user(thd, &wrong_users, user_from, wrong_users.length() > 0,
@@ -1394,7 +1409,19 @@ bool mysql_user_password_expire(THD *thd, List <LEX_USER> &list)
       continue;
     }
 
-    acl_user->password_expired= true;
+    acl_user->password_expired= user_from->alter_status.
+      update_password_expired_column;
+    if (!user_from->alter_status.update_password_expired_column)
+    {
+      if (!user_from->alter_status.use_default_password_lifetime)
+      {
+        acl_user->password_lifetime=user_from->alter_status.
+	  expire_after_days;
+	acl_user->use_default_password_lifetime= false;
+      }
+      else
+        acl_user->use_default_password_lifetime= true;
+    }
     some_passwords_expired= true;
   }
 

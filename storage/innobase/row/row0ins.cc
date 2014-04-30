@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -52,6 +52,8 @@ Created 4/20/1996 Heikki Tuuri
 #include "buf0lru.h"
 #include "fts0fts.h"
 #include "fts0types.h"
+#include "m_string.h"
+#include "gis0geo.h"
 
 /*************************************************************************
 IMPORTANT NOTE: Any operation that generates redo MUST check that there
@@ -91,6 +93,7 @@ ins_node_create(
 	node->select = NULL;
 
 	node->trx_id = 0;
+	node->duplicate = NULL;
 
 	node->entry_sys_heap = mem_heap_create(128);
 
@@ -151,35 +154,37 @@ row_ins_alloc_sys_fields(
 	ut_ad(row && table && heap);
 	ut_ad(dtuple_get_n_fields(row) == dict_table_get_n_cols(table));
 
-	/* 1. Allocate buffer for row id */
+	/* allocate buffer to hold the needed system created hidden columns. */
+	uint len = DATA_ROW_ID_LEN + DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN;
+	ptr = static_cast<byte*>(mem_heap_zalloc(heap, len));
 
+	/* 1. Populate row-id */
 	col = dict_table_get_sys_col(table, DATA_ROW_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROW_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_ROW_ID_LEN);
 
 	node->row_id_buf = ptr;
 
-	/* 3. Allocate buffer for trx id */
+	ptr += DATA_ROW_ID_LEN;
 
+	/* 2. Populate trx id */
 	col = dict_table_get_sys_col(table, DATA_TRX_ID);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_TRX_ID_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_TRX_ID_LEN);
 
 	node->trx_id_buf = ptr;
 
-	/* 4. Allocate buffer for roll ptr */
+	ptr += DATA_TRX_ID_LEN;
+
+	/* 3. Populate roll ptr */
 
 	col = dict_table_get_sys_col(table, DATA_ROLL_PTR);
 
 	dfield = dtuple_get_nth_field(row, dict_col_get_no(col));
-	ptr = static_cast<byte*>(mem_heap_zalloc(heap, DATA_ROLL_PTR_LEN));
 
 	dfield_set_data(dfield, ptr, DATA_ROLL_PTR_LEN);
 }
@@ -198,6 +203,7 @@ ins_node_set_new_row(
 	node->state = INS_NODE_SET_IX_LOCK;
 	node->index = NULL;
 	node->entry = NULL;
+	node->duplicate = NULL;
 
 	node->row = row;
 
@@ -321,31 +327,28 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_ins_clust_index_entry_by_modify(
 /*================================*/
+	btr_pcur_t*	pcur,	/*!< in/out: a persistent cursor pointing
+				to the clust_rec that is being modified. */
 	ulint		flags,	/*!< in: undo logging and locking flags */
 	ulint		mode,	/*!< in: BTR_MODIFY_LEAF or BTR_MODIFY_TREE,
 				depending on whether mtr holds just a leaf
 				latch or also a tree latch */
-	btr_cur_t*	cursor,	/*!< in: B-tree cursor */
 	ulint**		offsets,/*!< out: offsets on cursor->page_cur.rec */
 	mem_heap_t**	offsets_heap,
 				/*!< in/out: pointer to memory heap that can
 				be emptied, or NULL */
 	mem_heap_t*	heap,	/*!< in/out: memory heap */
-	big_rec_t**	big_rec,/*!< out: possible big rec vector of fields
-				which have to be stored externally by the
-				caller */
 	const dtuple_t*	entry,	/*!< in: index entry to insert */
 	que_thr_t*	thr,	/*!< in: query thread */
 	mtr_t*		mtr)	/*!< in: mtr; must be committed before
 				latching any further pages */
 {
 	const rec_t*	rec;
-	const upd_t*	update;
+	upd_t*		update;
 	dberr_t		err;
+	btr_cur_t*	cursor	= btr_pcur_get_btr_cur(pcur);
 
 	ut_ad(dict_index_is_clust(cursor->index));
-
-	*big_rec = NULL;
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -382,10 +385,24 @@ row_ins_clust_index_entry_by_modify(
 			return(DB_LOCK_TABLE_FULL);
 
 		}
+
+		big_rec_t*	big_rec	= NULL;
+
 		err = btr_cur_pessimistic_update(
 			flags | BTR_KEEP_POS_FLAG,
 			cursor, offsets, offsets_heap, heap,
-			big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
+			&big_rec, update, 0, thr, thr_get_trx(thr)->id, mtr);
+
+		if (big_rec) {
+			ut_a(err == DB_SUCCESS);
+
+			DEBUG_SYNC_C("before_row_ins_upd_extern");
+			err = btr_store_big_rec_extern_fields(
+				pcur, update, *offsets, big_rec, mtr,
+				BTR_STORE_INSERT_UPDATE);
+			DEBUG_SYNC_C("after_row_ins_upd_extern");
+			dtuple_big_rec_free(big_rec);
+		}
 	}
 
 	return(err);
@@ -1179,9 +1196,9 @@ row_ins_foreign_check_on_constraint(
 			dfield_set_null(&ufield->new_val);
 
 			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i))
-				!= ULINT_UNDEFINED) {
+				    table->fts->indexes,
+				    dict_index_get_nth_col_no(index, i))
+			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
 		}
@@ -1193,9 +1210,9 @@ row_ins_foreign_check_on_constraint(
 		/* DICT_FOREIGN_ON_DELETE_CASCADE case */
 		for (i = 0; i < foreign->n_fields; i++) {
 			if (table->fts && dict_table_is_fts_column(
-				table->fts->indexes,
-				dict_index_get_nth_col_no(index, i))
-				!= ULINT_UNDEFINED) {
+				    table->fts->indexes,
+				    dict_index_get_nth_col_no(index, i))
+			    != ULINT_UNDEFINED) {
 				fts_col_affacted = TRUE;
 			}
 		}
@@ -2321,7 +2338,8 @@ row_ins_clust_index_entry_low(
 	ulint		n_ext,	/*!< in: number of externally stored columns */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	btr_cur_t	cursor;
+	btr_pcur_t	pcur;
+	btr_cur_t*	cursor;
 	ulint*		offsets		= NULL;
 	dberr_t		err;
 	big_rec_t*	big_rec		= NULL;
@@ -2337,14 +2355,15 @@ row_ins_clust_index_entry_low(
 	ut_ad(!thr_get_trx(thr)->in_rollback);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 
 	if (mode == BTR_MODIFY_LEAF && dict_index_is_online_ddl(index)) {
@@ -2352,18 +2371,17 @@ row_ins_clust_index_entry_low(
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
 	}
 
-	cursor.thr = thr;
-
 	/* Note that we use PAGE_CUR_LE as the search mode, because then
 	the function will return in both low_match and up_match of the
 	cursor sensible values */
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE, mode,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
+	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, &pcur, &mtr);
+	cursor = btr_pcur_get_btr_cur(&pcur);
+	cursor->thr = thr;
 
 #ifdef UNIV_DEBUG
 	{
-		page_t*	page = btr_cur_get_page(&cursor);
+		page_t*	page = btr_cur_get_page(cursor);
 		rec_t*	first_rec = page_rec_get_next(
 			page_get_infimum_rec(page));
 
@@ -2373,8 +2391,8 @@ row_ins_clust_index_entry_low(
 	}
 #endif
 
-	if (n_uniq && (cursor.up_match >= n_uniq
-		       || cursor.low_match >= n_uniq)) {
+	if (n_uniq && (cursor->up_match >= n_uniq
+		       || cursor->low_match >= n_uniq)) {
 
 		if (flags
 		    == (BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
@@ -2382,7 +2400,7 @@ row_ins_clust_index_entry_low(
 			/* Set no locks when applying log
 			in online table rebuild. Only check for duplicates. */
 			err = row_ins_duplicate_error_in_clust_online(
-				n_uniq, entry, &cursor,
+				n_uniq, entry, cursor,
 				&offsets, &offsets_heap);
 
 			switch (err) {
@@ -2393,14 +2411,14 @@ row_ins_clust_index_entry_low(
 				/* fall through */
 			case DB_SUCCESS_LOCKED_REC:
 			case DB_DUPLICATE_KEY:
-				thr_get_trx(thr)->error_info = cursor.index;
+				thr_get_trx(thr)->error_info = cursor->index;
 			}
 		} else {
 			/* Note that the following may return also
 			DB_LOCK_WAIT */
 
 			err = row_ins_duplicate_error_in_clust(
-				flags, &cursor, entry, thr, &mtr);
+				flags, cursor, entry, thr, &mtr);
 		}
 
 		if (err != DB_SUCCESS) {
@@ -2410,77 +2428,19 @@ err_exit:
 		}
 	}
 
-	if (row_ins_must_modify_rec(&cursor)) {
+	if (row_ins_must_modify_rec(cursor)) {
 		/* There is already an index entry with a long enough common
 		prefix, we must convert the insert into a modify of an
 		existing record */
 		mem_heap_t*	entry_heap	= mem_heap_create(1024);
 
 		err = row_ins_clust_index_entry_by_modify(
-			flags, mode, &cursor, &offsets, &offsets_heap,
-			entry_heap, &big_rec, entry, thr, &mtr);
-
-		rec_t*		rec		= btr_cur_get_rec(&cursor);
-
-		if (big_rec) {
-			ut_a(err == DB_SUCCESS);
-			/* Write out the externally stored
-			columns while still x-latching
-			index->lock and block->lock. Allocate
-			pages for big_rec in the mtr that
-			modified the B-tree, but be sure to skip
-			any pages that were freed in mtr. We will
-			write out the big_rec pages before
-			committing the B-tree mini-transaction. If
-			the system crashes so that crash recovery
-			will not replay the mtr_commit(&mtr), the
-			big_rec pages will be left orphaned until
-			the pages are allocated for something else.
-
-			TODO: If the allocation extends the
-			tablespace, it will not be redo
-			logged, in either mini-transaction.
-			Tablespace extension should be
-			redo-logged in the big_rec
-			mini-transaction, so that recovery
-			will not fail when the big_rec was
-			written to the extended portion of the
-			file, in case the file was somehow
-			truncated in the crash. */
-
-			DEBUG_SYNC_C_IF_THD(
-				thr_get_trx(thr)->mysql_thd,
-				"before_row_ins_upd_extern");
-			err = btr_store_big_rec_extern_fields(
-				index, btr_cur_get_block(&cursor),
-				rec, offsets, big_rec, &mtr,
-				BTR_STORE_INSERT_UPDATE);
-			DEBUG_SYNC_C_IF_THD(
-				thr_get_trx(thr)->mysql_thd,
-				"after_row_ins_upd_extern");
-			/* If writing big_rec fails (for
-			example, because of DB_OUT_OF_FILE_SPACE),
-			the record will be corrupted. Even if
-			we did not update any externally
-			stored columns, our update could cause
-			the record to grow so that a
-			non-updated column was selected for
-			external storage. This non-update
-			would not have been written to the
-			undo log, and thus the record cannot
-			be rolled back.
-
-			However, because we have not executed
-			mtr_commit(mtr) yet, the update will
-			not be replayed in crash recovery, and
-			the following assertion failure will
-			effectively "roll back" the operation. */
-			ut_a(err == DB_SUCCESS);
-			dtuple_big_rec_free(big_rec);
-		}
+			&pcur, flags, mode, &offsets, &offsets_heap,
+			entry_heap, entry, thr, &mtr);
 
 		if (err == DB_SUCCESS && dict_index_is_online_ddl(index)) {
-			row_log_table_insert(rec, index, offsets);
+			row_log_table_insert(btr_cur_get_rec(cursor),
+					     index, offsets);
 		}
 
 		mtr_commit(&mtr);
@@ -2492,7 +2452,7 @@ err_exit:
 			ut_ad((mode & ~BTR_ALREADY_S_LATCHED)
 			      == BTR_MODIFY_LEAF);
 			err = btr_cur_optimistic_insert(
-				flags, &cursor, &offsets, &offsets_heap,
+				flags, cursor, &offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 		} else {
@@ -2505,14 +2465,14 @@ err_exit:
 			DEBUG_SYNC_C("before_insert_pessimitic_row_ins_clust");
 
 			err = btr_cur_optimistic_insert(
-				flags, &cursor,
+				flags, cursor,
 				&offsets, &offsets_heap,
 				entry, &insert_rec, &big_rec,
 				n_ext, thr, &mtr);
 
 			if (err == DB_FAIL) {
 				err = btr_cur_pessimistic_insert(
-					flags, &cursor,
+					flags, cursor,
 					&offsets, &offsets_heap,
 					entry, &insert_rec, &big_rec,
 					n_ext, thr, &mtr);
@@ -2552,26 +2512,33 @@ func_exit:
 		mem_heap_free(offsets_heap);
 	}
 
+	btr_pcur_close(&pcur);
+
 	DBUG_RETURN(err);
 }
 
-/***************************************************************//**
-Starts a mini-transaction and checks if the index will be dropped.
+/** Start a mini-transaction and check if the index will be dropped.
+@param[in,out]	mtr		mini-transaction
+@param[in,out]	index		secondary index
+@param[in]	check		whether to check
+@param[in]	search_mode	flags
 @return true if the index is to be dropped */
-static __attribute__((nonnull, warn_unused_result))
+static __attribute__((warn_unused_result))
 bool
 row_ins_sec_mtr_start_and_check_if_aborted(
-/*=======================================*/
-	mtr_t*		mtr,	/*!< out: mini-transaction */
-	dict_index_t*	index,	/*!< in/out: secondary index */
-	bool		check,	/*!< in: whether to check */
+	mtr_t*		mtr,
+	dict_index_t*	index,
+	bool		check,
 	ulint		search_mode)
-				/*!< in: flags */
 {
 	ut_ad(!dict_index_is_clust(index));
+	ut_ad(mtr->is_named_space(index->space));
+
+	const mtr_log_t	log_mode = mtr->get_log_mode();
 
 	mtr_start(mtr);
-	dict_disable_redo_if_temporary(index->table, mtr);
+	mtr->set_named_space(index->space);
+	mtr->set_log_mode(log_mode);
 
 	if (!check) {
 		return(false);
@@ -2631,26 +2598,27 @@ row_ins_sec_index_entry_low(
 	ulint		n_unique;
 	mtr_t		mtr;
 	ulint*		offsets	= NULL;
+	rtr_info_t	rtr_info;
 
 	ut_ad(!dict_index_is_clust(index));
 	ut_ad(mode == BTR_MODIFY_LEAF || mode == BTR_MODIFY_TREE);
 
 	cursor.thr = thr;
-	ut_ad(thr_get_trx(thr)->id);
+	cursor.rtr_info = NULL;
+	ut_ad(thr_get_trx(thr)->id != 0);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* Disable REDO logging as lifetime of temp-tables is limited to
 	server or connection lifetime and so REDO information is not needed
 	on restart for recovery.
 	Disable locking as temp-tables are not shared across connection. */
-	dict_disable_redo_if_temporary(index->table, &mtr);
 	if (dict_table_is_temporary(index->table)) {
 		flags |= BTR_NO_LOCKING_FLAG;
-	}
-
-	/* Disable insert buffering for temp-table indexes */
-	if (!dict_table_is_temporary(index->table)) {
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
+	} else if (!dict_index_is_spatial(index)) {
+		/* Enable insert buffering if not temp-table */
 		search_mode |= BTR_INSERT;
 	}
 
@@ -2684,11 +2652,41 @@ row_ins_sec_index_entry_low(
 		search_mode |= BTR_IGNORE_SEC_UNIQUE;
 	}
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    search_mode,
-				    &cursor, 0, __FILE__, __LINE__, &mtr);
+	if (dict_index_is_spatial(index)) {
+		cursor.index = index;
+		rtr_init_rtr_info(&rtr_info, false, &cursor, index, false);
+		rtr_info_update_btr(&cursor, &rtr_info);
+
+		btr_cur_search_to_nth_level(
+			index, 0, entry, PAGE_CUR_RTREE_INSERT,
+			search_mode,
+			&cursor, 0, __FILE__, __LINE__, &mtr);
+
+		if (mode == BTR_MODIFY_LEAF && rtr_info.mbr_adj) {
+			mtr_commit(&mtr);
+			rtr_clean_rtr_info(&rtr_info, true);
+			rtr_init_rtr_info(&rtr_info, false, &cursor,
+					  index, false);
+			rtr_info_update_btr(&cursor, &rtr_info);
+			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
+			search_mode &= ~BTR_MODIFY_LEAF;
+			search_mode |= BTR_MODIFY_TREE;
+			btr_cur_search_to_nth_level(
+				index, 0, entry, PAGE_CUR_RTREE_INSERT,
+				search_mode,
+				&cursor, 0, __FILE__, __LINE__, &mtr);
+			mode = BTR_MODIFY_TREE;
+		}
+	} else {
+		btr_cur_search_to_nth_level(
+			index, 0, entry, PAGE_CUR_LE,
+			search_mode,
+			&cursor, 0, __FILE__, __LINE__, &mtr);
+	}
 
 	if (cursor.flag == BTR_CUR_INSERT_TO_IBUF) {
+		ut_ad(!dict_index_is_spatial(index));
 		/* The insert was buffered during the search: we are done */
 		goto func_exit;
 	}
@@ -2745,6 +2743,9 @@ row_ins_sec_index_entry_low(
 			}
 			/* fall through */
 		default:
+			if (dict_index_is_spatial(index)) {
+				rtr_clean_rtr_info(&rtr_info, true);
+			}
 			DBUG_RETURN(err);
 		}
 
@@ -2813,6 +2814,11 @@ row_ins_sec_index_entry_low(
 		err = row_ins_sec_index_entry_by_modify(
 			flags, mode, &cursor, &offsets,
 			offsets_heap, heap, entry, thr, &mtr);
+
+		if (err == DB_SUCCESS && dict_index_is_spatial(index)
+		    && rtr_info.mbr_adj) {
+			err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+		}
 	} else {
 		rec_t*		insert_rec;
 		big_rec_t*	big_rec;
@@ -2822,6 +2828,11 @@ row_ins_sec_index_entry_low(
 				flags, &cursor, &offsets, &offsets_heap,
 				entry, &insert_rec,
 				&big_rec, 0, thr, &mtr);
+			if (err == DB_SUCCESS
+			    && dict_index_is_spatial(index)
+			    && rtr_info.mbr_adj) {
+				err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+			}
 		} else {
 			ut_ad(mode == BTR_MODIFY_TREE);
 			if (buf_LRU_buf_pool_running_out()) {
@@ -2842,6 +2853,11 @@ row_ins_sec_index_entry_low(
 					entry, &insert_rec,
 					&big_rec, 0, thr, &mtr);
 			}
+			if (err == DB_SUCCESS
+				   && dict_index_is_spatial(index)
+				   && rtr_info.mbr_adj) {
+				err = rtr_ins_enlarge_mbr(&cursor, thr, &mtr);
+			}
 		}
 
 		if (err == DB_SUCCESS && trx_id) {
@@ -2855,6 +2871,10 @@ row_ins_sec_index_entry_low(
 	}
 
 func_exit:
+	if (dict_index_is_spatial(index)) {
+		rtr_clean_rtr_info(&rtr_info, true);
+	}
+
 	mtr_commit(&mtr);
 	DBUG_RETURN(err);
 }
@@ -2879,7 +2899,7 @@ row_ins_index_entry_big_rec_func(
 	ulint			line)	/*!< in: line number of caller */
 {
 	mtr_t		mtr;
-	btr_cur_t	cursor;
+	btr_pcur_t	pcur;
 	rec_t*		rec;
 	dberr_t		error;
 
@@ -2888,19 +2908,18 @@ row_ins_index_entry_big_rec_func(
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern_latch");
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
-	btr_cur_search_to_nth_level(index, 0, entry, PAGE_CUR_LE,
-				    BTR_MODIFY_TREE, &cursor, 0,
-				    file, line, &mtr);
-	rec = btr_cur_get_rec(&cursor);
+	btr_pcur_open(index, entry, PAGE_CUR_LE, BTR_MODIFY_TREE,
+		      &pcur, &mtr);
+	rec = btr_pcur_get_rec(&pcur);
 	offsets = rec_get_offsets(rec, index, offsets,
 				  ULINT_UNDEFINED, heap);
 
 	DEBUG_SYNC_C_IF_THD(thd, "before_row_ins_extern");
 	error = btr_store_big_rec_extern_fields(
-		index, btr_cur_get_block(&cursor),
-		rec, offsets, big_rec, &mtr, BTR_STORE_INSERT);
+		&pcur, 0, offsets, big_rec, &mtr, BTR_STORE_INSERT);
 	DEBUG_SYNC_C_IF_THD(thd, "after_row_ins_extern");
 
 	if (error == DB_SUCCESS
@@ -2909,6 +2928,8 @@ row_ins_index_entry_big_rec_func(
 	}
 
 	mtr_commit(&mtr);
+
+	btr_pcur_close(&pcur);
 
 	return(error);
 }
@@ -2985,6 +3006,10 @@ row_ins_sec_index_entry(
 	mem_heap_t*	offsets_heap;
 	mem_heap_t*	heap;
 
+	DBUG_EXECUTE_IF("row_ins_sec_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_sec_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
+
 	if (UT_LIST_GET_FIRST(index->table->foreign_list)) {
 		err = row_ins_check_foreign_constraints(index->table, index,
 							entry, thr);
@@ -2994,7 +3019,7 @@ row_ins_sec_index_entry(
 		}
 	}
 
-	ut_ad(thr_get_trx(thr)->id);
+	ut_ad(thr_get_trx(thr)->id != 0);
 
 	offsets_heap = mem_heap_create(1024);
 	heap = mem_heap_create(1024);
@@ -3036,7 +3061,11 @@ row_ins_index_entry(
 	dtuple_t*	entry,	/*!< in/out: index entry to insert */
 	que_thr_t*	thr)	/*!< in: query thread */
 {
-	ut_ad(thr_get_trx(thr)->id > 0);
+	ut_ad(thr_get_trx(thr)->id != 0);
+
+	DBUG_EXECUTE_IF("row_ins_index_entry_timeout", {
+			DBUG_SET("-d,row_ins_index_entry_timeout");
+			return(DB_LOCK_WAIT);});
 
 	if (dict_index_is_clust(index)) {
 		return(row_ins_clust_index_entry(index, entry, thr, 0));
@@ -3045,11 +3074,41 @@ row_ins_index_entry(
 	}
 }
 
+
+/*****************************************************************//**
+This function generate MBR (Minimum Bounding Box) for spatial objects
+and set it to spatial index field. */
+static
+void
+row_ins_spatial_index_entry_set_mbr_field(
+/*======================================*/
+	dfield_t*	field,		/*!< in/out: mbr field */
+	const dfield_t*	row_field)	/*!< in: row field */
+{
+	uchar*		dptr = NULL;
+	ulint		dlen = 0;
+	double		mbr[SPDIMS * 2];
+
+	/* This must be a GEOMETRY datatype */
+	ut_ad(DATA_GEOMETRY_MTYPE(field->type.mtype));
+
+	dptr = static_cast<uchar*>(dfield_get_data(row_field));
+	dlen = dfield_get_len(row_field);
+
+	/* obtain the MBR */
+	rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+			   dlen - GEO_DATA_HEADER_SIZE, SPDIMS, mbr);
+
+	/* Set mbr as index entry data */
+	dfield_write_mbr(field, mbr);
+}
+
 /***********************************************************//**
 Sets the values of the dtuple fields in entry from the values of appropriate
-columns in row. */
+columns in row.
+@return DB_SUCCESS if the set is successful */
 static __attribute__((nonnull))
-void
+dberr_t
 row_ins_index_entry_set_vals(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -3089,12 +3148,25 @@ row_ins_index_entry_set_vals(
 			ut_ad(!dfield_is_ext(row_field));
 		}
 
+		/* Handle spatial index. For the first field, replace
+		the data with its MBR (Minimum Bounding Box). */
+		if ((i == 0) && dict_index_is_spatial(index)) {
+			if (!row_field->data) {
+				return(DB_CANT_CREATE_GEOMETRY_OBJECT);
+			}
+			row_ins_spatial_index_entry_set_mbr_field(
+				field, row_field);
+			continue;
+		}
+
 		dfield_set_data(field, dfield_get_data(row_field), len);
 		if (dfield_is_ext(row_field)) {
 			ut_ad(dict_index_is_clust(index));
 			dfield_set_ext(field);
 		}
 	}
+
+	return(DB_SUCCESS);
 }
 
 /***********************************************************//**
@@ -3114,7 +3186,11 @@ row_ins_index_entry_step(
 
 	ut_ad(dtuple_check_typed(node->row));
 
-	row_ins_index_entry_set_vals(node->index, node->entry, node->row);
+	err = row_ins_index_entry_set_vals(node->index, node->entry, node->row);
+
+	if (err != DB_SUCCESS) {
+		DBUG_RETURN(err);
+	}
 
 	ut_ad(dtuple_check_typed(node->entry));
 
@@ -3228,11 +3304,14 @@ row_ins(
 	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
-	dict_index_t *index_dup = 0;
 
 	DBUG_ENTER("row_ins");
 
 	DBUG_PRINT("row_ins", ("table: %s", node->table->name));
+
+	if (node->duplicate) {
+		thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
+	}
 
 	if (node->state == INS_NODE_ALLOC_ROW_ID) {
 
@@ -3278,10 +3357,10 @@ row_ins(
 					secondary indexes to block concurrent
 					transactions from inserting the
 					searched records. */
-					if (!index_dup) {
+					if (!node->duplicate) {
 						/* Save 1st dup error. Ignore
 						subsequent dup errors. */
-						index_dup = node->index;
+						node->duplicate = node->index;
 						thr_get_trx(thr)->error_state
 							= DB_DUPLICATE_KEY;
 					}
@@ -3311,7 +3390,7 @@ row_ins(
 		remaining indexes just to place gap locks and no actual
 		insertion will take place.  These gap locks are needed
 		only for unique indexes.  So skipping non-unique indexes. */
-		if (index_dup) {
+		if (node->duplicate) {
 			while (node->index
 			       && !dict_index_is_unique(node->index)) {
 
@@ -3325,10 +3404,10 @@ row_ins(
 
 	ut_ad(node->entry == NULL);
 
-	thr_get_trx(thr)->error_info = index_dup;
+	thr_get_trx(thr)->error_info = node->duplicate;
 	node->state = INS_NODE_ALLOC_ROW_ID;
 
-	DBUG_RETURN(index_dup ? DB_DUPLICATE_KEY : DB_SUCCESS);
+	DBUG_RETURN(node->duplicate ? DB_DUPLICATE_KEY : DB_SUCCESS);
 }
 
 /***********************************************************//**

@@ -488,7 +488,7 @@ bool Sql_cmd_alter_table_exchange_partition::
   TABLE_LIST *swap_table_list;
   handlerton *table_hton;
   partition_element *part_elem;
-  char *partition_name;
+  String *partition_name;
   char temp_name[FN_REFLEN+1];
   char part_file_name[FN_REFLEN+1];
   char swap_file_name[FN_REFLEN+1];
@@ -541,7 +541,8 @@ bool Sql_cmd_alter_table_exchange_partition::
   /* set lock pruning on first table */
   partition_name= alter_info->partition_names.head();
   if (table_list->table->part_info->
-        set_named_partition_bitmap(partition_name, strlen(partition_name)))
+        set_named_partition_bitmap(partition_name->c_ptr(),
+                                   partition_name->length()))
     DBUG_RETURN(true);
 
   if (lock_tables(thd, table_list, table_counter, 0))
@@ -572,12 +573,13 @@ bool Sql_cmd_alter_table_exchange_partition::
                        table_list->next_local->db,
                        temp_name, "", FN_IS_TMP);
 
-  if (!(part_elem= part_table->part_info->get_part_elem(partition_name,
-                                                        part_file_name +
-                                                          part_file_name_len,
-                                                        &swap_part_id)))
+  if (!(part_elem= part_table->part_info->
+                     get_part_elem(partition_name->c_ptr(),
+                                   part_file_name +
+                                     part_file_name_len,
+                                   &swap_part_id)))
   {
-    my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name,
+    my_error(ER_UNKNOWN_PARTITION, MYF(0), partition_name->c_ptr(),
              part_table->alias);
     DBUG_RETURN(TRUE);
   }
@@ -740,7 +742,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
   ulong timeout= thd->variables.lock_wait_timeout;
   TABLE_LIST *first_table= thd->lex->select_lex->table_list.first;
   Alter_info *alter_info= &thd->lex->alter_info;
-  uint table_counter, i;
+  uint table_counter;
   List<String> partition_names_list;
   bool binlog_stmt;
   DBUG_ENTER("Sql_cmd_alter_table_truncate_partition::execute");
@@ -786,18 +788,7 @@ bool Sql_cmd_alter_table_truncate_partition::execute(THD *thd)
     Prune all, but named partitions,
     to avoid excessive calls to external_lock().
   */
-  List_iterator<char> partition_names_it(alter_info->partition_names);
-  uint num_names= alter_info->partition_names.elements;
-  for (i= 0; i < num_names; i++)
-  {
-    char *partition_name= partition_names_it++;
-    String *str_partition_name= new (thd->mem_root)
-                                  String(partition_name, system_charset_info);
-    if (!str_partition_name)
-      DBUG_RETURN(true);
-    partition_names_list.push_back(str_partition_name);
-  }
-  first_table->partition_names= &partition_names_list;
+  first_table->partition_names= &alter_info->partition_names;
   if (first_table->table->part_info->set_partition_bitmaps(first_table))
     DBUG_RETURN(true);
 

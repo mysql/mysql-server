@@ -35,29 +35,32 @@ Created 6/2/1994 Heikki Tuuri
 					in btr_page_set_level and
 					btr_page_get_level_low */
 
-/**************************************************************//**
-Gets a buffer page and declares its latching order level. */
+/** Gets a buffer page and declares its latching order level.
+@param[in]	page_id	page id
+@param[in]	mode	latch mode
+@param[in]	file	file name
+@param[in]	line	line where called
+@param[in]	index	index tree, may be NULL if it is not an insert buffer
+tree
+@param[in,out]	mtr	mini-transaction
+@return block */
 UNIV_INLINE
 buf_block_t*
 btr_block_get_func(
-/*===============*/
-	ulint		space,		/*!< in: space id */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
-	ulint		page_no,	/*!< in: page number */
-	ulint		mode,		/*!< in: latch mode */
-	const char*	file,		/*!< in: file name */
-	ulint		line,		/*!< in: line where called */
-#ifdef UNIV_SYNC_DEBUG
-	const dict_index_t*	index,	/*!< in: index tree, may be NULL
-					if it is not an insert buffer tree */
-#endif /* UNIV_SYNC_DEBUG */
-	mtr_t*		mtr)		/*!< in/out: mtr */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			mode,
+	const char*		file,
+	ulint			line,
+# ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,
+# endif /* UNIV_SYNC_DEBUG */
+	mtr_t*		mtr)
 {
 	buf_block_t*	block;
 
-	block = buf_page_get_gen(space, zip_size, page_no, mode,
-				 NULL, BUF_GET, file, line, mtr);
+	block = buf_page_get_gen(
+		page_id, page_size, mode, NULL, BUF_GET, file, line, mtr);
 
 	if (mode != RW_NO_LATCH) {
 
@@ -263,7 +266,7 @@ btr_node_ptr_get_child_page_no(
 			"InnoDB: a nonsensical page number 0"
 			" in a node ptr record at offset %lu\n",
 			(ulong) page_offset(rec));
-		buf_page_print(page_align(rec), 0, 0);
+		buf_page_print(page_align(rec), univ_page_size, 0);
 		ut_ad(0);
 	}
 

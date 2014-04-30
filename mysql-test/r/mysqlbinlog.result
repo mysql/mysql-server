@@ -653,6 +653,7 @@ DROP TABLE t1;
 1
 DROP TABLE t1;
 shell> mysqlbinlog std_data/corrupt-relay-bin.000624 > var/tmp/bug31793.sql
+set timestamp= default;
 FLUSH LOGS;
 Bug#31611 Security risk with BINLOG statement
 SET BINLOG_FORMAT=ROW;

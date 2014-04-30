@@ -122,6 +122,7 @@ Abernathy
 aberrant
 aberration
 
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1 ORDER BY blob_column;
 a	blob_column
 1	abase
@@ -228,4 +229,5 @@ aberration
 
 DROP PROCEDURE IF EXISTS test.p1;
 DROP TABLE test.t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

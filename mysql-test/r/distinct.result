@@ -173,11 +173,11 @@ INSERT INTO t2 values (1),(2),(3);
 INSERT INTO t3 VALUES (1,'1'),(2,'2'),(1,'1'),(2,'2');
 explain SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	4	100.00	Using where; Using temporary
+1	SIMPLE	t2	NULL	index	a	a	4	NULL	5	100.00	Using index; Using temporary
+1	SIMPLE	t1	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t2.a	1	100.00	Using where
 1	SIMPLE	t3	NULL	ref	a	a	5	test.t1.b	2	100.00	Using index
-1	SIMPLE	t2	NULL	index	a	a	4	NULL	5	80.00	Using where; Using index; Distinct; Using join buffer (Block Nested Loop)
 Warnings:
-Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
+Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a` from `test`.`t3` join `test`.`t2` join `test`.`t1` where ((`test`.`t1`.`a` = `test`.`t2`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`b`))
 SELECT distinct t3.a FROM t3,t2,t1 WHERE t3.a=t1.b AND t1.a=t2.a;
 a
 1
@@ -713,7 +713,7 @@ INSERT INTO t1 SELECT a + 4, a + 104 FROM t1;
 INSERT INTO t1 SELECT a + 8, a + 108 FROM t1;
 EXPLAIN SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	16	100.00	Using where; Using index
+1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	8	NULL	16	33.33	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a`,`test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` < 12) order by `test`.`t1`.`a`
 SELECT DISTINCT a,a FROM t1 WHERE b < 12 ORDER BY a;
@@ -798,7 +798,7 @@ INSERT INTO t1 VALUES ('1972-07-29'), ('1972-02-06');
 EXPLAIN SELECT (SELECT DISTINCT a FROM t1 WHERE a = '2002-08-03');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
-2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	SUBQUERY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select distinct `test`.`t1`.`a` from `test`.`t1` where (`test`.`t1`.`a` = '2002-08-03')) AS `(SELECT DISTINCT a FROM t1 WHERE a = '2002-08-03')`
 EXPLAIN SELECT (SELECT DISTINCT ADDDATE(a,1) FROM t1

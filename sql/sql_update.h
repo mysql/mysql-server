@@ -25,19 +25,16 @@ class THD;
 typedef class st_select_lex SELECT_LEX;
 typedef class st_select_lex_unit SELECT_LEX_UNIT;
 
-bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
-                          const TABLE_LIST *update_table_ref,
-                          Item **conds, uint order_num, ORDER *order);
-bool mysql_update(THD *thd,TABLE_LIST *tables,List<Item> &fields,
-                  List<Item> &values,Item *conds,
-                  uint order_num, ORDER *order, ha_rows limit,
+bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref);
+bool mysql_update(THD *thd, List<Item> &fields,
+                  List<Item> &values, ha_rows limit,
                   enum enum_duplicates handle_duplicates, bool ignore,
                   ha_rows *found_return, ha_rows *updated_return);
-bool mysql_multi_update(THD *thd, TABLE_LIST *table_list,
+bool mysql_multi_update(THD *thd,
                         List<Item> *fields, List<Item> *values,
-                        Item *conds, ulonglong options,
+                        ulonglong options,
                         enum enum_duplicates handle_duplicates, bool ignore,
-                        SELECT_LEX_UNIT *unit, SELECT_LEX *select_lex,
+                        SELECT_LEX *select_lex,
                         multi_update **result);
 bool records_are_comparable(const TABLE *table);
 bool compare_records(const TABLE *table);

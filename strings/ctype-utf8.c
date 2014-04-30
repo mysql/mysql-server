@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This library is free software; you can redistribute it and/or
    modify it under the terms of the GNU Library General Public
@@ -5117,14 +5117,13 @@ my_strnxfrm_unicode(const CHARSET_INFO *cs,
                     uchar *dst, size_t dstlen, uint nweights,
                     const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc;
+  my_wc_t wc= 0;
   int res;
   uchar *dst0= dst;
   uchar *de= dst + dstlen;
   const uchar *se= src + srclen;
   const MY_UNICASE_INFO *uni_plane= (cs->state & MY_CS_BINSORT) ?
                                      NULL : cs->caseinfo;
-  LINT_INIT(wc);
   DBUG_ASSERT(src);
 
   for (; dst < de && nweights; nweights--)
@@ -5161,12 +5160,11 @@ my_strnxfrm_unicode_full_bin(const CHARSET_INFO *cs,
                              uchar *dst, size_t dstlen, uint nweights,
                              const uchar *src, size_t srclen, uint flags)
 {
-  my_wc_t wc;
+  my_wc_t wc= 0;
   uchar *dst0= dst;
   uchar *de= dst + dstlen;
   const uchar *se = src + srclen;
 
-  LINT_INIT(wc);
   DBUG_ASSERT(src);
   DBUG_ASSERT(cs->state & MY_CS_BINSORT);
 
@@ -5475,15 +5473,6 @@ my_toupper_utf8mb3(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
 }
 
 
-static inline void
-my_tosort_utf8mb3(const MY_UNICASE_INFO *uni_plane, my_wc_t *wc)
-{
-  const MY_UNICASE_CHARACTER *page;
-  if ((page= uni_plane->page[(*wc >> 8) & 0xFF]))
-    *wc= page[*wc & 0xFF].sort;
-}
-
-
 static size_t
 my_caseup_utf8(const CHARSET_INFO *cs, char *src, size_t srclen,
                char *dst, size_t dstlen)
@@ -5630,7 +5619,7 @@ static int my_strnncoll_utf8(const CHARSET_INFO *cs,
                              my_bool t_is_prefix)
 {
   int s_res,t_res;
-  my_wc_t UNINIT_VAR(s_wc), t_wc;
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se=s+slen;
   const uchar *te=t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
@@ -5698,7 +5687,7 @@ static int my_strnncollsp_utf8(const CHARSET_INFO *cs,
                                my_bool diff_if_only_endspace_difference)
 {
   int s_res, t_res, res;
-  my_wc_t UNINIT_VAR(s_wc),t_wc;
+  my_wc_t s_wc= 0, t_wc= 0;
   const uchar *se= s+slen, *te= t+tlen;
   const MY_UNICASE_INFO *uni_plane= cs->caseinfo;
 
@@ -6072,6 +6061,7 @@ CHARSET_INFO my_charset_utf8_general_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6106,6 +6096,7 @@ CHARSET_INFO my_charset_utf8_tolower_ci=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6140,6 +6131,7 @@ CHARSET_INFO my_charset_utf8_general_mysql500_ci=
   1,                                            /* casedn_multiply  */
   1,                                            /* mbminlen         */
   3,                                            /* mbmaxlen         */
+  1,                                            /* mbmaxlenlen      */
   0,                                            /* min_sort_char    */
   0xFFFF,                                       /* max_sort_char    */
   ' ',                                          /* pad char         */
@@ -6175,6 +6167,7 @@ CHARSET_INFO my_charset_utf8_bin=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     3,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -6357,6 +6350,7 @@ CHARSET_INFO my_charset_utf8_general_cs=
     1,                  /* casedn_multiply  */
     1,			/* mbminlen     */
     3,			/* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -7660,6 +7654,7 @@ CHARSET_INFO my_charset_filename=
     1,                  /* casedn_multiply  */
     1,                  /* mbminlen     */
     5,                  /* mbmaxlen     */
+    1,                  /* mbmaxlenlen  */
     0,                  /* min_sort_char */
     0xFFFF,             /* max_sort_char */
     ' ',                /* pad char      */
@@ -8060,14 +8055,6 @@ my_caseup_utf8mb4(const CHARSET_INFO *cs, char *src, size_t srclen,
     dst+= dstres;
   }
   return (size_t) (dst - dst0);
-}
-
-
-static inline void
-my_hash_add(ulong *n1, ulong *n2, uint ch)
-{
-  n1[0]^= (((n1[0] & 63) + n2[0]) * (ch)) + (n1[0] << 8);
-  n2[0]+= 3;
 }
 
 
@@ -8635,6 +8622,7 @@ CHARSET_INFO my_charset_utf8mb4_general_ci=
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen     */
   4,                  /* mbmaxlen     */
+  1,                  /* mbmaxlenlen  */
   0,                  /* min_sort_char */
   0xFFFF,             /* max_sort_char */
   ' ',                /* pad char      */
@@ -8670,6 +8658,7 @@ CHARSET_INFO my_charset_utf8mb4_bin=
   1,                  /* casedn_multiply  */
   1,                  /* mbminlen     */
   4,                  /* mbmaxlen     */
+  1,                  /* mbmaxlenlen  */
   0,                  /* min_sort_char */
   0xFFFF,             /* max_sort_char */
   ' ',                /* pad char      */

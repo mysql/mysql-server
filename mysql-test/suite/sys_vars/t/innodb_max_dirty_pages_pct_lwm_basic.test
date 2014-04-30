@@ -95,8 +95,15 @@ SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 
 SET @@global.innodb_max_dirty_pages_pct_lwm = @pct_start_value + 1;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
---Error ER_WRONG_TYPE_FOR_VAR
+
+
+SET @@global.innodb_max_dirty_pages_pct_lwm = 0.0;
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+
 SET @@global.innodb_max_dirty_pages_pct_lwm = 1.1;
+SELECT @@global.innodb_max_dirty_pages_pct_lwm;
+
+SET @@global.innodb_max_dirty_pages_pct_lwm = 51.12;
 SELECT @@global.innodb_max_dirty_pages_pct_lwm;
 
 SET @@global.innodb_max_dirty_pages_pct_lwm = 100;

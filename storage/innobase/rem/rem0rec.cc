@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "mtr0mtr.h"
 #include "mtr0log.h"
 #include "fts0fts.h"
+#include "trx0sys.h"
 
 /*			PHYSICAL RECORD (OLD STYLE)
 			===========================
@@ -824,8 +825,21 @@ rec_get_converted_size_comp_prefix_low(
 		len = dfield_get_len(&fields[i]);
 		col = dict_field_get_col(field);
 
-		ut_ad(dict_col_type_assert_equal(col,
-						 dfield_get_type(&fields[i])));
+#ifdef UNIV_DEBUG
+		if (dict_index_is_spatial(index)
+		    && DATA_GEOMETRY_MTYPE(col->mtype)) {
+			if (i == 0) {
+				dtype_t*	type;
+
+				type = dfield_get_type(&fields[i]);
+				ut_ad(type->prtype & DATA_GIS_MBR);
+			}
+		} else {
+			ut_ad(dict_col_type_assert_equal(col,
+				dfield_get_type(&fields[i])));
+		}
+#endif
+
 		/* All NULLable fields must be included in the n_null count. */
 		ut_ad((col->prtype & DATA_NOT_NULL) || n_null--);
 
@@ -1850,6 +1864,153 @@ rec_print_comp(
 	}
 }
 
+/***************************************************************//**
+Prints an old-style spatial index record. */
+
+void
+rec_print_mbr_old(
+/*==============*/
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec)	/*!< in: physical record */
+{
+	const byte*	data;
+	ulint		len;
+	ulint		n;
+	ulint		i;
+
+	ut_ad(rec);
+
+	n = rec_get_n_fields_old(rec);
+
+	fprintf(file, "PHYSICAL RECORD: n_fields %lu;"
+		" %u-byte offsets; info bits %lu\n",
+		(ulong) n,
+		rec_get_1byte_offs_flag(rec) ? 1 : 2,
+		(ulong) rec_get_info_bits(rec, FALSE));
+
+	for (i = 0; i < n; i++) {
+
+		data = rec_get_nth_field_old(rec, i, &len);
+
+		fprintf(file, " %lu:", (ulong) i);
+
+		if (len != UNIV_SQL_NULL) {
+			if (i == 0) {
+				fprintf(file, " MBR:");
+				for (; len > 0; len -= sizeof(double)) {
+					double	d = mach_double_read(data);
+
+					if (len != sizeof(double)) {
+						fprintf(file, "%.2lf,", d);
+					} else {
+						fprintf(file, "%.2lf", d);
+					}
+
+					data += sizeof(double);
+				}
+			} else {
+				if (len <= 30) {
+
+					ut_print_buf(file, data, len);
+				} else {
+					ut_print_buf(file, data, 30);
+
+					fprintf(file, " (total %lu bytes)",
+						(ulong) len);
+				}
+			}
+		} else {
+			fprintf(file, " SQL NULL, size %lu ",
+				rec_get_nth_field_size(rec, i));
+		}
+
+		putc(';', file);
+		putc('\n', file);
+	}
+
+	if (rec_get_deleted_flag(rec, false)) {
+		fprintf(file, " Deleted");
+	}
+
+	if (rec_get_info_bits(rec, true) & REC_INFO_MIN_REC_FLAG) {
+		fprintf(file, " First rec");
+	}
+
+	rec_validate_old(rec);
+}
+
+/***************************************************************//**
+Prints a spatial index record. */
+
+void
+rec_print_mbr_rec(
+/*==============*/
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+{
+	ut_ad(rec);
+	ut_ad(offsets);
+	ut_ad(rec_offs_validate(rec, NULL, offsets));
+
+	if (!rec_offs_comp(offsets)) {
+		rec_print_mbr_old(file, rec);
+		return;
+	}
+
+	for (ulint i = 0; i < rec_offs_n_fields(offsets); i++) {
+		const byte*	data;
+		ulint		len;
+
+		data = rec_get_nth_field(rec, offsets, i, &len);
+
+		if (i == 0) {
+			fprintf(file, " MBR:");
+			for (; len > 0; len -= sizeof(double)) {
+				double	d = mach_double_read(data);
+
+				if (len != sizeof(double)) {
+					fprintf(file, "%.2lf,", d);
+				} else {
+					fprintf(file, "%.2lf", d);
+				}
+
+				data += sizeof(double);
+			}
+		} else {
+			fprintf(file, " %lu:", (ulong) i);
+
+			if (len != UNIV_SQL_NULL) {
+				if (len <= 30) {
+
+					ut_print_buf(file, data, len);
+				} else {
+					ut_print_buf(file, data, 30);
+
+					fprintf(file, " (total %lu bytes)",
+						(ulong) len);
+				}
+			} else {
+				fputs(" SQL NULL", file);
+			}
+		}
+		putc(';', file);
+	}
+
+	if (rec_get_info_bits(rec, true) & REC_INFO_DELETED_FLAG) {
+		fprintf(file, " Deleted");
+	}
+
+	if (rec_get_info_bits(rec, true) & REC_INFO_MIN_REC_FLAG) {
+		fprintf(file, " First rec");
+	}
+
+
+	rec_validate(rec, offsets);
+}
+
+/***************************************************************//**
+Prints a physical record. */
 /***************************************************************//**
 Prints a physical record. */
 

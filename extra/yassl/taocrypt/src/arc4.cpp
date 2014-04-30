@@ -111,28 +111,27 @@ void ARC4::Process(byte* out, const byte* in, word32 length)
 void ARC4::AsmProcess(byte* out, const byte* in, word32 length)
 {
 #ifdef __GNUC__
-    #define AS1(x)    asm(#x);
-    #define AS2(x, y) asm(#x ", " #y);
+    #define AS1(x)    #x ";"
+    #define AS2(x, y) #x ", " #y ";"
 
     #define PROLOG()  \
-        asm(".intel_syntax noprefix"); \
-        AS2(    movd  mm3, edi                      )   \
-        AS2(    movd  mm4, ebx                      )   \
-        AS2(    movd  mm5, esi                      )   \
-        AS2(    movd  mm6, ebp                      )   \
-        AS2(    mov   ecx, DWORD PTR [ebp +  8]     )   \
-        AS2(    mov   edi, DWORD PTR [ebp + 12]     )   \
-        AS2(    mov   esi, DWORD PTR [ebp + 16]     )   \
-        AS2(    mov   ebp, DWORD PTR [ebp + 20]     )
+    __asm__ __volatile__ \
+    ( \
+        ".intel_syntax noprefix;" \
+        "push ebx;" \
+        "push ebp;" \
+        "mov ebp, eax;"
 
     #define EPILOG()  \
-        AS2(    movd  ebp, mm6                  )   \
-        AS2(    movd  esi, mm5                  )   \
-        AS2(    movd  ebx, mm4                  )   \
-        AS2(    mov   esp, ebp                  )   \
-        AS2(    movd  edi, mm3                  )   \
-        AS1(    emms                            )   \
-        asm(".att_syntax");
+        "pop ebp;" \
+        "pop ebx;" \
+               "emms;" \
+               ".att_syntax;" \
+            : \
+            : "c" (this), "D" (out), "S" (in), "a" (length) \
+            : "%edx", "memory", "cc" \
+    );
+
 #else
     #define AS1(x)    __asm x
     #define AS2(x, y) __asm x, y
@@ -178,7 +177,11 @@ void ARC4::AsmProcess(byte* out, const byte* in, word32 length)
     AS2(    movzx  eax, BYTE PTR [ebp + ecx]    )
 
 
-AS1( begin:                             )
+#ifdef _MSC_VER
+    AS1( loopStart: )  // loopStart
+#else
+    AS1( 0: )          // loopStart for some gas (need numeric for jump back
+#endif
 
     // y = (y+a) & 0xff;
     AS2(    add    edx, eax                     )
@@ -215,7 +218,11 @@ AS1( begin:                             )
     AS1(    inc    edi                          )
 
     AS1(    dec    DWORD PTR [esp]              )
-    AS1(    jnz    begin                        )
+#ifdef _MSC_VER
+    AS1(    jnz   loopStart )  // loopStart
+#else
+    AS1(    jnz   0b )         // loopStart
+#endif
 
 
     // write back to x_ and y_
@@ -225,6 +232,8 @@ AS1( begin:                             )
 
 AS1( nothing:                           )
 
+    // inline adjust
+    AS2(    add   esp, 4               )   // fix room on stack
 
     EPILOG()
 }

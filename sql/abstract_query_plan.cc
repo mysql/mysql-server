@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -161,18 +161,18 @@ namespace AQP
 
       case AT_ORDERED_INDEX_SCAN:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
-        return get_join_tab()->position->fanout;
+        DBUG_ASSERT(get_join_tab()->position->rows_fetched > 0.0);
+        return get_join_tab()->position->rows_fetched;
 
       case AT_MULTI_PRIMARY_KEY:
       case AT_MULTI_UNIQUE_KEY:
       case AT_MULTI_MIXED:
         DBUG_ASSERT(get_join_tab()->position);
-        DBUG_ASSERT(get_join_tab()->position->fanout>0.0);
-        return get_join_tab()->position->fanout;
+        DBUG_ASSERT(get_join_tab()->position->rows_fetched > 0.0);
+        return get_join_tab()->position->rows_fetched;
 
       case AT_TABLE_SCAN:
-        DBUG_ASSERT(get_join_tab()->table->file->stats.records>0.0);
+        DBUG_ASSERT(get_join_tab()->table->file->stats.records > 0.0);
         return static_cast<double>(get_join_tab()->table->file->stats.records);
 
       default:
@@ -224,7 +224,6 @@ namespace AQP
     DBUG_PRINT("info", ("group_optimized_away:%d",
                         get_join_tab()->join->group_optimized_away));
 
-    DBUG_PRINT("info", ("full_join:%d", get_join_tab()->join->full_join));
     DBUG_PRINT("info", ("need_tmp:%d", get_join_tab()->join->need_tmp));
     DBUG_PRINT("info", ("select_distinct:%d",
                         get_join_tab()->join->select_distinct));

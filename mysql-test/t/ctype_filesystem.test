@@ -1,4 +1,3 @@
-
 SET CHARACTER SET utf8;
 --replace_result $MYSQL_TEST_DIR MYSQL_TEST_DIR
 SHOW VARIABLES like 'character_sets_dir';

@@ -53,8 +53,8 @@ dict_hdr_get(
 	buf_block_t*	block;
 	dict_hdr_t*	header;
 
-	block = buf_page_get(DICT_HDR_SPACE, 0, DICT_HDR_PAGE_NO,
-			     RW_X_LATCH, mtr);
+	block = buf_page_get(page_id_t(DICT_HDR_SPACE, DICT_HDR_PAGE_NO),
+			     univ_page_size, RW_X_LATCH, mtr);
 	header = DICT_HDR + buf_block_get_frame(block);
 
 	buf_block_dbg_add_level(block, SYNC_DICT_HEADER);
@@ -183,7 +183,7 @@ dict_hdr_create(
 	block = fseg_create(DICT_HDR_SPACE, 0,
 			    DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
 
-	ut_a(DICT_HDR_PAGE_NO == buf_block_get_page_no(block));
+	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
 
 	dict_header = dict_hdr_get(mtr);
 
@@ -209,8 +209,8 @@ dict_hdr_create(
 	system tables */
 
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_TABLES_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_TABLES_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -220,8 +220,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_TABLES, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE, 0,
-				  DICT_TABLE_IDS_ID,
+	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_TABLE_IDS_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -231,8 +231,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_TABLE_IDS, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_COLUMNS_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_COLUMNS_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -242,8 +242,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_COLUMNS, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_INDEXES_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_INDEXES_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -253,8 +253,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_INDEXES, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_FIELDS_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_FIELDS_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 

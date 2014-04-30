@@ -57,6 +57,8 @@ max_user_connections	0
 plugin	mysql_native_password
 authentication_string	
 password_expired	N
+password_last_changed	DTVALUE
+password_lifetime	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' REQUIRE CIPHER 'EDH-RSA-DES-CBC3-SHA'
@@ -129,6 +131,8 @@ max_user_connections	0
 plugin	mysql_native_password
 authentication_string	
 password_expired	N
+password_last_changed	DTVALUE
+password_lifetime	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10
@@ -177,6 +181,8 @@ max_user_connections	0
 plugin	mysql_native_password
 authentication_string	
 password_expired	N
+password_last_changed	DTVALUE
+password_lifetime	NULL
 show grants for mysqltest_1@localhost;
 Grants for mysqltest_1@localhost
 GRANT USAGE ON *.* TO 'mysqltest_1'@'localhost' WITH MAX_QUERIES_PER_HOUR 10 MAX_UPDATES_PER_HOUR 20 MAX_CONNECTIONS_PER_HOUR 30
@@ -2615,3 +2621,106 @@ foo@localhost	foo@127.0.0.1
 # Clean-up
 DROP USER foo@'127.0.0.1';
 # End of Bug#12766319
+#
+# WL#7131: Add timestamp in mysql.user on the last time the
+#          password was changed and implement password rotation.
+#
+SET @saved_value = @@global.default_password_lifetime;
+SET GLOBAL default_password_lifetime = 2;
+SHOW VARIABLES LIKE 'default_password_lifetime';
+Variable_name	Value
+default_password_lifetime	2
+CREATE USER 'wl7131' IDENTIFIED BY 'wl7131';
+# This should report 1.
+SELECT (SELECT now()-(SELECT password_last_changed from mysql.user where user='wl7131')) <= 2;
+(SELECT now()-(SELECT password_last_changed from mysql.user where user='wl7131')) <= 2
+1
+UPDATE mysql.user SET password_last_changed = (now() - INTERVAL 3 DAY) where user='wl7131';
+FLUSH PRIVILEGES;
+# Attempt to execute query should fail
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+# Doing something should fail
+SELECT 1;
+ERROR HY000: You must SET PASSWORD before executing this statement
+# Setting variables should work
+SET old_passwords=0;
+# Setting password should work
+SET PASSWORD = PASSWORD('new_wl7131');
+# Doing something should pass
+SELECT 1;
+1
+1
+# Reconnecting with same user should pass now
+SELECT 1;
+1
+1
+DROP USER 'wl7131';
+CREATE USER 'wl7131' IDENTIFIED BY 'wl7131';
+# Issue alter user and check the value of
+# password_lifetime column
+ALTER USER 'wl7131' PASSWORD EXPIRE NEVER;
+# This should report 0
+SELECT password_lifetime FROM mysql.user where user='wl7131';
+password_lifetime
+0
+UPDATE mysql.user SET password_last_changed = (now() - INTERVAL 5 DAY) where user='wl7131';
+FLUSH PRIVILEGES;
+# This should pass as password is never expired.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ALTER USER 'wl7131' PASSWORD EXPIRE DEFAULT;
+# This should report NULL
+SELECT password_lifetime FROM mysql.user where user='wl7131';
+password_lifetime
+NULL
+# This should not pass as default_password_lifetime
+# (which is 2 now) is being used.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+SET GLOBAL default_password_lifetime = 0;
+ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 4 DAY;
+# Should report 4
+SELECT password_lifetime FROM mysql.user where user='wl7131';
+password_lifetime
+4
+# This should not pass.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+ERROR 1862 (HY000): Your password has expired. To log in you must change it using a client that supports expired passwords.
+SET GLOBAL default_password_lifetime = @saved_value;
+ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 6 DAY;
+# Should report 6
+select password_lifetime from mysql.user where user='wl7131';
+password_lifetime
+6
+# This should pass.
+mysql: [Warning] Using a password on the command line interface can be insecure.
+DROP USER 'wl7131';
+CREATE USER 'wl7131';
+# This should not report NULL
+'DTVALUE' IS NOT NULL
+1
+GRANT USAGE ON *.* TO 'wl7131' REQUIRE SSL;
+# This should report 0 as it must have the same value as above
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+0
+# Should report errors
+ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL -2 DAY;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '-2 DAY' at line 1
+ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 0 DAY;
+ERROR HY000: Incorrect DAY value: '0'
+ALTER USER 'wl7131' PASSWORD EXPIRE INTERVAL 65536 DAY;
+ERROR HY000: Incorrect DAY value: '65536'
+# Setting an empty password. It should update the timestamp column.
+SET PASSWORD FOR 'wl7131' = PASSWORD('');
+# This should report 1.
+SELECT (SELECT now()-(SELECT password_last_changed from mysql.user where user='wl7131')) <= 2;
+(SELECT now()-(SELECT password_last_changed from mysql.user where user='wl7131')) <= 2
+1
+DROP USER 'wl7131';
+GRANT USAGE ON *.* TO 'wl7131'@'localhost' IDENTIFIED BY 'wl7131';
+# Must report 1
+SELECT (SELECT password_last_changed FROM mysql.user where user='wl7131') IS NOT NULL;
+(SELECT password_last_changed FROM mysql.user where user='wl7131') IS NOT NULL
+1
+DROP USER 'wl7131'@'localhost';
+# mysql.user table restored to original values.

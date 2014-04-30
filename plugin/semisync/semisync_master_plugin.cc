@@ -1,6 +1,5 @@
 /* Copyright (C) 2007 Google Inc.
-   Copyright (c) 2008 MySQL AB, 2008-2009 Sun Microsystems, Inc.
-   Use is subject to license terms.
+   Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +17,10 @@
 
 #include "semisync_master.h"
 #include "sql_class.h"                          // THD
+#include "semisync_master_ack_receiver.h"
 
 ReplSemiSyncMaster repl_semisync;
+Ack_receiver ack_receiver;
 
 /* The places at where semisync waits for binlog ACKs. */
 enum enum_wait_point {
@@ -28,6 +29,19 @@ enum enum_wait_point {
 };
 
 static ulong rpl_semi_sync_master_wait_point= WAIT_AFTER_COMMIT;
+
+static bool SEMI_SYNC_DUMP= true;
+
+pthread_key(bool *, THR_RPL_SEMI_SYNC_DUMP);
+
+static inline bool is_semi_sync_dump()
+{
+  /*
+    The key is only set for semisync dump threads, so it just checks if
+    the key is not NULL.
+  */
+  return my_pthread_getspecific_ptr(bool *, THR_RPL_SEMI_SYNC_DUMP) != NULL;
+}
 
 C_MODE_START
 
@@ -88,37 +102,61 @@ int repl_semi_binlog_dump_start(Binlog_transmit_param *param,
 				 const char *log_file,
 				 my_off_t log_pos)
 {
-  bool semi_sync_slave= repl_semisync.is_semi_sync_slave();
-  
-  if (semi_sync_slave)
+  long long semi_sync_slave= 0;
+
+  /*
+    semi_sync_slave will be 0 if the user variable doesn't exist. Otherwise, it
+    will be set to the value of the user variable.
+    'rpl_semi_sync_slave = 0' means that it is not a semisync slave.
+  */
+  get_user_var_int("rpl_semi_sync_slave", &semi_sync_slave, NULL);
+
+  if (semi_sync_slave != 0)
   {
+    if (ack_receiver.add_slave(current_thd))
+    {
+      sql_print_error("Failed to register slave to semi-sync ACK receiver "
+                      "thread.");
+      return -1;
+    }
+
+    my_pthread_setspecific_ptr(THR_RPL_SEMI_SYNC_DUMP, &SEMI_SYNC_DUMP);
+
     /* One more semi-sync slave */
     repl_semisync.add_slave();
-    
+
+    /* Tell server it will observe the transmission.*/
+    param->set_observe_flag();
+
     /*
       Let's assume this semi-sync slave has already received all
       binlog events before the filename and position it requests.
     */
     repl_semisync.handleAck(param->server_id, log_file, log_pos);
   }
+  else
+    param->set_dont_observe_flag();
+
   sql_print_information("Start %s binlog_dump to slave (server_id: %d), pos(%s, %lu)",
-			semi_sync_slave ? "semi-sync" : "asynchronous",
+			semi_sync_slave != 0 ? "semi-sync" : "asynchronous",
 			param->server_id, log_file, (unsigned long)log_pos);
-  
+
   return 0;
 }
 
 int repl_semi_binlog_dump_end(Binlog_transmit_param *param)
 {
-  bool semi_sync_slave= repl_semisync.is_semi_sync_slave();
-  
+  bool semi_sync_slave= is_semi_sync_dump();
+
   sql_print_information("Stop %s binlog_dump to slave (server_id: %d)",
                         semi_sync_slave ? "semi-sync" : "asynchronous",
                         param->server_id);
   if (semi_sync_slave)
   {
+    ack_receiver.remove_slave(current_thd);
     /* One less semi-sync slave */
     repl_semisync.remove_slave();
+    my_pthread_setspecific_ptr(THR_RPL_SEMI_SYNC_DUMP, NULL);
   }
   return 0;
 }
@@ -127,7 +165,8 @@ int repl_semi_reserve_header(Binlog_transmit_param *param,
 			     unsigned char *header,
 			     unsigned long size, unsigned long *len)
 {
-  *len +=  repl_semisync.reserveSyncHeader(header, size);
+  if (is_semi_sync_dump())
+    *len +=  repl_semisync.reserveSyncHeader(header, size);
   return 0;
 }
 
@@ -135,6 +174,9 @@ int repl_semi_before_send_event(Binlog_transmit_param *param,
                                 unsigned char *packet, unsigned long len,
                                 const char *log_file, my_off_t log_pos)
 {
+  if (!is_semi_sync_dump())
+    return 0;
+
   return repl_semisync.updateSyncHeader(packet,
 					log_file,
 					log_pos,
@@ -146,7 +188,7 @@ int repl_semi_after_send_event(Binlog_transmit_param *param,
                                const char * skipped_log_file,
                                my_off_t skipped_log_pos)
 {
-  if (repl_semisync.is_semi_sync_slave())
+  if (is_semi_sync_dump())
   {
     if(skipped_log_pos>0)
       repl_semisync.skipSlaveReply(event_buf, param->server_id,
@@ -294,6 +336,7 @@ static void fix_rpl_semi_sync_master_trace_level(MYSQL_THD thd,
 {
   *(unsigned long *)ptr= *(unsigned long *)val;
   repl_semisync.setTraceLevel(rpl_semi_sync_master_trace_level);
+  ack_receiver.setTraceLevel(rpl_semi_sync_master_trace_level);
   return;
 }
 
@@ -307,11 +350,17 @@ static void fix_rpl_semi_sync_master_enabled(MYSQL_THD thd,
   {
     if (repl_semisync.enableMaster() != 0)
       rpl_semi_sync_master_enabled = false;
+    else if (ack_receiver.start())
+    {
+      repl_semisync.disableMaster();
+      rpl_semi_sync_master_enabled = false;
+    }
   }
   else
   {
     if (repl_semisync.disableMaster() != 0)
       rpl_semi_sync_master_enabled = true;
+    ack_receiver.stop();
   }
 
   return;
@@ -436,23 +485,41 @@ static SHOW_VAR semi_sync_master_status_vars[]= {
 };
 
 #ifdef HAVE_PSI_INTERFACE
+
 PSI_mutex_key key_ss_mutex_LOCK_binlog_;
+PSI_mutex_key key_ss_mutex_Ack_receiver_mutex;
 
 static PSI_mutex_info all_semisync_mutexes[]=
 {
-  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0}
+  { &key_ss_mutex_LOCK_binlog_, "LOCK_binlog_", 0},
+  { &key_ss_mutex_Ack_receiver_mutex, "Ack_receiver::m_mutex", 0}
 };
 
 PSI_cond_key key_ss_cond_COND_binlog_send_;
+PSI_cond_key key_ss_cond_Ack_receiver_cond;
 
 static PSI_cond_info all_semisync_conds[]=
 {
-  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0}
+  { &key_ss_cond_COND_binlog_send_, "COND_binlog_send_", 0},
+  { &key_ss_cond_Ack_receiver_cond, "Ack_receiver::m_cond", 0}
+};
+
+PSI_thread_key key_ss_thread_Ack_receiver_thread;
+
+static PSI_thread_info all_semisync_threads[]=
+{
+  {&key_ss_thread_Ack_receiver_thread, "Ack_receiver", PSI_FLAG_GLOBAL}
 };
 #endif /* HAVE_PSI_INTERFACE */
 
 PSI_stage_info stage_waiting_for_semi_sync_ack_from_slave=
 { 0, "Waiting for semi-sync ACK from slave", 0};
+
+PSI_stage_info stage_waiting_for_semi_sync_slave=
+{ 0, "Waiting for semi-sync slave connection", 0};
+
+PSI_stage_info stage_reading_semi_sync_ack=
+{ 0, "Reading semi-sync ACK from slave", 0};
 
 /* Always defined. */
 PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
@@ -460,7 +527,9 @@ PSI_memory_key key_ss_memory_TranxNodeAllocator_block;
 #ifdef HAVE_PSI_INTERFACE
 PSI_stage_info *all_semisync_stages[]=
 {
-  & stage_waiting_for_semi_sync_ack_from_slave
+  & stage_waiting_for_semi_sync_ack_from_slave,
+  & stage_waiting_for_semi_sync_slave,
+  & stage_reading_semi_sync_ack
 };
 
 PSI_memory_info all_semisync_memory[]=
@@ -484,6 +553,9 @@ static void init_semisync_psi_keys(void)
 
   count= array_elements(all_semisync_memory);
   mysql_memory_register(category, all_semisync_memory, count);
+
+  count= array_elements(all_semisync_threads);
+  mysql_thread_register(category, all_semisync_threads, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -492,6 +564,8 @@ static int semi_sync_master_plugin_init(void *p)
 #ifdef HAVE_PSI_INTERFACE
   init_semisync_psi_keys();
 #endif
+
+  pthread_key_create(&THR_RPL_SEMI_SYNC_DUMP, NULL);
 
   if (repl_semisync.initObject())
     return 1;
@@ -506,6 +580,9 @@ static int semi_sync_master_plugin_init(void *p)
 
 static int semi_sync_master_plugin_deinit(void *p)
 {
+  ack_receiver.stop();
+  pthread_key_delete(THR_RPL_SEMI_SYNC_DUMP);
+
   if (unregister_trans_observer(&trans_observer, p))
   {
     sql_print_error("unregister_trans_observer failed");
@@ -521,6 +598,7 @@ static int semi_sync_master_plugin_deinit(void *p)
     sql_print_error("unregister_binlog_transmit_observer failed");
     return 1;
   }
+
   sql_print_information("unregister_replicator OK");
   return 0;
 }

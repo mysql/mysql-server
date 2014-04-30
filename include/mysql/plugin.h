@@ -605,6 +605,12 @@ int mysql_tmpfile(const char *prefix);
 */
 int thd_killed(const MYSQL_THD thd);
 
+/**
+  Set the killed status of the current statement.
+
+  @param thd  user thread connection handle
+*/
+void thd_set_kill_status(const MYSQL_THD thd);
 
 /**
   Get binary log position for latest written entry.

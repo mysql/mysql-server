@@ -2713,4 +2713,124 @@ CHANGE MASTER TO MASTER_SSL = 0;
 
 DROP TABLE t1;
 
+--echo #
+--echo # Bug#17864349 - CHANGING TRUNCATE TABLE TO DROP TABLE & CREATE TABLE
+--echo # MAKES TRIGGER.TEST FAIL
+--echo #
+
+--echo # The following tests check for non in-place update (i.e. using temporary table)
+--echo # of column with different datatypes
+
+SET @save_sql_mode= @@sql_mode;
+SET sql_mode= 'traditional';
+
+let $column1_type_name = INT;
+let $column2_type_name = INT;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = TINYINT;
+let $column2_type_name = TINYINT;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = BOOL;
+let $column2_type_name = BOOL;
+let $column2_value = TRUE;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = SMALLINT;
+let $column2_type_name = SMALLINT;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = BIGINT;
+let $column2_type_name = BIGINT;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = DECIMAL;
+let $column2_type_name = DECIMAL;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = FLOAT;
+let $column2_type_name = FLOAT;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = DOUBLE;
+let $column2_type_name = DOUBLE;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = BIT;
+let $column2_type_name = BIT;
+let $column2_value = 1;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = ENUM('a', 'b', 'c');
+let $column2_type_name = ENUM('a', 'b', 'c');
+let $column2_value = 'b';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = SET('a', 'b', 'c');
+let $column2_type_name = SET('a', 'b', 'c');
+let $column2_value = 'b';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = VARBINARY(10);
+let $column2_type_name = VARBINARY(10);
+let $column2_value = 'binary';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = BINARY(10);
+let $column2_type_name = BINARY(10);
+let $column2_value = 'binary';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = TINYTEXT;
+let $column2_type_name = TINYTEXT;
+let $column2_value = 'text';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = TEXT(10);
+let $column2_type_name = TEXT(10);
+let $column2_value = 'text';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = BLOB;
+let $column2_type_name = BLOB;
+let $column2_value = 'binary';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = VARCHAR(5);
+let $column2_type_name = INT;
+let $column2_value = 3;
+--source include/trigger_17864349.inc
+
+let $column1_type_name = INT;
+let $column2_type_name = VARCHAR(5);
+let $column2_value = 'str';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = VARCHAR(15);
+let $column2_type_name = VARCHAR(5);
+let $column2_value = 'str';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = VARCHAR(15);
+let $column2_type_name = BLOB;
+let $column2_value = 'str';
+--source include/trigger_17864349.inc
+
+let $column1_type_name = TEXT(20);
+let $column2_type_name = TEXT(10);
+let $column2_value = 'text';
+--source include/trigger_17864349.inc
+
+SET sql_mode= @save_sql_mode;
+
+# End of tests for Bug#17864349
+
 --echo End of 5.7 tests.

@@ -29,7 +29,7 @@ static char * expand_tilde(char **path);
 void pack_dirname(char * to, const char *from)
 {
   int cwd_err;
-  size_t d_length,length,UNINIT_VAR(buff_length);
+  size_t d_length, length, buff_length= 0;
   char * start;
   char buff[FN_REFLEN];
   DBUG_ENTER("pack_dirname");

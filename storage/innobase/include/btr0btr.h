@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -34,6 +34,7 @@ Created 6/2/1994 Heikki Tuuri
 #include "page0cur.h"
 #include "mtr0mtr.h"
 #include "btr0types.h"
+#include "gis0type.h"
 
 #ifndef UNIV_HOTBACKUP
 /** Maximum record size which can be stored on a page, without using the
@@ -109,19 +110,30 @@ to insert record only. It is used to optimize block->lock range.*/
 to delete record only. It is used to optimize block->lock range.*/
 #define BTR_LATCH_FOR_DELETE	65536
 
+/** This flag is for undo insert of rtree. For rtree, we need this flag
+to find proper rec to undo insert.*/
+#define BTR_RTREE_UNDO_INS	131072
+
+/** In the case of BTR_MODIFY_LEAF, the caller intends to allocate or
+free the pages of externally stored fields. */
+#define BTR_MODIFY_EXTERNAL	262144
+
 #define BTR_LATCH_MODE_WITHOUT_FLAGS(latch_mode)	\
 	((latch_mode) & ~(BTR_INSERT			\
 			  | BTR_DELETE_MARK		\
+			  | BTR_RTREE_UNDO_INS		\
 			  | BTR_DELETE			\
 			  | BTR_ESTIMATE		\
 			  | BTR_IGNORE_SEC_UNIQUE	\
 			  | BTR_ALREADY_S_LATCHED	\
 			  | BTR_LATCH_FOR_INSERT	\
-			  | BTR_LATCH_FOR_DELETE))
+			  | BTR_LATCH_FOR_DELETE	\
+			  | BTR_MODIFY_EXTERNAL))
 
 #define BTR_LATCH_MODE_WITHOUT_INTENTION(latch_mode)	\
 	((latch_mode) & ~(BTR_LATCH_FOR_INSERT		\
-			  | BTR_LATCH_FOR_DELETE))
+			  | BTR_LATCH_FOR_DELETE	\
+			  | BTR_MODIFY_EXTERNAL))
 #endif /* UNIV_HOTBACKUP */
 
 /**************************************************************//**
@@ -178,58 +190,61 @@ btr_height_get(
 	dict_index_t*	index,	/*!< in: index tree */
 	mtr_t*		mtr)	/*!< in/out: mini-transaction */
 	__attribute__((nonnull, warn_unused_result));
-/**************************************************************//**
-Gets a buffer page and declares its latching order level. */
+
+/** Gets a buffer page and declares its latching order level.
+@param[in]	page_id	page id
+@param[in]	mode	latch mode
+@param[in]	file	file name
+@param[in]	line	line where called
+@param[in]	index	index tree, may be NULL if it is not an insert buffer
+tree
+@param[in,out]	mtr	mini-transaction
+@return block */
 UNIV_INLINE
 buf_block_t*
 btr_block_get_func(
-/*===============*/
-	ulint		space,		/*!< in: space id */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
-	ulint		page_no,	/*!< in: page number */
-	ulint		mode,		/*!< in: latch mode */
-	const char*	file,		/*!< in: file name */
-	ulint		line,		/*!< in: line where called */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			mode,
+	const char*		file,
+	ulint			line,
 # ifdef UNIV_SYNC_DEBUG
-	const dict_index_t*	index,	/*!< in: index tree, may be NULL
-					if it is not an insert buffer tree */
+	const dict_index_t*	index,
 # endif /* UNIV_SYNC_DEBUG */
-	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+	mtr_t*		mtr);
+
 # ifdef UNIV_SYNC_DEBUG
 /** Gets a buffer page and declares its latching order level.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes or 0 for uncompressed pages
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mode latch mode
 @param index index tree, may be NULL if not the insert buffer tree
 @param mtr mini-transaction handle
 @return the block descriptor */
-#  define btr_block_get(space,zip_size,page_no,mode,index,mtr)	\
-	btr_block_get_func(space,zip_size,page_no,mode,		\
-			   __FILE__,__LINE__,index,mtr)
+#  define btr_block_get(page_id, page_size, mode, index, mtr)	\
+	btr_block_get_func(page_id, page_size, mode,		\
+			   __FILE__, __LINE__, index, mtr)
 # else /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes or 0 for uncompressed pages
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mode latch mode
-@param idx index tree, may be NULL if not the insert buffer tree
+@param index index tree, may be NULL if not the insert buffer tree
 @param mtr mini-transaction handle
 @return the block descriptor */
-#  define btr_block_get(space,zip_size,page_no,mode,idx,mtr)		\
-	btr_block_get_func(space,zip_size,page_no,mode,__FILE__,__LINE__,mtr)
+#  define btr_block_get(page_id, page_size, mode, index, mtr)	\
+	btr_block_get_func(page_id, page_size, mode, __FILE__, __LINE__, mtr)
 # endif /* UNIV_SYNC_DEBUG */
 /** Gets a buffer page and declares its latching order level.
-@param space tablespace identifier
-@param zip_size compressed page size in bytes or 0 for uncompressed pages
-@param page_no page number
+@param page_id tablespace/page identifier
+@param page_size page size
 @param mode latch mode
-@param idx index tree, may be NULL if not the insert buffer tree
+@param index index tree, may be NULL if not the insert buffer tree
 @param mtr mini-transaction handle
 @return the uncompressed page frame */
-# define btr_page_get(space,zip_size,page_no,mode,idx,mtr)		\
-	buf_block_get_frame(btr_block_get(space,zip_size,page_no,mode,idx,mtr))
+# define btr_page_get(page_id, page_size, mode, index, mtr)	\
+	buf_block_get_frame(btr_block_get(page_id, page_size,	\
+					  mode, index, mtr))
 #endif /* !UNIV_HOTBACKUP */
 /**************************************************************//**
 Gets the index id field of a page.
@@ -271,30 +286,6 @@ btr_page_get_prev(
 	const page_t*	page,	/*!< in: index page */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle */
 	__attribute__((nonnull, warn_unused_result));
-/*************************************************************//**
-Gets pointer to the previous user record in the tree. It is assumed
-that the caller has appropriate latches on the page and its neighbor.
-@return previous user record, NULL if there is none */
-
-rec_t*
-btr_get_prev_user_rec(
-/*==================*/
-	rec_t*	rec,	/*!< in: record on leaf level */
-	mtr_t*	mtr)	/*!< in: mtr holding a latch on the page, and if
-			needed, also to the previous page */
-	__attribute__((nonnull, warn_unused_result));
-/*************************************************************//**
-Gets pointer to the next user record in the tree. It is assumed
-that the caller has appropriate latches on the page and its neighbor.
-@return next user record, NULL if there is none */
-
-rec_t*
-btr_get_next_user_rec(
-/*==================*/
-	rec_t*	rec,	/*!< in: record on leaf level */
-	mtr_t*	mtr)	/*!< in: mtr holding a latch on the page, and if
-			needed, also to the next page */
-	__attribute__((nonnull, warn_unused_result));
 /**************************************************************//**
 Releases the latch on a leaf page and bufferunfixes it. */
 UNIV_INLINE
@@ -329,9 +320,7 @@ btr_create(
 /*=======*/
 	ulint			type,		/*!< in: type of the index */
 	ulint			space,		/*!< in: space where created */
-	ulint			zip_size,	/*!< in: compressed page size
-						in bytes or 0 for uncompressed
-						pages */
+	const page_size_t&	page_size,
 	index_id_t		index_id,	/*!< in: index id */
 	dict_index_t*		index,		/*!< in: index, or NULL when
 						applying TRNCATE log 
@@ -342,31 +331,26 @@ btr_create(
 						during recovery */
 	mtr_t*			mtr);		/*!< in: mini-transaction
 						handle */
-/************************************************************//**
-Frees a B-tree except the root page, which MUST be freed after this
-by calling btr_free_root. */
 
+/** Frees a B-tree except the root page. The root page MUST be freed after
+this by calling btr_free_root.
+@param[in] root_page_id id of the root page
+@param[in] logging_mode mtr logging mode */
 void
 btr_free_but_not_root(
-/*==================*/
-	ulint			space,		/*!< in: space where created */
-	ulint			zip_size,	/*!< in: compressed page
-						size in bytes or 0 for
-						uncompressed pages */
-	ulint			root_page_no,	/*!< in: root page number */
-	mtr_log_t		logging_mode);	/*!< in: mtr logging mode */
-/************************************************************//**
-Frees the B-tree root page. Other tree MUST already have been freed. */
+	const page_id_t&	root_page_id,
+	const page_size_t&	page_size,
+	mtr_log_t		logging_mode);
 
+/** Frees the B-tree root page. Other tree MUST already have been freed.
+@param[in] root_page_id id of the root page
+@param[in,out] mtr mini-transaction */
 void
 btr_free_root(
-/*==========*/
-	ulint	space,		/*!< in: space where created */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	root_page_no,	/*!< in: root page number */
-	mtr_t*	mtr)		/*!< in/out: mini-transaction */
-	__attribute__((nonnull));
+	const page_id_t&	root_page_id,
+	const page_size_t&	page_size,
+	mtr_t*			mtr);
+
 /*************************************************************//**
 Makes tree one level higher by splitting the root, and inserts
 the tuple. It is assumed that mtr contains an x-latch on the tree.
@@ -461,6 +445,7 @@ btr_page_get_split_rec_to_right(
 				the first record on upper half page,
 				or NULL if tuple should be first */
 	__attribute__((nonnull, warn_unused_result));
+
 /*************************************************************//**
 Splits an index page to halves and inserts the tuple. It is assumed
 that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
@@ -498,8 +483,7 @@ btr_insert_on_non_leaf_level_func(
 	dtuple_t*	tuple,	/*!< in: the record to be inserted */
 	const char*	file,	/*!< in: file name */
 	ulint		line,	/*!< in: line where called */
-	mtr_t*		mtr)	/*!< in: mtr */
-	__attribute__((nonnull));
+	mtr_t*		mtr);	/*!< in: mtr */
 # define btr_insert_on_non_leaf_level(f,i,l,t,m)			\
 	btr_insert_on_non_leaf_level_func(f,i,l,t,__FILE__,__LINE__,m)
 #endif /* !UNIV_HOTBACKUP */
@@ -647,6 +631,18 @@ btr_page_free(
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
 /**************************************************************//**
+Creates a new index page (not the root, and also not
+used in page reorganization).  @see btr_page_empty(). */
+
+void
+btr_page_create(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page to be created */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page, or NULL */
+	dict_index_t*	index,	/*!< in: index */
+	ulint		level,	/*!< in: the B-tree level of the page */
+	mtr_t*		mtr);	/*!< in: mtr */
+/**************************************************************//**
 Frees a file page used in an index tree. Can be used also to BLOB
 external storage pages. */
 
@@ -658,6 +654,18 @@ btr_page_free_low(
 	ulint		level,	/*!< in: page level (ULINT_UNDEFINED=BLOB) */
 	mtr_t*		mtr)	/*!< in: mtr */
 	__attribute__((nonnull));
+/**************************************************************//**
+Gets the root node of a tree and x- or s-latches it.
+@return root page, x- or s-latched */
+
+buf_block_t*
+btr_root_block_get(
+/*===============*/
+	const dict_index_t*	index,	/*!< in: index tree */
+	ulint			mode,	/*!< in: either RW_S_LATCH
+					or RW_X_LATCH */
+	mtr_t*			mtr);	/*!< in: mtr */
+
 #ifdef UNIV_BTR_PRINT
 /*************************************************************//**
 Prints size info of a B-tree. */

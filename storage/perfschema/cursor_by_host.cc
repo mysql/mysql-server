@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -21,6 +21,12 @@
 #include "my_global.h"
 #include "cursor_by_host.h"
 #include "pfs_host.h"
+
+ha_rows
+cursor_by_host::get_row_count(void)
+{
+  return host_max;
+}
 
 cursor_by_host::cursor_by_host(const PFS_engine_table_share *share)
   : PFS_engine_table(share, &m_pos),

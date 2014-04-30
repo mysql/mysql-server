@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it
@@ -43,7 +43,7 @@ enum monitor_running_status {
 typedef enum monitor_running_status	monitor_running_t;
 
 /** Monitor counter value type */
-typedef	ib_int64_t			mon_type_t;
+typedef	int64_t				mon_type_t;
 
 /** Two monitor structures are defined in this file. One is
 "monitor_value_t" which contains dynamic counter values for each
@@ -99,8 +99,8 @@ enum monitor_type_t {
 };
 
 /** Counter minimum value is initialized to be max value of
- mon_type_t (ib_int64_t) */
-#define	MIN_RESERVED		((mon_type_t) (IB_UINT64_MAX >> 1))
+ mon_type_t (int64_t) */
+#define	MIN_RESERVED		INT64_MAX
 #define	MAX_RESERVED		(~MIN_RESERVED)
 
 /** This enumeration defines internal monitor identifier used internally
@@ -126,7 +126,6 @@ enum monitor_id_t {
 	MONITOR_TABLE_OPEN,
 	MONITOR_TABLE_CLOSE,
 	MONITOR_TABLE_REFERENCE,
-	MONITOR_OVLD_META_MEM_POOL,
 
 	/* Lock manager related counters */
 	MONITOR_MODULE_LOCK,
@@ -703,7 +702,7 @@ monitor counter
 #define	MONITOR_INC_TIME_IN_MICRO_SECS(monitor, value)			\
 	MONITOR_CHECK_DEFINED(value);					\
 	if (MONITOR_IS_ON(monitor)) {					\
-		ullint	old_time = (value);				\
+		uintmax_t	old_time = (value);				\
 		value = ut_time_us(NULL);				\
 		MONITOR_VALUE(monitor) += (mon_type_t) (value - old_time);\
 	}

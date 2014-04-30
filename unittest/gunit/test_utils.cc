@@ -50,7 +50,7 @@ void setup_server_for_unit_tests()
   init_common_variables();
   my_init_signals();
   randominit(&sql_rand, 0, 0);
-  xid_cache_init();
+  transaction_cache_init();
   delegates_init();
   gtid_server_init();
   error_handler_hook= test_error_handler_hook;
@@ -62,7 +62,7 @@ void teardown_server_for_unit_tests()
 {
   sys_var_end();
   delegates_destroy();
-  xid_cache_free();
+  transaction_cache_free();
   gtid_server_cleanup();
   mysql_mutex_destroy(&LOCK_error_log);
   query_logger.cleanup();

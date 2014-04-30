@@ -1,3 +1,9 @@
+--source include/not_gtid_enabled.inc
+
+# Store the time of password_last_changed column from mysql.user table
+# to restore it back later.
+let $date_to_restore=`SELECT password_last_changed from mysql.user where host='localhost'`;
+
 let $LOAD_FILE= $MYSQLTEST_VARDIR/std_data/words.dat;
 CREATE TABLE t1 (word CHAR(20) NOT NULL);
 --replace_result $LOAD_FILE LOAD_FILE
@@ -65,6 +71,7 @@ save_master_pos;
 
 # Try to cause a large relay log lag on the slave by locking t1
 connection slave;
+RESET MASTER;
 LOCK TABLES t1 READ;
 START SLAVE;
 UNLOCK TABLES;
@@ -80,4 +87,9 @@ SELECT n FROM t1;
 
 connection master;
 DROP TABLE t1;
+
+--disable_query_log ONCE
+--eval UPDATE mysql.user SET password_last_changed= '$date_to_restore'
+--echo # mysql.user table restored to original values.
+
 sync_slave_with_master;

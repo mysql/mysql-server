@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -483,5 +483,7 @@ private:
 	for small REDO log records */
 	block_t			m_first_block;
 };
+
+typedef dyn_buf_t<DYN_ARRAY_DATA_SIZE> mtr_buf_t;
 
 #endif /* dyn0buf_h */
