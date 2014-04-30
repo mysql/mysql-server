@@ -1389,14 +1389,12 @@ thd_is_ins_sel_stmt(THD* user_thd)
 /** Add the table handler to thread cache.
 Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	table		table handler
-@param[in]	table_norm_name	table normalized name
 @param[in,out]	heap		heap for allocating system columns.
 @param[in,out]	thd		MySQL thread handler */
 static inline
 void
 add_table_to_thread_cache(
 	dict_table_t*	table,
-	const char*	table_norm_name,
 	mem_heap_t*	heap,
 	THD*		thd)
 {
@@ -1405,7 +1403,7 @@ add_table_to_thread_cache(
 	dict_table_set_big_rows(table);
 
 	innodb_session_t*& priv = thd_to_innodb_session(thd);
-	priv->register_table_handler(table_norm_name, table);
+	priv->register_table_handler(table->name, table);
 }
 
 /********************************************************************//**
@@ -6477,7 +6475,6 @@ ha_innobase::write_row(
 	ulint		sql_command;
 	trx_t*		trx = NULL;
 
-	ut_ad(user_thd != NULL);
 	trx = thd_to_trx(user_thd);
 
 	DBUG_ENTER("ha_innobase::write_row");
@@ -6622,7 +6619,8 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
-	error = row_insert_for_mysql((byte*) record, prebuilt);
+	error = row_insert_for_mysql(
+		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
 
 	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
@@ -7037,7 +7035,6 @@ ha_innobase::update_row(
 	dberr_t		error;
 	trx_t*		trx = NULL;
 
-	ut_ad(user_thd != NULL);
 	trx = thd_to_trx(user_thd);
 
 	DBUG_ENTER("ha_innobase::update_row");
@@ -7092,7 +7089,8 @@ ha_innobase::update_row(
 
 	innobase_srv_conc_enter_innodb(trx);
 
-	error = row_update_for_mysql((byte*) old_row, prebuilt);
+	error = row_update_for_mysql(
+		(byte*) old_row, prebuilt, thd_to_innodb_session(user_thd));
 
 	/* We need to do some special AUTOINC handling for the following case:
 
@@ -7194,7 +7192,8 @@ ha_innobase::delete_row(
 
 	innobase_srv_conc_enter_innodb(trx);
 
-	error = row_update_for_mysql((byte*) record, prebuilt);
+	error = row_update_for_mysql(
+		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
 
 	innobase_srv_conc_exit_innodb(trx);
 
@@ -7540,7 +7539,8 @@ ha_innobase::index_read(
 
 		ret = row_search_for_mysql(
 			(byte*) buf, mode, prebuilt, match_mode,
-			0, thd_is_ins_sel_stmt(user_thd));
+			0, thd_is_ins_sel_stmt(user_thd),
+			thd_to_innodb_session(user_thd));
 
 		innobase_srv_conc_exit_innodb(prebuilt->trx);
 	} else {
@@ -7810,7 +7810,8 @@ ha_innobase::general_fetch(
 
 	ret = row_search_for_mysql(
 		(byte*) buf, 0, prebuilt, match_mode,
-		direction, thd_is_ins_sel_stmt(user_thd));
+		direction, thd_is_ins_sel_stmt(user_thd),
+		thd_to_innodb_session(user_thd));
 
 	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
@@ -8736,8 +8737,7 @@ err_col:
 			dictionary cache. */
 			if (dict_table_is_intrinsic(table)) {
 				add_table_to_thread_cache(
-					table, table_name,
-					temp_table_heap, thd);
+					table, temp_table_heap, thd);
 			} else {
 				dict_table_add_to_cache(
 					table, FALSE, temp_table_heap);
@@ -10688,7 +10688,9 @@ ha_innobase::records()
 	build_template(false);
 
 	/* Count the records in the clustered index */
-	ret = row_scan_index_for_mysql(prebuilt, index, false, &n_rows);
+	ret = row_scan_index_for_mysql(
+		prebuilt, index, false, &n_rows,
+		thd_to_innodb_session(user_thd));
 	reset_template();
 	switch (ret) {
 	case DB_SUCCESS:
@@ -11872,7 +11874,8 @@ ha_innobase::check(
 			ret = row_count_rtree_recs(prebuilt, &n_rows);
 		} else {
 			ret = row_scan_index_for_mysql(
-				prebuilt, index, true, &n_rows);
+				prebuilt, index, true, &n_rows,
+				thd_to_innodb_session(thd));
 		}
 
 		DBUG_EXECUTE_IF(

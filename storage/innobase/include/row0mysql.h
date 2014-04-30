@@ -36,6 +36,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0types.h"
 #include "btr0pcur.h"
 #include "trx0types.h"
+#include "sess0sess.h"
 
 // Forward declaration
 struct SysIndexCallback;
@@ -257,17 +258,20 @@ row_lock_table_for_mysql(
 	ulint		mode)		/*!< in: lock mode of table
 					(ignored if table==NULL) */
 	__attribute__((nonnull(1)));
-/*********************************************************************//**
-Does an insert for MySQL.
+
+/** Does an insert for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
 @return error code or DB_SUCCESS*/
 
 dberr_t
 row_insert_for_mysql(
-	const byte*	mysql_rec,
-	row_prebuilt_t*	prebuilt)
-	__attribute__((nonnull, warn_unused_result));
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+	__attribute__((warn_unused_result));
+
 /*********************************************************************//**
 Builds a dummy query graph used in selects. */
 
@@ -296,16 +300,18 @@ ibool
 row_table_got_default_clust_index(
 /*==============================*/
 	const dict_table_t*	table);	/*!< in: table */
-/*********************************************************************//**
-Does an update or delete of a row for MySQL.
+
+/** Does an update or delete of a row for MySQL.
 @param[in]	mysql_rec	row in the MySQL format
 @param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
-	const byte*	mysql_rec,
-	row_prebuilt_t*	prebuilt)
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
 	__attribute__((warn_unused_result));
 
 /** Delete all rows for the given table by freeing/truncating indexes.
@@ -593,9 +599,10 @@ row_scan_index_for_mysql(
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
-	ulint*			n_rows)		/*!< out: number of entries
+	ulint*			n_rows,		/*!< out: number of entries
 						seen in the consistent read */
-	__attribute__((nonnull, warn_unused_result));
+	innodb_session_t*	session)	/*!< in,out: session handler. */
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Initialize this module */
 

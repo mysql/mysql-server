@@ -25,7 +25,7 @@ this program; if not, write to the Free Software Foundation, Inc.,
 
 #include "dict0stats.h"
 #include <string>
-#include <map>
+#include "sess0sess.h"
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -53,72 +53,6 @@ typedef struct st_innobase_share {
 						table between MySQL and
 						InnoDB */
 } INNOBASE_SHARE;
-
-/** InnoDB private data that is cached in THD */
-typedef std::map<std::string, dict_table_t*>    table_cache_t;
-class innodb_session_t {
-public:
-	/** Constructor */
-	innodb_session_t()
-		: m_trx(),
-		  m_open_tables()
-	{
-		/* Do nothing. */
-	}
-
-	/** Destructor */
-	~innodb_session_t()
-	{
-		m_trx = NULL;
-		m_open_tables.clear();
-	}
-
-	/** Cache table handler.
-	@param[in]	table_name	name of the table
-	@param[in,out]	table		table handler to register */
-	void register_table_handler(
-		const char*	table_name,
-		dict_table_t*	table)
-	{
-		ut_ad(lookup_table_handler(table_name) == NULL);
-		m_open_tables.insert(table_cache_t::value_type(
-			table_name, table));
-	}
-
-	/** Lookup for table handler given table_name.
-	@param[in]	table_name	name of the table to lookup */
-	dict_table_t* lookup_table_handler(
-		const char*	table_name)
-	{
-		table_cache_t::iterator it = m_open_tables.find(table_name);
-		return((it == m_open_tables.end()) ? NULL : it->second);
-	}
-
-	/** Remove table handler entry.
-	@param[in]	table_name	name of the table to remove */
-	void unregister_table_handler(
-		const char*	table_name)
-	{
-		m_open_tables.erase(table_name);
-	}
-
-	/** Count of register table handler.
-	@return number of register table handlers */
-	uint count_register_table_handler() const
-	{
-		return(m_open_tables.size());
-	}
-
-public:
-
-	/** transaction handler. */
-	trx_t*		m_trx;
-
-	/** Handler of tables that are created or open but not added
-	to InnoDB dictionary as they are session specific.
-	Currently, limited to intrinsic temporary tables only. */
-	table_cache_t	m_open_tables;
-};
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
