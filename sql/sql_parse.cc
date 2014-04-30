@@ -5267,7 +5267,19 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                thd->lex->sql_command == SQLCOM_DROP_TABLE))
           {
-            if (opt_bin_log)
+            if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
+            {
+              /*
+                Save gtid into table for a DDL statement if binlog is
+                disabled, or binlog is enabled and log_slave_updates is
+                disabled with slave SQL thread or slave worker thread.
+              */
+              if ((error= gtid_state->save(thd)))
+                gtid_state->update_on_rollback(thd);
+              else
+                gtid_state->update_on_commit(thd);
+            }
+            else
             {
               /*
                 This ensures that an empty transaction is logged if
@@ -5289,17 +5301,6 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                 SQLCOM_*.
               */
               error= gtid_empty_group_log_and_cleanup(thd);
-            }
-            else
-            {
-              /*
-                Save gtid into table for a DDL statement
-                when binlog is disabled.
-              */
-              if ((error= gtid_state->save(thd)))
-                gtid_state->update_on_rollback(thd);
-              else
-                gtid_state->update_on_commit(thd);
             }
           }
           MYSQL_QUERY_EXEC_DONE(error);

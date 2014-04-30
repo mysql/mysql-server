@@ -202,7 +202,7 @@ void Gtid_state::update_on_commit(THD *thd)
   DBUG_ENTER("Gtid_state::update_on_commit");
   if (!thd->owned_gtid.is_null())
   {
-    if (!opt_bin_log)
+    if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
     {
       Gtid *gtid= &thd->owned_gtid;
       global_sid_lock->rdlock();
@@ -211,12 +211,23 @@ void Gtid_state::update_on_commit(THD *thd)
         global_sid_lock->unlock();
         int err= 0;
         /*
-          Add every transaction's gtid into global executed_gtids
-          if binlog is disabled and gtid_mode is enabled.
+          Add transaction owned gtid into global executed_gtids if binlog
+          is disabled, or binlog is enabled and log_slave_updates is
+          disabled with slave SQL thread or slave worker thread.
         */
         global_sid_lock->wrlock();
         if (!(err= executed_gtids.ensure_sidno(gtid->sidno)))
           err |= executed_gtids._add_gtid(*gtid);
+        if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
+        {
+          /*
+            Slave SQL thread or slave worker thread adds transaction owned
+            gtid into global gtids_only_in_table if binlog is enabled and
+            log_slave_updates is disabled.
+          */
+          if (!(err= gtids_only_in_table.ensure_sidno(gtid->sidno)))
+            err |= gtids_only_in_table._add_gtid(*gtid);
+        }
         global_sid_lock->unlock();
         DBUG_ASSERT(err == 0);
       }
