@@ -84,15 +84,15 @@ MASTER_UUID	4	4
 MASTER_UUID	5	5
 MASTER_UUID	16	16
 MASTER_UUID	17	17
+#
+# Verify that the gtid_executed table is compressed.
+#
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 SET @@SESSION.GTID_NEXT= 'MASTER_UUID:18';
 COMMIT;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
-#
-# Verify that the gtid_executed table is compressed.
-#
 SELECT * FROM mysql.gtid_executed;
 sid	gno_start	gno_end
 MASTER_UUID	1	5
