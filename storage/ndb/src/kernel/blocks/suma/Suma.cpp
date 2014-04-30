@@ -253,6 +253,7 @@ Suma::execREAD_CONFIG_REQ(Signal* signal)
   c_startup.m_wait_handover= false;
   c_startup.m_forced_disconnect_attempted = false;
   c_failedApiNodes.clear();
+  c_wait_handover_timeout_ms = 120000; /* Default for old MGMD */
   ndb_mgm_get_int_parameter(p, CFG_DB_AT_RESTART_SUBSCRIBER_CONNECT_TIMEOUT,
                             &c_wait_handover_timeout_ms);
 
@@ -828,22 +829,23 @@ Suma::check_wait_handover_timeout(Signal* signal)
     jam();
     /* Still waiting */
     
+    /* Send CONTINUEB for next check... */
+    signal->theData[0] = SumaContinueB::HANDOVER_WAIT_TIMEOUT;
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);    
+
+    /* Now check whether we should do something more */
     NDB_TICKS now = NdbTick_getCurrentTicks();
     if(NdbTick_IsValid(c_startup.m_wait_handover_expire))
     {
       jam();
 
       /* Wait is bounded... has it expired? */
-
       if (NdbTick_Compare(c_startup.m_wait_handover_expire, now) >= 0)
       {
         jam();
 
         /* Not expired, consider a log message, then wait some more */
         check_wait_handover_message(signal, now);
-        
-        signal->theData[0] = SumaContinueB::HANDOVER_WAIT_TIMEOUT;
-        sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
         return;
       }
 
@@ -903,9 +905,6 @@ Suma::check_wait_handover_timeout(Signal* signal)
           
           NDB_TICKS now = NdbTick_getCurrentTicks();
           c_startup.m_wait_handover_expire = NdbTick_AddMilliseconds(now, c_wait_handover_timeout_ms);
-          
-          signal->theData[0] = SumaContinueB::HANDOVER_WAIT_TIMEOUT;
-          sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 1000, 1);
         }
         else
         {
@@ -920,6 +919,13 @@ Suma::check_wait_handover_timeout(Signal* signal)
                     NDBD_EXIT_GENERIC,
                     "Failed to establish direct connection to all subscribers");
         }
+      }
+      else
+      {
+        /* Why are we waiting if there are no disconnected subscribers? */
+        g_eventLogger->critical("Subscriber nodes : %s", BaseString::getPrettyTextShort(c_subscriber_nodes).c_str());
+        g_eventLogger->critical("Connected nodes  : %s", BaseString::getPrettyTextShort(c_connected_nodes).c_str());
+        ndbrequire(false);
       }
     }
     else
@@ -940,7 +946,7 @@ Suma::check_wait_handover_message(Signal* signal, NDB_TICKS now)
   subscribers_not_connected.bitANDC(c_connected_nodes);
 
   if (!NdbTick_IsValid(c_startup.m_wait_handover_message_expire) ||   // First time
-      NdbTick_Compare(c_startup.m_wait_handover_message_expire, now) < 0)  // Time remains
+      NdbTick_Compare(c_startup.m_wait_handover_message_expire, now) < 0)  // Time is up
   {
     jam();
     if (NdbTick_IsValid(c_startup.m_wait_handover_expire))
