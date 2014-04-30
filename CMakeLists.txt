@@ -55,6 +55,7 @@ add_definitions(-D_BUILDING_NODE_EXTENSION)
 set(ADAPTER_SOURCE_FILES
   Adapter/impl/common/src/async_common.cpp
   Adapter/impl/common/src/unified_debug.cpp
+  Adapter/impl/common/src/common_v8_values.cpp
   Adapter/impl/ndb/src/AsyncNdbContext.cpp
   Adapter/impl/ndb/src/AsyncNdbContext_wrapper.cpp
   Adapter/impl/ndb/src/ColumnHandler.cpp

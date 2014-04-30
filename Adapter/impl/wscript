@@ -19,6 +19,7 @@ def build(ctx):
   \
   "common/src/async_common.cpp " +\
   "common/src/unified_debug.cpp " +\
+  "common/src/common_v8_values.cpp " +\
   \
   "ndb/src/Record.cpp " +\
   "ndb/src/DBOperationHelper.cpp " +\
