@@ -95,7 +95,7 @@ class AsyncCall {
       if (callback->IsCallable()) {
         uv_work_t * req = new uv_work_t;
         req->data = (void *) this;
-        uv_queue_work(uv_default_loop(), req, work_thd_run, ASYNC_COMMON_MAIN_THD_CALLBACK);
+        uv_queue_work(uv_default_loop(), req, work_thd_run, main_thd_complete);
       }
       else {
         ThrowException(Exception::TypeError(String::New("Uncallable Callback")));
