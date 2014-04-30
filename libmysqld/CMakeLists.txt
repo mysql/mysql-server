@@ -57,6 +57,7 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql-common/my_time.c 
   ../sql-common/my_user.c
   ../sql-common/pack.c
+  ../sql-common/sql_string.cc
   ../sql/binlog.cc 
   ../sql/event_parse_data.cc
   ../sql/log_event.cc
