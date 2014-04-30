@@ -24,7 +24,8 @@
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
 
-static const char * NDB_MAGIC_TICKET = "NDB Magic Ticket";
+bool boolTrue = true;
+bool boolFalse = false;
 
 /* Thread starter, for pthread_create()
 */
@@ -52,6 +53,11 @@ void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
   MCALL * mcallptr = (MCALL *) v;
   mcallptr->return_val = status;
   mcallptr->handleErrors();
+  bool * doClose = static_cast<bool *> (tx->getNdb()->getCustomData());
+  if( * doClose) {
+    DEBUG_PRINT("Closing");
+    tx->close();
+  }
   tx->getNdb()->setCustomData(mcallptr);  
 }
 
@@ -110,8 +116,14 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
   DEBUG_PRINT("NdbTransaction:%p:executeAsynch(%d,%d) -- Push: %p", 
               mcallptr->native_obj, execType, abortOption, ndb);
 
+  /* Use the custom data pointer to store whether the transaction should be 
+     closed upon completion 
+  */
+  bool * boolPtr = 
+    (execType == NdbTransaction::NoCommit ? & boolFalse : & boolTrue);
+  ndb->setCustomData(boolPtr);
+
   /* send the transaction to NDB */
-  ndb->setCustomData((void *)NDB_MAGIC_TICKET);
   tx->executeAsynch((NdbTransaction::ExecType) execType,
                     ndbTxCompleted,
                     mcallptr,
@@ -171,7 +183,6 @@ void AsyncNdbContext::completeCallbacks() {
   
   while(ndb) {
     DEBUG_PRINT("                                           -- Pop:  %p", ndb);
-    assert(ndb->getCustomData() == NDB_MAGIC_TICKET);
     ndb->pollNdb(0, 1);  /* runs ndbTxCompleted() */
     mcallptr = (MCALL *) ndb->getCustomData();
     ndb->setCustomData(0);

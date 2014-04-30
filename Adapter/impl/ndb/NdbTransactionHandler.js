@@ -102,7 +102,8 @@ function run(self, execMode, abortFlag, callback) {
     }
     else {
       stats.run_sync++;
-      this.tx.ndbtx.execute(this.execMode, this.abortFlag, force_send, this.callback);
+      this.tx.ndbtx.executeAndClose(this.execMode, this.abortFlag, 
+                                    force_send, this.callback);
     }
   };
 
@@ -137,24 +138,13 @@ function attachErrorToTransaction(dbTxHandler, err) {
   }
 }
 
-function closeNdbTransaction(dbTxHandler, callback) {
-  var apiCall;
-  apiCall = new QueuedAsyncCall(dbTxHandler.dbSession.execQueue, callback);
-  apiCall.ndbTransaction = dbTxHandler.ndbtx;
-  apiCall.description = "close " + dbTxHandler.moniker;
-  apiCall.run = function closeNdbTransaction() {
-    this.ndbTransaction.close(this.callback);
-  };
-  apiCall.enqueue();
-}
-
 /* EXECUTE PATH FOR KEY OPERATIONS
    -------------------------------
    Start NdbTransaction 
    Fetch needed auto-increment values
    Prepare each operation (synchronous)
    Execute the NdbTransaction
-   Close the NdbTransaction
+   If transaction is executed Commit or Rollback, it will close
    Attach results to operations, and run operation callbacks
    Run the transaction callback
    
@@ -164,8 +154,7 @@ function closeNdbTransaction(dbTxHandler, callback) {
    Prepare the NdbScanOperation (async)
    Execute NdbTransaction NoCommit
    Fetch results from scan
-   Execute the NdbTransaction (commit or rollback)
-   Close the NdbTransaction
+   Execute the NdbTransaction (commit or rollback); it will close
    Attach results to query operation
    Run query operation callback
    Run the transaction callback
@@ -182,35 +171,23 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
     udebug.log("onExecute", modeNames[execMode], dbTxHandler.moniker,
                 "success:", dbTxHandler.success);
   }
-  function continueAfterExecute() {
-    /* send the next exec call on its way */
-    runExecAfterOpenQueue(dbTxHandler);
 
-    /* Attach results to their operations */
-    ndboperation.completeExecutedOps(dbTxHandler, execMode, 
-                                     dbTxHandler.pendingOpsLists[execId]);
-
-    /* Next callback */
-    if(typeof userCallback === 'function') {
-      userCallback(dbTxHandler.error, dbTxHandler);
-    }
-  }
-  
-  /* If we just executed with Commit or Rollback, close the NdbTransaction 
-     and register the DBTransactionHandler as closed with DBSession
+  /* If we just executed with Commit or Rollback, 
+     register the DBTransactionHandler as closed with DBSession
   */
-  function onNdbTransactionClosed() {
+  if(execMode !== NOCOMMIT && dbTxHandler.ndbtx) {
     ndbsession.closeNdbTransaction(dbTxHandler, dbTxHandler.nTxRecords);
-    continueAfterExecute();
   }
-    
-  if(execMode === COMMIT || execMode === ROLLBACK) {
-    if(dbTxHandler.ndbtx) {       // May not exist on "stub" commit/rollback
-      closeNdbTransaction(dbTxHandler, onNdbTransactionClosed);
-    }
-  }
-  else {
-    continueAfterExecute();
+
+  /* send the next exec call on its way */
+  runExecAfterOpenQueue(dbTxHandler);
+
+  /* Attach results to their operations */
+  ndboperation.completeExecutedOps(dbTxHandler, execMode, 
+                                   dbTxHandler.pendingOpsLists[execId]);
+  /* Next callback */
+  if(typeof userCallback === 'function') {
+    userCallback(dbTxHandler.error, dbTxHandler);
   }
 }
 
