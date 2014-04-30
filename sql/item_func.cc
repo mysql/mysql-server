@@ -5826,7 +5826,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   }
   /* Mark that this variable has been used by this query */
   var_entry->used_query_id= thd->query_id;
-  if (insert_dynamic(&thd->user_var_events, &user_var_event))
+  if (thd->user_var_events.push_back(user_var_event))
     goto err;
 
   *out_entry= var_entry;

@@ -5568,12 +5568,11 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           if (cache_data->write_event(thd, &e))
             goto err;
         }
-        if (thd->user_var_events.elements)
+        if (!thd->user_var_events.empty())
         {
-          for (uint i= 0; i < thd->user_var_events.elements; i++)
+          for (size_t i= 0; i < thd->user_var_events.size(); i++)
           {
-            BINLOG_USER_VAR_EVENT *user_var_event;
-            get_dynamic(&thd->user_var_events,(uchar*) &user_var_event, i);
+            BINLOG_USER_VAR_EVENT *user_var_event= thd->user_var_events[i];
 
             /* setting flags for user var log event */
             uchar flags= User_var_log_event::UNDEF_F;
