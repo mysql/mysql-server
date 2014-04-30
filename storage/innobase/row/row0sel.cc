@@ -3976,15 +3976,17 @@ The cursor is an iterator over the table/index.
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
+@param[in,out]	session		session handler
 @return DB_SUCCESS or error code */
 static
 dberr_t
 row_search_no_mvcc(
-	byte*		buf,
-	ulint		mode,
-	row_prebuilt_t*	prebuilt,
-	ulint		match_mode,
-	ulint		direction)
+	byte*			buf,
+	ulint			mode,
+	row_prebuilt_t*		prebuilt,
+	ulint			match_mode,
+	ulint			direction,
+	innodb_session_t*	session)
 {
 	dict_index_t*	index		= prebuilt->index;
 	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
@@ -4073,7 +4075,8 @@ row_search_no_mvcc(
 		index->last_sel_cur->release();
 
 		/* Capture table snapshot in form of trx-id. */
-		index->trx_id = index->table->sess_trx_id;
+		index->trx_id = session->get_table_curr_sess_trx_id(
+			index->table->name);
 
 		/* Fresh search commences. */
 		mtr_start(mtr);
@@ -5824,17 +5827,18 @@ position and fetch next or fetch prev must not be tried to the cursor!
 				not invoked and so condition above will not
 				stand valid instead this is traced using
 				an alternative condition at caller level.
-
+@param[in,out]	session		session handler
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
 dberr_t
 row_search_for_mysql(
-	byte*		buf,
-	ulint		mode,
-	row_prebuilt_t*	prebuilt,
-	ulint		match_mode,
-	ulint		direction,
-	bool		ins_sel_stmt)
+	byte*			buf,
+	ulint			mode,
+	row_prebuilt_t*		prebuilt,
+	ulint			match_mode,
+	ulint			direction,
+	bool			ins_sel_stmt,
+	innodb_session_t*	session)
 {
 	/* Step-1: Perform validation check before actual search. */
 
@@ -5869,7 +5873,7 @@ row_search_for_mysql(
 	temporary. Rest of logic is same as both interface uses cursor. */
 	if (dict_table_is_intrinsic(prebuilt->table)) {
 		return(row_search_no_mvcc(
-			buf, mode, prebuilt, match_mode, direction));
+			buf, mode, prebuilt, match_mode, direction, session));
 	} else {
 		return(row_search_mvcc(
 			buf, mode, prebuilt, match_mode,

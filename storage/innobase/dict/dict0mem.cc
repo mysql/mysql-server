@@ -110,8 +110,6 @@ dict_mem_table_create(
 	mutex_create("autoinc", &table->autoinc_mutex);
 
 	table->autoinc = 0;
-	table->sess_row_id = 0;
-	table->sess_trx_id = 0;
 
 	/* The number of transactions that are either waiting on the
 	AUTOINC lock or have been granted the lock. */
