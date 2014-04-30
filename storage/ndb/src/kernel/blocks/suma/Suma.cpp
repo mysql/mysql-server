@@ -378,6 +378,7 @@ Suma::execSTTOR(Signal* signal) {
         {
           jam();
           /* Unlimited wait */
+          infoEvent("Suma: handover waiting until all subscribers connected");
           NdbTick_Invalidate(&c_startup.m_wait_handover_expire);
         }
         else
@@ -385,6 +386,7 @@ Suma::execSTTOR(Signal* signal) {
           jam();
           /* Bounded wait */
           NDB_TICKS now = NdbTick_getCurrentTicks();
+          infoEvent("Suma: handover waiting up to %ums for all subscribers to connect", c_wait_handover_timeout_ms);
           c_startup.m_wait_handover_expire = NdbTick_AddMilliseconds(now, c_wait_handover_timeout_ms);
         }
         check_wait_handover_timeout(signal);
@@ -443,10 +445,12 @@ Suma::execDICT_LOCK_CONF(Signal* signal)
     jam();
     c_startup.m_restart_server_node_id = 0;
     CRASH_INSERTION(13039);
+    infoEvent("Suma: Send start me request");
     send_start_me_req(signal);
     return;
   case DictLockReq::SumaHandOver:
     jam();
+    infoEvent("Suma: Send handover request");
     send_handover_req(signal, SumaHandoverReq::RT_START_NODE);
     return;
   default:
@@ -801,12 +805,13 @@ Suma::check_start_handover(Signal* signal)
       char buf[tmp.TextLength + 1];
       tmp.assign(c_subscriber_nodes);
       tmp.bitANDC(c_connected_nodes);
-      g_eventLogger->info("bug18496153: %s: %u: %s: subscribers not connected: %s", __FILE__, __LINE__, __func__, tmp.getText(buf));
+      g_eventLogger->info("bug18496153: SUMA : %u: %s: subscribers not connected: %s", __LINE__, __func__, tmp.getText(buf));
       return;
     }
     
     c_startup.m_wait_handover= false;
 
+    infoEvent("Suma: Ok to start handover (#buckets= %u)", c_no_of_buckets);
     if (c_no_of_buckets)
     {
       jam();
@@ -4209,6 +4214,17 @@ Suma::report_sub_stop_conf(Signal* signal,
     {
       jam();
       c_subscriber_nodes.clear(nodeId);
+      g_eventLogger->info("bug18496153: SUMA node %u no longer a subscriber node due to Subscription stop from node %u",
+                         nodeId,
+                         refToNode(senderRef));
+      if (c_startup.m_wait_handover &&
+          !c_connected_nodes.get(nodeId))
+      {
+        g_eventLogger->info("bug18496153: Node startup was waiting for this node to connect : c_subscriber_nodes %s, c_connected_nodes %s",
+                            BaseString::getPrettyTextShort(c_subscriber_nodes).c_str(),
+                            BaseString::getPrettyTextShort(c_connected_nodes).c_str());
+        ndbrequire(false);
+      }
     }
   }
 }
