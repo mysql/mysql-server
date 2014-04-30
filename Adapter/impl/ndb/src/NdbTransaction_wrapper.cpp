@@ -31,16 +31,14 @@
 using namespace v8;
 
 Handle<Value> getTCNodeId(const Arguments &args);
-Handle<Value> execute(const Arguments &args);
-Handle<Value> close(const Arguments &args);
+Handle<Value> executeAndClose(const Arguments &args);
 Handle<Value> commitStatus(const Arguments &args);
 
 class NdbTransactionEnvelopeClass : public Envelope {
 public:
   NdbTransactionEnvelopeClass() : Envelope("NdbTransaction") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "getConnectedNodeId", getTCNodeId); 
-    DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute); 
-    DEFINE_JS_FUNCTION(Envelope::stencil, "close", close);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "executeAndClose", executeAndClose);
     DEFINE_JS_FUNCTION(Envelope::stencil, "commitStatus", commitStatus);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<NdbTransaction>);
   }
@@ -84,28 +82,35 @@ Handle<Value> commitStatus(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
+/* Execute NdbTransaction.
+   If commit type is Commit or Rollback, also close the transaction.
+   If NdbTransaction::execute() returns non-zero, get the NdbError condition.
+*/
+class TxExecuteAndCloseCall : 
+  public NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
+                            NdbOperation::AbortOption, int> {
+public:
+  /* Constructor */
+  TxExecuteAndCloseCall(const Arguments &args) : 
+    NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
+                        NdbOperation::AbortOption, int>(NULL, args) {}
+  void run();
+};                               
 
-// ASYNC CLOSE
-Handle<Value> close(const Arguments &args) {    
-  REQUIRE_ARGS_LENGTH(1);
-  typedef NativeVoidMethodCall_0_<NdbTransaction> NCALL;
-  NCALL * ncallptr = new NCALL(& NdbTransaction::close, args);
-  DEBUG_PRINT("NdbTransaction:%p:close()", ncallptr->native_obj);
-  ncallptr->runAsync();
-  return Undefined();
+void TxExecuteAndCloseCall::run() {
+  return_val = native_obj->execute(arg0, arg1, arg2);
+  if(return_val != 0) {
+    error = new NdbNativeCodeError(native_obj->getNdbError());
+  }
+  if(arg0 != NdbTransaction::NoCommit) {
+    native_obj->close();
+  }
 }
 
 
-//////////// ASYNC METHOD WRAPPERS
-
-Handle<Value> execute(const Arguments &args) {
+Handle<Value> executeAndClose(const Arguments &args) {
   REQUIRE_ARGS_LENGTH(4);
-
-  typedef NativeMethodCall_3_<int, NdbTransaction, NdbTransaction::ExecType,
-                              NdbOperation::AbortOption, int> NCALL;
-  NCALL * ncallptr = new NCALL(& NdbTransaction::execute, args);
-  ncallptr->errorHandler = getNdbErrorIfLessThanZero<int, NdbTransaction>;
-  DEBUG_PRINT("NdbTransaction:%p:execute(%d)", ncallptr->native_obj, ncallptr->arg0);
+  TxExecuteAndCloseCall * ncallptr = new TxExecuteAndCloseCall(args);
   ncallptr->runAsync();
   return Undefined();
 }
