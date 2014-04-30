@@ -679,11 +679,26 @@ struct dict_index_t{
 				/*!< number of columns the user defined to
 				be in the index: in the internal
 				representation we add more columns */
+	unsigned	allow_duplicates:1;
+				/*!< if true, allow duplicate values
+				even if index is created with unique
+				constraint */
+	unsigned	nulls_equal:1;
+				/*!< if true, SQL NULL == SQL NULL */
+	unsigned	disable_ahi:1;
+				/*!< in true, then disable AHI.
+				Currently limited to intrinsic
+				temporary table as index id is not
+				unqiue for such table which is one of the
+				validation criterion for ahi. */
 	unsigned	n_uniq:10;/*!< number of fields from the beginning
 				which are enough to determine an index
 				entry uniquely */
 	unsigned	n_def:10;/*!< number of fields defined so far */
 	unsigned	n_fields:10;/*!< number of fields in the index */
+	unsigned	auto_gen_clust_index:1;
+				/*!< true if index is auto-generated clustered
+				index. */
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
@@ -697,6 +712,11 @@ struct dict_index_t{
 				by dict_operation_lock and
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
+#ifdef UNIV_DEBUG
+	uint32_t	magic_n;/*!< magic number */
+/** Value of dict_index_t::magic_n */
+# define DICT_INDEX_MAGIC_N	76789786
+#endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
 #ifndef UNIV_HOTBACKUP
@@ -739,28 +759,6 @@ struct dict_index_t{
 				/*!< approximate number of leaf pages in the
 				index tree */
 	/* @} */
-	rw_lock_t	lock;	/*!< read-write lock protecting the
-				upper levels of the index tree */
-	trx_id_t	trx_id; /*!< id of the transaction that created this
-				index, or 0 if the index existed
-				when InnoDB was started up */
-	zip_pad_info_t	zip_pad;/*!< Information about state of
-				compression failures and successes */
-	unsigned	allow_duplicates:1;
-				/*!< if true, allow duplicate values
-				even if index is created with unique
-				constraint */
-	unsigned	nulls_equal:1;
-				/*!< if true, SQL NULL == SQL NULL */
-	unsigned	disable_ahi:1;
-				/*!< in true, then disable AHI.
-				Currently limited to intrinsic
-				temporary table as index id is not
-				unqiue for such table which is one of the
-				validation criterion for ahi. */
-	unsigned	auto_gen_clust_index:1;
-				/*!< true if index is auto-generated clustered
-				index. */
 	last_ops_cur_t*	last_ins_cur;
 				/*!< cache the last insert position.
 				Currently limited to auto-generated
@@ -777,12 +775,14 @@ struct dict_index_t{
 	rtr_ssn_t	rtr_ssn;/*!< Node sequence number for RTree */
 	rtr_info_track_t*
 			rtr_track;/*!< tracking all R-Tree search cursors */
+	trx_id_t	trx_id; /*!< id of the transaction that created this
+				index, or 0 if the index existed
+				when InnoDB was started up */
+	zip_pad_info_t	zip_pad;/*!< Information about state of
+				compression failures and successes */
+	rw_lock_t	lock;	/*!< read-write lock protecting the
+				upper levels of the index tree */
 #endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG
-	ulint		magic_n;/*!< magic number */
-/** Value of dict_index_t::magic_n */
-# define DICT_INDEX_MAGIC_N	76789786
-#endif
 };
 
 /** The status of online index creation */
