@@ -462,6 +462,7 @@ end:
   if (0 == error)
   {
     should_compress= true;
+    m_count= 0;
     mysql_cond_signal(&COND_compress_gtid_table);
   }
 
@@ -561,10 +562,8 @@ int Gtid_table_persistor::compress(THD *thd)
   int error= 0;
   bool is_complete= false;
 
-  do {
-    if ((error= compress_in_single_transaction(thd, is_complete)))
-      break;
-  } while (!is_complete);
+  while (!is_complete && !error)
+    error= compress_in_single_transaction(thd, is_complete);
 
   DBUG_EXECUTE_IF("compress_gtid_table",
                   {
@@ -678,10 +677,7 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
 
   table->file->ha_index_end();
   /* Indicate if the gtid table is compressd completely. */
-  if (err == HA_ERR_END_OF_FILE)
-    is_complete= true;
-  else
-    is_complete= false;
+  is_complete= (err == HA_ERR_END_OF_FILE);
 
   if (err != HA_ERR_END_OF_FILE && err != 0)
     ret= -1;

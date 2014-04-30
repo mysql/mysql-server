@@ -1437,10 +1437,12 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
   bool release_mdl= false;
   bool need_clear_owned_gtid= false;
   /*
-    When binlog is disabled, save transaction's gtid into table
-    before transaction prepare if the transaction owned a gtid.
+    Save transaction owned gtid into table before transaction prepare
+    if binlog is disabled, or binlog is enabled and log_slave_updates
+    is disabled with slave SQL thread or slave worker thread.
   */
-  if (!opt_bin_log && (all || !thd->in_multi_stmt_transaction_mode()) &&
+  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+      (all || !thd->in_multi_stmt_transaction_mode()) &&
       !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
   {
     error= gtid_state->save(thd);
@@ -1547,7 +1549,11 @@ end:
   if (need_clear_owned_gtid)
   {
     thd->server_status&= ~SERVER_STATUS_IN_TRANS;
-    /* Release the owned GTID when binlog is disabled. */
+    /*
+      Release the owned GTID when binlog is disabled, or binlog is
+      enabled and log_slave_updates is disabled with slave SQL thread
+      or slave worker thread.
+    */
     if (error)
       gtid_state->update_on_rollback(thd);
     else

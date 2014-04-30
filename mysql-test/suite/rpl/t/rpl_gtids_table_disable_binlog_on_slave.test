@@ -65,7 +65,6 @@ SELECT * FROM mysql.gtid_executed;
 --echo #
 --echo # connection slave
 --echo #
---let $slave_uuid= `SELECT @@GLOBAL.SERVER_UUID`
 call mtr.add_suppression("You need to use --log-bin to make --binlog-format work");
 call mtr.add_suppression("Slave SQL: Error in Xid_log_event: Commit could not "
                          "be completed, 'Got error -1 from storage engine', "
@@ -104,6 +103,9 @@ COMMIT;
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 
+--echo #
+--echo # Verify that the gtid_executed table is compressed.
+--echo #
 SET @debug_save= @@GLOBAL.DEBUG;
 SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 --replace_result $master_uuid MASTER_UUID
@@ -111,10 +113,6 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 COMMIT;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
-
---echo #
---echo # Verify that the gtid_executed table is compressed.
---echo #
 --replace_result $master_uuid MASTER_UUID
 SELECT * FROM mysql.gtid_executed;
 

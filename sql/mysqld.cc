@@ -4562,7 +4562,7 @@ int mysqld_main(int argc, char **argv)
       */
       Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
       Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
-      Gtid_set logged_gtids_last_binlog(global_sid_map, global_sid_lock);
+      Gtid_set unsaved_gtids_in_table(global_sid_map, global_sid_lock);
       Gtid_set *gtids_only_in_table=
         const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
       Gtid_set *previous_gtids_logged=
@@ -4578,48 +4578,30 @@ int mysqld_main(int argc, char **argv)
 
       global_sid_lock->wrlock();
 
-      if (!logged_gtids_binlog.is_empty())
+      if (!logged_gtids_binlog.is_empty() &&
+          !logged_gtids_binlog.is_subset(executed_gtids))
       {
-        if (executed_gtids->is_empty())
-        {
-          /*
-            When binlog is enabled, handle the following three cases:
+        unsaved_gtids_in_table.add_gtid_set(&logged_gtids_binlog);
+        if (!executed_gtids->is_empty())
+          unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
+        /*
+          Save unsaved GTIDs into gtid table, in the following four cases:
             1. the upgrade case.
             2. the case that a slave is provisioned from a backup of
                the master and the slave is cleaned by RESET MASTER
                and RESET SLAVE before this.
             3. the case that no binlog rotation happened from the
                last RESET MASTER on the server before it crashes.
-          */
-          if (executed_gtids->add_gtid_set(&logged_gtids_binlog) !=
-              RETURN_STATUS_OK)
-          {
-            global_sid_lock->unlock();
-            unireg_abort(1);
-          }
-          /* Save the executed_gtids into gtid table. */
-          if (gtid_state->save(executed_gtids) == -1)
-          {
-            global_sid_lock->unlock();
-            unireg_abort(1);
-          }
-        }
-        else if (!logged_gtids_binlog.is_subset(executed_gtids))
+            4. The set of GTIDs of the last binlog is not saved into the
+               gtid table if server crashes, so we save it into gtid table
+               and executed_gtids during recovery from the crash.
+        */
+        if (gtid_state->save(&unsaved_gtids_in_table) == -1)
         {
-          logged_gtids_last_binlog.add_gtid_set(&logged_gtids_binlog);
-          logged_gtids_last_binlog.remove_gtid_set(executed_gtids);
-          /*
-            The set of GTIDs of the last binlog is not saved into the
-            gtid table if server crashes, so we save it into gtid table
-            and executed_gtids during recovery from the crash.
-          */
-          if (gtid_state->save(&logged_gtids_last_binlog) == -1)
-          {
-            global_sid_lock->unlock();
-            unireg_abort(1);
-          }
-          executed_gtids->add_gtid_set(&logged_gtids_last_binlog);
+          global_sid_lock->unlock();
+          unireg_abort(1);
         }
+        executed_gtids->add_gtid_set(&unsaved_gtids_in_table);
       }
 
       /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
