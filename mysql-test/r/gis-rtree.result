@@ -1500,7 +1500,7 @@ INSERT INTO t1 VALUES
 (GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)'));
 EXPLAIN SELECT 1 FROM t1 WHERE a = GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` = <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
 SELECT 1 FROM t1 WHERE a = GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
@@ -1509,14 +1509,14 @@ SELECT 1 FROM t1 WHERE a = GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 
 1
 EXPLAIN SELECT 1 FROM t1 WHERE a < GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` < <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
 SELECT 1 FROM t1 WHERE a < GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 1
 EXPLAIN SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` <= <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
 SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
@@ -1525,14 +1525,14 @@ SELECT 1 FROM t1 WHERE a <= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1
 1
 EXPLAIN SELECT 1 FROM t1 WHERE a > GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
 SELECT 1 FROM t1 WHERE a > GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 1
 EXPLAIN SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	a	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` >= <cache>(st_geometryfromtext('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)')))
 SELECT 1 FROM t1 WHERE a >= GEOMFROMTEXT('LINESTRING(-1 -1, 1 -1, -1 -1, -1 1, 1 1)');

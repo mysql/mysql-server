@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -38,6 +38,7 @@ Created 5/30/1994 Heikki Tuuri
 #include "page0zip.h"
 #include "dict0dict.h"
 #include "btr0cur.h"
+#include "row0upd.h"
 
 #endif /* !UNIV_HOTBACKUP */
 
@@ -381,16 +382,16 @@ dfield_print_also_hex(
 
 		case 6:
 			id = mach_read_from_6(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 
 		case 7:
 			id = mach_read_from_7(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		case 8:
 			id = mach_read_from_8(data);
-			fprintf(stderr, "%llu", (ullint) id);
+			fprintf(stderr, IB_ID_FMT, id);
 			break;
 		default:
 			goto print_hex;
@@ -418,9 +419,7 @@ dfield_print_also_hex(
 			break;
 
 		default:
-			id = mach_ull_read_compressed(data);
-
-			fprintf(stderr, "mix_id " TRX_ID_FMT, id);
+			goto print_hex;
 		}
 		break;
 
@@ -591,6 +590,7 @@ big_rec_t*
 dtuple_convert_big_rec(
 /*===================*/
 	dict_index_t*	index,	/*!< in: index */
+	upd_t*		upd,	/*!< in/out: update vector */
 	dtuple_t*	entry,	/*!< in/out: index entry */
 	ulint*		n_ext)	/*!< in/out: number of
 				externally stored columns */
@@ -633,15 +633,7 @@ dtuple_convert_big_rec(
 	heap = mem_heap_create(size + dtuple_get_n_fields(entry)
 			       * sizeof(big_rec_field_t) + 1000);
 
-	vector = static_cast<big_rec_t*>(
-		mem_heap_alloc(heap, sizeof(big_rec_t)));
-
-	vector->heap = heap;
-
-	vector->fields = static_cast<big_rec_field_t*>(
-		mem_heap_alloc(
-			heap,
-			dtuple_get_n_fields(entry) * sizeof(big_rec_field_t)));
+	vector = big_rec_t::alloc(heap, dtuple_get_n_fields(entry));
 
 	/* Decide which fields to shorten: the algorithm is to look for
 	a variable-length field that yields the biggest savings when
@@ -653,12 +645,12 @@ dtuple_convert_big_rec(
 							     *n_ext),
 				      dict_table_is_comp(index->table),
 				      dict_index_get_n_fields(index),
-				      dict_table_zip_size(index->table))) {
+				      dict_table_page_size(index->table))) {
+
 		ulint			i;
 		ulint			longest		= 0;
 		ulint			longest_i	= ULINT_MAX;
 		byte*			data;
-		big_rec_field_t*	b;
 
 		for (i = dict_index_get_n_unique_in_tree(index);
 		     i < dtuple_get_n_fields(entry); i++) {
@@ -725,10 +717,12 @@ skip_field:
 		ifield = dict_index_get_nth_field(index, longest_i);
 		local_prefix_len = local_len - BTR_EXTERN_FIELD_REF_SIZE;
 
-		b = &vector->fields[n_fields];
-		b->field_no = longest_i;
-		b->len = dfield_get_len(dfield) - local_prefix_len;
-		b->data = (char*) dfield_get_data(dfield) + local_prefix_len;
+		vector->append(
+			big_rec_field_t(
+				longest_i,
+				dfield_get_len(dfield) - local_prefix_len,
+				static_cast<char*>(dfield_get_data(dfield))
+				+ local_prefix_len));
 
 		/* Allocate the locally stored part of the column. */
 		data = static_cast<byte*>(mem_heap_alloc(heap, local_len));
@@ -752,9 +746,24 @@ skip_field:
 		n_fields++;
 		(*n_ext)++;
 		ut_ad(n_fields < dtuple_get_n_fields(entry));
+
+		if (upd && !upd->is_modified(longest_i)) {
+
+			DEBUG_SYNC_C("ib_mv_nonupdated_column_offpage");
+
+			upd_field_t	upd_field;
+			upd_field.field_no = longest_i;
+			upd_field.orig_len = local_len;
+			upd_field.exp = NULL;
+			dfield_copy(&upd_field.new_val,
+				    dfield->clone(upd->heap));
+			upd->append(upd_field);
+			ut_ad(upd->is_modified(longest_i));
+		}
 	}
 
-	vector->n_fields = n_fields;
+	ut_ad(n_fields == vector->n_fields);
+
 	return(vector);
 }
 
@@ -798,4 +807,56 @@ dtuple_convert_back_big_rec(
 
 	mem_heap_free(vector->heap);
 }
+
+/** Allocate a big_rec_t object in the given memory heap, and for storing
+n_fld number of fields.
+@param[in]	heap	memory heap in which this object is allocated
+@param[in]	n_fld	maximum number of fields that can be stored in
+			this object
+
+@return the allocated object */
+big_rec_t*
+big_rec_t::alloc(
+	mem_heap_t*	heap,
+	ulint		n_fld)
+{
+	void *mem = mem_heap_alloc(heap, sizeof(big_rec_t));
+	big_rec_t* rec = new (mem) big_rec_t(n_fld);
+
+	rec->heap = heap;
+	rec->fields = static_cast<big_rec_field_t*>(
+		mem_heap_alloc(heap,
+			       n_fld * sizeof(big_rec_field_t)));
+
+	rec->n_fields = 0;
+	return(rec);
+}
+
+/** Create a deep copy of this object
+@param[in]	heap	the memory heap in which the clone will be
+			created.
+
+@return	the cloned object. */
+dfield_t*
+dfield_t::clone(
+	mem_heap_t*	heap)
+{
+	const ulint size = len == UNIV_SQL_NULL ? 0 : len;
+	dfield_t* obj = static_cast<dfield_t*>(
+		mem_heap_alloc(heap, sizeof(dfield_t) + size));
+
+	obj->ext  = ext;
+	obj->len  = len;
+	obj->type = type;
+
+	if (len != UNIV_SQL_NULL) {
+		obj->data = obj + 1;
+		memcpy(obj->data, data, len);
+	} else {
+		obj->data = 0;
+	}
+
+	return(obj);
+}
+
 #endif /* !UNIV_HOTBACKUP */

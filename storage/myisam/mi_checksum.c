@@ -25,7 +25,7 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
 
   for (i=info->s->base.fields ; i-- ; buf+=(rec++)->length)
   {
-    const uchar *pos;
+    uchar *pos;
     ulong length;
     switch (rec->type) {
     case FIELD_BLOB:
@@ -43,12 +43,12 @@ ha_checksum mi_checksum(MI_INFO *info, const uchar *buf)
         length= (ulong) *(uchar*) buf;
       else
         length= uint2korr(buf);
-      pos= buf+pack_length;
+      pos= (uchar*)buf+pack_length;
       break;
     }
     default:
       length=rec->length;
-      pos=buf;
+      pos= (uchar*)buf;
       break;
     }
     crc=my_checksum(crc, pos ? pos : (uchar*) "", length);

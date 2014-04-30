@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -43,6 +43,9 @@ public:
     stop_cond  - when stopped
     data_cond  - when data protected by data_lock changes
     sleep_cond - when killed
+
+    'data_cond' is only being used in class Relay_log_info and not in the
+    class Master_info. So 'data_cond' could be moved to Relay_log_info.
   */
   mysql_cond_t data_cond, start_cond, stop_cond, sleep_cond;
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -76,14 +76,35 @@ cmp_data_data(
 UNIV_INLINE
 int
 cmp_dfield_dfield(
-	const dfield_t*	dfield1,
-	const dfield_t*	dfield2);
+/*==============*/
+	const dfield_t*	dfield1,/*!< in: data field; must have type field set */
+	const dfield_t*	dfield2);/*!< in: data field */
+
+
+/** Compare a GIS data tuple to a physical record.
+@param[in] dtuple data tuple
+@param[in] rec B-tree record
+@param[in] offsets rec_get_offsets(rec)
+@param[in] mode compare mode
+@retval negative if dtuple is less than rec */
+
+int
+cmp_dtuple_rec_with_gis(
+/*====================*/
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record which differs from
+				dtuple in some of the common fields, or which
+				has an equal number or more fields than
+				dtuple */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint		mode)	/*!< in: number of fields to compare */
+	__attribute__((nonnull));
 /** Compare a data tuple to a physical record.
 @param[in] dtuple data tuple
 @param[in] rec B-tree record
 @param[in] offsets rec_get_offsets(rec)
 @param[in] n_cmp number of fields to compare
-@param[in/out] matched_fields number of completely matched fields
+@param[in,out] matched_fields number of completely matched fields
 @return the comparison result of dtuple and rec
 @retval 0 if dtuple is equal to rec
 @retval negative if dtuple is less than rec

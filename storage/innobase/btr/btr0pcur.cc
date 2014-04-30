@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -123,8 +123,22 @@ btr_pcur_store_position(
 	page = page_align(rec);
 	offs = page_offset(rec);
 
-	ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
-	      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		/* For spatial index, when we do positioning on parent
+		buffer if necessary, it might not hold latches, but the
+		tree must be locked to prevent change on the page */
+		ut_ad((mtr_memo_contains_flagged(
+				mtr, dict_index_get_lock(index),
+				MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
+		       || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
+		       || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX))
+		      && (block->page.buf_fix_count > 0));
+	} else {
+		ut_ad(mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_S_FIX)
+		      || mtr_memo_contains(mtr, block, MTR_MEMO_PAGE_X_FIX));
+	}
+#endif /* UNIV_DEBUG */
 
 	if (page_is_empty(page)) {
 		/* It must be an empty index tree; NOTE that in this case
@@ -261,14 +275,17 @@ btr_pcur_restore_position_func(
 	ut_a(cursor->old_rec);
 	ut_a(cursor->old_n_fields);
 
-	if (UNIV_LIKELY(latch_mode == BTR_SEARCH_LEAF)
-	    || UNIV_LIKELY(latch_mode == BTR_MODIFY_LEAF)) {
+	if (latch_mode == BTR_SEARCH_LEAF
+	    || latch_mode == BTR_MODIFY_LEAF
+	    || latch_mode == BTR_SEARCH_PREV
+	    || latch_mode == BTR_MODIFY_PREV) {
 		/* Try optimistic restoration. */
 
-		if (buf_page_optimistic_get(latch_mode,
-					    cursor->block_when_stored,
-					    cursor->modify_clock,
-					    file, line, mtr)) {
+		if (btr_cur_optimistic_latch_leaves(
+			cursor->block_when_stored, cursor->modify_clock,
+			&latch_mode, btr_pcur_get_btr_cur(cursor),
+			file, line, mtr)) {
+
 			cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 			cursor->latch_mode = latch_mode;
 
@@ -401,8 +418,6 @@ btr_pcur_move_to_next_page(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint		next_page_no;
-	ulint		space;
-	ulint		zip_size;
 	page_t*		page;
 	buf_block_t*	next_block;
 	page_t*		next_page;
@@ -416,8 +431,6 @@ btr_pcur_move_to_next_page(
 
 	page = btr_pcur_get_page(cursor);
 	next_page_no = btr_page_get_next(page, mtr);
-	space = buf_block_get_space(btr_pcur_get_block(cursor));
-	zip_size = buf_block_get_zip_size(btr_pcur_get_block(cursor));
 
 	ut_ad(next_page_no != FIL_NULL);
 
@@ -429,13 +442,19 @@ btr_pcur_move_to_next_page(
 	case BTR_MODIFY_TREE:
 		mode = BTR_MODIFY_LEAF;
 	}
-	next_block = btr_block_get(space, zip_size, next_page_no, mode,
-				   btr_pcur_get_btr_cur(cursor)->index, mtr);
+
+	buf_block_t*	block = btr_pcur_get_block(cursor);
+
+	next_block = btr_block_get(
+		page_id_t(block->page.id.space(), next_page_no),
+		block->page.size, mode,
+		btr_pcur_get_btr_cur(cursor)->index, mtr);
+
 	next_page = buf_block_get_frame(next_block);
 #ifdef UNIV_BTR_DEBUG
 	ut_a(page_is_comp(next_page) == page_is_comp(page));
 	ut_a(btr_page_get_prev(next_page, mtr)
-	     == buf_block_get_page_no(btr_pcur_get_block(cursor)));
+	     == btr_pcur_get_block(cursor)->page.id.page_no());
 #endif /* UNIV_BTR_DEBUG */
 	next_block->check_index_page_at_flush = TRUE;
 

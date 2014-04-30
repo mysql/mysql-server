@@ -10,6 +10,7 @@
 # Adding big test option for this test.
 --source include/big_test.inc
 --source include/master-slave.inc
+--source include/have_myisam.inc
 
 --source include/have_debug.inc
 SET @max_binlog_size_save= @@GLOBAL.MAX_BINLOG_SIZE;

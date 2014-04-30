@@ -110,14 +110,14 @@ while ($count_debug_groups <= $max_groups)
 --source include/start_slave.inc
 
 --connection master
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --connection master
 
 let $MYSQLD_DATADIR= `SELECT @@datadir`;
 
---exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-mts-crash-master.sql
---exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info test > $MYSQLD_DATADIR/test-mts-crash-slave.sql
+--exec $MYSQL_DUMP --compact --order-by-primary --skip-extended-insert --no-create-info --set-gtid-purged=off test > $MYSQLD_DATADIR/test-mts-crash-master.sql
+--exec $MYSQL_DUMP_SLAVE --compact --order-by-primary --skip-extended-insert --no-create-info --set-gtid-purged=off test > $MYSQLD_DATADIR/test-mts-crash-slave.sql
 --diff_files $MYSQLD_DATADIR/test-mts-crash-master.sql $MYSQLD_DATADIR/test-mts-crash-slave.sql
 
 

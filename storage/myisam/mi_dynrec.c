@@ -1437,8 +1437,8 @@ void _mi_store_blob_length(uchar *pos,uint pack_length,uint length)
 int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   int block_of_record;
-  uint b_type,UNINIT_VAR(left_length);
-  uchar *UNINIT_VAR(to);
+  uint b_type, left_length= 0;
+  uchar *to= NULL;
   MI_BLOCK_INFO block_info;
   File file;
   DBUG_ENTER("mi_read_dynamic_record");
@@ -1714,7 +1714,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 {
   int block_of_record, info_read, save_errno;
   uint left_len,b_type;
-  uchar *UNINIT_VAR(to);
+  uchar *to= NULL;
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");

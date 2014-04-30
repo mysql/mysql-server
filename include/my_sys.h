@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,7 +205,7 @@ extern void (*debug_sync_C_callback_ptr)(const char *, size_t);
 #define DEBUG_SYNC_C_IF_THD(thd, _sync_point_name_)
 #endif /* defined(ENABLED_DEBUG_SYNC) */
 
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
 extern uint my_get_large_page_size(void);
 extern uchar * my_large_malloc(PSI_memory_key key, size_t size, myf my_flags);
 extern void my_large_free(uchar *ptr);
@@ -213,7 +213,7 @@ extern void my_large_free(uchar *ptr);
 #define my_get_large_page_size() (0)
 #define my_large_malloc(A,B,C) my_malloc((A),(B),(C))
 #define my_large_free(A) my_free((A))
-#endif /* HAVE_LARGE_PAGES */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 
 #if defined(__GNUC__) && !defined(HAVE_ALLOCA_H) && ! defined(alloca)
 #define alloca __builtin_alloca
@@ -237,7 +237,7 @@ extern ulong my_thread_stack_size;
 extern void (*proc_info_hook)(void *, const PSI_stage_info *, PSI_stage_info *,
                               const char *, const char *, const unsigned int);
 
-#ifdef HAVE_LARGE_PAGES
+#ifdef HAVE_LINUX_LARGE_PAGES
 extern my_bool my_use_large_pages;
 extern uint    my_large_page_size;
 #endif
@@ -309,9 +309,6 @@ struct st_my_file_info
   int    oflag;     /* open flags, e.g O_APPEND */
 #endif
   enum   file_type	type;
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-  mysql_mutex_t mutex;
-#endif
 };
 
 extern struct st_my_file_info *my_file_info;
@@ -485,7 +482,7 @@ typedef struct st_io_cache		/* Used when cacheing files */
 typedef int (*qsort2_cmp)(const void *, const void *, const void *);
 
 typedef void (*my_error_reporter)(enum loglevel level, const char *format, ...)
-  ATTRIBUTE_FORMAT_FPTR(printf, 2, 3);
+  __attribute__((format(printf, 2, 3)));
 
 extern my_error_reporter my_charset_error_reporter;
 
@@ -649,7 +646,7 @@ extern const char *my_get_err_msg(int nr);
 extern void my_error(int nr,myf MyFlags, ...);
 extern void my_printf_error(uint my_err, const char *format,
                             myf MyFlags, ...)
-                            ATTRIBUTE_FORMAT(printf, 2, 4);
+  __attribute__((format(printf, 2, 4)));
 extern void my_printv_error(uint error, const char *format, myf MyFlags,
                             va_list ap);
 extern int my_error_register(const char** (*get_errmsgs) (),
@@ -676,7 +673,7 @@ extern my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist);
 extern char *my_tmpdir(MY_TMPDIR *tmpdir);
 extern void free_tmpdir(MY_TMPDIR *tmpdir);
 
-extern void my_remember_signal(int signal_number,sig_handler (*func)(int));
+extern void my_remember_signal(int signal_number, void (*func)(int));
 extern size_t dirname_part(char * to,const char *name, size_t *to_res_length);
 extern size_t dirname_length(const char *name);
 #define base_name(A) (A+dirname_length(A))
@@ -719,15 +716,14 @@ extern int write_cache_record(RECORD_CACHE *info,my_off_t filepos,
 extern int flush_write_cache(RECORD_CACHE *info);
 extern void handle_recived_signals(void);
 
-extern sig_handler my_set_alarm_variable(int signo);
 extern my_bool radixsort_is_appliccable(uint n_items, size_t size_of_element);
 extern void my_string_ptr_sort(uchar *base,uint items,size_t size);
 extern void radixsort_for_str_ptr(uchar* base[], uint number_of_elements,
 				  size_t size_of_element,uchar *buffer[]);
-extern qsort_t my_qsort(void *base_ptr, size_t total_elems, size_t size,
-                        qsort_cmp cmp);
-extern qsort_t my_qsort2(void *base_ptr, size_t total_elems, size_t size,
-                         qsort2_cmp cmp, const void *cmp_argument);
+extern void my_qsort(void *base_ptr, size_t total_elems, size_t size,
+                     qsort_cmp cmp);
+extern void my_qsort2(void *base_ptr, size_t total_elems, size_t size,
+                      qsort2_cmp cmp, const void *cmp_argument);
 extern qsort2_cmp get_ptr_compare(size_t);
 void my_store_ptr(uchar *buff, size_t pack_length, my_off_t pos);
 my_off_t my_get_ptr(uchar *ptr, size_t pack_length);
@@ -762,7 +758,7 @@ extern void my_b_seek(IO_CACHE *info,my_off_t pos);
 extern size_t my_b_gets(IO_CACHE *info, char *to, size_t max_length);
 extern my_off_t my_b_filelength(IO_CACHE *info);
 extern size_t my_b_printf(IO_CACHE *info, const char* fmt, ...)
-  ATTRIBUTE_FORMAT(printf, 2, 3);
+  __attribute__((format(printf, 2, 3)));
 extern size_t my_b_vprintf(IO_CACHE *info, const char* fmt, va_list ap);
 extern my_bool open_cached_file(IO_CACHE *cache,const char *dir,
 				 const char *prefix, size_t cache_size,
@@ -837,7 +833,20 @@ extern int unpackfrm(uchar **, size_t *, const uchar *);
 
 extern ha_checksum my_checksum(ha_checksum crc, const uchar *mem,
                                size_t count);
-extern void my_sleep(ulong m_seconds);
+
+/* Wait a given number of microseconds */
+static inline void my_sleep(ulong m_seconds)
+{
+#if defined(_WIN32)
+  Sleep(m_seconds/1000+1);      /* Sleep() has millisecond arg */
+#else
+  struct timeval t;
+  t.tv_sec=  m_seconds / 1000000L;
+  t.tv_usec= m_seconds % 1000000L;
+  select(0,0,0,0,&t); /* sleep */
+#endif
+}
+
 extern ulong crc32(ulong crc, const uchar *buf, uint len);
 extern uint my_set_max_open_files(uint files);
 void my_free_open_file_info(void);

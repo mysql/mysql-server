@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,7 +138,7 @@ int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag)
 {
   ha_rows i;
   uint delete_link_length;
-  my_off_t empty,next_link,UNINIT_VAR(old_link);
+  my_off_t empty,next_link, old_link= 0;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
 
@@ -929,11 +929,11 @@ static uint isam_key_length(MI_INFO *info, MI_KEYDEF *keyinfo)
 int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 {
   int	error,got_error,flag;
-  uint	key,UNINIT_VAR(left_length),b_type,field;
+  uint	key, left_length= 0, b_type, field;
   ha_rows records,del_blocks;
-  my_off_t used,empty,pos,splits,UNINIT_VAR(start_recpos),
+  my_off_t used, empty, pos, splits, start_recpos= 0,
 	   del_length,link_used,start_block;
-  uchar	*record= 0, *UNINIT_VAR(to);
+  uchar	*record= 0, *to= NULL;
   char llbuff[22],llbuff2[22],llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[HA_MAX_POSSIBLE_KEY];
@@ -2228,7 +2228,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
   ulong   *rec_per_key_part;
   char llbuff[22];
   SORT_INFO sort_info;
-  ulonglong UNINIT_VAR(key_map);
+  ulonglong key_map= 0;
   DBUG_ENTER("mi_repair_by_sort");
 
   start_records=info->state->records;
@@ -2639,7 +2639,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   IO_CACHE new_data_cache; /* For non-quick repair. */
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
-  ulonglong UNINIT_VAR(key_map);
+  ulonglong key_map= 0;
   pthread_attr_t thr_attr;
   ulong max_pack_reclength;
   int error;
@@ -3126,10 +3126,6 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
     (info->s->rec_reflength+
      _mi_make_key(info, sort_param->key, (uchar*) key,
 		  sort_param->record, sort_param->filepos));
-#ifdef HAVE_purify
-  memset(key+sort_param->real_key_length, 0,
-         (sort_param->key_length-sort_param->real_key_length));
-#endif
   DBUG_RETURN(sort_write_record(sort_param));
 } /* sort_key_read */
 
@@ -3166,11 +3162,6 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
   sort_param->real_key_length=(info->s->rec_reflength+
 			       _ft_make_key(info, sort_param->key,
 					    key, wptr++, sort_param->filepos));
-#ifdef HAVE_purify
-  if (sort_param->key_length > sort_param->real_key_length)
-    memset(key+sort_param->real_key_length, 0,
-           (sort_param->key_length-sort_param->real_key_length));
-#endif
   if (!wptr->pos)
   {
     free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
@@ -3221,7 +3212,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   int parallel_flag;
   uint found_record,b_type,left_length;
   my_off_t pos;
-  uchar *UNINIT_VAR(to);
+  uchar *to= NULL;
   MI_BLOCK_INFO block_info;
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
@@ -3268,7 +3259,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       }
     }
   case DYNAMIC_RECORD:
-    LINT_INIT(to);
+    to= NULL;
     pos=sort_param->pos;
     searching=(sort_param->fix_datafile && (param->testflag & T_EXTEND));
     parallel_flag= (sort_param->read_cache.file < 0) ? READING_NEXT : 0;

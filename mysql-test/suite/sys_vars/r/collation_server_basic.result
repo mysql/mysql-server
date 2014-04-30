@@ -22,7 +22,7 @@ SELECT @@session.collation_server;
 @@session.collation_server
 utf8_unicode_ci
 SET global.collation_server=utf8_unicode_ci;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'collation_server=utf8_unicode_ci' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.collation_server=utf8_unicode_ci' at line 1
 SET session collation_server=utf8_unicode_ci;
 SELECT session collation_server;
 ERROR 42S22: Unknown column 'session' in 'field list'
@@ -273,6 +273,14 @@ SET @@session.collation_server = gbk_bin;
 SELECT @@session.collation_server;
 @@session.collation_server
 gbk_bin
+SET @@session.collation_server = gb18030_chinese_ci;
+SELECT @@session.collation_server;
+@@session.collation_server
+gb18030_chinese_ci
+SET @@session.collation_server = gb18030_bin;
+SELECT @@session.collation_server;
+@@session.collation_server
+gb18030_bin
 SET @@session.collation_server = latin5_turkish_ci;
 SELECT @@session.collation_server;
 @@session.collation_server
@@ -790,6 +798,14 @@ SET @@global.collation_server = gbk_bin;
 SELECT @@global.collation_server;
 @@global.collation_server
 gbk_bin
+SET @@global.collation_server = gb18030_chinese_ci;
+SELECT @@global.collation_server;
+@@global.collation_server
+gb18030_chinese_ci
+SET @@global.collation_server = gb18030_bin;
+SELECT @@global.collation_server;
+@@global.collation_server
+gb18030_bin
 SET @@global.collation_server = latin5_turkish_ci;
 SELECT @@global.collation_server;
 @@global.collation_server

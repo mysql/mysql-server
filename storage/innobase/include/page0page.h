@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -210,6 +210,25 @@ page_update_max_trx_id(
 	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
 				uncompressed part will be updated, or NULL */
 	trx_id_t	trx_id,	/*!< in: transaction id */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+/*************************************************************//**
+Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
+@return SPLIT SEQUENCE NUMBER */
+UNIV_INLINE
+node_seq_t
+page_get_ssn_id(
+/*============*/
+	const page_t*	page);	/*!< in: page */
+/*************************************************************//**
+Sets the RTREE SPLIT SEQUENCE NUMBER field value */
+UNIV_INLINE
+void
+page_set_ssn_id(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
+	node_seq_t	ssn_id,	/*!< in: split sequence id */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 
 #endif /* !UNIV_INNOCHECKSUM */
@@ -1018,18 +1037,14 @@ page_parse_delete_rec_list(
 	buf_block_t*	block,	/*!< in/out: buffer block or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
-/***********************************************************//**
-Parses a redo log record of creating a page.
-@return end of log record or NULL */
+/** Parses a redo log record of creating a page.
+@param[in,out]	block	buffer block, or NULL
+@param[in]	comp	nonzero=compact page format */
 
-byte*
+void
 page_parse_create(
-/*==============*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
-	ulint		comp,	/*!< in: nonzero=compact page format */
-	buf_block_t*	block,	/*!< in: block or NULL */
-	mtr_t*		mtr);	/*!< in: mtr or NULL */
+	buf_block_t*	block,
+	ulint		comp);
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Prints record contents including the data relevant only in

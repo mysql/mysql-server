@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -44,6 +44,13 @@ static const ulint FTS_MAX_ID_LEN = 32;
 /** Column name from the FTS config table */
 #define FTS_MAX_CACHE_SIZE_IN_MB	"cache_size_in_mb"
 
+/** Verify if a aux table name is a obsolete table
+by looking up the key word in the obsolete table names */
+#define FTS_IS_OBSOLETE_AUX_TABLE(table_name)			\
+	(strstr((table_name), "DOC_ID") != NULL			\
+	 || strstr((table_name), "ADDED") != NULL		\
+	 || strstr((table_name), "STOPWORDS") != NULL)
+
 /** This is maximum FTS cache for each table and would be
 a configurable variable */
 ulong	fts_max_cache_size;
@@ -73,11 +80,13 @@ ulint n_nodes = 0;
 /** Error condition reported by fts_utf8_decode() */
 const ulint UTF8_ERROR = 0xFFFFFFFF;
 
+#ifdef FTS_CACHE_SIZE_DEBUG
 /** The cache size permissible lower limit (1K) */
 static const ulint FTS_CACHE_SIZE_LOWER_LIMIT_IN_MB = 1;
 
 /** The cache size permissible upper limit (1G) */
 static const ulint FTS_CACHE_SIZE_UPPER_LIMIT_IN_MB = 1024;
+#endif
 
 /** Time to sleep after DEADLOCK error before retrying operation. */
 static const ulint FTS_DEADLOCK_RETRY_WAIT = 100000;
@@ -348,28 +357,6 @@ fts_get_charset(ulint prtype)
 	ib_logf(IB_LOG_LEVEL_FATAL, "Unable to find charset-collation %u",
 		cs_num);
 	return(NULL);
-}
-
-/********************************************************************
-Check if we should stop. */
-UNIV_INLINE
-ibool
-fts_is_stop_signalled(
-/*==================*/
-	fts_t*		fts)			/*!< in: fts instance */
-{
-	ibool		stop_signalled = FALSE;
-
-	mutex_enter(&fts->bg_threads_mutex);
-
-	if (fts->fts_status & BG_THREAD_STOP) {
-
-		stop_signalled = TRUE;
-	}
-
-	mutex_exit(&fts->bg_threads_mutex);
-
-	return(stop_signalled);
 }
 
 /****************************************************************//**
@@ -3393,7 +3380,7 @@ fts_fetch_doc_from_rec(
 			doc->text.f_str =
 				btr_rec_copy_externally_stored_field(
 					clust_rec, offsets,
-					dict_table_zip_size(table),
+					dict_table_page_size(table),
 					clust_pos, &doc->text.f_len,
 					static_cast<mem_heap_t*>(
 						doc->self_heap->arg));
@@ -4495,7 +4482,7 @@ fts_sync(
 
 	if (error == DB_SUCCESS && !sync->interrupted) {
 		error = fts_sync_commit(sync);
-	}  else {
+	} else {
 		fts_sync_rollback(sync);
 	}
 
@@ -6058,6 +6045,12 @@ fts_is_aux_table_name(
 			}
 		}
 
+		/* Could be obsolete common tables. */
+		if (strncmp(ptr, "ADDED", len) == 0
+		    || strncmp(ptr, "STOPWORDS", len) == 0) {
+			return(true);
+		}
+
 		/* Try and read the index id. */
 		if (!fts_read_object_id(&table->index_id, ptr)) {
 			return(FALSE);
@@ -6641,15 +6634,65 @@ fts_check_and_drop_orphaned_tables(
 			dberr_t err = fts_drop_table(trx, aux_table->name);
 
 			if (err == DB_FAIL) {
-				char*   path;
+				char*	path = fil_make_filepath(
+					NULL, aux_table->name, IBD, false);
 
-				path = fil_make_ibd_name(
-					aux_table->name, false);
+				if (path != NULL) {
+					os_file_delete_if_exists(
+						innodb_data_file_key, path, NULL);
 
-				os_file_delete_if_exists(innodb_data_file_key,
-							 path, NULL);
+					::ut_free(path);
+				}
+			}
+		} else {
+			if (FTS_IS_OBSOLETE_AUX_TABLE(aux_table->name)) {
 
-				ut_free(path);
+				/* Current table could be one of the three
+				obsolete tables, in this case, we should
+				always try to drop it but not rename it.
+				This could happen when we try to upgrade
+				from older server to later one, which doesn't
+				contain these obsolete tables. */
+				drop = true;
+
+				dberr_t	err;
+				trx_t*	trx_drop =
+					trx_allocate_for_background();
+
+				trx_drop->op_info = "Drop obsolete aux tables";
+				trx_drop->dict_operation_lock_mode = RW_X_LATCH;
+
+				trx_start_for_ddl(trx_drop, TRX_DICT_OP_TABLE);
+
+				err = row_drop_table_for_mysql(
+					aux_table->name, trx_drop, false, true);
+
+				trx_drop->dict_operation_lock_mode = 0;
+
+				if (err != DB_SUCCESS) {
+					/* We don't need to worry about the
+					failure, since server would try to
+					drop it on next restart, even if
+					the table was broken. */
+
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Fail to drop obsolete aux"
+						" table '%s', which is"
+						" harmless. will try to drop"
+						" it on next restart.",
+						aux_table->name);
+
+					fts_sql_rollback(trx_drop);
+				} else {
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Dropped obsolete aux"
+						" table '%s'.",
+						aux_table->name);
+
+					fts_sql_commit(trx_drop);
+				}
+
+				trx_free_for_background(trx_drop);
 			}
 		}
 #ifdef _WIN32
@@ -7192,12 +7235,11 @@ fts_init_recover_doc(
 
 		if (dfield_is_ext(dfield)) {
 			dict_table_t*	table = cache->sync->table;
-			ulint		zip_size = dict_table_zip_size(table);
 
 			doc.text.f_str = btr_copy_externally_stored_field(
 				&doc.text.f_len,
 				static_cast<byte*>(dfield_get_data(dfield)),
-				zip_size, len,
+				dict_table_page_size(table), len,
 				static_cast<mem_heap_t*>(doc.self_heap->arg));
 		} else {
 			doc.text.f_str = static_cast<byte*>(

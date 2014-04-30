@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -15,6 +15,18 @@
 
 #include "my_global.h"
 #include "cursor_by_thread_connect_attr.h"
+
+ha_rows
+cursor_by_thread_connect_attr::get_row_count(void)
+{
+  /*
+    The real number of attributes per thread does not matter,
+    we only need to hint the optimizer there are many per thread,
+    so abusing session_connect_attrs_size_per_thread
+    (which is a number of bytes, not attributes)
+  */
+  return thread_max * session_connect_attrs_size_per_thread;
+}
 
 cursor_by_thread_connect_attr::cursor_by_thread_connect_attr(
   const PFS_engine_table_share *share) :

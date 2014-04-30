@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 **** Testing WL#3228 changes. ****
 *** Create "wider" table on slave ***
+include/sync_slave_sql_with_master.inc
 Checking MYSQL_TYPE_NEWDECIMAL fields
 DROP TABLE IF EXISTS t1;
 Warnings:
@@ -207,4 +208,5 @@ call mtr.add_suppression("Slave SQL.*Column 0 of table .test.t1. cannot be conve
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 *** Cleanup  ***
 DROP TABLE IF EXISTS t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

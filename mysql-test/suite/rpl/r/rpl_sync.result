@@ -12,6 +12,7 @@ insert into t1(a) values(1);
 insert into t1(a) values(2);
 insert into t1(a) values(3);
 =====Inserting data on the master but without the SQL Thread being running=======;
+include/sync_slave_sql_with_master.inc
 include/stop_slave_sql.inc
 insert into t1(a) values(4);
 insert into t1(a) values(5);
@@ -24,6 +25,7 @@ ERROR HY000: Lost connection to MySQL server during query
 include/rpl_reconnect.inc
 =====Dumping and comparing tables=======;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
 =====Corrupting the master.info=======;
 include/stop_slave.inc
@@ -37,6 +39,7 @@ ERROR HY000: Lost connection to MySQL server during query
 include/rpl_reconnect.inc
 =====Dumping and comparing tables=======;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1,slave:t1]
 =====Clean up=======;
 drop table t1;

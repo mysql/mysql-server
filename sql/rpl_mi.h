@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -184,11 +184,9 @@ public:
     is specified.
 
     @param password_arg is user's password.
-    @param password_arg_size is password's size.
 
-    @return false if there is no error, otherwise true is returned.
   */
-  bool set_password(const char* password_arg, int password_arg_size);
+  void set_password(const char* password_arg);
   /**
     Returns either user's password in the master.info repository or
     user's password used in START SLAVE.

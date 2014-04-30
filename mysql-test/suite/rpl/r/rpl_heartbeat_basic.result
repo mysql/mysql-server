@@ -7,6 +7,7 @@ call mtr.add_suppression("Slave I/O: The slave I/O thread stops because a fatal 
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 
 *** Preparing ***
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 RESET SLAVE;
 RESET MASTER;
@@ -99,6 +100,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 SHOW VARIABLES LIKE 'slave_net_timeout';
 Variable_name	Value
 slave_net_timeout	200
@@ -118,6 +120,7 @@ Warnings:
 Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	20.000
@@ -150,6 +153,7 @@ SHOW STATUS LIKE 'slave_received_heartbeats';
 Variable_name	Value
 Slave_received_heartbeats	0
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 SHOW GLOBAL STATUS LIKE 'slave_heartbeat_period';
 Variable_name	Value
 Slave_heartbeat_period	0.000
@@ -235,6 +239,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 SELECT unix_timestamp() into @time_0;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 SELECT unix_timestamp() into @time_1;
 Heartbeat event received
 
@@ -270,6 +275,7 @@ Heartbeat event received
 
 *** Stopped SQL thread by error ***
 CREATE TABLE t1 (a INT PRIMARY KEY, b VARCHAR(10), c LONGTEXT);
+include/sync_slave_sql_with_master.inc
 INSERT INTO t1 VALUES (1, 'on slave', NULL);
 INSERT INTO t1 VALUES (1, 'on master', NULL);
 call mtr.add_suppression("Slave SQL.*Duplicate entry .1. for key .PRIMARY.. on query.* Error_code: 1062");
@@ -278,8 +284,10 @@ Heartbeat events are received while sql thread stopped (1 means 'yes'): 1
 include/stop_slave.inc
 DELETE FROM t1;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 DROP TABLE t1;
 
+include/sync_slave_sql_with_master.inc
 *** Flush logs on slave ***
 include/rpl_reset.inc
 CHANGE MASTER TO MASTER_HOST='127.0.0.1', MASTER_PORT=MASTER_PORT, MASTER_USER='root', MASTER_CONNECT_RETRY=20, MASTER_HEARTBEAT_PERIOD=0.5;
@@ -314,6 +322,7 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 include/start_slave.inc
 RESET MASTER;
+include/sync_slave_sql_with_master.inc
 Heartbeat events are received after reset of master (1 means 'yes'): 1
 
 *** Reload master ***
@@ -344,6 +353,7 @@ INSERT INTO t1 VALUES(1, 'on master');
 CHANGE MASTER TO MASTER_HEARTBEAT_PERIOD=0.1;
 include/start_slave.inc
 INSERT INTO t1 VALUES(2, 'on slave');
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1 ORDER BY a;
 a	b
 1	on master

@@ -1,7 +1,7 @@
 #ifndef MY_AES_INCLUDED
 #define MY_AES_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
  This program is free software; you can redistribute it and/or modify
  it under the terms of the GNU General Public License as published by
@@ -22,46 +22,108 @@
 
 C_MODE_START
 
-#define AES_KEY_LENGTH 128		/* Must be 128 192 or 256 */
+/** AES IV size is 16 bytes for all supported ciphers except ECB */
+#define MY_AES_IV_SIZE 16
 
-/*
-  my_aes_encrypt	- Crypt buffer with AES encryption algorithm.
-  source		- Pointer to data for encryption
-  source_length		- size of encryption data
-  dest			- buffer to place encrypted data (must be large enough)
-  key			- Key to be used for encryption
-  kel_length		- Length of the key. Will handle keys of any length
 
-  returns  - size of encrypted data, or negative in case of error.
+/** Supported AES cipher/block mode combos */
+enum my_aes_opmode
+{
+   my_aes_128_ecb,
+   my_aes_192_ecb,
+   my_aes_256_ecb,
+   my_aes_128_cbc,
+   my_aes_192_cbc,
+   my_aes_256_cbc,
+#ifndef HAVE_YASSL
+   my_aes_128_cfb1,
+   my_aes_192_cfb1,
+   my_aes_256_cfb1,
+   my_aes_128_cfb8,
+   my_aes_192_cfb8,
+   my_aes_256_cfb8,
+   my_aes_128_cfb128,
+   my_aes_192_cfb128,
+   my_aes_256_cfb128,
+   my_aes_128_ofb,
+   my_aes_192_ofb,
+   my_aes_256_ofb,
+#endif
+};
+
+#define MY_AES_BEGIN my_aes_128_ecb
+#ifdef HAVE_YASSL
+#define MY_AES_END my_aes_256_cbc
+#else
+#define MY_AES_END my_aes_256_ofb
+#endif
+
+/* If bad data discovered during decoding */
+#define MY_AES_BAD_DATA  -1
+
+/** String representations of the supported AES modes. Keep in sync with my_aes_opmode */
+extern const char *my_aes_opmode_names[];
+
+/**
+  Encrypt a buffer using AES
+
+  @param source         [in]  Pointer to data for encryption
+  @param source_length  [in]  Size of encryption data
+  @param dest           [out] Buffer to place encrypted data (must be large enough)
+  @param key            [in]  Key to be used for encryption
+  @param key_length     [in]  Length of the key. Will handle keys of any length
+  @param mode           [in]  encryption mode
+  @param iv             [in]  16 bytes initialization vector if needed. Otherwise NULL
+  @return              size of encrypted data, or negative in case of error
 */
 
-int my_aes_encrypt(const char *source, int source_length, char *dest,
-		   const char *key, int key_length);
+int my_aes_encrypt(const unsigned char *source, uint32 source_length,
+                   unsigned char *dest,
+		   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv);
 
-/*
-  my_aes_decrypt	- DeCrypt buffer with AES encryption algorithm.
-  source		- Pointer to data for decryption
-  source_length		- size of encrypted data
-  dest			- buffer to place decrypted data (must be large enough)
-  key			- Key to be used for decryption
-  kel_length		- Length of the key. Will handle keys of any length
+/**
+  Decrypt an AES encrypted buffer
 
-  returns  - size of original data, or negative in case of error.
+  @param source         Pointer to data for decryption
+  @param source_length  size of encrypted data
+  @param dest           buffer to place decrypted data (must be large enough)
+  @param key            Key to be used for decryption
+  @param key_length     Length of the key. Will handle keys of any length
+  @param mode           encryption mode
+  @param iv             16 bytes initialization vector if needed. Otherwise NULL
+  @return size of original data.
 */
 
 
-int my_aes_decrypt(const char *source, int source_length, char *dest,
-		   const char *key, int key_length);
+int my_aes_decrypt(const unsigned char *source, uint32 source_length,
+                   unsigned char *dest,
+ 		   const unsigned char *key, uint32 key_length,
+                   enum my_aes_opmode mode, const unsigned char *iv);
 
-/*
-  my_aes_get_size - get size of buffer which will be large enough for encrypted
-		    data
-  source_length   -  length of data to be encrypted
+/**
+  Calculate the size of a buffer large enough for encrypted data
 
-  returns  - size of buffer required to store encrypted data
+  @param source_length  length of data to be encrypted
+  @param mode           encryption mode
+  @return               size of buffer required to store encrypted data
 */
 
-int my_aes_get_size(int source_length);
+int my_aes_get_size(uint32 source_length, enum my_aes_opmode mode);
+
+/**
+  Return true if the AES cipher and block mode requires an IV
+
+  SYNOPSIS
+  my_aes_needs_iv()
+  @param mode           encryption mode
+
+  @retval TRUE   IV needed
+  @retval FALSE  IV not needed
+*/
+
+my_bool my_aes_needs_iv(my_aes_opmode opmode);
+
 
 C_MODE_END
 

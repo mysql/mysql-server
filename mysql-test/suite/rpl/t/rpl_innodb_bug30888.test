@@ -54,7 +54,7 @@ delimiter ;|
 
 CALL test.proc_norm();
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 ###### CLEAN UP SECTION ##############
 

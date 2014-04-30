@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -375,7 +375,7 @@ static void print_record(uchar * record,
   for ( pos=record+1, i=0; i<2*ndims; i++)
    {
       memcpy(&c,pos,sizeof(c));
-      float8get(c,pos);
+      float8get(&c,pos);
       printf(" %.14g ",c);
       pos+=sizeof(c);
    }

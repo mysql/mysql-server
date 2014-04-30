@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -84,11 +84,10 @@ table_replication_execute_status_by_worker::m_share=
 {
   { C_STRING_WITH_LEN("replication_execute_status_by_worker") },
   &pfs_readonly_acl,
-  &table_replication_execute_status_by_worker::create,
+  table_replication_execute_status_by_worker::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_execute_status_by_worker::get_row_count,
-  1000, /*records- used by optimizer*/
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -220,24 +219,28 @@ void table_replication_execute_status_by_worker::make_row(Slave_worker *w)
 
   m_row.last_error_number= (unsigned int) w->last_error().number;
 
-  if (gtid_mode == 0) /* gtid-mode == OFF*/
+  if (w->currently_executing_gtid.type == ANONYMOUS_GROUP)
   {
-    m_row.last_seen_transaction_length= strlen("ANONYMOUS");
-    memcpy(m_row.last_seen_transaction, "ANONYMOUS",
-           m_row.last_seen_transaction_length);
-  }
-  else if (w->currently_executing_gtid.sidno)
-  {
-    global_sid_lock->rdlock();
     m_row.last_seen_transaction_length=
-    w->currently_executing_gtid.to_string(global_sid_map,
-                                          m_row.last_seen_transaction);
-    global_sid_lock->unlock();
+      w->currently_executing_gtid.to_string((rpl_sid *)NULL,
+                                            m_row.last_seen_transaction);
   }
   else
   {
-    m_row.last_seen_transaction_length= 0;
-    memcpy(m_row.last_seen_transaction, "", m_row.last_seen_transaction_length);
+    DBUG_ASSERT(w->currently_executing_gtid.type == GTID_GROUP);
+    if (w->currently_executing_gtid.gtid.sidno == 0)
+    {
+      m_row.last_seen_transaction_length= 0;
+      memcpy(m_row.last_seen_transaction, "", 1);
+    }
+    else
+    {
+      global_sid_lock->rdlock();
+      m_row.last_seen_transaction_length=
+        w->currently_executing_gtid.to_string(global_sid_map,
+                                              m_row.last_seen_transaction);
+      global_sid_lock->unlock();
+    }
   }
 
   m_row.last_error_number= (unsigned int) w->last_error().number;

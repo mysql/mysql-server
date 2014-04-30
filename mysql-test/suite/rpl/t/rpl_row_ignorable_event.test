@@ -17,6 +17,7 @@ source include/master-slave.inc;
 source include/have_innodb.inc;
 source include/have_debug.inc;
 source include/not_gtid_enabled.inc;
+source include/have_myisam.inc;
 
 --echo # Test non-transaction
 let $binlog_start= query_get_value("SHOW MASTER STATUS", Position, 1);
@@ -118,7 +119,7 @@ source include/show_binlog_events.inc;
 --connection slave
 --source include/start_slave.inc
 --connection master
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --let $binlog_start= query_get_value(SHOW BINLOG EVENTS LIMIT 1, End_log_pos, 1)
 --echo # Test The Rows_query log event can be relayed.
 --echo # SHOW BINLOG EVENTS ON SLAVE

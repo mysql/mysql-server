@@ -559,3 +559,14 @@ Error	1451	Cannot delete or update a parent row: a foreign key constraint fails 
 DEALLOCATE PREPARE stm;
 DROP TABLE t2, t1;
 DROP PROCEDURE p1;
+#
+# Bug#18345346 Assertion failed: table_ref->view && table_ref->table == 0
+#
+CREATE TABLE b(a INTEGER);
+CREATE VIEW y AS SELECT 1 FROM b, b AS e;
+CREATE VIEW x AS SELECT 1 FROM y;
+CREATE VIEW z AS SELECT 1 FROM x LIMIT 1;
+DELETE z FROM (SELECT 1) AS x, z;
+ERROR HY000: Can not delete from join view 'test.z'
+DROP VIEW z, x, y;
+DROP TABLE b;

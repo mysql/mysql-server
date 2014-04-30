@@ -431,7 +431,7 @@ public:
     @return true if the condition list contains an SQL-condition with the given
     message text.
   */
-  bool has_sql_condition(const char *message_text, ulong message_length) const;
+  bool has_sql_condition(const char *message_text, size_t message_length) const;
 
   /**
     Reset the current condition information stored in the Diagnostics Area.

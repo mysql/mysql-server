@@ -2105,7 +2105,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 
 #ifdef NDB_SHM_TRANSPORTER
 extern "C"
-RETSIGTYPE 
+void
 shm_sig_handler(int signo)
 {
   g_shm_counter++;

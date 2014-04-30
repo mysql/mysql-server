@@ -33,16 +33,8 @@
 #define EVENT_QUEUE_INITIAL_SIZE 30
 #define EVENT_QUEUE_EXTENT       30
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
-#define SCHED_FUNC __FUNCTION__
-#endif
-#else
-#define SCHED_FUNC "<unknown>"
-#endif
-
-#define LOCK_QUEUE_DATA()   lock_data(SCHED_FUNC, __LINE__)
-#define UNLOCK_QUEUE_DATA() unlock_data(SCHED_FUNC, __LINE__)
+#define LOCK_QUEUE_DATA()   lock_data(__func__, __LINE__)
+#define UNLOCK_QUEUE_DATA() unlock_data(__func__, __LINE__)
 
 /*
   Compares the execute_at members of two Event_queue_element instances.
@@ -578,8 +570,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 {
   bool ret= FALSE;
   *event_name= NULL;
-  my_time_t UNINIT_VAR(last_executed);
-  int UNINIT_VAR(status);
+  my_time_t last_executed= 0;
+  int status= 0;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
   LOCK_QUEUE_DATA();
@@ -603,7 +595,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
       mysql_audit_release(thd);
 
       /* Wait on condition until signaled. Release LOCK_queue while waiting. */
-      cond_wait(thd, NULL, & stage_waiting_on_empty_queue, SCHED_FUNC, __FILE__, __LINE__);
+      cond_wait(thd, NULL, & stage_waiting_on_empty_queue, __func__, __FILE__, __LINE__);
 
       continue;
     }
@@ -625,7 +617,7 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
       /* Release any held audit resources before waiting */
       mysql_audit_release(thd);
 
-      cond_wait(thd, &top_time, &stage_waiting_for_next_activation, SCHED_FUNC, __FILE__, __LINE__);
+      cond_wait(thd, &top_time, &stage_waiting_for_next_activation, __func__, __FILE__, __LINE__);
 
       continue;
     }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,7 @@
 #include "sql_executor.h"
 #include "sql_base.h"
 #include "opt_trace.h"
+#include "opt_costmodel.h"
 #include "debug_sync.h"
 #include "filesort.h"   // filesort_free_buffers
 
@@ -103,8 +104,7 @@ static Field *create_tmp_field_from_item(THD *thd, Item *item, TABLE *table,
                                          bool modify_item)
 {
   bool maybe_null= item->maybe_null;
-  Field *new_field;
-  LINT_INIT(new_field);
+  Field *new_field= NULL;
 
   switch (item->result_type()) {
   case REAL_RESULT:
@@ -396,7 +396,10 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
   bitmap_init(&table->def_read_set, (my_bitmap_map*) bitmaps, field_count,
               FALSE);
   bitmap_init(&table->tmp_set,
-              (my_bitmap_map*) (bitmaps+ bitmap_buffer_size(field_count)),
+              (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count)),
+              field_count, FALSE);
+  bitmap_init(&table->cond_set,
+              (my_bitmap_map*) (bitmaps + bitmap_buffer_size(field_count) * 2),
               field_count, FALSE);
   /* write_set and all_set are copies of read_set */
   table->def_write_set= table->def_read_set;
@@ -444,7 +447,7 @@ static void setup_tmp_table_column_bitmaps(TABLE *table, uchar *bitmaps)
 #define MIN_STRING_LENGTH_TO_PACK_ROWS   10
 
 TABLE *
-create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
+create_tmp_table(THD *thd, Temp_table_param *param, List<Item> &fields,
 		 ORDER *group, bool distinct, bool save_sum_fields,
 		 ulonglong select_options, ha_rows rows_limit,
 		 const char *table_alias)
@@ -528,7 +531,9 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     if (param->group_length >= MAX_BLOB_WIDTH)
       using_unique_constraint= true;
     if (group)
+    {
       distinct=0;				// Can't use distinct
+    }
   }
 
   field_count=param->field_count+param->func_count+param->sum_func_count;
@@ -538,7 +543,7 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
     When loose index scan is employed as access method, it already
     computes all groups and the result of all aggregate functions. We
     make space for the items of the aggregate function in the list of
-    functions TMP_TABLE_PARAM::items_to_copy, so that the values of
+    functions Temp_table_param::items_to_copy, so that the values of
     these items are stored in the temporary table.
   */
   if (param->precomputed_group_by)
@@ -567,14 +572,14 @@ create_tmp_table(THD *thd,TMP_TABLE_PARAM *param,List<Item> &fields,
                         &tmpname, (uint) strlen(path)+1,
                         &group_buff, (group && ! using_unique_constraint ?
                                       param->group_length : 0),
-                        &bitmaps, bitmap_buffer_size(field_count)*2,
+                        &bitmaps, bitmap_buffer_size(field_count) * 3,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
       bitmap_lock_clear_bit(&temp_pool, temp_pool_slot);
     DBUG_RETURN(NULL);				/* purecov: inspected */
   }
-  /* Copy_field belongs to TMP_TABLE_PARAM, allocate it in THD mem_root */
+  /* Copy_field belongs to Temp_table_param, allocate it in THD mem_root */
   if (!(param->copy_field= copy= new (thd->mem_root) Copy_field[field_count]))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -828,11 +833,17 @@ update_hidden:
   if (!table->file)
     goto err;
 
+  // Update the handler with information about the table object
+  table->file->change_table_ptr(table, share);
+
   if (table->file->set_ha_share_ref(&share->ha_share))
   {
     delete table->file;
     goto err;
   }
+
+  // Initialize cost model for this table
+  table->init_cost_model(thd->cost_model());
 
   if (!using_unique_constraint)
     reclength+= group_null_items;	// null flag is stored separately
@@ -868,7 +879,7 @@ update_hidden:
     uint alloc_length=ALIGN_SIZE(reclength+MI_UNIQUE_HASH_LENGTH+1);
     share->rec_buff_length= alloc_length;
     if (!(table->record[0]= (uchar*)
-                            alloc_root(&table->mem_root, alloc_length*3)))
+                            alloc_root(&table->mem_root, alloc_length * 3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
     share->default_values= table->record[1]+alloc_length;
@@ -1027,7 +1038,7 @@ update_hidden:
       param->group_parts;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "group_key";
     ORDER *cur_group= group;
@@ -1105,7 +1116,7 @@ update_hidden:
     keyinfo->key_length= 0;  // Will compute the sum of the parts below.
     keyinfo->name= (char*) "<auto_key>";
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
-    keyinfo->rec_per_key= 0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
 
     /*
       Create an extra field to hold NULL bits so that unique indexes on
@@ -1259,7 +1270,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
                         &tmpname, (uint) strlen(path)+1,
                         &group_buff, (!using_unique_constraint ?
                                       uniq_tuple_length_arg : 0),
-                        &bitmaps, bitmap_buffer_size(1)*2,
+                        &bitmaps, bitmap_buffer_size(1) * 3,
                         NullS))
   {
     if (temp_pool_slot != MY_BIT_NONE)
@@ -1358,7 +1369,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     uint alloc_length=ALIGN_SIZE(share->reclength + MI_UNIQUE_HASH_LENGTH+1);
     share->rec_buff_length= alloc_length;
     if (!(table->record[0]= (uchar*)
-                            alloc_root(&table->mem_root, alloc_length*3)))
+                            alloc_root(&table->mem_root, alloc_length * 3)))
       goto err;
     table->record[1]= table->record[0]+alloc_length;
     share->default_values= table->record[1]+alloc_length;
@@ -1420,7 +1431,7 @@ TABLE *create_duplicate_weedout_tmp_table(THD *thd,
     keyinfo->usable_key_parts= keyinfo->user_defined_key_parts= 1;
     keyinfo->actual_key_parts= keyinfo->user_defined_key_parts;
     keyinfo->key_length=0;
-    keyinfo->rec_per_key=0;
+    keyinfo->set_rec_per_key_array(NULL, NULL);
     keyinfo->algorithm= HA_KEY_ALG_UNDEF;
     keyinfo->name= (char*) "weedout_key";
     {
@@ -1505,7 +1516,7 @@ TABLE *create_virtual_tmp_table(THD *thd, List<Create_field> &field_list)
                         &share, sizeof(*share),
                         &field, (field_count + 1) * sizeof(Field*),
                         &blob_field, (field_count+1) *sizeof(uint),
-                        &bitmaps, bitmap_buffer_size(field_count)*2,
+                        &bitmaps, bitmap_buffer_size(field_count) * 3,
                         NullS))
     return 0;
 

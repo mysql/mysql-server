@@ -193,9 +193,9 @@ sp_pcontext *sp_pcontext::pop_context()
 }
 
 
-uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
+size_t sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 {
-  uint n= 0;
+  size_t n= 0;
   const sp_pcontext *pctx= this;
   const sp_pcontext *last_ctx= NULL;
 
@@ -211,9 +211,9 @@ uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 }
 
 
-uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
+size_t sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 {
-  uint n= 0;
+  size_t n= 0;
   const sp_pcontext *pctx= this;
   const sp_pcontext *last_ctx= NULL;
 

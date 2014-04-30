@@ -1,7 +1,7 @@
 #ifndef SQL_COMMON_INCLUDED
 #define SQL_COMMON_INCLUDED
 
-/* Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,40 @@ extern const char	*unknown_sqlstate;
 extern const char	*cant_connect_sqlstate;
 extern const char	*not_error_sqlstate;
 
+
+/*
+  Free all memory allocated in MYSQL handle except the
+  current options.
+*/
+void mysql_close_free(MYSQL *mysql);
+
+/*
+  Clear connection options stored in MYSQL handle and
+  free memory used by them.
+*/
+void mysql_close_free_options(MYSQL *mysql);
+
+
+/**
+  The structure is used to hold the state change information
+  received from the server. LIST functions are used for manipulation
+  of the members of the structure.
+*/
+typedef struct st_session_track_info_node {
+  /** head_node->data is a LEX_STRING which contains the variable name. */
+  LIST *head_node;
+  LIST *current_node;
+} STATE_INFO_NODE;
+
+/**
+  Store the change info received from the server in an array of linked lists
+  with STATE_INFO_NODE elements (one per state type).
+*/
+typedef struct st_session_track_info {
+  /** Array of STATE_NODE_INFO elements (one per state type). */
+  struct st_session_track_info_node info_list[SESSION_TRACK_END + 1];
+} STATE_INFO;
+
 /*
   Access to MYSQL::extension member.
 
@@ -38,18 +72,20 @@ extern const char	*not_error_sqlstate;
 
 struct st_mysql_trace_info;
 
-struct st_mysql_extension {
+typedef struct st_mysql_extension {
   struct st_mysql_trace_info *trace_data;
-};
+  struct st_session_track_info state_change;
+} MYSQL_EXTENSION;
 
 /* "Constructor/destructor" for MYSQL extension structure. */
 struct st_mysql_extension* mysql_extension_init(struct st_mysql*);
 void mysql_extension_free(struct st_mysql_extension*);
 
 /*
-  Note: Allocated extension structure is freed in mysql_close().
+  Note: Allocated extension structure is freed in mysql_close_free()
+  called by mysql_close().
 */
-#define MYSQL_EXTENSION(H)                                        \
+#define MYSQL_EXTENSION_PTR(H)                                    \
 (                                                                 \
  (struct st_mysql_extension*)                                     \
  ( (H)->extension ?                                               \

@@ -52,7 +52,7 @@ extern volatile sig_atomic_t calling_initgroups;
  *
  * @param sig Signal number
 */
-extern "C" sig_handler handle_fatal_signal(int sig)
+extern "C" void handle_fatal_signal(int sig)
 {
   if (segfaulted)
   {
@@ -161,6 +161,9 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       break;
     case THD::KILL_QUERY:
       kreason= "KILL_QUERY";
+      break;
+    case THD::KILL_TIMEOUT:
+      kreason= "KILL_TIMEOUT";
       break;
     case THD::KILLED_NO_VALUE:
       kreason= "KILLED_NO_VALUE";

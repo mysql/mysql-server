@@ -549,7 +549,7 @@ static void vio_get_normalized_ip(const struct sockaddr *src,
 */
 
 my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
-                                     int addr_length,
+                                     size_t addr_length,
                                      char *ip_string,
                                      size_t ip_string_size)
 {

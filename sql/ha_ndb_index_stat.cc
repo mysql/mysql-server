@@ -358,7 +358,7 @@ ndb_index_stat_option_parse(char* p, Ndb_index_stat_opt& opt)
     char *s;
     for (s= r; *s != 0; s++)
       *s= tolower(*s);
-    ulonglong val= strtoull(r, &s, 10);
+    ulonglong val= my_strtoull(r, &s, 10);
 
     switch (v.unit) {
     case Ndb_index_stat_opt::Ubool:
@@ -2631,8 +2631,8 @@ ndb_index_stat_round(double x)
     x= 0.0;
   // my_snprintf has no float and windows has no snprintf
   sprintf(buf, "%.0f", x);
-  /* mysql provides strtoull */
-  ulonglong n= strtoull(buf, 0, 10);
+  /* mysql provides my_strtoull */
+  ulonglong n= my_strtoull(buf, 0, 10);
   return n;
 }
 

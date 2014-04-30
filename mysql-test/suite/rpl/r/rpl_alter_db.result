@@ -7,6 +7,8 @@ Note	####	Storing MySQL user name or password information in the master info rep
 create database temp_db;
 use temp_db;
 alter database collate latin1_bin;
+include/sync_slave_sql_with_master.inc
 ==== Clean up ====
 drop database temp_db;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

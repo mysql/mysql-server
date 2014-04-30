@@ -87,6 +87,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
 
     if (! rc)
     {
+      DBUG_ASSERT(thd->m_statement_psi == NULL);
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
                                                   thd->db, thd->db_length,
@@ -134,8 +135,6 @@ static void init_net_server_extension(THD *thd)
 */
 class Channel_info_local_socket : public Channel_info
 {
-  // listen socket object
-  MYSQL_SOCKET m_listen_sock;
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
 
@@ -147,15 +146,12 @@ protected:
 
 public:
   /**
-    Constructor that sets listen and connect socket.
+    Constructor that sets the connect socket.
 
-    @param listen_socket  set listen socket descriptor.
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_local_socket(MYSQL_SOCKET listen_socket,
-                            MYSQL_SOCKET connect_socket)
-  : m_listen_sock(listen_socket),
-    m_connect_sock(connect_socket)
+  Channel_info_local_socket(MYSQL_SOCKET connect_socket)
+  : m_connect_sock(connect_socket)
   { }
 
   virtual THD* create_thd()
@@ -192,8 +188,6 @@ public:
 */
 class Channel_info_tcpip_socket : public Channel_info
 {
-  // listen socket object
-  MYSQL_SOCKET m_listen_sock;
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
 
@@ -205,15 +199,12 @@ protected:
 
 public:
   /**
-    Constructor that sets listen and connect socket.
+    Constructor that sets the connect socket.
 
-    @param listen_socket  set listen socket descriptor.
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_tcpip_socket(MYSQL_SOCKET listen_socket,
-                            MYSQL_SOCKET connect_socket)
-  : m_listen_sock(listen_socket),
-    m_connect_sock(connect_socket)
+  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket)
+  : m_connect_sock(connect_socket)
   { }
 
   virtual THD* create_thd()
@@ -351,7 +342,7 @@ public:
     char port_buf[NI_MAXSERV];
     my_snprintf(port_buf, NI_MAXSERV, "%d", m_tcp_port);
 
-    if (strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
+    if (native_strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
     {
       /*
         That's the case when bind-address is set to a special value ('*'),
@@ -825,11 +816,9 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 
   Channel_info* channel_info= NULL;
   if (is_unix_socket)
-    channel_info= new (std::nothrow) Channel_info_local_socket(listen_sock,
-                                                               connect_sock);
+    channel_info= new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
-    channel_info= new (std::nothrow) Channel_info_tcpip_socket(listen_sock,
-                                                               connect_sock);
+    channel_info= new (std::nothrow) Channel_info_tcpip_socket(connect_sock);
   if (channel_info == NULL)
   {
     (void) mysql_socket_shutdown(connect_sock, SHUT_RDWR);

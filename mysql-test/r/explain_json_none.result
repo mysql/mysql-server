@@ -272,7 +272,7 @@ Note	1003	/* select#1 */ select `a4`.`i` AS `i` from (/* select#2 */ select `a3`
 EXPLAIN             SELECT * FROM t1 WHERE i IN (SELECT i FROM t2 WHERE t1.i = 10 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`))))
@@ -315,13 +315,13 @@ EXPLAIN
                 "table_name": "t2",
                 "access_type": "ALL",
                 "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 2,
-                "filtered": 100,
+                "rows_produced_per_join": 1,
+                "filtered": 50,
                 "cost_info": {
                   "read_cost": "2.00",
-                  "eval_cost": "0.40",
+                  "eval_cost": "0.20",
                   "prefix_cost": "2.40",
-                  "data_read_per_join": "16"
+                  "data_read_per_join": "8"
                 } /* cost_info */,
                 "used_columns": [
                   "i"
@@ -345,7 +345,7 @@ OR i IN (SELECT i FROM t4 ORDER BY RAND());
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	7	100.00	Using where
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` where (<in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#2 */ select 1 from `test`.`t2` where ((`test`.`t1`.`i` = 10) and (<cache>(`test`.`t1`.`i`) = `test`.`t2`.`i`)))) or <in_optimizer>(`test`.`t1`.`i`,<exists>(/* select#3 */ select 1 from `test`.`t4` where (<cache>(`test`.`t1`.`i`) = NULL))))
@@ -398,13 +398,13 @@ EXPLAIN
                 "table_name": "t2",
                 "access_type": "ALL",
                 "rows_examined_per_scan": 2,
-                "rows_produced_per_join": 2,
-                "filtered": 100,
+                "rows_produced_per_join": 1,
+                "filtered": 50,
                 "cost_info": {
                   "read_cost": "2.00",
-                  "eval_cost": "0.40",
+                  "eval_cost": "0.20",
                   "prefix_cost": "2.40",
-                  "data_read_per_join": "16"
+                  "data_read_per_join": "8"
                 } /* cost_info */,
                 "used_columns": [
                   "i"
@@ -1044,7 +1044,7 @@ INSERT INTO t4 VALUES (2,10), (2,10);
 EXPLAIN SELECT * FROM t1 WHERE t1.a IN (SELECT c FROM t2 WHERE (SELECT e FROM t3) < SOME(SELECT e FROM t3 WHERE t1.b));;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 4	DEPENDENT SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 3	SUBQUERY	t3	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
 Warnings:
@@ -1088,13 +1088,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 2,
-              "rows_produced_per_join": 2,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 50,
               "cost_info": {
                 "read_cost": "2.00",
-                "eval_cost": "0.40",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.40",
-                "data_read_per_join": "32"
+                "data_read_per_join": "16"
               } /* cost_info */,
               "used_columns": [
                 "c"
@@ -1213,13 +1213,13 @@ EXPLAIN
               "table_name": "t3",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 33.333,
               "cost_info": {
                 "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "eval_cost": "0.20",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "8"
               } /* cost_info */,
               "used_columns": [
                 "a"
@@ -1238,13 +1238,13 @@ EXPLAIN
                       "table_name": "t4",
                       "access_type": "ALL",
                       "rows_examined_per_scan": 3,
-                      "rows_produced_per_join": 3,
-                      "filtered": 100,
+                      "rows_produced_per_join": 0,
+                      "filtered": 11.111,
                       "cost_info": {
-                        "read_cost": "2.01",
-                        "eval_cost": "0.60",
+                        "read_cost": "2.41",
+                        "eval_cost": "0.07",
                         "prefix_cost": "2.61",
-                        "data_read_per_join": "24"
+                        "data_read_per_join": "2"
                       } /* cost_info */,
                       "used_columns": [
                         "a"
@@ -1269,13 +1269,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 3,
-              "rows_produced_per_join": 3,
-              "filtered": 100,
+              "rows_produced_per_join": 0,
+              "filtered": 11.111,
               "cost_info": {
-                "read_cost": "2.01",
-                "eval_cost": "0.60",
+                "read_cost": "2.41",
+                "eval_cost": "0.07",
                 "prefix_cost": "2.61",
-                "data_read_per_join": "24"
+                "data_read_per_join": "2"
               } /* cost_info */,
               "used_columns": [
                 "a"
@@ -1413,13 +1413,13 @@ EXPLAIN
                     "test.t3.c1"
                   ] /* ref */,
                   "rows_examined_per_scan": 1,
-                  "rows_produced_per_join": 1,
-                  "filtered": 100,
+                  "rows_produced_per_join": 0,
+                  "filtered": 50,
                   "cost_info": {
                     "read_cost": "1.00",
-                    "eval_cost": "0.20",
+                    "eval_cost": "0.10",
                     "prefix_cost": "2.40",
-                    "data_read_per_join": "16"
+                    "data_read_per_join": "8"
                   } /* cost_info */,
                   "used_columns": [
                     "c1",
@@ -1484,10 +1484,10 @@ WHERE c IN (SELECT t2.c FROM t1 JOIN t2 ON t2.c_key = t1.c_key)
 AND c IN (SELECT t4.c FROM t3 JOIN t4 ON t4.c_key = t3.c_key);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t5	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-3	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+3	DEPENDENT SUBQUERY	t4	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 3	DEPENDENT SUBQUERY	t3	NULL	ref	c_key	c_key	5	test.t4.c_key	1	100.00	Using index
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-2	DEPENDENT SUBQUERY	t1	NULL	index	c_key	c_key	5	NULL	3	100.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
+2	DEPENDENT SUBQUERY	t1	NULL	ref	c_key	c_key	5	test.t2.c_key	2	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t5`.`c` AS `c` from `test`.`t5` where (<in_optimizer>(`test`.`t5`.`c`,<exists>(/* select#2 */ select 1 from `test`.`t1` join `test`.`t2` where ((`test`.`t1`.`c_key` = `test`.`t2`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)))) and <in_optimizer>(`test`.`t5`.`c`,<exists>(/* select#3 */ select 1 from `test`.`t3` join `test`.`t4` where ((`test`.`t3`.`c_key` = `test`.`t4`.`c_key`) and (<cache>(`test`.`t5`.`c`) = `test`.`t4`.`c`)))))
 EXPLAIN FORMAT=JSON SELECT * FROM t5 
@@ -1523,7 +1523,7 @@ EXPLAIN
           "query_block": {
             "select_id": 3,
             "cost_info": {
-              "query_cost": "6.21"
+              "query_cost": "3.81"
             } /* cost_info */,
             "nested_loop": [
               {
@@ -1531,13 +1531,13 @@ EXPLAIN
                   "table_name": "t4",
                   "access_type": "ALL",
                   "rows_examined_per_scan": 3,
-                  "rows_produced_per_join": 3,
-                  "filtered": 100,
+                  "rows_produced_per_join": 1,
+                  "filtered": 33.333,
                   "cost_info": {
                     "read_cost": "2.01",
-                    "eval_cost": "0.60",
+                    "eval_cost": "0.20",
                     "prefix_cost": "2.61",
-                    "data_read_per_join": "48"
+                    "data_read_per_join": "16"
                   } /* cost_info */,
                   "used_columns": [
                     "c",
@@ -1562,14 +1562,14 @@ EXPLAIN
                     "test.t4.c_key"
                   ] /* ref */,
                   "rows_examined_per_scan": 1,
-                  "rows_produced_per_join": 3,
+                  "rows_produced_per_join": 1,
                   "filtered": 100,
                   "using_index": true,
                   "cost_info": {
-                    "read_cost": "3.00",
-                    "eval_cost": "0.60",
-                    "prefix_cost": "6.21",
-                    "data_read_per_join": "24"
+                    "read_cost": "1.00",
+                    "eval_cost": "0.20",
+                    "prefix_cost": "3.81",
+                    "data_read_per_join": "8"
                   } /* cost_info */,
                   "used_columns": [
                     "c_key"
@@ -1585,7 +1585,7 @@ EXPLAIN
           "query_block": {
             "select_id": 2,
             "cost_info": {
-              "query_cost": "6.41"
+              "query_cost": "4.03"
             } /* cost_info */,
             "nested_loop": [
               {
@@ -1593,25 +1593,25 @@ EXPLAIN
                   "table_name": "t2",
                   "access_type": "ALL",
                   "rows_examined_per_scan": 3,
-                  "rows_produced_per_join": 3,
-                  "filtered": 100,
+                  "rows_produced_per_join": 1,
+                  "filtered": 33.333,
                   "cost_info": {
                     "read_cost": "2.01",
-                    "eval_cost": "0.60",
+                    "eval_cost": "0.20",
                     "prefix_cost": "2.61",
-                    "data_read_per_join": "48"
+                    "data_read_per_join": "16"
                   } /* cost_info */,
                   "used_columns": [
                     "c",
                     "c_key"
                   ] /* used_columns */,
-                  "attached_condition": "(<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`)"
+                  "attached_condition": "((<cache>(`test`.`t5`.`c`) = `test`.`t2`.`c`) and (`test`.`t2`.`c_key` is not null))"
                 } /* table */
               },
               {
                 "table": {
                   "table_name": "t1",
-                  "access_type": "index",
+                  "access_type": "ref",
                   "possible_keys": [
                     "c_key"
                   ] /* possible_keys */,
@@ -1620,21 +1620,22 @@ EXPLAIN
                     "c_key"
                   ] /* used_key_parts */,
                   "key_length": "5",
-                  "rows_examined_per_scan": 3,
-                  "rows_produced_per_join": 9,
+                  "ref": [
+                    "test.t2.c_key"
+                  ] /* ref */,
+                  "rows_examined_per_scan": 2,
+                  "rows_produced_per_join": 2,
                   "filtered": 100,
                   "using_index": true,
-                  "using_join_buffer": "Block Nested Loop",
                   "cost_info": {
-                    "read_cost": "2.01",
-                    "eval_cost": "1.80",
-                    "prefix_cost": "6.41",
-                    "data_read_per_join": "72"
+                    "read_cost": "1.02",
+                    "eval_cost": "0.40",
+                    "prefix_cost": "4.03",
+                    "data_read_per_join": "16"
                   } /* cost_info */,
                   "used_columns": [
                     "c_key"
-                  ] /* used_columns */,
-                  "attached_condition": "(`test`.`t1`.`c_key` = `test`.`t2`.`c_key`)"
+                  ] /* used_columns */
                 } /* table */
               }
             ] /* nested_loop */
@@ -2256,7 +2257,7 @@ INSERT INTO t2 SELECT i, i * 10 FROM t1;
 EXPLAIN SELECT * FROM t1 ORDER BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using filesort
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
@@ -2299,13 +2300,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 10,
-              "rows_produced_per_join": 10,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 10,
               "cost_info": {
                 "read_cost": "2.02",
-                "eval_cost": "2.00",
+                "eval_cost": "0.20",
                 "prefix_cost": "4.02",
-                "data_read_per_join": "160"
+                "data_read_per_join": "16"
               } /* cost_info */,
               "used_columns": [
                 "i",
@@ -2325,7 +2326,7 @@ Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` order by
 EXPLAIN SELECT * FROM t1 GROUP BY (SELECT t2.j FROM t2 WHERE t2.i = t1.i);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using temporary; Using filesort
-2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	100.00	Using where
+2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	10	10.00	Using where
 Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
@@ -2369,13 +2370,13 @@ EXPLAIN
               "table_name": "t2",
               "access_type": "ALL",
               "rows_examined_per_scan": 10,
-              "rows_produced_per_join": 10,
-              "filtered": 100,
+              "rows_produced_per_join": 1,
+              "filtered": 10,
               "cost_info": {
                 "read_cost": "2.02",
-                "eval_cost": "2.00",
+                "eval_cost": "0.20",
                 "prefix_cost": "4.02",
-                "data_read_per_join": "160"
+                "data_read_per_join": "16"
               } /* cost_info */,
               "used_columns": [
                 "i",
@@ -2752,13 +2753,13 @@ EXPLAIN
                 "func"
               ] /* ref */,
               "rows_examined_per_scan": 1,
-              "rows_produced_per_join": 1,
-              "filtered": 100,
+              "rows_produced_per_join": 0,
+              "filtered": 75,
               "cost_info": {
                 "read_cost": "1.00",
-                "eval_cost": "0.20",
+                "eval_cost": "0.15",
                 "prefix_cost": "1.20",
-                "data_read_per_join": "16"
+                "data_read_per_join": "12"
               } /* cost_info */,
               "used_columns": [
                 "a",

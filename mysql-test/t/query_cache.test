@@ -1419,3 +1419,21 @@ SHOW WARNINGS;
 DROP TABLE t1;
 
 SET SESSION query_cache_type=@qc_type;
+
+--echo #
+--echo # Bug#18383169: QUERIES WITH RANDOM_BYTES() ENTER QUERY CACHE
+--echo #
+
+CREATE TABLE t1(a INT);
+FLUSH STATUS;
+
+--echo # Test that RANDOM_BYTES queries are not cached
+SELECT * FROM t1 WHERE RANDOM_BYTES(16);
+SHOW STATUS LIKE 'Qcache_not_cached';
+
+--echo # same with AES_ENCRYPT
+SELECT * FROM t1 WHERE AES_ENCRYPT('a','a');
+SHOW STATUS LIKE 'Qcache_not_cached';
+
+DROP TABLE t1;
+FLUSH STATUS;

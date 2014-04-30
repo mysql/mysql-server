@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -123,10 +123,25 @@ private:
   static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
   static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
 
+  /**
+    -1 means that the XID is null
+  */
   long formatID;
+
+  /**
+    value from 1 through 64
+  */
   long gtrid_length;
+
+  /**
+    value from 1 through 64
+  */
   long bqual_length;
-  char data[XIDDATASIZE];  // not \0-terminated !
+
+  /**
+    distributed trx identifier. not \0-terminated.
+  */
+  char data[XIDDATASIZE];
 
 public:
   xid_t()
@@ -134,6 +149,55 @@ public:
     gtrid_length(0),
     bqual_length(0)
   {
+    memset(data, 0, XIDDATASIZE);
+  }
+
+  long get_format_id() const
+  {
+    return formatID;
+  }
+
+  void set_format_id(long v)
+  {
+    formatID= v;
+  }
+
+  long get_gtrid_length() const
+  {
+    return gtrid_length;
+  }
+
+  void set_gtrid_length(long v)
+  {
+    gtrid_length= v;
+  }
+
+  long get_bqual_length() const
+  {
+    return bqual_length;
+  }
+
+  void set_bqual_length(long v)
+  {
+    bqual_length= v;
+  }
+
+  const char* get_data() const
+  {
+    return data;
+  }
+
+  void set_data(const void* v, long l)
+  {
+    DBUG_ASSERT(l <= XIDDATASIZE);
+    memcpy(data, v, l);
+  }
+
+  void reset()
+  {
+    formatID= -1;
+    gtrid_length= 0;
+    bqual_length= 0;
     memset(data, 0, XIDDATASIZE);
   }
 
@@ -184,7 +248,6 @@ public:
   char* xid_to_str(char *buf) const;
 #endif
 
-private:
   bool eq(const xid_t *xid) const
   {
     return xid->gtrid_length == gtrid_length &&
@@ -192,6 +255,7 @@ private:
       !memcmp(xid->data, data, gtrid_length + bqual_length);
   }
 
+private:
   void set(const xid_t *xid)
   {
     memcpy(this, xid, sizeof(xid->formatID) + xid->key_length());
@@ -266,6 +330,9 @@ public:
   { return xa_state_names[xa_state]; }
 
   const XID *get_xid() const
+  { return &m_xid; }
+
+  XID *get_xid()
   { return &m_xid; }
 
   bool has_same_xid(const XID *xid) const
@@ -381,8 +448,10 @@ public:
 };
 
 
+class Transaction_ctx;
+
 /**
-  Initialize a cache to store xid values and a mutex to protect access
+  Initialize a cache to store Transaction_ctx and a mutex to protect access
   to the cache
 
   @return        result of initialization
@@ -390,25 +459,66 @@ public:
     @retval true   failure
 */
 
-bool xid_cache_init(void);
+bool transaction_cache_init();
 
 
 /**
-  Deallocate resources held by a cache for storing xid values
-  and by a mutex used to protect access to the cache.
+  Search information about XA transaction by a XID value.
+
+  @param xid    Pointer to a XID structure that identifies a XA transaction.
+
+  @return  pointer to a Transaction_ctx that describes the whole transaction
+           including XA-specific information (XID_STATE).
+    @retval  NULL     failure
+    @retval  != NULL  success
 */
 
-void xid_cache_free(void);
+Transaction_ctx *transaction_cache_search(XID *xid);
 
 
 /**
-  Delete information about XA transaction from cache.
+  Insert information about XA transaction into a cache indexed by XID.
 
-  @param xid_state  Pointer to a XID_STATE structure that describes
-                    an XA transaction.
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
 */
 
-void xid_cache_delete(XID_STATE *xid_state);
+bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 
+
+/**
+  Insert information about XA transaction being recovered into a cache
+  indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains Transaction_ctx
+                     for this XID value
+    @retval  true    failure
+*/
+
+bool transaction_cache_insert_recovery(XID *xid);
+
+
+/**
+  Remove information about transaction from a cache.
+
+  @param transaction     Pointer to a Transaction_ctx that has to be removed
+                         from a cache.
+*/
+
+void transaction_cache_delete(Transaction_ctx *transaction);
+
+
+/**
+  Release resources occupied by transaction cache.
+*/
+
+void transaction_cache_free();
 
 #endif

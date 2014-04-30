@@ -13,6 +13,7 @@ SET @old_master_verify_checksum = @@master_verify_checksum;
 # 1. Creating test table/data and set corruption position for testing
 * insert/update/delete rows in table t1 *
 CREATE TABLE t1 (a INT NOT NULL PRIMARY KEY, b VARCHAR(10), c VARCHAR(100));
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 # 2. Corruption in master binlog and SHOW BINLOG EVENTS
 SET GLOBAL debug="d,corrupt_read_log_event_char";
@@ -40,8 +41,10 @@ include/wait_for_slave_sql_error.inc [errno=1593]
 # 7. Seek diff for tables on master and slave
 SET GLOBAL debug= "";
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 # 8. Clean up
 SET GLOBAL master_verify_checksum = @old_master_verify_checksum;
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

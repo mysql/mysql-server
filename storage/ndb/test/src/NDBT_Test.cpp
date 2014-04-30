@@ -481,7 +481,7 @@ void NDBT_TestCaseImpl1::addTable(const char* tableName, bool isVerify) {
 
 bool NDBT_TestCaseImpl1::tableExists(NdbDictionary::Table* aTable) {
   for (unsigned i = 0; i < testTables.size(); i++) {
-    if (strcasecmp(testTables[i]->getName(), aTable->getName()) == 0) {
+    if (native_strcasecmp(testTables[i]->getName(), aTable->getName()) == 0) {
       return true;
     }
   }
@@ -493,7 +493,7 @@ bool NDBT_TestCaseImpl1::isVerify(const NdbDictionary::Table* aTable) {
     int found = false;
     // OK, we either exclude or include this table in the actual test
     for (unsigned i = 0; i < testTables.size(); i++) {
-      if (strcasecmp(testTables[i]->getName(), aTable->getName()) == 0) {
+      if (native_strcasecmp(testTables[i]->getName(), aTable->getName()) == 0) {
 	// Found one!
 	if (isVerifyTables) {
 	  // Found one to test
@@ -886,7 +886,7 @@ NDBT_TestSuite::findTest(const char * testname, bool explicitOK)
 {
   for (unsigned i = 0; i < tests.size(); i++)
   {
-    if (strcasecmp(tests[i]->getName(), testname) == 0)
+    if (native_strcasecmp(tests[i]->getName(), testname) == 0)
       return tests[i];
   }
 
@@ -895,7 +895,7 @@ NDBT_TestSuite::findTest(const char * testname, bool explicitOK)
 
   for (unsigned i = 0; i < explicitTests.size(); i++)
   {
-    if (strcasecmp(explicitTests[i]->getName(), testname) == 0)
+    if (native_strcasecmp(explicitTests[i]->getName(), testname) == 0)
       return explicitTests[i];
   }
 
@@ -1301,14 +1301,14 @@ void NDBT_TestSuite::printTestCaseSummary(const char* _tcname){
   ndbout << "= SUMMARY OF TEST EXECUTION ==============" << endl;
   for (unsigned t = 0; t < tests.size(); t++){
     if (_tcname != NULL && 
-	strcasecmp(tests[t]->getName(), _tcname) != 0)
+	native_strcasecmp(tests[t]->getName(), _tcname) != 0)
       continue;
 
     tests[t]->printTestResult();
   }
   for (unsigned t = 0; t < explicitTests.size(); t++){
     if (_tcname != NULL &&
-	strcasecmp(explicitTests[t]->getName(), _tcname) != 0)
+	native_strcasecmp(explicitTests[t]->getName(), _tcname) != 0)
       continue;
 
     explicitTests[t]->printTestResult();

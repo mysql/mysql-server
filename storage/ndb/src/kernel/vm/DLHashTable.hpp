@@ -310,7 +310,6 @@ DLMHashTable<P, T, M>::remove(Ptr<T> & ptr, const T & key)
   Uint32 i;
   T * p;
   Ptr<T> prev;
-  LINT_INIT(prev.p);
   prev.i = RNIL;
 
   i = hashValues[hv];

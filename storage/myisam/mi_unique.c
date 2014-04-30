@@ -75,7 +75,8 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
 
 ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record)
 {
-  const uchar *pos, *end;
+  uchar *pos;
+  const uchar *end;
   ha_checksum crc= 0;
   ulong seed1=0, seed2= 4;
   HA_KEYSEG *keyseg;
@@ -99,11 +100,11 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record)
 	continue;
       }
     }
-    pos= record+keyseg->start;
+    pos= (uchar*)record+keyseg->start;
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
       uint pack_length=  keyseg->bit_start;
-      uint tmp_length= (pack_length == 1 ? (uint) *(uchar*) pos :
+      uint tmp_length= (pack_length == 1 ? (uint) *pos :
                         uint2korr(pos));
       pos+= pack_length;			/* Skip VARCHAR length */
       set_if_smaller(length,tmp_length);
@@ -148,7 +149,8 @@ ha_checksum mi_unique_hash(MI_UNIQUEDEF *def, const uchar *record)
 int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
 		   my_bool null_are_equal)
 {
-  const uchar *pos_a, *pos_b, *end;
+  uchar *pos_a, *pos_b;
+  const uchar *end;
   HA_KEYSEG *keyseg;
 
   for (keyseg=def->seg ; keyseg < def->end ; keyseg++)
@@ -171,15 +173,15 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
 	continue;
       }
     }
-    pos_a= a+keyseg->start;
-    pos_b= b+keyseg->start;
+    pos_a= (uchar*)a+keyseg->start;
+    pos_b= (uchar*)b+keyseg->start;
     if (keyseg->flag & HA_VAR_LENGTH_PART)
     {
       uint pack_length= keyseg->bit_start;
       if (pack_length == 1)
       {
-        a_length= (uint) *(uchar*) pos_a++;
-        b_length= (uint) *(uchar*) pos_b++;
+        a_length= (uint) *pos_a++;
+        b_length= (uint) *pos_b++;
       }
       else
       {
@@ -212,8 +214,8 @@ int mi_unique_comp(MI_UNIQUEDEF *def, const uchar *a, const uchar *b,
     if (type == HA_KEYTYPE_TEXT || type == HA_KEYTYPE_VARTEXT1 ||
         type == HA_KEYTYPE_VARTEXT2)
     {
-      if (ha_compare_text(keyseg->charset, (uchar *) pos_a, a_length,
-                                           (uchar *) pos_b, b_length, 0, 1))
+      if (ha_compare_text(keyseg->charset, pos_a, a_length,
+                                           pos_b, b_length, 0, 1))
         return 1;
     }
     else

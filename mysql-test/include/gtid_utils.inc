@@ -4,22 +4,33 @@
 # The functions are typically useful to check assertions related to
 # GTIDs. The following functions are defined:
 #
-#   GTID_IS_EQUAL(g1, g2)
-#     True if g1 and g2 are the same set
-#   GTID_IS_DISJOINT(g1, g2)
-#     True if g1 and g2 are disjoint
-#   GTID_IS_DISJOINT_UNION(g1, g2, sum)
-#     True if sum is the disjoint union of g1 and g2
-#   GTID_UNION(g1, g2)
-#     Return the union of g1 and g2
-#   GTID_INTERSECTION(g1, g2)
-#     Return the union of g1 and g2
-#   GTID_SYMMETRIC_DIFFERENCE(g1, g2)
-#     Return the symmetric difference of g1 and g2
-#   GTID_SUBTRACT_UUID(gtid, uuid)
+#   GTID_IS_EQUAL(gtid_set_1, gtid_set_2)
+#     True if gtid_set_1 and gtid_set_2 are the same set
+#   GTID_IS_DISJOINT(gtid_set_1, gtid_set_2)
+#     True if gtid_set_1 and gtid_set_2 are disjoint
+#   GTID_IS_DISJOINT_UNION(gtid_set_1, gtid_set_2, sum)
+#     True if sum is the disjoint union of gtid_set_1 and gtid_set_2
+#   GTID_NORMALIZE(gtid_set)
+#     Return the gtid set in a normalized form: all uuids in alphabetic
+#     order, all intervals compressed and in order, no whitespace, all
+#     lowercase.
+#   GTID_UNION(gtid_set_1, gtid_set_2)
+#     Return the union of gtid_set_1 and gtid_set_2
+#   GTID_INTERSECTION(gtid_set_1, gtid_set_2)
+#     Return the intersection of gtid_set_1 and gtid_set_2
+#   GTID_SYMMETRIC_DIFFERENCE(gtid_set_1, gtid_set_2)
+#     Return the symmetric difference of gtid_set_1 and gtid_set_2
+#   GTID_SUBTRACT_UUID(gtid_set, uuid)
 #     Remove the UUID from the GTID set
-#   GTID_INTERSECTION_WITH_UUID(gtid, uuid)
+#   GTID_INTERSECTION_WITH_UUID(gtid_set, uuid)
 #     Return only the gtids with the given uuid from the GTID set
+#   GTID_COUNT(gtid_set)
+#     Return the number of gtids in the gtid_set.
+#   GTID_NEXT_GENERATED(gtid_set, uuid)
+#     Return the next GNO that will be generated for the given uuid.
+#   GTID_NEXT_GENERATED_SET(gtid_set, uuid, count)
+#     Return the GTID set consisting of the next 'count' GTIDs that will
+#     be generated for the given uuid.
 #   GTID_COMPARE(old, diff, new)
 #     The same as GTID_IS_DISJOINT_UNION, except it has the following
 #     additional feature: if diff begins by '~', then it returns true
@@ -38,10 +49,18 @@
 #
 # ==== Usage ====
 #
+# You should not normally source this file directly; instead set
+# $rpl_gtid_utils=1 before sourcing master-slave.inc or rpl_init.inc.
+# Then, the functions are automatically dropped in rpl_end.inc, and
+# RESET MASTER is executed so that the functions do not pollute the
+# binary log.
+#
+# If you really need to use this file manually, do this:
+#
 #  1. Create the stored functions at the beginning of the test script:
 #
 #       --source include/gtid_utils.inc
-# 
+#
 #  2. Use the functions as you like during the test script.
 #
 #  3. Delete the stored functions at the end of the test script:
@@ -52,7 +71,10 @@
 --let $include_filename= gtid_utils.inc
 --source include/begin_include_file.inc
 
---disable_query_log
+if (!$rpl_debug)
+{
+  --disable_query_log
+}
 
 --delimiter |
 
@@ -75,60 +97,131 @@
 --let $uuidf= ffffffff-ffff-ffff-ffff-ffffffffffff
 
 # Return nonzero if the two gtid_sets are equal.
-CREATE FUNCTION GTID_IS_EQUAL(g1 TEXT(10000), g2 TEXT(10000))
+CREATE FUNCTION GTID_IS_EQUAL(gtid_set_1 TEXT(10000), gtid_set_2 TEXT(10000))
 RETURNS INT
-BEGIN
-  RETURN GTID_SUBSET(g1, g2) AND GTID_SUBSET(g2, g1);
-END|
+RETURN GTID_SUBSET(gtid_set_1, gtid_set_2) AND GTID_SUBSET(gtid_set_2, gtid_set_1)|
 
 # Return nonzero if the two gtid_sets are disjoint.
-CREATE FUNCTION GTID_IS_DISJOINT(g1 TEXT(10000), g2 TEXT(10000))
+CREATE FUNCTION GTID_IS_DISJOINT(gtid_set_1 TEXT(10000), gtid_set_2 TEXT(10000))
 RETURNS INT
-BEGIN
-  RETURN GTID_SUBSET(g1, GTID_SUBTRACT(g1, g2));
-END|
+RETURN GTID_SUBSET(gtid_set_1, GTID_SUBTRACT(gtid_set_1, gtid_set_2))|
 
-# Return true if g1 union g2 = sum, and g1 and g2 are disjoint.
-CREATE FUNCTION GTID_IS_DISJOINT_UNION(g1 TEXT(10000), g2 TEXT(10000), sum TEXT(10000))
+# Return true if gtid_set_1 union gtid_set_2 = sum, and gtid_set_1 and gtid_set_2 are disjoint.
+CREATE FUNCTION GTID_IS_DISJOINT_UNION(gtid_set_1 TEXT(10000), gtid_set_2 TEXT(10000), sum TEXT(10000))
 RETURNS INT
-BEGIN
-  RETURN GTID_IS_EQUAL(GTID_SUBTRACT(sum, g1), g2) AND
-         GTID_IS_EQUAL(GTID_SUBTRACT(sum, g2), g1);
-END|
+RETURN GTID_IS_EQUAL(GTID_SUBTRACT(sum, gtid_set_1), gtid_set_2) AND
+       GTID_IS_EQUAL(GTID_SUBTRACT(sum, gtid_set_2), gtid_set_1)|
 
-# Return the union of g1 and g2.
-CREATE FUNCTION GTID_UNION(g1 TEXT(10000), g2 TEXT(10000))
+# Return a normalized form of the GTID (all uppercase, no whitespace,
+# no duplicates, uuids in alphabetic order, intervals in numeric
+# order).
+CREATE FUNCTION GTID_NORMALIZE(g TEXT(10000))
 RETURNS TEXT(10000)
-BEGIN
-  RETURN GTID_SUBTRACT(CONCAT(g1, ',', g2), '');
-END|
+RETURN GTID_SUBTRACT(g, '')|
 
-# Return the intersection of g1 and g2.
-CREATE FUNCTION GTID_INTERSECT(g1 TEXT(10000), g2 TEXT(10000))
+# Return the union of gtid_set_1 and gtid_set_2.
+CREATE FUNCTION GTID_UNION(gtid_set_1 TEXT(10000), gtid_set_2 TEXT(10000))
 RETURNS TEXT(10000)
-BEGIN
-  RETURN GTID_SUBTRACT(g1, GTID_SUBTRACT(g1, g2));
-END|
+RETURN GTID_NORMALIZE(CONCAT(gtid_set_1, ',', gtid_set_2))|
 
-# Return the symmetric difference between g1 and g2.
-CREATE FUNCTION GTID_SYMMETRIC_DIFFERENCE(g1 TEXT(10000), g2 TEXT(10000))
+# Return the intersection of gtid_set_1 and gtid_set_2.
+CREATE FUNCTION GTID_INTERSECTION(gtid_set_1 TEXT(10000), gtid_set_2 TEXT(10000))
 RETURNS TEXT(10000)
-BEGIN
-  RETURN SUBTRACT(CONCAT(g1, ',', g2), GTID_INTERSECTION(g1, g2));
-END|
+RETURN GTID_SUBTRACT(gtid_set_1, GTID_SUBTRACT(gtid_set_1, gtid_set_2))|
+
+# Return the symmetric difference between gtid_set_1 and gtid_set_2.
+CREATE FUNCTION GTID_SYMMETRIC_DIFFERENCE(gtid_set_1 TEXT(10000), gtid_set_2 TEXT(10000))
+RETURNS TEXT(10000)
+RETURN GTID_SUBTRACT(CONCAT(gtid_set_1, ',', gtid_set_2), GTID_INTERSECTION(gtid_set_1, gtid_set_2))|
 
 # Return the gtid with uuid removed.
-CREATE FUNCTION GTID_SUBTRACT_UUID(gtid TEXT(10000), uuid TEXT(10000))
+CREATE FUNCTION GTID_SUBTRACT_UUID(gtid_set TEXT(10000), uuid TEXT(100))
 RETURNS TEXT(10000)
-BEGIN
-  RETURN GTID_SUBTRACT(gtid, CONCAT(UUID, ':1-', 1 << 62));
-END|
+RETURN GTID_SUBTRACT(gtid_set, CONCAT(UUID, ':1-', 1 << 63 - 1))|
 
 # Return the intersection of gtid and uuid.
-CREATE FUNCTION GTID_INTERSECT_UUID(gtid TEXT(10000), uuid TEXT(10000))
+CREATE FUNCTION GTID_INTERSECTION_WITH_UUID(gtid_set TEXT(10000), uuid TEXT(100))
+RETURNS TEXT(10000)
+RETURN GTID_SUBTRACT(gtid_set, GTID_SUBTRACT_UUID(gtid_set, uuid))|
+
+# If the first argument is nonzero, return it, else return the second argument
+CREATE FUNCTION IFZERO(a INT, b INT)
+RETURNS INT
+RETURN IF(a = 0, b, a)|
+
+# Like the builtin LOCATE, but returns length+1 rather than 0 if nothing found.
+CREATE FUNCTION LOCATE2(needle TEXT(10000), haystack TEXT(10000), offset INT)
+RETURNS INT
+RETURN IFZERO(LOCATE(needle, haystack, offset), LENGTH(haystack) + 1)|
+
+# Return the number of GTIDs in the given GTID set.
+CREATE FUNCTION GTID_COUNT(gtid_set TEXT(10000))
+RETURNS INT
+BEGIN
+  DECLARE result BIGINT DEFAULT 0;
+  DECLARE colon_pos INT;
+  DECLARE next_dash_pos INT;
+  DECLARE next_colon_pos INT;
+  DECLARE next_comma_pos INT;
+  SET gtid_set = GTID_NORMALIZE(gtid_set);
+  SET colon_pos = LOCATE2(':', gtid_set, 1);
+  WHILE colon_pos != LENGTH(gtid_set) + 1 DO
+     SET next_dash_pos = LOCATE2('-', gtid_set, colon_pos + 1);
+     SET next_colon_pos = LOCATE2(':', gtid_set, colon_pos + 1);
+     SET next_comma_pos = LOCATE2(',', gtid_set, colon_pos + 1);
+     IF next_dash_pos < next_colon_pos AND next_dash_pos < next_comma_pos THEN
+       SET result = result +
+         SUBSTR(gtid_set, next_dash_pos + 1,
+                LEAST(next_colon_pos, next_comma_pos) - (next_dash_pos + 1)) -
+         SUBSTR(gtid_set, colon_pos + 1, next_dash_pos - (colon_pos + 1)) + 1;
+     ELSE
+       SET result = result + 1;
+     END IF;
+     SET colon_pos = next_colon_pos;
+  END WHILE;
+  RETURN result;
+END|
+
+# Return the next GNO (numeric component) to be generated for the given UUID
+CREATE FUNCTION GTID_NEXT_GENERATED(gtid_set TEXT(10000), uuid TEXT(100))
+RETURNS INT
+BEGIN
+  DECLARE gtid_uuid TEXT(10000) DEFAULT GTID_INTERSECTION_WITH_UUID(gtid_set, uuid);
+  DECLARE colon_pos INT DEFAULT LOCATE2(':', gtid_uuid, 1);
+  DECLARE next_dash_pos INT DEFAULT LOCATE2('-', gtid_uuid, colon_pos + 1);
+  DECLARE next_comma_pos INT DEFAULT LOCATE2(',', gtid_uuid, colon_pos + 1);
+  DECLARE next_colon_pos INT DEFAULT LOCATE2(':', gtid_uuid, colon_pos + 1);
+  IF gtid_uuid = '' THEN
+    RETURN 1;
+  ELSEIF SUBSTR(gtid_uuid, colon_pos + 1,
+                 LEAST(next_dash_pos, next_comma_pos, next_colon_pos) -
+                 (colon_pos + 1)) != '1' THEN
+    RETURN 1;
+  ELSEIF next_dash_pos < LEAST(next_comma_pos, next_colon_pos) THEN
+    RETURN SUBSTR(gtid_uuid, next_dash_pos + 1,
+                  LEAST(next_comma_pos, next_colon_pos) -
+                  (next_dash_pos + 1)) + 1;
+  ELSE
+    RETURN 2;
+  END IF;
+END|
+
+# Return a GTID set consisting of the the next 'count' GTIDs that will
+# be generated for the given UUID.
+# This is inefficient if count is big, consider optimizing it if needed.
+CREATE FUNCTION GTID_NEXT_GENERATED_SET(gtid_set TEXT(10000), uuid TEXT(100), count INT)
 RETURNS TEXT(10000)
 BEGIN
-  RETURN GTID_SUBTRACT(gtid, GTID_SUBTRACT_UUID(gtid, uuid));
+  DECLARE result TEXT(10000) DEFAULT '';
+  DECLARE number INT;
+  DECLARE new_gtid VARCHAR(100);
+  WHILE count > 0 DO
+    SET new_gtid = CONCAT(uuid, ':', GTID_NEXT_GENERATED(gtid_set, uuid));
+    SET result = GTID_UNION(result, new_gtid);
+    SET gtid_set = GTID_UNION(gtid_set, new_gtid);
+    SET count = count - 1;
+  END WHILE;
+  RETURN result;
 END|
 
 # Return true if gtid_set 'new' is obtained by adding 'diff' to 'old',
@@ -137,16 +230,7 @@ END|
 # removed) from 'new'.
 CREATE FUNCTION GTID_COMPARE(old TEXT(10000), diff TEXT(10000), new TEXT(10000))
 RETURNS INT
-BEGIN
-  DECLARE tilde_pos INT DEFAULT LOCATE('~', diff);
-  DECLARE to_add TEXT(10000);
-  DECLARE to_remove TEXT(10000);
-  IF tilde_pos != 0 THEN
-    RETURN GTID_IS_DISJOINT_UNION(new, SUBSTR(diff, 2), old);
-  ELSE
-    RETURN GTID_IS_DISJOINT_UNION(old, diff, new);
-  END IF;
-END|
+RETURN IF(SUBSTR(diff, 1, 1) != '~', GTID_IS_DISJOINT_UNION(old, diff, new), GTID_IS_DISJOINT_UNION(new, SUBSTR(diff, 2), old))|
 
 # convert strings like '1:4-5,97:1' to
 # '01010101-0101-0101-0101-010101010101:4-5,97979797-9797-9797-9797-979797979797:1'

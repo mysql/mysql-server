@@ -384,7 +384,7 @@ unpack_row(Relay_log_info const *rli,
                              source_type.c_ptr_safe(), value_string.c_ptr_safe()));
 #endif
         copy.set(*field_ptr, f, TRUE);
-        (*copy.do_copy)(&copy);
+        copy.invoke_do_copy(&copy);
 #ifndef DBUG_OFF
         char target_buf[MAX_FIELD_WIDTH];
         String target_type(target_buf, sizeof(target_buf), system_charset_info);

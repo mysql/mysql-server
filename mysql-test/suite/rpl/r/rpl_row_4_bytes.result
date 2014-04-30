@@ -13,6 +13,7 @@ insert into t1 values("GUI");
 insert into t2 values("LIL");
 insert into t2 values("ABE");
 insert into t2 values("ANG");
+include/sync_slave_sql_with_master.inc
 use mysqltest1;
 select * from t1 order by a;
 a
@@ -24,4 +25,5 @@ ABE
 ANG
 LIL
 DROP DATABASE mysqltest1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

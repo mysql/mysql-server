@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Mixed DDL-DML (CREATE ... SELECT ...) statements can only be
 # replicated properly in statement-based replication.
 # Currently statement based due to bug 12345
@@ -13,15 +8,18 @@ source include/master-slave.inc;
 
 # Test replication of auto_increment
 
+
+#Get default engine value          WL#6921
+--let $DEFAULT_ENGINE = `select @@global.default_storage_engine`
 create table t1 (n int auto_increment primary key);
 set insert_id = 2000;
 insert into t1 values (NULL),(NULL),(NULL);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 select * from t1;
 connection master;
 --source include/show_slave_hosts.inc
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 stop slave;
 --source include/wait_for_slave_to_stop.inc
 connection master;
@@ -44,12 +42,15 @@ start slave;
 --source include/wait_for_slave_to_start.inc
 sync_with_master;
 select * from t2;
+#Replace default engine value with static engine string          WL#6921
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t3;
+--replace_result $DEFAULT_ENGINE ENGINE
 show create table t5;
 connection master;
 drop table t2,t3,t5;
 drop temporary table if exists t4;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of 4.1 tests
 --source include/rpl_end.inc

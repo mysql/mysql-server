@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -155,10 +155,9 @@ static char *backtick_string(const CHARSET_INFO *cs, char *to, char *end,
 
   for ( ; par < par_end; par+= char_len)
   {
-    uchar c= *(uchar *) par;
-    if (!(char_len= my_mbcharlen(cs, c)))
+    if (!(char_len= my_mbcharlen_ptr(cs, par, par_end)))
       goto err;
-    if (char_len == 1 && c == (uchar) quote_char )
+    if (char_len == 1 && *par == quote_char)
     {
       if (start + 1 >= end)
         goto err;

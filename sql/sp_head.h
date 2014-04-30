@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -613,11 +613,11 @@ public:
     Get the value of the SP cache version, as remembered
     when the routine was inserted into the cache.
   */
-  ulong sp_cache_version() const
+  int64 sp_cache_version() const
   { return m_sp_cache_version; }
 
   /// Set the value of the SP cache version.
-  void set_sp_cache_version(ulong sp_cache_version)
+  void set_sp_cache_version(int64 sp_cache_version)
   { m_sp_cache_version= sp_cache_version; }
 
   Stored_program_creation_ctx *get_creation_ctx()
@@ -801,8 +801,8 @@ public:
 		st_sp_chistics *chistics,
                 sql_mode_t sql_mode);
 
-  void set_definer(const char *definer, uint definerlen);
-  void set_definer(const LEX_STRING *user_name, const LEX_STRING *host_name);
+  void set_definer(const char *definer, size_t definerlen);
+  void set_definer(const LEX_CSTRING &user_name, const LEX_CSTRING &host_name);
 
   /**
     Do some minimal optimization of the code:
@@ -1001,7 +1001,7 @@ private:
     is obsolete and should not be used --
     sp_cache_flush_obsolete() will purge it.
   */
-  ulong m_sp_cache_version;
+  int64 m_sp_cache_version;
 
   /// Snapshot of several system variables at CREATE-time.
   Stored_program_creation_ctx *m_creation_ctx;

@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # ==== Purpose ====
 #
 # This test check if DDL statements are correctly binlogged when the
@@ -113,7 +108,7 @@ CREATE INDEX i1 ON t1 (a);
 
 CREATE VIEW v1 AS SELECT a FROM t1 WHERE a < 100;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master1;
 let $connection_name= master1;

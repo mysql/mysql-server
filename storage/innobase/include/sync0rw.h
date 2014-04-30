@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -46,55 +46,55 @@ Created 9/11/1995 Heikki Tuuri
 
 /** Counters for RW locks. */
 struct rw_lock_stats_t {
-	typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> ib_int64_counter_t;
+	typedef ib_counter_t<int64_t, IB_N_SLOTS> int64_counter_t;
 
 	/** number of spin waits on rw-latches,
 	resulted during shared (read) locks */
-	ib_int64_counter_t	rw_s_spin_wait_count;
+	int64_counter_t		rw_s_spin_wait_count;
 
 	/** number of spin loop rounds on rw-latches,
 	resulted during shared (read) locks */
-	ib_int64_counter_t	rw_s_spin_round_count;
+	int64_counter_t		rw_s_spin_round_count;
 
 	/** number of OS waits on rw-latches,
 	resulted during shared (read) locks */
-	ib_int64_counter_t	rw_s_os_wait_count;
+	int64_counter_t		rw_s_os_wait_count;
 
 	/** number of unlocks (that unlock shared locks),
 	set only when UNIV_SYNC_PERF_STAT is defined */
-	ib_int64_counter_t	rw_s_exit_count;
+	int64_counter_t		rw_s_exit_count;
 
 	/** number of spin waits on rw-latches,
 	resulted during exclusive (write) locks */
-	ib_int64_counter_t	rw_x_spin_wait_count;
+	int64_counter_t		rw_x_spin_wait_count;
 
 	/** number of spin loop rounds on rw-latches,
 	resulted during exclusive (write) locks */
-	ib_int64_counter_t	rw_x_spin_round_count;
+	int64_counter_t		rw_x_spin_round_count;
 
 	/** number of OS waits on rw-latches,
 	resulted during exclusive (write) locks */
-	ib_int64_counter_t	rw_x_os_wait_count;
+	int64_counter_t		rw_x_os_wait_count;
 
 	/** number of unlocks (that unlock exclusive locks),
 	set only when UNIV_SYNC_PERF_STAT is defined */
-	ib_int64_counter_t	rw_x_exit_count;
+	int64_counter_t		rw_x_exit_count;
 
 	/** number of spin waits on rw-latches,
 	resulted during sx locks */
-	ib_int64_counter_t	rw_sx_spin_wait_count;
+	int64_counter_t		rw_sx_spin_wait_count;
 
 	/** number of spin loop rounds on rw-latches,
 	resulted during sx locks */
-	ib_int64_counter_t	rw_sx_spin_round_count;
+	int64_counter_t		rw_sx_spin_round_count;
 
 	/** number of OS waits on rw-latches,
 	resulted during sx locks */
-	ib_int64_counter_t	rw_sx_os_wait_count;
+	int64_counter_t		rw_sx_os_wait_count;
 
 	/** number of unlocks (that unlock sx locks),
 	set only when UNIV_SYNC_PERF_STAT is defined */
-	ib_int64_counter_t	rw_sx_exit_count;
+	int64_counter_t		rw_sx_exit_count;
 };
 
 /* Latch types; these are used also in btr0btr.h and mtr0mtr.h: keep the

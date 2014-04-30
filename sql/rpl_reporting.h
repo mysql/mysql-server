@@ -58,7 +58,7 @@ public:
                         printf() format.
   */
   virtual void report(loglevel level, int err_code, const char *msg, ...) const
-    ATTRIBUTE_FORMAT(printf, 4, 5);
+    __attribute__((format(printf, 4, 5)));
   void va_report(loglevel level, int err_code, const char *prefix_msg,
                  const char *msg, va_list v_args) const;
 

@@ -36,6 +36,11 @@
 # endif
 #endif
 
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
+
 static char mysql_path[FN_REFLEN];
 static char mysqlcheck_path[FN_REFLEN];
 
@@ -465,6 +470,7 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
   */
   if (run_tool(tool_executable_name,
                &ds_tmp, /* Get output from command, discard*/
+               "--no-defaults",
                "--help",
                "2>&1",
                IF_WIN("> NUL", "> /dev/null"),

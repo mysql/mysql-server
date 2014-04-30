@@ -108,9 +108,13 @@ flst_add_last(
 		if (last_addr.page == node_addr.page) {
 			last_node = page_align(node) + last_addr.boffset;
 		} else {
-			ulint	zip_size = fil_space_get_zip_size(space);
+			bool			found;
+			const page_size_t&	page_size
+				= fil_space_get_page_size(space, &found);
 
-			last_node = fut_get_ptr(space, zip_size, last_addr,
+			ut_ad(found);
+
+			last_node = fut_get_ptr(space, page_size, last_addr,
 						RW_SX_LATCH, mtr);
 		}
 
@@ -155,9 +159,13 @@ flst_add_first(
 		if (first_addr.page == node_addr.page) {
 			first_node = page_align(node) + first_addr.boffset;
 		} else {
-			ulint	zip_size = fil_space_get_zip_size(space);
+			bool			found;
+			const page_size_t&	page_size
+				= fil_space_get_page_size(space, &found);
 
-			first_node = fut_get_ptr(space, zip_size, first_addr,
+			ut_ad(found);
+
+			first_node = fut_get_ptr(space, page_size, first_addr,
 						 RW_SX_LATCH, mtr);
 		}
 
@@ -211,9 +219,13 @@ flst_insert_after(
 
 	if (!fil_addr_is_null(node3_addr)) {
 		/* Update prev field of node3 */
-		ulint	zip_size = fil_space_get_zip_size(space);
+		bool			found;
+		const page_size_t&	page_size
+			= fil_space_get_page_size(space, &found);
 
-		node3 = fut_get_ptr(space, zip_size,
+		ut_ad(found);
+
+		node3 = fut_get_ptr(space, page_size,
 				    node3_addr, RW_SX_LATCH, mtr);
 		flst_write_addr(node3 + FLST_PREV, node2_addr, mtr);
 	} else {
@@ -271,9 +283,14 @@ flst_insert_before(
 	flst_write_addr(node2 + FLST_NEXT, node3_addr, mtr);
 
 	if (!fil_addr_is_null(node1_addr)) {
-		ulint	zip_size = fil_space_get_zip_size(space);
+		bool			found;
+		const page_size_t&	page_size
+			= fil_space_get_page_size(space, &found);
+
+		ut_ad(found);
+
 		/* Update next field of node1 */
-		node1 = fut_get_ptr(space, zip_size, node1_addr,
+		node1 = fut_get_ptr(space, page_size, node1_addr,
 				    RW_SX_LATCH, mtr);
 		flst_write_addr(node1 + FLST_NEXT, node2_addr, mtr);
 	} else {
@@ -300,7 +317,6 @@ flst_remove(
 	mtr_t*			mtr)	/*!< in: mini-transaction handle */
 {
 	ulint		space;
-	ulint		zip_size;
 	flst_node_t*	node1;
 	fil_addr_t	node1_addr;
 	fil_addr_t	node2_addr;
@@ -317,7 +333,12 @@ flst_remove(
 					     | MTR_MEMO_PAGE_SX_FIX));
 
 	buf_ptr_get_fsp_addr(node2, &space, &node2_addr);
-	zip_size = fil_space_get_zip_size(space);
+
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space,
+								    &found);
+
+	ut_ad(found);
 
 	node1_addr = flst_get_prev_addr(node2, mtr);
 	node3_addr = flst_get_next_addr(node2, mtr);
@@ -330,7 +351,7 @@ flst_remove(
 
 			node1 = page_align(node2) + node1_addr.boffset;
 		} else {
-			node1 = fut_get_ptr(space, zip_size,
+			node1 = fut_get_ptr(space, page_size,
 					    node1_addr, RW_SX_LATCH, mtr);
 		}
 
@@ -349,7 +370,7 @@ flst_remove(
 
 			node3 = page_align(node2) + node3_addr.boffset;
 		} else {
-			node3 = fut_get_ptr(space, zip_size,
+			node3 = fut_get_ptr(space, page_size,
 					    node3_addr, RW_SX_LATCH, mtr);
 		}
 
@@ -409,8 +430,13 @@ flst_cut_end(
 
 			node1 = page_align(node2) + node1_addr.boffset;
 		} else {
-			node1 = fut_get_ptr(space,
-					    fil_space_get_zip_size(space),
+			bool			found;
+			const page_size_t&	page_size
+				= fil_space_get_page_size(space, &found);
+
+			ut_ad(found);
+
+			node1 = fut_get_ptr(space, page_size,
 					    node1_addr, RW_SX_LATCH, mtr);
 		}
 
@@ -485,7 +511,6 @@ flst_validate(
 	mtr_t*			mtr1)	/*!< in: mtr */
 {
 	ulint			space;
-	ulint			zip_size;
 	const flst_node_t*	node;
 	fil_addr_t		node_addr;
 	fil_addr_t		base_addr;
@@ -507,7 +532,12 @@ flst_validate(
 
 	/* Find out the space id */
 	buf_ptr_get_fsp_addr(base, &space, &base_addr);
-	zip_size = fil_space_get_zip_size(space);
+
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space,
+								    &found);
+
+	ut_ad(found);
 
 	len = flst_get_len(base, mtr1);
 	node_addr = flst_get_first(base, mtr1);
@@ -515,7 +545,7 @@ flst_validate(
 	for (i = 0; i < len; i++) {
 		mtr_start(&mtr2);
 
-		node = fut_get_ptr(space, zip_size,
+		node = fut_get_ptr(space, page_size,
 				   node_addr, RW_SX_LATCH, &mtr2);
 		node_addr = flst_get_next_addr(node, &mtr2);
 
@@ -530,7 +560,7 @@ flst_validate(
 	for (i = 0; i < len; i++) {
 		mtr_start(&mtr2);
 
-		node = fut_get_ptr(space, zip_size,
+		node = fut_get_ptr(space, page_size,
 				   node_addr, RW_SX_LATCH, &mtr2);
 		node_addr = flst_get_prev_addr(node, &mtr2);
 

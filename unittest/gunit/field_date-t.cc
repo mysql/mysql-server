@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ protected:
   Field_set *create_field_set(TYPELIB *tl);
 
   // Store zero date using different combinations of SQL modes
-  static const int no_modes= 4;
+  static const int no_modes= 3;
   static const sql_mode_t strict_modes[no_modes];
 
   static const type_conversion_status nozero_expected_status[];
@@ -49,20 +49,10 @@ protected:
 
 const sql_mode_t FieldDateTest::strict_modes[no_modes]=
 {
-  0,
   MODE_STRICT_TRANS_TABLES,
   MODE_STRICT_ALL_TABLES,
   MODE_STRICT_TRANS_TABLES | MODE_STRICT_ALL_TABLES
 };
-
-const type_conversion_status FieldDateTest::nozero_expected_status[]=
-{
-  TYPE_NOTE_TIME_TRUNCATED,
-  TYPE_ERR_BAD_VALUE,
-  TYPE_ERR_BAD_VALUE,
-  TYPE_ERR_BAD_VALUE
-};
-
 
 class Mock_field_date : public Field_newdate
 {
@@ -166,16 +156,13 @@ TEST_F(FieldDateTest, StoreIllegalStringValues)
   }
 }
 
-
-
 /**
   Strictness mode test 1:
 
-  Try storing dates with zeroes when no zero-restrictions apply
-  (neither NO_ZERO_DATE or NO_ZERO_IN_DATE are set). There should be
-  no errors, warnings or notes.
+  Try storing dates with zeroes when NO SQL MODE is set. There
+  should be no errors.
 */
-TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroRestrictions)
+TEST_F(FieldDateTest, StoreZeroDateSqlModeNothing)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);
@@ -184,108 +171,55 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroRestrictions)
   field_date.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
-  for (int i= 0; i < no_modes; i++)
-  {
-    SCOPED_TRACE("");
-    store_zero_in_sql_mode(&field_date, STRING_WITH_LEN("0000-00-00"),
-                           "0000-00-00", TYPE_OK, strict_modes[i], 0);
-  }
-
-  for (int i= 0; i < no_modes; i++)
-  {
-    SCOPED_TRACE("");
-    store_zero_in_sql_mode(&field_date, STRING_WITH_LEN("0000-01-01"),
-                           "0000-01-01", TYPE_OK, strict_modes[i], 0);
-
-  }
-
-  for (int i= 0; i < no_modes; i++)
-  {
-    SCOPED_TRACE("");
-    store_zero_in_sql_mode(&field_date, STRING_WITH_LEN("2001-00-01"),
-                           "2001-00-01", TYPE_OK, strict_modes[i], 0);
-
-  }
-
-  for (int i= 0; i < no_modes; i++)
-  {
-    SCOPED_TRACE("");
-    store_zero_in_sql_mode(&field_date, STRING_WITH_LEN("2001-01-00"),
-                           "2001-01-00", TYPE_OK, strict_modes[i], 0);
-  }
-}
-
-
-/**
-  Strictness mode test 2:
-
-  Try storing dates with zeroes when NO_ZERO_DATE flag is set. There
-  should be no errors, warnings or notes unless the entire date is
-  zero: "0000-00-00"
-*/
-TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroDate)
-{
-  Mock_field_date field_date;
-  Fake_TABLE table(&field_date);
-  table.in_use= thd();
-  field_date.make_writable();
-  field_date.make_readable();
-  thd()->count_cuted_fields= CHECK_FIELD_WARN;
-
-  // With "MODE_NO_ZERO_DATE" set - Errors if date is all null
-  for (int i= 0; i < no_modes; i++)
+  // Without STRICT MODE, Everything is valid
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("0000-00-00"),
                            "0000-00-00",
-                           nozero_expected_status[i],
-                           MODE_NO_ZERO_DATE | strict_modes[i],
-                           ER_WARN_DATA_OUT_OF_RANGE);
+                           TYPE_OK,
+                           0,
+                           0);
   }
 
-  // Zero year, month or day is fine
-  for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("0000-01-01"),
                            "0000-01-01",
                            TYPE_OK,
-                           MODE_NO_ZERO_DATE | strict_modes[i],
+                           0,
                            0);
   }
 
-  for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("2001-00-01"),
                            "2001-00-01",
                            TYPE_OK,
-                           MODE_NO_ZERO_DATE | strict_modes[i],
+                           0,
                            0);
   }
 
-  for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("2001-01-00"),
                            "2001-01-00",
                            TYPE_OK,
-                           MODE_NO_ZERO_DATE | strict_modes[i],
+                           0,
                            0);
   }
 }
 
 /**
-  Strictness mode test 3:
+  Strictness mode test 2:
 
-  Try storing dates with zeroes when NO_ZERO_IN_DATE flag is set. There
+  Try storing dates with zeroes when STRICT MODE is set. There
   should be no errors unless either month or day is zero.
 */
-TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
+TEST_F(FieldDateTest, StoreZeroDateSqlModeStrict)
 {
   Mock_field_date field_date;
   Fake_TABLE table(&field_date);
@@ -294,16 +228,16 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
   field_date.make_readable();
   thd()->count_cuted_fields= CHECK_FIELD_WARN;
 
-  // With "MODE_NO_ZERO_IN_DATE" set - Entire date zero is ok
+  // With strict mode set, Entire date zero is not ok
   for (int i= 0; i < no_modes; i++)
   {
     SCOPED_TRACE("");
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("0000-00-00"),
                            "0000-00-00",
-                           TYPE_OK,
-                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
-                           0);
+                           TYPE_ERR_BAD_VALUE,
+                           strict_modes[i],
+                           ER_WARN_DATA_OUT_OF_RANGE);
   }
 
   // Year 0 is valid in strict mode too
@@ -314,7 +248,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
                            STRING_WITH_LEN("0000-01-01"),
                            "0000-01-01",
                            TYPE_OK,
-                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
+                           strict_modes[i],
                            0);
   }
 
@@ -325,8 +259,8 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("2001-00-01"),
                            "0000-00-00",
-                           nozero_expected_status[i],
-                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
+                           TYPE_ERR_BAD_VALUE,
+                           strict_modes[i],
                            ER_WARN_DATA_OUT_OF_RANGE);
   }
 
@@ -337,8 +271,8 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeNoZeroInDate)
     store_zero_in_sql_mode(&field_date,
                            STRING_WITH_LEN("2001-01-00"),
                            "0000-00-00",
-                           nozero_expected_status[i],
-                           MODE_NO_ZERO_IN_DATE | strict_modes[i],
+                           TYPE_ERR_BAD_VALUE,
+                           strict_modes[i],
                            ER_WARN_DATA_OUT_OF_RANGE);
   }
 }

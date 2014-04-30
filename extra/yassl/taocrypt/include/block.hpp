@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -187,8 +187,8 @@ public:
     ~Block() { allocator_.deallocate(buffer_, sz_); }
 private:
     word32 sz_;     // size in Ts
-    T*     buffer_;
     A      allocator_;
+    T*     buffer_;
 };
 
 

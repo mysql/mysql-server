@@ -114,7 +114,7 @@ int vio_timeout(Vio *vio, uint which, int timeout_sec);
 my_bool vio_socket_connect(Vio *vio, struct sockaddr *addr, socklen_t len,
                            int timeout);
 
-my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, int addr_length,
+my_bool vio_get_normalized_ip_string(const struct sockaddr *addr, size_t addr_length,
                                      char *ip_string, size_t ip_string_size);
 
 my_bool vio_is_no_name_error(int err_code);

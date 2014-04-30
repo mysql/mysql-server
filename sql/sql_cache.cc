@@ -1528,7 +1528,7 @@ int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
     that is called when we are checking that query cache is allowed at
     this moment to operate on an InnoDB table.
   */
-  if (thd->transaction.xid_state.check_xa_idle_or_prepared(false))
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(false))
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
@@ -2896,7 +2896,7 @@ void Query_cache::invalidate_table(THD *thd, TABLE_LIST *table_list)
   else
   {
     const char *key;
-    uint key_length;
+    size_t key_length;
     key_length= get_table_def_key(table_list, &key);
 
     // We don't store temporary tables => no key_length+=4 ...
@@ -3010,7 +3010,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     if (tables_used->view)
     {
       const char *key;
-      uint key_length;
+      size_t key_length;
       DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -97,8 +97,8 @@ uchar* dboptions_get_key(my_dbopt_t *opt, size_t *length,
   Helper function to write a query to binlog used by mysql_rm_db()
 */
 
-static inline int write_to_binlog(THD *thd, char *query, uint q_len,
-                                  char *db, uint db_len)
+static inline int write_to_binlog(THD *thd, char *query, size_t q_len,
+                                  char *db, size_t db_len)
 {
   Query_log_event qinfo(thd, query, q_len, FALSE, TRUE, FALSE, 0);
   qinfo.db= db;
@@ -629,7 +629,7 @@ not_silent:
     const char *query;
     size_t query_length;
     char db_name_quoted[2 * FN_REFLEN + sizeof("create database ") + 2];
-    int id_len= 0;
+    size_t id_len= 0;
 
     if (!thd->query().str)                          // Only in replication
     {
@@ -898,7 +898,7 @@ update_binlog:
     size_t query_length;
     // quoted db name + wraping quote
     char buffer_temp [2 * FN_REFLEN + 2];
-    int id_len= 0;
+    size_t id_len= 0;
     if (!thd->query().str)
     {
       /* The client used the old obsolete mysql_drop_db() call */
@@ -946,7 +946,7 @@ update_binlog:
     char *query, *query_pos, *query_end, *query_data_start;
     char temp_identifier[ 2 * FN_REFLEN + 2];
     TABLE_LIST *tbl;
-    uint db_len, id_length=0;
+    size_t db_len, id_length=0;
 
     if (!(query= (char*) thd->alloc(MAX_DROP_TABLE_Q_LEN)))
       goto exit; /* not much else we can do */
@@ -1013,7 +1013,18 @@ exit:
     it to 0.
   */
   if (thd->db && !strcmp(thd->db, db) && !error)
+  {
     mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
+    /*
+      Check if current database tracker is enabled. If so, set the 'changed' flag.
+    */
+    if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
+    {
+      LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
+      dummy.length= dummy.length*1;
+      thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+    }
+  }
   my_dirend(dirp);
   DBUG_RETURN(error);
 }
@@ -1485,7 +1496,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
-      DBUG_RETURN(FALSE);
+      goto done;
     }
     else
     {
@@ -1501,8 +1512,7 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
     mysql_change_db_impl(thd, &INFORMATION_SCHEMA_NAME, SELECT_ACL,
                          system_charset_info);
-
-    DBUG_RETURN(FALSE);
+    goto done;
   }
 
   /*
@@ -1583,12 +1593,10 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
       my_free(new_db_file_name.str);
 
       /* Change db to NULL. */
-
       mysql_change_db_impl(thd, NULL, 0, thd->variables.collation_server);
 
       /* The operation succeed. */
-
-      DBUG_RETURN(FALSE);
+      goto done;
     }
     else
     {
@@ -1612,6 +1620,18 @@ bool mysql_change_db(THD *thd, const LEX_STRING *new_db_name, bool force_switch)
 
   mysql_change_db_impl(thd, &new_db_file_name, db_access, db_default_cl);
 
+done:
+  /*
+    Check if current database tracker is enabled. If so, set the 'changed' flag.
+  */
+  if (thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->is_enabled())
+  {
+    LEX_CSTRING dummy= { C_STRING_WITH_LEN("") };
+    dummy.length= dummy.length*1;
+    thd->session_tracker.get_tracker(CURRENT_SCHEMA_TRACKER)->mark_as_changed(&dummy);
+  }
+  if (thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->is_enabled())
+    thd->session_tracker.get_tracker(SESSION_STATE_CHANGE_TRACKER)->mark_as_changed(NULL);
   DBUG_RETURN(FALSE);
 }
 
@@ -1696,7 +1716,7 @@ bool mysql_upgrade_db(THD *thd, LEX_STRING *old_db)
 
   /* Lock the old name, the new name will be locked by mysql_create_db().*/
   if (lock_schema_name(thd, old_db->str))
-    DBUG_RETURN(-1);
+    DBUG_RETURN(true);
 
   /*
     Let's remember if we should do "USE newdb" afterwards.

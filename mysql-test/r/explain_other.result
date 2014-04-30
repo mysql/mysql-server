@@ -36,7 +36,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 WHERE f1 IN (SELECT * FROM t1)'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where; FirstMatch(t1); Using join buffer (Block Nested Loop)
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'SELECT * FROM t1 UNION ALL SELECT * FROM t1 ORDER BY 1'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	NULL
@@ -154,7 +154,7 @@ EXPLAIN
           "access_type": "ALL",
           "rows_examined_per_scan": 2,
           "rows_produced_per_join": 2,
-          "filtered": 100,
+          "filtered": 50,
           "using_where": true,
           "first_match": "t1",
           "using_join_buffer": "Block Nested Loop",
@@ -438,7 +438,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "16.40"
+      "query_cost": "5.20"
     },
     "nested_loop": [
       {
@@ -447,14 +447,14 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 8,
-          "rows_produced_per_join": 8,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 12.5,
           "using_where": true,
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "1.60",
+            "read_cost": "2.40",
+            "eval_cost": "0.20",
             "prefix_cost": "2.60",
-            "data_read_per_join": "64"
+            "data_read_per_join": "8"
           },
           "used_columns": [
             "f1"
@@ -466,14 +466,14 @@ EXPLAIN
           "table_name": "tt",
           "access_type": "ALL",
           "rows_examined_per_scan": 8,
-          "rows_produced_per_join": 64,
-          "filtered": 100,
+          "rows_produced_per_join": 1,
+          "filtered": 12.5,
           "using_where": true,
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "12.80",
-            "prefix_cost": "16.40",
-            "data_read_per_join": "512"
+            "read_cost": "2.40",
+            "eval_cost": "0.20",
+            "prefix_cost": "5.20",
+            "data_read_per_join": "8"
           },
           "used_columns": [
             "f1"
@@ -513,8 +513,8 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'UPDATE v1 SET f1=5 WHERE f1=5'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
-1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
+1	UPDATE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where
+1	SIMPLE	tt	NULL	ALL	NULL	NULL	NULL	NULL	18	5.56	Using where
 EXPLAIN FORMAT=TRADITIONAL FOR QUERY 'DELETE FROM t1 WHERE f1=4'
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	DELETE	t1	NULL	ALL	NULL	NULL	NULL	NULL	18	100.00	Using where
@@ -720,7 +720,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "63.20"
+      "query_cost": "24.66"
     },
     "nested_loop": [
       {
@@ -728,14 +728,14 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 17,
-          "rows_produced_per_join": 17,
-          "filtered": 100,
+          "rows_produced_per_join": 5,
+          "filtered": 33.33,
           "using_where": true,
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "3.40",
+            "read_cost": "3.27",
+            "eval_cost": "1.13",
             "prefix_cost": "4.40",
-            "data_read_per_join": "136"
+            "data_read_per_join": "45"
           },
           "used_columns": [
             "f1"
@@ -757,14 +757,14 @@ EXPLAIN
           "table_name": "t2",
           "access_type": "ALL",
           "rows_examined_per_scan": 17,
-          "rows_produced_per_join": 289,
+          "rows_produced_per_join": 96,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "1.00",
-            "eval_cost": "57.80",
-            "prefix_cost": "63.20",
-            "data_read_per_join": "2K"
+            "eval_cost": "19.26",
+            "prefix_cost": "24.66",
+            "data_read_per_join": "770"
           },
           "used_columns": [
             "f1"
@@ -782,7 +782,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "63.20"
+      "query_cost": "24.66"
     },
     "nested_loop": [
       {
@@ -790,14 +790,14 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 17,
-          "rows_produced_per_join": 17,
-          "filtered": 100,
+          "rows_produced_per_join": 5,
+          "filtered": 33.33,
           "using_where": true,
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "3.40",
+            "read_cost": "3.27",
+            "eval_cost": "1.13",
             "prefix_cost": "4.40",
-            "data_read_per_join": "136"
+            "data_read_per_join": "45"
           },
           "used_columns": [
             "f1"
@@ -837,14 +837,14 @@ EXPLAIN
           "table_name": "t2",
           "access_type": "ALL",
           "rows_examined_per_scan": 17,
-          "rows_produced_per_join": 289,
+          "rows_produced_per_join": 96,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "1.00",
-            "eval_cost": "57.80",
-            "prefix_cost": "63.20",
-            "data_read_per_join": "2K"
+            "eval_cost": "19.26",
+            "prefix_cost": "24.66",
+            "data_read_per_join": "770"
           },
           "used_columns": [
             "f1"
@@ -862,7 +862,7 @@ EXPLAIN
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "63.20"
+      "query_cost": "24.66"
     },
     "nested_loop": [
       {
@@ -870,13 +870,13 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "ALL",
           "rows_examined_per_scan": 17,
-          "rows_produced_per_join": 17,
-          "filtered": 100,
+          "rows_produced_per_join": 5,
+          "filtered": 33.33,
           "cost_info": {
-            "read_cost": "1.00",
-            "eval_cost": "3.40",
+            "read_cost": "3.27",
+            "eval_cost": "1.13",
             "prefix_cost": "4.40",
-            "data_read_per_join": "136"
+            "data_read_per_join": "45"
           },
           "used_columns": [
             "f1"
@@ -917,14 +917,14 @@ EXPLAIN
           "table_name": "t2",
           "access_type": "ALL",
           "rows_examined_per_scan": 17,
-          "rows_produced_per_join": 289,
+          "rows_produced_per_join": 96,
           "filtered": 100,
           "using_join_buffer": "Block Nested Loop",
           "cost_info": {
             "read_cost": "1.00",
-            "eval_cost": "57.80",
-            "prefix_cost": "63.20",
-            "data_read_per_join": "2K"
+            "eval_cost": "19.26",
+            "prefix_cost": "24.66",
+            "data_read_per_join": "770"
           },
           "used_columns": [
             "f1"
@@ -975,14 +975,14 @@ EXPLAIN
             "table_name": "t1",
             "access_type": "ALL",
             "rows_examined_per_scan": 17,
-            "rows_produced_per_join": 17,
-            "filtered": 100,
+            "rows_produced_per_join": 5,
+            "filtered": 33.33,
             "using_where": true,
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "3.40",
+              "read_cost": "3.27",
+              "eval_cost": "1.13",
               "prefix_cost": "4.40",
-              "data_read_per_join": "136"
+              "data_read_per_join": "45"
             },
             "used_columns": [
               "f1"
@@ -1032,13 +1032,13 @@ EXPLAIN
             "table_name": "t1",
             "access_type": "ALL",
             "rows_examined_per_scan": 17,
-            "rows_produced_per_join": 17,
-            "filtered": 100,
+            "rows_produced_per_join": 5,
+            "filtered": 33.33,
             "cost_info": {
-              "read_cost": "1.00",
-              "eval_cost": "3.40",
+              "read_cost": "3.27",
+              "eval_cost": "1.13",
               "prefix_cost": "4.40",
-              "data_read_per_join": "136"
+              "data_read_per_join": "45"
             },
             "used_columns": [
               "f1"

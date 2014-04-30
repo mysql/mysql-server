@@ -1442,7 +1442,7 @@ int my_block_write(IO_CACHE *info, const uchar *Buffer, size_t Count,
     Buffer+=length;
     pos+=  length;
     Count-= length;
-#ifndef HAVE_PREAD
+#ifdef _WIN32
     info->seek_not_done=1;
 #endif
   }

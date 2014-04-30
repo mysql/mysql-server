@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved. 
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved. 
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,6 +14,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "filesort_utils.h"
+#include "opt_costmodel.h"
 #include "sql_const.h"
 #include "sql_sort.h"
 #include "table.h"
@@ -28,11 +29,15 @@ namespace {
 /**
   A local helper function. See comments for get_merge_buffers_cost().
  */
-double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size)
+double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size,
+                      const Cost_model_table *cost_model)
 {
-  return 
-    2.0 * ((double) num_elements * elem_size) / IO_SIZE
-    + num_elements * log((double) num_buffers) * ROWID_COMPARE_COST / M_LN2;
+  const double io_ops= static_cast<double>(num_elements * elem_size) / IO_SIZE;
+  const double io_cost= cost_model->io_block_read_cost(io_ops);
+  const double cpu_cost=
+    cost_model->key_compare_cost(num_elements * log((double) num_buffers) /
+                                 M_LN2);
+  return 2 * io_cost + cpu_cost;
 }
 }
 
@@ -45,7 +50,8 @@ double get_merge_cost(ha_rows num_elements, ha_rows num_buffers, uint elem_size)
 */
 double get_merge_many_buffs_cost_fast(ha_rows num_rows,
                                       ha_rows num_keys_per_buffer,
-                                      uint    elem_size)
+                                      uint elem_size,
+                                      const Cost_model_table *cost_model)
 {
   ha_rows num_buffers= num_rows / num_keys_per_buffer;
   ha_rows last_n_elems= num_rows % num_keys_per_buffer;
@@ -53,9 +59,10 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 
   // Calculate CPU cost of sorting buffers.
   total_cost=
-    ( num_buffers * num_keys_per_buffer * log(1.0 + num_keys_per_buffer) +
-      last_n_elems * log(1.0 + last_n_elems) ) * ROWID_COMPARE_COST;
-  
+    num_buffers * cost_model->key_compare_cost(num_keys_per_buffer *
+                                               log(1.0 + num_keys_per_buffer)) +
+    cost_model->key_compare_cost(last_n_elems * log(1.0 + last_n_elems));
+
   // Simulate behavior of merge_many_buff().
   while (num_buffers >= MERGEBUFF2)
   {
@@ -68,14 +75,16 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
     // Cost of merge sort 'num_merge_calls'.
     total_cost+=
       num_merge_calls *
-      get_merge_cost(num_keys_per_buffer * MERGEBUFF, MERGEBUFF, elem_size);
+      get_merge_cost(num_keys_per_buffer * MERGEBUFF, MERGEBUFF, elem_size,
+                     cost_model);
 
     // # of records in remaining buffers.
     last_n_elems+= num_remaining_buffs * num_keys_per_buffer;
 
     // Cost of merge sort of remaining buffers.
     total_cost+=
-      get_merge_cost(last_n_elems, 1 + num_remaining_buffs, elem_size);
+      get_merge_cost(last_n_elems, 1 + num_remaining_buffs, elem_size,
+                     cost_model);
 
     num_buffers= num_merge_calls;
     num_keys_per_buffer*= MERGEBUFF;
@@ -83,7 +92,8 @@ double get_merge_many_buffs_cost_fast(ha_rows num_rows,
 
   // Simulate final merge_buff call.
   last_n_elems+= num_keys_per_buffer * num_buffers;
-  total_cost+= get_merge_cost(last_n_elems, 1 + num_buffers, elem_size);
+  total_cost+= get_merge_cost(last_n_elems, 1 + num_buffers, elem_size,
+                              cost_model);
   return total_cost;
 }
 

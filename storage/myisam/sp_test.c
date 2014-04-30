@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -368,7 +368,7 @@ static void print_key(const uchar *key,const char * tail)
   printf("     key=");
   for (i=0; i<2*SPDIMS; i++)
   {
-    float8get(c,key);
+    float8get(&c,key);
     key+=sizeof(c);
     printf("%.14g ",c);
   }
@@ -415,7 +415,7 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims)
       printf("POINT(");
       for (i=0; i < n_dims; ++i)
       {
-        float8get(ord, wkb);
+        float8get(&ord, wkb);
         wkb += 8;
         printf("%.14g", ord);
         if (i < n_dims - 1)
@@ -438,7 +438,7 @@ static void rtree_PrintWKB(uchar *wkb, uint n_dims)
       {
         for (i=0; i < n_dims; ++i)
         {
-          float8get(ord, wkb);
+          float8get(&ord, wkb);
           wkb += 8;
           printf("%.14g", ord);
           if (i < n_dims - 1)

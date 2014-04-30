@@ -64,15 +64,15 @@ public:
   void store_short(ushort s);
   void store_int(uint i);
   void store_ll(ulonglong ll);
-  void store_str_only(const char *str, uint str_len);
-  void store_str(const char *str, uint str_len);
-  void store_safe_str(const char *str, uint str_len);
+  void store_str_only(const char *str, size_t str_len);
+  void store_str(const char *str, size_t str_len);
+  void store_safe_str(const char *str, size_t str_len);
 
   uchar load_uchar();
   ushort load_short();
   uint load_int();
   ulonglong load_ll();
-  void load_str_only(char *buffer, uint str_len);
+  void load_str_only(char *buffer, size_t str_len);
   char *load_str(MEM_ROOT *alloc, uint *str_len);
   int load_safe_str(MEM_ROOT *alloc, char **str, uint *str_len);
   int load_column(MEM_ROOT *alloc, char **column);

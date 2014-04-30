@@ -15,6 +15,7 @@ mysqltest2	CREATE DATABASE `mysqltest2` /*!40100 DEFAULT CHARACTER SET latin2 */
 show create database mysqltest3;
 Database	Create Database
 mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET latin5 */
+include/sync_slave_sql_with_master.inc
 
 --- --slave--
 show create database mysqltest2;
@@ -31,6 +32,7 @@ create database mysqltest3;
 show create database mysqltest3;
 Database	Create Database
 mysqltest3	CREATE DATABASE `mysqltest3` /*!40100 DEFAULT CHARACTER SET armscii8 COLLATE armscii8_bin */
+include/sync_slave_sql_with_master.inc
 
 --- --slave--
 show create database mysqltest3;
@@ -52,6 +54,7 @@ a	b
 3	cp850
 4	latin2
 5	latin2_croatian_ci
+include/sync_slave_sql_with_master.inc
 --- --slave--
 select * from mysqltest2.t1 order by a;
 a	b
@@ -74,6 +77,7 @@ a	b
 2	Muffler
 3	latin1_german2_ci
 4	MЭller
+include/sync_slave_sql_with_master.inc
 --- --slave--
 select * from mysqltest2.t1 order by a;
 a	b
@@ -88,12 +92,14 @@ insert into t1 (b) values(collation(@a));
 select * from t1 order by a;
 a	b
 1	cp850_general_ci
+include/sync_slave_sql_with_master.inc
 --- --slave--
 select * from mysqltest2.t1 order by a;
 a	b
 1	cp850_general_ci
 drop database mysqltest2;
 drop database mysqltest3;
+include/sync_slave_sql_with_master.inc
 set global character_set_server=latin2;
 set global character_set_server=latin1;
 set global character_set_server=latin2;
@@ -111,10 +117,12 @@ INSERT INTO t1 (c1, c2) VALUES ('Ну, за рыбалку','Ну, за рыбалку');
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
+include/sync_slave_sql_with_master.inc
 select hex(c1), hex(c2) from t1;
 hex(c1)	hex(c2)
 CDF32C20E7E020F0FBE1E0EBEAF3	CDF32C20E7E020F0FBE1E0EBEAF3
 drop table t1;
+include/sync_slave_sql_with_master.inc
 create table `t1` (
 `pk` varchar(10) not null default '', 
 primary key (`pk`)
