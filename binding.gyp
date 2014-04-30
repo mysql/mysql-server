@@ -30,6 +30,7 @@
       [
          "Adapter/impl/common/src/async_common.cpp",
          "Adapter/impl/common/src/unified_debug.cpp",
+         "Adapter/impl/common/src/common_v8_values.cpp",
 
          "Adapter/impl/ndb/src/node_module.cpp",
          "Adapter/impl/ndb/src/Record.cpp",

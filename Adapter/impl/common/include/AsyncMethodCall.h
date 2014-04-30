@@ -25,6 +25,7 @@
 
 #include "JsConverter.h"
 #include "async_common.h"
+#include "common_v8_values.h"
 
 using namespace v8;
 
@@ -150,7 +151,12 @@ public:
       return scope.Close(obj);
     }
     else {
-      return scope.Close(toJS(return_val));
+      /* Optimization for a common case */
+      if(return_val == 0) {
+        return scope.Close(Zero());
+      } else {
+        return scope.Close(toJS(return_val));
+      }
     }
   }
 
