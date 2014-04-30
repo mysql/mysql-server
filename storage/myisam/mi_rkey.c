@@ -178,6 +178,9 @@ int mi_rkey(MI_INFO *info, uchar *buf, int inx, const uchar *key,
   else
     info->last_rkey_length= pack_key_length;
 
+  /* Next call to mi_rnext_same should set rnext_same_key. */
+    info->set_rnext_same_key= TRUE;
+
   /* Check if we don't want to have record back, only error message */
   if (!buf)
     DBUG_RETURN(info->lastpos == HA_OFFSET_ERROR ? my_errno : 0);
