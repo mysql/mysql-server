@@ -1868,16 +1868,13 @@ just incase update action following delete fails.
 @param[out]	delete_entries	vector of cursor to deleted entries.
 @param[in]	restore_delete	if true, then restore DELETE records by
 				unmarking delete.
-@param[in]	update_index	bitmap indicating which all index needs to
-				be updated.
 @return error code or DB_SUCCESS */
 static
 dberr_t
 row_delete_for_mysql_using_cursor(
 	const upd_node_t*	node,
 	cursors_t&		delete_entries,
-	bool			restore_delete,
-	const index_update_t&	update_index)
+	bool			restore_delete)
 {
 	mtr_t		mtr;
 	dict_table_t*	table = node->table;
@@ -1998,8 +1995,6 @@ row_delete_for_mysql_using_cursor(
 @param[in]	node		update node carrying information to delete.
 @param[out]	delete_entries	vector of cursor to deleted entries.
 @param[in]	thr		thread handler
-@param[in]	update_index	bitmap indicating which all index needs to
-				be updated.
 @param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 static
@@ -2008,7 +2003,6 @@ row_update_for_mysql_using_cursor(
 	const upd_node_t*	node,
 	cursors_t&		delete_entries,
 	que_thr_t*		thr,
-	const index_update_t&	update_index,
 	innodb_session_t*	session)
 {
 	dberr_t		err = DB_SUCCESS;
@@ -2066,8 +2060,7 @@ row_update_for_mysql_using_cursor(
 	if (err != DB_SUCCESS) {
 		/* This suggest update can't be executed safely.
 		Avoid executing update. Rollback DELETE action. */
-		row_delete_for_mysql_using_cursor(
-			node, delete_entries, true, update_index);
+		row_delete_for_mysql_using_cursor(node, delete_entries, true);
 	}
 
 	/* Step-4: It is now safe to execute update if there is no error */
@@ -2097,7 +2090,7 @@ row_update_for_mysql_using_cursor(
 
 		if (err == DB_TOO_BIG_RECORD) {
 			row_delete_for_mysql_using_cursor(
-				node, delete_entries, true, update_index);
+				node, delete_entries, true);
 		}
 	}
 
@@ -2123,7 +2116,6 @@ row_del_upd_for_mysql_using_cursor(
 	upd_node_t*		node;
 	cursors_t		delete_entries;
 	dict_index_t*		clust_index;
-	index_update_t		update_index;
 	que_thr_t*		thr = NULL;
 
 	/* Step-0: If there is cached insert position commit it before
@@ -2145,8 +2137,7 @@ row_del_upd_for_mysql_using_cursor(
 	row_upd_store_row(node);
 
 	/* Step-2: Execute DELETE operation. */
-	err = row_delete_for_mysql_using_cursor(
-		node, delete_entries, false, update_index);
+	err = row_delete_for_mysql_using_cursor(node, delete_entries, false);
 
 	/* Step-3: If only DELETE operation then exit immediately. */
 	if (node->is_delete) {
@@ -2160,7 +2151,7 @@ row_del_upd_for_mysql_using_cursor(
 		/* Step-4: Complete UPDATE operation by inserting new row with
 		updated data. */
 		err = row_update_for_mysql_using_cursor(
-			node, delete_entries, thr, update_index, session);
+			node, delete_entries, thr, session);
 
 		if (err == DB_SUCCESS) {
 			srv_stats.n_rows_updated.inc();
