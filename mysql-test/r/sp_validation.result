@@ -1373,7 +1373,6 @@ CALL p2();
 2
 
 UPDATE t2 SET a = 30;
-ERROR 42S22: Unknown column 'a' in 'NEW'
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
