@@ -1496,12 +1496,13 @@ static void free_resources()
 
 static void maybe_exit(int error)
 {
-  if (opt_slave_data)
-    do_start_slave_sql(mysql);
   if (!first_error)
     first_error= error;
   if (ignore_errors)
     return;
+  ignore_errors= 1; /* don't want to recurse, if something fails below */
+  if (opt_slave_data)
+    do_start_slave_sql(mysql);
   if (mysql)
     mysql_close(mysql);
   free_resources();
@@ -5682,8 +5683,8 @@ int main(int argc, char **argv)
   */
 err:
   /* if --dump-slave , start the slave sql thread */
-  if (opt_slave_data && do_start_slave_sql(mysql))
-    goto err;
+  if (opt_slave_data)
+    do_start_slave_sql(mysql);
 
 #ifdef HAVE_SMEM
   my_free(shared_memory_base_name);

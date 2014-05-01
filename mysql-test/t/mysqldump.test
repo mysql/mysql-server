@@ -2455,3 +2455,10 @@ drop table t1, t2;
 --echo #
 --echo # End of 5.1 tests
 --echo #
+
+#
+# MDEV-6091 mysqldump goes in a loop and segfaults if --dump-slave is specified and it cannot connect to the server
+#
+--error 2
+--exec $MYSQL_DUMP -hunknownhost --dump-slave nulldb
+
