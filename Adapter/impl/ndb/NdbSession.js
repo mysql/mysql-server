@@ -21,16 +21,20 @@
 "use strict";
 
 var stats = {
-	"created" : 0
+	"created" : 0,
+  "startTransaction" : { 
+    "sync" : 0 , "async" : 0 , "delayed" : 0 
+  }
 };
 
-var adapter        = require(path.join(build_dir, "ndb_adapter.node")),
-    ndboperation   = require("./NdbOperation.js"),
-    dbtxhandler    = require("./NdbTransactionHandler.js"),
-    ndbconnpool    = require("./NdbConnectionPool.js"),
-    util           = require("util"),
-    assert         = require("assert"),
-    udebug         = unified_debug.getLogger("NdbSession.js"),
+var adapter         = require(path.join(build_dir, "ndb_adapter.node")),
+    ndboperation    = require("./NdbOperation.js"),
+    dbtxhandler     = require("./NdbTransactionHandler.js"),
+    ndbconnpool     = require("./NdbConnectionPool.js"),
+    util            = require("util"),
+    assert          = require("assert"),
+    udebug          = unified_debug.getLogger("NdbSession.js"),
+    QueuedAsyncCall = require("../common/QueuedAsyncCall.js").QueuedAsyncCall,
     NdbSession;
 
 require(path.join(api_dir,"stats.js")).register(stats, "spi","ndb","DBSession");
@@ -73,11 +77,11 @@ exports.newDBSession = function(pool, impl) {
 */
 NdbSession = function() { 
   stats.created++;
-  this.tx                  = null;
-  this.execQueue           = [];
-  this.startTxQueue        = [];
-  this.maxNdbTransactions  = 4;  // do not set less than two
-  this.openNdbTransactions = 0;
+  this.tx                    = null;
+  this.execQueue             = [];
+  this.maxNdbTransactions    = 4;  // do not set less than two
+  this.openNdbTransactions   = 0;  // currently opened
+  this.cachedNdbTransactions = 0;  // assumed cached inside NDB API
 };
 
 /* NdbSession prototype 
@@ -85,6 +89,7 @@ NdbSession = function() {
 NdbSession.prototype = {
   impl                : null,
   parentPool          : null,
+  startTxQueue        : null
 };
 
 
@@ -95,28 +100,53 @@ NdbSession.prototype = {
    The closed NdbTransactionHandler is still alive and running, 
    but the session can now open a new one.
 */
-exports.closeActiveTransaction = function(dbTransactionHandler) {
-  var self = dbTransactionHandler.dbSession;
-  assert(self.tx === dbTransactionHandler);
-  self.tx = null;  
+NdbSession.prototype.closeActiveTransactionHandler = function() {
+  this.tx = null;  
 };
 
+NdbSession.prototype.txQueuePush = function(startTxCall) {
+  if(this.startTxQueue === null) {
+    this.startTxQueue = [];
+  }
+  this.startTxQueue.push(startTxCall);
+};
 
 /* Execute a StartTransaction call, or queue it if necessary
+   TODO: Set partition key in startTransaction() calls.
 */
-exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
-  var self = dbTransactionHandler.dbSession;
-  var nTx = startTxCall.nTxRecords;
-  
-  if(self.openNdbTransactions + nTx <= self.maxNdbTransactions) {
-    self.openNdbTransactions += nTx;
-    udebug.log("startTransaction => exec queue");
-    startTxCall.enqueue();           // go directly to the exec queue
-  }
+NdbSession.prototype.startNdbTransaction = function(table, nTx, callback) {
+  var ndbTx, txError, startTxCall;
+  txError = null;
+
+  if(this.cachedNdbTransactions > nTx) {          // Run immediately (sync)
+    stats.startTransaction.sync++;
+    this.cachedNdbTransactions -= nTx;
+    this.openNdbTransactions += nTx;
+    assert(this.openNdbTransactions <= this.maxNdbTransactions);
+    ndbTx = this.impl.startTransaction(table, "", 0); 
+    if(ndbTx === null) {
+      txError = this.impl.getNdbError();
+    }
+    callback(txError, ndbTx);
+  } 
   else {
-    self.startTxQueue.push(startTxCall);   // wait in the startTx queue
-    if(udebug.is_debug()) {
-      udebug.log("startTransaction => start queue", self.startTxQueue.length);
+    startTxCall = new QueuedAsyncCall(this.execQueue, callback);
+    startTxCall.table = table;
+    startTxCall.ndb = this.impl;
+    startTxCall.description = "startNdbTransaction";
+    startTxCall.run = function() {      
+      this.ndb.startTransaction(this.table, "", 0, this.callback);
+    };
+
+    if(this.openNdbTransactions + nTx <= this.maxNdbTransactions) {
+      this.openNdbTransactions += nTx;
+      stats.startTransaction.async++;
+      startTxCall.enqueue();           // go directly to the exec queue
+    }
+    else {                              // wait in the startTx queue
+      stats.startTransaction.delayed++;
+      startTxCall.nTx = nTx;
+      this.txQueuePush(startTxCall);  
     }
   }
 };
@@ -124,21 +154,17 @@ exports.queueStartNdbTransaction = function(dbTransactionHandler, startTxCall) {
 
 /* Close an NdbTransaction. 
 */
-exports.closeNdbTransaction = function(dbTransactionHandler, nTx) {
-  var self, nextTx;
-  self = dbTransactionHandler.dbSession;
-  if(udebug.is_debug()) udebug.log("closeNdbTransaction", nTx, self.openNdbTransactions);
-  self.openNdbTransactions -= nTx;
-  assert(self.openNdbTransactions >= 0);
-  while(self.startTxQueue.length > 0 && 
-        self.openNdbTransactions + self.startTxQueue[0].nTxRecords <= self.maxNdbTransactions) {
+NdbSession.prototype.closeNdbTransaction = function(nTx) {
+  var nextTx;
+  this.openNdbTransactions -= nTx;
+  this.cachedNdbTransactions += nTx;
+  assert(this.openNdbTransactions >= 0);
+  while(this.startTxQueue && this.startTxQueue.length > 0 && 
+        this.openNdbTransactions + this.startTxQueue[0].nTx <= this.maxNdbTransactions) {
     /* move a waiting StartTxCall from the startTxQueue to the execQueue */
-    nextTx = self.startTxQueue.shift();
-    self.openNdbTransactions += nextTx.nTxRecords;
-    if(udebug.is_debug()) {
-      udebug.log("closeNdbTransaction: pulled 1 from startTxQueue. Length:", 
-                  self.startTxQueue.length);
-    }
+    udebug.log("closeNdbTransaction: pulled 1 from startTxQueue");
+    nextTx = this.startTxQueue.shift();
+    this.openNdbTransactions += nextTx.nTx;
     nextTx.enqueue(); 
   }
 };
