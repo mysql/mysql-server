@@ -1930,7 +1930,6 @@ btr_cur_search_to_nth_level_with_no_latch(
         /* Start with the root page. */
         page_id_t		page_id(space, dict_index_get_page(index));
 
-
 	up_match = 0;
 	low_match = 0;
 
@@ -1975,7 +1974,7 @@ btr_cur_search_to_nth_level_with_no_latch(
 		}
 
 		if (height == 0) {
-			/* On leaf level. Switch back to original search mode. */
+			/* On leaf level. Switch back to original search mode.*/
 			page_mode = mode;
 		}
 
@@ -1983,9 +1982,8 @@ btr_cur_search_to_nth_level_with_no_latch(
 				block, index, tuple, page_mode, &up_match,
 				&low_match, page_cursor, NULL);
 
-		/* If this is the desired level, leave the loop */
-		ut_ad(height == btr_page_get_level(page_cur_get_page(page_cursor),
-					mtr));
+		ut_ad(height == btr_page_get_level(
+			page_cur_get_page(page_cursor), mtr));
 
 		if (level != height) {
 
@@ -1997,15 +1995,16 @@ btr_cur_search_to_nth_level_with_no_latch(
 			node_ptr = page_cur_get_rec(page_cursor);
 
 			offsets = rec_get_offsets(
-					node_ptr, index, offsets, ULINT_UNDEFINED, &heap);
+					node_ptr, index, offsets,
+					ULINT_UNDEFINED, &heap);
 
 			/* Go to the child node */
-			page_id.reset(
-					space,
-					btr_node_ptr_get_child_page_no(node_ptr, offsets));
+			page_id.reset(space, btr_node_ptr_get_child_page_no(
+				node_ptr, offsets));
 
 			n_blocks++;
 		} else {
+			/* If this is the desired level, leave the loop */
 			at_desired_level = true;
 		}
 	}
@@ -2387,7 +2386,6 @@ as they are not shared and so there is no need of latching.
 @param[in]	from_left	true if open to low end, false if open
 				to high end.
 @param[in]	index		index
-@param[in]	latch_mode	latch mode
 @param[in,out]	cursor		cursor
 @param[in]	file		file name
 @param[in]	line		line where called
@@ -2398,7 +2396,6 @@ void
 btr_cur_open_at_index_side_with_no_latch_func(
 	bool		from_left,
 	dict_index_t*	index,
-	ulint		latch_mode,
 	btr_cur_t*	cursor,
 	ulint		level,
 	const char*	file,
@@ -2432,7 +2429,7 @@ btr_cur_open_at_index_side_with_no_latch_func(
 		ut_ad(n_blocks < BTR_MAX_LEVELS);
 
 		block = buf_page_get_gen(page_id, page_size, rw_latch, NULL,
-					BUF_GET, file, line, mtr);
+					 BUF_GET, file, line, mtr);
 
 		page = buf_block_get_frame(block);
 

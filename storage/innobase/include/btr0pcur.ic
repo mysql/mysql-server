@@ -543,7 +543,7 @@ btr_pcur_open_at_index_side(
 
 	if (dict_table_is_intrinsic(index->table)) {
 		btr_cur_open_at_index_side_with_no_latch(
-			from_left, index, latch_mode,
+			from_left, index,
 			btr_pcur_get_btr_cur(pcur), level, mtr);
 	} else {
 		btr_cur_open_at_index_side(
