@@ -9409,6 +9409,13 @@ innobase_table_flags(
 			if (fts_doc_id_index_bad) {
 				goto index_bad;
 			}
+		} else if (key->flags & HA_SPATIAL) {
+			if (create_info->options & HA_LEX_CREATE_TMP_TABLE
+			    && THDVAR(thd, create_intrinsic)
+			    && !use_file_per_table) {
+				my_error(ER_TABLE_CANT_HANDLE_SPKEYS, MYF(0));
+				DBUG_RETURN(false);
+			}
 		}
 
 		if (innobase_strcasecmp(key->name, FTS_DOC_ID_INDEX_NAME)) {
