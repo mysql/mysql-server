@@ -553,12 +553,6 @@ static bool is_strict_mode(THD *thd) {
 #endif
 }
 
-#if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-#include <binlog.h>
-#elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
-#include <log.h>
-#endif
-
 // Check if an update operation can be handled by this storage engine.  Return true if it can.
 bool ha_tokudb::check_fast_update(THD *thd, List<Item> &fields, List<Item> &values, Item *conds) {
     if (!transaction)
