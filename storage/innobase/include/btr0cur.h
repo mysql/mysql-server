@@ -254,16 +254,15 @@ void
 btr_cur_open_at_index_side_with_no_latch_func(
 	bool		from_left,
 	dict_index_t*	index,
-	ulint		latch_mode,
 	btr_cur_t*	cursor,
 	ulint		level,
 	const char*	file,
 	ulint		line,
 	mtr_t*		mtr)
 	__attribute__((nonnull));
-#define btr_cur_open_at_index_side_with_no_latch(f,i,l,c,lv,m)		\
+#define btr_cur_open_at_index_side_with_no_latch(f,i,c,lv,m)		\
 	btr_cur_open_at_index_side_with_no_latch_func(			\
-		f,i,l,c,lv,__FILE__,__LINE__,m)
+		f,i,c,lv,__FILE__,__LINE__,m)
 
 /**********************************************************************//**
 Positions a cursor at a randomly chosen position within a B-tree. */
