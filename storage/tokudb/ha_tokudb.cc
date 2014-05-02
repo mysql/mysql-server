@@ -103,9 +103,6 @@ extern "C" {
 
 #define MYSQL_SERVER 1
 #include "mysql_version.h"
-#if MYSQL_VERSION_ID < 50506
-#include "mysql_priv.h"
-#else
 #include "sql_table.h"
 #include "handler.h"
 #include "table.h"
@@ -113,6 +110,9 @@ extern "C" {
 #include "sql_class.h"
 #include "sql_show.h"
 #include "discover.h"
+
+#if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || (50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799)
+#include <binlog.h>
 #endif
 
 #include "db.h"
