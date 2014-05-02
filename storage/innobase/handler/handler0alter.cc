@@ -289,7 +289,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ADD_SPATIAL_INDEX)
 	    || ((ha_alter_info->handler_flags
-		 & Alter_inplace_info::ADD_PK_INDEX)
+		 & Alter_inplace_info::ADD_PK_INDEX
+		 || innobase_need_rebuild(ha_alter_info))
 		&& innobase_spatial_exist(altered_table))) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}

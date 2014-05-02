@@ -518,6 +518,9 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
   {
     thd->lex->set_trg_event_type_for_tables();
 
+    // Call after-parsing callback.
+    parsing_failed= on_after_expr_parsing(thd);
+
     if (sp->m_type == SP_TYPE_TRIGGER)
     {
       /*
@@ -540,13 +543,8 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
                                t->get_subject_table_grant(), false);
     }
 
-    // Call after-parsing callback.
-
-    parsing_failed= on_after_expr_parsing(thd);
-
     // Append newly created Items to the list of Items, owned by this
     // instruction.
-
     free_list= thd->free_list;
   }
 
@@ -989,6 +987,14 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
                                            m_trigger_field_name.str,
                                            UPDATE_ACL,
                                            false);
+
+  if (m_trigger_field)
+  {
+    /* Adding m_trigger_field to the list of all Item_trigger_field objects */
+    sp_head *sp= thd->sp_runtime_ctx->sp;
+    sp->m_trg_table_fields.link_in_list(m_trigger_field,
+                                        &m_trigger_field->next_trg_field);
+  }
 
   return m_value_item == NULL || m_trigger_field == NULL;
 }
