@@ -4579,7 +4579,6 @@ finish:
   }
 
   /* Free tables */
-  thd_proc_info(thd, "closing tables");
   close_thread_tables(thd);
   thd_proc_info(thd, 0);
 

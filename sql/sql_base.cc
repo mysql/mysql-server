@@ -1467,6 +1467,8 @@ void close_thread_tables(THD *thd)
   TABLE *table;
   DBUG_ENTER("close_thread_tables");
 
+  thd_proc_info(thd, "closing tables");
+
 #ifdef EXTRA_DEBUG
   DBUG_PRINT("tcache", ("open tables:"));
   for (table= thd->open_tables; table; table= table->next)
@@ -5170,7 +5172,7 @@ restart:
   }
 
 err:
-  thd_proc_info(thd, 0);
+  thd_proc_info(thd, "After opening tables");
   free_root(&new_frm_mem, MYF(0));              // Free pre-alloced block
 
   if (error && *table_to_open)
@@ -5619,7 +5621,7 @@ end:
       trans_rollback_stmt(thd);
     close_thread_tables(thd);
   }
-  thd_proc_info(thd, 0);
+  thd_proc_info(thd, "After opening table");
   DBUG_RETURN(table);
 }
 

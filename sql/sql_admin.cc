@@ -647,7 +647,9 @@ static bool mysql_admin_table(THD* thd, TABLE_LIST* tables,
     }
 
     DBUG_PRINT("admin", ("calling operator_func '%s'", operator_name));
+    thd_proc_info(thd, "executing");
     result_code = (table->table->file->*operator_func)(thd, check_opt);
+    thd_proc_info(thd, "Sending data");
     DBUG_PRINT("admin", ("operator_func returned: %d", result_code));
 
     if (result_code == HA_ADMIN_NOT_IMPLEMENTED && need_repair_or_alter)
@@ -769,8 +771,9 @@ send_result_message:
         "Table does not support optimize, doing recreate + analyze instead"),
         system_charset_info);
       }
-     if (protocol->write())
+      if (protocol->write())
         goto err;
+      thd_proc_info(thd, "recreating table");
       DBUG_PRINT("info", ("HA_ADMIN_TRY_ALTER, trying analyze..."));
       TABLE_LIST *save_next_local= table->next_local,
                  *save_next_global= table->next_global;
@@ -975,6 +978,7 @@ bool mysql_assign_to_keycache(THD* thd, TABLE_LIST* tables,
   KEY_CACHE *key_cache;
   DBUG_ENTER("mysql_assign_to_keycache");
 
+  thd_proc_info(thd, "Finding key cache");
   check_opt.init();
   mysql_mutex_lock(&LOCK_global_system_variables);
   if (!(key_cache= get_key_cache(key_cache_name)))

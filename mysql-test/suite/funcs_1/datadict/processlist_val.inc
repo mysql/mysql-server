@@ -89,7 +89,7 @@ echo
 #   - TIME (printed value will be unified), the exact values are like
 #          "normal" load: 0 (seconds)
 #          "heavy" load: 1 or more (seconds)
-#   - State 'executing'
+#   - State 'Filling schema table'
 #   - INFO must contain the corresponding SHOW/SELECT PROCESSLIST
 #
 # 1. Just dump what we get
@@ -109,7 +109,7 @@ FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = @default_id;
 SELECT COUNT(*)  = 1 AS "Expect 1"
 FROM INFORMATION_SCHEMA.PROCESSLIST WHERE ID = @default_id
      AND USER = 'root' AND DB = 'test' AND Command IN('Query','Execute')
-     AND State = 'executing';
+     AND State = 'Filling schema table';
 #
 # 4. Change the DB
 USE information_schema;

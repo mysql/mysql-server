@@ -271,7 +271,7 @@ ADD_CUSTOM_TARGET(distclean
 IF(INSTALL_LAYOUT STREQUAL "STANDALONE")
 
 # Copy db.opt into data/test/
-SET(DBOPT_FILE ${CMAKE_CURRENT_SOURCE_DIR}/db.opt ) 
+SET(DBOPT_FILE ${CMAKE_SOURCE_DIR}/support-files/db.opt ) 
 INSTALL(FILES ${DBOPT_FILE} DESTINATION data/test COMPONENT DataFiles)
 
 # Install initial database on windows

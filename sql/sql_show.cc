@@ -7651,10 +7651,13 @@ bool get_schema_tables_result(JOIN *join,
   THD *thd= join->thd;
   LEX *lex= thd->lex;
   bool result= 0;
+  const char *old_proc_info;
   DBUG_ENTER("get_schema_tables_result");
 
   Warnings_only_error_handler err_handler;
   thd->push_internal_handler(&err_handler);
+  old_proc_info= thd_proc_info(thd, "Filling schema table");
+
   for (JOIN_TAB *tab= first_linear_tab(join, WITH_CONST_TABLES); 
        tab; 
        tab= next_linear_tab(join, tab, WITHOUT_BUSH_ROOTS))
@@ -7743,6 +7746,7 @@ bool get_schema_tables_result(JOIN *join,
   }
   else if (result)
     my_error(ER_UNKNOWN_ERROR, MYF(0));
+  thd_proc_info(thd, old_proc_info);
   DBUG_RETURN(result);
 }
 
