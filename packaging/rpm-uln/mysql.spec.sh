@@ -645,7 +645,6 @@ rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqlclient*.la
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/*.a
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/plugin/*.la
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/plugin/*.a
-rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/binary-configure
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/make_binary_distribution
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/make_sharedlib_distribution
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mi_test_all*
