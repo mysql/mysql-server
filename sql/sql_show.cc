@@ -2117,6 +2117,59 @@ void free_status_vars()
   delete_dynamic(&all_status_vars);
 }
 
+/**
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       list       list of SHOW_VAR objects in which function should
+                              search
+  @param[in]       name       name of the status variable
+  @param[in/out]   value      buffer in which value of the status variable
+                              needs to be filled in
+
+  @return          status
+    @retval        FALSE      if variable is not found in the list
+    @retval        TRUE       if variable is found in the list
+  NOTE: Currently this function is implemented just to support 'bool' status
+  variables and 'long' status variables *only*. It can be extended very easily
+  for further show_types in future if required.
+  TODO: Currently show_status_arary switch case is tightly coupled with
+  pos, end, buff, value variables and also it stores the values in a 'table'.
+  Decouple the switch case to fill the buffer value so that it can be used
+  in show_status_array() and get_status_var() to avoid duplicate code.
+ */
+
+bool get_status_var(THD* thd, SHOW_VAR *list, const char * name, char * const value)
+{
+  for (; list->name; list++)
+  {
+    int res= strcmp(list->name, name);
+    if (res == 0)
+    {
+      /*
+        if var->type is SHOW_FUNC, call the function.
+        Repeat as necessary, if new var is again SHOW_FUNC
+      */
+      SHOW_VAR tmp;
+      for (; list->type == SHOW_FUNC; list= &tmp)
+        ((mysql_show_var_func)(list->value))(thd, &tmp, value);
+      switch (list->type) {
+      case SHOW_BOOL:
+        strmov(value, *(bool*) list->value ? "ON" : "OFF");
+        break;
+      case SHOW_LONG:
+        int10_to_str(*(long*) list->value, value, 10);
+        break;
+      default:
+        /* not supported type */
+        DBUG_ASSERT(0);
+      }
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 /*
   Removes an array of SHOW_VAR entries from the output of SHOW STATUS
 

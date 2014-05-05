@@ -1930,6 +1930,49 @@ bool mysql_uninstall_plugin(THD *thd, const LEX_STRING *name)
     goto err;
   }
 
+#ifdef HAVE_REPLICATION
+  /* Block Uninstallation of semi_sync plugins (Master/Slave)
+     when they are busy
+   */
+  char buff[20];
+  /*
+    Master: If there are active semi sync slaves for this Master,
+    then that means it is busy and rpl_semi_sync_master plugin
+    cannot be uninstalled. To check whether the master
+    has any semi sync slaves or not, check Rpl_semi_sync_master_cliens
+    status variable value, if it is not 0, that means it is busy.
+  */
+  if (!strcmp(name->str, "rpl_semi_sync_master") &&
+      get_status_var(thd,
+                     plugin->plugin->status_vars,
+                     "Rpl_semi_sync_master_clients",buff) &&
+      strcmp(buff,"0") )
+  {
+    sql_print_error("Plugin 'rpl_semi_sync_master' cannot be uninstalled now. "
+                    "Stop any active semisynchronous slaves of this master "
+                    "first.\n");
+    my_error(ER_UNKNOWN_ERROR, MYF(0), name->str);
+    goto err;
+  }
+  /* Slave: If there is semi sync enabled IO thread active on this Slave,
+    then that means plugin is busy and rpl_semi_sync_slave plugin
+    cannot be uninstalled. To check whether semi sync
+    IO thread is active or not, check Rpl_semi_sync_slave_status status
+    variable value, if it is ON, that means it is busy.
+  */
+  if (!strcmp(name->str, "rpl_semi_sync_slave") &&
+      get_status_var(thd, plugin->plugin->status_vars,
+                     "Rpl_semi_sync_slave_status", buff) &&
+      !strcmp(buff,"ON") )
+  {
+    sql_print_error("Plugin 'rpl_semi_sync_slave' cannot be uninstalled now. "
+                    "Stop any active semisynchronous I/O threads on this slave "
+                    "first.\n");
+    my_error(ER_UNKNOWN_ERROR, MYF(0), name->str);
+    goto err;
+  }
+#endif
+
   plugin->state= PLUGIN_IS_DELETED;
   if (plugin->ref_count)
     push_warning(thd, MYSQL_ERROR::WARN_LEVEL_WARN,
