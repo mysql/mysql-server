@@ -510,6 +510,11 @@ static MYSQL_THDVAR_ENUM(empty_scan,
     NULL, NULL, TOKUDB_EMPTY_SCAN_RL, &tokudb_empty_scan_typelib
 );
 
+#if TOKUDB_CHECK_JEMALLOC
+static uint tokudb_check_jemalloc;
+static MYSQL_SYSVAR_UINT(check_jemalloc, tokudb_check_jemalloc, 0, "Check if jemalloc is linked", NULL, NULL, 1, 0, 1, 0);
+#endif
+
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;
 extern uint32_t tokudb_write_status_frequency;
