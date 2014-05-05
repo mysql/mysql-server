@@ -78,8 +78,10 @@ TARGET_LINK_LIBRARIES(mysql_config_editor mysqlclient)
 MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
+IF(UNIX)
 MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc auth_utils.cc)
 TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+ENDIF(UNIX)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
 IF(WIN32)
