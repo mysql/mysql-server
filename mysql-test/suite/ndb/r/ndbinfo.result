@@ -21,8 +21,8 @@ SELECT node_id, memory_type, used>0 AND used < total/20 AS used_ok,
   FROM ndbinfo.memoryusage WHERE memory_type="Long message buffer"
   ORDER BY node_id;
 node_id	memory_type	used_ok	used_pages_ok	total	total_pages
-1	Long message buffer	1	1	67108864	262144
-2	Long message buffer	1	1	67108864	262144
+1	Long message buffer	0	0	4194304	16384
+2	Long message buffer	0	0	4194304	16384
 
 SELECT node_id, block_number, block_instance, pool_name, 
   used>0 AND used < total/20 AS used_ok, 
@@ -31,8 +31,8 @@ SELECT node_id, block_number, block_instance, pool_name,
   FROM ndbinfo.ndb$pools WHERE pool_name="Long message buffer"
   ORDER BY node_id;
 node_id	block_number	block_instance	pool_name	used_ok	total	high_ok	entry_size	config_param1	config_param2	config_param3	config_param4
-1	254	0	Long message buffer	1	262144	1	256	157	0	0	0
-2	254	0	Long message buffer	1	262144	1	256	157	0	0	0
+1	254	0	Long message buffer	0	16384	0	256	157	0	0	0
+2	254	0	Long message buffer	0	16384	0	256	157	0	0	0
 
 SHOW CREATE TABLE ndb$tables;
 Table	Create Table
