@@ -1178,13 +1178,13 @@ func_start:
 	For compressed pages, page_cur_tuple_insert() will have
 	attempted this already. */
 	if (rec == NULL) {
-		if (page_cur_get_page_zip(page_cursor)
-		    || !btr_page_reorganize(page_cursor, cursor->index, mtr)) {
-			ut_ad(0);
-		}
-		rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
-				    offsets, heap, n_ext, mtr);
+		if (!page_cur_get_page_zip(page_cursor)
+		    && btr_page_reorganize(page_cursor, cursor->index, mtr)) {
+			rec = page_cur_tuple_insert(page_cursor, tuple,
+						    cursor->index, offsets,
+						    heap, n_ext, mtr);
 
+		}
 		/* If insert fail, we will try to split the insert_block
 		again. */
 	}
@@ -1418,7 +1418,8 @@ rtr_page_copy_rec_list_end_no_locks(
 				} else {
 					btr_rec_set_deleted_flag(
 						cur_rec,
-						buf_block_get_page_zip(block),
+						buf_block_get_page_zip(
+							new_block),
 						FALSE);
 					goto next;
 				}
