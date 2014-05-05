@@ -188,6 +188,7 @@ int add_status_vars(SHOW_VAR *list);
 void remove_status_vars(SHOW_VAR *list);
 void init_status_vars();
 void free_status_vars();
+bool get_status_var(THD* thd, SHOW_VAR *list, const char *name, char * const buff);
 void reset_status_vars();
 bool show_create_trigger(THD *thd, const sp_name *trg_name);
 void view_store_options(THD *thd, TABLE_LIST *table, String *buff);

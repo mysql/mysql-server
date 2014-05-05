@@ -577,6 +577,7 @@ connection slave;
 source include/stop_slave.inc;
 connection master;
 echo [ on master ];
+--source include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 enable_query_log;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';
@@ -627,19 +628,10 @@ SHOW STATUS LIKE 'Rpl_semi_sync_slave_status';
 --echo #
 --echo # Clean up
 --echo #
+--source include/uninstall_semisync.inc
 
 connection slave;
-source include/stop_slave.inc;
-UNINSTALL PLUGIN rpl_semi_sync_slave;
-
-connection master;
-# The dump thread may still be running on the master, and so the following
-# UNINSTALL could generate a warning about the plugin is busy.
-disable_warnings;
-UNINSTALL PLUGIN rpl_semi_sync_master;
-enable_warnings;
-
-connection slave;
+--source include/stop_slave.inc
 --replace_column 2 ####
 change master to master_user='root',master_password='';
 source include/start_slave.inc;
