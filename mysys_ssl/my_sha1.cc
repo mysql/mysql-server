@@ -37,10 +37,10 @@
 
   @return              void
 */
-void mysql_sha1_yassl(uint8 *digest, const char *buf, int len)
+void mysql_sha1_yassl(uint8 *digest, const char *buf, size_t len)
 {
   TaoCrypt::SHA hasher;
-  hasher.Update((const TaoCrypt::byte *) buf, len);
+  hasher.Update((const TaoCrypt::byte *) buf, (TaoCrypt::word32)len);
   hasher.Final ((TaoCrypt::byte *) digest);
 }
 
@@ -98,7 +98,7 @@ int mysql_sha1_result(SHA_CTX *context,
 
   @return              void
 */
-void compute_sha1_hash(uint8 *digest, const char *buf, int len)
+void compute_sha1_hash(uint8 *digest, const char *buf, size_t len)
 {
 #if defined(HAVE_YASSL)
   mysql_sha1_yassl(digest, buf, len);

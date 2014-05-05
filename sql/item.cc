@@ -6730,9 +6730,9 @@ Item_hex_string::Item_hex_string(const POS &pos, const LEX_STRING &literal)
 }
 
 
-LEX_STRING Item_hex_string::make_hex_str(const char *str, uint str_length)
+LEX_STRING Item_hex_string::make_hex_str(const char *str, size_t str_length)
 {
-  uint32 max_length=(str_length+1)/2;
+  size_t max_length=(str_length+1)/2;
   LEX_STRING ret= {(char *)"", 0};
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)

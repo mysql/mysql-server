@@ -2460,7 +2460,7 @@ void unlock_plugin_mutex()
   mysql_mutex_unlock(&LOCK_plugin);
 }
 
-sys_var *find_sys_var_ex(THD *thd, const char *str, uint length,
+sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length,
                          bool throw_error, bool locked)
 {
   sys_var *var;
@@ -2497,7 +2497,7 @@ sys_var *find_sys_var_ex(THD *thd, const char *str, uint length,
 }
 
 
-sys_var *find_sys_var(THD *thd, const char *str, uint length)
+sys_var *find_sys_var(THD *thd, const char *str, size_t length)
 {
   return find_sys_var_ex(thd, str, length, false, false);
 }
