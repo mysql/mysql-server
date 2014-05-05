@@ -1164,7 +1164,7 @@ call populate_t1();
 ERROR HY000: The table 't1' is full
 select count(*) from t1;
 count(*)
-1571
+NUMBER
 drop procedure populate_t1;
 drop table t1;
 "Restarting Server in normal mode"
