@@ -442,6 +442,7 @@ end:
 int Gtid_table_persistor::save(Gtid_set *gtid_set)
 {
   DBUG_ENTER("Gtid_table_persistor::save(Gtid_set *gtid_set)");
+  int ret= 0;
   int error= 0;
   TABLE *table= NULL;
   Gtid_table_access_context table_access_ctx;
@@ -450,10 +451,17 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
   if (table_access_ctx.init(&thd, &table, true))
   {
     error= 1;
+    /*
+      Gtid table is not ready to be used, so failed to
+      open it. Ignore the error.
+    */
+    thd->clear_error();
+    if (!thd->get_stmt_da()->is_set())
+      thd->get_stmt_da()->set_ok_status(0, 0, NULL);
     goto end;
   }
 
-  error= save(table, gtid_set);
+  ret= error= save(table, gtid_set);
 
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
@@ -466,19 +474,7 @@ end:
     mysql_cond_signal(&COND_compress_gtid_table);
   }
 
-  if (1 == error)
-  {
-    /*
-      Gtid table is not ready to be used, so failed to
-      open it. Ignore the error.
-    */
-    thd->clear_error();
-    if (!thd->get_stmt_da()->is_set())
-        thd->get_stmt_da()->set_ok_status(0, 0, NULL);
-    error= 0;
-  }
-
-  DBUG_RETURN(error);
+  DBUG_RETURN(ret);
 }
 
 
