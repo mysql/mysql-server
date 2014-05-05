@@ -17,11 +17,3 @@
 -- The inital data for system tables of MySQL Server
 --
 
--- When setting up a "cross bootstrap" database (e.g., creating data on a Unix
--- host which will later be included in a Windows zip file), any lines
--- containing "@current_hostname" are filtered out by mysql_install_db.
-
-CREATE TEMPORARY TABLE tmp_proxies_priv LIKE proxies_priv;
-INSERT INTO tmp_proxies_priv VALUES ('localhost', 'root', '', '', TRUE, '', now());
-INSERT INTO  proxies_priv SELECT * FROM tmp_proxies_priv WHERE @had_proxies_priv_table=0;
-DROP TABLE tmp_proxies_priv;
