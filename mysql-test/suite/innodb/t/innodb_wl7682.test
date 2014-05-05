@@ -85,6 +85,9 @@ delimiter ;|
 #
 --error ER_RECORD_FILE_FULL
 call populate_t1();
+#
+let $regexp=/[0-9][0-9]+/NUMBER/;
+--replace_regex $regexp
 select count(*) from t1;
 drop procedure populate_t1;
 drop table t1;
