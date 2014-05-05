@@ -550,7 +550,8 @@ trx_undo_get_mbr_from_ext(
 		}
 	} else {
 		rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-				   dlen - GEO_DATA_HEADER_SIZE, SPDIMS, mbr);
+				   static_cast<uint>(dlen
+				   - GEO_DATA_HEADER_SIZE), SPDIMS, mbr);
 	}
 
 	mem_heap_free(heap);
