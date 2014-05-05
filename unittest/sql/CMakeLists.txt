@@ -13,10 +13,17 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-MY_ADD_TESTS(bitmap base64 my_vsnprintf my_atomic my_rdtsc lf my_malloc
-             LINK_LIBRARIES mysys)
+INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_SOURCE_DIR}/include
+                    ${CMAKE_SOURCE_DIR}/unittest/mytap
+                    ${CMAKE_SOURCE_DIR}/extra/yassl/include)
 
 IF(WIN32)
-  MY_ADD_TESTS(my_delete LINK_LIBRARIES mysys)
+  ADD_EXECUTABLE(explain_filename-t explain_filename-t.cc
+                                    ../../sql/nt_servc.cc)
+ELSE()
+  ADD_EXECUTABLE(explain_filename-t explain_filename-t.cc)
 ENDIF()
 
+TARGET_LINK_LIBRARIES(explain_filename-t sql mytap)
+ADD_TEST(explain_filename explain_filename-t)
