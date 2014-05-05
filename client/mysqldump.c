@@ -598,12 +598,12 @@ static void print_version(void)
 } /* print_version */
 
 
-static void short_usage_sub(void)
+static void short_usage_sub(FILE *f)
 {
-  printf("Usage: %s [OPTIONS] database [tables]\n", my_progname_short);
-  printf("OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
-         my_progname_short);
-  printf("OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname_short);
+  fprintf(f, "Usage: %s [OPTIONS] database [tables]\n", my_progname_short);
+  fprintf(f, "OR     %s [OPTIONS] --databases [OPTIONS] DB1 [DB2 DB3...]\n",
+          my_progname_short);
+  fprintf(f, "OR     %s [OPTIONS] --all-databases [OPTIONS]\n", my_progname_short);
 }
 
 
@@ -612,18 +612,18 @@ static void usage(void)
   print_version();
   puts(ORACLE_WELCOME_COPYRIGHT_NOTICE("2000"));
   puts("Dumping structure and contents of MySQL databases and tables.");
-  short_usage_sub();
+  short_usage_sub(stdout);
   print_defaults("my",load_default_groups);
   puts("");
-my_print_help(my_long_options);
+  my_print_help(my_long_options);
   my_print_variables(my_long_options);
 } /* usage */
 
 
-static void short_usage(void)
+static void short_usage(FILE *f)
 {
-  short_usage_sub();
-  printf("For more options, use %s --help\n", my_progname_short);
+  short_usage_sub(f);
+  fprintf(f, "For more options, use %s --help\n", my_progname_short);
 }
 
 
@@ -996,7 +996,7 @@ static int get_options(int *argc, char ***argv)
     exit(1);
   if ((*argc < 1 && !opt_alldbs) || (*argc > 0 && opt_alldbs))
   {
-    short_usage();
+    short_usage(stderr);
     return EX_USAGE;
   }
   if (tty_password)

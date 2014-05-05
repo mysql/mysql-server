@@ -2462,3 +2462,10 @@ drop table t1, t2;
 --error 2
 --exec $MYSQL_DUMP -hunknownhost --dump-slave nulldb
 
+#
+# MDEV-6056 [PATCH] mysqldump writes usage to stdout even when not explicitly requested
+#
+--error 1
+--exec $MYSQL_DUMP --user=foo 2>&1 > $MYSQLTEST_VARDIR/tmp/bug6056.out
+--exec $MYSQL_DUMP --help > $MYSQLTEST_VARDIR/tmp/bug6056.out
+
