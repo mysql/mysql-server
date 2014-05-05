@@ -98,57 +98,53 @@ PATENT RIGHTS GRANT:
 #endif
 
 static size_t
-calc_le_size(int keylen, int vallen) {
-    return LE_CLEAN_MEMSIZE(vallen) + keylen + sizeof(uint32_t);
-}
-
-static void
 le_add_to_bn(bn_data* bn, uint32_t idx, const  char *key, int keysize, const char *val, int valsize)
 {
     LEAFENTRY r = NULL;
     uint32_t size_needed = LE_CLEAN_MEMSIZE(valsize);
+    void *maybe_free = nullptr;
     bn->get_space_for_insert(
-        idx, 
+        idx,
         key,
         keysize,
         size_needed,
-        &r
+        &r,
+        &maybe_free
         );
+    if (maybe_free) {
+        toku_free(maybe_free);
+    }
     resource_assert(r);
     r->type = LE_CLEAN;
     r->u.clean.vallen = valsize;
     memcpy(r->u.clean.val, val, valsize);
+    return size_needed + keysize + sizeof(uint32_t);
 }
 
-static KLPAIR
-le_fastmalloc(struct mempool * mp, const char *key, int keylen, const char *val, int vallen)
-{
-    KLPAIR kl;
-    size_t le_size = calc_le_size(keylen, vallen);
-    CAST_FROM_VOIDP(kl, toku_mempool_malloc(mp, le_size, 1));
-    resource_assert(kl);
-    kl->keylen = keylen;
-    memcpy(kl->key_le, key, keylen);
-    LEAFENTRY le = get_le_from_klpair(kl);
-    le->type = LE_CLEAN;
-    le->u.clean.vallen = vallen;
-    memcpy(le->u.clean.val, val, vallen);
-    return kl;
-}
+class test_key_le_pair {
+    public:
+    uint32_t keylen;
+    char* keyp;
+    LEAFENTRY le;
 
-static KLPAIR
-le_malloc(struct mempool * mp, const char *key, const char *val)
-{
-    int keylen = strlen(key) + 1;
-    int vallen = strlen(val) + 1;
-    return le_fastmalloc(mp, key, keylen, val, vallen);
-}
+    test_key_le_pair() : keylen(), keyp(), le() {}
+    void init(const char *_keyp, const char *_val) {
+        init(_keyp, strlen(_keyp) + 1, _val, strlen(_val) + 1);
+    }
+    void init(const char * _keyp, uint32_t _keylen, const char*_val, uint32_t _vallen) {
+        keylen = _keylen;
 
-struct check_leafentries_struct {
-    int nelts;
-    LEAFENTRY *elts;
-    int i;
-    int (*cmp)(OMTVALUE, void *);
+        CAST_FROM_VOIDP(le, toku_malloc(LE_CLEAN_MEMSIZE(_vallen)));
+        le->type = LE_CLEAN;
+        le->u.clean.vallen = _vallen;
+        memcpy(le->u.clean.val, _val, _vallen);
+
+        CAST_FROM_VOIDP(keyp, toku_xmemdup(_keyp, keylen));
+    }
+    ~test_key_le_pair() {
+        toku_free(le);
+        toku_free(keyp);
+    }
 };
 
 enum ftnode_verify_type {
@@ -166,18 +162,18 @@ string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 }
 
 static void
-setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_DATA* ndd) {
+setup_dn(enum ftnode_verify_type bft, int fd, FT ft_h, FTNODE *dn, FTNODE_DISK_DATA* ndd) {
     int r;
-    brt_h->compare_fun = string_key_cmp;
+    ft_h->compare_fun = string_key_cmp;
     if (bft == read_all) {
         struct ftnode_fetch_extra bfe;
-        fill_bfe_for_full_read(&bfe, brt_h);
+        fill_bfe_for_full_read(&bfe, ft_h);
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
     }
     else if (bft == read_compressed || bft == read_none) {
         struct ftnode_fetch_extra bfe;
-        fill_bfe_for_min_read(&bfe, brt_h);
+        fill_bfe_for_min_read(&bfe, ft_h);
         r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, ndd, &bfe);
         assert(r==0);
         // assert all bp's are compressed or on disk.
@@ -187,7 +183,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
         // if read_none, get rid of the compressed bp's
         if (bft == read_none) {
             if ((*dn)->height == 0) {
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
                 // assert all bp's are on disk
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     if ((*dn)->height == 0) {
@@ -204,7 +200,7 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
                 // that it is available
                 // then run partial eviction to get it compressed
                 PAIR_ATTR attr;
-                fill_bfe_for_full_read(&bfe, brt_h);
+                fill_bfe_for_full_read(&bfe, ft_h);
                 assert(toku_ftnode_pf_req_callback(*dn, &bfe));
                 r = toku_ftnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
                 assert(r==0);
@@ -212,21 +208,21 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     // assert all bp's are still available, because we touched the clock
                     assert(BP_STATE(*dn,i) == PT_AVAIL);
                     // now assert all should be evicted
                     assert(BP_SHOULD_EVICT(*dn, i));
                 }
-                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+                toku_ftnode_pe_callback(*dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
                 for (int i = 0; i < (*dn)->n_children; i++) {
                     assert(BP_STATE(*dn,i) == PT_COMPRESSED);
                 }
             }
         }
         // now decompress them
-        fill_bfe_for_full_read(&bfe, brt_h);
+        fill_bfe_for_full_read(&bfe, ft_h);
         assert(toku_ftnode_pf_req_callback(*dn, &bfe));
         PAIR_ATTR attr;
         r = toku_ftnode_pf_callback(*dn, *ndd, &bfe, fd, &attr);
@@ -243,20 +239,20 @@ setup_dn(enum ftnode_verify_type bft, int fd, FT brt_h, FTNODE *dn, FTNODE_DISK_
     }
 }
 
-static void write_sn_to_disk(int fd, FT_HANDLE brt, FTNODE sn, FTNODE_DISK_DATA* src_ndd, bool do_clone) {
+static void write_sn_to_disk(int fd, FT_HANDLE ft, FTNODE sn, FTNODE_DISK_DATA* src_ndd, bool do_clone) {
     int r;
     if (do_clone) {
         void* cloned_node_v = NULL;
         PAIR_ATTR attr;
         long clone_size;
-        toku_ftnode_clone_callback(sn, &cloned_node_v, &clone_size, &attr, false, brt->ft);
+        toku_ftnode_clone_callback(sn, &cloned_node_v, &clone_size, &attr, false, ft->ft);
         FTNODE CAST_FROM_VOIDP(cloned_node, cloned_node_v);
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, false, brt->ft, false);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), cloned_node, src_ndd, false, ft->ft, false);
         assert(r==0);        
         toku_ftnode_free(&cloned_node);
     }
     else {
-        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, true, brt->ft, false);
+        r = toku_serialize_ftnode_to(fd, make_blocknum(20), sn, src_ndd, true, ft->ft, false);
         assert(r==0);
     }
 }
@@ -290,16 +286,15 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BLB(&sn, 0, toku_create_empty_bn());
     set_BLB(&sn, 1, toku_create_empty_bn());
-    KLPAIR elts[3];
     le_add_to_bn(BLB_DATA(&sn, 0), 0, "a", 2, "aval", 5);
     le_add_to_bn(BLB_DATA(&sn, 0), 1, "b", 2, "bval", 5);
     le_add_to_bn(BLB_DATA(&sn, 1), 0, "x", 2, "xval", 5);
     BLB_MAX_MSN_APPLIED(&sn, 0) = ((MSN) { MIN_MSN.msn + 73 });
     BLB_MAX_MSN_APPLIED(&sn, 1) = POSTSERIALIZE_MSN_ON_DISK;
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -307,33 +302,33 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft->ft = ft_h;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
 
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
 
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -346,11 +341,10 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     {
         // Man, this is way too ugly.  This entire test suite needs to be refactored.
         // Create a dummy mempool and put the leaves there.  Ugh.
-        struct mempool dummy_mp;
-        toku_mempool_construct(&dummy_mp, 1024);
-        elts[0] = le_malloc(&dummy_mp, "a", "aval");
-        elts[1] = le_malloc(&dummy_mp, "b", "bval");
-        elts[2] = le_malloc(&dummy_mp, "x", "xval");
+        test_key_le_pair elts[3];
+        elts[0].init("a", "aval");
+        elts[1].init("b", "bval");
+        elts[2].init("x", "xval");
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         uint32_t last_i = 0;
@@ -361,22 +355,21 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->num_klpairs(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
                 BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
-                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(elts[last_i])));
-                assert(memcmp(curr_le, get_le_from_klpair(elts[last_i]), leafentry_memsize(curr_le)) == 0);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(elts[last_i].le));
+                assert(memcmp(curr_le, elts[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(elts[last_i]->key_le)) <= 0);
+                    assert(strcmp((char*)dn->childkeys[bn].data, elts[last_i].keyp) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
             }
 
         }
-        toku_mempool_destroy(&dummy_mp);
         assert(last_i == 3);
     }
     toku_ftnode_free(&dn);
@@ -390,11 +383,11 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -436,14 +429,14 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
         if (i < nrows-1) {
             uint32_t keylen;
             void* curr_key;
-            BLB_DATA(&sn, i)->fetch_le_key_and_len(0, &keylen, &curr_key);
+            BLB_DATA(&sn, i)->fetch_key_and_len(0, &keylen, &curr_key);
             toku_memdup_dbt(&sn.childkeys[i], curr_key, keylen);
         }
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -451,32 +444,32 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft->ft = ft_h;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
 
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
     
     assert(dn->thisnodename.b==20);
 
@@ -485,18 +478,14 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     {
         // Man, this is way too ugly.  This entire test suite needs to be refactored.
         // Create a dummy mempool and put the leaves there.  Ugh.
-        struct mempool dummy_mp;
-        size_t le_size = calc_le_size(keylens, vallens);
-        size_t mpsize = nrows * le_size;
-        toku_mempool_construct(&dummy_mp, mpsize);
-        KLPAIR les[nrows];
+        test_key_le_pair *les = new test_key_le_pair[nrows];
         {
             char key[keylens], val[vallens];
             key[keylens-1] = '\0';
             for (uint32_t i = 0; i < nrows; ++i) {
                 char c = 'a' + i;
                 memset(key, c, keylens-1);
-                les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
+                les[i].init((char *) &key, sizeof(key), (char *) &val, sizeof(val));
             }
         }
         const uint32_t npartitions = dn->n_children;
@@ -508,23 +497,23 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(BLB_DATA(dn, bn)->omt_size() > 0);
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            assert(BLB_DATA(dn, bn)->num_klpairs() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->num_klpairs(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
                 BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
-                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(les[last_i])));
-                assert(memcmp(curr_le, get_le_from_klpair(les[last_i]), leafentry_memsize(curr_le)) == 0);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
+                assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(les[last_i]->key_le)) <= 0);
+                    assert(strcmp((char*)dn->childkeys[bn].data, les[last_i].keyp) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
             }
         }
-        toku_mempool_destroy(&dummy_mp);
         assert(last_i == nrows);
+        delete[] les;
     }
 
     toku_ftnode_free(&dn);
@@ -537,11 +526,11 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     }
     toku_free(sn.bp);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -552,7 +541,6 @@ static void
 test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     int r;
     struct ftnode sn, *dn;
-    const int keylens = sizeof(int), vallens = sizeof(int);
     const uint32_t nrows = 196*1024;
     int fd = open(TOKU_TEST_FILENAME, O_RDWR|O_CREAT|O_BINARY, S_IRWXU|S_IRWXG|S_IRWXO); assert(fd >= 0);
 
@@ -566,22 +554,23 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
 
-    MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
+    XMALLOC_N(sn.n_children, sn.bp);
+    XMALLOC_N(sn.n_children-1, sn.childkeys);
     sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn()); 
     }
+    size_t total_size = 0;
     for (uint32_t i = 0; i < nrows; ++i) {
         uint32_t key = i;
         uint32_t val = i;
-        le_add_to_bn(BLB_DATA(&sn, 0), i, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
+        total_size += le_add_to_bn(BLB_DATA(&sn, 0), i, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -589,33 +578,33 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -624,15 +613,11 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     {
         // Man, this is way too ugly.  This entire test suite needs to be refactored.
         // Create a dummy mempool and put the leaves there.  Ugh.
-        struct mempool dummy_mp;
-        size_t le_size = calc_le_size(keylens, vallens);
-        size_t mpsize = nrows * le_size;
-        toku_mempool_construct(&dummy_mp, mpsize);
-        KLPAIR les[nrows];
+        test_key_le_pair *les = new test_key_le_pair[nrows];
         {
             int key = 0, val = 0;
             for (uint32_t i = 0; i < nrows; ++i, key++, val++) {
-                les[i] = le_fastmalloc(&dummy_mp, (char *) &key, sizeof(key), (char *) &val, sizeof(val));
+                les[i].init((char *) &key, sizeof(key), (char *) &val, sizeof(val));
             }
         }
         const uint32_t npartitions = dn->n_children;
@@ -644,17 +629,17 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(BLB_DATA(dn, bn)->omt_size() > 0);
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            assert(BLB_DATA(dn, bn)->num_klpairs() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->num_klpairs(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
                 BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
-                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(les[last_i])));
-                assert(memcmp(curr_le, get_le_from_klpair(les[last_i]), leafentry_memsize(curr_le)) == 0);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
+                assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
                     uint32_t *CAST_FROM_VOIDP(pivot, dn->childkeys[bn].data);
-                    void* tmp = les[last_i]->key_le;
+                    void* tmp = les[last_i].keyp;
                     uint32_t *CAST_FROM_VOIDP(item, tmp);
                     assert(*pivot >= *item);
                 }
@@ -664,8 +649,8 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
             // don't check soft_copy_is_up_to_date or seqinsert
             assert(BLB_DATA(dn, bn)->get_disk_size() < 128*1024);  // BN_MAX_SIZE, apt to change
         }
-        toku_mempool_destroy(&dummy_mp);
         assert(last_i == nrows);
+        delete[] les;
     }
 
     toku_ftnode_free(&dn);
@@ -678,11 +663,11 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -727,9 +712,9 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
         le_add_to_bn(BLB_DATA(&sn, 0), i,key, 8, val, val_size);
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -737,33 +722,33 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -772,11 +757,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     {
         // Man, this is way too ugly.  This entire test suite needs to be refactored.
         // Create a dummy mempool and put the leaves there.  Ugh.
-        struct mempool dummy_mp;
-        size_t le_size = calc_le_size(key_size, val_size);
-        size_t mpsize = nrows * le_size;
-        toku_mempool_construct(&dummy_mp, mpsize);
-        KLPAIR les[nrows];
+        test_key_le_pair *les = new test_key_le_pair[nrows];
         {
             char key[key_size], val[val_size];
             key[key_size-1] = '\0';
@@ -785,7 +766,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
                 char c = 'a' + i;
                 memset(key, c, key_size-1);
                 memset(val, c, val_size-1);
-                les[i] = le_fastmalloc(&dummy_mp, key, key_size, val, val_size);
+                les[i].init(key, key_size, val, val_size);
             }
         }
         const uint32_t npartitions = dn->n_children;
@@ -798,24 +779,24 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            assert(BLB_DATA(dn, bn)->omt_size() > 0);
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            assert(BLB_DATA(dn, bn)->num_klpairs() > 0);
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->num_klpairs(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
                 BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
-                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(les[last_i])));
-                assert(memcmp(curr_le, get_le_from_klpair(les[last_i]), leafentry_memsize(curr_le)) == 0);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
+                assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(les[last_i]->key_le)) <= 0);
+                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(les[last_i].keyp)) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
             }
             // don't check soft_copy_is_up_to_date or seqinsert
         }
-        toku_mempool_destroy(&dummy_mp);
         assert(last_i == 7);
+        delete[] les;
     }
 
     toku_ftnode_free(&dn);
@@ -828,11 +809,11 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -871,14 +852,13 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
         set_BLB(&sn, i, toku_create_empty_bn());
         BLB_SEQINSERT(&sn, i) = 0;
     }
-    KLPAIR elts[3];
     le_add_to_bn(BLB_DATA(&sn, 1), 0, "a", 2, "aval", 5);
     le_add_to_bn(BLB_DATA(&sn, 3), 0, "b", 2, "bval", 5);
     le_add_to_bn(BLB_DATA(&sn, 5), 0, "x", 2, "xval", 5);
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -886,32 +866,32 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -921,13 +901,13 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     assert(dn->height == 0);
     assert(dn->n_children>0);
     {
+        test_key_le_pair elts[3];
+
         // Man, this is way too ugly.  This entire test suite needs to be refactored.
         // Create a dummy mempool and put the leaves there.  Ugh.
-        struct mempool dummy_mp;
-        toku_mempool_construct(&dummy_mp, 1024);
-        elts[0] = le_malloc(&dummy_mp, "a", "aval");
-        elts[1] = le_malloc(&dummy_mp, "b", "bval");
-        elts[2] = le_malloc(&dummy_mp, "x", "xval");
+        elts[0].init("a", "aval");
+        elts[1].init("b", "bval");
+        elts[2].init("x", "xval");
         const uint32_t npartitions = dn->n_children;
         assert(dn->totalchildkeylens==(2*(npartitions-1)));
         uint32_t last_i = 0;
@@ -937,22 +917,21 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
             if (bn > 0) {
                 assert(dest_ndd[bn].start >= dest_ndd[bn-1].start + dest_ndd[bn-1].size);
             }
-            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->omt_size(); i++) {
+            for (uint32_t i = 0; i < BLB_DATA(dn, bn)->num_klpairs(); i++) {
                 LEAFENTRY curr_le;
                 uint32_t curr_keylen;
                 void* curr_key;
                 BLB_DATA(dn, bn)->fetch_klpair(i, &curr_le, &curr_keylen, &curr_key);
-                assert(leafentry_memsize(curr_le) == leafentry_memsize(get_le_from_klpair(elts[last_i])));
-                assert(memcmp(curr_le, get_le_from_klpair(elts[last_i]), leafentry_memsize(curr_le)) == 0);
+                assert(leafentry_memsize(curr_le) == leafentry_memsize(elts[last_i].le));
+                assert(memcmp(curr_le, elts[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(elts[last_i]->key_le)) <= 0);
+                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(elts[last_i].keyp)) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
             }
 
         }
-        toku_mempool_destroy(&dummy_mp);
         assert(last_i == 3);
     }
     toku_ftnode_free(&dn);
@@ -966,11 +945,11 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -1005,9 +984,9 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
         set_BLB(&sn, i, toku_create_empty_bn());
     }
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -1015,33 +994,33 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -1059,7 +1038,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
             if (i > 0) {
                 assert(dest_ndd[i].start >= dest_ndd[i-1].start + dest_ndd[i-1].size);
             }
-            assert(BLB_DATA(dn, i)->omt_size() == 0);
+            assert(BLB_DATA(dn, i)->num_klpairs() == 0);
         }
     }
     toku_ftnode_free(&dn);
@@ -1073,11 +1052,11 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 
@@ -1131,9 +1110,9 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     xids_destroy(&xids_123);
     xids_destroy(&xids_234);
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -1141,32 +1120,32 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
+    ft->ft = ft_h;
     
-    toku_blocktable_create_new(&brt_h->blocktable);
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
     FTNODE_DISK_DATA dest_ndd = NULL;
-    write_sn_to_disk(fd, brt, &sn, &src_ndd, do_clone);
+    write_sn_to_disk(fd, ft, &sn, &src_ndd, do_clone);
 
-    setup_dn(bft, fd, brt_h, &dn, &dest_ndd);
+    setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
     assert(dn->thisnodename.b==20);
 
@@ -1197,11 +1176,11 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
 

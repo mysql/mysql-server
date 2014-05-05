@@ -313,7 +313,7 @@ c_getf_first_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, 
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_first
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_first
     return r;
 }
 
@@ -364,7 +364,7 @@ c_getf_last_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_last
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_last
     return r;
 }
 
@@ -423,7 +423,7 @@ c_getf_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_next
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_next
     return r;
 }
 
@@ -481,7 +481,7 @@ c_getf_prev_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_prev
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_prev
     return r;
 }
 
@@ -518,7 +518,7 @@ c_getf_current_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val
         r = 0;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_current
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_current
     return r;
 }
 
@@ -571,7 +571,7 @@ c_getf_set_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, vo
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_set
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_set
     return r;
 }
 
@@ -587,7 +587,7 @@ c_getf_set_range(DBC *c, uint32_t flag, DBT *key, YDB_CALLBACK_FUNCTION f, void 
     query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
     while (r == 0) {
         //toku_ft_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
-        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, c_getf_set_range_callback, &context);
+        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, nullptr, c_getf_set_range_callback, &context);
         if (r == DB_LOCK_NOTGRANTED) {
             r = toku_db_wait_range_lock(context.base.db, context.base.txn, &context.base.request);
         } else {
@@ -627,7 +627,28 @@ c_getf_set_range_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec v
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_set_range
+    return r;
+}
+
+static int
+c_getf_set_range_with_bound(DBC *c, uint32_t flag, DBT *key, DBT *key_bound, YDB_CALLBACK_FUNCTION f, void *extra) {
+    HANDLE_PANICKED_DB(c->dbp);
+    HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
+
+    int r = 0;
+    QUERY_CONTEXT_WITH_INPUT_S context; //Describes the context of this query.
+    query_context_with_input_init(&context, c, flag, key, NULL, f, extra); 
+    while (r == 0) {
+        //toku_ft_cursor_set_range will call c_getf_set_range_callback(..., context) (if query is successful)
+        r = toku_ft_cursor_set_range(dbc_struct_i(c)->c, key, key_bound, c_getf_set_range_callback, &context);
+        if (r == DB_LOCK_NOTGRANTED) {
+            r = toku_db_wait_range_lock(context.base.db, context.base.txn, &context.base.request);
+        } else {
+            break;
+        }
+    }
+    query_context_base_destroy(&context.base);
     return r;
 }
 
@@ -683,7 +704,7 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
         r = context->r_user_callback;
     }
 
-    //Give brt-layer an error (if any) to return from toku_ft_cursor_set_range_reverse
+    //Give ft-layer an error (if any) to return from toku_ft_cursor_set_range_reverse
     return r;
 }
 
@@ -746,7 +767,6 @@ c_set_check_interrupt_callback(DBC* dbc, bool (*interrupt_callback)(void*), void
 
 int
 toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
-    //This function exists for legacy (test compatibility) purposes/parity with bdb.
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
 
@@ -835,6 +855,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_getf_current);
     SCRS(c_getf_set_range);
     SCRS(c_getf_set_range_reverse);
+    SCRS(c_getf_set_range_with_bound);
     SCRS(c_set_bounds);
     SCRS(c_remove_restriction);
     SCRS(c_set_check_interrupt_callback);
@@ -876,7 +897,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
         );
     assert(r == 0 || r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
     if (r == 0) {
-        // Set the is_temporary_cursor boolean inside the brt node so
+        // Set the is_temporary_cursor boolean inside the ftnode so
         // that a query only needing one cursor will not perform
         // unecessary malloc calls.
         if (is_temporary_cursor) {

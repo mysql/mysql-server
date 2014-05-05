@@ -102,11 +102,11 @@ static int test_ft_cursor_keycompare(DB *desc __attribute__((unused)), const DBT
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 
-static void assert_cursor_notfound(FT_HANDLE brt, int position) {
+static void assert_cursor_notfound(FT_HANDLE ft, int position) {
     FT_CURSOR cursor=0;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     struct check_pair pair = {0,0,0,0,0};
@@ -117,11 +117,11 @@ static void assert_cursor_notfound(FT_HANDLE brt, int position) {
     toku_ft_cursor_close(cursor);
 }
 
-static void assert_cursor_value(FT_HANDLE brt, int position, long long value) {
+static void assert_cursor_value(FT_HANDLE ft, int position, long long value) {
     FT_CURSOR cursor=0;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -133,11 +133,11 @@ static void assert_cursor_value(FT_HANDLE brt, int position, long long value) {
     toku_ft_cursor_close(cursor);
 }
 
-static void assert_cursor_first_last(FT_HANDLE brt, long long firstv, long long lastv) {
+static void assert_cursor_first_last(FT_HANDLE ft, long long firstv, long long lastv) {
     FT_CURSOR cursor=0;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("first key: ");
@@ -162,7 +162,7 @@ static void assert_cursor_first_last(FT_HANDLE brt, long long firstv, long long 
 
 static void test_ft_cursor_first(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -172,7 +172,7 @@ static void test_ft_cursor_first(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -184,15 +184,15 @@ static void test_ft_cursor_first(int n) {
         toku_fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_FIRST);
+        assert_cursor_notfound(ft, DB_FIRST);
     else
-        assert_cursor_value(brt, DB_FIRST, 0);
+        assert_cursor_value(ft, DB_FIRST, 0);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -200,7 +200,7 @@ static void test_ft_cursor_first(int n) {
 
 static void test_ft_cursor_last(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -210,7 +210,7 @@ static void test_ft_cursor_last(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert keys 0, 1, .. (n-1) */
@@ -222,16 +222,16 @@ static void test_ft_cursor_last(int n) {
         toku_fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
         assert(r==0);
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_LAST);
+        assert_cursor_notfound(ft, DB_LAST);
     else
-        assert_cursor_value(brt, DB_LAST, n-1);
+        assert_cursor_value(ft, DB_LAST, n-1);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -239,7 +239,7 @@ static void test_ft_cursor_last(int n) {
 
 static void test_ft_cursor_first_last(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -249,7 +249,7 @@ static void test_ft_cursor_first_last(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -262,16 +262,16 @@ static void test_ft_cursor_first_last(int n) {
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
 
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
     if (n == 0) {
-        assert_cursor_notfound(brt, DB_FIRST);
-        assert_cursor_notfound(brt, DB_LAST);
+        assert_cursor_notfound(ft, DB_FIRST);
+        assert_cursor_notfound(ft, DB_LAST);
     } else
-        assert_cursor_first_last(brt, 0, n-1);
+        assert_cursor_first_last(ft, 0, n-1);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -281,7 +281,7 @@ static void test_ft_cursor_first_last(int n) {
 
 static void test_ft_cursor_rfirst(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -291,7 +291,7 @@ static void test_ft_cursor_rfirst(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert keys n-1, n-2, ... , 0 */
@@ -304,26 +304,26 @@ static void test_ft_cursor_rfirst(int n) {
         toku_fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
     if (n == 0)
-        assert_cursor_notfound(brt, DB_FIRST);
+        assert_cursor_notfound(ft, DB_FIRST);
     else
-        assert_cursor_value(brt, DB_FIRST, 0);
+        assert_cursor_value(ft, DB_FIRST, 0);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
 }
 
-static void assert_cursor_walk(FT_HANDLE brt, int n) {
+static void assert_cursor_walk(FT_HANDLE ft, int n) {
     FT_CURSOR cursor=0;
     int i;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -345,7 +345,7 @@ static void assert_cursor_walk(FT_HANDLE brt, int n) {
 
 static void test_ft_cursor_walk(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -355,7 +355,7 @@ static void test_ft_cursor_walk(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -367,25 +367,25 @@ static void test_ft_cursor_walk(int n) {
         toku_fill_dbt(&kbt, key, strlen(key)+1);
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
     /* walk the tree */
-    assert_cursor_walk(brt, n);
+    assert_cursor_walk(ft, n);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
 
 }
 
-static void assert_cursor_rwalk(FT_HANDLE brt, int n) {
+static void assert_cursor_rwalk(FT_HANDLE ft, int n) {
     FT_CURSOR cursor=0;
     int i;
     int r;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -407,7 +407,7 @@ static void assert_cursor_rwalk(FT_HANDLE brt, int n) {
 
 static void test_ft_cursor_rwalk(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -417,7 +417,7 @@ static void test_ft_cursor_rwalk(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -429,13 +429,13 @@ static void test_ft_cursor_rwalk(int n) {
         toku_fill_dbt(&kbt, &k, sizeof k);
         v = i;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
     /* walk the tree */
-    assert_cursor_rwalk(brt, n);
+    assert_cursor_rwalk(ft, n);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -462,13 +462,13 @@ ascending_key_string_checkf (ITEMLEN keylen, bytevec key, ITEMLEN UU(vallen), by
 }
 
 // The keys are strings (null terminated)
-static void assert_cursor_walk_inorder(FT_HANDLE brt, int n) {
+static void assert_cursor_walk_inorder(FT_HANDLE ft, int n) {
     FT_CURSOR cursor=0;
     int i;
     int r;
     char *prevkey = 0;
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -488,7 +488,7 @@ static void assert_cursor_walk_inorder(FT_HANDLE brt, int n) {
 
 static void test_ft_cursor_rand(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     int r;
     int i;
 
@@ -498,7 +498,7 @@ static void test_ft_cursor_rand(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -513,22 +513,22 @@ static void test_ft_cursor_rand(int n) {
 	    v = i;
 	    toku_fill_dbt(&vbt, &v, sizeof v);
 	    struct check_pair pair = {kbt.size, key, len_ignore, 0, 0};
-	    r = toku_ft_lookup(brt, &kbt, lookup_checkf, &pair);
+	    r = toku_ft_lookup(ft, &kbt, lookup_checkf, &pair);
 	    if (r == 0) {
 		assert(pair.call_count==1);
                 if (verbose) printf("dup");
                 continue;
 	    }
 	    assert(pair.call_count==0);
-	    toku_ft_insert(brt, &kbt, &vbt, 0);
+	    toku_ft_insert(ft, &kbt, &vbt, 0);
 	    break;
         }
     }
 
     /* walk the tree */
-    assert_cursor_walk_inorder(brt, n);
+    assert_cursor_walk_inorder(ft, n);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -536,7 +536,7 @@ static void test_ft_cursor_rand(int n) {
 
 static void test_ft_cursor_split(int n) {
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     FT_CURSOR cursor=0;
     int r;
     int keyseqnum;
@@ -548,7 +548,7 @@ static void test_ft_cursor_split(int n) {
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     /* insert a bunch of kv pairs */
@@ -560,10 +560,10 @@ static void test_ft_cursor_split(int n) {
         toku_fill_dbt(&kbt, key, strlen(key)+1);
         v = keyseqnum;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -583,7 +583,7 @@ static void test_ft_cursor_split(int n) {
         toku_fill_dbt(&kbt, key, strlen(key)+1);
         v = keyseqnum;
         toku_fill_dbt(&vbt, &v, sizeof v);
-        toku_ft_insert(brt, &kbt, &vbt, 0);
+        toku_ft_insert(ft, &kbt, &vbt, 0);
     }
 
     if (test_cursor_debug && verbose) printf("key: ");
@@ -601,7 +601,7 @@ static void test_ft_cursor_split(int n) {
 
     toku_ft_cursor_close(cursor);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -612,19 +612,19 @@ static void test_multiple_ft_cursors(int n) {
 
     int r;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     FT_CURSOR cursors[n];
 
     unlink(fname);
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     int i;
     for (i=0; i<n; i++) {
-        r = toku_ft_cursor(brt, &cursors[i], NULL, false, false);
+        r = toku_ft_cursor(ft, &cursors[i], NULL, false, false);
         assert(r == 0);
     }
 
@@ -632,7 +632,7 @@ static void test_multiple_ft_cursors(int n) {
         toku_ft_cursor_close(cursors[i]);
     }
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -653,7 +653,7 @@ static void test_multiple_ft_cursor_walk(int n) {
 
     int r;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     const int cursor_gap = 1000;
     const int ncursors = n/cursor_gap;
     FT_CURSOR cursors[ncursors];
@@ -665,13 +665,13 @@ static void test_multiple_ft_cursor_walk(int n) {
     int cachesize = 2 * h * ncursors * nodesize;
     toku_cachetable_create(&ct, cachesize, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     int c;
     /* create the cursors */
     for (c=0; c<ncursors; c++) {
-        r = toku_ft_cursor(brt, &cursors[c], NULL, false, false);
+        r = toku_ft_cursor(ft, &cursors[c], NULL, false, false);
         assert(r == 0);
     }
 
@@ -686,7 +686,7 @@ static void test_multiple_ft_cursor_walk(int n) {
 	    toku_fill_dbt(&key, &k, sizeof k);
 	    toku_fill_dbt(&val, &v, sizeof v);
 
-	    toku_ft_insert(brt, &key, &val, 0);
+	    toku_ft_insert(ft, &key, &val, 0);
 	}
 
         /* point cursor i / cursor_gap to the current last key i */
@@ -720,7 +720,7 @@ static void test_multiple_ft_cursor_walk(int n) {
         toku_ft_cursor_close(cursors[i]);
     }
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -731,14 +731,14 @@ static void test_ft_cursor_set(int n, int cursor_op) {
 
     int r;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     FT_CURSOR cursor=0;
 
     unlink(fname);
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -750,10 +750,10 @@ static void test_ft_cursor_set(int n, int cursor_op) {
 	DBT key,val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
-        toku_ft_insert(brt, &key, &val, 0);
+        toku_ft_insert(ft, &key, &val, 0);
     }
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     /* set cursor to random keys in set { 0, 10, 20, .. 10*(n-1) } */
@@ -788,7 +788,7 @@ static void test_ft_cursor_set(int n, int cursor_op) {
 
     toku_ft_cursor_close(cursor);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -799,14 +799,14 @@ static void test_ft_cursor_set_range(int n) {
 
     int r;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     FT_CURSOR cursor=0;
 
     unlink(fname);
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    r = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
 
     int i;
@@ -819,10 +819,10 @@ static void test_ft_cursor_set_range(int n) {
 	DBT key, val;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
-        toku_ft_insert(brt, &key, &val, 0);
+        toku_ft_insert(ft, &key, &val, 0);
     }
 
-    r = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    r = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(r==0);
 
     /* pick random keys v in 0 <= v < 10*n, the cursor should point
@@ -848,7 +848,7 @@ static void test_ft_cursor_set_range(int n) {
 
     toku_ft_cursor_close(cursor);
 
-    r = toku_close_ft_handle_nolsn(brt, 0);
+    r = toku_close_ft_handle_nolsn(ft, 0);
     assert(r==0);
 
     toku_cachetable_close(&ct);
@@ -859,17 +859,17 @@ static void test_ft_cursor_delete(int n) {
 
     int error;
     CACHETABLE ct;
-    FT_HANDLE brt;
+    FT_HANDLE ft;
     FT_CURSOR cursor=0;
 
     unlink(fname);
 
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    error = toku_open_ft_handle(fname, 1, &brt, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
+    error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(error == 0);
 
-    error = toku_ft_cursor(brt, &cursor, NULL, false, false);
+    error = toku_ft_cursor(ft, &cursor, NULL, false, false);
     assert(error == 0);
 
     DBT key, val;
@@ -882,7 +882,7 @@ static void test_ft_cursor_delete(int n) {
         v = i;
         toku_fill_dbt(&key, &k, sizeof k);
         toku_fill_dbt(&val, &v, sizeof v);
-        toku_ft_insert(brt, &key, &val, 0);
+        toku_ft_insert(ft, &key, &val, 0);
     }
 
     /* walk the tree and delete under the cursor */
@@ -905,7 +905,7 @@ static void test_ft_cursor_delete(int n) {
 
     toku_ft_cursor_close(cursor);
 
-    error = toku_close_ft_handle_nolsn(brt, 0);
+    error = toku_close_ft_handle_nolsn(ft, 0);
     assert(error == 0);
 
     toku_cachetable_close(&ct);

@@ -149,7 +149,8 @@ le_pack(ULE ule, // data to be packed into new leafentry
         void* keyp,
         uint32_t keylen,
         uint32_t old_le_size,
-        LEAFENTRY * const new_leafentry_p // this is what this function creates
+        LEAFENTRY * const new_leafentry_p, // this is what this function creates
+        void **const maybe_free
         );
 
 

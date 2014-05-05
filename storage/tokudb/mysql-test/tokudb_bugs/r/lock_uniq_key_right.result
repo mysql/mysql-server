@@ -1,0 +1,32 @@
+set default_storage_engine=tokudb;
+drop table if exists t;
+create table t (id int, unique key(id));
+insert into t values (10),(100);
+begin;
+insert into t values (500);
+begin;
+insert into t values (600);
+commit;
+commit;
+select * from t;
+id
+10
+100
+500
+600
+drop table if exists t;
+create table t (id int not null, unique key(id));
+insert into t values (10),(100);
+begin;
+insert into t values (500);
+begin;
+insert into t values (600);
+commit;
+commit;
+select * from t;
+id
+10
+100
+500
+600
+drop table if exists t;

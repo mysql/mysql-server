@@ -150,21 +150,20 @@ doit (void) {
     FTNODE node;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         node_internal,
         toku_cachetable_hash(t->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->n_children == 1);
     // simply assert that the buffer is less than 50MB,
     // we inserted 100MB of data in there.
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) < 50*1000*1000);
-    toku_unpin_ftnode_off_client_thread(t->ft, node);
+    toku_unpin_ftnode(t->ft, node);
 
     r = toku_close_ft_handle_nolsn(t, 0);    assert(r==0);
     toku_cachetable_close(&ct);

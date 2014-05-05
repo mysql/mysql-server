@@ -10,8 +10,7 @@ set session tokudb_disable_slow_alter=ON;
 let $diff_tables= test.foo, test.bar;
 
 create table foo (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (a), key (b) clustering=yes)engine=TokuDB;
-create table bar like foo;
-alter table bar engine=MyISAM;
+create table bar (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (a), key (b))engine=MyISAM;
 
 insert into foo values (1,10,100),(-1,-1,-1),(2,20,200);
 insert into bar select * from foo;
@@ -60,8 +59,7 @@ drop table foo;
 drop table bar;
 
 create table foo (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (c), key (b) clustering=yes)engine=TokuDB;
-create table bar like foo;
-alter table bar engine=MyISAM;
+create table bar (a int NOT NULL, b bigint NOT NULL, c mediumint NOT NULL, primary key (c), key (b))engine=MyISAM;
 
 insert into foo values (1,10,100),(-1,-1,-1),(2,20,200);
 insert into bar select * from foo;

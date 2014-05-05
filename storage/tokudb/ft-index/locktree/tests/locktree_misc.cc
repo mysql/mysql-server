@@ -107,18 +107,16 @@ static int my_compare_dbts(DB *db, const DBT *a, const DBT *b) {
 
 // test that get/set userdata works, and that get_manager() works
 void locktree_unit_test::test_misc(void) {
-    locktree::manager mgr;
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
-    DESCRIPTOR desc = nullptr;
+    locktree lt;
     DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, desc, my_compare_dbts, nullptr);
+    lt.create(nullptr, dict_id, nullptr, my_compare_dbts);
 
-    invariant(lt->get_userdata() == nullptr);
+    invariant(lt.get_userdata() == nullptr);
     int userdata;
-    lt->set_userdata(&userdata);
-    invariant(lt->get_userdata() == &userdata);
-    lt->set_userdata(nullptr);
-    invariant(lt->get_userdata() == nullptr);
+    lt.set_userdata(&userdata);
+    invariant(lt.get_userdata() == &userdata);
+    lt.set_userdata(nullptr);
+    invariant(lt.get_userdata() == nullptr);
 
     int r;
     DBT dbt_a, dbt_b;
@@ -128,17 +126,17 @@ void locktree_unit_test::test_misc(void) {
 
     // make sure the comparator object has the correct
     // descriptor when we set the locktree's descriptor
-    lt->set_descriptor(&d1);
+    lt.set_descriptor(&d1);
     expected_descriptor = &d1;
-    r = lt->m_cmp->compare(&dbt_a, &dbt_b);
+    r = lt.m_cmp->compare(&dbt_a, &dbt_b);
     invariant(r == expected_comparison_magic);
-    lt->set_descriptor(&d2);
+    lt.set_descriptor(&d2);
     expected_descriptor = &d2;
-    r = lt->m_cmp->compare(&dbt_a, &dbt_b);
+    r = lt.m_cmp->compare(&dbt_a, &dbt_b);
     invariant(r == expected_comparison_magic);
 
-    mgr.release_lt(lt);
-    mgr.destroy();
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

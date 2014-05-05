@@ -93,11 +93,8 @@ PATENT RIGHTS GRANT:
 #include <stdio.h>
 #include <string.h>
 
-#include <toku_assert.h>
-
-#include "huge_page_detection.h"
-
-extern "C" {
+#include <portability/toku_assert.h>
+#include <portability/toku_os.h>
 
 static bool check_huge_pages_config_file(const char *fname)
 // Effect: Return true if huge pages are there.  If so, print diagnostics.
@@ -119,20 +116,6 @@ static bool check_huge_pages_config_file(const char *fname)
     }
     return huge_pages_enabled;
 }
-
-/* struct mapinfo { */
-/*     void *addr; */
-/*     size_t size; */
-/* }; */
-
-/* static void* map_it(size_t size, struct mapinfo *mi, int *n_maps) { */
-/*     void *r = mmap(NULL, size, PROT_READ|PROT_WRITE, MAP_PRIVATE|MAP_ANONYMOUS, -1, 0); */
-/*     if ((long)r==-1) perror("mmap failed"); */
-/*     mi[*n_maps].addr = r; */
-/*     mi[*n_maps].size = size; */
-/*     (*n_maps)++; */
-/*     return r; */
-/* } */
 
 static bool check_huge_pages_in_practice(void)
 // Effect: Return true if huge pages appear to be defined in practice.
@@ -195,7 +178,7 @@ static bool check_huge_pages_in_practice(void)
 #endif
 }
 
-bool complain_and_return_true_if_huge_pages_are_enabled(void)
+bool toku_os_huge_pages_enabled(void)
 // Effect: Return true if huge pages appear to be enabled.  If so, print some diagnostics to stderr.
 //  If environment variable TOKU_HUGE_PAGES_OK is set, then don't complain.
 {
@@ -208,5 +191,4 @@ bool complain_and_return_true_if_huge_pages_are_enabled(void)
         bool prac = check_huge_pages_in_practice();
         return conf1|conf2|prac;
     }
-}
 }

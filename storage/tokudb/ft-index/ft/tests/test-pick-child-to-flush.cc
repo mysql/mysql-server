@@ -189,7 +189,7 @@ doit (void) {
     r = toku_testsetup_root(t, node_root);
     assert(r==0);
 
-    char filler[900];
+    char filler[900-2*bn_data::HEADER_LENGTH];
     memset(filler, 0, sizeof(filler));
     // now we insert filler data so that a merge does not happen
     r = toku_testsetup_insert_to_leaf (

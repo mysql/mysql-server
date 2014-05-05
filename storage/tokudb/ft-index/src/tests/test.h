@@ -107,17 +107,13 @@ PATENT RIGHTS GRANT:
 #include "toku_assert.h"
 #include <signal.h>
 #include <time.h>
-#if defined(USE_TDB)
+
 #include "ydb.h"
 //TDB uses DB_NOTFOUND for c_del and DB_CURRENT errors.
 #ifdef DB_KEYEMPTY
 #error
 #endif
 #define DB_KEYEMPTY DB_NOTFOUND
-#endif
-#ifndef DB_DELETE_ANY
-#define DB_DELETE_ANY 0
-#endif
 
 // Certain tests fail when row locks taken for read are not shared.
 // This switch prevents them from failing so long as read locks are not shared.
@@ -144,13 +140,6 @@ int verbose=0;
     fflush(stderr); \
 } while (0)
 
-// If the error code depends on BDB vs TDB use this
-#ifdef USE_TDB
-#define CKERR_depending(r,tdbexpect,bdbexpect) CKERR2(r,tdbexpect)
-#else
-#define CKERR_depending(r,tdbexpect,bdbexpect) CKERR2(r,bdbexpect)
-#endif
-
 static __attribute__((__unused__)) void
 parse_args (int argc, char * const argv[]) {
     const char *argv0=argv[0];
@@ -174,7 +163,6 @@ parse_args (int argc, char * const argv[]) {
     }
 }
 
-#ifdef USE_TDB
 static __attribute__((__unused__)) void 
 print_engine_status(DB_ENV * UU(env)) {
     if (verbose) {  // verbose declared statically in this file
@@ -187,9 +175,7 @@ print_engine_status(DB_ENV * UU(env)) {
         printf("%s", buff);
     }
 }
-#endif
 
-#ifdef USE_TDB
 static __attribute__((__unused__)) uint64_t
 get_engine_status_val(DB_ENV * UU(env), const char * keyname) {
     uint64_t rval = 0;
@@ -213,7 +199,6 @@ get_engine_status_val(DB_ENV * UU(env), const char * keyname) {
     CKERR2(found, 1);
     return rval;
 }
-#endif
 
 static __attribute__((__unused__)) DBT *
 dbt_init(DBT *dbt, const void *data, uint32_t size) {
@@ -293,13 +278,8 @@ uint_dbt_cmp (DB *db, const DBT *a, const DBT *b) {
     return 0;
 }
 
-#ifdef USE_TDB
 #define SET_TRACE_FILE(x) toku_set_trace_file(x)
 #define CLOSE_TRACE_FILE(x) toku_close_trace_file()
-#else
-#define SET_TRACE_FILE(x) ((void)0)
-#define CLOSE_TRACE_FILE(x) ((void)0)
-#endif
 
 #include <memory.h>
 
@@ -361,19 +341,11 @@ void print_time_now(void) {
 
 static void UU()
 multiply_locks_for_n_dbs(DB_ENV *env, int num_dbs) {
-#ifdef USE_TDB
     uint64_t current_max_lock_memory;
     int r = env->get_lk_max_memory(env, &current_max_lock_memory);
     CKERR(r);
     r = env->set_lk_max_memory(env, current_max_lock_memory * num_dbs);
     CKERR(r);
-#else
-    uint32_t current_max_locks;
-    int r = env->get_lk_max_locks(env, &current_max_locks);
-    CKERR(r);
-    r = env->set_lk_max_locks(env, current_max_locks * num_dbs);
-    CKERR(r);
-#endif
 }
 
 static inline void
@@ -402,7 +374,6 @@ static void copy_dbt(DBT *dest, const DBT *src) {
 }
 
 // DBT_ARRAY is a toku-specific type
-#ifdef USE_TDB
 UU()
 static int
 env_update_multiple_test_no_array(
@@ -507,7 +478,6 @@ static int env_del_multiple_test_no_array(
     }
     return r;
 }
-#endif
 
 /* Some macros for evaluating blocks or functions within the scope of a
  * transaction. */
@@ -535,20 +505,8 @@ main(int argc, char * const argv[])
 #endif
 {
     int r;
-#if IS_TDB && TOKU_WINDOWS
-    int rinit = toku_ydb_init();
-    CKERR(rinit);
-#endif
-#if !IS_TDB && DB_VERSION_MINOR==4 && DB_VERSION_MINOR == 7
-    db_env_set_func_malloc(toku_malloc);
-    db_env_set_func_free(toku_free);
-    db_env_set_func_realloc(toku_realloc);
-#endif
     toku_os_initialize_settings(1);
     r = test_main(argc, argv);
-#if IS_TDB && TOKU_WINDOWS
-    toku_ydb_destroy();
-#endif
     return r;
 }
 

@@ -1048,7 +1048,7 @@ toku_db_verify_with_progress(DB *db, int (*progress_callback)(void *extra, float
     return r;
 }
 
-int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE brt, bool is_open) {
+int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE ft_handle, bool is_open) {
     if (flags || env == NULL) 
         return EINVAL;
 
@@ -1067,7 +1067,7 @@ int toku_setup_db_internal (DB **dbp, DB_ENV *env, uint32_t flags, FT_HANDLE brt
         return ENOMEM;
     }
     memset(result->i, 0, sizeof *result->i);
-    result->i->ft_handle = brt;
+    result->i->ft_handle = ft_handle;
     result->i->opened = is_open;
     *dbp = result;
     return 0;
@@ -1082,10 +1082,10 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
         return EINVAL;
     
 
-    FT_HANDLE brt;
-    toku_ft_handle_create(&brt);
+    FT_HANDLE ft_handle;
+    toku_ft_handle_create(&ft_handle);
 
-    int r = toku_setup_db_internal(db, env, flags, brt, false);
+    int r = toku_setup_db_internal(db, env, flags, ft_handle, false);
     if (r != 0) return r;
 
     DB *result=*db;
@@ -1162,7 +1162,7 @@ toku_db_create(DB ** db, DB_ENV * env, uint32_t flags) {
 // The new inames are returned to the caller.  
 // It is the caller's responsibility to free them.
 // If "mark_as_loader" is true, then include a mark in the iname
-// to indicate that the file is created by the brt loader.
+// to indicate that the file is created by the ft loader.
 // Return 0 on success (could fail if write lock not available).
 static int
 load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new_inames_in_env[/*N*/], LSN *load_lsn, bool mark_as_loader) {
@@ -1207,13 +1207,13 @@ load_inames(DB_ENV * env, DB_TXN * txn, int N, DB * dbs[/*N*/], const char * new
         int do_fsync = 0;
         LSN *get_lsn = NULL;
         for (i = 0; i < N; i++) {
-            FT_HANDLE brt  = dbs[i]->i->ft_handle;
+            FT_HANDLE ft_handle  = dbs[i]->i->ft_handle;
             //Fsync is necessary for the last one only.
             if (i==N-1) {
                 do_fsync = 1; //We only need a single fsync of logs.
                 get_lsn  = load_lsn; //Set pointer to capture the last lsn.
             }
-            toku_ft_load(brt, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
+            toku_ft_load(ft_handle, ttxn, new_inames_in_env[i], do_fsync, get_lsn);
         }
     }
     return rval;

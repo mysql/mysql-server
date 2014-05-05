@@ -145,9 +145,9 @@ int test_main(int argc, const char *argv[]) {
 
     int r = 0;
     // start from a clean directory
-    char rmrf_cmd[100];
-    sprintf(rmrf_cmd, "rm -rf %s", LOGDIR);
-    r = system(rmrf_cmd);
+    char rmrf_msg[100];
+    sprintf(rmrf_msg, "rm -rf %s", LOGDIR);
+    r = system(rmrf_msg);
     CKERR(r);
     toku_os_mkdir(LOGDIR, S_IRWXU+S_IRWXG+S_IRWXO);
     if ( (r=create_logfiles()) !=0 ) return r;
@@ -155,7 +155,7 @@ int test_main(int argc, const char *argv[]) {
     if ( (r=test_0()) !=0 ) return r;
     if ( (r=test_1()) !=0 ) return r;
 
-    r = system(rmrf_cmd);
+    r = system(rmrf_msg);
     CKERR(r);
     return r;
 }

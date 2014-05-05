@@ -699,44 +699,19 @@ abort_indexer(DB_INDEXER *indexer) {
 // derived from ha_tokudb::estimate_num_rows
 static int
 update_estimated_rows(DB_INDEXER *indexer) {
-    DBT key;  toku_init_dbt(&key);
-    DBT data; toku_init_dbt(&data);
-    DBC* crsr = NULL;
-    DB_TXN* txn = NULL;
-    uint64_t less, equal, greater;
-    int is_exact;
     int error;
-    DB *db = indexer->i->src_db;
+    DB_TXN *txn = NULL;
     DB_ENV *db_env = indexer->i->env;
-
     error = db_env->txn_begin(db_env, 0, &txn, DB_READ_UNCOMMITTED);
-    if (error) goto cleanup;
-
-    error = db->cursor(db, txn, &crsr, 0);
-    if (error) { goto cleanup; }
-    
-    error = crsr->c_get(crsr, &key, &data, DB_FIRST);
-    if (error == DB_NOTFOUND) {
-        indexer->i->estimated_rows = 0;
-        error = 0;
-        goto cleanup;
-    } 
-    else if (error) { goto cleanup; }
-
-    error = db->key_range64(db, txn, &key,
-                            &less, &equal, &greater,
-                            &is_exact);
-    if (error) { goto cleanup; }
-
-    indexer->i->estimated_rows = equal + greater;
-    error = 0;
-cleanup:
-    if ( crsr != NULL ) {
-        int rr = crsr->c_close(crsr);
-        invariant(rr == 0);
-        crsr = NULL;
+    if (error == 0) {
+        DB_BTREE_STAT64 stats;
+        DB *db = indexer->i->src_db;
+        error = db->stat64(db, txn, &stats);
+        if (error == 0) {
+            indexer->i->estimated_rows = stats.bt_ndata;
+        }
+        txn->commit(txn, 0);
     }
-    txn->commit(txn, 0);
     return error;
 }
 

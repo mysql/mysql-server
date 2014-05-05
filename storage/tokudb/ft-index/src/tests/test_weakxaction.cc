@@ -128,9 +128,6 @@ test_autotxn (uint32_t env_flags, uint32_t db_flags) {
 
     DB_TXN *x1, *x2 = NULL;
     r = env->txn_begin(env, 0, &x1, DB_TXN_NOWAIT); CKERR(r);
-    #ifdef USE_BDB
-        r = env->txn_begin(env, 0, &x2, DB_TXN_NOWAIT); CKERR(r);
-    #endif
     DBT k1,k2,v1,v2;
     dbt_init(&k1, "hello", sizeof "hello");
     dbt_init(&k2, "hello", sizeof "hello");
@@ -141,9 +138,6 @@ test_autotxn (uint32_t env_flags, uint32_t db_flags) {
     r = db->put(db, x1, &k1, &v1, 0); CKERR(r);
     r = db->get(db, x2, &k2, &v2, 0); assert(r==DB_LOCK_DEADLOCK || r==DB_LOCK_NOTGRANTED);
     r = x1->commit(x1, 0);         CKERR(r);
-    #ifdef USE_BDB
-        r = x2->commit(x2, 0);     assert(r==0);
-    #endif
     r = db->close(db, 0);          CKERR(r);
     r = env->close(env, 0);        assert(r==0);
 }

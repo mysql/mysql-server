@@ -219,7 +219,7 @@ insert_random_message_to_bn(
     *keyp = toku_xmemdup(keydbt->data, keydbt->size);
     int64_t numbytes;
     toku_le_apply_msg(&msg, NULL, NULL, 0, &non_mvcc_gc_info, save, &numbytes);
-    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb, &msg, &non_mvcc_gc_info, NULL, NULL);
+    toku_ft_bn_apply_msg(t->ft->compare_fun, t->ft->update_fun, NULL, blb, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
     }
@@ -269,11 +269,11 @@ insert_same_message_to_bns(
     *keyp = toku_xmemdup(keydbt->data, keydbt->size);
     int64_t numbytes;
     toku_le_apply_msg(&msg, NULL, NULL, 0, &non_mvcc_gc_info, save, &numbytes);
-    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb1, &msg, &non_mvcc_gc_info, NULL, NULL);
+    toku_ft_bn_apply_msg(t->ft->compare_fun, t->ft->update_fun, NULL, blb1, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
     }
-    toku_ft_bn_apply_cmd(t->ft->compare_fun, t->ft->update_fun, NULL, blb2, &msg, &non_mvcc_gc_info, NULL, NULL);
+    toku_ft_bn_apply_msg(t->ft->compare_fun, t->ft->update_fun, NULL, blb2, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb2->max_msn_applied.msn) {
         blb2->max_msn_applied = msn;
     }
@@ -685,7 +685,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
+                toku_ft_leaf_apply_msg(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -734,7 +734,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
-        total_messages += BLB_DATA(child, i)->omt_size();
+        total_messages += BLB_DATA(child, i)->num_klpairs();
     }
     assert(total_messages <= num_parent_messages + num_child_messages);
 
@@ -747,7 +747,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     memset(parent_messages_present, 0, sizeof parent_messages_present);
     memset(child_messages_present, 0, sizeof child_messages_present);
     for (int j = 0; j < 8; ++j) {
-        uint32_t len = BLB_DATA(child, j)->omt_size();
+        uint32_t len = BLB_DATA(child, j)->num_klpairs();
         for (uint32_t idx = 0; idx < len; ++idx) {
             LEAFENTRY le;
             DBT keydbt, valdbt;
@@ -909,7 +909,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (dummy_cmp(NULL, parent_messages[i]->u.id.key, &childkeys[7]) <= 0 &&
                 !parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
+                toku_ft_leaf_apply_msg(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -969,7 +969,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
 
     int total_messages = 0;
     for (i = 0; i < 8; ++i) {
-        total_messages += BLB_DATA(child, i)->omt_size();
+        total_messages += BLB_DATA(child, i)->num_klpairs();
     }
     assert(total_messages <= num_parent_messages + num_child_messages);
 
@@ -1105,8 +1105,8 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     if (make_leaf_up_to_date) {
         for (i = 0; i < num_parent_messages; ++i) {
             if (!parent_messages_is_fresh[i]) {
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child1, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
-                toku_ft_leaf_apply_cmd(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child2, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
+                toku_ft_leaf_apply_msg(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child1, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
+                toku_ft_leaf_apply_msg(t->ft->compare_fun, t->ft->update_fun, &t->ft->descriptor, child2, -1, parent_messages[i], &non_mvcc_gc_info, NULL, NULL);
             }
         }
         for (i = 0; i < 8; ++i) {
@@ -1145,10 +1145,10 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     toku_ftnode_free(&parentnode);
 
     for (int j = 0; j < 8; ++j) {
-        BN_DATA first = BLB_DATA(child1, j);
-        BN_DATA second = BLB_DATA(child2, j);
-        uint32_t len = first->omt_size();
-        assert(len == second->omt_size());
+        bn_data* first = BLB_DATA(child1, j);
+        bn_data* second = BLB_DATA(child2, j);
+        uint32_t len = first->num_klpairs();
+        assert(len == second->num_klpairs());
         for (uint32_t idx = 0; idx < len; ++idx) {
             LEAFENTRY le1, le2;
             DBT key1dbt, val1dbt, key2dbt, val2dbt;

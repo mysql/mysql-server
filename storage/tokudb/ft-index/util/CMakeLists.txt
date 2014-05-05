@@ -2,10 +2,12 @@ set(util_srcs
   context
   frwlock
   kibbutz
+  memarena
   mempool
   partitioned_counter
   threadpool
   scoped_malloc
+  x1764
   )
 
 add_library(util SHARED ${util_srcs})

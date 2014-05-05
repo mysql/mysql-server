@@ -236,10 +236,8 @@ setup_dbs (void) {
     /* Open/create primary */
     r = db_env_create(&dbenv, 0);
         CKERR(r);
-#ifdef TOKUDB
     r = dbenv->set_default_bt_compare(dbenv, int_dbt_cmp);
         CKERR(r);
-#endif
     uint32_t env_txn_flags  = DB_INIT_TXN | DB_INIT_LOCK;
     uint32_t env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL;
 	r = dbenv->open(dbenv, TOKU_TEST_FILENAME, env_open_flags | env_txn_flags, 0600);
@@ -247,10 +245,6 @@ setup_dbs (void) {
     
     r = db_create(&db, dbenv, 0);
         CKERR(r);
-#ifndef TOKUDB
-    r = db->set_bt_compare( db, int_dbt_cmp);
-    CKERR(r);
-#endif
 
     char a;
     for (a = 'a'; a <= 'z'; a++) init_txn(a);
@@ -665,16 +659,6 @@ test (void) {
 int
 test_main(int argc, char *const argv[]) {
     parse_args(argc, argv);
-    if (!IS_TDB) {
-	if (verbose) {
-	    printf("Warning: " __FILE__" does not work in BDB.\n");
-	}
-    } else {
-	test();
-	/*
-	  test_abort(0);
-	  test_abort(DB_DUP | DB_DUPSORT);
-	*/
-    }
+    test();
     return 0;
 }

@@ -120,11 +120,7 @@ static void op_delete (int i) {
     int r = db->del(db, txn,
 		    dbt_init(&key,  hello, strlen(hello)+1),
 		    DB_DELETE_ANY);
-#ifdef TOKUDB
     assert(r==0);
-#else
-    assert(r==DB_NOTFOUND || r==0);
-#endif
 }
 
 static void lookup (int i, int expect, int expectj) {

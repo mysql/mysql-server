@@ -205,12 +205,12 @@ do_abort_delete_first_or_last(int N,
 
     r=db->close(db, 0); CKERR(r);
     r=env->close(env, 0); CKERR(r);
-#if defined(TOKUDB) && defined(__unix__)
-    char cmd[sizeof("../../utils/tokudb_dump -h  foo.db >") + 2 * TOKU_PATH_MAX];
-    snprintf(cmd, sizeof(cmd), "../../utils/tokudb_dump -h %s foo.db > %s", TOKU_TEST_FILENAME, DEV_NULL_FILE);
+
+    // Oh man, this is gross.
+    char cmd[sizeof("../../tools/tokudb_dump -h  foo.db >") + 2 * TOKU_PATH_MAX];
+    snprintf(cmd, sizeof(cmd), "../../tools/tokudb_dump -h %s foo.db > %s", TOKU_TEST_FILENAME, DEV_NULL_FILE);
     r=system(cmd);
     CKERR(r);
-#endif
 }
 
 int

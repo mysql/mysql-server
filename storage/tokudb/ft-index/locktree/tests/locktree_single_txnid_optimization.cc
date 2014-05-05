@@ -98,11 +98,10 @@ namespace toku {
 // write locks if overlapping and ensure that existing read
 // or write locks are consolidated by overlapping relocks.
 void locktree_unit_test::test_single_txnid_optimization(void) {
-    locktree::manager mgr;
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
-    DESCRIPTOR desc = nullptr;
+    locktree lt;
+
     DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
+    lt.create(nullptr, dict_id, nullptr, compare_dbts);
 
     const DBT *zero = get_dbt(0);
     const DBT *one = get_dbt(1);
@@ -124,13 +123,13 @@ void locktree_unit_test::test_single_txnid_optimization(void) {
         buffer.create();
 
 #define lock_and_append_point_for_txnid_a(key) \
-        r = lt->acquire_write_lock(txnid_a, key, key, nullptr, false);   \
+        r = lt.acquire_write_lock(txnid_a, key, key, nullptr, false);   \
         invariant_zero(r); \
         buffer.append(key, key);
 
 #define maybe_point_locks_for_txnid_b(i) \
         if (where == i) { \
-            r = lt->acquire_write_lock(txnid_b, one, one, nullptr, false);    \
+            r = lt.acquire_write_lock(txnid_b, one, one, nullptr, false);    \
             invariant_zero(r); \
         }
 
@@ -143,7 +142,7 @@ void locktree_unit_test::test_single_txnid_optimization(void) {
         lock_and_append_point_for_txnid_a(zero);
         maybe_point_locks_for_txnid_b(2);
 
-        lt->release_locks(txnid_a, &buffer);
+        lt.release_locks(txnid_a, &buffer);
 
         // txnid b does not take a lock on iteration 3
         if (where != 3) {
@@ -158,21 +157,21 @@ void locktree_unit_test::test_single_txnid_optimization(void) {
                     return true;
                 }
             } verify_fn;
-            verify_fn.cmp = lt->m_cmp;
+            verify_fn.cmp = lt.m_cmp;
 
             keyrange range;
             range.create(one, one);
             verify_fn.expected_txnid = txnid_b;
             verify_fn.expected_range = &range;
-            locktree_iterate<verify_fn_obj>(lt, &verify_fn);
-            lt->remove_overlapping_locks_for_txnid(txnid_b, one, one);
+            locktree_iterate<verify_fn_obj>(&lt, &verify_fn);
+            lt.remove_overlapping_locks_for_txnid(txnid_b, one, one);
         }
 
         buffer.destroy();
     }
 
-    mgr.release_lt(lt);
-    mgr.destroy();
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

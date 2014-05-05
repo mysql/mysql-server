@@ -9,8 +9,7 @@ set session tokudb_disable_slow_alter=OFF;
 let $diff_tables= test.foo, test.foo_isam;
 
 create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), key (b) clustering=yes)engine=TokuDB;
-create table foo_isam like foo;
-alter table foo_isam engine=MyISAM;
+create table foo_isam (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), key (b))engine=MyISAM;
 create table bar (a int) engine=TokuDB;
 create table bar_isam like bar;
 alter table bar_isam engine=MyISAM;

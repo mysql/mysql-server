@@ -93,12 +93,12 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
-#include "memarena.h"
 #include "toku_assert.h"
 #include "fttypes.h"
 #include "memory.h"
 #include <toku_htonl.h>
 
+#include <util/memarena.h>
 
 struct rbuf {
     unsigned char *buf;
@@ -250,7 +250,7 @@ static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
 // 2954
 static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUMS *filenums) {
     rbuf_ma_uint32_t(r, ma, &(filenums->num));
-    filenums->filenums = (FILENUM *) malloc_in_memarena(ma, filenums->num * sizeof(FILENUM) );
+    filenums->filenums = (FILENUM *) toku_memarena_malloc(ma, filenums->num * sizeof(FILENUM) );
     assert(filenums->filenums != NULL);
     for (uint32_t i=0; i < filenums->num; i++) {
         rbuf_ma_FILENUM(r, ma, &(filenums->filenums[i]));
@@ -271,7 +271,7 @@ static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, MEMARENA ma, BYTESTRING 
     bs->len  = rbuf_int(r);
     uint32_t newndone = r->ndone + bs->len;
     assert(newndone <= r->size);
-    bs->data = (char *) memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
+    bs->data = (char *) toku_memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
     assert(bs->data);
     r->ndone = newndone;
 }

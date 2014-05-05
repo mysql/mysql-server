@@ -350,27 +350,6 @@ find_by_xid (const TOKUTXN &txn, const TXNID &txnidfind) {
     return 0;
 }
 
-#if 0
-static void
-omt_insert_at_end_unless_recovery(OMT omt, int (*h)(OMTVALUE, void*extra), TOKUTXN txn, OMTVALUE v, bool for_recovery)
-// Effect: insert v into omt that is sorted by xid gotten from txn.
-// Rationale:
-//   During recovery, we get txns in the order that they did their first
-//   write operation, which is not necessarily monotonically increasing.
-//   During normal operation, txns are created with strictly increasing
-//   txnids, so we can always insert at the end.
-{
-    int r;
-    uint32_t idx = toku_omt_size(omt);
-    if (for_recovery) {
-        r = toku_omt_find_zero(omt, h, (void *) txn->txnid64, NULL, &idx);
-        invariant(r==DB_NOTFOUND);
-    }
-    r = toku_omt_insert_at(omt, v, idx);
-    lazy_assert_zero(r);
-}
-#endif
-
 static TXNID
 max_xid(TXNID a, TXNID b) {
     return a < b ? b : a;

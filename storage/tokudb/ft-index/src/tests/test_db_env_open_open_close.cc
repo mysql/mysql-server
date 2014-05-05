@@ -117,18 +117,7 @@ test_main(int argc, char*const* argv) {
 
     r = dbenv->open(dbenv, TOKU_TEST_FILENAME, DB_CREATE|DB_INIT_MPOOL|DB_PRIVATE, 0666);
     if (verbose) printf("r=%d\n", r);
-#ifdef USE_TDB
     assert(r == EINVAL);
-#elif USE_BDB
-#if DB_VERSION_MAJOR >= 5
-    assert(r == EINVAL);
-#else
-    if (verbose) printf("test_db_env_open_open_close.bdb skipped.  (BDB apparently does not follow the spec).\n");
-    assert(r == 0);
-#endif
-#else
-#error
-#endif    
 
     r = dbenv->close(dbenv, 0);
     assert(r == 0);

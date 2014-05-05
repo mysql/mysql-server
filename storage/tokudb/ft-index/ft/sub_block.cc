@@ -89,16 +89,15 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "sub_block.h"
-
 #include "compress.h"
+#include "sub_block.h"
 #include "quicklz.h"
-#include "x1764.h"
 
 #include <memory.h>
 #include <toku_assert.h>
 #include <toku_portability.h>
 #include <util/threadpool.h>
+#include <util/x1764.h>
 
 #include <stdio.h>
 #include <string.h>
@@ -268,7 +267,7 @@ compress_sub_block(struct sub_block *sub_block, enum toku_compression_method met
         method
         );
     // checksum it
-    sub_block->xsum = x1764_memory(sub_block->compressed_ptr, sub_block->compressed_size);
+    sub_block->xsum = toku_x1764_memory(sub_block->compressed_ptr, sub_block->compressed_size);
 }
 
 void *
@@ -365,7 +364,7 @@ decompress_sub_block(void *compress_ptr, uint32_t compress_size, void *uncompres
     int result = 0;
 
     // verify checksum
-    uint32_t xsum = x1764_memory(compress_ptr, compress_size);
+    uint32_t xsum = toku_x1764_memory(compress_ptr, compress_size);
     if (xsum != expected_xsum) {
         if (verbose_decompress_sub_block) fprintf(stderr, "%s:%d xsum %u expected %u\n", __FUNCTION__, __LINE__, xsum, expected_xsum);
         result = EINVAL;

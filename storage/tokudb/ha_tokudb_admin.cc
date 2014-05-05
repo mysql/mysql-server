@@ -164,7 +164,9 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
         } 
     }
     if (result == HA_ADMIN_OK) {
-        tokudb::set_card_in_status(share->status_block, txn, total_key_parts, rec_per_key);
+        int error = tokudb::set_card_in_status(share->status_block, txn, total_key_parts, rec_per_key);
+        if (error) 
+            result = HA_ADMIN_FAILED;
     }
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }

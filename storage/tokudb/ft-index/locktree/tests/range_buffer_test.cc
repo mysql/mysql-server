@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 #include <string.h>
 
-#include <toku_include/memory.h>
+#include <portability/memory.h>
 
 #include <locktree/range_buffer.h>
 

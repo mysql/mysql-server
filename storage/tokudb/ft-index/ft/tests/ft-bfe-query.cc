@@ -101,9 +101,9 @@ int64_key_cmp (DB *db UU(), const DBT *a, const DBT *b) {
 }
 
 static void
-test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
+test_prefetch_read(int fd, FT_HANDLE UU(ft), FT ft_h) {
     int r;
-    brt_h->compare_fun = int64_key_cmp;    
+    ft_h->compare_fun = int64_key_cmp;    
     FT_CURSOR XMALLOC(cursor);
     FTNODE dn = NULL;
     PAIR_ATTR attr;
@@ -120,7 +120,7 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     // quick test to see that we have the right behavior when we set
     // disable_prefetching to true
     cursor->disable_prefetching = true;
-    fill_bfe_for_prefetch(&bfe, brt_h, cursor);
+    fill_bfe_for_prefetch(&bfe, ft_h, cursor);
     FTNODE_DISK_DATA ndd = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
@@ -139,14 +139,14 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     // now enable prefetching again
     cursor->disable_prefetching = false;
     
-    fill_bfe_for_prefetch(&bfe, brt_h, cursor);
+    fill_bfe_for_prefetch(&bfe, ft_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -161,14 +161,14 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     uint64_t left_key = 150;
     toku_fill_dbt(&cursor->range_lock_left_key, &left_key, sizeof(uint64_t));
     cursor->left_is_neg_infty = false;
-    fill_bfe_for_prefetch(&bfe, brt_h, cursor);
+    fill_bfe_for_prefetch(&bfe, ft_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -183,14 +183,14 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     uint64_t right_key = 151;
     toku_fill_dbt(&cursor->range_lock_right_key, &right_key, sizeof(uint64_t));
     cursor->right_is_pos_infty = false;
-    fill_bfe_for_prefetch(&bfe, brt_h, cursor);
+    fill_bfe_for_prefetch(&bfe, ft_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
@@ -204,14 +204,14 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
 
     left_key = 100000;
     right_key = 100000;
-    fill_bfe_for_prefetch(&bfe, brt_h, cursor);
+    fill_bfe_for_prefetch(&bfe, ft_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -225,14 +225,14 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
 
     left_key = 100;
     right_key = 100;
-    fill_bfe_for_prefetch(&bfe, brt_h, cursor);
+    fill_bfe_for_prefetch(&bfe, ft_h, cursor);
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, &dn, &ndd, &bfe);
     assert(r==0);
     assert(dn->n_children == 3);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
@@ -248,9 +248,9 @@ test_prefetch_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
 }
 
 static void
-test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
+test_subset_read(int fd, FT_HANDLE UU(ft), FT ft_h) {
     int r;
-    brt_h->compare_fun = int64_key_cmp;    
+    ft_h->compare_fun = int64_key_cmp;    
     FT_CURSOR XMALLOC(cursor);
     FTNODE dn = NULL;
     FTNODE_DISK_DATA ndd = NULL;
@@ -271,7 +271,7 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     toku_fill_dbt(&right, &right_key, sizeof(right_key));
     fill_bfe_for_subset_read(
         &bfe,
-        brt_h,
+        ft_h,
         NULL, 
         &left,
         &right,
@@ -292,11 +292,11 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     // need to call this twice because we had a subset read before, that touched the clock
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_ON_DISK);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -317,11 +317,11 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_AVAIL);
     // need to call this twice because we had a subset read before, that touched the clock
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_AVAIL);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_ON_DISK);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_COMPRESSED);
@@ -341,11 +341,11 @@ test_subset_read(int fd, FT_HANDLE UU(brt), FT brt_h) {
     assert(BP_STATE(dn,1) == PT_AVAIL);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
     // need to call this twice because we had a subset read before, that touched the clock
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_AVAIL);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
-    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), brt_h, def_pe_finalize_impl, nullptr);
+    toku_ftnode_pe_callback(dn, make_pair_attr(0xffffffff), ft_h, def_pe_finalize_impl, nullptr);
     assert(BP_STATE(dn,0) == PT_COMPRESSED);
     assert(BP_STATE(dn,1) == PT_COMPRESSED);
     assert(BP_STATE(dn,2) == PT_ON_DISK);
@@ -412,9 +412,9 @@ test_prefetching(void) {
     xids_destroy(&xids_123);
     xids_destroy(&xids_234);
 
-    FT_HANDLE XMALLOC(brt);
-    FT XCALLOC(brt_h);
-    toku_ft_init(brt_h,
+    FT_HANDLE XMALLOC(ft);
+    FT XCALLOC(ft_h);
+    toku_ft_init(ft_h,
                  make_blocknum(0),
                  ZERO_LSN,
                  TXNID_NONE,
@@ -422,32 +422,32 @@ test_prefetching(void) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
-    brt->ft = brt_h;
-    toku_blocktable_create_new(&brt_h->blocktable);
+    ft->ft = ft_h;
+    toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
     BLOCKNUM b = make_blocknum(0);
     while (b.b < 20) {
-        toku_allocate_blocknum(brt_h->blocktable, &b, brt_h);
+        toku_allocate_blocknum(ft_h->blocktable, &b, ft_h);
     }
     assert(b.b == 20);
 
     {
         DISKOFF offset;
         DISKOFF size;
-        toku_blocknum_realloc_on_disk(brt_h->blocktable, b, 100, &offset, brt_h, fd, false);
+        toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
         assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
-        toku_translate_blocknum_to_offset_size(brt_h->blocktable, b, &offset, &size);
+        toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
         assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA ndd = NULL;
-    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, brt->ft, false);
+    r = toku_serialize_ftnode_to(fd, make_blocknum(20), &sn, &ndd, true, ft->ft, false);
     assert(r==0);
 
-    test_prefetch_read(fd, brt, brt_h);    
-    test_subset_read(fd, brt, brt_h);
+    test_prefetch_read(fd, ft, ft_h);    
+    test_subset_read(fd, ft, ft_h);
 
     toku_free(sn.childkeys[0].data);
     toku_free(sn.childkeys[1].data);
@@ -457,11 +457,11 @@ test_prefetching(void) {
     toku_free(sn.bp);
     toku_free(sn.childkeys);
 
-    toku_block_free(brt_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
-    toku_blocktable_destroy(&brt_h->blocktable);
-    toku_free(brt_h->h);
-    toku_free(brt_h);
-    toku_free(brt);
+    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_blocktable_destroy(&ft_h->blocktable);
+    toku_free(ft_h->h);
+    toku_free(ft_h);
+    toku_free(ft);
     toku_free(ndd);
 
     r = close(fd); assert(r != -1);

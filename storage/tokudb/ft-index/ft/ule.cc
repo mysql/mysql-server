@@ -252,26 +252,27 @@ static inline size_t uxr_unpack_length_and_bit(UXR uxr, uint8_t *p);
 static inline size_t uxr_unpack_data(UXR uxr, uint8_t *p);
 
 static void get_space_for_le(
-    bn_data* data_buffer, 
+    bn_data* data_buffer,
     uint32_t idx,
     void* keyp,
     uint32_t keylen,
     uint32_t old_le_size,
-    size_t size, 
-    LEAFENTRY* new_le_space
-    ) 
+    size_t size,
+    LEAFENTRY* new_le_space,
+    void **const maybe_free
+    )
 {
-    if (data_buffer == NULL) {
+    if (data_buffer == nullptr) {
         CAST_FROM_VOIDP(*new_le_space, toku_xmalloc(size));
     }
     else {
         // this means we are overwriting something
         if (old_le_size > 0) {
-            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_le_size, size, new_le_space);
+            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_le_size, size, new_le_space, maybe_free);
         }
         // this means we are inserting something new
         else {
-            data_buffer->get_space_for_insert(idx, keyp, keylen, size, new_le_space);
+            data_buffer->get_space_for_insert(idx, keyp, keylen, size, new_le_space, maybe_free);
         }
     }
 }
@@ -505,19 +506,12 @@ toku_le_apply_msg(FT_MSG   msg,
     int64_t newnumbytes = 0;
     uint64_t oldmemsize = 0;
     uint32_t keylen = ft_msg_get_keylen(msg);
-    LEAFENTRY copied_old_le = NULL;
-    size_t old_le_size = old_leafentry ? leafentry_memsize(old_leafentry) : 0;
-    toku::scoped_malloc copied_old_le_buf(old_le_size);
-    if (old_leafentry) {
-        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
-        memcpy(copied_old_le, old_leafentry, old_le_size);
-    }
 
     if (old_leafentry == NULL) {
         msg_init_empty_ule(&ule);
     } else {
         oldmemsize = leafentry_memsize(old_leafentry);
-        le_unpack(&ule, copied_old_le); // otherwise unpack leafentry
+        le_unpack(&ule, old_leafentry); // otherwise unpack leafentry
         oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     msg_modify_ule(&ule, msg);          // modify unpacked leafentry
@@ -550,21 +544,28 @@ toku_le_apply_msg(FT_MSG   msg,
         STATUS_INC(LE_APPLY_GC_BYTES_IN, size_before_gc);
         STATUS_INC(LE_APPLY_GC_BYTES_OUT, size_after_gc);
     }
-    int rval = le_pack(
+
+    void *maybe_free = nullptr;
+    int r = le_pack(
         &ule, // create packed leafentry
         data_buffer,
         idx,
         ft_msg_get_key(msg), // contract of this function is caller has this set, always
         keylen, // contract of this function is caller has this set, always
         oldmemsize,
-        new_leafentry_p
+        new_leafentry_p,
+        &maybe_free
         );
-    invariant_zero(rval);
+    invariant_zero(r);
     if (*new_leafentry_p) {
         newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
+
     ule_cleanup(&ule);
+    if (maybe_free != nullptr) {
+        toku_free(maybe_free);
+    }
 }
 
 bool toku_le_worth_running_garbage_collection(LEAFENTRY le, txn_gc_info *gc_info) {
@@ -621,15 +622,8 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
     ULE_S ule;
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
-    LEAFENTRY copied_old_le = NULL;
-    size_t old_le_size = old_leaf_entry ? leafentry_memsize(old_leaf_entry) : 0;
-    toku::scoped_malloc copied_old_le_buf(old_le_size);
-    if (old_leaf_entry) {
-        CAST_FROM_VOIDP(copied_old_le, copied_old_le_buf.get());
-        memcpy(copied_old_le, old_leaf_entry, old_le_size);
-    }
 
-    le_unpack(&ule, copied_old_le);
+    le_unpack(&ule, old_leaf_entry);
 
     oldnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     uint32_t old_mem_size = leafentry_memsize(old_leaf_entry);
@@ -654,6 +648,7 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
         STATUS_INC(LE_APPLY_GC_BYTES_OUT, size_after_gc);
     }
 
+    void *maybe_free = nullptr;
     int r = le_pack(
         &ule,
         data_buffer,
@@ -661,14 +656,19 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
         keyp,
         keylen,
         old_mem_size,
-        new_leaf_entry
+        new_leaf_entry,
+        &maybe_free
         );
-    assert(r == 0);
+    invariant_zero(r);
     if (*new_leaf_entry) {
         newnumbytes = ule_get_innermost_numbytes(&ule, keylen);
     }
     *numbytes_delta_p = newnumbytes - oldnumbytes;
+
     ule_cleanup(&ule);
+    if (maybe_free != nullptr) {
+        toku_free(maybe_free);
+    }
 }
 
 /////////////////////////////////////////////////////////////////////////////////
@@ -963,7 +963,7 @@ update_le_status(ULE ule, size_t memsize) {
 }
 
 // Purpose is to return a newly allocated leaf entry in packed format, or
-// return null if leaf entry should be destroyed (if no transaction records 
+// return null if leaf entry should be destroyed (if no transaction records
 // are for inserts).
 // Transaction records in packed le are stored inner to outer (first xr is innermost),
 // with some information extracted out of the transaction records into the header.
@@ -975,7 +975,8 @@ le_pack(ULE ule, // data to be packed into new leafentry
         void* keyp,
         uint32_t keylen,
         uint32_t old_le_size,
-        LEAFENTRY * const new_leafentry_p // this is what this function creates
+        LEAFENTRY * const new_leafentry_p, // this is what this function creates
+        void **const maybe_free
         )
 {
     invariant(ule->num_cuxrs > 0);
@@ -1001,10 +1002,10 @@ le_pack(ULE ule, // data to be packed into new leafentry
         rval = 0;
         goto cleanup;
     }
-found_insert:;
+found_insert:
     memsize = le_memsize_from_ule(ule);
     LEAFENTRY new_leafentry;
-    get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry);
+    get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry, maybe_free);
 
     //p always points to first unused byte after leafentry we are packing
     uint8_t *p;
@@ -1056,7 +1057,7 @@ found_insert:;
         for (i = 0; i < ule->num_cuxrs; i++) {
             p += uxr_pack_length_and_bit(ule->uxrs + ule->num_cuxrs - 1 - i, p);
         }
-        
+
         //pack interesting values inner to outer
         if (ule->num_puxrs!=0) {
             UXR innermost = ule->uxrs + ule->num_cuxrs + ule->num_puxrs - 1;
@@ -1094,7 +1095,7 @@ found_insert:;
     size_t bytes_written;
     bytes_written = (size_t)p - (size_t)new_leafentry;
     invariant(bytes_written == memsize);
-         
+
 #if ULE_DEBUG
     if (omt) { //Disable recursive debugging.
         size_t memsize_verify = leafentry_memsize(new_leafentry);
@@ -2260,9 +2261,6 @@ cleanup:
     return r;
 }
 
-#if TOKU_WINDOWS
-#pragma pack(push, 1)
-#endif
 // This is an on-disk format.  static_asserts verify everything is packed and aligned correctly.
 struct __attribute__ ((__packed__)) leafentry_13 {
     struct leafentry_committed_13 {
@@ -2290,9 +2288,6 @@ struct __attribute__ ((__packed__)) leafentry_13 {
 };
 static_assert(18 == sizeof(leafentry_13), "wrong size");
 static_assert(9 == __builtin_offsetof(leafentry_13, u), "wrong offset");
-#if TOKU_WINDOWS
-#pragma pack(pop)
-#endif
 
 //Requires:
 //  Leafentry that ule represents should not be destroyed (is not just all deletes)
@@ -2467,12 +2462,14 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
     // malloc instead of a mempool.  However after supporting upgrade,
     // we need to use mempools and the OMT.
     rval = le_pack(&ule, // create packed leafentry
-                   NULL,
+                   nullptr,
                    0, //only matters if we are passing in a bn_data
-                   NULL, //only matters if we are passing in a bn_data
+                   nullptr, //only matters if we are passing in a bn_data
                    0, //only matters if we are passing in a bn_data
                    0, //only matters if we are passing in a bn_data
-                   new_leafentry_p);  
+                   new_leafentry_p,
+                   nullptr //only matters if we are passing in a bn_data
+                   );
     ule_cleanup(&ule);
     *new_leafentry_memorysize = leafentry_memsize(*new_leafentry_p);
     return rval;

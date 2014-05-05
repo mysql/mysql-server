@@ -536,7 +536,7 @@ generate_log_writer (void) {
                                   if (strcmp(field_type->name, "timestamp") == 0)
                                       fprintf(cf, "  if (timestamp == 0) timestamp = toku_get_timestamp();\n");
                                   fprintf(cf, "  wbuf_nocrc_%s(&wbuf, %s);\n", field_type->type, field_type->name));
-                        fprintf(cf, "  wbuf_nocrc_int(&wbuf, x1764_memory(wbuf.buf, wbuf.ndone));\n");
+                        fprintf(cf, "  wbuf_nocrc_int(&wbuf, toku_x1764_memory(wbuf.buf, wbuf.ndone));\n");
                         fprintf(cf, "  wbuf_nocrc_int(&wbuf, buflen);\n");
                         fprintf(cf, "  assert(wbuf.ndone==buflen);\n");
                         fprintf(cf, "  logger->inbuf.n_in_buf += buflen;\n");
@@ -558,7 +558,7 @@ generate_log_reader (void) {
                         fprintf(cf, "  uint32_t checksum_in_file, len_in_file;\n");
                         fprintf(cf, "  r=toku_fread_uint32_t_nocrclen(infile, &checksum_in_file); actual_len+=4;   if (r!=0) return r;\n");
                         fprintf(cf, "  r=toku_fread_uint32_t_nocrclen(infile, &len_in_file);    actual_len+=4;   if (r!=0) return r;\n");
-                        fprintf(cf, "  if (checksum_in_file!=x1764_finish(checksum) || len_in_file!=actual_len || len1 != len_in_file) return DB_BADFORMAT;\n");
+                        fprintf(cf, "  if (checksum_in_file!=toku_x1764_finish(checksum) || len_in_file!=actual_len || len1 != len_in_file) return DB_BADFORMAT;\n");
                         fprintf(cf, "  return 0;\n");
                         fprintf(cf, "}\n\n");
                     });
@@ -568,12 +568,12 @@ generate_log_reader (void) {
     fprintf(cf, "  uint32_t len1; int r;\n");
     fprintf(cf, "  uint32_t ignorelen=0;\n");
     fprintf(cf, "  struct x1764 checksum;\n");
-    fprintf(cf, "  x1764_init(&checksum);\n");
+    fprintf(cf, "  toku_x1764_init(&checksum);\n");
     fprintf(cf, "  r = toku_fread_uint32_t(infile, &len1, &checksum, &ignorelen); if (r!=0) return r;\n");
     fprintf(cf, "  int cmd=fgetc(infile);\n");
     fprintf(cf, "  if (cmd==EOF) return EOF;\n");
     fprintf(cf, "  char cmdchar = (char)cmd;\n");
-    fprintf(cf, "  x1764_add(&checksum, &cmdchar, 1);\n");
+    fprintf(cf, "  toku_x1764_add(&checksum, &cmdchar, 1);\n");
     fprintf(cf, "  le->cmd=(enum lt_cmd)cmd;\n");
     fprintf(cf, "  switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, {
@@ -639,14 +639,14 @@ generate_logprint (void) {
     fprintf(pf, "    uint32_t len1, crc_in_file;\n");
     fprintf(pf, "    uint32_t ignorelen=0;\n");
     fprintf(pf, "    struct x1764 checksum;\n");
-    fprintf(pf, "    x1764_init(&checksum);\n");
+    fprintf(pf, "    toku_x1764_init(&checksum);\n");
     fprintf(pf, "    r=toku_fread_uint32_t(f, &len1, &checksum, &ignorelen);\n");
     fprintf(pf, "    if (r==EOF) return EOF;\n");
     fprintf(pf, "    cmd=fgetc(f);\n");
     fprintf(pf, "    if (cmd==EOF) return DB_BADFORMAT;\n");
     fprintf(pf, "    uint32_t len_in_file, len=1+4; // cmd + len1\n");
     fprintf(pf, "    char charcmd = (char)cmd;\n");
-    fprintf(pf, "    x1764_add(&checksum, &charcmd, 1);\n");
+    fprintf(pf, "    toku_x1764_add(&checksum, &charcmd, 1);\n");
     fprintf(pf, "    switch ((enum lt_cmd)cmd) {\n");
     DO_LOGTYPES(lt, { if (strlen(lt->name)>maxnamelen) maxnamelen=strlen(lt->name); });
     DO_LOGTYPES(lt, {
@@ -664,7 +664,7 @@ generate_logprint (void) {
                             fprintf(pf, "); if (r!=0) return r;\n");
                         });
                 fprintf(pf, "        {\n");
-                fprintf(pf, "          uint32_t actual_murmur = x1764_finish(&checksum);\n");
+                fprintf(pf, "          uint32_t actual_murmur = toku_x1764_finish(&checksum);\n");
                 fprintf(pf, "          r = toku_fread_uint32_t_nocrclen (f, &crc_in_file); len+=4; if (r!=0) return r;\n");
                 fprintf(pf, "          fprintf(outf, \" crc=%%08x\", crc_in_file);\n");
                 fprintf(pf, "          if (crc_in_file!=actual_murmur) fprintf(outf, \" checksum=%%08x\", actual_murmur);\n");
@@ -806,7 +806,7 @@ generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
                 fprintf(cf, "  case RT_%s:\n", lt->name);
                 fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
-                fprintf(cf, "    CAST_FROM_VOIDP(item, malloc_in_memarena(ma, mem_needed));\n");
+                fprintf(cf, "    CAST_FROM_VOIDP(item, toku_memarena_malloc(ma, mem_needed));\n");
                 fprintf(cf, "    item->cmd = cmd;\n");
                 DO_FIELDS(field_type, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", field_type->type, lt->name, field_type->name));
                 fprintf(cf, "    *itemp = item;\n");
@@ -858,7 +858,7 @@ int main (int argc, const char *const argv[]) {
     fprintf2(cf, pf, "#include <ft/fttypes.h>\n");
     fprintf2(cf, pf, "#include <ft/log-internal.h>\n");
     fprintf(hf, "#include <ft/ft-internal.h>\n");
-    fprintf(hf, "#include <ft/memarena.h>\n");
+    fprintf(hf, "#include <util/memarena.h>\n");
     generate_enum();
     generate_log_struct();
     generate_dispatch();

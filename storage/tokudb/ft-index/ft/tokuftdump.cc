@@ -89,7 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-/* Tell me the diff between two brt files. */
+/* Tell me the diff between two FT files. */
 
 #include "cachetable.h"
 #include "ft.h"
@@ -315,9 +315,9 @@ dump_node (int f, BLOCKNUM blocknum, FT h) {
             }
         } else {
             printf(" n_bytes_in_buffer= %" PRIu64 "", BLB_DATA(n, i)->get_disk_size());
-            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->omt_size());
+            printf(" items_in_buffer=%u\n", BLB_DATA(n, i)->num_klpairs());
             if (dump_data) {
-                BLB_DATA(n, i)->omt_iterate<void, print_le>(NULL);
+                BLB_DATA(n, i)->iterate<void, print_le>(NULL);
             }
         }
     }
@@ -432,7 +432,7 @@ verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size) {
         printf("header length too big: %u\n", header_length);
         return;
     }
-    uint32_t header_xsum = x1764_memory(cp, header_length);
+    uint32_t header_xsum = toku_x1764_memory(cp, header_length);
     uint32_t expected_xsum = toku_dtoh32(get_unaligned_uint32(&cp[header_length]));
     if (header_xsum != expected_xsum) {
         printf("header checksum failed: %u %u\n", header_xsum, expected_xsum);
@@ -450,7 +450,7 @@ verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size) {
     // verify the sub block header
     uint32_t offset = header_length + 4;
     for (uint32_t i = 0 ; i < n_sub_blocks; i++) {
-        uint32_t xsum = x1764_memory(cp + offset, sub_block[i].compressed_size);
+        uint32_t xsum = toku_x1764_memory(cp + offset, sub_block[i].compressed_size);
         printf("%u: %u %u %u", i, sub_block[i].compressed_size, sub_block[i].uncompressed_size, sub_block[i].xsum);
         if (xsum != sub_block[i].xsum)
             printf(" fail %u offset %" PRIu64, xsum, file_offset + offset);

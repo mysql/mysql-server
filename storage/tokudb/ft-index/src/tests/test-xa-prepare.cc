@@ -103,9 +103,7 @@ static void clean_env (const char *envdir) {
 static void setup_env (DB_ENV **envp, const char *envdir) {
     { int chk_r = db_env_create(envp, 0); CKERR(chk_r); }
     (*envp)->set_errfile(*envp, stderr);
-#ifdef TOKUDB
     { int chk_r = (*envp)->set_redzone(*envp, 0); CKERR(chk_r); }
-#endif
     { int chk_r = (*envp)->open(*envp, envdir, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|DB_RECOVER, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(chk_r); }
 }
 

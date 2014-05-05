@@ -272,13 +272,10 @@ random_acts(void * d) {
 	}
     }
 
-
-#if IS_TDB && !TOKU_WINDOWS
     return intothevoid;
-#endif
 }
 
-uint64_t max_windows_cachesize = 256 << 20;
+uint64_t max_cachesize = 256 << 20;
 
 static void
 run_test (int iter, int die) {
@@ -296,7 +293,7 @@ run_test (int iter, int die) {
     const int32_t K256 = 256 * 1024;
     uint64_t cachebytes = 0;
     cachebytes = K256 * (iter + 1) - (128 * 1024);
-    if (cachebytes > max_windows_cachesize)
+    if (cachebytes > max_cachesize)
         cachebytes = 0;
     if (iter & 2) cachebytes = 0;       // use default cachesize half the time
 

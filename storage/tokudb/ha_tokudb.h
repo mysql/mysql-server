@@ -216,10 +216,10 @@ private:
     TOKUDB_SHARE *share;        ///< Shared lock info
 
 #ifdef MARIADB_BASE_VERSION
-    // maria version of MRR
+    // MariaDB version of MRR
     DsMrr_impl ds_mrr;
 #elif 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-// maria version of MRR
+    // MySQL version of MRR
     DsMrr_impl ds_mrr;
 #endif
 
@@ -274,6 +274,7 @@ private:
     //
     uchar *key_buff2; 
     uchar *key_buff3; 
+    uchar *key_buff4;
     //
     // buffer used to temporarily store a "packed key" 
     // data pointer of a DBT will end up pointing to this
@@ -371,6 +372,7 @@ private:
     // know to limit the locking overhead in a call to the fractal tree
     //
     bool range_lock_grabbed;
+    bool range_lock_grabbed_null;
 
     //
     // For bulk inserts, we want option of not updating auto inc
@@ -419,7 +421,7 @@ private:
     uint32_t place_key_into_mysql_buff(KEY* key_info, uchar * record, uchar* data);
     void unpack_key(uchar * record, DBT const *key, uint index);
     uint32_t place_key_into_dbt_buff(KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length);
-    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, bool dont_pack_pk, int key_length = MAX_KEY_LENGTH);
+    DBT* create_dbt_key_from_key(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, bool dont_pack_pk, int key_length, uint8_t inf_byte);
     DBT *create_dbt_key_from_table(DBT * key, uint keynr, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT* create_dbt_key_for_lookup(DBT * key, KEY* key_info, uchar * buff, const uchar * record, bool* has_null, int key_length = MAX_KEY_LENGTH);
     DBT *pack_key(DBT * key, uint keynr, uchar * buff, const uchar * key_ptr, uint key_length, int8_t inf_byte);
@@ -469,9 +471,9 @@ private:
         KEY_AND_COL_INFO* kc_info, 
         uint32_t keynr, 
         bool is_hot_index,
-        srv_row_format_t row_type
+        toku_compression_method compression_method
         );
-    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, srv_row_format_t row_type);
+    int create_main_dictionary(const char* name, TABLE* form, DB_TXN* txn, KEY_AND_COL_INFO* kc_info, toku_compression_method compression_method);
     void trace_create_table_info(const char *name, TABLE * form);
     int is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info);
     int is_val_unique(bool* is_unique, uchar* record, KEY* key_info, uint dict_index, DB_TXN* txn);
@@ -560,8 +562,11 @@ public:
     int write_row(uchar * buf);
     int update_row(const uchar * old_data, uchar * new_data);
     int delete_row(const uchar * buf);
-
+#if MYSQL_VERSION_ID >= 100000
+    void start_bulk_insert(ha_rows rows, uint flags);
+#else
     void start_bulk_insert(ha_rows rows);
+#endif
     int end_bulk_insert();
     int end_bulk_insert(bool abort);
 
@@ -626,8 +631,13 @@ public:
     int cmp_ref(const uchar * ref1, const uchar * ref2);
     bool check_if_incompatible_data(HA_CREATE_INFO * info, uint table_changes);
 
-// MariaDB MRR introduced in 5.5
 #ifdef MARIADB_BASE_VERSION
+
+// MariaDB MRR introduced in 5.5, API changed in MariaDB 10.0
+#if MYSQL_VERSION_ID >= 100000
+#define COST_VECT Cost_estimate
+#endif
+
     int multi_range_read_init(RANGE_SEQ_IF* seq,
                               void* seq_init_param,
                               uint n_ranges, uint mode,
@@ -640,12 +650,11 @@ public:
     ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                   uint key_parts, uint *bufsz, 
                                   uint *flags, COST_VECT *cost);
-    int multi_range_read_explain_info(uint mrr_mode,
-                                      char *str, size_t size);
-#endif
+    int multi_range_read_explain_info(uint mrr_mode, char *str, size_t size);
 
-// MariaDB MRR introduced in 5.6
-#if !defined(MARIADB_BASE_VERSION)
+#else
+
+// MySQL  MRR introduced in 5.6
 #if 50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
     int multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                               uint n_ranges, uint mode, HANDLER_BUFFER *buf);
@@ -657,6 +666,7 @@ public:
     ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
                                   uint *bufsz, uint *flags, Cost_estimate *cost);
 #endif
+
 #endif
 
     // ICP introduced in MariaDB 5.5
@@ -796,7 +806,11 @@ private:
     int map_to_handler_error(int error);
 };
 
-#if defined(MARIADB_BASE_VERSION)
+#if TOKU_INCLUDE_OPTION_STRUCTS
+struct ha_table_option_struct {
+    uint row_format;
+};
+
 struct ha_index_option_struct {
     bool clustering;
 };

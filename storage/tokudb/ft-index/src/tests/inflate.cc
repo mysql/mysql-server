@@ -165,11 +165,7 @@ delete_n (uint32_t ah)
     DBT key;
     dbt_init(&key, &an, 4);
     int r = db->del(db, NULL, &key, DB_DELETE_ANY);
-#ifdef USE_BDB
-    assert(r==0 || r==DB_NOTFOUND);
-#else
     CKERR(r);
-#endif
 }
 
 static void

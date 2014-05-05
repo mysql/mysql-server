@@ -119,13 +119,13 @@ static void test_xid_lsn_independent(int N) {
 
     test_setup(TOKU_TEST_FILENAME, &logger, &ct);
 
-    FT_HANDLE brt;
+    FT_HANDLE ft;
 
     TOKUTXN txn;
     r = toku_txn_begin_txn((DB_TXN*)NULL, (TOKUTXN)0, &txn, logger, TXN_SNAPSHOT_NONE, false);
     CKERR(r);
 
-    r = toku_open_ft_handle("ftfile", 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, toku_builtin_compare_fun);
+    r = toku_open_ft_handle("ftfile", 1, &ft, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, txn, toku_builtin_compare_fun);
     CKERR(r);
 
     r = toku_txn_commit_txn(txn, false, NULL, NULL);
@@ -143,7 +143,7 @@ static void test_xid_lsn_independent(int N) {
         snprintf(key, sizeof(key), "key%x.%x", rands[i], i);
         memset(val, 'v', sizeof(val));
         val[sizeof(val)-1]=0;
-        toku_ft_insert(brt, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
+        toku_ft_insert(ft, toku_fill_dbt(&k, key, 1+strlen(key)), toku_fill_dbt(&v, val, 1+strlen(val)), txn);
     }
     {
         TOKUTXN txn2;
@@ -172,7 +172,7 @@ static void test_xid_lsn_independent(int N) {
     CHECKPOINTER cp = toku_cachetable_get_checkpointer(ct);
     r = toku_checkpoint(cp, logger, NULL, NULL, NULL, NULL, CLIENT_CHECKPOINT);
     CKERR(r);
-    r = toku_close_ft_handle_nolsn(brt, NULL);
+    r = toku_close_ft_handle_nolsn(ft, NULL);
     CKERR(r);
 
     clean_shutdown(&logger, &ct);

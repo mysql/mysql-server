@@ -124,7 +124,7 @@ typedef enum {
     FT_FLUSHER_SPLIT_NONLEAF,               // number of nonleaf nodes split
     FT_FLUSHER_MERGE_LEAF,                  // number of times leaf nodes are merged
     FT_FLUSHER_MERGE_NONLEAF,               // number of times nonleaf nodes are merged
-    FT_FLUSHER_BALANCE_LEAF,                // number of times a leaf node is balanced inside brt
+    FT_FLUSHER_BALANCE_LEAF,                // number of times a leaf node is balanced
     FT_FLUSHER_STATUS_NUM_ROWS
 } ft_flusher_status_entry;
 
@@ -230,7 +230,7 @@ void toku_ft_hot_get_status(FT_HOT_STATUS);
  * we go until the end of the FT.
  */
 int
-toku_ft_hot_optimize(FT_HANDLE brt, DBT* left, DBT* right,
+toku_ft_hot_optimize(FT_HANDLE ft_h, DBT* left, DBT* right,
                       int (*progress_callback)(void *extra, float progress),
                       void *progress_extra, uint64_t* loops_run);
 

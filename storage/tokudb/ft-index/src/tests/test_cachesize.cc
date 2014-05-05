@@ -101,10 +101,6 @@ PATENT RIGHTS GRANT:
 
 static uint64_t
 size_from (uint32_t gbytes, uint32_t bytes) {
-#ifdef USE_BDB
-    if (sizeof (intptr_t) == 4 && gbytes == 4 && bytes == 0)
-        return 0xffffffff;
-#endif
     return ((uint64_t)gbytes << 30) + bytes;
 }
 
@@ -119,11 +115,6 @@ expect_le (uint64_t a, uint32_t gbytes, uint32_t bytes) {
     uint64_t b = size_from(gbytes, bytes);
     if (a != b && verbose)
         printf("WARNING: expect %" PRIu64 " got %" PRIu64 "\n", a, b);
-#ifdef USE_BDB
-    if (a > b) {
-        assert(a == 4ULL<<30 && b == a-1); return;
-    }
-#endif
     assert(a <= b);
 }
  

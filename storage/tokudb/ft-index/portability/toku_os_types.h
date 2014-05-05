@@ -102,17 +102,31 @@ struct fileid {
     ino_t st_ino;
 };
 
+static inline int toku_fileid_cmp(const struct fileid &a, const struct fileid &b) {
+    if (a.st_dev < b.st_dev) {
+        return -1;
+    } else if (a.st_dev > b.st_dev) {
+        return +1;
+    } else {
+        if (a.st_ino < b.st_ino) {
+            return -1;
+        } else if (a.st_ino > b.st_ino) {
+            return +1;
+        } else {
+            return 0;
+        }
+    }
+}
+
 __attribute__((const, nonnull, warn_unused_result))
 static inline bool toku_fileids_are_equal(struct fileid *a, struct fileid *b) {
-    return a->st_dev == b->st_dev && a->st_ino == b->st_ino;
+    return toku_fileid_cmp(*a, *b) == 0;
 }
 
 typedef struct stat toku_struct_stat;
 
-// windows compat
 #if !defined(O_BINARY)
 #define O_BINARY 0
 #endif
-
 
 #endif

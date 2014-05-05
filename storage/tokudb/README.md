@@ -24,19 +24,20 @@ working MySQL or MariaDB with Tokutek patches, and with the TokuDB storage
 engine, called `make.mysql.bash`.  This script will download copies of the
 needed source code from github and build everything.
 
-To build MySQL with TokuDB 7.1.0:
+To build MySQL 5.5.36 with TokuDB 7.1.5:
 ```sh
-scripts/make.mysql.bash --mysqlbuild=mysql-5.5.30-tokudb-7.1.0-linux-x86_64
+scripts/make.mysql.bash --mysqlbuild=mysql-5.5.36-tokudb-7.1.5-linux-x86_64
 ```
 
-To build MariaDB with TokuDB 7.1.0:
+To build MariaDB 5.5.36 with TokuDB 7.1.5:
 ```sh
-scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.30-tokudb-7.1.0-linux-x86_64
+scripts/make.mysql.bash --mysqlbuild=mariadb-5.5.36-tokudb-7.1.5-linux-x86_64
 ```
 
 Before you start, make sure you have a C++11-compatible compiler (GCC >=
 4.7 is recommended), as well as CMake >=2.8.8, and the libraries and
-header files for valgrind,zlib, and Berkeley DB.
+header files for valgrind,zlib, and Berkeley DB.  We are using the gcc 4.7
+in devtoolset-1.1.
 
 On CentOS, `yum install valgrind-devel zlib-devel libdb-devel`
 
@@ -76,5 +77,5 @@ TokuDB is available under the GPL version 2.  See [COPYING][copying]
 The TokuKV component of TokuDB is available under the GPL version 2, with
 slight modifications.  See [README-TOKUDB][license].
 
-[copying]: http://github.com/Tokutek/ft-engine/blob/master/COPYING
-[license]: http://github.com/Tokutek/ft-index/blob/master/README-TOKUDB
+[copying]: http://github.com/Tokutek/tokudb-engine/blob/master/COPYING
+[license]: http://github.com/Tokutek/tokudb-index/blob/master/README-TOKUDB

@@ -2,8 +2,7 @@ SET DEFAULT_STORAGE_ENGINE='tokudb';
 DROP TABLE IF EXISTS foo,bar, foo_isam, bar_isam;
 set session tokudb_disable_slow_alter=OFF;
 create table foo (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), key (b) clustering=yes)engine=TokuDB;
-create table foo_isam like foo;
-alter table foo_isam engine=MyISAM;
+create table foo_isam (aa int, bb int, cc int, dd int, ee int, a int, b varchar(20), c int, d int, e int, primary key (e), key(d), unique key(c), key (b))engine=MyISAM;
 create table bar (a int) engine=TokuDB;
 create table bar_isam like bar;
 alter table bar_isam engine=MyISAM;
@@ -79,7 +78,7 @@ foo_isam	CREATE TABLE `foo_isam` (
   PRIMARY KEY (`a`),
   UNIQUE KEY `c` (`c`),
   KEY `d` (`d`),
-  KEY `b` (`b`) `clustering`=yes
+  KEY `b` (`b`)
 ) ENGINE=MyISAM DEFAULT CHARSET=latin1
 alter table foo change column aa aa int NOT NULL;
 alter table foo_isam change column aa aa int NOT NULL;

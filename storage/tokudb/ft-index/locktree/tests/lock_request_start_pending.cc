@@ -97,13 +97,11 @@ namespace toku {
 // stored in the lock request set as pending.
 void lock_request_unit_test::test_start_pending(void) {
     int r;
-    locktree::manager mgr;
-    locktree *lt;
+    locktree lt;
     lock_request request;
 
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
     DICTIONARY_ID dict_id = { 1 };
-    lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+    lt.create(nullptr, dict_id, nullptr, compare_dbts);
 
     TXNID txnid_a = 1001;
     TXNID txnid_b = 2001;
@@ -113,15 +111,15 @@ void lock_request_unit_test::test_start_pending(void) {
     const DBT *two = get_dbt(2);
 
     // take a range lock using txnid b
-    r = lt->acquire_write_lock(txnid_b, zero, two, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, zero, two, nullptr, false);
     invariant_zero(r);
 
-    locktree::lt_lock_request_info *info = lt->get_lock_request_info();
+    lt_lock_request_info *info = lt.get_lock_request_info();
 
     // start a lock request for 1,1
     // it should fail. the request should be stored and in the pending state.
     request.create();
-    request.set(lt, txnid_a, one, one, lock_request::type::WRITE, false);
+    request.set(&lt, txnid_a, one, one, lock_request::type::WRITE, false);
     r = request.start();
     invariant(r == DB_LOCK_NOTGRANTED);
     invariant(info->pending_lock_requests.size() == 1);
@@ -134,20 +132,21 @@ void lock_request_unit_test::test_start_pending(void) {
     invariant(compare_dbts(nullptr, &request.m_right_key_copy, one) == 0);
 
     // release the range lock for txnid b
-    locktree_unit_test::locktree_test_release_lock(lt, txnid_b, zero, two);
+    locktree_unit_test::locktree_test_release_lock(&lt, txnid_b, zero, two);
 
     // now retry the lock requests.
     // it should transition the request to successfully complete.
-    lock_request::retry_all_lock_requests(lt);
+    lock_request::retry_all_lock_requests(&lt);
     invariant(info->pending_lock_requests.size() == 0);
     invariant(request.m_state == lock_request::state::COMPLETE);
     invariant(request.m_complete_r == 0);
 
-    locktree_unit_test::locktree_test_release_lock(lt, txnid_a, one, one);
+    locktree_unit_test::locktree_test_release_lock(&lt, txnid_a, one, one);
 
     request.destroy();
-    mgr.release_lt(lt);
-    mgr.destroy();
+
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

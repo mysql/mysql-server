@@ -241,8 +241,6 @@ PAIR_ATTR *sizep __attribute__((__unused__)), int * dirtyp, void*extraargs) {
     return 0;
 }
 
-#if !TOKU_WINDOWS
-
 static void test_multi_filehandles (void) {
     CACHETABLE t;
     CACHEFILE f1,f2,f3;
@@ -290,8 +288,6 @@ static void test_multi_filehandles (void) {
 
     toku_cachetable_close(&t);
 }
-
-#endif
 
 static void test_dirty_flush(CACHEFILE f,
                              int UU(fd),
@@ -587,15 +583,11 @@ test_main (int argc, const char *argv[]) {
     test_mutex_init();
 
     // run tests
-#if !TOKU_WINDOWS
     test_multi_filehandles();
-#endif
     test_cachetable_create();
     for (i=0; i<1; i++) {
         test_nested_pin();
-#if !TOKU_WINDOWS
         test_multi_filehandles ();
-#endif
         test_dirty();
         test_size_resize();
         //test_size_flush();

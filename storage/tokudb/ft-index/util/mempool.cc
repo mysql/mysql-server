@@ -130,16 +130,32 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_
  */
 void toku_mempool_construct(struct mempool *mp, size_t data_size) {
     if (data_size) {
-        size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
-        mp->base = toku_xmalloc(mpsize);               // allocate buffer for mempool
-        mp->size = mpsize;
-        mp->free_offset = 0;                     // address of first available memory for new data
-        mp->frag_size = 0;                       // all allocated space is now in use
+        // add 25% slack
+        size_t mp_size = data_size + (data_size / 4);
+        mp->base = toku_xmalloc_aligned(64, mp_size);
+        mp->size = mp_size;
+        mp->free_offset = 0;
+        mp->frag_size = 0;
     }
     else {
         toku_mempool_zero(mp);
-        //        fprintf(stderr, "Empty mempool created (base constructor)\n");
     }
+}
+
+void toku_mempool_reset(struct mempool *mp) {
+    mp->free_offset = 0;
+    mp->frag_size = 0;
+}
+
+void toku_mempool_realloc_larger(struct mempool *mp, size_t data_size) {
+    invariant(data_size >= mp->free_offset);
+
+    size_t mpsize = data_size + (data_size/4);     // allow 1/4 room for expansion (would be wasted if read-only)
+    void* newmem = toku_xmalloc_aligned(64, mpsize);   // allocate new buffer for mempool
+    memcpy(newmem, mp->base, mp->free_offset);  // Copy old info
+    toku_free(mp->base);
+    mp->base = newmem;
+    mp->size = mpsize;
 }
 
 
@@ -150,27 +166,44 @@ void toku_mempool_destroy(struct mempool *mp) {
     toku_mempool_zero(mp);
 }
 
-void *toku_mempool_get_base(struct mempool *mp) {
+void *toku_mempool_get_base(const struct mempool *mp) {
     return mp->base;
 }
 
-size_t toku_mempool_get_size(struct mempool *mp) {
+void *toku_mempool_get_pointer_from_base_and_offset(const struct mempool *mp, size_t offset) {
+    return reinterpret_cast<void*>(reinterpret_cast<char*>(mp->base) + offset);
+}
+
+size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, const void* p) {
+    paranoid_invariant(p >= mp->base);
+    return reinterpret_cast<const char*>(p) - reinterpret_cast<const char*>(mp->base);
+}
+
+size_t toku_mempool_get_size(const struct mempool *mp) {
     return mp->size;
 }
 
-size_t toku_mempool_get_frag_size(struct mempool *mp) {
+size_t toku_mempool_get_frag_size(const struct mempool *mp) {
     return mp->frag_size;
 }
 
-size_t toku_mempool_get_used_space(struct mempool *mp) {
+size_t toku_mempool_get_used_size(const struct mempool *mp) {
     return mp->free_offset - mp->frag_size;
 }
 
-size_t toku_mempool_get_free_space(struct mempool *mp) {
+void* toku_mempool_get_next_free_ptr(const struct mempool *mp) {
+    return toku_mempool_get_pointer_from_base_and_offset(mp, mp->free_offset);
+}
+
+size_t toku_mempool_get_offset_limit(const struct mempool *mp) {
+    return mp->free_offset;
+}
+
+size_t toku_mempool_get_free_size(const struct mempool *mp) {
     return mp->size - mp->free_offset;
 }
 
-size_t toku_mempool_get_allocated_space(struct mempool *mp) {
+size_t toku_mempool_get_allocated_size(const struct mempool *mp) {
     return mp->free_offset;
 }
 
@@ -211,10 +244,10 @@ size_t toku_mempool_footprint(struct mempool *mp) {
     return rval;
 }
 
-void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp) {
+void toku_mempool_clone(const struct mempool* orig_mp, struct mempool* new_mp) {
     new_mp->frag_size = orig_mp->frag_size;
     new_mp->free_offset = orig_mp->free_offset;
     new_mp->size = orig_mp->free_offset; // only make the cloned mempool store what is needed
-    new_mp->base = toku_xmalloc(new_mp->size);
+    new_mp->base = toku_xmalloc_aligned(64, new_mp->size);
     memcpy(new_mp->base, orig_mp->base, new_mp->size);
 }

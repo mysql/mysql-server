@@ -183,15 +183,14 @@ doit (void) {
     FTNODE node = NULL;
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 3);
@@ -213,15 +212,14 @@ doit (void) {
     // only the middle buffer, let's verify this.
     node = NULL;
     fill_bfe_for_min_read(&bfe, t->ft);
-    toku_pin_ftnode_off_client_thread(
+    toku_pin_ftnode(
         t->ft, 
         node_root,
         toku_cachetable_hash(t->ft->cf, node_root),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->height == 1);
     assert(node->n_children == 3);

@@ -465,8 +465,8 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     *ftp = ft;
 }
 
-// TODO: (Zardosht) get rid of brt parameter
-int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_acceptable_lsn, FT *header)
+// TODO: (Zardosht) get rid of ft parameter
+int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN max_acceptable_lsn, FT *header)
 // If the cachefile already has the header, then just get it.
 // If the cachefile has not been initialized, then don't modify anything.
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
@@ -475,8 +475,8 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
         FT h;
         if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
             *header = h;
-            assert(brt->options.update_fun == h->update_fun);
-            assert(brt->options.compare_fun == h->compare_fun);
+            assert(ft_handle->options.update_fun == h->update_fun);
+            assert(ft_handle->options.compare_fun == h->compare_fun);
             return 0;
         }
     }
@@ -494,8 +494,8 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE brt, CACHEFILE cf, LSN max_ac
     // GCC 4.8 seems to get confused by the gotos in the deserialize code and think h is maybe uninitialized.
     invariant_notnull(h);
     h->cf = cf;
-    h->compare_fun = brt->options.compare_fun;
-    h->update_fun = brt->options.update_fun;
+    h->compare_fun = ft_handle->options.compare_fun;
+    h->update_fun = ft_handle->options.update_fun;
     toku_cachefile_set_userdata(cf,
                                 (void*)h,
                                 ft_log_fassociate_during_checkpoint,
@@ -557,13 +557,13 @@ FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h) {
     return ft_handle_ret;
 }
 
-// Purpose: set fields in brt_header to capture accountability info for start of HOT optimize.
+// Purpose: set fields in ft_header to capture accountability info for start of HOT optimize.
 // Note: HOT accountability variables in header are modified only while holding header lock.
 //       (Header lock is really needed for touching the dirty bit, but it's useful and 
 //       convenient here for keeping the HOT variables threadsafe.)
 void
-toku_ft_note_hot_begin(FT_HANDLE brt) {
-    FT ft = brt->ft;
+toku_ft_note_hot_begin(FT_HANDLE ft_handle) {
+    FT ft = ft_handle->ft;
     time_t now = time(NULL);
 
     // hold lock around setting and clearing of dirty bit
@@ -576,11 +576,11 @@ toku_ft_note_hot_begin(FT_HANDLE brt) {
 }
 
 
-// Purpose: set fields in brt_header to capture accountability info for end of HOT optimize.
+// Purpose: set fields in ft_header to capture accountability info for end of HOT optimize.
 // Note: See note for toku_ft_note_hot_begin().
 void
-toku_ft_note_hot_complete(FT_HANDLE brt, bool success, MSN msn_at_start_of_hot) {
-    FT ft = brt->ft;
+toku_ft_note_hot_complete(FT_HANDLE ft_handle, bool success, MSN msn_at_start_of_hot) {
+    FT ft = ft_handle->ft;
     time_t now = time(NULL);
 
     toku_ft_lock(ft);
@@ -626,7 +626,7 @@ toku_ft_init(FT ft,
     ft->h->checkpoint_lsn   = checkpoint_lsn;
 }
 
-// Open a brt for use by redirect.  The new brt must have the same dict_id as the old_ft passed in.  (FILENUM is assigned by the ft_handle_open() function.)
+// Open an ft for use by redirect.  The new ft must have the same dict_id as the old_ft passed in.  (FILENUM is assigned by the ft_handle_open() function.)
 static int
 ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTXN txn, FT old_h) {
     FT_HANDLE t;
@@ -664,9 +664,9 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
 
     FT dst_h = NULL;
     struct toku_list *list;
-    // open a dummy brt based off of 
+    // open a dummy ft based off of 
     // dst_fname_in_env to get the header
-    // then we will change all the brt's to have
+    // then we will change all the ft's to have
     // their headers point to dst_h instead of src_h
     FT_HANDLE tmp_dst_ft = NULL;
     r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_h);
@@ -680,7 +680,7 @@ dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn
     assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
     assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
 
-    // for each live brt, brt->ft is currently src_h
+    // for each live ft_handle, ft_handle->ft is currently src_h
     // we want to change it to dummy_dst
     toku_ft_grab_reflock(src_h);
     while (!toku_list_empty(&src_h->live_ft_handles)) {
@@ -720,7 +720,7 @@ toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
         FILENUM new_filenum = toku_cachefile_filenum(new_h->cf);
         assert(old_filenum.fileid!=new_filenum.fileid); //Cannot be same file.
 
-        //No living brts in old header.
+        //No living fts in old header.
         toku_ft_grab_reflock(old_h);
         assert(toku_list_empty(&old_h->live_ft_handles));
         toku_ft_release_reflock(old_h);
@@ -738,13 +738,13 @@ toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
 /****
  * on redirect or abort:
  *  if redirect txn_note_doing_work(txn)
- *  if redirect connect src brt to txn (txn modified this brt)
- *  for each src brt
- *    open brt to dst file (create new brt struct)
- *    if redirect connect dst brt to txn 
- *    redirect db to new brt
- *    redirect cursors to new brt
- *  close all src brts
+ *  if redirect connect src ft to txn (txn modified this ft)
+ *  for each src ft
+ *    open ft to dst file (create new ft struct)
+ *    if redirect connect dst ft to txn 
+ *    redirect db to new ft
+ *    redirect cursors to new ft
+ *  close all src fts
  *  if redirect make rollback log entry
  * 
  * on commit:
@@ -756,21 +756,21 @@ int
 toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft_h, TOKUTXN txn) {
 // Input args:
 //   new file name for dictionary (relative to env)
-//   old_ft_h is a live brt of open handle ({DB, BRT} pair) that currently refers to old dictionary file.
+//   old_ft_h is a live ft of open handle ({DB, FT_HANDLE} pair) that currently refers to old dictionary file.
 //   (old_ft_h may be one of many handles to the dictionary.)
 //   txn that created the loader
 // Requires: 
 //   multi operation lock is held.
-//   The brt is open.  (which implies there can be no zombies.)
+//   The ft is open.  (which implies there can be no zombies.)
 //   The new file must be a valid dictionary.
-//   The block size and flags in the new file must match the existing BRT.
+//   The block size and flags in the new file must match the existing FT.
 //   The new file must already have its descriptor in it (and it must match the existing descriptor).
 // Effect:   
 //   Open new FTs (and related header and cachefile) to the new dictionary file with a new FILENUM.
-//   Redirect all DBs that point to brts that point to the old file to point to brts that point to the new file.
+//   Redirect all DBs that point to fts that point to the old file to point to fts that point to the new file.
 //   Copy the dictionary id (dict_id) from the header of the original file to the header of the new file.
 //   Create a rollback log entry.
-//   The original BRT, header, cachefile and file remain unchanged.  They will be cleaned up on commmit.
+//   The original FT, header, cachefile and file remain unchanged.  They will be cleaned up on commmit.
 //   If the txn aborts, then this operation will be undone
     int r;
 
@@ -1077,8 +1077,8 @@ garbage_helper(BLOCKNUM blocknum, int64_t UU(size), int64_t UU(address), void *e
         goto exit;
     }
     for (int i = 0; i < node->n_children; ++i) {
-        BN_DATA bd = BLB_DATA(node, i);
-        r = bd->omt_iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
+        bn_data* bd = BLB_DATA(node, i);
+        r = bd->iterate<struct garbage_helper_extra, garbage_leafentry_helper>(info);
         if (r != 0) {
             goto exit;
         }

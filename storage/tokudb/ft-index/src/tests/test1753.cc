@@ -99,10 +99,6 @@ DB_TXN *null_txn=0;
 
 static void do_test1753 (int do_create_on_reopen) {
 
-    if (IS_TDB==0 && DB_VERSION_MAJOR==4 && DB_VERSION_MINOR<7 && do_create_on_reopen==0) {
-	return; // do_create_on_reopen==0 segfaults in 4.6
-    }
-
     int r;
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);

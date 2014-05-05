@@ -81,7 +81,7 @@ pushd $build_dir
 if [ $? != 0 ] ; then exit 1; fi
 
 # make mysql
-bash -x $HOME/github/ft-engine/scripts/make.mysql.bash $make_args
+bash -x $HOME/github/tokudb-engine/scripts/make.mysql.bash $make_args
 if [ $? != 0 ] ; then exitcode=1; fi
 
 # generate md5 sums

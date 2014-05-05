@@ -102,7 +102,7 @@ static DB * const null_db = 0;
 enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 
 CACHETABLE ct;
-FT_HANDLE brt;
+FT_HANDLE ft;
 const char *fname = TOKU_TEST_FILENAME;
 
 static int update_func(
@@ -133,30 +133,30 @@ doit (void) {
     
     toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
     unlink(fname);
-    r = toku_open_ft_handle(fname, 1, &brt, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
+    r = toku_open_ft_handle(fname, 1, &ft, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
 
-    brt->options.update_fun = update_func;
-    brt->ft->update_fun = update_func;
+    ft->options.update_fun = update_func;
+    ft->ft->update_fun = update_func;
     
     toku_testsetup_initialize();  // must precede any other toku_testsetup calls
 
-    r = toku_testsetup_leaf(brt, &node_leaf[0], 1, NULL, NULL);
+    r = toku_testsetup_leaf(ft, &node_leaf[0], 1, NULL, NULL);
     assert(r==0);
-    r = toku_testsetup_leaf(brt, &node_leaf[1], 1, NULL, NULL);
+    r = toku_testsetup_leaf(ft, &node_leaf[1], 1, NULL, NULL);
     assert(r==0);
 
     char* pivots[1];
     pivots[0] = toku_strdup("kkkkk");
     int pivot_len = 6;
 
-    r = toku_testsetup_nonleaf(brt, 1, &node_internal, 2, node_leaf, pivots, &pivot_len);
+    r = toku_testsetup_nonleaf(ft, 1, &node_internal, 2, node_leaf, pivots, &pivot_len);
     assert(r==0);
 
-    r = toku_testsetup_nonleaf(brt, 2, &node_root, 1, &node_internal, 0, 0);
+    r = toku_testsetup_nonleaf(ft, 2, &node_root, 1, &node_internal, 0, 0);
     assert(r==0);
 
-    r = toku_testsetup_root(brt, node_root);
+    r = toku_testsetup_root(ft, node_root);
     assert(r==0);
 
     //
@@ -166,7 +166,7 @@ doit (void) {
 
     // now we insert a row into each leaf node
     r = toku_testsetup_insert_to_leaf (
-        brt, 
+        ft, 
         node_leaf[0], 
         "a", // key
         2, // keylen
@@ -175,7 +175,7 @@ doit (void) {
         );
     assert(r==0);
     r = toku_testsetup_insert_to_leaf (
-        brt, 
+        ft, 
         node_leaf[1], 
         "z", // key
         2, // keylen
@@ -190,7 +190,7 @@ doit (void) {
     //
     for (int i = 0; i < 100000; i++) {
         r = toku_testsetup_insert_to_nonleaf (
-            brt, 
+            ft, 
             node_internal, 
             FT_DELETE_ANY, 
             "jj", // this key does not exist, so its message application should be a no-op
@@ -205,7 +205,7 @@ doit (void) {
     // now insert a broadcast message into the root
     //
     r = toku_testsetup_insert_to_nonleaf (
-        brt, 
+        ft, 
         node_root, 
         FT_UPDATE_BROADCAST_ALL, 
         NULL, 
@@ -219,28 +219,27 @@ doit (void) {
     // now let us induce a clean on the internal node
     //    
     FTNODE node;
-    toku_pin_node_with_min_bfe(&node, node_leaf[1], brt);
+    toku_pin_node_with_min_bfe(&node, node_leaf[1], ft);
     // hack to get merge going
     BLB_SEQINSERT(node, node->n_children-1) = false;
-    toku_unpin_ftnode(brt->ft, node);
+    toku_unpin_ftnode(ft->ft, node);
 
     // now do a lookup on one of the keys, this should bring a leaf node up to date 
     DBT k;
     struct check_pair pair = {2, "a", 0, NULL, 0};
-    r = toku_ft_lookup(brt, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair);
+    r = toku_ft_lookup(ft, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair);
     assert(r==0);
 
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
-        brt->ft, 
+    fill_bfe_for_min_read(&bfe, ft->ft);
+    toku_pin_ftnode(
+        ft->ft, 
         node_internal,
-        toku_cachetable_hash(brt->ft->cf, node_internal),
+        toku_cachetable_hash(ft->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     assert(node->n_children == 2);
     // we expect that this flushes its buffer, that
@@ -249,27 +248,26 @@ doit (void) {
     r = toku_ftnode_cleaner_callback(
         node,
         node_internal,
-        toku_cachetable_hash(brt->ft->cf, node_internal),
-        brt->ft
+        toku_cachetable_hash(ft->ft->cf, node_internal),
+        ft->ft
         );
 
     // verify that node_internal's buffer is empty
-    fill_bfe_for_min_read(&bfe, brt->ft);
-    toku_pin_ftnode_off_client_thread(
-        brt->ft, 
+    fill_bfe_for_min_read(&bfe, ft->ft);
+    toku_pin_ftnode(
+        ft->ft, 
         node_internal,
-        toku_cachetable_hash(brt->ft->cf, node_internal),
+        toku_cachetable_hash(ft->ft->cf, node_internal),
         &bfe,
         PL_WRITE_EXPENSIVE, 
-        0,
-        NULL,
-        &node
+        &node,
+        true
         );
     // check that merge happened
     assert(node->n_children == 1);
     // check that buffers are empty
     assert(toku_bnc_nbytesinbuf(BNC(node, 0)) == 0);
-    toku_unpin_ftnode_off_client_thread(brt->ft, node);
+    toku_unpin_ftnode(ft->ft, node);
 
     //
     // now run a checkpoint to get everything clean,
@@ -281,14 +279,14 @@ doit (void) {
 
     // check that lookups on the two keys is still good
     struct check_pair pair1 = {2, "a", 0, NULL, 0};
-    r = toku_ft_lookup(brt, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair1);
+    r = toku_ft_lookup(ft, toku_fill_dbt(&k, "a", 2), lookup_checkf, &pair1);
     assert(r==0);
     struct check_pair pair2 = {2, "z", 0, NULL, 0};
-    r = toku_ft_lookup(brt, toku_fill_dbt(&k, "z", 2), lookup_checkf, &pair2);
+    r = toku_ft_lookup(ft, toku_fill_dbt(&k, "z", 2), lookup_checkf, &pair2);
     assert(r==0);
 
 
-    r = toku_close_ft_handle_nolsn(brt, 0);    assert(r==0);
+    r = toku_close_ft_handle_nolsn(ft, 0);    assert(r==0);
     toku_cachetable_close(&ct);
 
     toku_free(pivots[0]);

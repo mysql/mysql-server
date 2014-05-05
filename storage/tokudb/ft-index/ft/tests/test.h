@@ -121,7 +121,7 @@ PATENT RIGHTS GRANT:
 const ITEMLEN len_ignore = 0xFFFFFFFF;
 
 
-// dummymsn needed to simulate msn because test messages are injected at a lower level than toku_ft_root_put_cmd()
+// dummymsn needed to simulate msn because test messages are injected at a lower level than toku_ft_root_put_msg()
 #define MIN_DUMMYMSN ((MSN) {(uint64_t)1<<62})
 static MSN dummymsn;      
 static int dummymsn_initialized = 0;

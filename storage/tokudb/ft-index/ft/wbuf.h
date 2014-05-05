@@ -95,9 +95,9 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include <portability/toku_htonl.h>
+#include <util/x1764.h>
 
 #include "fttypes.h"
-#include "x1764.h"
 
 #define CRC_INCR
 
@@ -121,7 +121,7 @@ static inline void wbuf_nocrc_init (struct wbuf *w, void *buf, DISKOFF size) {
 
 static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
     wbuf_nocrc_init(w, buf, size);
-    x1764_init(&w->checksum);
+    toku_x1764_init(&w->checksum);
 }
 
 static inline size_t wbuf_get_woffset(struct wbuf *w) {
@@ -142,7 +142,7 @@ static inline void wbuf_nocrc_uint8_t (struct wbuf *w, uint8_t ch) {
 
 static inline void wbuf_char (struct wbuf *w, unsigned char ch) {
     wbuf_nocrc_char (w, ch);
-    x1764_add(&w->checksum, &w->buf[w->ndone-1], 1);
+    toku_x1764_add(&w->checksum, &w->buf[w->ndone-1], 1);
 }
 
 //Write an int that MUST be in network order regardless of disk order
@@ -150,7 +150,7 @@ static void wbuf_network_int (struct wbuf *w, int32_t i) __attribute__((__unused
 static void wbuf_network_int (struct wbuf *w, int32_t i) {
     assert(w->ndone + 4 <= w->size);
     *(uint32_t*)(&w->buf[w->ndone]) = toku_htonl(i);
-    x1764_add(&w->checksum, &w->buf[w->ndone], 4);
+    toku_x1764_add(&w->checksum, &w->buf[w->ndone], 4);
     w->ndone += 4;
 }
 
@@ -176,7 +176,7 @@ static inline void wbuf_nocrc_int (struct wbuf *w, int32_t i) {
 
 static inline void wbuf_int (struct wbuf *w, int32_t i) {
     wbuf_nocrc_int(w, i);
-    x1764_add(&w->checksum, &w->buf[w->ndone-4], 4);
+    toku_x1764_add(&w->checksum, &w->buf[w->ndone-4], 4);
 }
 
 static inline void wbuf_nocrc_uint (struct wbuf *w, uint32_t i) {
@@ -185,6 +185,13 @@ static inline void wbuf_nocrc_uint (struct wbuf *w, uint32_t i) {
 
 static inline void wbuf_uint (struct wbuf *w, uint32_t i) {
     wbuf_int(w, (int32_t)i);
+}
+
+static inline uint8_t* wbuf_nocrc_reserve_literal_bytes(struct wbuf *w, uint32_t nbytes) {
+    assert(w->ndone + nbytes <= w->size);
+    uint8_t * dest = w->buf + w->ndone;
+    w->ndone += nbytes;
+    return dest;
 }
 
 static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
@@ -200,7 +207,7 @@ static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, ui
 
 static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
     wbuf_nocrc_literal_bytes(w, bytes_bv, nbytes);
-    x1764_add(&w->checksum, &w->buf[w->ndone-nbytes], nbytes);
+    toku_x1764_add(&w->checksum, &w->buf[w->ndone-nbytes], nbytes);
 }
 
 static void wbuf_nocrc_bytes (struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {

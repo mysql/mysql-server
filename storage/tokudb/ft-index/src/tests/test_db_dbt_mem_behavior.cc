@@ -223,14 +223,12 @@ test_main(int argc, char *const argv[]) {
             assert(!was_truncated);
 
             bool ulen_should_change = false;
-#if defined(USE_TDB)
             if (flags[j] == DB_DBT_REALLOC) {
                 ulen_should_change = (bool)(old_ulen < sizeof(DATA));
             }
             else if (flags[j] == DB_DBT_MALLOC) {
                 ulen_should_change = (bool)(old_ulen != sizeof(DATA)*2);
             }
-#endif
             assert(ulen_should_change == (bool)ulen_changed);
             assert(size_full);
             assert(doclone == !small_buffer);

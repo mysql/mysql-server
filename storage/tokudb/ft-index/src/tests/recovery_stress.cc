@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include "checkpoint_test.h"
 
 
-static const uint64_t max_windows_cachesize = 256 << 20;
+static const uint64_t max_cachesize = 256 << 20;
 static const int NUM_DICTIONARIES = 1;
 
 static const int OPER_STEPS = 6;
@@ -495,7 +495,7 @@ static void run_test (int iter) {
     uint64_t cachebytes = 0; // 0 => use default size
     const int32_t K256 = 256 * 1024;
     cachebytes = K256 * (iter + 1) - (128 * 1024);
-    if (cachebytes > max_windows_cachesize)
+    if (cachebytes > max_cachesize)
         cachebytes = 0;
     if (iter & 2) cachebytes = 0;       // use default cachesize half the time
 

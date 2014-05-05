@@ -149,13 +149,6 @@ do_test_abort2 (void) {
     r=db_create(&db, env, 0); CKERR(r);
     r=env->txn_begin(env, 0, &txn, 0); CKERR(r);
     r=db->open(db, txn, "foo.db", 0, DB_BTREE, 0, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
-#ifndef TOKUDB
-    {
-	uint32_t ps;
-	r=db->get_pagesize(db, &ps); CKERR(r);
-	assert(ps==4096);
-    }
-#endif
     r=txn->commit(txn, 0);    assert(r==0);
 
     r=env->txn_begin(env, 0, &txn, 0); assert(r==0);

@@ -114,13 +114,10 @@ static int my_killed_callback(void) {
 // make sure deadlocks are detected when a lock request starts
 void lock_request_unit_test::test_wait_time_callback(void) {
     int r;
-    locktree::manager mgr;
-    locktree *lt;
-
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
+    locktree lt;
 
     DICTIONARY_ID dict_id = { 1 };
-    lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+    lt.create(nullptr, dict_id, nullptr, compare_dbts);
 
     TXNID txnid_a = 1001;
     lock_request request_a;
@@ -133,12 +130,12 @@ void lock_request_unit_test::test_wait_time_callback(void) {
     const DBT *one = get_dbt(1);
 
     // a locks 'one'
-    request_a.set(lt, txnid_a, one, one, lock_request::type::WRITE, false);
+    request_a.set(&lt, txnid_a, one, one, lock_request::type::WRITE, false);
     r = request_a.start();
     assert_zero(r);
 
     // b tries to lock 'one'
-    request_b.set(lt, txnid_b, one, one, lock_request::type::WRITE, false);
+    request_b.set(&lt, txnid_b, one, one, lock_request::type::WRITE, false);
     r = request_b.start();
     assert(r == DB_LOCK_NOTGRANTED);
 
@@ -158,11 +155,11 @@ void lock_request_unit_test::test_wait_time_callback(void) {
 
     request_b.destroy();
 
-    release_lock_and_retry_requests(lt, txnid_a, one, one);
+    release_lock_and_retry_requests(&lt, txnid_a, one, one);
     request_a.destroy();
 
-    mgr.release_lt(lt);
-    mgr.destroy();
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

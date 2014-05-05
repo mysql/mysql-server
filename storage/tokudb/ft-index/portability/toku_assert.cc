@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-#include "toku_config.h"
+#include <portability/toku_config.h>
 
 #include <toku_portability.h>
 #include "toku_assert.h"
@@ -101,16 +101,11 @@ PATENT RIGHTS GRANT:
 # include <sys/malloc.h>
 #endif
 #include <dlfcn.h>
-#if !TOKU_WINDOWS
 #include <execinfo.h>
-#endif
 
-
-#if !TOKU_WINDOWS
-#define N_POINTERS 1000
 // These are statically allocated so that the backtrace can run without any calls to malloc()
+#define N_POINTERS 1000
 static void *backtrace_pointers[N_POINTERS];
-#endif
 
 static uint64_t engine_status_num_rows = 0;
 
@@ -123,14 +118,17 @@ toku_assert_init(void)
     malloc_stats_f = (malloc_stats_fun_t) dlsym(RTLD_DEFAULT, "malloc_stats");
 }
 
-// Function pointers are zero by default so asserts can be used by brt-layer tests without an environment.
+// Function pointers are zero by default so asserts can be used by ft-layer tests without an environment.
 static int (*toku_maybe_get_engine_status_text_p)(char* buff, int buffsize) = 0;
+static int (*toku_maybe_err_engine_status_p)(void) = 0;
 static void (*toku_maybe_set_env_panic_p)(int code, const char* msg) = 0;
 
-void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int), 
+void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(char*, int),
+                               int (*toku_maybe_err_engine_status_pointer)(void),
 			       void (*toku_maybe_set_env_panic_pointer)(int, const char*),
                                uint64_t num_rows) {
     toku_maybe_get_engine_status_text_p = toku_maybe_get_engine_status_text_pointer;
+    toku_maybe_err_engine_status_p = toku_maybe_err_engine_status_pointer;
     toku_maybe_set_env_panic_p = toku_maybe_set_env_panic_pointer;
     engine_status_num_rows = num_rows;
 }
@@ -138,56 +136,66 @@ void toku_assert_set_fpointers(int (*toku_maybe_get_engine_status_text_pointer)(
 bool toku_gdb_dump_on_assert = false;
 void (*do_assert_hook)(void) = NULL;
 
-static void toku_do_backtrace_abort(void) __attribute__((noreturn));
-
-static void 
-toku_do_backtrace_abort(void) {
-
+void db_env_do_backtrace_errfunc(toku_env_err_func errfunc, const void *env) {
     // backtrace
-#if !TOKU_WINDOWS
     int n = backtrace(backtrace_pointers, N_POINTERS);
-    fprintf(stderr, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(stderr);
-    backtrace_symbols_fd(backtrace_pointers, n, fileno(stderr));
-#endif
-
-    fflush(stderr);
-    
-    if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
-	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
-	char buff[buffsize];	
-	toku_maybe_get_engine_status_text_p(buff, buffsize);  
-	fprintf(stderr, "Engine status:\n%s\n", buff);
+    errfunc(env, 0, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert);
+    char **syms = backtrace_symbols(backtrace_pointers, n);
+    if (syms) {
+        for (char **symstr = syms; symstr != NULL && (symstr - syms) < n; ++symstr) {
+            errfunc(env, 0, *symstr);
+        }
+        free(syms);
     }
-    else
-	fprintf(stderr, "Engine status function not available\n");
-    fprintf(stderr, "Memory usage:\n");
-    fflush(stderr);	    // just in case malloc_stats() crashes, we still want engine status (and to know that malloc_stats() failed)
+
+    if (engine_status_num_rows && toku_maybe_err_engine_status_p) {
+	toku_maybe_err_engine_status_p();
+    } else {
+	errfunc(env, 0, "Engine status function not available\n");
+    }
+    errfunc(env, 0, "Memory usage:\n");
     if (malloc_stats_f) {
         malloc_stats_f();
     }
-    fflush(stderr);	    
 
     if (do_assert_hook) do_assert_hook();
     if (toku_gdb_dump_on_assert) {
         toku_try_gdb_stack_trace(nullptr);
     }
+}
 
-#if TOKU_WINDOWS
-    //Following commented methods will not always end the process (could hang).
-    //They could be unacceptable for other reasons as well (popups,
-    //flush buffers before quitting, etc)
-    //  abort()
-    //  assert(false) (assert.h assert)
-    //  raise(SIGABRT)
-    //  divide by 0
-    //  null dereference
-    //  _exit
-    //  exit
-    //  ExitProcess
-    TerminateProcess(GetCurrentProcess(), 134); //Only way found so far to unconditionally
-    //Terminate the process
-#endif
+void db_env_do_backtrace(FILE *outf) {
+    // backtrace
+    int n = backtrace(backtrace_pointers, N_POINTERS);
+    fprintf(outf, "Backtrace: (Note: toku_do_assert=0x%p)\n", toku_do_assert); fflush(outf);
+    backtrace_symbols_fd(backtrace_pointers, n, fileno(outf));
 
+    fflush(outf);
+    
+    if (engine_status_num_rows && toku_maybe_get_engine_status_text_p) {
+	int buffsize = engine_status_num_rows * 128;  // assume 128 characters per row (gross overestimate, should be safe)
+	char buff[buffsize];	
+	toku_maybe_get_engine_status_text_p(buff, buffsize);  
+	fprintf(outf, "Engine status:\n%s\n", buff);
+    } else {
+	fprintf(outf, "Engine status function not available\n");
+    }
+    fprintf(outf, "Memory usage:\n");
+    fflush(outf);	    // just in case malloc_stats() crashes, we still want engine status (and to know that malloc_stats() failed)
+    if (malloc_stats_f) {
+        malloc_stats_f();
+    }
+    fflush(outf);
+
+    if (do_assert_hook) do_assert_hook();
+    if (toku_gdb_dump_on_assert) {
+        toku_try_gdb_stack_trace(nullptr);
+    }
+}
+
+__attribute__((noreturn))
+static void toku_do_backtrace_abort(void) {
+    db_env_do_backtrace(stderr);
     abort();
 }
 

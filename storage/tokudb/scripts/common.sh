@@ -161,8 +161,7 @@ function parse_mysqlbuild() {
             if [ -z $jemalloc_tree ] ; then jemalloc_tree=$jemalloc_version; fi
         fi
         mysql_repo=$mysql_distro
-        # 5.6 is in another repo
-        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_repo=mysql56; fi
+        if [[ $mysql_version =~ ^([0-9]+\.[0-9]+) ]] ; then mysql_repo=$mysql_distro-${BASH_REMATCH[1]}; else exitcode=1; fi
     else
         exitcode=1
     fi
@@ -176,7 +175,7 @@ function parse_mysql() {
         mysql_distro=${BASH_REMATCH[1]}
         mysql_version=${BASH_REMATCH[2]}
         mysql_repo=$mysql_distro
-        if [[ $mysql_distro = mysql && $mysql_version =~ ^5.6 ]] ; then mysql_repo=mysql56; fi
+        if [[ $mysql_version =~ ^([0-9]+\.[0-9]+) ]] ; then mysql_repo=$mysql_distro-${BASH_REMATCH[1]}; else exitcode=1; fi
         exitcode=0
     else
         exitcode=1

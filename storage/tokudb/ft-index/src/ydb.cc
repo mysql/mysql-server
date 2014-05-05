@@ -233,6 +233,7 @@ static DB_ENV * volatile most_recent_env;   // most recently opened env, used fo
 
 static int env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt);
 static int toku_maybe_get_engine_status_text (char* buff, int buffsize);  // for use by toku_assert
+static int toku_maybe_err_engine_status (void);
 static void toku_maybe_set_env_panic(int code, const char * msg);               // for use by toku_assert
 
 int 
@@ -476,7 +477,7 @@ needs_recovery (DB_ENV *env) {
 static int toku_env_txn_checkpoint(DB_ENV * env, uint32_t kbyte, uint32_t min, uint32_t flags);
 
 // Instruct db to use the default (built-in) key comparison function
-// by setting the flag bits in the db and brt structs
+// by setting the flag bits in the db and ft structs
 static int
 db_use_builtin_key_cmp(DB *db) {
     HANDLE_PANICKED_DB(db);
@@ -852,6 +853,12 @@ env_open(DB_ENV * env, const char *home, uint32_t flags, int mode) {
         goto cleanup;
     }
 
+    if (toku_os_huge_pages_enabled()) {
+        r = toku_ydb_do_error(env, TOKUDB_HUGE_PAGES_ENABLED,
+                              "Huge pages are enabled, disable them before continuing\n");
+        goto cleanup;
+    }
+
     most_recent_env = NULL;
 
     assert(sizeof(time_t) == sizeof(uint64_t));
@@ -1108,7 +1115,7 @@ cleanup:
         most_recent_env = env;
         uint64_t num_rows;
         env_get_engine_status_num_rows(env, &num_rows);
-        toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_set_env_panic, num_rows);
+        toku_assert_set_fpointers(toku_maybe_get_engine_status_text, toku_maybe_err_engine_status, toku_maybe_set_env_panic, num_rows);
     }
     return r;
 }
@@ -1131,7 +1138,7 @@ env_close(DB_ENV * env, uint32_t flags) {
         goto panic_and_quit_early;
     }
     if (env->i->open_dbs_by_dname) { //Verify that there are no open dbs.
-        if (toku_omt_size(env->i->open_dbs_by_dname) > 0) {
+        if (env->i->open_dbs_by_dname->size() > 0) {
             err_msg = "Cannot close environment due to open DBs\n";
             r = toku_ydb_do_error(env, EINVAL, "%s", err_msg);
             goto panic_and_quit_early;
@@ -1207,10 +1214,14 @@ env_close(DB_ENV * env, uint32_t flags) {
         toku_free(env->i->real_log_dir);
     if (env->i->real_tmp_dir)
         toku_free(env->i->real_tmp_dir);
-    if (env->i->open_dbs_by_dname)
-        toku_omt_destroy(&env->i->open_dbs_by_dname);
-    if (env->i->open_dbs_by_dict_id)
-        toku_omt_destroy(&env->i->open_dbs_by_dict_id);
+    if (env->i->open_dbs_by_dname) {
+        env->i->open_dbs_by_dname->destroy();
+        toku_free(env->i->open_dbs_by_dname);
+    }
+    if (env->i->open_dbs_by_dict_id) {
+        env->i->open_dbs_by_dict_id->destroy();
+        toku_free(env->i->open_dbs_by_dict_id);
+    }
     if (env->i->dir)
         toku_free(env->i->dir);
     toku_pthread_rwlock_destroy(&env->i->open_dbs_rwlock);
@@ -1834,13 +1845,15 @@ fs_get_status(DB_ENV * env, fs_redzone_state * redzone_state) {
 // Local status struct used to get information from memory.c
 typedef enum {
     MEMORY_MALLOC_COUNT = 0,
-    MEMORY_FREE_COUNT,  
+    MEMORY_FREE_COUNT,
     MEMORY_REALLOC_COUNT,
-    MEMORY_MALLOC_FAIL,  
-    MEMORY_REALLOC_FAIL, 
-    MEMORY_REQUESTED,    
-    MEMORY_USED,         
-    MEMORY_FREED,        
+    MEMORY_MALLOC_FAIL,
+    MEMORY_REALLOC_FAIL,
+    MEMORY_REQUESTED,
+    MEMORY_USED,
+    MEMORY_FREED,
+    MEMORY_MAX_REQUESTED_SIZE,
+    MEMORY_LAST_FAILED_SIZE,
     MEMORY_MAX_IN_USE,
     MEMORY_MALLOCATOR_VERSION,
     MEMORY_MMAP_THRESHOLD,
@@ -1868,6 +1881,8 @@ memory_status_init(void) {
     STATUS_INIT(MEMORY_REQUESTED,          nullptr, UINT64,  "number of bytes requested", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_USED,               nullptr, UINT64,  "number of bytes used (requested + overhead)", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_FREED,              nullptr, UINT64,  "number of bytes freed", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_MAX_REQUESTED_SIZE, nullptr, UINT64,  "largest attempted allocation size", TOKU_ENGINE_STATUS);
+    STATUS_INIT(MEMORY_LAST_FAILED_SIZE,   nullptr, UINT64,  "size of the last failed allocation attempt", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_MAX_IN_USE,         MEM_ESTIMATED_MAXIMUM_MEMORY_FOOTPRINT, UINT64,  "estimated maximum memory footprint", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(MEMORY_MALLOCATOR_VERSION, nullptr, CHARSTR, "mallocator version", TOKU_ENGINE_STATUS);
     STATUS_INIT(MEMORY_MMAP_THRESHOLD,     nullptr, UINT64,  "mmap threshold", TOKU_ENGINE_STATUS);
@@ -2225,6 +2240,83 @@ env_get_engine_status_text(DB_ENV * env, char * buff, int bufsiz) {
     return r;
 }
 
+// prints engine status using toku_env_err line-by-line
+static int
+env_err_engine_status(DB_ENV * env) {
+    uint32_t stringsize = 1024;
+    uint64_t panic;
+    char panicstring[stringsize];
+    uint64_t num_rows;
+    uint64_t max_rows;
+    fs_redzone_state redzone_state;
+
+    toku_env_err(env, 0, "BUILD_ID = %d", BUILD_ID);
+
+    (void) env_get_engine_status_num_rows (env, &max_rows);
+    TOKU_ENGINE_STATUS_ROW_S mystat[max_rows];
+    int r = env->get_engine_status (env, mystat, max_rows, &num_rows, &redzone_state, &panic, panicstring, stringsize, TOKU_ENGINE_STATUS);
+
+    if (r) {
+        toku_env_err(env, 0, "Engine status not available: ");
+        if (!env) {
+            toku_env_err(env, 0, "no environment");
+        }
+        else if (!(env->i)) {
+            toku_env_err(env, 0, "environment internal struct is null");
+        }
+        else if (!env_opened(env)) {
+            toku_env_err(env, 0, "environment is not open");
+        }
+    }
+    else {
+        if (panic) {
+            toku_env_err(env, 0, "Env panic code: %" PRIu64, panic);
+            if (strlen(panicstring)) {
+                invariant(strlen(panicstring) <= stringsize);
+                toku_env_err(env, 0, "Env panic string: %s", panicstring);
+            }
+        }
+
+        for (uint64_t row = 0; row < num_rows; row++) {
+            switch (mystat[row].type) {
+            case FS_STATE:
+                toku_env_err(env, 0, "%s: %" PRIu64, mystat[row].legend, mystat[row].value.num);
+                break;
+            case UINT64:
+                toku_env_err(env, 0, "%s: %" PRIu64, mystat[row].legend, mystat[row].value.num);
+                break;
+            case CHARSTR:
+                toku_env_err(env, 0, "%s: %s", mystat[row].legend, mystat[row].value.str);
+                break;
+            case UNIXTIME:
+                {
+                    char tbuf[26];
+                    format_time((time_t*)&mystat[row].value.num, tbuf);
+                    toku_env_err(env, 0, "%s: %s", mystat[row].legend, tbuf);
+                }
+                break;
+            case TOKUTIME:
+                {
+                    double t = tokutime_to_seconds(mystat[row].value.num);
+                    toku_env_err(env, 0, "%s: %.6f", mystat[row].legend, t);
+                }
+                break;
+            case PARCOUNT:
+                {
+                    uint64_t v = read_partitioned_counter(mystat[row].value.parcount);
+                    toku_env_err(env, 0, "%s: %" PRIu64, mystat[row].legend, v);
+                }
+                break;
+            default:
+                toku_env_err(env, 0, "%s: UNKNOWN STATUS TYPE: %d", mystat[row].legend, mystat[row].type);
+                break;
+            }
+        }
+    }
+
+    return r;
+}
+
 // intended for use by toku_assert logic, when env is not known
 static int 
 toku_maybe_get_engine_status_text (char * buff, int buffsize) {
@@ -2236,6 +2328,19 @@ toku_maybe_get_engine_status_text (char * buff, int buffsize) {
     else {
         r = EOPNOTSUPP;
         snprintf(buff, buffsize, "Engine status not available: disabled by user.  This should only happen in test programs.\n");
+    }
+    return r;
+}
+
+static int
+toku_maybe_err_engine_status (void) {
+    DB_ENV * env = most_recent_env;
+    int r;
+    if (engine_status_enable && env != NULL) {
+        r = env_err_engine_status(env);
+    }
+    else {
+        r = EOPNOTSUPP;
     }
     return r;
 }
@@ -2292,10 +2397,8 @@ struct ltm_iterate_requests_callback_extra {
 };
 
 static int
-find_db_by_dict_id(OMTVALUE v, void *dict_id_v) {
-    DB *db = (DB *) v;
+find_db_by_dict_id(DB *const &db, const DICTIONARY_ID &dict_id_find) {
     DICTIONARY_ID dict_id = db->i->dict_id;
-    DICTIONARY_ID dict_id_find = *(DICTIONARY_ID *) dict_id_v;
     if (dict_id.dictid < dict_id_find.dictid) {
         return -1;
     } else if (dict_id.dictid > dict_id_find.dictid) {
@@ -2307,10 +2410,9 @@ find_db_by_dict_id(OMTVALUE v, void *dict_id_v) {
 
 static DB *
 locked_get_db_by_dict_id(DB_ENV *env, DICTIONARY_ID dict_id) {
-    OMTVALUE dbv;
-    int r = toku_omt_find_zero(env->i->open_dbs_by_dict_id, find_db_by_dict_id,
-                               (void *) &dict_id, &dbv, nullptr);
-    return r == 0 ? (DB *) dbv : nullptr;
+    DB *db;
+    int r = env->i->open_dbs_by_dict_id->find_zero<DICTIONARY_ID, find_db_by_dict_id>(dict_id, &db, nullptr);
+    return r == 0 ? db : nullptr;
 }
 
 static int ltm_iterate_requests_callback(DICTIONARY_ID dict_id, TXNID txnid,
@@ -2341,7 +2443,7 @@ env_iterate_pending_lock_requests(DB_ENV *env,
         return EINVAL;
     }
 
-    toku::locktree::manager *mgr = &env->i->ltm;
+    toku::locktree_manager *mgr = &env->i->ltm;
     ltm_iterate_requests_callback_extra e(env, callback, extra);
     return mgr->iterate_pending_lock_requests(ltm_iterate_requests_callback, &e);
 }
@@ -2460,6 +2562,17 @@ static void env_set_killed_callback(DB_ENV *env, uint64_t default_killed_time_ms
     env->i->killed_callback = killed_callback;
 }
 
+static void env_do_backtrace(DB_ENV *env) {
+    if (env->i->errcall) {
+        db_env_do_backtrace_errfunc((toku_env_err_func) toku_env_err, (const void *) env);
+    }
+    if (env->i->errfile) {
+        db_env_do_backtrace((FILE *) env->i->errfile);
+    } else {
+        db_env_do_backtrace(stderr);
+    }
+}
+
 static int 
 toku_env_create(DB_ENV ** envp, uint32_t flags) {
     int r = ENOSYS;
@@ -2536,6 +2649,7 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     USENV(set_loader_memory_size);
     USENV(get_loader_memory_size);
     USENV(set_killed_callback);
+    USENV(do_backtrace);
 #undef USENV
     
     // unlocked methods
@@ -2564,18 +2678,18 @@ toku_env_create(DB_ENV ** envp, uint32_t flags) {
     result->i->bt_compare = toku_builtin_compare_fun;
 
     r = toku_logger_create(&result->i->logger);
-    if (r!=0) goto cleanup; // In particular, logger_create can return the huge page error.
-    assert(result->i->logger);
+    invariant_zero(r);
+    invariant_notnull(result->i->logger);
 
     // Create the locktree manager, passing in the create/destroy/escalate callbacks.
     // The extra parameter for escalation is simply a pointer to this environment.
     // The escalate callback will need it to translate txnids to DB_TXNs
     result->i->ltm.create(toku_db_lt_on_create_callback, toku_db_lt_on_destroy_callback, toku_db_txn_escalate_callback, result);
 
-    r = toku_omt_create(&result->i->open_dbs_by_dname);
-    assert_zero(r);
-    r = toku_omt_create(&result->i->open_dbs_by_dict_id);
-    assert_zero(r);
+    XMALLOC(result->i->open_dbs_by_dname);
+    result->i->open_dbs_by_dname->create();
+    XMALLOC(result->i->open_dbs_by_dict_id);
+    result->i->open_dbs_by_dict_id->create();
     toku_pthread_rwlock_init(&result->i->open_dbs_rwlock, NULL);
 
     *envp = result;
@@ -2601,9 +2715,7 @@ DB_ENV_CREATE_FUN (DB_ENV ** envp, uint32_t flags) {
 // return <0 if v is earlier in omt than dbv
 // return >0 if v is later in omt than dbv
 static int
-find_db_by_db_dname(OMTVALUE v, void *dbv) {
-    DB *db = (DB *) v;            // DB* that is stored in the omt
-    DB *dbfind = (DB *) dbv;      // extra, to be compared to v
+find_db_by_db_dname(DB *const &db, DB *const &dbfind) {
     int cmp;
     const char *dname     = db->i->dname;
     const char *dnamefind = dbfind->i->dname;
@@ -2615,9 +2727,7 @@ find_db_by_db_dname(OMTVALUE v, void *dbv) {
 }
 
 static int
-find_db_by_db_dict_id(OMTVALUE v, void *dbv) {
-    DB *db = (DB *) v;
-    DB *dbfind = (DB *) dbv;
+find_db_by_db_dict_id(DB *const &db, DB *const &dbfind) {
     DICTIONARY_ID dict_id = db->i->dict_id;
     DICTIONARY_ID dict_id_find = dbfind->i->dict_id;
     if (dict_id.dictid < dict_id_find.dictid) {
@@ -2640,20 +2750,18 @@ env_note_db_opened(DB_ENV *env, DB *db) {
     assert(db->i->dname); // internal (non-user) dictionary has no dname
 
     int r;
-    OMTVALUE v;
     uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs_by_dname, find_db_by_db_dname,
-                           db, &v, &idx);
+
+    r = env->i->open_dbs_by_dname->find_zero<DB *, find_db_by_db_dname>(db, nullptr, &idx);
     assert(r == DB_NOTFOUND);
-    r = toku_omt_insert_at(env->i->open_dbs_by_dname, db, idx);
+    r = env->i->open_dbs_by_dname->insert_at(db, idx);
     assert_zero(r);
-    r = toku_omt_find_zero(env->i->open_dbs_by_dict_id, find_db_by_db_dict_id,
-                           db, &v, &idx);
+    r = env->i->open_dbs_by_dict_id->find_zero<DB *, find_db_by_db_dict_id>(db, nullptr, &idx);
     assert(r == DB_NOTFOUND);
-    r = toku_omt_insert_at(env->i->open_dbs_by_dict_id, db, idx);
+    r = env->i->open_dbs_by_dict_id->insert_at(db, idx);
     assert_zero(r);
 
-    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs_by_dname);
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->open_dbs_by_dname->size();
     STATUS_VALUE(YDB_LAYER_NUM_DB_OPEN)++;
     if (STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) > STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS)) {
         STATUS_VALUE(YDB_LAYER_MAX_OPEN_DBS) = STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS);
@@ -2666,58 +2774,44 @@ void
 env_note_db_closed(DB_ENV *env, DB *db) {
     toku_pthread_rwlock_wrlock(&env->i->open_dbs_rwlock);
     assert(db->i->dname); // internal (non-user) dictionary has no dname
-    assert(toku_omt_size(env->i->open_dbs_by_dname) > 0);
-    assert(toku_omt_size(env->i->open_dbs_by_dict_id) > 0);
+    assert(env->i->open_dbs_by_dname->size() > 0);
+    assert(env->i->open_dbs_by_dict_id->size() > 0);
 
     int r;
-    OMTVALUE v;
     uint32_t idx;
-    r = toku_omt_find_zero(env->i->open_dbs_by_dname, find_db_by_db_dname,
-                           db, &v, &idx);
+
+    r = env->i->open_dbs_by_dname->find_zero<DB *, find_db_by_db_dname>(db, nullptr, &idx);
     assert_zero(r);
-    r = toku_omt_delete_at(env->i->open_dbs_by_dname, idx);
+    r = env->i->open_dbs_by_dname->delete_at(idx);
     assert_zero(r);
-    r = toku_omt_find_zero(env->i->open_dbs_by_dict_id, find_db_by_db_dict_id,
-                           db, &v, &idx);
+    r = env->i->open_dbs_by_dict_id->find_zero<DB *, find_db_by_db_dict_id>(db, nullptr, &idx);
     assert_zero(r);
-    r = toku_omt_delete_at(env->i->open_dbs_by_dict_id, idx);
+    r = env->i->open_dbs_by_dict_id->delete_at(idx);
     assert_zero(r);
 
     STATUS_VALUE(YDB_LAYER_NUM_DB_CLOSE)++;
-    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = toku_omt_size(env->i->open_dbs_by_dname);
+    STATUS_VALUE(YDB_LAYER_NUM_OPEN_DBS) = env->i->open_dbs_by_dname->size();
     toku_pthread_rwlock_wrunlock(&env->i->open_dbs_rwlock);
 }
 
 static int
-find_open_db_by_dname (OMTVALUE v, void *dnamev) {
-    DB *db = (DB *) v;            // DB* that is stored in the omt
-    int cmp;
-    const char *dname     = db->i->dname;
-    const char *dnamefind = (char *) dnamev;
-    cmp = strcmp(dname, dnamefind);
-    return cmp;
+find_open_db_by_dname(DB *const &db, const char *const &dnamefind) {
+    return strcmp(db->i->dname, dnamefind);
 }
 
 // return true if there is any db open with the given dname
 static bool
 env_is_db_with_dname_open(DB_ENV *env, const char *dname) {
-    int r;
-    bool rval;
-    OMTVALUE dbv;
-    uint32_t idx;
+    DB *db;
     toku_pthread_rwlock_rdlock(&env->i->open_dbs_rwlock);
-    r = toku_omt_find_zero(env->i->open_dbs_by_dname, find_open_db_by_dname, (void*)dname, &dbv, &idx);
-    if (r==0) {
-        DB *db = (DB *) dbv;
-        assert(strcmp(dname, db->i->dname) == 0);
-        rval = true;
-    }
-    else {
-        assert(r==DB_NOTFOUND);
-        rval = false;
+    int r = env->i->open_dbs_by_dname->find_zero<const char *, find_open_db_by_dname>(dname, &db, nullptr);
+    if (r == 0) {
+        invariant(strcmp(dname, db->i->dname) == 0);
+    } else {
+        invariant(r == DB_NOTFOUND);
     }
     toku_pthread_rwlock_rdunlock(&env->i->open_dbs_rwlock);
-    return rval;
+    return r == 0 ? true : false;
 }
 
 //We do not (yet?) support deleting subdbs by deleting the enclosing 'fname'
@@ -3029,7 +3123,7 @@ env_get_iname(DB_ENV* env, DBT* dname_dbt, DBT* iname_dbt) {
 
 // TODO 2216:  Patch out this (dangerous) function when loader is working and 
 //             we don't need to test the low-level redirect anymore.
-// for use by test programs only, just a wrapper around brt call:
+// for use by test programs only, just a wrapper around ft call:
 int
 toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN *dbtxn) {
     int r;
@@ -3037,7 +3131,7 @@ toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN
     DBT iname_dbt;
     char * new_iname_in_env;
 
-    FT_HANDLE brt = db->i->ft_handle;
+    FT_HANDLE ft_handle = db->i->ft_handle;
     TOKUTXN tokutxn = db_txn_struct_i(dbtxn)->tokutxn;
 
     toku_fill_dbt(&dname_dbt, dname_of_new_file, strlen(dname_of_new_file)+1);
@@ -3047,7 +3141,7 @@ toku_test_db_redirect_dictionary(DB * db, const char * dname_of_new_file, DB_TXN
     new_iname_in_env = (char *) iname_dbt.data;
 
     toku_multi_operation_client_lock(); //Must hold MO lock for dictionary_redirect.
-    r = toku_dictionary_redirect(new_iname_in_env, brt, tokutxn);
+    r = toku_dictionary_redirect(new_iname_in_env, ft_handle, tokutxn);
     toku_multi_operation_client_unlock();
 
     toku_free(new_iname_in_env);

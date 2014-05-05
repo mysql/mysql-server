@@ -256,7 +256,7 @@ struct ft_loader_s {
 
     int progress_callback_result; // initially zero, if any call to the poll function callback returns nonzero, we save the result here (and don't call the poll callback function again).
 
-    LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in brt headers made by this loader.
+    LSN load_lsn; //LSN of the fsynced 'load' log entry.  Write this LSN (as checkpoint_lsn) in ft headers made by this loader.
     TXNID load_root_xid; //(Root) transaction that performed the load.
 
     QUEUE *fractal_queues; // an array of work queues, one for each secondary index.
@@ -279,7 +279,7 @@ uint64_t toku_ft_loader_get_n_rows(FTLOADER bl);
 struct fractal_thread_args {
     FTLOADER                bl;
     const DESCRIPTOR descriptor;
-    int                      fd; // write the brt into tfd.
+    int                      fd; // write the ft into fd.
     int                      progress_allocation;
     QUEUE                    q;
     uint64_t                 total_disksize_estimate;
@@ -311,17 +311,17 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
 int ft_loader_sort_and_write_rows (struct rowset *rows, struct merge_fileset *fs, FTLOADER bl, int which_db, DB *dest_db, ft_compare_func);
 
 // This is probably only for testing.
-int toku_loader_write_brt_from_q_in_C (FTLOADER                bl,
-				       const DESCRIPTOR descriptor,
-				       int                      fd, // write to here
-				       int                      progress_allocation,
-				       QUEUE                    q,
-				       uint64_t                 total_disksize_estimate,
-                                       int                      which_db,
-                                       uint32_t                 target_nodesize,
-                                       uint32_t                 target_basementnodesize,
-                                       enum toku_compression_method target_compression_method,
-                                       uint32_t                 fanout);
+int toku_loader_write_ft_from_q_in_C (FTLOADER                 bl,
+				      const DESCRIPTOR         descriptor,
+				      int                      fd, // write to here
+				      int                      progress_allocation,
+				      QUEUE                    q,
+				      uint64_t                 total_disksize_estimate,
+                                      int                      which_db,
+                                      uint32_t                 target_nodesize,
+                                      uint32_t                 target_basementnodesize,
+                                      enum toku_compression_method target_compression_method,
+                                      uint32_t                 fanout);
 
 int ft_loader_mergesort_row_array (struct row rows[/*n*/], int n, int which_db, DB *dest_db, ft_compare_func, FTLOADER, struct rowset *);
 
@@ -338,7 +338,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
 				   CACHETABLE cachetable,
 				   generate_row_for_put_func g,
 				   DB *src_db,
-				   int N, FT_HANDLE brts[/*N*/], DB* dbs[/*N*/],
+				   int N, FT_HANDLE ft_hs[/*N*/], DB* dbs[/*N*/],
 				   const char *new_fnames_in_env[/*N*/],
 				   ft_compare_func bt_compare_functions[/*N*/],
 				   const char *temp_file_template,

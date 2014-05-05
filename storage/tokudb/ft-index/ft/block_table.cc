@@ -427,7 +427,7 @@ toku_ft_unlock (FT ft) {
     unlock_for_blocktable(bt);
 }
 
-// Also used only in brt-serialize-test.
+// Also used only in ft-serialize-test.
 void
 toku_block_free(BLOCK_TABLE bt, uint64_t offset) {
     lock_for_blocktable(bt);
@@ -580,7 +580,7 @@ void toku_serialize_translation_to_wbuf(BLOCK_TABLE bt, int fd, struct wbuf *w,
         wbuf_DISKOFF(w, t->block_translation[i].u.diskoff);
         wbuf_DISKOFF(w, t->block_translation[i].size);
     }
-    uint32_t checksum = x1764_finish(&w->checksum);
+    uint32_t checksum = toku_x1764_finish(&w->checksum);
     wbuf_int(w, checksum);
     *address = t->block_translation[b.b].u.diskoff;
     *size    = size_translation;
@@ -915,7 +915,7 @@ translation_deserialize_from_buffer(struct translation *t,    // destination int
     t->type = TRANSLATION_CHECKPOINTED;
     {
         // check the checksum
-        uint32_t x1764 = x1764_memory(translation_buffer, size_on_disk - 4);
+        uint32_t x1764 = toku_x1764_memory(translation_buffer, size_on_disk - 4);
         uint64_t offset = size_on_disk - 4;
         //printf("%s:%d read from %ld (x1764 offset=%ld) size=%ld\n", __FILE__, __LINE__, block_translation_address_on_disk, offset, block_translation_size_on_disk);
         uint32_t stored_x1764 = toku_dtoh32(*(int*)(translation_buffer + offset));

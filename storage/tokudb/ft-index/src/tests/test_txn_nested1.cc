@@ -125,9 +125,7 @@ setup_db (void) {
     toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
     r = db_env_create(&env, 0); CKERR(r);
-#ifdef TOKUDB
     r = env->set_default_bt_compare(env, int_dbt_cmp); CKERR(r);
-#endif
     r = env->open(env, TOKU_TEST_FILENAME, DB_INIT_MPOOL | DB_INIT_LOG | DB_INIT_LOCK | DB_INIT_TXN | DB_PRIVATE | DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); 
     CKERR(r);
 
@@ -136,9 +134,6 @@ setup_db (void) {
         r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
 
         r = db_create(&db, env, 0); CKERR(r);
-#ifndef TOKUDB
-        r = db->set_bt_compare(db, int_dbt_cmp); CKERR(r);
-#endif
         r = db->open(db, txn, "test.db", 0, DB_BTREE, DB_CREATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
         r = txn->commit(txn, 0); CKERR(r);
     }
@@ -218,74 +213,6 @@ test_txn_nesting (int depth) {
         assert(int_dbt_cmp(db, &val, &observed_val) == 0);
     }
 }
-
-
-#if 0
-static void
-test_txn_abort (int insert, int secondnum) {
-    if (verbose) { fprintf(stderr, "%s (%s):%d [%d,%d]\n", __FILE__, __FUNCTION__, __LINE__, insert, secondnum); fflush(stderr); }
-    setup_db();
-
-    DBT key, val;
-    int r;
-
-
-    DB_TXN *parent = NULL, *child = NULL;
-
-    int i = 1;
-    r = env->txn_begin(env, 0, &parent, 0); CKERR(r);
-
-    //Insert something as a child
-    r = env->txn_begin(env, parent, &child, 0); CKERR(r);
-    i = 1;
-    r = db->put(db, child, dbt_init(&key, &i, sizeof i), dbt_init(&val, &i, sizeof i), 0); 
-    CKERR(r);
-    r = child->commit(child,DB_TXN_NOSYNC); 
-    child = NULL;
-
-
-    //delete it as a child
-    r = env->txn_begin(env, parent, &child, 0); CKERR(r);
-    i = secondnum;
-    if (insert) {
-        r = db->put(db, child, dbt_init(&key, &i, sizeof i), dbt_init(&val, &i, sizeof i), 0); 
-        CKERR(r);
-    }
-    else { // delete
-        r = db->del(db, child, dbt_init(&key, &i, sizeof i), DB_DELETE_ANY); 
-	if (IS_TDB) {
-	    CKERR(r);
-	} else {
-	    CKERR2(r, (secondnum==1 ? 0 : DB_NOTFOUND));
-	}
-    }
-    r = child->commit(child,DB_TXN_NOSYNC); 
-    child = NULL;
-
-    r = parent->abort(parent);
-    CKERR(r);
-    parent = NULL;
-
-
-    {
-        DB_TXN *txn = NULL;
-        /* walk the db, should be empty */
-        r = env->txn_begin(env, 0, &txn, 0); CKERR(r);
-        DBC *cursor;
-        r = db->cursor(db, txn, &cursor, 0); CKERR(r);
-        memset(&key, 0, sizeof key);
-        memset(&val, 0, sizeof val);
-        r = cursor->c_get(cursor, &key, &val, DB_FIRST); 
-        CKERR2(r, DB_NOTFOUND);
-        r = cursor->c_close(cursor); CKERR(r);
-        r = txn->commit(txn, 0);
-    }
-    r=db->close(db, 0); CKERR(r);
-    r=env->close(env, 0); CKERR(r);
-
-}
-
-#endif
 
 int
 test_main(int argc, char *const argv[]) {

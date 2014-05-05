@@ -202,7 +202,7 @@ private:
 
     // the lock request info state stored in the
     // locktree that this lock request is for.
-    struct locktree::lt_lock_request_info *m_info;
+    struct lt_lock_request_info *m_info;
 
     // effect: tries again to acquire the lock described by this lock request
     // returns: 0 if retrying the request succeeded and is now complete

@@ -97,33 +97,49 @@ PATENT RIGHTS GRANT:
 #endif
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-// mariadb 10
+// mariadb 10.0
 #define TOKU_USE_DB_TYPE_TOKUDB 1
 #define TOKU_INCLUDE_ALTER_56 1
 #define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_INCLUDE_XA 1
 #define TOKU_INCLUDE_WRITE_FRM_DATA 0
+#define TOKU_PARTITION_WRITE_FRM_DATA 0
 #if defined(MARIADB_BASE_VERSION)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
 #endif
+#define TOKU_INCLUDE_OPTION_STRUCTS 1
 
 #elif 50700 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50799
 // mysql 5.7 with no patches
+#if TOKUDB_NOPATCH_CONFIG
 #define TOKU_USE_DB_TYPE_UNKNOWN 1
 #define TOKU_INCLUDE_ALTER_56 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
+#else
+#error
+#endif
 
 #elif 50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699
-// mysql 5.6
-#define TOKU_USE_DB_TYPE_TOKUDB 1
+// mysql 5.6 with no patches
+#if TOKUDB_NOPATCH_CONFIG
+#define TOKU_USE_DB_TYPE_UNKNOWN 1
+#define TOKU_INCLUDE_ALTER_56 1    
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 0
+#define TOKU_INCLUDE_XA 0
+#define TOKU_PARTITION_WRITE_FRM_DATA 0
+#else
+// mysql 5.6 with tokutek patches
+#define TOKU_USE_DB_TYPE_TOKUDB 1           /* has DB_TYPE_TOKUDB patch */
 #define TOKU_INCLUDE_ALTER_56 1
-#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1
-#define TOKU_INCLUDE_XA 1
+#define TOKU_INCLUDE_ROW_TYPE_COMPRESSION 1 /* has tokudb row format compression patch */
+#define TOKU_INCLUDE_XA 1                   /* has patch that fixes TC_LOG_MMAP code */
 #define TOKU_PARTITION_WRITE_FRM_DATA 0
 #define TOKU_INCLUDE_WRITE_FRM_DATA 0
-#define TOKU_INCLUDE_UPSERT 1
+#define TOKU_INCLUDE_UPSERT 1               /* has tokudb upsert patch */
 #if defined(HTON_SUPPORTS_EXTENDED_KEYS)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
+#endif
 #endif
 
 #elif 50500 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50599
@@ -137,6 +153,7 @@ PATENT RIGHTS GRANT:
 #define TOKU_INCLUDE_UPSERT 0           /* MariaDB 5.5 */
 #if defined(MARIADB_BASE_VERSION)
 #define TOKU_INCLUDE_EXTENDED_KEYS 1
+#define TOKU_INCLUDE_OPTION_STRUCTS 1
 #endif
 #define TOKU_INCLUDE_HANDLERTON_HANDLE_FATAL_SIGNAL 0 /* MariaDB 5.5 */
 
@@ -170,6 +187,10 @@ PATENT RIGHTS GRANT:
 #define HA_CAN_WRITE_DURING_OPTIMIZE 0
 #endif
 
+#if !defined(HA_OPTION_CREATE_FROM_ENGINE)
+#define HA_OPTION_CREATE_FROM_ENGINE 0
+#endif
+
 // In older (< 5.5) versions of MySQL and MariaDB, it is necessary to 
 // use a read/write lock on the key_file array in a table share, 
 // because table locks do not protect the race of some thread closing 
@@ -201,6 +222,11 @@ PATENT RIGHTS GRANT:
 #ifndef _TOKUDB_DEBUG_H
 #define _TOKUDB_DEBUG_H
 
+#define TOKU_INCLUDE_BACKTRACE 0
+#if TOKU_INCLUDE_BACKTRACE
+static void tokudb_backtrace(void);
+#endif
+
 extern ulong tokudb_debug;
 
 // tokudb debug tracing
@@ -211,6 +237,7 @@ extern ulong tokudb_debug;
 #define TOKUDB_DEBUG_ERROR 16
 #define TOKUDB_DEBUG_TXN 32
 #define TOKUDB_DEBUG_AUTO_INCREMENT 64
+#define TOKUDB_DEBUG_INDEX_KEY 128
 #define TOKUDB_DEBUG_LOCK 256
 #define TOKUDB_DEBUG_CHECK_KEY 1024
 #define TOKUDB_DEBUG_HIDE_DDL_LOCK_ERRORS 2048
@@ -321,11 +348,6 @@ typedef struct st_tokudb_trx_data {
     bool checkpoint_lock_taken;
     LIST *handlers;
 } tokudb_trx_data;
-
-struct ha_table_option_struct
-{
-  uint row_format;
-};
 
 extern char *tokudb_data_dir;
 extern const char *ha_tokudb_ext;

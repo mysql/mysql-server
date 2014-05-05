@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-// this test demonstrates that a simple deadlock with 2 transactions on a single thread works with tokudb, hangs with bdb
+// this test demonstrates that a simple deadlock with 2 transactions on a single thread works with tokudb
 
 #include "test.h"
 
@@ -115,9 +115,6 @@ static void simple_deadlock(DB_ENV *db_env, DB *db, int do_txn, int n) {
     }
 
     uint32_t txn_flags = 0;
-#if USE_BDB
-    txn_flags = DB_TXN_NOWAIT; // force no wait for BDB to avoid a bug described below
-#endif
 
     DB_TXN *txn_a = NULL;
     if (do_txn) {
@@ -133,7 +130,6 @@ static void simple_deadlock(DB_ENV *db_env, DB *db, int do_txn, int n) {
 
     insert_row(db, txn_b, htonl(n-1), n-1, 0);
     
-    // if the txn_flags is 0, then BDB does not time out this lock request, so the test hangs. it looks like a bug in bdb's __lock_get_internal.
     insert_row(db, txn_a, htonl(n-1), n-1, DB_LOCK_NOTGRANTED);
 
     insert_row(db, txn_b, htonl(0), 0, DB_LOCK_NOTGRANTED);
@@ -148,7 +144,7 @@ int test_main(int argc, char * const argv[]) {
     uint64_t cachesize = 0;
     uint32_t pagesize = 0;
     int do_txn = 1;
-    int nrows = 1000; // for BDB, insert enough rows to create a tree with more than one page in it.  this avoids a page locking conflict.
+    int nrows = 1000;
     const char *db_env_dir = TOKU_TEST_FILENAME;
     const char *db_filename = "simple_deadlock";
     int db_env_open_flags = DB_CREATE | DB_PRIVATE | DB_INIT_MPOOL | DB_INIT_TXN | DB_INIT_LOCK | DB_INIT_LOG | DB_THREAD;
@@ -187,14 +183,7 @@ int test_main(int argc, char * const argv[]) {
     }
     if (!do_txn)
         db_env_open_flags &= ~(DB_INIT_TXN | DB_INIT_LOG);
-#if USE_BDB
-    r = db_env->set_flags(db_env, DB_TIME_NOTGRANTED, 1); assert(r == 0); // force DB_LOCK_DEADLOCK to DB_LOCK_NOTGRANTED
-#endif
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-#if defined(USE_BDB)
-    r = db_env->set_lk_detect(db_env, DB_LOCK_YOUNGEST); assert(r == 0);
-    r = db_env->set_timeout(db_env, 1000, DB_SET_LOCK_TIMEOUT); assert(r == 0);
-#endif
     // create the db
     DB *db = NULL;
     r = db_create(&db, db_env, 0); assert(r == 0);

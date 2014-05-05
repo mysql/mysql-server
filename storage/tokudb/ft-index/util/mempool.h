@@ -123,26 +123,46 @@ void toku_mempool_init(struct mempool *mp, void *base, size_t free_offset, size_
  */
 void toku_mempool_construct(struct mempool *mp, size_t data_size);
 
+/* treat mempool as if it has just been created; ignore any frag and start allocating from beginning again.
+ */
+void toku_mempool_reset(struct mempool *mp);
+
+/* reallocate memory for construct mempool
+ */
+void toku_mempool_realloc_larger(struct mempool *mp, size_t data_size);
+
 /* destroy the memory pool */
 void toku_mempool_destroy(struct mempool *mp);
 
 /* get the base address of the memory pool */
-void *toku_mempool_get_base(struct mempool *mp);
+void *toku_mempool_get_base(const struct mempool *mp);
+
+/* get the a pointer that is offset bytes in front of base of the memory pool */
+void *toku_mempool_get_pointer_from_base_and_offset(const struct mempool *mp, size_t offset);
+
+/* get the offset from base of a pointer */
+size_t toku_mempool_get_offset_from_pointer_and_base(const struct mempool *mp, const void* p);
+
+/* get the a pointer of the first free byte (if any) */
+void* toku_mempool_get_next_free_ptr(const struct mempool *mp);
+
+/* get the limit of valid offsets.  (anything later was not allocated) */
+size_t toku_mempool_get_offset_limit(const struct mempool *mp);
 
 /* get the size of the memory pool */
-size_t toku_mempool_get_size(struct mempool *mp);
+size_t toku_mempool_get_size(const struct mempool *mp);
 
 /* get the amount of fragmented (wasted) space in the memory pool */
-size_t toku_mempool_get_frag_size(struct mempool *mp);
+size_t toku_mempool_get_frag_size(const struct mempool *mp);
 
 /* get the amount of space that is holding useful data */
-size_t toku_mempool_get_used_space(struct mempool *mp);
+size_t toku_mempool_get_used_size(const struct mempool *mp);
 
 /* get the amount of space that is available for new data */
-size_t toku_mempool_get_free_space(struct mempool *mp);
+size_t toku_mempool_get_free_size(const struct mempool *mp);
 
 /* get the amount of space that has been allocated for use (wasted or not) */
-size_t toku_mempool_get_allocated_space(struct mempool *mp);
+size_t toku_mempool_get_allocated_size(const struct mempool *mp);
 
 /* allocate a chunk of memory from the memory pool suitably aligned */
 void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment);
@@ -160,6 +180,8 @@ static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size
 /* get memory footprint */
 size_t toku_mempool_footprint(struct mempool *mp);
 
-void toku_mempool_clone(struct mempool* orig_mp, struct mempool* new_mp);
+void toku_mempool_clone(const struct mempool* orig_mp, struct mempool* new_mp);
+
+
 
 #endif // UTIL_MEMPOOL_H

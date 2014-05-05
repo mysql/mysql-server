@@ -89,17 +89,17 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2011-2013 Tokutek Inc.  All rights reserved."
 
 // Verify that a message with an old msn is ignored
-// by toku_apply_cmd_to_leaf()
+// by toku_apply_msg_to_leaf()
 //
 // method:
 //  - inject valid message, verify that new value is in row
-//  - inject message with same msn and new value, verify that original value is still in key  (verify cmd.msn == node.max_msn is rejected)
+//  - inject message with same msn and new value, verify that original value is still in key  (verify msg.msn == node.max_msn is rejected)
 //  - inject valid message with new value2, verify that row has new value2 
-//  - inject message with old msn, verify that row still has value2   (verify cmd.msn < node.max_msn is rejected)
+//  - inject message with old msn, verify that row still has value2   (verify msg.msn < node.max_msn is rejected)
 
 
 // TODO: 
-//  - verify that no work is done by messages that should be ignored (via workdone arg to ft_leaf_put_cmd())
+//  - verify that no work is done by messages that should be ignored (via workdone arg to ft_leaf_put_msg())
 //  - maybe get counter of messages ignored for old msn (once the counter is implemented in ft-ops.c)
 
 #include "ft-internal.h"
@@ -108,16 +108,16 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static FTNODE
-make_node(FT_HANDLE brt, int height) {
+make_node(FT_HANDLE ft, int height) {
     FTNODE node = NULL;
     int n_children = (height == 0) ? 1 : 0;
-    toku_create_new_ftnode(brt, &node, height, n_children);
+    toku_create_new_ftnode(ft, &node, height, n_children);
     if (n_children) BP_STATE(node,0) = PT_AVAIL;
     return node;
 }
 
 static void
-append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *val, uint32_t vallen) {
+append_leaf(FT_HANDLE ft, FTNODE leafnode, void *key, uint32_t keylen, void *val, uint32_t vallen) {
     assert(leafnode->height == 0);
 
     DBT thekey; toku_fill_dbt(&thekey, key, keylen);
@@ -130,48 +130,48 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
 
     // apply an insert to the leaf node
     MSN msn = next_dummymsn();
-    brt->ft->h->max_msn_in_ft = msn;
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
+    ft->ft->h->max_msn_in_ft = msn;
+    FT_MSG_S msg = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &theval }} };
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, false);
 
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd, &gc_info, nullptr, nullptr);
+    toku_ft_leaf_apply_msg(ft->ft->compare_fun, ft->ft->update_fun, &ft->ft->cmp_descriptor, leafnode, -1, &msg, &gc_info, nullptr, nullptr);
     {
-	int r = toku_ft_lookup(brt, &thekey, lookup_checkf, &pair);
+	int r = toku_ft_lookup(ft, &thekey, lookup_checkf, &pair);
 	assert(r==0);
 	assert(pair.call_count==1);
     }
 
-    FT_MSG_S badcmd = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval }} };
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &badcmd, &gc_info, nullptr, nullptr);
+    FT_MSG_S badmsg = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval }} };
+    toku_ft_leaf_apply_msg(ft->ft->compare_fun, ft->ft->update_fun, &ft->ft->cmp_descriptor, leafnode, -1, &badmsg, &gc_info, nullptr, nullptr);
 
     // message should be rejected for duplicate msn, row should still have original val
     {
-	int r = toku_ft_lookup(brt, &thekey, lookup_checkf, &pair);
+	int r = toku_ft_lookup(ft, &thekey, lookup_checkf, &pair);
 	assert(r==0);
 	assert(pair.call_count==2);
     }
 
     // now verify that message with proper msn gets through
     msn = next_dummymsn();
-    brt->ft->h->max_msn_in_ft = msn;
-    FT_MSG_S cmd2 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &val2 }} };
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd2, &gc_info, nullptr, nullptr);
+    ft->ft->h->max_msn_in_ft = msn;
+    FT_MSG_S msg2 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &val2 }} };
+    toku_ft_leaf_apply_msg(ft->ft->compare_fun, ft->ft->update_fun, &ft->ft->cmp_descriptor, leafnode, -1, &msg2, &gc_info, nullptr, nullptr);
 
     // message should be accepted, val should have new value
     {
-	int r = toku_ft_lookup(brt, &thekey, lookup_checkf, &pair2);
+	int r = toku_ft_lookup(ft, &thekey, lookup_checkf, &pair2);
 	assert(r==0);
 	assert(pair2.call_count==1);
     }
 
     // now verify that message with lesser (older) msn is rejected
     msn.msn = msn.msn - 10;
-    FT_MSG_S cmd3 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval } }};
-    toku_ft_leaf_apply_cmd(brt->ft->compare_fun, brt->ft->update_fun, &brt->ft->cmp_descriptor, leafnode, -1, &cmd3, &gc_info, nullptr, nullptr);
+    FT_MSG_S msg3 = { FT_INSERT, msn, xids_get_root_xids(), .u={.id = { &thekey, &badval } }};
+    toku_ft_leaf_apply_msg(ft->ft->compare_fun, ft->ft->update_fun, &ft->ft->cmp_descriptor, leafnode, -1, &msg3, &gc_info, nullptr, nullptr);
 
     // message should be rejected, val should still have value in pair2
     {
-	int r = toku_ft_lookup(brt, &thekey, lookup_checkf, &pair2);
+	int r = toku_ft_lookup(ft, &thekey, lookup_checkf, &pair2);
 	assert(r==0);
 	assert(pair2.call_count==2);
     }
@@ -181,11 +181,11 @@ append_leaf(FT_HANDLE brt, FTNODE leafnode, void *key, uint32_t keylen, void *va
 }
 
 static void 
-populate_leaf(FT_HANDLE brt, FTNODE leafnode, int k, int v) {
+populate_leaf(FT_HANDLE ft, FTNODE leafnode, int k, int v) {
     char vbuf[32]; // store v in a buffer large enough to dereference unaligned int's
     memset(vbuf, 0, sizeof vbuf);
     memcpy(vbuf, &v, sizeof v);
-    append_leaf(brt, leafnode, &k, sizeof k, vbuf, sizeof v);
+    append_leaf(ft, leafnode, &k, sizeof k, vbuf, sizeof v);
 }
 
 static void 
@@ -204,16 +204,16 @@ test_msnfilter(int do_verify) {
     CACHETABLE ct = NULL;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    // create the brt
+    // create the ft
     TOKUTXN null_txn = NULL;
-    FT_HANDLE brt = NULL;
-    r = toku_open_ft_handle(fname, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
+    FT_HANDLE ft = NULL;
+    r = toku_open_ft_handle(fname, 1, &ft, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r == 0);
 
-    FTNODE newroot = make_node(brt, 0);
+    FTNODE newroot = make_node(ft, 0);
 
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(brt->ft, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(ft->ft, newroot->thisnodename);
 
     // KLUDGE: Unpin the new root so toku_ft_lookup() can pin it.  (Pin lock is no longer a recursive
     //         mutex.)  Just leaving it unpinned for this test program works  because it is the only 
@@ -221,17 +221,17 @@ test_msnfilter(int do_verify) {
     //         node and unlock it again before and after each message injection, but that requires more
     //         work than it's worth (setting up dummy callbacks, etc.)
     //         
-    toku_unpin_ftnode(brt->ft, newroot);
+    toku_unpin_ftnode(ft->ft, newroot);
 
-    populate_leaf(brt, newroot, htonl(2), 1);
+    populate_leaf(ft, newroot, htonl(2), 1);
 
     if (do_verify) {
-        r = toku_verify_ft(brt);
+        r = toku_verify_ft(ft);
         assert(r == 0);
     }
 
     // flush to the file system
-    r = toku_close_ft_handle_nolsn(brt, 0);     
+    r = toku_close_ft_handle_nolsn(ft, 0);     
     assert(r == 0);
 
     // shutdown the cachetable

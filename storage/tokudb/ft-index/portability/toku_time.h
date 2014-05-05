@@ -92,10 +92,10 @@ PATENT RIGHTS GRANT:
 #define TOKU_TIME_H
 
 #include "toku_config.h"
+
 #include <time.h>
 #include <sys/time.h>
 #include <stdint.h>
-
 
 static inline float toku_tdiff (struct timeval *a, struct timeval *b) {
     return (float)((a->tv_sec - b->tv_sec) + 1e-6 * (a->tv_usec - b->tv_usec));

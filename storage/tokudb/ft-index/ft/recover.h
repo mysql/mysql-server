@@ -96,10 +96,10 @@ PATENT RIGHTS GRANT:
 #include <errno.h>
 
 #include <db.h>
+#include <util/x1764.h>
+
 #include "fttypes.h"
 #include "memory.h"
-#include "x1764.h"
-
 
 typedef void (*prepared_txn_callback_t)(DB_ENV*, TOKUTXN);
 typedef void (*keep_cachetable_callback_t)(DB_ENV*, CACHETABLE);

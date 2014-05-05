@@ -98,11 +98,10 @@ namespace toku {
 // write locks if overlapping and ensure that existing read
 // or write locks are consolidated by overlapping relocks.
 void locktree_unit_test::test_overlapping_relock(void) {
-    locktree::manager mgr;
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
-    DESCRIPTOR desc = nullptr;
+    locktree lt;
+    
     DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
+    lt.create(nullptr, dict_id, nullptr, compare_dbts);
 
     const DBT *zero = get_dbt(0);
     const DBT *one = get_dbt(1);
@@ -121,15 +120,15 @@ void locktree_unit_test::test_overlapping_relock(void) {
     // do something. at the end of the test, we release 100, 100.
     const TXNID the_other_txnid = 9999;
     const DBT *hundred = get_dbt(100);
-    r = lt->acquire_write_lock(the_other_txnid, hundred, hundred, nullptr, false);
+    r = lt.acquire_write_lock(the_other_txnid, hundred, hundred, nullptr, false);
     invariant(r == 0);
 
     for (int test_run = 0; test_run < 2; test_run++) {
         // test_run == 0 means test with read lock
         // test_run == 1 means test with write lock
 #define ACQUIRE_LOCK(txn, left, right, conflicts) \
-        test_run == 0 ? lt->acquire_read_lock(txn, left, right, conflicts, false) \
-            : lt->acquire_write_lock(txn, left, right, conflicts, false)
+        test_run == 0 ? lt.acquire_read_lock(txn, left, right, conflicts, false) \
+            : lt.acquire_write_lock(txn, left, right, conflicts, false)
 
         // lock [1,1] and [2,2]. then lock [1,2].
         // ensure only [1,2] exists in the tree
@@ -157,10 +156,10 @@ void locktree_unit_test::test_overlapping_relock(void) {
                 return true;
             }
         } verify_fn;
-        verify_fn.cmp = lt->m_cmp;
+        verify_fn.cmp = lt.m_cmp;
 
 #define do_verify() \
-        do { verify_fn.saw_the_other = false; locktree_iterate<verify_fn_obj>(lt, &verify_fn); } while (0)
+        do { verify_fn.saw_the_other = false; locktree_iterate<verify_fn_obj>(&lt, &verify_fn); } while (0)
 
         keyrange range;
         range.create(one, two);
@@ -170,9 +169,9 @@ void locktree_unit_test::test_overlapping_relock(void) {
 
         // unlocking [1,1] should remove the only range,
         // the other unlocks shoudl do nothing.
-        lt->remove_overlapping_locks_for_txnid(txnid_a, one, one);
-        lt->remove_overlapping_locks_for_txnid(txnid_a, two, two);
-        lt->remove_overlapping_locks_for_txnid(txnid_a, one, two);
+        lt.remove_overlapping_locks_for_txnid(txnid_a, one, one);
+        lt.remove_overlapping_locks_for_txnid(txnid_a, two, two);
+        lt.remove_overlapping_locks_for_txnid(txnid_a, one, two);
 
         // try overlapping from the right
         r = ACQUIRE_LOCK(txnid_a, one, three, nullptr);
@@ -197,16 +196,16 @@ void locktree_unit_test::test_overlapping_relock(void) {
         do_verify();
 
         // release one of the locks we acquired. this should clean up the whole range.
-        lt->remove_overlapping_locks_for_txnid(txnid_a, zero, four);
+        lt.remove_overlapping_locks_for_txnid(txnid_a, zero, four);
 
 #undef ACQUIRE_LOCK
     }
 
     // remove the other txnid's lock now
-    lt->remove_overlapping_locks_for_txnid(the_other_txnid, hundred, hundred);
+    lt.remove_overlapping_locks_for_txnid(the_other_txnid, hundred, hundred);
 
-    mgr.release_lt(lt);
-    mgr.destroy();
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

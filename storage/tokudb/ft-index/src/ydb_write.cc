@@ -276,7 +276,7 @@ toku_db_put(DB *db, DB_TXN *txn, DBT *key, DBT *val, uint32_t flags, bool holds_
         r = toku_db_get_point_write_lock(db, txn, key);
     }
     if (r == 0) {
-        //Insert into the brt.
+        //Insert into the ft.
         TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
         enum ft_msg_type type = FT_INSERT;
         if (flags==DB_NOOVERWRITE_NO_ERROR) {
@@ -396,9 +396,9 @@ cleanup:
 }
 
 static void
-log_del_single(DB_TXN *txn, FT_HANDLE brt, const DBT *key) {
+log_del_single(DB_TXN *txn, FT_HANDLE ft_handle, const DBT *key) {
     TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
-    toku_ft_log_del(ttxn, brt, key);
+    toku_ft_log_del(ttxn, ft_handle, key);
 }
 
 static uint32_t
@@ -413,7 +413,7 @@ sum_size(uint32_t num_arrays, DBT_ARRAY keys[], uint32_t overhead) {
 }
 
 static void
-log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32_t num_dbs, FT_HANDLE brts[], DBT_ARRAY keys[]) {
+log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32_t num_dbs, FT_HANDLE fts[], DBT_ARRAY keys[]) {
     if (num_dbs > 0) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         FT_HANDLE src_ft  = src_db ? src_db->i->ft_handle : NULL;
@@ -422,11 +422,11 @@ log_del_multiple(DB_TXN *txn, DB *src_db, const DBT *key, const DBT *val, uint32
         if (del_single_sizes < del_multiple_size) {
             for (uint32_t i = 0; i < num_dbs; i++) {
                 for (uint32_t j = 0; j < keys[i].size; j++) {
-                    log_del_single(txn, brts[i], &keys[i].dbts[j]);
+                    log_del_single(txn, fts[i], &keys[i].dbts[j]);
                 }
             }
         } else {
-            toku_ft_log_del_multiple(ttxn, src_ft, brts, num_dbs, key, val);
+            toku_ft_log_del_multiple(ttxn, src_ft, fts, num_dbs, key, val);
         }
     }
 }
@@ -539,7 +539,7 @@ env_del_multiple(
 
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
-    FT_HANDLE brts[num_dbs];
+    FT_HANDLE fts[num_dbs];
     bool indexer_lock_taken = false;
     bool src_same = false;
     bool indexer_shortcut = false;
@@ -594,7 +594,7 @@ env_del_multiple(
                 if (r != 0) goto cleanup;
             }
         }
-        brts[which_db] = db->i->ft_handle;
+        fts[which_db] = db->i->ft_handle;
     }
 
     if (indexer) {
@@ -611,7 +611,7 @@ env_del_multiple(
         }
     }
     toku_multi_operation_client_lock();
-    log_del_multiple(txn, src_db, src_key, src_val, num_dbs, brts, del_keys);
+    log_del_multiple(txn, src_db, src_key, src_val, num_dbs, fts, del_keys);
     r = do_del_multiple(txn, num_dbs, db_array, del_keys, src_db, src_key, indexer_shortcut);
     toku_multi_operation_client_unlock();
     if (indexer_lock_taken) {
@@ -627,11 +627,11 @@ cleanup:
 }
 
 static void
-log_put_multiple(DB_TXN *txn, DB *src_db, const DBT *src_key, const DBT *src_val, uint32_t num_dbs, FT_HANDLE brts[]) {
+log_put_multiple(DB_TXN *txn, DB *src_db, const DBT *src_key, const DBT *src_val, uint32_t num_dbs, FT_HANDLE fts[]) {
     if (num_dbs > 0) {
         TOKUTXN ttxn = db_txn_struct_i(txn)->tokutxn;
         FT_HANDLE src_ft  = src_db ? src_db->i->ft_handle : NULL;
-        toku_ft_log_put_multiple(ttxn, src_ft, brts, num_dbs, src_key, src_val);
+        toku_ft_log_put_multiple(ttxn, src_ft, fts, num_dbs, src_key, src_val);
     }
 }
 
@@ -701,7 +701,7 @@ env_put_multiple_internal(
 
     uint32_t lock_flags[num_dbs];
     uint32_t remaining_flags[num_dbs];
-    FT_HANDLE brts[num_dbs];
+    FT_HANDLE fts[num_dbs];
     bool indexer_shortcut = false;
     bool indexer_lock_taken = false;
     bool src_same = false;
@@ -773,7 +773,7 @@ env_put_multiple_internal(
                 if (r != 0) goto cleanup;
             }
         }
-        brts[which_db] = db->i->ft_handle;
+        fts[which_db] = db->i->ft_handle;
     }
     
     if (indexer) {
@@ -790,7 +790,7 @@ env_put_multiple_internal(
         }
     }
     toku_multi_operation_client_lock();
-    log_put_multiple(txn, src_db, src_key, src_val, num_dbs, brts);
+    log_put_multiple(txn, src_db, src_key, src_val, num_dbs, fts);
     r = do_put_multiple(txn, num_dbs, db_array, put_keys, put_vals, src_db, src_key, indexer_shortcut);
     toku_multi_operation_client_unlock();
     if (indexer_lock_taken) {

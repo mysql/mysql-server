@@ -95,11 +95,10 @@ namespace toku {
 
 // test that ranges with infinite endpoints work
 void locktree_unit_test::test_infinity(void) {
-    locktree::manager mgr;
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
-    DESCRIPTOR desc = nullptr;
+    locktree lt;
+
     DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
+    lt.create(nullptr, dict_id, nullptr, compare_dbts);
 
     int r;
     TXNID txnid_a = 1001;
@@ -112,60 +111,60 @@ void locktree_unit_test::test_infinity(void) {
     const DBT max_int = max_dbt();
 
     // txn A will lock -inf, 5.
-    r = lt->acquire_write_lock(txnid_a, toku_dbt_negative_infinity(), five, nullptr, false);
+    r = lt.acquire_write_lock(txnid_a, toku_dbt_negative_infinity(), five, nullptr, false);
     invariant(r == 0);
     // txn B will fail to get any lock <= 5, even min_int
-    r = lt->acquire_write_lock(txnid_b, five, five, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, five, five, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, zero, one, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, zero, one, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, &min_int, &min_int, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, &min_int, &min_int, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, toku_dbt_negative_infinity(), &min_int, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, toku_dbt_negative_infinity(), &min_int, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
 
-    lt->remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), five);
+    lt.remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), five);
 
     // txn A will lock 1, +inf
-    r = lt->acquire_write_lock(txnid_a, one, toku_dbt_positive_infinity(), nullptr, false);
+    r = lt.acquire_write_lock(txnid_a, one, toku_dbt_positive_infinity(), nullptr, false);
     invariant(r == 0);
     // txn B will fail to get any lock >= 1, even max_int
-    r = lt->acquire_write_lock(txnid_b, one, one, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, one, one, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, two, five, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, two, five, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, &max_int, &max_int, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, &max_int, &max_int, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, &max_int, toku_dbt_positive_infinity(), nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, &max_int, toku_dbt_positive_infinity(), nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
 
-    lt->remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), five);
+    lt.remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), five);
 
     // txn A will lock -inf, +inf
-    r = lt->acquire_write_lock(txnid_a, toku_dbt_negative_infinity(), toku_dbt_positive_infinity(), nullptr, false);
+    r = lt.acquire_write_lock(txnid_a, toku_dbt_negative_infinity(), toku_dbt_positive_infinity(), nullptr, false);
     invariant(r == 0);
     // txn B will fail to get any lock
-    r = lt->acquire_write_lock(txnid_b, zero, one, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, zero, one, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, two, five, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, two, five, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, &min_int, &min_int, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, &min_int, &min_int, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, &min_int, &max_int, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, &min_int, &max_int, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, &max_int, &max_int, nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, &max_int, &max_int, nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, toku_dbt_negative_infinity(), toku_dbt_negative_infinity(), nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, toku_dbt_negative_infinity(), toku_dbt_negative_infinity(), nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, toku_dbt_negative_infinity(), toku_dbt_positive_infinity(), nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, toku_dbt_negative_infinity(), toku_dbt_positive_infinity(), nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
-    r = lt->acquire_write_lock(txnid_b, toku_dbt_positive_infinity(), toku_dbt_positive_infinity(), nullptr, false);
+    r = lt.acquire_write_lock(txnid_b, toku_dbt_positive_infinity(), toku_dbt_positive_infinity(), nullptr, false);
     invariant(r == DB_LOCK_NOTGRANTED);
 
-    lt->remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), toku_dbt_positive_infinity());
+    lt.remove_overlapping_locks_for_txnid(txnid_a, toku_dbt_negative_infinity(), toku_dbt_positive_infinity());
 
-    mgr.release_lt(lt);
-    mgr.destroy();
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */

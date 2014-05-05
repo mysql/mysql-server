@@ -96,11 +96,10 @@ PATENT RIGHTS GRANT:
 #include <toku_portability.h>
 
 #include <util/mempool.h>
+#include <util/omt.h>
 
 #include "txn_manager.h"
 #include "rbuf.h"
-#include "x1764.h"
-#include "omt.h"
 
 /*
     Memory format of packed leaf entry

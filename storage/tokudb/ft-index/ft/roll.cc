@@ -258,7 +258,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     XIDS xids;
     xids = toku_txn_get_xids(txn);
     {
-        FT_MSG_S ftcmd = { type, ZERO_MSN, xids,
+        FT_MSG_S ftmsg = { type, ZERO_MSN, xids,
                            .u = { .id = { (key.len > 0)
                                           ? toku_fill_dbt(&key_dbt,  key.data,  key.len)
                                           : toku_init_dbt(&key_dbt),
@@ -275,7 +275,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,
                             !txn->for_recovery);
-        toku_ft_root_put_cmd(h, &ftcmd, &gc_info);
+        toku_ft_root_put_msg(h, &ftmsg, &gc_info);
         if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(h, new_root_xid_that_created);

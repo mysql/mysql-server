@@ -88,6 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
 /****************************************************************************
  * DS-MRR implementation, essentially copied from InnoDB/MyISAM/Maria
  ***************************************************************************/
@@ -95,7 +96,6 @@ PATENT RIGHTS GRANT:
 /**
  * Multi Range Read interface, DS-MRR calls
  */
-
 int ha_tokudb::multi_range_read_init(RANGE_SEQ_IF *seq, void *seq_init_param,
                                        uint n_ranges, uint mode, 
                                        HANDLER_BUFFER *buf)

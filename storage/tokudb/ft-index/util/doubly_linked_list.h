@@ -117,7 +117,7 @@ PATENT RIGHTS GRANT:
 //******************************************************************************
 
 #include <stdbool.h>
-#include <toku_include/toku_assert.h>
+#include <portability/toku_assert.h>
 
 namespace toku {
 

@@ -102,7 +102,6 @@ struct fifo {
     int   memory_used;  // How many bytes are in use?
 };
 
-const int fifo_initial_size = 4096;
 static void fifo_init(struct fifo *fifo) {
     fifo->n_items_in_fifo = 0;
     fifo->memory       = 0;
@@ -118,12 +117,12 @@ static int fifo_entry_size(struct fifo_entry *entry) {
 }
 
 __attribute__((const,nonnull))
-size_t toku_ft_msg_memsize_in_fifo(FT_MSG cmd) {
+size_t toku_ft_msg_memsize_in_fifo(FT_MSG msg) {
     // This must stay in sync with fifo_entry_size because that's what we
     // really trust.  But sometimes we only have an in-memory FT_MSG, not
     // a serialized fifo_entry so we have to fake it.
-    return sizeof (struct fifo_entry) + cmd->u.id.key->size + cmd->u.id.val->size
-        + xids_get_size(cmd->xids)
+    return sizeof (struct fifo_entry) + msg->u.id.key->size + msg->u.id.val->size
+        + xids_get_size(msg->xids)
         - sizeof(XIDS_S);
 }
 

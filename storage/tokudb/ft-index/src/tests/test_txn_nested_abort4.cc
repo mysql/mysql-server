@@ -160,11 +160,7 @@ test_txn_abort (int insert, int secondnum) {
     }
     else { // delete
         r = db->del(db, child, dbt_init(&key, &i, sizeof i), DB_DELETE_ANY); 
-	if (IS_TDB) {
 	    CKERR(r);
-	} else {
-	    CKERR2(r, (secondnum==1 ? 0 : DB_NOTFOUND));
-	}
     }
     r = child->commit(child,DB_TXN_NOSYNC); 
     child = NULL;

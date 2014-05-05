@@ -103,10 +103,10 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static FTNODE
-make_node(FT_HANDLE brt, int height) {
+make_node(FT_HANDLE ft, int height) {
     FTNODE node = NULL;
     int n_children = (height == 0) ? 1 : 0;
-    toku_create_new_ftnode(brt, &node, height, n_children);
+    toku_create_new_ftnode(ft, &node, height, n_children);
     if (n_children) BP_STATE(node,0) = PT_AVAIL;
     return node;
 }
@@ -119,14 +119,14 @@ append_leaf(FTNODE leafnode, void *key, size_t keylen, void *val, size_t vallen)
     DBT theval; toku_fill_dbt(&theval, val, vallen);
 
     // get an index that we can use to create a new leaf entry
-    uint32_t idx = BLB_DATA(leafnode, 0)->omt_size();
+    uint32_t idx = BLB_DATA(leafnode, 0)->num_klpairs();
 
     MSN msn = next_dummymsn();
 
     // apply an insert to the leaf node
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, false);
-    FT_MSG_S cmd = { FT_INSERT, msn, xids_get_root_xids(), .u = {.id = { &thekey, &theval }} };
-    toku_ft_bn_apply_cmd_once(BLB(leafnode,0), &cmd, idx, NULL, &gc_info, NULL, NULL);
+    FT_MSG_S msg = { FT_INSERT, msn, xids_get_root_xids(), .u = {.id = { &thekey, &theval }} };
+    toku_ft_bn_apply_msg_once(BLB(leafnode,0), &msg, idx, NULL, &gc_info, NULL, NULL);
 
     leafnode->max_msn_applied_to_node_on_disk = msn;
 
@@ -146,29 +146,29 @@ populate_leaf(FTNODE leafnode, int seq, int n, int *minkey, int *maxkey) {
 }
 
 static void
-insert_into_child_buffer(FT_HANDLE brt, FTNODE node, int childnum, int minkey, int maxkey) {
+insert_into_child_buffer(FT_HANDLE ft, FTNODE node, int childnum, int minkey, int maxkey) {
     for (unsigned int val = htonl(minkey); val <= htonl(maxkey); val++) {
         MSN msn = next_dummymsn();
         unsigned int key = htonl(val);
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
-        toku_ft_append_to_child_buffer(brt->ft->compare_fun, NULL, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
+        toku_ft_append_to_child_buffer(ft->ft->compare_fun, NULL, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
 	node->max_msn_applied_to_node_on_disk = msn;
     }
 }
 
 static FTNODE
-make_tree(FT_HANDLE brt, int height, int fanout, int nperleaf, int *seq, int *minkey, int *maxkey) {
+make_tree(FT_HANDLE ft, int height, int fanout, int nperleaf, int *seq, int *minkey, int *maxkey) {
     FTNODE node;
     if (height == 0) {
-        node = make_node(brt, 0);
+        node = make_node(ft, 0);
         populate_leaf(node, *seq, nperleaf, minkey, maxkey);
         *seq += nperleaf;
     } else {
-        node = make_node(brt, height);
+        node = make_node(ft, height);
         int minkeys[fanout], maxkeys[fanout];
         for (int childnum = 0; childnum < fanout; childnum++) {
-            FTNODE child = make_tree(brt, height-1, fanout, nperleaf, seq, &minkeys[childnum], &maxkeys[childnum]);
+            FTNODE child = make_tree(ft, height-1, fanout, nperleaf, seq, &minkeys[childnum], &maxkeys[childnum]);
             if (childnum == 0) {
                 toku_ft_nonleaf_append_child(node, child, NULL);
             } else {
@@ -176,8 +176,8 @@ make_tree(FT_HANDLE brt, int height, int fanout, int nperleaf, int *seq, int *mi
                 DBT pivotkey;
                 toku_ft_nonleaf_append_child(node, child, toku_fill_dbt(&pivotkey, &k, sizeof k));
             }
-            toku_unpin_ftnode(brt->ft, child);
-            insert_into_child_buffer(brt, node, childnum, minkeys[childnum], maxkeys[childnum]);
+            toku_unpin_ftnode(ft->ft, child);
+            insert_into_child_buffer(ft, node, childnum, minkeys[childnum], maxkeys[childnum]);
         }
         *minkey = minkeys[0];
         *maxkey = maxkeys[0];
@@ -211,31 +211,31 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     CACHETABLE ct = NULL;
     toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
 
-    // create the brt
+    // create the ft
     TOKUTXN null_txn = NULL;
-    FT_HANDLE brt = NULL;
-    r = toku_open_ft_handle(fname, 1, &brt, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
+    FT_HANDLE ft = NULL;
+    r = toku_open_ft_handle(fname, 1, &ft, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r == 0);
 
     // make a tree
     int seq = 0, minkey, maxkey;
-    FTNODE newroot = make_tree(brt, height, fanout, nperleaf, &seq, &minkey, &maxkey);
+    FTNODE newroot = make_tree(ft, height, fanout, nperleaf, &seq, &minkey, &maxkey);
 
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(brt->ft, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(ft->ft, newroot->thisnodename);
 
-    brt->ft->h->max_msn_in_ft = last_dummymsn(); // capture msn of last message injected into tree
+    ft->ft->h->max_msn_in_ft = last_dummymsn(); // capture msn of last message injected into tree
 
     // unpin the new root
-    toku_unpin_ftnode(brt->ft, newroot);
+    toku_unpin_ftnode(ft->ft, newroot);
 
     if (do_verify) {
-        r = toku_verify_ft(brt);
+        r = toku_verify_ft(ft);
         assert(r == 0);
     }
 
     // flush to the file system
-    r = toku_close_ft_handle_nolsn(brt, 0);     
+    r = toku_close_ft_handle_nolsn(ft, 0);     
     assert(r == 0);
 
     // shutdown the cachetable

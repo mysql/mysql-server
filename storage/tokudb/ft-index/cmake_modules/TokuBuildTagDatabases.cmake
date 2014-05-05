@@ -7,7 +7,6 @@ file(GLOB_RECURSE all_srcs
   locktree/*.cc
   portability/*.cc
   src/*.cc
-  toku_include/*.cc
   utils/*.cc
   util/*.cc
   db-benchmark-test/*.cc
@@ -24,13 +23,12 @@ file(GLOB_RECURSE all_hdrs
   locktree/*.h
   portability/*.h
   src/*.h
-  toku_include/*.h
   utils/*.h
   util/*.h
   db-benchmark-test/*.h
   )
 list(APPEND all_hdrs
-  ${CMAKE_CURRENT_BINARY_DIR}/toku_include/toku_config.h
+  ${CMAKE_CURRENT_BINARY_DIR}/portability/toku_config.h
   ${CMAKE_CURRENT_BINARY_DIR}/buildheader/db.h
   ${CMAKE_CURRENT_BINARY_DIR}/ft/log_header.h
   )
@@ -79,7 +77,7 @@ if (USE_CSCOPE)
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/cscope.out"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/cscope.in.out"
       OUTPUT "${CMAKE_CURRENT_SOURCE_DIR}/cscope.po.out"
-      COMMAND ${CSCOPE} -b -q -R -i"${CMAKE_CURRENT_BINARY_DIR}/cscope.files" -I"${CMAKE_CURRENT_SOURCE_DIR}" -I"${CMAKE_CURRENT_SOURCE_DIR}/include" -I"${CMAKE_CURRENT_SOURCE_DIR}/toku_include" -I"${CMAKE_CURRENT_SOURCE_DIR}/portability" -I"${CMAKE_CURRENT_SOURCE_DIR}/ft" -I"${CMAKE_CURRENT_SOURCE_DIR}/src" -I"${CMAKE_CURRENT_SOURCE_DIR}/locktree" -I"${CMAKE_CURRENT_SOURCE_DIR}/utils" -I"${CMAKE_CURRENT_SOURCE_DIR}/db-benchmark-test" -I"${CMAKE_CURRENT_BINARY_DIR}" -I"${CMAKE_CURRENT_BINARY_DIR}/toku_include" -I"${CMAKE_CURRENT_BINARY_DIR}/buildheader"
+      COMMAND ${CSCOPE} -b -q -R -i"${CMAKE_CURRENT_BINARY_DIR}/cscope.files" -I"${CMAKE_CURRENT_SOURCE_DIR}" -I"${CMAKE_CURRENT_SOURCE_DIR}/include" -I"${CMAKE_CURRENT_SOURCE_DIR}/portability" -I"${CMAKE_CURRENT_SOURCE_DIR}/portability" -I"${CMAKE_CURRENT_SOURCE_DIR}/ft" -I"${CMAKE_CURRENT_SOURCE_DIR}/src" -I"${CMAKE_CURRENT_SOURCE_DIR}/locktree" -I"${CMAKE_CURRENT_SOURCE_DIR}/utils" -I"${CMAKE_CURRENT_SOURCE_DIR}/db-benchmark-test" -I"${CMAKE_CURRENT_BINARY_DIR}" -I"${CMAKE_CURRENT_BINARY_DIR}/portability" -I"${CMAKE_CURRENT_BINARY_DIR}/buildheader"
       DEPENDS ${all_srcs} ${all_hdrs} install_tdb_h generate_config_h generate_log_code
       WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     add_custom_target(build_cscope.out ALL DEPENDS

@@ -88,8 +88,8 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#ifndef _HATOKU_HTON
-#define _HATOKU_HTON
+#ifndef _HATOKU_HTON_H
+#define _HATOKU_HTON_H
 
 #include "db.h"
 
@@ -107,6 +107,46 @@ enum srv_row_format_enum {
     SRV_ROW_FORMAT_DEFAULT = 6
 };
 typedef enum srv_row_format_enum srv_row_format_t;
+
+static inline srv_row_format_t toku_compression_method_to_row_format(toku_compression_method method) {
+    switch (method) {
+    case TOKU_NO_COMPRESSION:
+        return SRV_ROW_FORMAT_UNCOMPRESSED;        
+    case TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD:
+    case TOKU_ZLIB_METHOD:
+        return SRV_ROW_FORMAT_ZLIB;
+    case TOKU_QUICKLZ_METHOD:
+        return SRV_ROW_FORMAT_QUICKLZ;
+    case TOKU_LZMA_METHOD:
+        return SRV_ROW_FORMAT_LZMA;
+    case TOKU_DEFAULT_COMPRESSION_METHOD:
+        return SRV_ROW_FORMAT_DEFAULT;
+    case TOKU_FAST_COMPRESSION_METHOD:
+        return SRV_ROW_FORMAT_FAST;
+    case TOKU_SMALL_COMPRESSION_METHOD:
+        return SRV_ROW_FORMAT_SMALL;
+    default:
+        assert(0);
+    }
+}
+
+static inline toku_compression_method row_format_to_toku_compression_method(srv_row_format_t row_format) {
+    switch (row_format) {
+    case SRV_ROW_FORMAT_UNCOMPRESSED:
+        return TOKU_NO_COMPRESSION;
+    case SRV_ROW_FORMAT_QUICKLZ:
+    case SRV_ROW_FORMAT_FAST:
+        return TOKU_QUICKLZ_METHOD;
+    case SRV_ROW_FORMAT_ZLIB:
+    case SRV_ROW_FORMAT_DEFAULT:
+        return TOKU_ZLIB_WITHOUT_CHECKSUM_METHOD;
+    case SRV_ROW_FORMAT_LZMA:
+    case SRV_ROW_FORMAT_SMALL:
+        return TOKU_LZMA_METHOD;
+    default:
+        assert(0);
+    }
+}
 
 // thread variables
 
@@ -338,7 +378,7 @@ static MYSQL_THDVAR_ENUM(row_format, PLUGIN_VAR_OPCMDARG,
                          "TOKUDB_LZMA, TOKUDB_FAST, TOKUDB_SMALL and TOKUDB_DEFAULT",
                          NULL, NULL, SRV_ROW_FORMAT_ZLIB, &tokudb_row_format_typelib);
 
-static srv_row_format_t get_row_format(THD *thd) {
+static inline srv_row_format_t get_row_format(THD *thd) {
     return (srv_row_format_t) THDVAR(thd, row_format);
 }
 
@@ -389,6 +429,37 @@ static int tokudb_killed_callback(void) {
     THD *thd = current_thd;
     return thd->killed;
 }
+
+enum {
+    TOKUDB_EMPTY_SCAN_DISABLED = 0,
+    TOKUDB_EMPTY_SCAN_LR = 1,
+    TOKUDB_EMPTY_SCAN_RL = 2,
+};
+
+static const char *tokudb_empty_scan_names[] = {
+    "disabled",
+    "lr",
+    "rl",
+    NullS
+};
+
+static TYPELIB tokudb_empty_scan_typelib = {
+    array_elements(tokudb_empty_scan_names) - 1,
+    "tokudb_empty_scan_typelib",
+    tokudb_empty_scan_names,
+    NULL
+};
+
+static MYSQL_THDVAR_ENUM(empty_scan,
+    PLUGIN_VAR_OPCMDARG,
+    "TokuDB algorithm to check if the table is empty when opened. ",
+    NULL, NULL, TOKUDB_EMPTY_SCAN_RL, &tokudb_empty_scan_typelib
+);
+
+#if TOKUDB_CHECK_JEMALLOC
+static uint tokudb_check_jemalloc;
+static MYSQL_SYSVAR_UINT(check_jemalloc, tokudb_check_jemalloc, 0, "Check if jemalloc is linked", NULL, NULL, 1, 0, 1, 0);
+#endif
 
 extern HASH tokudb_open_tables;
 extern pthread_mutex_t tokudb_mutex;

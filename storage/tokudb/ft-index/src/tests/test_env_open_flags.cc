@@ -125,25 +125,19 @@ test_main(int argc, char *const argv[]) {
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);
 
-#ifdef USE_TDB
     char tracefile[TOKU_PATH_MAX+1];
     toku_set_trace_file(toku_path_join(tracefile, 2, TOKU_TEST_FILENAME, "trace.tktrace"));
-#endif
 
     /* test flags */
     test_env_open_flags(0, ENOENT);
-#ifdef TOKUDB
     // This one segfaults in BDB 4.6.21
     test_env_open_flags(DB_PRIVATE, ENOENT);
-#endif
     test_env_open_flags(DB_PRIVATE+DB_CREATE, 0);
     test_env_open_flags(DB_PRIVATE+DB_CREATE+DB_INIT_MPOOL, 0);
     test_env_open_flags(DB_PRIVATE+DB_RECOVER, EINVAL);
     test_env_open_flags(DB_PRIVATE+DB_CREATE+DB_INIT_MPOOL+DB_RECOVER, EINVAL);
 
-#ifdef USE_TDB
     toku_close_trace_file();
-#endif
 
     return 0;
 }

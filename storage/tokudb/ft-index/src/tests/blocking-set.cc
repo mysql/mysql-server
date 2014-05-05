@@ -112,7 +112,6 @@ static void populate(DB_ENV *db_env, DB *db, uint64_t nrows) {
     r = txn->commit(txn, 0); assert(r == 0);
 }
 
-#if TOKUDB
 static int blocking_set_callback(DBT const *a UU(), DBT const *b UU(), void *e UU()) {
     // DBT const *found_key = a;
     DBT const *found_val = b;
@@ -123,7 +122,6 @@ static int blocking_set_callback(DBT const *a UU(), DBT const *b UU(), void *e U
     memcpy(my_val->data, found_val->data, found_val->size);
     return 0;
 }
-#endif
 
 static void blocking_set(DB_ENV *db_env, DB *db, uint64_t nrows, long sleeptime) {
     int r;
@@ -140,11 +138,7 @@ static void blocking_set(DB_ENV *db_env, DB *db, uint64_t nrows, long sleeptime)
 
         uint64_t k = htonl(0); // set to key 0
         DBT key = { .data = &k, .size = sizeof k };
-#if TOKUDB
         r = cursor->c_getf_set(cursor, DB_RMW, &key, blocking_set_callback, &val); assert(r == 0);
-#else
-        r = cursor->c_get(cursor, &key, &val, DB_SET + DB_RMW); assert(r == 0);
-#endif
         uint64_t v;
         assert(val.size == sizeof v);
         memcpy(&v, val.data, val.size);
@@ -226,9 +220,7 @@ int test_main(int argc, char * const argv[]) {
         r = db_env->set_cachesize(db_env, cachesize / gig, cachesize % gig, 1); assert(r == 0);
     }
     r = db_env->open(db_env, db_env_dir, db_env_open_flags, S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH); assert(r == 0);
-#if TOKUDB
     r = db_env->set_lock_timeout(db_env, 30 * 1000, nullptr); assert(r == 0);
-#endif
 
     // create the db
     DB *db = NULL;

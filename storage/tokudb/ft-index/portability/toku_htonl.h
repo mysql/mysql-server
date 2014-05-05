@@ -95,7 +95,6 @@ PATENT RIGHTS GRANT:
 //#error
 #endif
 
-// TODO: This byte order stuff should all be in once place (ie: portability layer, not toku_include)
 #include <toku_htod.h>
 #include <arpa/inet.h>
 

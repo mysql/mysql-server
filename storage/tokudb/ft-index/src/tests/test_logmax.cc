@@ -152,11 +152,7 @@ test_logmax (int logmax) {
     int effective_max;
     if (logmax>0) effective_max = logmax;
     else {
-#ifdef TOKUDB
 	effective_max = 100<<20;
-#else
-	effective_max = 10<<20;
-#endif
     }
 
     r=env->txn_begin(env, 0, &tid, 0); CKERR(r);

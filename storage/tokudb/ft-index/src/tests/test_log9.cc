@@ -119,9 +119,7 @@ static void insert_some (int outeri, bool close_env) {
     DB *db;
     DB_TXN *tid;
     r=db_env_create(&env, 0); assert(r==0);
-#if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
-#endif
     
     r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE|create_flag, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);
@@ -165,9 +163,7 @@ static void make_db (bool close_env) {
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     r=toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU+S_IRWXG+S_IRWXO);       assert(r==0);
     r=db_env_create(&env, 0); assert(r==0);
-#if IS_TDB
     db_env_enable_engine_status(0);  // disable engine status on crash because test is expected to fail
-#endif
     
     r=env->open(env, TOKU_TEST_FILENAME, DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_MPOOL|DB_INIT_TXN|DB_CREATE|DB_PRIVATE, S_IRWXU+S_IRWXG+S_IRWXO); CKERR(r);
     r=db_create(&db, env, 0); CKERR(r);

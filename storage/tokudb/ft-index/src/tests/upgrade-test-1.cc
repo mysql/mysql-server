@@ -117,7 +117,7 @@ char *db_v4_dir        = OLDDATADIR "env_preload.4.2.0.cleanshutdown";
 char *db_v4_dir_node4k = OLDDATADIR "env_preload.4.2.0.node4k.cleanshutdown";
 char *db_v4_dir_flat   = OLDDATADIR "env_preload.4.2.0.flat.cleanshutdown";
 
-// HACK: Newer versions of the database/brt to use with this old
+// HACK: Newer versions of the database/ft to use with this old
 // upgrade test code.
 char *db_v6_dir        = OLDDATADIR "env_preload.5.0.8.cleanshutdown";
 char *db_v6_dir_node4k = OLDDATADIR "env_preload.5.0.8.node4k.cleanshutdown";

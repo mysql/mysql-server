@@ -95,27 +95,26 @@ namespace toku {
 
 // test simple create and destroy of the locktree
 void locktree_unit_test::test_create_destroy(void) {
-    locktree::manager mgr;
-    mgr.create(nullptr, nullptr, nullptr, nullptr);
-    DESCRIPTOR desc = nullptr;
+    locktree lt;
     DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, desc, compare_dbts, nullptr);
 
-    locktree::lt_lock_request_info *info = lt->get_lock_request_info();
+    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+
+    lt_lock_request_info *info = lt.get_lock_request_info();
     invariant_notnull(info);
     toku_mutex_lock(&info->mutex);
     toku_mutex_unlock(&info->mutex);
 
-    invariant(lt->m_dict_id.dictid == dict_id.dictid);
-    invariant(lt->m_reference_count == 1);
-    invariant(lt->m_rangetree != nullptr);
-    invariant(lt->m_userdata == nullptr);
+    invariant(lt.m_dict_id.dictid == dict_id.dictid);
+    invariant(lt.m_reference_count == 1);
+    invariant(lt.m_rangetree != nullptr);
+    invariant(lt.m_userdata == nullptr);
     invariant(info->pending_lock_requests.size() == 0);
-    invariant(lt->m_sto_end_early_count == 0);
-    invariant(lt->m_sto_end_early_time == 0);
+    invariant(lt.m_sto_end_early_count == 0);
+    invariant(lt.m_sto_end_early_time == 0);
 
-    mgr.release_lt(lt);
-    mgr.destroy();
+    lt.release_reference();
+    lt.destroy();
 }
 
 } /* namespace toku */
