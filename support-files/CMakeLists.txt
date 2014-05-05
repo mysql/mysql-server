@@ -52,7 +52,7 @@ INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/${inifile}.${ini_file_extension}
 
 IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})
-  FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure)
+  FOREACH(script  mysqld_multi.server mysql-log-rotate)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
