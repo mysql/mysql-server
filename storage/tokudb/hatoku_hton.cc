@@ -301,49 +301,45 @@ static TOKU_ENGINE_STATUS_ROW_S* toku_global_status_rows = NULL;
 static void handle_ydb_error(int error) {
     switch (error) {
     case TOKUDB_HUGE_PAGES_ENABLED:
-        fprintf(stderr, "************************************************************\n");
-        fprintf(stderr, "                                                            \n");
-        fprintf(stderr, "                        @@@@@@@@@@@                         \n");
-        fprintf(stderr, "                      @@'         '@@                       \n");
-        fprintf(stderr, "                     @@    _     _  @@                      \n");
-        fprintf(stderr, "                     |    (.)   (.)  |                      \n");
-        fprintf(stderr, "                     |             ` |                      \n");
-        fprintf(stderr, "                     |        >    ' |                      \n");
-        fprintf(stderr, "                     |     .----.    |                      \n");
-        fprintf(stderr, "                     ..   |.----.|  ..                      \n");
-        fprintf(stderr, "                      ..  '      ' ..                       \n");
-        fprintf(stderr, "                        .._______,.                         \n");
-        fprintf(stderr, "                                                            \n");
-        fprintf(stderr, " %s will not run with transparent huge pages enabled.       \n", tokudb_hton_name);
-        fprintf(stderr, " Please disable them to continue.                           \n");
-        fprintf(stderr, " (echo never > /sys/kernel/mm/transparent_hugepage/enabled) \n");
-        fprintf(stderr, "                                                            \n");
-        fprintf(stderr, "************************************************************\n");
-        fflush(stderr);
+        sql_print_error("************************************************************");
+        sql_print_error("                                                            ");
+        sql_print_error("                        @@@@@@@@@@@                         ");
+        sql_print_error("                      @@'         '@@                       ");
+        sql_print_error("                     @@    _     _  @@                      ");
+        sql_print_error("                     |    (.)   (.)  |                      ");
+        sql_print_error("                     |             ` |                      ");
+        sql_print_error("                     |        >    ' |                      ");
+        sql_print_error("                     |     .----.    |                      ");
+        sql_print_error("                     ..   |.----.|  ..                      ");
+        sql_print_error("                      ..  '      ' ..                       ");
+        sql_print_error("                        .._______,.                         ");
+        sql_print_error("                                                            ");
+        sql_print_error("%s will not run with transparent huge pages enabled.        ", tokudb_hton_name);
+        sql_print_error("Please disable them to continue.                            ");
+        sql_print_error("(echo never > /sys/kernel/mm/transparent_hugepage/enabled)  ");
+        sql_print_error("                                                            ");
+        sql_print_error("************************************************************");
         break;
     }
 }
 
 static int tokudb_init_func(void *p) {
-    TOKUDB_DBUG_ENTER("");
-
+    TOKUDB_DBUG_ENTER("%p", p);
     int r;
-
-#if defined(_WIN64)
-        r = toku_ydb_init();
-        if (r) {
-            fprintf(stderr, "got error %d\n", r);
-            goto error;
-        }
-#endif
 
     // 3938: lock the handlerton's initialized status flag for writing
     r = rw_wrlock(&tokudb_hton_initialized_lock);
     assert(r == 0);
 
     db_env = NULL;
-
     tokudb_hton = (handlerton *) p;
+
+#if TOKUDB_CHECK_JEMALLOC
+    if (tokudb_check_jemalloc && dlsym(RTLD_DEFAULT, "mallctl") == NULL) {
+        sql_print_error("%s not initialized because jemalloc is not loaded", tokudb_hton_name);
+        goto error;
+    }
+#endif
 
     tokudb_pthread_mutex_init(&tokudb_mutex, MY_MUTEX_INIT_FAST);
     (void) my_hash_init(&tokudb_open_tables, table_alias_charset, 32, 0, 0, (my_hash_get_key) tokudb_get_key, 0, 0);
@@ -442,19 +438,18 @@ static int tokudb_init_func(void *p) {
     }
 
     {
-    char *tmp_dir = tokudb_tmp_dir;
-    char *data_dir = tokudb_data_dir;
-    if (data_dir == 0) {
-        data_dir = mysql_data_home;
-    }
-    if (tmp_dir == 0) {
-        tmp_dir = data_dir;
-    }
-    DBUG_PRINT("info", ("tokudb_data_dir: %s\n", data_dir));
-    db_env->set_data_dir(db_env, data_dir);
-
-    DBUG_PRINT("info", ("tokudb_tmp_dir: %s\n", tmp_dir));
-    db_env->set_tmp_dir(db_env, tmp_dir);
+        char *tmp_dir = tokudb_tmp_dir;
+        char *data_dir = tokudb_data_dir;
+        if (data_dir == 0) {
+            data_dir = mysql_data_home;
+        }
+        if (tmp_dir == 0) {
+            tmp_dir = data_dir;
+        }
+        DBUG_PRINT("info", ("tokudb_data_dir: %s\n", data_dir));
+        db_env->set_data_dir(db_env, data_dir);
+        DBUG_PRINT("info", ("tokudb_tmp_dir: %s\n", tmp_dir));
+        db_env->set_tmp_dir(db_env, tmp_dir);
     }
 
     if (tokudb_log_dir) {
@@ -1339,7 +1334,6 @@ static void tokudb_fsync_log_period_update(THD *thd, struct st_mysql_sys_var *sy
 
 static MYSQL_SYSVAR_UINT(fsync_log_period, tokudb_fsync_log_period, 0, "TokuDB fsync log period", NULL, tokudb_fsync_log_period_update, 0, 0, ~0U, 0);
 
-
 static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(cache_size),
     MYSQL_SYSVAR(max_lock_memory),
@@ -1388,6 +1382,9 @@ static struct st_mysql_sys_var *tokudb_system_variables[] = {
     MYSQL_SYSVAR(hide_default_row_format),
     MYSQL_SYSVAR(killed_time),
     MYSQL_SYSVAR(empty_scan),
+#if TOKUDB_CHECK_JEMALLOC
+    MYSQL_SYSVAR(check_jemalloc),
+#endif
     NULL
 };
 
