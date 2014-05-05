@@ -4670,7 +4670,7 @@ fil_write_zeros(
 
 		offset += n_bytes;
 
-		n_bytes = ut_min(n_bytes, end - offset);
+		n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
 
 		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
 				DBUG_SUICIDE(););
@@ -4759,7 +4759,7 @@ retry:
 	ut_a(node_start != (os_offset_t) -1);
 
 	/* Number of physical pages in the node/file */
-	ulint		n_node_physical_pages = node_start / page_size;
+	os_offset_t	n_node_physical_pages = node_start / page_size;
 
 	/* Number of pages to extend in the node/file */
 	lint		n_node_extend;
@@ -4801,7 +4801,8 @@ retry:
 
 		if (success) {
 			success = fil_write_zeros(
-				node, page_size, node_start, len,
+				node, page_size, node_start,
+				static_cast<ulint>(len),
 				(fsp_is_system_temporary(space_id)
 				? false : srv_read_only_mode));
 
@@ -4809,7 +4810,8 @@ retry:
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Error while writing %lu zeroes to %s"
 					" starting at offset %lu",
-					(ulint) len, node->name, (ulint) node_start);
+					static_cast<ulint>(len), node->name,
+					static_cast<ulint>(node_start));
 			}
 		}
 
@@ -4819,7 +4821,9 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = (end - node_start) / page_size;
+		ut_ad((end - node_start) / page_size
+		      < static_cast<os_offset_t>(ULINT_MAX));
+		pages_added = static_cast<ulint>(end - node_start) / page_size;
 
 	} else {
 		success = true;

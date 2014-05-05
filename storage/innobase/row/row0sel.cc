@@ -249,7 +249,8 @@ row_sel_sec_rec_is_for_clust_rec(
 				const_cast<byte*>(clust_field);
 
 			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-					   clust_len - GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(clust_len
+					   - GEO_DATA_HEADER_SIZE),
 					   SPDIMS,
 					   reinterpret_cast<double*>(
 						&tmp_mbr));
