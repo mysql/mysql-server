@@ -63,6 +63,7 @@ ADD_CUSTOM_TARGET(GenFixPrivs
   DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/mysql_fix_privilege_tables_sql.c
 )
 
+IF(UNIX)
 ADD_CUSTOM_COMMAND(
   OUTPUT ${CMAKE_SOURCE_DIR}/client/sql_commands_system_data.h
   COMMAND comp_sql
@@ -84,6 +85,7 @@ ADD_CUSTOM_COMMAND(
   DEPENDS comp_sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
 )
+ENDIF(UNIX)
 
 # Add target for the above to be built
 ADD_CUSTOM_TARGET(GenBootstrapPriv
