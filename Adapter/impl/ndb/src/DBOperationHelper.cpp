@@ -23,7 +23,7 @@
 #include <node.h>
 
 #include "adapter_global.h"
-#include "Operation.h"
+#include "KeyOperation.h"
 #include "NdbWrappers.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
@@ -45,9 +45,9 @@ enum {
 
 const NdbOperation * DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
 const NdbOperation * DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
-const NdbOperation * buildNdbOperation(Operation &, int, NdbTransaction *);
+const NdbOperation * buildNdbOperation(KeyOperation &, int, NdbTransaction *);
 
-void setKeysInOp(Handle<Object> spec, Operation & op);
+void setKeysInOp(Handle<Object> spec, KeyOperation & op);
 
 
 /* DBOperationHelper takes an array of HelperSpecs.
@@ -93,7 +93,7 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
 }
 
 
-void setKeysInOp(Handle<Object> spec, Operation & op) {
+void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
 
   Local<Value> v;
@@ -113,7 +113,7 @@ void setKeysInOp(Handle<Object> spec, Operation & op) {
 }
 
 
-const NdbOperation * buildNdbOperation(Operation &op,
+const NdbOperation * buildNdbOperation(KeyOperation &op,
                                        int opcode, NdbTransaction *tx) {
   const NdbOperation * ndbop;
     
@@ -145,7 +145,7 @@ const NdbOperation * buildNdbOperation(Operation &op,
 const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
                                              NdbTransaction *tx) {
   HandleScope scope;
-  Operation op;
+  KeyOperation op;
 
   Local<Value> v;
   Local<Object> o;
@@ -191,7 +191,7 @@ const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
   Local<Object> o;
   Local<Object> valueObj;
   const NdbOperation * ndbOp;
-  Operation op;
+  KeyOperation op;
 
   v = spec->Get(HELPER_VALUE_OBJECT);
   valueObj = v->ToObject();
