@@ -120,9 +120,9 @@ typedef struct st_mem_root MEM_ROOT;
 
 int sortcmp(const String *a,const String *b, const CHARSET_INFO *cs);
 String *copy_if_not_alloced(String *a,String *b,uint32 arg_length);
-inline uint32 copy_and_convert(char *to, uint32 to_length,
+inline size_t copy_and_convert(char *to, size_t to_length,
                                const CHARSET_INFO *to_cs,
-                               const char *from, uint32 from_length,
+                               const char *from, size_t from_length,
                                const CHARSET_INFO *from_cs, uint *errors)
 {
   return my_convert(to, to_length, to_cs, from, from_length, from_cs, errors);

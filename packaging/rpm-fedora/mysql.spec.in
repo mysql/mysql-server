@@ -406,14 +406,10 @@ install -p -m 0755 %{SOURCE6} %{buildroot}%{_bindir}/mysql_config
 # Remove files pages we explicitly do not want to package
 rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
-rm -rf %{buildroot}%{_datadir}/mysql/binary-configure
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_mandir}/man1/mysql_waitpid.1*
-rm -rf %{buildroot}%{_mandir}/man1/mysql_zap.1*
-rm -rf %{buildroot}%{_mandir}/man1/mysqlbug.1*
 
 %check
 %if 0%{?runselftest}

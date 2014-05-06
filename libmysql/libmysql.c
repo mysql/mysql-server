@@ -3213,7 +3213,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     */
     char *start= value + param->offset;
     char *end= value + length;
-    ulong copy_length;
+    size_t copy_length;
     if (start < end)
     {
       copy_length= end - start;
@@ -3230,7 +3230,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       param->length will always contain length of entire column;
       number of copied bytes may be way different:
     */
-    *param->length= length;
+    *param->length= (unsigned long)length;
     break;
   }
   }

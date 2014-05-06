@@ -456,12 +456,12 @@ uint my_instr_mb(const CHARSET_INFO *cs,
         if (nmatch)
         {
           match[0].beg= 0;
-          match[0].end= (size_t) (b-b0);
+          match[0].end= (uint) (b-b0);
           match[0].mb_len= res;
           if (nmatch > 1)
           {
             match[1].beg= match[0].end;
-            match[1].end= match[0].end+s_length;
+            match[1].end= match[0].end + (uint)s_length;
             match[1].mb_len= 0;	/* Not computed */
           }
         }
@@ -655,7 +655,7 @@ my_strnxfrm_mb(const CHARSET_INFO *cs,
     else
     {
       /* Multi-byte character */
-      int len= (dst + chlen <= de) ? chlen : de - dst;
+      size_t len= (dst + chlen <= de) ? chlen : de - dst;
       memcpy(dst, src, len);
       dst+= len;
       src+= len;
@@ -728,7 +728,7 @@ static void pad_max_char(const CHARSET_INFO *cs, char *str, char *end)
     }
     else if (cs->max_sort_char <= 0xFFFF)
     {
-      buf[0]= cs->max_sort_char >> 8;
+      buf[0]= (char)(cs->max_sort_char >> 8);
       buf[1]= cs->max_sort_char & 0xFF;
       buflen= 2;
     }
