@@ -23,7 +23,7 @@
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "NdbWrapperErrors.h"
-#include "Operation.h"
+#include "ScanOperation.h"
 #include "NativeMethodCall.h"
 
 using namespace v8;
@@ -45,22 +45,8 @@ enum {
   OP_SCAN_DELETE = 48
 };
 
-class DBScanHelper : public Operation {
-public:
-  DBScanHelper(const Arguments &);
-  ~DBScanHelper();
-  NdbScanOperation * prepareScan();
-  const NdbError & getNdbError();
-private:
-  NdbTransaction *tx;
-  int nbounds;
-  NdbIndexScanOperation::IndexBound **bounds;
-  bool isIndexScan;
-  NdbScanOperation::ScanOptions options;
-};
 
-
-DBScanHelper::DBScanHelper(const Arguments &args) : 
+ScanOperation::ScanOperation(const Arguments &args) : 
   nbounds(0),
   isIndexScan(false)
 {
@@ -73,8 +59,7 @@ DBScanHelper::DBScanHelper(const Arguments &args) :
   tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
 
   lmode = NdbOperation::LM_CommittedRead;
-  scan_options = & options;
-  options.optionsPresent = 0ULL;
+  scan_options.optionsPresent = 0ULL;
 
   v = spec->Get(SCAN_TABLE_RECORD);
   if(! v->IsNull()) {
@@ -111,47 +96,47 @@ DBScanHelper::DBScanHelper(const Arguments &args) :
 
   v = spec->Get(SCAN_OPTION_FLAGS);
   if(! v->IsNull()) {
-    options.scan_flags = v->Uint32Value();
-    options.optionsPresent |= NdbScanOperation::ScanOptions::SO_SCANFLAGS;
+    scan_options.scan_flags = v->Uint32Value();
+    scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_SCANFLAGS;
   }
   
   v = spec->Get(SCAN_OPTION_BATCH_SIZE);
   if(! v->IsNull()) {
-    options.batch = v->Uint32Value();
-    options.optionsPresent |= NdbScanOperation::ScanOptions::SO_BATCH;
+    scan_options.batch = v->Uint32Value();
+    scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_BATCH;
   }
   
   v = spec->Get(SCAN_OPTION_PARALLELISM);
   if(! v->IsNull()) {
-    options.parallel = v->Uint32Value();
-    options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARALLEL;
+    scan_options.parallel = v->Uint32Value();
+    scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_PARALLEL;
   }
   
   v = spec->Get(SCAN_FILTER_CODE);
   if(! v->IsNull()) {
     Local<Object> o = v->ToObject();
-    options.interpretedCode = unwrapPointer<NdbInterpretedCode *>(o);
-    options.optionsPresent |= NdbScanOperation::ScanOptions::SO_INTERPRETED;
+    scan_options.interpretedCode = unwrapPointer<NdbInterpretedCode *>(o);
+    scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_INTERPRETED;
   }
 
   /* Scanning delete requires key info */
   if(opcode == OP_SCAN_DELETE) {
-    options.scan_flags |= NdbScanOperation::SF_KeyInfo;
-    options.optionsPresent |= NdbScanOperation::ScanOptions::SO_SCANFLAGS;    
+    scan_options.scan_flags |= NdbScanOperation::SF_KeyInfo;
+    scan_options.optionsPresent |= NdbScanOperation::ScanOptions::SO_SCANFLAGS;    
   }
   
   /* Done defining the object */
 }
 
 
-DBScanHelper::~DBScanHelper() {
+ScanOperation::~ScanOperation() {
   if(bounds) delete[] bounds;
 }
 
 
 /* Async Method: 
 */
-NdbScanOperation * DBScanHelper::prepareScan() {
+NdbScanOperation * ScanOperation::prepareScan() {
   DEBUG_MARKER(UDEB_DEBUG);
   NdbScanOperation * scan_op;
   NdbIndexScanOperation * index_scan_op;
@@ -170,47 +155,21 @@ NdbScanOperation * DBScanHelper::prepareScan() {
   return scan_op;
 }
 
-const NdbError & DBScanHelper::getNdbError() {
-  return tx->getNdbError();
-}
 
 
-//// DBScanHelper Wrapper
+//// ScanOperation Wrapper
 
-Handle<Value> prepareScan_wrapper(const Arguments &);
-
-class DBScanHelperEnvelopeClass : public Envelope {
-public:
-  DBScanHelperEnvelopeClass() : Envelope("DBScanHelper") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, "prepareScan", prepareScan_wrapper);
-  }
-};
-
-DBScanHelperEnvelopeClass dbScanHelperEnvelope;
+Envelope scanOperationEnvelope("ScanOperation");
 
 // Constructor wrapper
 Handle<Value> DBScanHelper_wrapper(const Arguments &args) {
   HandleScope scope;
-  DBScanHelper * helper = new DBScanHelper(args);
-  Local<Object> wrapper = dbScanHelperEnvelope.newWrapper();
-  wrapPointerInObject(helper, dbScanHelperEnvelope, wrapper);
+  ScanOperation * helper = new ScanOperation(args);
+  Local<Object> wrapper = scanOperationEnvelope.newWrapper();
+  wrapPointerInObject(helper, scanOperationEnvelope, wrapper);
   // freeFromGC: Disabled as it leads to segfaults during garbage collection
   // freeFromGC(helper, wrapper);
   return scope.Close(wrapper);
-}
-
-
-// prepareScan wrapper
-Handle<Value> prepareScan_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  REQUIRE_ARGS_LENGTH(1);
-  typedef NativeMethodCall_0_<NdbScanOperation *, DBScanHelper> MCALL;
-  MCALL * mcallptr = new MCALL(& DBScanHelper::prepareScan, args);
-  mcallptr->wrapReturnValueAs(getNdbScanOperationEnvelope());
-  mcallptr->errorHandler = getNdbErrorIfNull<NdbScanOperation *, DBScanHelper>;
-  mcallptr->runAsync();
-  
-  return Undefined();
 }
 
 
