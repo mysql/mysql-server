@@ -2160,7 +2160,8 @@ bool ha_myisam::check_if_incompatible_data(HA_CREATE_INFO *info,
 
 int ha_myisam::check_for_upgrade(HA_CHECK_OPT *check_opt)
 {
-  if (!(file->s->options & HA_OPTION_NULL_FIELDS) &&
+  if ((file->s->options & HA_OPTION_CHECKSUM) &&
+      !(file->s->options & HA_OPTION_NULL_FIELDS) &&
       !(file->s->options & HA_OPTION_PACK_RECORD) &&
       file->s->has_varchar_fields)
   {
