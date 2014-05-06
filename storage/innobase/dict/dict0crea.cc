@@ -967,7 +967,7 @@ dict_drop_index_tree_in_mem(
 	mtr_t		mtr;
 
 	ut_ad(mutex_own(&dict_sys->mutex)
-	     || dict_table_is_intrinsic(index->table));
+	      || dict_table_is_intrinsic(index->table));
 
 	mtr_start(&mtr);
 

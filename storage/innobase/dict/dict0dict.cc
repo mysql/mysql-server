@@ -1150,7 +1150,7 @@ dict_table_set_big_rows(
 		}
 	}
 
-	table->big_rows = row_len >= BIG_ROW_SIZE;
+	table->big_rows = (row_len >= BIG_ROW_SIZE) ? TRUE : FALSE;
 }
 
 /**********************************************************************//**

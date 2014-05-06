@@ -1357,11 +1357,12 @@ row_insert_for_mysql_using_cursor(
 
 	if (dict_index_is_auto_gen_clust(clust_index)) {
 		row_id_t	row_id;
-		row_id = session->get_table_sess_row_id(prebuilt->table->name);
+		row_id = session->get_next_table_sess_row_id(
+			prebuilt->table->name);
 		dict_sys_write_row_id(node->row_id_buf, row_id);
 	}
 
-	trx_id = session->get_table_sess_trx_id(prebuilt->table->name);
+	trx_id = session->get_next_table_sess_trx_id(prebuilt->table->name);
 	trx_write_trx_id(node->trx_id_buf, trx_id);
 
 	/* Step-4: Iterate over all the indexes and insert entries. */
@@ -2019,7 +2020,7 @@ row_update_for_mysql_using_cursor(
 		row_id_t	row_id;
 		dfield_t*	row_id_field;
 
-		row_id = session->get_table_sess_row_id(node->table->name);
+		row_id = session->get_next_table_sess_row_id(node->table->name);
 		row_id_field = dtuple_get_nth_field(
 			node->upd_row, dict_table_get_n_cols(table) - 2);
 
@@ -2028,7 +2029,7 @@ row_update_for_mysql_using_cursor(
 	}
 
 	/* Step-2: Update the trx_id column. */
-	trx_id = session->get_table_sess_trx_id(node->table->name);
+	trx_id = session->get_next_table_sess_trx_id(node->table->name);
 	trx_id_field = dtuple_get_nth_field(
 		node->upd_row, dict_table_get_n_cols(table) - 1);
 	trx_write_trx_id(static_cast<byte*>(trx_id_field->data), trx_id);
