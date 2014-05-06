@@ -9831,7 +9831,7 @@ Dbtc::routeTCKEY_FAILREFCONF(Signal* signal, const ApiConnectRecord* regApiPtr,
     CheckNodeGroups::GetNodeGroupMembers;
   sd->nodeId = node;
   EXECUTE_DIRECT(DBDIH, GSN_CHECKNODEGROUPSREQ, signal, 
-		 CheckNodeGroups::SignalLength);
+		 CheckNodeGroups::SignalLength, 0);
   jamEntry();
   
   NdbNodeBitmask mask;
