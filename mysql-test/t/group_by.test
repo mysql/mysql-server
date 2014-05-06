@@ -2033,6 +2033,12 @@ INSERT INTO t1 SELECT NULL, kp1, kp2+2 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2+4 from t1;
 INSERT INTO t1 SELECT NULL, kp1, kp2 from t1;
 
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE t1;
+--enable_result_log
+--enable_query_log
+
 EXPLAIN SELECT kp1, SUM(kp2) FROM t1 GROUP BY kp1;
 
 DROP TABLE t1;

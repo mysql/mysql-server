@@ -544,7 +544,7 @@ size_t my_write_stderr(const void *buf, size_t count)
 {
   DWORD bytes_written;
   SetFilePointer(GetStdHandle(STD_ERROR_HANDLE), 0, NULL, FILE_END);
-  WriteFile(GetStdHandle(STD_ERROR_HANDLE), buf, count, &bytes_written, NULL);
+  WriteFile(GetStdHandle(STD_ERROR_HANDLE), buf, (DWORD)count, &bytes_written, NULL);
   return bytes_written;
 }
 #else

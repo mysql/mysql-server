@@ -3854,7 +3854,7 @@ fil_open_single_table_tablespace(
 	}
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-	if (!srv_use_doublewrite_buf) {
+	if (!srv_use_doublewrite_buf && df_default.is_open()) {
 		fil_fusionio_enable_atomic_write(df_default.handle());
 
 	}
