@@ -29,7 +29,7 @@
 #     --let $slave_param_comparison= !=
 #
 # $slave_timeout
-#   The default timeout is 60 seconds. You can change the timeout by
+#   The default timeout is 30 seconds. You can change the timeout by
 #   setting $slave_timeout. The unit is one second.
 #
 # $slave_error_param
@@ -46,6 +46,7 @@
 --source include/begin_include_file.inc
 
 --let $default_timeout= 30
+
 --let $sleep_freq= 10
 --let $sleep_time= `select 1.0 / $sleep_freq`
 
@@ -55,6 +56,9 @@ let $_slave_timeout= $slave_timeout;
 if (!$_slave_timeout)
 {
   let $_slave_timeout= `select $default_timeout * $sleep_freq`;
+}
+if ($VALGRIND_TEST) {
+  let $_slave_timeout= `select $_slave_timeout * 6`;
 }
 
 if ($slave_error_param == '')
