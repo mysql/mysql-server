@@ -58,7 +58,7 @@ void DBTransactionContext::newOperationList(int size) {
   opListSize = size;
 }
 
-KeyOperation * DBTransactionContext::addOperation() {
+KeyOperation * DBTransactionContext::getNextOperation() {
   assert(opIterator < opListSize);
   KeyOperation * op = & definedOperations[opIterator];
   opIterator++;

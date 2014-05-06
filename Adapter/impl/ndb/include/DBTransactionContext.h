@@ -46,17 +46,16 @@ public:
   /****** Preparing Operations *******/
 
   /* Declare the size of the next list of operations to be defined.
+     DBTransactionContext will allocate an array of <size> operations.
   */
   void newOperationList(int size); 
 
   /* Add an operation to a transaction context. 
-     DBTransactionContext will allocate an Operation and pass it to the user.
-     After calling, the user will set features in the Operation object.
+     After calling, the user will set features in the KeyOperation object.
      At execute() time, DBSessionImpl will obtain and execute an NdbOperation
-     for each Operation, then free its internal Operation list. 
-     -- addOperation() should set the hint the first time a key op is added -- 
+     for each valid KeyOperation, then free the whole array. 
   */
-  KeyOperation * addOperation();
+  KeyOperation * getNextOperation();
   
   /*  Define a scan operation in this transaction context.
       The caller has already created the DBScanHelper describing the scan.
