@@ -24,8 +24,6 @@
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
 
-bool boolTrue = true;
-bool boolFalse = false;
 
 /* Thread starter, for pthread_create()
 */
@@ -44,21 +42,29 @@ void ioCompleted(uv_async_t *ndbWaitLoop, int) {
   ctx->completeCallbacks();
 }
 
+/* Class AsyncExecCall
+*/
+class AsyncExecCall : public AsyncAsyncCall<int, NdbTransaction> {
+public: 
+  AsyncExecCall(NdbTransaction *tx, v8::Persistent<v8::Function> jsCallback) :
+    AsyncAsyncCall<int, NdbTransaction>(tx, jsCallback, 
+                        getNdbErrorIfLessThanZero<int, NdbTransaction>)      {};
+  bool doClose;
+};
+
 /* ndbTxCompleted is the callback on tx->executeAsynch().
-   Cast the void pointer back to AsyncAsyncCall and set its return value.
+   Cast the void pointer back to AsyncExecCall and set its return value.
 */
 void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
   DEBUG_PRINT("ndbTxCompleted: %d %p %p", status, tx, v);
-  typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
-  MCALL * mcallptr = (MCALL *) v;
+  AsyncExecCall * mcallptr = (AsyncExecCall *) v;
   mcallptr->return_val = status;
   mcallptr->handleErrors();
-  bool * doClose = static_cast<bool *> (tx->getNdb()->getCustomData());
-  if( * doClose) {
+  if(mcallptr->doClose) {
     DEBUG_PRINT("Closing");
     tx->close();
   }
-  tx->getNdb()->setCustomData(mcallptr);  
+  tx->getNdb()->setCustomData(mcallptr);
 }
 
 
@@ -108,20 +114,14 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
                                    v8::Persistent<v8::Function> jsCallback) {
   
   /* Create a container to help pass return values up the JS callback stack */
-  typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
-  MCALL * mcallptr = new MCALL(tx, jsCallback,
-                               getNdbErrorIfLessThanZero<int, NdbTransaction>);
+  AsyncExecCall * mcallptr = new AsyncExecCall(tx, jsCallback);
   
   Ndb * ndb = tx->getNdb();
   DEBUG_PRINT("NdbTransaction:%p:executeAsynch(%d,%d) -- Push: %p", 
               mcallptr->native_obj, execType, abortOption, ndb);
 
-  /* Use the custom data pointer to store whether the transaction should be 
-     closed upon completion 
-  */
-  bool * boolPtr = 
-    (execType == NdbTransaction::NoCommit ? & boolFalse : & boolTrue);
-  ndb->setCustomData(boolPtr);
+  /* The NdbTransaction should be closed unless execType is NoCommit */
+  mcallptr->doClose = (execType != NdbTransaction::NoCommit);
 
   /* send the transaction to NDB */
   tx->executeAsynch((NdbTransaction::ExecType) execType,
@@ -177,14 +177,13 @@ void AsyncNdbContext::shutdown() {
 
 
 void AsyncNdbContext::completeCallbacks() {
-  typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
-  MCALL * mcallptr;
+  AsyncExecCall * mcallptr;
   Ndb * ndb = waitgroup->pop();
   
   while(ndb) {
     DEBUG_PRINT("                                           -- Pop:  %p", ndb);
     ndb->pollNdb(0, 1);  /* runs ndbTxCompleted() */
-    mcallptr = (MCALL *) ndb->getCustomData();
+    mcallptr = (AsyncExecCall *) ndb->getCustomData();
     ndb->setCustomData(0);
     main_thd_complete_async_call(mcallptr);
     ndb = waitgroup->pop();
@@ -280,7 +279,6 @@ void AsyncNdbContext::shutdown() {
    It dispatches JavaScript callbacks for completed operations.
 */
 void AsyncNdbContext::completeCallbacks() {
-  typedef AsyncAsyncCall<int, NdbTransaction> MCALL;
   ListNode<Ndb> * completedNdbs, * currentNode;
   
   completedNdbs = completed_queue.consumeAll();
@@ -288,7 +286,7 @@ void AsyncNdbContext::completeCallbacks() {
   while(completedNdbs != 0) {
     currentNode = completedNdbs;
     Ndb * ndb = currentNode->item;
-    MCALL * mcallptr = (MCALL *) ndb->getCustomData();
+    AsyncExecCall * mcallptr = ndb->getCustomData();
     ndb->setCustomData(0);
 
     main_thd_complete_async_call(mcallptr);
