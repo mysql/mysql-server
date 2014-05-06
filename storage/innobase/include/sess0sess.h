@@ -121,7 +121,7 @@ public:
 	next use.
 	@param[in]	table_name	name of the table to lookup
 	@return next table local row-id. */
-	row_id_t get_table_sess_row_id(
+	row_id_t get_next_table_sess_row_id(
 			const char*	table_name)
 	{
 		table_cache_t::iterator it = m_open_tables.find(table_name);
@@ -133,7 +133,7 @@ public:
 	next use.
 	@param[in]	table_name	name of the table to lookup
 	@return next table local trx-id. */
-	trx_id_t get_table_sess_trx_id(
+	trx_id_t get_next_table_sess_trx_id(
 			const char*	table_name)
 	{
 		table_cache_t::iterator it = m_open_tables.find(table_name);

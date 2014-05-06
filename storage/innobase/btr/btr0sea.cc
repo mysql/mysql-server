@@ -1273,12 +1273,12 @@ btr_search_build_page_hash_index(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
 	if (index->disable_ahi) {
 		return;
 	}
 
+	rec_offs_init(offsets_);
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));
 

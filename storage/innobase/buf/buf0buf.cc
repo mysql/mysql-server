@@ -3237,10 +3237,13 @@ got_block:
 	buf_wait_for_read(fix_block);
 #endif /* PAGE_ATOMIC_REF_COUNT */
 
-	/* Set it only if it is not set because same block can be
-	part of multiple mtrs and if latter mtr try to reset it to false
-	and former one has set it to true then setting is overwritten
-	and block is not scheduled for flush even though block is modified. */
+	/* Mark block as dirty if requested by caller. If not requested (false)
+	then we avoid updating the dirty state of the block and retain the
+	original one. This is reason why ?
+	Same block can be shared/pinned by 2 different mtrs. If first mtr
+	set the dirty state to true and second mtr mark it as false the last
+	updated dirty state is retained. Which means we can loose flushing of
+	a modified block. */
 	if (dirty_with_no_latch) {
 		fix_block->made_dirty_with_no_latch = dirty_with_no_latch;
 	}
