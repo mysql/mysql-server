@@ -166,11 +166,55 @@ ostream &operator<<(ostream &os, const Datetime &dt)
   return os;
 }
 
+class Gen_spaces
+{
+public:
+  Gen_spaces(int s)
+  {
+    m_spaces.reserve(s);
+    for(int i=0; i<s;)
+    {
+      if (i <= s - 8)
+      {
+        m_spaces.append("        ");
+        i += 8;
+      }
+      else if (i <= s - 4)
+      {
+        m_spaces.append("    ");
+        i += 4;
+      }
+      else if (i <= s - 2)
+      {
+        m_spaces.append("  ");
+        i += 2;
+      }
+      else
+      {
+        m_spaces.append(" ");
+        ++i;
+      }
+    }
+  }
+  ostream &operator<<(ostream &os)
+  {
+    return os;
+  }
+  friend ostream &operator<<(ostream &os, const Gen_spaces &gen);
+private:
+  string m_spaces;
+};
+
+ostream &operator<<(ostream &os, const Gen_spaces &gen)
+{
+  return os << gen.m_spaces;
+}
+
 class Log_buff : public stringbuf
 {
 public:
     Log_buff(ostream &str, string &logc)
-      :m_os(str),m_logc(logc), m_enabled(true)
+      :m_os(str),m_logc(logc.substr(0,7)), m_enabled(true)
   {}
   void set_log_class(string &s) { m_logc= s; }
   void enabled(bool s) { m_enabled= s; }
@@ -179,7 +223,8 @@ public:
     string out(str());
     if (m_enabled && out.length() > 0)
     {
-      m_os << Datetime() << "[" << m_logc << "] " << out;
+      m_os << Datetime() << "[" << m_logc << "]"
+           << Gen_spaces(8-m_logc.length()) << out;
     }
     str("");
     m_os.flush();
@@ -206,18 +251,19 @@ Log info(cout,"NOTE");
 Log error(cerr,"ERROR");
 Log warning(cout, "WARNING");
 
-void escape_string(string *str)
+string escape_string(string str)
 {
   string esc("'\"\\");
   for(string::iterator it= esc.begin(); it != esc.end(); ++it)
   {
     string::size_type idx;
-    while ((idx= str->find(*it, idx)) != string::npos)
+    while ((idx= str.find(*it, idx)) != string::npos)
     {
-      str->insert(idx, 1, '\\');
+      str.insert(idx, 1, '\\');
       idx +=2;
     }
   }
+  return str;
 }
 
 /**
@@ -232,14 +278,10 @@ struct Proxy_user
   string user;
   void to_str(string *sql)
   {
-    string esc_host(host);
-    string esc_user(user);
-    escape_string(&esc_host);
-    escape_string(&esc_user);
     sql->clear();
     sql->append("INSERT INTO proxies_priv VALUES ('");
-    sql->append(esc_host).append("','");
-    sql->append(esc_user).append("','','',TRUE,'',now());\n");
+    sql->append(escape_string(host)).append("','");
+    sql->append(escape_string(user)).append("','','',TRUE,'',now());\n");
   }
   
 };
@@ -303,31 +345,12 @@ struct Sql_user
   void to_sql(string *cmdstr)
   {
     stringstream set_oldpasscmd,ss;
-    string esc_password(password);
-    string esc_host(host);
-    string esc_user(user);
-    string esc_plugin(plugin);
-    string esc_auth_str(authentication_string);
-    string esc_ssl_type(ssl_type);
-    string esc_ssl_cipher(ssl_cipher);
-    string esc_x509_issuer(x509_issuer);
-    string esc_x509_subject(x509_subject);
-    escape_string(&esc_password);
-    escape_string(&esc_user);
-    escape_string(&esc_host);
-    escape_string(&esc_plugin);
-    escape_string(&esc_auth_str);
-    escape_string(&esc_ssl_type);
-    escape_string(&esc_ssl_cipher);
-    escape_string(&esc_x509_issuer);
-    escape_string(&esc_x509_subject);
-
     ss << "INSERT INTO mysql.user VALUES ("
-       << "'" << esc_host << "','" << esc_user << "',";
+       << "'" << escape_string(host) << "','" << escape_string(user) << "',";
 
     if (plugin == "mysql_native_password")
     {
-      ss << "PASSWORD('" << esc_password << "'),";
+      ss << "PASSWORD('" << escape_string(password) << "'),";
     }
     else if (plugin == "sha256_password")
     {
@@ -341,10 +364,10 @@ struct Sql_user
       else
         ss << "'N',";
     }
-    ss << "'" << esc_ssl_type << "',"
-       << "'" << esc_ssl_cipher << "',"
-       << "'" << esc_x509_issuer << "',"
-       << "'" << esc_x509_subject << "',"
+    ss << "'" << escape_string(ssl_type) << "',"
+       << "'" << escape_string(ssl_cipher) << "',"
+       << "'" << escape_string(x509_issuer) << "',"
+       << "'" << escape_string(x509_subject) << "',"
        << max_questions << ","
        << max_updates << ","
        << max_connections << ","
@@ -353,11 +376,11 @@ struct Sql_user
     if (plugin == "sha256_password")
     {
       set_oldpasscmd << "SET @@old_passwords= 2;\n";
-      ss << "PASSWORD('" << esc_password << "'),";
+      ss << "PASSWORD('" << escape_string(password) << "'),";
     }
     else
     {
-      ss << "'" << esc_auth_str << "',";
+      ss << "'" << escape_string(authentication_string) << "',";
     }
     if (password_expired)
       ss << "'Y',";
@@ -850,19 +873,23 @@ public:
       extra_sql.qpath(m_opt_sqlfile);
       if (!extra_sql.exists())
       {
-        error << "No such file " << extra_sql.to_str() << endl;
-        return false;
-      }
-      info << "Executing extra SQL commands from " << extra_sql.to_str()
-       << endl;
-      ifstream fin(extra_sql.to_str().c_str());
-      string sql_command;
-      for (int n= 0; !getline(fin, sql_command).eof() && errno != EPIPE &&
-           n != 0; )
+        warning << "No such file '" << extra_sql.to_str() << "' "
+                << "(skipping)"
+                << endl;
+      } else
       {
-        n= write(fh, sql_command.c_str(), sql_command.length());
+        info << "Executing extra SQL commands from " << extra_sql.to_str()
+             << endl;
+        ifstream fin(extra_sql.to_str().c_str());
+        string sql_command;
+        for (int n= 1; !getline(fin, sql_command).eof() && errno != EPIPE &&
+             n != 0; )
+        {
+          sql_command.append("\n");
+          n= write(fh, sql_command.c_str(), sql_command.length());
+        }
+        fin.close();
       }
-      fin.close();
     }
     return true;
   }
