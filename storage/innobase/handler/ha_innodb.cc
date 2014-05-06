@@ -4005,8 +4005,10 @@ innobase_close_connection(
 		trx_free_for_mysql(trx);
 	}
 
-	delete thd_to_innodb_session(thd);
-	thd_to_innodb_session(thd) = NULL;
+	if (thd_to_innodb_session(thd) != NULL) {
+		delete thd_to_innodb_session(thd);
+		thd_to_innodb_session(thd) = NULL;
+	}
 
 	DBUG_RETURN(0);
 }
@@ -11614,17 +11616,14 @@ ha_innobase::enable_indexes(
 	table continue to remain same. */
 
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		if (mode == HA_KEY_SWITCH_ALL) {
-			for (dict_index_t* index
-				= UT_LIST_GET_FIRST(prebuilt->table->indexes);
-			     index != NULL;
-			     index = UT_LIST_GET_NEXT(indexes, index)) {
-				index->allow_duplicates = false;
-			}
-			error = 0;
-		} else {
-			ut_ad(0);
+		ut_ad(mode == HA_KEY_SWITCH_ALL);
+		for (dict_index_t* index
+			= UT_LIST_GET_FIRST(prebuilt->table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			index->allow_duplicates = false;
 		}
+		error = 0;
 	}
 
 	return(error);
@@ -11643,16 +11642,12 @@ ha_innobase::disable_indexes(
 	table continue to remain same. */
 
 	if (dict_table_is_intrinsic(prebuilt->table)) {
-		if (mode == HA_KEY_SWITCH_ALL) {
-			for (dict_index_t* index
-				= UT_LIST_GET_FIRST(prebuilt->table->indexes);
-			     index != NULL;
-			     index = UT_LIST_GET_NEXT(indexes, index)) {
-				index->allow_duplicates = true;
-			}
-			error = 0;
-		} else {
-			ut_ad(0);
+		ut_ad(mode == HA_KEY_SWITCH_ALL);
+		for (dict_index_t* index
+			= UT_LIST_GET_FIRST(prebuilt->table->indexes);
+		     index != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index)) {
+			index->allow_duplicates = true;
 		}
 	}
 

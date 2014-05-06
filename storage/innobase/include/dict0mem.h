@@ -566,12 +566,15 @@ class rec_cache_t
 public:
 	/** Constructor */
 	rec_cache_t()
-	: rec_size(),
-	  offsets(),
-	  sz_of_offsets(),
-	  fixed_len_key(),
-	  offsets_cached(),
-	  key_has_null_cols() {
+		:
+		rec_size(),
+		offsets(),
+		sz_of_offsets(),
+		fixed_len_key(),
+		offsets_cached(),
+		key_has_null_cols()
+	{
+		/* Do Nothing. */
 	}
 
 public:
@@ -609,7 +612,9 @@ public:
 		block(),
 		mtr(),
 		disable_caching(),
-		invalid() {
+		invalid()
+	{
+		/* Do Nothing. */
 	}
 
 	/* Commit mtr and re-initialize cache record and block to NULL. */

@@ -4708,8 +4708,8 @@ btr_cur_del_mark_set_clust_rec(
 
 	btr_rec_set_deleted_flag(rec, page_zip, TRUE);
 
-	/* For intrinsic table roll-ptr is neither updated
-	nor is delete event REDO logged. */
+	/* For intrinsic table, roll-ptr is not maintained as there is no UNDO
+	logging. Skip updating it. */
 	if (dict_table_is_intrinsic(index->table)) {
 		return(err);
 	}
