@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,6 +61,11 @@ DbtcProxy::DbtcProxy(Block_context& ctx) :
   addRecSignal(GSN_ABORT_ALL_REQ,&DbtcProxy::execABORT_ALL_REQ);
   addRecSignal(GSN_ABORT_ALL_REF,&DbtcProxy::execABORT_ALL_REF);
   addRecSignal(GSN_ABORT_ALL_CONF,&DbtcProxy::execABORT_ALL_CONF);
+
+  // Routed signals are distributed across the workers
+  // This requires that there's no ordering constraints between them
+  // GSN_TCKEY_FAILREFCONF_R
+  addRecSignal(GSN_TCKEY_FAILREFCONF_R, &DbtcProxy::forwardToAnyWorker);
 
   // GSN_CREATE_FK_IMPL_REQ
   addRecSignal(GSN_CREATE_FK_IMPL_REQ, &DbtcProxy::execCREATE_FK_IMPL_REQ);
