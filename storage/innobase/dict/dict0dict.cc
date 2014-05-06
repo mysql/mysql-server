@@ -5678,13 +5678,6 @@ dict_ind_init(void)
 	dict_index_add_col(dict_ind_redundant, table,
 			   dict_table_get_nth_col(table, 0), 0);
 	dict_ind_redundant->table = table;
-
-	/* create dummy table and index for COMPACT infimum and supremum */
-	table = dict_mem_table_create("SYS_DUMMY2",
-				      DICT_HDR_SPACE, 1,
-				      DICT_TF_COMPACT, 0);
-	dict_mem_table_add_col(table, NULL, NULL, DATA_CHAR,
-			       DATA_ENGLISH | DATA_NOT_NULL, 8);
 	/* avoid ut_ad(index->cached) in dict_index_get_n_unique_in_tree */
 	dict_ind_redundant->cached = TRUE;
 }
