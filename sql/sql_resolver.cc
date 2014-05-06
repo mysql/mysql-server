@@ -2519,19 +2519,29 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
 int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
+  SELECT_LEX *const select= thd->lex->current_select();
+
   thd->where="order clause";
-  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
+  DBUG_ASSERT(select->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
-  for (; order; order=order->next)
+
+  const bool for_union= select == select->master_unit()->fake_select_lex;
+
+  for (uint number= 1; order; order=order->next, number++)
   {
-    thd->lex->current_select()->cur_pos_in_all_fields=
+    select->cur_pos_in_all_fields=
       fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
+    if (for_union && (*order->item)->with_sum_func)
+    {
+      my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
+      return 1;
+    }
   }
-  thd->lex->current_select()->cur_pos_in_all_fields=
-		SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+  select->cur_pos_in_all_fields= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+
   return 0;
 }
 

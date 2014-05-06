@@ -7138,6 +7138,9 @@ ER_DUP_LIST_ENTRY
 ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
 
+ER_AGGREGATE_ORDER_FOR_UNION
+  eng "Expression #%u of ORDER BY contains aggregate function and applies to a UNION"
+
 #
 #  End of 5.7 error messages.
 #
