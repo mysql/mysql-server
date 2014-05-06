@@ -386,6 +386,7 @@ Rpl_semi_sync_slave_status	ON
 include/stop_slave.inc
 [ on master ]
 set sql_log_bin=0;
+include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 set sql_log_bin=1;
 SHOW VARIABLES LIKE 'rpl_semi_sync_master_enabled';

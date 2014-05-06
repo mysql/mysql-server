@@ -545,6 +545,7 @@ source include/stop_slave.inc;
 connection master;
 echo [ on master ];
 set sql_log_bin=0;
+--source include/stop_dump_threads.inc
 UNINSTALL PLUGIN rpl_semi_sync_master;
 set sql_log_bin=1;
 enable_query_log;
