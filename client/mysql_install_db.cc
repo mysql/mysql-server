@@ -882,8 +882,10 @@ public:
              << endl;
         ifstream fin(extra_sql.to_str().c_str());
         string sql_command;
-        for (int n= 1; !getline(fin, sql_command).eof() && errno != EPIPE &&
-             n != 0; )
+        string default_se_command("SET default_storage_engine=INNODB;\n");
+        int n= write(fh, default_se_command.c_str(), default_se_command.length());
+        while (!getline(fin, sql_command).eof() && errno != EPIPE &&
+             n != 0)
         {
           sql_command.append("\n");
           n= write(fh, sql_command.c_str(), sql_command.length());
