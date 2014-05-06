@@ -777,7 +777,7 @@ static void print_result()
   char prev_alter[MAX_ALTER_STR_SIZE];
   uint i;
   char *db_name;
-  uint length_of_db;
+  size_t length_of_db;
   my_bool found_error=0, table_rebuild=0;
 
   res = mysql_use_result(sock);

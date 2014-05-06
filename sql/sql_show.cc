@@ -2514,6 +2514,46 @@ void free_status_vars()
   Status_var_array().swap(all_status_vars);
 }
 
+/**
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       list       list of SHOW_VAR objects in which function should
+                              search
+  @param[in]       name       name of the status variable
+  @param[in]       var_type   Variable type
+  @param[in/out]   value      buffer in which value of the status variable
+                              needs to be filled in
+  @param[in/out]   length     filled with buffer length
+
+  @return          status
+    @retval        FALSE      if variable is not found in the list
+    @retval        TRUE       if variable is found in the list
+*/
+
+bool get_status_var(THD *thd, SHOW_VAR *list, const char * name,
+                    char * const value, enum_var_type var_type, size_t *length)
+{
+  for (; list->name; list++)
+  {
+    int res= strcmp(list->name, name);
+    if (res == 0)
+    {
+      /*
+        if var->type is SHOW_FUNC, call the function.
+        Repeat as necessary, if new var is again SHOW_FUNC
+       */
+      SHOW_VAR tmp;
+      for (; list->type == SHOW_FUNC; list= &tmp)
+        ((mysql_show_var_func)(list->value))(thd, &tmp, value);
+
+      get_one_variable(thd, list, var_type, list->type, NULL, NULL, value, length);
+      return TRUE;
+    }
+  }
+  return FALSE;
+}
+
 /*
   Removes an array of SHOW_VAR entries from the output of SHOW STATUS
 

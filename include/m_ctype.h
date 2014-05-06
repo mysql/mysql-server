@@ -699,7 +699,7 @@ my_bool my_propagate_complex(const CHARSET_INFO *cs, const uchar *str,
                              size_t len);
 
 
-uint my_string_repertoire(const CHARSET_INFO *cs, const char *str, ulong len);
+uint my_string_repertoire(const CHARSET_INFO *cs, const char *str, size_t len);
 my_bool my_charset_is_ascii_based(const CHARSET_INFO *cs);
 my_bool my_charset_is_8bit_pure_ascii(const CHARSET_INFO *cs);
 uint my_charset_repertoire(const CHARSET_INFO *cs);
@@ -720,8 +720,8 @@ const MY_CONTRACTIONS *my_charset_get_contractions(const CHARSET_INFO *cs,
 extern size_t my_vsnprintf_ex(const CHARSET_INFO *cs, char *to, size_t n,
                               const char* fmt, va_list ap);
 
-uint32 my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
-                  const char *from, uint32 from_length,
+size_t my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
+                  const char *from, size_t from_length,
                   const CHARSET_INFO *from_cs, uint *errors);
 
 uint my_mbcharlen_ptr(const CHARSET_INFO *cs, const char *s, const char *e);

@@ -19570,7 +19570,7 @@ static my_bool
 my_uca_alloc_contractions(MY_CONTRACTIONS *contractions,
                           MY_CHARSET_LOADER *loader, size_t n)
 {
-  uint size= n * sizeof(MY_CONTRACTION);
+  size_t size= n * sizeof(MY_CONTRACTION);
   if (!(contractions->item= (loader->once_alloc)(size)) ||
       !(contractions->flags= (char *) (loader->once_alloc)(MY_UCA_CNT_FLAG_SIZE)))
     return 1;
