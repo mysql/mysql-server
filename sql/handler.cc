@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3216,7 +3216,14 @@ int handler::update_auto_increment()
     if (forced != NULL)
     {
       nr= forced->minimum();
-      nb_reserved_values= forced->values();
+      /*
+        In a multi insert statement when the number of affected rows is known
+        then reserve those many number of auto increment values. So that
+        interval will be starting value to starting value + number of affected
+        rows * increment of auto increment.
+       */
+      nb_reserved_values= (estimation_rows_to_insert > 0) ?
+        estimation_rows_to_insert : forced->values();
     }
     else
     {
