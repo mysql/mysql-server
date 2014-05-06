@@ -39,6 +39,7 @@ public:
   uint8_t * read_mask_ptr;
   NdbOperation::LockMode lmode;
   NdbOperation::OperationOptions *options;
+  int opcode;
   
   // Constructor
   KeyOperation();
@@ -54,15 +55,18 @@ public:
   NdbTransaction *startTransaction(Ndb *) const;
 
   // read
-  const NdbOperation *readTuple(NdbTransaction *tx);
+  const NdbOperation *readTuple(NdbTransaction *);
 
   // delete
-  const NdbOperation *deleteTuple(NdbTransaction *tx);
+  const NdbOperation *deleteTuple(NdbTransaction *);
 
   // write
-  const NdbOperation *writeTuple(NdbTransaction *tx);
-  const NdbOperation *insertTuple(NdbTransaction *tx);
-  const NdbOperation *updateTuple(NdbTransaction *tx);
+  const NdbOperation *writeTuple(NdbTransaction *);
+  const NdbOperation *insertTuple(NdbTransaction *);
+  const NdbOperation *updateTuple(NdbTransaction *);
+
+  // generic
+  const NdbOperation *prepare(NdbTransaction *);
  };
   
 
@@ -70,7 +74,7 @@ public:
 
 inline KeyOperation::KeyOperation(): 
   row_buffer(0), key_buffer(0), row_record(0), key_record(0),
-  read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0)
+  read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0), opcode(0)
 {
   u.maskvalue = 0;
 }
@@ -99,8 +103,7 @@ inline const NdbOperation *
                          row_record->getNdbRecord(), row_buffer, lmode, read_mask_ptr);
 }
 
-inline const NdbOperation * 
-  KeyOperation::deleteTuple(NdbTransaction *tx) {
+inline const NdbOperation * KeyOperation::deleteTuple(NdbTransaction *tx) {
     return tx->deleteTuple(key_record->getNdbRecord(), key_buffer,
                            row_record->getNdbRecord(), 0, 0, options);
 }                         
@@ -110,18 +113,32 @@ inline const NdbOperation * KeyOperation::writeTuple(NdbTransaction *tx) {
                         row_record->getNdbRecord(), row_buffer, u.row_mask);
 }
 
-inline const NdbOperation * 
-  KeyOperation::insertTuple(NdbTransaction *tx) { 
+inline const NdbOperation * KeyOperation::insertTuple(NdbTransaction *tx) { 
     return tx->insertTuple(row_record->getNdbRecord(), row_buffer,
                            u.row_mask, options);
 }
 
-inline const NdbOperation * 
-  KeyOperation::updateTuple(NdbTransaction *tx) { 
+inline const NdbOperation * KeyOperation::updateTuple(NdbTransaction *tx) { 
     return tx->updateTuple(key_record->getNdbRecord(), key_buffer,
                            row_record->getNdbRecord(), row_buffer,
                            u.row_mask, options);
 }
 
+inline const NdbOperation * KeyOperation::prepare(NdbTransaction *tx) {
+  switch(opcode) {
+    case 1:  // OP_READ:
+      return readTuple(tx);
+    case 2:  // OP_INSERT:
+      return insertTuple(tx);
+    case 4:  // OP_UPDATE:
+      return updateTuple(tx);
+    case 8:  // OP_WRITE:
+      return writeTuple(tx);
+    case 16: // OP_DELETE:
+      return deleteTuple(tx);
+    default:
+      return NULL;
+  }
+}
 
 #endif
