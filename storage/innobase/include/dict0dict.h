@@ -1601,11 +1601,9 @@ struct dict_sys_t{
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 extern dict_index_t*	dict_ind_redundant;
-/** dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
-extern dict_index_t*	dict_ind_compact;
 
 /**********************************************************************//**
-Inits dict_ind_redundant and dict_ind_compact. */
+Inits dict_ind_redundant. */
 
 void
 dict_ind_init(void);
