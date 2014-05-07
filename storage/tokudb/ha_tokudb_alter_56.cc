@@ -752,7 +752,7 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
 
     if (!commit) {
         // abort the alter transaction NOW so that any alters are rolled back. this allows the following restores to work.
-        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
         assert(ctx->alter_txn == trx->stmt);
         assert(trx->tokudb_lock_count > 0);
         // for partitioned tables, we use a single transaction to do all of the partition changes.  the tokudb_lock_count
