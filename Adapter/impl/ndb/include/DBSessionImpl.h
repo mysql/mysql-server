@@ -29,39 +29,52 @@
 class DBTransactionContext;
 class AsyncNdbContext;
 
+
 class CachedTransactionsAccountant {
 protected:
   friend class DBTransactionContext;
   
-  CachedTransactionsAccountant(Ndb_cluster_connection *);
+  CachedTransactionsAccountant(Ndb_cluster_connection *, int maxTransactions);
   ~CachedTransactionsAccountant();
+ 
+  /* Calling sequence in to CachedTransactionsAccountant:
+     Call registerIntentToOpen() before opening a transaction.
+     Based on return value:
+       -1    - start transaction immediate
+       other - start transcation async 
+     Store return value as token. 
+     After open, call NdbTransaction::getConnectedNodeId(), 
+     then call registerTxOpen() with token and node id.
+     After close of transaction, call registerTxClosed with node id.
+  */
 
-  /* Returns true if the number of non-zero elements in the 
-     cachedTransactionsPerTC is equal to the number of data nodes.
+  /* registerIntentToOpen() decrements all non-zero counters. 
+     Its return value is a bitmap token indicating which counters were decremented.
+     The special value of -1 indicates that all counters were non-zero, and 
+     that therefore immediate (synchronous) startTransaction() is allowed.
+      
      In other words: if it is known that there is a cached API Connect Record 
      for each data node, then startTransaction() is guaranteed not to block 
-     no matter which TC is selected.     
+     no matter which TC is selected, so it can be called from the main thread.
   */
-  bool canOpenImmediate();
-
-  /* Bookkeeping methods for the cachedTransactionsPerTC array. 
-     If code in the JS main thread knows the connected node id, it can use the
-     specific version of the call.
-     These return 0 if nodeId is a valid data node id, otherwise -1.
-  */   
-  int registerTxOpen(int nodeId);               // decrement if non-zero
-  int registerTxClosed(int nodeId);             // increment 
+  int64_t registerIntentToOpen();
+  void registerTxOpen(int64_t token, int nodeId);
+  void registerTxClosed(int nodeId);
 
 private:
-  int nDataNodes;
-  int nNonZeroTallies;
-  class TcTally { 
-  public:
-    TcTally() : nodeId(0), txCount(0) {};
-    uint8_t nodeId;
-    uint8_t txCount;
-  };
-  TcTally cachedTransactionsPerTC[48];
+  /* Methods */
+  void  tallySetNodeId(int);
+  void  tallyClearNodeId(int);
+  void  tallySetMaskedNodeIds(int64_t);
+  void  tallyClear();
+  int   tallyCountSetNodeIds();
+
+  /* Data Members */
+  uint64_t tc_bitmap;
+  short nDataNodes;
+  short concurrency;
+  short cacheConcurrency;
+  short maxConcurrency;
 };
 
 
