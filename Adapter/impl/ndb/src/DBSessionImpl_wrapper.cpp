@@ -24,6 +24,7 @@
 #include "js_wrapper_macros.h"
 #include "DBTransactionContext.h"
 #include "DBSessionImpl.h"
+#include "NativeCFunctionCall.h"
 #include "NativeMethodCall.h"
 
 using namespace v8;
@@ -57,22 +58,26 @@ Handle<Value> DBSessionImpl_Wrapper(DBSessionImpl *dbsi) {
   return Null();
 }
 
+DBSessionImpl * asyncNewDBSessionImpl(Ndb_cluster_connection *conn,
+                                      AsyncNdbContext *ctx,
+                                      const char *db, int maxTx) {
+  return new DBSessionImpl(conn, ctx, db, maxTx);
+}
+
+
 Handle<Value> newDBSessionImpl(const Arguments & args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   PROHIBIT_CONSTRUCTOR_CALL();
-  REQUIRE_ARGS_LENGTH(4);
+  REQUIRE_ARGS_LENGTH(5);
 
-  JsValueConverter<Ndb_cluster_connection *> arg0(args[0]);
-  JsValueConverter<const char *> arg1(args[1]);
-  JsValueConverter<AsyncNdbContext *> arg2(args[2]);
-  JsValueConverter<int> arg3(args[3]);
-  
-  DBSessionImpl * d = new DBSessionImpl(arg0.toC(), arg1.toC(), 
-                                        arg2.toC(), arg3.toC());
-  
-  return scope.Close(DBSessionImpl_Wrapper(d));
+  typedef NativeCFunctionCall_4_<DBSessionImpl *, Ndb_cluster_connection *,
+                                 AsyncNdbContext *, const char *, int> MCALL;
+  MCALL * mcallptr = new MCALL(& asyncNewDBSessionImpl, args);
+  mcallptr->wrapReturnValueAs(& DBSessionImplEnvelope);
+  mcallptr->runAsync();
+  return Undefined();
 }
 
 /* The seizeTransaction() wrapper is unusual because a 
@@ -95,9 +100,10 @@ Handle<Value> releaseTransaction(const Arguments & args) {
 
 
 Handle<Value> DBSessionImplDestructor(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
   typedef NativeDestructorCall<DBSessionImpl> DCALL;
-  DCALL dcall(args);
-  dcall.run(); 
+  DCALL * dcall = new DCALL(args);
+  dcall->runAsync();
   return Undefined();
 }
 
