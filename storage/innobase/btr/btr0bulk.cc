@@ -31,8 +31,7 @@ Created 03/11/2014 Shaohua Wang
 /* Innodb B-tree index fill factor for bulk load. */
 long	innobase_fill_factor;
 
-/** Initialize members.
-Allocate page and mtr. */
+/** Initialize members, allocate page and start mtr. */
 void PageBulk::init()
 {
 	mtr_t*		mtr;
@@ -50,8 +49,8 @@ void PageBulk::init()
 	if (m_page_no == FIL_NULL) {
 		mtr_t	alloc_mtr;
 
-		/* We write allocation log first, because we don't grantee
-		pages are committed following the allocation order. */
+		/* We write redo log for allocation first, because we don't
+		guarantee pages are committed following the allocation order. */
 		mtr_start(&alloc_mtr);
 
 		if (m_index->is_redo_skipped) {
@@ -131,13 +130,13 @@ void PageBulk::init()
 }
 
 /** Insert a record in the page.
-We insert a record in the page and update releated members,
+We insert a record in the page and update related members,
 it should succeed.
 @param[in]	rec		record
 @param[in]	offsets		record offsets */
 void PageBulk::insert(
-	rec_t*		rec,
-	ulint*		offsets)
+	const rec_t*		rec,
+	ulint*			offsets)
 {
 	ulint		rec_size;
 	rec_t*		insert_rec;
@@ -166,7 +165,7 @@ void PageBulk::insert(
 
 	rec_size = rec_offs_size(offsets);
 
-	/* 1. Create the record. */
+	/* 1. Copy the record to page. */
 	insert_rec = rec_copy(m_heap_top, rec, offsets);
 	rec_offs_make_valid(insert_rec, m_index, offsets);
 
@@ -202,8 +201,7 @@ void PageBulk::insert(
 }
 
 /** Finish a page
-Scan all records to set page dirs, and set page header members,
-redo log all inserts.
+Scan all records to set page dirs, and set page header members.
 Note: we refer to page_copy_rec_list_end_to_created_page. */
 void PageBulk::finish()
 {
@@ -237,8 +235,7 @@ void PageBulk::finish()
 		count++;
 		n_recs++;
 
-		if (UNIV_UNLIKELY
-		    (count == (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2)) {
+		if (count == (PAGE_DIR_SLOT_MAX_N_OWNED + 1) / 2) {
 
 			slot_index++;
 
@@ -286,7 +283,7 @@ void PageBulk::finish()
 	m_block->check_index_page_at_flush = TRUE;
 }
 
-/** Commit mtr for a page
+/** Commit inserts done to the page
 @param[in]	success		Flag whether all inserts succeed.
 @return error code */
 void PageBulk::commit(bool	success)
@@ -428,6 +425,12 @@ void PageBulk::copyOut(rec_t*	split_rec)
 	ulint*		offsets;
 	ulint		n;
 
+	/* Suppose before copyOut, we have 5 records on the page:
+	infimum->r1->r2->r3->r4->r5->supremum, and r3 is the split rec.
+
+	after copyOut, we have 2 records on the page:
+	infimum->r1->r2->supremum. slot ajustment is not done. */
+
 	last_rec = page_rec_get_prev(page_get_supremum_rec(m_page));
 
 	n = 0;
@@ -486,7 +489,7 @@ We check fill factor & padding here.
 @param[in]	length		required length
 @retval true	if space is available
 @retval false	if no space is available */
-bool PageBulk::spaceAvailable(ulint        rec_size)
+bool PageBulk::isSpaceAvailable(ulint        rec_size)
 {
 	ulint	slot_size;
 	ulint	required_space;
@@ -518,7 +521,7 @@ bool PageBulk::spaceAvailable(ulint        rec_size)
 /** Check whether the record needs to be stored externally.
 @return	true
 @return	false */
-bool PageBulk::needExt(dtuple_t*	tuple, ulint	rec_size)
+bool PageBulk::needExt(const dtuple_t*	tuple, ulint	rec_size)
 {
 	return(page_zip_rec_needs_ext(rec_size, m_is_comp,
 		dtuple_get_n_fields(tuple), m_block->page.size));
@@ -544,8 +547,10 @@ void PageBulk::release()
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_heap_top - m_total_data);
 #endif
-	/* Don't need buf_page_mutex_enter(block);*/
+	/* We fix the block because we will re-pin it soon. */
+	buf_page_mutex_enter(m_block);
 	buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
+	buf_page_mutex_exit(m_block);
 
 	mtr_commit(m_mtr);
 }
@@ -584,7 +589,8 @@ void PageBulk::lock()
 @param[in]	page_bulk	page to split
 @param[in]	next_page_bulk	next page
 @return	error code */
-dberr_t BtrBulk::pageSplit(PageBulk* page_bulk, PageBulk* next_page_bulk)
+dberr_t BtrBulk::pageSplit(PageBulk* page_bulk,
+			   PageBulk* next_page_bulk)
 {
 	dberr_t		err = DB_SUCCESS;
 	rec_t*		split_rec;
@@ -627,7 +633,8 @@ dberr_t BtrBulk::pageSplit(PageBulk* page_bulk, PageBulk* next_page_bulk)
 @param[in]	next_page_bulk	next page
 @param[in]	insert_father	flag whether need to insert node ptr
 @return	error code */
-dberr_t BtrBulk::pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
+dberr_t BtrBulk::pageCommit(PageBulk* page_bulk,
+			    PageBulk* next_page_bulk,
 			    bool insert_father)
 {
 	dberr_t		err = DB_SUCCESS;
@@ -738,7 +745,7 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 		rec_size = rec_get_converted_size(m_index, tuple, n_ext);
 	}
 
-	if (!page_bulk->spaceAvailable(rec_size)) {
+	if (!page_bulk->isSpaceAvailable(rec_size)) {
 		PageBulk*	sibling_page_bulk;
 
 		/* Create a sibling page_bulk. */

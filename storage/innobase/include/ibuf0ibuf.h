@@ -449,7 +449,7 @@ ibuf_check_bitmap_on_import(
 	__attribute__((nonnull, warn_unused_result));
 
 /**********************************************************************//**
-Updates free bits and buffered bits for bulk load. */
+Updates free bits and buffered bits for bulk loaded page. */
 void
 ibuf_set_bitmap_for_bulk_load(
 /*==========================*/
