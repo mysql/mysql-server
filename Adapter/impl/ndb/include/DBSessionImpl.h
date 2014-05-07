@@ -108,9 +108,11 @@ public:
   */
   const NdbError & getNdbError() const;
   
-  friend class DBTransactionContext;
-
 private:  
+  friend class DBTransactionContext;
+  friend class ListTablesCall;
+  friend class GetTableCall;
+
   int maxNdbTransactions;
   int nContexts;
   Ndb *ndb;

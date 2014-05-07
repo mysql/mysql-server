@@ -29,7 +29,6 @@
 
 using namespace v8;
 
-Handle<Value> startTransaction(const Arguments &);
 Handle<Value> getAutoIncValue(const Arguments &);
 Handle<Value> closeNdb(const Arguments &);
 Handle<Value> getStatistics(const Arguments &);
@@ -38,7 +37,6 @@ Handle<Value> getConnectionStatistics(const Arguments &);
 class NdbEnvelopeClass : public Envelope {
 public:
   NdbEnvelopeClass() : Envelope("Ndb") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, "startTransaction", startTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getNdbError", getNdbError<Ndb>);
     DEFINE_JS_FUNCTION(Envelope::stencil, "close", closeNdb);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getStatistics", getStatistics);
