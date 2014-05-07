@@ -43,9 +43,8 @@ protected:
        -1    - start transaction immediate
        other - start transcation async 
      Store return value as token. 
-     After open, call NdbTransaction::getConnectedNodeId(), 
-     then call registerTxOpen() with token and node id.
-     After close of transaction, call registerTxClosed with node id.
+     After open, call NdbTransaction::getConnectedNodeId() to fetch node id.
+     After close of transaction, call registerTxClosed with token and node id.
   */
 
   /* registerIntentToOpen() decrements all non-zero counters. 
@@ -58,13 +57,11 @@ protected:
      no matter which TC is selected, so it can be called from the main thread.
   */
   int64_t registerIntentToOpen();
-  void registerTxOpen(int64_t token, int nodeId);
-  void registerTxClosed(int nodeId);
+  void registerTxClosed(int64_t token, int nodeId);
 
 private:
   /* Methods */
   void  tallySetNodeId(int);
-  void  tallyClearNodeId(int);
   void  tallySetMaskedNodeIds(int64_t);
   void  tallyClear();
   int   tallyCountSetNodeIds();

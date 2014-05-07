@@ -96,9 +96,7 @@ public:
      The JavaScript wrapper for this function is Async.
      execute() runs in a uv worker thread.
   */
-  int execute( NdbTransaction::ExecType execType,
-               NdbOperation::AbortOption abortOption, 
-               int forceSend);
+  int execute(int execType, int abortOption, int forceSend);
 
   /* Execute transaction and key-operations using asynchronous NDB API.
      This runs immediately.  The transaction must have already been started.     
@@ -107,6 +105,14 @@ public:
   int executeAsynch(int execType, int abortOption, int forceSend,
                      v8::Persistent<v8::Function> execCompleteCallback);
 
+  /* Close the NDB Transaction.  This could happen in a worker thread.
+  */
+  void closeTransaction();  
+
+  /* Inform DBTransactionContext that NdbTransaction has been clsoed.
+     This always happens in the JS main thread.
+  */
+  void registerClose();
 
   /****** Accessing operation errors *******/
 
@@ -125,6 +131,7 @@ public:
 protected:  
   friend class DBSessionImpl;
   friend void setJsWrapper(DBTransactionContext *);
+  friend class AsyncExecCall;
 
   /* Protected constructor & destructor are used by DBSessionImpl */
   DBTransactionContext(DBSessionImpl *);
@@ -132,7 +139,6 @@ protected:
 
   /* Methods called internally */
   void prepareOperations();
-  void closeTransaction();
 
   /* Reset state for next user.
      Returns true on success. 
@@ -142,6 +148,7 @@ protected:
   bool clear();
 
 private: 
+  int64_t                   token;
   v8::Persistent<v8::Value> jsWrapper;
   DBSessionImpl * const     parent;
   DBTransactionContext *    next;
@@ -157,5 +164,12 @@ private:
 inline v8::Handle<v8::Value> DBTransactionContext::getJsWrapper() const {
   return jsWrapper;
 }
+
+inline PendingOperationSet * DBTransactionContext::getPendingOperations() const 
+{
+  return executedOperations;
+}
+
+
 
 #endif

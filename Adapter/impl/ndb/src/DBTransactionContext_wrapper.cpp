@@ -60,11 +60,11 @@ void setJsWrapper(DBTransactionContext *ctx) {
 Handle<Value> tryImmediateStartTransaction(const Arguments &args) {
   HandleScope scope;
   DBTransactionContext * ctx = unwrapPointer<DBTransactionContext *>(args.Holder());
-  bool r = ctx->tryImmediateStartTransaction();
-  return r ? True() : False();
+  return ctx->tryImmediateStartTransaction() ? True() : False();
 }
 
 Handle<Value> prepareAndExecuteScan(const Arguments &args) {
+  HandleScope scope;
   DEBUG_MARKER(UDEB_DEBUG);
   REQUIRE_ARGS_LENGTH(1);
   typedef NativeMethodCall_0_<NdbScanOperation *, DBTransactionContext> MCALL;
@@ -75,4 +75,67 @@ Handle<Value> prepareAndExecuteScan(const Arguments &args) {
   
   return Undefined();
 }
+
+
+/* ASYNC.
+*/
+/* Execute NdbTransaction.
+   DBTransactionContext will close the transaction if exectype is not NoCommit;
+   in this case, an extra call is made in the js main thread to register the
+   transaction as closed.
+*/
+class TxExecuteAndCloseCall : 
+  public NativeMethodCall_3_<int, DBTransactionContext, int, int, int> {
+public:
+  /* Constructor */
+  TxExecuteAndCloseCall(const Arguments &args) : 
+    NativeMethodCall_3_<int, DBTransactionContext, int, int, int>(
+      & DBTransactionContext::execute, args) 
+  {
+    errorHandler = getNdbErrorIfLessThanZero;
+  }
+  void doAsyncCallback(Local<Object>);  
+};                               
+
+void TxExecuteAndCloseCall::doAsyncCallback(Local<Object> context) {
+  if(arg0 != NdbTransaction::NoCommit) {
+    native_obj->registerClose();
+  }
+  NativeMethodCall_3_<int, DBTransactionContext, int, int, int>::doAsyncCallback(context);
+}
+
+Handle<Value> execute(const Arguments &args) {
+  HandleScope scope;
+  REQUIRE_ARGS_LENGTH(4);
+  TxExecuteAndCloseCall * ncallptr = new TxExecuteAndCloseCall(args);
+  ncallptr->runAsync();
+  return Undefined();
+}
+
+
+/* IMMEDIATE.
+*/
+Handle<Value> executeAsynch(const Arguments &args) {
+  HandleScope scope;
+  /* TODO: The JsValueConverter constructor for arg3 creates a 
+     Persistent<Function> from a Local<Value>, but is there 
+     actually a chain of destructors that will call Dispose() on it? 
+  */  
+  typedef NativeMethodCall_4_<int, DBTransactionContext, 
+                              int, int, int, Persistent<Function> > MCALL;
+  MCALL mcall(& DBTransactionContext::executeAsynch, args);
+  mcall.run();
+  return scope.Close(mcall.jsReturnVal());
+}
+
+/* IMMEDIATE.
+*/
+Handle<Value> getPendingOperations(const Arguments &args) {
+  HandleScope scope;  
+  typedef NativeConstMethodCall_0_<PendingOperationSet *, DBTransactionContext> MCALL;
+  MCALL mcall (& DBTransactionContext::getPendingOperations, args);
+  mcall.run();
+  return scope.Close(PendingOperationSet_Wrapper(mcall.return_val));
+}
+
 
