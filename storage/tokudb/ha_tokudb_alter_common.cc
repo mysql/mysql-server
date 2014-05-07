@@ -814,7 +814,7 @@ int ha_tokudb::write_frm_data(const uchar *frm_data, size_t frm_len) {
     if (TOKU_PARTITION_WRITE_FRM_DATA || table->part_info == NULL) {
         // write frmdata to status
         THD *thd = ha_thd();
-        tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+        tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
         assert(trx);
         DB_TXN *txn = trx->stmt; // use alter table transaction
         assert(txn);
