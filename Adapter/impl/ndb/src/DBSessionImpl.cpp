@@ -49,10 +49,6 @@ inline void CachedTransactionsAccountant::tallySetNodeId(int nodeId) {
   tc_bitmap ^= (1 << nodeId);
 }
 
-inline void CachedTransactionsAccountant::tallyClearNodeId(int nodeId) { 
-  tc_bitmap &= ~ (1 << nodeId);
-}
-
 inline void CachedTransactionsAccountant::tallySetMaskedNodeIds(int64_t mask) {
   tc_bitmap ^= mask;
 }
@@ -101,17 +97,12 @@ int64_t CachedTransactionsAccountant::registerIntentToOpen() {
   return token;
 }
 
-void CachedTransactionsAccountant::registerTxOpen(int64_t token, int nodeId) {
+void CachedTransactionsAccountant::registerTxClosed(int64_t token, int nodeId) {
+  concurrency--;
   if(token >= 0) {
     tallySetMaskedNodeIds(token);
-    tallyClearNodeId(nodeId);
+    tallySetNodeId(nodeId); 
   }
-}
-
-
-void CachedTransactionsAccountant::registerTxClosed(int nodeId) {
-  concurrency--;
-  tallySetNodeId(nodeId);
 }
 
 

@@ -25,10 +25,12 @@
 #include "DBSessionImpl.h"
 #include "NdbWrappers.h"
 #include "DBTransactionContext.h"
+#include "PendingOperationSet.h"
 
 extern void setJsWrapper(DBTransactionContext *);
 
 DBTransactionContext::DBTransactionContext(DBSessionImpl *impl) :
+  token(0),
   parent(impl),
   next(0),
   ndbTransaction(0),
@@ -77,7 +79,8 @@ const NdbError & DBTransactionContext::getNdbError() {
 }
 
 bool DBTransactionContext::tryImmediateStartTransaction() {
-  if(parent->canOpenImmediate()) {
+  token = parent->registerIntentToOpen();
+  if(token == -1) {
     startTransaction();
     return true;
   }
@@ -103,10 +106,7 @@ void DBTransactionContext::startTransaction() {
     ndbTransaction = parent->ndb->startTransaction();
   }
 
-  if(ndbTransaction) {
-    tcNodeId = ndbTransaction->getConnectedNodeId();
-    parent->registerTxOpen(tcNodeId);
-  }  
+  tcNodeId = ndbTransaction ? ndbTransaction->getConnectedNodeId() : 0;
 }
 
 NdbScanOperation * DBTransactionContext::prepareAndExecuteScan() {
@@ -119,33 +119,47 @@ NdbScanOperation * DBTransactionContext::prepareAndExecuteScan() {
   return scanop;
 }
 
-int DBTransactionContext::execute(NdbTransaction::ExecType execType,
-                                  NdbOperation::AbortOption abortOption, 
-                                  int forceSend) {
+void DBTransactionContext::prepareOperations() {
+  executedOperations = new PendingOperationSet(opListSize);
+  for(int i = 0 ; i < opListSize ; i++) {
+    const NdbOperation * op = definedOperations[i].prepare(ndbTransaction);
+    executedOperations->setNdbOperation(i, op);
+  }
+}
+
+void DBTransactionContext::closeTransaction() {
+  ndbTransaction->close();
+}
+
+void DBTransactionContext::registerClose() {
+  ndbTransaction = 0;
+  parent->registerTxClosed(token, tcNodeId);
+}
+
+int DBTransactionContext::execute(int _execType, int _abortOption, int force) {
+  int rval;
+  NdbTransaction::ExecType execType = static_cast<NdbTransaction::ExecType>(_execType);
+  NdbOperation::AbortOption abortOption = static_cast<NdbOperation::AbortOption>(_abortOption);
+  
   if(! ndbTransaction) {
     startTransaction();
   }
   prepareOperations();  
-  return ndbTransaction->execute(execType, abortOption, forceSend);
+  rval = ndbTransaction->execute(execType, abortOption, force);
+  if(execType != NdbTransaction::NoCommit) {
+    closeTransaction();
+  }
+  return rval;
 }
 
 int DBTransactionContext::executeAsynch(int execType, int abortOption, int forceSend, 
                                         v8::Persistent<v8::Function> callback) {
-  prepareOperations();
-  return parent->asyncContext->executeAsynch(ndbTransaction, execType, 
-                                             abortOption, forceSend, callback);
-}                    
-
-/// TODO: prepareOperations
-//  Requires API change to Operation, adding opcode
-
-inline void DBTransactionContext::closeTransaction() {
   assert(ndbTransaction);
-  ndbTransaction->close();   
-  parent->registerTxClosed(tcNodeId);
-  ndbTransaction = 0;
-  tcNodeId = 0;
-}
+  prepareOperations();
+  return parent->asyncContext->executeAsynch(this, ndbTransaction, 
+                                             execType, abortOption, forceSend, 
+                                             callback);
+}                    
 
 
 bool DBTransactionContext::clear() {
