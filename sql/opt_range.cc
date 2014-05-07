@@ -331,7 +331,7 @@ public:
     const SEL_ARG *cmp_arg= arg->first();
     const SEL_ARG *cur_arg= first();
     for (; cur_arg && cmp_arg && cur_arg->is_same(cmp_arg);
-         cur_arg= cur_arg->next, cmp_arg= cmp_arg->next);
+         cur_arg= cur_arg->next, cmp_arg= cmp_arg->next) ;
     if (cur_arg || cmp_arg)
       return false;
     return true;
