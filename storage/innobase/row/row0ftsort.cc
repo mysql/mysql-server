@@ -1091,15 +1091,18 @@ row_fts_start_parallel_merge(
 
 /********************************************************************//**
 Write out a single word's data as new entry/entries in the INDEX table.
-@return DB_SUCCESS if insertion runs fine */
+@param[in]	ins_ctx	insert context
+@param[in]	word	word string
+@param[in]	node	node colmns
+@retval	DB_SUCCESS	if insertion runs fine
+@retval	error code	if error occurs */
 static
 dberr_t
 row_merge_write_fts_node(
 /*=====================*/
-	fts_psort_insert_t*
-			ins_ctx,	/*!< in: insert context */
-	fts_string_t*	word,		/*!< in: word string */
-	fts_node_t*	node)		/*!< in: node columns */
+	const	fts_psort_insert_t*	ins_ctx,
+	const	fts_string_t*		word,
+	const	fts_node_t*		node)
 {
 	dtuple_t*	tuple;
 	dfield_t*	field;
@@ -1119,7 +1122,7 @@ row_merge_write_fts_node(
 	fts_write_doc_id((byte*)&write_first_doc_id, node->first_doc_id);
 	dfield_set_data(field, &write_first_doc_id, sizeof(doc_id_t));
 
-	/* The third and fourth fileds are fileed already(TRX_ID, ROLL_PTR).*/
+	/* The third and fourth fileds(TRX_ID, ROLL_PTR) are filled already.*/
 	/* The fifth field is last_doc_id */
 	field = dtuple_get_nth_field(tuple, 4);
 	fts_write_doc_id((byte*)&write_last_doc_id, node->last_doc_id);

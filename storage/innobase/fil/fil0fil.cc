@@ -223,8 +223,9 @@ struct fil_space_t {
 				.ibd file */
 #ifdef UNIV_DEBUG
 	ulint		redo_skipped_count;
-				/*!< Increase this when we disable redo log
-				for some operations, such as bulk load.*/
+				/*!< reference count for operations who want
+				to skip redo log in the file space in order
+				to make fsp_space_modify_check pass. */
 #endif
 	fil_type_t	purpose;/*!< purpose */
 	UT_LIST_BASE_NODE_T(fil_node_t) chain;
@@ -3126,7 +3127,7 @@ fil_space_inc_redo_skipped_count(
 
 	ut_a(space != NULL);
 
-	space->redo_skipped_count--;
+	space->redo_skipped_count++;
 
 	mutex_exit(&fil_system->mutex);
 }
@@ -3147,7 +3148,7 @@ fil_space_dec_redo_skipped_count(
 	ut_a(space != NULL);
 	ut_a(space->redo_skipped_count > 0);
 
-	space->redo_skipped_count++;
+	space->redo_skipped_count--;
 
 	mutex_exit(&fil_system->mutex);
 }
