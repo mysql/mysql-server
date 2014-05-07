@@ -2621,13 +2621,6 @@ files_checked:
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
-	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
-	if (!srv_force_recovery && !srv_read_only_mode) {
-		bool success = buf_flush_list(ULINT_MAX, LSN_MAX, NULL);
-		ut_a(success);
-		buf_flush_wait_batch_end(NULL, BUF_FLUSH_LIST);
-	}
-
 	if (!srv_read_only_mode) {
 		/* Create the thread which watches the timeouts
 		for lock waits */

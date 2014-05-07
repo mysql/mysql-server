@@ -1842,7 +1842,7 @@ loop:
 		ib_logf(IB_LOG_LEVEL_WARN, "Delete of file %s failed.", name);
 	}
 
-	os_thread_sleep(1000000);	/* sleep for a second */
+	os_thread_sleep(500000);	/* sleep for 0.5 second */
 
 	if (count > 2000) {
 
