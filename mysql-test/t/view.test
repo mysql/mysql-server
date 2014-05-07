@@ -4952,6 +4952,25 @@ select * from v1;
 drop view v1;
 drop table t1;
 
+--echo #
+--echo # MDEV-5981: name resolution issues with views and multi-update
+--echo # in ps-protocol
+--echo #
+
+create table t1 (id1 int primary key, val1 varchar(20));
+insert into t1 values (1, 'test1');
+create table t2 (id2 int primary key, val2 varchar(20));
+insert into t2 values (1, 'test2');
+create algorithm=merge view v1 as select id1 as id1v1, val1 as val1v1 from t1;
+create algorithm=merge view v2 as
+select t2.id2 as id2v2, t2.val2 as val2v2
+from t2, v1
+where t2.id2 = v1.id1v1;
+prepare stmt1 from "update v2 set val2v2 = 'test19' where 1 = id2v2";
+execute stmt1;
+deallocate prepare stmt1;
+drop view v1,v2;
+drop table t1,t2;
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------
