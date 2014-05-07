@@ -6411,10 +6411,9 @@ fil_names_clear(
 	mutex_exit(&fil_system->mutex);
 
 	if (do_write) {
-		mtr.commit_checkpoint();
+		mtr.commit_checkpoint(lsn);
 	} else {
 		ut_ad(!mtr.has_modifications());
-		mtr.commit();
 	}
 
 	return(do_write);
