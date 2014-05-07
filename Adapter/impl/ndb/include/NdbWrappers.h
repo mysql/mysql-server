@@ -34,7 +34,6 @@ Handle<Value> PendingOperationSet_Wrapper(PendingOperationSet *);
 
 /* Not actual wrapper functions, but functions that provide an envelope */
 
-Envelope * getNdbTransactionEnvelope(void);
 Envelope * getNdbInterpretedCodeEnvelope(void);
 Envelope * getConstNdbInterpretedCodeEnvelope(void);
 Envelope * getNdbDictTableEnvelope(void);

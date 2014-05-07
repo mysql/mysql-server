@@ -81,32 +81,6 @@ Handle<Value> create_ndb(const Arguments &args) {
 }
 
 
-Handle<Value> startTransaction(const Arguments &args) {  
-  HandleScope scope;
-  Handle<Value> return_val = Undefined();
-  typedef NativeMethodCall_3_<NdbTransaction *, Ndb, 
-                              const NdbDictionary::Table *, 
-                              const char *, uint32_t> MCALL;
-
-  if(args.Length() == 4) {  // Async
-    DEBUG_PRINT("startTransaction async");
-    MCALL * mcallptr = new MCALL(& Ndb::startTransaction, args);
-    mcallptr->wrapReturnValueAs(getNdbTransactionEnvelope());
-    mcallptr->errorHandler = getNdbErrorIfNull<NdbTransaction *, Ndb>;
-    mcallptr->runAsync();
-  }
-  else {  // Sync
-    DEBUG_PRINT("startTransaction sync");
-    MCALL mcall(& Ndb::startTransaction, args);
-    mcall.wrapReturnValueAs(getNdbTransactionEnvelope());
-    mcall.run();
-    return_val = mcall.jsReturnVal();
-  }
-  
-  return scope.Close(return_val);
-}
-
-
 /* getAutoIncrementValue(ndb, table, batch_size, callback);
    We can't map Ndb::getAutoIncrementValue() directly due to in/out param.
    The JS Wrapper function will simply return 0 on error.
