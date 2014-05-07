@@ -23,7 +23,7 @@
 #include "NdbWrapperErrors.h"
 #include "AsyncNdbContext.h"
 #include "AsyncMethodCall.h"
-
+#include "DBTransactionContext.h"
 
 /* Thread starter, for pthread_create()
 */
@@ -48,8 +48,15 @@ class AsyncExecCall : public AsyncAsyncCall<int, NdbTransaction> {
 public: 
   AsyncExecCall(NdbTransaction *tx, v8::Persistent<v8::Function> jsCallback) :
     AsyncAsyncCall<int, NdbTransaction>(tx, jsCallback, 
-                        getNdbErrorIfLessThanZero<int, NdbTransaction>)      {};
-  bool doClose;
+      getNdbErrorIfLessThanZero<int, NdbTransaction>)                        {};
+  DBTransactionContext * closeContext;
+  
+  void closeTransaction() {
+    if(closeContext) {
+      DEBUG_PRINT("Closing");
+      closeContext->closeTransaction();
+    }
+  }
 };
 
 /* ndbTxCompleted is the callback on tx->executeAsynch().
@@ -60,10 +67,7 @@ void ndbTxCompleted(int status, NdbTransaction *tx, void *v) {
   AsyncExecCall * mcallptr = (AsyncExecCall *) v;
   mcallptr->return_val = status;
   mcallptr->handleErrors();
-  if(mcallptr->doClose) {
-    DEBUG_PRINT("Closing");
-    tx->close();
-  }
+  mcallptr->closeTransaction();
   tx->getNdb()->setCustomData(mcallptr);
 }
 
@@ -107,7 +111,8 @@ AsyncNdbContext::~AsyncNdbContext()
 /* This could run in a UV worker thread (JavaScript async execution)
    or possibly in the JavaScript thread (JavaScript sync execution)
 */
-int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
+int AsyncNdbContext::executeAsynch(DBTransactionContext *txc,
+                                   NdbTransaction *tx,
                                    int execType,
                                    int abortOption,
                                    int forceSend,
@@ -121,7 +126,7 @@ int AsyncNdbContext::executeAsynch(NdbTransaction *tx,
               mcallptr->native_obj, execType, abortOption, ndb);
 
   /* The NdbTransaction should be closed unless execType is NoCommit */
-  mcallptr->doClose = (execType != NdbTransaction::NoCommit);
+  mcallptr->closeContext = (execType == NdbTransaction::NoCommit) ? 0 : txc;
 
   /* send the transaction to NDB */
   tx->executeAsynch((NdbTransaction::ExecType) execType,
