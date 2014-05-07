@@ -597,17 +597,6 @@ install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
-# Remove man pages we explicitly do not want to package, avoids 'unpackaged
-# files' warning.
-# This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
-rm -f $RBR%{_mandir}/man1/mysql_convert_table_format.1*
-rm -f $RBR%{_mandir}/man1/mysql_fix_extensions.1*
-rm -f $RBR%{_mandir}/man1/mysql_setpermission.1*
-rm -f $RBR%{_mandir}/man1/msql2mysql.1*
-rm -f $RBR%{_mandir}/man1/mysql_find_rows.1*
-rm -f $RBR%{_mandir}/man1/mysqlaccess.1*
-rm -rf $RBR%{_mandir}/man1/mysqlbug.1*
-
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
