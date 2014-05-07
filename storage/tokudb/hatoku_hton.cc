@@ -624,8 +624,7 @@ int tokudb_end(handlerton * hton, ha_panic_function type) {
 
 static int tokudb_close_connection(handlerton * hton, THD * thd) {
     int error = 0;
-    tokudb_trx_data* trx = NULL;
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (trx && trx->checkpoint_lock_taken) {
         error = db_env->checkpointing_resume(db_env);
     }
@@ -723,7 +722,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("ending transaction %s", all ? "all" : "stmt"));
     uint32_t syncflag = THDVAR(thd, commit_sync) ? 0 : DB_TXN_NOSYNC;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
@@ -752,7 +751,7 @@ static int tokudb_commit(handlerton * hton, THD * thd, bool all) {
 static int tokudb_rollback(handlerton * hton, THD * thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     DBUG_PRINT("trans", ("aborting transaction %s", all ? "all" : "stmt"));
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN **txn = all ? &trx->all : &trx->stmt;
     DB_TXN *this_txn = *txn;
     if (this_txn) {
@@ -782,7 +781,7 @@ static int tokudb_xa_prepare(handlerton* hton, THD* thd, bool all) {
     TOKUDB_DBUG_ENTER("");
     int r = 0;
     DBUG_PRINT("trans", ("preparing transaction %s", all ? "all" : "stmt"));
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     DB_TXN* txn = all ? trx->all : trx->stmt;
     if (txn) {
         if (tokudb_debug & TOKUDB_DEBUG_TXN) {
@@ -861,7 +860,7 @@ static int tokudb_savepoint(handlerton * hton, THD * thd, void *savepoint) {
     TOKUDB_DBUG_ENTER("");
     int error;
     SP_INFO save_info = (SP_INFO)savepoint;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     if (thd->in_sub_stmt) {
         assert(trx->stmt);
         error = txn_begin(db_env, trx->sub_sp_level, &(save_info->txn), DB_INHERIT_ISOLATION, thd);
@@ -892,7 +891,7 @@ static int tokudb_rollback_to_savepoint(handlerton * hton, THD * thd, void *save
     DB_TXN* parent = NULL;
     DB_TXN* txn_to_rollback = save_info->txn;
 
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     parent = txn_to_rollback->parent;
     if (!(error = txn_to_rollback->abort(txn_to_rollback))) {
         if (save_info->in_sub_stmt) {
@@ -914,7 +913,7 @@ static int tokudb_release_savepoint(handlerton * hton, THD * thd, void *savepoin
     DB_TXN* parent = NULL;
     DB_TXN* txn_to_commit = save_info->txn;
 
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, hton);
     parent = txn_to_commit->parent;
     if (!(error = txn_to_commit->commit(txn_to_commit, 0))) {
         if (save_info->in_sub_stmt) {
@@ -974,7 +973,7 @@ static int tokudb_discover3(handlerton *hton, THD* thd, const char *db, const ch
     bool do_commit;
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
         do_commit = false;
         txn = trx->sub_sp_level;
@@ -1129,15 +1128,14 @@ static bool tokudb_show_engine_status(THD * thd, stat_print_fn * stat_print) {
 static void tokudb_checkpoint_lock(THD * thd) {
     int error;
     const char *old_proc_info;
-    tokudb_trx_data* trx = NULL;
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (!trx) {
         error = create_tokudb_trx_data_instance(&trx);
         //
         // can only fail due to memory allocation, so ok to assert
         //
         assert(!error);
-        thd_data_set(thd, tokudb_hton->slot, trx);
+        thd_set_ha_data(thd, tokudb_hton, trx);
     }
     
     if (trx->checkpoint_lock_taken) {
@@ -1161,8 +1159,7 @@ cleanup:
 static void tokudb_checkpoint_unlock(THD * thd) {
     int error;
     const char *old_proc_info;
-    tokudb_trx_data* trx = NULL;
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (!trx) {
         error = 0;
         goto  cleanup;

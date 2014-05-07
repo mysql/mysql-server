@@ -120,14 +120,6 @@ extern "C" {
 #include "hatoku_defines.h"
 #include "hatoku_cmp.h"
 
-static inline void *thd_data_get(THD *thd, int slot) {
-    return thd->ha_data[slot].ha_ptr;
-}
-
-static inline void thd_data_set(THD *thd, int slot, void *data) {
-    thd->ha_data[slot].ha_ptr = data;
-}
-
 static inline uint get_key_parts(const KEY *key);
 
 #undef PACKAGE
@@ -1016,8 +1008,7 @@ static uchar* pack_toku_field_blob(
 
 static int create_tokudb_trx_data_instance(tokudb_trx_data** out_trx) {
     int error;
-    tokudb_trx_data* trx = NULL;
-    trx = (tokudb_trx_data *) tokudb_my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
+    tokudb_trx_data* trx = (tokudb_trx_data *) tokudb_my_malloc(sizeof(*trx), MYF(MY_ZEROFILL));
     if (!trx) {
         error = ENOMEM;
         goto cleanup;
@@ -1614,8 +1605,7 @@ int ha_tokudb::initialize_share(
     DB_TXN* txn = NULL;
     bool do_commit = false;
     THD* thd = ha_thd();
-    tokudb_trx_data *trx = NULL;
-    trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
     if (thd_sql_command(thd) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
         txn = trx->sub_sp_level;
     }
@@ -3260,7 +3250,7 @@ void ha_tokudb::start_bulk_insert(ha_rows rows) {
     TOKUDB_HANDLER_DBUG_ENTER("%llu txn %p", (unsigned long long) rows, transaction);
 #endif
     THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     delay_updating_ai_metadata = true;
     ai_metadata_update_required = false;
     abort_loader = false;
@@ -3328,7 +3318,7 @@ int ha_tokudb::end_bulk_insert(bool abort) {
     TOKUDB_HANDLER_DBUG_ENTER("");
     int error = 0;
     THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     bool using_loader = (loader != NULL);
     if (ai_metadata_update_required) {
         tokudb_pthread_mutex_lock(&share->mutex);
@@ -4060,7 +4050,7 @@ int ha_tokudb::write_row(uchar * record) {
         }
     }
 
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (!error) {
         added_rows++;
         trx->stmt_progress.inserted++;
@@ -4117,7 +4107,7 @@ int ha_tokudb::update_row(const uchar * old_row, uchar * new_row) {
     THD* thd = ha_thd();
     DB_TXN* sub_trans = NULL;
     DB_TXN* txn = NULL;
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     uint curr_num_DBs;
 
     LINT_INIT(error);
@@ -4291,7 +4281,7 @@ int ha_tokudb::delete_row(const uchar * record) {
     bool has_null;
     THD* thd = ha_thd();
     uint curr_num_DBs;
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
 
     ha_statistic_increment(&SSV::ha_delete_count);
 
@@ -4855,7 +4845,7 @@ int ha_tokudb::index_read(uchar * buf, const uchar * key, uint key_len, enum ha_
     int error = 0;    
     uint32_t flags = 0;
     THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
     struct smart_dbt_info info;
     struct index_read_info ir_info;
 
@@ -5333,7 +5323,7 @@ int ha_tokudb::get_next(uchar* buf, int direction, DBT* key_to_compare, bool do_
     int error = 0; 
     uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
     bool need_val;
     HANDLE_INVALID_CURSOR();
 
@@ -5486,7 +5476,7 @@ int ha_tokudb::index_first(uchar * buf) {
     struct smart_dbt_info info;
     uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
     HANDLE_INVALID_CURSOR();
 
     ha_statistic_increment(&SSV::ha_read_first_count);
@@ -5529,7 +5519,7 @@ int ha_tokudb::index_last(uchar * buf) {
     struct smart_dbt_info info;
     uint32_t flags = SET_PRELOCK_FLAG(0);
     THD* thd = ha_thd();
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);;
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);;
     HANDLE_INVALID_CURSOR();
 
     ha_statistic_increment(&SSV::ha_read_last_count);
@@ -5620,7 +5610,7 @@ int ha_tokudb::rnd_next(uchar * buf) {
 
 
 void ha_tokudb::track_progress(THD* thd) {
-    tokudb_trx_data* trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data* trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (trx) {
         ulonglong num_written = trx->stmt_progress.inserted + trx->stmt_progress.updated + trx->stmt_progress.deleted;
         bool update_status = 
@@ -6205,12 +6195,11 @@ int ha_tokudb::external_lock(THD * thd, int lock_type) {
     }
 
     int error = 0;
-    tokudb_trx_data *trx = NULL;
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (!trx) {
         error = create_tokudb_trx_data_instance(&trx);
         if (error) { goto cleanup; }
-        thd_data_set(thd, tokudb_hton->slot, trx);
+        thd_set_ha_data(thd, tokudb_hton, trx);
     }
     if (trx->all == NULL) {
         trx->sp_level = NULL;
@@ -6284,7 +6273,7 @@ int ha_tokudb::start_stmt(THD * thd, thr_lock_type lock_type) {
         TOKUDB_HANDLER_TRACE("q %s", thd->query());
 
     int error = 0;
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     DBUG_ASSERT(trx);
 
     /*
@@ -6898,7 +6887,7 @@ int ha_tokudb::create(const char *name, TABLE * form, HA_CREATE_INFO * create_in
     newname = (char *)tokudb_my_malloc(get_max_dict_name_path_length(name),MYF(MY_WME));
     if (newname == NULL){ error = ENOMEM; goto cleanup;}
 
-    trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
     if (trx && trx->sub_sp_level && thd_sql_command(thd) == SQLCOM_CREATE_TABLE) {
         txn = trx->sub_sp_level;
     }
@@ -7088,7 +7077,7 @@ int ha_tokudb::delete_or_rename_table (const char* from_name, const char* to_nam
 
     DB_TXN *parent_txn = NULL;
     tokudb_trx_data *trx = NULL;
-    trx = (tokudb_trx_data *) thd_data_get(thd, tokudb_hton->slot);
+    trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
     if (thd_sql_command(ha_thd()) == SQLCOM_CREATE_TABLE && trx && trx->sub_sp_level) {
         parent_txn = trx->sub_sp_level;
     }
@@ -8234,12 +8223,12 @@ void ha_tokudb::cleanup_txn(DB_TXN *txn) {
 }
 
 void ha_tokudb::add_to_trx_handler_list() {
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
     trx->handlers = list_add(trx->handlers, &trx_handler_list);
 }
 
 void ha_tokudb::remove_from_trx_handler_list() {
-    tokudb_trx_data *trx = (tokudb_trx_data *) thd_data_get(ha_thd(), tokudb_hton->slot);
+    tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(ha_thd(), tokudb_hton);
     trx->handlers = list_delete(trx->handlers, &trx_handler_list);
 }
 
