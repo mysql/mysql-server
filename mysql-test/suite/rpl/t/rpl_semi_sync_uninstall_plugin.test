@@ -21,10 +21,12 @@
 #  not in use i.e., when asynchronous replication is active.
 ###############################################################################
 # Step 1.1: Install semi sync master plugin on master
+--replace_result $SEMISYNC_MASTER_PLUGIN SEMISYNC_MASTER_PLUGIN
 eval INSTALL PLUGIN rpl_semi_sync_master SONAME '$SEMISYNC_MASTER_PLUGIN';
 
 # Step 1.2: Install semi sync slave plugin on slave
 --connection slave
+--replace_result $SEMISYNC_SLAVE_PLUGIN SEMISYNC_SLAVE_PLUGIN
 eval INSTALL PLUGIN rpl_semi_sync_slave SONAME '$SEMISYNC_SLAVE_PLUGIN';
 
 # Step 1.3: Uninstallation of semisync plugin on master and slave should be

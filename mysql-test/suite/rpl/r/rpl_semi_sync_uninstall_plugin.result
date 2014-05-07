@@ -1,7 +1,7 @@
 include/master-slave.inc
 [connection master]
-INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so';
-INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so';
+INSTALL PLUGIN rpl_semi_sync_master SONAME 'SEMISYNC_MASTER_PLUGIN';
+INSTALL PLUGIN rpl_semi_sync_slave SONAME 'SEMISYNC_SLAVE_PLUGIN';
 UNINSTALL PLUGIN rpl_semi_sync_slave;
 UNINSTALL PLUGIN rpl_semi_sync_master;
 CREATE TABLE t1(i int);
