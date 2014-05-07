@@ -110,6 +110,17 @@ function releaseNdbConnection(connectString, msecToLinger, userCallback) {
 }
 
 
+function closeDbSessionImpl(execQueue, impl, callbackOnClose) {
+  var apiCall = new QueuedAsyncCall(execQueue, callbackOnClose);
+  apiCall.description = "closeDbSessionImpl";
+  apiCall.impl = impl;
+  apiCall.run = function() {
+    this.impl.destroy(this.callback);
+  };
+  apiCall.enqueue();
+}
+
+
 function closeNdb(execQueue, ndb, callbackOnClose) {
   var apiCall = new QueuedAsyncCall(execQueue, callbackOnClose);
   apiCall.description = "closeNdb";
@@ -135,7 +146,7 @@ exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
   {
     /* (A) The connection is going to close, or (B) The freelist is full. 
        Either way, enqueue a close call. */
-    closeNdb(ndbConn.execQueue, ndbSession.impl, userCallback);    
+    closeDbSessionImpl(ndbConn.execQueue, ndbSession.impl, userCallback);    
   }
   else 
   { 
@@ -174,14 +185,16 @@ function prefetchSession(ndbPool) {
       /* If the pool is wanting, fetch another */
       if(ndbPool.ndbSessionFreeList.length < pool_min) {
         stats.ndb_session_prefetch.attempts++;
-        adapter.ndb.impl.create_ndb(ndbPool.impl, db, onFetch);
+        adapter.ndb.impl.DBSession.create(ndbPool.impl, ndbPool.asyncNdbContext,
+                                          db, 4, onFetch);
       }
     }
   }
 
 if(! ndbPool.ndbConnection.isDisconnecting) {
     stats.ndb_session_prefetch.attempts++;
-    adapter.ndb.impl.create_ndb(ndbPool.impl, db, onFetch);
+    adapter.ndb.impl.DBSession.create(ndbPool.impl, ndbPool.asyncNdbContext,
+                                      db, 4, onFetch);
   }
 }
 
@@ -222,13 +235,13 @@ DBConnectionPool.prototype.connect = function(user_callback) {
     else {
       self.impl = self.ndbConnection.ndb_cluster_connection;
 
-      /* Start filling the session pool */
-      prefetchSession(self);
-
       /* Create Async Context */
       if(self.properties.use_ndb_async_api) {
         self.asyncNdbContext = self.ndbConnection.getAsyncContext();
       }
+
+      /* Start filling the session pool */
+      prefetchSession(self);
 
       /* All done */
       user_callback(null, self);
@@ -279,9 +292,9 @@ DBConnectionPool.prototype.close = function(userCallback) {
     closeNdb(this.ndbConnection.execQueue, table.per_table_ndb , onNdbClose);
   }
 
-  /* Close the NDBs from the session pool */
+  /* Close the DBSessionImpls from the session pool */
   while(session = this.ndbSessionFreeList.pop()) {
-    closeNdb(this.ndbConnection.execQueue, session.impl, onNdbClose);
+    closeDbSessionImpl(this.ndbConnection.execQueue, session.impl, onNdbClose);
   }  
 };
 
@@ -292,19 +305,14 @@ DBConnectionPool.prototype.close = function(userCallback) {
    Users's callback receives (error, DBSession)
 */
 DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
-  var self, user_session, apiCall;
+  var self, user_session;
   self = this;
 
   function private_callback(err, sessImpl) {
-    udebug.log("getDBSession private_callback");
-    var userSession;
-
     if(err) {
       user_callback(err, null);
-    }
-    else {  
-      userSession = ndbsession.newDBSession(self, sessImpl);
-      user_callback(null, userSession);
+    } else {  
+      user_callback(null, ndbsession.newDBSession(self, sessImpl));
     }
   }
 
@@ -314,16 +322,12 @@ DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
     user_callback(null, user_session);
   }
   else {
-    // NOTE: It may not be necessary to serialize these.
     stats.ndb_session_pool.misses++;
-    apiCall = new QueuedAsyncCall(this.ndbConnection.execQueue, private_callback);
-    apiCall.description = "newNdb";
-    apiCall.impl = this.ndbConnection.ndb_cluster_connection;
-    apiCall.db = this.properties.database;
-    apiCall.run = function() {
-      adapter.ndb.impl.create_ndb(this.impl, this.db, this.callback);
-    };
-    apiCall.enqueue();
+    adapter.ndb.impl.DBSession.create(this.ndbConnection.ndb_cluster_connection,
+                                      this.asyncNdbContext,
+                                      this.properties.database,
+                                      4, // MaxTransactions: could be a property
+                                      private_callback);
   }
 };
 

@@ -27,6 +27,7 @@
 #include "NativeCFunctionCall.h"
 #include "js_wrapper_macros.h"
 #include "NdbWrappers.h"
+#include "DBSessionImpl.h"
 
 using namespace v8;
 
@@ -73,23 +74,25 @@ Envelope * getNdbDictTableEnvelope() {
 /*** DBDictionary.listTables()
   **
    **/
-class ListTablesCall : public NativeCFunctionCall_2_<int, Ndb *, const char *> 
+class ListTablesCall : public NativeCFunctionCall_2_<int, DBSessionImpl *, const char *> 
 {
 private:
+  Ndb * ndb;
   NdbDictionary::Dictionary * dict;
   NdbDictionary::Dictionary::List list;
 
 public:
   /* Constructor */
   ListTablesCall(const Arguments &args) :
-    NativeCFunctionCall_2_<int, Ndb *, const char *>(NULL, args),
+    NativeCFunctionCall_2_<int, DBSessionImpl *, const char *>(NULL, args),
     list() 
   {
   }
   
   /* UV_WORKER_THREAD part of listTables */
   void run() {
-    dict = arg0->getDictionary();
+    ndb = arg0->ndb;
+    dict = ndb->getDictionary();
     return_val = dict->listObjects(list, NdbDictionary::Object::UserTable);
   }
 
@@ -134,7 +137,7 @@ void ListTablesCall::doAsyncCallback(Local<Object> ctx) {
 
 /* listTables() Method call
    ASYNC
-   arg0: Ndb *
+   arg0: DBSessionImpl *
    arg1: database name
    arg2: user_callback
 */
@@ -198,13 +201,13 @@ void DictionaryNameSplitter::splitName(const char * src) {
 /*** DBDictionary.getTable()
   **
    **/
-class GetTableCall : public NativeCFunctionCall_3_<int, Ndb *, 
+class GetTableCall : public NativeCFunctionCall_3_<int, DBSessionImpl *, 
                                                    const char *, const char *> 
 {
 private:
   const NdbDictionary::Table * ndb_table;
   Ndb * per_table_ndb;
-  Ndb * ndb;                /* this is NativeCFunctionCall_3_  arg0 */
+  Ndb * ndb;                /* ndb from DBSesssionImpl */
   const char * dbName;      /* this is NativeCFunctionCall_3_  arg1 */
   const char * tableName;   /* this is NativeCFunctionCall_3_  arg2 */
   NdbDictionary::Dictionary * dict;
@@ -223,10 +226,10 @@ private:
 public:
   /* Constructor */
   GetTableCall(const Arguments &args) : 
-    NativeCFunctionCall_3_<int, Ndb *, const char *, const char *>(NULL, args),
+    NativeCFunctionCall_3_<int, DBSessionImpl *, const char *, const char *>(NULL, args),
     ndb_table(0), per_table_ndb(0), idx_list(), fk_list(), fk_count(0)
   {
-    ndb = arg0; 
+    ndb = arg0->ndb; 
     dbName = arg1;
     tableName = arg2;
   }

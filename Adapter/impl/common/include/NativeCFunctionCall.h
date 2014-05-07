@@ -164,7 +164,7 @@ public:
   
   /* Constructor */
   NativeCFunctionCall_4_<R, A0, A1, A2, A3>(Function_T f, const Arguments &args) :
-    AsyncCall_Returning<R>(args[6]),  /* callback */
+    AsyncCall_Returning<R>(args[4]),  /* callback */
     Call_4_<A0, A1, A2, A3>(args),
     function(f)
   { }

@@ -40,13 +40,13 @@ using v8::String;
  are unwrapped back to the original type.
  This can be disabled.
  ******************************************************************/
-#define ENABLE_WRAPPER_TYPE_CHECKS 0
+#define ENABLE_WRAPPER_TYPE_CHECKS 1
 
 #if ENABLE_WRAPPER_TYPE_CHECKS
 #include <typeinfo>
 inline void check_class_id(const char *a, const char *b) {
   if(a != b) {
-    fprintf(stderr, " !!! Expected %s but unwrapped %s !!!\n", a, b);
+    fprintf(stderr, " !!! Expected %s but unwrapped %s !!!\n", b, a);
     assert(a == b);
   }
 }
