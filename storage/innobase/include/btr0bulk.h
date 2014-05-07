@@ -49,8 +49,10 @@ public:
 	@param[in]	trx_id	transaction id */
 	PageBulk(dict_index_t* index, ulint trx_id,
 		 ulint page_no, ulint level):
-		 m_index(index), m_trx_id(trx_id),
-		 m_page_no(page_no), m_level(level)
+		 m_index(index),
+		 m_trx_id(trx_id),
+		 m_page_no(page_no),
+		 m_level(level)
 	{
 		m_heap = mem_heap_create(1000);
 
@@ -68,7 +70,7 @@ public:
 	it should succeed.
 	@param[in]	rec		record
 	@param[in]	offsets		record offsets */
-	void insert(rec_t* rec, ulint* offsets);
+	void insert(const rec_t* rec, ulint* offsets);
 
 	/** Finish a page
 	Scan all records to set page dirs, and set page header members,
@@ -88,7 +90,7 @@ public:
 	/** Check whether the record needs to be stored externally.
 	@return	true
 	@return	false */
-	bool needExt(dtuple_t* tuple, ulint rec_size);
+	bool needExt(const dtuple_t* tuple, ulint rec_size);
 
 	/** Store external record
 	@param[in]	big_rec		external recrod
@@ -134,7 +136,7 @@ public:
 	@param[in]	length		required length
 	@retval true	if space is available
 	@retval false	if no space is available */
-	inline bool spaceAvailable(ulint	rec_size);
+	inline bool isSpaceAvailable(ulint	rec_size);
 
 	/** Get page no */
 	ulint	getPageNo()
@@ -229,9 +231,12 @@ typedef std::vector<PageBulk*>	page_bulk_vector;
 class BtrBulk
 {
 public:
-	/** Constructor */
+	/** Constructor
+	@param[in]	index	B-tree index
+	@param[in]	trx_id	transaction id */
 	BtrBulk(dict_index_t* index, ulint trx_id):
-		m_index(index), m_trx_id(trx_id),
+		m_index(index),
+		m_trx_id(trx_id),
 		m_root_level(0)
 	{
 		m_heap = mem_heap_create(1000);
@@ -267,7 +272,7 @@ public:
 	dberr_t finish(dberr_t	err);
 
 private:
-	/** Insert a tuple to page in a level
+	/** Insert a tuple to a page in a level
 	@param[in]	tuple	tuple to insert
 	@param[in]	level	B-tree level
 	@return error code */
@@ -277,14 +282,16 @@ private:
 	@param[in]	page_bulk	page to split
 	@param[in]	next_page_bulk	next page
 	@return	error code */
-	dberr_t pageSplit(PageBulk* page_bulk, PageBulk* next_page_bulk);
+	dberr_t pageSplit(PageBulk* page_bulk,
+			  PageBulk* next_page_bulk);
 
 	/** Commit(finish) a page
 	@param[in]	page_bulk	page to commit
 	@param[in]	next_page_bulk	next page
 	@param[in]	insert_father	flag whether need to insert node ptr
 	@return	error code */
-	dberr_t pageCommit(PageBulk* page_bulk, PageBulk* next_page_bulk,
+	dberr_t pageCommit(PageBulk* page_bulk,
+			   PageBulk* next_page_bulk,
 			   bool insert_father);
 
 	/** Abort a page
