@@ -3616,6 +3616,8 @@ func_exit:
 		}
 	}
 
+	DBUG_EXECUTE_IF("ib_index_crash_after_bulk_load", DBUG_SUICIDE(););
+
 	if (error == DB_SUCCESS) {
 		log_make_checkpoint_at(LSN_MAX, TRUE);
 
