@@ -17,7 +17,10 @@
 
 #include <my_global.h>
 #include <my_sys.h>
-#include "../client/path.h"
+
+namespace file_path_ns
+{
+#include "../client/path.cc"
 
 TEST(Client, Path)
 {
@@ -56,4 +59,5 @@ TEST(Client, Path)
   p1.parent_directory(&p2);
   EXPECT_STREQ("/root",p2.to_str().c_str());
 }
+} // end ns
 
