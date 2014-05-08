@@ -7820,15 +7820,11 @@ ha_innobase::general_fetch(
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	if (!dict_table_is_intrinsic(prebuilt->table)) {
-		prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(user_thd);
-
 		ret = row_search_mvcc(
 			buf, 0, prebuilt, match_mode, direction,
 			prebuilt->ins_sel_stmt); 
 
 	} else {
-		prebuilt->session = thd_to_innodb_session(user_thd);
-
 		ret = row_search_no_mvcc(
 			buf, 0, prebuilt, match_mode, direction,
 			prebuilt->session);
