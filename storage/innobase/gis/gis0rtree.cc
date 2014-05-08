@@ -348,14 +348,10 @@ rtr_update_mbr_field(
 					index, offsets,
 					rec_offs_size(offsets),
 					false, mtr)) {
-				ulint r_info;
 
 				/* If there's not enought space for
 				inplace update zip page, we do delete
 				insert. */
-				r_info = dtuple_get_info_bits(node_ptr)
-						| REC_INFO_MIN_REC_FLAG;
-				dtuple_set_info_bits(node_ptr, r_info);
 				ins_suc = false;
 
 				/* Since btr_cur_update_alloc_zip could
@@ -1668,7 +1664,7 @@ rtr_merge_mbr_changed(
 			rec2, index, NULL, ULINT_UNDEFINED, &heap);
 
 		/* Check any primary key fields have been changed */
-		if (cmp_rec_rec(rec1, rec2, offsets1, offsets2, index) > 0) {
+		if (cmp_rec_rec(rec1, rec2, offsets1, offsets2, index) != 0) {
 			changed = true;
 		}
 
