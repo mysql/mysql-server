@@ -34,6 +34,7 @@ extern "C"
 #include "mysql_version.h"
 #include "auth_utils.h"
 #include "path.h"
+#include "infix_ostream_it.h"
 
 // Additional C++ headers
 #include <string>
@@ -74,6 +75,7 @@ char *opt_langpath= 0;
 char *opt_lang= 0;
 char default_lang[]= "en_US";
 char *opt_defaults_file= 0;
+char *opt_def_extra_file= 0;
 char *opt_builddir= 0;
 char *opt_srcdir= 0;
 my_bool opt_defaults= TRUE;
@@ -132,15 +134,14 @@ static struct my_option my_connection_options[]=
    &opt_langpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"lc-messages", 0, "Specifies the language to use.", &opt_lang,
    0, 0, GET_STR_ALLOC, REQUIRED_ARG, (longlong)&default_lang, 0, 0, 0, 0, 0},
-  {"defaults", 0, "Do not read any option files. If program startup fails "
+  {"defaults", 0, "Read any option files from default location. If program startup fails "
     "due to reading unknown options from an option file, --no-defaults can be "
     "used to prevent them from being read.",
     &opt_defaults, 0, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
-  {"defaults-file", 0, "Use only the given option file. If the file does not "
-    "exist or is otherwise inaccessible, an error occurs. file_name is "
-    "interpreted relative to the current directory if given as a relative "
-    "path name rather than a full path name.", &opt_defaults_file,
-    0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"defaults-file", 0, "Use only the given option file.",
+    &opt_defaults_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"defaults-extra-file", 0, "Read this file after the global files are read",
+    &opt_def_extra_file, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   /* End token */
   {0, 0, 0, 0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0}
 };
@@ -171,30 +172,7 @@ class Gen_spaces
 public:
   Gen_spaces(int s)
   {
-    m_spaces.reserve(s);
-    for(int i=0; i<s;)
-    {
-      if (i <= s - 8)
-      {
-        m_spaces.append("        ");
-        i += 8;
-      }
-      else if (i <= s - 4)
-      {
-        m_spaces.append("    ");
-        i += 4;
-      }
-      else if (i <= s - 2)
-      {
-        m_spaces.append("  ");
-        i += 2;
-      }
-      else
-      {
-        m_spaces.append(" ");
-        ++i;
-      }
-    }
+    m_spaces.assign(s,' ');
   }
   ostream &operator<<(ostream &os)
   {
@@ -251,6 +229,10 @@ Log info(cout,"NOTE");
 Log error(cerr,"ERROR");
 Log warning(cout, "WARNING");
 
+/**
+  @note This is not a replacement for the mysql_real_escape_string() function
+  as it only does what is necessary for this application.
+*/
 string escape_string(string str)
 {
   string esc("'\"\\");
@@ -267,13 +249,13 @@ string escape_string(string str)
 }
 
 /**
- 
+
 */
 struct Proxy_user
 {
   Proxy_user(string opt_host, string opt_user) : host(opt_host), user(opt_user)
   {}
-  
+
   string host;
   string user;
   void to_str(string *sql)
@@ -283,7 +265,7 @@ struct Proxy_user
     sql->append(escape_string(host)).append("','");
     sql->append(escape_string(user)).append("','','',TRUE,'',now());\n");
   }
-  
+
 };
 
 /**
@@ -496,7 +478,7 @@ bool assert_valid_root_account(const string &username, const string &host,
     return false;
   }
   if (!all_of(username.begin(), username.end(), my_legal_username_chars) ||
-      !all_of(host.begin(), host.end(), my_legal_hostname_chars))   
+      !all_of(host.begin(), host.end(), my_legal_hostname_chars))
   {
     error << "Recommended practice is to use only alpha-numericals in "
              "the user / host name."
@@ -664,7 +646,7 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
       error << "Can't locate the server executable (mysqld)." << endl;
       info << "The following paths were searched: ";
       copy(spaths.begin(), spaths.end(),
-           ostream_iterator<Path >(info, ", "));
+           infix_ostream_iterator<Path >(info, ", "));
       info << endl;
       return false;
     }
@@ -714,7 +696,7 @@ bool assert_valid_language_directory(const string &opt_langpath,
     error << "Can't locate the language directory." << endl;
     info << "Attempted the following paths: ";
     copy(search_paths.begin(), search_paths.end(),
-         ostream_iterator<Path>(info, ", "));
+         infix_ostream_iterator<Path>(info, ", "));
     info << endl;
     return false;
   }
@@ -731,7 +713,7 @@ bool assert_valid_language_directory(const string &opt_langpath,
  @return Error
    @retval ALL_OK Reporting success
    @retval ERR_FILE File not found
-   @retval ERR_ENCRYPTION Error while decrypting 
+   @retval ERR_ENCRYPTION Error while decrypting
    @retval ERR_SYNTAX Error while parsing
 */
 int get_admin_credentials(const string &opt_adminlogin,
@@ -822,7 +804,7 @@ public:
     {
       n= write(fh, mysql_system_tables[i],
                strlen(mysql_system_tables[i]));
-    }   
+    }
     if (errno != 0)
     {
       info << "failed." << endl;
@@ -864,7 +846,7 @@ public:
     write(fh, create_proxy_cmd.c_str(), create_proxy_cmd.length());
     if (errno != 0)
       return false;
-    
+
 
     /* Execute optional SQL from a file */
     if (m_opt_sqlfile.length() > 0)
@@ -966,7 +948,7 @@ bool process_execute(const string &exec, Fwd_iterator begin,
     if (!writer(read_pipe[1]) || errno != 0)
     {
       error << "The child process terminated prematurely. "
-            << "Errno= " << errno   
+            << "Errno= " << errno
             << endl;
       if (errno != EPIPE)
         reader(write_pipe[0]);
@@ -989,7 +971,7 @@ bool process_execute(const string &exec, Fwd_iterator begin,
   return true;
 }
 
-int generate_password_file(Path &pwdfile, const string &adminuser, 
+int generate_password_file(Path &pwdfile, const string &adminuser,
                            const string &adminhost,
                            const string &password)
 {
@@ -1012,10 +994,12 @@ int generate_password_file(Path &pwdfile, const string &adminuser,
        << Datetime() << "\n"
        << password << "\n";
   fout.close();
-  info << "done." << endl << flush;
+  info << "done." << endl;
   umask(old_mask);
   return ALL_OK;
 }
+
+
 
 int main(int argc,char *argv[])
 {
@@ -1133,6 +1117,34 @@ int main(int argc,char *argv[])
     return 1;
   }
 
+  if (opt_def_extra_file)
+  {
+    Path def_extra_file;
+    def_extra_file.qpath(opt_def_extra_file);
+    if (!def_extra_file.exists())
+    {
+      warning << "Can't open extra defaults file '"
+              << opt_def_extra_file
+              << "' (skipping)" << endl;
+      opt_def_extra_file= NULL;
+    }
+  }
+
+  if (opt_defaults_file)
+  {
+    opt_defaults= FALSE;
+    Path defaults_file;
+    defaults_file.qpath(opt_defaults_file);
+    if (!defaults_file.exists())
+    {
+      error << "Can't open defaults file '"
+            << defaults_file
+            << "'" << endl;
+      opt_defaults_file= NULL;
+      return 1;
+    }
+  }
+
   if (data_directory.exists())
   {
     info << "Using existing directory "
@@ -1176,10 +1188,13 @@ int main(int argc,char *argv[])
   }
   else
     opt_euid= 0;
-
   vector<string> command_line;
-  if (opt_defaults == FALSE)
+  if (opt_defaults == FALSE && opt_defaults_file == NULL)
     command_line.push_back(string("--no-defaults"));
+  if (opt_defaults_file != NULL)
+    command_line.push_back(string("--defaults-file=").append(opt_defaults_file));
+  if (opt_def_extra_file != NULL)
+    command_line.push_back(string("--defaults-extra-file=").append(opt_def_extra_file));
   command_line.push_back(string("--bootstrap"));
   command_line.push_back(string("--datadir=").append(data_directory.to_str()));
   command_line.push_back(string("--lc-messages-dir=").append(language_directory.to_str()));
@@ -1214,8 +1229,10 @@ int main(int argc,char *argv[])
       error << "Can't create password file "
             << randpwdfile
             << endl;
+      return 1;
     }
   }
+
 
   string ssl_type;
   string ssl_cipher;
@@ -1225,7 +1242,7 @@ int main(int argc,char *argv[])
     create_ssl_policy(&ssl_type, &ssl_cipher, &x509_issuer, &x509_subject);
   info << "Executing " << mysqld_exec.to_str() << " ";
   copy(command_line.begin(), command_line.end(),
-       ostream_iterator<Path>(info, " "));
+       infix_ostream_iterator<Path>(info, " "));
   info << endl;
   Sql_user user(adminhost,
                 adminuser,
@@ -1253,7 +1270,7 @@ int main(int argc,char *argv[])
   {
     error << "Failed to execute " << mysqld_exec.to_str() << " ";
     copy(command_line.begin(), command_line.end(),
-         ostream_iterator<Path>(error, " "));
+         infix_ostream_iterator<Path>(error, " "));
     error << endl;
     return 1;
   }
