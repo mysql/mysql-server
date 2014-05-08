@@ -2159,12 +2159,11 @@ recv_parse_log_rec(
 #endif /* UNIV_LOG_LSN_DEBUG */
 	case MLOG_MULTI_REC_END:
 	case MLOG_DUMMY_RECORD:
+		*type = static_cast<mlog_id_t>(*ptr);
+		return(1);
 	case MLOG_CHECKPOINT:
 		*type = static_cast<mlog_id_t>(*ptr);
-#if SIZE_OF_MLOG_CHECKPOINT != 1
-# error
-#endif
-		return(1);
+		return(SIZE_OF_MLOG_CHECKPOINT);
 	case MLOG_MULTI_REC_END | MLOG_SINGLE_REC_FLAG:
 	case MLOG_DUMMY_RECORD | MLOG_SINGLE_REC_FLAG:
 	case MLOG_CHECKPOINT | MLOG_SINGLE_REC_FLAG:
@@ -2291,12 +2290,14 @@ enum store_t {
 
 /** Parse log records from a buffer and optionally store them to a
 hash table to wait merging to file pages.
-@param[in]	store	whether to store page operations into hash table
-@param[in]	apply	whether to apply the records
+@param[in]	checkpoint_lsn	the LSN of the latest checkpoint
+@param[in]	store		whether to store page operations
+@param[in]	apply		whether to apply the records
 @return whether MLOG_CHECKPOINT record was seen the first time */
 static __attribute__((warn_unused_result))
 bool
 recv_parse_log_recs(
+	lsn_t		checkpoint_lsn,
 	store_t		store,
 	bool		apply)
 {
@@ -2325,16 +2326,6 @@ loop:
 
 	switch (*ptr) {
 	case MLOG_CHECKPOINT:
-		DBUG_PRINT("ib_log",
-			   ("MLOG_CHECKPOINT read at " LSN_PF,
-			    recv_sys->recovered_lsn));
-
-		if (recv_sys->mlog_checkpoint_lsn == 0) {
-			recv_sys->mlog_checkpoint_lsn
-				= recv_sys->recovered_lsn;
-			return(true);
-		}
-		/* fall through */
 #ifdef UNIV_LOG_LSN_DEBUG
 	case MLOG_LSN:
 #endif /* UNIV_LOG_LSN_DEBUG */
@@ -2384,9 +2375,43 @@ loop:
 		recv_sys->recovered_lsn = new_recovered_lsn;
 
 		switch (type) {
+			lsn_t	lsn;
 		case MLOG_DUMMY_RECORD:
-		case MLOG_CHECKPOINT:
 			/* Do nothing */
+			break;
+		case MLOG_CHECKPOINT:
+			if (end_ptr < ptr + SIZE_OF_MLOG_CHECKPOINT) {
+				return(false);
+			}
+#if SIZE_OF_MLOG_CHECKPOINT != 1 + 8
+# error SIZE_OF_MLOG_CHECKPOINT != 1 + 8
+#endif
+			lsn = mach_read_from_8(ptr + 1);
+
+			DBUG_PRINT("ib_log",
+				   ("MLOG_CHECKPOINT(" LSN_PF ") %s at "
+				    LSN_PF,
+				    lsn,
+				    lsn != checkpoint_lsn ? "ignored"
+				    : recv_sys->mlog_checkpoint_lsn
+				    ? "reread" : "read",
+				    recv_sys->recovered_lsn));
+
+			if (lsn == checkpoint_lsn) {
+				if (recv_sys->mlog_checkpoint_lsn) {
+					/* At recv_reset_logs() we may
+					write a duplicate MLOG_CHECKPOINT
+					for the same checkpoint LSN. Thus
+					recv_sys->mlog_checkpoint_lsn
+					can differ from the current LSN. */
+					ut_ad(recv_sys->mlog_checkpoint_lsn
+					      <= recv_sys->recovered_lsn);
+					break;
+				}
+				recv_sys->mlog_checkpoint_lsn
+					= recv_sys->recovered_lsn;
+				return(true);
+			}
 			break;
 		case MLOG_FILE_NAME:
 		case MLOG_FILE_RENAME2:
@@ -2670,6 +2695,7 @@ recv_scan_log_recs(
 	const byte*	buf,		/*!< in: buffer containing a log
 					segment or garbage */
 	ulint		len,		/*!< in: buffer length */
+	lsn_t		checkpoint_lsn,	/*!< in: latest checkpoint LSN */
 	lsn_t		start_lsn,	/*!< in: buffer start lsn */
 	lsn_t*		contiguous_lsn,	/*!< in/out: it is known that all log
 					groups contain contiguous log data up
@@ -2848,7 +2874,8 @@ recv_scan_log_recs(
 	if (more_data && !recv_sys->found_corrupt_log) {
 		/* Try to parse more log records */
 
-		if (recv_parse_log_recs(*store_to_hash, apply)) {
+		if (recv_parse_log_recs(checkpoint_lsn,
+					*store_to_hash, apply)) {
 			ut_ad(recv_sys->mlog_checkpoint_lsn
 			      == recv_sys->recovered_lsn);
 			return(true);
@@ -2905,6 +2932,7 @@ recv_group_scan_log_recs(
 	ut_ad(last_phase || !recv_writer_thread_active);
 	mutex_exit(&recv_sys->mutex);
 
+	lsn_t	checkpoint_lsn	= *contiguous_lsn;
 	lsn_t	start_lsn;
 	lsn_t	end_lsn;
 	store_t	store_to_hash	= recv_sys->mlog_checkpoint_lsn == 0
@@ -2934,6 +2962,7 @@ recv_group_scan_log_recs(
 	} while (!recv_scan_log_recs(
 			 available_mem, &store_to_hash, log_sys->buf,
 			 RECV_SCAN_SIZE,
+			 checkpoint_lsn,
 			 start_lsn, contiguous_lsn, &group->scanned_lsn));
 
 	DBUG_PRINT("ib_log", ("%s " LSN_PF
@@ -3194,8 +3223,7 @@ recv_recovery_from_checkpoint_start(
 	if (checkpoint_lsn != max_flushed_lsn
 	    || checkpoint_lsn != min_flushed_lsn) {
 
-		if (checkpoint_lsn
-		    + 1/* MLOG_CHECKPOINT */
+		if (checkpoint_lsn + SIZE_OF_MLOG_CHECKPOINT
 		    < max_flushed_lsn) {
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"The log sequence number in the ibdata files is"

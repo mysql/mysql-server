@@ -219,8 +219,9 @@ struct mtr_t {
 	but generated some redo log on a higher level, such as
 	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 	The caller must invoke log_mutex_enter() and log_mutex_exit().
-	This is to be used at log_checkpoint(). */
-	void commit_checkpoint();
+	This is to be used at log_checkpoint().
+	@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
+	void commit_checkpoint(lsn_t checkpoint_lsn);
 
 	/** Return current size of the buffer.
 	@return	savepoint */
