@@ -7814,7 +7814,7 @@ ha_innobase::general_fetch(
 
 	DBUG_ENTER("general_fetch");
 
-	ut_a(prebuilt->trx == thd_to_trx(user_thd));
+	ut_ad(prebuilt->trx == thd_to_trx(user_thd));
 
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
