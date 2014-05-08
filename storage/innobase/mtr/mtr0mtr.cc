@@ -510,10 +510,11 @@ mtr_t::commit()
 but generated some redo log on a higher level, such as
 MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 The caller must invoke log_mutex_enter() and log_mutex_exit().
-This is to be used at log_checkpoint(). */
+This is to be used at log_checkpoint().
+@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
 
 void
-mtr_t::commit_checkpoint()
+mtr_t::commit_checkpoint(lsn_t checkpoint_lsn)
 {
 	ut_ad(log_mutex_own());
 	ut_ad(is_active());
@@ -539,14 +540,20 @@ mtr_t::commit_checkpoint()
 			&m_impl.m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 	}
 
-	mlog_catenate_ulint(&m_impl.m_log, MLOG_CHECKPOINT, MLOG_1BYTE);
+	byte*	ptr = m_impl.m_log.push<byte*>(SIZE_OF_MLOG_CHECKPOINT);
+#if SIZE_OF_MLOG_CHECKPOINT != 9
+# error SIZE_OF_MLOG_CHECKPOINT != 9
+#endif
+	*ptr = MLOG_CHECKPOINT;
+	mach_write_to_8(ptr + 1, checkpoint_lsn);
 
 	Command	cmd(this);
 	cmd.finish_write(m_impl.m_log.size());
 	cmd.release_resources();
 
 	DBUG_PRINT("ib_log",
-		   ("MLOG_CHECKPOINT written at " LSN_PF, log_sys->lsn));
+		   ("MLOG_CHECKPOINT(" LSN_PF ") written at " LSN_PF,
+		    checkpoint_lsn, log_sys->lsn));
 }
 
 #ifdef UNIV_DEBUG
