@@ -6216,8 +6216,9 @@ void Rotate_log_event::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
 Rotate_log_event::Rotate_log_event(const char* new_log_ident_arg,
                                    uint ident_len_arg, ulonglong pos_arg,
                                    uint flags_arg)
-  :Log_event(header(), footer(),
-             Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
+: Rotate_event(),
+  Log_event(header(), footer(),
+            Log_event::EVENT_NO_CACHE, Log_event::EVENT_IMMEDIATE_LOGGING)
 {
   DBUG_ENTER("Rotate_log_event::Rotate_log_event(...,flags)");
   new_log_ident= new_log_ident_arg;
@@ -12715,8 +12716,8 @@ Previous_gtids_log_event(const char *buf, uint event_len,
 
 #ifndef MYSQL_CLIENT
 Previous_gtids_log_event::Previous_gtids_log_event(const Gtid_set *set)
-: Log_event(header(),
-            footer(),
+: Previous_gtids_event(),
+  Log_event(header(), footer(),
             Log_event::EVENT_NO_CACHE,
             Log_event::EVENT_IMMEDIATE_LOGGING)
 {

@@ -1260,7 +1260,8 @@ int Update_rows_log_event_old::do_exec_row(TABLE *table)
 Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
                                        MY_BITMAP const *cols,
                                        bool using_trans)
-  : Log_event(thd_arg, 0,
+  : Binary_log_event(),
+    Log_event(thd_arg, 0,
               using_trans ? Log_event::EVENT_TRANSACTIONAL_CACHE :
                             Log_event::EVENT_STMT_CACHE,
               Log_event::EVENT_NORMAL_LOGGING, header(),
@@ -1316,9 +1317,9 @@ Old_rows_log_event::Old_rows_log_event(THD *thd_arg, TABLE *tbl_arg, ulong tid,
 Old_rows_log_event::
 Old_rows_log_event(const char *buf, uint event_len, Log_event_type event_type,
                    const Format_description_event *description_event)
-  : Log_event(header(), footer(), true),
-    Binary_log_event(&buf, description_event->binlog_version,
+ : Binary_log_event(&buf, description_event->binlog_version,
                      description_event->server_version),
+   Log_event(header(), footer(), true),
     m_row_count(0),
 #ifndef MYSQL_CLIENT
     m_table(NULL),
