@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -330,6 +330,26 @@ void thd_unlock_thread_count(THD *)
 {
   mysql_cond_broadcast(&COND_thread_count);
   mysql_mutex_unlock(&LOCK_thread_count);
+}
+
+/**
+  Lock thread removal mutex
+
+  @param thd                       THD object
+*/
+void thd_lock_thread_remove(THD *)
+{
+  mysql_mutex_lock(&LOCK_thd_remove);
+}
+
+/**
+  Unlock thread removal mutex
+
+  @param thd                       THD object
+*/
+void thd_unlock_thread_remove(THD *)
+{
+  mysql_mutex_unlock(&LOCK_thd_remove);
 }
 
 /**
@@ -1561,6 +1581,13 @@ void THD::awake(THD::killed_state state_to_set)
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
+      DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
+                      {
+                      const char act[]=
+                      "now signal dump_thread_signal wait_for go";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                      };);
       mysql_mutex_lock(mysys_var->current_mutex);
       mysql_cond_broadcast(mysys_var->current_cond);
       mysql_mutex_unlock(mysys_var->current_mutex);
