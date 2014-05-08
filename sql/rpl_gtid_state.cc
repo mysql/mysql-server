@@ -35,7 +35,7 @@ int Gtid_state::clear(THD *thd)
   executed_gtids.clear();
   gtids_only_in_table.clear();
   previous_gtids_logged.clear();
-  /* Reset gtid table. */
+  /* Reset gtid_executed table. */
   if ((ret= gtid_table_persistor->reset(thd)) == 1)
   {
     /*
@@ -523,7 +523,7 @@ int Gtid_state::save_gtids_of_last_binlog_into_table(bool on_rotation)
               RETURN_STATUS_OK)) == 0 &&
               !logged_gtids_last_binlog.is_empty())
   {
-    /* Save set of GTIDs of the last binlog into table */
+    /* Save set of GTIDs of the last binlog into gtid_executed table */
     ret= save(&logged_gtids_last_binlog);
     /* Prepare previous_gtids_logged for next binlog on binlog rotation */
     if (!ret && on_rotation)

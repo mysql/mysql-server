@@ -61,9 +61,9 @@ FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
 --replace_result $master_uuid MASTER_UUID
---eval SELECT * FROM mysql.gtid_executed where sid="$master_uuid"
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$master_uuid"
 --replace_result $slave_uuid SLAVE_UUID
---eval SELECT * FROM mysql.gtid_executed where sid="$slave_uuid"
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$slave_uuid"
 
 --let $binlog_file= query_get_value(SHOW MASTER STATUS, File, 1)
 --echo #

@@ -15,7 +15,6 @@
 --source include/have_debug_sync.inc
 
 --let $master_uuid= `SELECT @@GLOBAL.SERVER_UUID`
-SHOW CREATE TABLE mysql.gtid_executed;
 
 CREATE TABLE IF NOT EXISTS t1 (a INT) ENGINE=InnoDB;
 CREATE TABLE t2 (a INT) ENGINE=MyISAM;
@@ -87,7 +86,7 @@ INSERT INTO t1 VALUES(11);
 
 --echo #
 --echo # Verify that the specified gtid to GTID_NEXT is stored into
---echo # global.gtid_executed and gtid table.
+--echo # global.gtid_executed and gtid_executed table.
 --echo #
 --replace_result $master_uuid MASTER_UUID
 --eval SET @@SESSION.GTID_NEXT= '$master_uuid:17'
@@ -147,7 +146,7 @@ CREATE TABLE t3 (a INT);
 --source include/sync_slave_sql_with_master.inc
 
 --echo #
---echo # Verify that transaction's gtid is not stored into gtid table
+--echo # Verify that transaction's gtid is not stored into gtid_executed table
 --echo # and the transaction is rolled back if we encounter an error
 --echo # when writing gtid into table when binlog is disabled and
 --echo # gtid_mode is enabled.

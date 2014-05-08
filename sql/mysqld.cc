@@ -4585,7 +4585,8 @@ int mysqld_main(int argc, char **argv)
         if (!executed_gtids->is_empty())
           unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
         /*
-          Save unsaved GTIDs into gtid table, in the following four cases:
+          Save unsaved GTIDs into gtid_executed table, in the following
+          four cases:
             1. the upgrade case.
             2. the case that a slave is provisioned from a backup of
                the master and the slave is cleaned by RESET MASTER
@@ -4593,8 +4594,9 @@ int mysqld_main(int argc, char **argv)
             3. the case that no binlog rotation happened from the
                last RESET MASTER on the server before it crashes.
             4. The set of GTIDs of the last binlog is not saved into the
-               gtid table if server crashes, so we save it into gtid table
-               and executed_gtids during recovery from the crash.
+               gtid_executed table if server crashes, so we save it into
+               gtid_executed table and executed_gtids during recovery
+               from the crash.
         */
         if (gtid_state->save(&unsaved_gtids_in_table) == -1)
         {
@@ -4671,7 +4673,7 @@ int mysqld_main(int argc, char **argv)
     {
       /*
         If gtid_mode is enabled and binlog is disabled, initialize
-        executed_gtids from gtid table.
+        executed_gtids from gtid_executed table.
       */
       if (gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
@@ -4857,12 +4859,15 @@ int mysqld_main(int argc, char **argv)
 
   if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
   {
-    /* Save set of GTIDs of the last binlog into table on server shutdown */
+    /*
+      Save set of GTIDs of the last binlog into gtid_executed table
+      on server shutdown.
+    */
     if (gtid_state->save_gtids_of_last_binlog_into_table(false))
       sql_print_warning("Failed to save set of GTIDs of the last binlog "
-                        "into table on server shutdown, so we save it "
-                        "into gtid table and executed_gtids during next "
-                        "server startup.");
+                        "into gtid_executed table on server shutdown, "
+                        "so we save it into gtid_executed table and "
+                        "executed_gtids during next server startup.");
     terminate_compress_gtid_table_thread();
   }
 
