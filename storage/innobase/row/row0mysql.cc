@@ -888,6 +888,9 @@ row_create_prebuilt(
 
 	prebuilt->mysql_row_len = mysql_row_len;
 
+	prebuilt->ins_sel_stmt = false;
+	prebuilt->session = NULL;
+
 	return(prebuilt);
 }
 
