@@ -910,6 +910,11 @@ struct row_prebuilt_t {
 
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
+
+	bool		ins_sel_stmt;	/*!< if true then ins_sel_statement. */
+
+	innodb_session_t*
+			session;	/*!< InnoDB session handler. */
 };
 
 /** Callback for row_mysql_sys_index_iterate() */

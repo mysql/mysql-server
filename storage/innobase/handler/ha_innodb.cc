@@ -1333,28 +1333,27 @@ thd_create_intrinsic(
 @param[in,out]	thd	MySQL thread handler.
 @return reference to private handler */
 __attribute__((warn_unused_result))
-static inline
+static
 innodb_session_t*&
 thd_to_innodb_session(
 	THD*	thd)
 {
 	innodb_session_t*& innodb_session =
 		*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr);
-	if (innodb_session == NULL) {
-		innodb_session = new (std::nothrow) innodb_session_t();
-		if (innodb_session == NULL) {
-			return(innodb_session);
-		}
+
+	if (innodb_session != NULL) {
+		return(innodb_session);
 	}
 
-	return(*(innodb_session_t**) thd_ha_data(thd, innodb_hton_ptr));
+	innodb_session = new (std::nothrow) innodb_session_t();
+	return(innodb_session);
 }
 
 /** Obtain the InnoDB transaction of a MySQL thread.
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 __attribute__((warn_unused_result))
-static inline
+static
 trx_t*&
 thd_to_trx(
 	THD*	thd)
@@ -7539,10 +7538,20 @@ ha_innobase::index_read(
 
 		innobase_srv_conc_enter_innodb(prebuilt->trx);
 
-		ret = row_search_for_mysql(
-			(byte*) buf, mode, prebuilt, match_mode,
-			0, thd_is_ins_sel_stmt(user_thd),
-			thd_to_innodb_session(user_thd));
+		if (!dict_table_is_intrinsic(prebuilt->table)) {
+			prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(user_thd);
+
+			ret = row_search_mvcc(
+				buf, mode, prebuilt, match_mode, 0,
+				prebuilt->ins_sel_stmt); 
+
+		} else {
+			prebuilt->session = thd_to_innodb_session(user_thd);
+
+			ret = row_search_no_mvcc(
+				buf, mode, prebuilt, match_mode, 0,
+				prebuilt->session);  
+		}
 
 		innobase_srv_conc_exit_innodb(prebuilt->trx);
 	} else {
@@ -7810,10 +7819,20 @@ ha_innobase::general_fetch(
 
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
-	ret = row_search_for_mysql(
-		(byte*) buf, 0, prebuilt, match_mode,
-		direction, thd_is_ins_sel_stmt(user_thd),
-		thd_to_innodb_session(user_thd));
+	if (!dict_table_is_intrinsic(prebuilt->table)) {
+		prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(user_thd);
+
+		ret = row_search_mvcc(
+			buf, 0, prebuilt, match_mode, direction,
+			prebuilt->ins_sel_stmt); 
+
+	} else {
+		prebuilt->session = thd_to_innodb_session(user_thd);
+
+		ret = row_search_no_mvcc(
+			buf, 0, prebuilt, match_mode, direction,
+			prebuilt->session);
+	}
 
 	innobase_srv_conc_exit_innodb(prebuilt->trx);
 
