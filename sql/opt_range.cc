@@ -6032,7 +6032,13 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
 
         - Otherwise, don't produce a SEL_TREE.
       */
+
       const uint NOT_IN_IGNORE_THRESHOLD= 1000;
+      // If we have t.key NOT IN (null, null, ...) or the list is too long
+      if (op->array->used_count == 0 ||
+          op->array->used_count > NOT_IN_IGNORE_THRESHOLD)
+        return NULL;
+
       MEM_ROOT *tmp_root= param->mem_root;
       param->thd->mem_root= param->old_root;
       /*
@@ -6046,7 +6052,7 @@ static SEL_TREE *get_func_mm_tree_from_in_predicate(RANGE_OPT_PARAM *param,
       Item *value_item= op->array->create_item();
       param->thd->mem_root= tmp_root;
 
-      if (op->array->used_count > NOT_IN_IGNORE_THRESHOLD || !value_item)
+      if (!value_item)
         return NULL;
 
       /* Get a SEL_TREE for "(-inf|NULL) < X < c_0" interval.  */
