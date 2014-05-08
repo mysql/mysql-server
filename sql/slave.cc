@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3119,10 +3119,12 @@ err:
   change_rpl_status(RPL_ACTIVE_SLAVE,RPL_IDLE_SLAVE);
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net); // destructor will not free it, because net.vio is 0
+  mysql_mutex_lock(&LOCK_thd_remove);
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
   mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thd_remove);
   mi->abort_slave= 0;
   mi->slave_running= 0;
   mi->io_thd= 0;
@@ -3518,10 +3520,12 @@ the slave SQL thread with \"SLAVE START\". We stopped at log \
   THD_CHECK_SENTRY(thd);
   rli->sql_thd= 0;
   set_thd_in_use_temporary_tables(rli);  // (re)set sql_thd in use for saved temp tables
+  mysql_mutex_lock(&LOCK_thd_remove);
   mysql_mutex_lock(&LOCK_thread_count);
   THD_CHECK_SENTRY(thd);
   delete thd;
   mysql_mutex_unlock(&LOCK_thread_count);
+  mysql_mutex_unlock(&LOCK_thd_remove);
  /*
   Note: the order of the broadcast and unlock calls below (first broadcast, then unlock)
   is important. Otherwise a killer_thread can execute between the calls and

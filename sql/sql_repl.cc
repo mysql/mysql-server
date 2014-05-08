@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -248,7 +248,7 @@ bool log_in_use(const char* log_name)
   size_t log_name_len = strlen(log_name) + 1;
   THD *tmp;
   bool result = 0;
-
+  DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
   mysql_mutex_lock(&LOCK_thread_count);
   I_List_iterator<THD> it(threads);
 
@@ -1965,6 +1965,7 @@ bool show_binlogs(THD* thd)
     DBUG_RETURN(TRUE);
   
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
+  DEBUG_SYNC(thd, "show_binlogs_after_lock_log_before_lock_index");
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
   

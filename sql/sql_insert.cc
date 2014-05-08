@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1933,6 +1933,7 @@ public:
       close_thread_tables(&thd);
       thd.mdl_context.release_transactional_locks();
     }
+    mysql_mutex_lock(&LOCK_thd_remove);
     mysql_mutex_lock(&LOCK_thread_count);
     mysql_mutex_destroy(&mutex);
     mysql_cond_destroy(&cond);
@@ -1944,6 +1945,7 @@ public:
     thread_count--;
     delayed_insert_threads--;
     mysql_mutex_unlock(&LOCK_thread_count);
+    mysql_mutex_unlock(&LOCK_thd_remove);
     mysql_cond_broadcast(&COND_thread_count); /* Tell main we are ready */
   }
 
