@@ -35,7 +35,7 @@ public:
   virtual ~Gtid_table_access_context() { };
 
   /**
-    Initialize the gtid table access context as following:
+    Initialize the gtid_executed table access context as following:
       - Create a new THD if current_thd is NULL
       - Disable binlog temporarily if we are going to modify the table
       - Open and lock a table.
@@ -50,7 +50,7 @@ public:
   */
   bool init(THD **thd, TABLE **table, bool is_write);
   /**
-    De-initialize the gtid table access context as following:
+    De-initialize the gtid_executed table access context as following:
       - Close the table
       - Reenable binlog if needed
       - Destroy the created THD if needed.
@@ -186,10 +186,10 @@ public:
   int reset(THD *thd);
 
   /**
-    Fetch gtids from gtid table and store them into
+    Fetch gtids from gtid_executed table and store them into
     gtid_executed set.
 
-    @param[out]  gtid_set store gtids fetched from the gtid table.
+    @param[out]  gtid_set store gtids fetched from the gtid_executed table.
 
     @retval
       0    OK
@@ -200,7 +200,7 @@ public:
   */
   int fetch_gtids(Gtid_set *gtid_set);
   /**
-    Compress the gtid table completely by employing one
+    Compress the gtid_executed table completely by employing one
     or more transactions.
 
     @param  thd Thread requesting to compress the table
@@ -218,12 +218,13 @@ private:
   /* Count the append size of the table */
   ulong m_count;
   /**
-    Compress the gtid table, read each row by the PK(sid, gno_start)
-    in increasing order, compress the first consecutive range of
-    gtids within a single transaction.
+    Compress the gtid_executed table, read each row by the
+    PK(sid, gno_start) in increasing order, compress the first
+    consecutive range of gtids within a single transaction.
 
     @param      thd          Thread requesting to compress the table
-    @param[out] is_complete  True if the gtid table is compressd completely.
+    @param[out] is_complete  True if the gtid_executed table is
+                             compressd completely.
 
     @retval
       0    OK
@@ -250,7 +251,8 @@ private:
       8 8
 
     @param      table        Reference to a table object.
-    @param[out] is_complete  True if the gtid table is compressd completely.
+    @param[out] is_complete  True if the gtid_executed table
+                             is compressd completely.
 
     @return
       @retval 0    OK.
@@ -258,7 +260,7 @@ private:
   */
   int compress_first_consecutive_range(TABLE *table, bool &is_complete);
   /**
-    Fill a gtid interval into fields of the gtid table.
+    Fill a gtid interval into fields of the gtid_executed table.
 
     @param  fields   Reference to table fileds.
     @param  sid      The source id of the gtid interval.
@@ -272,7 +274,7 @@ private:
   int fill_fields(Field **fields, const char *sid,
                   rpl_gno gno_start, rpl_gno gno_end);
   /**
-    Write a gtid interval into the gtid table.
+    Write a gtid interval into the gtid_executed table.
 
     @param  table    Reference to a table object.
     @param  sid      The source id of the gtid interval.
@@ -286,7 +288,7 @@ private:
   int write_row(TABLE *table, const char *sid,
                 rpl_gno gno_start, rpl_gno gno_end);
   /**
-    Update a gtid interval in the gtid table.
+    Update a gtid interval in the gtid_executed table.
     - locate the gtid interval by primary key (sid, gno_start)
       to update it with the new_gno_end.
 

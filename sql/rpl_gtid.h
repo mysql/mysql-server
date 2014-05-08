@@ -2375,7 +2375,7 @@ public:
   }
   /**
     Save gtid owned by the thd into executed_gtids variable
-    and gtid table.
+    and gtid_executed table.
 
     @param thd Session to commit
     @retval
@@ -2397,7 +2397,7 @@ public:
   */
   int save(Gtid_set *gtid_set);
   /**
-    Save the set of gtids logged in the last binlog into gtid table.
+    Save the set of gtids logged in the last binlog into gtid_executed table.
 
     @param on_rotation  true if it is on binlog rotation.
 
@@ -2408,10 +2408,10 @@ public:
   */
   int save_gtids_of_last_binlog_into_table(bool on_rotation);
   /**
-    Fetch gtids from gtid table and store them into
+    Fetch gtids from gtid_executed table and store them into
     gtid_executed set.
 
-    @param[out]  gtid_set store gtids fetched from the gtid table.
+    @param[out]  gtid_set store gtids fetched from the gtid_executed table.
 
     @retval
       0    OK
@@ -2422,7 +2422,7 @@ public:
   */
   int fetch_gtids(Gtid_set *gtid_set);
   /**
-    Compress the gtid table, read each row by the PK(sid, gno_start)
+    Compress the gtid_executed table, read each row by the PK(sid, gno_start)
     in increasing order, compress the first consecutive gtids range
     (delete consecutive gtids from the second consecutive gtid, then
     update the first gtid) within a single transaction.
@@ -2467,7 +2467,10 @@ private:
     This is always a subset of executed_gtids.
   */
   Gtid_set lost_gtids;
-  /* The set of GTIDs that has been executed and stored into gtid table. */
+  /*
+    The set of GTIDs that has been executed and
+    stored into gtid_executed table.
+  */
   Gtid_set executed_gtids;
   /*
     The set of GTIDs that exists only in gtid_executed table, not in

@@ -587,6 +587,7 @@ public:
     previous_gtid_set_relaylog= previous_gtid_set_param;
   }
 private:
+  /* The prevoius gtid set in relay log. */
   Gtid_set* previous_gtid_set_relaylog;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }

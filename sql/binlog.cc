@@ -1628,12 +1628,12 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
     const char* err_msg= "The content of the statement cache is corrupted "
                          "while writing a rollback record of the transaction "
                          "to the binary log.";
-    error|= write_incident(thd, true/*need_lock_log=true*/, err_msg);
+    error= write_incident(thd, true/*need_lock_log=true*/, err_msg);
     cache_mngr->stmt_cache.reset();
   }
   else if (!cache_mngr->stmt_cache.is_binlog_empty())
   {
-    if ((error|= cache_mngr->stmt_cache.finalize(thd)))
+    if ((error= cache_mngr->stmt_cache.finalize(thd)))
       goto end;
     stuff_logged= true;
   }
@@ -1648,7 +1648,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       */
       Query_log_event
         end_evt(thd, STRING_WITH_LEN("ROLLBACK"), true, false, true, 0, true);
-      error|= cache_mngr->trx_cache.finalize(thd, &end_evt);
+      error= cache_mngr->trx_cache.finalize(thd, &end_evt);
       stuff_logged= true;
     }
     else
@@ -1657,7 +1657,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         If the transaction is being rolled back and its changes can be
         rolled back, the trx-cache's content is truncated.
       */
-      error|= cache_mngr->trx_cache.truncate(thd, all);
+      error= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
   else
@@ -1704,13 +1704,13 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
         Otherwise, the statement's changes in the trx-cache are
         truncated.
       */
-      error|= cache_mngr->trx_cache.truncate(thd, all);
+      error= cache_mngr->trx_cache.truncate(thd, all);
     }
   }
 
   DBUG_PRINT("debug", ("error: %d", error));
   if (error == 0 && stuff_logged)
-    error|= ordered_commit(thd, all, /* skip_commit */ true);
+    error= ordered_commit(thd, all, /* skip_commit */ true);
 
   if (check_write_error(thd))
   {
@@ -1736,6 +1736,10 @@ end:
   if (!thd->in_active_multi_stmt_transaction())
     gtid_state->update_on_rollback(thd);
 
+  /*
+    TODO: some errors are overwritten, which may cause problem,
+    fix it later.
+  */
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
 }
@@ -5137,7 +5141,8 @@ int MYSQL_BIN_LOG::new_file_without_locking(Format_description_log_event *extra_
 */
 int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_event *extra_description_event)
 {
-  int error= 0, close_on_error= FALSE;
+  int error= 0;
+  bool close_on_error= false;
   char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
@@ -5201,12 +5206,13 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     if (is_relay_log)
       r.checksum_alg= relay_log_checksum_alg;
     DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-    if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
+    if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event",
+                        (error=1), FALSE) ||
        (error= r.write(&log_file)))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
-      close_on_error= TRUE;
+      close_on_error= true;
       my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
@@ -5222,7 +5228,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     /* Save set of GTIDs of the last binlog into table on binlog rotation */
     if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
     {
-      close_on_error= TRUE;
+      close_on_error= true;
       goto end;
     }
   }
@@ -5271,7 +5277,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
                     MYF(ME_FATALERROR), file_to_open,
                     error, my_strerror(errbuf, sizeof(errbuf), error));
-    close_on_error= TRUE;
+    close_on_error= true;
   }
   my_free(old_name);
 

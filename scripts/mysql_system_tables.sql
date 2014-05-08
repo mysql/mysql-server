@@ -198,10 +198,10 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
-    sid CHAR(36) NOT NULL COMMENT 'Textual representation of the sidno.',
-    gno_start BIGINT NOT NULL COMMENT 'First GNO of interval.',
-    gno_end BIGINT NOT NULL COMMENT 'Last GNO of interval.',
-    PRIMARY KEY(sid, gno_start))";
+    source_uuid CHAR(36) NOT NULL COMMENT 'uuid of the source where the transaction was originally executed.',
+    interval_start BIGINT NOT NULL COMMENT 'First number of interval.',
+    interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
+    PRIMARY KEY(source_uuid, interval_start))";
 
 SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
 PREPARE stmt FROM @str;

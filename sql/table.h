@@ -463,7 +463,7 @@ enum enum_table_category
     - SET GLOBAL READ_ONLY = ON
     as there is no point in locking explicitly
     a Gtid table.
-    An example of gtid table is:
+    An example of gtid_executed table is:
     - mysql.gtid_executed,
     which is updated even when there is either
     a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
