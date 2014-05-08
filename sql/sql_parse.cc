@@ -842,9 +842,7 @@ end:
 
   if (thd_added)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
     remove_global_thread(thd);
-    mysql_mutex_unlock(&LOCK_thread_count);
   }
   /*
     For safety we delete the thd before signalling that bootstrap is done,
