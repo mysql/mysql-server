@@ -170,7 +170,7 @@ position and fetch next or fetch prev must not be tried to the cursor!
 @param[in,out]	session		session handler
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-
+UNIV_INLINE
 dberr_t
 row_search_for_mysql(
 	byte*			buf,
@@ -180,6 +180,75 @@ row_search_for_mysql(
 	ulint			direction,
 	bool			ins_sel_stmt = false,
 	innodb_session_t*	session = NULL)
+	__attribute__((warn_unused_result));
+
+/** Searches for rows in the database using cursor.
+function is meant for temporary table that are not shared accross connection
+and so lot of complexity is reduced especially locking and transaction related.
+The cursor is an iterator over the table/index.
+
+@param[out]	buf		buffer for the fetched row in MySQL format
+@param[in]	mode		search mode PAGE_CUR_L
+@param[in,out]	prebuilt	prebuilt struct for the table handler;
+				this contains the info to search_tuple,
+				index; if search tuple contains 0 field then
+				we position the cursor at start or the end of
+				index, depending on 'mode'
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+				Note: if this is != 0, then prebuilt must has a
+				pcur with stored position! In opening of a
+				cursor 'direction' should be 0.
+@param[in,out]	session		session handler
+@return DB_SUCCESS or error code */
+
+dberr_t
+row_search_no_mvcc(
+	byte*			buf,
+	ulint			mode,
+	row_prebuilt_t*		prebuilt,
+	ulint			match_mode,
+	ulint			direction,
+	innodb_session_t*	session)
+	__attribute__((warn_unused_result));
+
+/** Searches for rows in the database using cursor.
+Function is mainly used for tables that are shared accorss connection and
+so it employs technique that can help re-construct the rows that
+transaction is suppose to see.
+It also has optimization such as pre-caching the rows, using AHI, etc.
+
+@param[out]	buf		buffer for the fetched row in MySQL format
+@param[in]	mode		search mode PAGE_CUR_L
+@param[in,out]	prebuilt	prebuilt struct for the table handler;
+				this contains the info to search_tuple,
+				index; if search tuple contains 0 field then
+				we position the cursor at start or the end of
+				index, depending on 'mode'
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+				Note: if this is != 0, then prebuilt must has a
+				pcur with stored position! In opening of a
+				cursor 'direction' should be 0.
+@param[in]	ins_sel_stmt	if true, then this statement is
+				insert .... select statement. For normal table
+				this can be detected by checking out locked
+				tables using trx->mysql_n_tables_locked > 0
+				condition. For intrinsic table
+				external_lock is not invoked and so condition
+				above will not stand valid instead this is
+				traced using alternative condition
+				at caller level.
+@return DB_SUCCESS or error code */
+
+dberr_t
+row_search_mvcc(
+	byte*		buf,
+	ulint		mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction,
+	bool		ins_sel_stmt)
 	__attribute__((warn_unused_result));
 
 /********************************************************************//**
