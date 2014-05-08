@@ -16,15 +16,12 @@
 */
 
 // C headers
-extern "C"
-{
 #include <stdio.h>
 #include <stdint.h>
 #include <sys/stat.h>
 #include <fcntl.h>
 #include <unistd.h>
 #include <pwd.h>
-}
 
 // MySQL headers
 #include "my_global.h"
@@ -230,8 +227,11 @@ Log error(cerr,"ERROR");
 Log warning(cout, "WARNING");
 
 /**
+  Escapes quotes and backslash.
+  @param str The string which needs to be quoted
   @note This is not a replacement for the mysql_real_escape_string() function
   as it only does what is necessary for this application.
+  @return A quoted copy of the original string.
 */
 string escape_string(string str)
 {
@@ -262,8 +262,10 @@ struct Proxy_user
   {
     sql->clear();
     sql->append("INSERT INTO proxies_priv VALUES ('");
-    sql->append(escape_string(host)).append("','");
-    sql->append(escape_string(user)).append("','','',TRUE,'',now());\n");
+    sql->append(escape_string(host)).
+      append("','");
+    sql->append(escape_string(user)).
+      append("','','',TRUE,'',now());\n");
   }
 
 };
@@ -375,7 +377,7 @@ struct Sql_user
 
 };
 
-static const char *load_default_groups[]= { "mysql_install_db", 0 };
+static const char *load_default_groups[]= { PROGRAM_NAME, 0 };
 
 void print_version(const string &p)
 {
@@ -589,10 +591,14 @@ void add_standard_search_paths(vector<Path > *spaths, const string &path)
     warning << "Can't determine current working directory." << endl;
 
   spaths->push_back(p);
-  spaths->push_back(Path(p).append("/").append(path));
-  spaths->push_back(Path("/usr/").append(path));
-  spaths->push_back(Path("/usr/local/").append(path));
-  spaths->push_back(Path("/opt/mysql/").append(path));
+  spaths->push_back(Path(p).append("/").
+    append(path));
+  spaths->push_back(Path("/usr/").
+    append(path));
+  spaths->push_back(Path("/usr/local/").
+    append(path));
+  spaths->push_back(Path("/opt/mysql/").
+    append(path));
 }
 
 /**
@@ -632,11 +638,13 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
   {
     if (opt_basedir.length() > 0)
     {
-      spaths.push_back(Path(opt_basedir).append("bin"));
+      spaths.push_back(Path(opt_basedir).
+        append("bin"));
     }
     if (opt_builddir.length() > 0)
     {
-      spaths.push_back(Path(opt_builddir).append("sql"));
+      spaths.push_back(Path(opt_builddir).
+        append("sql"));
     }
 
     add_standard_search_paths(&spaths,"bin");
@@ -1192,17 +1200,24 @@ int main(int argc,char *argv[])
   if (opt_defaults == FALSE && opt_defaults_file == NULL)
     command_line.push_back(string("--no-defaults"));
   if (opt_defaults_file != NULL)
-    command_line.push_back(string("--defaults-file=").append(opt_defaults_file));
+    command_line.push_back(string("--defaults-file=").
+      append(opt_defaults_file));
   if (opt_def_extra_file != NULL)
-    command_line.push_back(string("--defaults-extra-file=").append(opt_def_extra_file));
+    command_line.push_back(string("--defaults-extra-file=")
+      .append(opt_def_extra_file));
   command_line.push_back(string("--bootstrap"));
-  command_line.push_back(string("--datadir=").append(data_directory.to_str()));
-  command_line.push_back(string("--lc-messages-dir=").append(language_directory.to_str()));
-  command_line.push_back(string("--lc-messages=").append(create_string(opt_lang)));
+  command_line.push_back(string("--datadir=")
+    .append(data_directory.to_str()));
+  command_line.push_back(string("--lc-messages-dir=")
+    .append(language_directory.to_str()));
+  command_line.push_back(string("--lc-messages=")
+    .append(create_string(opt_lang)));
   if (basedir.length() > 0)
-  command_line.push_back(string("--basedir=").append(basedir));
+  command_line.push_back(string("--basedir=")
+    .append(basedir));
   if (opt_euid)
-    command_line.push_back(string(" --user=").append(create_string(opt_euid)));
+    command_line.push_back(string(" --user=")
+      .append(create_string(opt_euid)));
 
   // DEBUG
   //mysqld_exec.append("\"").insert(0, "gnome-terminal -e \"gdb --args ");
