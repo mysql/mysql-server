@@ -1037,7 +1037,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
-  param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
