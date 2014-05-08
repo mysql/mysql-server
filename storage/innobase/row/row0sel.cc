@@ -3979,7 +3979,7 @@ The cursor is an iterator over the table/index.
 				cursor 'direction' should be 0.
 @param[in,out]	session		session handler
 @return DB_SUCCESS or error code */
-static
+
 dberr_t
 row_search_no_mvcc(
 	byte*			buf,
@@ -4260,7 +4260,7 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				traced using alternative condition
 				at caller level.
 @return DB_SUCCESS or error code */
-static
+
 dberr_t
 row_search_mvcc(
 	byte*		buf,
@@ -4307,9 +4307,35 @@ row_search_mvcc(
 	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
 	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
+	/* We don't support FTS queries from the HANDLER interfaces, because
+	we implemented FTS as reversed inverted index with auxiliary tables.
+	So anything related to traditional index query would not apply to
+	it. */
+	if (prebuilt->index->type & DICT_FTS) {
+		return(DB_END_OF_INDEX);
+	}
+
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 		ut_ad(!sync_check_iterate(check));
+	}
+
+	if (dict_table_is_discarded(prebuilt->table)) {
+
+		return(DB_TABLESPACE_DELETED);
+
+	} else if (prebuilt->table->ibd_file_missing) {
+
+		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (!prebuilt->index_usable) {
+
+		return(DB_MISSING_HISTORY);
+
+	} else if (dict_index_is_corrupted(prebuilt->index)) {
+
+		return(DB_CORRUPTION);
+
 	}
 
 	/*-------------------------------------------------------------*/
@@ -5800,86 +5826,6 @@ func_exit:
 	DEBUG_SYNC_C("innodb_row_search_for_mysql_exit");
 
 	return(err);
-}
-
-/** Searches for rows in the database. This is used in the interface to
-MySQL. This function opens a cursor, and also implements fetch next
-and fetch prev. NOTE that if we do a search with a full key value
-from a unique index (ROW_SEL_EXACT), then we will not store the cursor
-position and fetch next or fetch prev must not be tried to the cursor!
-
-@param[out]	buf		buffer for the fetched row in MySQL format
-@param[in]	mode		search mode PAGE_CUR_L
-@param[in,out]	prebuilt	prebuilt struct for the table handler;
-				this contains the info to search_tuple,
-				index; if search tuple contains 0 field then
-				we position the cursor at start or the end of
-				index, depending on 'mode'
-@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
-@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
-				Note: if this is != 0, then prebuilt must has a
-				pcur with stored position! In opening of a
-				cursor 'direction' should be 0.
-@param[in]	ins_sel_stmt	if true, then this statement is
-				insert .... select statement. For normal table
-				this can be detected by checking out locked
-				tables using trx->mysql_n_tables_locked > 0
-				condition. For intrinsic table external_lock is
-				not invoked and so condition above will not
-				stand valid instead this is traced using
-				an alternative condition at caller level.
-@param[in,out]	session		session handler
-@return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
-DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
-dberr_t
-row_search_for_mysql(
-	byte*			buf,
-	ulint			mode,
-	row_prebuilt_t*		prebuilt,
-	ulint			match_mode,
-	ulint			direction,
-	bool			ins_sel_stmt,
-	innodb_session_t*	session)
-{
-	/* Step-1: Perform validation check before actual search. */
-
-	/* We don't support FTS queries from the HANDLER interfaces, because
-	we implemented FTS as reversed inverted index with auxiliary tables.
-	So anything related to traditional index query would not apply to
-	it. */
-	if (prebuilt->index->type & DICT_FTS) {
-		return(DB_END_OF_INDEX);
-	}
-
-	if (dict_table_is_discarded(prebuilt->table)) {
-
-		return(DB_TABLESPACE_DELETED);
-
-	} else if (prebuilt->table->ibd_file_missing) {
-
-		return(DB_TABLESPACE_NOT_FOUND);
-
-	} else if (!prebuilt->index_usable) {
-
-		return(DB_MISSING_HISTORY);
-
-	} else if (dict_index_is_corrupted(prebuilt->index)) {
-
-		return(DB_CORRUPTION);
-
-	}
-
-	/* Step-2: Perform actual search. We have a stripped interface that
-	avoid MVCC, locking and transaction semantics if table is intrinsic
-	temporary. Rest of logic is same as both interface uses cursor. */
-	if (dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_search_no_mvcc(
-			buf, mode, prebuilt, match_mode, direction, session));
-	} else {
-		return(row_search_mvcc(
-			buf, mode, prebuilt, match_mode,
-			direction, ins_sel_stmt));
-	}
 }
 
 /********************************************************************//**
