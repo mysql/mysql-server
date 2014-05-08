@@ -934,8 +934,17 @@ cmp_rec_rec_with_match(
 			mtype = DATA_BINARY;
 			prtype = 0;
 		} else {
-			const dict_col_t*	col
-				= dict_index_get_nth_col(index, cur_field);
+			const dict_col_t*	col;
+
+			/* This is comparing non-leaf node record, skip
+			the page no compare */
+			if (cur_field >= dict_index_get_n_fields(index)
+			    && dict_index_is_spatial(index)) {
+				cur_field--;
+				goto order_resolved;
+			}
+
+			col	= dict_index_get_nth_col(index, cur_field);
 
 			mtype = col->mtype;
 			prtype = col->prtype;
