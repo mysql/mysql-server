@@ -4250,15 +4250,6 @@ It also has optimization such as pre-caching the rows, using AHI, etc.
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in]	ins_sel_stmt	if true, then this statement is
-				insert .... select statement. For normal table
-				this can be detected by checking out locked
-				tables using trx->mysql_n_tables_locked > 0
-				condition. For intrinsic table
-				external_lock is not invoked and so condition
-				above will not stand valid instead this is
-				traced using alternative condition
-				at caller level.
 @return DB_SUCCESS or error code */
 
 dberr_t
@@ -4267,8 +4258,7 @@ row_search_mvcc(
 	ulint		mode,
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
-	ulint		direction,
-	bool		ins_sel_stmt)
+	ulint		direction)
 {
 	dict_index_t*	index		= prebuilt->index;
 	ibool		comp		= dict_table_is_comp(index->table);
@@ -4493,7 +4483,7 @@ row_search_mvcc(
 		mode = PAGE_CUR_GE;
 
 		if (trx->mysql_n_tables_locked == 0
-		    && !ins_sel_stmt
+		    && !prebuilt->ins_sel_stmt
 		    && prebuilt->select_lock_type == LOCK_NONE
 		    && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && MVCC::is_view_active(trx->read_view)) {
