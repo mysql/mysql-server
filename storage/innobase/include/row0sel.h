@@ -139,8 +139,9 @@ row_sel_convert_mysql_key_to_innobase(
 	const byte*	key_ptr,	/*!< in: MySQL key value */
 	ulint		key_len,	/*!< in: MySQL key value length */
 	trx_t*		trx);		/*!< in: transaction */
-/********************************************************************//**
-Searches for rows in the database. This is used in the interface to
+
+
+/** Searches for rows in the database. This is used in the interface to
 MySQL. This function opens a cursor, and also implements fetch next
 and fetch prev. NOTE that if we do a search with a full key value
 from a unique index (ROW_SEL_EXACT), then we will not store the cursor
@@ -158,15 +159,6 @@ position and fetch next or fetch prev must not be tried to the cursor!
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in]	ins_sel_stmt	if true, then this statement is
-				insert .... select statement. For normal table
-				this can be detected by checking out locked
-				tables using trx->mysql_n_tables_locked > 0
-				condition. For intrinsic table
-				external_lock is not invoked and so condition
-				above will not stand valid instead this is
-				traced using alternative condition
-				at caller level.
 @param[in,out]	session		session handler
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
@@ -178,7 +170,6 @@ row_search_for_mysql(
 	row_prebuilt_t*		prebuilt,
 	ulint			match_mode,
 	ulint			direction,
-	bool			ins_sel_stmt = false,
 	innodb_session_t*	session = NULL)
 	__attribute__((warn_unused_result));
 
@@ -247,8 +238,7 @@ row_search_mvcc(
 	ulint		mode,
 	row_prebuilt_t*	prebuilt,
 	ulint		match_mode,
-	ulint		direction,
-	bool		ins_sel_stmt)
+	ulint		direction)
 	__attribute__((warn_unused_result));
 
 /********************************************************************//**

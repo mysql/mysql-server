@@ -1353,7 +1353,7 @@ thd_to_innodb_session(
 @param[in,out]	thd	MySQL thread handler.
 @return reference to transaction pointer */
 __attribute__((warn_unused_result))
-static
+static inline
 trx_t*&
 thd_to_trx(
 	THD*	thd)
@@ -1368,7 +1368,7 @@ thd_to_trx(
 use of intrinsic tables.
 @param[in]	thd	thread handler
 @return true if INSERT .... SELECT statement. */
-static
+static inline
 bool
 thd_is_ins_sel_stmt(THD* user_thd)
 {
@@ -7542,8 +7542,7 @@ ha_innobase::index_read(
 			prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(user_thd);
 
 			ret = row_search_mvcc(
-				buf, mode, prebuilt, match_mode, 0,
-				prebuilt->ins_sel_stmt); 
+				buf, mode, prebuilt, match_mode, 0);
 
 		} else {
 			prebuilt->session = thd_to_innodb_session(user_thd);
@@ -7820,10 +7819,7 @@ ha_innobase::general_fetch(
 	innobase_srv_conc_enter_innodb(prebuilt->trx);
 
 	if (!dict_table_is_intrinsic(prebuilt->table)) {
-		ret = row_search_mvcc(
-			buf, 0, prebuilt, match_mode, direction,
-			prebuilt->ins_sel_stmt); 
-
+		ret = row_search_mvcc(buf, 0, prebuilt, match_mode, direction);
 	} else {
 		ret = row_search_no_mvcc(
 			buf, 0, prebuilt, match_mode, direction,
