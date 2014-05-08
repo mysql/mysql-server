@@ -2580,8 +2580,7 @@ bool Item_field::itemize(Parse_context *pc, Item **res)
   if (super::itemize(pc, res))
     return true;
   SELECT_LEX * const select= pc->select;
-  if (select->parsing_place != CTX_HAVING &&
-      select->parsing_place != CTX_SELECT_LIST)
+  if (select->parsing_place != CTX_HAVING)
     select->select_n_where_fields++;
 
   if (select->parsing_place == CTX_SELECT_LIST &&
