@@ -5144,13 +5144,13 @@ void Item_func_in::fix_length_and_dec()
         have_null= 1;
       }
     }
-    if ((array->used_count= j))
-    {
-      DBUG_ASSERT(array->used_count <= array->count);
-      if (array->used_count < array->count)
-        array->shrink_array(j);
+    array->used_count= j;
+    DBUG_ASSERT(array->used_count <= array->count);
+    if (array->used_count < array->count)
+      array->shrink_array(j);
+
+    if (array->used_count)
       array->sort();
-    }
   }
   else
   {
