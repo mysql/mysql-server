@@ -14,6 +14,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
+#ifndef PATH_UTIL_INCLUDED
+#define PATH_UTIL_INCLUDED
 extern "C"
 {
 #include <dirent.h>
@@ -43,7 +45,7 @@ public:
 
   Path(const Path &p) { m_filename= p.m_filename; m_path= p.m_path; }
 
-  bool getcwd(void)
+  bool getcwd()
   {
     char path[MAX_PATH_LENGTH];
     if (::getcwd(path, MAX_PATH_LENGTH) == 0)
@@ -240,3 +242,5 @@ std::ostream &operator<<(std::ostream &op, const Path &p)
   }
   return op << qpath;
 }
+
+#endif
