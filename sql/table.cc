@@ -6811,6 +6811,27 @@ bool TABLE_LIST::change_refs_to_fields()
 }
 
 
+void TABLE_LIST::set_lock_type(THD *thd, enum thr_lock_type lock)
+{
+  if (check_stack_overrun(thd, STACK_MIN_SIZE, (uchar *)&lock))
+    return;
+  /* we call it only when table is opened and it is "leaf" table*/
+  DBUG_ASSERT(table);
+  lock_type= lock;
+  /* table->file->get_table() can be 0 for derived tables */
+  if (table->file && table->file->get_table())
+    table->file->set_lock_type(lock);
+  if (is_merged_derived())
+  {
+    for (TABLE_LIST *table= get_single_select()->get_table_list();
+         table;
+         table= table->next_local)
+    {
+      table->set_lock_type(thd, lock);
+    }
+  }
+}
+
 uint TABLE_SHARE::actual_n_key_parts(THD *thd)
 {
   return use_ext_keys &&

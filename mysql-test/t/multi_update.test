@@ -811,6 +811,8 @@ DROP TABLE t1,t2;
 --echo #
 --echo # MDEV-6139: UPDATE w/ join against MRG_MyISAM table with read-only
 --echo # sub-table fails
+--echo # MDEV-6193: Problems with multi-table updates that JOIN against
+--echo # read-only table
 --echo #
 
 CREATE TABLE t1 (
@@ -837,7 +839,14 @@ let $MYSQLD_DATADIR= `select @@datadir`;
 --enable_result_log
 
 update t1 join t2 using (id) set t1.a=t2.b;
-
+create view v2 as select * from t2;
+update t1 join v2 using (id) set t1.a=0;
+create view v1 as select * from t3;
+update t1 join v1 using (id) set t1.a=0;
+update t1 join INFORMATION_SCHEMA.CHARACTER_SETS on (id=MAXLEN) set t1.a=0;
+create view v3 as select t2.id, t3.b from t2 join t3 using(id);
+update t1 join v3 using (id) set t1.a=0;
+drop view v1, v2, v3;
 drop table t2, t3, t1;
 
 --echo end of 5.5 tests

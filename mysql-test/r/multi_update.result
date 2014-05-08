@@ -797,6 +797,8 @@ DROP TABLE t1,t2;
 #
 # MDEV-6139: UPDATE w/ join against MRG_MyISAM table with read-only
 # sub-table fails
+# MDEV-6193: Problems with multi-table updates that JOIN against
+# read-only table
 #
 CREATE TABLE t1 (
 id int(10) unsigned,
@@ -812,5 +814,13 @@ b int(11)
 ) ENGINE=MRG_MyISAM UNION=(t3);
 FLUSH TABLES;
 update t1 join t2 using (id) set t1.a=t2.b;
+create view v2 as select * from t2;
+update t1 join v2 using (id) set t1.a=0;
+create view v1 as select * from t3;
+update t1 join v1 using (id) set t1.a=0;
+update t1 join INFORMATION_SCHEMA.CHARACTER_SETS on (id=MAXLEN) set t1.a=0;
+create view v3 as select t2.id, t3.b from t2 join t3 using(id);
+update t1 join v3 using (id) set t1.a=0;
+drop view v1, v2, v3;
 drop table t2, t3, t1;
 end of 5.5 tests
