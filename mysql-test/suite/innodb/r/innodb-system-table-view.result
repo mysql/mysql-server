@@ -18,9 +18,9 @@ table_id	pos	mtype	prtype	len	name
 13	2	6	0	4	FLAGS
 14	0	6	0	4	SPACE
 14	1	1	524292	0	PATH
-20	0	2	524798	36	sid
-20	1	6	1288	8	gno_start
-20	2	6	1288	8	gno_end
+20	0	2	524798	36	source_uuid
+20	1	6	1288	8	interval_start
+20	2	6	1288	8	interval_end
 index_id	table_id	type	n_fields	space	name
 11	11	3	1	0	ID_IND
 12	11	0	1	0	FOR_IND
@@ -38,8 +38,8 @@ index_id	pos	name
 14	1	POS
 15	0	SPACE
 16	0	SPACE
-22	0	sid
-22	1	gno_start
+22	0	source_uuid
+22	1	interval_start
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN;
 ID	FOR_NAME	REF_NAME	N_COLS	TYPE
 SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;

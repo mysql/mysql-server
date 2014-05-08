@@ -930,7 +930,7 @@ DROP TABLE t1;
 --echo # Failure on creating compression thread
 --source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
-call mtr.add_suppression("Can not create thread to compress gtid table .*");
+call mtr.add_suppression("Can not create thread to compress gtid_executed table .*");
 --let $rpl_server_number= 2
 --let $rpl_server_parameters= --debug=d,simulate_create_compress_thread_failure
 --source include/rpl_restart_server.inc

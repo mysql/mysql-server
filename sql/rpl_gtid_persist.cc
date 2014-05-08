@@ -182,7 +182,10 @@ bool Gtid_table_access_context::open_table(THD *thd,
   TABLE_LIST tables;
   Query_tables_list query_tables_list_backup;
 
-  /* Allow to operate the gtid table when disconnecting the session. */
+  /*
+    Allow to operate the gtid_executed table
+    when disconnecting the session.
+  */
   uint flags= (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                MYSQL_LOCK_IGNORE_GLOBAL_READ_ONLY |
                MYSQL_OPEN_IGNORE_FLUSH |
@@ -296,7 +299,7 @@ int Gtid_table_persistor::write_row(TABLE *table, const char *sid,
   if(fill_fields(fields, sid, gno_start, gno_end))
     goto err;
 
-  /* Inserts a new row into the gtid table. */
+  /* Inserts a new row into the gtid_executed table. */
   error= table->file->ha_write_row(table->record[0]);
   if (DBUG_EVALUATE_IF("simulate_err_on_write_gtid_into_table",
                        (error= -1), error))
@@ -373,7 +376,7 @@ int Gtid_table_persistor::update_row(TABLE *table, const char *sid,
     goto end;
   }
 
-  /* Update a row in the gtid table. */
+  /* Update a row in the gtid_executed table. */
   error= table->file->ha_update_row(table->record[1], table->record[0]);
   if (DBUG_EVALUATE_IF("simulate_error_on_compress_gtid_table",
                        (error= -1), error))
@@ -422,7 +425,7 @@ end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
 
   /* Do not protect m_count for improving transactions' concurrency */
-  if (0 == error)
+  if (error == 0)
   {
     m_count++;
     if ((executed_gtids_compression_period != 0) &&
@@ -466,8 +469,8 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
 end:
   table_access_ctx.deinit(thd, table, 0 != error, false);
 
-  /* Notify compression thread to compress gtid table. */
-  if (0 == error)
+  /* Notify compression thread to compress gtid_executed table. */
+  if (error == 0)
   {
     should_compress= true;
     m_count= 0;
@@ -507,7 +510,7 @@ int Gtid_table_persistor::save(TABLE *table, Gtid_set *gtid_set)
 
 /**
   Simulate error and crash in the middle of the transaction
-  of compressing gtid table.
+  of compressing gtid_executed table.
 
   @param  thd Thread requesting to compress the table
 
@@ -672,7 +675,7 @@ int Gtid_table_persistor::compress_first_consecutive_range(TABLE *table,
   }
 
   table->file->ha_index_end();
-  /* Indicate if the gtid table is compressd completely. */
+  /* Indicate if the gtid_executed table is compressd completely. */
   is_complete= (err == HA_ERR_END_OF_FILE);
 
   if (err != HA_ERR_END_OF_FILE && err != 0)
@@ -797,14 +800,13 @@ end:
 int Gtid_table_persistor::delete_all(TABLE *table)
 {
   DBUG_ENTER("Gtid_table_persistor::delete_all");
-  int ret= 0;
   int err= 0;
 
   if ((err= table->file->ha_rnd_init(true)))
     DBUG_RETURN(-1);
 
   /*
-    Delete all rows in the gtid table. We cannot use truncate(),
+    Delete all rows in the gtid_executed table. We cannot use truncate(),
     since it is a non-transactional DDL operation.
   */
   while(!(err= table->file->ha_rnd_next(table->record[0])))
@@ -815,7 +817,7 @@ int Gtid_table_persistor::delete_all(TABLE *table)
                          (err= -1), err))
     {
       table->file->print_error(err, MYF(0));
-      sql_print_error("Failed to delete the row: '%s' from the gtid "
+      sql_print_error("Failed to delete the row: '%s' from the gtid_executed "
                       "table.", encode_gtid_text(table).c_str());
       break;
     }
@@ -823,19 +825,26 @@ int Gtid_table_persistor::delete_all(TABLE *table)
 
   table->file->ha_rnd_end();
   if (err != HA_ERR_END_OF_FILE)
-    ret= -1;
+    DBUG_RETURN(-1);
 
-  DBUG_RETURN(ret);
+  DBUG_RETURN(0);
 }
 
 
 /**
   The main function of the compression thread.
-  - compress the gtid table when get a compression signal.
+  - compress the gtid_executed table when get a compression signal.
+
+  @param  p_thd    Thread requesting to compress the table
+
+  @return
+      @retval 0    OK. always, the compression thread will swallow any error
+                       for going to wait for next compression signal until
+                       it is terminated.
 */
-pthread_handler_t compress_gtid_table(void *arg)
+pthread_handler_t compress_gtid_table(void *p_thd)
 {
-  THD *thd=(THD*) arg;
+  THD *thd=(THD*) p_thd;
   mysql_thread_set_psi_id(thd->thread_id);
   my_thread_init();
   DBUG_ENTER("compress_gtid_table");
@@ -858,10 +867,10 @@ pthread_handler_t compress_gtid_table(void *arg)
       break;
 
     THD_STAGE_INFO(thd, stage_compressing_gtid_table);
-    /* Compressing the gtid table. */
+    /* Compressing the gtid_executed table. */
     if (gtid_state->compress(thd))
     {
-      sql_print_warning("Failed to compress the gtid table.");
+      sql_print_warning("Failed to compress the gtid_executed table.");
       /* Clear the error for going to wait for next compression signal. */
       thd->clear_error();
       DBUG_EXECUTE_IF("simulate_error_on_compress_gtid_table",
@@ -883,7 +892,7 @@ pthread_handler_t compress_gtid_table(void *arg)
 
 
 /**
-  Create the compression thread to compress gtid table.
+  Create the compression thread to compress gtid_executed table.
 */
 void create_compress_gtid_table_thread()
 {
@@ -892,11 +901,12 @@ void create_compress_gtid_table_thread()
   THD *thd;
   if (!(thd= new THD))
   {
-    sql_print_error("Failed to compress the gtid table, because "
+    sql_print_error("Failed to compress the gtid_executed table, because "
                     "it is failed to allocate the THD.");
     return;
   }
-  thd->thread_id= thd->variables.pseudo_thread_id= pthread_self();
+  thd->thread_id=
+    thd->variables.pseudo_thread_id= (unsigned long) pthread_self();
   THD_CHECK_SENTRY(thd);
 
   if (pthread_attr_init(&attr))
@@ -913,7 +923,7 @@ void create_compress_gtid_table_thread()
       (error= mysql_thread_create(key_thread_compress_gtid_table,
                                   &compress_thread_id, &attr,
                                   compress_gtid_table, (void*) thd)))
-    sql_print_error("Can not create thread to compress gtid table "
+    sql_print_error("Can not create thread to compress gtid_executed table "
                     "(errno= %d)", error);
 
   (void) pthread_attr_destroy(&attr);
@@ -951,8 +961,8 @@ void terminate_compress_gtid_table_thread()
     compress_thread_id= 0;
   }
 
-  if (0 != error)
-    sql_print_warning("Could not join gtid table compression thread. "
+  if (error != 0)
+    sql_print_warning("Could not join gtid_executed table compression thread. "
                       "error:%d", error);
 
   DBUG_VOID_RETURN;

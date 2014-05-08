@@ -19,7 +19,7 @@ include/assert.inc [committed gtids MASTER_UUID:1-4]
 #
 FLUSH LOGS;
 SELECT * FROM mysql.gtid_executed;
-sid	gno_start	gno_end
+source_uuid	interval_start	interval_end
 MASTER_UUID	1	4
 include/sync_slave_sql_with_master.inc
 #
@@ -31,7 +31,7 @@ include/assert.inc [committed gtids MASTER_UUID:1-4]
 # each transaction if binlog is on and log_slave_updated is disabled.
 #
 SELECT * FROM mysql.gtid_executed;
-sid	gno_start	gno_end
+source_uuid	interval_start	interval_end
 MASTER_UUID	1	1
 MASTER_UUID	2	2
 MASTER_UUID	3	3
@@ -47,11 +47,11 @@ SET @@GLOBAL.DEBUG= '+d,compress_gtid_table';
 FLUSH LOGS;
 SET DEBUG_SYNC='now WAIT_FOR complete_compression';
 SET GLOBAL DEBUG= @debug_save;
-SELECT * FROM mysql.gtid_executed where sid="MASTER_UUID";
-sid	gno_start	gno_end
+SELECT * FROM mysql.gtid_executed where source_uuid="MASTER_UUID";
+source_uuid	interval_start	interval_end
 MASTER_UUID	1	4
-SELECT * FROM mysql.gtid_executed where sid="SLAVE_UUID";
-sid	gno_start	gno_end
+SELECT * FROM mysql.gtid_executed where source_uuid="SLAVE_UUID";
+source_uuid	interval_start	interval_end
 SLAVE_UUID	1	2
 #
 # Verify that we can get the correct set of gtid_purged when purging

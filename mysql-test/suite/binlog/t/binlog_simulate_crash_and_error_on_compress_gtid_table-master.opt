@@ -1,1 +1,1 @@
---force-restart
+--force-restart --enforce-gtid-consistency --log-slave-updates --gtid-mode=on
