@@ -45,6 +45,9 @@ CachedTransactionsAccountant::CachedTransactionsAccountant(Ndb_cluster_connectio
   assert(nDataNodes > 0);
 }
 
+inline CachedTransactionsAccountant::~CachedTransactionsAccountant() {
+}
+
 inline void CachedTransactionsAccountant::tallySetNodeId(int nodeId) { 
   tc_bitmap ^= (1 << nodeId);
 }

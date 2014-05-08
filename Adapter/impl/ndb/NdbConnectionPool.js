@@ -161,40 +161,35 @@ exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
 */
 function prefetchSession(ndbPool) {
   udebug.log("prefetchSession");
-  var db       = ndbPool.properties.database,
-      pool_min = ndbPool.properties.ndb_session_pool_min,
-      ndbSession;
+  var pool_min = ndbPool.properties.ndb_session_pool_min,
+      onFetch;
 
-  function closeCallback(x) {
-    return; 
+  function fetch() {
+    var s = new ndbsession.DBSession(ndbPool);
+    stats.ndb_session_prefetch.attempts++;
+    s.fetchImpl(onFetch);
   }
-
-  function onFetch(err, ndbSessionImpl) {
+  
+  onFetch = function(err, dbSession) {
     if(err) {
       stats.ndb_session_prefetch.errors++;
       udebug.log("prefetchSession onFetch ERROR", err);
-    }
-    else if(ndbPool.ndbConnection.isDisconnecting) {
-      ndbSessionImpl.close(closeCallback);
-    }
-    else {
+    } else if(ndbPool.ndbConnection.isDisconnecting) {
+      dbSession.close(function() {});
+    } else {
       stats.ndb_session_prefetch.success++;
       udebug.log("prefetchSession adding to session pool.");
-      ndbSession = ndbsession.newDBSession(ndbPool, ndbSessionImpl);
-      ndbPool.ndbSessionFreeList.push(ndbSession);
+      ndbPool.ndbSessionFreeList.push(dbSession);
       /* If the pool is wanting, fetch another */
       if(ndbPool.ndbSessionFreeList.length < pool_min) {
-        stats.ndb_session_prefetch.attempts++;
-        adapter.ndb.impl.DBSession.create(ndbPool.impl, ndbPool.asyncNdbContext,
-                                          db, 4, onFetch);
+        fetch();
       }
     }
-  }
+  };
 
-if(! ndbPool.ndbConnection.isDisconnecting) {
-    stats.ndb_session_prefetch.attempts++;
-    adapter.ndb.impl.DBSession.create(ndbPool.impl, ndbPool.asyncNdbContext,
-                                      db, 4, onFetch);
+  /* prefetchSession starts here */
+  if(! ndbPool.ndbConnection.isDisconnecting) {
+    fetch();
   }
 }
 
@@ -305,29 +300,15 @@ DBConnectionPool.prototype.close = function(userCallback) {
    Users's callback receives (error, DBSession)
 */
 DBConnectionPool.prototype.getDBSession = function(index, user_callback) {
-  var self, user_session;
-  self = this;
-
-  function private_callback(err, sessImpl) {
-    if(err) {
-      user_callback(err, null);
-    } else {  
-      user_callback(null, ndbsession.newDBSession(self, sessImpl));
-    }
-  }
-
-  user_session = this.ndbSessionFreeList.pop();
+  var user_session = this.ndbSessionFreeList.pop();
   if(user_session) {
     stats.ndb_session_pool.hits++;
     user_callback(null, user_session);
   }
   else {
     stats.ndb_session_pool.misses++;
-    adapter.ndb.impl.DBSession.create(this.ndbConnection.ndb_cluster_connection,
-                                      this.asyncNdbContext,
-                                      this.properties.database,
-                                      4, // MaxTransactions: could be a property
-                                      private_callback);
+    user_session = new ndbsession.DBSession(this);
+    user_session.fetchImpl(user_callback);
   }
 };
 

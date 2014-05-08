@@ -51,49 +51,46 @@ require(path.join(api_dir,"stats.js")).register(stats, "spi","ndb","DBSession");
   ------------
   1. An Ndb object is "single-threaded".  All calls on the session's single Ndb 
      object are serialized in NdbSession.execQueue.
-  2. All execute calls on an NdbTransaction must wait for startTransaction() 
+  2. ???? XXX All execute calls on an NdbTransaction must wait for startTransaction() 
      to return.  They are placed on NdbTransactionHandler.execAfterOpenQueue
      until startTransaction() has returned.
   3. All ndb.startTransaction() calls must wait on NdbSession.startTxQueue
      for some NdbTransaction to close, if more than N NdbTransactions are open.
      N is an argument to the Ndb() constructor and defaults to 4.
-     However, scans count as two transactions because they require 
-     two API Connect Records.
 */
 
 
-/* newDBSession(sessionImpl) 
-   Called from NdbConnectionPool.js to create a DBSession object
+/* DBSession Constructor
 */
-exports.newDBSession = function(pool, impl) {
-  udebug.log("newDBSession(connectionPool, sessionImpl)");
-  var dbSess = new NdbSession();
-  dbSess.parentPool = pool;
-  dbSess.impl = impl;
-  return dbSess;
-};
-
-/* DBSession Simple Constructor
-*/
-NdbSession = function() { 
+NdbSession = function(pool) {
   stats.created++;
+  this.parentPool            = pool;
+  this.impl                  = null;
   this.tx                    = null;
   this.execQueue             = [];
-  this.maxNdbTransactions    = 4;  // do not set less than two
-  this.openNdbTransactions   = 0;  // currently opened
-  this.cachedNdbTransactions = 0;  // assumed cached inside NDB API
+  this.seizeTxQueue          = null;
+  this.maxNdbTransactions    = pool.properties.ndb_session_concurrency;  
+  this.openNdbTransactions   = 0;  // currently opened  
 };
 
-/* NdbSession prototype 
-*/
-NdbSession.prototype = {
-  impl                : null,
-  parentPool          : null,
-  startTxQueue        : null
+NdbSession.prototype.fetchImpl = function(callback) {
+  var self = this;
+  var pool = this.parentPool;
+  adapter.ndb.impl.DBSession.create(pool.impl, 
+                                    pool.asyncNdbContext,
+                                    pool.properties.database,
+                                    pool.properties.ndb_session_concurrency,
+                                    function(err, impl) {
+    if(err) {
+      callback(err, null);
+    } else {
+      self.impl = impl;
+      callback(null, self);
+    }
+  });
 };
 
 
-/*** Functions exported by this module but not in the public DBSession SPI ***/
 
 /* Reset the session's current transaction.
    NdbTransactionHandler calls this immediately at execute(COMMIT | ROLLBACK).
@@ -118,7 +115,7 @@ NdbSession.prototype.startNdbTransaction = function(table, nTx, callback) {
   var ndbTx, txError, startTxCall;
   txError = null;
 
-  if(this.cachedNdbTransactions > nTx) {          // Run immediately (sync)
+  if(this.execQueue.length == 0 ) {          // Run immediately (sync)
     stats.startTransaction.sync++;
     this.cachedNdbTransactions -= nTx;
     this.openNdbTransactions += nTx;
@@ -186,12 +183,8 @@ NdbSession.prototype.getConnectionPool = function() {
 /* close() 
    ASYNC. Optional callback.
 */
-NdbSession.prototype.close = function(userCallback) {
-  var callback;
-  function defaultCallback() { }
-  callback = typeof userCallback === 'function' ? userCallback : defaultCallback;
-
-  ndbconnpool.closeNdbSession(this.parentPool, this, callback);
+NdbSession.prototype.close = function(callback) {
+  this.impl.destroy(callback);
 };
 
 
@@ -352,3 +345,5 @@ NdbSession.prototype.rollback = function (userCallback) {
   this.tx.rollback(userCallback);
 };
 
+
+exports.DBSession = NdbSession;

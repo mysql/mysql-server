@@ -30,7 +30,6 @@ var stats = {
 };
 
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
-    ndbsession      = require("./NdbSession.js"),
     ndboperation    = require("./NdbOperation.js"),
     doc             = require(path.join(spi_doc_dir, "DBTransactionHandler")),
     stats_module    = require(path.join(api_dir,"stats.js")),
