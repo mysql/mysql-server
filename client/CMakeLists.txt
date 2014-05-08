@@ -79,7 +79,7 @@ MYSQL_ADD_EXECUTABLE(mysql_secure_installation mysql_secure_installation.cc)
 TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 
 IF(UNIX)
-MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc auth_utils.cc)
+MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc auth_utils.cc path.cc)
 TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
 ENDIF(UNIX)
 
