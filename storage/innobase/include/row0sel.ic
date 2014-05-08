@@ -123,14 +123,6 @@ position and fetch next or fetch prev must not be tried to the cursor!
 				Note: if this is != 0, then prebuilt must has a
 				pcur with stored position! In opening of a
 				cursor 'direction' should be 0.
-@param[in]	ins_sel_stmt	if true, then this statement is
-				insert .... select statement. For normal table
-				this can be detected by checking out locked
-				tables using trx->mysql_n_tables_locked > 0
-				condition. For intrinsic table external_lock is
-				not invoked and so condition above will not
-				stand valid instead this is traced using
-				an alternative condition at caller level.
 @param[in,out]	session		session handler
 @return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
 DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
@@ -142,12 +134,11 @@ row_search_for_mysql(
 	row_prebuilt_t*		prebuilt,
 	ulint			match_mode,
 	ulint			direction,
-	bool			ins_sel_stmt,
 	innodb_session_t*	session)
 {
 	if (!dict_table_is_intrinsic(prebuilt->table)) {
-		return(row_search_mvcc(buf, mode, prebuilt, match_mode,
-				       direction, ins_sel_stmt));
+		return(row_search_mvcc(
+			buf, mode, prebuilt, match_mode, direction));
 	} else {
 		return(row_search_no_mvcc(
 			buf, mode, prebuilt, match_mode, direction, session));
