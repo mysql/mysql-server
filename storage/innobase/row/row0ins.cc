@@ -2924,7 +2924,7 @@ row_ins_index_entry_big_rec_func(
 
 	if (error == DB_SUCCESS
 	    && dict_index_is_online_ddl(index)) {
-		row_log_table_insert(rec, index, offsets);
+		row_log_table_insert(btr_pcur_get_rec(&pcur), index, offsets);
 	}
 
 	mtr_commit(&mtr);

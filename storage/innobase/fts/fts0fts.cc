@@ -5507,6 +5507,7 @@ fts_update_doc_id(
 		fts_write_doc_id((byte*) next_doc_id, doc_id);
 
 		ufield->new_val.data = next_doc_id;
+                ufield->new_val.ext = 0;
 	}
 
 	return(doc_id);
