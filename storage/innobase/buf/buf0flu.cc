@@ -2735,9 +2735,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	os_event_set(page_cleaner->is_requested);
 
 	ut_ad(srv_shutdown_state > 0);
-	if (srv_fast_shutdown == 2) {
-		/* In very fast shutdown we simulate a crash of
-		buffer pool. We are not required to do any flushing */
+	if (srv_fast_shutdown == 2
+	    || srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		/* In very fast shutdown or when innodb failed to start, we
+		simulate a crash of the buffer pool. We are not required to do
+		any flushing. */
 		goto thread_exit;
 	}
 
@@ -2761,11 +2763,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			os_thread_sleep(100000);
 		}
 	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		/* failed to start innodb */
-		goto thread_exit;
-	}
 
 	/* At this point all threads including the master and the purge
 	thread must have been suspended. */
