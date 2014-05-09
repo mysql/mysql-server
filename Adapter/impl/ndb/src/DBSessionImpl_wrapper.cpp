@@ -32,6 +32,7 @@ using namespace v8;
 Handle<Value> newDBSessionImpl(const Arguments &);
 Handle<Value> seizeTransaction(const Arguments &);
 Handle<Value> releaseTransaction(const Arguments &);
+Handle<Value> freeTransactions(const Arguments &);
 Handle<Value> DBSessionImplDestructor(const Arguments &);
 
 
@@ -40,6 +41,7 @@ public:
   DBSessionImplEnvelopeClass() : Envelope("DBSessionImpl") {
     DEFINE_JS_FUNCTION(Envelope::stencil, "seizeTransaction", seizeTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "releaseTransaction", releaseTransaction);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "freeTransactions", freeTransactions);
     DEFINE_JS_FUNCTION(Envelope::stencil, "destroy", DBSessionImplDestructor);
   }
 };
@@ -98,6 +100,12 @@ Handle<Value> releaseTransaction(const Arguments & args) {
   return scope.Close(mcall.jsReturnVal());
 }
 
+Handle<Value> freeTransactions(const Arguments & args) {
+  HandleScope scope;
+  DBSessionImpl * session = unwrapPointer<DBSessionImpl *>(args.Holder());
+  session->freeTransactions();
+  return Undefined();
+}
 
 Handle<Value> DBSessionImplDestructor(const Arguments &args) {
   DEBUG_MARKER(UDEB_DEBUG);

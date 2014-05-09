@@ -138,4 +138,3 @@ Handle<Value> getPendingOperations(const Arguments &args) {
   return scope.Close(PendingOperationSet_Wrapper(mcall.return_val));
 }
 
-

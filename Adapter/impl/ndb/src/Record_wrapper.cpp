@@ -161,7 +161,7 @@ Handle<Value> record_encoderRead(const Arguments & args) {
 Handle<Value> record_encoderWrite(const Arguments & args) {
   HandleScope scope;
 
-  const Record * record = unwrapPointer<Record *>(args.Holder());
+  const Record * record = unwrapPointer<const Record *>(args.Holder());
   int columnNumber = args[0]->Uint32Value();
   char * buffer = node::Buffer::Data(args[1]->ToObject());
 

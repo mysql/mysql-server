@@ -45,19 +45,20 @@ DBTransactionContext::DBTransactionContext(DBSessionImpl *impl) :
 }
 
 DBTransactionContext::~DBTransactionContext() {
-  clear();
+  DEBUG_MARKER(UDEB_DEBUG);
   jsWrapper.Dispose();
 }
 
 void DBTransactionContext::newOperationList(int size) {
-  if(definedOperations) {
+  if(opListSize > 0) {
+    opListSize = 0;
     delete[] definedOperations;
   }
   if(size > 0) {
     definedOperations = new KeyOperation[size];
+    opListSize = size;
   }
   opIterator = 0;
-  opListSize = size;
 }
 
 KeyOperation * DBTransactionContext::getNextOperation() {
@@ -92,10 +93,7 @@ void DBTransactionContext::startTransaction() {
   KeyOperation & op = definedOperations[0];
   bool startWithHint = false;
   
-  if(! definedScan) {
-    assert(opListSize > 0);
-    startWithHint = (op.key_buffer != 0);
-  }
+  startWithHint = (opListSize && op.key_buffer && (! definedScan)); 
 
   if(startWithHint) {
     char hash_buffer[512];        

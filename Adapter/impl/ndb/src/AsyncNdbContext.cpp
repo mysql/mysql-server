@@ -55,6 +55,7 @@ public:
     if(closeContext) {
       DEBUG_PRINT("Closing");
       closeContext->closeTransaction();
+      closeContext->registerClose();
     }
   }
 };

@@ -53,7 +53,7 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op);
 /* DBOperationHelper takes an array of HelperSpecs.
    arg0: Length of Array
    arg1: Array of HelperSpecs
-   arg2: NdbTransaction *
+   arg2: DBTransactionContext *
 
    Returns: Null
 */
