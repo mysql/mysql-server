@@ -1259,8 +1259,6 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
   {
     NdbCondition_WaitTimeout(p_cond, m_mutex, aMillisecondNumber);
     ev_op= move_data();
-    if (unlikely(ev_op == 0))
-      ret= 0;
   }
   m_latest_poll_GCI= m_latestGCI;
 #ifdef VM_TRACE
@@ -1275,6 +1273,7 @@ NdbEventBuffer::pollEvents(int aMillisecondNumber, Uint64 *latestGCI)
 #endif
   if (unlikely(ev_op == 0))
   {
+    ret= 0; // applicable for both aMillisecondNumber >= 0
     /*
       gci's consumed up until m_latest_poll_GCI, so we can free all
       dropped event operations stopped up until that gci
