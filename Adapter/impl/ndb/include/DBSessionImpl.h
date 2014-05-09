@@ -104,6 +104,11 @@ public:
   */
   int releaseTransaction(DBTransactionContext *);
 
+  /* Free all DBTransactionContexts.
+     This must be done in the main thread.
+  */
+  void freeTransactions();
+
   /* Replaces Ndb::getNdbError().
   */
   const NdbError & getNdbError() const;

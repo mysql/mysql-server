@@ -133,17 +133,15 @@ DBSessionImpl::DBSessionImpl(Ndb_cluster_connection *conn,
 
 
 DBSessionImpl::~DBSessionImpl() {
+  DEBUG_MARKER(UDEB_DEBUG);
   delete ndb;
-  while(freeList) {
-    DBTransactionContext * ctx = freeList;
-    freeList = ctx->next;
-    delete ctx;
-  }
 }
 
 
 DBTransactionContext * DBSessionImpl::seizeTransaction() {
   DBTransactionContext * ctx;
+  DEBUG_PRINT("FreeList: %p, nContexts: %d, maxNdbTransactions: %d",
+              freeList, nContexts, maxNdbTransactions);
   
   /* Is there a context on the freelist? */
   if(freeList) {
@@ -166,13 +164,21 @@ DBTransactionContext * DBSessionImpl::seizeTransaction() {
 int DBSessionImpl::releaseTransaction(DBTransactionContext *ctx) {
   assert(ctx->parent == this);
   int status = ctx->clear();
-  if(status == 0) {
+  if(status == 1) {
     ctx->next = freeList;
     freeList = ctx;
   }
   return status;
 }
 
+
+void DBSessionImpl::freeTransactions() {
+  while(freeList) {
+    DBTransactionContext * ctx = freeList;
+    freeList = ctx->next;
+    delete ctx;
+  }
+}
 
 const NdbError & DBSessionImpl::getNdbError() const {
   return ndb->getNdbError();
