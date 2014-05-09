@@ -1,0 +1,72 @@
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn < 10 AND end_lsn > 20 ;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA . `INNODB_CHANGED_PAGES` AS table1 WHERE ( ( (NOT ( ( ( ( (NOT ( table1 . `page_id` <> table1 . `start_lsn` AND table1 . `space_id` <> 8) AND table1 . `page_id` >= table1 . `end_lsn`) OR table1 . `end_lsn` = table1 . `space_id`) AND table1 . `end_lsn` <> table1 . `page_id`) OR table1 . `end_lsn` < 8) AND table1 . `space_id` >= '2000-06-10 11:33:07.046821') AND table1 . `end_lsn` >= 5) AND table1 . `start_lsn` < 'mm') OR table1 . `end_lsn` != table1 . `end_lsn`) HAVING ( table1 . `start_lsn` < '2005-09-09 01:34:19.012946' OR table1 . `page_id` < 6) ORDER BY table1 . `start_lsn`
+LIMIT 3;
+space_id	page_id	start_lsn	end_lsn
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: 'mm'
+Warning	1292	Truncated incorrect DOUBLE value: '2005-09-09 01:34:19.012946'
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn < 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn <= 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE end_lsn > 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE end_lsn >= 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE end_lsn > 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE end_lsn >= 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000 and end_lsn < 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000 and end_lsn < 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000 and end_lsn <= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000 and end_lsn <= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn = 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE end_lsn = 2000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn < 2000000 or end_lsn < 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn <= 2000000 or end_lsn < 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn < 2000000 or end_lsn <= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn <= 2000000 or end_lsn <= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000 or end_lsn < 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000 or end_lsn < 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000 or end_lsn <= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000 or end_lsn <= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn < 2000000 or end_lsn > 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn <= 2000000 or end_lsn > 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn < 2000000 or end_lsn >= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn <= 2000000 or end_lsn >= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000 or end_lsn > 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000 or end_lsn > 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn > 2000000 or end_lsn >= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE start_lsn >= 2000000 or end_lsn >= 3000000;
+space_id	page_id	start_lsn	end_lsn
+SELECT * FROM INFORMATION_SCHEMA.INNODB_CHANGED_PAGES WHERE (start_lsn > 2000000 and end_lsn < 3000000) or (start_lsn > 4000000 and end_lsn < 5000000);
+space_id	page_id	start_lsn	end_lsn

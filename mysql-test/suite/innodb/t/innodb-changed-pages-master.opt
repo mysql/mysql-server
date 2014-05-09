@@ -1,0 +1,1 @@
+--innodb-track-changed-pages=0 --innodb-changed-pages=1

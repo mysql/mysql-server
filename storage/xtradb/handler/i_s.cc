@@ -7302,38 +7302,47 @@ limit_lsn_range_from_condition(
 		if (left->type() == Item::FIELD_ITEM
 		    && right->type() == Item::INT_ITEM) {
 
-			/* The case of start_lsn|end_lsn <|<= const, i.e. the
-			upper bound.  */
+			/* The case of start_lsn|end_lsn <|<= const
+			   "end_lsn <=? const" gives a valid upper bound.
+			   "start_lsn <=? const" is not a valid upper bound.
+			*/
 
-			tmp_result = right->val_int();
-			if (((func_type == Item_func::LE_FUNC)
-			     || (func_type == Item_func::GE_FUNC))
-			    && (tmp_result != IB_ULONGLONG_MAX)) {
+			if (is_end_lsn) {
+				tmp_result = right->val_int();
+				if (((func_type == Item_func::LE_FUNC)
+				     || (func_type == Item_func::GE_FUNC))
+				    && (tmp_result != IB_ULONGLONG_MAX)) {
 
-				tmp_result++;
-			}
-			if (tmp_result < *end_lsn) {
-				*end_lsn = tmp_result;
+					tmp_result++;
+				}
+				if (tmp_result < *end_lsn) {
+					*end_lsn = tmp_result;
+				}
 			}
 
 		} else if (left->type() == Item::INT_ITEM
 			   && right->type() == Item::FIELD_ITEM) {
 
-			/* The case of const <|<= start_lsn|end_lsn, i.e. the
-			lower bound */
+			/* The case of const <|<= start_lsn|end_lsn
+			   turning it around:  start_lsn|end_lsn >|>= const
+			   "start_lsn >=? const " is a valid loer bound.
+			   "end_lsn >=? const" is not a valid lower bound.
+			*/
 
-			tmp_result = left->val_int();
-			if (is_end_lsn && tmp_result != 0) {
-				tmp_result--;
-			}
-			if (((func_type == Item_func::LT_FUNC)
-			     || (func_type == Item_func::GT_FUNC))
-			    && (tmp_result != IB_ULONGLONG_MAX)) {
+			if (!is_end_lsn) {
+				tmp_result = left->val_int();
+				if (is_end_lsn && tmp_result != 0) {
+					tmp_result--;
+				}
+				if (((func_type == Item_func::LT_FUNC)
+				     || (func_type == Item_func::GT_FUNC))
+				    && (tmp_result != IB_ULONGLONG_MAX)) {
 
-				tmp_result++;
-			}
-			if (tmp_result > *start_lsn) {
-				*start_lsn = tmp_result;
+					tmp_result++;
+				}
+				if (tmp_result > *start_lsn) {
+					*start_lsn = tmp_result;
+				}
 			}
 		}
 
