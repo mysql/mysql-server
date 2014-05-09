@@ -875,7 +875,7 @@ void Gtid_set::get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const
   Returns the length that the given rpl_sidno (64 bit integer) would
   have, if it was encoded as a string.
 */
-static int get_string_length(rpl_gno gno)
+static size_t get_string_length(rpl_gno gno)
 {
   DBUG_ASSERT(gno >= 1 && gno < MAX_GNO);
   rpl_gno tmp_gno= gno;

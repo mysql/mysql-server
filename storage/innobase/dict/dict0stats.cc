@@ -162,6 +162,7 @@ dict_stats_should_ignore_index(
 {
 	return((index->type & DICT_FTS)
 	       || dict_index_is_corrupted(index)
+	       || dict_index_is_spatial(index)
 	       || index->to_be_dropped
 	       || *index->name == TEMP_INDEX_PREFIX);
 }
@@ -904,7 +905,7 @@ dict_stats_update_transient(
 
 		ut_ad(!dict_index_is_univ(index));
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
 		}
 
@@ -1814,7 +1815,7 @@ dict_stats_index_set_n_diff(
 		ut_ad(data->n_leaf_pages_to_analyze > 0);
 		ut_ad(data->n_recs_on_level > 0);
 
-		ulint	n_ordinary_leaf_pages;
+		ib_uint64_t	n_ordinary_leaf_pages;
 
 		if (data->level == 1) {
 			/* If we know the number of records on level 1, then
@@ -1888,6 +1889,11 @@ dict_stats_analyze_index(
 
 	DBUG_PRINT("info", ("index: %s, online status: %d", index->name,
 			    dict_index_get_online_status(index)));
+
+	/* Disable update statistic for Rtree */
+	if (dict_index_is_spatial(index)) {
+		DBUG_VOID_RETURN;
+	}
 
 	DEBUG_PRINTF("  %s(index=%s)\n", __func__, index->name);
 
@@ -2214,7 +2220,7 @@ dict_stats_update_persistent(
 
 		ut_ad(!dict_index_is_univ(index));
 
-		if (index->type & DICT_FTS) {
+		if (index->type & DICT_FTS || dict_index_is_spatial(index)) {
 			continue;
 		}
 

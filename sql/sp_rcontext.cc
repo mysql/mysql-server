@@ -568,7 +568,10 @@ bool sp_cursor::fetch(THD *thd, List<sp_variable> *vars)
 
   /* Attempt to fetch one row */
   if (m_server_side_cursor->is_open())
-    m_server_side_cursor->fetch(1);
+  {
+    if (m_server_side_cursor->fetch(1))
+      return true;
+  }
 
   /*
     If the cursor was pointing after the last row, the fetch will

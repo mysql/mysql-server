@@ -3162,7 +3162,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   else
   {
     uchar *buff_p= (uchar*) buff;
-    int2store(buff_p, mysql->client_flag);
+    int2store(buff_p, (uint16)mysql->client_flag);
     int3store(buff_p + 2, net->max_packet_size);
     end= buff+5;
   }
@@ -3471,11 +3471,11 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
   switch (vio->type) {
   case VIO_TYPE_TCPIP:
     info->protocol= MYSQL_VIO_TCP;
-    info->socket= vio_fd(vio);
+    info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SOCKET:
     info->protocol= MYSQL_VIO_SOCKET;
-    info->socket= vio_fd(vio);
+    info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SSL:
     {
@@ -3485,7 +3485,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
         return;
       info->protocol= addr.sa_family == AF_UNIX ?
         MYSQL_VIO_SOCKET : MYSQL_VIO_TCP;
-      info->socket= vio_fd(vio);
+      info->socket= (int)vio_fd(vio);
       return;
     }
 #ifdef _WIN32
@@ -3664,7 +3664,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
       /* new "use different plugin" packet */
       uint len;
       auth_plugin_name= (char*)mysql->net.read_pos + 1;
-      len= strlen(auth_plugin_name); /* safe as my_net_read always appends \0 */
+      len= (uint)strlen(auth_plugin_name); /* safe as my_net_read always appends \0 */
       mpvio.cached_server_reply.pkt_len= pkt_length - len - 2;
       mpvio.cached_server_reply.pkt= mysql->net.read_pos + len + 2;
       DBUG_PRINT ("info", ("change plugin packet from server for plugin %s",
@@ -4132,7 +4132,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       }
 
       DBUG_PRINT("info", ("Connect socket"));
-      status= vio_socket_connect(net->vio, t_res->ai_addr, t_res->ai_addrlen,
+      status= vio_socket_connect(net->vio, t_res->ai_addr,
+                                 (socklen_t)t_res->ai_addrlen,
                                  get_vio_connect_timeout(mysql));
       /*
         Here we rely on vio_socket_connect() to return success only if
@@ -4329,11 +4330,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       scramble_data_len= pkt_scramble_len;
       scramble_plugin= scramble_data + scramble_data_len;
       if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len= pkt_end - scramble_data;
+        scramble_data_len= (int)(pkt_end - scramble_data);
     }
     else
     {
-      scramble_data_len= pkt_end - scramble_data;
+      scramble_data_len= (int)(pkt_end - scramble_data);
       scramble_plugin= native_password_plugin_name;
     }
   }
@@ -5772,7 +5773,7 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   /* send password in clear text */
   res= vio->write_packet(vio, (const unsigned char *) mysql->passwd, 
-						 strlen(mysql->passwd) + 1);
+						 (int)strlen(mysql->passwd) + 1);
 
   return res ? CR_ERROR : CR_OK;
 }

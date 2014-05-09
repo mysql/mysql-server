@@ -55,6 +55,8 @@ CREATE TEMPORARY TABLE temp (i INT);
 # 6. Start slave io_thread
 --connection slave
 --source include/start_slave_io.inc
+--connection master
+--source include/sync_slave_io_with_master.inc
 
 # 7. Wait for slave thread to apply all events (including the newly generated
 # FormatDescription event which tells slave SQL thread to drop all temporary

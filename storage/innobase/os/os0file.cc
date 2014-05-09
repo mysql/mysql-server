@@ -895,8 +895,8 @@ next_file:
 
 		strcpy(info->name, (char*) lpFindFileData->cFileName);
 
-		info->size = (ib_int64_t)(lpFindFileData->nFileSizeLow)
-			+ (((ib_int64_t)(lpFindFileData->nFileSizeHigh))
+		info->size = static_cast<int64_t>(lpFindFileData->nFileSizeLow)
+			+ (static_cast<int64_t>(lpFindFileData->nFileSizeHigh)
 			   << 32);
 
 		if (lpFindFileData->dwFileAttributes
@@ -1012,7 +1012,7 @@ next_file:
 		return(-1);
 	}
 
-	info->size = (ib_int64_t) statinfo.st_size;
+	info->size = static_cast<int64_t>(statinfo.st_size);
 
 	if (S_ISDIR(statinfo.st_mode)) {
 		info->type = OS_FILE_TYPE_DIR;
@@ -1828,7 +1828,7 @@ loop:
 		ib_logf(IB_LOG_LEVEL_WARN, "Delete of file %s failed.", name);
 	}
 
-	os_thread_sleep(1000000);	/* sleep for a second */
+	os_thread_sleep(500000);	/* sleep for 0.5 second */
 
 	if (count > 2000) {
 

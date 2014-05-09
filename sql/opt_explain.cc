@@ -2040,7 +2040,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                             ctx);
       /* Single select (without union) always returns 0 or 1 row */
       ethd->limit_found_rows= join->send_records;
-      ethd->set_examined_row_count(0);
       break;
     }
     case JOIN::NO_TABLES:
@@ -2067,7 +2066,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       {                                           // Only test of functions
         /* Single select (without union) always returns 0 or 1 row */
         ethd->limit_found_rows= join->send_records;
-        ethd->set_examined_row_count(0);
       }
       break;
     }

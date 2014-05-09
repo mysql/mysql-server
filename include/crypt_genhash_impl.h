@@ -23,7 +23,7 @@ char *
 my_crypt_genhash(char *ctbuffer,
                  size_t ctbufflen,
                  const char *plaintext,
-                 int plaintext_len,
+                 size_t plaintext_len,
                  const char *switchsalt,
                  const char **params);
 void generate_user_salt(char *buffer, int buffer_len);

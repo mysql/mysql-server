@@ -1609,7 +1609,7 @@ longlong TIME_to_longlong_time_packed(const MYSQL_TIME *ltime)
 */
 void TIME_from_longlong_time_packed(MYSQL_TIME *ltime, longlong tmp)
 {
-  long hms;
+  longlong hms;
   if ((ltime->neg= (tmp < 0)))
     tmp= -tmp;
   hms= MY_PACKED_TIME_GET_INT_PART(tmp);

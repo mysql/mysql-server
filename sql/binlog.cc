@@ -1983,6 +1983,7 @@ private:
 static int log_in_use(const char* log_name)
 {
   Log_in_use log_in_use(log_name);
+  DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
   Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
   return log_in_use.get_count();
 }
@@ -5614,12 +5615,11 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           if (cache_data->write_event(thd, &e))
             goto err;
         }
-        if (thd->user_var_events.elements)
+        if (!thd->user_var_events.empty())
         {
-          for (uint i= 0; i < thd->user_var_events.elements; i++)
+          for (size_t i= 0; i < thd->user_var_events.size(); i++)
           {
-            BINLOG_USER_VAR_EVENT *user_var_event;
-            get_dynamic(&thd->user_var_events,(uchar*) &user_var_event, i);
+            BINLOG_USER_VAR_EVENT *user_var_event= thd->user_var_events[i];
 
             /* setting flags for user var log event */
             uchar flags= User_var_log_event::UNDEF_F;

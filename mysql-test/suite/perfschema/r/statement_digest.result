@@ -146,7 +146,7 @@ statements_digest	0c90c632580c8caf6869aa08dcf46beb	DROP PROCEDURE p1 	1	0	0	0
 statements_digest	18971e785a30665db5ece9535b0ff510	CREATE FUNCTION `func` ( a INTEGER , b INTEGER ) RETURNS INTEGER (?) RETURN a + b 	1	0	0	0
 statements_digest	f6975c667341d0d787ccbc57b229f6ff	SELECT func (...) 	2	0	0	0
 statements_digest	4b86074b9884872fa2f2796a16bdff0a	DROP FUNCTION func 	1	0	0	0
-statements_digest	1f8c16cc4a9633a0f1a368aae9aea9d2	CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @ ? := ? 	1	0	0	0
+statements_digest	1f8c16cc4a9633a0f1a368aae9aea9d2	CREATE TRIGGER trg BEFORE INSERT ON t12 FOR EACH ROW SET @? := ? 	1	0	0	0
 statements_digest	b410ff000fa3cabafd2eb1f2dbd31e81	INSERT INTO t12 VALUES (?) 	2	2	0	0
 statements_digest	cc7ff3bd3e5e7c6836cbb89b7c9eec48	DROP TRIGGER trg 	1	0	0	0
 ####################################
