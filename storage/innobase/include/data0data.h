@@ -516,8 +516,8 @@ dtuple_big_rec_free(
 /** Structure for an SQL data field */
 struct dfield_t{
 	void*		data;	/*!< pointer to data */
-	unsigned	ext:1;	/*!< TRUE=externally stored, FALSE=local */
-	unsigned	len:32;	/*!< data length; UNIV_SQL_NULL if SQL null */
+	unsigned	ext;	/*!< TRUE=externally stored, FALSE=local */
+	unsigned	len;	/*!< data length; UNIV_SQL_NULL if SQL null */
 	dtype_t		type;	/*!< type of data */
 
 	/** Create a deep copy of this object

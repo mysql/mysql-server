@@ -25,6 +25,7 @@ Created 5/30/1994 Heikki Tuuri
 
 #include "mem0mem.h"
 #include "ut0rnd.h"
+#include "btr0types.h"
 
 #ifdef UNIV_DEBUG
 /** Dummy variable to catch access to uninitialized fields.  In the
@@ -137,6 +138,7 @@ dfield_is_ext(
 	const dfield_t* field)	/*!< in: field */
 {
 	ut_ad(field);
+	ut_ad(!field->ext || field->len >= BTR_EXTERN_FIELD_REF_SIZE);
 
 	return(field->ext);
 }
