@@ -51,3 +51,22 @@ formatID	gtrid_length	bqual_length	data
 1	4	5	xid1br'_1
 XA ROLLBACK 'xid1', 'br\'_1';
 DROP TABLE t1;
+#
+# Bug#18068253 - XA START WITH THE EXIST XID, AND THEN XA COMMIT WITH THE XID WILL FAILED
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+XA START 'xid1';
+INSERT INTO t1 VALUES (1);
+XA END 'xid1';
+XA PREPARE 'xid1';
+set session debug="+d,crash_after_xa_recover";
+XA RECOVER;
+ERROR HY000: Lost connection to MySQL server during query
+set session debug="-d,crash_after_xa_recover";
+XA RECOVER;
+formatID	gtrid_length	bqual_length	data
+1	4	0	xid1
+XA START 'xid1';
+ERROR XAE08: XAER_DUPID: The XID already exists
+XA COMMIT 'xid1';
+DROP TABLE t1;

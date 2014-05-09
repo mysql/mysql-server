@@ -2449,7 +2449,8 @@ public:
   bool              tx_read_only;
   enum_check_fields count_cuted_fields;
 
-  DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
+  // For user variables replication
+  Prealloced_array<BINLOG_USER_VAR_EVENT*, 2> user_var_events;
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
   /**
@@ -2688,7 +2689,7 @@ public:
     This list is later iterated to invoke release_thd() on those
     plugins.
   */
-  DYNAMIC_ARRAY audit_class_plugins;
+  Prealloced_array<plugin_ref, 2> audit_class_plugins;
   /**
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.

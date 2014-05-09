@@ -431,12 +431,22 @@ row_purge_remove_sec_if_poss_leaf(
 
 	/* Set the purge node for the call to row_purge_poss_sec(). */
 	pcur.btr_cur.purge_node = node;
-	/* Set the query thread, so that ibuf_insert_low() will be
-	able to invoke thd_get_trx(). */
-	pcur.btr_cur.thr = static_cast<que_thr_t*>(que_node_get_parent(node));
+	if (dict_index_is_spatial(index)) {
+		rw_lock_sx_lock(dict_index_get_lock(index));
+		pcur.btr_cur.thr = NULL;
+	} else {
+		/* Set the query thread, so that ibuf_insert_low() will be
+		able to invoke thd_get_trx(). */
+		pcur.btr_cur.thr = static_cast<que_thr_t*>(
+			que_node_get_parent(node));
+	}
 
 	search_result = row_search_index_entry(
 		index, entry, mode, &pcur, &mtr);
+
+	if (dict_index_is_spatial(index)) {
+		rw_lock_sx_unlock(dict_index_get_lock(index));
+	}
 
 	switch (search_result) {
 	case ROW_FOUND:
@@ -450,6 +460,32 @@ row_purge_remove_sec_if_poss_leaf(
 			      & rec_get_info_bits(
 				      btr_cur_get_rec(btr_cur),
 				      dict_table_is_comp(index->table)));
+
+			if (dict_index_is_spatial(index)) {
+				const page_t*   page = btr_cur_get_page(btr_cur);
+
+				if (!lock_test_prdt_page_lock(
+					page_get_space_id(page),
+					page_get_page_no(page))
+				     && page_get_n_recs(page) < 2
+				     && page_get_page_no(page) !=
+					dict_index_get_page(index)) {
+					/* this is the last record on page,
+					and it has a "page" lock on it,
+					which mean search is still depending
+					on it, so do not delete */
+#ifdef UNIV_DEBUG
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"skip purging last record "
+						"on page %ld.",
+						(ulong) page_get_page_no(page));
+#endif
+
+					btr_pcur_close(&pcur);
+					mtr_commit(&mtr);
+					return(success);
+				}
+			}
 
 			if (!btr_cur_optimistic_delete(btr_cur, 0, &mtr)) {
 
@@ -466,7 +502,7 @@ row_purge_remove_sec_if_poss_leaf(
 	case ROW_NOT_FOUND:
 		/* The index entry does not exist, nothing to do. */
 		btr_pcur_close(&pcur);
-	func_exit_no_pcur:
+func_exit_no_pcur:
 		mtr_commit(&mtr);
 		return(success);
 	}
@@ -544,7 +580,7 @@ row_purge_del_mark(
 
 		if (node->index->type != DICT_FTS) {
 			dtuple_t*	entry = row_build_index_entry_low(
-				node->row, NULL, node->index, heap);
+				node->row, NULL, node->index, heap, true);
 			row_purge_remove_sec_if_poss(node, node->index, entry);
 			mem_heap_empty(heap);
 		}
@@ -595,7 +631,7 @@ row_purge_upd_exist_or_extern_func(
 						     thr, NULL, NULL)) {
 			/* Build the older version of the index entry */
 			dtuple_t*	entry = row_build_index_entry_low(
-				node->row, NULL, node->index, heap);
+				node->row, NULL, node->index, heap, true);
 			row_purge_remove_sec_if_poss(node, node->index, entry);
 			mem_heap_empty(heap);
 		}

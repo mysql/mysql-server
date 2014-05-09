@@ -3560,6 +3560,8 @@ void st_select_lex_unit::renumber_selects(LEX *lex)
 {
   for (SELECT_LEX *select= first_select(); select; select= select->next_select())
     select->renumber(lex);
+  if (fake_select_lex)
+    fake_select_lex->renumber(lex);
 }
 
 /**
@@ -4111,6 +4113,7 @@ void st_select_lex::include_standalone(st_select_lex_unit *outer,
   next= NULL;
   prev= ref;
   master= outer;
+  nest_level= master->first_select()->nest_level;
 }
 
 

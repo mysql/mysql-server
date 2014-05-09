@@ -4877,6 +4877,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     reset_statement_timer(thd);
 #endif
 
+  DEBUG_SYNC(thd, "after_table_open");
   return res;
 }
 
@@ -5038,7 +5039,7 @@ void THD::reset_for_next_command()
 
   if (opt_bin_log)
   {
-    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events.clear();
     thd->user_var_events_alloc= thd->mem_root;
   }
   thd->clear_error();

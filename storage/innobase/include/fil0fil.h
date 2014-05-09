@@ -156,6 +156,9 @@ extern fil_addr_t	fil_addr_null;
 					data file (ibdata*, not *.ibd):
 					the file has been flushed to disk
 					at least up to this lsn */
+#define	FIL_RTREE_SPLIT_SEQ_NUM	26	/*!< This overloads
+					FIL_PAGE_FILE_FLUSH_LSN for RTREE
+					Split Sequence Number */
 #define FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID  34 /*!< starting from 4.1.x this
 					contains the space id of the page */
 #define FIL_PAGE_SPACE_ID  FIL_PAGE_ARCH_LOG_NO_OR_SPACE_ID
@@ -208,7 +211,7 @@ Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
 memory cache */
 
-ib_int64_t
+int64_t
 fil_space_get_version(
 /*==================*/
 	ulint	id);	/*!< in: space id */
@@ -761,7 +764,7 @@ bool
 fil_tablespace_deleted_or_being_deleted_in_mem(
 /*===========================================*/
 	ulint		id,	/*!< in: space id */
-	ib_int64_t	version);/*!< in: tablespace_version should be this; if
+	int64_t		version);/*!< in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 /*******************************************************************//**
