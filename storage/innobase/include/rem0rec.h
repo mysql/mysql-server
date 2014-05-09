@@ -592,6 +592,14 @@ rec_offs_nth_extern(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n)	/*!< in: nth field */
 	__attribute__((nonnull, pure, warn_unused_result));
+
+/** Mark the nth field as externally stored.
+@param[in]	offsets		array returned by rec_get_offsets()
+@param[in]	n		nth field */
+void
+rec_offs_make_nth_extern(
+        ulint*		offsets,
+        const ulint     n);
 /******************************************************//**
 Returns nonzero if the SQL NULL bit is set in nth field of rec.
 @return nonzero if SQL NULL */

@@ -655,10 +655,10 @@ btr_store_big_rec_extern_fields(
 					btr_mtr is restarted, then this can
 					be repositioned. */
 	const upd_t*	upd,		/*!< in: update vector */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
-					the "external storage" flags in offsets
-					will not correspond to rec when
-					this function returns */
+	ulint*		offsets,	/*!< in/out: rec_get_offsets() on
+					pcur. the "external storage" flags
+					in offsets will correctly correspond
+					to rec when this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
 	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the

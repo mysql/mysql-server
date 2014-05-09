@@ -907,6 +907,7 @@ row_upd_build_difference_binary(
 	}
 
 	update->n_fields = n_diff;
+	ut_ad(update->validate());
 
 	return(update);
 }
@@ -1168,6 +1169,7 @@ row_upd_replace(
 	ut_ad(dict_index_is_clust(index));
 	ut_ad(update);
 	ut_ad(heap);
+	ut_ad(update->validate());
 
 	n_cols = dtuple_get_n_fields(row);
 	table = index->table;

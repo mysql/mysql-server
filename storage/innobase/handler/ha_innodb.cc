@@ -6879,6 +6879,7 @@ calc_row_difference(
 
 	ut_a(buf <= (byte*) original_upd_buff + buff_len);
 
+        ut_ad(uvect->validate());
 	return(DB_SUCCESS);
 }
 
