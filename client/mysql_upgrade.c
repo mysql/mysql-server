@@ -434,7 +434,7 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
   }
   else
   {
-    int len;
+    size_t len;
 
     /*
       mysql_upgrade was run absolutely or relatively.  We can find a sibling
@@ -460,7 +460,7 @@ static void find_tool(char *tool_executable_name, const char *tool_name,
     len= last_fn_libchar - self_name;
 
     my_snprintf(tool_executable_name, FN_REFLEN, "%.*s%c%s",
-                len, self_name, FN_LIBCHAR, tool_name);
+                (int)len, self_name, FN_LIBCHAR, tool_name);
   }
 
   verbose("Looking for '%s' as: %s", tool_name, tool_executable_name);

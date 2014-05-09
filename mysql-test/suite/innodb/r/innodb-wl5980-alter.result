@@ -513,6 +513,7 @@ ALTER TABLE t1c DROP INDEX C3;
 ERROR HY000: Cannot drop index 'c3': needed in a foreign key constraint
 SET foreign_key_checks=0;
 ALTER TABLE t1c DROP INDEX C3;
+ERROR HY000: Cannot drop index 'c3': needed in a foreign key constraint
 ### files in MYSQL_DATA_DIR/test
 sys_foreign.frm
 sys_foreign.ibd
@@ -539,6 +540,7 @@ t1c	CREATE TABLE `t1c` (
   `c3` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
+  KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t1` (`c3`),
   CONSTRAINT `t1c3` FOREIGN KEY (`c3`) REFERENCES `t1p` (`c2`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
@@ -585,6 +587,7 @@ t1c	CREATE TABLE `t1c` (
   `c3` int(11) DEFAULT NULL,
   PRIMARY KEY (`c1`),
   KEY `c2` (`c2`),
+  KEY `c3` (`c3`),
   CONSTRAINT `t1c2` FOREIGN KEY (`c2`) REFERENCES `t1` (`c3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT i.NAME,i.POS,i.MTYPE,i.PRTYPE,i.LEN
@@ -627,7 +630,8 @@ t1c	CREATE TABLE `t1c` (
   `c1` int(11) NOT NULL,
   `c2` int(11) DEFAULT NULL,
   `c3` int(11) DEFAULT NULL,
-  PRIMARY KEY (`c1`)
+  PRIMARY KEY (`c1`),
+  KEY `c3` (`c3`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1 DATA DIRECTORY='MYSQL_TMP_DIR/alt_dir/'
 SELECT i.NAME,i.POS,i.MTYPE,i.PRTYPE,i.LEN
 FROM INFORMATION_SCHEMA.INNODB_SYS_COLUMNS i

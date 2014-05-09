@@ -829,7 +829,7 @@ try_again:
 	if (buf_dblwr->batch_running) {
 		/* Another thread is running the batch right now. Wait
 		for it to finish. */
-		ib_int64_t	sig_count = os_event_reset(buf_dblwr->b_event);
+		int64_t	sig_count = os_event_reset(buf_dblwr->b_event);
 		mutex_exit(&buf_dblwr->mutex);
 
 		os_event_wait_low(buf_dblwr->b_event, sig_count);
@@ -961,7 +961,7 @@ try_again:
 		point. The only exception is when a user thread is
 		forced to do a flush batch because of a sync
 		checkpoint. */
-		ib_int64_t	sig_count = os_event_reset(buf_dblwr->b_event);
+		int64_t	sig_count = os_event_reset(buf_dblwr->b_event);
 		mutex_exit(&buf_dblwr->mutex);
 
 		os_event_wait_low(buf_dblwr->b_event, sig_count);
@@ -1066,8 +1066,7 @@ retry:
 	if (buf_dblwr->s_reserved == n_slots) {
 
 		/* All slots are reserved. */
-		ib_int64_t	sig_count =
-			os_event_reset(buf_dblwr->s_event);
+		int64_t	sig_count = os_event_reset(buf_dblwr->s_event);
 		mutex_exit(&buf_dblwr->mutex);
 		os_event_wait_low(buf_dblwr->s_event, sig_count);
 

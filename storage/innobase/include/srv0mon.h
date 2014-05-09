@@ -43,7 +43,7 @@ enum monitor_running_status {
 typedef enum monitor_running_status	monitor_running_t;
 
 /** Monitor counter value type */
-typedef	ib_int64_t			mon_type_t;
+typedef	int64_t				mon_type_t;
 
 /** Two monitor structures are defined in this file. One is
 "monitor_value_t" which contains dynamic counter values for each
@@ -99,8 +99,8 @@ enum monitor_type_t {
 };
 
 /** Counter minimum value is initialized to be max value of
- mon_type_t (ib_int64_t) */
-#define	MIN_RESERVED		((mon_type_t) (IB_UINT64_MAX >> 1))
+ mon_type_t (int64_t) */
+#define	MIN_RESERVED		INT64_MAX
 #define	MAX_RESERVED		(~MIN_RESERVED)
 
 /** This enumeration defines internal monitor identifier used internally

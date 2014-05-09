@@ -169,6 +169,24 @@ row_search_for_mysql(
 					with stored position! In opening of a
 					cursor 'direction' should be 0. */
 	__attribute__((nonnull, warn_unused_result));
+
+/********************************************************************//**
+Count rows in a R-Tree leaf level.
+@return DB_SUCCESS if successful */
+
+dberr_t
+row_count_rtree_recs(
+/*=================*/
+	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct for the
+					table handle; this contains the info
+					of search_tuple, index; if search
+					tuple contains 0 fields then we
+					position the cursor at the start or
+					the end of the index, depending on
+					'mode' */
+	ulint*		n_rows);	/*!< out: number of entries
+					seen in the consistent read */
+
 /*******************************************************************//**
 Checks if MySQL at the moment is allowed for this table to retrieve a
 consistent read result, or store it to the query cache.

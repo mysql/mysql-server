@@ -220,7 +220,7 @@ struct st_vio
   my_bool       localhost;              /* Are we from localhost? */
   struct sockaddr_storage   local;      /* Local internet address */
   struct sockaddr_storage   remote;     /* Remote internet address */
-  int addrLen;                          /* Length of remote address */
+  size_t addrLen;                       /* Length of remote address */
   enum enum_vio_type    type;           /* Type of connection */
   my_bool               inactive; /* Connection inactive (has been shutdown) */
   char                  desc[VIO_DESCRIPTION_SIZE]; /* Description string. This

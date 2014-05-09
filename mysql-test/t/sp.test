@@ -9030,3 +9030,37 @@ DROP PROCEDURE p1;
 DROP TABLE t1;
 
 --echo # End of 5.6 tests
+
+--echo #
+--echo # BUG 18484649 - STRICT MODE + CURSOR FETCH INTO WRONG TYPE, ASSERTION
+--echo #                IN PROTOCOL::END_STATEMENT
+--echo #
+SET @org_mode= @@sql_mode;
+SET sql_mode= 'STRICT_TRANS_TABLES'; 
+
+CREATE TABLE t1(a INT) ENGINE= InnoDB; 
+INSERT INTO t1 VALUES (123456); 
+DELIMITER $; 
+
+CREATE PROCEDURE p1() 
+BEGIN
+ DECLARE `v` TINYINT; 
+ DECLARE `c` CURSOR FOR SELECT a FROM t1; 
+ BEGIN
+  OPEN c; 
+  FETCH c INTO v;   
+  CLOSE c; 
+ END; 
+END $ 
+
+DELIMITER ;$ 
+
+--echo # With the fix, Call to p1 will result in error as the routine was
+--echo # created in STRICT MODE.
+--error ER_WARN_DATA_OUT_OF_RANGE
+CALL p1(); 
+
+--echo # Clean-up
+SET sql_mode= @org_mode;
+DROP PROCEDURE p1;
+DROP TABLE t1;

@@ -145,10 +145,6 @@ struct mtr_t {
 		/** mini-transaction log */
 		mtr_buf_t	m_log;
 
-		/** Number of pages that have been freed in this
-		mini-transaction */
-		ib_uint32_t	m_n_freed_pages;
-
 		/** true if mtr has made at least one buffer pool page dirty */
 		bool		m_made_dirty;
 
@@ -218,8 +214,9 @@ struct mtr_t {
 	but generated some redo log on a higher level, such as
 	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 	The caller must invoke log_mutex_enter() and log_mutex_exit().
-	This is to be used at log_checkpoint(). */
-	void commit_checkpoint();
+	This is to be used at log_checkpoint().
+	@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
+	void commit_checkpoint(lsn_t checkpoint_lsn);
 
 	/** Return current size of the buffer.
 	@return	savepoint */
@@ -392,24 +389,6 @@ struct mtr_t {
 	bool is_inside_ibuf() const
 	{
 		return(m_impl.m_inside_ibuf);
-	}
-
-	/** Note that some pages were freed */
-	void add_freed_pages()
-	{
-		++m_impl.m_n_freed_pages;
-	}
-
-	/** @return true if mini-transaction freed pages */
-	bool has_freed_pages() const
-	{
-		return(get_freed_page_count() > 0);
-	}
-
-	/** @return the number of freed pages */
-	ulint get_freed_page_count() const
-	{
-		return(m_impl.m_n_freed_pages);
 	}
 
 #ifdef UNIV_DEBUG

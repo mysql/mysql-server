@@ -779,7 +779,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
-      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events.clear();
       thd->user_var_events_alloc= NULL;//DEBUG
     }
 
@@ -1214,7 +1214,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call)
   {
     query_id_t q;
-    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events.clear();
     /*
       In case of artificially constructed events for function calls
       we have separate union for each such event and hence can't use
@@ -1275,7 +1275,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                      "failed to reflect this change in the binary log");
         err_status= TRUE;
       }
-      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
       thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
       thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
