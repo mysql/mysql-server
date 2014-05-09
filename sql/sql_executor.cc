@@ -159,7 +159,6 @@ JOIN::exec()
       }
       /* Query block (without union) always returns 0 or 1 row */
       thd->limit_found_rows= send_records;
-      thd->set_examined_row_count(0);
     }
     else
     {
@@ -718,7 +717,6 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   /* Update results for FOUND_ROWS */
   if (!join->send_row_on_empty_set())
   {
-    join->thd->set_examined_row_count(0);
     join->thd->limit_found_rows= 0;
   }
 

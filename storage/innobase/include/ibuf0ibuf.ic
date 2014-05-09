@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -128,6 +128,7 @@ ibuf_should_try(
 	return(ibuf_use != IBUF_USE_NONE
 	       && ibuf->max_size != 0
 	       && !dict_index_is_clust(index)
+	       && !dict_index_is_spatial(index)
 	       && index->table->quiesce == QUIESCE_NONE
 	       && (ignore_sec_unique || !dict_index_is_unique(index)));
 }

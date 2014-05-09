@@ -342,6 +342,10 @@ static PSI_mutex_info all_innodb_mutexes[] = {
 #ifndef HAVE_ATOMIC_BUILTINS_64
 	PSI_KEY(monitor_mutex),
 #endif /* !HAVE_ATOMIC_BUILTINS_64 */
+	PSI_KEY(rtr_active_mutex),
+	PSI_KEY(rtr_match_mutex),
+	PSI_KEY(rtr_path_mutex),
+	PSI_KEY(rtr_ssn_mutex),
 	PSI_KEY(trx_sys_mutex),
 	PSI_KEY(zip_pad_mutex),
 };
@@ -480,6 +484,39 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_stmt_begin
 };
 
+/******************************************************************//**
+Function used to loop a thread (for debugging/instrumentation
+purpose). */
+
+void
+srv_debug_loop(void)
+/*================*/
+{
+        ibool set = TRUE;
+
+        while (set) {
+                os_thread_yield();
+        }
+}
+
+/******************************************************************//**
+Debug function used to read a MBR data */
+
+#ifdef UNIV_DEBUG
+void
+srv_mbr_debug(const byte* data)
+{
+	double a, b, c , d;
+        a = mach_double_read(data);
+        data += sizeof(double);
+        b = mach_double_read(data);
+        data += sizeof(double);
+        c = mach_double_read(data);
+        data += sizeof(double);
+        d = mach_double_read(data);
+	ut_ad(a && b && c &&d);
+}
+#endif
 /*************************************************************//**
 Check whether valid argument given to innodb_ft_*_stopword_table.
 This function is registered as a callback with MySQL.
@@ -1364,6 +1401,10 @@ convert_error_code_to_mysql(
 		my_error(ER_FK_DEPTH_EXCEEDED, MYF(0), FK_MAX_CASCADE_DEL);
 		return(HA_ERR_FK_DEPTH_EXCEEDED);
 
+	case DB_CANT_CREATE_GEOMETRY_OBJECT:
+		my_error(ER_CANT_CREATE_GEOMETRY_OBJECT, MYF(0));
+		return(HA_ERR_NULL_IN_SPATIAL);
+
 	case DB_ERROR:
 	default:
 		return(-1); /* unspecified error */
@@ -2224,6 +2265,7 @@ ha_innobase::ha_innobase(
 		  HA_CAN_FULLTEXT |
 		  HA_CAN_FULLTEXT_EXT |
 		  HA_CAN_EXPORT |
+		  HA_CAN_RTREEKEYS |
 		  HA_HAS_RECORDS
 		  ),
 	start_of_scan(0),
@@ -3513,11 +3555,11 @@ innobase_commit(
 			If the binary log is not enabled, or the transaction
 			is not written to the binary log, the file name will
 			be a NULL pointer. */
-			unsigned long long pos;
+			unsigned long long	pos;
 
 			thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
 
-			trx->mysql_log_offset = static_cast<ib_int64_t>(pos);
+			trx->mysql_log_offset = static_cast<int64_t>(pos);
 
 			/* Don't do write + flush right now. For group commit
 			to work we want to do the flush later. */
@@ -3689,7 +3731,7 @@ innobase_rollback_to_savepoint(
 					be rolled back to savepoint */
 	void*		savepoint)	/*!< in: savepoint data */
 {
-	ib_int64_t	mysql_binlog_cache_pos;
+	int64_t		mysql_binlog_cache_pos;
 	dberr_t		error;
 	trx_t*		trx;
 	char		name[64];
@@ -3827,7 +3869,7 @@ innobase_savepoint(
 	char name[64];
 	longlong2str((ulint) savepoint,name,36);
 
-	error = trx_savepoint_for_mysql(trx, name, (ib_int64_t)0);
+	error = trx_savepoint_for_mysql(trx, name, 0);
 
 	if (error == DB_SUCCESS && trx->fts_trx != NULL) {
 		fts_savepoint_take(trx, trx->fts_trx, name);
@@ -4001,6 +4043,8 @@ ha_innobase::index_type(
 
 	if (index && index->type & DICT_FTS) {
 		return("FULLTEXT");
+	} else if (dict_index_is_spatial(index)) {
+		return("SPATIAL");
 	} else {
 		return("BTREE");
 	}
@@ -4028,11 +4072,19 @@ ha_innobase::index_flags(
 	uint,
 	bool) const
 {
-	return((table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT)
-		 ? 0
-		 : (HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
-		  | HA_READ_RANGE | HA_KEYREAD_ONLY
-		  | HA_DO_INDEX_COND_PUSHDOWN));
+	if (table_share->key_info[key].algorithm == HA_KEY_ALG_FULLTEXT) {
+		return(0);
+	}
+
+	ulong flags = HA_READ_NEXT | HA_READ_PREV | HA_READ_ORDER
+		      | HA_READ_RANGE | HA_KEYREAD_ONLY
+		      | HA_DO_INDEX_COND_PUSHDOWN;
+
+	if (table_share->key_info[key].flags & HA_SPATIAL) {
+		flags |= HA_KEY_SCAN_NOT_ROR;
+	}
+
+	return(flags);
 }
 
 /****************************************************************//**
@@ -5885,6 +5937,11 @@ build_template_field(
 		prebuilt->need_to_access_clustered = TRUE;
 	}
 
+	/* For spatial index, we need to access cluster index.*/
+	if (dict_index_is_spatial(index)) {
+		prebuilt->need_to_access_clustered = TRUE;
+	}
+
 	if (prebuilt->mysql_prefix_len < templ->mysql_col_offset
 	    + templ->mysql_col_len) {
 		prebuilt->mysql_prefix_len = templ->mysql_col_offset
@@ -6679,6 +6736,15 @@ calc_row_difference(
 			/* Let us use a dummy dfield to make the conversion
 			from the MySQL column format to the InnoDB format */
 
+
+			/* If the length of new geometry object is 0, means
+			this object is invalid geometry object, we need
+			to block it. */
+			if (col_type == DATA_GEOMETRY
+			    && o_len != 0 && n_len == 0) {
+				return(DB_CANT_CREATE_GEOMETRY_OBJECT);
+			}
+
 			if (n_len != UNIV_SQL_NULL) {
 				dict_col_copy_type(prebuilt->table->cols + i,
 						   dfield_get_type(&dfield));
@@ -7131,12 +7197,17 @@ convert_search_mode_to_innobase(
 	case HA_READ_PREFIX_LAST:
 	case HA_READ_PREFIX_LAST_OR_PREV:
 		return(PAGE_CUR_LE);
-	case HA_READ_PREFIX:
 	case HA_READ_MBR_CONTAIN:
+		return(PAGE_CUR_CONTAIN);
 	case HA_READ_MBR_INTERSECT:
+		return(PAGE_CUR_INTERSECT);
 	case HA_READ_MBR_WITHIN:
+		return(PAGE_CUR_WITHIN);
 	case HA_READ_MBR_DISJOINT:
+		return(PAGE_CUR_DISJOINT);
 	case HA_READ_MBR_EQUAL:
+		return(PAGE_CUR_MBR_EQUAL);
+	case HA_READ_PREFIX:
 		return(PAGE_CUR_UNSUPP);
 	/* do not use "default:" in order to produce a gcc warning:
 	enumeration value '...' not handled in switch
@@ -7247,6 +7318,12 @@ ha_innobase::index_read(
 
 	if (index->type & DICT_FTS) {
 		DBUG_RETURN(HA_ERR_KEY_NOT_FOUND);
+	}
+
+	/* For R-Tree index, we will always place the page lock to
+	pages being searched */
+	if (dict_index_is_spatial(index)) {
+		prebuilt->trx->will_lock++;
 	}
 
 	/* Note that if the index for which the search template is built is not
@@ -8529,9 +8606,17 @@ create_index(
 	/* Assert that "GEN_CLUST_INDEX" cannot be used as non-primary index */
 	ut_a(innobase_strcasecmp(key->name, innobase_index_reserve_name) != 0);
 
-	if (key->flags & HA_FULLTEXT) {
+	ind_type = 0;
+	if (key->flags & HA_SPATIAL) {
+		ind_type = DICT_SPATIAL;
+	} else if (key->flags & HA_FULLTEXT) {
+		ind_type = DICT_FTS;
+	}
+
+	if (ind_type != 0)
+	{
 		index = dict_mem_index_create(table_name, key->name, 0,
-					      DICT_FTS,
+					      ind_type,
 					      key->user_defined_key_parts);
 
 		for (ulint i = 0; i < key->user_defined_key_parts; i++) {
@@ -9313,7 +9398,7 @@ ha_innobase::create(
 	char		temp_path[FN_REFLEN];	/* absolute path of temp frm */
 	char		remote_path[FN_REFLEN];	/* absolute path of table */
 	THD*		thd = ha_thd();
-	ib_int64_t	auto_inc_value;
+	int64_t		auto_inc_value;
 	ulint		flags;
 	ulint		flags2;
 	dict_table_t*	innobase_table = NULL;
@@ -10316,7 +10401,7 @@ ha_innobase::records_in_range(
 	dict_index_t*	index;
 	dtuple_t*	range_start;
 	dtuple_t*	range_end;
-	ib_int64_t	n_rows;
+	int64_t		n_rows;
 	ulint		mode1;
 	ulint		mode2;
 	mem_heap_t*	heap;
@@ -10355,6 +10440,12 @@ ha_innobase::records_in_range(
 	}
 	if (!row_merge_is_index_usable(prebuilt->trx, index)) {
 		n_rows = HA_ERR_TABLE_DEF_CHANGED;
+		goto func_exit;
+	}
+	/* GIS_FIXME: Currently, we can't support estimate records on
+	R-tree index.*/
+	if (dict_index_is_spatial(index)) {
+		n_rows = 2;
 		goto func_exit;
 	}
 
@@ -11233,6 +11324,7 @@ ha_innobase::check(
 	bool		is_ok		= true;
 	ulint		old_isolation_level;
 	ibool		table_corrupted;
+	dberr_t		ret;
 
 	DBUG_ENTER("ha_innobase::check");
 	DBUG_ASSERT(thd == ha_thd());
@@ -11275,7 +11367,6 @@ ha_innobase::check(
 	>= READ COMMITTED, because a dirty read can see a wrong number
 	of records in some index; to play safe, we use always
 	REPEATABLE READ here */
-
 	prebuilt->trx->isolation_level = TRX_ISO_REPEATABLE_READ;
 
 	/* Check whether the table is already marked as corrupted
@@ -11375,8 +11466,12 @@ ha_innobase::check(
 		prebuilt->select_lock_type = LOCK_NONE;
 
 		/* Scan this index. */
-		dberr_t ret = row_scan_index_for_mysql(
-			prebuilt, index, true, &n_rows);
+		if (dict_index_is_spatial(index)) {
+			ret = row_count_rtree_recs(prebuilt, &n_rows);
+		} else {
+			ret = row_scan_index_for_mysql(
+				prebuilt, index, true, &n_rows);
+		}
 
 		DBUG_EXECUTE_IF(
 			"dict_set_index_corrupted",
@@ -11406,15 +11501,13 @@ ha_innobase::check(
 				index, prebuilt->trx, "CHECK TABLE-check index");
 		}
 
-#if 0
-		fprintf(stderr, "%lu entries in index %s\n", n_rows,
-			index->name);
-#endif
-
 		if (index == dict_table_get_first_index(prebuilt->table)) {
 			n_rows_in_table = n_rows;
 		} else if (!(index->type & DICT_FTS)
-			   && (n_rows != n_rows_in_table)) {
+			   && (n_rows != n_rows_in_table)
+			/* GIS_FIXME: Will address the transient count
+			mistmatch for R-Tree in WL #7740 */
+			   && !dict_index_is_spatial(index)) {
 			push_warning_printf(
 				thd, Sql_condition::SL_WARNING,
 				ER_NOT_KEYFILE,
@@ -13300,10 +13393,9 @@ ulonglong
 ha_innobase::get_mysql_bin_log_pos()
 /*================================*/
 {
-	/* trx... is ib_int64_t, which is a typedef for a 64-bit integer
-	(__int64 or longlong) so it's ok to cast it to ulonglong. */
+	ut_ad(trx_sys_mysql_bin_log_pos >= 0);
 
-	return(trx_sys_mysql_bin_log_pos);
+	return(static_cast<ulonglong>(trx_sys_mysql_bin_log_pos));
 }
 
 /******************************************************************//**
@@ -15175,7 +15267,7 @@ checkpoint_now_set(
 {
 	if (*(my_bool*) save) {
 		while (log_sys->last_checkpoint_lsn
-		       + 1 /* MLOG_CHECKPOINT */
+		       + SIZE_OF_MLOG_CHECKPOINT
 		       < log_sys->lsn) {
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);

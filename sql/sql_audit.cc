@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -156,17 +156,9 @@ static my_bool acquire_plugins(THD *thd, plugin_ref plugin, void *arg)
   if (!check_audit_mask(data->class_mask, thd->audit_class_mask))
     return 0;
   
-  /* Check if we need to initialize the array of acquired plugins */
-  if (unlikely(!thd->audit_class_plugins.buffer))
-  {
-    /* specify some reasonable initialization defaults */
-    my_init_dynamic_array(&thd->audit_class_plugins,
-                          sizeof(plugin_ref), 16, 16);
-  }
-  
   /* lock the plugin and add it to the list */
   plugin= my_plugin_lock(NULL, &plugin);
-  insert_dynamic(&thd->audit_class_plugins, &plugin);
+  thd->audit_class_plugins.push_back(plugin);
 
   return 0;
 }
@@ -229,12 +221,12 @@ void mysql_audit_release(THD *thd)
 {
   plugin_ref *plugins, *plugins_last;
   
-  if (!thd || !(thd->audit_class_plugins.elements))
+  if (!thd || thd->audit_class_plugins.empty())
     return;
   
-  plugins= (plugin_ref*) thd->audit_class_plugins.buffer;
-  plugins_last= plugins + thd->audit_class_plugins.elements;
-  for (; plugins < plugins_last; plugins++)
+  plugins= thd->audit_class_plugins.begin();
+  plugins_last= thd->audit_class_plugins.end();
+  for (; plugins != plugins_last; plugins++)
   {
     st_mysql_audit *data= plugin_data(*plugins, struct st_mysql_audit *);
 	
@@ -247,11 +239,11 @@ void mysql_audit_release(THD *thd)
   }
 
   /* Now we actually unlock the plugins */  
-  plugin_unlock_list(NULL, (plugin_ref*) thd->audit_class_plugins.buffer,
-                     thd->audit_class_plugins.elements);
+  plugin_unlock_list(NULL, thd->audit_class_plugins.begin(),
+                     thd->audit_class_plugins.size());
   
   /* Reset the state of thread values */
-  reset_dynamic(&thd->audit_class_plugins);
+  thd->audit_class_plugins.clear();
   memset(thd->audit_class_mask, 0, sizeof(thd->audit_class_mask));
 }
 
@@ -265,7 +257,6 @@ void mysql_audit_release(THD *thd)
 
 void mysql_audit_init_thd(THD *thd)
 {
-  memset(&thd->audit_class_plugins, 0, sizeof(thd->audit_class_plugins));
   memset(thd->audit_class_mask, 0, sizeof(thd->audit_class_mask));
 }
 
@@ -283,8 +274,7 @@ void mysql_audit_init_thd(THD *thd)
 void mysql_audit_free_thd(THD *thd)
 {
   mysql_audit_release(thd);
-  DBUG_ASSERT(thd->audit_class_plugins.elements == 0);
-  delete_dynamic(&thd->audit_class_plugins);
+  DBUG_ASSERT(thd->audit_class_plugins.empty());
 }
 
 #ifdef HAVE_PSI_INTERFACE
@@ -484,10 +474,10 @@ static void event_class_dispatch(THD *thd, unsigned int event_class,
     plugin_ref *plugins, *plugins_last;
 
     /* Use the cached set of audit plugins */
-    plugins= (plugin_ref*) thd->audit_class_plugins.buffer;
-    plugins_last= plugins + thd->audit_class_plugins.elements;
+    plugins= thd->audit_class_plugins.begin();
+    plugins_last= thd->audit_class_plugins.end();
 
-    for (; plugins < plugins_last; plugins++)
+    for (; plugins != plugins_last; plugins++)
       plugins_dispatch(thd, *plugins, &event_generic);
   }
 }

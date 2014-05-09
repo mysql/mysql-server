@@ -250,7 +250,8 @@ public:
 
   bool eq(const xid_t *xid) const
   {
-    return xid->gtrid_length == gtrid_length &&
+    return xid->formatID == formatID &&
+      xid->gtrid_length == gtrid_length &&
       xid->bqual_length == bqual_length &&
       !memcmp(xid->data, data, gtrid_length + bqual_length);
   }

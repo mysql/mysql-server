@@ -48,7 +48,7 @@ public:
   virtual bool is_open() const= 0;
 
   virtual int open(JOIN *top_level_join)= 0;
-  virtual void fetch(ulong num_rows)= 0;
+  virtual bool fetch(ulong num_rows)= 0;
   virtual void close()= 0;
   virtual ~Server_side_cursor();
 

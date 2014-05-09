@@ -30,6 +30,7 @@ Created 10/16/1994 Heikki Tuuri
 #include "dict0dict.h"
 #include "page0cur.h"
 #include "btr0types.h"
+#include "gis0type.h"
 
 /** Mode flags for btr_cur operations; these can be ORed */
 enum {
@@ -409,9 +410,10 @@ btr_cur_pessimistic_update(
 				big_rec and the index tuple */
 	big_rec_t**	big_rec,/*!< out: big rec vector whose fields have to
 				be stored externally by the caller, or NULL */
-	const upd_t*	update,	/*!< in: update vector; this is allowed also
-				contain trx id and roll ptr fields, but
-				the values in update vector have no effect */
+	upd_t*		update,	/*!< in/out: update vector; this is allowed to
+				also contain trx id and roll ptr fields.
+				Non-updated columns that are moved offpage will
+				be appended to this. */
 	ulint		cmpl_info,/*!< in: compiler info on secondary index
 				updates */
 	que_thr_t*	thr,	/*!< in: query thread */
@@ -568,7 +570,7 @@ btr_cur_parse_del_mark_set_sec_rec(
 Estimates the number of rows in a given index range.
 @return estimated number of rows */
 
-ib_int64_t
+int64_t
 btr_estimate_n_rows_in_range(
 /*=========================*/
 	dict_index_t*	index,	/*!< in: index */
@@ -649,20 +651,21 @@ file segment of the index tree.
 dberr_t
 btr_store_big_rec_extern_fields(
 /*============================*/
-	dict_index_t*	index,		/*!< in: index of rec; the index tree
-					MUST be X-latched */
-	buf_block_t*	rec_block,	/*!< in/out: block containing rec */
-	rec_t*		rec,		/*!< in/out: record */
+	btr_pcur_t*	pcur,		/*!< in/out: a persistent cursor. if
+					btr_mtr is restarted, then this can
+					be repositioned. */
+	const upd_t*	upd,		/*!< in: update vector */
 	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
 					the "external storage" flags in offsets
 					will not correspond to rec when
 					this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
-	mtr_t*		btr_mtr,	/*!< in: mtr containing the
-					latches to the clustered index */
+	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
+					latches to the clustered index. can be
+					committed and restarted. */
 	enum blob_op	op)		/*! in: operation code */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 
 /*******************************************************************//**
 Frees the space in an externally stored field to the file space
@@ -776,6 +779,23 @@ btr_cur_set_deleted_flag_for_ibuf(
 					uncompressed */
 	ibool		val,		/*!< in: value to set */
 	mtr_t*		mtr);		/*!< in/out: mini-transaction */
+
+/** Latches the leaf page or pages requested.
+@param[in]	block		leaf page where the search converged
+@param[in]	page_id		page id of the leaf
+@param[in]	latch_mode	BTR_SEARCH_LEAF, ...
+@param[in]	cursor		cursor
+@param[in]	mtr		mini-transaction */
+
+void
+btr_cur_latch_leaves(
+	buf_block_t*		block,
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			latch_mode,
+	btr_cur_t*		cursor,
+	mtr_t*			mtr);
+
 /*######################################################################*/
 
 /** In the pessimistic delete, if the page data size drops below this
@@ -879,7 +899,21 @@ struct btr_cur_t {
 					rows in range, we store in this array
 					information of the path through
 					the tree */
+	rtr_info_t*	rtr_info;	/*!< rtree search info */
+	btr_cur_t():thr(NULL), rtr_info(NULL) {}
+					/* default values */
 };
+
+/******************************************************//**
+The following function is used to set the deleted bit of a record. */
+UNIV_INLINE
+void
+btr_rec_set_deleted_flag(
+/*=====================*/
+	rec_t*		rec,	/*!< in/out: physical record */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page (or NULL) */
+	ulint		flag);	/*!< in: nonzero if delete marked */
+
 
 /** If pessimistic delete fails because of lack of file space, there
 is still a good change of success a little later.  Try this many
