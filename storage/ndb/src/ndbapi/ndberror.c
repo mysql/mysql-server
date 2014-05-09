@@ -543,7 +543,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 1502, DMEC, IE, "Filegroup already exists" },
   { 1503, DMEC, SE, "Out of filegroup records" },
-  { 1504, DMEC, SE, "Out of logbuffer memory" },
+  { 1504, DMEC, SE, "Out of logbuffer memory. Increase SharedGlobalMemory" },
   { 1505, DMEC, IE, "Invalid filegroup" },
   { 1506, DMEC, IE, "Invalid filegroup version" },
   { 1507, DMEC, IE, "File no already inuse" },
