@@ -421,7 +421,8 @@ DBOperation.prototype.buildOpHelper = function(helper) {
 };
 
 
-function prepareOperations(ndbTransaction, dbOperationList) {
+function prepareOperations(dbTransactionContext, dbOperationList) {
+  assert(dbTransactionContext);
   var n, length, specs, pendingOpSet;
   length = dbOperationList.length;
   if(length == 1) {
@@ -436,7 +437,7 @@ function prepareOperations(ndbTransaction, dbOperationList) {
       dbOperationList[n].buildOpHelper(specs[n]);
     }
   }
-  return adapter.impl.DBOperationHelper(length, specs, ndbTransaction);
+  adapter.impl.DBOperationHelper(length, specs, dbTransactionContext);
 }
 
 
