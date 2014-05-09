@@ -2149,6 +2149,12 @@ public:
                              inspect_sctx->get_host()->length() ?
                              inspect_sctx->get_host()->ptr() : "");
 
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db;
@@ -2317,6 +2323,12 @@ public:
                              strlen(inspect_sctx->host_or_ip),
                              system_charset_info);
 
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db;
