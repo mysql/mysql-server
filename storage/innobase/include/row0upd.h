@@ -225,7 +225,7 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 
-const upd_t*
+upd_t*
 row_upd_build_difference_binary(
 /*============================*/
 	dict_index_t*	index,	/*!< in: clustered index */
@@ -432,10 +432,30 @@ struct upd_field_t{
 
 /* Update vector structure */
 struct upd_t{
+	mem_heap_t*	heap;		/*!< heap from which memory allocated */
 	ulint		info_bits;	/*!< new value of info bits to record;
 					default is 0 */
 	ulint		n_fields;	/*!< number of update fields */
 	upd_field_t*	fields;		/*!< array of update fields */
+
+	/** Append an update field to the end of array
+	@param[in]	field	an update field */
+	void append(const upd_field_t& field)
+	{
+		fields[n_fields++] = field;
+	}
+
+	/** Determine if the given field_no is modified.
+	@return true if modified, false otherwise.  */
+	bool is_modified(const ulint field_no) const
+	{
+		for (ulint i = 0; i < n_fields; ++i) {
+			if (field_no == fields[i].field_no) {
+				return(true);
+			}
+		}
+		return(false);
+	}
 };
 
 #ifndef UNIV_HOTBACKUP

@@ -2296,7 +2296,7 @@ ibuf_get_merge_page_nos_func(
 	mtr_t*		mtr,	/*!< in: mini-transaction holding rec */
 #endif /* UNIV_DEBUG */
 	ulint*		space_ids,/*!< in/out: space id's of the pages */
-	ib_int64_t*	space_versions,/*!< in/out: tablespace version
+	int64_t*	space_versions,/*!< in/out: tablespace version
 				timestamps; used to prevent reading in old
 				pages after DISCARD + IMPORT tablespace */
 	ulint*		page_nos,/*!< in/out: buffer for at least
@@ -2501,13 +2501,13 @@ ibuf_get_merge_pages(
 	ulint		limit,	/*!< in: max page numbers to read */
 	ulint*		pages,	/*!< out: pages read */
 	ulint*		spaces,	/*!< out: spaces read */
-	ib_int64_t*	versions,/*!< out: space versions read */
+	int64_t*	versions,/*!< out: space versions read */
 	ulint*		n_pages,/*!< out: number of pages read */
 	mtr_t*		mtr)	/*!< in: mini transaction */
 {
 	const rec_t*	rec;
 	ulint		volume = 0;
-	ib_int64_t	version = fil_space_get_version(space);
+	int64_t		version = fil_space_get_version(space);
 
 	ut_a(space != ULINT_UNDEFINED);
 
@@ -2553,7 +2553,7 @@ ibuf_merge_pages(
 	ulint		sum_sizes;
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 
 	*n_pages = 0;
 
@@ -2650,7 +2650,7 @@ ibuf_merge_space(
 	ulint		sum_sizes = 0;
 	ulint		pages[IBUF_MAX_N_PAGES_MERGED];
 	ulint		spaces[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		versions[IBUF_MAX_N_PAGES_MERGED];
 
 	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
@@ -3458,13 +3458,14 @@ ibuf_insert_low(
 	dberr_t		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
 	ut_a(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
 	ut_a(op < IBUF_OP_COUNT);
@@ -4256,6 +4257,7 @@ ibuf_delete(
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
+	ut_ad(!dict_index_is_spatial(index));
 
 	low_match = page_cur_search(block, index, entry, &page_cur);
 
@@ -4704,6 +4706,8 @@ loop:
 		the block is io-fixed. Other threads must not try to
 		latch an io-fixed block. */
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
+	} else if (update_ibuf_bitmap) {
+		mtr.set_named_space(page_id.space());
 	}
 
 	if (!btr_pcur_is_on_user_rec(&pcur)) {
@@ -4861,7 +4865,7 @@ loop:
 	}
 
 reset_bit:
-	if (update_ibuf_bitmap && block != NULL) {
+	if (update_ibuf_bitmap) {
 		page_t*	bitmap_page;
 
 		bitmap_page = ibuf_bitmap_get_map_page(page_id, *page_size,
@@ -4871,16 +4875,18 @@ reset_bit:
 			bitmap_page, page_id, *page_size,
 			IBUF_BITMAP_BUFFERED, FALSE, &mtr);
 
-		ulint old_bits = ibuf_bitmap_page_get_bits(
-			bitmap_page, page_id, *page_size,
-			IBUF_BITMAP_FREE, &mtr);
-
-		ulint new_bits = ibuf_index_page_calc_free(block);
-
-		if (old_bits != new_bits) {
-			ibuf_bitmap_page_set_bits(
+		if (block != NULL) {
+			ulint old_bits = ibuf_bitmap_page_get_bits(
 				bitmap_page, page_id, *page_size,
-				IBUF_BITMAP_FREE, new_bits, &mtr);
+				IBUF_BITMAP_FREE, &mtr);
+
+			ulint new_bits = ibuf_index_page_calc_free(block);
+
+			if (old_bits != new_bits) {
+				ibuf_bitmap_page_set_bits(
+					bitmap_page, page_id, *page_size,
+					IBUF_BITMAP_FREE, new_bits, &mtr);
+			}
 		}
 	}
 

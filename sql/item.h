@@ -3113,10 +3113,10 @@ class Item_string :public Item_basic_constant
 
 protected:
   explicit Item_string(const POS &pos) : super(pos), m_cs_specified(FALSE) {}
-  void init(const char *str, uint length,
+  void init(const char *str, size_t length,
             const CHARSET_INFO *cs, Derivation dv, uint repertoire)
   {
-    str_value.set_or_copy_aligned(str, length, cs);
+    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
     collation.set(cs, dv, repertoire);
     /*
       We have to have a different max_length than 'length' here to
@@ -3249,9 +3249,9 @@ public:
   }
   Item *safe_charset_converter(const CHARSET_INFO *tocs);
   Item *charset_converter(const CHARSET_INFO *tocs, bool lossless);
-  inline void append(char *str, uint length)
+  inline void append(char *str, size_t length)
   {
-    str_value.append(str, length);
+    str_value.append(str, static_cast<uint32>(length));
     max_length= str_value.numchars() * collation.collation->mbmaxlen;
   }
   virtual void print(String *str, enum_query_type query_type);
@@ -3432,7 +3432,7 @@ public:
   bool eq(const Item *item, bool binary_cmp) const;
   virtual Item *safe_charset_converter(const CHARSET_INFO *tocs);
   bool check_partition_func_processor(uchar *int_arg) {return false;}
-  static LEX_STRING make_hex_str(const char *str, uint str_length);
+  static LEX_STRING make_hex_str(const char *str, size_t str_length);
 private:
   void hex_string_init(const char *str, uint str_length);
 };
@@ -4912,5 +4912,8 @@ extern int stored_field_cmp_to_item(THD *thd, Field *field, Item *item);
 extern const String my_null_string;
 void convert_and_print(String *from_str, String *to_str,
                        const CHARSET_INFO *to_cs);
+#ifndef DBUG_OFF
+bool is_fixed_or_outer_ref(Item *ref);
+#endif
 
 #endif /* ITEM_INCLUDED */

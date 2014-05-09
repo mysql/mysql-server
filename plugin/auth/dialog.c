@@ -287,7 +287,7 @@ static int perform_dialog(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
     }
     /* send the reply to the server */
     res= vio->write_packet(vio, (const unsigned char *) reply, 
-						   strlen(reply)+1);
+                           (int)strlen(reply)+1);
 
     if (reply != mysql->passwd && reply != reply_buf)
       free(reply);

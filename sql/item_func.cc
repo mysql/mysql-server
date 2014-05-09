@@ -1993,9 +1993,11 @@ void Item_func_int_div::fix_length_and_dec()
 {
   Item_result argtype= args[0]->result_type();
   /* use precision ony for the data type it is applicable for and valid */
-  max_length=args[0]->max_length -
-    (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
-     args[0]->decimals : 0);
+  uint32 char_length= args[0]->max_char_length() -
+                      (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
+                       args[0]->decimals : 0);
+  fix_char_length(char_length > MY_INT64_NUM_DECIMAL_DIGITS ?
+                  MY_INT64_NUM_DECIMAL_DIGITS : char_length);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
@@ -5824,7 +5826,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   }
   /* Mark that this variable has been used by this query */
   var_entry->used_query_id= thd->query_id;
-  if (insert_dynamic(&thd->user_var_events, &user_var_event))
+  if (thd->user_var_events.push_back(user_var_event))
     goto err;
 
   *out_entry= var_entry;

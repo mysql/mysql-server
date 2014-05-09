@@ -289,7 +289,7 @@ int opts;			/* may not match f1 */
 	int nshould;
 	char erbuf[100];
 	int err;
-	int len;
+	size_t len;
 	const char *type = (opts & MY_REG_EXTENDED) ? "ERE" : "BRE";
 	int i;
 	char *grump;
@@ -304,8 +304,8 @@ int opts;			/* may not match f1 */
 		/* unexpected error or wrong error */
 		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "%d: %s error %s, %d/%d `%s'\n",
-					line, type, eprint(err), len,
-					(int) sizeof(erbuf), erbuf);
+                        line, type, eprint(err), (int )len,
+                        (int) sizeof(erbuf), erbuf);
 		status = 1;
 	} else if (err == 0 && opt('C', f1)) {
 		/* unexpected success */
@@ -335,8 +335,8 @@ int opts;			/* may not match f1 */
 		/* unexpected error or wrong error */
 		len = my_regerror(err, &re, erbuf, sizeof(erbuf));
 		fprintf(stderr, "%d: %s exec error %s, %d/%d `%s'\n",
-					line, type, eprint(err), len,
-					(int) sizeof(erbuf), erbuf);
+                        line, type, eprint(err), (int)len,
+                        (int) sizeof(erbuf), erbuf);
 		status = 1;
 	} else if (err != 0) {
 		/* nothing more to check */
@@ -480,8 +480,8 @@ char *str;
 my_regmatch_t sub;
 char *should;
 {
-	int len;
-	int shlen;
+	size_t len;
+	size_t shlen;
 	char *p;
 	static char grump[500];
 	char *at = NULL;
@@ -516,19 +516,19 @@ char *should;
 		return(grump);
 	}
 
-	len = (int)(sub.rm_eo - sub.rm_so);
-	shlen = (int)strlen(should);
+	len = (size_t)(sub.rm_eo - sub.rm_so);
+	shlen = strlen(should);
 	p = str + sub.rm_so;
 
 	/* check for not supposed to match */
 	if (should == NULL) {
-		sprintf(grump, "matched `%.*s'", len, p);
+          sprintf(grump, "matched `%.*s'", (int)len, p);
 		return(grump);
 	}
 
 	/* check for wrong match */
-	if (len != shlen || strncmp(p, should, (size_t)shlen) != 0) {
-		sprintf(grump, "matched `%.*s' instead", len, p);
+	if (len != shlen || strncmp(p, should, shlen) != 0) {
+          sprintf(grump, "matched `%.*s' instead", (int)len, p);
 		return(grump);
 	}
 	if (shlen > 0)

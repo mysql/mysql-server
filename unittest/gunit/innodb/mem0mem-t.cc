@@ -17,15 +17,16 @@
 
 // First include (the generated) my_config.h, to get correct platform defines.
 #include "my_config.h"
-#include <gtest/gtest.h>
-
-#include "handler.h"
 
 #include "univ.i"
 
 #include "mem0mem.h"
 #include "srv0conc.h"
 #include "srv0srv.h"
+
+#include "handler.h"
+
+#include <gtest/gtest.h>
 
 namespace innodb_mem0mem_unittest {
 
