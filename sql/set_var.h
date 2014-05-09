@@ -341,8 +341,8 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type);
 
 void lock_plugin_mutex();
 void unlock_plugin_mutex();
-sys_var *find_sys_var(THD *thd, const char *str, uint length=0);
-sys_var *find_sys_var_ex(THD *thd, const char *str, uint length=0,
+sys_var *find_sys_var(THD *thd, const char *str, size_t length=0);
+sys_var *find_sys_var_ex(THD *thd, const char *str, size_t length=0,
                          bool throw_error= false, bool locked= false);
 int sql_set_variables(THD *thd, List<set_var_base> *var_list);
 

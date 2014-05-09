@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -764,7 +764,6 @@ buf_flush_update_zip_checksum(
 		static_cast<srv_checksum_algorithm_t>(srv_checksum_algorithm));
 
 	mach_write_to_8(page + FIL_PAGE_LSN, lsn);
-	memset(page + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
 }
 
@@ -934,7 +933,6 @@ buf_flush_write_block_low(
 
 		mach_write_to_8(frame + FIL_PAGE_LSN,
 				bpage->newest_modification);
-		memset(frame + FIL_PAGE_FILE_FLUSH_LSN, 0, 8);
 		break;
 	case BUF_BLOCK_FILE_PAGE:
 		frame = bpage->zip.data;
@@ -2341,7 +2339,7 @@ ulint
 pc_sleep_if_needed(
 /*===============*/
 	ulint		next_loop_time,
-	ib_int64_t	sig_count)
+	int64_t		sig_count)
 {
 	ulint	cur_time = ut_time_ms();
 
@@ -2607,7 +2605,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	buf_page_cleaner_is_active = TRUE;
 
 	ulint		ret_sleep = 0;
-	ib_int64_t	sig_count = os_event_reset(buf_flush_event);
+	int64_t		sig_count = os_event_reset(buf_flush_event);
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is

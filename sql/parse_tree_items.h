@@ -635,7 +635,7 @@ public:
   PTI_num_literal_num(const POS &pos,
                        const LEX_STRING &num, int dummy_error= 0)
   : super(pos, num, (longlong) my_strtoll10(num.str, NULL, &dummy_error),
-          num.length)
+          static_cast<uint>(num.length))
   {}
 };
 

@@ -176,7 +176,6 @@ SET(SQL_SHARED_SOURCES
   sql_show.cc
   sql_signal.cc
   sql_state.c
-  sql_string.cc 
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
@@ -221,6 +220,7 @@ SET(SQL_SOURCE
   ../sql-common/my_user.c 
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
+  ../sql-common/sql_string.cc 
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
@@ -318,7 +318,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   mdl.cc 
   opt_costmodel.cc
   sql_list.cc 
-  sql_string.cc
+  ../sql-common/sql_string.cc
   thr_malloc.cc
   )
 

@@ -999,7 +999,8 @@ public:
                                   typelib.count,
                                   current_value,
                                   default_value,
-                                  res->ptr(), res->length(),
+                                  res->ptr(),
+                                  static_cast<uint>(res->length()),
                                   &error, &error_len);
         if (error)
         {

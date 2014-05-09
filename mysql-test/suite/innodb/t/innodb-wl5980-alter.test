@@ -274,6 +274,7 @@ ALTER TABLE t1c DROP INDEX C2, DROP INDEX C3;
 ALTER TABLE t1c DROP INDEX C3;
 
 SET foreign_key_checks=0;
+--error ER_DROP_INDEX_FK
 ALTER TABLE t1c DROP INDEX C3;
 
 --echo ### files in MYSQL_DATA_DIR/test

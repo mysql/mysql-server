@@ -2053,8 +2053,8 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
   int4store(buff+12,mrg->max_pack_length);
-  int4store(buff+16,tot_elements);
-  int4store(buff+20,intervall_length);
+  int4store(buff+16, (uint32)tot_elements);
+  int4store(buff+20, (uint32)intervall_length);
   int2store(buff+24,trees);
   buff[26]=(char) mrg->ref_length;
 	/* Save record pointer length */
