@@ -3368,6 +3368,32 @@ runBug56579(NDBT_Context* ctx, NDBT_Step* step)
 }
 
 int
+runBug18703871(NDBT_Context* ctx, NDBT_Step* step)
+{
+  Ndb* ndb= GETNDB(step);
+  const NdbDictionary::Table * table= ctx->getTab();
+
+  char buf[1024];
+  sprintf(buf, "%s_EVENT", table->getName());
+  NdbEventOperation *pOp = ndb->createEventOperation(buf);
+  if ( pOp == NULL ) {
+    g_err << "Event operation creation failed on %s" << buf << endl;
+    return NDBT_FAILED;
+  }
+
+  Uint64 curr_gci;
+  int res = ndb->pollEvents(0, &curr_gci);
+  if (res == 1 && ndb->nextEvent() == 0)
+  {
+    g_err << "pollEvents returned 1, but nextEvent found none" << endl;
+    ndb->dropEventOperation(pOp);
+    return NDBT_FAILED;
+  }
+  ndb->dropEventOperation(pOp);
+  return NDBT_OK;
+}
+
+int
 runBug57886_create_drop(NDBT_Context* ctx, NDBT_Step* step)
 {
   int loops = ctx->getNumLoops();
@@ -3796,6 +3822,12 @@ TESTCASE("DbUtilRace",
 {
   INITIALIZER(runCreateEvent);
   STEP(runTryGetEvent);
+  FINALIZER(runDropEvent);
+}
+TESTCASE("Bug18703871", "")
+{
+  INITIALIZER(runCreateEvent);
+  STEP(runBug18703871);
   FINALIZER(runDropEvent);
 }
 NDBT_TESTSUITE_END(test_event);
