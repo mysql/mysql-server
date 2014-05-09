@@ -91,6 +91,109 @@ systemInfo(const Configuration & config, const LogLevel & logLevel)
   }
 }
 
+static
+Uint64
+parse_size(const char * src)
+{
+  Uint64 num = 0;
+  char * endptr = 0;
+  num = strtoll(src, &endptr, 10);
+
+  if (endptr)
+  {
+    switch(* endptr){
+    case 'k':
+    case 'K':
+      num *= 1024;
+      break;
+    case 'm':
+    case 'M':
+      num *= 1024;
+      num *= 1024;
+      break;
+    case 'g':
+    case 'G':
+      num *= 1024;
+      num *= 1024;
+      num *= 1024;
+      break;
+    }
+  }
+  return num;
+}
+
+/**
+ * Gets the number of pages to be allocated for undo_buffer.
+ * In-parameter: initialLogFileGroupSpec
+ * Returns: the number of undo_buffer_pages to be allocated, based
+ * on the undo_buffer_size specified in the initialLogFileGroupSpec or
+ * on the default value.
+ *
+ * The method parses the initialLogFileGroupSpec:
+ * "InitialLogFileGroup = [name=name;] [undo_buffer_size=size;] file-spec-list"
+ * upto the first filespec and returns undo_buffer_size if found
+ * or the default value.
+ * (See parse_spec of NdbcntrMain.cpp for complete parsing).
+ *
+ * Some eg. spec and the returned value for undo buffer size:
+ * "name=lg; undo_buffer_size=80M" -> 80M.
+ * "undo_buffer_size =80M" -> parse failure: no space before '=', crashes ndbd.
+ * ";.." or "..;;.."  -> parse failure: preceeding or double ';'
+ *   gives empty items and crashes ndbd.
+ * "undo_buffer_size=80M" or "undo_buffer_size=80M;" -> 0, no filespec follows.
+ * "undofile.log:150M" -> 64M default.
+ * "undo_buffer_size=80M; undofile.log:250M" -> 80M.
+ * "name=lg; undo_buffer_size=80M;undo1.log:250M" -> 80M.
+ * "name=lg; undo1.log:250M; undo_buffer_size=80M -> 64M,
+ *   undo_buffer_size given after filespec is ignored.
+ */
+Uint32
+get_undo_buffer_pages(const char *initialLogFileGroupSpec)
+{
+  const char * key = "undo_buffer_size=";
+  const size_t keylen = strlen(key);
+  BaseString arg(initialLogFileGroupSpec);
+  Vector<BaseString> list;
+  arg.split(list, ";");
+
+  Uint64 undoBufSz = 0, tmp = 64 * 1024 * 1024;
+  for (Uint32 i = 0; i<list.size(); i++)
+  {
+    list[i].trim();
+    if (strncasecmp(list[i].c_str(), "name=", sizeof("name=")-1) == 0)
+    {
+    }
+    else if (strncasecmp(list[i].c_str(), key,
+                         keylen) == 0)
+    {
+      tmp = parse_size(list[i].c_str() + keylen);
+    }
+    else if (strlen(list[i].c_str()) == 0 && (i + 1) == list.size())
+    {
+      // ignore stray ";" found at the end
+    }
+    else
+    {
+      const char * path = list[i].c_str();
+      char * sizeptr = const_cast<char*>(strchr(path, ':'));
+      if (sizeptr == 0)
+      {
+        // Wrong filespec, unable to parse:
+        // Better to crash here for the cases found here, than waiting for
+        // Ndbcntr::execREAD_CONFIG_REQ and parse_spec to do that later.
+        char buf[1024];
+        BaseString::snprintf(buf, sizeof(buf),
+                             "Unable to parse InitialLogfileGroup: %s",
+                             initialLogFileGroupSpec);
+        ERROR_SET_SIGNAL(fatal, NDBD_EXIT_INVALID_CONFIG, buf, __FILE__);
+      }
+      // Found the first filespec. Use the configured buffsz or default.
+      undoBufSz = tmp;
+      break;
+    }
+  }
+  return (undoBufSz/GLOBAL_PAGE_SIZE);
+}
 
 Uint32
 compute_acc_32kpages(const ndb_mgm_configuration_iterator * p)
@@ -286,8 +389,36 @@ init_global_memory_manager(EmulatorData &ed, Uint32 *watchCounter)
     ed.m_mem_manager->set_resource_limit(rl);
   }
 
+  Uint32 undopages = 0;
+  {
+    /**
+     *  If disk data, alloc configured or default(64M) undo buffer memory.
+     */
+    Uint32 dl = 0;
+    ndb_mgm_get_int_parameter(p, CFG_DB_DISCLESS, &dl);
+
+    if (dl == 0)
+    {
+      const char * lgspec = 0;
+      ndb_mgm_get_string_parameter(p, CFG_DB_DD_LOGFILEGROUP_SPEC, &lgspec);
+
+      if (lgspec != 0)
+      {
+        undopages = get_undo_buffer_pages(lgspec);
+        if (undopages != 0)
+        {
+          Resource_limit rl;
+          rl.m_min = undopages;
+          rl.m_max = 0;
+          rl.m_resource_id = RG_DISK_OPERATIONS;
+          ed.m_mem_manager->set_resource_limit(rl);
+        }
+      }
+    }
+  }
+
   Uint32 sum = shared_pages + tupmem + filepages + jbpages + sbpages +
-    pgman_pages + stpages;
+    pgman_pages + stpages + undopages;
 
   if (sum)
   {
