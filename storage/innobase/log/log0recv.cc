@@ -3010,6 +3010,10 @@ recv_init_crash_recovery_spaces(void)
 		} else if (i->second.space != NULL) {
 			/* The tablespace was found, and there
 			are some redo log records for it. */
+			if (!fil_names_dirty(i->second.space)) {
+				/* The space should previously be clean. */
+				ut_ad(0);
+			}
 		} else if (srv_force_recovery == 0) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Tablespace " ULINTPF
@@ -3259,6 +3263,8 @@ recv_recovery_from_checkpoint_start(
 		}
 	}
 
+	log_sys->lsn = recv_sys->recovered_lsn;
+
 	if (recv_needed_recovery) {
 		err = recv_init_crash_recovery_spaces();
 
@@ -3311,8 +3317,6 @@ recv_recovery_from_checkpoint_start(
 	} else {
 		srv_start_lsn = recv_sys->recovered_lsn;
 	}
-
-	log_sys->lsn = recv_sys->recovered_lsn;
 
 	ut_memcpy(log_sys->buf, recv_sys->last_block, OS_FILE_LOG_BLOCK_SIZE);
 
