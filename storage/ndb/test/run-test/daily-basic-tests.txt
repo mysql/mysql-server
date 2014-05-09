@@ -1120,6 +1120,11 @@ cmd: test_event
 args: -n Bug12598496 T1
 
 #
+max-time: 1000
+cmd: test_event
+args: -n Bug18703871 T1
+
+#
 max-time: 600
 cmd: test_event_merge
 args: --no-implicit-nulls --separate-events --blob-version 1
