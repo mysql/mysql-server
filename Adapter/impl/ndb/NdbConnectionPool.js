@@ -132,7 +132,8 @@ function closeNdb(execQueue, ndb, callbackOnClose) {
 }
 
 
-exports.closeNdbSession = function(ndbPool, ndbSession, userCallback) {
+exports.closeNdbSession = function(ndbSession, userCallback) {
+  var ndbPool = ndbSession.parentPool;
   var ndbConn = ndbPool.ndbConnection;
 
   if(! ndbConn.isConnected) 

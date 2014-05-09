@@ -22,8 +22,8 @@
 
 var stats = {
 	"created" : 0,
-  "startTransaction" : { 
-    "sync" : 0 , "async" : 0 , "delayed" : 0 
+  "seizeTransactionContext" : { 
+    "immediate" : 0 , "queued" : 0 
   }
 };
 
@@ -43,24 +43,22 @@ require(path.join(api_dir,"stats.js")).register(stats, "spi","ndb","DBSession");
   A session has a single transaction visible to the user at any time: 
   NdbSession.tx, which is created in NdbSession.getTransactionHandler() 
   and persists until the user performs an execute commit or rollback, 
-  at which point NdbSession.tx is reset to null.  The previous 
+  at which point NdbSession.tx is "retired" and reset to null.  The previous 
   TransactionHandler is still alive at this point, but it no longer 
   represents the session's current transaction. 
 
-  THREE QUEUES
-  ------------
-  1. An Ndb object is "single-threaded".  All calls on the session's single Ndb 
-     object are serialized in NdbSession.execQueue.
-  2. ???? XXX All execute calls on an NdbTransaction must wait for startTransaction() 
-     to return.  They are placed on NdbTransactionHandler.execAfterOpenQueue
-     until startTransaction() has returned.
-  3. All ndb.startTransaction() calls must wait on NdbSession.startTxQueue
-     for some NdbTransaction to close, if more than N NdbTransactions are open.
-     N is an argument to the Ndb() constructor and defaults to 4.
+  QUEUES
+  ------
+  1. An Ndb object is "single-threaded".  All execute calls on the session's
+     DBSessionImpl are serialized in NdbSession.execQueue.  This is seen in
+     run() in NdBTransactionHandler.
+  2. seizeTransactionContext() calls must wait on NdbSession.seizeTxQueue
+     for some transaction context to be released, if more than 
+     ndb_session_concurrency contexts are open.
 */
 
 
-/* DBSession Constructor
+/* DBSession Constructor. Undocumented - private to NdbConnectionPool.
 */
 NdbSession = function(pool) {
   stats.created++;
@@ -69,10 +67,13 @@ NdbSession = function(pool) {
   this.tx                    = null;
   this.execQueue             = [];
   this.seizeTxQueue          = null;
-  this.maxNdbTransactions    = pool.properties.ndb_session_concurrency;  
-  this.openNdbTransactions   = 0;  // currently opened  
+  this.maxTxContexts         = pool.properties.ndb_session_concurrency;  
+  this.openTxContexts        = 0;  // currently opened  
 };
 
+/* fetch DBSessionImpl. Undocumented - private to NdbConnectionPool. 
+   ASYNC.
+*/
 NdbSession.prototype.fetchImpl = function(callback) {
   var self = this;
   var pool = this.parentPool;
@@ -90,84 +91,56 @@ NdbSession.prototype.fetchImpl = function(callback) {
   });
 };
 
-
-
 /* Reset the session's current transaction.
    NdbTransactionHandler calls this immediately at execute(COMMIT | ROLLBACK).
    The closed NdbTransactionHandler is still alive and running, 
    but the session can now open a new one.
+   Undocumented - private to NdbTransactionHandler.  IMMEDIATE.
 */
-NdbSession.prototype.closeActiveTransactionHandler = function() {
+NdbSession.prototype.retireTransactionHandler = function() {
   this.tx = null;  
 };
 
-NdbSession.prototype.txQueuePush = function(startTxCall) {
-  if(this.startTxQueue === null) {
-    this.startTxQueue = [];
-  }
-  this.startTxQueue.push(startTxCall);
-};
-
-/* Execute a StartTransaction call, or queue it if necessary
-   TODO: Set partition key in startTransaction() calls.
+/* seizeTransactionContext().  Undocumented - private to NdbTransactionHandler.
+   Takes callback; may be immediate or queued.
 */
-NdbSession.prototype.startNdbTransaction = function(table, nTx, callback) {
-  var ndbTx, txError, startTxCall;
-  txError = null;
-
-  if(this.execQueue.length == 0 ) {          // Run immediately (sync)
-    stats.startTransaction.sync++;
-    this.cachedNdbTransactions -= nTx;
-    this.openNdbTransactions += nTx;
-    assert(this.openNdbTransactions <= this.maxNdbTransactions);
-    ndbTx = this.impl.startTransaction(table, "", 0); 
-    if(ndbTx === null) {
-      txError = this.impl.getNdbError();
+NdbSession.prototype.seizeTransactionContext = function(callback) {
+  var txContext;
+  if(this.openTxContexts < this.maxTxContexts) {
+    this.openTxContexts++;
+    stats.seizeTransactionContext.immediate++;
+    udebug.log("seizeTransactionContext immediate", this.openTxContexts);
+    txContext = this.impl.seizeTransaction();
+    assert(txContext);
+    callback(txContext);
+  } else {
+    if(this.seizeTxQueue === null) {
+      this.seizeTxQueue = [];
     }
-    callback(txError, ndbTx);
-  } 
-  else {
-    startTxCall = new QueuedAsyncCall(this.execQueue, callback);
-    startTxCall.table = table;
-    startTxCall.ndb = this.impl;
-    startTxCall.description = "startNdbTransaction";
-    startTxCall.run = function() {      
-      this.ndb.startTransaction(this.table, "", 0, this.callback);
-    };
-
-    if(this.openNdbTransactions + nTx <= this.maxNdbTransactions) {
-      this.openNdbTransactions += nTx;
-      stats.startTransaction.async++;
-      startTxCall.enqueue();           // go directly to the exec queue
-    }
-    else {                              // wait in the startTx queue
-      stats.startTransaction.delayed++;
-      startTxCall.nTx = nTx;
-      this.txQueuePush(startTxCall);  
-    }
+    this.seizeTxQueue.push(callback);
+    stats.seizeTransactionContext.queued++;
+    udebug.log("seizeTransactionContext queued", this.seizeTxQueue.length);
   }
 };
 
-
-/* Close an NdbTransaction. 
+/* releaseTransactionContext(). Undocumented - private to NdbTransactionHandler.
+   IMMEDIATE.
 */
-NdbSession.prototype.closeNdbTransaction = function(nTx) {
-  var nextTx;
-  this.openNdbTransactions -= nTx;
-  this.cachedNdbTransactions += nTx;
-  assert(this.openNdbTransactions >= 0);
-  while(this.startTxQueue && this.startTxQueue.length > 0 && 
-        this.openNdbTransactions + this.startTxQueue[0].nTx <= this.maxNdbTransactions) {
-    /* move a waiting StartTxCall from the startTxQueue to the execQueue */
-    udebug.log("closeNdbTransaction: pulled 1 from startTxQueue");
-    nextTx = this.startTxQueue.shift();
-    this.openNdbTransactions += nextTx.nTx;
-    nextTx.enqueue(); 
+NdbSession.prototype.releaseTransactionContext = function(txContext) {
+  udebug.log("releaseTransactionContext");
+  var nextTxCallback, didRelease;
+
+  didRelease = this.impl.releaseTransaction(txContext);
+  this.openTxContexts--;
+  assert(didRelease === 1);   // 0 means NdbTransaction was not closed.
+  assert(this.openTxContexts >= 0);
+
+  if(this.seizeTxQueue && this.seizeTxQueue.length) {
+    nextTxCallback = this.seizeTxQueue.shift();
+    txContext = this.impl.seizeTransaction();
+    nextTxCallback(txContext);
   }
 };
-
-
-/*** DBSession SPI Prototype Methods ***/
 
 
 /*  getConnectionPool() 
@@ -184,7 +157,8 @@ NdbSession.prototype.getConnectionPool = function() {
    ASYNC. Optional callback.
 */
 NdbSession.prototype.close = function(callback) {
-  this.impl.destroy(callback);
+  this.impl.freeTransactions();
+  ndbconnpool.closeNdbSession(this, callback);
 };
 
 

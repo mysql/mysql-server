@@ -38,7 +38,7 @@ var NdbDefaultConnectionProperties = {
                                         guidelines for the size of that pool.
                                      */
 
-  "ndb_sesion_concurrency" : 4       /* The number of concurrent transactions 
+  "ndb_session_concurrency" : 4      /* The number of concurrent transactions 
                                         in an Ndb Session.  Only one 
                                         transaction at a time is visible to the
                                         user, but one may start before previous
