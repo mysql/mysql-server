@@ -576,9 +576,6 @@ static int tokudb_done_func(void *p) {
     toku_global_status_rows = NULL;
     my_hash_free(&tokudb_open_tables);
     tokudb_pthread_mutex_destroy(&tokudb_mutex);
-#if defined(_WIN64)
-    toku_ydb_destroy();
-#endif
     TOKUDB_DBUG_RETURN(0);
 }
 
