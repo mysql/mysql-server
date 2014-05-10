@@ -16,6 +16,7 @@
 #include "rpl_mts_submode.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
+#include "rpl_slave_commit_order_manager.h"
 
 /**
  Does necessary arrangement before scheduling next event.
@@ -616,6 +617,9 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
           rli->info_thd->variables.option_bits&= ~OPTION_BEGIN;
       }
     }
+
+    if (rli->get_commit_order_manager() != NULL && worker != NULL)
+      rli->get_commit_order_manager()->register_trx(worker);
   }
 
   DBUG_ASSERT(ptr_group);
