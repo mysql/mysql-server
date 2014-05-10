@@ -1,3 +1,18 @@
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
+
+   This program is free software; you can redistribute it and/or modify
+   it under the terms of the GNU General Public License as published by
+   the Free Software Foundation; version 2 of the License.
+
+   This program is distributed in the hope that it will be useful,
+   but WITHOUT ANY WARRANTY; without even the implied warranty of
+   MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+   GNU General Public License for more details.
+
+   You should have received a copy of the GNU General Public License
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
+
 #include "my_global.h"                          /* NO_EMBEDDED_ACCESS_CHECKS */
 #include "sql_priv.h"
 #include "unireg.h"
@@ -6,6 +21,7 @@
 #include "sql_string.h"
 #include <hash.h>
 #include "rpl_mts_submode.h"
+#include "rpl_slave_commit_order_manager.h"
 
 #ifndef DBUG_OFF
   ulong w_rr= 0;
@@ -141,6 +157,8 @@ int Slave_worker::init_worker(Relay_log_info * rli, ulong i)
   Slave_job_item empty= {NULL};
 
   c_rli= rli;
+  set_commit_order_manager(c_rli->get_commit_order_manager());
+
   if (rli_init_info(false) ||
       DBUG_EVALUATE_IF("inject_init_worker_init_info_fault", true, false))
     DBUG_RETURN(1);
@@ -517,6 +535,15 @@ bool Slave_worker::commit_positions(Log_event *ev, Slave_job_group* ptr_g, bool 
   );
 
   DBUG_RETURN(flush_info(force));
+}
+
+void Slave_worker::rollback_positions(Slave_job_group* ptr_g)
+{
+  if (!is_transactional())
+  {
+    bitmap_clear_bit(&group_executed, ptr_g->checkpoint_seqno);
+    flush_info(false);
+  }
 }
 
 HASH mapping_db_to_worker;
@@ -1041,6 +1068,13 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     Slave_job_group *ptr_g= c_rli->gaq->get_job_group(gaq_index);
 
     DBUG_ASSERT(gaq_index == ev->mts_group_idx);
+    /*
+      It guarantees that the worker is removed from order commit queue when
+      its transaction doesn't binlog anything. It will break innodb group commit,
+      but it should rarely happen.
+    */
+    if (get_commit_order_manager())
+      get_commit_order_manager()->report_commit(this);
 
     // first ever group must have relay log name
     DBUG_ASSERT(last_group_done_index != c_rli->gaq->size ||
@@ -1073,6 +1107,10 @@ void Slave_worker::slave_worker_ends_group(Log_event* ev, int error)
     mysql_mutex_lock(&jobs_lock);
     running_status= ERROR_LEAVING;
     mysql_mutex_unlock(&jobs_lock);
+
+    /* Fatal error happens, it notifies the following transaction to rollback */
+    if (get_commit_order_manager())
+      get_commit_order_manager()->report_rollback(this);
 
     // Killing Coordinator to indicate eventual consistency error
     mysql_mutex_lock(&c_rli->info_thd->LOCK_thd_data);
