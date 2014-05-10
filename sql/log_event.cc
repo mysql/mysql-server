@@ -3066,6 +3066,12 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ret_worker=
       rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
                                                           this);
+    if (ret_worker == NULL)
+    {
+      /* get_least_occupied_worker may return NULL if the thread is killed */
+      DBUG_ASSERT(thd->killed);
+      DBUG_RETURN(NULL);
+    }
     ptr_group->worker_id= ret_worker->id;
   }
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
