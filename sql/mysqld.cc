@@ -4859,6 +4859,7 @@ int mysqld_main(int argc, char **argv)
 
   if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
   {
+    terminate_compress_gtid_table_thread();
     /*
       Save set of GTIDs of the last binlog into gtid_executed table
       on server shutdown.
@@ -4868,7 +4869,6 @@ int mysqld_main(int argc, char **argv)
                         "into gtid_executed table on server shutdown, "
                         "so we save it into gtid_executed table and "
                         "executed_gtids during next server startup.");
-    terminate_compress_gtid_table_thread();
   }
 
 #ifndef _WIN32
