@@ -5174,15 +5174,15 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
   mysql_mutex_lock(&LOCK_index);
 
-  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
-      && (error= ha_flush_logs(NULL)))
-    goto end;
-
   mysql_mutex_assert_owner(&LOCK_log);
   mysql_mutex_assert_owner(&LOCK_index);
 
   /* Reuse old name if not binlog and not update log */
   new_name_ptr= name;
+
+  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
+      && (error= ha_flush_logs(NULL)))
+    goto end;
 
   /*
     If user hasn't specified an extension, generate a new log name
