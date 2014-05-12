@@ -9,6 +9,7 @@ locks_trx_id	locks_mysql_thread_id	locks_dname	locks_key_left	locks_key_right
 select * from information_schema.tokudb_lock_waits;
 requesting_trx_id	blocking_trx_id	lock_waits_dname	lock_waits_key_left	lock_waits_key_right	lock_waits_start_time
 set autocommit=0;
+set tokudb_prelock_empty=OFF;
 insert into t values (1);
 set autocommit=0;
 insert into t values (1);
