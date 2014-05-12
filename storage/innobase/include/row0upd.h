@@ -475,6 +475,21 @@ struct upd_t{
 		}
 		return(false);
 	}
+
+#ifdef UNIV_DEBUG
+        bool validate() const
+        {
+                for (ulint i = 0; i < n_fields; ++i) {
+                        dfield_t* field = &fields[i].new_val;
+                        if (dfield_is_ext(field)) {
+				ut_ad(dfield_get_len(field)
+				      >= BTR_EXTERN_FIELD_REF_SIZE);
+                        }
+                }
+                return(true);
+        }
+#endif // UNIV_DEBUG
+
 };
 
 #ifndef UNIV_HOTBACKUP
