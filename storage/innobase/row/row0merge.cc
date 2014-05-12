@@ -67,6 +67,27 @@ UNIV_INTERN char	srv_disable_sort_file_cache;
 /* Maximum pending doc memory limit in bytes for a fts tokenization thread */
 #define FTS_PENDING_DOC_MEMORY_LIMIT	1000000
 
+#define TEMP_FILE_WRITE_FAIL		DB_TEMP_FILE_WRITE_FAILURE
+
+/** Insert sorted data tuples to the index.
+@param[in]	trx_id		transaction identifier
+@param[in]	index		index to be inserted
+@param[in]	old_table	old table
+@param[in]	fd		file descriptor
+@param[in,out]	block		file buffer
+@param[in]	row_buf		row_buf	sorted data tuples,
+or NULL to read from fd
+@return DB_SUCCESS or error number */
+static	__attribute__((warn_unused_result))
+dberr_t
+row_merge_insert_index_tuples(
+	trx_id_t		trx_id,
+	dict_index_t*		index,
+	const dict_table_t*	old_table,
+	int			fd,
+	row_merge_block_t*	block,
+	const row_merge_buf_t*	row_buf);
+
 #ifdef UNIV_DEBUG
 /******************************************************//**
 Display a merge tuple. */
@@ -1148,6 +1169,43 @@ row_merge_write_eof(
 	return(&block[0]);
 }
 
+/** Create a merge file.
+@param[in,out]	file	merge file structure
+@param[in]	nrec	number of records in the file
+@return TRUE if sucess, false if not */
+static __attribute__((warn_unused_result))
+bool
+row_merge_file_creation(
+	merge_file_t*	file,
+	ulint		nrec) {
+	if (file->fd == -1) {
+		if (row_merge_file_create(file) < 0) {
+			return(false);
+		}
+		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
+		file->n_rec = nrec;
+	}
+	return(true);
+
+}
+
+/** Create a temporary merge file
+@param[in,out] tmpfd	temporary file handle
+@return TRUE if success, false if not */
+static __attribute__((warn_unused_result))
+bool
+row_tmp_file_creation(
+	int*	tmpfd) {
+	if (*tmpfd == -1) {
+		*tmpfd = row_merge_file_create_low();
+		if (*tmpfd < 0) {
+			return(false);
+		}
+		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
+	}
+	return(true);
+
+}
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1188,7 +1246,11 @@ row_merge_read_clustered_index(
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
 	ib_sequence_t&		sequence,/*!< in/out: autoinc sequence */
-	row_merge_block_t*	block)	/*!< in/out: file buffer */
+	row_merge_block_t*	block,	/*!< in/out: file buffer */
+	bool			skip_pk_sort,/*!< in: whether the new
+						PRIMARY KEY will follow
+						existing order */
+	int*			tmpfd)	/*!<in/out: temporary file handle */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -1591,6 +1653,7 @@ write_buffers:
 				a single row can generate more
 				records for tokenized word */
 				file->n_rec += rows_added;
+
 				if (doc_id > max_doc_id) {
 					max_doc_id = doc_id;
 				}
@@ -1627,10 +1690,49 @@ write_buffers:
 			ut_ad(buf->n_tuples || row == NULL);
 
 			/* We have enough data tuples to form a block.
-			Sort them and write to disk. */
-
+			Sort them and write to disk if temp file is used
+			or insert into index if temp file is not used. */
+			bool skip_sort = skip_pk_sort
+				&& dict_index_is_clust(buf->index);
 			if (buf->n_tuples) {
-				if (dict_index_is_unique(buf->index)) {
+				if (skip_sort) {
+					/* Temporary File is not used.
+					so insert sorted block to the index */
+					if (row != NULL) {
+						/* Scanning of index is not
+						complete. so we are storing
+						cursor position to start
+						scanning later */
+						btr_pcur_store_position(
+							&pcur, &mtr);
+						mtr_commit(&mtr);
+					}
+					row_merge_dup_t dup = {
+						buf->index, table, col_map, 0};
+
+					row_merge_buf_sort(buf, &dup);
+
+					if (dup.n_dup) {
+						err = DB_DUPLICATE_KEY;
+						trx->error_key_num
+							= key_numbers[i];
+						goto all_done;
+					}
+
+					err = row_merge_insert_index_tuples(
+						trx->id, index[i], old_table,
+						0, NULL, buf);
+
+					if (row != NULL) {
+						/* Restore the cursor postion
+						to start scanning in the same
+						position */
+						mtr_start(&mtr);
+						btr_pcur_restore_position(
+							BTR_SEARCH_LEAF, &pcur,
+							&mtr);
+					}
+				} else if (dict_index_is_unique(buf->index)) {
 					row_merge_dup_t	dup = {
 						buf->index, table, col_map, 0};
 
@@ -1670,16 +1772,55 @@ write_buffers:
 					dict_index_get_lock(buf->index));
 			}
 
-			row_merge_buf_write(buf, file, block);
+			/* Secondary index and clustered index which is
+			not in sorted order can use the temporary file.
+			Fulltext index should not use the temporary file. */
+			if (!skip_sort && !(buf->index->type & DICT_FTS)) {
+				/* In case we can have all rows in sort buffer,
+				we can insert directly into the index with out
+				temporary file */
+				if (row == NULL && file->fd == -1) {
+					/* Added dbug_sync point to
+					avoid mtr test case failure */
+					DBUG_EXECUTE_IF(
+						"row_merge_write_failure",
+						err = TEMP_FILE_WRITE_FAIL;
+						trx->error_key_num = i;
+						goto all_done;);
 
-			if (!row_merge_write(file->fd, file->offset++,
-					     block)) {
-				err = DB_TEMP_FILE_WRITE_FAILURE;
-				trx->error_key_num = i;
-				break;
+					DBUG_EXECUTE_IF(
+					"innobase_tmpfile_creation_failure",
+						err = DB_OUT_OF_MEMORY;
+						goto all_done;);
+
+					err = row_merge_insert_index_tuples(
+						trx->id, index[i], old_table,
+						0, NULL, buf);
+				} else {
+					if (!row_merge_file_creation(
+						file, buf->n_tuples)) {
+						err = DB_OUT_OF_MEMORY;
+						goto func_exit;
+					}
+					ut_ad(file->n_rec > 0);
+
+					if (!row_tmp_file_creation(tmpfd)) {
+						err = DB_OUT_OF_MEMORY;
+						goto func_exit;
+					}
+					row_merge_buf_write(buf, file, block);
+
+					if (!row_merge_write(
+					            file->fd, file->offset++,
+						    block)) {
+						err = TEMP_FILE_WRITE_FAIL;
+						trx->error_key_num = i;
+						break;
+					}
+					UNIV_MEM_INVALID(
+						&block[0], srv_sort_buf_size);
+				}
 			}
-
-			UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
 			merge_buf[i] = row_merge_buf_empty(buf);
 
 			if (UNIV_LIKELY(row != NULL)) {
@@ -1696,8 +1837,9 @@ write_buffers:
 					room for at least one record. */
 					ut_error;
 				}
-
-				file->n_rec += rows_added;
+				if (file->fd != -1) {
+					file->n_rec += rows_added;
+				}
 			}
 		}
 
@@ -2226,12 +2368,14 @@ row_merge_copy_blobs(
 	dtuple_t*	tuple,	/*!< in/out: data tuple */
 	mem_heap_t*	heap)	/*!< in/out: memory heap */
 {
-	ut_ad(rec_offs_any_extern(offsets));
+	ut_ad(mrec == NULL || rec_offs_any_extern(offsets));
 
 	for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
 		ulint		len;
 		const void*	data;
 		dfield_t*	field = dtuple_get_nth_field(tuple, i);
+		ulint		field_len;
+		const byte*	field_data;
 
 		if (!dfield_is_ext(field)) {
 			continue;
@@ -2245,8 +2389,17 @@ row_merge_copy_blobs(
 		columns cannot possibly be freed between the time the
 		BLOB pointers are read (row_merge_read_clustered_index())
 		and dereferenced (below). */
-		data = btr_rec_copy_externally_stored_field(
-			mrec, offsets, zip_size, i, &len, heap);
+		if (mrec == NULL) {
+			field_data
+				= static_cast<byte*>(dfield_get_data(field));
+			field_len = dfield_get_len(field);
+		} else {
+			field_data = rec_get_nth_field(
+				mrec, offsets, i, &field_len);
+		}
+		data = btr_copy_externally_stored_field(
+			&len, field_data, zip_size, field_len, heap);
+
 		/* Because we have locked the table, any records
 		written by incomplete transactions must have been
 		rolled back already. There must not be any incomplete
@@ -2257,19 +2410,44 @@ row_merge_copy_blobs(
 	}
 }
 
-/********************************************************************//**
-Read sorted file containing index data tuples and insert these data
-tuples to the index
-@return	DB_SUCCESS or error number */
-static __attribute__((nonnull, warn_unused_result))
+/** Converts a merge record to a typed data tuple. Note that externally
+stored fields are not copied to heap.
+@param[in]	index	index on the table
+@param[in]	mtuple	merge record
+@param[in]	heap	memory heap from which memory needed is allocated. */
+static
+void
+row_mtuple_convert_to_dtuple(
+	dict_index_t*	index,
+	dtuple_t*	dtuple,
+	const mtuple_t* mtuple)
+{
+	ut_ad(!dict_index_is_univ(index));
+
+	memcpy(dtuple->fields, mtuple->fields,
+	       dtuple->n_fields * sizeof *mtuple->fields);
+}
+
+/** Insert sorted data tuples to the index.
+@param[in]	trx_id		transaction identifier
+@param[in]	index		index to be inserted
+@param[in]	old_table	old table
+@param[in]	fd		file descriptor
+@param[in,out]	block		file buffer
+@param[in]	row_buf		in case of NULL the function will read
+sorted file containing data tuples and insert to the index. If it is
+not NULL then it will read from row buffer, convert into data tuple
+and insert to index
+@return DB_SUCCESS or error number */
+static	__attribute__((warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
-/*==========================*/
-	trx_id_t		trx_id,	/*!< in: transaction identifier */
-	dict_index_t*		index,	/*!< in: index */
-	const dict_table_t*	old_table,/*!< in: old table */
-	int			fd,	/*!< in: file descriptor */
-	row_merge_block_t*	block)	/*!< in/out: file buffer */
+	trx_id_t		trx_id,
+	dict_index_t*		index,
+	const dict_table_t*	old_table,
+	int			fd,
+	row_merge_block_t*	block,
+	const row_merge_buf_t*	row_buf)
 {
 	const byte*		b;
 	mem_heap_t*		heap;
@@ -2279,6 +2457,8 @@ row_merge_insert_index_tuples(
 	ulint			foffs = 0;
 	ulint*			offsets;
 	mrec_buf_t*		buf;
+	ulint			n_rows = 0;
+	dtuple_t*		dtuple;
 	DBUG_ENTER("row_merge_insert_index_tuples");
 
 	ut_ad(!srv_read_only_mode);
@@ -2298,23 +2478,51 @@ row_merge_insert_index_tuples(
 		offsets[1] = dict_index_get_n_fields(index);
 	}
 
-	b = block;
-
-	if (!row_merge_read(fd, foffs, block)) {
-		error = DB_CORRUPTION;
+	if (row_buf != NULL) {
+		ut_ad(fd == 0 && block == NULL);
+		/* Added dbug_sync point to
+		avoid mtr test case failure */
+		DBUG_EXECUTE_IF("row_merge_read_failure",
+				error = DB_CORRUPTION;
+				goto err_exit;);
+		dtuple = dtuple_create(
+			heap, dict_index_get_n_fields(index));
+		dtuple_set_n_fields_cmp(
+			dtuple, dict_index_get_n_unique_in_tree(index));
 	} else {
-		buf = static_cast<mrec_buf_t*>(
-			mem_heap_alloc(heap, sizeof *buf));
+		b = block;
 
-		for (;;) {
-			const mrec_t*	mrec;
-			dtuple_t*	dtuple;
-			ulint		n_ext;
-			big_rec_t*	big_rec;
-			rec_t*		rec;
-			btr_cur_t	cursor;
-			mtr_t		mtr;
+		if (!row_merge_read(fd, foffs, block)) {
+			error = DB_CORRUPTION;
+			goto err_exit;
+		} else {
+			buf = static_cast<mrec_buf_t*>(
+				mem_heap_alloc(heap, sizeof *buf));
+		}
+	}
 
+	for (;;) {
+		const mrec_t*	mrec;
+		ulint		n_ext;
+		big_rec_t*	big_rec;
+		rec_t*		rec;
+		btr_cur_t	cursor;
+		mtr_t		mtr;
+
+		if (row_buf != NULL) {
+			if (n_rows >= row_buf->n_tuples) {
+				break;
+			}
+			/* Convert merge tuple record from
+			row buffer to data tuple record */
+			row_mtuple_convert_to_dtuple(
+				index, dtuple, &row_buf->tuples[n_rows]);
+
+			n_ext = dtuple_get_n_ext(dtuple);
+			n_rows++;
+			/* mrec is NULL for blob copy */
+			mrec = NULL;
+		} else {
 			b = row_merge_read_rec(block, buf, b, index,
 					       fd, &foffs, &mrec, offsets);
 			if (UNIV_UNLIKELY(!b)) {
@@ -2325,137 +2533,136 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
-			dict_index_t*	old_index
-				= dict_table_get_first_index(old_table);
-
-			if (dict_index_is_clust(index)
-			    && dict_index_is_online_ddl(old_index)) {
-				error = row_log_table_get_error(old_index);
-				if (error != DB_SUCCESS) {
-					break;
-				}
-			}
-
 			dtuple = row_rec_to_index_entry_low(
 				mrec, index, offsets, &n_ext, tuple_heap);
+		}
 
-			if (!n_ext) {
-				/* There are no externally stored columns. */
-			} else {
-				ut_ad(dict_index_is_clust(index));
-				/* Off-page columns can be fetched safely
-				when concurrent modifications to the table
-				are disabled. (Purge can process delete-marked
-				records, but row_merge_read_clustered_index()
-				would have skipped them.)
+		dict_index_t*	old_index
+			= dict_table_get_first_index(old_table);
 
-				When concurrent modifications are enabled,
-				row_merge_read_clustered_index() will
-				only see rows from transactions that were
-				committed before the ALTER TABLE started
-				(REPEATABLE READ).
-
-				Any modifications after the
-				row_merge_read_clustered_index() scan
-				will go through row_log_table_apply().
-				Any modifications to off-page columns
-				will be tracked by
-				row_log_table_blob_alloc() and
-				row_log_table_blob_free(). */
-				row_merge_copy_blobs(
-					mrec, offsets,
-					dict_table_zip_size(old_table),
-					dtuple, tuple_heap);
+		if (dict_index_is_clust(index)
+		    && dict_index_is_online_ddl(old_index)) {
+			error = row_log_table_get_error(old_index);
+			if (error != DB_SUCCESS) {
+				break;
 			}
+		}
 
-			ut_ad(dtuple_validate(dtuple));
-			log_free_check();
+		if (!n_ext) {
+			/* There are no externally stored columns. */
+		} else {
+			ut_ad(dict_index_is_clust(index));
+			/* Off-page columns can be fetched safely
+			when concurrent modifications to the table
+			are disabled. (Purge can process delete-marked
+			records, but row_merge_read_clustered_index()
+			would have skipped them.)
 
+			When concurrent modifications are enabled,
+			row_merge_read_clustered_index() will
+			only see rows from transactions that were
+			committed before the ALTER TABLE started
+			(REPEATABLE READ).
+
+			Any modifications after the
+			row_merge_read_clustered_index() scan
+			will go through row_log_table_apply().
+			Any modifications to off-page columns
+			will be tracked by
+			row_log_table_blob_alloc() and
+			row_log_table_blob_free(). */
+			row_merge_copy_blobs(
+				mrec, offsets,
+				dict_table_zip_size(old_table),
+				dtuple, tuple_heap);
+		}
+
+		ut_ad(dtuple_validate(dtuple));
+		log_free_check();
+
+		mtr_start(&mtr);
+		/* Insert after the last user record. */
+		btr_cur_open_at_index_side(
+			false, index, BTR_MODIFY_LEAF,
+			&cursor, 0, &mtr);
+		page_cur_position(
+			page_rec_get_prev(btr_cur_get_rec(&cursor)),
+			btr_cur_get_block(&cursor),
+			btr_cur_get_page_cur(&cursor));
+		cursor.flag = BTR_CUR_BINARY;
+#ifdef UNIV_DEBUG
+		/* Check that the records are inserted in order. */
+		rec = btr_cur_get_rec(&cursor);
+
+		if (!page_rec_is_infimum(rec)) {
+			ulint*	rec_offsets = rec_get_offsets(
+				rec, index, offsets,
+				ULINT_UNDEFINED, &tuple_heap);
+			ut_ad(cmp_dtuple_rec(dtuple, rec, rec_offsets)
+			      > 0);
+		}
+#endif /* UNIV_DEBUG */
+		ulint*	ins_offsets = NULL;
+
+		error = btr_cur_optimistic_insert(
+			BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+			| BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG,
+			&cursor, &ins_offsets, &ins_heap,
+			dtuple, &rec, &big_rec, 0, NULL, &mtr);
+
+		if (error == DB_FAIL) {
+			ut_ad(!big_rec);
+			mtr_commit(&mtr);
 			mtr_start(&mtr);
-			/* Insert after the last user record. */
 			btr_cur_open_at_index_side(
-				false, index, BTR_MODIFY_LEAF,
+				false, index, BTR_MODIFY_TREE,
 				&cursor, 0, &mtr);
 			page_cur_position(
 				page_rec_get_prev(btr_cur_get_rec(&cursor)),
 				btr_cur_get_block(&cursor),
 				btr_cur_get_page_cur(&cursor));
-			cursor.flag = BTR_CUR_BINARY;
-#ifdef UNIV_DEBUG
-			/* Check that the records are inserted in order. */
-			rec = btr_cur_get_rec(&cursor);
 
-			if (!page_rec_is_infimum(rec)) {
-				ulint*	rec_offsets = rec_get_offsets(
-					rec, index, offsets,
-					ULINT_UNDEFINED, &tuple_heap);
-				ut_ad(cmp_dtuple_rec(dtuple, rec, rec_offsets)
-				      > 0);
-			}
-#endif /* UNIV_DEBUG */
-			ulint*	ins_offsets = NULL;
-
-			error = btr_cur_optimistic_insert(
-				BTR_NO_UNDO_LOG_FLAG | BTR_NO_LOCKING_FLAG
+			error = btr_cur_pessimistic_insert(
+				BTR_NO_UNDO_LOG_FLAG
+				| BTR_NO_LOCKING_FLAG
 				| BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG,
 				&cursor, &ins_offsets, &ins_heap,
 				dtuple, &rec, &big_rec, 0, NULL, &mtr);
-
-			if (error == DB_FAIL) {
-				ut_ad(!big_rec);
-				mtr_commit(&mtr);
-				mtr_start(&mtr);
-				btr_cur_open_at_index_side(
-					false, index, BTR_MODIFY_TREE,
-					&cursor, 0, &mtr);
-				page_cur_position(
-					page_rec_get_prev(btr_cur_get_rec(
-								  &cursor)),
-					btr_cur_get_block(&cursor),
-					btr_cur_get_page_cur(&cursor));
-
-				error = btr_cur_pessimistic_insert(
-					BTR_NO_UNDO_LOG_FLAG
-					| BTR_NO_LOCKING_FLAG
-					| BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG,
-					&cursor, &ins_offsets, &ins_heap,
-					dtuple, &rec, &big_rec, 0, NULL, &mtr);
-			}
-
-			if (!dict_index_is_clust(index)) {
-				page_update_max_trx_id(
-					btr_cur_get_block(&cursor),
-					btr_cur_get_page_zip(&cursor),
-					trx_id, &mtr);
-			}
-
-			mtr_commit(&mtr);
-
-			if (UNIV_LIKELY_NULL(big_rec)) {
-				/* If the system crashes at this
-				point, the clustered index record will
-				contain a null BLOB pointer. This
-				should not matter, because the copied
-				table will be dropped on crash
-				recovery anyway. */
-
-				ut_ad(dict_index_is_clust(index));
-				ut_ad(error == DB_SUCCESS);
-				error = row_ins_index_entry_big_rec(
-					dtuple, big_rec,
-					ins_offsets, &ins_heap,
-					index, NULL, __FILE__, __LINE__);
-				dtuple_convert_back_big_rec(
-					index, dtuple, big_rec);
-			}
-
-			if (error != DB_SUCCESS) {
-				goto err_exit;
-			}
-
-			mem_heap_empty(tuple_heap);
-			mem_heap_empty(ins_heap);
 		}
+
+		if (!dict_index_is_clust(index)) {
+			page_update_max_trx_id(
+				btr_cur_get_block(&cursor),
+				btr_cur_get_page_zip(&cursor),
+				trx_id, &mtr);
+		}
+
+		mtr_commit(&mtr);
+
+		if (UNIV_LIKELY_NULL(big_rec)) {
+			/* If the system crashes at this
+			point, the clustered index record will
+			contain a null BLOB pointer. This
+			should not matter, because the copied
+			table will be dropped on crash
+			recovery anyway. */
+
+			ut_ad(dict_index_is_clust(index));
+			ut_ad(error == DB_SUCCESS);
+			error = row_ins_index_entry_big_rec(
+				dtuple, big_rec,
+				ins_offsets, &ins_heap,
+				index, NULL, __FILE__, __LINE__);
+			dtuple_convert_back_big_rec(
+				index, dtuple, big_rec);
+		}
+
+		if (error != DB_SUCCESS) {
+			goto err_exit;
+		}
+
+		mem_heap_empty(tuple_heap);
+		mem_heap_empty(ins_heap);
 	}
 
 err_exit:
@@ -3435,8 +3642,10 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ib_sequence_t&	sequence)	/*!< in: autoinc instance if
+	ib_sequence_t&	sequence,	/*!< in: autoinc instance if
 					add_autoinc != ULINT_UNDEFINED */
+	bool		skip_pk_sort)	/*!< in: whether the new PRIMARY KEY
+					will follow existing order */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3481,10 +3690,6 @@ row_merge_build_indexes(
 	}
 
 	for (i = 0; i < n_indexes; i++) {
-		if (row_merge_file_create(&merge_files[i]) < 0) {
-			error = DB_OUT_OF_MEMORY;
-			goto func_exit;
-		}
 
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
@@ -3513,13 +3718,6 @@ row_merge_build_indexes(
 		}
 	}
 
-	tmpfd = row_merge_file_create_low();
-
-	if (tmpfd < 0) {
-		error = DB_OUT_OF_MEMORY;
-		goto func_exit;
-	}
-
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */
 	innobase_rec_reset(table);
@@ -3531,7 +3729,7 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map,
-		add_autoinc, sequence, block);
+		add_autoinc, sequence, block, skip_pk_sort, &tmpfd);
 
 	if (error != DB_SUCCESS) {
 
@@ -3612,7 +3810,8 @@ wait_again:
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
 #endif
-		} else {
+		} else if (merge_files[i].fd != -1) {
+
 			row_merge_dup_t	dup = {
 				sort_idx, table, col_map, 0};
 
@@ -3623,7 +3822,7 @@ wait_again:
 			if (error == DB_SUCCESS) {
 				error = row_merge_insert_index_tuples(
 					trx->id, sort_idx, old_table,
-					merge_files[i].fd, block);
+					merge_files[i].fd, block, NULL);
 			}
 		}
 
