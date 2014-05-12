@@ -151,6 +151,7 @@ bool Path::exists()
     DIR *dir= opendir(m_path.c_str());
     if (dir == 0)
       return false;
+    closedir(dir);
     return true;
   }
   else
