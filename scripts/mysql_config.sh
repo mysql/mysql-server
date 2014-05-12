@@ -76,7 +76,8 @@ get_full_path ()
 
 me=`get_full_path $0`
 
-basedir=`echo $me | sed -e 's;/bin/mysql_config;;'`
+# Script might have been renamed but assume mysql_<something>config<something>
+basedir=`echo $me | sed -e 's;/bin/mysql_.*config.*;;'`
 
 ldata='@localstatedir@'
 execdir='@libexecdir@'
@@ -85,11 +86,11 @@ bindir='@bindir@'
 # If installed, search for the compiled in directory first (might be "lib64")
 pkglibdir='@pkglibdir@'
 pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
-fix_path pkglibdir $pkglibdir_rel lib/mysql lib
+fix_path pkglibdir $pkglibdir_rel @libsubdir@/mysql @libsubdir@
 
 plugindir='@pkgplugindir@'
 plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
-fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
+fix_path plugindir $plugindir_rel @libsubdir@/mysql/plugin @libsubdir@/plugin
 
 pkgincludedir='@pkgincludedir@'
 if [ -f "$basedir/include/mysql/mysql.h" ]; then
