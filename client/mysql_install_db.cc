@@ -99,7 +99,8 @@ static struct my_option my_connection_options[]=
     &opt_basedir, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 0, "The path to the MySQL data directory.", &opt_datadir,
     0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"login-path", 0, "Use the MySQL password store to set the default password",
+  {"login-path", 0, "Use the MySQL password store to set the default password."
+  " This option takes precedence over admin-user, admin-host options.",
     &opt_adminlogin, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extra-sql-file", 'f', "Optional SQL file to execute during bootstrap",
     &opt_sqlfile, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -1200,8 +1201,8 @@ int main(int argc,char *argv[])
   if (opt_defaults == FALSE && opt_defaults_file == NULL)
     command_line.push_back(string("--no-defaults"));
   if (opt_defaults_file != NULL)
-    command_line.push_back(string("--defaults-file=").
-      append(opt_defaults_file));
+    command_line.push_back(string("--defaults-file=")
+      .append(opt_defaults_file));
   if (opt_def_extra_file != NULL)
     command_line.push_back(string("--defaults-extra-file=")
       .append(opt_def_extra_file));
