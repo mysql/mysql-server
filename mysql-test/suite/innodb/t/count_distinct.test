@@ -1,0 +1,15 @@
+--source include/have_innodb.inc
+
+#
+# MDEV-4925 Wrong result - count(distinct), Using index for group-by (scanning)
+#
+CREATE TABLE t1 (
+  id int NOT NULL AUTO_INCREMENT,
+  a int NOT NULL,
+  b int NOT NULL,
+  PRIMARY KEY (id),
+  UNIQUE KEY ba (b, a)
+) ENGINE=InnoDB;
+INSERT INTO t1 (a, b) VALUES(1,101),(1,102),(1,103),(1,104),(1,105),(1,106),(1,107),(1,108),(1,109),(1,110);
+SELECT COUNT(DISTINCT b) FROM t1 WHERE a = 1;
+DROP TABLE t1;
