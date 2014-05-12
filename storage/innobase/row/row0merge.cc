@@ -2449,16 +2449,16 @@ row_merge_insert_index_tuples(
 	row_merge_block_t*	block,
 	const row_merge_buf_t*	row_buf)
 {
-	const byte*		b;
+	const byte*		b = NULL;
 	mem_heap_t*		heap;
 	mem_heap_t*		tuple_heap;
 	mem_heap_t*		ins_heap;
 	dberr_t			error = DB_SUCCESS;
 	ulint			foffs = 0;
 	ulint*			offsets;
-	mrec_buf_t*		buf;
+	mrec_buf_t*		buf = NULL;
 	ulint			n_rows = 0;
-	dtuple_t*		dtuple;
+	dtuple_t*		dtuple = NULL;
 	DBUG_ENTER("row_merge_insert_index_tuples");
 
 	ut_ad(!srv_read_only_mode);
