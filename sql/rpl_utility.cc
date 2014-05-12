@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -559,6 +559,48 @@ bool is_conversion_ok(int order, Relay_log_info *rli)
 
 
 /**
+  Check if the types are criss cross means type1 is MYSQL_TYPE_TIMESTAMP
+  and type2 as MYSQL_TYPE_TIMESTAMP2 or vice versa.
+*/
+inline bool timestamp_cross_check(enum_field_types type1,
+                                  enum_field_types type2)
+{
+  return ((type1 == MYSQL_TYPE_TIMESTAMP &&
+          type2 == MYSQL_TYPE_TIMESTAMP2) ||
+          (type1 == MYSQL_TYPE_TIMESTAMP2 &&
+          type2 == MYSQL_TYPE_TIMESTAMP));
+}
+
+
+/**
+  Check if the types are criss cross means type1 is MYSQL_TYPE_DATETIME
+  and type2 as MYSQL_TYPE_DATETIME or vice versa.
+*/
+inline bool datetime_cross_check(enum_field_types type1,
+                                 enum_field_types type2)
+{
+  return ((type1 == MYSQL_TYPE_DATETIME &&
+          type2 == MYSQL_TYPE_DATETIME2) ||
+          (type1 == MYSQL_TYPE_DATETIME2 &&
+          type2 == MYSQL_TYPE_DATETIME));
+}
+
+
+/**
+  Check if the types are criss cross means type1 is MYSQL_TYPE_TIME
+  and type2 as MYSQL_TYPE_TIME2 or vice versa.
+*/
+inline bool time_cross_check(enum_field_types type1,
+                             enum_field_types type2)
+{
+  return ((type1 == MYSQL_TYPE_TIME&&
+          type2 == MYSQL_TYPE_TIME2) ||
+          (type1 == MYSQL_TYPE_TIME2 &&
+          type2 == MYSQL_TYPE_TIME));
+}
+
+
+/**
    Can a type potentially be converted to another type?
 
    This function check if the types are convertible and what
@@ -629,13 +671,26 @@ can_convert_field_to(Field *field,
       DBUG_RETURN(false);
   }
   else if (metadata == 0 &&
-           ((field->real_type() == MYSQL_TYPE_TIMESTAMP2 &&
-             source_type == MYSQL_TYPE_TIMESTAMP) ||
-            (field->real_type() == MYSQL_TYPE_TIME2 &&
-             source_type == MYSQL_TYPE_TIME) ||
-            (field->real_type() == MYSQL_TYPE_DATETIME2 &&
-             source_type == MYSQL_TYPE_DATETIME)))
+           (timestamp_cross_check(field->real_type(), source_type) ||
+           datetime_cross_check(field->real_type(), source_type) ||
+           time_cross_check(field->real_type(), source_type)))
   {
+    /*
+      In the above condition, we are taking care
+      of case where
+      1) Master having old TIME, TIMESTAMP, DATETIME
+      and slave have new TIME2, TIMESTAMP2, DATETIME2
+      or
+      2) Master having new TIMESTAMP2, DATETIME2, TIME2
+      with fraction part zero and slave have TIME,
+      TIMESTAMP, DATETIME.
+      We need second condition, as when we are
+      upgrading from 5.5 to 5.6 TIME, TIMESTAMP,
+      DATETIME columns are not upgraded to TIME(0),
+      TIMESTAMP(0), DATETIME(0).
+      So to support these conversion we are putting this
+      condition.
+    */
     /*
       TS-TODO: conversion from FSP1>FSP2.
       Can do non-lossy conversion
