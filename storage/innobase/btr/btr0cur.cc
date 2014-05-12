@@ -6327,10 +6327,10 @@ btr_store_big_rec_extern_fields(
 					btr_mtr is restarted, then this can
 					be repositioned. */
 	const upd_t*	upd,		/*!< in: update vector */
-	const ulint*	offsets,	/*!< in: rec_get_offsets(rec, index);
-					the "external storage" flags in offsets
-					will not correspond to rec when
-					this function returns */
+	ulint*		offsets,	/*!< in/out: rec_get_offsets() on
+					pcur. the "external storage" flags
+					in offsets will correctly correspond
+					to rec when this function returns */
 	const big_rec_t*big_rec_vec,	/*!< in: vector containing fields
 					to be stored externally */
 	mtr_t*		btr_mtr,	/*!< in/out: mtr containing the
@@ -6373,8 +6373,6 @@ btr_store_big_rec_extern_fields(
 
 	btr_blob_log_check_t redo_log(pcur, btr_mtr, offsets, &rec_block,
 				      &rec);
-	redo_log.check();
-
 	page_zip = buf_block_get_page_zip(rec_block);
 	space_id = rec_block->page.id.space();
 	rec_page_no = rec_block->page.id.page_no();
@@ -6752,6 +6750,8 @@ next_zip_page:
 			fil_space_release_free_extents(
 				index->space, n_reserved);
 		}
+
+		rec_offs_make_nth_extern(offsets, field_no);
 	}
 
 func_exit:
