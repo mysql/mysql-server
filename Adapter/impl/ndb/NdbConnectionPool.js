@@ -24,7 +24,7 @@ var stats = {
   "created"                 : 0,
   "connect"                 : 0,
   "refcount"                : {},
-  "ndb_session_pool"        : { "hits" : 0, "misses" : 0 },
+  "ndb_session_pool"        : { "hits" : 0, "misses" : 0, "closes" : 0 },
   "ndb_session_prefetch"    : { "attempts" : 0, "errors" : 0, "success" : 0 },
   "group_callbacks_created" : 0,
   "list_tables"             : 0,
@@ -111,6 +111,8 @@ function releaseNdbConnection(connectString, msecToLinger, userCallback) {
 
 
 function closeDbSessionImpl(execQueue, impl, callbackOnClose) {
+  stats.ndb_session_pool.closes++;
+  impl.freeTransactions();
   var apiCall = new QueuedAsyncCall(execQueue, callbackOnClose);
   apiCall.description = "closeDbSessionImpl";
   apiCall.impl = impl;

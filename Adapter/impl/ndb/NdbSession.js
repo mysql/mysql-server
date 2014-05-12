@@ -138,6 +138,7 @@ NdbSession.prototype.releaseTransactionContext = function(txContext) {
   if(this.seizeTxQueue && this.seizeTxQueue.length) {
     nextTxCallback = this.seizeTxQueue.shift();
     txContext = this.impl.seizeTransaction();
+    this.openTxContexts++;
     nextTxCallback(txContext);
   }
 };
@@ -157,7 +158,6 @@ NdbSession.prototype.getConnectionPool = function() {
    ASYNC. Optional callback.
 */
 NdbSession.prototype.close = function(callback) {
-  this.impl.freeTransactions();
   ndbconnpool.closeNdbSession(this, callback);
 };
 
@@ -275,11 +275,7 @@ NdbSession.prototype.buildScanOperation = function(queryHandler, properties,
    RETURNS the current transaction handler, creating it if necessary
 */
 NdbSession.prototype.getTransactionHandler = function() {
-  if(this.tx) {
-    udebug.log("getTransactionHandler -- return existing");
-  }
-  else {
-    udebug.log("getTransactionHandler -- return new");
+  if(! this.tx) {
     this.tx = new dbtxhandler.DBTransactionHandler(this);
   }
   return this.tx;
