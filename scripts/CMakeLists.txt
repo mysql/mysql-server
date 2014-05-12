@@ -85,7 +85,6 @@ ADD_CUSTOM_COMMAND(
   DEPENDS comp_sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
 )
-ENDIF(UNIX)
 
 # Add target for the above to be built
 ADD_CUSTOM_TARGET(GenBootstrapPriv
@@ -93,6 +92,7 @@ ADD_CUSTOM_TARGET(GenBootstrapPriv
   DEPENDS ${CMAKE_SOURCE_DIR}/client/sql_commands_system_data.h
   ${CMAKE_SOURCE_DIR}/client/sql_commands_system_tables.h
 )
+ENDIF(UNIX)
 
 IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
