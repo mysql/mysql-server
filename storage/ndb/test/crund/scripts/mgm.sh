@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo MYSQL_HOME=$MYSQL_HOME
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -28,6 +29,6 @@ fi
 #for p in "$@"; do echo "    [$p]"; done
 
 echo
-"$MYSQL_BIN/ndb_mgm" -c "$NDB_CONNECT" "$@"
+"ndb_mgm" -c "$NDB_CONNECT" "$@"
 
 #set +x
