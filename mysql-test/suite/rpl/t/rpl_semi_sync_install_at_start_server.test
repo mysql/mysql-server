@@ -1,0 +1,32 @@
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+################################################################################
+# Bug#18266989 ACK_RECEIVER THREAD DOESN'T START WHEN STARTING SEMISYNC THROUGH
+#              SERVER OPTIONS
+#
+# Ack_receiver thread on the master didn't start successfully when setting up
+# semisync replication through server options.
+################################################################################
+--echo #
+--echo # Verify ack_receiver thread is created
+--echo #
+
+--let $assert_text= ack receiver thread is created;
+--let $assert_cond= count(*) = 1 FROM performance_schema.threads WHERE name LIKE "%Ack_receiver"
+--source include/assert.inc
+
+CREATE TABLE t1(c1 INT);
+--source include/sync_slave_io_with_master.inc
+
+--echo #
+--echo # Verify semisync replication works well
+--echo #
+
+--source include/rpl_connection_master.inc
+--let $semisync_status= query_get_value(SHOW STATUS LIKE 'rpl_semi_sync_master_status', Value, 1)
+--let $assert_text= Semisync master is on
+--let $assert_cond= "$semisync_status" = "ON"
+--source include/assert.inc
+
+DROP TABLE t1;
+--source include/rpl_end.inc
