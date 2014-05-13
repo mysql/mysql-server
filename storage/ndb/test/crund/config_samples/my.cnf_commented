@@ -48,11 +48,15 @@ ndb-connectstring=127.0.0.1
 #
 [mysqld]
 
+# ndb<=7.1: enable innodb plugin
+#ignore-builtin-innodb
+#plugin-load=innodb=ha_innodb_plugin.so
+
 # unique server identity for replication
 # - option: server-id
 # - variable: server_id (system, global, changeable)
 # - default: 0 (disables all connections to master or from slaves)
-#server-id=1
+#server-id=0
 
 # server's port specs (here or per command line)
 # - option: --port or -P
@@ -137,6 +141,15 @@ skip-slave-start
 # mysqld cluster settings
 #
 
+# maximum size of one packet or any generated/intermediate string
+# should be as big as the largest BLOB you want to use. The protocol limit
+# for max_allowed_packet is 1GB. The value should be a multiple of 1024;
+# nonmultiples are rounded down to the nearest multiple.
+#
+# caught java.sql.BatchUpdateException: Packet for query is too large (1062229 > 1048576). You can change this value on the server by setting the max_allowed_packet' variable.
+# java.sql.BatchUpdateException: Packet for query is too large (1062229 > 1048576). You can change this value on the server by setting the max_allowed_packet' variable.
+#max_allowed_packet=16M
+
 # enable batched operations on MySQL Cluster replication slaves
 # - option: --slave-allow-batching (or slave_allow_batching)
 # - variable: slave_allow_batching (system, global, changeable)
@@ -161,9 +174,10 @@ ndb-index-stat-enable=0
 # option: --ndb-force-send (or ndb_force_send)
 # variable: n/a
 ndb-force-send=1
+# ndb<=7.2: enable condition pushdown
 # option: --engine-condition-pushdown
 # variable: engine_condition_pushdown (system, global+session, changeable)
-engine-condition-pushdown=1
+#engine-condition-pushdown=1
 
 # enable NDB storage engine (mandatory, here or per command line)
 # option: --ndbcluster
