@@ -2891,7 +2891,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
     "The master does not support the selected parallelization mode. "
     "It may be too old, or replication was started from an event internal "
-    "to a transaaction.");
+    "to a transaction.");
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;

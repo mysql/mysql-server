@@ -29,6 +29,7 @@
 #include "sql_alter.h"                // Alter_info
 #include "sql_servers.h"
 #include "trigger_def.h"              // enum_trigger_action_time_type
+#include "xa.h"                       // XID, xa_option_words
 
 /* YACC and LEX Definitions */
 
@@ -1377,6 +1378,8 @@ union YYSTYPE {
   class PT_select *select;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
+  XID *xid;
+  enum xa_option_words xa_option_type;
 };
 
 #endif
@@ -1448,9 +1451,6 @@ struct st_trg_chistics
 };
 
 extern sys_var *trg_new_row_fake_var;
-
-enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
-                      XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
 
@@ -2626,7 +2626,6 @@ public:
   Item *default_value, *on_update_value;
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
-  XID *xid;
   THD *thd;
 
   /* maintain a list of used plugins for this LEX */
@@ -2733,7 +2732,6 @@ public:
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
-  enum xa_option_words xa_opt;
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
