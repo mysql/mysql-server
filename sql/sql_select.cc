@@ -1944,27 +1944,26 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     DBUG_RETURN(true);
 
   double fanout= (tab == join_tab + tab->join->const_tables) ?
-                 1.0 : (tab-1)->position->prefix_record_count;
+                 1.0 : (tab-1)->position->prefix_rowcount;
   if (!sjm_exec->is_scan)
   {
-    const double block_read_cost= table->cost_model()->io_block_read_cost(1.0);
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
     tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
-    sjm_pos->set_prefix_costs(block_read_cost, fanout);
-    sjm_pos->rows_fetched= 1.0;   
-    sjm_pos->read_cost= block_read_cost;      
+    sjm_pos->read_cost= emb_sj_nest->nested_join->sjm.lookup_cost.total_cost() *
+                        fanout;      
+    sjm_pos->rows_fetched= 1.0;    // Unique lookup  
     tab->type= JT_REF;
   }
   else
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
-    sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
+    sjm_pos->read_cost= tab->read_time * fanout;
     sjm_pos->rows_fetched= tab->records;
-    sjm_pos->read_cost= tab->read_time;
     tab->type= JT_ALL;
   }
+  sjm_pos->set_prefix_join_cost((tab - join_tab), cost_model());
 
   DBUG_RETURN(false);
 }
