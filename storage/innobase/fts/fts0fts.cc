@@ -608,8 +608,10 @@ fts_cache_init(
 
 	cache->total_size = 0;
 
+	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 	cache->deleted_doc_ids = ib_vector_create(
 		cache->sync_heap, sizeof(fts_update_t), 4);
+	mutex_exit((ib_mutex_t*) &cache->deleted_lock);
 
 	/* Reset the cache data for all the FTS indexes. */
 	for (i = 0; i < ib_vector_size(cache->indexes); ++i) {
@@ -1137,7 +1139,10 @@ fts_cache_clear(
 	cache->sync_heap->arg = NULL;
 
 	cache->total_size = 0;
+
+	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
 	cache->deleted_doc_ids = NULL;
+	mutex_exit((ib_mutex_t*) &cache->deleted_lock);
 }
 
 /*********************************************************************//**
@@ -4366,6 +4371,7 @@ fts_sync_commit(
 	/* We need to do this within the deleted lock since fts_delete() can
 	attempt to add a deleted doc id to the cache deleted id array. */
 	fts_cache_clear(cache);
+	DEBUG_SYNC_C("fts_deleted_doc_ids_clear");
 	fts_cache_init(cache);
 	rw_lock_x_unlock(&cache->lock);
 
@@ -5166,6 +5172,12 @@ fts_cache_append_deleted_doc_ids(
 	ulint			i;
 
 	mutex_enter((ib_mutex_t*) &cache->deleted_lock);
+
+	if (cache->deleted_doc_ids == NULL) {
+		mutex_exit((ib_mutex_t*) &cache->deleted_lock);
+		return;
+	}
+
 
 	for (i = 0; i < ib_vector_size(cache->deleted_doc_ids); ++i) {
 		fts_update_t*	update;
