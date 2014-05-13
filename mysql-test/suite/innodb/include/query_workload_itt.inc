@@ -224,11 +224,9 @@ if (!`select @@innodb_create_intrinsic`) {
 select b, count(a), sum(a), avg(a), std(a), min(a),
 	max(a), bit_and(a), bit_or(a) from t1 group by b;
 
+#
 # choose innodb to create tmp table
 select sql_big_result * from information_schema.global_variables where variable_name like 'internal_tmp_storage_engine';
-
-# system table
-select * from information_schema.character_sets order by 1 limit 3;
 
 #
 # union distinct and all
