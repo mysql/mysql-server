@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo MYSQL_HOME=$MYSQL_HOME
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -31,11 +32,11 @@ mysock="/tmp/mysql.sock"
 #for p in "$@"; do echo "    [$p]"; done
 
 #echo
-#"$MYSQL_BIN/mysql" "$@"
+#"mysql" "$@"
 # for localhost connections:
-"$MYSQL_BIN/mysql" --socket="$mysock" "$@"
+"mysql" --socket="$mysock" "$@"
 # for remote connections:
-#"$MYSQL_BIN/mysql" -h localhost -P 3307 "$@"
-#"$MYSQL_BIN/mysql" -host=localhost -port=3307 "$@"
+#"mysql" -h localhost -P 3307 "$@"
+#"mysql" -host=localhost -port=3307 "$@"
 
 #set +x
