@@ -4560,49 +4560,6 @@ end_with_restore_list:
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }
-  case SQLCOM_XA_START:
-    if (trans_xa_start(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_END:
-    if (trans_xa_end(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_PREPARE:
-    if (trans_xa_prepare(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_COMMIT:
-    if (trans_xa_commit(thd))
-      goto error;
-    thd->mdl_context.release_transactional_locks();
-    /*
-      We've just done a commit, reset transaction
-      isolation level and access mode to the session default.
-    */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_ROLLBACK:
-    if (trans_xa_rollback(thd))
-      goto error;
-    thd->mdl_context.release_transactional_locks();
-    /*
-      We've just done a rollback, reset transaction
-      isolation level and access mode to the session default.
-    */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_RECOVER:
-    res= trans_xa_recover(thd);
-    DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
-    break;
   case SQLCOM_ALTER_TABLESPACE:
     if (check_global_access(thd, CREATE_TABLESPACE_ACL))
       break;
@@ -4651,6 +4608,12 @@ end_with_restore_list:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
   case SQLCOM_CHANGE_REPLICATION_FILTER:
+  case SQLCOM_XA_START:
+  case SQLCOM_XA_END:
+  case SQLCOM_XA_PREPARE:
+  case SQLCOM_XA_COMMIT:
+  case SQLCOM_XA_ROLLBACK:
+  case SQLCOM_XA_RECOVER:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
