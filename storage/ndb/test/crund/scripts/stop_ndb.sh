@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo MYSQL_HOME=$MYSQL_HOME
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -30,7 +31,7 @@ echo shut down NDB...
 timeout=60
 echo
 echo "waiting ($timeout s) for ndb to shut down..."
-"$MYSQL_BIN/ndb_waiter" -c "$NDB_CONNECT" -t $timeout --no-contact
+"ndb_waiter" -c "$NDB_CONNECT" -t $timeout --no-contact
 
 # need some extra time for ndb_mgmd to terminate
 for ((i=0; i<10; i++)) ; do printf "." ; sleep 1 ; done ; echo
