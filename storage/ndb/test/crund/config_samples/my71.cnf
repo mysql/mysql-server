@@ -23,8 +23,8 @@ ndb-connectstring=127.0.0.1
 
 [mysqld]
 # ndb<=7.1: enable innodb plugin
-#ignore-builtin-innodb
-#plugin-load=innodb=ha_innodb_plugin.so
+ignore-builtin-innodb
+plugin-load=innodb=ha_innodb_plugin.so
 
 server-id=0
 skip-slave-start
@@ -45,6 +45,6 @@ ndb-use-exact-count=0
 ndb-index-stat-enable=0
 ndb-force-send=1
 # ndb<=7.2: enable condition pushdown
-#engine-condition-pushdown=1
+engine-condition-pushdown=1
 
 ndbcluster
