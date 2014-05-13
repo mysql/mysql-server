@@ -3656,6 +3656,7 @@ row_ins(
 				node->entry = UT_LIST_GET_NEXT(tuple_list,
 							       node->entry);
 			}
+			thr_get_trx(thr)->error_state = DB_DUPLICATE_KEY;
 		}
 	}
 
