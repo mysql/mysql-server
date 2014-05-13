@@ -1551,7 +1551,7 @@ void Slave_worker::do_report(loglevel level, int err_code, const char *msg,
   */
   c_rli->fill_coord_err_buf(level, err_code, coordinator_errmsg);
 
-  snprintf(buff_coord, sizeof(buff_coord),
+  my_snprintf(buff_coord, sizeof(buff_coord),
           "Worker %lu failed executing transaction '%s' at "
           "master log %s, end_log_pos %llu",
           id, buff_gtid, log_name, log_pos);
