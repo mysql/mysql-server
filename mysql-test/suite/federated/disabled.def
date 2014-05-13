@@ -10,3 +10,4 @@
 #
 ##############################################################################
 federated_transactions : Bug#11746899 Transactions do not work
+federated : Bug#18702657 TEST FAILING WITH  GOT ERROR 10000 
