@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo MYSQL_HOME=$MYSQL_HOME
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -33,13 +34,12 @@ mysock="/tmp/mysql.sock"
 
 echo
 echo start mysqld...
-#( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" & )
-( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" --socket="$mysock" & )
+( cd $MYSQL_HOME ; "mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" --socket="$mysock" & )
 #
 # debug:
-#( cd $MYSQL_HOME ; "$MYSQL_BIN/mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" -#d & )
+#( cd $MYSQL_HOME ; "mysqld_safe" --defaults-file="$mycnf" --user="$user" --log-error="$myerr" -#d & )
 # crashes when --debug/-# at beginning:
-#( cd $MYSQL_HOME ; "$MYSQL_LIBEXEC/mysqld" --debug --defaults-file="$mycnf" --user="$user" --log-error="$myerr" & )
+#( cd $MYSQL_HOME ; "$mysqld" --debug --defaults-file="$mycnf" --user="$user" --log-error="$myerr" & )
 
 # need some extra time
 for ((i=0; i<10; i++)) ; do printf "." ; sleep 1 ; done ; echo
