@@ -18,7 +18,7 @@
 #ifndef NDBD_MALLOC_H
 #define NDBD_MALLOC_H
 
-#include <cstddef>
+#include <stddef.h>
 
 #define JAM_FILE_ID 234
 
