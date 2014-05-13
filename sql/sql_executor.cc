@@ -1836,12 +1836,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     /* Mark for EXPLAIN that the row was not found */
     pos->filter_effect= 1.0;
     pos->rows_fetched= 0.0;
-    pos->prefix_record_count= 0.0;
+    pos->prefix_rowcount= 0.0;
     pos->ref_depend_map= 0;
     if (!table->pos_in_table_list->outer_join || error > 0)
       DBUG_RETURN(error);
   }
-    
 
   if (tab->join_cond() && !table->null_row)
   {
