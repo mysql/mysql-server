@@ -8,42 +8,44 @@ include	../../env.properties
 
   DDEFINES 	=
 
-  DELIVERABLES	= crund crundAB tws
+  DELIVERABLES	= crund crundAB
 
   CLEAN		= core *.o
 
   MOSTLYCLEAN	= $(DELIVERABLES) *.dSYM *% log_*
 
-  DISTCLEAN	= *~ *% */*~
+  DISTCLEAN	= *~ *% */*~ .depend.* _dummy.*
 
-  INCLUDES	= -I. -I"$(MARTINS_LITTLE_HELPERS)" \
-		  $(NDB_INCLUDEOPT0) $(NDB_INCLUDEOPT1)
+  INCLUDES	= -I. -I"$(HELPERS)" \
+		  $(NDB_INCLUDEOPT0) $(NDB_INCLUDEOPT1) \
+		  $(NDB_INCLUDEOPT2) $(NDB_INCLUDEOPT3)
 
 # for library dependencies, LOADLIBES and LDLIBS have been used historically
 # this convention is used sometimes: use
 #   LDLIBS for project-wide libs (like -lc or -lm)
 #   LOADLIBES for libs for the individual case
 # check with non-gnu makes: use of LOADLIBES, LDLIBS
-  LDLIBS	= -L$(NDB_LIBDIR) -lndbclient
+  LDLIBS	= -L$(NDB_LIBDIR0) -L$(NDB_LIBDIR1) -lndbclient
 # undefined symbols when linking with
-#  LOADLIBES	= -L$(MARTINS_LITTLE_HELPERS) -lutils
+#  LOADLIBES	= -L$(HELPERS) -lutils
 # which seems to be the same as
-#  LOADLIBES	= $(MARTINS_LITTLE_HELPERS)/libutils.dylib
+#  LOADLIBES	= $(HELPERS)/libutils.dylib
 # but linking statically is fine:
-  LOADLIBES	= $(MARTINS_LITTLE_HELPERS)/libutils.a
+  LOADLIBES	= $(HELPERS)/libutils.a
 
 #------------------------------------------------------------------------------
 
-.PHONY:	all depend dep run.crund run.crundAB grind.crund run.tws grind.tws
+.PHONY:	all depend dep \
+	run.crund run.ndbapi grind.crund
 
 all:	$(DELIVERABLES)
 
 dep depend:
 
-run.crund run.c++crund:	crund
+run.crund:	crund
 	./crund -p ../../crundRun.properties -p ../../crundNdb.properties
 
-run.crundAB:	crundAB
+run.ndbapi:	crundAB
 	./crundAB -p ../../crundRun.properties -p ../../crundNdb.properties
 
 # for JVM processes, try running valgrind with
@@ -57,17 +59,18 @@ crund:	Driver.o CrundDriver.o CrundLoad.o NdbapiAB.o
 
 crundAB:	Driver.o CrundDriver.o CrundLoad.o NdbapiAB.o
 
-tws:	Driver.o TwsDriver.o NdbapiTwsDriver.o
-
-run.tws:	tws
-	./tws -p ../../twsRun.properties -p ../../crundNdb.properties
-
+#tws:	Driver.o TwsDriver.o NdbapiTwsDriver.o
+#	$(LINK.cpp) $^ $(LOADLIBES) $(LDLIBS) -o $@
+#
+#run.tws:	tws
+#	./tws -p ../../twsRun.properties -p ../../crundNdb.properties
+#
 # for JVM processes, try running valgrind with
 # --smc-check=all --trace-children=yes --leak-check=full --show-reachable=yes
-grind.tws:	tws
-	valgrind \
-	--leak-check=full --show-reachable=yes --trace-children=yes \
-	./tws -p ../../twsRun.properties -p ../../crundNdb.properties
+#grind.tws:	tws
+#	valgrind \
+#	--leak-check=full --show-reachable=yes --trace-children=yes \
+#	./tws -p ../../twsRun.properties -p ../../crundNdb.properties
 
 #------------------------------------------------------------------------------
 
