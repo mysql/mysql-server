@@ -1706,7 +1706,7 @@ int ha_tokudb::initialize_share(
     }
     share->ref_length = ref_length;
 
-    error = estimate_num_rows(share->file,&num_rows, txn);
+    error = estimate_num_rows(share->file, &num_rows, txn);
     //
     // estimate_num_rows should not fail under normal conditions
     //
@@ -1916,7 +1916,6 @@ exit:
 //
 int ha_tokudb::estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn) {
     int error = ENOSYS;
-    DBC* crsr = NULL;
     bool do_commit = false;
     DB_BTREE_STAT64 dict_stats;
     DB_TXN* txn_to_use = NULL;
@@ -1930,21 +1929,12 @@ int ha_tokudb::estimate_num_rows(DB* db, uint64_t* num_rows, DB_TXN* txn) {
         txn_to_use = txn;
     }
 
-    error = db->stat64(
-        share->file, 
-        txn_to_use, 
-        &dict_stats
-        );
+    error = db->stat64(db, txn_to_use, &dict_stats);
     if (error) { goto cleanup; }
 
     *num_rows = dict_stats.bt_ndata;
     error = 0;
 cleanup:
-    if (crsr != NULL) {
-        int r = crsr->c_close(crsr);
-        assert(r==0);
-        crsr = NULL;
-    }
     if (do_commit) {
         commit_txn(txn_to_use, 0);
         txn_to_use = NULL;
