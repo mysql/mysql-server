@@ -16,25 +16,32 @@
  along with this program; if not, write to the Free Software
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
-*/
+ */
 
-/***  This file includes public wrapper functions exported to C++ code 
-***/
 
+#include <NdbApi.hpp>
+
+#include "adapter_global.h"
+#include "js_wrapper_macros.h"
 #include "Record.h"
-#include "JsWrapper.h"
+#include "NdbWrappers.h"
+#include "DBOperationSet.h"
 
-class DBOperationSet;
+DBOperationSet::~DBOperationSet() {
+  DEBUG_PRINT("DBOperationSet destructor [size %d]", size);
+  delete[] keyOperations;
+  delete[] ops;
+  delete[] errors;
+}
 
-Handle<Value> Record_Wrapper(const Record *);
-Handle<Value> Ndb_Wrapper(Ndb *);
-Handle<Value> NdbError_Wrapper(const NdbError &);
-Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *);
-Handle<Value> DBOperationSet_Wrapper(DBOperationSet *);
+void DBOperationSet::prepare(NdbTransaction *ndbtx) {
+  for(int i = 0 ; i < size ; i++) {
+    if(keyOperations[i].opcode > 0) 
+      ops[i] = keyOperations[i].prepare(ndbtx);
+    else {
+      errors[i] = 0;
+      ops[i] = 0;
+    }
+  }
+}
 
-/* Not actual wrapper functions, but functions that provide an envelope */
-
-Envelope * getNdbInterpretedCodeEnvelope(void);
-Envelope * getConstNdbInterpretedCodeEnvelope(void);
-Envelope * getNdbDictTableEnvelope(void);
-Envelope * getNdbScanOperationEnvelope(void);

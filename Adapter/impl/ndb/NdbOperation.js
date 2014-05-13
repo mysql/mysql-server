@@ -437,7 +437,7 @@ function prepareOperations(dbTransactionContext, dbOperationList) {
       dbOperationList[n].buildOpHelper(specs[n]);
     }
   }
-  adapter.impl.DBOperationHelper(length, specs, dbTransactionContext);
+  return adapter.impl.DBOperationHelper(length, specs, dbTransactionContext);
 }
 
 
