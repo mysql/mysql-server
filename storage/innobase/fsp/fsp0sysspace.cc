@@ -536,16 +536,14 @@ SysTablespace::read_lsn_and_check_flags()
 				it->handle(), it->filepath());
 
 			/* Check the contents of the first page of the
-			first datafile */
+			first datafile. */
 			for (int retry = 0; retry < 2; ++retry) {
 				err = it->validate_first_page();
-				if (err != DB_SUCCESS && retry == 0) {
-					if (it->restore_from_doublewrite(0)
-					    == DB_SUCCESS) {
-						continue;
-					}
-				}
-				if (err != DB_SUCCESS) {
+				if (err != DB_SUCCESS
+				    && (retry == 1
+					|| it->restore_from_doublewrite(0)
+					!= DB_SUCCESS)) {
+
 					it->close();
 					return(err);
 				}
