@@ -1,6 +1,6 @@
 #!/bin/bash
 
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 if [ "$MYSQL_HOME" = "" ] ; then
   source ../env.properties
   echo "MYSQL_HOME=$MYSQL_HOME"
+  PATH="$MYSQL_LIBEXEC:$MYSQL_BIN:$PATH"
 fi
 
 #set -x
@@ -40,12 +41,11 @@ echo start mgmd...
 # --mycnf                  Read cluster config from my.cnf
 # --initial                Delete all binary config files and start from
 #                          config.ini or my.cnf.  Only in > 6.3
-( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndb_mgmd" --initial -f "$myini" )
-#( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndb_mgmd" --debug --initial -f "$myini" )
-#( cd "$mylogdir" ; gdb --args "$MYSQL_LIBEXEC/ndb_mgmd" --initial -f "$myini" )
+( cd "$mylogdir" ; "ndb_mgmd" --initial -f "$myini" )
+#( cd "$mylogdir" ; "ndb_mgmd" --debug --initial -f "$myini" )
 #
 # XXX no effect: -c "localhost:1187"
-#( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndb_mgmd" --initial -c "localhost:1187" -f "$myini" )
+#( cd "$mylogdir" ; "ndb_mgmd" --initial -c "localhost:1187" -f "$myini" )
 # see ndb_1_cluster.log
 #     [MgmtSrvr] INFO     -- Got initial configuration from '../../config.ini', will try to set it when all ndb_mgmd(s) started
 #     [MgmtSrvr] INFO     -- Id: 1, Command port: *:1186
@@ -55,8 +55,7 @@ echo start mgmd...
 #   m_connect_string(connect_string),
 #
 # port number seems not supported as part of --bind-address="localhost:1187"
-#( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndb_mgmd" --bind-address="localhost:1187" -f "$myini" )
-#( cd "$mylogdir" ; "$MYSQL_LIBEXEC/ndb_mgmd" --bind-address="127.0.0.1:1187" -f "$myini" )
+#( cd "$mylogdir" ; "ndb_mgmd" --bind-address="localhost:1187" -f "$myini" )
 
 #echo
 #ps -efa | grep ndb
