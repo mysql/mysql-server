@@ -7589,7 +7589,7 @@ void JOIN::mark_const_table(JOIN_TAB *tab, Key_use *key)
   position->key= key;
   position->rows_fetched= 1.0;               // This is a const table
   position->filter_effect= 1.0;
-  position->prefix_record_count= 1.0;
+  position->prefix_rowcount= 1.0;
   position->read_cost= 0.0;
   position->ref_depend_map= 0;
   position->loosescan_key= MAX_KEY;    // Not a LooseScan
@@ -10162,10 +10162,8 @@ static void calculate_materialization_costs(JOIN *join,
       get_partial_join_cost() assumes a regular join, which is correct when
       we optimize a sj-materialization nest (always executed as regular
       join).
-      @todo consider using join->best_rowcount instead.
     */
-    get_partial_join_cost(join, n_tables,
-                          &mat_cost, &mat_rowcount);
+    get_partial_join_cost(join, n_tables, &mat_cost, &mat_rowcount);
     n_tables+= join->const_tables;
     inner_expr_list= &sj_nest->nested_join->sj_inner_exprs;
   }
@@ -10415,25 +10413,25 @@ bool JOIN::compare_costs_of_subquery_strategies(
       if (subs->in_cond_of_tab != INT_MIN)
       {
         /*
-          Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
+          Subquery is attached to a certain 'pos', pos[-1].prefix_rowcount
           is the number of times we'll start a loop accessing 'pos'; each such
-          loop will read pos->rows_fetched records of 'pos', so subquery will
-          be evaluated pos[-1].prefix_record_count * pos->rows_fetched times.
+          loop will read pos->rows_fetched rows of 'pos', so subquery will
+          be evaluated pos[-1].prefix_rowcount * pos->rows_fetched times.
           Exceptions:
-          - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
+          - if 'pos' is first, use 1.0 instead of pos[-1].prefix_rowcount
           - if 'pos' is first of a sj-materialization nest, same.
 
           If in a sj-materialization nest, pos->rows_fetched and
-          pos[-1].prefix_record_count are of the "nest materialization" plan
+          pos[-1].prefix_rowcount are of the "nest materialization" plan
           (copied back in fix_semijoin_strategies()), which is
           appropriate as it corresponds to evaluations of our subquery.
 
-          pos.prefix_record_count is not suitable because if we have:
+          pos->prefix_rowcount is not suitable because if we have:
           select ... from ot1 where ot1.col in
             (select it1.col1 from it1 where it1.col2 not in (subq));
           and subq does subq-mat, and plan is ot1 - it1+firstmatch(ot1),
           then:
-          - t1.prefix_record_count==1 (due to firstmatch)
+          - t1.prefix_rowcount==1 (due to firstmatch)
           - subq is attached to it1, and is evaluated for each row read from
             t1, potentially way more than 1.
        */
@@ -10446,7 +10444,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
             !sj_is_materialize_strategy(parent_join
                                         ->join_tab[idx].position->sj_strategy))
           parent_fanout*=
-            parent_join->join_tab[idx - 1].position->prefix_record_count;
+            parent_join->join_tab[idx - 1].position->prefix_rowcount;
       }
       else
       {
