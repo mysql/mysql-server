@@ -241,6 +241,15 @@ static bool xa_trans_force_rollback(THD *thd)
 }
 
 
+/**
+  Commit and terminate a XA transaction.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
 bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
 {
   bool res= true;
@@ -371,6 +380,15 @@ bool Sql_cmd_xa_commit::execute(THD *thd)
 }
 
 
+/**
+  Roll back and terminate a XA transaction.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
 bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
@@ -433,6 +451,15 @@ bool Sql_cmd_xa_rollback::execute(THD *thd)
 }
 
 
+/**
+  Start a XA transaction with the given xid value.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
 bool Sql_cmd_xa_start::trans_xa_start(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
@@ -489,6 +516,15 @@ bool Sql_cmd_xa_start::execute(THD *thd)
 }
 
 
+/**
+  Put a XA transaction in the IDLE state.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
 bool Sql_cmd_xa_end::trans_xa_end(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
@@ -529,6 +565,15 @@ bool Sql_cmd_xa_end::execute(THD *thd)
 }
 
 
+/**
+  Put a XA transaction in the PREPARED state.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
 bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
@@ -568,6 +613,20 @@ bool Sql_cmd_xa_prepare::execute(THD *thd)
   return st;
 }
 
+
+/**
+  Return the list of XID's to a client, the same way SHOW commands do.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+
+  @note
+    I didn't find in XA specs that an RM cannot return the same XID twice,
+    so trans_xa_recover does not filter XID's to ensure uniqueness.
+    It can be easily fixed later, if necessary.
+*/
 
 bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
 {
