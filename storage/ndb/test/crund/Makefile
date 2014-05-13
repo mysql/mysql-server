@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -17,7 +17,8 @@
 
   SRC	= ./src/cpp
 
-.PHONY:	all help dep dbg opt prf clean mostlclean clobber distclean check
+.PHONY:	all help dep dbg opt prf clean mostlclean clobber distclean \
+	run.ndbapi run.crund
 all:	dbg
 
 help:
@@ -29,9 +30,12 @@ help:
 	@echo "clean		-- delete temporary files"
 	@echo "mostlyclean	-- also delete all generated files"
 	@echo "distclean	-- delete also database and server log files"
-	@echo "check		-- perform self-tests (if any)"
+	@echo ""
+	@echo "benchmark execution targets:"
+	@echo "run.crund (generic driver, uses property 'loads')"
+	@echo "run.ndbapi"
 
-dep dbg opt prf clean mostlyclean clobber check:
+dep dbg opt prf clean mostlyclean clobber:
 	ant $@
 	@cd $(SRC) && $(MAKE) $(MFLAGS) $@
 
@@ -47,7 +51,7 @@ distclean:
 # read the generic settings
 include	env.properties
 
-run.c++crund:	$(SRC)/crund
+run.ndbapi run.crund:	$(SRC)/crund
 	$(SRC)/crund \
 	-p crundRun.properties -p crundNdb.properties
 
