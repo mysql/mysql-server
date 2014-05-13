@@ -127,7 +127,6 @@ NdbSession.prototype.seizeTransactionContext = function(callback) {
    IMMEDIATE.
 */
 NdbSession.prototype.releaseTransactionContext = function(txContext) {
-  udebug.log("releaseTransactionContext");
   var nextTxCallback, didRelease;
 
   didRelease = this.impl.releaseTransaction(txContext);

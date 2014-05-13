@@ -25,23 +25,24 @@
 #include "DBSessionImpl.h"
 #include "NdbWrappers.h"
 #include "DBTransactionContext.h"
-#include "PendingOperationSet.h"
+#include "DBOperationSet.h"
 
 extern void setJsWrapper(DBTransactionContext *);
+extern Persistent<Value> getWrappedObject(DBOperationSet *set);
+
+const char * modes[4] = { "Prepare ","NoCommit","Commit  ","Rollback" };
 
 DBTransactionContext::DBTransactionContext(DBSessionImpl *impl) :
   token(0),
   parent(impl),
   next(0),
   ndbTransaction(0),
-  definedOperations(),
   definedScan(0),
-  executedOperations(0),
-  tcNodeId(0),
-  opIterator(0),
-  opListSize(0)
+  tcNodeId(0)
 {
   setJsWrapper(this);
+  emptyOpSet = new DBOperationSet(this, 0);
+  emptyOpSetWrapper = getWrappedObject(emptyOpSet);
 }
 
 DBTransactionContext::~DBTransactionContext() {
@@ -49,27 +50,8 @@ DBTransactionContext::~DBTransactionContext() {
   jsWrapper.Dispose();
 }
 
-void DBTransactionContext::newOperationList(int size) {
-  if(opListSize > 0) {
-    opListSize = 0;
-    delete[] definedOperations;
-  }
-  if(size > 0) {
-    definedOperations = new KeyOperation[size];
-    opListSize = size;
-  }
-  opIterator = 0;
-}
-
-KeyOperation * DBTransactionContext::getNextOperation() {
-  assert(opIterator < opListSize);
-  KeyOperation * op = & definedOperations[opIterator];
-  opIterator++;
-  return op;
-}
 
 void DBTransactionContext::defineScan(ScanOperation *scanHelper) {
-  assert(opListSize == 0);
   assert(definedScan == 0);
   definedScan = scanHelper;
 }
@@ -79,50 +61,42 @@ const NdbError & DBTransactionContext::getNdbError() {
   return ndbTransaction ? ndbTransaction->getNdbError() : parent->getNdbError();
 }
 
-bool DBTransactionContext::tryImmediateStartTransaction() {
+bool DBTransactionContext::tryImmediateStartTransaction(KeyOperation * op) {
   token = parent->registerIntentToOpen();
   if(token == -1) {
-    startTransaction();
+    startTransaction(op);
     return true;
   }
   return false;
 }
 
-void DBTransactionContext::startTransaction() {
+void DBTransactionContext::startTransaction(KeyOperation * op) {
   assert(ndbTransaction == 0);
-  KeyOperation & op = definedOperations[0];
-  bool startWithHint = false;
-  
-  startWithHint = (opListSize && op.key_buffer && (! definedScan)); 
+  bool startWithHint = (op && op->key_buffer && (! definedScan)); 
 
   if(startWithHint) {
     char hash_buffer[512];        
     ndbTransaction = 
-      parent->ndb->startTransaction(op.key_record->getNdbRecord(), 
-                                         op.key_buffer, hash_buffer, 512);
+      parent->ndb->startTransaction(op->key_record->getNdbRecord(), 
+                                    op->key_buffer, hash_buffer, 512);
   } else {
     ndbTransaction = parent->ndb->startTransaction();
   }
 
   tcNodeId = ndbTransaction ? ndbTransaction->getConnectedNodeId() : 0;
+  DEBUG_PRINT("START TRANSACTION %s TC Node %d", 
+              startWithHint ? "[with hint]" : "[ no hint ]", tcNodeId);
 }
 
 NdbScanOperation * DBTransactionContext::prepareAndExecuteScan() {
   NdbScanOperation * scanop;
   if(! ndbTransaction) {
-    startTransaction();  
+    ndbTransaction = parent->ndb->startTransaction();
+    tcNodeId = ndbTransaction ? ndbTransaction->getConnectedNodeId() : 0;
   }
   scanop = definedScan->prepareScan();
   ndbTransaction->execute(NdbTransaction::NoCommit, NdbOperation::AO_IgnoreError, 1);
   return scanop;
-}
-
-void DBTransactionContext::prepareOperations() {
-  executedOperations = new PendingOperationSet(opListSize);
-  for(int i = 0 ; i < opListSize ; i++) {
-    const NdbOperation * op = definedOperations[i].prepare(ndbTransaction);
-    executedOperations->setNdbOperation(i, op);
-  }
 }
 
 void DBTransactionContext::closeTransaction() {
@@ -134,26 +108,40 @@ void DBTransactionContext::registerClose() {
   parent->registerTxClosed(token, tcNodeId);
 }
 
-int DBTransactionContext::execute(int _execType, int _abortOption, int force) {
+int DBTransactionContext::execute(DBOperationSet *operations, 
+                                  int _execType, int _abortOption, int force) {
   int rval;
+  int opListSize = operations->size;
   NdbTransaction::ExecType execType = static_cast<NdbTransaction::ExecType>(_execType);
   NdbOperation::AbortOption abortOption = static_cast<NdbOperation::AbortOption>(_abortOption);
+  bool didClose = false;
   
   if(! ndbTransaction) {
-    startTransaction();
+    startTransaction(operations->getKeyOperation(0));
   }
-  prepareOperations();  
+  operations->prepare(ndbTransaction);
   rval = ndbTransaction->execute(execType, abortOption, force);
   if(execType != NdbTransaction::NoCommit) {
     closeTransaction();
+    didClose = true;
   }
+  DEBUG_PRINT("EXECUTE sync : %s %d operation%s %s => return: %d",
+              modes[execType], 
+              opListSize, 
+              (opListSize == 1 ? "" : "s"), 
+              (didClose ? " & close transaction" : ""),
+              rval);
   return rval;
 }
 
-int DBTransactionContext::executeAsynch(int execType, int abortOption, int forceSend, 
+int DBTransactionContext::executeAsynch(DBOperationSet *operations,  
+                                        int execType, int abortOption, int forceSend, 
                                         v8::Persistent<v8::Function> callback) {
   assert(ndbTransaction);
-  prepareOperations();
+  operations->prepare(ndbTransaction);
+  int opListSize = operations->size;
+  DEBUG_PRINT("EXECUTE async: %s %d operation%s", modes[execType], 
+              opListSize, (opListSize == 1 ? "" : "s"));
   return parent->asyncContext->executeAsynch(this, ndbTransaction, 
                                              execType, abortOption, forceSend, 
                                              callback);
@@ -163,12 +151,7 @@ int DBTransactionContext::executeAsynch(int execType, int abortOption, int force
 bool DBTransactionContext::clear() {
   /* Cannot clear if NdbTransaction is still open */
   if(ndbTransaction) return false;
-
-  ndbTransaction = 0;
-  newOperationList(0);  // free the definedOperations list
-  definedScan = 0; 
-  executedOperations = 0;  // js code may maintain a reference; freed via GC
-
+  definedScan = 0;
   return true;
 }
 

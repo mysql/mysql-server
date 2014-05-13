@@ -34,7 +34,6 @@ def build(ctx):
   "ndb/src/NdbError_wrapper.cpp " +\
   "ndb/src/NdbTransaction_wrapper.cpp " +\
   "ndb/src/NdbScanOperation_wrapper.cpp " +\
-  "ndb/src/PendingOperationSet_wrapper.cpp " +\
   "ndb/src/NdbInterpretedCode_wrapper.cpp " +\
   "ndb/src/NdbScanFilter_wrapper.cpp " +\
   "ndb/src/AsyncNdbContext.cpp " +\
@@ -50,6 +49,8 @@ def build(ctx):
   "ndb/src/DBSessionImpl_wrapper.cpp " +\
   "ndb/src/DBTransactionContext.cpp " +\
   "ndb/src/DBTransactionContext_wrapper.cpp " +\
+  "ndb/src/DBOperationSet.cpp " +\
+  "ndb/src/DBOperationSet_wrapper.cpp " +\
   \
   "ndb/src/mysqlclient_wrapper.cpp " +\
   ""

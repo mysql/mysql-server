@@ -24,7 +24,7 @@
 #include "ScanOperation.h"
 
 class DBSessionImpl;
-class PendingOperationSet;
+class DBOperationSet;
 
 /* DBTransactionContext takes the place of NdbTransaction, 
    allowing operations to be declared before an NdbTransaction is open, 
@@ -45,17 +45,6 @@ public:
 
   /****** Preparing Operations *******/
 
-  /* Declare the size of the next list of operations to be defined.
-     DBTransactionContext will allocate an array of <size> operations.
-  */
-  void newOperationList(int size); 
-
-  /* Add an operation to a transaction context. 
-     After calling, the user will set features in the KeyOperation object.
-     At execute() time, DBSessionImpl will obtain and execute an NdbOperation
-     for each valid KeyOperation, then free the whole array. 
-  */
-  KeyOperation * getNextOperation();
   
   /*  Define a scan operation in this transaction context.
       The caller has already created the DBScanHelper describing the scan.
@@ -81,11 +70,11 @@ public:
      and return true.  Otherwise return false.  This can be used as a 
      conditional barrier to choose executeAsynch() over execute().
   */
-  bool tryImmediateStartTransaction();
+  bool tryImmediateStartTransaction(KeyOperation *);
 
   /* Async open in worker thread.
   */
-  void startTransaction();
+  void startTransaction(KeyOperation *);
 
   /* Execute transaction using synchronous NDB API in a worker thread.
      If an NdbTransaction is not yet open, one will be started, using 
@@ -96,14 +85,16 @@ public:
      The JavaScript wrapper for this function is Async.
      execute() runs in a uv worker thread.
   */
-  int execute(int execType, int abortOption, int forceSend);
+  int execute(DBOperationSet *operations,
+              int execType, int abortOption, int forceSend);
 
   /* Execute transaction and key-operations using asynchronous NDB API.
      This runs immediately.  The transaction must have already been started.     
      executeAsynch() runs in the JS main thread.     
   */
-  int executeAsynch(int execType, int abortOption, int forceSend,
-                     v8::Persistent<v8::Function> execCompleteCallback);
+  int executeAsynch(DBOperationSet *operations,
+                    int execType, int abortOption, int forceSend,
+                    v8::Persistent<v8::Function> execCompleteCallback);
 
   /* Close the NDB Transaction.  This could happen in a worker thread.
   */
@@ -114,14 +105,13 @@ public:
   */
   void registerClose();
 
-  /****** Accessing operation errors *******/
-
-  /* Get pending operations.  
-     This returns a PendingOperationSet for the most recently executed
-     set of operations, which can then be used to access individual operation 
-     errors as neded.
+  /* Fetch an empty DBOperationSet that can be used for stand-alone 
+     COMMIT and ROLLBACK calls.
   */
-  PendingOperationSet * getPendingOperations() const;
+  v8::Handle<v8::Value> getWrappedEmptyOperationSet() const;
+
+
+  /****** Accessing operation errors *******/
 
   /* Get NDB error on NdbTransaction (if defined)
      Otherwise get NDB error on Ndb.
@@ -136,10 +126,7 @@ protected:
   /* Protected constructor & destructor are used by DBSessionImpl */
   DBTransactionContext(DBSessionImpl *);
   ~DBTransactionContext();
-
-  /* Methods called internally */
-  void prepareOperations();
-
+  
   /* Reset state for next user.
      Returns true on success. 
      Returns false if the current state does not allow clearing, (e.g. due to 
@@ -150,26 +137,21 @@ protected:
 private: 
   int64_t                   token;
   v8::Persistent<v8::Value> jsWrapper;
+  v8::Persistent<v8::Value> emptyOpSetWrapper;
+  DBOperationSet *          emptyOpSet;  
   DBSessionImpl * const     parent;
   DBTransactionContext *    next;
   NdbTransaction *          ndbTransaction; 
-  KeyOperation *            definedOperations; 
   ScanOperation *           definedScan;
-  PendingOperationSet *     executedOperations;
   int                       tcNodeId;
-  int                       opIterator;
-  int                       opListSize;
 };
 
 inline v8::Handle<v8::Value> DBTransactionContext::getJsWrapper() const {
   return jsWrapper;
 }
 
-inline PendingOperationSet * DBTransactionContext::getPendingOperations() const 
-{
-  return executedOperations;
+inline v8::Handle<v8::Value> DBTransactionContext::getWrappedEmptyOperationSet() const {
+  return emptyOpSetWrapper;
 }
-
-
 
 #endif

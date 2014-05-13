@@ -110,7 +110,7 @@ Handle<Value> setNull_wrapper(const Arguments &args) {
 }
 
 Handle<Value> setNotNull_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   
   REQUIRE_ARGS_LENGTH(2);

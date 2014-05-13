@@ -24,12 +24,12 @@
 
 #include "adapter_global.h"
 #include "KeyOperation.h"
+#include "DBOperationSet.h"
 #include "NdbWrappers.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "NdbRecordObject.h"
 #include "DBTransactionContext.h"
-#include "PendingOperationSet.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -64,7 +64,7 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
   const Local<Object> array = args[1]->ToObject();
   DBTransactionContext *txc = unwrapPointer<DBTransactionContext *>(args[2]->ToObject());
 
-  txc->newOperationList(length);
+  DBOperationSet * pendingOps = new DBOperationSet(txc, length);
 
   for(int i = 0 ; i < length ; i++) {
     Handle<Object> spec = array->Get(i)->ToObject();
@@ -73,7 +73,7 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
     bool is_vo  = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
     bool op_ok  = spec->Get(HELPER_IS_VALID)->ToBoolean()->Value();
 
-    KeyOperation * op = txc->getNextOperation();
+    KeyOperation * op = pendingOps->getKeyOperation(i);
     
     if(op_ok) {
       op->opcode = opcode;
@@ -82,7 +82,7 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
     }
   }
   
-  return Null();
+  return DBOperationSet_Wrapper(pendingOps);
 }
 
 
