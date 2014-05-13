@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -66,14 +66,10 @@
 #   -fabi-version=2 -fabi-version=1 -fabi-version=0
 #   -fno-implicit-templates -fno-implicit-inline-templates -frepo
 #   -Weffc++
-#      Unfortunately, -Weffc++ issues broad warnings that cannot be
-#      individually suppressed by -Wno-... (e.g. -Wno-non-virtual-dtor);
-#      therefore, we generally leave out -Weffc++
 #   -Wold-style-cast
 #   -Woverloaded-virtual
-#      Unfortunately, too many warnings from NDB includes
-  CXXFLAGS.gen	= -ansi -Wall -Wstrict-null-sentinel -Wsign-promo \
-		  -fPIC
+#   -Wstrict-null-sentinel
+  CXXFLAGS.gen	= -Wall -Wsign-promo -fPIC
 # gnu g++, default:
   CXXFLAGS	= $(CXXFLAGS.gen) -g -O
   CXXFLAGS.dbg	= $(CXXFLAGS.gen) -g -DDEBUG
