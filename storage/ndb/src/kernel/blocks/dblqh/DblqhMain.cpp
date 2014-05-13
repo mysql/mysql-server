@@ -21633,6 +21633,7 @@ void Dblqh::initFragrec(Signal* signal,
     fragptr.p->lcpId[i] = 0;
   }//for
   fragptr.p->maxGciCompletedInLcp = 0;
+  fragptr.p->accFragptr = RNIL;
   fragptr.p->maxGciInLcp = 0;
   fragptr.p->copyFragState = ZIDLE;
   fragptr.p->newestGci = cnewestGci;
@@ -25619,7 +25620,10 @@ Dblqh::log_fragment_copied(Signal* signal)
   jam();
   
   Uint64 fragRows = 0;
+  if (fragptr.p->accFragptr != RNIL)
   {
+    ndbassert(DictTabInfo::isTable(fragptr.p->tableType) ||
+              DictTabInfo::isHashIndex(fragptr.p->tableType));
     /* Determine number of rows in this fragment... */
     
     signal->theData[0] = fragptr.p->accFragptr;
