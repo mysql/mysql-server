@@ -364,7 +364,10 @@ Dbtup::commit_operation(Signal* signal,
         if (len)
         {
           jam();
+          ndbassert(regFragPtr->m_varWordsFree >= vpagePtrP->free_space);
+          regFragPtr->m_varWordsFree -= vpagePtrP->free_space;
           vpagePtrP->shrink_entry(tmp.m_page_idx, len);
+          // Adds the new free space value for the page to the fragment total.
           update_free_page_list(regFragPtr, vpagePtr);
         }
         else

@@ -1,5 +1,6 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights
+   reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -4349,6 +4350,26 @@ public:
 
   LockQueue::Pool m_dict_lock_pool;
   LockQueue m_dict_lock;
+
+  /**
+    Make a ListTablesData representation of a DictObject.
+    @rapam dictObject The input object.
+    @param parentTableId If not RNIL, leave 'ltd' unchanged and return false if 
+      'dictObject' does not depend on parentTableId. Foreign keys depend on 
+      each of the indexes and tables they refer, triggers depend on the 
+      table on which they are defined, and indexes depend on their base tables.
+      All other objects are considered to be independent, such that false 
+      will be returned if parentTableId!=RNIL.
+    @param ltd Result value.
+    @return false if parentTableId!=RNIL and 'dictObject' did not depend on it,
+      otherwise true.
+  **/
+  bool buildListTablesData(const DictObject& dictObject,
+                           Uint32 parentTableId,
+                           ListTablesData& ltd,
+                           Uint32& objectVersion, 
+                           Uint32& parentObjectType,
+                           Uint32& parentObjectId);
 
   void sendOLD_LIST_TABLES_CONF(Signal *signal, ListTablesReq*);
   void sendLIST_TABLES_CONF(Signal *signal, ListTablesReq*);

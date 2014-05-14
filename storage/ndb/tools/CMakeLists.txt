@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata)
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp

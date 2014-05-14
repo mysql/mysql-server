@@ -643,6 +643,11 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
   } else {
     jam();
     {
+      ndbassert(static_cast<Uint32>(regFragPtr.p->m_noOfAllocatedPages) == 
+                regFragPtr.p->sparsepages.getCount() + 
+                regFragPtr.p->fullpages.getCount());
+      regFragPtr.p->m_noOfAllocatedPages = 0;
+
       LocalPage8List freelist(*this, cfreepages);
       cnoOfAllocatedPages -= regFragPtr.p->sparsepages.getCount();
       freelist.appendList(regFragPtr.p->sparsepages);
@@ -660,6 +665,7 @@ void Dbacc::releaseFragResources(Signal* signal, Uint32 fragIndex)
     signal->theData[1] = tab;
     sendSignal(cownBlockref, GSN_CONTINUEB, signal, 2, JBB);
   }//if
+  ndbassert(validatePageCount());
 }//Dbacc::releaseFragResources()
 
 void Dbacc::verifyFragCorrect(FragmentrecPtr regFragPtr)
@@ -702,6 +708,7 @@ void Dbacc::releaseDirResources(Signal* signal)
       jam();
       rpPageptr.i = pagei;
       ptrCheckGuard(rpPageptr, cpagesize, page8);
+      fragrecptr = regFragPtr;
       releasePage(signal);
     }
   }
@@ -6085,6 +6092,7 @@ void Dbacc::initFragGeneral(FragmentrecPtr regFragPtr)
 
   regFragPtr.p->sparsepages.init();
   regFragPtr.p->fullpages.init();
+  regFragPtr.p->m_noOfAllocatedPages = 0;
 }//Dbacc::initFragGeneral()
 
 
@@ -7582,12 +7590,46 @@ void Dbacc::releasePage(Signal* signal)
   freelist.addFirst(rpPageptr);
   cnoOfAllocatedPages--;
   ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+  fragrecptr.p->m_noOfAllocatedPages--;
 
   g_acc_pages_used[instance()] = cnoOfAllocatedPages;
 
   if (cnoOfAllocatedPages < m_maxAllocPages)
     m_oom = false;
 }//Dbacc::releasePage()
+
+bool Dbacc::validatePageCount() const
+{
+  jam();
+  FragmentrecPtr regFragPtr;
+  Uint32 pageCount = 0;
+  for (regFragPtr.i = 0; regFragPtr.i < cfragmentsize; regFragPtr.i++)
+  {
+    ptrAss(regFragPtr, fragmentrec);
+    pageCount += regFragPtr.p->m_noOfAllocatedPages;
+  }
+  return pageCount==cnoOfAllocatedPages;
+}//Dbacc::validatePageCount()
+
+
+Uint64 Dbacc::getLinHashByteSize(Uint32 fragId) const
+{
+  ndbassert(validatePageCount());
+  FragmentrecPtr fragPtr(NULL, fragId);
+  ptrCheck(fragPtr, cfragmentsize, fragmentrec);
+  if (unlikely(fragPtr.p == NULL))
+  {
+    jam();
+    ndbassert(false);
+    return 0;
+  }
+  else
+  {
+    jam();
+    ndbassert(fragPtr.p->fragState == ACTIVEFRAG);
+    return fragPtr.p->m_noOfAllocatedPages * static_cast<Uint64>(sizeof(Page8));
+  }
+}
 
 /* --------------------------------------------------------------------------------- */
 /* SEIZE    FRAGREC                                                                  */
@@ -7648,6 +7690,7 @@ void Dbacc::seizePage(Signal* signal)
     freelist.removeFirst(spPageptr);
     cnoOfAllocatedPages++;
     ndbassert(freelist.count() + cnoOfAllocatedPages == cpageCount);
+    fragrecptr.p->m_noOfAllocatedPages++;
 
     if (cnoOfAllocatedPages >= m_maxAllocPages)
       m_oom = true;
@@ -7699,6 +7742,7 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
   case Ndbinfo::POOLS_TABLEID:
   {
     jam();
+    const DynArr256Pool::Info pmpInfo = directoryPool.getInfo();
 
     Ndbinfo::pool_entry pools[] =
     {
@@ -7708,6 +7752,26 @@ void Dbacc::execDBINFO_SCANREQ(Signal *signal)
         sizeof(Page8),
         cnoOfAllocatedPagesMax,
         { CFG_DB_INDEX_MEM,0,0,0 }},
+      { "L2PMap pages",
+        pmpInfo.pg_count,
+        0,                  /* No real limit */
+        pmpInfo.pg_byte_sz,
+        /*
+          No HWM for this row as it would be a fixed fraction of "Data memory"
+          and therefore of limited interest.
+        */
+        0,
+        { 0, 0, 0}},
+      { "L2PMap nodes",
+        pmpInfo.inuse_nodes,
+        pmpInfo.pg_count * pmpInfo.nodes_per_page, // Max within current pages.
+        pmpInfo.node_byte_sz,
+        /*
+          No HWM for this row as it would be a fixed fraction of "Data memory"
+          and therefore of limited interest.
+        */
+        0,
+        { 0, 0, 0 }},
       { NULL, 0,0,0,0,{ 0,0,0,0 }}
     };
 
@@ -8030,6 +8094,15 @@ Dbacc::execDUMP_STATE_ORD(Signal* signal)
     return;
   }
 }//Dbacc::execDUMP_STATE_ORD()
+
+Uint32
+Dbacc::getL2PMapAllocBytes(Uint32 fragId) const
+{
+  jam();
+  FragmentrecPtr fragPtr(NULL, fragId);
+  ptrCheckGuard(fragPtr, cfragmentsize, fragmentrec);
+  return fragPtr.p->directory.getByteSize();
+}
 
 void
 Dbacc::execREAD_PSEUDO_REQ(Signal* signal){
