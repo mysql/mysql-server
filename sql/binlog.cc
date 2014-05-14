@@ -3214,10 +3214,20 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       all the content of index file is copyed into the crash safe index
       file. Then move the crash safe index file to index file.
     */
+    DBUG_EXECUTE_IF("simulate_disk_full_on_open_binlog",
+                    {DBUG_SET("+d,simulate_no_free_space_error");});
     if (DBUG_EVALUATE_IF("fault_injection_updating_index", 1, 0) ||
         add_log_to_index((uchar*) log_file_name, strlen(log_file_name),
                          need_lock_index))
+    {
+      DBUG_EXECUTE_IF("simulate_disk_full_on_open_binlog",
+                      {
+                        DBUG_SET("-d,simulate_file_write_error");
+                        DBUG_SET("-d,simulate_no_free_space_error");
+                        DBUG_SET("-d,simulate_disk_full_on_open_binlog");
+                      });
       goto err;
+    }
 
 #ifdef HAVE_REPLICATION
     DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
@@ -3238,10 +3248,6 @@ err:
     purge_index_entry(NULL, NULL, need_lock_index);
   close_purge_index_file();
 #endif
-  sql_print_error("Could not use %s for logging (error %d). \
-Turning logging off for the whole duration of the MySQL server process. \
-To turn it on again: fix the cause, \
-shutdown the MySQL server and restart it.", name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
@@ -3249,6 +3255,26 @@ shutdown the MySQL server and restart it.", name, errno);
   my_free(name);
   name= NULL;
   log_state= LOG_CLOSED;
+  if (binlogging_impossible_mode == ABORT_SERVER)
+  {
+    THD *thd= current_thd;
+    /*
+      On fatal error when code enters here we should forcefully clear the
+      previous errors so that a new critical error message can be pushed
+      to the client side.
+     */
+    thd->clear_error();
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+             "file system is read only while opening the binlog. Aborting the "
+             "server");
+    thd->protocol->end_statement();
+    _exit(EXIT_FAILURE);
+  }
+  else
+    sql_print_error("Could not use %s for logging (error %d). "
+                    "Turning logging off for the whole duration of the MySQL "
+                    "server process. To turn it on again: fix the cause, "
+                    "shutdown the MySQL server and restart it.", name, errno);
   DBUG_RETURN(1);
 }
 
@@ -4870,12 +4896,28 @@ end:
        - ...
     */
     close(LOG_CLOSE_INDEX);
-    sql_print_error("Could not open %s for logging (error %d). "
-                    "Turning logging off for the whole duration "
-                    "of the MySQL server process. To turn it on "
-                    "again: fix the cause, shutdown the MySQL "
-                    "server and restart it.", 
-                    new_name_ptr, errno);
+    if (binlogging_impossible_mode == ABORT_SERVER)
+    {
+      THD *thd= current_thd;
+      /*
+        On fatal error when code enters here we should forcefully clear the
+        previous errors so that a new critical error message can be pushed
+        to the client side.
+       */
+      thd->clear_error();
+      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+               "file system is read only while rotating the binlog. Aborting "
+               "the server");
+      thd->protocol->end_statement();
+      _exit(EXIT_FAILURE);
+    }
+    else
+      sql_print_error("Could not open %s for logging (error %d). "
+                      "Turning logging off for the whole duration "
+                      "of the MySQL server process. To turn it on "
+                      "again: fix the cause, shutdown the MySQL "
+                      "server and restart it.",
+                      new_name_ptr, errno);
   }
 
   mysql_mutex_unlock(&LOCK_index);
