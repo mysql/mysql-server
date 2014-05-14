@@ -10345,7 +10345,7 @@ ha_innobase::delete_table(
 		}
 	}
 
-	if (err == DB_SUCCESS) {
+	if (err == DB_SUCCESS && is_intrinsic_temp_table) {
 		priv->unregister_table_handler(norm_name);
 	}
 
