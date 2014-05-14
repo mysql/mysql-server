@@ -2767,14 +2767,14 @@ fil_check_pending_operations(
 
 #ifndef UNIV_HOTBACKUP
 /** Check if a file name exists in the system tablespace.
-@param[in]	page_no	first page number (0=first file)
-@param[in]	name	tablespace name
+@param[in]	first_page_no	first page number (0=first file)
+@param[in]	file_name	tablespace file name
 @return whether the name matches the system tablespace */
 
 enum fil_space_system_t
 fil_space_system_check(
-	ulint		page_no,
-	const char*	name)
+	ulint		first_page_no,
+	const char*	file_name)
 {
 	const fil_space_t*	space;
 	enum fil_space_system_t	status	= FIL_SPACE_SYSTEM_MISMATCH;
@@ -2792,12 +2792,12 @@ fil_space_system_check(
 		ut_ad(i <= UT_LIST_GET_LEN(space->chain));
 		ut_ad(node->size > 0);
 
-		if (page_no != 0) {
-			page_no -= node->size;
+		if (first_page_no != 0) {
+			first_page_no -= node->size;
 			continue;
 		}
 
-		if (strcmp(node->name, name)) {
+		if (strcmp(node->name, file_name)) {
 			/* Name mismatch */
 		} else if (i < fil_space_system_checked_max + 1) {
 			status = FIL_SPACE_SYSTEM_OK;

@@ -529,14 +529,14 @@ enum fil_space_system_t {
 };
 
 /** Check if a file name exists in the system tablespace.
-@param[in]	page_no	first page number (0=first file)
-@param[in]	name	tablespace name
+@param[in]	first_page_no	first page number (0=first file)
+@param[in]	file_name	tablespace file name
 @return whether the name matches the system tablespace */
 
 enum fil_space_system_t
 fil_space_system_check(
-	ulint		page_no,
-	const char*	name)
+	ulint		first_page_no,
+	const char*	file_name)
 	__attribute__((warn_unused_result));
 
 /** Check if an undo tablespace was opened during crash recovery.
