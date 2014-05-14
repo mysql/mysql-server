@@ -157,6 +157,12 @@ public:
 	void unregister_table_handler(
 		const char*	table_name)
 	{
+		table_cache_t::iterator it = m_open_tables.find(table_name);
+		if (it == m_open_tables.end()) {
+			return;
+		}
+
+		delete(it->second);
 		m_open_tables.erase(table_name);
 	}
 
