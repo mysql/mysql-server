@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -57,11 +57,12 @@ TEST(hainnodb, UtMySnprintf)
 	bufsz = sizeof buf;
 #undef ARGS
 
-	ib_uint32_t a;
-	ib_uint64_t b;
-	ib_int64_t c;
+	ib_uint32_t	a;
+	ib_uint64_t	b;
+	int64_t		c;
 
-#define ARGS buf, bufsz, UINT32PF"/"UINT64PF"/"INT64PF"/"UINT64PFx"*", a,b,c,b
+#define ARGS buf, bufsz, UINT32PF "/" UINT64PF "/%" PRId64 "/" UINT64PFx "*", \
+	a, b, c, b
 
 	a = 0, b = 1, c = 2;
 	ut_snprintf(ARGS);
@@ -72,7 +73,7 @@ TEST(hainnodb, UtMySnprintf)
 	test_snprintf(
 		"4294967295/18446744073709551614/-3/fffffffffffffffe*", ARGS);
 
-	a = 1234567890, b = 12345678901234567890ULL, c = ib_int64_t (b);
+	a = 1234567890, b = 12345678901234567890ULL, c = static_cast<int64_t>(b);
 	ut_snprintf(ARGS);
 	test_snprintf(
 		"1234567890/12345678901234567890/-6101065172474983726/"

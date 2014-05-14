@@ -1144,8 +1144,8 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     Cast *passwd to an unsigned char, so that it doesn't extend the sign for
     *passwd > 127 and become 2**32-127+ after casting to uint.
   */
-  uint passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                    (uchar) (*passwd++) : strlen(passwd));
+  size_t passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
+                     (uchar) (*passwd++) : strlen(passwd));
 
   db+= passwd_len + 1;
   /*
@@ -1158,7 +1158,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     DBUG_RETURN (1);
   }
 
-  uint db_len= strlen(db);
+  size_t db_len= strlen(db);
 
   char *ptr= db + db_len + 1;
 
@@ -2859,7 +2859,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (pkt_len == 1 && *pkt == 1)
     {
-      uint pem_length= strlen(g_rsa_keys.get_public_key_as_pem());
+      uint pem_length= static_cast<uint>(strlen(g_rsa_keys.get_public_key_as_pem()));
       if (vio->write_packet(vio,
                             (unsigned char *)g_rsa_keys.get_public_key_as_pem(),
                             pem_length))

@@ -893,7 +893,8 @@ ErrConvString::ErrConvString(double nr)
   // enough to print '-[digits].E+###'
   DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
   buf_length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE,
-                      sizeof(err_buffer) - 1, err_buffer, NULL);  
+                      static_cast<int>(sizeof(err_buffer)) - 1,
+                      err_buffer, NULL);
 }
 
 

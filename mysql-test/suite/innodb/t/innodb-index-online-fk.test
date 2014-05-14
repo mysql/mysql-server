@@ -484,3 +484,34 @@ SELECT * FROM INFORMATION_SCHEMA.INNODB_SYS_FOREIGN_COLS;
 DROP TABLE t2;
 
 DROP TABLE t3;
+
+--echo # Bug #17449901	 TABLE DISAPPEARS WHEN ALTERING
+--echo # WITH FOREIGN KEY CHECKS OFF
+
+# Drop index via inplace algorithm
+create table t1(f1 int,primary key(f1))engine=innodb;
+create table t2(f2 int,f3 int,key t(f2,f3),foreign key(f2) references t1(f1))engine=innodb;
+SET foreign_key_checks=0;
+--error ER_DROP_INDEX_FK
+drop index t on t2;
+drop table t2;
+drop table t1;
+
+# Drop index using alter statement via inplace
+create table t1(f1 int ,primary key(f1))engine=innodb;
+create table t2(f2 int,f3 int, key t(f2),foreign key(f2) references t1(f1))engine=innodb;
+SET foreign_key_checks = 0;
+--error ER_DROP_INDEX_FK
+alter table t2 drop key t,algorithm=inplace;
+show create table t2;
+drop table t2;
+drop table t1;
+
+create table t1(f1 int ,primary key(f1))engine=innodb;
+create table t2(f2 int,f3 int, key t(f2),key t1(f2,f3),
+foreign key(f2) references t1(f1))engine=innodb;
+SET foreign_key_checks = 0;
+alter table t2 drop key t,algorithm=inplace;
+show create table t2;
+drop table t2;
+drop table t1;

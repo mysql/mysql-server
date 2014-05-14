@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -68,16 +68,14 @@ enum dict_check_t {
 	(no crash recovery, no transactions recovered). */
 	DICT_CHECK_NONE_LOADED = 0,
 	/** Some user tablespaces may have been opened
-	(no crash recovery; recovered table locks for transactions). */
-	DICT_CHECK_SOME_LOADED,
-	/** All user tablespaces have been opened (crash recovery). */
-	DICT_CHECK_ALL_LOADED
+	(recovered table locks for transactions). */
+	DICT_CHECK_SOME_LOADED
 };
 
 /********************************************************************//**
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
-to what we already read with fil_load_single_table_tablespaces().
+to what we already read with fil_load_single_table_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.

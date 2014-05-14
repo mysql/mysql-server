@@ -925,7 +925,7 @@ in SYS_DATAFILES to ensure the correct path.
 
 In a crash recovery we already have all the tablespace objects created.
 This function compares the space id information in the InnoDB data dictionary
-to what we already read with fil_load_single_table_tablespaces().
+to what we already read with fil_load_single_table_tablespace().
 
 In a normal startup, we create the tablespace objects for every table in
 InnoDB's data dictionary, if the corresponding .ibd file exists.
@@ -1042,7 +1042,6 @@ loop:
 		field = rec_get_nth_field_old(
 			rec, DICT_FLD__SYS_TABLES__MIX_LEN, &len);
 
-		bool		is_temp = false;
 		bool		discarded = false;
 		ib_uint32_t	flags2 = static_cast<ib_uint32_t>(
 			mach_read_from_4(field));
@@ -1058,7 +1057,6 @@ loop:
 		/* MIX_LEN valid only for ROW_FORMAT > REDUNDANT. */
 		if (mach_read_from_4(field) & DICT_N_COLS_COMPACT) {
 
-			is_temp = !!(flags2 & DICT_TF2_TEMPORARY);
 			discarded = !!(flags2 & DICT_TF2_DISCARDED);
 		}
 
@@ -1069,47 +1067,6 @@ loop:
 		}
 
 		switch (dict_check) {
-		case DICT_CHECK_ALL_LOADED:
-			/* All tablespaces should have been found in
-			fil_load_single_table_tablespaces(). */
-			if (fil_space_for_table_exists_in_mem(
-				space_id, name,!(is_temp || discarded),
-				false, NULL, 0)
-			    && !(is_temp || discarded)) {
-				/* If user changes the path of .ibd files in
-				   *.isl files before doing crash recovery ,
-				   then this leads to inconsistency in
-				   SYS_DATAFILES system table because the
-				   tables are loaded from the updated path
-				   but the SYS_DATAFILES still points to the
-				   old path.Therefore after crash recovery
-				   update SYS_DATAFILES with the updated path.*/
-				ut_ad(space_id);
-				ut_ad(recv_needed_recovery);
-				char *dict_path = dict_get_first_path(
-					space_id, name);
-				char *link_path;
-				char *remote_path;
-				RemoteDatafile::read_link_file(
-					name, &link_path, &remote_path);
-				if(dict_path && remote_path) {
-					if(strcmp(dict_path,remote_path)) {
-						dict_update_filepath(
-							space_id, remote_path);
-					}
-				}
-				if(dict_path) {
-					ut_free(dict_path);
-				}
-				if(link_path) {
-					ut_free(link_path);
-				}
-				if(remote_path) {
-					ut_free(remote_path);
-				}
-			}
-			break;
-
 		case DICT_CHECK_SOME_LOADED:
 			/* Some tablespaces may have been opened in
 			trx_resurrect_table_locks(). */
@@ -1929,7 +1886,8 @@ dict_load_indexes(
 		/* We check for unsupported types first, so that the
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
-				    | DICT_CORRUPT | DICT_FTS)) {
+				    | DICT_CORRUPT | DICT_FTS
+				    | DICT_SPATIAL)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Unknown type %lu of index %s of table %s",
 				(ulong) index->type, index->name, table->name);

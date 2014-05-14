@@ -206,7 +206,7 @@ private:
 	/** Set the size of the file.
 	@param[in,out]	file	data file object
 	@return DB_SUCCESS or error code */
-	static dberr_t set_size(Datafile& file);
+	dberr_t set_size(Datafile& file);
 
 	/** Convert a numeric string that optionally ends in G or M, to a
 	number containing megabytes.
@@ -286,6 +286,19 @@ is_system_or_undo_tablespace(
 {
 	return(id == srv_sys_space.space_id()
 	       || id <= srv_undo_tablespaces_open);
+}
+
+/** Check if predefined shared tablespace.
+@return true if predefined shared tablespace */
+UNIV_INLINE
+bool
+is_predefined_tablespace(
+	ulint   id)
+{
+	ut_ad(srv_sys_space.space_id() == 0);
+	return(id == TRX_SYS_SPACE
+	       || id <= srv_undo_tablespaces_open
+	       || id == srv_tmp_space.space_id());
 }
 
 #endif /* fsp0sysspace_h */

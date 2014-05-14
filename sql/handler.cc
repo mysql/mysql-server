@@ -3065,7 +3065,14 @@ int handler::update_auto_increment()
     if (forced != NULL)
     {
       nr= forced->minimum();
-      nb_reserved_values= forced->values();
+      /*
+        In a multi insert statement when the number of affected rows is known
+        then reserve those many number of auto increment values. So that
+        interval will be starting value to starting value + number of affected
+        rows * increment of auto increment.
+       */
+      nb_reserved_values= (estimation_rows_to_insert > 0) ?
+        estimation_rows_to_insert : forced->values();
     }
     else
     {
@@ -3438,6 +3445,9 @@ bool handler::is_fatal_error(int error)
     */
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
+      DBUG_RETURN(false);
+
+    case HA_ERR_NULL_IN_SPATIAL:
       DBUG_RETURN(false);
   }
 

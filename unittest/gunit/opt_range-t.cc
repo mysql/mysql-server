@@ -28,6 +28,7 @@
 #include "test_utils.h"
 
 #include "opt_range.cc"
+#include "parse_tree_helpers.h"
 
 namespace opt_range_unittest {
 
@@ -1708,8 +1709,7 @@ Item_row *new_Item_row(int a, int b)
   */
   List<Item> items;
   items.push_front(new Item_int(b));
-  items.push_front(new Item_int(a));
-  return new Item_row(items);
+  return new Item_row(POS(), new Item_int(a), items);
 }
 
 
@@ -1722,8 +1722,7 @@ Item_row *new_Item_row(int a, int b, int c)
   List<Item> items;
   items.push_front(new Item_int(c));
   items.push_front(new Item_int(b));
-  items.push_front(new Item_int(a));
-  return new Item_row(items);
+  return new Item_row(POS(), new Item_int(a), items);
 }
 
 
@@ -1735,9 +1734,9 @@ Item_row *new_Item_row(Field **fields, int count)
     it can live on the stack.
   */
   List<Item> items;
-  for (int i= count - 1; i >= 0; --i)
+  for (int i= count - 1; i > 0; --i)
     items.push_front(new Item_field(fields[i]));
-  return new Item_row(items);
+  return new Item_row(POS(), new Item_field(fields[0]), items);
 }
 
 
@@ -1748,11 +1747,14 @@ TEST_F(OptRangeTest, RowConstructorIn2)
   m_opt_param->add_key();
 
   // We build the expression (field_1, field_2) IN ((3, 4), (1, 2)) ...
-  List<Item> all_args;
-  all_args.push_front(new_Item_row(1, 2));
-  all_args.push_front(new_Item_row(3, 4));
-  all_args.push_front(new_Item_row(m_opt_param->table->field, 2));
-  Item_func_in *cond= new Item_func_in(all_args);
+  PT_item_list *all_args=
+    new (current_thd->mem_root) PT_item_list;
+  all_args->push_front(new_Item_row(1, 2));
+  all_args->push_front(new_Item_row(3, 4));
+  all_args->push_front(new_Item_row(m_opt_param->table->field, 2));
+  Item *cond= new Item_func_in(POS(), all_args, false);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.
   Item *item= cond;
@@ -1778,11 +1780,14 @@ TEST_F(OptRangeTest, RowConstructorIn3)
   m_opt_param->add_key();
 
   // We build the expression (field_1, field_2) IN ((3, 4), (1, 2)) ...
-  List<Item> all_args;
-  all_args.push_front(new_Item_row(1, 2, 3));
-  all_args.push_front(new_Item_row(4, 5, 6));
-  all_args.push_front(new_Item_row(m_opt_param->table->field, 3));
-  Item_func_in *cond= new Item_func_in(all_args);
+  PT_item_list *all_args=
+    new (current_thd->mem_root) PT_item_list;
+  all_args->push_front(new_Item_row(1, 2, 3));
+  all_args->push_front(new_Item_row(4, 5, 6));
+  all_args->push_front(new_Item_row(m_opt_param->table->field, 3));
+  Item *cond= new Item_func_in(POS(), all_args, false);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(cond->itemize(&pc, &cond));
 
   // ... and resolve it.
   Item *item= cond;

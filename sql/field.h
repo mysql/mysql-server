@@ -1470,7 +1470,7 @@ protected:
       val = sint2korr(from);
     else
 #endif
-      shortget(val, from);
+      shortget(&val, from);
 
 #ifdef WORDS_BIGENDIAN
     if (low_byte_first_to)
@@ -1515,7 +1515,7 @@ protected:
       val = sint4korr(from);
     else
 #endif
-      longget(val, from);
+      longget(&val, from);
 
 #ifdef WORDS_BIGENDIAN
     if (low_byte_first_to)
@@ -1537,7 +1537,7 @@ protected:
       val = sint8korr(from);
     else
 #endif
-      longlongget(val, from);
+      longlongget(&val, from);
 
 #ifdef WORDS_BIGENDIAN
     if (low_byte_first_to)
@@ -4004,8 +4004,9 @@ public:
     The value of `length' as set by parser: is the number of characters
     for most of the types, or of bytes for BLOBs or numeric types.
   */
-  uint32 char_length;
-  uint  decimals, flags, pack_length, key_length;
+  size_t char_length;
+  uint  decimals, flags;
+  size_t pack_length, key_length;
   Field::utype unireg_check;
   TYPELIB *interval;			// Which interval to use
   TYPELIB *save_interval;               // Temporary copy for the above

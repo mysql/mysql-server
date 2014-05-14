@@ -1698,7 +1698,6 @@ CALL p1();
 --echo
 CALL p2();
 --echo
---error ER_BAD_FIELD_ERROR
 UPDATE t2 SET a = 30;
 
 --echo

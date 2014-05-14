@@ -84,6 +84,15 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+#ifdef DBUG_OFF
+   {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug",'#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
@@ -92,6 +101,7 @@ static struct my_option my_long_options[] =
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,

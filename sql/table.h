@@ -646,6 +646,7 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
+  bool m_open_in_progress;              /* True: alloc'ed, false: def opened */
   Table_id table_map_id;                   /* for row-based replication */
 
   /*

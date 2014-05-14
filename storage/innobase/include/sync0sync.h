@@ -80,6 +80,10 @@ extern mysql_pfs_key_t	page_cleaner_mutex_key;
 extern mysql_pfs_key_t	purge_sys_pq_mutex_key;
 extern mysql_pfs_key_t	recv_sys_mutex_key;
 extern mysql_pfs_key_t	recv_writer_mutex_key;
+extern mysql_pfs_key_t	rtr_active_mutex_key;
+extern mysql_pfs_key_t	rtr_match_mutex_key;
+extern mysql_pfs_key_t	rtr_path_mutex_key;
+extern mysql_pfs_key_t	rtr_ssn_mutex_key;
 extern mysql_pfs_key_t	redo_rseg_mutex_key;
 extern mysql_pfs_key_t	noredo_rseg_mutex_key;
 extern mysql_pfs_key_t page_zip_stat_per_index_mutex_key;
@@ -192,7 +196,7 @@ void
 sync_print(FILE* file);
 
 /* Number of spin waits on mutexes: for performance monitoring */
-typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> mutex_counter_t;
+typedef ib_counter_t<int64_t, IB_N_SLOTS> mutex_counter_t;
 
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */
