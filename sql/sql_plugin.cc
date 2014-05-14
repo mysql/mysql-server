@@ -1685,6 +1685,13 @@ void memcached_shutdown(void)
   struct st_plugin_int *plugin;
   if (initialized)
   {
+    /*
+      It's perfectly safe not to lock LOCK_plugin, as there're no
+      concurrent threads anymore. But some functions called from here
+      use mysql_mutex_assert_owner(), so we lock the mutex to satisfy it
+    */
+    mysql_mutex_lock(&LOCK_plugin);
+
     for (uint i= 0; i < plugin_array.elements; i++)
     {
       plugin= *dynamic_element(&plugin_array, i, struct st_plugin_int **);
@@ -1697,6 +1704,8 @@ void memcached_shutdown(void)
 	plugin_del(plugin);
       }
     }
+
+    mysql_mutex_unlock(&LOCK_plugin);
   }
 }
 

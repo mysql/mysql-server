@@ -73,6 +73,19 @@ savepoint. */
 				(m)->memo_release((o), (t))
 
 #ifdef UNIV_DEBUG
+
+/** Check if memo contains the given item ignore if table is intrinsic
+@return TRUE if contains or table is intrinsic. */
+#define mtr_is_block_fix(m, o, t, table)				\
+	(mtr_memo_contains(m, o, t)					\
+	 || dict_table_is_intrinsic(table))
+
+/** Check if memo contains the given page ignore if table is intrinsic
+@return TRUE if contains or table is intrinsic. */
+#define mtr_is_page_fix(m, p, t, table)					\
+	(mtr_memo_contains_page(m, p, t)				\
+	 || dict_table_is_intrinsic(table))
+
 /** Check if memo contains the given item.
 @return	TRUE if contains */
 #define mtr_memo_contains(m, o, t)					\
@@ -174,10 +187,10 @@ struct mtr_t {
 		tablespace. */
 		bool		m_modifies_sys_space;
 
-#ifdef UNIV_DEBUG
 		/** State of the transaction */
 		mtr_state_t	m_state;
 
+#ifdef UNIV_DEBUG
 		/** For checking corruption. */
 		ulint		m_magic_n;
 #endif /* UNIV_DEBUG */
@@ -186,7 +199,10 @@ struct mtr_t {
 		mtr_t*		m_mtr;
 	};
 
-	mtr_t() { }
+	mtr_t() 
+	{
+		m_impl.m_state = MTR_STATE_INIT;
+	}
 
 	~mtr_t() { }
 
@@ -391,6 +407,13 @@ struct mtr_t {
 		return(m_impl.m_inside_ibuf);
 	}
 
+	/*
+	@return true if the mini-transaction is active */
+	bool is_active() const
+	{
+		return(m_impl.m_state == MTR_STATE_ACTIVE);
+	}
+
 #ifdef UNIV_DEBUG
 	/** Check if memo contains the given item.
 	@param memo	memo stack
@@ -430,12 +453,6 @@ struct mtr_t {
 
 	/** Print info of an mtr handle. */
 	void print() const;
-
-	/** @return true if the mini-transaction is active */
-	bool is_active() const
-	{
-		return(m_impl.m_state == MTR_STATE_ACTIVE);
-	}
 
 	/** @return true if the mini-transaction has committed */
 	bool has_committed() const

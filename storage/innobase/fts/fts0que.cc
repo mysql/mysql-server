@@ -4118,6 +4118,7 @@ fts_query(
 	/* Get the deleted doc ids that are in the cache. */
 	fts_cache_append_deleted_doc_ids(
 		index->table->fts->cache, query.deleted->doc_ids);
+	DEBUG_SYNC_C("fts_deleted_doc_ids_append");
 
 	/* Sort the vector so that we can do a binary search over the ids. */
 	ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);

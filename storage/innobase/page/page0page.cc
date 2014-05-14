@@ -729,7 +729,7 @@ page_copy_rec_list_end(
 
 	if (dict_index_is_spatial(index) && rec_move) {
 		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
-	} else {
+	} else if (!dict_table_is_locking_disabled(index->table)) {
 		lock_move_rec_list_end(new_block, block, rec);
 	}
 
@@ -888,7 +888,7 @@ zip_reorganize:
 
 	if (dict_index_is_spatial(index)) {
 		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
-	} else {
+	} else if (!dict_table_is_locking_disabled(index->table)) {
 		lock_move_rec_list_start(new_block, block, rec, ret);
 	}
 
@@ -2513,11 +2513,14 @@ page_validate(
 
 #ifndef UNIV_HOTBACKUP
 		/* Check that the records are in the ascending order */
-		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
+		if (count >= PAGE_HEAP_NO_USER_LOW
 		    && !page_rec_is_supremum(rec)) {
-			if (UNIV_UNLIKELY
-			    (0 >= cmp_rec_rec(rec, old_rec,
-					      offsets, old_offsets, index))) {
+
+			int	ret = cmp_rec_rec(
+				rec, old_rec, offsets, old_offsets, index);
+
+			if (ret <= 0) {
+
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Records in wrong order"
 					" on space %lu page %lu index %s",
