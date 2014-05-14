@@ -294,6 +294,16 @@ struct ReleaseBlocks {
 			    || slot->type == MTR_MEMO_PAGE_SX_FIX) {
 
 				add_dirty_page_to_flush_list(slot);
+
+			} else if (slot->type == MTR_MEMO_BUF_FIX) {
+
+				buf_block_t*	block;
+				block = reinterpret_cast<buf_block_t*>(
+					slot->object);
+				if (block->made_dirty_with_no_latch) {
+					add_dirty_page_to_flush_list(slot);
+					block->made_dirty_with_no_latch = false;
+				}
 			}
 		}
 
@@ -434,9 +444,9 @@ mtr_t::start(bool sync, bool read_only)
 	m_impl.m_modifications = false;
 	m_impl.m_made_dirty = false;
 	m_impl.m_n_log_recs = 0;
+	m_impl.m_state = MTR_STATE_ACTIVE;
 	m_impl.m_named_space = TRX_SYS_SPACE;
 
-	ut_d(m_impl.m_state = MTR_STATE_ACTIVE);
 	ut_d(m_impl.m_magic_n = MTR_MAGIC_N);
 }
 
@@ -462,7 +472,7 @@ mtr_t::Command::release_resources()
 
 	m_impl->m_memo.erase();
 
-	ut_d(m_impl->m_state = MTR_STATE_COMMITTED);
+	m_impl->m_state = MTR_STATE_COMMITTED;
 
 	m_impl = 0;
 }
@@ -475,7 +485,7 @@ mtr_t::commit()
 	ut_ad(is_active());
 	ut_ad(!is_inside_ibuf());
 	ut_ad(m_impl.m_magic_n == MTR_MAGIC_N);
-	ut_d(m_impl.m_state = MTR_STATE_COMMITTING);
+	m_impl.m_state = MTR_STATE_COMMITTING;
 
 	/* This is a dirty read, for debugging. */
 	ut_ad(!recv_no_log_write);
@@ -486,7 +496,9 @@ mtr_t::commit()
 	    && (m_impl.m_n_log_recs > 0
 		|| m_impl.m_log_mode == MTR_LOG_NO_REDO)) {
 
-		ut_ad(!srv_read_only_mode);
+		ut_ad(!srv_read_only_mode
+		      || m_impl.m_log_mode == MTR_LOG_NO_REDO);
+
 		cmd.execute();
 	} else {
 		cmd.release_all();
@@ -771,6 +783,8 @@ the resources. */
 void
 mtr_t::Command::execute()
 {
+	ut_ad(m_impl->m_log_mode != MTR_LOG_NONE);
+
 	if (const ulint len = prepare_write()) {
 		finish_write(len);
 	}
