@@ -272,6 +272,7 @@ row_undo_mod_clust(
 	index = btr_cur_get_index(btr_pcur_get_btr_cur(pcur));
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	online = dict_index_is_online_ddl(index);
@@ -302,6 +303,7 @@ row_undo_mod_clust(
 		descent down the index tree */
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		err = row_undo_mod_clust_low(
@@ -350,6 +352,7 @@ row_undo_mod_clust(
 	if (err == DB_SUCCESS && node->rec_type == TRX_UNDO_UPD_DEL_REC) {
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 		dict_disable_redo_if_temporary(index->table, &mtr);
 
 		/* It is not necessary to call row_log_table,
@@ -364,6 +367,7 @@ row_undo_mod_clust(
 			pessimistic descent down the index tree */
 
 			mtr_start(&mtr);
+			mtr.set_named_space(index->space);
 			dict_disable_redo_if_temporary(index->table, &mtr);
 
 			err = row_undo_mod_remove_clust_low(
@@ -408,10 +412,16 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	mtr_t			mtr;
 	mtr_t			mtr_vers;
 	row_search_result	search_result;
+	ibool			modify_leaf = false;
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
+
+	if (mode == BTR_MODIFY_LEAF) {
+		modify_leaf = true;
+	}
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
 		/* The index->online_status may change if the
@@ -437,6 +447,14 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	}
 
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+	if (dict_index_is_spatial(index)) {
+		if (mode & BTR_MODIFY_LEAF) {
+			btr_cur->thr = thr;
+			mode |= BTR_DELETE_MARK;
+		}
+		mode |= BTR_RTREE_UNDO_INS;
+	}
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -468,7 +486,6 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	we should delete mark the record. */
 
 	mtr_start(&mtr_vers);
-	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(BTR_SEARCH_LEAF, &(node->pcur),
 					    &mtr_vers);
@@ -484,7 +501,18 @@ row_undo_mod_del_mark_or_remove_sec_low(
 	} else {
 		/* Remove the index record */
 
-		if (BTR_LATCH_MODE_WITHOUT_INTENTION(mode) != BTR_MODIFY_TREE) {
+		if (dict_index_is_spatial(index)) {
+			rec_t*	rec = btr_pcur_get_rec(&pcur);
+			if (rec_get_deleted_flag(rec,
+						 dict_table_is_comp(index->table))) {
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Record found in index %s is deleted marked"
+					" on rollback update.",
+					index->name);
+			}
+		}
+
+		if (modify_leaf) {
 			success = btr_cur_optimistic_delete(btr_cur, 0, &mtr);
 			if (success) {
 				err = DB_SUCCESS;
@@ -583,6 +611,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 
 	log_free_check();
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (*index->name == TEMP_INDEX_PREFIX) {
@@ -607,6 +636,8 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		index->name starts with TEMP_INDEX_PREFIX. */
 		ut_ad(!dict_index_is_online_ddl(index));
 	}
+
+	btr_pcur_get_btr_cur(&pcur)->thr = thr;
 
 	search_result = row_search_index_entry(index, entry, mode,
 					       &pcur, &mtr);
@@ -704,6 +735,7 @@ row_undo_mod_del_unmark_sec_and_undo_update(
 		err = btr_cur_del_mark_set_sec_rec(
 			BTR_NO_LOCKING_FLAG,
 			btr_cur, FALSE, thr, &mtr);
+
 		ut_a(err == DB_SUCCESS);
 		heap = mem_heap_create(
 			sizeof(upd_t)

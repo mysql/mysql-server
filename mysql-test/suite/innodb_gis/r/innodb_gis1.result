@@ -477,7 +477,6 @@ ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 insert IGNORE into t1 values ('Garbage');
 ERROR 22003: Cannot get geometry object from data you send to the GEOMETRY field
 alter table t1 add spatial index(a);
-ERROR HY000: The used table type doesn't support SPATIAL indexes
 drop table t1;
 create table t1(a geometry not null, index(a(5)));
 insert into t1 values
@@ -1092,7 +1091,7 @@ col1 POINT,
 col2 POINT
 );
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
-ERROR HY000: The used table type doesn't support SPATIAL indexes
+ERROR HY000: Incorrect arguments to SPATIAL INDEX
 CREATE TABLE t4 (
 col0 INTEGER NOT NULL,
 col1 POINT,

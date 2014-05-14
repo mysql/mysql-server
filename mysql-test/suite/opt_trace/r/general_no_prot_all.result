@@ -4230,14 +4230,14 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
                     {
                       "rows_to_scan": 3,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 3,
                       "cost": 2.6051,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
+                "rows_for_plan": 3,
                 "cost_for_plan": 2.6051,
                 "chosen": true
               }
@@ -4327,14 +4327,14 @@ SELECT * FROM t1 WHERE c1=5 UNION SELECT * FROM t2 WHERE c2=5	{
                     {
                       "rows_to_scan": 3,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 3,
                       "cost": 2.6051,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
+                "rows_for_plan": 3,
                 "cost_for_plan": 2.6051,
                 "chosen": true
               }
@@ -10730,14 +10730,14 @@ select @trace;
                     {
                       "rows_to_scan": 2,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 2,
                       "cost": 2.4154,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
+                "rows_for_plan": 2,
                 "cost_for_plan": 2.4154,
                 "chosen": true
               }
@@ -12264,14 +12264,14 @@ VARIABLE_NAME="optimizer_trace"	{
                     {
                       "rows_to_scan": 2,
                       "access_type": "scan",
-                      "resulting_rows": 1,
+                      "resulting_rows": 2,
                       "cost": 10.5,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
                 "condition_filtering_pct": 100,
-                "rows_for_plan": 1,
+                "rows_for_plan": 2,
                 "cost_for_plan": 10.5,
                 "chosen": true
               }

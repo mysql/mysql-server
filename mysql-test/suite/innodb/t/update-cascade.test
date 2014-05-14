@@ -1,0 +1,244 @@
+--source include/have_debug_sync.inc
+--source include/have_innodb.inc
+
+# Save the initial number of concurrent sessions
+--source include/count_sessions.inc
+
+--echo #
+--echo # Bug #18451287 REDUNDANT DELETE MARKING AFTER DB_LOCK_WAIT
+--echo #
+
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+create table t2 (f1 int primary key, f2 int,
+   foreign key (f2) references t1(f1) on update cascade) engine=innodb;
+
+show create table t1;
+show create table t2;
+insert into t1 values (1, repeat('+', 20000));
+insert into t1 values (2, repeat('-', 20000));
+insert into t1 values (3, repeat('=', 20000));
+insert into t2 values (1, 2);
+
+select f1, right(f2, 20) as p2 from t1;
+select f1, f2 from t2;
+
+--echo # Connection con1:
+connect(con1,localhost,root,,test);
+start transaction;
+select f1, f2 from t2 for update;
+
+--echo # Connection default:
+connection default;
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+--echo # send: update t1 set f1 = 10 where f1 = 2;
+--send
+update t1 set f1 = 10 where f1 = 2;
+
+--echo # Connection con1:
+connection con1;
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+set debug_sync='now SIGNAL go_upd';
+
+--echo # Connection default:
+connection default;
+--echo # reap: update t1 set f1 = 10 where f1 = 2;
+--reap
+
+select f1, right(f2, 20) as p2 from t1;
+select f1, f2 from t2;
+
+drop table t2, t1;
+
+set debug_sync = reset;
+
+--echo #
+--echo # Test Scenario: Two tables t1 -> t2 are involved in update cascade.
+--echo # If DB_LOCK_WAIT happens when t1 is being updated and FK constraints
+--echo # are being checked in t2, then retry must happen on t1.  The update
+--echo # cascade happens in secondary index. For secondary index testing,
+--echo # blobs are not needed.
+--echo #
+
+create table t1 (f1 int primary key, f2 int, key k1(f2)) engine=innodb;
+create table t2 (f1 int primary key, f2 int,
+   foreign key (f2) references t1(f2) on update cascade) engine=innodb;
+
+show create table t1;
+show create table t2;
+insert into t1 values (1, 91);
+insert into t2 values (1, 91);
+
+select f1, f2 from t1;
+select f1, f2 from t2;
+
+--echo # Connection con1:
+connection con1;
+start transaction;
+select f1, f2 from t2 for update;
+
+--echo # Connection default:
+connection default;
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+--echo # send: update t1 set f1 = 10 where f1 = 2;
+--send
+update t1 set f2 = 28 where f2 = 91;
+
+--echo # Connection con1:
+connection con1;
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+set debug_sync='now SIGNAL go_upd';
+
+--echo # Connection default:
+connection default;
+--echo # reap: update t1 set f1 = 10 where f1 = 2;
+--reap
+
+select f1, f2 from t1;
+select f1, f2 from t2;
+
+drop table t2, t1;
+
+set debug_sync = reset;
+
+--echo #
+--echo # Test Scenario: Three tables t1 -> t2 -> t3 are involved in update cascade.
+--echo # If DB_LOCK_WAIT happens when t2 is being updated, then retry must happen
+--echo # on t2.
+--echo #
+
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+create table t2 (f1 int primary key, f2 blob,
+   foreign key (f1) references t1(f1) on update cascade) engine=innodb;
+create table t3 (f1 int primary key, f2 blob,
+   foreign key (f1) references t2(f1) on update cascade) engine=innodb;
+
+show create table t1;
+show create table t2;
+show create table t3;
+
+insert into t1 values (2, repeat('-', 20000));
+insert into t2 values (2, repeat('%', 20000));
+insert into t3 values (2, repeat('+', 20000));
+
+select f1, right(f2, 20) as p2 from t1;
+select f1, right(f2, 20) as p2 from t2;
+select f1, right(f2, 20) as p2 from t3;
+
+--echo # Connection con1:
+connection con1;
+start transaction;
+select f1 from t3 for update;
+
+--echo # Connection default:
+connection default;
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+--echo # send: update t1 set f1 = 10 where f1 = 2;
+--send
+update t1 set f1 = 10 where f1 = 2;
+
+--echo # Connection con1:
+connection con1;
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+
+--echo # The table t1 is updated.
+--echo # In t2 delete-mark happened. Retry will happen on t2.
+--echo # In t3 yet to be updated.
+set session transaction isolation level read uncommitted;
+start transaction;
+select f1, right(f2, 20) as p2 from t1;
+select f1, right(f2, 20) as p2 from t2;
+select f1, right(f2, 20) as p2 from t3;
+commit;
+
+set debug_sync='now SIGNAL go_upd';
+
+--echo # Connection default:
+connection default;
+--echo # reap: update t1 set f1 = 10 where f1 = 2;
+--reap;
+
+start transaction;
+select f1, right(f2, 20) as p2 from t1;
+select f1, right(f2, 20) as p2 from t2;
+select f1, right(f2, 20) as p2 from t3;
+commit;
+
+drop table t3, t2, t1;
+
+set debug_sync = reset;
+
+--echo #
+--echo # Test Scenario: Three tables t1 -> t2 -> t3 are involved in update
+--echo # cascade. If DB_LOCK_WAIT happens when t2 is being updated, then
+--echo # retry must happen on t2.  The update cascade is happening via
+--echo # secondary index (hence blobs are not needed).
+--echo #
+
+create table t1 (f1 int primary key, f2 int, key k1(f2)) engine=innodb;
+create table t2 (f1 int primary key, f2 int,
+   foreign key (f2) references t1(f2) on update cascade) engine=innodb;
+create table t3 (f1 int primary key, f2 int,
+   foreign key (f2) references t2(f2) on update cascade) engine=innodb;
+
+show create table t1;
+show create table t2;
+show create table t3;
+
+insert into t1 values (2, 91);
+insert into t2 values (2, 91);
+insert into t3 values (2, 91);
+
+select f1, f2 from t1;
+select f1, f2 from t2;
+select f1, f2 from t3;
+
+--echo # Connection con1:
+connection con1;
+start transaction;
+select f1 from t3 for update;
+
+--echo # Connection default:
+connection default;
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+--echo # send: update t1 set f2 = 28 where f2 = 91;
+--send
+update t1 set f2 = 28 where f2 = 91;
+
+--echo # Connection con1:
+connection con1;
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+
+--echo # The table t1 is updated.
+--echo # In t2 delete-mark happened. Retry will happen on t2.
+--echo # In t3 yet to be updated.
+set session transaction isolation level read uncommitted;
+start transaction;
+select f1, f2 from t1;
+select f1, f2 from t2;
+select f1, f2 from t3;
+commit;
+
+set debug_sync='now SIGNAL go_upd';
+
+--echo # Connection default:
+connection default;
+disconnect con1;
+--echo # reap: update t1 set f2 = 28 where f2 = 91;
+--reap;
+
+start transaction;
+select f1, f2 from t1;
+select f1, f2 from t2;
+select f1, f2 from t3;
+commit;
+
+drop table t3, t2, t1;
+
+set debug_sync = reset;
+
+# Wait till all disconnects are completed
+--source include/wait_until_count_sessions.inc

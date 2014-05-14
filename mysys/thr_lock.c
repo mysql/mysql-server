@@ -67,10 +67,6 @@ lock at the same time as multiple read locks.
 
 */
 
-#if !defined(MAIN) && !defined(DBUG_OFF) && !defined(EXTRA_DEBUG)
-#define FORCE_DBUG_OFF
-#endif
-
 #include "mysys_priv.h"
 
 #include "thr_lock.h"

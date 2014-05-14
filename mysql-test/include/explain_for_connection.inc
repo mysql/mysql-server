@@ -6,6 +6,7 @@
 #   query - query to explain
 #   format - explain format: 'json' for json, or traditional otherwise
 #   point  - syncing point
+#   replace - a string that will be used by replace_regex to mask instabilities
 
 --disable_reconnect
 --disable_query_log
@@ -25,6 +26,7 @@ connection cq;
 SET DEBUG_SYNC= 'RESET';
 
 # Grab output of regular explain
+--replace_regex $replace
 --output $MYSQL_TMP_DIR/EN
 eval EXPLAIN $fmt $query;
 
@@ -39,6 +41,7 @@ connection ce;
 
 SET DEBUG_SYNC= 'now WAIT_FOR ready_for_explain';
 SET DEBUG_SYNC= 'after_explain_other SIGNAL explained';
+--replace_regex $replace
 --output $MYSQL_TMP_DIR/EO
 eval EXPLAIN $fmt FOR CONNECTION $QID;
 

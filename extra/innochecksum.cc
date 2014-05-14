@@ -343,7 +343,7 @@ is_page_corrupted(
 	}
 
 	is_corrupted = buf_page_is_corrupted(
-		true, buf, page_size, cur_page_num, strict_verify,
+		true, buf, page_size, false, cur_page_num, strict_verify,
 		is_log_enabled, log_file);
 
 	return(is_corrupted);

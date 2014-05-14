@@ -1040,7 +1040,7 @@ void JOIN::test_skip_sort()
 
 
 /**
-  Test if one can use the key to resolve ORDER BY.
+  Test if one can use the key to resolve ordering. 
 
   @param order                 Sort order
   @param table                 Table to sort
@@ -1425,18 +1425,11 @@ public:
 
 
 /**
-  Test if we can skip the ORDER BY by using an index.
+  Test if we can skip ordering by using an index.
 
-  SYNOPSIS
-    test_if_skip_sort_order()
-      tab
-      order
-      select_limit
-      no_changes
-      map
-
-  If we can use an index, the JOIN_TAB / tab->select struct
-  is changed to use the index.
+  If the current plan is to use an index that provides ordering, the
+  plan will not be changed. Otherwise, if an index can be used, the
+  JOIN_TAB / tab->select struct is changed to use the index.
 
   The index must cover all fields in <order>, or it will not be considered.
 
@@ -1540,6 +1533,12 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
   }
+  else if (tab->type == JT_INDEX_SCAN)
+  {
+    // The optimizer has decided to use an index scan.
+    ref_key=       tab->index;
+    ref_key_parts= actual_key_parts(&table->key_info[tab->index]);
+  }
 
   Opt_trace_context * const trace= &tab->join->thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -1550,7 +1549,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   if (ref_key >= 0)
   {
     /*
-      We come here when there is a {ref or or ordered range access} key.
+      We come here when ref/index scan/range scan access has been set
+      up for this table. Do not change access method if ordering is
+      provided already.
     */
     if (!usable_keys.is_set(ref_key))
     {
@@ -1634,9 +1635,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   }
   {
     /*
-      There was no {ref or or ordered range access} key, or it was not
-      satisfying, neither was any prefix of it. Do a cost-based search on all
-      keys:
+      There is no ref/index scan/range scan access set up for this
+      table, or it does not provide the requested ordering. Do a
+      cost-based search on all keys.
     */
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
@@ -1644,8 +1645,17 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     JOIN *join= tab->join;
     ha_rows table_records= table->file->stats.records;
 
+    /*
+      If an index scan that cannot provide ordering has been selected
+      then do not use the index scan key as starting hint to
+      test_if_cheaper_ordering()
+    */
+    const int ref_key_hint= (order_direction == 0 &&
+                             tab->type == JT_INDEX_SCAN) ? -1 : ref_key;
+
     test_if_cheaper_ordering(tab, order, table, usable_keys,
-                             ref_key, select_limit,
+                             ref_key_hint,
+                             select_limit,
                              &best_key, &best_key_direction,
                              &select_limit, &best_key_parts,
                              &saved_best_key_parts);
@@ -1829,8 +1839,6 @@ check_reverse_order:
           tab->ref.key= -1;
           tab->ref.key_parts= 0;
         }
-        if (select_limit < table->file->stats.records) 
-          tab->rowcount= select_limit;
       }
       else if (tab->type != JT_ALL)
       {
@@ -1871,7 +1879,8 @@ check_reverse_order:
           save_quick= 0;                // Because set_quick(tmp) frees it
         select->set_quick(tmp);
       }
-      else if (tab->type == JT_REF && tab->ref.key_parts <= used_key_parts)
+      else if ((tab->type == JT_REF || tab->type == JT_INDEX_SCAN) && 
+               tab->ref.key_parts <= used_key_parts)
       {
         /*
           SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
@@ -1903,6 +1912,9 @@ fix_ICP:
   */
   if (can_skip_sorting && !no_changes)
   {
+    if (tab->type == JT_INDEX_SCAN && select_limit < table->file->stats.records)
+      tab->rowcount= select_limit;
+
     // Keep current (ordered) select->quick
     if (select && save_quick != select->quick)
       delete save_quick;
@@ -7577,7 +7589,7 @@ void JOIN::mark_const_table(JOIN_TAB *tab, Key_use *key)
   position->key= key;
   position->rows_fetched= 1.0;               // This is a const table
   position->filter_effect= 1.0;
-  position->prefix_record_count= 1.0;
+  position->prefix_rowcount= 1.0;
   position->read_cost= 0.0;
   position->ref_depend_map= 0;
   position->loosescan_key= MAX_KEY;    // Not a LooseScan
@@ -10150,10 +10162,8 @@ static void calculate_materialization_costs(JOIN *join,
       get_partial_join_cost() assumes a regular join, which is correct when
       we optimize a sj-materialization nest (always executed as regular
       join).
-      @todo consider using join->best_rowcount instead.
     */
-    get_partial_join_cost(join, n_tables,
-                          &mat_cost, &mat_rowcount);
+    get_partial_join_cost(join, n_tables, &mat_cost, &mat_rowcount);
     n_tables+= join->const_tables;
     inner_expr_list= &sj_nest->nested_join->sj_inner_exprs;
   }
@@ -10403,25 +10413,25 @@ bool JOIN::compare_costs_of_subquery_strategies(
       if (subs->in_cond_of_tab != INT_MIN)
       {
         /*
-          Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
+          Subquery is attached to a certain 'pos', pos[-1].prefix_rowcount
           is the number of times we'll start a loop accessing 'pos'; each such
-          loop will read pos->rows_fetched records of 'pos', so subquery will
-          be evaluated pos[-1].prefix_record_count * pos->rows_fetched times.
+          loop will read pos->rows_fetched rows of 'pos', so subquery will
+          be evaluated pos[-1].prefix_rowcount * pos->rows_fetched times.
           Exceptions:
-          - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
+          - if 'pos' is first, use 1.0 instead of pos[-1].prefix_rowcount
           - if 'pos' is first of a sj-materialization nest, same.
 
           If in a sj-materialization nest, pos->rows_fetched and
-          pos[-1].prefix_record_count are of the "nest materialization" plan
+          pos[-1].prefix_rowcount are of the "nest materialization" plan
           (copied back in fix_semijoin_strategies()), which is
           appropriate as it corresponds to evaluations of our subquery.
 
-          pos.prefix_record_count is not suitable because if we have:
+          pos->prefix_rowcount is not suitable because if we have:
           select ... from ot1 where ot1.col in
             (select it1.col1 from it1 where it1.col2 not in (subq));
           and subq does subq-mat, and plan is ot1 - it1+firstmatch(ot1),
           then:
-          - t1.prefix_record_count==1 (due to firstmatch)
+          - t1.prefix_rowcount==1 (due to firstmatch)
           - subq is attached to it1, and is evaluated for each row read from
             t1, potentially way more than 1.
        */
@@ -10434,7 +10444,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
             !sj_is_materialize_strategy(parent_join
                                         ->join_tab[idx].position->sj_strategy))
           parent_fanout*=
-            parent_join->join_tab[idx - 1].position->prefix_record_count;
+            parent_join->join_tab[idx - 1].position->prefix_rowcount;
       }
       else
       {

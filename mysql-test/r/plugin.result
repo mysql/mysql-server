@@ -232,3 +232,9 @@ DROP PROCEDURE p_install;
 SET DEBUG_SYNC='RESET';
 disconnect con1;
 disconnect con2;
+#
+# Bug #11759453: UNINSTALL PLUGIN MISLEADING ERROR
+#                MESSAGE FOR NON-DYNAMIC PLUGINS
+#
+UNINSTALL PLUGIN innodb;
+ERROR HY000: Built-in plugins cannot be deleted
