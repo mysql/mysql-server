@@ -30,6 +30,7 @@ global.engine     = "ndb";
 
 var tprops = require(path.join(suites_dir, "lib", "test_properties"));
 var udebug = unified_debug.getLogger("Driver.js");
+var stats_module = require(path.join(api_dir, "stats"));
 
 /** Driver 
 */
@@ -43,6 +44,7 @@ function Driver() {
   this.skipSmokeTest = false;
   this.skipClearSmokeTest = false;
   this.doStats = false;
+  this.statsDomain = null;
 }
 
 Driver.prototype.findSuites = function(directory) {
@@ -108,7 +110,7 @@ Driver.prototype.reportResultsAndExit = function() {
   console.log("Failed:  ", this.result.failed.length);
   console.log("Skipped: ", this.result.skipped.length);
   if(this.doStats) {
-    require(path.join(api_dir, "stats")).peek();
+    stats_module.peek(this.statsDomain);
   }
 
   // exit after closing all session factories
@@ -171,7 +173,7 @@ var usageMessage =
   "--set <var>=<value>: set a global variable\n" +
   "       --skip-smoke: do not run SmokeTest\n" +
   "       --skip-clear: do not run ClearSmokeTest\n" +
-  "            --stats: show server statistics after test run\n"
+  "    --stats=<query>: show server statistics after test run\n"
   ;
 
 // handle command line arguments
@@ -224,13 +226,14 @@ for(i = 2; i < process.argv.length ; i++) {
     driver.result.listener = new harness.QuietListener();
     timeoutMillis = 10000;
     break;
-  case '--stats':
-    driver.doStats = true;
-    break;
   default:
     values = val.split('=');
     if (values.length === 2) {
       switch (values[0]) {
+      case '--stats':
+        driver.doStats = true;
+        driver.statsDomain = values[1];
+        break;
       case '--suite':
       case '--suites':
         driver.suitesToRun = values[1];
@@ -256,8 +259,7 @@ for(i = 2; i < process.argv.length ; i++) {
           if (engine === 'ndb' || engine === 'innodb') {
             global.engine = engine;
           } else {
-            exit = true;
-// change this to a warning
+            exit = true; // change this to a warning
             console.log('Invalid adapter engine parameter -- use ndb or innodb');
           }
           break;
@@ -280,10 +282,12 @@ for(i = 2; i < process.argv.length ; i++) {
         console.log('Invalid option ' + val);
         exit = true;
       }
+    } else if(values[0] == '--stats') {  // --stats argument is optional
+      driver.doStats = true;
     } else {
       console.log('Invalid option ' + val);
       exit = true;
-   }
+    }
   }
 }
 
