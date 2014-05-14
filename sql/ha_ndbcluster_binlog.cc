@@ -6911,6 +6911,7 @@ restart_cluster_failure:
   }
 
   if (!(s_ndb= new Ndb(g_ndb_cluster_connection, NDB_REP_DB)) ||
+      s_ndb->setNdbObjectName("Ndb Binlog schema change monitoring") ||
       s_ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Schema Ndb object failed");
@@ -6922,6 +6923,7 @@ restart_cluster_failure:
 
   // empty database
   if (!(i_ndb= new Ndb(g_ndb_cluster_connection, "")) ||
+      i_ndb->setNdbObjectName("Ndb Binlog data change monitoring") ||
       i_ndb->init())
   {
     sql_print_error("NDB Binlog: Getting Ndb object failed");
@@ -6930,6 +6932,11 @@ restart_cluster_failure:
     pthread_cond_signal(&injector_cond);
     goto err;
   }
+
+  sql_print_information("NDB Binlog: Ndb object created with reference : 0x%x, name : %s",
+			s_ndb->getReference(), s_ndb->getNdbObjectName());
+  sql_print_information("NDB Binlog: Ndb object created with reference : 0x%x, name : %s",
+                      i_ndb->getReference(), i_ndb->getNdbObjectName());
 
   /*
     Expose global reference to our ndb object.
