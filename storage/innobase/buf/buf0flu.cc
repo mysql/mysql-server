@@ -378,7 +378,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (buf_pool->flush_rbt) {
+	if (buf_pool->flush_rbt != NULL) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;
@@ -473,9 +473,9 @@ buf_flush_insert_sorted_into_flush_list(
 	should not be NULL. In a very rare boundary case it is possible
 	that the flush_rbt has already been freed by the recovery thread
 	before the last page was hooked up in the flush_list by the
-	io-handler thread. In that case we'll  just do a simple
+	io-handler thread. In that case we'll just do a simple
 	linear search in the else block. */
-	if (buf_pool->flush_rbt) {
+	if (buf_pool->flush_rbt != NULL) {
 
 		prev_b = buf_flush_insert_in_flush_rbt(&block->page);
 
@@ -483,8 +483,9 @@ buf_flush_insert_sorted_into_flush_list(
 
 		b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-		while (b && b->oldest_modification
+		while (b != NULL && b->oldest_modification
 		       > block->page.oldest_modification) {
+
 			ut_ad(b->in_flush_list);
 			prev_b = b;
 			b = UT_LIST_GET_NEXT(list, b);
@@ -622,7 +623,7 @@ buf_flush_remove(
 	}
 
 	/* If the flush_rbt is active then delete from there as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt != NULL) {
 		buf_flush_delete_from_flush_rbt(bpage);
 	}
 
@@ -683,7 +684,7 @@ buf_flush_relocate_on_flush_list(
 
 	/* If recovery is active we must swap the control blocks in
 	the flush_rbt as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt != NULL) {
 		buf_flush_delete_from_flush_rbt(bpage);
 		prev_b = buf_flush_insert_in_flush_rbt(dpage);
 	}
@@ -708,7 +709,7 @@ buf_flush_relocate_on_flush_list(
 
 	/* Just an extra check. Previous in flush_list
 	should be the same control block as in flush_rbt. */
-	ut_a(!buf_pool->flush_rbt || prev_b == prev);
+	ut_a(buf_pool->flush_rbt == NULL || prev_b == prev);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
@@ -2891,7 +2892,7 @@ buf_flush_validate_low(
 	/* If we are in recovery mode i.e.: flush_rbt != NULL
 	then each block in the flush_list must also be present
 	in the flush_rbt. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt != NULL) {
 		rnode = rbt_first(buf_pool->flush_rbt);
 	}
 
@@ -2912,20 +2913,20 @@ buf_flush_validate_low(
 		     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_a(om > 0);
 
-		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-			buf_page_t** prpage;
+		if (buf_pool->flush_rbt != NULL) {
+			buf_page_t**	prpage;
 
-			ut_a(rnode);
+			ut_a(rnode != NULL);
 			prpage = rbt_value(buf_page_t*, rnode);
 
-			ut_a(*prpage);
+			ut_a(*prpage != NULL);
 			ut_a(*prpage == bpage);
 			rnode = rbt_next(buf_pool->flush_rbt, rnode);
 		}
 
 		bpage = UT_LIST_GET_NEXT(list, bpage);
 
-		ut_a(!bpage || om >= bpage->oldest_modification);
+		ut_a(bpage == NULL || om >= bpage->oldest_modification);
 	}
 
 	/* By this time we must have exhausted the traversal of

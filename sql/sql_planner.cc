@@ -1758,6 +1758,10 @@ bool Optimize_table_order::choose_table_order()
 {
   DBUG_ENTER("Optimize_table_order::choose_table_order");
 
+  // Make consistent prefix cost estimates also for the const tables:
+  for (uint i= 0; i < join->const_tables; i++)
+    (join->positions+i)->set_prefix_cost(0.0, 1.0);
+
   /* Are there any tables to optimize? */
   if (join->const_tables == join->tables)
   {
@@ -1922,19 +1926,19 @@ uint Optimize_table_order::determine_search_depth(uint search_depth,
 
 void Optimize_table_order::optimize_straight_join(table_map join_tables)
 {
-  JOIN_TAB *s;
   uint idx= join->const_tables;
-  double    record_count= 1.0;
-  double    read_time=    0.0;
+  double rowcount= 1.0;
+  double cost= 0.0;
   const Cost_model_server *const cost_model= join->cost_model();
 
   // resolve_subquery() disables semijoin if STRAIGHT_JOIN
   DBUG_ASSERT(join->select_lex->sj_nests.is_empty());
 
   Opt_trace_context * const trace= &join->thd->opt_trace;
-  for (JOIN_TAB **pos= join->best_ref + idx ; (s= *pos) ; pos++)
+  for (JOIN_TAB **pos= join->best_ref + idx; *pos; idx++, pos++)
   {
-    POSITION * const position= join->positions + idx;
+    JOIN_TAB *const s= *pos;
+    POSITION *const position= join->positions + idx;
     Opt_trace_object trace_table(trace);
     if (unlikely(trace->is_started()))
     {
@@ -1948,30 +1952,25 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
     */
     DBUG_ASSERT(!check_interleaving_with_nj(s));
     /* Find the best access method from 's' to the current partial plan */
-    best_access_path(s, join_tables, idx, false, record_count, position);
+    best_access_path(s, join_tables, idx, false, rowcount, position);
 
-    /* compute the cost of the new plan extended with 's' */
-    record_count*= position->rows_fetched;
-    read_time+=    position->read_cost;
-    read_time+=    cost_model->row_evaluate_cost(record_count);
-    /*
-      Calculate how many partial rows will be produced after evaluating
-      the table's query conditions
-    */
-    record_count*= position->filter_effect;
-    position->set_prefix_costs(read_time, record_count);
+    // compute the cost of the new plan extended with 's'
+    position->set_prefix_join_cost(idx, cost_model);
+
     position->no_semijoin(); // advance_sj_state() is not needed
 
+    rowcount= position->prefix_rowcount;
+    cost=     position->prefix_cost;
+
     trace_table.add("condition_filtering_pct", position->filter_effect * 100).
-      add("rows_for_plan", record_count).
-      add("cost_for_plan", read_time);
+      add("rows_for_plan", rowcount).
+      add("cost_for_plan", cost);
     join_tables&= ~(s->table->map);
-    ++idx;
   }
 
   if (join->sort_by_table &&
       join->sort_by_table != join->positions[join->const_tables].table->table)
-    read_time+= record_count;  // We have to make a temp table
+    cost+= rowcount;  // We have to make a temp table
 
   memcpy(join->best_positions, join->positions, sizeof(POSITION)*idx);
 
@@ -1981,8 +1980,8 @@ void Optimize_table_order::optimize_straight_join(table_map join_tables)
    * this fix adds repeatability to the optimizer.
    * (Similar code in best_extension_by_li...)
    */
-  join->best_read= read_time - 0.001;
-  join->best_rowcount= (ha_rows)record_count;
+  join->best_read= cost - 0.001;
+  join->best_rowcount= (ha_rows)rowcount;
 }
 
 
@@ -2140,13 +2139,10 @@ semijoin_order_allows_materialization(const JOIN *join,
 
 bool Optimize_table_order::greedy_search(table_map remaining_tables)
 {
-  double    record_count= 1.0;
-  double    read_time=    0.0;
   uint      idx= join->const_tables; // index into 'join->best_ref'
   uint      best_idx;
   POSITION  best_pos;
   JOIN_TAB  *best_table; // the next plan node to be added to the curr QEP
-  const Cost_model_server *const cost_model= join->cost_model();
   DBUG_ENTER("Optimize_table_order::greedy_search");
 
   /* Number of tables that we are optimizing */
@@ -2159,9 +2155,7 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
     /* Find the extension of the current QEP with the lowest cost */
     join->best_read= DBL_MAX;
     join->best_rowcount= HA_POS_ERROR;
-    if (best_extension_by_limited_search(remaining_tables, idx,
-                                         record_count, read_time,
-                                         search_depth))
+    if (best_extension_by_limited_search(remaining_tables, idx, search_depth))
       DBUG_RETURN(true);
     /*
       'best_read < DBL_MAX' means that optimizer managed to find
@@ -2175,8 +2169,12 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
         'join->best_positions' contains a complete optimal extension of the
         current partial QEP.
       */
-      DBUG_EXECUTE("opt", print_plan(join, n_tables, record_count, read_time,
-                                     read_time, "optimal"););
+      DBUG_EXECUTE("opt",
+        print_plan(join, n_tables,
+                   idx ? join->best_positions[idx-1].prefix_rowcount : 1.0,
+                   idx ? join->best_positions[idx-1].prefix_cost : 0.0,
+                   idx ? join->best_positions[idx-1].prefix_cost : 0.0,
+                   "optimal"););
       DBUG_RETURN(false);
     }
 
@@ -2222,34 +2220,26 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
             sizeof(JOIN_TAB*) * (best_idx - idx));
     join->best_ref[idx]= best_table;
 
-    /* compute the cost of the new plan extended with 'best_table' */
-    record_count*= join->positions[idx].rows_fetched;
-    read_time+= join->positions[idx].read_cost +
-                cost_model->row_evaluate_cost(record_count);
-    record_count*= join->positions[idx].filter_effect;
-
     remaining_tables&= ~(best_table->table->map);
+
+    DBUG_EXECUTE("opt", print_plan(join, idx,
+                                   join->positions[idx].prefix_rowcount,
+                                   join->positions[idx].prefix_cost, 
+                                   join->positions[idx].prefix_cost,
+                                   "extended"););
     --size_remain;
     ++idx;
-
-    DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, 
-                                   read_time, "extended"););
   } while (true);
 }
 
 
-/*
+/**
   Calculate a cost of given partial join order
  
-  SYNOPSIS
-    get_partial_join_cost()
-      join               IN    Join to use. join->positions holds the
-                               partial join order
-      n_tables           IN    # tables in the partial join order
-      read_time_arg      OUT   Store read time here 
-      record_count_arg   OUT   Store record count here
-
-  DESCRIPTION
+  @param join              Join to use. ::positions holds the partial join order
+  @param n_tables          Number of tables in the partial join order
+  @param cost_arg[out]     Store read time here 
+  @param rowcount_arg[out] Store record count here
 
     This is needed for semi-join materialization code. The idea is that 
     we detect sj-materialization after we've put all sj-inner tables into
@@ -2261,24 +2251,26 @@ bool Optimize_table_order::greedy_search(table_map remaining_tables)
     and we'll need to get the cost of prefix-tables prefix again.
 */
 
-void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
-                           double *record_count_arg)
+void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
+                           double *rowcount_arg)
 {
+  double rowcount= 1.0;
+  double cost= 0.0;
   const Cost_model_server *const cost_model= join->cost_model();
-  double record_count= 1;
-  double read_time= 0.0;
+
   for (uint i= join->const_tables; i < n_tables + join->const_tables ; i++)
   {
-    if (join->best_positions[i].rows_fetched)
+    POSITION *const pos= join->best_positions + i;
+
+    if (pos->rows_fetched > 0.0)
     {
-      record_count*= join->best_positions[i].rows_fetched;
-      read_time+= join->best_positions[i].read_cost +
-                  cost_model->row_evaluate_cost(record_count);
-      record_count*= join->best_positions[i].filter_effect;
+      rowcount*= pos->rows_fetched;
+      cost+= pos->read_cost + cost_model->row_evaluate_cost(rowcount);
+      rowcount*= pos->filter_effect;
     }
   }
-  *read_time_arg= read_time;
-  *record_count_arg= record_count;
+  *cost_arg= cost;
+  *rowcount_arg= rowcount;
 }
 
 
@@ -2288,20 +2280,16 @@ void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
   If this is our 'best' plan explored so far, we record this
   query plan and its cost.
 
-  @param idx              length of the partial QEP in 'join->positions';
-                          also corresponds to the current depth of the search tree;
-                          also an index in the array 'join->best_ref';
-  @param record_count     estimate for the number of records returned by the
-                          best partial plan
-  @param read_time        the cost of the best partial plan
-  @param trace_obj        trace object where information is to be added
+  @param idx        length of the partial QEP in 'join->positions';
+                    also corresponds to the current depth of the search tree;
+                    also an index in the array 'join->best_ref';
+  @param trace_obj  trace object where information is to be added
 */
 void Optimize_table_order::consider_plan(uint             idx,
-                                         double           record_count,
-                                         double           read_time,
                                          Opt_trace_object *trace_obj)
 {
   double sort_cost= join->sort_cost;
+  double cost= join->positions[idx].prefix_cost;
   /*
     We may have to make a temp table, note that this is only a 
     heuristic since we cannot know for sure at this point. 
@@ -2311,13 +2299,13 @@ void Optimize_table_order::consider_plan(uint             idx,
       join->sort_by_table !=
       join->positions[join->const_tables].table->table)
   {
-    read_time+= record_count;
-    trace_obj->add("sort_cost", record_count).
-      add("new_cost_for_plan", read_time);
-    sort_cost= record_count;
+    cost+= join->positions[idx].prefix_rowcount;
+    trace_obj->add("sort_cost", join->positions[idx].prefix_rowcount).
+      add("new_cost_for_plan", cost);
+    sort_cost= join->positions[idx].prefix_rowcount;
   }
 
-  const bool chosen= read_time < join->best_read;
+  const bool chosen= cost < join->best_read;
   trace_obj->add("chosen", chosen);
   if (chosen)
   {
@@ -2330,14 +2318,14 @@ void Optimize_table_order::consider_plan(uint             idx,
       this fix adds repeatability to the optimizer.
       (Similar code in best_extension_by_li...)
     */
-    join->best_read= read_time - 0.001;
-    join->best_rowcount= (ha_rows)record_count;
+    join->best_read= cost - 0.001;
+    join->best_rowcount= (ha_rows)join->positions[idx].prefix_rowcount;
     join->sort_cost= sort_cost;
   }
   DBUG_EXECUTE("opt", print_plan(join, idx+1,
-                                 record_count,
-                                 read_time,
-                                 read_time,
+                                 join->positions[idx].prefix_rowcount,
+                                 cost,
+                                 cost,
                                  "full_plan"););
 }
 
@@ -2441,6 +2429,10 @@ void Optimize_table_order::consider_plan(uint             idx,
     @endcode
 
   @note
+    The arguments pplan, plan_cost, best_plan_so_far and best_plan_so_far_cost
+    are actually found in the POSITION object.
+
+  @note
     When 'best_extension_by_limited_search' is called for the first time,
     'join->best_read' must be set to the largest possible value (e.g. DBL_MAX).
     The actual implementation provides a way to optionally use pruning
@@ -2456,9 +2448,6 @@ void Optimize_table_order::consider_plan(uint             idx,
                           since a depth-first search is used, also corresponds
                           to the current depth of the search tree;
                           also an index in the array 'join->best_ref';
-  @param record_count     estimate for the number of records returned by the
-                          best partial plan
-  @param read_time        the cost of the best partial plan
   @param current_search_depth  maximum depth of recursion and thus size of the
                           found optimal plan
                           (0 < current_search_depth <= join->tables+1).
@@ -2469,8 +2458,6 @@ void Optimize_table_order::consider_plan(uint             idx,
 bool Optimize_table_order::best_extension_by_limited_search(
          table_map remaining_tables,
          uint      idx,
-         double    record_count,
-         double    read_time,
          uint      current_search_depth)
 {
   DBUG_ENTER("Optimize_table_order::best_extension_by_limited_search");
@@ -2486,17 +2473,15 @@ bool Optimize_table_order::best_extension_by_limited_search(
      'join' is a partial plan with lower cost than the best plan so far,
      so continue expanding it further with the tables in 'remaining_tables'.
   */
-  double best_record_count= DBL_MAX;
-  double best_read_time=    DBL_MAX;
+  double best_rowcount= DBL_MAX;
+  double best_cost=     DBL_MAX;
 
-  DBUG_EXECUTE("opt", print_plan(join, idx, record_count, read_time, read_time,
-                                "part_plan"););
-  /*
-    No need to call advance_sj_state() when
-     1) there are no semijoin nests or
-     2) we are optimizing a materialized semijoin nest.
-  */
-  const bool has_sj= !(join->select_lex->sj_nests.is_empty() || emb_sjm_nest);
+  DBUG_EXECUTE("opt",
+    print_plan(join, idx,
+               idx ? join->positions[idx-1].prefix_rowcount : 1.0,
+               idx ? join->positions[idx-1].prefix_cost : 0.0,
+               idx ? join->positions[idx-1].prefix_cost : 0.0,
+               "part_plan"););
 
   /*
     'eq_ref_extended' are the 'remaining_tables' which has already been
@@ -2528,7 +2513,6 @@ bool Optimize_table_order::best_extension_by_limited_search(
         !(remaining_tables & s->dependent) && 
         (!idx || !check_interleaving_with_nj(s)))
     {
-      double current_record_count, current_read_time;
       Opt_trace_object trace_one_table(trace);
       if (unlikely(trace->is_started()))
       {
@@ -2540,21 +2524,17 @@ bool Optimize_table_order::best_extension_by_limited_search(
       // If optimizing a sj-mat nest, tables in this plan must be in nest:
       DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
       /* Find the best access method from 's' to the current partial plan */
-      best_access_path(s, remaining_tables, idx, false, record_count, 
+      best_access_path(s, remaining_tables, idx, false,
+                       idx ? (position-1)->prefix_rowcount : 1.0, 
                        position);
 
-      /* Compute the cost of extending the plan with 's' */
-      current_record_count= record_count * position->rows_fetched;
-      current_read_time= read_time +
-                         position->read_cost +
-                         cost_model->row_evaluate_cost(current_record_count);
-      current_record_count*= position->filter_effect;
-      position->set_prefix_costs(current_read_time, current_record_count);
+      // Compute the cost of extending the plan with 's'
+      position->set_prefix_join_cost(idx, cost_model);
 
       trace_one_table.
         add("condition_filtering_pct", position->filter_effect * 100).
-        add("rows_for_plan", current_record_count).
-        add("cost_for_plan", current_read_time);
+        add("rows_for_plan", position->prefix_rowcount).
+        add("cost_for_plan", position->prefix_cost);
 
       if (has_sj)
       {
@@ -2566,19 +2546,18 @@ bool Optimize_table_order::best_extension_by_limited_search(
           Besides, never call advance_sj_state() when calculating the plan
           for a materialized semi-join nest.
         */
-        advance_sj_state(remaining_tables, s, idx,
-                         &current_record_count, &current_read_time);
+        advance_sj_state(remaining_tables, s, idx);
       }
       else
         position->no_semijoin();
 
       /* Expand only partial plans with lower cost than the best QEP so far */
-      if (current_read_time >= join->best_read)
+      if (position->prefix_cost >= join->best_read)
       {
         DBUG_EXECUTE("opt", print_plan(join, idx+1,
-                                       current_record_count,
-                                       read_time,
-                                       current_read_time,
+                                       position->prefix_rowcount,
+                                       position->read_cost,
+                                       position->prefix_cost,
                                        "prune_by_cost"););
         trace_one_table.add("pruned_by_cost", true);
         backout_nj_state(remaining_tables, s);
@@ -2591,27 +2570,27 @@ bool Optimize_table_order::best_extension_by_limited_search(
       */
       if (prune_level == 1)
       {
-        if (best_record_count > current_record_count ||
-            best_read_time > current_read_time ||
+        if (best_rowcount > position->prefix_rowcount ||
+            best_cost > position->prefix_cost ||
             (idx == join->const_tables &&  // 's' is the first table in the QEP
             s->table == join->sort_by_table))
         {
-          if (best_record_count >= current_record_count &&
-              best_read_time >= current_read_time &&
+          if (best_rowcount >= position->prefix_rowcount &&
+              best_cost >= position->prefix_cost &&
               /* TODO: What is the reasoning behind this condition? */
               (!(s->key_dependent & remaining_tables) ||
                position->rows_fetched < 2.0))
           {
-            best_record_count= current_record_count;
-            best_read_time=    current_read_time;
+            best_rowcount= position->prefix_rowcount;
+            best_cost=     position->prefix_cost;
           }
         }
         else
         {
           DBUG_EXECUTE("opt", print_plan(join, idx+1,
-                                         current_record_count,
-                                         read_time,
-                                         current_read_time,
+                                         position->prefix_rowcount,
+                                         position->read_cost,
+                                         position->prefix_cost,
                                          "pruned_by_heuristic"););
           trace_one_table.add("pruned_by_heuristic", true);
           backout_nj_state(remaining_tables, s);
@@ -2650,8 +2629,6 @@ bool Optimize_table_order::best_extension_by_limited_search(
               eq_ref_extension_by_limited_search(
                                              remaining_tables_after,
                                              idx + 1,
-                                             current_record_count,
-                                             current_read_time,
                                              current_search_depth - 1);
             if (eq_ref_extended == ~(table_map)0)
               DBUG_RETURN(true);      // Failed
@@ -2666,9 +2643,9 @@ bool Optimize_table_order::best_extension_by_limited_search(
           else       // Skip, as described above
           {
             DBUG_EXECUTE("opt", print_plan(join, idx+1,
-                                           current_record_count,
-                                           read_time,
-                                           current_read_time,
+                                           position->prefix_rowcount,
+                                           position->read_cost,
+                                           position->prefix_cost,
                                            "pruned_by_eq_ref_heuristic"););
             trace_one_table.add("pruned_by_eq_ref_heuristic", true);
             backout_nj_state(remaining_tables, s);
@@ -2680,15 +2657,12 @@ bool Optimize_table_order::best_extension_by_limited_search(
         Opt_trace_array trace_rest(trace, "rest_of_plan");
         if (best_extension_by_limited_search(remaining_tables_after,
                                              idx + 1,
-                                             current_record_count,
-                                             current_read_time,
                                              current_search_depth - 1))
           DBUG_RETURN(true);
       }
       else  //if ((current_search_depth > 1) && ...
       {
-        consider_plan(idx, current_record_count, current_read_time,
-                      &trace_one_table);
+        consider_plan(idx, &trace_one_table);
         /*
           If plan is complete, there should be no "open" outer join nest, and
           all semi join nests should be handled by a strategy:
@@ -2808,9 +2782,6 @@ done:
                           since a depth-first search is used, also corresponds
                           to the current depth of the search tree;
                           also an index in the array 'join->best_ref';
-  @param record_count     estimate for the number of records returned by the
-                          best partial plan
-  @param read_time        the cost of the best partial plan
   @param current_search_depth
                           maximum depth of recursion and thus size of the
                           found optimal plan
@@ -2825,16 +2796,12 @@ done:
 table_map Optimize_table_order::eq_ref_extension_by_limited_search(
          table_map remaining_tables,
          uint      idx,
-         double    record_count,
-         double    read_time,
          uint      current_search_depth)
 {
   DBUG_ENTER("Optimize_table_order::eq_ref_extension_by_limited_search");
 
   if (remaining_tables == 0)
     DBUG_RETURN(0);
-
-  const bool has_sj= !(join->select_lex->sj_nests.is_empty() || emb_sjm_nest);
 
   /*
     The section below adds 'eq_ref' joinable tables to the QEP in the order
@@ -2885,7 +2852,8 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
 
       DBUG_ASSERT(emb_sjm_nest == NULL || emb_sjm_nest == s->emb_sj_nest);
       /* Find the best access method from 's' to the current partial plan */
-      best_access_path(s, remaining_tables, idx, false, record_count,
+      best_access_path(s, remaining_tables, idx, false,
+                       idx ? (position-1)->prefix_rowcount : 1.0,
                        position);
 
       /*
@@ -2904,21 +2872,13 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
                           added_to_eq_ref_extension);
       if (added_to_eq_ref_extension)
       {
-        double current_record_count, current_read_time;
-
-        /* Add the cost of extending the plan with 's' */
-        const Cost_model_server *const cost_model= join->cost_model();
-        current_record_count= record_count * position->rows_fetched;
-        current_read_time= read_time +
-                           position->read_cost +
-                           cost_model->row_evaluate_cost(current_record_count);
-        current_record_count*= position->filter_effect;
-        position->set_prefix_costs(current_read_time, current_record_count);
+        // Add the cost of extending the plan with 's'
+        position->set_prefix_join_cost(idx, join->cost_model());
 
         trace_one_table.
           add("condition_filtering_pct", position->filter_effect * 100).
-          add("rows_for_plan", current_record_count).
-          add("cost_for_plan", current_read_time);
+          add("rows_for_plan", position->prefix_rowcount).
+          add("cost_for_plan", position->prefix_cost);
 
         if (has_sj)
         {
@@ -2928,19 +2888,18 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
             hence the if() above, which is also more efficient than the
             same if() inside advance_sj_state() would be.
           */
-          advance_sj_state(remaining_tables, s, idx,
-                           &current_record_count, &current_read_time);
+          advance_sj_state(remaining_tables, s, idx);
         }
         else
           position->no_semijoin();
 
         // Expand only partial plans with lower cost than the best QEP so far
-        if (current_read_time >= join->best_read)
+        if (position->prefix_cost >= join->best_read)
         {
           DBUG_EXECUTE("opt", print_plan(join, idx+1,
-                                         current_record_count,
-                                         read_time,
-                                         current_read_time,
+                                         position->prefix_rowcount,
+                                         position->read_cost,
+                                         position->prefix_cost,
                                          "prune_by_cost"););
           trace_one_table.add("pruned_by_cost", true);
           backout_nj_state(remaining_tables, s);
@@ -2953,9 +2912,9 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
         if ((current_search_depth > 1) && remaining_tables_after)
         {
           DBUG_EXECUTE("opt", print_plan(join, idx + 1,
-                                         current_record_count,
-                                         read_time,
-                                         current_read_time,
+                                         position->prefix_rowcount,
+                                         position->read_cost,
+                                         position->prefix_cost,
                                          "EQ_REF_extension"););
 
           /* Recursively EQ_REF-extend the current partial plan */
@@ -2963,14 +2922,11 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
           eq_ref_ext|=
             eq_ref_extension_by_limited_search(remaining_tables_after,
                                                idx + 1,
-                                               current_record_count,
-                                               current_read_time,
                                                current_search_depth - 1);
         }
         else
         {
-          consider_plan(idx, current_record_count, current_read_time,
-                        &trace_one_table);
+          consider_plan(idx, &trace_one_table);
           DBUG_ASSERT((remaining_tables_after != 0) ||
                       ((cur_embedding_map == 0) &&
                        (join->positions[idx].dups_producing_tables == 0)));
@@ -2994,8 +2950,6 @@ table_map Optimize_table_order::eq_ref_extension_by_limited_search(
   DBUG_ASSERT(!eq_ref_ext);
   if (best_extension_by_limited_search(remaining_tables,
                                        idx,
-                                       record_count,
-                                       read_time,
                                        current_search_depth))
     DBUG_RETURN(~(table_map)0);
 
@@ -3490,8 +3444,8 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
   }
   else
   {
-    cost=     positions[first_tab - 1].prefix_cost.total_cost();
-    rowcount= positions[first_tab - 1].prefix_record_count;
+    cost=     positions[first_tab - 1].prefix_cost;
+    rowcount= positions[first_tab - 1].prefix_rowcount;
   }
 
   uint table_count= 0;
@@ -3556,9 +3510,9 @@ bool Optimize_table_order::semijoin_firstmatch_loosescan_access_paths(
         {
           dst_pos->table= tab;
           const double rows= rowcount * dst_pos->rows_fetched;
-          dst_pos->set_prefix_costs(cost + dst_pos->read_cost +
-                                    cost_model->row_evaluate_cost(rows),
-                                    rows * dst_pos->filter_effect);
+          dst_pos->set_prefix_cost(cost + dst_pos->read_cost +
+                                   cost_model->row_evaluate_cost(rows),
+                                   rows * dst_pos->filter_effect);
         }
         else
         {
@@ -3649,8 +3603,8 @@ void Optimize_table_order::semijoin_mat_scan_access_paths(
   }
   else
   {
-    rowcount= positions[first_inner - 1].prefix_record_count;
-    cost=     positions[first_inner - 1].prefix_cost.total_cost();
+    rowcount= positions[first_inner - 1].prefix_rowcount;
+    cost=     positions[first_inner - 1].prefix_cost;
   }
 
   // Add materialization cost.
@@ -3725,8 +3679,8 @@ void Optimize_table_order::semijoin_mat_lookup_access_paths(
   }
   else
   {
-    cost=     join->positions[first_inner - 1].prefix_cost.total_cost();
-    rowcount= join->positions[first_inner - 1].prefix_record_count;
+    cost=     join->positions[first_inner - 1].prefix_cost;
+    rowcount= join->positions[first_inner - 1].prefix_rowcount;
   }
 
   cost+= sjm_nest->nested_join->sjm.materialization_cost.total_cost() +
@@ -3785,8 +3739,8 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
   }
   else
   {
-    cost=     join->positions[first_tab - 1].prefix_cost.total_cost();
-    rowcount= join->positions[first_tab - 1].prefix_record_count;
+    cost=     join->positions[first_tab - 1].prefix_cost;
+    rowcount= join->positions[first_tab - 1].prefix_rowcount;
     rowsize= 8;             // This is not true but we'll make it so
   }
   /**
@@ -3859,8 +3813,6 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
   @param new_join_tab     Join tab that we are adding to the join prefix
   @param idx              Index in join->position storing this join tab 
                           (i.e. number of tables in the prefix)
-  @param[in,out] current_rowcount Estimate of #rows in join prefix's output
-  @param[in,out] current_cost     Cost to execute the join prefix
 
   @details
     Update semi-join optimization state after we've added another tab (table 
@@ -3911,12 +3863,13 @@ void Optimize_table_order::semijoin_dupsweedout_access_paths(
  
 void Optimize_table_order::advance_sj_state(
                       table_map remaining_tables, 
-                      const JOIN_TAB *new_join_tab, uint idx, 
-                      double *current_rowcount, double *current_cost)
+                      const JOIN_TAB *new_join_tab, uint idx)
 {
   Opt_trace_context * const trace= &thd->opt_trace;
   TABLE_LIST *const emb_sj_nest= new_join_tab->emb_sj_nest;
   POSITION   *const pos= join->positions + idx;
+  double best_cost= pos->prefix_cost;
+  double best_rowcount= pos->prefix_rowcount;
   uint sj_strategy= SJ_OPT_NONE;  // Initially: No chosen strategy
 
   /*
@@ -4056,10 +4009,9 @@ void Optimize_table_order::advance_sj_state(
           picked the best QEP.
         */
         sj_strategy= SJ_OPT_FIRST_MATCH;
-        *current_cost=     cost;
-        *current_rowcount= rowcount;
-        trace_one_strategy.add("cost", *current_cost).
-          add("rows", *current_rowcount);
+        best_cost=     cost;
+        best_rowcount= rowcount;
+        trace_one_strategy.add("cost", best_cost).add("rows", best_rowcount);
         handled_by_fm_or_ls=  pos->firstmatch_need_tables;
 
         trace_one_strategy.add("chosen", true);
@@ -4169,12 +4121,12 @@ void Optimize_table_order::advance_sj_state(
           LooseScan.
         */
         sj_strategy= SJ_OPT_LOOSE_SCAN;
-        *current_cost=     cost;
-        *current_rowcount= rowcount;
-        trace_one_strategy.add("cost", *current_cost).
-          add("rows", *current_rowcount);
+        best_cost=     cost;
+        best_rowcount= rowcount;
+        trace_one_strategy.add("cost", best_cost).add("rows", best_rowcount);
         handled_by_fm_or_ls=
-          join->positions[pos->first_loosescan_table].table->emb_sj_nest->sj_inner_tables;
+          join->positions[pos->first_loosescan_table].table
+            ->emb_sj_nest->sj_inner_tables;
       }
       trace_one_strategy.add("chosen", sj_strategy == SJ_OPT_LOOSE_SCAN);
     }
@@ -4227,7 +4179,7 @@ void Optimize_table_order::advance_sj_state(
     trace_one_strategy.add_alnum("strategy", "MaterializeLookup").
       add("cost", cost).add("rows", rowcount).
       add("duplicate_tables_left", pos->dups_producing_tables != 0);
-    if (cost < *current_cost || pos->dups_producing_tables)
+    if (cost < best_cost || pos->dups_producing_tables)
     {
       /*
         NOTE: When we pick to use SJM[-Scan] we don't memcpy its POSITION
@@ -4236,8 +4188,8 @@ void Optimize_table_order::advance_sj_state(
         after the QEP has been chosen.
       */
       sj_strategy= SJ_OPT_MATERIALIZE_LOOKUP;
-      *current_cost=     cost;
-      *current_rowcount= rowcount;
+      best_cost=     cost;
+      best_rowcount= rowcount;
       pos->dups_producing_tables &= ~emb_sj_nest->sj_inner_tables;
     }
     trace_one_strategy.add("chosen", sj_strategy == SJ_OPT_MATERIALIZE_LOOKUP);
@@ -4279,11 +4231,11 @@ void Optimize_table_order::advance_sj_state(
       comparing cost without semi-join duplicate removal with cost with
       duplicate removal is not an apples-to-apples comparison.
     */
-    if (cost < *current_cost || pos->dups_producing_tables)
+    if (cost < best_cost || pos->dups_producing_tables)
     {
       sj_strategy= SJ_OPT_MATERIALIZE_SCAN;
-      *current_cost=     cost;
-      *current_rowcount= rowcount;
+      best_cost=     cost;
+      best_rowcount= rowcount;
       pos->dups_producing_tables &= ~sjm_nest->sj_inner_tables;
     }
     trace_one_strategy.add("chosen", sj_strategy == SJ_OPT_MATERIALIZE_SCAN);
@@ -4338,11 +4290,11 @@ void Optimize_table_order::advance_sj_state(
         add("cost", cost).
         add("rows", rowcount).
         add("duplicate_tables_left", pos->dups_producing_tables != 0);
-      if (cost < *current_cost || pos->dups_producing_tables)
+      if (cost < best_cost || pos->dups_producing_tables)
       {
         sj_strategy= SJ_OPT_DUPS_WEEDOUT;
-        *current_cost=     cost;
-        *current_rowcount= rowcount;
+        best_cost=     cost;
+        best_rowcount= rowcount;
         /*
           Note, dupsweedout_tables contains inner and outer tables, even though
           "dups_producing_tables" are always inner table. Ok for this use.
@@ -4369,7 +4321,7 @@ void Optimize_table_order::advance_sj_state(
     makes sense to correct prefix_costs of that last table.
   */
   if (sj_strategy != SJ_OPT_NONE)
-    pos->set_prefix_costs(*current_cost, *current_rowcount);
+    pos->set_prefix_cost(best_cost, best_rowcount);
 
   DBUG_VOID_RETURN;
 }

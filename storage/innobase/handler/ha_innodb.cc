@@ -14712,18 +14712,18 @@ innodb_make_page_dirty(
 	const void*			save)	/*!< in: immediate result
 						from check function */
 {
-	mtr_t mtr;
-	ulong space_id = *static_cast<const ulong*>(save);
+	mtr_t	mtr;
+	ulong	space_id = *static_cast<const ulong*>(save);
 
 	mtr_start(&mtr);
 	mtr.set_named_space(space_id);
 
-	buf_block_t* block = buf_page_get(
+	buf_block_t*	block = buf_page_get(
 		page_id_t(space_id, srv_saved_page_number_debug),
 		univ_page_size, RW_X_LATCH, &mtr);
 
-	if (block) {
-		byte* page = block->frame;
+	if (block != NULL) {
+		byte*	page = block->frame;
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Dirtying page:%lu of space:%lu",
 			page_get_page_no(page),
