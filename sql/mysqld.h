@@ -216,6 +216,15 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
+extern ulong binlogging_impossible_mode;
+enum enum_binlogging_impossible_mode
+{
+  /// Ignore the error and let server continue without binlogging
+  IGNORE_ERROR= 0,
+  /// Abort the server
+  ABORT_SERVER= 1
+};
+extern const char *binlogging_impossible_err[];
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
