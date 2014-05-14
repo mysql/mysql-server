@@ -1144,6 +1144,29 @@ public:
 #endif
 
   /**
+   * Get the name of the Ndb object.
+   * If no name is given, it will return 0.
+   **/
+  const char* getNdbObjectName () const;
+
+  /**
+   * Set a human readable name optionally to identify an
+   * Ndb object for debugging purpose. Setting should be done
+   * after creating the Ndb object, but before the object is
+   * initialised with init().
+   * 1) Setting the name more than once will fail and return 4014.
+   * 2) Setting the name after init will return give error 4015.
+   *
+   * It is recommended to use the reference (ndbObject->getReference())
+   * followed by the name (if given) in printouts
+   * of the user applications subscribing events.
+   * This will make tracing event handling between a subscribing user app
+   * and the ndb engine easier, since the reference correlates the app's
+   * ndb object, event buffer and the ndb engine (Suma block).
+   */
+  int setNdbObjectName(const char *name);
+
+  /**
    * The current database name can be fetched by getDatabaseName.
    *
    * @return the current database name

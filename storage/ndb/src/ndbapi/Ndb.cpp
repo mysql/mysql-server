@@ -1722,6 +1722,29 @@ int Ndb::setSchemaName(const char * a_schema_name)
 }
 // </internal>
  
+const char* Ndb::getNdbObjectName() const
+{
+  return theImpl->m_ndbObjectName.c_str();
+}
+
+int Ndb::setNdbObjectName(const char *name)
+{
+  if (!theImpl->m_ndbObjectName.empty())
+  {
+    theError.code = 4121;
+    return -1; // Cannot set twice
+  }
+
+  if (theInitState != NotInitialised)
+  {
+    theError.code = 4122;
+    return -1; // Should be set before init() is called
+  }
+
+  theImpl->m_ndbObjectName.assign(name);
+  return 0;
+}
+
 const char * Ndb::getDatabaseName() const
 {
   return getCatalogName();
