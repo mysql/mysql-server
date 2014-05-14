@@ -48,6 +48,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "os0file.h"
 #include "trx0sys.h"
 #include "srv0mon.h"
+#include "fsp0sysspace.h"
 
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
@@ -776,10 +777,12 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*	page,		/*!< in/out: page */
 	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn)	/*!< in: newest modification lsn
+	lsn_t	newest_lsn,	/*!< in: newest modification lsn
 				to the page */
+	bool	skip_checksum)	/*!< in: if true, disable/skip checksum. */
 {
-	ib_uint32_t	checksum = 0 /* silence bogus gcc warning */;
+	ib_uint32_t	checksum = BUF_NO_CHECKSUM_MAGIC;
+					/* silence bogus gcc warning */
 
 	ut_ad(page);
 
@@ -828,23 +831,26 @@ buf_flush_init_for_writing(
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			newest_lsn);
 
-	/* Store the new formula checksum */
+	if (!skip_checksum) {
+		/* Store the new formula checksum */
 
-	switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-		checksum = buf_calc_page_crc32(page);
-		break;
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-		checksum = (ib_uint32_t) buf_calc_page_new_checksum(page);
-		break;
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-		checksum = BUF_NO_CHECKSUM_MAGIC;
-		break;
-	/* no default so the compiler will emit a warning if new enum
-	is added and not handled here */
+		switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
+		case SRV_CHECKSUM_ALGORITHM_CRC32:
+		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+			checksum = buf_calc_page_crc32(page);
+			break;
+		case SRV_CHECKSUM_ALGORITHM_INNODB:
+		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+			checksum = (ib_uint32_t) buf_calc_page_new_checksum(
+				page);
+			break;
+		case SRV_CHECKSUM_ALGORITHM_NONE:
+		case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+			checksum = BUF_NO_CHECKSUM_MAGIC;
+			break;
+			/* no default so the compiler will emit a warning if
+			new enum is added and not handled here */
+		}
 	}
 
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
@@ -916,7 +922,9 @@ buf_flush_write_block_low(
 	ut_ad(bpage->newest_modification != 0);
 
 	/* Force the log to the disk before writing the modified block */
-	log_write_up_to(bpage->newest_modification, true);
+	if (!srv_read_only_mode) {
+		log_write_up_to(bpage->newest_modification, true);
+	}
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
@@ -944,11 +952,23 @@ buf_flush_write_block_low(
 		buf_flush_init_for_writing(((buf_block_t*) bpage)->frame,
 					   bpage->zip.data
 					   ? &bpage->zip : NULL,
-					   bpage->newest_modification);
+					   bpage->newest_modification,
+					   fsp_is_checksum_disabled(
+						bpage->id.space()));
 		break;
 	}
 
-	if (!srv_use_doublewrite_buf || !buf_dblwr) {
+	/* Disable use of double-write buffer for temporary tablespace.
+	Given the nature and load of temporary tablespace doublewrite buffer
+	adds an overhead during flushing. */
+	if (!srv_use_doublewrite_buf
+	    || !buf_dblwr
+	    || srv_read_only_mode
+	    || fsp_is_system_temporary(bpage->id.space())) {
+
+		ut_ad(!srv_read_only_mode
+		      || fsp_is_system_temporary(bpage->id.space()));
+
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 		       frame, bpage);
@@ -1017,8 +1037,14 @@ buf_flush_page(
 	if (!is_uncompressed) {
 		flush = TRUE;
 		rw_lock = NULL;
-	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)) {
+	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)
+		   || (!no_fix_count
+		       && srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP
+		       && fsp_is_system_temporary(bpage->id.space()))) {
 		/* This is a heuristic, to avoid expensive SX attempts. */
+		/* For table residing in temporary tablespace sync is done
+		using IO_FIX and so before scheduling for flush ensure that
+		page is not fixed. */
 		flush = FALSE;
 	} else {
 		rw_lock = &reinterpret_cast<buf_block_t*>(bpage)->lock;
@@ -1050,10 +1076,15 @@ buf_flush_page(
 		if (flush_type == BUF_FLUSH_LIST
 		    && is_uncompressed
 		    && !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE)) {
-			/* avoiding deadlock possibility involves doublewrite
-			buffer, should flush it, because it might hold the
-			another block->lock. */
-			buf_dblwr_flush_buffered_writes();
+
+			if (!fsp_is_system_temporary(bpage->id.space())) {
+				/* avoiding deadlock possibility involves
+				doublewrite buffer, should flush it, because
+				it might hold the another block->lock. */
+				buf_dblwr_flush_buffered_writes();
+			} else {
+				buf_dblwr_sync_datafiles();
+			}
 
 			rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 		}
@@ -2590,8 +2621,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	ulint	n_flushed = 0;
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
-
-	ut_ad(!srv_read_only_mode);
 
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(page_cleaner_thread_key);
