@@ -32,6 +32,12 @@
 #include <mysql/plugin_gcs_rpl.h>
 #include <gcs_protocol.h>
 
+typedef enum enum_applier_state {
+  APPLIER_STATE_ON= 1,
+  APPLIER_STATE_OFF,
+  APPLIER_ERROR
+} Member_applier_state;
+
 
 int log_message(enum plugin_log_level level, const char *format, ...);
 
@@ -168,4 +174,7 @@ private:
 enum enum_node_state
 map_protocol_node_state_to_server_node_state(GCS::Member_recovery_status protocol_status);
 
+enum enum_applier_status
+map_node_applier_state_to_server_applier_status(Member_applier_state
+                                                applier_status);
 #endif /* GCS_UTILS_INCLUDE */

@@ -163,7 +163,7 @@ int Certifier_broadcast_thread::broadcast_gtid_executed()
 
 
 Certifier::Certifier()
-  :initialized(false), next_seqno(1)
+  :initialized(false), next_seqno(1), positive_cert(0), negative_cert(0)
 {
   incoming= new Synchronized_queue<Data_packet*>();
   stable_sid_map= new Sid_map(NULL);
@@ -301,6 +301,8 @@ rpl_gno Certifier::certify(rpl_gno snapshot_timestamp,
     seq_no= get_seqno(*it);
     add_item(*it, (result));
   }
+
+  update_certified_transaction_count(result>0);
   mysql_mutex_unlock(&LOCK_certifier_map);
   DBUG_RETURN(result);
 }
@@ -609,4 +611,32 @@ void Certifier::set_certification_info(std::map<std::string,
 
   mysql_mutex_unlock(&LOCK_certifier_map);
   DBUG_VOID_RETURN;
+}
+
+void Certifier::update_certified_transaction_count(bool result)
+{
+  if(result)
+    positive_cert++;
+  else
+    negative_cert++;
+}
+
+ulonglong Certifier::get_positive_certified()
+{
+  return positive_cert;
+}
+
+ulonglong Certifier::get_negative_certified()
+{
+  return negative_cert;
+}
+
+ulonglong Certifier::get_cert_db_size()
+{
+  return item_to_seqno_map.size();
+}
+
+rpl_gno Certifier::get_last_sequence_number()
+{
+  return next_seqno-1;
 }

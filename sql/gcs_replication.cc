@@ -87,6 +87,15 @@ bool Gcs_replication_handler::get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO 
   return true;
 }
 
+bool Gcs_replication_handler::get_gcs_nodes_stat_info(RPL_GCS_NODE_STATS_INFO
+                                                      *info)
+{
+  if (plugin_handle)
+    return plugin_handle->get_gcs_nodes_stat_info(info);
+  return true;
+}
+
+
 uint Gcs_replication_handler::get_gcs_nodes_number()
 {
   if (plugin_handle)
@@ -209,6 +218,13 @@ bool get_gcs_nodes_stats(uint index, RPL_GCS_NODES_INFO *info)
 {
   if (gcs_rpl_handler)
     return gcs_rpl_handler->get_gcs_nodes_info(index, info);
+  return true;
+}
+
+bool get_gcs_nodes_dbsm_stats(RPL_GCS_NODE_STATS_INFO* info)
+{
+  if(gcs_rpl_handler)
+    return gcs_rpl_handler->get_gcs_nodes_stat_info(info);
   return true;
 }
 

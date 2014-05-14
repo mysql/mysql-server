@@ -331,6 +331,16 @@ public:
     return incoming->size();
   }
 
+  Member_applier_state get_applier_status()
+  {
+    if(applier_running)
+      return APPLIER_STATE_ON;
+    else if(suspended)
+      return APPLIER_STATE_OFF;
+    else
+      return APPLIER_ERROR;
+  }
+
 private:
 
   /**

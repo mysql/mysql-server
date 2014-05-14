@@ -32,3 +32,18 @@ map_protocol_node_state_to_server_node_state(GCS::Member_recovery_status protoco
   }
 }
 
+enum enum_applier_status
+map_node_applier_state_to_server_applier_status(Member_applier_state applier_status)
+{
+  switch(applier_status)
+  {
+    case 1:  // APPLIER_STATE_ON
+      return APPLIER_STATE_RUNNING;
+    case 2:  // APPLIER_STATE_OFF
+      return APPLIER_STATE_STOP;
+    default:
+             // APPLIER_ERROR
+      return APPLIER_STATE_ERROR;
+  }
+}
+

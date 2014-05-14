@@ -40,6 +40,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "Linux")
     gcs_recovery_message.cc gcs_recovery_message.h
     gcs_recovery.cc gcs_recovery.h
     gcs_payload.cc gcs_member_info.cc gcs_protocol.cc gcs_message.cc
+    gcs_certifier_stats_interface.h
     handlers/certification_handler.h
     handlers/certification_handler.cc
     handlers/event_cataloger.h

@@ -23,6 +23,8 @@
 #include <gcs_protocol.h>
 #include <gcs_protocol_factory.h>
 #include "gcs_event_handlers.h"
+#include <string>
+#include <my_stacktrace.h>
 
 using std::string;
 
@@ -91,6 +93,8 @@ static bool init_cluster_sidno();
 
 static bool server_engine_initialized();
 
+char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num);
+
 /*
   Auxiliary public functions.
 */
@@ -127,6 +131,7 @@ struct st_mysql_gcs_rpl gcs_rpl_descriptor=
   MYSQL_GCS_REPLICATION_INTERFACE_VERSION,
   get_gcs_stats_info,
   get_gcs_nodes_info,
+  get_gcs_node_stat_info,
   get_gcs_nodes_number,
   gcs_rpl_start,
   gcs_rpl_stop,
@@ -183,6 +188,58 @@ bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info)
   return false;
 }
 
+bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info)
+{
+  info->group_name= gcs_group_pointer;
+  GCS::Client_info node_info= gcs_module->get_client_info();
+  info->node_id= node_info.get_uuid().c_str();
+
+  //Check if the gcs replication has started.
+  if(applier_module)
+  {
+    Certification_handler *cert=
+      applier_module->get_certification_handler();
+    Certifier_interface *cert_module= cert->get_certifier();
+
+    info->positively_certified= cert_module->get_positive_certified();
+    info->negatively_certified= cert_module->get_negative_certified();
+    info->transaction_certified= info->positively_certified +
+                                 info->negatively_certified;
+    info->certification_db_size= cert_module->get_cert_db_size();
+    info->transaction_in_queue= applier_module->get_message_queue_size();
+
+    Gtid_set* stable_gtid_set= cert_module->get_group_stable_transactions_set();
+
+    if(stable_gtid_set)
+      info->stable_set= stable_gtid_set->to_string();
+    else
+      info->stable_set= NULL;
+
+    rpl_gno temp_seq_num= cert_module->get_last_sequence_number();
+    char* buf= NULL;
+    info->last_certified_transaction=
+        get_last_certified_transaction(buf, temp_seq_num);
+
+    info->applier_state=
+        map_node_applier_state_to_server_applier_status(
+            applier_module->get_applier_status());
+  }
+  else // gcs replication not running.
+  {
+    info->positively_certified= 0;
+    info->negatively_certified= 0;
+    info->transaction_certified= 0;
+    info->certification_db_size= 0;
+    info->stable_set= NULL;
+    info->transaction_in_queue= 0;
+    info->last_certified_transaction= NULL;
+    info->applier_state=
+        map_node_applier_state_to_server_applier_status(
+            (Member_applier_state)APPLIER_STATE_OFF);
+  }
+  return false;
+}
+
 uint get_gcs_nodes_number()
 {
   /*
@@ -191,6 +248,28 @@ uint get_gcs_nodes_number()
   */
   uint number_of_nodes= cluster_stats.get_number_of_nodes();
   return number_of_nodes == 0 ? 1 : number_of_nodes;
+}
+
+char* get_last_certified_transaction(char* buf, rpl_gno last_seq_num)
+{
+  if(last_seq_num > 0)
+  {
+    char seq_num[MAX_GNO_TEXT_LENGTH+1];
+    char *last_cert_seq_num= my_safe_itoa(10, last_seq_num,
+                                          &seq_num[sizeof(seq_num)- 1]);
+
+    string group(gcs_group_pointer);
+    group.append(":");
+    group.append(last_cert_seq_num);
+    buf= (char*)my_malloc(
+#ifdef HAVE_PSI_MEMORY_INTERFACE
+                               PSI_NOT_INSTRUMENTED,
+#endif
+                               Gtid::MAX_TEXT_LENGTH+1, MYF(0));
+
+    memcpy(buf, group.c_str(), Gtid::MAX_TEXT_LENGTH+1);
+  }
+  return buf;
 }
 
 int gcs_rpl_start()

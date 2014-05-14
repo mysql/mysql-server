@@ -394,7 +394,7 @@ Recovery_module::recovery_thread_handle()
   if (certifier != NULL)
   {
     certifier->set_certification_info(get_retrieved_cert_db(),
-                                         get_retrieved_seq_number());
+                                      get_retrieved_seq_number());
   }
 
   donor_transfer_finished= true;

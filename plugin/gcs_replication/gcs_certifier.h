@@ -17,12 +17,14 @@
 #define GCS_CERTIFIER
 
 #include "../gcs_plugin_utils.h"
+#include "gcs_replication.h"
 #include <replication.h>
 #include <log_event.h>
 #include <applier_interfaces.h>
 #include <map>
 #include <string>
 #include <list>
+#include "gcs_certifier_stats_interface.h"
 
 /**
   This class is a core component of the database state machine
@@ -107,7 +109,7 @@ private:
 };
 
 
-class Certifier_interface
+class Certifier_interface : public Certifier_stats
 {
 public:
   virtual ~Certifier_interface() {}
@@ -204,6 +206,26 @@ public:
   virtual void set_certification_info(std::map<std::string, rpl_gno> *cert_db,
                                       rpl_gno sequence_number);
 
+  /**
+    Get the number of postively certified transactions by the certifier
+    */
+  ulonglong get_positive_certified();
+
+  /**
+    Get method to retrieve the number of negatively certified transactions.
+    */
+  ulonglong get_negative_certified();
+
+  /**
+    Get method to retrieve the certification db size.
+    */
+  ulonglong get_cert_db_size();
+
+  /**
+    Get method to retrieve the last sequence number of the node.
+    */
+  rpl_gno get_last_sequence_number();
+
 private:
   /**
     Is certifier initialized.
@@ -224,6 +246,9 @@ private:
     Certification database.
   */
   cert_db item_to_seqno_map;
+
+  ulonglong positive_cert;
+  ulonglong negative_cert;
 
   mysql_mutex_t LOCK_certifier_map;
 #ifdef HAVE_PSI_INTERFACE
@@ -308,6 +333,12 @@ private:
       @retval >=0   GNO value
   */
   rpl_gno get_last_delivered_gno();
+
+  /**
+    Update method to store the count of the positively and negatively
+    certified transaction on a particular node.
+    */
+  void update_certified_transaction_count(bool result);
 };
 
 #endif /* GCS_CERTIFIER */

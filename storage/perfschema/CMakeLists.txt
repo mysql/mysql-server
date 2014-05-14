@@ -135,6 +135,7 @@ table_replication_execute_configuration.h
 table_replication_execute_status.h
 table_replication_execute_status_by_coordinator.h
 table_replication_execute_status_by_worker.h
+table_replication_node_status.h
 cursor_by_account.cc
 cursor_by_host.cc
 cursor_by_thread.cc
@@ -236,6 +237,7 @@ table_replication_execute_configuration.cc
 table_replication_execute_status.cc
 table_replication_execute_status_by_coordinator.cc
 table_replication_execute_status_by_worker.cc
+table_replication_node_status.cc
 )
 
 MYSQL_ADD_PLUGIN(perfschema ${PERFSCHEMA_SOURCES} STORAGE_ENGINE DEFAULT STATIC_ONLY NOT_FOR_EMBEDDED)

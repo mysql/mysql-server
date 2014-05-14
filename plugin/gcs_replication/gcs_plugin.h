@@ -78,6 +78,7 @@ int gcs_rpl_stop();
 bool is_gcs_rpl_running();
 bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
 bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info);
+bool get_gcs_node_stat_info(RPL_GCS_NODE_STATS_INFO *info);
 uint get_gcs_nodes_number();
 
 #endif /* GCS_PLUGIN_INCLUDE */

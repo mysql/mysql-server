@@ -892,6 +892,16 @@ def	performance_schema	replication_execute_status_by_worker	LAST_SEEN_TRANSACTIO
 def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_NUMBER	5	NULL	NO	int	NULL	NULL	10	0	NULL	NULL	NULL	int(11)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_MESSAGE	6	NULL	NO	varchar	1024	3072	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(1024)			select,insert,update,references	
 def	performance_schema	replication_execute_status_by_worker	LAST_ERROR_TIMESTAMP	7	CURRENT_TIMESTAMP	NO	timestamp	NULL	NULL	NULL	NULL	0	NULL	NULL	timestamp		on update CURRENT_TIMESTAMP	select,insert,update,references	
+def	performance_schema	replication_node_status	GROUP_NAME	1	NULL	NO	varchar	36	108	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(36)			select,insert,update,references	
+def	performance_schema	replication_node_status	NODE_ID	2	NULL	NO	char	60	180	NULL	NULL	NULL	utf8	utf8_bin	char(60)			select,insert,update,references	
+def	performance_schema	replication_node_status	TRANSACTIONS_IN_QUEUE	3	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_node_status	CERTIFIED_TRANSACTIONS	4	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_node_status	POSITIVELY_CERTIFIED	5	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_node_status	NEGATIVELY_CERTIFIED	6	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_node_status	CERTIFICATION_DB_SIZE	7	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
+def	performance_schema	replication_node_status	STABLE_SET	8	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references	
+def	performance_schema	replication_node_status	LAST_CERTIFIED_TRANSACTION	9	NULL	NO	text	65535	65535	NULL	NULL	NULL	utf8	utf8_general_ci	text			select,insert,update,references	
+def	performance_schema	replication_node_status	APPLIER_MODULE_STATUS	10	NULL	NO	enum	5	15	NULL	NULL	NULL	utf8	utf8_general_ci	enum('ON','OFF','ERROR')			select,insert,update,references	
 def	performance_schema	rwlock_instances	NAME	1	NULL	NO	varchar	128	384	NULL	NULL	NULL	utf8	utf8_general_ci	varchar(128)			select,insert,update,references	
 def	performance_schema	rwlock_instances	OBJECT_INSTANCE_BEGIN	2	NULL	NO	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	
 def	performance_schema	rwlock_instances	WRITE_LOCKED_BY_THREAD_ID	3	NULL	YES	bigint	NULL	NULL	20	0	NULL	NULL	NULL	bigint(20) unsigned			select,insert,update,references	

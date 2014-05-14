@@ -27,6 +27,12 @@ enum enum_node_state {
   NODE_STATE_RECOVERING
 };
 
+enum enum_applier_status {
+  APPLIER_STATE_RUNNING= 1,
+  APPLIER_STATE_STOP,
+  APPLIER_STATE_ERROR
+};
+
 typedef struct st_rpl_gcs_nodes_info
 {
   char* group_name;
@@ -51,6 +57,20 @@ typedef struct st_rpl_gcs_stats_info
   uint number_of_nodes;
 } RPL_GCS_STATS_INFO;
 
+typedef struct st_rpl_gcs_node_stats_info
+{
+  char* group_name;
+  const char* node_id;
+  ulonglong transaction_in_queue;
+  ulonglong transaction_certified;
+  ulonglong positively_certified;
+  ulonglong negatively_certified;
+  ulonglong certification_db_size;
+  char* stable_set;
+  const char* last_certified_transaction;
+  enum enum_applier_status applier_state;
+} RPL_GCS_NODE_STATS_INFO;
+
 struct st_mysql_gcs_rpl
 {
   int interface_version;
@@ -64,6 +84,11 @@ struct st_mysql_gcs_rpl
     This function is used to fetch information for gcs nodes.
   */
   bool (*get_gcs_nodes_info)(uint index, RPL_GCS_NODES_INFO *info);
+
+  /*
+    This function is used to fetch information for gcs node status.
+  */
+  bool (*get_gcs_nodes_stat_info)(RPL_GCS_NODE_STATS_INFO* info);
 
   /*
     Get number of gcs nodes.

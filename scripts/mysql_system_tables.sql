@@ -2135,6 +2135,30 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+
+--
+-- TABLE replication_node_status
+--
+
+SET @cmd="CREATE TABLE performance_schema.replication_node_status("
+    "GROUP_NAME varchar(36) not null,"
+    "NODE_ID char(60) collate utf8_bin not null,"
+    "TRANSACTIONS_IN_QUEUE BIGINT unsigned not null,"
+    "CERTIFIED_TRANSACTIONS BIGINT unsigned not null,"
+    "POSITIVELY_CERTIFIED BIGINT unsigned not null,"
+    "NEGATIVELY_CERTIFIED BIGINT unsigned not null,"
+    "CERTIFICATION_DB_SIZE BIGINT unsigned not null,"
+    "STABLE_SET TEXT not null,"
+    "LAST_CERTIFIED_TRANSACTION TEXT not null,"
+    "APPLIER_MODULE_STATUS ENUM('ON','OFF','ERROR') not null"
+    ") ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+
 --
 -- TABLE replication_connection_nodes
 --

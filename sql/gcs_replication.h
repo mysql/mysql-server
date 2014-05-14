@@ -36,6 +36,7 @@ public:
   /* functions accessing GCS cluster status and stats */
   bool get_gcs_stats_info(RPL_GCS_STATS_INFO *info);
   bool get_gcs_nodes_info(uint index, RPL_GCS_NODES_INFO *info);
+  bool get_gcs_nodes_stat_info(RPL_GCS_NODE_STATS_INFO *info);
   uint get_gcs_nodes_number();
 
 private:
@@ -92,6 +93,7 @@ bool is_gcs_plugin_loaded();
 
 bool get_gcs_stats(RPL_GCS_STATS_INFO *info);
 bool get_gcs_nodes_stats(uint index, RPL_GCS_NODES_INFO *info);
+bool get_gcs_nodes_dbsm_stats(RPL_GCS_NODE_STATS_INFO *info);
 uint get_gcs_nodes_stats_number();
 /* Server access methods and variables */
 
