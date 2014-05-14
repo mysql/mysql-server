@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -5018,6 +5018,14 @@ st_set_create_tab(ST_Con& c, ST_Tab& tab, bool create)
 static bool
 st_known_type(const NdbDictionary::Dictionary::List::Element& element)
 {
+  // Brute force workaround for Bug#18759252:
+  //
+  // 'AUTOTEST REGRESSION CAUSED BY NEW SYSTEM TABLES ADDED BY INDEX STATISTICS'
+  // Remove this hacky patch when the above bug has been fixed.
+  if (strcmp(element.name, "ndb_index_stat_sample_x1") == 0 ||
+      strcmp(element.name, "NDB$INDEX_6_CUSTOM") == 0)
+    return false;
+
   switch (element.type) {
   case NdbDictionary::Object::UserTable:
     require(element.database != 0);
