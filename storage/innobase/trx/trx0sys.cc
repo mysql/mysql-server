@@ -1001,6 +1001,7 @@ trx_sys_read_file_format_id(
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
+		srv_read_only_mode,
 		&success
 	);
 	if (!success) {
@@ -1075,6 +1076,7 @@ trx_sys_read_pertable_file_format_id(
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
+		srv_read_only_mode,
 		&success
 	);
 	if (!success) {

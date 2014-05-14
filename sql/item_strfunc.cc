@@ -57,8 +57,11 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+#include "template_utils.h"
+
 using std::min;
 using std::max;
+
 
 /*
   For the Items which have only val_str_ascii() method
@@ -4534,8 +4537,10 @@ String *Item_func_uncompress::val_str(String *str)
   if (buffer.realloc((uint32)new_size))
     goto err;
 
-  if ((err= uncompress((Byte*)buffer.ptr(), &new_size,
-		       ((const Bytef*)res->ptr())+4,res->length())) == Z_OK)
+  if ((err= uncompress(pointer_cast<Byte*>(const_cast<char*>(buffer.ptr())),
+                       &new_size,
+                       pointer_cast<const Bytef*>(res->ptr()) + 4,
+                       res->length() - 4)) == Z_OK)
   {
     buffer.length((uint32) new_size);
     return &buffer;

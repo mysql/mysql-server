@@ -179,7 +179,10 @@ page_cur_tuple_insert(
 	ulint**		offsets,/*!< out: offsets on *rec */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	mtr_t*		mtr,	/*!< in: mini-transaction handle, or NULL */
+	bool		use_cache = false)
+				/*!< in: if true, then use record cache to
+				hold the tuple converted record. */
 	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
@@ -219,6 +222,25 @@ page_cur_insert_rec_low(
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+
+/** Inserts a record next to page cursor on an uncompressed page.
+@param[in]	current_rec	pointer to current record after which
+				the new record is inserted.
+@param[in]	index		record descriptor
+@param[in]	tuple		pointer to a data tuple
+@param[in]	n_ext		number of externally stored columns
+@param[in]	mtr		mini-transaction handle, or NULL
+
+@return pointer to record if succeed, NULL otherwise */
+
+rec_t*
+page_cur_direct_insert_rec_low(
+	rec_t*		current_rec,
+	dict_index_t*	index,
+	const dtuple_t*	tuple,
+	ulint		n_ext,
+	mtr_t*		mtr);
+
 /***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
