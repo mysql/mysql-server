@@ -88,6 +88,7 @@ public:
 
   int m_optimized_node_selection;
 
+  BaseString m_ndbObjectName; // Ndb name
   BaseString m_dbname; // Database name
   BaseString m_schemaname; // Schema name
 
