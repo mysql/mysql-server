@@ -753,12 +753,17 @@ skip_field:
 
 			upd_field_t	upd_field;
 			upd_field.field_no = longest_i;
-			upd_field.orig_len = local_len;
+			upd_field.orig_len = 0;
 			upd_field.exp = NULL;
 			dfield_copy(&upd_field.new_val,
 				    dfield->clone(upd->heap));
 			upd->append(upd_field);
 			ut_ad(upd->is_modified(longest_i));
+
+			ut_ad(upd_field.new_val.len
+			      >= BTR_EXTERN_FIELD_REF_SIZE);
+			ut_ad(upd_field.new_val.len == local_len);
+			ut_ad(upd_field.new_val.len == dfield_get_len(dfield));
 		}
 	}
 
@@ -858,5 +863,4 @@ dfield_t::clone(
 
 	return(obj);
 }
-
 #endif /* !UNIV_HOTBACKUP */

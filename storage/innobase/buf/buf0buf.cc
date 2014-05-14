@@ -38,7 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "buf0buf.ic"
 #endif
-
 #ifdef UNIV_INNOCHECKSUM
 #include "string.h"
 #include "mach0data.h"
@@ -60,12 +59,14 @@ Created 11/5/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "srv0mon.h"
+#include "fsp0sysspace.h"
 #endif /* !UNIV_INNOCHECKSUM */
 #include "page0zip.h"
 #include "buf0checksum.h"
 #include "sync0sync.h"
 
 #include <new>
+
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -258,6 +259,7 @@ the read requests for the whole area.
 #if (!(defined(UNIV_HOTBACKUP) || defined(UNIV_INNOCHECKSUM)))
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 100;
+static const int WAIT_FOR_WRITE = 100;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
@@ -320,7 +322,15 @@ buf_pool_get_oldest_modification(void)
 
 		buf_page_t*	bpage;
 
-		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		/* We don't let log-checkpoint halt because pages from system
+		temporary are not yet flushed to the disk. Anyway, object
+		residing in system temporary doesn't generate REDO logging. */
+		for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		     bpage != NULL
+			&& fsp_is_system_temporary(bpage->id.space());
+		     bpage = UT_LIST_GET_PREV(list, bpage)) {
+			/* Do nothing. */
+		}
 
 		if (bpage != NULL) {
 			ut_ad(bpage->in_flush_list);
@@ -481,6 +491,7 @@ buf_page_is_zeroes(
 the LSN
 @param[in]	read_buf	database page
 @param[in]	page_size	page size
+@param[in]	skip_checksum	if true, skip checksum
 @param[in]	page_no		page number of given read_buf
 @param[in]	strict_check	true if strict-check option is enabled
 @param[in]	is_log_enabled	true if log option is enabled
@@ -490,7 +501,8 @@ ibool
 buf_page_is_corrupted(
 	bool			check_lsn,
 	const byte*		read_buf,
-	const page_size_t&	page_size
+	const page_size_t&	page_size,
+	bool			skip_checksum
 #ifdef UNIV_INNOCHECKSUM
 	,uintmax_t		page_no,
 	bool			strict_check,
@@ -549,7 +561,8 @@ buf_page_is_corrupted(
 
 	/* Check whether the checksum fields have correct values */
 
-	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE) {
+	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE
+	    || skip_checksum) {
 		return(FALSE);
 	}
 
@@ -1099,6 +1112,7 @@ buf_block_init(
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
+	block->made_dirty_with_no_latch = false;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -2331,6 +2345,7 @@ buf_block_init_low(
 {
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
+	block->made_dirty_with_no_latch = false;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
@@ -2673,6 +2688,9 @@ BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH, or BUF_GET_IF_IN_POOL_OR_WATCH
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in]	mtr		mini-transaction
+@param[in]	dirty_with_no_latch
+				mark page as dirty even if page
+				is being pinned without any latch
 @return pointer to the block or NULL */
 buf_block_t*
 buf_page_get_gen(
@@ -2683,7 +2701,8 @@ buf_page_get_gen(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
-	mtr_t*			mtr)
+	mtr_t*			mtr,
+	bool			dirty_with_no_latch)
 {
 	buf_block_t*	block;
 	unsigned	access_time;
@@ -2772,7 +2791,23 @@ loop:
 				increment the fix count to make
 				sure that no state change takes place. */
 				fix_block = block;
+				fix_mutex = buf_page_get_mutex(
+					&fix_block->page);
+
+				if (fsp_is_system_temporary(page_id.space())) {
+					/* Flush thread synchronization for
+					object residing in temporary tablespace
+					is done using fix_count and io_fix state
+					so before changing any of it get the
+					mutex. */
+					mutex_enter(fix_mutex);
+				}
+
 				buf_block_fix(fix_block);
+
+				if (fsp_is_system_temporary(page_id.space())) {
+					mutex_exit(fix_mutex);
+				}
 
 				/* Now safe to release page_hash mutex */
 				rw_lock_x_unlock(hash_lock);
@@ -2826,14 +2861,25 @@ loop:
 		fix_block = block;
 	}
 
+	fix_mutex = buf_page_get_mutex(&fix_block->page);
+
+	if (fsp_is_system_temporary(page_id.space())) {
+		mutex_enter(fix_mutex);
+	}
+
+	/* Flush thread synchronization for object residing in temporary
+	tablespace is done using fix_count and io_fix state so before changing
+	any of it get the mutex. */
 	buf_block_fix(fix_block);
+
+	if (fsp_is_system_temporary(page_id.space())) {
+		mutex_exit(fix_mutex);
+	}
 
 	/* Now safe to release page_hash mutex */
 	rw_lock_s_unlock(hash_lock);
 
 got_block:
-
-	fix_mutex = buf_page_get_mutex(&fix_block->page);
 
 	if (mode == BUF_GET_IF_IN_POOL || mode == BUF_PEEK_IF_IN_POOL) {
 
@@ -2865,6 +2911,18 @@ got_block:
 		buf_page_t*	bpage;
 
 	case BUF_BLOCK_FILE_PAGE:
+		bpage = &block->page;
+		if (fsp_is_system_temporary(page_id.space())
+		    && buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+				/* This suggest that page is being flushed.
+				Avoid returning reference to this page.
+				Instead wait for flush action to complete.
+				For normal page this sync is done using SX
+				lock but for intrinsic there is no latching. */
+				buf_block_unfix(fix_block);
+				os_thread_sleep(WAIT_FOR_WRITE);
+				goto loop;
+		}
 		break;
 
 	case BUF_BLOCK_ZIP_PAGE:
@@ -3135,10 +3193,13 @@ got_block:
 
 #ifdef UNIV_SYNC_DEBUG
 	/* We have already buffer fixed the page, and we are committed to
-	returning this page to the caller. Register for debugging. */
-	{
+	returning this page to the caller. Register for debugging.
+	Avoid debug latching if page/block belongs to system temporary
+	tablespace (Not much needed for table with single threaded access.). */
+	if (!fsp_is_system_temporary(page_id.space())) {
 		ibool	ret;
-		ret = rw_lock_s_lock_nowait(&fix_block->debug_latch, file, line);
+		ret = rw_lock_s_lock_nowait(
+			&fix_block->debug_latch, file, line);
 		ut_a(ret);
 	}
 #endif /* UNIV_SYNC_DEBUG */
@@ -3175,6 +3236,17 @@ got_block:
 	and block->lock. */
 	buf_wait_for_read(fix_block);
 #endif /* PAGE_ATOMIC_REF_COUNT */
+
+	/* Mark block as dirty if requested by caller. If not requested (false)
+	then we avoid updating the dirty state of the block and retain the
+	original one. This is reason why ?
+	Same block can be shared/pinned by 2 different mtrs. If first mtr
+	set the dirty state to true and second mtr mark it as false the last
+	updated dirty state is retained. Which means we can loose flushing of
+	a modified block. */
+	if (dirty_with_no_latch) {
+		fix_block->made_dirty_with_no_latch = dirty_with_no_latch;
+	}
 
 	mtr_memo_type_t	fix_type;
 
@@ -4311,8 +4383,9 @@ buf_page_io_complete(
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
-
-		if (buf_page_is_corrupted(true, frame, bpage->size)) {
+		if (buf_page_is_corrupted(true, frame, bpage->size,
+					  fsp_is_checksum_disabled(
+						bpage->id.space()))) {
 
 			/* Not a real corruption if it was triggered by
 			error injection */
