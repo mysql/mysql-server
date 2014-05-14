@@ -104,7 +104,6 @@
 #include <sys/prctl.h>
 #endif
 
-#include <thr_alarm.h>
 #include <ft_global.h>
 #include <errmsg.h>
 #include "sp_rcontext.h"
@@ -454,6 +453,8 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+ulong binlogging_impossible_mode;
+const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
@@ -486,6 +487,11 @@ ulonglong slave_type_conversions_options;
 ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
+
+#ifdef HAVE_REPLICATION
+my_bool opt_slave_preserve_commit_order;
+#endif
+
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
@@ -1178,7 +1184,7 @@ static void close_connections(void)
   while (socket_listener_active)
   {
     DBUG_PRINT("info",("Killing socket listener"));
-    if (pthread_kill(main_thread_id, thr_client_alarm))
+    if (pthread_kill(main_thread_id, SIGUSR1))
     {
       DBUG_ASSERT(false);
       break;
@@ -1207,7 +1213,6 @@ static void close_connections(void)
     shared_mem_acceptor= NULL;
   }
 #endif
-  end_thr_alarm(0);      // Abort old alarms.
 
   /*
     First signal all threads that it's time to die
@@ -1298,17 +1303,6 @@ void kill_mysql(void)
   DBUG_VOID_RETURN;
 }
 
-extern "C" void print_signal_warning(int sig)
-{
-  sql_print_warning("Got signal %d from thread %ld", sig,my_thread_id());
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  my_sigset(sig,print_signal_warning);    /* int. thread system calls */
-#endif
-#if !defined(_WIN32)
-  if (sig == SIGALRM)
-    alarm(2);         /* reschedule alarm */
-#endif
-}
 
 static void init_error_log_mutex()
 {
@@ -1463,7 +1457,6 @@ void clean_up(bool print_message)
   key_caches.delete_elements((void (*)(const char*, uchar*)) free_key_cache);
   multi_keycache_free();
   free_status_vars();
-  end_thr_alarm(1);     /* Free allocated memory */
   query_logger.cleanup();
   my_free_open_file_info();
   if (defaults_argv)
@@ -2101,13 +2094,29 @@ void my_init_signals(void)
 #define SA_NODEFER 0
 #endif
 
+extern "C" void print_signal_warning(int sig)
+{
+  sql_print_warning("Got signal %d from thread %ld", sig, my_thread_id());
+  if (sig == SIGALRM)
+    alarm(2);         /* reschedule alarm */
+}
+
+
 void my_init_signals(void)
 {
   sigset_t set;
   struct sigaction sa;
   DBUG_ENTER("my_init_signals");
 
-  my_sigset(thr_server_alarm,print_signal_warning); // Should never be called!
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= print_signal_warning; // Should never be called!
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGALRM, &l_s, NULL);
+  }
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
@@ -2121,9 +2130,7 @@ void my_init_signals(void)
     sa.sa_handler=handle_fatal_signal;
     sigaction(SIGSEGV, &sa, NULL);
     sigaction(SIGABRT, &sa, NULL);
-#ifdef SIGBUS
     sigaction(SIGBUS, &sa, NULL);
-#endif
     sigaction(SIGILL, &sa, NULL);
     sigaction(SIGFPE, &sa, NULL);
   }
@@ -2139,7 +2146,15 @@ void my_init_signals(void)
   }
 #endif
   (void) sigemptyset(&set);
-  my_sigset(SIGPIPE,SIG_IGN);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= SIG_IGN;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGPIPE, &l_s, NULL);
+  }
   sigaddset(&set,SIGPIPE);
   sigaddset(&set,SIGQUIT);
   sigaddset(&set,SIGHUP);
@@ -2149,19 +2164,14 @@ void my_init_signals(void)
   sigemptyset(&sa.sa_mask);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
-  sigaction(SIGTERM, &sa, (struct sigaction*) 0);
+  sigaction(SIGTERM, &sa, NULL);
   sa.sa_flags = 0;
   sa.sa_handler = print_signal_warning;
-  sigaction(SIGHUP, &sa, (struct sigaction*) 0);
-#ifdef SIGTSTP
+  sigaction(SIGHUP, &sa, NULL);
   sigaddset(&set,SIGTSTP);
-#endif
-  sigaddset(&set,thr_server_alarm);
-  if (test_flags & TEST_SIGINT)
-    sigdelset(&set,SIGINT);
-  else
+  sigaddset(&set,SIGALRM);
+  if (!(test_flags & TEST_SIGINT))
     sigaddset(&set,SIGINT);
-  sigprocmask(SIG_SETMASK,&set,NULL);
   pthread_sigmask(SIG_SETMASK,&set,NULL);
   DBUG_VOID_RETURN;
 }
@@ -2213,6 +2223,12 @@ static void start_signal_handler(void)
 }
 
 
+extern "C" {
+static void empty_signal_handler(int sig __attribute__((unused)))
+{ }
+}
+
+
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
 pthread_handler_t signal_hand(void *arg __attribute__((unused)))
@@ -2223,10 +2239,21 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 
   /*
     Setup alarm handler
-    This should actually be '+ max_number_of_slaves' instead of +10,
-    but the +10 should be quite safe.
   */
-  init_thr_alarm(Connection_handler_manager::max_threads + 10);
+  {
+    struct sigaction l_s;
+    sigset_t l_set;
+    sigemptyset(&l_set);
+    l_s.sa_handler= empty_signal_handler;
+    l_s.sa_mask= l_set;
+    l_s.sa_flags= 0;
+    sigaction(SIGUSR1, &l_s, NULL);
+
+    sigemptyset(&set);
+    sigaddset(&set, SIGALRM);
+    pthread_sigmask(SIG_BLOCK, &set, NULL);
+  }
+
   if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
@@ -2234,7 +2261,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
     (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
   }
   (void) sigemptyset(&set);     // Setup up SIGINT for debug
-  (void) sigaddset(&set,thr_server_alarm);  // For alarms
+  (void) sigaddset(&set,SIGALRM);  // For alarms
   (void) sigaddset(&set,SIGQUIT);
   (void) sigaddset(&set,SIGHUP);
   (void) sigaddset(&set,SIGTERM);
@@ -2297,18 +2324,15 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       if (!abort_loop)
       {
         int not_used;
-  mysql_print_status();   // Print some debug info
-  reload_acl_and_cache((THD*) 0,
-           (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-            REFRESH_GRANT |
-            REFRESH_THREADS | REFRESH_HOSTS),
-           (TABLE_LIST*) 0, &not_used); // Flush logs
+        mysql_print_status();   // Print some debug info
+        reload_acl_and_cache((THD*) 0,
+                             (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
+                              REFRESH_GRANT |
+                              REFRESH_THREADS | REFRESH_HOSTS),
+                             (TABLE_LIST*) 0, &not_used); // Flush logs
+        /* reenable query logs after the options were reloaded */
+        query_logger.set_handlers(log_output_options);
       }
-      /* reenable query logs after the options were reloaded */
-      query_logger.set_handlers(log_output_options);
-      break;
-    case thr_server_alarm:
-      process_alarm(sig);     // Trigger alarms.
       break;
     default:
       break;          /* purecov: tested */
@@ -2321,7 +2345,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 #endif // !EMBEDDED_LIBRARY
 
 
-#if BACKTRACE_DEMANGLE
+#if HAVE_BACKTRACE && HAVE_ABI_CXA_DEMANGLE
 #include <cxxabi.h>
 extern "C" char *my_demangle(const char *mangled_name, int *status)
 {
@@ -7703,6 +7727,10 @@ PSI_mutex_key key_mts_temp_table_LOCK;
 PSI_mutex_key key_thd_timer_mutex;
 #endif
 
+#ifdef HAVE_REPLICATION
+PSI_mutex_key key_commit_order_manager_mutex;
+#endif
+
 static PSI_mutex_info all_server_mutexes[]=
 {
 #ifdef HAVE_MMAP
@@ -7782,6 +7810,9 @@ static PSI_mutex_info all_server_mutexes[]=
 #ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
+#ifdef HAVE_REPLICATION
+  { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0}
+#endif
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7837,6 +7868,9 @@ PSI_cond_key key_RELAYLOG_COND_done;
 PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
+#ifdef HAVE_REPLICATION
+PSI_cond_key key_commit_order_manager_cond;
+#endif
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -7876,6 +7910,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL}
+#ifdef HAVE_REPLICATION
+  ,
+  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
+#endif
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
@@ -8054,6 +8092,9 @@ PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slav
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
 PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+#ifdef HAVE_REPLICATION
+PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
+#endif
 PSI_stage_info stage_starting= { 0, "starting", 0};
 #ifdef HAVE_PSI_INTERFACE
 
@@ -8167,6 +8208,7 @@ static PSI_socket_info all_server_sockets[]=
 
 PSI_memory_key key_memory_buffered_logs;
 PSI_memory_key key_memory_locked_table_list;
+PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_thd_transactions;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_acl_mem;
@@ -8298,6 +8340,7 @@ static PSI_memory_info all_server_memory[]=
 {
   { &key_memory_buffered_logs, "buffered_logs", PSI_FLAG_GLOBAL},
   { &key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root", 0},
+  { &key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD},
   { &key_memory_thd_transactions, "THD::transactions::mem_root", PSI_FLAG_THREAD},
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},

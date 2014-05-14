@@ -53,6 +53,7 @@ public:
     excluded_tables((sjm_nest ?
                      (join->all_table_map & ~sjm_nest->sj_inner_tables) : 0) |
                     (join->allow_outer_refs ? 0 : OUTER_REF_TABLE_BIT)),
+    has_sj(!(join->select_lex->sj_nests.is_empty() || sjm_nest)),
     test_all_ref_keys(false)
   {}
   ~Optimize_table_order()
@@ -90,6 +91,12 @@ private:
     @c excluded_tables tracks these tables.
   */
   const table_map excluded_tables;
+  /*
+    No need to call advance_sj_state() when
+     1) there are no semijoin nests or
+     2) we are optimizing a materialized semijoin nest.
+  */
+  const bool has_sj;
 
   /**
      If true, find_best_ref() must go through all keys, no shortcutting
@@ -124,25 +131,19 @@ private:
                                                       POSITION *loose_scan_pos);
   bool check_interleaving_with_nj(JOIN_TAB *next_tab);
   void advance_sj_state(table_map remaining_tables,
-                        const JOIN_TAB *tab, uint idx,
-                        double *current_rowcount, double *current_cost);
+                        const JOIN_TAB *tab, uint idx);
   void backout_nj_state(const table_map remaining_tables,
                         const JOIN_TAB *tab);
   void optimize_straight_join(table_map join_tables);
   bool greedy_search(table_map remaining_tables);
   bool best_extension_by_limited_search(table_map remaining_tables,
                                         uint idx,
-                                        double record_count,
-                                        double read_time,
                                         uint current_search_depth);
   table_map eq_ref_extension_by_limited_search(
                                         table_map remaining_tables,
                                         uint idx,
-                                        double record_count,
-                                        double read_time,
                                         uint current_search_depth);
-  void consider_plan(uint idx, double record_count, double read_time,
-                     Opt_trace_object *trace_obj);
+  void consider_plan(uint idx, Opt_trace_object *trace_obj);
   bool fix_semijoin_strategies();
   bool semijoin_firstmatch_loosescan_access_paths(
                 uint first_tab, uint last_tab, table_map remaining_tables, 
@@ -163,8 +164,8 @@ private:
   static uint determine_search_depth(uint search_depth, uint table_count);
 };
 
-void get_partial_join_cost(JOIN *join, uint n_tables, double *read_time_arg,
-                           double *record_count_arg);
+void get_partial_join_cost(JOIN *join, uint n_tables, double *cost_arg,
+                           double *rowcount_arg);
 
 /**
   Calculate 'Post read filtering' effect of JOIN::conds for table

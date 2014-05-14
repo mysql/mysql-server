@@ -238,8 +238,6 @@ os_thread_yield(void)
 	sched_yield();
 #elif defined(HAVE_PTHREAD_YIELD_ZERO_ARG)
 	pthread_yield();
-#elif defined(HAVE_PTHREAD_YIELD_ONE_ARG)
-	pthread_yield(0);
 #else
 	os_thread_sleep(0);
 #endif

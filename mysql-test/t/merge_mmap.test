@@ -147,6 +147,6 @@ DROP TABLE m2, m1, t2, t1;
 
 --disable_result_log
 --disable_query_log
-eval SET GLOBAL storage_engine = $default;
+eval SET GLOBAL default_storage_engine = $default;
 --enable_result_log
 --enable_query_log

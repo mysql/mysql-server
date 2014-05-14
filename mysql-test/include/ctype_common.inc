@@ -8,7 +8,7 @@
 # use SHOW FULL COLUMNS instead.
 #
 # Please surround all CREATE TABLE with --disable_warnings
-# and --enable_warnings to be able to set storage_engine
+# and --enable_warnings to be able to set default_storage_engine
 # without having to check if the hanlder exists.
 
 SET @safe_character_set_server= @@character_set_server;

@@ -132,9 +132,13 @@ Tablespace::open_or_create(bool is_temp)
 	for (files_t::iterator it = begin; it != end; ++it) {
 
 		if (it->m_exists) {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only
+				? false : srv_read_only_mode);
 		} else {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only
+				? false : srv_read_only_mode);
 
 			/* Set the correct open flags now that we have
 			successfully created the file. */
@@ -217,6 +221,8 @@ Tablespace::delete_files()
 	files_t::iterator	end = m_files.end();
 
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
+
+		it->close();
 
 		bool file_pre_exists;
 		bool success = os_file_delete_if_exists(

@@ -295,26 +295,30 @@ os_file_write
 The wrapper functions have the prefix of "innodb_". */
 
 #ifdef UNIV_PFS_IO
-# define os_file_create(key, name, create, purpose, type, success)	\
+# define os_file_create(key, name, create, purpose, type, read_only,	\
+			success)					\
 	pfs_os_file_create_func(key, name, create, purpose,	type,	\
-				success, __FILE__, __LINE__)
+				read_only, success, __FILE__, __LINE__)
 
-# define os_file_create_simple(key, name, create, access, success)	\
+# define os_file_create_simple(key, name, create, access,		\
+		read_only, success)					\
 	pfs_os_file_create_simple_func(key, name, create, access,	\
-				       success, __FILE__, __LINE__)
+		read_only, success, __FILE__, __LINE__)
 
 # define os_file_create_simple_no_error_handling(			\
-		key, name, create_mode, access, success)		\
+		key, name, create_mode, access, read_only, success)	\
 	pfs_os_file_create_simple_no_error_handling_func(		\
-		key, name, create_mode, access, success, __FILE__, __LINE__)
+		key, name, create_mode, access,				\
+		read_only, success, __FILE__, __LINE__)
 
 # define os_file_close(file)						\
 	pfs_os_file_close_func(file, __FILE__, __LINE__)
 
 # define os_aio(type, mode, name, file, buf, offset,			\
-		n, message1, message2)					\
+		n, read_only, message1, message2)			\
 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
-			n, message1, message2, __FILE__, __LINE__)
+			n, read_only, message1, message2,		\
+			__FILE__, __LINE__)
 
 # define os_file_read(file, buf, offset, n)				\
 	pfs_os_file_read_func(file, buf, offset, n, __FILE__, __LINE__)
@@ -342,22 +346,27 @@ The wrapper functions have the prefix of "innodb_". */
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
 to original un-instrumented file I/O APIs */
-# define os_file_create(key, name, create, purpose, type, success)	\
-	os_file_create_func(name, create, purpose, type, success)
+# define os_file_create(key, name, create, purpose, type, read_only,	\
+			success)					\
+	os_file_create_func(name, create, purpose, type, read_only,	\
+			success)
 
-# define os_file_create_simple(key, name, create_mode, access, success)	\
-	os_file_create_simple_func(name, create_mode, access, success)
+# define os_file_create_simple(key, name, create_mode, access,		\
+		read_only, success)					\
+	os_file_create_simple_func(name, create_mode, access,		\
+		read_only, success)
 
 # define os_file_create_simple_no_error_handling(			\
-		key, name, create_mode, access, success)		\
+		key, name, create_mode, access, read_only, success)	\
 	os_file_create_simple_no_error_handling_func(			\
-		name, create_mode, access, success)
+		name, create_mode, access, read_only, success)
 
 # define os_file_close(file)	os_file_close_func(file)
 
-# define os_aio(type, mode, name, file, buf, offset, n, message1, message2) \
-	os_aio_func(type, mode, name, file, buf, offset, n,		\
-		    message1, message2)
+# define os_aio(type, mode, name, file, buf, offset,			\
+		n, read_only, message1, message2)			\
+	os_aio_func(type, mode, name, file, buf, offset,		\
+		n, read_only, message1, message2)
 
 # define os_file_read(file, buf, offset, n)	\
 	os_file_read_func(file, buf, offset, n)
@@ -400,7 +409,7 @@ bigger than 4000 bytes */
 struct os_file_stat_t {
 	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
 	os_file_type_t	type;			/*!< file type */
-	ib_int64_t	size;			/*!< file size */
+	int64_t		size;			/*!< file size */
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */
 	time_t		atime;			/*!< access time */
@@ -506,6 +515,9 @@ os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success);/*!< out: TRUE if succeed, FALSE if error */
 /****************************************************************//**
 NOTE! Use the corresponding macro
@@ -524,6 +536,9 @@ os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
 	__attribute__((nonnull, warn_unused_result));
 /****************************************************************//**
@@ -558,6 +573,9 @@ os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
@@ -623,6 +641,9 @@ pfs_os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -648,6 +669,9 @@ pfs_os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -676,6 +700,9 @@ pfs_os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -747,6 +774,9 @@ pfs_os_aio_func(
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
@@ -1105,6 +1135,9 @@ os_aio_func(
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
@@ -1236,8 +1269,11 @@ os_file_get_status(
 	const char*	path,		/*!< in: pathname of the file */
 	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
-	bool		check_rw_perm);	/*!< in: for testing whether the
+	bool		check_rw_perm,	/*!< in: for testing whether the
 					file can be opened in RW mode */
+	bool		read_only_mode);
+					/*!< in: if true read only mode
+					checks are enforced. */
 
 #if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**

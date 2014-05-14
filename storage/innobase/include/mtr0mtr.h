@@ -31,6 +31,7 @@ Created 11/26/1995 Heikki Tuuri
 #include "log0types.h"
 #include "mtr0types.h"
 #include "buf0types.h"
+#include "trx0types.h"
 #include "dyn0buf.h"
 
 /** Start a mini-transaction. */
@@ -72,6 +73,19 @@ savepoint. */
 				(m)->memo_release((o), (t))
 
 #ifdef UNIV_DEBUG
+
+/** Check if memo contains the given item ignore if table is intrinsic
+@return TRUE if contains or table is intrinsic. */
+#define mtr_is_block_fix(m, o, t, table)				\
+	(mtr_memo_contains(m, o, t)					\
+	 || dict_table_is_intrinsic(table))
+
+/** Check if memo contains the given page ignore if table is intrinsic
+@return TRUE if contains or table is intrinsic. */
+#define mtr_is_page_fix(m, p, t, table)					\
+	(mtr_memo_contains_page(m, p, t)				\
+	 || dict_table_is_intrinsic(table))
+
 /** Check if memo contains the given item.
 @return	TRUE if contains */
 #define mtr_memo_contains(m, o, t)					\
@@ -144,10 +158,6 @@ struct mtr_t {
 		/** mini-transaction log */
 		mtr_buf_t	m_log;
 
-		/** Number of pages that have been freed in this
-		mini-transaction */
-		ib_uint32_t	m_n_freed_pages;
-
 		/** true if mtr has made at least one buffer pool page dirty */
 		bool		m_made_dirty;
 
@@ -165,10 +175,14 @@ struct mtr_t {
 		value MTR_LOG_ALL */
 		mtr_log_t	m_log_mode;
 
-#ifdef UNIV_DEBUG
+		/** MLOG_FILE_NAME tablespace associated with the
+		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
+		ulint		m_named_space;
+
 		/** State of the transaction */
 		mtr_state_t	m_state;
 
+#ifdef UNIV_DEBUG
 		/** For checking corruption. */
 		ulint		m_magic_n;
 #endif /* UNIV_DEBUG */
@@ -177,7 +191,10 @@ struct mtr_t {
 		mtr_t*		m_mtr;
 	};
 
-	mtr_t() { }
+	mtr_t() 
+	{
+		m_impl.m_state = MTR_STATE_INIT;
+	}
 
 	~mtr_t() { }
 
@@ -200,6 +217,14 @@ struct mtr_t {
 
 	/** Commit the mini-transaction. */
 	void commit();
+
+	/** Commit a mini-transaction that did not modify any pages,
+	but generated some redo log on a higher level, such as
+	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
+	The caller must invoke log_mutex_enter() and log_mutex_exit().
+	This is to be used at log_checkpoint().
+	@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
+	void commit_checkpoint(lsn_t checkpoint_lsn);
 
 	/** Return current size of the buffer.
 	@return	savepoint */
@@ -240,6 +265,23 @@ struct mtr_t {
 	@param mode	 logging mode
 	@return	old mode */
 	inline mtr_log_t set_log_mode(mtr_log_t mode);
+
+	/** Set the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	tablespace */
+	void set_named_space(ulint space)
+	{
+		ut_ad(m_impl.m_named_space == TRX_SYS_SPACE);
+		m_impl.m_named_space = space;
+	}
+
+#ifdef UNIV_DEBUG
+	/** Check the tablespace associated with the mini-transaction
+	(needed for generating a MLOG_FILE_NAME record)
+	@param[in]	space	tablespace
+	@return whether the mini-transaction is associated with the space */
+	bool is_named_space(ulint space) const;
+#endif /* UNIV_DEBUG */
 
 	/** Read 1 - 4 bytes from a file page buffered in the buffer pool.
 	@param ptr	pointer from where to read
@@ -316,22 +358,11 @@ struct mtr_t {
 		return(m_impl.m_inside_ibuf);
 	}
 
-	/** Note that some pages were freed */
-	void add_freed_pages()
+	/*
+	@return true if the mini-transaction is active */
+	bool is_active() const
 	{
-		++m_impl.m_n_freed_pages;
-	}
-
-	/** @return true if mini-transaction freed pages */
-	bool has_freed_pages() const
-	{
-		return(get_freed_page_count() > 0);
-	}
-
-	/** @return the number of freed pages */
-	ulint get_freed_page_count() const
-	{
-		return(m_impl.m_n_freed_pages);
+		return(m_impl.m_state == MTR_STATE_ACTIVE);
 	}
 
 #ifdef UNIV_DEBUG
@@ -373,12 +404,6 @@ struct mtr_t {
 
 	/** Print info of an mtr handle. */
 	void print() const;
-
-	/** @return true if the mini-transaction is active */
-	bool is_active() const
-	{
-		return(m_impl.m_state == MTR_STATE_ACTIVE);
-	}
 
 	/** @return true if the mini-transaction has committed */
 	bool has_committed() const

@@ -4263,13 +4263,13 @@ EXPLAIN
         ] /* used_key_parts */,
         "key_length": "15",
         "rows_examined_per_scan": 5,
-        "rows_produced_per_join": 1,
+        "rows_produced_per_join": 0,
         "filtered": 20,
         "cost_info": {
           "read_cost": "6.00",
           "eval_cost": "0.20",
           "prefix_cost": "6.20",
-          "data_read_per_join": "24"
+          "data_read_per_join": "23"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4288,7 +4288,9 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
-Handler_read_next	26
+Handler_read_rnd_next	27
+Sort_rows	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_delete	1
@@ -4487,13 +4489,13 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 1,
+        "rows_produced_per_join": 0,
         "filtered": 3.8462,
         "cost_info": {
           "read_cost": "6.00",
           "eval_cost": "0.20",
           "prefix_cost": "6.20",
-          "data_read_per_join": "16"
+          "data_read_per_join": "15"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -4600,13 +4602,13 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 1,
+        "rows_produced_per_join": 0,
         "filtered": 3.8462,
         "cost_info": {
           "read_cost": "16.30",
           "eval_cost": "0.20",
           "prefix_cost": "16.50",
-          "data_read_per_join": "16"
+          "data_read_per_join": "15"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5386,13 +5388,13 @@ EXPLAIN
         ] /* used_key_parts */,
         "key_length": "15",
         "rows_examined_per_scan": 5,
-        "rows_produced_per_join": 1,
+        "rows_produced_per_join": 0,
         "filtered": 20,
         "cost_info": {
           "read_cost": "6.00",
           "eval_cost": "0.20",
           "prefix_cost": "6.20",
-          "data_read_per_join": "24"
+          "data_read_per_join": "23"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5411,7 +5413,9 @@ Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b`,`t
 Variable_name	Value
 Handler_read_first	1
 Handler_read_key	1
-Handler_read_next	26
+Handler_read_rnd_next	27
+Sort_rows	1
+Sort_scan	1
 # Status of testing query execution:
 Variable_name	Value
 Handler_read_first	1
@@ -5612,13 +5616,13 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 1,
+        "rows_produced_per_join": 0,
         "filtered": 3.8462,
         "cost_info": {
           "read_cost": "6.00",
           "eval_cost": "0.20",
           "prefix_cost": "6.20",
-          "data_read_per_join": "16"
+          "data_read_per_join": "15"
         } /* cost_info */,
         "used_columns": [
           "a",
@@ -5725,13 +5729,13 @@ EXPLAIN
         "table_name": "t2",
         "access_type": "ALL",
         "rows_examined_per_scan": 26,
-        "rows_produced_per_join": 1,
+        "rows_produced_per_join": 0,
         "filtered": 3.8462,
         "cost_info": {
           "read_cost": "16.30",
           "eval_cost": "0.20",
           "prefix_cost": "16.50",
-          "data_read_per_join": "16"
+          "data_read_per_join": "15"
         } /* cost_info */,
         "used_columns": [
           "a",

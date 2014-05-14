@@ -41,6 +41,7 @@ struct gen_lex_token_string
 {
   const char *m_token_string;
   int m_token_length;
+  bool m_append_space;
 };
 
 gen_lex_token_string compiled_token_array[MY_MAX_TOKEN];
@@ -77,6 +78,7 @@ void set_token(int tok, const char *str)
 
   compiled_token_array[tok].m_token_string= str;
   compiled_token_array[tok].m_token_length= strlen(str);
+  compiled_token_array[tok].m_append_space= true;
 }
 
 void compute_tokens()
@@ -92,6 +94,7 @@ void compute_tokens()
   {
     compiled_token_array[tok].m_token_string= "(unknown)";
     compiled_token_array[tok].m_token_length= 9;
+    compiled_token_array[tok].m_append_space= true;
   }
 
   /*
@@ -103,6 +106,7 @@ void compute_tokens()
     str[0]= (char) tok;
     compiled_token_array[tok].m_token_string= str;
     compiled_token_array[tok].m_token_length= 1;
+    compiled_token_array[tok].m_append_space= true;
   }
 
   max_token_seen= 255;
@@ -203,6 +207,22 @@ void compute_tokens()
   max_token_seen++;
   tok_unused= max_token_seen;
   set_token(tok_unused, "UNUSED");
+
+  /*
+    Fix whitespace for some special tokens.
+  */
+
+  /*
+    The lexer parses "@@variable" as '@', '@', 'variable',
+    returning a token for '@' alone.
+
+    This is incorrect, '@' is not really a token,
+    because the syntax "@ @ variable" (with spaces) is not accepted:
+    The lexer keeps some internal state after the '@' fake token.
+
+    To work around this, digest text are printed as "@@variable".
+  */
+  compiled_token_array[(int) '@'].m_append_space= false;
 }
 
 void print_tokens()
@@ -215,20 +235,24 @@ void print_tokens()
 
   for (tok= 0; tok<256; tok++)
   {
-    printf("/* %03d */  { \"\\x%02x\", 1},\n", tok, tok);
+    printf("/* %03d */  { \"\\x%02x\", 1, %s},\n",
+           tok,
+           tok,
+           compiled_token_array[tok].m_append_space ? "true" : "false");
   }
 
   printf("/* PART 2: named tokens. */\n");
 
   for (tok= 256; tok<= max_token_seen; tok++)
   {
-    printf("/* %03d */  { \"%s\", %d},\n",
+    printf("/* %03d */  { \"%s\", %d, %s},\n",
            tok,
            compiled_token_array[tok].m_token_string,
-           compiled_token_array[tok].m_token_length);
+           compiled_token_array[tok].m_token_length,
+           compiled_token_array[tok].m_append_space ? "true" : "false");
   }
 
-  printf("/* DUMMY */ { \"\", 0}\n");
+  printf("/* DUMMY */ { \"\", 0, false}\n");
   printf("};\n");
 
   printf("/* DIGEST specific tokens. */\n");
@@ -255,6 +279,7 @@ int main(int argc,char **argv)
   printf("{\n");
   printf("  const char *m_token_string;\n");
   printf("  int m_token_length;\n");
+  printf("  bool m_append_space;\n");
   printf("};\n");
   printf("typedef struct lex_token_string lex_token_string;\n");
 

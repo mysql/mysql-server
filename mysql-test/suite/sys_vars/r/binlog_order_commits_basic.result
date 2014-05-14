@@ -79,11 +79,11 @@ SELECT @@binlog_order_commits = @@global.binlog_order_commits;
 SET binlog_order_commits = ON;
 ERROR HY000: Variable 'binlog_order_commits' is a GLOBAL variable and should be set with SET GLOBAL
 SET local.binlog_order_commits = OFF;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'binlog_order_commits = OFF' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.binlog_order_commits = OFF' at line 1
 SELECT local.binlog_order_commits;
 ERROR 42S02: Unknown table 'local' in field list
 SET global.binlog_order_commits = ON;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'binlog_order_commits = ON' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.binlog_order_commits = ON' at line 1
 SELECT global.binlog_order_commits;
 ERROR 42S02: Unknown table 'global' in field list
 SELECT binlog_order_commits = @@session.binlog_order_commits;

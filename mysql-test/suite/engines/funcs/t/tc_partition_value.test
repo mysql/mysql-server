@@ -9,7 +9,7 @@ DROP TABLE IF EXISTS t1;
     PARTITION p4 VALUES LESS THAN (2006),
     PARTITION p5 VALUES LESS THAN MAXVALUE);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
  CREATE TABLE t1 ( c1  MEDIUMINT, c2 INT) PARTITION BY RANGE (c1) (
@@ -20,7 +20,7 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
     PARTITION p4 VALUES LESS THAN (2006),
     PARTITION p5 VALUES LESS THAN MAXVALUE);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
  CREATE TABLE t1 ( c1  INT, c2 INT) PARTITION BY RANGE (c1) (
@@ -31,7 +31,7 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
     PARTITION p4 VALUES LESS THAN (2006),
     PARTITION p5 VALUES LESS THAN MAXVALUE);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
  CREATE TABLE t1 ( c1  INTEGER, c2 INT) PARTITION BY RANGE (c1) (
@@ -42,7 +42,7 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
     PARTITION p4 VALUES LESS THAN (2006),
     PARTITION p5 VALUES LESS THAN MAXVALUE);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
  CREATE TABLE t1 ( c1  BIGINT, c2 INT) PARTITION BY RANGE (c1) (
@@ -53,7 +53,7 @@ let $ENGINE=`select variable_value from information_schema.global_variables wher
     PARTITION p4 VALUES LESS THAN (2006),
     PARTITION p5 VALUES LESS THAN MAXVALUE);
 SHOW TABLES; 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`; 
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`; 
 --replace_result $ENGINE ENGINE 
  SHOW CREATE TABLE t1; DROP TABLE t1; SHOW TABLES;
 

@@ -759,10 +759,12 @@ ibuf_bitmap_page_set_bits(
 # error "IBUF_BITS_PER_PAGE % 2 != 0"
 #endif
 	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr->is_named_space(page_id.space()));
 #ifdef UNIV_IBUF_COUNT_DEBUG
 	ut_a((bit != IBUF_BITMAP_BUFFERED) || (val != FALSE)
 	     || (0 == ibuf_count_get(page_id)));
 #endif
+
 	bit_offset = (page_id.page_no() % page_size.physical())
 		* IBUF_BITS_PER_PAGE + bit;
 
@@ -865,6 +867,8 @@ ibuf_set_free_bits_low(
 {
 	page_t*	bitmap_page;
 
+	ut_ad(mtr->is_named_space(block->page.id.space()));
+
 	if (!page_is_leaf(buf_block_get_frame(block))) {
 
 		return;
@@ -912,6 +916,7 @@ ibuf_set_free_bits_func(
 	}
 
 	mtr_start(&mtr);
+	mtr.set_named_space(block->page.id.space());
 
 	bitmap_page = ibuf_bitmap_get_map_page(block->page.id,
 					       block->page.size, &mtr);
@@ -1008,6 +1013,7 @@ ibuf_update_free_bits_low(
 	ulint	after;
 
 	ut_a(!buf_block_get_page_zip(block));
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	before = ibuf_index_page_calc_free_bits(block->page.size.logical(),
 						max_ins_size);
@@ -1079,6 +1085,9 @@ ibuf_update_free_bits_for_two_pages_low(
 	mtr_t*		mtr)	/*!< in: mtr */
 {
 	ulint	state;
+
+	ut_ad(mtr->is_named_space(block1->page.id.space()));
+	ut_ad(block1->page.id.space() == block2->page.id.space());
 
 	/* As we have to x-latch two random bitmap pages, we have to acquire
 	the bitmap mutex to prevent a deadlock with a similar operation
@@ -2287,7 +2296,7 @@ ibuf_get_merge_page_nos_func(
 	mtr_t*		mtr,	/*!< in: mini-transaction holding rec */
 #endif /* UNIV_DEBUG */
 	ulint*		space_ids,/*!< in/out: space id's of the pages */
-	ib_int64_t*	space_versions,/*!< in/out: tablespace version
+	int64_t*	space_versions,/*!< in/out: tablespace version
 				timestamps; used to prevent reading in old
 				pages after DISCARD + IMPORT tablespace */
 	ulint*		page_nos,/*!< in/out: buffer for at least
@@ -2492,13 +2501,13 @@ ibuf_get_merge_pages(
 	ulint		limit,	/*!< in: max page numbers to read */
 	ulint*		pages,	/*!< out: pages read */
 	ulint*		spaces,	/*!< out: spaces read */
-	ib_int64_t*	versions,/*!< out: space versions read */
+	int64_t*	versions,/*!< out: space versions read */
 	ulint*		n_pages,/*!< out: number of pages read */
 	mtr_t*		mtr)	/*!< in: mini transaction */
 {
 	const rec_t*	rec;
 	ulint		volume = 0;
-	ib_int64_t	version = fil_space_get_version(space);
+	int64_t		version = fil_space_get_version(space);
 
 	ut_a(space != ULINT_UNDEFINED);
 
@@ -2544,7 +2553,7 @@ ibuf_merge_pages(
 	ulint		sum_sizes;
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 
 	*n_pages = 0;
 
@@ -2641,7 +2650,7 @@ ibuf_merge_space(
 	ulint		sum_sizes = 0;
 	ulint		pages[IBUF_MAX_N_PAGES_MERGED];
 	ulint		spaces[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		versions[IBUF_MAX_N_PAGES_MERGED];
 
 	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
@@ -3449,13 +3458,14 @@ ibuf_insert_low(
 	dberr_t		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	mtr_t		mtr;
 	mtr_t		bitmap_mtr;
 
 	ut_a(!dict_index_is_clust(index));
+	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!no_counter || op == IBUF_OP_INSERT);
 	ut_a(op < IBUF_OP_COUNT);
@@ -3581,6 +3591,7 @@ fail_exit:
 	ut_a((buffered == 0) || ibuf_count_get(page_id));
 #endif
 	ibuf_mtr_start(&bitmap_mtr);
+	bitmap_mtr.set_named_space(page_id.space());
 
 	bitmap_page = ibuf_bitmap_get_map_page(page_id, page_size,
 					       &bitmap_mtr);
@@ -4013,6 +4024,7 @@ ibuf_insert_to_index_page(
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
 	ut_ad(!buf_block_align(page)->index);
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 
 	if (UNIV_UNLIKELY(dict_table_is_comp(index->table)
 			  != (ibool)!!page_is_comp(page))) {
@@ -4245,6 +4257,7 @@ ibuf_delete(
 
 	ut_ad(ibuf_inside(mtr));
 	ut_ad(dtuple_check_typed(entry));
+	ut_ad(!dict_index_is_spatial(index));
 
 	low_match = page_cur_search(block, index, entry, &page_cur);
 
@@ -4533,7 +4546,7 @@ ibuf_merge_or_delete_for_page(
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(page_id)
-	    || page_id.space() == srv_tmp_space.space_id()) {
+	    || fsp_is_system_temporary(page_id.space())) {
 		return;
 	}
 
@@ -4678,6 +4691,8 @@ loop:
 	if (block != NULL) {
 		ibool success;
 
+		mtr.set_named_space(page_id.space());
+
 		success = buf_page_get_known_nowait(
 			RW_X_LATCH, block,
 			BUF_KEEP_OLD, __FILE__, __LINE__, &mtr);
@@ -4691,6 +4706,8 @@ loop:
 		the block is io-fixed. Other threads must not try to
 		latch an io-fixed block. */
 		buf_block_dbg_add_level(block, SYNC_IBUF_TREE_NODE);
+	} else if (update_ibuf_bitmap) {
+		mtr.set_named_space(page_id.space());
 	}
 
 	if (!btr_pcur_is_on_user_rec(&pcur)) {
@@ -4792,6 +4809,7 @@ loop:
 				ibuf_btr_pcur_commit_specify_mtr(&pcur, &mtr);
 
 				ibuf_mtr_start(&mtr);
+				mtr.set_named_space(page_id.space());
 
 				success = buf_page_get_known_nowait(
 					RW_X_LATCH, block,
