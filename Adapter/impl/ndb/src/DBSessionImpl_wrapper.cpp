@@ -94,7 +94,7 @@ Handle<Value> seizeTransaction(const Arguments & args) {
 
 Handle<Value> releaseTransaction(const Arguments & args) {
   HandleScope scope;
-  typedef NativeMethodCall_1_<int, DBSessionImpl, DBTransactionContext *> MCALL;
+  typedef NativeMethodCall_1_<bool, DBSessionImpl, DBTransactionContext *> MCALL;
   MCALL mcall(& DBSessionImpl::releaseTransaction, args);
   mcall.run();
   return scope.Close(mcall.jsReturnVal());

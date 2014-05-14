@@ -21,6 +21,25 @@
 #ifndef NODEJS_ADAPTER_NDB_INCLUDE_SCANOPERATION_H
 #define NODEJS_ADAPTER_NDB_INCLUDE_SCANOPERATION_H
 
+// Members of ScanHelper
+enum {
+  SCAN_TABLE_RECORD = 0,
+  SCAN_INDEX_RECORD,
+  SCAN_LOCK_MODE,
+  SCAN_BOUNDS,
+  SCAN_OPTION_FLAGS,
+  SCAN_OPTION_BATCH_SIZE,
+  SCAN_OPTION_PARALLELISM,
+  SCAN_FILTER_CODE
+};
+
+// Scan opcodes
+enum { 
+  OP_SCAN_READ   = 33,
+  OP_SCAN_COUNT  = 34,
+  OP_SCAN_DELETE = 48
+};
+
 #include "KeyOperation.h"
 
 class  DBTransactionContext;
@@ -31,20 +50,36 @@ public:
   ~ScanOperation();
   const NdbError & getNdbError();
 
-  // scan
+  /*  Execute the scan. This call: 
+      (1) Prepares the scan operation.
+      (2) Runs Execute + NoCommit so that the user can start reading results.
+
+      The async wrapper for this call will getNdbError() on the NdbTransaction;
+      after a TimeoutExpired error, the call can be run again to retry.
+      
+      The JavaScript wrapper for this function is Async.
+  */  
+  int prepareAndExecute();
+  
+  int fetchResults(char * buffer, bool);
+  int nextResult(char * buffer);
+  void close();
+  
+protected:
+  friend class DBTransactionContext;
+
+  void prepareScan(NdbTransaction *);
   NdbScanOperation *scanTable(NdbTransaction *tx);
   NdbIndexScanOperation *scanIndex(NdbTransaction *tx,
                                    NdbIndexScanOperation::IndexBound *bound);
   const NdbOperation *deleteCurrentTuple(NdbScanOperation *, NdbTransaction *);
 
-protected:
-  friend class DBTransactionContext;
-  NdbScanOperation * prepareScan();
-
 private:
-  NdbTransaction *tx;
-  int nbounds;
+  DBTransactionContext *ctx;
+  NdbScanOperation * scan_op;
+  NdbIndexScanOperation * index_scan_op;
   NdbIndexScanOperation::IndexBound **bounds;
+  int nbounds;
   bool isIndexScan;
   NdbScanOperation::ScanOptions scan_options;
 };
@@ -57,7 +92,7 @@ inline NdbScanOperation *
 
 inline NdbIndexScanOperation * 
   ScanOperation::scanIndex(NdbTransaction *tx,
-                          NdbIndexScanOperation::IndexBound *bound = 0) {
+                           NdbIndexScanOperation::IndexBound *bound = 0) {
     return tx->scanIndex(key_record->getNdbRecord(),    // scan key    
                          row_record->getNdbRecord(),    // row record  
                          lmode,                         // lock mode   

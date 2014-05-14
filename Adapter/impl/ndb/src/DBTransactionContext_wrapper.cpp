@@ -28,14 +28,11 @@
 
 using namespace v8;
 
-Handle<Value> prepareAndExecuteScan(const Arguments &);
 Handle<Value> getEmptyOperationSet(const Arguments &);
 
 class DBTransactionContextEnvelopeClass : public Envelope {
 public:
   DBTransactionContextEnvelopeClass() : Envelope("DBTransactionContext") {
-    DEFINE_JS_FUNCTION(Envelope::stencil, 
-      "prepareAndExecuteScan", prepareAndExecuteScan);
     DEFINE_JS_FUNCTION(Envelope::stencil, 
       "getEmptyOperationSet", getEmptyOperationSet);
   }
@@ -50,18 +47,6 @@ void setJsWrapper(DBTransactionContext *ctx) {
   ctx->jsWrapper = Persistent<Value>::New(localObj);
 }
 
-Handle<Value> prepareAndExecuteScan(const Arguments &args) {
-  HandleScope scope;
-  DEBUG_MARKER(UDEB_DEBUG);
-  REQUIRE_ARGS_LENGTH(1);
-  typedef NativeMethodCall_0_<NdbScanOperation *, DBTransactionContext> MCALL;
-  MCALL * mcallptr = new MCALL(& DBTransactionContext::prepareAndExecuteScan, args);
-  mcallptr->wrapReturnValueAs(getNdbScanOperationEnvelope());
-  mcallptr->errorHandler = getNdbErrorIfNull<NdbScanOperation *, DBTransactionContext>;
-  mcallptr->runAsync();
-  
-  return Undefined();
-}
 
 Handle<Value> getEmptyOperationSet(const Arguments &args) {
   HandleScope scope;

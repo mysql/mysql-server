@@ -62,7 +62,7 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/ndb/src/ColumnProxy.cpp
   Adapter/impl/ndb/src/DBDictionaryImpl.cpp
   Adapter/impl/ndb/src/DBOperationHelper.cpp
-  Adapter/impl/ndb/src/DBScanHelper.cpp
+  Adapter/impl/ndb/src/ScanOperation.cpp
   Adapter/impl/ndb/src/EncoderCharset.cpp
   Adapter/impl/ndb/src/IndexBoundHelper.cpp
   Adapter/impl/ndb/src/Ndb_cluster_connection_wrapper.cpp
@@ -71,7 +71,6 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/ndb/src/Ndb_wrapper.cpp
   Adapter/impl/ndb/src/NdbError_wrapper.cpp
   Adapter/impl/ndb/src/NdbInterpretedCode_wrapper.cpp
-  Adapter/impl/ndb/src/NdbScanOperation_wrapper.cpp
   Adapter/impl/ndb/src/PendingOperationSet_wrapper.cpp
   Adapter/impl/ndb/src/NdbRecordObject.cpp
   Adapter/impl/ndb/src/NdbScanFilter_wrapper.cpp
@@ -80,7 +79,6 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/ndb/src/node_module.cpp
   Adapter/impl/ndb/src/Record.cpp
   Adapter/impl/ndb/src/Record_wrapper.cpp
-  Adapter/impl/ndb/src/ScanImpl.cpp
   Adapter/impl/ndb/src/ValueObject.cpp
 )
 

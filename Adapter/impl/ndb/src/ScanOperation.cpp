@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,30 +23,15 @@
 #include "adapter_global.h"
 #include "js_wrapper_macros.h"
 #include "NdbWrapperErrors.h"
-#include "ScanOperation.h"
 #include "NativeMethodCall.h"
+#include "ScanOperation.h"
+#include "DBTransactionContext.h"
 
 using namespace v8;
 
-enum {
-  SCAN_TABLE_RECORD = 0,
-  SCAN_INDEX_RECORD,
-  SCAN_LOCK_MODE,
-  SCAN_BOUNDS,
-  SCAN_OPTION_FLAGS,
-  SCAN_OPTION_BATCH_SIZE,
-  SCAN_OPTION_PARALLELISM,
-  SCAN_FILTER_CODE
-};
-
-enum { 
-  OP_SCAN_READ   = 33,
-  OP_SCAN_COUNT  = 34,
-  OP_SCAN_DELETE = 48
-};
-
-
 ScanOperation::ScanOperation(const Arguments &args) : 
+  scan_op(0),
+  index_scan_op(0),
   nbounds(0),
   isIndexScan(false)
 {
@@ -56,7 +41,7 @@ ScanOperation::ScanOperation(const Arguments &args) :
 
   const Local<Object> spec = args[0]->ToObject();
   int opcode = args[1]->Int32Value();
-  tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+  ctx = unwrapPointer<DBTransactionContext *>(args[2]->ToObject());
 
   lmode = NdbOperation::LM_CommittedRead;
   scan_options.optionsPresent = 0ULL;
@@ -128,82 +113,46 @@ ScanOperation::ScanOperation(const Arguments &args) :
   /* Done defining the object */
 }
 
-
 ScanOperation::~ScanOperation() {
   if(bounds) delete[] bounds;
 }
 
+int ScanOperation::prepareAndExecute() {
+  return ctx->prepareAndExecuteScan(this);
+}
 
-/* Async Method: 
-*/
-NdbScanOperation * ScanOperation::prepareScan() {
+void ScanOperation::prepareScan(NdbTransaction *tx) {
   DEBUG_MARKER(UDEB_DEBUG);
-  NdbScanOperation * scan_op;
-  NdbIndexScanOperation * index_scan_op;
-  
-  if(isIndexScan) {
-    scan_op = index_scan_op = scanIndex(tx);
-    for(int i = 0 ; i < nbounds ; i++) {
-      // SetBound could return an error
-      index_scan_op->setBound(key_record->getNdbRecord(), * bounds[i]);
+  if(! scan_op) {  // don't re-prepare if retrying
+    if(isIndexScan) {
+      scan_op = index_scan_op = scanIndex(tx);
+      for(int i = 0 ; i < nbounds ; i++) {
+        // SetBound could return an error
+        index_scan_op->setBound(key_record->getNdbRecord(), * bounds[i]);
+      }
+    }
+    else {
+      scan_op = scanTable(tx);
     }
   }
-  else {
-    scan_op = scanTable(tx);
-  }
-  
-  return scan_op;
 }
 
-
-
-//// ScanOperation Wrapper
-
-Envelope scanOperationEnvelope("ScanOperation");
-
-// Constructor wrapper
-Handle<Value> DBScanHelper_wrapper(const Arguments &args) {
-  HandleScope scope;
-  ScanOperation * helper = new ScanOperation(args);
-  Local<Object> wrapper = scanOperationEnvelope.newWrapper();
-  wrapPointerInObject(helper, scanOperationEnvelope, wrapper);
-  // freeFromGC: Disabled as it leads to segfaults during garbage collection
-  // freeFromGC(helper, wrapper);
-  return scope.Close(wrapper);
+int ScanOperation::fetchResults(char * buffer, bool forceSend) {
+  int r = scan_op->nextResultCopyOut(buffer, true, forceSend);
+  DEBUG_PRINT("fetchResults: %d", r);
+  return r;
 }
 
+int ScanOperation::nextResult(char * buffer) {
+  return scan_op->nextResultCopyOut(buffer, false, false);
+}
 
-#define WRAP_CONSTANT(TARGET, X) DEFINE_JS_INT(TARGET, #X, NdbScanOperation::X)
+void ScanOperation::close() {
+  scan_op->close();
+  scan_op = index_scan_op = 0;
+}
 
-void ScanHelper_initOnLoad(Handle<Object> target) {
-  Persistent<Object> scanObj = Persistent<Object>(Object::New());
-  Persistent<String> scanKey = Persistent<String>(String::NewSymbol("Scan"));
-  target->Set(scanKey, scanObj);
-
-  DEFINE_JS_FUNCTION(scanObj, "create", DBScanHelper_wrapper);
-
-  Persistent<Object> ScanHelper = Persistent<Object>(Object::New());
-  Persistent<Object> ScanFlags = Persistent<Object>(Object::New());
-  
-  scanObj->Set(Persistent<String>(String::NewSymbol("helper")), ScanHelper);
-  scanObj->Set(Persistent<String>(String::NewSymbol("flags")), ScanFlags);
-
-  WRAP_CONSTANT(ScanFlags, SF_TupScan);
-  WRAP_CONSTANT(ScanFlags, SF_DiskScan);
-  WRAP_CONSTANT(ScanFlags, SF_OrderBy);
-  WRAP_CONSTANT(ScanFlags, SF_OrderByFull);
-  WRAP_CONSTANT(ScanFlags, SF_Descending);
-  WRAP_CONSTANT(ScanFlags, SF_ReadRangeNo);
-  WRAP_CONSTANT(ScanFlags, SF_MultiRange);
-  WRAP_CONSTANT(ScanFlags, SF_KeyInfo);
-  
-  DEFINE_JS_INT(ScanHelper, "table_record", SCAN_TABLE_RECORD);
-  DEFINE_JS_INT(ScanHelper, "index_record", SCAN_INDEX_RECORD);
-  DEFINE_JS_INT(ScanHelper, "lock_mode", SCAN_LOCK_MODE);
-  DEFINE_JS_INT(ScanHelper, "bounds", SCAN_BOUNDS);
-  DEFINE_JS_INT(ScanHelper, "flags", SCAN_OPTION_FLAGS);
-  DEFINE_JS_INT(ScanHelper, "batch_size", SCAN_OPTION_BATCH_SIZE);
-  DEFINE_JS_INT(ScanHelper, "parallel", SCAN_OPTION_PARALLELISM);
-  DEFINE_JS_INT(ScanHelper, "filter_code", SCAN_FILTER_CODE);
+const NdbError & ScanOperation::getNdbError() {
+  return scan_op ? scan_op->getNdbError() : ctx->getNdbError();
 }
 

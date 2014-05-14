@@ -37,7 +37,6 @@ DBTransactionContext::DBTransactionContext(DBSessionImpl *impl) :
   parent(impl),
   next(0),
   ndbTransaction(0),
-  definedScan(0),
   tcNodeId(0)
 {
   setJsWrapper(this);
@@ -48,12 +47,6 @@ DBTransactionContext::DBTransactionContext(DBSessionImpl *impl) :
 DBTransactionContext::~DBTransactionContext() {
   DEBUG_MARKER(UDEB_DEBUG);
   jsWrapper.Dispose();
-}
-
-
-void DBTransactionContext::defineScan(ScanOperation *scanHelper) {
-  assert(definedScan == 0);
-  definedScan = scanHelper;
 }
 
 
@@ -72,7 +65,7 @@ bool DBTransactionContext::tryImmediateStartTransaction(KeyOperation * op) {
 
 void DBTransactionContext::startTransaction(KeyOperation * op) {
   assert(ndbTransaction == 0);
-  bool startWithHint = (op && op->key_buffer && (! definedScan)); 
+  bool startWithHint = (op && op->key_buffer); 
 
   if(startWithHint) {
     char hash_buffer[512];        
@@ -88,15 +81,12 @@ void DBTransactionContext::startTransaction(KeyOperation * op) {
               startWithHint ? "[with hint]" : "[ no hint ]", tcNodeId);
 }
 
-NdbScanOperation * DBTransactionContext::prepareAndExecuteScan() {
-  NdbScanOperation * scanop;
+int DBTransactionContext::prepareAndExecuteScan(ScanOperation *scan) {
   if(! ndbTransaction) {
-    ndbTransaction = parent->ndb->startTransaction();
-    tcNodeId = ndbTransaction ? ndbTransaction->getConnectedNodeId() : 0;
+    startTransaction(NULL);
   }
-  scanop = definedScan->prepareScan();
-  ndbTransaction->execute(NdbTransaction::NoCommit, NdbOperation::AO_IgnoreError, 1);
-  return scanop;
+  scan->prepareScan(ndbTransaction);
+  return ndbTransaction->execute(NdbTransaction::NoCommit, NdbOperation::AO_IgnoreError, 1);
 }
 
 void DBTransactionContext::closeTransaction() {
@@ -146,12 +136,4 @@ int DBTransactionContext::executeAsynch(DBOperationSet *operations,
                                              execType, abortOption, forceSend, 
                                              callback);
 }                    
-
-
-bool DBTransactionContext::clear() {
-  /* Cannot clear if NdbTransaction is still open */
-  if(ndbTransaction) return false;
-  definedScan = 0;
-  return true;
-}
 

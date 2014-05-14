@@ -43,28 +43,9 @@ public:
   v8::Handle<v8::Value> getJsWrapper() const;
 
 
-  /****** Preparing Operations *******/
-
-  
-  /*  Define a scan operation in this transaction context.
-      The caller has already created the DBScanHelper describing the scan.
-  */
-  void defineScan(ScanOperation * scanHelper);
-
-
   /****** Executing Operations *******/
 
-  /*  Execute the defined scan. 
-      This call: 
-      (1) Prepares the scan operation.
-      (2) Runs Execute + NoCommit so that the user can start reading results.
-
-      The async wrapper for this call will getNdbError() on the NdbTransaction;
-      after a TimeoutExpired error, the call can be run again to retry.
-      
-      The JavaScript wrapper for this function is Async.
-  */  
-  NdbScanOperation * prepareAndExecuteScan();
+  int prepareAndExecuteScan(ScanOperation *);
 
   /* If it is possible to open the NdbTransaction without blocking, do so,
      and return true.  Otherwise return false.  This can be used as a 
@@ -132,7 +113,7 @@ protected:
      Returns false if the current state does not allow clearing, (e.g. due to 
      internal NdbTransaction in open state).  
   */
-  bool clear();
+  bool isClosed() const;
 
 private: 
   int64_t                   token;
@@ -142,7 +123,6 @@ private:
   DBSessionImpl * const     parent;
   DBTransactionContext *    next;
   NdbTransaction *          ndbTransaction; 
-  ScanOperation *           definedScan;
   int                       tcNodeId;
 };
 
@@ -152,6 +132,10 @@ inline v8::Handle<v8::Value> DBTransactionContext::getJsWrapper() const {
 
 inline v8::Handle<v8::Value> DBTransactionContext::getWrappedEmptyOperationSet() const {
   return emptyOpSetWrapper;
+}
+
+inline bool DBTransactionContext::isClosed() const {
+  return ! (bool) ndbTransaction;
 }
 
 #endif
