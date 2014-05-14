@@ -377,7 +377,7 @@ buf_dblwr_init_or_load_pages(
 
 	/* Read the trx sys header to check if we are using the doublewrite
 	buffer */
-        os_file_read(file, read_buf, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
+	os_file_read(file, read_buf, TRX_SYS_PAGE_NO * UNIV_PAGE_SIZE,
 		     UNIV_PAGE_SIZE);
 
 	doublewrite = read_buf + TRX_SYS_DOUBLEWRITE;
@@ -413,10 +413,10 @@ buf_dblwr_init_or_load_pages(
 	}
 
 	/* Read the pages from the doublewrite buffer to memory */
-        os_file_read(file, buf, block1 * UNIV_PAGE_SIZE,
+	os_file_read(file, buf, block1 * UNIV_PAGE_SIZE,
 		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);
 
-        os_file_read(file,
+	os_file_read(file,
 		     buf + TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE,
 		     block2 * UNIV_PAGE_SIZE,
 		     TRX_SYS_DOUBLEWRITE_BLOCK_SIZE * UNIV_PAGE_SIZE);

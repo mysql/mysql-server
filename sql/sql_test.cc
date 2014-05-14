@@ -40,6 +40,10 @@
 
 #include "table_cache.h" // table_cache_manager
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "prealloced_array.h"
+
+#include <algorithm>
+#include <functional>
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
@@ -293,7 +297,6 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 #endif  /* !DBUG_OFF */
 
 C_MODE_START
-static int dl_compare(const void *p1, const void *p2);
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
 C_MODE_END
 
@@ -306,13 +309,11 @@ typedef struct st_debug_lock
   enum thr_lock_type type;
 } TABLE_LOCK_INFO;
 
-static int dl_compare(const void *p1, const void *p2)
+typedef Prealloced_array<TABLE_LOCK_INFO, 20> Saved_locks_array;
+
+static inline int dl_compare(const TABLE_LOCK_INFO *a,
+                             const TABLE_LOCK_INFO *b)
 {
-  TABLE_LOCK_INFO *a, *b;
-
-  a= (TABLE_LOCK_INFO *) p1;
-  b= (TABLE_LOCK_INFO *) p2;
-
   if (a->thread_id > b->thread_id)
     return 1;
   if (a->thread_id < b->thread_id)
@@ -325,7 +326,19 @@ static int dl_compare(const void *p1, const void *p2)
 }
 
 
-static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
+class DL_commpare :
+  public std::binary_function<const TABLE_LOCK_INFO &,
+                              const TABLE_LOCK_INFO &, bool>
+{
+public:
+  bool operator()(const TABLE_LOCK_INFO &a, const TABLE_LOCK_INFO &b)
+  {
+    return dl_compare(&a, &b) < 0;
+  }
+};
+
+
+static void push_locks_into_array(Saved_locks_array *ar, THR_LOCK_DATA *data,
 				  bool wait, const char *text)
 {
   if (data)
@@ -342,7 +355,7 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
       table_lock_info.lock_text=text;
       // lock_type is also obtainable from THR_LOCK_DATA
       table_lock_info.type=table->reginfo.lock_type;
-      (void) push_dynamic(ar,(uchar*) &table_lock_info);
+      ar->push_back(table_lock_info);
     }
   }
 }
@@ -365,11 +378,9 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
 static void display_table_locks(void)
 {
   LIST *list;
-  void *saved_base;
-  DYNAMIC_ARRAY saved_table_locks;
+  Saved_locks_array saved_table_locks(key_memory_locked_thread_list);
+  saved_table_locks.reserve(table_cache_manager.cached_tables() + 20);
 
-  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO),
-                               table_cache_manager.cached_tables() + 20,50);
   mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
@@ -388,26 +399,28 @@ static void display_table_locks(void)
   }
   mysql_mutex_unlock(&THR_LOCK_lock);
 
-  if (!saved_table_locks.elements)
-    goto end;
+  if (saved_table_locks.empty())
+    return;
 
-  saved_base= dynamic_element(&saved_table_locks, 0, TABLE_LOCK_INFO *);
-  my_qsort(saved_base, saved_table_locks.elements, sizeof(TABLE_LOCK_INFO),
-           dl_compare);
-  freeze_size(&saved_table_locks);
+  // shrink_to_fit
+  Saved_locks_array(key_memory_locked_thread_list,
+                    saved_table_locks.begin(), saved_table_locks.end())
+    .swap(saved_table_locks);
+
+  std::sort(saved_table_locks.begin(), saved_table_locks.end(), DL_commpare());
 
   puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");
 
-  unsigned int i;
-  for (i=0 ; i < saved_table_locks.elements ; i++)
+  Saved_locks_array::iterator it;
+  for (it= saved_table_locks.begin(); it != saved_table_locks.end(); ++it)
   {
-    TABLE_LOCK_INFO *dl_ptr=dynamic_element(&saved_table_locks,i,TABLE_LOCK_INFO*);
     printf("%-8ld%-28.28s%-22s%s\n",
-	   dl_ptr->thread_id,dl_ptr->table_name,dl_ptr->lock_text,lock_descriptions[(int)dl_ptr->type]);
+	   it->thread_id,
+           it->table_name,
+           it->lock_text,
+           lock_descriptions[(int)it->type]);
   }
   puts("\n\n");
-end:
-  delete_dynamic(&saved_table_locks);
 }
 
 

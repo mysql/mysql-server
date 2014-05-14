@@ -8206,6 +8206,7 @@ static PSI_socket_info all_server_sockets[]=
 
 PSI_memory_key key_memory_buffered_logs;
 PSI_memory_key key_memory_locked_table_list;
+PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_thd_transactions;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_acl_mem;
@@ -8337,6 +8338,7 @@ static PSI_memory_info all_server_memory[]=
 {
   { &key_memory_buffered_logs, "buffered_logs", PSI_FLAG_GLOBAL},
   { &key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root", 0},
+  { &key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD},
   { &key_memory_thd_transactions, "THD::transactions::mem_root", PSI_FLAG_THREAD},
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},
