@@ -574,7 +574,8 @@ mtr_t::is_undo_space(ulint space) const
 	case MTR_LOG_NO_REDO:
 		return(true);
 	case MTR_LOG_SHORT_INSERTS:
-		ut_ad(0); /* There should be no undo logging in this mode */
+		/* There should be no undo logging in this mode. */
+		break;
 	case MTR_LOG_ALL:
 		return(space == TRX_SYS_SPACE
 		       ? m_impl.m_modifies_sys_space

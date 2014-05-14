@@ -337,8 +337,8 @@ public:
 	}
 
 	/**
-	Sets the size of the total stored data.
-	@param[in] new_size	data size in bytes */
+	Sets (truncates) the size of the total stored data.
+	@param[in] new_size	truncated data size in bytes */
 	void set_size(const ulint new_size)
 	{
 		ulint	shrink	= m_size - new_size;
