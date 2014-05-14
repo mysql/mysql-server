@@ -103,6 +103,8 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       loader-create-close
       loader-dup-test
       loader-no-puts
+      loader-nproc-close
+      loader-nproc-create
       loader-reference-test
       loader-stress-del
       loader-stress-test

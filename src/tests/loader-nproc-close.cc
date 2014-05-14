@@ -1,9 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FTLOADER_H
-#define FTLOADER_H
-
-#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -89,47 +85,117 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
+#ident "$Id$"
 
-// The loader callbacks are C functions and need to be defined as such
+#include "test.h"
+#include <db.h>
+#include <sys/resource.h>
 
-typedef void (*ft_loader_error_func)(DB *, int which_db, int err, DBT *key, DBT *val, void *extra);
+static int loader_flags = 0;
+static const char *envdir = TOKU_TEST_FILENAME;
 
-typedef int (*ft_loader_poll_func)(void *extra, float progress);
+static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT_ARRAY *UU(dest_keys), DBT_ARRAY *UU(dest_vals), const DBT *UU(src_key), const DBT *UU(src_val)) {
+    return ENOMEM;
+}
 
-typedef struct ft_loader_s *FTLOADER;
+static void loader_open_close(int ndb) {
+    int r;
 
-int toku_ft_loader_open (FTLOADER *bl,
-                          CACHETABLE cachetable,
-                          generate_row_for_put_func g,
-                          DB *src_db,
-                          int N,
-                          FT_HANDLE brts[/*N*/], DB* dbs[/*N*/],
-                          const char * new_fnames_in_env[/*N*/],
-                          ft_compare_func bt_compare_functions[/*N*/],
-                          const char *temp_file_template,
-                          LSN load_lsn,
-                          TOKUTXN txn,
-                          bool reserve_memory,
-                          uint64_t reserve_memory_size,
-                          bool compress_intermediates,
-                          bool allow_puts);
+    char rmcmd[32 + strlen(envdir)];
+    snprintf(rmcmd, sizeof rmcmd, "rm -rf %s", envdir);
+    r = system(rmcmd);                                                                             CKERR(r);
+    r = toku_os_mkdir(envdir, S_IRWXU+S_IRWXG+S_IRWXO);                                                       CKERR(r);
 
-int toku_ft_loader_put (FTLOADER bl, DBT *key, DBT *val);
+    DB_ENV *env;
+    r = db_env_create(&env, 0);                                                                               CKERR(r);
+    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
+    CKERR(r);
+    int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
+    r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
+    env->set_errfile(env, stderr);
 
-int toku_ft_loader_close (FTLOADER bl,
-			   ft_loader_error_func error_callback, void *error_callback_extra,
-			   ft_loader_poll_func  poll_callback,  void *poll_callback_extra);
+    DB *dbs[ndb];
+    uint32_t db_flags[ndb];
+    uint32_t dbt_flags[ndb];
+    for (int i = 0; i < ndb; i++) {
+        db_flags[i] = DB_NOOVERWRITE;
+        dbt_flags[i] = 0;
+        r = db_create(&dbs[i], env, 0); CKERR(r);
+        char name[32];
+        sprintf(name, "db%d", i);
+        r = dbs[i]->open(dbs[i], NULL, name, NULL, DB_BTREE, DB_CREATE, 0666); CKERR(r);
+    }
 
-int toku_ft_loader_abort(FTLOADER bl, 
-                          bool is_error);
+    DB_TXN *txn;
+    r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
 
-// For test purposes only
-void toku_ft_loader_set_size_factor (uint32_t factor);
+    DB_LOADER *loader;
+    r = env->create_loader(env, txn, &loader, ndb > 0 ? dbs[0] : NULL, ndb, dbs, db_flags, dbt_flags, loader_flags); CKERR(r);
 
-void ft_loader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
+    struct rlimit current_nproc_limit;
+    r = getrlimit(RLIMIT_NPROC, &current_nproc_limit);
+    assert(r == 0);
+    
+    struct rlimit new_nproc_limit = current_nproc_limit;
+    new_nproc_limit.rlim_cur = 0;
+    r = setrlimit(RLIMIT_NPROC, &new_nproc_limit);
+    assert(r == 0);
 
-size_t ft_loader_leafentry_size(size_t key_size, size_t val_size, TXNID xid);
+    r = loader->close(loader); 
 
-#endif // FTLOADER_H
+    if (loader_flags & LOADER_DISALLOW_PUTS)
+        CKERR(r);
+    else
+        CKERR2(r, EAGAIN);
+
+    r = setrlimit(RLIMIT_NPROC, &current_nproc_limit);
+    assert(r == 0);
+
+    r = txn->abort(txn); CKERR(r);
+
+    for (int i = 0; i < ndb; i++) {
+        r = dbs[i]->close(dbs[i], 0); CKERR(r);
+    }
+
+    r = env->close(env, 0); CKERR(r);
+}
+
+static void do_args(int argc, char * const argv[]) {
+    int resultcode;
+    char *cmd = argv[0];
+    argc--; argv++;
+    while (argc>0) {
+        if (strcmp(argv[0], "-h")==0) {
+	    resultcode=0;
+	do_usage:
+	    fprintf(stderr, "Usage: %s -h -v -q -p\n", cmd);
+	    exit(resultcode);
+	} else if (strcmp(argv[0], "-v")==0) {
+	    verbose++;
+	} else if (strcmp(argv[0],"-q")==0) {
+	    verbose--;
+	    if (verbose<0) verbose=0;
+        } else if (strcmp(argv[0], "-p") == 0) {
+            loader_flags |= LOADER_DISALLOW_PUTS;
+        } else if (strcmp(argv[0], "-z") == 0) {
+            loader_flags |= LOADER_COMPRESS_INTERMEDIATES;
+        } else if (strcmp(argv[0], "-e") == 0) {
+            argc--; argv++;
+            if (argc > 0)
+                envdir = argv[0];
+	} else {
+	    fprintf(stderr, "Unknown arg: %s\n", argv[0]);
+	    resultcode=1;
+	    goto do_usage;
+	}
+	argc--;
+	argv++;
+    }
+}
+
+int test_main(int argc, char * const *argv) {
+    do_args(argc, argv);
+    loader_open_close(1);
+    return 0;
+}

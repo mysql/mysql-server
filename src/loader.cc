@@ -172,6 +172,13 @@ struct __toku_loader_internal {
     char **inames_in_env; /* [N]  inames of new files to be created */
 };
 
+static void free_inames(char **inames, int n) {
+    for (int i = 0; i < n; i++) {
+        toku_free(inames[i]);
+    }
+    toku_free(inames);
+}
+
 /*
  *  free_loader_resources() frees all of the resources associated with
  *      struct __toku_loader_internal 
@@ -185,16 +192,15 @@ static void free_loader_resources(DB_LOADER *loader)
         toku_destroy_dbt(&loader->i->err_val);
 
         if (loader->i->inames_in_env) {
-            for (int i=0; i<loader->i->N; i++) {
-                if (loader->i->inames_in_env[i]) toku_free(loader->i->inames_in_env[i]);
-            }
-            toku_free(loader->i->inames_in_env);
+            free_inames(loader->i->inames_in_env, loader->i->N);
+            loader->i->inames_in_env = nullptr;
         }
-        if (loader->i->temp_file_template) toku_free(loader->i->temp_file_template);
+        toku_free(loader->i->temp_file_template);
+        loader->i->temp_file_template = nullptr;
 
         // loader->i
         toku_free(loader->i);
-        loader->i = NULL;
+        loader->i = nullptr;
     }
 }
 
@@ -306,6 +312,9 @@ toku_loader_create_loader(DB_ENV *env,
 
         // time to open the big kahuna
         char **XMALLOC_N(N, new_inames_in_env);
+        for (int i = 0; i < N; i++) {
+            new_inames_in_env[i] = nullptr;
+        }
         FT_HANDLE *XMALLOC_N(N, brts);
         for (int i=0; i<N; i++) {
             brts[i] = dbs[i]->i->ft_handle;
@@ -313,7 +322,7 @@ toku_loader_create_loader(DB_ENV *env,
         LSN load_lsn;
         rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
         if ( rval!=0 ) {
-            toku_free(new_inames_in_env);
+            free_inames(new_inames_in_env, N);
             toku_free(brts);
             goto create_exit;
         }
@@ -331,12 +340,14 @@ toku_loader_create_loader(DB_ENV *env,
                                  ttxn,
                                  puts_allowed,
                                  env->get_loader_memory_size(env),
-                                 compress_intermediates);
+                                 compress_intermediates,
+                                 puts_allowed);
         if ( rval!=0 ) {
-            toku_free(new_inames_in_env);
+            free_inames(new_inames_in_env, N);
             toku_free(brts);
             goto create_exit;
         }
+
         loader->i->inames_in_env = new_inames_in_env;
         toku_free(brts);
 
@@ -441,7 +452,7 @@ static void redirect_loader_to_empty_dictionaries(DB_LOADER *loader) {
         loader->i->dbs,
         loader->i->db_flags,
         loader->i->dbt_flags,
-        0,
+        LOADER_DISALLOW_PUTS,
         false
         );
     lazy_assert_zero(r);

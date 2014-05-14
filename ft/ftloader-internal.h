@@ -245,6 +245,7 @@ struct ft_loader_s {
     CACHETABLE cachetable;
     bool did_reserve_memory;
     bool compress_intermediates;
+    bool allow_puts;
     uint64_t   reserved_memory; // how much memory are we allowed to use?
 
     /* To make it easier to recover from errors, we don't use FILE*, instead we use an index into the file_infos. */
@@ -346,7 +347,8 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
                                    TOKUTXN txn,
                                    bool reserve_memory,
                                    uint64_t reserve_memory_size,
-                                   bool compress_intermediates);
+                                   bool compress_intermediates,
+                                   bool allow_puts);
 
 void toku_ft_loader_internal_destroy (FTLOADER bl, bool is_error);
 
