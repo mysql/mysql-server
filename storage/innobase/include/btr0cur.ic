@@ -129,8 +129,9 @@ btr_cur_compress_recommendation(
 {
 	const page_t*	page;
 
-	ut_ad(mtr_memo_contains(mtr, btr_cur_get_block(cursor),
-				MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_is_block_fix(
+		mtr, btr_cur_get_block(cursor),
+		MTR_MEMO_PAGE_X_FIX, cursor->index->table));
 
 	page = btr_cur_get_page(cursor);
 
@@ -209,6 +210,7 @@ btr_blob_op_is_update(
 	ut_ad(0);
 	return(FALSE);
 }
+
 /******************************************************//**
 The following function is used to set the deleted bit of a record. */
 UNIV_INLINE
