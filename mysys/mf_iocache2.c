@@ -408,6 +408,13 @@ process_flags:
       if (my_b_write(info, (uchar*) par, length2))
 	goto err;
     }
+    else if (*fmt == 'c')                     /* char type parameter */
+    {
+      char par[2];
+      par[0] = va_arg(args, int);
+      if (my_b_write(info, (uchar*) par, 1))
+        goto err;
+    }
     else if (*fmt == 'b')                       /* Sized buffer parameter, only precision makes sense */
     {
       char *par = va_arg(args, char *);
