@@ -20,6 +20,7 @@
 #include <pwd.h>
 #include "my_dir.h"
 #include <string>
+#include <ostream>
 
 #define PATH_SEPARATOR "/"
 #define PATH_SEPARATOR_C '/'
