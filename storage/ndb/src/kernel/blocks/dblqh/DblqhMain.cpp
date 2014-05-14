@@ -2086,7 +2086,7 @@ void Dblqh::execTUPFRAGCONF(Signal* signal)
   c_fragment_pool.getPtr(fragptr);
   tabptr.i = fragptr.p->tabRef;
   ptrCheckGuard(tabptr, ctabrecFileSize, tablerec);
-  fragptr.p->tupFragptr = tupFragPtr;
+
   switch (addfragptr.p->addfragStatus) {
   case AddFragRecord::WAIT_TUP:
     jam();
@@ -24512,8 +24512,118 @@ void Dblqh::execDBINFO_SCANREQ(Signal *signal)
       }
       bucket++;
     }
+    break;
   }
+  case Ndbinfo::FRAG_MEM_USE_TABLEID:
+  {
+    /*
+      Loop over all tables. cursor->data[0] shows where this batch should start.
+     */
+    for (Uint32 tableid = cursor->data[0]; tableid < ctabrecFileSize; tableid++)
+    {
+      TablerecPtr tabPtr;
+      tabPtr.i = tableid;
+      ptrAss(tabPtr, tablerec);
+      if (tabPtr.p->tableStatus != Tablerec::NOT_DEFINED)
+      {
+        jam();
+        // Loop over the fragments of this table.
+        for (Uint32 fragNo = 0; fragNo<NDB_ARRAY_SIZE(tabPtr.p->fragrec); 
+             fragNo++)
+        {
+          FragrecordPtr myFragPtr;
+          if ((myFragPtr.i = tabPtr.p->fragrec[fragNo]) != RNIL)
+          {
+            jam();
+            c_fragment_pool.getPtr(myFragPtr);
+            
+            /* Get fragment's stats from TUP */
+            const Dbtup::FragStats fs
+              = c_tup->get_frag_stats(myFragPtr.p->tupFragptr);
 
+            Ndbinfo::Row row(signal, req);
+            row.write_uint32(getOwnNodeId());
+            row.write_uint32(instance());
+            row.write_uint32(tableid);
+            row.write_uint32(fragNo);
+
+            FragrecordPtr rowsLookupFragPtr;
+            rowsLookupFragPtr.i = myFragPtr.i;
+            
+            Uint64 hashMapBytes = 0;
+            Uint32 accL2PMapBytes = 0;
+
+            if (myFragPtr.p->accFragptr == RNIL)
+            {
+              jam();
+              ndbassert(DictTabInfo::isOrderedIndex(tabPtr.p->tableType));
+              /* Lookup row count on base table fragment */
+              rowsLookupFragPtr.i = myFragPtr.p->tableFragptr;
+            }
+            else
+            {
+              jam();
+              accL2PMapBytes =
+                c_acc->getL2PMapAllocBytes(myFragPtr.p->accFragptr);
+              hashMapBytes = c_acc->getLinHashByteSize(myFragPtr.p->accFragptr);
+            }
+            c_fragment_pool.getPtr(rowsLookupFragPtr);
+            
+            ndbrequire(rowsLookupFragPtr.p->accFragptr != RNIL);
+            
+            signal->theData[0] = rowsLookupFragPtr.p->accFragptr;
+            signal->theData[1] = AttributeHeader::ROW_COUNT;
+            
+            EXECUTE_DIRECT(DBACC, GSN_READ_PSEUDO_REQ, signal, 2);
+            Uint64 rows = 0;
+            /*
+              signal->theData may not be 64-bit aligned. Therefore, we use
+              memcpy rather than assignment.
+            */
+            memcpy(&rows, signal->theData, sizeof rows);
+            
+            const Uint64 fixedSlotsAvailable = 
+              fs.fixedMemoryAllocPages * fs.fixedSlotsPerPage;
+            ndbassert(fs.fixedElemCount <= fixedSlotsAvailable);
+            
+            const Uint64 fixedFreeSlots
+              = fixedSlotsAvailable - fs.fixedElemCount;
+
+            const Uint64 fixedFreeBytes
+              = fixedFreeSlots * fs.fixedRecordBytes;
+            
+            row.write_uint64(rows);
+            row.write_uint64(fs.fixedMemoryAllocPages * fs.pageSizeBytes);
+            row.write_uint64(fixedFreeBytes);
+            row.write_uint64(fs.fixedElemCount);
+            row.write_uint32(fs.fixedRecordBytes);              
+            row.write_uint64(fs.varMemoryAllocPages * fs.pageSizeBytes);
+            row.write_uint64(fs.varMemoryFreeBytes);
+            row.write_uint64(fs.varElemCount);
+            row.write_uint64(fs.logToPhysMapAllocBytes);
+            row.write_uint64(accL2PMapBytes);
+            row.write_uint64(hashMapBytes);
+            
+            ndbinfo_send_row(signal, req, row, rl);
+          }
+        }
+      }
+
+      /*
+        If necessary, make a break before starting on the next table. Since
+        we use table ids to tell where to start the next batch, we cannot
+        make a break before all fragments of the current table have been sent.
+       */
+      if (rl.need_break(req))
+      {
+        jam();
+        ndbinfo_send_scan_break(signal, req, rl, tableid + 1);
+        return;
+      }
+    }
+    
+    break;
+  }
   default:
     break;
   }

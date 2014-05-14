@@ -86,7 +86,9 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
   case Ndbinfo::POOLS_TABLEID:
   {
     jam();
-    Ndbinfo::pool_entry pools[] =
+    const DynArr256Pool::Info pmpInfo = c_page_map_pool.getInfo();
+    
+    const Ndbinfo::pool_entry pools[] =
     {
       { "Scan Lock",
         c_scanLockPool.getUsed(),
@@ -124,6 +126,26 @@ void Dbtup::execDBINFO_SCANREQ(Signal* signal)
         c_operation_pool.getEntrySize(),
         c_operation_pool.getUsedHi(),
         { CFG_DB_NO_LOCAL_OPS,CFG_DB_NO_OPS,0,0 }},
+      { "L2PMap pages",
+        pmpInfo.pg_count,
+        0,                  /* No real limit */
+        pmpInfo.pg_byte_sz,
+        /*
+          No HWM for this row as it would be a fixed fraction of "Data memory"
+          and therefore of limited interest.
+        */
+        0,
+        { 0, 0, 0}},
+      { "L2PMap nodes",
+        pmpInfo.inuse_nodes,
+        pmpInfo.pg_count * pmpInfo.nodes_per_page, /* Max within current pages */
+        pmpInfo.node_byte_sz,
+        /*
+          No HWM for this row as it would be a fixed fraction of "Data memory"
+          and therefore of limited interest.
+        */
+        0,
+        { 0, 0, 0 }},
       { "Data memory",
         m_pages_allocated,
         0, // Allocated from global resource group RG_DATAMEM
