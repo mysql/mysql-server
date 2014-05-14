@@ -102,7 +102,7 @@ public:
      Returns -1 if the transaction's current state does not allow it to be 
      released; the caller must execute (COMMIT or ROLLBACK) before releasing.
   */
-  int releaseTransaction(DBTransactionContext *);
+  bool releaseTransaction(DBTransactionContext *);
 
   /* Free all DBTransactionContexts.
      This must be done in the main thread.

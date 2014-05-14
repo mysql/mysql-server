@@ -21,12 +21,13 @@
 "use strict";
 
 var stats = {
-	"created"		: 0,
-	"run_async" : 0,
-	"run_sync"  : 0,
-	"execute"   : { "commit": 0, "no_commit" : 0}, 
-	"commit"    : 0,
-	"rollback"  : 0
+  "created"		   : 0,
+  "run_async"    : 0,
+  "run_sync"     : 0,
+  "execute"      : { "commit": 0, "no_commit" : 0, "scan": 0, "scan_retry": 0 },
+  "failed_scans" : 0,
+  "commit"       : 0,
+  "rollback"     : 0
 };
 
 var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
@@ -180,24 +181,24 @@ function getExecIdForOperationList(self, operationList, pendingOpSet) {
 }
 
 
-/* NOTE: Until we have a Batch.createQuery() API, there will only ever be
-   one scan in an operationList.  And there will never be key operations
-   and scans combined in a single operationList.
+/* We assume there will only ever be one scan in an operationList, and there 
+   will never be key operations and scans combined in a single operationList.
 */
-
 function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
-  var op = dbOperationList[0];
-  var execId = getExecIdForOperationList(self, dbOperationList);
+  var op, execId, scanOperation, apiCall;
 
-  /* Execute NdbTransaction after reading from scan */
+  /* After reading from the scan, execute the NdbTransaction with an 
+     empty operation list. 
+  */
   function executeNdbTransaction() {
-    if(udebug.is_debug()) udebug.log(self.moniker, "executeScan executeNdbTransaction");
-
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
     }
     
-///XXX    run(self, execMode, abortFlag, onCompleteExec);
+    udebug.log(self.moniker, "executeScan executeNdbTransaction");
+    var emptyOpSet = self.impl.getEmptyOperationSet();
+    execId = getExecIdForOperationList(self, dbOperationList, emptyOpSet);
+    run(self, emptyOpSet, execMode, abortFlag, onCompleteExec);
   }
 
   function canRetry(err) {
@@ -212,11 +213,13 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
     function retryAfterClose() {
       op.ndbScanOp = null;
-      if(udebug.is_debug()) udebug.log(self.moniker, "retrying scan:", self.retries);
+      stats.execute.scan_retry++;
+      udebug.log(self.moniker, "retrying scan:", self.retries);
       executeScan(self, execMode, abortFlag, dbOperationList, callback);
     }
     
     function closeWithError() {
+      stats.failed_scans++;
       op.result.success = false;
       op.result.error = err;
       onExecute(self, ROLLBACK, err, execId, callback);
@@ -236,12 +239,18 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
       closeScanopCallback = closeSuccess;
     }
 
-    op.ndbScanOp.close(false, false, closeScanopCallback);
+    /* Close the Scan Operation */
+    apiCall = new QueuedAsyncCall(self.dbSession.execQueue, closeScanopCallback);
+    apiCall.description = "ScanOperation.close";
+    apiCall.run = function() {
+      scanOperation.close(this.callback);
+    };
+    apiCall.enqueue();
   }
   
   /* Fetch results */
   function getScanResults(err) {
-    if(udebug.is_debug()) udebug.log(self.moniker, "executeScan getScanResults");
+    udebug.log(self.moniker, "executeScan getScanResults");
     if(err) {
       onFetchComplete(err);
     }
@@ -250,23 +259,32 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
     }
   }
   
-  /* Execute NoCommit so that you can start reading from scans */
-  function executeScanNoCommit(err, ndbScanOp) {
+  function onExecNoCommit(err) {
     var fatalError;
-    if(udebug.is_debug()) udebug.log(self.moniker, "executeScan executeScanNoCommit");
-    if(! ndbScanOp) {
-      fatalError = self.ndbtx.getNdbError();
+    udebug.log(self.moniker, "executeScan onExecNoCommit");
+    if(err) {
+      fatalError = self.impl.getNdbError();
       callback(new ndboperation.DBOperationError().fromNdbError(fatalError), self);
-      return;  /* is that correct? */
+    } else {
+      getScanResults(null);
     }
-
-    op.ndbScanOp = ndbScanOp;
-///XXX    run(self, NOCOMMIT, AO_IGNORE, getScanResults);
   }
 
   /* executeScan() starts here */
-  if(udebug.is_debug()) udebug.log(self.moniker, "executeScan");
-  op.prepareScan(self.ndbtx, executeScanNoCommit);
+  udebug.log(self.moniker, "executeScan");
+  op = dbOperationList[0];
+  execId = getExecIdForOperationList(self, dbOperationList);
+  if(op.scanOp) { //  No need to rebuild if retrying after error
+    scanOperation = op.scanOp;
+  } else {
+    scanOperation = op.prepareScan(self.impl);
+  }
+  apiCall = new QueuedAsyncCall(self.dbSession.execQueue, onExecNoCommit);
+  apiCall.description = "ScanOperation.prepareAndExecute";
+  apiCall.run = function() {
+    scanOperation.prepareAndExecute(this.callback);
+  };
+  apiCall.enqueue();
 }
 
 
@@ -312,6 +330,7 @@ function execute(self, execMode, abortFlag, dbOperationList, callback) {
   udebug.log("internal execute");
   function executeSpecific() {
     if(dbOperationList[0].isScanOperation()) {
+      stats.execute.scan++;
       executeScan(self, execMode, abortFlag, dbOperationList, callback);
     } else {
       executeNonScan(self, execMode, abortFlag, dbOperationList, callback);

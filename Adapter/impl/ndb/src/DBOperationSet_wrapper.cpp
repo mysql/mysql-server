@@ -72,7 +72,7 @@ Handle<Value> getOperationError(const Arguments & args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
 
-  DBOperationSet * set = unwrapPointer<DBOperationSet *>(args.This());
+  DBOperationSet * set = unwrapPointer<DBOperationSet *>(args.Holder());
   int n = args[0]->Int32Value();
 
   const NdbError * err = set->getError(n);

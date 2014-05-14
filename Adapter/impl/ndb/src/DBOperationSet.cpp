@@ -36,8 +36,11 @@ DBOperationSet::~DBOperationSet() {
 
 void DBOperationSet::prepare(NdbTransaction *ndbtx) {
   for(int i = 0 ; i < size ; i++) {
-    if(keyOperations[i].opcode > 0) 
-      ops[i] = keyOperations[i].prepare(ndbtx);
+    if(keyOperations[i].opcode > 0) {
+      const NdbOperation *op = keyOperations[i].prepare(ndbtx);
+      ops[i] = op;
+      if(! op) errors[i] = & ndbtx->getNdbError();
+    }
     else {
       errors[i] = 0;
       ops[i] = 0;

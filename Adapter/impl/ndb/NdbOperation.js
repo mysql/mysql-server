@@ -22,18 +22,18 @@
 
 /* This corresponds to OperationCodes */
 var op_stats = { 
-	"read"				: 0,
-	"insert"			: 0,
-	"update"			: 0,
-	"write"				: 0,
-	"delete"			: 0,
-	"scan_read"		: 0,
-	"scan_count"	: 0,
-	"scan_delete" : 0
+  "read"        : 0,
+  "insert"      : 0,
+  "update"      : 0,
+  "write"       : 0,
+  "delete"      : 0,
+  "scan"        : 0,
+  "scan_read"   : 0,
+  "scan_count"  : 0,
+  "scan_delete" : 0
 };
 
-var index_stats = {
-};
+var index_stats = {};
 
 var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     doc           = require(path.join(spi_doc_dir, "DBOperation")),
@@ -138,8 +138,8 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   /* NDB Impl-specific properties */
   this.encoderError = null;
   this.query        = null;
-  this.ndbScanOp    = null;
-  this.needAutoInc   = false;
+  this.scanOp       = null;
+  this.needAutoInc  = false;
   this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
   this.scan         = {};
@@ -442,18 +442,13 @@ function prepareOperations(dbTransactionContext, dbOperationList) {
 
 
 /* Prepare a scan operation.
-   This produces the scan filter and index bounds, which are stored in op.scan 
-   to protect them from garbage collection before their use in the async call.
-   A ScanHelperSpec is used to build a scan helper, which will run an async
-   prepareScan call.  prepareScan() simply calls scan_table or scan_index
-   and returns an NdbScanOperation (the equivalent call for key operations 
-   can run synchronously, but this one is async).
+   This produces the scan filter and index bounds, and then a ScanOperation,
+   which is returned back to NdbTransactionHandler for execution.
 */
-DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
-  var opcode = 33;  // How to tell from operation?
+DBOperation.prototype.prepareScan = function(dbTransactionContext) {
   var indexBounds = null;
   var execQueue = this.transaction.dbSession.execQueue;
-  var scanHelper, apiCall, boundsHelpers, dbIndex;
+  var scanHelper, boundsHelpers, dbIndex;
  
   /* There is one global ScanHelperSpec */
   scanSpec.clear();
@@ -494,14 +489,9 @@ DBOperation.prototype.prepareScan = function(ndbTransaction, callback) {
   }
 
   this.state = doc.OperationStates[1];  // PREPARED
- 
-  scanHelper = adapter.impl.Scan.create(scanSpec, opcode, ndbTransaction);
-  apiCall = new QueuedAsyncCall(execQueue, callback);
-  apiCall.description = "DBScanHelper.prepareScan";
-  apiCall.run = function() {
-    scanHelper.prepareScan(this.callback);
-  };
-  apiCall.enqueue();
+  
+  this.scanOp = adapter.impl.Scan.create(scanSpec, 33, dbTransactionContext);
+  return this.scanOp; 
 };
 
 
@@ -614,7 +604,7 @@ function getScanResults(scanop, userCallback) {
   function fetch() {
     buffer = new Buffer(recordSize);
     results.push(new ResultConstructor(buffer));  // Optimistic
-    fetchResults(dbSession, scanop.ndbScanOp, buffer);
+    fetchResults(dbSession, scanop.scanOp, buffer);
   }
 
   /* <0: ERROR, 0: RESULTS_READY, 1: SCAN_FINISHED, 2: CACHE_EMPTY */
@@ -634,7 +624,7 @@ function getScanResults(scanop, userCallback) {
     while(status === 0 && results.length < maxRow) {
       udebug.log("gather() 0 Result_Ready");
       buffer = new Buffer(recordSize);
-      status = scanop.ndbScanOp.nextResult(buffer);
+      status = scanop.scanOp.nextResult(buffer);
       if(status === 0) {
         results.push(new ResultConstructor(buffer));
       }

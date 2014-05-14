@@ -131,7 +131,7 @@ NdbSession.prototype.releaseTransactionContext = function(txContext) {
 
   didRelease = this.impl.releaseTransaction(txContext);
   this.openTxContexts--;
-  assert(didRelease === 1);   // 0 means NdbTransaction was not closed.
+  assert(didRelease);   // false would mean that NdbTransaction was not closed.
   assert(this.openTxContexts >= 0);
 
   if(this.seizeTxQueue && this.seizeTxQueue.length) {

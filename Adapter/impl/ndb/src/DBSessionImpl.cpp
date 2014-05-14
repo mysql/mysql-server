@@ -161,10 +161,11 @@ DBTransactionContext * DBSessionImpl::seizeTransaction() {
 }
 
 
-int DBSessionImpl::releaseTransaction(DBTransactionContext *ctx) {
+bool DBSessionImpl::releaseTransaction(DBTransactionContext *ctx) {
   assert(ctx->parent == this);
-  int status = ctx->clear();
-  if(status == 1) {
+  bool status = ctx->isClosed();
+  DEBUG_PRINT("releaseTransaction status: %s", status ? "closed" : "open");
+  if(status) {
     ctx->next = freeList;
     freeList = ctx;
   }
