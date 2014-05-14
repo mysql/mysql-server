@@ -1359,11 +1359,14 @@ NdbEventBuffer::nextEvent()
      */
     if (!op && !isConsistent(gci))
     {
-      DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u", gci));
+      DBUG_PRINT_EVENT("info", ("detected inconsistent gci %u 0x%x %s",
+                                gci, m_ndb->getReference(), m_ndb->getNdbObjectName()));
       DBUG_RETURN_EVENT(0);
     }
 
-    DBUG_PRINT_EVENT("info", ("available data=%p op=%p", data, op));
+    DBUG_PRINT_EVENT("info", ("available data=%p op=%p 0x%x %s",
+                              data, op, m_ndb->getReference(),
+                              m_ndb->getNdbObjectName()));
 
     /*
      * If merge is on, blob part sub-events must not be seen on this level.
@@ -1413,7 +1416,9 @@ NdbEventBuffer::nextEvent()
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
 	   NdbDictionary::Event::_TE_NUL)
          {
-           DBUG_PRINT_EVENT("info", ("skip _TE_NUL"));
+           DBUG_PRINT_EVENT("info", ("skip _TE_NUL 0x%x %s",
+                                     m_ndb->getReference(),
+                                     m_ndb->getNdbObjectName()));
            continue;
          }
 	 DBUG_RETURN_EVENT(op->m_facade);
@@ -1493,9 +1498,10 @@ NdbEventBuffer::getGCIEventOperations(Uint32* iter, Uint32* event_types)
     EventBufData_list::Gci_op g = gci_ops->m_gci_op_list[(*iter)++];
     if (event_types != NULL)
       *event_types = g.event_types;
-    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx",
+    DBUG_PRINT("info", ("gci: %u  g.op: 0x%lx  g.event_types: 0x%lx 0x%x %s",
                         (unsigned)gci_ops->m_gci, (long) g.op,
-                        (long) g.event_types));
+                        (long) g.event_types, m_ndb->getReference(),
+                        m_ndb->getNdbObjectName()));
     DBUG_RETURN(g.op);
   }
   DBUG_RETURN(NULL);
@@ -2125,7 +2131,9 @@ NdbEventBuffer::insert_event(NdbEventOperationImpl* impl,
                              LinearSectionPtr *ptr,
                              Uint32 &oid_ref)
 {
-  DBUG_PRINT("info", ("gci{hi/lo}: %u/%u", data.gci_hi, data.gci_lo));
+  DBUG_PRINT("info", ("gci{hi/lo}: %u/%u 0x%x %s",
+                      data.gci_hi, data.gci_lo, m_ndb->getReference(),
+                      m_ndb->getNdbObjectName()));
   do
   {
     if (impl->m_stop_gci == ~Uint64(0))
@@ -2384,7 +2392,8 @@ NdbEventBuffer::report_node_failure_completed(Uint32 node_id)
    * Cluster failure
    */
 
-  DBUG_PRINT("info", ("Cluster failure"));
+  DBUG_PRINT("info", ("Cluster failure 0x%x %s", m_ndb->getReference(),
+                      m_ndb->getNdbObjectName()));
 
   gci = Uint64((m_latestGCI >> 32) + 1) << 32;
   bool found = find_max_known_gci(&gci);
@@ -2503,16 +2512,18 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     {
       // internal event, do not relay to user
       DBUG_PRINT("info",
-                 ("_TE_ACTIVE: m_ref_count: %u for op: %p id: %u",
-                  op->m_ref_count, op, SubTableData::getNdbdNodeId(ri)));
+                 ("_TE_ACTIVE: m_ref_count: %u for op: %p id: %u 0x%x %s",
+                  op->m_ref_count, op, SubTableData::getNdbdNodeId(ri),
+                  m_ndb->getReference(), m_ndb->getNdbObjectName()));
       DBUG_RETURN_EVENT(0);
     }
     else if (operation == NdbDictionary::Event::_TE_STOP)
     {
       // internal event, do not relay to user
       DBUG_PRINT("info",
-                 ("_TE_STOP: m_ref_count: %u for op: %p id: %u",
-                  op->m_ref_count, op, SubTableData::getNdbdNodeId(ri)));
+                 ("_TE_STOP: m_ref_count: %u for op: %p id: %u 0x%x %s",
+                  op->m_ref_count, op, SubTableData::getNdbdNodeId(ri),
+                  m_ndb->getReference(), m_ndb->getNdbObjectName()));
       DBUG_RETURN_EVENT(0);
     }
   }
@@ -2521,7 +2532,9 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
   {
     Gci_container* bucket= find_bucket(gci);
     
-    DBUG_PRINT_EVENT("info", ("data insertion in eventId %d", op->m_eventId));
+    DBUG_PRINT_EVENT("info", ("data insertion in eventId %d 0x%x %s",
+                              op->m_eventId, m_ndb->getReference(),
+                              m_ndb->getNdbObjectName()));
     DBUG_PRINT_EVENT("info", ("gci=%d tab=%d op=%d node=%d",
                               sdata->gci, sdata->tableId, 
 			      SubTableData::getOperation(sdata->requestInfo),
@@ -2542,7 +2555,8 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
     if (! is_data_event && is_blob_event)
     {
       // currently subscribed to but not used
-      DBUG_PRINT_EVENT("info", ("ignore non-data event on blob table"));
+      DBUG_PRINT_EVENT("info", ("ignore non-data event on blob table 0x%x %s",
+                                m_ndb->getReference(), m_ndb->getNdbObjectName()));
       DBUG_RETURN_EVENT(0);
     }
     
@@ -2645,11 +2659,14 @@ NdbEventBuffer::insertDataL(NdbEventOperationImpl *op,
 #ifdef VM_TRACE
   if ((Uint32)op->m_eventImpl->mi_type & (1U << operation))
   {
-    DBUG_PRINT_EVENT("info",("Data arrived before ready eventId", op->m_eventId));
+    DBUG_PRINT_EVENT("info",("Data arrived before ready eventId %d 0x%x %s",
+                             op->m_eventId, m_ndb->getReference(),
+                             m_ndb->getNdbObjectName()));
     DBUG_RETURN_EVENT(0);
   }
   else {
-    DBUG_PRINT_EVENT("info",("skipped"));
+    DBUG_PRINT_EVENT("info",("skipped 0x%x %s", m_ndb->getReference(),
+                             m_ndb->getNdbObjectName()));
     DBUG_RETURN_EVENT(0);
   }
 #else
@@ -2677,7 +2694,8 @@ NdbEventBuffer::alloc_data()
     if (unlikely(data == 0))
     {
 #ifdef VM_TRACE
-      printf("m_latest_command: %s\n", m_latest_command);
+      printf("m_latest_command: %s 0x%x %s\n",
+             m_latest_command, m_ndb->getReference(), m_ndb->getNdbObjectName());
       printf("no free data, m_latestGCI %u/%u\n",
              (Uint32)(m_latestGCI << 32), (Uint32)m_latestGCI);
       printf("m_free_data_count %d\n", m_free_data_count);
@@ -2725,7 +2743,9 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
                           Uint32 * change_sz)
 {
   DBUG_ENTER("NdbEventBuffer::alloc_mem");
-  DBUG_PRINT("info", ("ptr sz %u + %u + %u", ptr[0].sz, ptr[1].sz, ptr[2].sz));
+  DBUG_PRINT("info", ("ptr sz %u + %u + %u 0x%x %s",
+                      ptr[0].sz, ptr[1].sz, ptr[2].sz, m_ndb->getReference(),
+                      m_ndb->getNdbObjectName()));
   const Uint32 min_alloc_size = 128;
 
   Uint32 sz4 = (sizeof(SubTableData) + 3) >> 2;
@@ -2772,6 +2792,9 @@ NdbEventBuffer::alloc_mem(EventBufData* data,
 
 out_of_mem_err:
   // Dealloc succeeded, but alloc bigger size failed
+
+  fprintf(stderr, "Ndb Event Buffer 0x%x %s\n", m_ndb->getReference(),
+	  m_ndb->getNdbObjectName());
   fprintf(stderr, "Ndb Event Buffer : Attempt to allocate total of %u bytes failed\n",
           m_total_alloc);
   fprintf(stderr, "Ndb Event Buffer : Fatal error.\n");
@@ -2933,13 +2956,16 @@ NdbEventBuffer::merge_data(const SubTableData * const sdata, Uint32 len,
     for (i = 0; i <= maxsec; i++) {
       if (ptr1[i].sz != ptr2[i].sz ||
           memcmp(ptr1[i].p, ptr2[i].p, ptr1[i].sz << 2) != 0) {
-        DBUG_PRINT("info", ("idempotent op %d*%d data differs in sec %d",
-                             tp->t1, tp->t2, i));
+        DBUG_PRINT("info", ("idempotent op %d*%d data differs in sec %d 0x%x %s",
+                            tp->t1, tp->t2, i, m_ndb->getReference(),
+                            m_ndb->getNdbObjectName()));
         assert(false);
         DBUG_RETURN_EVENT(-1);
       }
     }
-    DBUG_PRINT("info", ("idempotent op %d*%d data ok", tp->t1, tp->t2));
+    DBUG_PRINT("info", ("idempotent op %d*%d data ok 0x%x %s",
+                        tp->t1, tp->t2, m_ndb->getReference(),
+                        m_ndb->getNdbObjectName()));
     DBUG_RETURN_EVENT(0);
   }
 
@@ -3205,7 +3231,9 @@ NdbEventBuffer::add_blob_data(Gci_container* bucket,
                               EventBufData* blob_data)
 {
   DBUG_ENTER_EVENT("NdbEventBuffer::add_blob_data");
-  DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p", main_data, blob_data));
+  DBUG_PRINT_EVENT("info", ("main_data=%p blob_data=%p 0x%x %s",
+                            main_data, blob_data, m_ndb->getReference(),
+                            m_ndb->getNdbObjectName()));
   EventBufData* head;
   head = main_data->m_next_blob;
   while (head != NULL)
@@ -3253,7 +3281,9 @@ NdbEventBuffer::move_data()
   {
     DBUG_ENTER_EVENT("NdbEventBuffer::move_data");
 #ifdef VM_TRACE
-    DBUG_PRINT_EVENT("exit",("m_available_data_count %u", m_available_data.m_count));
+    DBUG_PRINT_EVENT("exit",("m_available_data_count %u 0x%x %s",
+                             m_available_data.m_count,
+                             m_ndb->getReference(), m_ndb->getNdbObjectName()));
 #endif
     DBUG_RETURN_EVENT(m_available_data.m_head->m_event_op);
   }
@@ -3398,8 +3428,10 @@ NdbEventBuffer::createEventOperation(const char* eventName,
   // add user reference
   // removed in dropEventOperation
   getEventOperationImpl(tOp)->m_ref_count = 1;
-  DBUG_PRINT("info", ("m_ref_count: %u for op: %p",
-                      getEventOperationImpl(tOp)->m_ref_count, getEventOperationImpl(tOp)));
+  DBUG_PRINT("info", ("m_ref_count: %u for op: %p 0x%x %s",
+                      getEventOperationImpl(tOp)->m_ref_count,
+                      getEventOperationImpl(tOp), m_ndb->getReference(),
+                      m_ndb->getNdbObjectName()));
   DBUG_RETURN(tOp);
 }
 
@@ -3481,11 +3513,14 @@ NdbEventBuffer::dropEventOperation(NdbEventOperation* tOp)
   // added in createEventOperation
   // user error to use reference after this
   op->m_ref_count--;
-  DBUG_PRINT("info", ("m_ref_count: %u for op: %p", op->m_ref_count, op));
+  DBUG_PRINT("info", ("m_ref_count: %u for op: %p 0x%x %s",
+                      op->m_ref_count, op, m_ndb->getReference(),
+                      m_ndb->getNdbObjectName()));
   if (op->m_ref_count == 0)
   {
     NdbMutex_Unlock(m_mutex);
-    DBUG_PRINT("info", ("deleting op: %p", op));
+    DBUG_PRINT("info", ("deleting op: %p 0x%x %s",
+                        op, m_ndb->getReference(), m_ndb->getNdbObjectName()));
     delete op->m_facade;
   }
   else
