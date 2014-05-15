@@ -40,7 +40,7 @@ public:
   NdbOperation::LockMode lmode;
   NdbOperation::OperationOptions *options;
   int opcode;
-  char * opcode_str;
+  const char * opcode_str;
   
   // Constructor
   KeyOperation();
