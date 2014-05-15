@@ -201,7 +201,6 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
         else                  {  encoderError = "23000"; addError();  }
       }
       else {
-        ndbRecord.setNotNull(i, buffer);
         if(column.typeConverter && column.typeConverter.ndb) {
           value = column.typeConverter.ndb.toDB(value);
         }
