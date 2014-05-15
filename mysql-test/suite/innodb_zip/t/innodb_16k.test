@@ -8,7 +8,7 @@ SET default_storage_engine=InnoDB;
 
 --disable_query_log
 let $MYSQLD_DATADIR= `select @@datadir`;
-
+call mtr.add_suppression("Cannot add field .* in table .* because after adding it, the row size is");
 # These values can change during the test
 let $innodb_file_format_orig = `SELECT @@innodb_file_format`;
 let $innodb_file_format_max_orig = `SELECT @@innodb_file_format_max`;
