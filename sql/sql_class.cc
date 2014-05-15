@@ -892,6 +892,7 @@ THD::THD(bool enable_plugins)
    m_transaction_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
+   user_var_events(key_memory_user_var_entry),
    next_to_commit(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -903,6 +904,10 @@ THD::THD(bool enable_plugins)
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
+#ifndef EMBEDDED_LIBRARY
+   // No need to instrument, highly unlikely to have that many plugins.
+   audit_class_plugins(PSI_NOT_INSTRUMENTED),
+#endif
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -1001,13 +1006,6 @@ THD::THD(bool enable_plugins)
 
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
-
-  /* For user vars replication*/
-  if (opt_bin_log)
-    my_init_dynamic_array(&user_var_events,
-			  sizeof(BINLOG_USER_VAR_EVENT *), 16, 16);
-  else
-    memset(&user_var_events, 0, sizeof(user_var_events));
 
   /* Protocol */
   protocol= &protocol_text;			// Default protocol
@@ -1540,7 +1538,6 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
-  delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
@@ -1866,6 +1863,13 @@ void THD::awake(THD::killed_state state_to_set)
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
+      DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
+                      {
+                      const char act[]=
+                      "now signal dump_thread_signal wait_for go_dump_thread";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                      };);
       mysql_mutex_lock(mysys_var->current_mutex);
       mysql_cond_broadcast(mysys_var->current_cond);
       mysql_mutex_unlock(mysys_var->current_mutex);

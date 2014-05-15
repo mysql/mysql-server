@@ -167,7 +167,8 @@ row_build_index_entry_low(
 					}
 				} else {
 					rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-							   dlen - GEO_DATA_HEADER_SIZE,
+							   static_cast<uint>(dlen
+							   - GEO_DATA_HEADER_SIZE),
 							   SPDIMS, tmp_mbr);
 				}
 				dfield_write_mbr(dfield, tmp_mbr);
@@ -325,16 +326,16 @@ row_build(
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	if (rec_offs_any_null_extern(rec, offsets)) {
-		/* This condition can occur during crash recovery
-		before trx_rollback_active() has completed execution,
-		or when a concurrently executing
-		row_ins_index_entry_low() has committed the B-tree
-		mini-transaction but has not yet managed to restore
-		the cursor position for writing the big_rec. */
-		ut_a(trx_undo_roll_ptr_is_insert(
-			     row_get_rec_roll_ptr(rec, index, offsets)));
-	}
+	/* Some blob refs can be NULL during crash recovery before
+	trx_rollback_active() has completed execution, or when a concurrently
+	executing insert or update has committed the B-tree mini-transaction
+	but has not yet managed to restore the cursor position for writing
+	the big_rec. Note that the mini-transaction can be committed multiple
+	times, and the cursor restore can happen multiple times for single
+	insert or update statement.  */
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets),
+						    NULL, false));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
@@ -962,7 +963,7 @@ row_raw_format_int(
 
 		ret = ut_snprintf(
 			buf, buf_size,
-			unsigned_type ? UINT64PF : INT64PF, value) + 1;
+			unsigned_type ? UINT64PF : "%" PRId64, value) + 1;
 	} else {
 
 		*format_in_hex = TRUE;

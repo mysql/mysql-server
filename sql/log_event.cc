@@ -2840,7 +2840,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
     "The master does not support the selected parallelization mode. "
     "It may be too old, or replication was started from an event internal "
-    "to a transaaction.");
+    "to a transaction.");
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;
@@ -3015,6 +3015,12 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ret_worker=
       rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
                                                           this);
+    if (ret_worker == NULL)
+    {
+      /* get_least_occupied_worker may return NULL if the thread is killed */
+      DBUG_ASSERT(thd->killed);
+      DBUG_RETURN(NULL);
+    }
     ptr_group->worker_id= ret_worker->id;
   }
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
@@ -5382,7 +5388,7 @@ uint Load_log_event::get_query_buffer_length()
   return
     //the DB name may double if we escape the quote character
     5 + 2*db_len + 3 +
-    18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    18 + fname_len*4 + 2 +                    // "LOAD DATA INFILE 'file''"
     11 +                                    // "CONCURRENT "
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
@@ -5432,9 +5438,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
 
   if (check_fname_outside_temp_buf())
     pos= my_stpcpy(pos, "LOCAL ");
-  pos= my_stpcpy(pos, "INFILE '");
-  memcpy(pos, fname, fname_len);
-  pos= my_stpcpy(pos+fname_len, "' ");
+  pos= my_stpcpy(pos, "INFILE ");
+  pos= pretty_print_str(pos, fname, fname_len);
+  pos= my_stpcpy(pos, " ");
 
   if (sql_ex.data_info.opt_flags & REPLACE_FLAG)
     pos= my_stpcpy(pos, "REPLACE ");
@@ -6821,6 +6827,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
                   DBUG_SUICIDE(););
 
   error= do_commit(thd);
+  if (error)
+    w->rollback_positions(ptr_group);
 err:
   return error;
 }
@@ -8324,9 +8332,9 @@ void Execute_load_query_log_event::print(FILE* file,
   if (local_fname)
   {
     my_b_write(head, (uchar*) query, fn_pos_start);
-    my_b_printf(head, " LOCAL INFILE \'");
-    my_b_printf(head, "%s", local_fname);
-    my_b_printf(head, "\'");
+    my_b_printf(head, " LOCAL INFILE ");
+    pretty_print_str(head, local_fname, strlen(local_fname));
+
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(head, " REPLACE");
     my_b_printf(head, " INTO");

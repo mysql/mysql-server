@@ -48,6 +48,7 @@ Created 11/11/1995 Heikki Tuuri
 #include "os0file.h"
 #include "trx0sys.h"
 #include "srv0mon.h"
+#include "fsp0sysspace.h"
 
 /** Number of pages flushed through non flush_list flushes. */
 static ulint buf_lru_flush_page_count = 0;
@@ -320,6 +321,8 @@ buf_flush_init_flush_rbt(void)
 
 		buf_flush_list_mutex_enter(buf_pool);
 
+		ut_ad(buf_pool->flush_rbt == NULL);
+
 		/* Create red black tree for speedy insertions in flush list. */
 		buf_pool->flush_rbt = rbt_create(
 			sizeof(buf_page_t*), buf_flush_block_cmp);
@@ -377,7 +380,7 @@ buf_flush_insert_into_flush_list(
 
 	/* If we are in the recovery then we need to update the flush
 	red-black tree as well. */
-	if (buf_pool->flush_rbt) {
+	if (buf_pool->flush_rbt != NULL) {
 		buf_flush_list_mutex_exit(buf_pool);
 		buf_flush_insert_sorted_into_flush_list(buf_pool, block, lsn);
 		return;
@@ -472,9 +475,9 @@ buf_flush_insert_sorted_into_flush_list(
 	should not be NULL. In a very rare boundary case it is possible
 	that the flush_rbt has already been freed by the recovery thread
 	before the last page was hooked up in the flush_list by the
-	io-handler thread. In that case we'll  just do a simple
+	io-handler thread. In that case we'll just do a simple
 	linear search in the else block. */
-	if (buf_pool->flush_rbt) {
+	if (buf_pool->flush_rbt != NULL) {
 
 		prev_b = buf_flush_insert_in_flush_rbt(&block->page);
 
@@ -482,8 +485,9 @@ buf_flush_insert_sorted_into_flush_list(
 
 		b = UT_LIST_GET_FIRST(buf_pool->flush_list);
 
-		while (b && b->oldest_modification
+		while (b != NULL && b->oldest_modification
 		       > block->page.oldest_modification) {
+
 			ut_ad(b->in_flush_list);
 			prev_b = b;
 			b = UT_LIST_GET_NEXT(list, b);
@@ -621,7 +625,7 @@ buf_flush_remove(
 	}
 
 	/* If the flush_rbt is active then delete from there as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt != NULL) {
 		buf_flush_delete_from_flush_rbt(bpage);
 	}
 
@@ -682,7 +686,7 @@ buf_flush_relocate_on_flush_list(
 
 	/* If recovery is active we must swap the control blocks in
 	the flush_rbt as well. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt != NULL) {
 		buf_flush_delete_from_flush_rbt(bpage);
 		prev_b = buf_flush_insert_in_flush_rbt(dpage);
 	}
@@ -707,7 +711,7 @@ buf_flush_relocate_on_flush_list(
 
 	/* Just an extra check. Previous in flush_list
 	should be the same control block as in flush_rbt. */
-	ut_a(!buf_pool->flush_rbt || prev_b == prev);
+	ut_a(buf_pool->flush_rbt == NULL || prev_b == prev);
 
 #if defined UNIV_DEBUG || defined UNIV_BUF_DEBUG
 	ut_a(buf_flush_validate_low(buf_pool));
@@ -775,10 +779,12 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*	page,		/*!< in/out: page */
 	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn)	/*!< in: newest modification lsn
+	lsn_t	newest_lsn,	/*!< in: newest modification lsn
 				to the page */
+	bool	skip_checksum)	/*!< in: if true, disable/skip checksum. */
 {
-	ib_uint32_t	checksum = 0 /* silence bogus gcc warning */;
+	ib_uint32_t	checksum = BUF_NO_CHECKSUM_MAGIC;
+					/* silence bogus gcc warning */
 
 	ut_ad(page);
 
@@ -827,23 +833,26 @@ buf_flush_init_for_writing(
 	mach_write_to_8(page + UNIV_PAGE_SIZE - FIL_PAGE_END_LSN_OLD_CHKSUM,
 			newest_lsn);
 
-	/* Store the new formula checksum */
+	if (!skip_checksum) {
+		/* Store the new formula checksum */
 
-	switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
-	case SRV_CHECKSUM_ALGORITHM_CRC32:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
-		checksum = buf_calc_page_crc32(page);
-		break;
-	case SRV_CHECKSUM_ALGORITHM_INNODB:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
-		checksum = (ib_uint32_t) buf_calc_page_new_checksum(page);
-		break;
-	case SRV_CHECKSUM_ALGORITHM_NONE:
-	case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
-		checksum = BUF_NO_CHECKSUM_MAGIC;
-		break;
-	/* no default so the compiler will emit a warning if new enum
-	is added and not handled here */
+		switch ((srv_checksum_algorithm_t) srv_checksum_algorithm) {
+		case SRV_CHECKSUM_ALGORITHM_CRC32:
+		case SRV_CHECKSUM_ALGORITHM_STRICT_CRC32:
+			checksum = buf_calc_page_crc32(page);
+			break;
+		case SRV_CHECKSUM_ALGORITHM_INNODB:
+		case SRV_CHECKSUM_ALGORITHM_STRICT_INNODB:
+			checksum = (ib_uint32_t) buf_calc_page_new_checksum(
+				page);
+			break;
+		case SRV_CHECKSUM_ALGORITHM_NONE:
+		case SRV_CHECKSUM_ALGORITHM_STRICT_NONE:
+			checksum = BUF_NO_CHECKSUM_MAGIC;
+			break;
+			/* no default so the compiler will emit a warning if
+			new enum is added and not handled here */
+		}
 	}
 
 	mach_write_to_4(page + FIL_PAGE_SPACE_OR_CHKSUM, checksum);
@@ -915,7 +924,9 @@ buf_flush_write_block_low(
 	ut_ad(bpage->newest_modification != 0);
 
 	/* Force the log to the disk before writing the modified block */
-	log_write_up_to(bpage->newest_modification, true);
+	if (!srv_read_only_mode) {
+		log_write_up_to(bpage->newest_modification, true);
+	}
 
 	switch (buf_page_get_state(bpage)) {
 	case BUF_BLOCK_POOL_WATCH:
@@ -943,11 +954,23 @@ buf_flush_write_block_low(
 		buf_flush_init_for_writing(((buf_block_t*) bpage)->frame,
 					   bpage->zip.data
 					   ? &bpage->zip : NULL,
-					   bpage->newest_modification);
+					   bpage->newest_modification,
+					   fsp_is_checksum_disabled(
+						bpage->id.space()));
 		break;
 	}
 
-	if (!srv_use_doublewrite_buf || !buf_dblwr) {
+	/* Disable use of double-write buffer for temporary tablespace.
+	Given the nature and load of temporary tablespace doublewrite buffer
+	adds an overhead during flushing. */
+	if (!srv_use_doublewrite_buf
+	    || !buf_dblwr
+	    || srv_read_only_mode
+	    || fsp_is_system_temporary(bpage->id.space())) {
+
+		ut_ad(!srv_read_only_mode
+		      || fsp_is_system_temporary(bpage->id.space()));
+
 		fil_io(OS_FILE_WRITE | OS_AIO_SIMULATED_WAKE_LATER,
 		       sync, bpage->id, bpage->size, 0, bpage->size.physical(),
 		       frame, bpage);
@@ -1016,8 +1039,14 @@ buf_flush_page(
 	if (!is_uncompressed) {
 		flush = TRUE;
 		rw_lock = NULL;
-	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)) {
+	} else if (!(no_fix_count || flush_type == BUF_FLUSH_LIST)
+		   || (!no_fix_count
+		       && srv_shutdown_state <= SRV_SHUTDOWN_CLEANUP
+		       && fsp_is_system_temporary(bpage->id.space()))) {
 		/* This is a heuristic, to avoid expensive SX attempts. */
+		/* For table residing in temporary tablespace sync is done
+		using IO_FIX and so before scheduling for flush ensure that
+		page is not fixed. */
 		flush = FALSE;
 	} else {
 		rw_lock = &reinterpret_cast<buf_block_t*>(bpage)->lock;
@@ -1049,10 +1078,15 @@ buf_flush_page(
 		if (flush_type == BUF_FLUSH_LIST
 		    && is_uncompressed
 		    && !rw_lock_sx_lock_nowait(rw_lock, BUF_IO_WRITE)) {
-			/* avoiding deadlock possibility involves doublewrite
-			buffer, should flush it, because it might hold the
-			another block->lock. */
-			buf_dblwr_flush_buffered_writes();
+
+			if (!fsp_is_system_temporary(bpage->id.space())) {
+				/* avoiding deadlock possibility involves
+				doublewrite buffer, should flush it, because
+				it might hold the another block->lock. */
+				buf_dblwr_flush_buffered_writes();
+			} else {
+				buf_dblwr_sync_datafiles();
+			}
 
 			rw_lock_sx_lock_gen(rw_lock, BUF_IO_WRITE);
 		}
@@ -2339,7 +2373,7 @@ ulint
 pc_sleep_if_needed(
 /*===============*/
 	ulint		next_loop_time,
-	ib_int64_t	sig_count)
+	int64_t		sig_count)
 {
 	ulint	cur_time = ut_time_ms();
 
@@ -2590,8 +2624,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	ulint	last_activity = srv_get_activity_count();
 	ulint	last_pages = 0;
 
-	ut_ad(!srv_read_only_mode);
-
 #ifdef UNIV_PFS_THREAD
 	pfs_register_thread(page_cleaner_thread_key);
 #endif /* UNIV_PFS_THREAD */
@@ -2605,7 +2637,7 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	buf_page_cleaner_is_active = TRUE;
 
 	ulint		ret_sleep = 0;
-	ib_int64_t	sig_count = os_event_reset(buf_flush_event);
+	int64_t		sig_count = os_event_reset(buf_flush_event);
 	while (srv_shutdown_state == SRV_SHUTDOWN_NONE) {
 
 		/* The page_cleaner skips sleep if the server is
@@ -2706,9 +2738,11 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 	os_event_set(page_cleaner->is_requested);
 
 	ut_ad(srv_shutdown_state > 0);
-	if (srv_fast_shutdown == 2) {
-		/* In very fast shutdown we simulate a crash of
-		buffer pool. We are not required to do any flushing */
+	if (srv_fast_shutdown == 2
+	    || srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
+		/* In very fast shutdown or when innodb failed to start, we
+		simulate a crash of the buffer pool. We are not required to do
+		any flushing. */
 		goto thread_exit;
 	}
 
@@ -2732,11 +2766,6 @@ DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
 			os_thread_sleep(100000);
 		}
 	} while (srv_shutdown_state == SRV_SHUTDOWN_CLEANUP);
-
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		/* failed to start innodb */
-		goto thread_exit;
-	}
 
 	/* At this point all threads including the master and the purge
 	thread must have been suspended. */
@@ -2865,7 +2894,7 @@ buf_flush_validate_low(
 	/* If we are in recovery mode i.e.: flush_rbt != NULL
 	then each block in the flush_list must also be present
 	in the flush_rbt. */
-	if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
+	if (buf_pool->flush_rbt != NULL) {
 		rnode = rbt_first(buf_pool->flush_rbt);
 	}
 
@@ -2886,20 +2915,20 @@ buf_flush_validate_low(
 		     || buf_page_get_state(bpage) == BUF_BLOCK_REMOVE_HASH);
 		ut_a(om > 0);
 
-		if (UNIV_LIKELY_NULL(buf_pool->flush_rbt)) {
-			buf_page_t** prpage;
+		if (buf_pool->flush_rbt != NULL) {
+			buf_page_t**	prpage;
 
-			ut_a(rnode);
+			ut_a(rnode != NULL);
 			prpage = rbt_value(buf_page_t*, rnode);
 
-			ut_a(*prpage);
+			ut_a(*prpage != NULL);
 			ut_a(*prpage == bpage);
 			rnode = rbt_next(buf_pool->flush_rbt, rnode);
 		}
 
 		bpage = UT_LIST_GET_NEXT(list, bpage);
 
-		ut_a(!bpage || om >= bpage->oldest_modification);
+		ut_a(bpage == NULL || om >= bpage->oldest_modification);
 	}
 
 	/* By this time we must have exhausted the traversal of

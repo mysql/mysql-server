@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,8 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              uint db_flags, int *error,
                              my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
-TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
+TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
+                                    const char *table_name);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);

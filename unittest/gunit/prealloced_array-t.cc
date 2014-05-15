@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -79,8 +79,9 @@ TEST_F(PreallocedArrayDeathTest, EmptyPopBack)
 TEST_F(PreallocedArrayDeathTest, EmptyErase)
 {
   ::testing::FLAGS_gtest_death_test_style = "threadsafe";
-  EXPECT_DEATH_IF_SUPPORTED(int_10.erase(0),
-                            ".*Assertion .*n < size.*");
+  size_t ix= 0;
+  EXPECT_DEATH_IF_SUPPORTED(int_10.erase(ix),
+                            ".*Assertion .*ix < size.*");
 }
 
 #endif // DBUG_OFF
@@ -144,7 +145,7 @@ TEST_F(PreallocedArrayTest, EraseFirst)
     int_10.push_back(ix);
   EXPECT_EQ(0, int_10[0]);
   EXPECT_EQ(16U, int_10.size());
-  int_10.erase(0);
+  int_10.erase(int_10.begin());
   EXPECT_EQ(15U, int_10.size());
   for (int ix= 0; ix < static_cast<int>(int_10.size()); ++ix)
   {
@@ -238,6 +239,12 @@ public:
   {
     delete m_int;
   }
+  IntWrap &operator=(const IntWrap &rhs)
+  {
+    *m_int= rhs.getval();
+    return *this;
+  }
+
   int getval() const { return *m_int; }
 private:
   int *m_int;
@@ -273,7 +280,7 @@ TEST_F(PreallocedArrayTest, NoMemLeaksErasing)
   for (int ix= 0; !array.empty(); ++ix)
   {
     EXPECT_EQ(ix, array[0].getval());
-    array.erase(0);
+    array.erase(array.begin());
   }
 }
 
@@ -307,6 +314,74 @@ TEST_F(PreallocedArrayTest, NoMemLeaksAssigning)
   EXPECT_EQ(array1.size(), array2.size());
   for (size_t ix= 0; ix < array1.size(); ++ix)
     EXPECT_EQ(array1[ix].getval(), array2[ix].getval());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksEraseAll)
+{
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array.push_back(IntWrap(ix));
+  array.erase(array.begin(), array.end());
+  EXPECT_EQ(0U, array.size());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksEraseMiddle)
+{
+  Prealloced_array<IntWrap, 1, false> array(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array.push_back(IntWrap(ix));
+  array.erase(array.begin() + 1, array.end() - 1);
+  EXPECT_EQ(2U, array.size());
+  EXPECT_EQ(0, array[0].getval());
+  EXPECT_EQ(41, array[1].getval());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksEraseSwap)
+{
+  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  Prealloced_array<IntWrap, 1, false> array2(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 10; ++ix)
+    array2.push_back(IntWrap(ix + 100));
+  array1.swap(array2);
+  EXPECT_EQ(10U, array1.size());
+  EXPECT_EQ(42U, array2.size());
+  Prealloced_array<IntWrap, 1, false>(PSI_NOT_INSTRUMENTED).swap(array1);
+  EXPECT_EQ(0U, array1.size());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksMySwap)
+{
+  Prealloced_array<IntWrap, 2, false> array1(PSI_NOT_INSTRUMENTED);
+  Prealloced_array<IntWrap, 2, false> array2(PSI_NOT_INSTRUMENTED);
+  array1.push_back(IntWrap(1));
+  array2.push_back(IntWrap(2));
+  array2.push_back(IntWrap(22));
+  array1.swap(array2);
+  EXPECT_EQ(2U, array1.size());
+  EXPECT_EQ(1U, array2.size());
+  EXPECT_EQ(2,  array1[0].getval());
+  EXPECT_EQ(22, array1[1].getval());
+  EXPECT_EQ(1,  array2[0].getval());
+}
+
+TEST_F(PreallocedArrayTest, NoMemLeaksStdSwap)
+{
+  Prealloced_array<IntWrap, 1, false> array1(PSI_NOT_INSTRUMENTED);
+  for (int ix= 0; ix < 42; ++ix)
+    array1.push_back(IntWrap(ix));
+  Prealloced_array<IntWrap, 1, false>
+    array2(PSI_NOT_INSTRUMENTED, array1.begin(), array1.begin() + 10);
+  EXPECT_EQ(10U, array2.size());
+  IntWrap *p1= array1.begin();
+  IntWrap *p2= array2.begin();
+  array1.swap(array2);
+  EXPECT_EQ(10U, array1.size());
+  EXPECT_EQ(42U, array2.size());
+  // We expect a buffer swap here.
+  EXPECT_EQ(p1, array2.begin());
+  EXPECT_EQ(p2, array1.begin());
 }
 
 /*

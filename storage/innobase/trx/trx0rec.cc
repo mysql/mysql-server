@@ -550,7 +550,8 @@ trx_undo_get_mbr_from_ext(
 		}
 	} else {
 		rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
-				   dlen - GEO_DATA_HEADER_SIZE, SPDIMS, mbr);
+				   static_cast<uint>(dlen
+				   - GEO_DATA_HEADER_SIZE), SPDIMS, mbr);
 	}
 
 	mem_heap_free(heap);
@@ -1270,7 +1271,6 @@ trx_undo_report_row_operation(
 	int		loop_count	= 0;
 #endif /* UNIV_DEBUG */
 
-	ut_ad(!srv_read_only_mode);
 	ut_a(dict_index_is_clust(index));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
@@ -1282,6 +1282,7 @@ trx_undo_report_row_operation(
 	}
 
 	ut_ad(thr);
+	ut_ad(!srv_read_only_mode);
 	ut_ad((op_type != TRX_UNDO_INSERT_OP)
 	      || (clust_entry && !update && !rec));
 
@@ -1478,7 +1479,7 @@ trx_undo_report_row_operation(
 		" the tablespace",
 		((undo->space == srv_sys_space.space_id())
 		? "system" :
-		  ((undo->space == srv_tmp_space.space_id())
+		  ((fsp_is_system_temporary(undo->space))
 		   ? "temporary" : "undo")));
 
 	/* Did not succeed: out of space */
@@ -1687,10 +1688,6 @@ trx_undo_prev_version_build(
 					     NULL, heap, &update);
 	ut_a(ptr);
 
-# if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	ut_a(!rec_offs_any_null_extern(rec, offsets));
-# endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
-
 	if (row_upd_changes_field_size_or_external(index, offsets, update)) {
 		ulint	n_ext;
 
@@ -1757,6 +1754,12 @@ trx_undo_prev_version_build(
 		rec_offs_make_valid(*old_vers, index, offsets);
 		row_upd_rec_in_place(*old_vers, index, offsets, update, NULL);
 	}
+
+#if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
+	ut_a(!rec_offs_any_null_extern(
+		*old_vers, rec_get_offsets(
+			*old_vers, index, NULL, ULINT_UNDEFINED, &heap)));
+#endif // defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
 
 	return(true);
 }

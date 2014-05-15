@@ -1,0 +1,120 @@
+###############################################################################
+# Bug#17283409  4-WAY DEADLOCK: ZOMBIES, PURGING BINLOGS, SHOW PROCESSLIST,
+#                        SHOW BINLOGS
+# Problem:  A deadlock was occuring when 4 threads were involved in acquiring
+#                locks
+#     Thread 1: Dump thread ( Slave is reconnecting, so on Master, a new dump
+#                    thread is trying kill zombie dump threads. It acquired
+#                    thread's LOCK_thd_data and it is about to acquire
+#                    mysys_var->current_mutex ( which LOCK_log)
+#     Thread 2: Application thread is executing show binlogs and acquired
+#                    LOCK_log and it is about to acquire LOCK_index.
+#     Thread 3: Applicaiton thread is executing Purge binary logs and acquired
+#                    LOCK_index and it is about to acquire LOCK_thread_count.
+#     Thread 4: Application thread is executing show processlist and acquired
+#                    LOCK_thread_count and it is about to acquire zombie dump
+#                    thread's LOCK_thd_data.
+#     Deadlock : Thread 1 -> Thread 2 -> Thread 3-> Thread 4 -> Thread 1
+# The same above deadlock was observed when thread 4 is replaced with another
+# thread which is executing 'SELECT * FROM information_schema.processlist'
+# command and acquired LOCK_thread_count and it is about to acquire zombie
+# dump thread's LOCK_thd_data.
+# Fix: Introuced a new lock (Lock_thread_remove) which will guard the thread
+# deletion (exit process) and the same lock is used in show processlist
+# execution instead of LOCK_thread_count. i.e., After the patch, Server allows
+# new threads to join the system but it will not allow any threads to execute
+# its 'cleanup' process.  Now the new lock order is: LOCK_thread_remove ->
+# LOCK_thd_data -> LOCK_log -> LOCK_index -> LOCK_thread_count Both the above
+# scenarios are tested with the below test code and it proves that there is no
+# deadlock after the fix.
+###############################################################################
+--source include/have_debug_sync.inc
+--source include/have_binlog_format_statement.inc
+--source include/master-slave.inc
+
+connect(master2,127.0.0.1,root,,test,$MASTER_MYPORT,);
+connect(master3,127.0.0.1,root,,test,$MASTER_MYPORT,);
+--connection master
+# Create atleast one binary log, otherwise purge logs command, show binary
+# logs command do not hit the DEBUG_SYNC points.
+FLUSH LOGS;
+SET @save_debug=@@global.debug;
+SET GLOBAL DEBUG='+d,before_dump_thread_acquires_current_mutex,processlist_acquiring_dump_threads_LOCK_thd_data';
+
+# Iteration 1 with "SHOW PROCESSLIST command"
+# Iteration 2 with "SELECT * FROM information_schema.processlist"
+--let $iter=2
+while ($iter)
+{
+  --connection slave
+  --source include/stop_slave.inc
+  --source include/start_slave.inc
+  # Thread 1
+  --connection master
+  --echo "Wait_for dump_thread_signal"
+  SET DEBUG_SYNC='now WAIT_FOR dump_thread_signal';
+
+  # Thread 2
+  --connection master1
+  SET DEBUG_SYNC='show_binlogs_after_lock_log_before_lock_index SIGNAL parked1 WAIT_FOR go_parked1';
+  --send SHOW BINARY LOGS
+
+  --connection master
+  echo "Wait_for parked1";
+  SET DEBUG_SYNC='now WAIT_FOR parked1';
+
+  # Thread 3
+  --connection master2
+  SET DEBUG_SYNC='purge_logs_after_lock_index_before_thread_count SIGNAL parked2 WAIT_FOR go_parked2';
+  --send PURGE BINARY LOGS BEFORE '9999-12-31'
+
+  --connection master
+  echo "Wait_for parked2";
+  SET DEBUG_SYNC='now WAIT_FOR parked2';
+
+  # Thread 4
+  --connection master3
+  SET DEBUG_SYNC='processlist_after_LOCK_thd_count_before_LOCK_thd_data SIGNAL parked3 WAIT_FOR go_parked3';
+  if ($iter == 1)
+  {
+    --let $query=SHOW PROCESSLIST
+  }
+  if ($iter == 2)
+  {
+    --let $query=SELECT * FROM information_schema.processlist
+  }
+  --send_eval $query
+
+  --connection master
+  echo "Wait_for parked3";
+  SET DEBUG_SYNC='now WAIT_FOR parked3';
+
+  echo "now signal go to all 4 waiting threads";
+  SET DEBUG_SYNC='now SIGNAL go_dump_thread';
+  SET DEBUG_SYNC='now SIGNAL go_parked1';
+  SET DEBUG_SYNC='now SIGNAL go_parked2';
+  SET DEBUG_SYNC='now SIGNAL go_parked3';
+
+  # Output of each command vary depends on other tests ran in suite(output vary
+  # in Pb2 runs), so lets ignore output. Anyways, we are interested in seeing
+  # that there is no deadlock.
+  --disable_result_log
+  --connection master1
+  --reap
+  --connection master2
+  --reap
+  --connection master3
+  --reap
+  --enable_result_log
+
+  --dec $iter
+}
+
+--echo "Cleanup"
+--disconnect master2
+--disconnect master3
+
+--connection master
+SET DEBUG_SYNC='RESET';
+SET GLOBAL DEBUG=@save_debug;
+source include/rpl_end.inc;

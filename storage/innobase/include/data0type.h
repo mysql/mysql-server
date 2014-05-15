@@ -157,6 +157,10 @@ be less than 256 */
 
 #define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
 
+#define	DATA_ITT_N_SYS_COLS	2
+				/* number of system columns for intrinsic
+				temporary table */
+
 #define DATA_FTS_DOC_ID	3	/* Used as FTS DOC ID column */
 
 #define DATA_SYS_PRTYPE_MASK 0xF /* mask to extract the above from prtype */

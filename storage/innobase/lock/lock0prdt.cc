@@ -748,7 +748,7 @@ lock_init_prdt_from_mbr(
 		prdt->data = static_cast<void*>(mbr);
 	}
 
-	prdt->op = mode;
+	prdt->op = static_cast<uint16>(mode);
 }
 
 /*********************************************************************//**
