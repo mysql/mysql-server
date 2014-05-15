@@ -2807,7 +2807,13 @@ env_dbremove(DB_ENV * env, DB_TXN *txn, const char *fname, const char *dbname, u
     r = toku_db_create(&db, env, 0);
     lazy_assert_zero(r);
     r = toku_db_open_iname(db, txn, iname, 0, 0);
-    lazy_assert_zero(r);
+    if (txn && r) {
+        if (r == EMFILE || r == ENFILE)
+            r = toku_ydb_do_error(env, r, "toku dbremove failed because open file limit reached\n");
+        else
+            r = toku_ydb_do_error(env, r, "toku dbremove failed\n");
+        goto exit;
+    }
     if (txn) {
         // Now that we have a writelock on dname, verify that there are still no handles open. (to prevent race conditions)
         if (env_is_db_with_dname_open(env, dname)) {
