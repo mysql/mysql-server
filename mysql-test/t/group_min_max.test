@@ -1244,3 +1244,47 @@ explain SELECT f1, COUNT(DISTINCT f2) FROM t1 GROUP BY f1;
 drop table t1;
 --echo # End of test#50539.
 
+--echo #
+--echo # Bug#17217128 -  BAD INTERACTION BETWEEN MIN/MAX AND
+--echo #                 "HAVING SUM(DISTINCT)": WRONG RESULTS.
+--echo #
+
+CREATE TABLE t (a INT, b INT, KEY(a,b));
+INSERT INTO t VALUES (1,1), (2,2), (3,3), (4,4), (1,0), (3,2), (4,5);
+let $DEFAULT_TRACE_MEM_SIZE=1048576; # 1MB
+eval set optimizer_trace_max_mem_size=$DEFAULT_TRACE_MEM_SIZE;
+set @@session.optimizer_trace='enabled=on';
+set end_markers_in_json=on;
+
+ANALYZE TABLE t;
+
+SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b) FROM t GROUP BY a;
+SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+EXPLAIN SELECT a, SUM(DISTINCT a), MAX(b) FROM t GROUP BY a;
+SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+EXPLAIN SELECT a, MAX(b) FROM t GROUP BY a HAVING SUM(DISTINCT a);
+SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+EXPLAIN SELECT SUM(DISTINCT a), MIN(b), MAX(b) FROM t;
+SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+EXPLAIN SELECT a, SUM(DISTINCT a), MIN(b), MAX(b) FROM t GROUP BY a;
+SELECT TRACE RLIKE 'have_both_agg_distinct_and_min_max' AS OK
+  FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
+
+SET optimizer_trace_max_mem_size=DEFAULT;
+SET optimizer_trace=DEFAULT;
+SET end_markers_in_json=DEFAULT;
+
+DROP TABLE t;
