@@ -451,7 +451,7 @@ static yyconst flex_int16_t yy_chk[32] =
 #line 1 "fts0blex.l"
 /*****************************************************************************
 
-Copyright (c) 2007, 2011, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -806,7 +806,7 @@ case 3:
 YY_RULE_SETUP
 #line 53 "fts0blex.l"
 {
-	val->token = strdup(fts0bget_text(yyscanner));
+	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
 	return(FTS_NUMB);
 }
@@ -815,7 +815,7 @@ case 4:
 YY_RULE_SETUP
 #line 59 "fts0blex.l"
 {
-	val->token = strdup(fts0bget_text(yyscanner));
+	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
 	return(FTS_TERM);
 }
@@ -824,7 +824,7 @@ case 5:
 YY_RULE_SETUP
 #line 65 "fts0blex.l"
 {
-	val->token = strdup(fts0bget_text(yyscanner));
+	val->token = fts_ast_string_create(reinterpret_cast<const byte*>(fts0bget_text(yyscanner)), fts0bget_leng(yyscanner));
 
 	return(FTS_TEXT);
 }

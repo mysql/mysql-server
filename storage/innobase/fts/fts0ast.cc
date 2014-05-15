@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -83,11 +83,11 @@ UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_term(
 /*=====================*/
-	void*		arg,			/*!< in: ast state instance */
-	const char*	ptr)			/*!< in: ast term string */
+	void*			arg,		/*!< in: ast state instance */
+	const fts_ast_string_t*	ptr)		/*!< in: ast term string */
 {
 	fts_ast_state_t*	state = static_cast<fts_ast_state_t*>(arg);
-	ulint			len = strlen(ptr);
+	ulint			len = ptr->len;
 	ulint			cur_pos = 0;
 	fts_ast_node_t*         node = NULL;
 	fts_ast_node_t*		node_list = NULL;
@@ -101,8 +101,9 @@ fts_ast_create_node_term(
 
 		cur_len = innobase_mysql_fts_get_token(
 			state->charset,
-			reinterpret_cast<const byte*>(ptr) + cur_pos,
-			reinterpret_cast<const byte*>(ptr) + len, &str, &offset);
+			reinterpret_cast<const byte*>(ptr->str) + cur_pos,
+			reinterpret_cast<const byte*>(ptr->str) + len,
+			&str, &offset);
 
 		if (cur_len == 0) {
 			break;
@@ -124,10 +125,8 @@ fts_ast_create_node_term(
 
 			node->type = FTS_AST_TERM;
 
-			node->term.ptr = static_cast<byte*>(ut_malloc(
-				str.f_len + 1));
-			memcpy(node->term.ptr, str.f_str, str.f_len);
-			node->term.ptr[str.f_len] = '\0';
+			node->term.ptr = fts_ast_string_create(
+						str.f_str, str.f_len);
 
 			fts_ast_state_add_node(
 				static_cast<fts_ast_state_t*>(arg), node);
@@ -160,25 +159,21 @@ UNIV_INTERN
 fts_ast_node_t*
 fts_ast_create_node_text(
 /*=====================*/
-	void*		arg,			/*!< in: ast state instance */
-	const char*	ptr)			/*!< in: ast text string */
+	void*			arg,	/*!< in: ast state instance */
+	const fts_ast_string_t*	ptr)	/*!< in: ast text string */
 {
-	ulint		len = strlen(ptr);
+	ulint		len = ptr->len;
 	fts_ast_node_t*	node = NULL;
 
+	/* Once we come here, the string must have at least 2 quotes ""
+	around the query string, which could be empty. Also the query
+	string may contain 0x00 in it, we don't treat it as null-terminated. */
+	ut_ad(len >= 2);
+	ut_ad(ptr->str[0] == '\"' && ptr->str[len - 1] == '\"');
 
-	ut_ad(len >= 1);
-
-	if (len <= 2) {
-		/* There is a way to directly supply null terminator
-		in the query string (by using 0x220022) and get here,
-		and certainly it would not make a valid query text */
-		ut_ad(ptr[0] == '\"');
-
-		if (len == 2) {
-			ut_ad(ptr[1] == '\"');
-		}
-
+	if (len == 2) {
+		/* If the query string contains nothing except quotes,
+		it's obviously an invalid query. */
 		return(NULL);
 	}
 
@@ -188,11 +183,9 @@ fts_ast_create_node_text(
 	len -= 2;
 
 	node->type = FTS_AST_TEXT;
-	node->text.ptr = static_cast<byte*>(ut_malloc(len + 1));
-
 	/*!< Skip copying the first quote */
-	memcpy(node->text.ptr, ptr + 1, len);
-	node->text.ptr[len] = 0;
+	node->text.ptr = fts_ast_string_create(
+			reinterpret_cast<const byte*>(ptr->str + 1), len);
 	node->text.distance = ULINT_UNDEFINED;
 
 	fts_ast_state_add_node((fts_ast_state_t*) arg, node);
@@ -275,14 +268,14 @@ fts_ast_free_node(
 	switch (node->type) {
 	case FTS_AST_TEXT:
 		if (node->text.ptr) {
-			ut_free(node->text.ptr);
+			fts_ast_string_free(node->text.ptr);
 			node->text.ptr = NULL;
 		}
 		break;
 
 	case FTS_AST_TERM:
 		if (node->term.ptr) {
-			ut_free(node->term.ptr);
+			fts_ast_string_free(node->term.ptr);
 			node->term.ptr = NULL;
 		}
 		break;
@@ -421,10 +414,10 @@ fts_ast_state_free(
 		fts_ast_node_t*	next = node->next_alloc;
 
 		if (node->type == FTS_AST_TEXT && node->text.ptr) {
-			ut_free(node->text.ptr);
+			fts_ast_string_free(node->text.ptr);
 			node->text.ptr = NULL;
 		} else if (node->type == FTS_AST_TERM && node->term.ptr) {
-			ut_free(node->term.ptr);
+			fts_ast_string_free(node->term.ptr);
 			node->term.ptr = NULL;
 		}
 
@@ -445,11 +438,13 @@ fts_ast_node_print(
 {
 	switch (node->type) {
 	case FTS_AST_TEXT:
-		printf("TEXT: %s\n", node->text.ptr);
+		printf("TEXT: ");
+		fts_ast_string_print(node->text.ptr);
 		break;
 
 	case FTS_AST_TERM:
-		printf("TERM: %s\n", node->term.ptr);
+		printf("TERM: ");
+		fts_ast_string_print(node->term.ptr);
 		break;
 
 	case FTS_AST_LIST:
@@ -627,4 +622,75 @@ fts_ast_visit(
 	}
 
 	return(error);
+}
+
+/**
+Create an ast string object, with NUL-terminator, so the string
+has one more byte than len
+@param[in] str		pointer to string
+@param[in] len		length of the string
+@return ast string with NUL-terminator */
+UNIV_INTERN
+fts_ast_string_t*
+fts_ast_string_create(
+	const byte*	str,
+	ulint		len)
+{
+	fts_ast_string_t*	ast_str;
+
+	ut_ad(len > 0);
+
+	ast_str = static_cast<fts_ast_string_t*>
+			(ut_malloc(sizeof(fts_ast_string_t)));
+	ast_str->str = static_cast<byte*>(ut_malloc(len + 1));
+
+	ast_str->len = len;
+	memcpy(ast_str->str, str, len);
+	ast_str->str[len] = '\0';
+
+	return(ast_str);
+}
+
+/**
+Free an ast string instance
+@param[in,out] ast_str		string to free */
+UNIV_INTERN
+void
+fts_ast_string_free(
+	fts_ast_string_t*	ast_str)
+{
+	if (ast_str != NULL) {
+		ut_free(ast_str->str);
+		ut_free(ast_str);
+	}
+}
+
+/**
+Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
+@param[in] str		string to translate
+@param[in] base		the base
+@return translated number */
+UNIV_INTERN
+ulint
+fts_ast_string_to_ul(
+	const fts_ast_string_t*	ast_str,
+	int			base)
+{
+	return(strtoul(reinterpret_cast<const char*>(ast_str->str),
+		       NULL, base));
+}
+
+/**
+Print the ast string
+@param[in] str		string to print */
+UNIV_INTERN
+void
+fts_ast_string_print(
+	const fts_ast_string_t*	ast_str)
+{
+	for (ulint i = 0; i < ast_str->len; ++i) {
+		printf("%c", ast_str->str[i]);
+	}
+
+	printf("\n");
 }
