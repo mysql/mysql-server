@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -76,6 +76,7 @@ enum fts_ast_oper_t {
 struct fts_lexer_t;
 struct fts_ast_node_t;
 struct fts_ast_state_t;
+struct fts_ast_string_t;
 
 typedef dberr_t (*fts_ast_callback)(fts_ast_oper_t, fts_ast_node_t*, void*);
 
@@ -101,16 +102,16 @@ extern
 fts_ast_node_t*
 fts_ast_create_node_term(
 /*=====================*/
-	void*		arg,			/*!< in: ast state */
-	const char*	ptr);			/*!< in: term string */
+	void*			arg,		/*!< in: ast state */
+	const fts_ast_string_t*	ptr);		/*!< in: term string */
 /********************************************************************
 Create an AST text node */
 extern
 fts_ast_node_t*
 fts_ast_create_node_text(
 /*=====================*/
-	void*		arg,			/*!< in: ast state */
-	const char*	ptr);			/*!< in: text string */
+	void*			arg,		/*!< in: ast state */
+	const fts_ast_string_t*	ptr);		/*!< in: text string */
 /********************************************************************
 Create an AST expr list node */
 extern
@@ -233,16 +234,66 @@ fts_lexer_free(
 						free */
 	__attribute__((nonnull));
 
+/**
+Create an ast string object, with NUL-terminator, so the string
+has one more byte than len
+@param[in] str		pointer to string
+@param[in] len		length of the string
+@return ast string with NUL-terminator */
+UNIV_INTERN
+fts_ast_string_t*
+fts_ast_string_create(
+	const byte*	str,
+	ulint		len);
+
+/**
+Free an ast string instance
+@param[in,out] ast_str		string to free */
+UNIV_INTERN
+void
+fts_ast_string_free(
+	fts_ast_string_t*	ast_str);
+
+/**
+Translate ast string of type FTS_AST_NUMB to unsigned long by strtoul
+@param[in] str		string to translate
+@param[in] base		the base
+@return translated number */
+UNIV_INTERN
+ulint
+fts_ast_string_to_ul(
+	const fts_ast_string_t*	ast_str,
+	int			base);
+
+/**
+Print the ast string
+@param[in] str		string to print */
+UNIV_INTERN
+void
+fts_ast_string_print(
+	const fts_ast_string_t*	ast_str);
+
+/* String of length len.
+We always store the string of length len with a terminating '\0',
+regardless of there is any 0x00 in the string itself */
+struct fts_ast_string_t {
+	/*!< Pointer to string. */
+	byte*		str;
+
+	/*!< Length of the string. */
+	ulint		len;
+};
+
 /* Query term type */
 struct fts_ast_term_t {
-	byte*		ptr;			/*!< Pointer to term string.*/
-	ibool		wildcard;		/*!< TRUE if wild card set.*/
+	fts_ast_string_t*	ptr;		/*!< Pointer to term string.*/
+	ibool			wildcard;	/*!< TRUE if wild card set.*/
 };
 
 /* Query text type */
 struct fts_ast_text_t {
-	byte*		ptr;			/*!< Pointer to term string.*/
-	ulint		distance;		/*!< > 0 if proximity distance
+	fts_ast_string_t*	ptr;		/*!< Pointer to text string.*/
+	ulint			distance;	/*!< > 0 if proximity distance
 						set */
 };
 

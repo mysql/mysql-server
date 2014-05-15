@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013,  Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014,  Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -59,9 +59,9 @@ struct fts_lexer_struct {
 %}
 
 %union {
-	int		oper;
-	char*		token;
-	fts_ast_node_t*	node;
+	int			oper;
+	fts_ast_string_t*	token;
+	fts_ast_node_t*		node;
 };
 
 /* Enable re-entrant parser */
@@ -139,8 +139,8 @@ expr	: term		{
 	}
 
 	| text '@' FTS_NUMB {
-		fts_ast_term_set_distance($1, strtoul($3, NULL, 10));
-		free($3);
+		fts_ast_term_set_distance($1, fts_ast_string_to_ul($3, 10));
+		fts_ast_string_free($3);
 	}
 
 	| prefix term '*' {
@@ -157,8 +157,8 @@ expr	: term		{
 	| prefix text '@' FTS_NUMB {
 		$$ = fts_ast_create_node_list(state, $1);
 		fts_ast_add_node($$, $2);
-		fts_ast_term_set_distance($2, strtoul($4, NULL, 10));
-		free($4);
+		fts_ast_term_set_distance($2, fts_ast_string_to_ul($4, 10));
+		fts_ast_string_free($4);
 	}
 
 	| prefix text {
@@ -190,12 +190,12 @@ prefix	: '-'		{
 
 term	: FTS_TERM	{
 		$$  = fts_ast_create_node_term(state, $1);
-		free($1);
+		fts_ast_string_free($1);
 	}
 
 	| FTS_NUMB	{
 		$$  = fts_ast_create_node_term(state, $1);
-		free($1);
+		fts_ast_string_free($1);
 	}
 
 	/* Ignore leading '*' */
@@ -206,7 +206,7 @@ term	: FTS_TERM	{
 
 text	: FTS_TEXT	{
 		$$  = fts_ast_create_node_text(state, $1);
-		free($1);
+		fts_ast_string_free($1);
 	}
 	;
 %%
