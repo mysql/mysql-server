@@ -321,6 +321,8 @@ buf_flush_init_flush_rbt(void)
 
 		buf_flush_list_mutex_enter(buf_pool);
 
+		ut_ad(buf_pool->flush_rbt == NULL);
+
 		/* Create red black tree for speedy insertions in flush list. */
 		buf_pool->flush_rbt = rbt_create(
 			sizeof(buf_page_t*), buf_flush_block_cmp);
