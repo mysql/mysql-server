@@ -1224,6 +1224,14 @@ public:
   void set_eventbuf_max_alloc(unsigned sz);
   unsigned get_eventbuf_max_alloc();
 
+  /**
+   * Set/get free_percent- the % of event buffer memory
+   * that should be available before resuming buffering,
+   * after the max_alloc limit is hit.
+   */
+  int set_eventbuffer_free_percent(unsigned sz);
+  unsigned get_eventbuffer_free_percent();
+
 #ifndef DOXYGEN_SHOULD_SKIP_DEPRECATED
   /**
    * Wait for Ndb object to successfully set-up connections to 
