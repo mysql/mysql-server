@@ -9471,6 +9471,16 @@ cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
          never stored after a unique key lookup in the clustered index and
          furhter index_next/prev calls can not be used. So loose index scan
          optimization can not be used in this case.
+    SA7. If Q has both AGG_FUNC(DISTINCT ...) and MIN/MAX() functions then this
+         access method is not used.
+         For above queries MIN/MAX() aggregation has to be done at
+         nested_loops_join (end_send_group). But with current design MIN/MAX()
+         is always set as part of loose index scan. Because of this mismatch
+         MIN() and MAX() values will be set incorrectly. For such queries to
+         work we need a new interface for loose index scan. This new interface
+         should only fetch records with min and max values and let
+         end_send_group to do aggregation. Until then do not use
+         loose_index_scan.
     GA1. If Q has a GROUP BY clause, then GA is a prefix of I. That is, if
          G_i = A_j => i = j.
     GA2. If Q has a DISTINCT clause, then there is a permutation of SA that
@@ -9636,6 +9646,13 @@ get_best_group_min_max(PARAM *param, SEL_TREE *tree, double read_time)
         DBUG_RETURN(NULL);
     }
   }
+
+  /* Check (SA7). */
+  if (is_agg_distinct && (have_max || have_min))
+  {
+    DBUG_RETURN(NULL);
+  }
+
   /* Check (SA5). */
   if (join->select_distinct)
   {
