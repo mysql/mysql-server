@@ -54,7 +54,6 @@
          "Adapter/impl/ndb/src/NdbInterpretedCode_wrapper.cpp",
          "Adapter/impl/ndb/src/NdbRecordObject.cpp",
          "Adapter/impl/ndb/src/NdbScanFilter_wrapper.cpp",
-         "Adapter/impl/ndb/src/NdbTransaction_wrapper.cpp",         
          "Adapter/impl/ndb/src/NdbTypeEncoders.cpp",
          "Adapter/impl/ndb/src/Record_wrapper.cpp",
          "Adapter/impl/ndb/src/Record.cpp",
