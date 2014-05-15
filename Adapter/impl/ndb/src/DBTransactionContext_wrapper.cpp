@@ -54,3 +54,18 @@ Handle<Value> getEmptyOperationSet(const Arguments &args) {
   DBTransactionContext * ctx = unwrapPointer<DBTransactionContext *>(args.Holder());
   return ctx->getWrappedEmptyOperationSet();
 }
+
+
+void NdbTransaction_initOnLoad(Handle<Object> target) {
+  DEFINE_JS_INT(target, "NoCommit", NdbTransaction::NoCommit);
+  DEFINE_JS_INT(target, "Commit", NdbTransaction::Commit);
+  DEFINE_JS_INT(target, "Rollback", NdbTransaction::Rollback);
+  DEFINE_JS_INT(target, "DefaultAbortOption", NdbOperation::DefaultAbortOption);
+  DEFINE_JS_INT(target, "AbortOnError", NdbOperation::AbortOnError);
+  DEFINE_JS_INT(target, "AO_IgnoreError", NdbOperation::AO_IgnoreError);
+  DEFINE_JS_INT(target, "NotStarted", NdbTransaction::NotStarted);
+  DEFINE_JS_INT(target, "Started", NdbTransaction::Started);
+  DEFINE_JS_INT(target, "Committed", NdbTransaction::Committed);
+  DEFINE_JS_INT(target, "Aborted", NdbTransaction::Aborted);
+  DEFINE_JS_INT(target, "NeedAbort", NdbTransaction::NeedAbort);
+}
