@@ -65,7 +65,7 @@ bool DBTransactionContext::tryImmediateStartTransaction(KeyOperation * op) {
 
 void DBTransactionContext::startTransaction(KeyOperation * op) {
   assert(ndbTransaction == 0);
-  bool startWithHint = (op && op->key_buffer); 
+  bool startWithHint = (op && op->key_buffer && op->key_record->isPK()); 
 
   if(startWithHint) {
     char hash_buffer[512];        
@@ -104,23 +104,23 @@ int DBTransactionContext::execute(DBOperationSet *operations,
   int opListSize = operations->size;
   NdbTransaction::ExecType execType = static_cast<NdbTransaction::ExecType>(_execType);
   NdbOperation::AbortOption abortOption = static_cast<NdbOperation::AbortOption>(_abortOption);
-  bool didClose = false;
+  bool doClose = (execType != NdbTransaction::NoCommit);
   
   if(! ndbTransaction) {
     startTransaction(operations->getKeyOperation(0));
   }
   operations->prepare(ndbTransaction);
   rval = ndbTransaction->execute(execType, abortOption, force);
-  if(execType != NdbTransaction::NoCommit) {
-    closeTransaction();
-    didClose = true;
-  }
-  DEBUG_PRINT("EXECUTE sync : %s %d operation%s %s => return: %d",
+  DEBUG_PRINT("EXECUTE sync : %s %d operation%s %s => return: %d error: %d",
               modes[execType], 
               opListSize, 
               (opListSize == 1 ? "" : "s"), 
-              (didClose ? " & close transaction" : ""),
-              rval);
+              (doClose ? " & close transaction" : ""),
+              rval,
+              ndbTransaction->getNdbError().code);
+  if(doClose) {
+    closeTransaction();
+  }	
   return rval;
 }
 
