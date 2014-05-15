@@ -4746,7 +4746,7 @@ bool create_table_impl(THD *thd,
       therefore we don't introduce a new error message only for it.
     */
     mysql_mutex_lock(&LOCK_open);
-    if (get_cached_table_share(db, table_name))
+    if (get_cached_table_share(thd, db, table_name))
     {
       mysql_mutex_unlock(&LOCK_open);
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);

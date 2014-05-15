@@ -188,6 +188,29 @@ struct row_log_t {
 };
 
 
+/** Allocate the file for online log.
+@param[in,out]	log	online rebuild log
+@return TRUE if success, false if not */
+static __attribute__((warn_unused_result))
+bool
+row_log_file_create(
+	row_log_t*	log)
+{
+	DBUG_ENTER("row_log_file_create");
+	if (log->fd == -1) {
+		log->fd = row_merge_file_create_low();
+		DBUG_EXECUTE_IF("simulate_row_log_file_creation_failure",
+				if (log->fd != -1)
+					row_merge_file_destroy_low(log->fd);
+				log->fd = -1;);
+		if (log->fd < 0) {
+			DBUG_RETURN(false);
+		}
+		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_LOG_FILES);
+	}
+	DBUG_RETURN(true);
+}
+
 /** Allocate the memory for the log buffer.
 @param[in,out]	log_buf	Buffer used for log operation
 @return TRUE if success, false if not */
@@ -331,6 +354,12 @@ row_log_online_op(
 			       log->tail.buf, avail_size);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (!row_log_file_create(log)) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
+
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -441,6 +470,11 @@ row_log_table_close_func(
 			       log->tail.buf, avail);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (!row_log_file_create(log)) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -460,6 +494,7 @@ write_failed:
 
 	log->tail.total += size;
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
+err_exit:
 	mutex_exit(&log->mutex);
 }
 
@@ -1450,7 +1485,8 @@ row_log_table_apply_insert_low(
 	entry = row_build_index_entry(row, NULL, index, heap);
 
 	error = row_ins_clust_index_entry_low(
-		flags, BTR_MODIFY_TREE, index, index->n_uniq, entry, 0, thr);
+		flags, BTR_MODIFY_TREE, index, index->n_uniq,
+		entry, 0, thr, false);
 
 	switch (error) {
 	case DB_SUCCESS:
@@ -1474,7 +1510,8 @@ row_log_table_apply_insert_low(
 		entry = row_build_index_entry(row, NULL, index, heap);
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
-			index, offsets_heap, heap, entry, trx_id, thr);
+			index, offsets_heap, heap, entry, trx_id, thr,
+			false);
 	} while (error == DB_SUCCESS);
 
 	return(error);
@@ -1967,7 +2004,7 @@ func_exit_committed:
 
 	dtuple_t*	entry	= row_build_index_entry(
 		row, NULL, index, heap);
-	const upd_t*	update	= row_upd_build_difference_binary(
+	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
 		false, NULL, heap);
 
@@ -2045,9 +2082,8 @@ func_exit_committed:
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
 			error = btr_store_big_rec_extern_fields(
-				index, btr_pcur_get_block(&pcur),
-				btr_pcur_get_rec(&pcur), cur_offsets,
-				big_rec, &mtr, BTR_STORE_UPDATE);
+				&pcur, update, cur_offsets, big_rec, &mtr,
+				BTR_STORE_UPDATE);
 		}
 
 		dtuple_big_rec_free(big_rec);
@@ -2100,7 +2136,7 @@ func_exit_committed:
 			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
 			BTR_MODIFY_TREE, index, offsets_heap, heap,
-			entry, trx_id, thr);
+			entry, trx_id, thr, false);
 
 		mtr_start(&mtr);
 		mtr.set_named_space(index->space);
@@ -2497,7 +2533,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd != -1
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -2834,13 +2871,7 @@ row_log_allocate(
 		DBUG_RETURN(false);
 	}
 
-	log->fd = row_merge_file_create_low();
-
-	if (log->fd < 0) {
-		ut_free(log);
-		DBUG_RETURN(false);
-	}
-
+	log->fd = -1;
 	mutex_create("index_online_log", &log->mutex);
 
 	log->blobs = NULL;
@@ -3333,7 +3364,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd != -1
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */

@@ -169,8 +169,13 @@ Repair_mrg_table_error_handler::handle_condition(THD *,
      share is done through incrementing last_table_id, a
      global variable used for this purpose.
   3) LOCK_open protects the initialisation of the table share
-     object and all its members and also protects reading the
-     .frm file from where the table share is initialised.
+     object and all its members, however, it does not protect
+     reading the .frm file from where the table share is
+     initialised. In get_table_share, the lock is temporarily
+     released while opening the table definition in order to
+     allow a higher degree of concurrency. Concurrent access
+     to the same share is controlled by introducing a condition
+     variable for signaling when opening the share is completed.
   4) In particular the share->ref_count is updated each time
      a new table object is created that refers to a table share.
      This update is protected by LOCK_open.
@@ -190,12 +195,48 @@ Repair_mrg_table_error_handler::handle_condition(THD *,
      change if any of those mutexes are held.
   9) share->m_flush_tickets
 */
+
 mysql_mutex_t LOCK_open;
+
+/**
+  COND_open synchronizes concurrent opening of the same share:
+
+  If a thread calls get_table_share, it releases the LOCK_open
+  mutex while reading the definition from file. If a different
+  thread calls get_table_share for the same share at this point
+  in time, it will find the share in the TDC, but with the
+  m_open_in_progress flag set to true. This will make the
+  (second) thread wait for the COND_open condition, while the
+  first thread completes opening the table definition.
+
+  When the first thread is done reading the table definition,
+  it will set m_open_in_progress to false and broadcast the
+  COND_open condition. Then, all threads waiting for COND_open
+  will wake up and, re-search the TDC for the share, and:
+
+  1) If the share is gone, the thread will continue to allocate
+     and open the table definition. This happens, e.g., if the
+     first thread failed when opening the table defintion and
+     had to destroy the share.
+  2) If the share is still in the cache, and m_open_in_progress
+     is still true, the thread will wait for the condition again.
+     This happens if a different thread finished opening a
+     different share.
+  3) If the share is still in the cache, and m_open_in_progress
+     has become false, the thread will check if the share is ok
+     (no error), increment the ref counter, and return the share.
+*/
+
+mysql_cond_t COND_open;
 
 #ifdef HAVE_PSI_INTERFACE
 static PSI_mutex_key key_LOCK_open;
+static PSI_cond_key key_COND_open;
 static PSI_mutex_info all_tdc_mutexes[]= {
   { &key_LOCK_open, "LOCK_open", PSI_FLAG_GLOBAL }
+};
+static PSI_cond_info all_tdc_conds[]= {
+  { &key_COND_open, "COND_open", 0 }
 };
 
 /**
@@ -210,6 +251,9 @@ static void init_tdc_psi_keys(void)
 
   count= array_elements(all_tdc_mutexes);
   mysql_mutex_register(category, all_tdc_mutexes, count);
+
+  count= array_elements(all_tdc_conds);
+  mysql_cond_register(category, all_tdc_conds, count);
 }
 #endif /* HAVE_PSI_INTERFACE */
 
@@ -361,11 +405,13 @@ bool table_def_init(void)
   init_tdc_psi_keys();
 #endif
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_open, &COND_open, NULL);
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
   if (table_cache_manager.init())
   {
+    mysql_cond_destroy(&COND_open);
     mysql_mutex_destroy(&LOCK_open);
     return true;
   }
@@ -416,6 +462,7 @@ void table_def_free(void)
     /* Free table definitions. */
     my_hash_free(&table_def_cache);
     table_cache_manager.destroy();
+    mysql_cond_destroy(&COND_open);
     mysql_mutex_destroy(&LOCK_open);
   }
   DBUG_VOID_RETURN;
@@ -428,29 +475,39 @@ uint cached_table_definitions(void)
 }
 
 
-/*
-  Get TABLE_SHARE for a table.
+/**
+  Get the TABLE_SHARE for a table.
 
-  get_table_share()
-  thd			Thread handle
-  table_list		Table that should be opened
-  key			Table cache key
-  key_length		Length of key
-  db_flags		Flags to open_table_def():
-			OPEN_VIEW
-  error			out: Error code from open_table_def()
+  Get a table definition from the table definition cache. If the share
+  does not exist, create a new one from the persistently stored table
+  definition, and temporarily release LOCK_open while retrieving it.
+  Re-lock LOCK_open when the table definition has been retrieved, and
+  broadcast this to other threads waiting for the share to become opened.
 
-  IMPLEMENTATION
-    Get a table definition from the table definition cache.
-    If it doesn't exist, create a new from the table definition file.
+  If the share exists, and is in the process of being opened, wait for
+  opening to complete before continuing.
 
-  NOTES
-    We must have wrlock on LOCK_open when we come here
-    (To be changed later)
+  @pre  It is a precondition that the caller must own LOCK_open before
+        calling this function.
 
-  RETURN
-   0  Error
-   #  Share for table
+  @note Callers of this function cannot rely on LOCK_open being
+        held for the duration of the call. It may be temporarily
+        released while the table definition is opened, and it may be
+        temporarily released while the thread is waiting for a different
+        thread to finish opening it.
+
+  @note After share->m_open_in_progress is set, there should be no wait
+        for resources like row- or metadata locks, table flushes, etc.
+        Otherwise, we may end up in deadlocks that will not be detected.
+
+  @param thd         thread handle
+  @param table_list  table that should be opened
+  @param key         table cache key
+  @param key_length  length of key
+  @param db_flags    flags to open_table_def(): OPEN_VIEW
+  @param [out] error error code from open_table_def()
+
+  @return Pointer to the new TABLE_SHARE, or 0 if there was an error
 */
 
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
@@ -459,9 +516,13 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                              my_hash_value_type hash_value)
 {
   TABLE_SHARE *share;
+  int open_table_err= 0;
   DBUG_ENTER("get_table_share");
 
   *error= 0;
+
+  /* Make sure we own LOCK_open */
+  mysql_mutex_assert_owner(&LOCK_open);
 
   /*
     To be able perform any operation on table we should own
@@ -472,11 +533,29 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
                                              table_list->table_name,
                                              MDL_SHARED));
 
-  /* Read table definition from cache */
-  if ((share= (TABLE_SHARE*) my_hash_search_using_hash_value(&table_def_cache,
-                                                             hash_value, (uchar*) key, key_length)))
-    goto found;
+  /*
+    Read table definition from the cache. If the share is being opened,
+    wait for the appropriate condition. The share may be destroyed if
+    open fails, so after cond_wait, we must repeat searching the
+    hash table.
+  */
+  while ((share= reinterpret_cast<TABLE_SHARE*>(
+                     my_hash_search_using_hash_value(
+                       &table_def_cache, hash_value,
+                       reinterpret_cast<uchar*>(const_cast<char*>(key)),
+                       key_length))))
+  {
+    if (!share->m_open_in_progress)
+      goto found;
 
+    mysql_cond_wait(&COND_open, &LOCK_open);
+  }
+
+  /*
+    If alloc fails, the share object will not be present in the TDC, so no
+    thread will be waiting for m_open_in_progress. Hence, a broadcast is
+    not necessary.
+  */
   if (!(share= alloc_table_share(table_list, key, key_length)))
   {
     DBUG_RETURN(0);
@@ -494,21 +573,72 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     CAVEAT. This means that the table cannot be used for
     binlogging/replication purposes, unless get_table_share() has been
     called directly or indirectly.
-   */
+  */
   assign_new_table_id(share);
 
+  /*
+    If hash insert fails, there is no need to broadcast COND_open,
+    since the share is not present in the cache yet.
+  */
   if (my_hash_insert(&table_def_cache, (uchar*) share))
   {
     free_table_share(share);
     DBUG_RETURN(0);				// return error
   }
-  if (open_table_def(thd, share, db_flags))
+
+  /*
+    We must increase ref_count prior to releasing LOCK_open
+    to keep the share from being deleted in tdc_remove_table()
+    and TABLE_SHARE::wait_for_old_version. We must also set
+    m_open_in_progress to indicate allocated but incomplete share.
+  */
+  share->ref_count++;                           // Mark in use
+  share->m_open_in_progress= true;              // Mark being opened
+
+  /*
+    Temporarily release LOCK_open before opening the table definition,
+    which can be done without mutex protection.
+  */
+  mysql_mutex_unlock(&LOCK_open);
+  DEBUG_SYNC(thd, "get_share_before_open");
+  open_table_err= open_table_def(thd, share, db_flags);
+
+  /*
+    Get back LOCK_open before continuing. Notify all waiters that the
+    opening is finished, even if there was a failure while opening.
+  */
+  mysql_mutex_lock(&LOCK_open);
+  share->m_open_in_progress= false;
+  mysql_cond_broadcast(&COND_open);
+
+  /*
+    Fake an open_table_def error in debug build, resulting in
+    ER_NO_SUCH_TABLE.
+  */
+  DBUG_EXECUTE_IF("set_open_table_err",
+                  {
+                    open_table_err= 1;
+                    share->error= 1;
+                    share->open_errno= ENOENT;
+                    open_table_error(share, share->error,
+                                     share->open_errno, 0);
+                  });
+
+  /*
+    If there was an error while opening the definition, delete the
+    share from the TDC, and (implicitly) destroy the share. Waiters
+    will detect that the share is gone, and repeat the attempt at
+    opening the table definition. The ref counter must be stepped
+    down to allow the share to be destroyed.
+  */
+  if (open_table_err)
   {
     *error= share->error;
+    share->ref_count--;
     (void) my_hash_delete(&table_def_cache, (uchar*) share);
+    DEBUG_SYNC(thd, "get_share_after_destroy");
     DBUG_RETURN(0);
   }
-  share->ref_count++;				// Mark in use
 
 #ifdef HAVE_PSI_TABLE_INTERFACE
   share->m_psi= PSI_TABLE_CALL(get_table_share)(false, share);
@@ -518,9 +648,17 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
 
   DBUG_PRINT("exit", ("share: 0x%lx  ref_count: %u",
                       (ulong) share, share->ref_count));
+
+  /* If debug, assert that the share is actually present in the cache */
+#ifndef DBUG_OFF
+  DBUG_ASSERT(my_hash_search(&table_def_cache,
+                             reinterpret_cast<uchar*>(const_cast<char*>(key)),
+                             key_length));
+#endif
   DBUG_RETURN(share);
 
 found:
+  DEBUG_SYNC(thd, "get_share_found_share");
   /*
      We found an existing table definition. Return it if we didn't get
      an error when reading the table definition from file.
@@ -704,29 +842,51 @@ void release_table_share(TABLE_SHARE *share)
 }
 
 
-/*
-  Check if table definition exits in cache
+/**
+  Get an existing table definition from the table definition cache.
 
-  SYNOPSIS
-    get_cached_table_share()
-    db			Database name
-    table_name		Table name
+  Search the table definition cache for a share with the given key.
+  If the share exists, check the m_open_in_progress flag. If true,
+  the share is in the process of being opened by another thread,
+  so we must wait for the opening to finish. This may make the share
+  be destroyed, if open_table_def() fails, so we must repeat the search
+  in the hash table. Return the share.
 
-  RETURN
-    0  Not cached
-    #  TABLE_SHARE for table
+  @note While waiting for the condition variable signaling that a
+        table share is completely opened, the thread will temporarily
+        release LOCK_open. Thus, the caller cannot rely on LOCK_open
+        being held for the duration of the call.
+
+  @param thd        thread descriptor
+  @param db         database name
+  @param table_name table name
+
+  @retval NULL      a share for the table does not exist in the cache
+  @retval != NULL   pointer to existing share in the cache
 */
 
-TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name)
+TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
+                                    const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
   uint key_length;
+  TABLE_SHARE *share= NULL;
   mysql_mutex_assert_owner(&LOCK_open);
 
   key_length= create_table_def_key((THD*) 0, key, db, table_name, 0);
-  return (TABLE_SHARE*) my_hash_search(&table_def_cache,
-                                       (uchar*) key, key_length);
-}  
+  while ((share= reinterpret_cast<TABLE_SHARE*>(
+                     my_hash_search(&table_def_cache,
+                       reinterpret_cast<uchar*>(const_cast<char*>(key)),
+                       key_length))))
+  {
+    if (!share->m_open_in_progress)
+      break;
+
+    DEBUG_SYNC(thd, "get_cached_share_cond_wait");
+    mysql_cond_wait(&COND_open, &LOCK_open);
+  }
+  return share;
+}
 
 
 /*
@@ -764,6 +924,9 @@ OPEN_TABLE_LIST *list_open_tables(THD *thd, const char *db, const char *wild)
   {
     TABLE_SHARE *share= (TABLE_SHARE *)my_hash_element(&table_def_cache, idx);
 
+    /* Skip shares that are being opened */
+    if (share->m_open_in_progress)
+      continue;
     if (db && my_strcasecmp(system_charset_info, db, share->db.str))
       continue;
     if (wild && wild_compare(share->table_name.str, wild, 0))
@@ -894,7 +1057,8 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     bool found=0;
     for (TABLE_LIST *table= tables; table; table= table->next_local)
     {
-      TABLE_SHARE *share= get_cached_table_share(table->db, table->table_name);
+      TABLE_SHARE *share= get_cached_table_share(thd, table->db,
+                                                 table->table_name);
 
       if (share)
       {
@@ -981,7 +1145,7 @@ bool close_cached_tables(THD *thd, TABLE_LIST *tables,
     {
       for (TABLE_LIST *table= tables; table; table= table->next_local)
       {
-        share= get_cached_table_share(table->db, table->table_name);
+        share= get_cached_table_share(thd, table->db, table->table_name);
         if (share && share->has_old_version())
         {
 	  found= TRUE;
@@ -2215,7 +2379,7 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
                             table->table_name, MDL_SHARED));
 
   mysql_mutex_lock(&LOCK_open);
-  share= get_cached_table_share(table->db, table->table_name);
+  share= get_cached_table_share(thd, table->db, table->table_name);
   mysql_mutex_unlock(&LOCK_open);
 
   if (share)
@@ -2452,7 +2616,7 @@ tdc_wait_for_old_version(THD *thd, const char *db, const char *table_name,
   bool res= FALSE;
 
   mysql_mutex_lock(&LOCK_open);
-  if ((share= get_cached_table_share(db, table_name)) &&
+  if ((share= get_cached_table_share(thd, db, table_name)) &&
       share->has_old_version())
   {
     struct timespec abstime;
@@ -2968,6 +3132,7 @@ share_found:
       if (wait_result)
         DBUG_RETURN(TRUE);
 
+      DEBUG_SYNC(thd, "open_table_before_retry");
       goto retry_share;
     }
 
@@ -2988,6 +3153,7 @@ share_found:
   }
 
   mysql_mutex_unlock(&LOCK_open);
+  DEBUG_SYNC(thd, "open_table_found_share");
 
   /* make a new table */
   if (!(table= (TABLE*) my_malloc(key_memory_TABLE,
@@ -4353,25 +4519,16 @@ open_and_process_table(THD *thd, LEX *lex, TABLE_LIST *tables,
   if (tables->schema_table)
   {
     /*
-      If this information_schema table is merged into a mergeable
-      view, ignore it for now -- it will be filled when its respective
-      TABLE_LIST is processed. This code works only during re-execution.
+      Since we no longer set TABLE_LIST::schema_table/table for table
+      list elements representing mergeable view, we can't meet a table
+      list element which represent information_schema table and a view
+      at the same time. Otherwise, acquiring metadata lock om the view
+      would have been necessary.
     */
-    if (tables->view)
-    {
-      MDL_ticket *mdl_ticket;
-      /*
-        We still need to take a MDL lock on the merged view to protect
-        it from concurrent changes.
-      */
-      if (!open_table_get_mdl_lock(thd, ot_ctx, &tables->mdl_request,
-                                   flags, &mdl_ticket) &&
-          mdl_ticket != NULL)
-        goto process_view_routines;
-      /* Fall-through to return error. */
-    }
-    else if (!mysql_schema_table(thd, lex, tables) &&
-             !check_and_update_table_version(thd, tables, tables->table->s))
+    DBUG_ASSERT(!tables->view);
+
+    if (!mysql_schema_table(thd, lex, tables) &&
+        !check_and_update_table_version(thd, tables, tables->table->s))
     {
       goto end;
     }
@@ -9228,6 +9385,16 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
   if ((share= (TABLE_SHARE*) my_hash_search(&table_def_cache,(uchar*) key,
                                             key_length)))
   {
+    /*
+      Since share->ref_count is incremented when a table share is opened
+      in get_table_share(), before LOCK_open is temporarily released, it
+      is sufficient to check this condition alone and ignore the
+      share->m_open_in_progress flag.
+
+      Note that it is safe to call table_cache_manager.free_table() for
+      shares with m_open_in_progress == true, since such shares don't
+      have any TABLE objects associated.
+    */
     if (share->ref_count)
     {
       /*

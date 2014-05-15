@@ -159,7 +159,6 @@ JOIN::exec()
       }
       /* Query block (without union) always returns 0 or 1 row */
       thd->limit_found_rows= send_records;
-      thd->set_examined_row_count(0);
     }
     else
     {
@@ -718,7 +717,6 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   /* Update results for FOUND_ROWS */
   if (!join->send_row_on_empty_set())
   {
-    join->thd->set_examined_row_count(0);
     join->thd->limit_found_rows= 0;
   }
 
@@ -1838,12 +1836,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     /* Mark for EXPLAIN that the row was not found */
     pos->filter_effect= 1.0;
     pos->rows_fetched= 0.0;
-    pos->prefix_record_count= 0.0;
+    pos->prefix_rowcount= 0.0;
     pos->ref_depend_map= 0;
     if (!table->pos_in_table_list->outer_join || error > 0)
       DBUG_RETURN(error);
   }
-    
 
   if (tab->join_cond() && !table->null_row)
   {

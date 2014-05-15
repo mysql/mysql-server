@@ -1269,14 +1269,14 @@ do 'include/innodb-util.inc';
 ib_restore_tablespaces("test_wl5522", "t1");
 EOF
 
-SET SESSION debug="+d,buf_page_is_corrupt_failure";
+SET SESSION debug="+d,buf_page_import_corrupt_failure";
 
 --replace_regex /'.*t1.cfg'/'t1.cfg'/
 
 --error ER_INTERNAL_ERROR
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 
-SET SESSION debug="-d,buf_page_is_corrupt_failure";
+SET SESSION debug="-d,buf_page_import_corrupt_failure";
 
 DROP TABLE test_wl5522.t1;
 

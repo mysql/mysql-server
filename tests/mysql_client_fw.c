@@ -498,7 +498,7 @@ static void my_print_result_metadata(MYSQL_RES *result)
    j= field->max_length;
    if (j < 4 && !IS_NOT_NULL(field->flags))
    j= 4;
-   field->max_length= j;
+   field->max_length= (unsigned long)j;
  }
  if (!opt_silent)
  {

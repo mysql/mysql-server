@@ -26,6 +26,7 @@
 #include <sql_common.h>
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <mysqld_error.h>                       /* to check server error codes */
+#include <string>  /* std::string */
 
 #define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
@@ -132,16 +133,24 @@ static struct my_option my_long_options[] =
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"force", 'f',
    "Don't ask for confirmation on drop database; with multiple commands, "
    "continue even if an error occurs.",
@@ -909,7 +918,48 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_LOGS:
     {
-      if (mysql_refresh(mysql,REFRESH_LOG))
+      std::string command;
+      if (argc > 1)
+      {
+        bool first_arg= true;
+        for (command= "FLUSH "; argc > 1; argc--, argv++)
+        {
+          if (!first_arg)
+            command+= ",";
+
+          if (!my_strcasecmp(&my_charset_latin1, argv[1], "binary"))
+            command+= " BINARY LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "engine"))
+            command+= " ENGINE LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "error"))
+            command+= " ERROR LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "general"))
+            command+= " GENERAL LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "relay"))
+            command+= " RELAY LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "slow"))
+            command+= " SLOW LOGS";
+          else
+          {
+            /*
+              Not a valid log type, assume it's the next command.
+              Remove the trailing comma if any of the log types is specified
+              or flush all if no specific log type is specified.
+            */
+            if (!first_arg)
+              command.resize(command.size() - 1);
+            else
+              command= "FLUSH LOGS";
+            break;
+          }
+
+          if (first_arg)
+            first_arg= false;
+        }
+      }
+      else
+        command= "FLUSH LOGS";
+      if (mysql_query(mysql, command.c_str()))
       {
 	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
