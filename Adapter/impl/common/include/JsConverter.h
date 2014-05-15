@@ -44,10 +44,14 @@ typedef Handle<Object> jsobject;
 template <typename T> class JsValueConverter {
 public:  
   JsValueConverter(jsvalue v) {
-    DEBUG_ASSERT(v->IsObject());
-    Local<Object> obj = v->ToObject();
-    DEBUG_ASSERT(obj->InternalFieldCount() == 2);
-    native_object = unwrapPointer<T>(obj);
+    if(v->IsNull()) {
+      native_object = 0;
+    } else {
+      DEBUG_ASSERT(v->IsObject());
+      Local<Object> obj = v->ToObject();
+      DEBUG_ASSERT(obj->InternalFieldCount() == 2);
+      native_object = unwrapPointer<T>(obj);
+    }
   }
 
   virtual ~JsValueConverter() {}
