@@ -132,13 +132,18 @@ static int
 toku_thread_create(struct toku_thread_pool *pool, struct toku_thread **toku_thread_return) {
     int r;
     struct toku_thread *MALLOC(thread);
-    if (thread == NULL) {
+    if (thread == nullptr) {
         r = get_error_errno();
     } else {
         memset(thread, 0, sizeof *thread);
         thread->pool = pool;
-        toku_cond_init(&thread->wait, NULL);
-        r = toku_pthread_create(&thread->tid, NULL, toku_thread_run_internal, thread); resource_assert_zero(r);
+        toku_cond_init(&thread->wait, nullptr);
+        r = toku_pthread_create(&thread->tid, nullptr, toku_thread_run_internal, thread);
+        if (r) {
+            toku_cond_destroy(&thread->wait);
+            toku_free(thread);
+            thread = nullptr;
+        }
         *toku_thread_return = thread;
     }
     return r;
@@ -192,7 +197,7 @@ toku_thread_run_internal(void *arg) {
         if (doexit)
             break;
         toku_thread_pool_lock(pool);
-        thread->f = NULL;
+        thread->f = nullptr;
         toku_list_push(&pool->free_threads, &thread->free_link);
     }
     return arg;
@@ -202,13 +207,13 @@ int
 toku_thread_pool_create(struct toku_thread_pool **pool_return, int max_threads) {
     int r;
     struct toku_thread_pool *CALLOC(pool);
-    if (pool == NULL) {
+    if (pool == nullptr) {
         r = get_error_errno();
     } else {
-        toku_mutex_init(&pool->lock, NULL);
+        toku_mutex_init(&pool->lock, nullptr);
         toku_list_init(&pool->free_threads);
         toku_list_init(&pool->all_threads);
-        toku_cond_init(&pool->wait_free, NULL);
+        toku_cond_init(&pool->wait_free, nullptr);
         pool->cur_threads = 0;
         pool->max_threads = max_threads;
         *pool_return = pool;
@@ -230,7 +235,7 @@ toku_thread_pool_unlock(struct toku_thread_pool *pool) {
 void 
 toku_thread_pool_destroy(struct toku_thread_pool **poolptr) {
     struct toku_thread_pool *pool = *poolptr;
-    *poolptr = NULL;
+    *poolptr = nullptr;
 
     // ask the threads to exit
     toku_thread_pool_lock(pool);
@@ -260,7 +265,7 @@ toku_thread_pool_destroy(struct toku_thread_pool **poolptr) {
 
 static int 
 toku_thread_pool_add(struct toku_thread_pool *pool) {
-    struct toku_thread *thread = NULL;
+    struct toku_thread *thread = nullptr;
     int r = toku_thread_create(pool, &thread); 
     if (r == 0) {
         pool->cur_threads += 1;
@@ -294,7 +299,7 @@ toku_thread_pool_get_one(struct toku_thread_pool *pool, int dowait, struct toku_
         struct toku_thread *thread = toku_list_struct(list, struct toku_thread, free_link);
         *toku_thread_return = thread;
     } else
-        *toku_thread_return = NULL;
+        *toku_thread_return = nullptr;
     toku_thread_pool_unlock(pool);
     return r;
 }
