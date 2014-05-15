@@ -55,7 +55,7 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op);
    arg1: Array of HelperSpecs
    arg2: DBTransactionContext *
 
-   Returns: Null
+   Returns: DBOperationSet
 */
 Handle<Value> DBOperationHelper(const Arguments &args) {
   HandleScope scope;
