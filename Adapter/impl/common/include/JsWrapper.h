@@ -22,6 +22,7 @@
 #define NODEJS_ADAPTER_INCLUDE_JSWRAPPER_H
 
 #include <node.h>
+#include "adapter_global.h"
 #include "unified_debug.h"
 
 using v8::Persistent;
@@ -37,10 +38,9 @@ using v8::String;
 
 /*****************************************************************
  Code to confirm that C++ types wrapped as JavaScript values
- are unwrapped back to the original type.
- This can be disabled.
+ are unwrapped back to the original type. This can be disabled.
+ ENABLE_WRAPPER_TYPE_CHECKS is defined in adapter_global.h
  ******************************************************************/
-#define ENABLE_WRAPPER_TYPE_CHECKS 1
 
 #if ENABLE_WRAPPER_TYPE_CHECKS
 #include <typeinfo>
