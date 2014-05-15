@@ -50,9 +50,9 @@ include/assert.inc [The value of Certification_db_size should be 5 after startin
 include/assert.inc [The value of Stable_set should be empty currently for the gcs]
 include/assert.inc [The value of Last_certified_transaction should be the gtid of the last applied transaction.]
 include/assert.inc [The value of Applier_module_status should be ON after starting gcs]
-##############################################
-The values after being checked after cleanup
-##############################################
+####################################
+The values being checked after stop
+####################################
 include/stop_gcs_replication.inc
 include/assert.inc [The value of group name should be 8a84f397-aaa4-18df-89ab-c70aa9823561]
 include/assert.inc [The value of group name should be NULL]
