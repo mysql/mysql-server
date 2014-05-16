@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -543,7 +543,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 1502, DMEC, IE, "Filegroup already exists" },
   { 1503, DMEC, SE, "Out of filegroup records" },
-  { 1504, DMEC, SE, "Out of logbuffer memory" },
+  { 1504, DMEC, SE, "Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)" },
   { 1505, DMEC, IE, "Invalid filegroup" },
   { 1506, DMEC, IE, "Invalid filegroup version" },
   { 1507, DMEC, IE, "File no already inuse" },
