@@ -6163,6 +6163,53 @@ void sql_kill(THD *thd, ulong id, bool only_kill_query)
     my_error(error, MYF(0), id);
 }
 
+/**
+  This class implements callback function used by killall_non_super_threads
+  to kill all threads that do not have the SUPER privilege
+*/
+
+class Kill_non_super_conn : public Do_THD_Impl
+{
+private:
+  /* THD of connected client. */
+  THD *m_client_thd;
+
+public:
+  Kill_non_super_conn(THD *thd) :
+	    m_client_thd(thd)
+  {
+    DBUG_ASSERT(m_client_thd->security_ctx->master_access & SUPER_ACL);
+  }
+
+  virtual void operator()(THD *thd_to_kill)
+  {
+    mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
+
+    /* Kill only if non super thread and non slave thread*/
+    if (!(thd_to_kill->security_ctx->master_access & SUPER_ACL)
+	&& thd_to_kill->killed != THD::KILL_CONNECTION
+	&& !thd_to_kill->slave_thread)
+      thd_to_kill->awake(THD::KILL_CONNECTION);
+
+    mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);
+  }
+};
+
+/*
+  kills all the threads that do not have the
+  SUPER privilege.
+
+  SYNOPSIS
+    killall_non_super_threads()
+    thd                 Thread class
+*/
+
+void killall_non_super_threads(THD *thd)
+{
+  Kill_non_super_conn kill_non_super_conn(thd);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->do_for_all_thd(&kill_non_super_conn);
+}
 
 /** If pointer is not a null pointer, append filename to it. */
 

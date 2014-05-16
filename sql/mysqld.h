@@ -165,6 +165,7 @@ extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
+extern my_bool offline_mode;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
@@ -383,6 +384,7 @@ extern PSI_mutex_key key_mts_temp_table_LOCK;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
+extern PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
@@ -756,7 +758,8 @@ extern mysql_mutex_t
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
-       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout;
+       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
+       LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
