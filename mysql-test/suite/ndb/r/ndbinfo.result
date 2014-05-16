@@ -577,3 +577,9 @@ node_id
 1
 2
 
+Verify there are no ndbinfo views without 'root@localhost' as definer
+select table_schema, table_name, definer from information_schema.views
+  where table_schema = 'ndbinfo' and
+        definer != 'root@localhost';
+table_schema	table_name	definer
+
