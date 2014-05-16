@@ -11142,6 +11142,7 @@ innodb_rec_per_key(
 	ut_a(index->table->stat_initialized);
 
 	ut_ad(i < dict_index_get_n_unique(index));
+	ut_ad(!dict_index_is_spatial(index));
 
 	if (records == 0) {
 		/* "Records per key" is meaningless for empty tables.
@@ -11494,9 +11495,10 @@ ha_innobase::info_low(
 
 			for (j = 0; j < key->actual_key_parts; j++) {
 
-				if (key->flags & HA_FULLTEXT) {
-					/* The whole concept has no validity
-					for FTS indexes. */
+				if ((key->flags & HA_FULLTEXT)
+				    || (key->flags & HA_SPATIAL)) {
+					/* The record per key does not apply to
+					FTS or Spatial indexes. */
 					key->rec_per_key[j] = 1;
 					key->set_records_per_key(j, 1.0);
 					continue;
