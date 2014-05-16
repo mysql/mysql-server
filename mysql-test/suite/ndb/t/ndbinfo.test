@@ -346,7 +346,8 @@ let $t1_id = query_get_value(select @t1_id as id, id, 1);
 eval create view sum_per_tab as 
 select replace(fq_name, cast($t1_id as char(10)), "<t1 id>") as fq_name, 
 parent_fq_name, type, 
-if (type="Ordered index", -(abs(sum(fixed_elem_count)-120)<50), 
+if (type="Ordered index", 
+-(round(sum(fixed_elem_count)/165)), 
     sum(fixed_elem_count)) as fixed_elem_count,
 max(fixed_elem_size_bytes) as fixed_elem_size_bytes,
 round(sum(fixed_elem_alloc_bytes/fixed_elem_size_bytes)
@@ -378,12 +379,15 @@ from  ndbinfo.ndb$pools where pool_name <> "Data memory"
 or block_number=249 group by pool_name, block_number;
 
 # Check that the combined size of all L2PMap nodes equals the total size
-# of the allocated L2PMap pages minus a small (<5%) page overhead.
+# of the allocated L2PMap pages minus a small (<1%) page overhead.
 create view check_l2pmap_pools as 
-select min(floor(20*nodes.total*nodes.entry_size/
+select min(floor(1000*nodes.total*nodes.entry_size/
            (pages.used*pages.entry_size))) as l2pmap_ratio 
 from ndbinfo.ndb$pools as pages join ndbinfo.ndb$pools as nodes 
-where pages.node_id=nodes.node_id and pages.pool_name="L2PMap pages" 
+where pages.node_id=nodes.node_id 
+and pages.block_instance=nodes.block_instance 
+and pages.block_number=nodes.block_number
+and pages.pool_name="L2PMap pages" 
 and nodes.pool_name="L2PMap nodes";
 
 create view l2p_frag_sum as
