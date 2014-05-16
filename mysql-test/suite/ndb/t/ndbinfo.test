@@ -293,4 +293,13 @@ set @@global.ndbinfo_offline = FALSE;
 
 eval $q1;
 
+#
+# Bug#17018500 BOGUS DEFINER VALUE FOR NDBINFO VIEWS REPORTED
+#              IN INFORMATION_SCHEMA.VIEW
+#
+--echo Verify there are no ndbinfo views without 'root@localhost' as definer
+select table_schema, table_name, definer from information_schema.views
+  where table_schema = 'ndbinfo' and
+        definer != 'root@localhost';
+
 --source ndbinfo_drop.inc
