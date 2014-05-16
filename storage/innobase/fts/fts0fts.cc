@@ -1946,12 +1946,17 @@ fts_create_one_index_table(
 	char			table_name[MAX_FULL_NAME_LEN];
 	dberr_t			error;
 	CHARSET_INFO*		charset;
+	ulint			flags2 = 0;
 
 	ut_ad(index->type & DICT_FTS);
 
 	fts_get_table_name(fts_table, table_name);
 
-	new_table = dict_mem_table_create(table_name, 0, 5, 1, 0);
+	if (srv_file_per_table) {
+		flags2 = DICT_TF2_USE_FILE_PER_TABLE;
+	}
+
+	new_table = dict_mem_table_create(table_name, 0, 5, 1, flags2);
 
 	field = dict_index_get_nth_field(index, 0);
 	charset = fts_get_charset(field->col->prtype);
@@ -1975,7 +1980,7 @@ fts_create_one_index_table(
 	dict_mem_table_add_col(new_table, heap, "ilist", DATA_BLOB,
 			       4130048,	0);
 
-	error = row_create_table_for_mysql(new_table, trx, true);
+	error = row_create_table_for_mysql(new_table, trx, false);
 
 	if (error != DB_SUCCESS) {
 		trx->error_state = error;
