@@ -47,6 +47,10 @@ a	b
 111	11
 102	12
 112	12
+EXPLAIN update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+2,bug38999_2.b=bug38999_1.b+10 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	UPDATE	bug38999_1	NULL	range	PRIMARY,b	b	4	NULL	3	100.00	Using where
+1	UPDATE	bug38999_2	NULL	ALL	NULL	NULL	NULL	NULL	9	100.00	Using where; Using join buffer (Block Nested Loop)
 update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+2,bug38999_2.b=bug38999_1.b+10 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
 select * from bug38999_1;
 a	b
