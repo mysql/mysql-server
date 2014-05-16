@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -113,6 +113,7 @@ extern int my_handle_options (int *argc, char ***argv,
                               const struct my_option *longopts,
                               my_get_one_option,
                               const char **command_list);
+extern void print_cmdline_password_warning();
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_cleanup_options(const struct my_option *options);
 extern void my_print_help(const struct my_option *options);
