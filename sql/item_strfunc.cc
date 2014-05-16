@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1588,6 +1588,42 @@ String *Item_func_substr_index::val_str(String *str)
   return (&tmp_value);
 }
 
+
+/**
+  A helper function for trim(leading ...) for multibyte charsets.
+  @param res        Copy of 'res' in calling functions.
+  @param ptr        Where to start trimming.
+  @param end        End of string to be trimmed.
+  @param remove_str The string to be removed from [ptr .. end)
+  @return           Pointer to left-trimmed string.
+ */
+static inline
+char *trim_left_mb(String *res, char *ptr, char *end, String *remove_str)
+{
+  const char * const r_ptr= remove_str->ptr();
+  const uint remove_length= remove_str->length();
+
+  while (ptr + remove_length <= end)
+  {
+    uint num_bytes= 0;
+    while (num_bytes < remove_length)
+    {
+      uint len;
+      if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
+        num_bytes+= len;
+      else
+        ++num_bytes;
+    }
+    if (num_bytes != remove_length)
+      break;
+    if (memcmp(ptr, r_ptr, remove_length))
+      break;
+    ptr+= remove_length;
+  }
+  return ptr;
+}
+
+
 /*
 ** The trim functions are extension to ANSI SQL because they trim substrings
 ** They ltrim() and rtrim() functions are optimized for 1 byte strings
@@ -1622,19 +1658,28 @@ String *Item_func_ltrim::val_str(String *str)
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
-  if (remove_length == 1)
+#ifdef USE_MB
+  if (use_mb(res->charset()))
   {
-    char chr=(*remove_str)[0];
-    while (ptr != end && *ptr == chr)
-      ptr++;
+    ptr= trim_left_mb(res, ptr, end, remove_str);
   }
   else
+#endif /* USE_MB */
   {
-    const char *r_ptr=remove_str->ptr();
-    end-=remove_length;
-    while (ptr <= end && !memcmp(ptr, r_ptr, remove_length))
-      ptr+=remove_length;
-    end+=remove_length;
+    if (remove_length == 1)
+    {
+      char chr=(*remove_str)[0];
+      while (ptr != end && *ptr == chr)
+        ptr++;
+    }
+    else
+    {
+      const char *r_ptr=remove_str->ptr();
+      end-=remove_length;
+      while (ptr <= end && !memcmp(ptr, r_ptr, remove_length))
+        ptr+=remove_length;
+      end+=remove_length;
+    }
   }
   if (ptr == res->ptr())
     return res;
@@ -1728,11 +1773,8 @@ String *Item_func_trim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
   char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  const char *r_ptr;
   String tmp(buff, sizeof(buff), system_charset_info);
   String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
 
   res= args[0]->val_str(str);
   if ((null_value=args[0]->null_value))
@@ -1745,33 +1787,19 @@ String *Item_func_trim::val_str(String *str)
       return 0;
   }
 
-  if ((remove_length= remove_str->length()) == 0 ||
+  const uint remove_length= remove_str->length();
+  if (remove_length == 0 ||
       remove_length > res->length())
     return res;
 
   ptr= (char*) res->ptr();
   end= ptr+res->length();
-  r_ptr= remove_str->ptr();
+  const char * const r_ptr= remove_str->ptr();
 #ifdef USE_MB
   if (use_mb(res->charset()))
   {
-    while (ptr + remove_length <= end)
-    {
-      uint num_bytes= 0;
-      while (num_bytes < remove_length)
-      {
-        uint len;
-        if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
-          num_bytes+= len;
-        else
-          ++num_bytes;
-      }
-      if (num_bytes != remove_length)
-        break;
-      if (memcmp(ptr, r_ptr, remove_length))
-        break;
-      ptr+= remove_length;
-    }
+    ptr= trim_left_mb(res, ptr, end, remove_str);
+
     char *p=ptr;
     register uint32 l;
  loop:
