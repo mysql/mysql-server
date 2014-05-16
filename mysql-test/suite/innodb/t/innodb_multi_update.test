@@ -22,7 +22,12 @@ update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+10 where bug38999_1.b
 select * from bug38999_1;
 
 # Range key (in bug38999_1)
+let query=
 update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+2,bug38999_2.b=bug38999_1.b+10 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
+
+eval EXPLAIN $query;
+eval $query;
+
 select * from bug38999_1;
 select * from bug38999_2;
 
