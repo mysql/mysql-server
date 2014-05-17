@@ -2223,8 +2223,11 @@ public:
     UintR tcRecNow;
     BlockReference lastNewTcBlockref;
     BlockReference newTcBlockref;
+    Uint32 lastTakeOverInstanceId;
+    Uint32 takeOverInstanceId;
+    Uint32 maxInstanceId;
     Uint16 oldNodeId;
-  }; // Size 28 bytes
+  };
   typedef Ptr<TcNodeFailRecord> TcNodeFailRecordPtr;
 
   struct CommitLogRecord {
@@ -2730,7 +2733,7 @@ private:
   void readSrFourthZeroLab(Signal* signal);
   void copyLqhKeyRefLab(Signal* signal);
   void restartOperationsLab(Signal* signal);
-  void lqhTransNextLab(Signal* signal);
+  void lqhTransNextLab(Signal* signal, TcNodeFailRecordPtr tcNodeFailPtr);
   void restartOperationsAfterStopLab(Signal* signal);
   void startphase1Lab(Signal* signal, Uint32 config, Uint32 nodeId);
   void tupkeyConfLab(Signal* signal);
@@ -2971,7 +2974,6 @@ private:
 
 // MAX_NDB_NODES is the size of this array
   TcNodeFailRecord *tcNodeFailRecord;
-  TcNodeFailRecordPtr tcNodeFailptr;
   UintR ctcNodeFailrecFileSize;
 
   Uint16 terrorCode;
@@ -3277,10 +3279,11 @@ public:
     
     Uint32 apiRef;    // Api block ref
     Uint32 apiOprec;  // Connection Object in NDB API
-    Uint32 tcNodeId;  
+    BlockReference tcRef;
     union { Uint32 nextPool; Uint32 nextHash; };
     Uint32 prevHash;
     Uint32 reference_count;
+    bool in_hash;
 
     inline bool equal(const CommitAckMarker & p) const {
       return ((p.transid1 == transid1) && (p.transid2 == transid2));
@@ -3297,6 +3300,8 @@ public:
   typedef DLHashTable<CommitAckMarker>::Iterator CommitAckMarkerIterator;
   void execREMOVE_MARKER_ORD(Signal* signal);
   void scanMarkers(Signal* signal, Uint32 tcNodeFail, Uint32 bucket, Uint32 i);
+  bool check_tc_and_update_max_instance(BlockReference ref,
+                                        TcNodeFailRecord *tcNodeFailPtr);
 
   void ndbdFailBlockCleanupCallback(Signal* signal, Uint32 failedNodeID, Uint32 ignoredRc);
 

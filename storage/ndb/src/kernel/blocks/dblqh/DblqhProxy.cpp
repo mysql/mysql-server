@@ -1368,8 +1368,17 @@ DblqhProxy::execLQH_TRANSREQ(Signal* signal)
   }
   const LqhTransReq* req = (const LqhTransReq*)signal->getDataPtr();
   Ss_LQH_TRANSREQ& ss = ssSeize<Ss_LQH_TRANSREQ>();
+  ss.m_maxInstanceId = 0;
   ss.m_req = *req;
-  ndbrequire(signal->getLength() == LqhTransReq::SignalLength);
+  if (signal->getLength() < LqhTransReq::SignalLength)
+  {
+    /**
+     * TC that performs take over doesn't suppport taking over one
+     * TC instance at a time
+     */
+     ss.m_req.instanceId = RNIL;
+  }
+  ndbrequire(signal->getLength() <= LqhTransReq::SignalLength);
   sendREQ(signal, ss);
 
   /**
@@ -1491,6 +1500,10 @@ DblqhProxy::sendLQH_TRANSCONF(Signal* signal, Uint32 ssId)
     skipConf(ss);
   }
 
+  if (ss.m_conf.maxInstanceId > ss.m_maxInstanceId)
+  {
+    ss.m_maxInstanceId = ss.m_conf.maxInstanceId;
+  }
   if (!lastReply(ss))
     return;
 
@@ -1500,6 +1513,7 @@ DblqhProxy::sendLQH_TRANSCONF(Signal* signal, Uint32 ssId)
     conf->tcRef = ss.m_req.senderData;
     conf->lqhNodeId = getOwnNodeId();
     conf->operationStatus = LqhTransConf::LastTransConf;
+    conf->maxInstanceId = ss.m_maxInstanceId;
     sendSignal(ss.m_req.senderRef, GSN_LQH_TRANSCONF,
                signal, LqhTransConf::SignalLength, JBB);
   } else {
