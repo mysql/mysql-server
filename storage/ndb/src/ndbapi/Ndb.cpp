@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -739,7 +739,8 @@ Ndb::startTransaction(const NdbDictionary::Table *table,
 }
 
 NdbTransaction*
-Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
+Ndb::startTransaction(const NdbDictionary::Table* table,
+                      Uint32 partitionId)
 {
   DBUG_ENTER("Ndb::startTransaction");
   DBUG_PRINT("enter", 
@@ -761,6 +762,29 @@ Ndb::startTransaction(const NdbDictionary::Table* table, Uint32 partitionId)
     theImpl->incClientStat(TransStartCount, 1);
 
     NdbTransaction *trans= startTransactionLocal(0, nodeId, 0);
+    DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
+                       (long) trans,
+                       (long) (trans ? trans->getTransactionId() : 0)));
+    DBUG_RETURN(trans);
+  }
+  DBUG_RETURN(NULL);
+}
+
+NdbTransaction*
+Ndb::startTransaction(Uint32 nodeId,
+                      Uint32 instanceId)
+{
+  DBUG_ENTER("Ndb::startTransaction");
+  DBUG_PRINT("enter", 
+             ("nodeId: %u instanceId: %u", nodeId, instanceId));
+  if (theInitState == Initialised) 
+  {
+    theError.code = 0;
+    checkFailedNode();
+
+    theImpl->incClientStat(TransStartCount, 1);
+
+    NdbTransaction *trans= startTransactionLocal(0, nodeId, instanceId);
     DBUG_PRINT("exit",("start trans: 0x%lx  transid: 0x%lx",
                        (long) trans,
                        (long) (trans ? trans->getTransactionId() : 0)));
