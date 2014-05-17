@@ -281,9 +281,11 @@ populate_offsets(
 		ulint sz1 = index->rec_cache.sz_of_offsets;
 		ulint sz2 = offsets[0];
 		if (sz1 < sz2) {
-			index->rec_cache.offsets = (ulint*) mem_heap_alloc(
-				index->heap, sizeof(ulint) * sz2);
-			index->rec_cache.sz_of_offsets = sz2;
+			index->rec_cache.offsets = static_cast<ulint*>(
+				mem_heap_alloc(
+					index->heap, sizeof(ulint) * sz2));
+			index->rec_cache.sz_of_offsets =
+				static_cast<uint32_t>(sz2);
 		}
 
 		memcpy(index->rec_cache.offsets,
