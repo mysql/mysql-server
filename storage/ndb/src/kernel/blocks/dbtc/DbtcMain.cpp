@@ -10480,7 +10480,7 @@ void Dbtc::initApiConnectFail(Signal* signal,
                               LqhTransConf::OperationStatus transStatus,
                               Uint32 reqinfo,
                               BlockReference applRef,
-                              Uint32 gci,
+                              Uint64 gci,
                               NodeId nodeId)
 {
   apiConnectptr.p->transid[0] = transid1;
@@ -10742,7 +10742,7 @@ void Dbtc::updateApiStateFail(Signal* signal,
                               LqhTransConf::OperationStatus transStatus,
                               Uint32 reqinfo,
                               BlockReference applRef,
-                              Uint32 gci,
+                              Uint64 gci,
                               NodeId nodeId)
 {
   if(LqhTransConf::getMarkerFlag(reqinfo))
