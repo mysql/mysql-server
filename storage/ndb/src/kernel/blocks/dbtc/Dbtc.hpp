@@ -1504,7 +1504,7 @@ private:
                           LqhTransConf::OperationStatus transStatus,
                           Uint32 reqinfo,
                           BlockReference applRef,
-                          Uint32 gci,
+                          Uint64 gci,
                           NodeId nodeId);
   void updateApiStateFail(Signal* signal,
                           Uint32 transid1,
@@ -1512,7 +1512,7 @@ private:
                           LqhTransConf::OperationStatus transStatus,
                           Uint32 reqinfo,
                           BlockReference applRef,
-                          Uint32 gci,
+                          Uint64 gci,
                           NodeId nodeId);
   bool findTcConnectFail(Signal* signal,
                          Uint32 transid1,
