@@ -4041,6 +4041,13 @@ void Qmgr::execPREP_FAILREQ(Signal* signal)
   Uint32 Tindex;
   for (Tindex = 0; Tindex < MAX_NDB_NODES; Tindex++) {
     if (NdbNodeBitmask::get(prepFail->theNodes, Tindex)){
+      if (ERROR_INSERTED(941) &&
+          (Tindex == 2) &&
+          (getOwnNodeId() == 4))
+      {
+        /* Insert ERROR_INSERT crash */
+        CRASH_INSERTION(941);
+      }
       cprepFailedNodes[arrayIndex] = Tindex;
       arrayIndex++;
     }//if
