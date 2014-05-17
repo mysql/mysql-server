@@ -2126,6 +2126,7 @@ public:
     UintR nextTcConnectrec;
     UintR prevHashRec;
     UintR prevLogTcrec;
+    UintR prevTcLogQueue;
     UintR prevTc;
     UintR readlenAi;
     UintR reqRef;
@@ -2494,6 +2495,7 @@ private:
   void findPageRef(Signal* signal, CommitLogRecord* commitLogRecord);
   int  findTransaction(UintR Transid1, UintR Transid2, UintR TcOprec, UintR hi);
   void getFirstInLogQueue(Signal* signal, Ptr<TcConnectionrec>&dst);
+  void remove_from_prepare_log_queue(Signal *signal, TcConnectionrecPtr tcPtr);
   bool getFragmentrec(Signal* signal, Uint32 fragId);
   void initialiseAddfragrec(Signal* signal);
   void initialiseFragrec(Signal* signal);
