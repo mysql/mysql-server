@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -42,6 +42,25 @@ int HugoOperations::startTransaction(Ndb* pNdb,
   return NDBT_OK;
 }
 
+int HugoOperations::startTransaction(Ndb* pNdb,
+                                     Uint32 node_id,
+                                     Uint32 instance_id)
+{
+  if (pTrans != NULL)
+  {
+    ndbout << "HugoOperations::startTransaction, pTrans != NULL" << endl;
+    return NDBT_FAILED;
+  }
+  pTrans = pNdb->startTransaction(node_id, instance_id);
+  if (pTrans == NULL) {
+    const NdbError err = pNdb->getNdbError();
+    NDB_ERR(err);
+    setNdbError(err);
+    return NDBT_FAILED;
+  }
+  return NDBT_OK;
+}
+
 int HugoOperations::setTransaction(NdbTransaction* new_trans, bool not_null_ok){
   
   if (pTrans != NULL && !not_null_ok){
@@ -69,6 +88,7 @@ int HugoOperations::closeTransaction(Ndb* pNdb){
   m_result_sets.clear();
   m_executed_result_sets.clear();
 
+  pTrans = NULL;
   return NDBT_OK;
 }
 
