@@ -458,13 +458,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 	share->blobs[j].offset=offset;
 	j++;
       }
-#if MYSQL_VERSION_ID <= 60100
-      /* This is to detect old checksum option */
+      /* This is to detect how to calculate checksums */
       if (share->rec[i].null_bit)
         share->has_null_fields= 1;
       if (share->rec[i].type == FIELD_VARCHAR)
         share->has_varchar_fields= 1;
-#endif
       offset+=share->rec[i].length;
     }
     share->rec[i].type=(int) FIELD_LAST;	/* End marker */
@@ -754,7 +752,8 @@ void mi_setup_functions(register MYISAM_SHARE *share)
     share->read_record=_mi_read_pack_record;
     share->read_rnd=_mi_read_rnd_pack_record;
     if ((share->options &
-              (HA_OPTION_PACK_RECORD | HA_OPTION_NULL_FIELDS)))
+              (HA_OPTION_PACK_RECORD | HA_OPTION_NULL_FIELDS)) ||
+        share->has_varchar_fields)
       share->calc_checksum= mi_checksum;
     else
       share->calc_checksum= mi_static_checksum;

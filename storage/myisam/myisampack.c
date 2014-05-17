@@ -415,6 +415,11 @@ static MI_INFO *open_isam_file(char *name,int mode)
     if (verbose)
       puts("Recompressing already compressed table");
     share->options&= ~HA_OPTION_READ_ONLY_DATA; /* We are modifing it */
+
+    /* We want to use the new checksums if we have null fields */
+    if (share->has_null_fields)
+      share->options|= HA_OPTION_NULL_FIELDS;
+    
   }
   if (! force_pack && share->state.state.records != 0 &&
       (share->state.state.records <= 1 ||
@@ -2964,7 +2969,8 @@ static int save_state(MI_INFO *isam_file,PACK_MRG_INFO *mrg,my_off_t new_length,
   uint key;
   DBUG_ENTER("save_state");
 
-  options|= HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA;
+  options|= (HA_OPTION_COMPRESS_RECORD | HA_OPTION_READ_ONLY_DATA |
+             (share->options & HA_OPTION_NULL_FIELDS));
   mi_int2store(share->state.header.options,options);
 
   share->state.state.data_file_length=new_length;
@@ -3013,7 +3019,8 @@ static int save_state_mrg(File file,PACK_MRG_INFO *mrg,my_off_t new_length,
 
   state= isam_file->s->state;
   options= (mi_uint2korr(state.header.options) | HA_OPTION_COMPRESS_RECORD |
-	    HA_OPTION_READ_ONLY_DATA);
+	    HA_OPTION_READ_ONLY_DATA |
+            (isam_file->s->options & HA_OPTION_NULL_FIELDS));
   mi_int2store(state.header.options,options);
   state.state.data_file_length=new_length;
   state.state.del=0;
