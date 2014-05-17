@@ -324,6 +324,17 @@ void Dblqh::execCONTINUEB(Signal* signal)
     if (logPartPtr.p->m_log_complete_queue.isEmpty())
     {
       jam();
+      if (logPartPtr.p->m_log_prepare_queue.isEmpty())
+      {
+        /**
+         * We have already removed all entries from both queues (this can
+         * happen if aborts arrive and remove entries from the prepare
+         * queue). We stop checking the log queues until they fill up
+         * again.
+         */
+        jam();
+        return;
+      }
       /**
        * prepare is first in queue...check that it's ok to rock'n'roll
        */
@@ -9143,13 +9154,7 @@ void Dblqh::abortStateHandlerLab(Signal* signal)
     break;
   case TcConnectionrec::LOG_QUEUED:
     jam();
-/* ------------------------------------------------------------------------- */
-/*CURRENTLY QUEUED FOR LOGGING. WAIT UNTIL THE LOG RECORD HAVE BEEN INSERTED */
-/*AND THEN CONTINUE THE ABORT PROCESS.                                       */
-//Could also be waiting for an overloaded log disk. In this case it is easy
-//to abort when CONTINUEB arrives.
-/* ------------------------------------------------------------------------- */
-    return;
+    remove_from_prepare_log_queue(signal, tcConnectptr);
     break;
   case TcConnectionrec::STOPPED:
     jam();
@@ -20922,8 +20927,49 @@ Dblqh::getFirstInLogQueue(Signal* signal,
     jam();
     queue->lastElement = RNIL;
   }//if
+  tmp.p->nextTcLogQueue = RNIL;
+  tmp.p->prevTcLogQueue = RNIL;
   dst = tmp;
 }//Dblqh::getFirstInLogQueue()
+
+void
+Dblqh::remove_from_prepare_log_queue(Signal *signal,
+                                     TcConnectionrecPtr tcPtr)
+{
+  TcConnectionrecPtr tmp;
+  LogPartRecord::OperationQueue *queue = &logPartPtr.p->m_log_prepare_queue;
+
+  if (tcPtr.p->prevTcLogQueue == RNIL)
+  {
+    jam();
+    ndbrequire(queue->firstElement == tcPtr.i);
+    queue->firstElement = tcPtr.p->nextTcLogQueue;
+  }
+  else
+  {
+    jam();
+    tmp.i = tcPtr.p->prevTcLogQueue;
+    ptrCheckGuard(tmp, ctcConnectrecFileSize, tcConnectionrec);
+    tmp.p->nextTcLogQueue = tcPtr.p->nextTcLogQueue;
+  }
+
+  if (tcPtr.p->nextTcLogQueue == RNIL)
+  {
+    jam();
+    ndbrequire(queue->lastElement == tcPtr.i);
+    queue->lastElement = tcPtr.p->prevTcLogQueue;
+  }
+  else
+  {
+    jam();
+    tmp.i = tcPtr.p->nextTcLogQueue;
+    ptrCheckGuard(tmp, ctcConnectrecFileSize, tcConnectionrec);
+    tmp.p->prevTcLogQueue = tcPtr.p->prevTcLogQueue;
+  }
+
+  tcPtr.p->prevTcLogQueue = RNIL;
+  tcPtr.p->nextTcLogQueue = RNIL;
+}
 
 /* ---------------------------------------------------------------- */
 /* ---------------- GET FRAGMENT RECORD --------------------------- */
@@ -21311,8 +21357,12 @@ void Dblqh::initialiseTcrec(Signal* signal)
       tcConnectptr.p->attrInfoIVal = RNIL;
       tcConnectptr.p->m_flags= 0;
       tcConnectptr.p->tcTimer = 0;
+      tcConnectptr.p->nextLogTcrec = RNIL;
+      tcConnectptr.p->prevLogTcrec = RNIL;
       tcConnectptr.p->nextHashRec = RNIL;
       tcConnectptr.p->prevHashRec = RNIL;
+      tcConnectptr.p->nextTcLogQueue = RNIL;
+      tcConnectptr.p->prevTcLogQueue = RNIL;
       tcConnectptr.p->nextTcConnectrec = tcConnectptr.i + 1;
     }//for
     tcConnectptr.i = ctcConnectrecFileSize - 1;
@@ -21639,10 +21689,12 @@ Dblqh::linkWaitLog(Signal* signal,
   if (lwlTcConnectptr.i == RNIL) {
     jam();
     queue.firstElement = tcConnectptr.i;
+    tcConnectptr.p->prevTcLogQueue = RNIL;
   } else {
     jam();
     ptrCheckGuard(lwlTcConnectptr, ctcConnectrecFileSize, tcConnectionrec);
     lwlTcConnectptr.p->nextTcLogQueue = tcConnectptr.i;
+    tcConnectptr.p->prevTcLogQueue = lwlTcConnectptr.i;
   }//if
   queue.lastElement = tcConnectptr.i;
   tcConnectptr.p->nextTcLogQueue = RNIL;
@@ -23650,6 +23702,7 @@ Dblqh::execDUMP_STATE_ORD(Signal* signal)
     ndbout << " nextTcConnectrec = " << tcRec.p->nextTcConnectrec
 	   << " nextTc = " << tcRec.p->nextTc
 	   << " nextTcLogQueue = " << tcRec.p->nextTcLogQueue
+	   << " prevTcLogQueue = " << tcRec.p->prevTcLogQueue
 	   << " nextLogTcrec = " << tcRec.p->nextLogTcrec
 	   << endl;
     ndbout << " nextHashRec = " << tcRec.p->nextHashRec
