@@ -1513,6 +1513,7 @@ dict_table_use_file_per_table(
 Get index by first field of the index
 @return index which is having first field matches
 with the field present in field_index position of table */
+UNIV_INLINE
 dict_index_t*
 dict_table_get_index_on_first_col(
 /*==============================*/
