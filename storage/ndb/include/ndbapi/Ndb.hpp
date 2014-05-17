@@ -1516,6 +1516,16 @@ public:
    */
   NdbTransaction* startTransaction(const NdbDictionary::Table* table,
                                    Uint32 partitionId);
+  /**
+   * Start a transaction on a specified node id and instance id.
+   * Mostly intended for test cases, but can also be useful on
+   * heterogenous cluster installations.
+   * 
+   * As in all startTransaction variants the nodeId and instanceId is
+   * merely a hint and if the node is down another TC will be used
+   * instead.
+   */
+  NdbTransaction* startTransaction(Uint32 nodeId, Uint32 instanceId);
 
   /**
    * Compute distribution hash value given table/keys
