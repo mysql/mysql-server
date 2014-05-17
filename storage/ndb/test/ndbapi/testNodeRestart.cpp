@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,7 @@
 #include <RefConvert.hpp>
 #include <NdbEnv.h>
 #include <NdbMgmd.hpp>
+#include <NdbMem.h>
 #include <my_sys.h>
 #include <ndb_rand.h>
 
@@ -121,6 +122,239 @@ int runPkReadUntilStopped(NDBT_Context* ctx, NDBT_Step* step){
     }
     i++;
   }
+  return result;
+}
+
+static
+int start_transaction_on_specific_place(Vector<HugoOperations*> op_array,
+                                        Uint32 index,
+                                        Ndb *pNdb,
+                                        NodeId node_id,
+                                        Uint32 instance_id)
+{
+  if (op_array[index]->startTransaction(pNdb,
+                                        node_id,
+                                        instance_id) != NDBT_OK)
+  {
+    return NDBT_FAILED;
+  }
+  NdbConnection* pCon = op_array[index]->getTransaction();
+  Uint32 transNode= pCon->getConnectedNodeId();
+  if (transNode == node_id)
+  {
+    return NDBT_OK;
+  }
+  op_array[index]->closeTransaction(pNdb);
+  return NDBT_FAILED;
+}
+
+static
+void cleanup_op_array(Vector<HugoOperations*> &op_array, Ndb *pNdb, int num_instances)
+{
+  for (int instance_id = 0; instance_id < num_instances; instance_id++)
+  {
+    op_array[instance_id]->closeTransaction(pNdb);
+  }
+}
+
+/**
+ * This test case is about stress testing our TC failover code.
+ * We always run this with a special config with 4 data nodes
+ * where node 2 has more transaction records than node 1 and
+ * node 3. Node 4 has 4 TC instances and has more operation
+ * records than node 1 and node 3.
+ *
+ * So in order to test we fill up all transaction records with
+ * small transactions in node 2 and instance 1. This is done
+ * by runManyTransactions.
+ *
+ * We also fill up all operation records in instance 1 through
+ * 4. This is done by runLargeTransactions since we execute
+ * this by fairly large transactions, few transactions enough to
+ * be able to handle all transactions, but too many operations to
+ * handle. This will ensure that each TC failover step will make
+ * progress.
+ *
+ * We don't commit the transactions, instead we crash the node
+ * 2 and 4 (we do this by a special error insert that crashes
+ * node 4 when node 2 fails. This ensures that both the nodes
+ * have to handle TC failover in the same failover batch. This
+ * is important to ensure that we also test the failed node
+ * queue handling in DBTC.
+ */
+int run_multiTCtakeover(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int records = ctx->getNumRecords();
+  HugoTransactions hugoTrans(*ctx->getTab());
+  if (hugoTrans.loadTable(GETNDB(step), records, 12) != 0)
+  {
+    ndbout << "Failed to load table for multiTC takeover test" << endl;
+    return NDBT_FAILED;
+  }
+  ctx->setProperty("runLargeDone", (Uint32)0);
+  ctx->setProperty("restartsDone", (Uint32)0);
+  return NDBT_OK;
+}
+
+int runLargeTransactions(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int multiop = 50;
+  int trans_per_instance = 10;
+  int num_instances = 4;
+  int op_instances = num_instances * trans_per_instance;
+  Vector <HugoOperations*> op_array;
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+
+  for (int i = 0; i < op_instances; i++)
+  {
+    op_array.push_back(new HugoOperations(*ctx->getTab()));
+    if (op_array[i] == NULL)
+    {
+      ndbout << "Failed to allocate HugoOperations instance " << i << endl;
+      cleanup_op_array(op_array, pNdb, i);
+      return NDBT_FAILED;
+    }
+  }
+
+  for (int instance_id = 1; instance_id <= num_instances; instance_id++)
+  {
+    for (int i = 0; i < trans_per_instance; i++)
+    {
+      Uint32 index = (instance_id - 1) * trans_per_instance + i;
+      if (start_transaction_on_specific_place(op_array,
+                                              index,
+                                              pNdb,
+                                              4, /* node id */
+                                              instance_id) != NDBT_OK)
+      {
+        ndbout << "Failed to start transaction, index = " << index << endl;
+        cleanup_op_array(op_array, pNdb, op_instances);
+        return NDBT_FAILED;
+      }
+      for (int j = 0; j < multiop; j++)
+      {
+        int record_no = records + (index * multiop) + j;
+        if (op_array[index]->pkInsertRecord(pNdb, record_no, 1, rand()))
+        {
+          ndbout << "Failed to insert record number = " << record_no << endl;
+          cleanup_op_array(op_array, pNdb, op_instances);
+          return NDBT_FAILED;
+        }
+      }
+      if (op_array[index]->execute_NoCommit(pNdb) != 0)
+      {
+        ndbout << "Failed to execute no commit, index = " << index << endl;
+        cleanup_op_array(op_array, pNdb, op_instances);
+        return NDBT_FAILED;
+      }
+    }
+  }
+  /**
+   * Wait until all preparations are complete until we restart node 4 that
+   * holds those transactions.
+   */
+  ndbout << "runLargeTransactions prepare done" << endl;
+  ctx->setProperty("runLargeDone", (Uint32)1);
+  while (ctx->getProperty("restartsDone", (Uint32)0) != 1)
+  {
+    ndbout << "Waiting for restarts to complete" << endl;
+    NdbSleep_SecSleep(10);
+  }
+  cleanup_op_array(op_array, pNdb, op_instances);
+  return NDBT_OK;
+}
+
+int runManyTransactions(NDBT_Context* ctx, NDBT_Step* step)
+{
+  NdbRestarter restarter;
+  int multi_trans = 400;
+  int result = NDBT_OK;
+  int records = ctx->getNumRecords();
+  Ndb* pNdb = GETNDB(step);
+  Vector <HugoOperations*> op_array;
+
+  if (restarter.getNumDbNodes() != 4)
+  {
+    ndbout << "Need to have exactly 4 DB nodes for this test" << endl;
+    ctx->stopTest();
+    return NDBT_FAILED;
+  }
+
+  for (int i = 0; i < multi_trans; i++)
+  {
+    op_array.push_back(new HugoOperations(*ctx->getTab()));
+    if (op_array[i] == NULL)
+    {
+      ndbout << "Failed to allocate HugoOperations instance " << i << endl;
+      cleanup_op_array(op_array, pNdb, i);
+      return NDBT_FAILED;
+    }
+  }
+  for (int i = 0; i < multi_trans; i++)
+  {
+    if (start_transaction_on_specific_place(op_array,
+                                            i,
+                                            pNdb,
+                                            2, /* node id */
+                                            1) != NDBT_OK)
+    {
+      ndbout << "Failed to start transaction, i = " << i << endl;
+      cleanup_op_array(op_array, pNdb, multi_trans);
+      return NDBT_FAILED;
+    }
+    int record_no = records + (50 * 4 * 10) + i;
+    if (op_array[i]->pkInsertRecord(pNdb, record_no, 1, rand()))
+    {
+      ndbout << "Failed to insert record no = " << record_no << endl;
+      cleanup_op_array(op_array, pNdb, multi_trans);
+      return NDBT_FAILED;
+    }
+    if (op_array[i]->execute_NoCommit(pNdb) != 0)
+    {
+      ndbout << "Failed to execute transaction " << i << endl;
+      cleanup_op_array(op_array, pNdb, multi_trans);
+      return NDBT_FAILED;
+    }
+  }
+
+  /**
+   * Wait until all preparations are complete until we restart node 2 that
+   * holds those transactions.
+   */
+  ndbout << "Run many transactions done" << endl;
+  while (ctx->getProperty("runLargeDone", (Uint32)0) != 1)
+  {
+    NdbSleep_SecSleep(1);
+  }
+  /**
+   * We ensure that node 2 and 4 fail together by inserting
+   * error number 941 that fails in PREP_FAILREQ handling
+   */
+  if (restarter.insertErrorInNode(4, 941))
+  {
+    ndbout << "Failed to insert error 941" << endl;
+    result = NDBT_FAILED;
+    goto end;
+  }
+  ndbout << "Restart node " << "2" << endl; 
+  if (restarter.restartOneDbNode(2, false, false, true) != 0)
+  {
+    g_err << "Failed to restart Node 2" << endl;
+    result = NDBT_FAILED;
+    goto end;
+  }
+  ndbout << "Wait for node 2 and 4 to restart" << endl;
+  if (restarter.waitClusterStarted() != 0)
+  {
+    g_err << "Cluster failed to start" << endl;
+    result = NDBT_FAILED;
+    goto end;
+  }
+  ndbout << "Cluster restarted" << endl;
+end:
+  ctx->setProperty("restartsDone", (Uint32)1);
+  cleanup_op_array(op_array, pNdb, multi_trans);
   return result;
 }
 
@@ -6613,6 +6847,13 @@ TESTCASE("Bug16766493", "")
 {
   INITIALIZER(runBug16766493);
 }
+TESTCASE("multiTCtakeover", "")
+{
+  INITIALIZER(run_multiTCtakeover);
+  STEP(runLargeTransactions);
+  STEP(runManyTransactions);
+  FINALIZER(runClearTable);
+}
 TESTCASE("Bug16895311",
          "Test NR with long UTF8 PK.\n"
          "Give any tablename as argument (T1)")
@@ -6639,3 +6880,4 @@ int main(int argc, const char** argv){
 #endif
   return testNodeRestart.execute(argc, argv);
 }
+template class Vector<HugoOperations *>;

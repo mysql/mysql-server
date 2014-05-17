@@ -1,0 +1,13 @@
+--source include/have_ndb.inc
+# Don't run in parallel since it uses too much resources on
+# CPU, memory and disks.
+--source include/not_parallel.inc
+
+# Test does not need to run with embedded
+# since mysqld/libmysqld is not involved
+--source include/not_embedded.inc
+
+let NDBAPITEST_NAME=testNodeRestart;
+let NDBAPITEST_ARGS=--stop-on-error -n multiTCtakeover T1;
+--source suite/ndb/include/run_ndbapitest.inc
+
