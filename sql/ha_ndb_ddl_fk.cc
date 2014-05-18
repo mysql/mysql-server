@@ -2502,7 +2502,7 @@ int
 ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
                                         const NDBTAB* tab)
 {
-  DBUG_ENTER("drop_fk_for_online");
+  DBUG_ENTER("ha_ndbcluster::drop_fk_for_online_alter");
   if (thd->lex == 0)
   {
     assert(false);
@@ -2517,7 +2517,10 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
   }
 
   NDBDICT::List obj_list;
-  dict->listDependentObjects(obj_list, *srctab.get_table());
+  if (dict->listDependentObjects(obj_list, *srctab.get_table()) != 0)
+  {
+    ERR_RETURN(dict->getNdbError());
+  }
 
   Alter_drop * drop_item= 0;
   List_iterator<Alter_drop> drop_iterator(thd->lex->alter_info.drop_list);
@@ -2527,7 +2530,7 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
       continue;
 
     bool found= false;
-    for (unsigned i = 0; i < obj_list.count && !found; i++)
+    for (unsigned i = 0; i < obj_list.count; i++)
     {
       if (obj_list.elements[i].type != NdbDictionary::Object::ForeignKey)
       {
@@ -2552,7 +2555,20 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
         DBUG_RETURN(1);
       }
 
-      if (ndb_fk_casecmp(drop_item->name, name) == 0)
+      if (ndb_fk_casecmp(drop_item->name, name) != 0)
+        continue;
+
+      NdbDictionary::ForeignKey fk;
+      if (dict->getForeignKey(fk, obj_list.elements[i].name) != 0)
+      {
+        ERR_RETURN(dict->getNdbError());
+      }
+
+      char child_db_and_name[FN_LEN + 1];
+      const char* child_name = fk_split_name(child_db_and_name,
+                                             fk.getChildTable());
+      if (strcmp(child_db_and_name, ndb->getDatabaseName()) == 0 &&
+          strcmp(child_name, tab->getName()) == 0)
       {
         found= true;
         Fk_util fk_util(thd);
