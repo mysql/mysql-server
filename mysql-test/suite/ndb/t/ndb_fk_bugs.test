@@ -817,3 +817,28 @@ alter table t2 algorithm=inplace, drop foreign key fkname;
 alter table t3 algorithm=inplace, drop foreign key fkname;
 
 drop table t1, t2, t3;
+
+create table t1 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+create table t2 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+alter table t2 add constraint fkname foreign key (a) references t1 (a);
+
+create table t3 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+alter table t3 add constraint fkname foreign key (a) references t2 (a);
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2 algorithm=copy, drop foreign key nosuchfk;
+
+alter table t2 algorithm=copy, drop foreign key fkname;
+
+alter table t3 algorithm=copy, drop foreign key fkname;
+
+drop table t1, t2, t3;
