@@ -2563,21 +2563,6 @@ ha_ndbcluster::drop_fk_for_online_alter(THD * thd, Ndb* ndb, NDBDICT * dict,
       char db_and_name[FN_LEN + 1];
       const char * name= fk_split_name(db_and_name,obj_list.elements[i].name);
 
-      /*
-       * sql_yacc allows "..drop foreign key;" with no FK name
-       * (or column list) and passes NULL name here from opt_ident
-       *
-       * Edit: mysql-5.6 parser now catches this with ER_PARSE_ERROR
-       * but we leave the old check here.
-       */
-      if (drop_item->name == 0)
-      {
-        my_printf_error(ER_SYNTAX_ERROR,
-                        "Drop foreign key must specify key name",
-                        MYF(0));
-        DBUG_RETURN(1);
-      }
-
       if (ndb_fk_casecmp(drop_item->name, name) != 0)
         continue;
 
