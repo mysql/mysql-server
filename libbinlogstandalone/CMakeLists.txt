@@ -14,6 +14,22 @@
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 #
 
+INCLUDE(configure.cmake)
+ADD_DEFINITIONS(-DSTANDALONE_BINLOG)
+
+# Options for building
+OPTION(WITH_SERVER_TESTS
+       "Build the unit test suite with tests requiring a server" OFF)
+
+IF(GTEST_FOUND)
+  ENABLE_TESTING(TRUE)
+  INCLUDE_DIRECTORIES(${GTEST_INCLUDE_DIRS})
+ENDIF()
+
+IF(NOT ZLIB_FOUND)
+  FIND_PACKAGE(ZLIB REQUIRED)
+ENDIF()
+
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/libbinlogevents/include
                     ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include
@@ -22,4 +38,12 @@ INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}/include
                     # It is NULL otherwise.
                     ${ZLIB_INCLUDE_DIR})
 
+CONFIGURE_FILE(binlog_config.h.cmake
+               ${CMAKE_CURRENT_BINARY_DIR}/include/binlog_config.h)
+
 ADD_SUBDIRECTORY(src)
+
+# Configure installation
+INSTALL(DIRECTORY include DESTINATION . FILES_MATCHING PATTERN "*.h")
+
+INCLUDE(InstallRequiredSystemLibraries)

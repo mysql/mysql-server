@@ -27,6 +27,10 @@
 
 #include "binlog_config.h"
 
+#ifndef STANDALONE_BINLOG
+#define HAVE_MYSYS 1
+#endif
+
 #if HAVE_MYSYS
 #include "my_sys.h"
 extern PSI_memory_key key_memory_Incident_log_event_message;
