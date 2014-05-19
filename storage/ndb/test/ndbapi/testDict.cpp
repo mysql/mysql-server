@@ -192,33 +192,75 @@ int runDropTheTable(NDBT_Context* ctx, NDBT_Step* step){
   return NDBT_OK;
 }
 
+/*******
+ * Precondition: 
+ *    'DataMemory' has been filled until insertion failed
+ *    due to 'DbIsFull'. The table 'TRANSACTION' should
+ *    not exist in the DB
+ *
+ * Test:
+ *    Creation of the (empty) table 'TRANSACTION'
+ *    should succeed even if 'DbIsFull'. However, 
+ *    insertion of the first row should fail.
+ *
+ * Postcond:
+ *    The created table 'TRANSACTION is removed.
+ *    DataMemory is still full.
+ */
 int runCreateTableWhenDbIsFull(NDBT_Context* ctx, NDBT_Step* step){
   Ndb* pNdb = GETNDB(step);
   int result = NDBT_OK;
   const char* tabName = "TRANSACTION"; //Use a util table
-  
+
+  // Precondition is that 'DataMemory' filled to max.
+  // So we skip test if a DiskStorage table was filled
+  for (Uint32 i = 0; i<(Uint32)ctx->getTab()->getNoOfColumns(); i++)
+  {
+    if (ctx->getTab()->getColumn(i)->getStorageType() == 
+        NdbDictionary::Column::StorageTypeDisk)
+    {
+      ndbout << "Skip test for *disk* tables" << endl;
+      return NDBT_OK;
+    }
+  }
+
   const NdbDictionary::Table* pTab = NDBT_Tables::getTable(tabName);
-  if (pTab != NULL){
+  while (pTab != NULL){ //Always 'break' without looping
     ndbout << "|- " << tabName << endl;
     
     // Verify that table is not in db     
     if (NDBT_Table::discoverTableFromDb(pNdb, tabName) != NULL){
       ndbout << tabName << " was found in DB"<< endl;
-      return NDBT_FAILED;
+      result = NDBT_FAILED;
+      break;
     }
 
-    // Try to create table in db
-    if (NDBT_Tables::createTable(pNdb, pTab->getName()) == 0){
+    // Create (empty) table in db, should succeed even if 'DbIsFull'
+    if (NDBT_Tables::createTable(pNdb, pTab->getName()) != 0){
+      ndbout << tabName << " was not created when DB is full"<< endl;
       result = NDBT_FAILED;
+      break;
     }
 
-    // Verify that table is in db     
-    if (NDBT_Table::discoverTableFromDb(pNdb, tabName) != NULL){
-      ndbout << tabName << " was found in DB"<< endl;
+    // Verify that table is now in db     
+    if (NDBT_Table::discoverTableFromDb(pNdb, tabName) == NULL){
+      ndbout << tabName << " was not visible in DB"<< endl;
       result = NDBT_FAILED;
+      break;
     }
+
+    // As 'DbIsFull', insert of a single record should fail
+    HugoOperations hugoOps(*pTab);
+    CHECK(hugoOps.startTransaction(pNdb) == 0);  
+    CHECK(hugoOps.pkInsertRecord(pNdb, 1) == 0);
+    CHECK(hugoOps.execute_Commit(pNdb) != 0); //Should fail
+    CHECK(hugoOps.closeTransaction(pNdb) == 0);  
+
+    break;
   }
 
+  // Drop table (if exist, so we dont care about errors)
+  pNdb->getDictionary()->dropTable(tabName);
   return result;
 }
 
