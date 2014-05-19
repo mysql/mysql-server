@@ -3451,6 +3451,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       signal->theData[3] = sig3;
       signal->theData[4] = sig4 & Tgci_lo_mask;
       signal->header.theLength = TcommitLen;
+      jamBuffer()->markEndOfSigExec();
       execCOMMIT(signal);
       Tstep += TcommitLen;
       break;
@@ -3463,6 +3464,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       signal->theData[1] = sig1;
       signal->theData[2] = sig2;
       signal->header.theLength = 3;
+      jamBuffer()->markEndOfSigExec();
       execCOMPLETE(signal);
       Tstep += 3;
       break;
@@ -3483,6 +3485,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       lqhKeyConf->transId1 = sig4;
       lqhKeyConf->transId2 = sig5;
       lqhKeyConf->noFiredTriggers = sig6;
+      jamBuffer()->markEndOfSigExec();
       execLQHKEYCONF(signal);
       Tstep += LqhKeyConf::SignalLength;
       break;
@@ -3494,6 +3497,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       signal->theData[0] = sig0;
       signal->theData[1] = sig1;
       signal->header.theLength = 2;
+      jamBuffer()->markEndOfSigExec();
       execREMOVE_MARKER_ORD(signal);
       Tstep += 3;
       break;
@@ -3510,6 +3514,7 @@ void Dblqh::execPACKED_SIGNAL(Signal* signal)
       signal->theData[3] = sig3;
       signal->header.theLength = FireTrigReq::SignalLength;
       signal->header.theSendersBlockRef = TsenderRef;
+      jamBuffer()->markEndOfSigExec();
       execFIRE_TRIG_REQ(signal);
       Tstep += FireTrigReq::SignalLength;
       break;
@@ -24839,7 +24844,7 @@ TraceLCP::restore(SimulatedBlock& lqh, Signal* sig){
 		     JBB);
       break;
     case Sig::Sig_save:
-      lqh.executeFunction(sig->header.theVerId_signalNumber, sig);
+      lqh.executeFunctionInternal(sig->header.theVerId_signalNumber, sig);
       break;
     }
   }
