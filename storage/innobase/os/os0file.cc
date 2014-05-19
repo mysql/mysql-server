@@ -4082,6 +4082,9 @@ os_aio_get_array_and_local_segment(
 		} else if (global_segment == IO_LOG_SEGMENT) {
 			*array = os_aio_log_array;
 			segment = 0;
+		} else {
+			*array = NULL;
+			segment = 0;
 		}
 	} else if (global_segment <
 			os_aio_read_array->n_segments + n_extra_segs) {
