@@ -2525,7 +2525,10 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
   DBUG_ASSERT(select->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
 
-  const bool for_union= select == select->master_unit()->fake_select_lex;
+  const bool for_union= select->master_unit()->is_union() &&
+                        select == select->master_unit()->fake_select_lex;
+  const bool is_aggregated= select->agg_func_used() ||
+                            select->group_list.elements;
 
   for (uint number= 1; order; order=order->next, number++)
   {
@@ -2534,10 +2537,34 @@ int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
-    if (for_union && (*order->item)->with_sum_func)
+    if ((*order->item)->with_sum_func)
     {
-      my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
-      return 1;
+      /*
+        Aggregated expressions in ORDER BY are not supported by SQL standard,
+        but MySQL has some limited support for them. The limitations are
+        checked below:
+
+        1. A UNION query is not aggregated, so ordering by a set function
+           is always wrong.
+      */
+      if (for_union)
+      {
+        my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
+        return 1;
+      }
+
+      /*
+        2. A non-aggregated query combined with a set function in ORDER BY
+           that does not contain an outer reference is illegal, because it
+           would cause the query to become aggregated.
+           (Since is_aggregated is false, this expression would cause
+            agg_func_used() to become true).
+      */
+      if (!is_aggregated && select->agg_func_used())
+      {
+        my_error(ER_AGGREGATE_ORDER_NON_AGG_QUERY, MYF(0), number);
+        return 1;
+      }
     }
   }
   select->cur_pos_in_all_fields= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
