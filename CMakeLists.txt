@@ -42,23 +42,6 @@ ENDIF()
 
 OPTION(WITH_DEBUG "Use dbug/safemutex" OFF)
 
-### libbinlogevents ##
-# libbinlogevents headers are used in log_event.h, which are included by header
-# files in other subdirectories, which are storage/perfschema, storage/federated
-# Since the hedear files of libbinblogevent are contained in
-# libbinlogevents/include, they need to be explicitly included. They are
-# included in the CMakeLists for the individual directories.
-#
-# mysys is to be used by libbinlogevents only when it is compiled with the MySQL
-# server code.
-### end comment ##
-set(WITH_MYSYS 1 CACHE BOOL "Use mysys library and headers" FORCE)
-MARK_AS_ADVANCED(FORCE WITH_MYSYS)
-
-IF (WITH_MYSYS)
-  SET(HAVE_MYSYS 1)
-ENDIF()
-
 # Distinguish between community and non-community builds, with the
 # default being a community build. This does not impact the feature
 # set that will be compiled in; it's merely provided as a hint to
@@ -476,7 +459,7 @@ INCLUDE(configure.cmake)
 # Common defines and includes
 ADD_DEFINITIONS(-DHAVE_CONFIG_H)
 INCLUDE_DIRECTORIES(${CMAKE_CURRENT_BINARY_DIR}/include
-                    ${CMAKE_CURRENT_BINARY_DIR}/libbinlogevents/include)
+                    ${CMAKE_CURRENT_BINARY_DIR}/libbinlogstandalone/include)
 
 # Add bundled or system zlib.
 MYSQL_CHECK_ZLIB_WITH_COMPRESS()
@@ -520,6 +503,7 @@ ADD_SUBDIRECTORY(mysys)
 ADD_SUBDIRECTORY(mysys_ssl)
 ADD_SUBDIRECTORY(libmysql)
 ADD_SUBDIRECTORY(libbinlogevents)
+ADD_SUBDIRECTORY(libbinlogstandalone)
 
 IF(WITH_UNIT_TESTS)
   ADD_SUBDIRECTORY(unittest)
