@@ -1048,6 +1048,9 @@ public:
   /** TRUE <=> AM will scan backward */
   bool reversed_access;
 
+  /** FT function */
+  Item_func_match *ft_func;
+
   /** Clean up associated table after query execution, including resources */
   void cleanup();
 
@@ -1234,7 +1237,8 @@ st_join_table::st_join_table()
     distinct(false),
     use_keyread(false),
     join_cache_flags(0),
-    reversed_access(false)
+    reversed_access(false),
+    ft_func(NULL)
 {
   /**
     @todo Add constructor to READ_RECORD.

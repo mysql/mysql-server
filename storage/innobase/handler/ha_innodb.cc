@@ -1020,6 +1020,16 @@ normalize_table_name_low(
 	ibool           set_lower_case); /* in: TRUE if we want to set
 					 name to lower case */
 
+
+/***********************************************************************
+Store doc_id value into FTS_DOC_ID field */
+static
+void
+innobase_fts_store_docid(
+/*=====================*/
+		TABLE * tbl,		/*!< in: FTS table */
+		ulonglong doc_id);	/*!< in: FTS_DOC_ID value */
+
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return 0 for valid innodb_commit_concurrency */
@@ -2340,6 +2350,7 @@ ha_innobase::ha_innobase(
 		  HA_TABLE_SCAN_ON_INDEX |
 		  HA_CAN_FULLTEXT |
 		  HA_CAN_FULLTEXT_EXT |
+		  HA_CAN_FULLTEXT_HINTS |
 		  HA_CAN_EXPORT |
 		  HA_CAN_RTREEKEYS |
 		  HA_HAS_RECORDS
@@ -7754,10 +7765,28 @@ ha_innobase::change_active_index(
 
 	ut_a(prebuilt->search_tuple != 0);
 
-	dtuple_set_n_fields(prebuilt->search_tuple, prebuilt->index->n_fields);
+	/* Initialization of search_tuple is not needed for FT index
+	since FT search returns rank only. In addition engine should
+	be able to retrieve FTS_DOC_ID column value if necessary. */
+	if ((prebuilt->index->type & DICT_FTS)) {
+		if (table->fts_doc_id_field
+		    && bitmap_is_set(table->read_set,
+				     table->fts_doc_id_field->field_index
+				     && prebuilt->read_just_key)) {
+			prebuilt->fts_doc_id_in_read_set = 1;
+		}
+	} else {
+		dtuple_set_n_fields(prebuilt->search_tuple,
+				    prebuilt->index->n_fields);
 
-	dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
-			      prebuilt->index->n_fields);
+		dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
+				      prebuilt->index->n_fields);
+		/* If it's FTS query and FTS_DOC_ID exists FTS_DOC_ID field is
+		always added to read_set. */
+		prebuilt->fts_doc_id_in_read_set =
+			(prebuilt->read_just_key && table->fts_doc_id_field
+			 && prebuilt->in_fts_query);
+	}
 
 	/* MySQL changes the active index for a handle also during some
 	queries, for example SELECT MAX(a), SUM(a) first retrieves the MAX()
@@ -8225,6 +8254,21 @@ ha_innobase::ft_init_ext(
 	return((FT_INFO*) fts_hdl);
 }
 
+/**********************************************************************//**
+Initialize FT index scan
+@return FT_INFO structure if successful or NULL */
+
+FT_INFO*
+ha_innobase::ft_init_ext_with_hints(
+/*================================*/
+	uint			keynr,		/* in: key num */
+	String*			key,		/* in: key */
+	Ft_hints*		hints)		/* in: hints  */
+{
+	/* TODO Implement function properly working with FT hint. */
+	return(ft_init_ext(hints->get_flags(), keynr, key));
+}
+
 /*****************************************************************//**
 Set up search tuple for a query through FTS_DOC_ID_INDEX on
 supplied Doc ID. This is used by MySQL to retrieve the documents
@@ -8318,6 +8362,13 @@ next_record:
 		/* If we only need information from result we can return
 		   without fetching the table row */
 		if (ft_prebuilt->read_just_key) {
+			if (prebuilt->fts_doc_id_in_read_set) {
+				fts_ranking_t* ranking;
+				ranking = rbt_value(fts_ranking_t,
+						    result->current);
+				innobase_fts_store_docid(
+					table, ranking->doc_id);
+			}
 			table->status= 0;
 			return(0);
 		}
@@ -15578,15 +15629,10 @@ innobase_fts_retrieve_ranking(
 
 	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
 
-	if (ft_prebuilt->read_just_key) {
-		fts_ranking_t*  ranking =
-			rbt_value(fts_ranking_t, result->current);
-		return(ranking->rank);
-	}
+	fts_ranking_t*  ranking = rbt_value(fts_ranking_t, result->current);
+	ft_prebuilt->fts_doc_id= ranking->doc_id;
 
-	/* Retrieve the ranking value for doc_id with value of
-	prebuilt->fts_doc_id */
-	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
+	return(ranking->rank);
 }
 
 /***********************************************************************
@@ -15782,6 +15828,23 @@ innobase_fts_retrieve_docid(
 	}
 
 	return(ft_prebuilt->fts_doc_id);
+}
+
+
+/***********************************************************************
+Store doc_id value into FTS_DOC_ID field */
+static
+void
+innobase_fts_store_docid(
+/*=====================*/
+		TABLE * tbl,		/*!< in: FTS table */
+		ulonglong doc_id)	/*!< in: FTS_DOC_ID value */
+{
+	my_bitmap_map *old_map = dbug_tmp_use_all_columns(tbl, tbl->write_set);
+
+	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
+
+	dbug_tmp_restore_column_map(tbl->write_set, old_map);
 }
 
 /***********************************************************************
