@@ -2090,6 +2090,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr;
+  Field *fts_doc_id_field = NULL;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
@@ -2179,6 +2180,11 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     new_field->init(outparam);
     new_field->move_field_offset((my_ptrdiff_t) (outparam->record[0] -
                                                  outparam->s->default_values));
+    /* Check if FTS_DOC_ID column is present in the table */
+    if (outparam->file &&
+        (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
+        !strcmp(outparam->field[i]->field_name, FTS_DOC_ID_COL_NAME))
+      fts_doc_id_field= new_field;
   }
   (*field_ptr)= 0;                              // End marker
 
@@ -2233,6 +2239,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       }
       /* Skip unused key parts if they exist */
       key_part+= key_info->unused_key_parts;
+      
+      /* Set TABLE::fts_doc_id_field for tables with FT KEY */
+      if ((key_info->flags & HA_FULLTEXT))
+        outparam->fts_doc_id_field= fts_doc_id_field;
     }
   }
 

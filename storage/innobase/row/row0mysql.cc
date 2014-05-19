@@ -891,6 +891,8 @@ row_create_prebuilt(
 	prebuilt->ins_sel_stmt = false;
 	prebuilt->session = NULL;
 
+	prebuilt->fts_doc_id_in_read_set = 0;
+
 	return(prebuilt);
 }
 
