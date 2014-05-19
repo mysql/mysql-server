@@ -1,2 +1,0 @@
-Running '/Users/mikael/mysql_clones/wl7762/storage/ndb/test/ndbapi/testNodeRestart --stop-on-error -n multiTCtakeover T1 > /Users/mikael/mysql_clones/wl7762/mysql-test/var/testNodeRestart_1.log 2>&1'
-Result of '/Users/mikael/mysql_clones/wl7762/storage/ndb/test/ndbapi/testNodeRestart --stop-on-error -n multiTCtakeover T1 > /Users/mikael/mysql_clones/wl7762/mysql-test/var/testNodeRestart_1.log 2>&1': 0
