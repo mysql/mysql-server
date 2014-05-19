@@ -153,15 +153,15 @@ protected:
 
   void initCommon();
 
-  inline void executeFunction(GlobalSignalNumber gsn,
-                              Signal* signal,
-                              ExecFunction f);
-
-  inline void executeFunction(GlobalSignalNumber gsn,
-                              Signal* signal,
-                              ExecFunction f,
-                              BlockReference ref,
-                              Uint32 len);
+  inline void executeFunctionInternal(GlobalSignalNumber gsn,
+                                      Signal* signal,
+                                      ExecFunction f);
+  
+  inline void executeFunctionInternal(GlobalSignalNumber gsn,
+                                      Signal* signal,
+                                      ExecFunction f,
+                                      BlockReference ref,
+                                      Uint32 len);
 
 public:
   typedef void (SimulatedBlock::* CallbackFunction)(class Signal*,
@@ -172,8 +172,15 @@ public:
     Uint32 m_callbackData;
   };
 
-  inline void executeFunction(GlobalSignalNumber gsn, Signal* signal);
+  // Execute the handler function for an incoming signal.
+  void executeFunction(GlobalSignalNumber gsn, Signal* signal)
+  {
+    jamBuffer()->markEndOfSigExec();
+    executeFunctionInternal(gsn, signal);
+  }
+
   inline void executeFunction_async(GlobalSignalNumber gsn, Signal* signal);
+  inline void executeFunctionInternal(GlobalSignalNumber gsn, Signal* signal);
 
   /* Multiple block instances */
   Uint32 instance() const {
@@ -1092,8 +1099,8 @@ static void debugOutDefines()
 
 inline
 void
-SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
-                                Signal *signal)
+SimulatedBlock::executeFunctionInternal(GlobalSignalNumber gsn,
+                                        Signal *signal)
 {
   ExecFunction f = theExecArray[gsn];
   if (unlikely(gsn > MAX_GSN))
@@ -1101,7 +1108,7 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
     handle_execute_error(gsn);
     return;
   }
-  executeFunction(gsn, signal, f);
+  executeFunctionInternal(gsn, signal, f);
 }
 
 inline
@@ -1118,16 +1125,16 @@ SimulatedBlock::executeFunction_async(GlobalSignalNumber gsn,
     handle_execute_error(gsn);
     return;
   }
-  executeFunction(gsn, signal, f);
+  executeFunctionInternal(gsn, signal, f);
 }
 
 inline
 void
-SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
-                                Signal* signal,
-                                ExecFunction f,
-                                BlockReference ref,
-                                Uint32 len)
+SimulatedBlock::executeFunctionInternal(GlobalSignalNumber gsn,
+                                        Signal* signal,
+                                        ExecFunction f,
+                                        BlockReference ref,
+                                        Uint32 len)
 {
   if (unlikely(gsn > MAX_GSN))
   {
@@ -1136,14 +1143,14 @@ SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
   }
   signal->setLength(len);
   signal->header.theSendersBlockRef = ref;
-  executeFunction(gsn, signal, f);
+  executeFunctionInternal(gsn, signal, f);
 }
 
 inline 
 void 
-SimulatedBlock::executeFunction(GlobalSignalNumber gsn,
-                                Signal* signal,
-                                ExecFunction f)
+SimulatedBlock::executeFunctionInternal(GlobalSignalNumber gsn,
+                                        Signal* signal,
+                                        ExecFunction f)
 {
   if (likely(f != 0))
   {
@@ -1385,7 +1392,7 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   Uint32 tGsn = m_currentGsn;
   rec_block->m_currentGsn = gsn;
 #endif
-  rec_block->executeFunction(gsn, signal);
+  rec_block->executeFunctionInternal(gsn, signal);
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t2 = NdbTick_getCurrentTicks();
   const Uint64 diff = NdbTick_Elapsed(t1, t2).microSec();
@@ -1454,7 +1461,7 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   Uint32 tGsn = m_currentGsn;
   rec_block->m_currentGsn = gsn;
 #endif
-  rec_block->executeFunction(gsn, signal, f);
+  rec_block->executeFunctionInternal(gsn, signal, f);
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t2 = NdbTick_getCurrentTicks();
   const Uint64 diff = NdbTick_Elapsed(t1,t2).microSec();
