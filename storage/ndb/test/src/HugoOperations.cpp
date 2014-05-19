@@ -155,7 +155,7 @@ rand_lock_mode:
       // Define attributes to read  
       for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[r]->attributeStore(a) = 
-	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	    pOp->getValue(tab.getColumn(a))) == 0) {
 	  NDB_ERR(pTrans->getNdbError());
           setNdbError(pTrans->getNdbError());
 	  return NDBT_FAILED;
@@ -247,7 +247,7 @@ rand_lock_mode:
       // Define attributes to read  
       for(a = 0; a<tab.getNoOfColumns(); a++){
 	if((rows[r]->attributeStore(a) = 
-	    pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	    pOp->getValue(tab.getColumn(a))) == 0) {
 	  NDB_ERR(pTrans->getNdbError());
           setNdbError(pTrans->getNdbError());
 	  return NDBT_FAILED;
@@ -1059,7 +1059,7 @@ int HugoOperations::indexReadRecords(Ndb*, const char * idxName, int recordNo,
     // Define attributes to read  
     for(a = 0; a<tab.getNoOfColumns(); a++){
       if((rows[r]->attributeStore(a) = 
-	  pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	  pOp->getValue(tab.getColumn(a))) == 0) {
 	NDB_ERR(pTrans->getNdbError());
         setNdbError(pTrans->getNdbError());
 	return NDBT_FAILED;
@@ -1127,7 +1127,7 @@ HugoOperations::scanReadRecords(Ndb* pNdb, NdbScanOperation::LockMode lm,
   
   for(int a = 0; a<tab.getNoOfColumns(); a++){
     if((rows[0]->attributeStore(a) = 
-	pOp->getValue(tab.getColumn(a)->getName())) == 0) {
+	pOp->getValue(tab.getColumn(a))) == 0) {
       NDB_ERR(pTrans->getNdbError());
       setNdbError(pTrans->getNdbError());
       return NDBT_FAILED;
