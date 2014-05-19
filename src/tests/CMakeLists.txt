@@ -101,6 +101,7 @@ if(BUILD_TESTING OR BUILD_SRC_TESTS)
       loader-cleanup-test
       loader-create-abort
       loader-create-close
+      loader-create-commit-nproc-limit
       loader-dup-test
       loader-no-puts
       loader-nproc-close

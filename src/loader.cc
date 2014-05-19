@@ -251,6 +251,7 @@ toku_loader_create_loader(DB_ENV *env,
                           bool check_empty) {
     int rval;
     HANDLE_READ_ONLY_TXN(txn);
+    DB_TXN *loader_txn = nullptr;
 
     *blp = NULL;           // set later when created
 
@@ -305,6 +306,13 @@ toku_loader_create_loader(DB_ENV *env,
     }
 
     {
+        if (env->i->open_flags & DB_INIT_TXN) {
+            rval = env->txn_begin(env, txn, &loader_txn, 0);
+            if (rval) {
+                goto create_exit;
+            }
+        }
+
         ft_compare_func compare_functions[N];
         for (int i=0; i<N; i++) {
             compare_functions[i] = env->i->bt_compare;
@@ -320,13 +328,13 @@ toku_loader_create_loader(DB_ENV *env,
             brts[i] = dbs[i]->i->ft_handle;
         }
         LSN load_lsn;
-        rval = locked_load_inames(env, txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
+        rval = locked_load_inames(env, loader_txn, N, dbs, new_inames_in_env, &load_lsn, puts_allowed);
         if ( rval!=0 ) {
             free_inames(new_inames_in_env, N);
             toku_free(brts);
             goto create_exit;
         }
-        TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
+        TOKUTXN ttxn = loader_txn ? db_txn_struct_i(loader_txn)->tokutxn : NULL;
         rval = toku_ft_loader_open(&loader->i->ft_loader,
                                  env->i->cachetable,
                                  env->i->generate_row_for_put,
@@ -359,10 +367,19 @@ toku_loader_create_loader(DB_ENV *env,
             rval = 0;
         }
 
+        rval = loader_txn->commit(loader_txn, 0);
+        assert_zero(rval);
+        loader_txn = nullptr;
+
         rval = 0;
     }
     *blp = loader;
  create_exit:
+    if (loader_txn) {
+        int r  = loader_txn->abort(loader_txn);
+        assert_zero(r);
+        loader_txn = nullptr;
+    }
     if (rval == 0) {
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CREATE), 1);
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(LOADER_CURRENT), 1);
