@@ -9022,6 +9022,10 @@ found:
 		row_create_index_for_mysql(index, trx, field_lengths, handler),
 		flags, NULL);
 
+	if (error && handler != NULL) {
+		priv->unregister_table_handler(table_name);
+	}
+
 	my_free(field_lengths);
 
 	DBUG_RETURN(error);
@@ -9064,6 +9068,10 @@ create_clustered_index_when_no_primary(
 	}
 
 	error = row_create_index_for_mysql(index, trx, NULL, handler);
+
+	if (error != DB_SUCCESS && handler != NULL) {
+		priv->unregister_table_handler(table_name);
+	}
 
 	return(convert_error_code_to_mysql(error, flags, NULL));
 }
@@ -9971,6 +9979,9 @@ ha_innobase::create(
 		error = convert_error_code_to_mysql(err, flags, NULL);
 
 		if (error) {
+			if (handler != NULL) {
+				priv->unregister_table_handler(norm_name);
+			}
 			goto cleanup;
 		}
 	}
@@ -10076,22 +10087,26 @@ cleanup:
 			thd_to_innodb_session(thd)->lookup_table_handler(
 			norm_name);
 
-		thd_to_innodb_session(thd)->unregister_table_handler(norm_name);
+		if (intrinsic_table != NULL) {
+			thd_to_innodb_session(thd)->unregister_table_handler(
+				norm_name);
 
-		for (;;) {
-			dict_index_t*	index;
-			index = UT_LIST_GET_FIRST(intrinsic_table->indexes);
-			if (index == NULL) {
-				break;
+			for (;;) {
+				dict_index_t*	index;
+				index = UT_LIST_GET_FIRST(
+					intrinsic_table->indexes);
+				if (index == NULL) {
+					break;
+				}
+				rw_lock_free(&index->lock);
+				UT_LIST_REMOVE(intrinsic_table->indexes, index);
+				dict_mem_index_free(index);
+				index = NULL;
 			}
-			rw_lock_free(&index->lock);
-			UT_LIST_REMOVE(intrinsic_table->indexes, index);
-			dict_mem_index_free(index);
-			index = NULL;
-		}
 
-		dict_mem_table_free(intrinsic_table);
-		intrinsic_table = NULL;
+			dict_mem_table_free(intrinsic_table);
+			intrinsic_table = NULL;
+		}
 	}
 
 	trx_free_for_mysql(trx);
@@ -10392,7 +10407,7 @@ ha_innobase::delete_table(
 			err = row_drop_table_for_mysql(
 				par_case_name, trx,
 				thd_sql_command(thd) == SQLCOM_DROP_DB,
-				handler);
+				true, handler);
 		}
 	}
 
