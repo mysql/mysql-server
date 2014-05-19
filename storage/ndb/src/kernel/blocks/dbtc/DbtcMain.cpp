@@ -4318,11 +4318,13 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
     switch (Tdata1 >> 28) {
     case ZCOMMITTED:
       signal->header.theLength = 3;
+      jamBuffer()->markEndOfSigExec();
       execCOMMITTED(signal);
       Tstep += 3;
       break;
     case ZCOMPLETED:
       signal->header.theLength = 3;
+      jamBuffer()->markEndOfSigExec();
       execCOMPLETED(signal);
       Tstep += 3;
       break;
@@ -4338,6 +4340,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       lqhKeyConf->transId2 = Tdata3;
       lqhKeyConf->noFiredTriggers = Tdata4;
       signal->header.theLength = LqhKeyConf::SignalLength;
+      jamBuffer()->markEndOfSigExec();
       execLQHKEYCONF(signal);
       Tstep += LqhKeyConf::SignalLength;
       break;
@@ -4345,6 +4348,7 @@ void Dbtc::execPACKED_SIGNAL(Signal* signal)
       jam();
       signal->header.theLength = 4;
       signal->theData[3] = TpackDataPtr[3];
+      jamBuffer()->markEndOfSigExec();
       execFIRE_TRIG_CONF(signal);
       Tstep += 4;
       break;
