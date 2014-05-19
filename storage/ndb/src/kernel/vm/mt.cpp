@@ -4234,7 +4234,7 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
     // wl4391_todo remove useless assert
     assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
     /* b->send_at_job_buffer_end(); */
-    b->executeFunction(GSN_SEND_PACKED, signal);
+    b->executeFunctionInternal(GSN_SEND_PACKED, signal);
   }
 }
 
