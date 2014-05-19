@@ -876,6 +876,14 @@ HugoTransactions::fillTableStartFrom(Ndb* pNdb,
 
 	// Check if this is the "db full" error 
 	if (err.classification==NdbError::InsufficientSpace){
+          // Datamemory might have been released by abort of
+          // batch insert. Retry fill with a smaller batch
+          // in order to ensure table is filled to last row.
+          if (batch > 1){
+            c = c+batch; 
+            batch = batch/2;
+            continue;
+          }
 	  NDB_ERR(err);
 	  return NDBT_OK;
 	}
