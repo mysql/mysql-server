@@ -14929,7 +14929,8 @@ xid:
           }
           | text_string ',' text_string
           {
-            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&
+                                 $3->length() <= MAXBQUALSIZE);
             XID *xid;
             if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
@@ -14938,7 +14939,13 @@ xid:
           }
           | text_string ',' text_string ',' ulong_num
           {
-            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+            // check for overwflow of xid format id 
+            bool format_id_overflow_detected= ($5 > LONG_MAX);
+
+            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&
+                                 $3->length() <= MAXBQUALSIZE
+                                 && !format_id_overflow_detected);
+
             XID *xid;
             if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
