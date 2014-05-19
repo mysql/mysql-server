@@ -580,3 +580,13 @@ XA PREPARE 'xid1';
 --error ER_XAER_NOTA
 XA ROLLBACK 'xid2';
 XA ROLLBACK 'xid1';
+
+--echo #
+--echo # Bug#18107853 - XA LIST GETS CORRUPT, CRASH AND/OR HANG AND/OR ASSERTION
+--echo #
+
+--echo # Check that the server reports an error in case of too long input value of
+--echo # format ID overflows the type of unsigned long
+
+--error ER_PARSE_ERROR
+XA START '1', 0x01, 18446744073709551615;
