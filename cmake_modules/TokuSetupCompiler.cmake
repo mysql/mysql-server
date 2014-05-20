@@ -137,14 +137,6 @@ if (CMAKE_CXX_COMPILER_ID STREQUAL Clang)
   set(CMAKE_C_FLAGS_RELEASE "-g -O3 ${CMAKE_C_FLAGS_RELEASE} -UNDEBUG")
   set(CMAKE_CXX_FLAGS_RELEASE "-g -O3 ${CMAKE_CXX_FLAGS_RELEASE} -UNDEBUG")
 else ()
-  if (CMAKE_CXX_COMPILER_ID MATCHES GNU)
-    ## Versions of gcc >= 4.9.0 require special version of 'ar' and 'ranlib' for
-    ## link-time optimizations to work properly.
-    if (NOT (CMAKE_CXX_COMPILER_VERSION VERSION_LESS "4.9.0"))
-      set(CMAKE_AR "gcc-ar")
-      set(CMAKE_RANLIB "gcc-ranlib")
-    endif()
-  endif()
   # we overwrite this because the default passes -DNDEBUG and we don't want that
   set(CMAKE_C_FLAGS_RELWITHDEBINFO "-flto -fuse-linker-plugin ${CMAKE_C_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
   set(CMAKE_CXX_FLAGS_RELWITHDEBINFO "-flto -fuse-linker-plugin ${CMAKE_CXX_FLAGS_RELWITHDEBINFO} -g -O3 -UNDEBUG")
