@@ -1711,7 +1711,7 @@ DROP TABLE t1;
 --echo # VALGRIND/CRASH WHEN ORDERING BY MULTIPLE AGGREGATE FUNCTIONS
 --echo #
 
-select 1 order by max(1) + min(1);
+select count(*) order by max(1) + min(1);
 
 --echo End of 5.1 tests
 

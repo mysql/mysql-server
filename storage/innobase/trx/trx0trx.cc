@@ -122,6 +122,8 @@ trx_init(
 
 	trx->error_state = DB_SUCCESS;
 
+	trx->error_key_num = ULINT_UNDEFINED;
+
 	trx->undo_no = 0;
 
 	trx->rsegs.m_redo.rseg = NULL;
@@ -1089,7 +1091,7 @@ get_next_noredo_rseg(
 		}
 	}
 
-	ut_ad(rseg->space == srv_tmp_space.space_id());
+	ut_ad(fsp_is_system_temporary(rseg->space));
 	ut_ad(trx_sys_is_noredo_rseg_slot(rseg->id));
 	return(rseg);
 }
@@ -1127,7 +1129,7 @@ trx_assign_rseg_low(
 
 	/* Slot-1 is always assigned to temp-tablespace rseg. */
 	ut_ad(rseg_type == TRX_RSEG_TYPE_REDO
-	      || trx_sys->rseg_array[1]->space == srv_tmp_space.space_id());
+	      || fsp_is_system_temporary(trx_sys->rseg_array[1]->space));
 
 	trx_rseg_t* rseg = 0;
 
@@ -2023,7 +2025,7 @@ trx_cleanup_at_db_startup(
 		trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
 	}
 
-	trx->rsegs.m_redo.rseg = NULL;
+	memset(&trx->rsegs, 0x0, sizeof(trx->rsegs));
 	trx->undo_no = 0;
 	trx->undo_rseg_space = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;

@@ -929,6 +929,12 @@ cmp_rec_rec_with_match(
 		ulint	mtype;
 		ulint	prtype;
 
+		/* If this is node-ptr records then avoid comparing node-ptr
+		field. Only key field needs to be compared. */
+		if (cur_field == dict_index_get_n_unique_in_tree(index)) {
+			break;
+		}
+
 		if (dict_index_is_univ(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;

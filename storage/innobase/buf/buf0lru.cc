@@ -2447,7 +2447,7 @@ buf_LRU_old_ratio_update_instance(
 			buf_pool->LRU_old_ratio = ratio;
 
 			if (UT_LIST_GET_LEN(buf_pool->LRU)
-			   >= BUF_LRU_OLD_MIN_LEN) {
+			    >= BUF_LRU_OLD_MIN_LEN) {
 
 				buf_LRU_old_adjust_len(buf_pool);
 			}

@@ -423,7 +423,7 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       goto exit_without_my_ok;
     }
 
-    init_ftfuncs(thd, select_lex, 1);
+    init_ftfuncs(thd, select_lex);
     THD_STAGE_INFO(thd, stage_updating);
 
     if (table->triggers &&
@@ -883,7 +883,7 @@ multi_delete::initialize_tables(JOIN *join)
     *(table_ptr++)= table;
   }
   DBUG_ASSERT(unit->first_select() == thd->lex->current_select());
-  init_ftfuncs(thd, unit->first_select(), 1);
+  init_ftfuncs(thd, unit->first_select());
   DBUG_RETURN(thd->is_fatal_error != 0);
 }
 

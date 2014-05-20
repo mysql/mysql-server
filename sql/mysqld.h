@@ -128,6 +128,11 @@ extern ulonglong slave_type_conversions_options;
 extern my_bool read_only, opt_readonly;
 extern my_bool lower_case_file_system;
 extern ulonglong slave_rows_search_algorithms_options;
+
+#ifdef HAVE_REPLICATION
+extern my_bool opt_slave_preserve_commit_order;
+#endif
+
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
 #endif
@@ -226,6 +231,15 @@ extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
 extern uint executed_gtids_compression_period;
+extern ulong binlogging_impossible_mode;
+enum enum_binlogging_impossible_mode
+{
+  /// Ignore the error and let server continue without binlogging
+  IGNORE_ERROR= 0,
+  /// Abort the server
+  ABORT_SERVER= 1
+};
+extern const char *binlogging_impossible_err[];
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -373,6 +387,10 @@ extern PSI_mutex_key key_LOCK_compress_gtid_table;
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
 
+#ifdef HAVE_REPLICATION
+extern PSI_mutex_key key_commit_order_manager_mutex;
+#endif
+
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
   key_rwlock_LOCK_system_variables_hash, key_rwlock_query_cache_query_lock,
@@ -401,6 +419,9 @@ extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
 extern PSI_cond_key key_COND_compress_gtid_table;
 
+#ifdef HAVE_REPLICATION
+extern PSI_cond_key key_commit_order_manager_cond;
+#endif
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand,
@@ -435,6 +456,7 @@ C_MODE_START
 
 extern PSI_memory_key key_memory_buffered_logs;
 extern PSI_memory_key key_memory_locked_table_list;
+extern PSI_memory_key key_memory_locked_thread_list;
 extern PSI_memory_key key_memory_thd_transactions;
 extern PSI_memory_key key_memory_delegate;
 extern PSI_memory_key key_memory_acl_mem;
@@ -671,6 +693,9 @@ extern PSI_stage_info stage_slave_waiting_workers_to_exit;
 extern PSI_stage_info stage_slave_waiting_for_workers_to_finish;
 extern PSI_stage_info stage_compressing_gtid_table;
 extern PSI_stage_info stage_suspending;
+#ifdef HAVE_REPLICATION
+extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
+#endif
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
