@@ -3685,6 +3685,7 @@ execute_signals(thr_data *selfptr,
     }
 #endif
 
+    block->jamBuffer()->markEndOfSigExec();
     block->executeFunction(gsn, sig);
   }
 
@@ -4260,7 +4261,7 @@ sendpacked(struct thr_data* thr_ptr, Signal* signal)
     // wl4391_todo remove useless assert
     assert(b != 0 && b->getThreadId() == thr_ptr->m_thr_no);
     /* b->send_at_job_buffer_end(); */
-    b->executeFunctionInternal(GSN_SEND_PACKED, signal);
+    b->executeFunction(GSN_SEND_PACKED, signal);
   }
 }
 
