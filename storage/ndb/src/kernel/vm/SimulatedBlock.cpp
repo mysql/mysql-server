@@ -2370,6 +2370,7 @@ SimulatedBlock::assembleFragments(Signal * signal){
        *       sets sendersBlockRef to reference()
        */
       /* Perform dropped signal handling, in this thread, now */
+      jamBuffer()->markEndOfSigExec();
       executeFunction(GSN_SIGNAL_DROPPED_REP, signal);
       
       /* return false to caller - they should not process the signal */

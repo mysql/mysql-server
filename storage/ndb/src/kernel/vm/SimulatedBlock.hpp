@@ -160,14 +160,10 @@ public:
     Uint32 m_callbackData;
   };
 
-  // Execute the handler function for an incoming signal.
-  void executeFunction(GlobalSignalNumber gsn, Signal* signal)
-  {
-    jamBuffer()->markEndOfSigExec();
-    executeFunctionInternal(gsn, signal);
-  }
-
-  inline void executeFunctionInternal(GlobalSignalNumber gsn, Signal* signal);
+  /**
+   * 
+   */
+  inline void executeFunction(GlobalSignalNumber gsn, Signal* signal);
 
   /* Multiple block instances */
   Uint32 instance() const {
@@ -1067,7 +1063,7 @@ static void debugOutDefines()
 
 inline 
 void 
-SimulatedBlock::executeFunctionInternal(GlobalSignalNumber gsn, Signal* signal){
+SimulatedBlock::executeFunction(GlobalSignalNumber gsn, Signal* signal){
   ExecFunction f = theExecArray[gsn];
   if(gsn <= MAX_GSN && f != 0){
 #ifdef VM_TRACE
@@ -1316,7 +1312,7 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
   Uint32 tGsn = m_currentGsn;
   b->m_currentGsn = gsn;
 #endif
-  b->executeFunctionInternal(gsn, signal);
+  b->executeFunction(gsn, signal);
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t2 = NdbTick_getCurrentTicks();
   const Uint64 diff = NdbTick_Elapsed(t1,t2).microSec();
