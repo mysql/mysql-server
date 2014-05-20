@@ -23,7 +23,7 @@
 #include "adapter_global.h"
 #include "Record.h"
 
-Record::Record(NdbDictionary::Dictionary *d, int ncol) : 
+Record::Record(NdbDictionary::Dictionary *d, int ncol, bool isPK) : 
   dict(d),
   ncolumns(ncol),
   n_nullable(0),
@@ -32,7 +32,8 @@ Record::Record(NdbDictionary::Dictionary *d, int ncol) :
   start_of_nullmap(0),
   size_of_nullmap(0),
   ndb_record(0), 
-  specs(new NdbDictionary::RecordSpecification[ncol])                      {};
+  specs(new NdbDictionary::RecordSpecification[ncol]),
+  isPrimaryKey(isPK)                                                       {};
 
 Record::~Record() {
   // dict->releaseRecord(ndb_record);  // causes crashes due to dict==0. ??

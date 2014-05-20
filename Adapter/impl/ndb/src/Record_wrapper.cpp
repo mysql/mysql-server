@@ -44,7 +44,6 @@ public:
     DEFINE_JS_FUNCTION(Envelope::stencil, "getColumnOffset", getColumnOffset_wrapper);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getBufferSize", getBufferSize_wrapper);
     DEFINE_JS_FUNCTION(Envelope::stencil, "setNull", setNull_wrapper);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "setNotNull", setNotNull_wrapper);
     DEFINE_JS_FUNCTION(Envelope::stencil, "isNull", isNull_wrapper);
     DEFINE_JS_FUNCTION(Envelope::stencil, "encoderRead", record_encoderRead);
     DEFINE_JS_FUNCTION(Envelope::stencil, "encoderWrite", record_encoderWrite);
@@ -109,21 +108,6 @@ Handle<Value> setNull_wrapper(const Arguments &args) {
   return scope.Close(ncall.jsReturnVal());
 }
 
-Handle<Value> setNotNull_wrapper(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
-  HandleScope scope;
-  
-  REQUIRE_ARGS_LENGTH(2);
-
-  typedef NativeVoidConstMethodCall_2_<const Record, int, char *> NCALL;
-
-  NCALL ncall(& Record::setNotNull, args);
-  ncall.run();
-  
-  return scope.Close(ncall.jsReturnVal());
-}
-
-
 Handle<Value> isNull_wrapper(const Arguments &args) {
   DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
@@ -161,9 +145,11 @@ Handle<Value> record_encoderRead(const Arguments & args) {
 Handle<Value> record_encoderWrite(const Arguments & args) {
   HandleScope scope;
 
-  const Record * record = unwrapPointer<Record *>(args.Holder());
+  const Record * record = unwrapPointer<const Record *>(args.Holder());
   int columnNumber = args[0]->Uint32Value();
   char * buffer = node::Buffer::Data(args[1]->ToObject());
+
+  record->setNotNull(columnNumber, buffer);
 
   const NdbDictionary::Column * col = record->getColumn(columnNumber);
   size_t offset = record->getColumnOffset(columnNumber);

@@ -23,12 +23,13 @@
 #include <node.h>
 
 #include "adapter_global.h"
-#include "Operation.h"
+#include "KeyOperation.h"
+#include "DBOperationSet.h"
 #include "NdbWrappers.h"
 #include "v8_binder.h"
 #include "js_wrapper_macros.h"
 #include "NdbRecordObject.h"
-#include "PendingOperationSet.h"
+#include "DBTransactionContext.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -43,29 +44,27 @@ enum {
   HELPER_IS_VALID
 };
 
-const NdbOperation * DBOperationHelper_VO(Handle<Object>, int, NdbTransaction *);
-const NdbOperation * DBOperationHelper_NonVO(Handle<Object>, int, NdbTransaction *);
-const NdbOperation * buildNdbOperation(Operation &, int, NdbTransaction *);
+void DBOperationHelper_VO(Handle<Object>, KeyOperation &);
+void DBOperationHelper_NonVO(Handle<Object>, KeyOperation &);
 
-void setKeysInOp(Handle<Object> spec, Operation & op);
+void setKeysInOp(Handle<Object> spec, KeyOperation & op);
 
 
 /* DBOperationHelper takes an array of HelperSpecs.
    arg0: Length of Array
    arg1: Array of HelperSpecs
-   arg2: NdbTransaction *
+   arg2: DBTransactionContext *
 
-   Returns: a wrapped PendingOperationSet
-   The set has the same length as the array that came in
+   Returns: DBOperationSet
 */
 Handle<Value> DBOperationHelper(const Arguments &args) {
   HandleScope scope;
 
   int length = args[0]->Int32Value();
   const Local<Object> array = args[1]->ToObject();
-  NdbTransaction *tx = unwrapPointer<NdbTransaction *>(args[2]->ToObject());
+  DBTransactionContext *txc = unwrapPointer<DBTransactionContext *>(args[2]->ToObject());
 
-  PendingOperationSet * opList = new PendingOperationSet(length);
+  DBOperationSet * pendingOps = new DBOperationSet(txc, length);
 
   for(int i = 0 ; i < length ; i++) {
     Handle<Object> spec = array->Get(i)->ToObject();
@@ -74,26 +73,20 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
     bool is_vo  = spec->Get(HELPER_IS_VO)->ToBoolean()->Value();
     bool op_ok  = spec->Get(HELPER_IS_VALID)->ToBoolean()->Value();
 
-    const NdbOperation * op = NULL;
-
+    KeyOperation * op = pendingOps->getKeyOperation(i);
+    
     if(op_ok) {
-      op = is_vo ?
-        DBOperationHelper_VO(spec, opcode, tx):
-        DBOperationHelper_NonVO(spec, opcode, tx);
-
-      if(op)    opList->setNdbOperation(i, op);
-      else      opList->setError(i, tx->getNdbError());
-    }
-    else {
-      opList->setNdbOperation(i, NULL);
+      op->opcode = opcode;
+      if(is_vo) DBOperationHelper_VO(spec, *op);
+      else      DBOperationHelper_NonVO(spec, *op);
     }
   }
-
-  return PendingOperationSet_Wrapper(opList);
+  
+  return DBOperationSet_Wrapper(pendingOps);
 }
 
 
-void setKeysInOp(Handle<Object> spec, Operation & op) {
+void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
 
   Local<Value> v;
@@ -113,39 +106,8 @@ void setKeysInOp(Handle<Object> spec, Operation & op) {
 }
 
 
-const NdbOperation * buildNdbOperation(Operation &op,
-                                       int opcode, NdbTransaction *tx) {
-  const NdbOperation * ndbop;
-    
-  switch(opcode) {
-    case 1:  // OP_READ:
-      ndbop = op.readTuple(tx);
-      break;
-    case 2:  // OP_INSERT:
-      ndbop = op.insertTuple(tx);
-      break;
-    case 4:  // OP_UPDATE:
-      ndbop = op.updateTuple(tx);
-      break;
-    case 8:  // OP_WRITE:
-      ndbop = op.writeTuple(tx);
-      break;
-    case 16: // OP_DELETE:
-      ndbop = op.deleteTuple(tx);
-      break;
-    default:
-      assert("Unhandled opcode" == 0);
-      return NULL;
-  }
-
-  return ndbop;
-}
-
-
-const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
-                                             NdbTransaction *tx) {
+void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
-  Operation op;
 
   Local<Value> v;
   Local<Object> o;
@@ -179,19 +141,15 @@ const NdbOperation * DBOperationHelper_NonVO(Handle<Object> spec, int opcode,
     }
   }
   
-  DEBUG_PRINT("Non-VO opcode: %d mask: %u", opcode, op.u.maskvalue);
-
-  return buildNdbOperation(op, opcode, tx);
+  DEBUG_PRINT("Non-VO opcode: %d mask: %u", op.opcode, op.u.maskvalue);
 }
 
-const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
-                                          NdbTransaction *tx) {
+
+void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
   HandleScope scope;
   Local<Value> v;
   Local<Object> o;
   Local<Object> valueObj;
-  const NdbOperation * ndbOp;
-  Operation op;
 
   v = spec->Get(HELPER_VALUE_OBJECT);
   valueObj = v->ToObject();
@@ -207,18 +165,13 @@ const NdbOperation * DBOperationHelper_VO(Handle<Object> spec, int opcode,
   /* "write" and "persist" must write all columns. 
      Other operations only require the columns that have changed since read.
   */
-  if(opcode == 2 || opcode == 8) 
+  if(op.opcode == 2 || op.opcode == 8) 
     op.setRowMask(0xFFFFFFFF);
   else 
     op.setRowMask(nro->getMaskValue());
 
-  DEBUG_PRINT("  VO   opcode: %d mask: %u", opcode, op.u.maskvalue);
-
-  ndbOp = buildNdbOperation(op, opcode, tx);
-  
+  DEBUG_PRINT("  VO   opcode: %d mask: %u", op.opcode, op.u.maskvalue);  
   nro->resetMask(); 
-
-  return ndbOp;
 }
 
 
