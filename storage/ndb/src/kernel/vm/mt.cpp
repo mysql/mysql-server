@@ -3682,6 +3682,7 @@ execute_signals(thr_data *selfptr,
     }
 #endif
 
+    block->jamBuffer()->markEndOfSigExec();
     block->executeFunction_async(gsn, sig);
   }
 
