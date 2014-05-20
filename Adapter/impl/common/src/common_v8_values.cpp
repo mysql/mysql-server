@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,26 +18,24 @@
  02110-1301  USA
  */
 
+#include "common_v8_values.h"
 
-#ifndef ADAPTER_GLOBAL_H
-#define ADAPTER_GLOBAL_H
+Handle<Value> K_Zero;
+Handle<Value> K_One;
+ 
+bool need_init = true;
 
-#define ENABLE_WRAPPER_TYPE_CHECKS 0
-#define UNIFIED_DEBUG 1
+void init() {
+  K_Zero = Integer::New(0);
+  K_One = Integer::New(1);
+}
 
-#ifdef WIN32
+Handle<Value> Zero() {
+  if(need_init) init();
+  return K_Zero;
+}
 
-#define __func__ __FUNCTION__
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-#define snprintf _snprintf
-#define strtoll _strtoi64
-#define strtoull _strtoui64
-
-#else
-#include <unistd.h>
-
-#endif
-
-
-#endif
+Handle<Value> One() {
+  if(need_init) init();
+  return K_One;
+}

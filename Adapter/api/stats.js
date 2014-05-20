@@ -82,15 +82,9 @@ exports.register = function(userStatsContainer) {
 };
 
 
-exports.peek = function() {
-  console.log(JSON.stringify(global_stats));
-};
-
-
 exports.query = function(path) {
   return getStatsDomain(global_stats, path, path.length);
 };
-
 
 /* Translate a URL like "/a/b/" into an array ["a","b"] 
 */
@@ -104,6 +98,17 @@ function parseStatsUrl(url) {
   }
   return parts;
 }
+
+
+exports.peek = function(query) {
+  var parts;
+  var tree = global_stats;  
+  if(query) {
+    parts = parseStatsUrl(query);
+    tree = getStatsDomain(global_stats, parts, parts.length);
+  }
+  console.log(JSON.stringify(tree));
+};
 
 
 exports.startStatsServer = function(port, host, callback) {

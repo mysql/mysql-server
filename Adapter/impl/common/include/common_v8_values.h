@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,26 +18,9 @@
  02110-1301  USA
  */
 
+#include "v8.h"
 
-#ifndef ADAPTER_GLOBAL_H
-#define ADAPTER_GLOBAL_H
+using namespace v8;
 
-#define ENABLE_WRAPPER_TYPE_CHECKS 0
-#define UNIFIED_DEBUG 1
-
-#ifdef WIN32
-
-#define __func__ __FUNCTION__
-#define strcasecmp _stricmp
-#define strncasecmp _strnicmp
-#define snprintf _snprintf
-#define strtoll _strtoi64
-#define strtoull _strtoui64
-
-#else
-#include <unistd.h>
-
-#endif
-
-
-#endif
+Handle<Value> Zero();
+Handle<Value> One();

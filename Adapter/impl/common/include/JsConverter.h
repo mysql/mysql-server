@@ -44,10 +44,14 @@ typedef Handle<Object> jsobject;
 template <typename T> class JsValueConverter {
 public:  
   JsValueConverter(jsvalue v) {
-    DEBUG_ASSERT(v->IsObject());
-    Local<Object> obj = v->ToObject();
-    DEBUG_ASSERT(obj->InternalFieldCount() == 2);
-    native_object = unwrapPointer<T>(obj);
+    if(v->IsNull()) {
+      native_object = 0;
+    } else {
+      DEBUG_ASSERT(v->IsObject());
+      Local<Object> obj = v->ToObject();
+      DEBUG_ASSERT(obj->InternalFieldCount() == 2);
+      native_object = unwrapPointer<T>(obj);
+    }
   }
 
   virtual ~JsValueConverter() {}
@@ -183,36 +187,42 @@ template <typename T> Local<Value> toJS(T cptr) {
 // int
 template <>
 inline Local<Value> toJS<int>(int cval) { 
+  HandleScope scope;
   return v8::Integer::New(cval);
 }
 
 // unsigned int
 template <>
 inline Local<Value> toJS<unsigned int>(unsigned int cval) {
+  HandleScope scope;
   return v8::Integer::NewFromUnsigned(cval);
 }
 
 // short
 template <>
 inline Local<Value> toJS<short>(short cval) {
+  HandleScope scope;
   return v8::Integer::New(cval);
 }
 
 // unsigned short
 template <>
 inline Local<Value> toJS<unsigned short>(unsigned short cval) {
+  HandleScope scope;
   return v8::Integer::NewFromUnsigned(cval);
 }
 
 // long 
 template <>
 inline Local<Value> toJS<long>(long cval) {
+  HandleScope scope;
   return v8::Integer::New(cval);
 }
 
 // unsigned long
 template <>
 inline Local<Value> toJS<unsigned long >(unsigned long cval) {
+  HandleScope scope;
   return v8::Integer::NewFromUnsigned(cval);
 }
 
@@ -220,18 +230,21 @@ inline Local<Value> toJS<unsigned long >(unsigned long cval) {
 // (the value may actually be too large to represent in JS!?)
 template <>
 inline Local<Value> toJS<unsigned long long>(unsigned long long cval) {
-  return v8::Integer::NewFromUnsigned((uint32_t) cval);
+   HandleScope scope;
+ return v8::Integer::NewFromUnsigned((uint32_t) cval);
 }
 
 // double
 template <>
 inline Local<Value> toJS<double>(double cval) {
+  HandleScope scope;
   return Number::New(cval);
 };
 
 // const char *
 template <> 
 inline Local<Value> toJS<const char *>(const char * cval) {
+  HandleScope scope;
   return v8::String::New(cval);
 }
 
@@ -239,9 +252,15 @@ inline Local<Value> toJS<const char *>(const char * cval) {
 template <> 
 inline Local<Value> toJS<const bool *>(const bool * cbp) {
   HandleScope scope;
-  return BooleanObject::New(*cbp);
+  return scope.Close(Boolean::New(*cbp));
 }
 
+// bool 
+template <>
+inline Local<Value> toJS<bool>(bool b) {
+  HandleScope scope;
+  return scope.Close(Boolean::New(b));
+}
 
 /*****************************************************************
  isWrappedPointer() functions
@@ -271,6 +290,7 @@ template <> inline bool isWrappedPointer(unsigned long long t) { return false; }
 template <> inline bool isWrappedPointer(double typ)           { return false; }
 template <> inline bool isWrappedPointer(const char * typ)     { return false; }
 template <> inline bool isWrappedPointer(const bool * typ)     { return false; }
+template <> inline bool isWrappedPointer(bool typ)             { return false; }
 template <> inline bool isWrappedPointer(char * typ)           { return false; }
 template <> inline bool isWrappedPointer(Persistent<Function> typ) { return false; }
 
