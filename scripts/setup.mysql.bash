@@ -180,6 +180,10 @@ if [ $startup -ne 0 ] ; then
         else
             default_arg="--defaults-file=$defaultsfile"
         fi
+        j=/usr/local/mysql/lib/mysql/libjemalloc.so
+        if [ -f $j ] ; then
+            default_arg="$default_arg --malloc-lib=$j"
+        fi
         $sudo -b bash -c "$ldpath /usr/local/mysql/bin/mysqld_safe $default_arg $mysqld_args" >/dev/null 2>&1 &
     fi
     sleep $sleeptime
