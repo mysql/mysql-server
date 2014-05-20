@@ -93,6 +93,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
                         const bool no_changes, const key_map *map,
                         const char *clause_type);
 
+static Item_func_match *test_if_ft_index_order(ORDER *order);
+
+
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -236,8 +239,6 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 #endif
-
-  optimize_fts_limit_query();
 
   /* 
      Try to optimize count(*), min() and max() to const fields if
@@ -450,7 +451,6 @@ JOIN::optimize()
     (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
 
   /* Perform FULLTEXT search before all regular searches */
-  init_ftfuncs(thd, select_lex, MY_TEST(order));
   optimize_fts_query();
 
   /*
@@ -1040,6 +1040,30 @@ void JOIN::test_skip_sort()
 
 
 /**
+  Test if ORDER BY is a single MATCH function(ORDER BY MATCH)
+  and sort order is descending.
+
+  @param order                 pointer to ORDER struct.
+
+  @retval
+    Pointer to MATCH function if order is 'ORDER BY MATCH() DESC'
+  @retval    
+    NULL otherwise
+*/
+
+static Item_func_match *test_if_ft_index_order(ORDER *order)
+{
+  if (order && order->next == NULL &&
+      order->direction == ORDER::ORDER_DESC &&
+      (*order->item)->type() == Item::FUNC_ITEM &&
+      ((Item_func*) (*order->item))->functype() == Item_func::FT_FUNC)   
+    return static_cast<Item_func_match*> (*order->item)->get_master();
+
+  return NULL;
+}
+
+
+/**
   Test if one can use the key to resolve ordering. 
 
   @param order                 Sort order
@@ -1487,6 +1511,68 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     DBUG_RETURN(1);
   }
 
+  /*
+    Check if FT index can be used to retrieve result in the required order.
+    It is possible if ordering is on the first non-constant table.
+  */
+  if (tab->join->simple_order)
+  {
+    /*
+      Check if ORDER is DESC, ORDER BY is a single MATCH function.
+    */
+    Item_func_match *ft_func= test_if_ft_index_order(order);
+    /*
+      Two possible cases when we can skip sort order:
+      1. FT_SORTED must be set(Natural mode, no ORDER BY).
+      2. If FT_SORTED flag is not set then
+      the engine should support deferred sorting. Deferred sorting means
+      that sorting is postponed utill the start of index reading(InnoDB).
+      In this case we set FT_SORTED flag here to let the engine know that
+      internal sorting is needed.
+    */
+    if (ft_func && ft_func->ft_handler && ft_func->ordered_result())
+    {
+      /*
+        FT index scan is used, so the only additional requirement is
+        that ORDER BY MATCH function is the same as the function that
+        is used for FT index.
+      */
+      if (tab->type == JT_FT && ft_func->eq(tab->position->key->val, true))
+      {
+        ft_func->set_hints(tab->join, FT_SORTED, select_limit, false);
+        DBUG_RETURN(true);
+      }
+      /*
+        No index is used, it's possible to use FT index for ORDER BY if
+        LIMIT is present and does not exceed count of the records in FT index
+        and there is no WHERE condition since a condition may potentially
+        require more rows to be fetch from FT index.
+      */
+      else if (!tab->select->cond &&
+               select_limit != HA_POS_ERROR &&
+               select_limit <= ft_func->get_count())
+      {
+        /* test_if_ft_index_order() always returns master MATCH function. */
+        DBUG_ASSERT(!ft_func->master);
+        /* ref is not set since there is no WHERE condition */
+        DBUG_ASSERT(tab->ref.key == -1);
+
+        /*Make EXPLAIN happy */
+        tab->type= JT_FT;
+        tab->ref.key= ft_func->key;
+        tab->ref.key_parts= 0;
+        tab->index= ft_func->key;
+        tab->ft_func= ft_func;
+
+        /* Setup FT handler */
+        ft_func->set_hints(tab->join, FT_SORTED, select_limit, true);
+        ft_func->join_key= true;
+        tab->table->file->ft_handler= ft_func->ft_handler;
+        DBUG_RETURN(true);
+      }
+    }
+  }
+  
   /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
@@ -6906,9 +6992,35 @@ add_key_part(Key_use_array *keyuse_array, Key_field *key_field)
 }
 
 
+/**
+   Function parses WHERE condition and add key_use for FT index
+   into key_use array if suitable MATCH function is found.
+   Condition should be a set of AND expression, OR is not supported.
+   MATCH function should be a part of simple expression.
+   Simple expression is MATCH only function or MATCH is a part of
+   comparison expression ('>=' or '>' operations are supported).
+   It also sets FT_HINTS values(op_type, op_value).
+
+   @param keyuse_array      Key_use array
+   @param stat              JOIN_TAB structure
+   @param cond              WHERE condition
+   @param usable_tables     usable tables
+   @param simple_match_expr true if this is the first call false otherwise.
+                            if MATCH function is found at first call it means
+                            that MATCH is simple expression, otherwise, in case
+                            of AND/OR condition this parameter will be false.
+                     
+   @retval
+   true if FT key was added to Key_use array
+   @retval
+   false if no key was added to Key_use array
+
+*/
+
 static bool
 add_ft_keys(Key_use_array *keyuse_array,
-            JOIN_TAB *stat,Item *cond,table_map usable_tables)
+            JOIN_TAB *stat,Item *cond,table_map usable_tables,
+            bool simple_match_expr)
 {
   Item_func_match *cond_func=NULL;
 
@@ -6919,24 +7031,47 @@ add_ft_keys(Key_use_array *keyuse_array,
   {
     Item_func *func=(Item_func *)cond;
     Item_func::Functype functype=  func->functype();
+    enum ft_operation op_type= FT_OP_NO;
+    double op_value= 0.0;
     if (functype == Item_func::FT_FUNC)
-      cond_func=(Item_func_match *)cond;
+    {
+      cond_func= ((Item_func_match *) cond)->get_master();
+      cond_func->set_hints_op(op_type, op_value);
+    }
     else if (func->arg_count == 2)
     {
       Item *arg0=(Item *)(func->arguments()[0]),
            *arg1=(Item *)(func->arguments()[1]);
-      if (arg1->const_item() && arg1->cols() == 1 &&
+      if (arg1->const_item() &&
            arg0->type() == Item::FUNC_ITEM &&
            ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&
-          ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
-           (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
-        cond_func= (Item_func_match *) arg0;
+          ((functype == Item_func::GE_FUNC &&
+            (op_value= arg1->val_real()) > 0) ||
+           (functype == Item_func::GT_FUNC &&
+            (op_value= arg1->val_real()) >=0)))
+      {
+        cond_func= ((Item_func_match *) arg0)->get_master();
+        if (functype == Item_func::GE_FUNC)
+          op_type= FT_OP_GE;
+        else if (functype == Item_func::GT_FUNC)
+          op_type= FT_OP_GT;
+        cond_func->set_hints_op(op_type, op_value);
+      }
       else if (arg0->const_item() &&
                 arg1->type() == Item::FUNC_ITEM &&
                 ((Item_func *) arg1)->functype() == Item_func::FT_FUNC &&
-               ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
-                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
-        cond_func= (Item_func_match *) arg1;
+               ((functype == Item_func::LE_FUNC &&
+                 (op_value= arg0->val_real()) > 0) ||
+                (functype == Item_func::LT_FUNC &&
+                 (op_value= arg0->val_real()) >=0)))
+      {
+        cond_func= ((Item_func_match *) arg1)->get_master();
+        if (functype == Item_func::LE_FUNC)
+          op_type= FT_OP_GE;
+        else if (functype == Item_func::LT_FUNC)
+          op_type= FT_OP_GT;
+        cond_func->set_hints_op(op_type, op_value);
+      }
     }
   }
   else if (cond->type() == Item::COND_ITEM)
@@ -6948,7 +7083,7 @@ add_ft_keys(Key_use_array *keyuse_array,
       Item *item;
       while ((item=li++))
       {
-        if (add_ft_keys(keyuse_array,stat,item,usable_tables))
+        if (add_ft_keys(keyuse_array, stat, item, usable_tables, false))
           return TRUE;
       }
     }
@@ -6957,6 +7092,8 @@ add_ft_keys(Key_use_array *keyuse_array,
   if (!cond_func || cond_func->key == NO_SUCH_KEY ||
       !(usable_tables & cond_func->table->map))
     return FALSE;
+
+  cond_func->set_simple_expression(simple_match_expr);
 
   const Key_use keyuse(cond_func->table,
                        cond_func,
@@ -7457,7 +7594,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 
   if (select_lex->ftfunc_list->elements)
   {
-    if (add_ft_keys(keyuse,join_tab,cond,normal_tables))
+    if (add_ft_keys(keyuse, join_tab, cond, normal_tables, true))
       return true;
   }
 
@@ -7589,7 +7726,7 @@ void JOIN::mark_const_table(JOIN_TAB *tab, Key_use *key)
   position->key= key;
   position->rows_fetched= 1.0;               // This is a const table
   position->filter_effect= 1.0;
-  position->prefix_record_count= 1.0;
+  position->prefix_rowcount= 1.0;
   position->read_cost= 0.0;
   position->ref_depend_map= 0;
   position->loosescan_key= MAX_KEY;    // Not a LooseScan
@@ -9984,152 +10121,101 @@ void JOIN::optimize_keyuse()
   }
 }
 
+/**
+  Function sets FT hints, initializes FT handlers
+  and checks if FT index can be used as covered.
+*/
 
 void JOIN::optimize_fts_query()
 {
-  if (primary_tables > 1)
-    return;    // We only optimize single table FTS queries
+  if (!select_lex->ftfunc_list->elements)
+    return;
 
-  JOIN_TAB * const tab= &(join_tab[0]);
-  if (tab->type != JT_FT)
-    return;    // Access is not using FTS result
-
-  if ((tab->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
-    return;    // Optimizations requires extended FTS support by table engine
-
-  Item_func_match* fts_result= static_cast<Item_func_match*>(tab->keyuse->val);
-
-  /* If we are ordering on the rank of the same result as is used for access,
-     and the table engine deliver result ordered by rank, we can drop ordering.
-   */
-  if (order != NULL 
-      && order->next == NULL &&             
-      order->direction == ORDER::ORDER_DESC && 
-      fts_result->eq(*(order->item), true))
+  for (uint i= const_tables; i < tables; i++)
   {
-    Item_func_match* fts_item= 
-      static_cast<Item_func_match*>(*(order->item)); 
+    JOIN_TAB *tab= &join_tab[i];
+    if (tab->type != JT_FT)
+      continue;
 
-    /* If we applied the LIMIT optimization @see optimize_fts_limit_query,
-       check that the number of matching rows is sufficient.
-       Otherwise, revert this optimization and use table scan instead.
+    Item_func_match *ifm;
+    Item_func_match* ft_func=
+      static_cast<Item_func_match*>(tab->position->key->val);
+    List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
+
+    while ((ifm= li++))
+    {
+      if (!(ifm->used_tables() & tab->table->map) || ifm->master)
+        continue;
+
+      if (ifm != ft_func)
+      {
+        if (ifm->can_skip_ranking())
+          ifm->set_hints(this, FT_NO_RANKING, HA_POS_ERROR, false);
+      }
+    }
+
+    /* 
+      Check if internal sorting is needed. FT_SORTED flag is set
+      if no ORDER BY clause or ORDER BY MATCH function is the same
+      as the function that is used for FT index and FT table is
+      the first non-constant table in the JOIN.
     */
-    if (min_ft_matches != HA_POS_ERROR && 
-        min_ft_matches > fts_item->get_count())
-    {
-      // revert to table scan
-      tab->type= JT_ALL;
-      tab->use_quick= QS_NONE;
-      tab->ref.key= -1;
+    if (i == const_tables &&
+        !(ft_func->get_hints()->get_flags() & FT_BOOL) &&
+        (!order || ft_func == test_if_ft_index_order(order)))
+      ft_func->set_hints(this, FT_SORTED, m_select_limit, false);
 
-      // Reset join condition
-      tab->select->cond= NULL;
-      where_cond= NULL;
-
-      return;
-    }
-    else if (fts_item->ordered_result())
-      order= NULL;
-  }
-  
-  /* Check whether the FTS result is covering.  If only document id
-     and rank is needed, there is no need to access table rows.
-  */
-  List_iterator<Item> it(all_fields);
-  Item *item;
-  // This optimization does not work with filesort nor GROUP BY
-  bool covering= (!order && !group);
-  bool docid_found= false;
-  while (covering && (item= it++))
-  {
-    switch (item->type()) {
-    case Item::FIELD_ITEM:
-    {
-      Item_field *item_field= static_cast<Item_field*>(item);
-      if (strcmp(item_field->field_name, FTS_DOC_ID_COL_NAME) == 0)
-      {
-        docid_found= true;
-        covering= fts_result->docid_in_result();
-      }
-      else
-        covering= false;
-      break;
-    }
-    case Item::FUNC_ITEM:
-      if (static_cast<Item_func*>(item)->functype() == Item_func::FT_FUNC)
-      {
-        Item_func_match* fts_item= static_cast<Item_func_match*>(item); 
-        if (fts_item->eq(fts_result, true))
-          break;
-      }
-      // Fall-through when not an equivalent MATCH expression
-    default:
-      covering= false;
-    }
+    /* 
+      Check if ranking is not needed. FT_NO_RANKING flag is set if
+      MATCH function is used only in WHERE condition and  MATCH
+      function is not part of an expression.
+    */
+    if (ft_func->can_skip_ranking())
+      ft_func->set_hints(this, FT_NO_RANKING,
+                         !order ? m_select_limit : HA_POS_ERROR, false);
   }
 
-  if (covering) 
-  {
-    if (docid_found)
-    {
-      replace_item_field(FTS_DOC_ID_COL_NAME, 
-                         new Item_func_docid(reinterpret_cast<FT_INFO_EXT*>
-                                             (fts_result->ft_handler)));
-    }
-    
-    // Tell storage engine that row access is not necessary
-    fts_result->table->set_keyread(true);
-    fts_result->table->covering_keys.set_bit(fts_result->key);
-  }
+  init_ftfuncs(thd, select_lex);
 }
 
 
-  /**
-     Optimize FTS queries with ORDER BY/LIMIT, but no WHERE clause.
+/**
+  Check if FTS index only access is possible.
 
-     If MATCH expression is not in WHERE clause, but in ORDER BY,
-     JT_FT access will not apply. However, if we are ordering on rank and
-     there is a limit, normally, only the top ranking rows are needed
-     returned, and one would benefit from the optimizations associated
-     with JT_FT acess (@see optimize_fts_query).  To get JT_FT access we
-     will add the MATCH expression to the WHERE clause.
+  @param tab  pointer to JOIN_TAB structure.
 
-     @note This optimization will only be applied to single table
-           queries with no existing WHERE clause.
-     @note This transformation is not correct if number of matches 
-           is less than the number of rows requested by limit.
-           If this turns out to be the case, the transformation will
-           be reverted @see optimize_fts_query()
-   */
-void 
-JOIN::optimize_fts_limit_query()
+  @return  TRUE if index only access is possible,
+           FALSE otherwise.
+*/
+
+bool JOIN::fts_index_access(JOIN_TAB *tab)
 {
-  /* 
-     Only do this optimization if
-     1. It is a single table query
-     2. There is no WHERE condition
-     3. There is a single ORDER BY element
-     4. Ordering is descending
-     5. There is a LIMIT clause
-     6. Ordering is on a MATCH expression
-   */
-  if (primary_tables == 1 &&                                              // 1
-      where_cond == NULL &&                                               // 2
-      order && order->next == NULL &&                                     // 3
-      order->direction == ORDER::ORDER_DESC &&                            // 4
-      m_select_limit != HA_POS_ERROR)                                     // 5
-  {
-    DBUG_ASSERT(order->item);
-    Item* item= *order->item;
-    DBUG_ASSERT(item);
+  DBUG_ASSERT(tab->type == JT_FT);
 
-    if (item->type() == Item::FUNC_ITEM &&
-        static_cast<Item_func*>(item)->functype() == Item_func::FT_FUNC)  // 6
-    {
-      where_cond= item;
-      min_ft_matches= m_select_limit;
-    }
+  if ((tab->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    return false; // Optimizations requires extended FTS support by table engine
+
+  /*
+    This optimization does not work with filesort nor GROUP BY
+  */
+  if (group || (order && ordered_index_usage != ordered_index_order_by))
+    return false;
+
+  /*
+    Check whether the FTS result is covering.  If only document id
+    and rank is needed, there is no need to access table rows.
+  */
+  TABLE *table= tab->table;
+  for (uint i= bitmap_get_first_set(table->read_set);
+       i < table->s->fields;
+       i= bitmap_get_next_set(table->read_set, i))
+  {
+    if (table->field[i] != table->fts_doc_id_field ||
+        !tab->ft_func->docid_in_result())
+    return false;
   }
+
+  return true;
 }
 
 
@@ -10162,10 +10248,8 @@ static void calculate_materialization_costs(JOIN *join,
       get_partial_join_cost() assumes a regular join, which is correct when
       we optimize a sj-materialization nest (always executed as regular
       join).
-      @todo consider using join->best_rowcount instead.
     */
-    get_partial_join_cost(join, n_tables,
-                          &mat_cost, &mat_rowcount);
+    get_partial_join_cost(join, n_tables, &mat_cost, &mat_rowcount);
     n_tables+= join->const_tables;
     inner_expr_list= &sj_nest->nested_join->sj_inner_exprs;
   }
@@ -10415,25 +10499,25 @@ bool JOIN::compare_costs_of_subquery_strategies(
       if (subs->in_cond_of_tab != INT_MIN)
       {
         /*
-          Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
+          Subquery is attached to a certain 'pos', pos[-1].prefix_rowcount
           is the number of times we'll start a loop accessing 'pos'; each such
-          loop will read pos->rows_fetched records of 'pos', so subquery will
-          be evaluated pos[-1].prefix_record_count * pos->rows_fetched times.
+          loop will read pos->rows_fetched rows of 'pos', so subquery will
+          be evaluated pos[-1].prefix_rowcount * pos->rows_fetched times.
           Exceptions:
-          - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
+          - if 'pos' is first, use 1.0 instead of pos[-1].prefix_rowcount
           - if 'pos' is first of a sj-materialization nest, same.
 
           If in a sj-materialization nest, pos->rows_fetched and
-          pos[-1].prefix_record_count are of the "nest materialization" plan
+          pos[-1].prefix_rowcount are of the "nest materialization" plan
           (copied back in fix_semijoin_strategies()), which is
           appropriate as it corresponds to evaluations of our subquery.
 
-          pos.prefix_record_count is not suitable because if we have:
+          pos->prefix_rowcount is not suitable because if we have:
           select ... from ot1 where ot1.col in
             (select it1.col1 from it1 where it1.col2 not in (subq));
           and subq does subq-mat, and plan is ot1 - it1+firstmatch(ot1),
           then:
-          - t1.prefix_record_count==1 (due to firstmatch)
+          - t1.prefix_rowcount==1 (due to firstmatch)
           - subq is attached to it1, and is evaluated for each row read from
             t1, potentially way more than 1.
        */
@@ -10446,7 +10530,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
             !sj_is_materialize_strategy(parent_join
                                         ->join_tab[idx].position->sj_strategy))
           parent_fanout*=
-            parent_join->join_tab[idx - 1].position->prefix_record_count;
+            parent_join->join_tab[idx - 1].position->prefix_rowcount;
       }
       else
       {

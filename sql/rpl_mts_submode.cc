@@ -16,6 +16,7 @@
 #include "rpl_mts_submode.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_slave.h"
+#include "rpl_slave_commit_order_manager.h"
 
 /**
  Does necessary arrangement before scheduling next event.
@@ -369,6 +370,9 @@ Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
       /* Require a fresh group to be started. */
       force_new_group)
   {
+    DBUG_PRINT("info", ("mts_last_known_commit_parent is %lld, "
+                        "commit_seq_no is %lld", mts_last_known_commit_parent,
+                        commit_seq_no));
     mts_last_known_commit_parent= commit_seq_no;
     worker_seq= 0;
     if (ev->get_type_code() == GTID_LOG_EVENT ||
@@ -393,6 +397,8 @@ Mts_submode_logical_clock::assign_group(Relay_log_info* rli,
 
   DBUG_PRINT("info", ("MTS::slave c=%lld first_event=%s", commit_seq_no,
                       YESNO(first_event)));
+  DBUG_PRINT("info", ("defer_new_group %d, is_new_group %d, force_new_group %d",
+                      defer_new_group, is_new_group, force_new_group));
   return false;
 }
 
@@ -537,7 +543,7 @@ Mts_submode_logical_clock::detach_temp_tables( THD *thd, const Relay_log_info* r
     rli relay log info of coordinator
     ws arrayy of worker threads
     ev event for which we are searching for a worker.
-  @return slave worker thread
+  @return slave worker thread or NULL when coordinator is killed by any worker.
  */
 
 Slave_worker *
@@ -587,25 +593,39 @@ Mts_submode_logical_clock::get_least_occupied_worker(Relay_log_info *rli,
     else
     {
       worker= get_free_worker(rli);
-      // Update thd info as waiting for workers to finish.
-      thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
-                       __func__, __FILE__, __LINE__);
-      do
+      if (worker == NULL)
       {
-        /* wait and get a free worker */
-        worker= get_free_worker(rli);
-      } while (!worker && !thd->killed &&
-               (my_sleep(rli->mts_coordinator_basic_nap), 1));
-      // Restore old stage info.
-      THD_STAGE_INFO(thd, *old_stage);
+        // Update thd info as waiting for workers to finish.
+        thd->enter_stage(&stage_slave_waiting_for_workers_to_finish, old_stage,
+                         __func__, __FILE__, __LINE__);
+        do
+        {
+          /* wait and get a free worker */
+          worker= get_free_worker(rli);
+        } while (!worker && !thd->killed &&
+                 (my_sleep(rli->mts_coordinator_basic_nap), 1));
+
+        // Restore old stage info.
+        THD_STAGE_INFO(thd, *old_stage);
+
+        /*
+          Even OPTION_BEGIN is set, the 'BEGIN' event is not dispatched to
+          any worker thread. So The flag is removed and Coordinator thread
+          will not try to finish the group before abort.
+        */
+        if (worker == NULL)
+          rli->info_thd->variables.option_bits&= ~OPTION_BEGIN;
+      }
     }
+
+    if (rli->get_commit_order_manager() != NULL && worker != NULL)
+      rli->get_commit_order_manager()->register_trx(worker);
   }
 
   DBUG_ASSERT(ptr_group);
   // assert that we have a worker thread for this event or the slave has
   // stopped.
   DBUG_ASSERT(worker != NULL || thd->killed);
-  ptr_group->worker_id= worker->id;
   /* The master my have send  db partition info. make sure we never use them*/
   if (ev->get_type_code() == QUERY_EVENT)
     static_cast<Query_log_event*>(ev)->mts_accessed_dbs= 0;

@@ -242,6 +242,11 @@ enum enum_alter_inplace_result {
 */
 #define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
 
+/*
+  Handler supports FULLTEXT hints
+*/
+#define HA_CAN_FULLTEXT_HINTS         (LL(1) << 43)
+
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
 #define HA_READ_PREV            2       /* supports ::index_prev */
@@ -1730,6 +1735,108 @@ public:
 
 
 /**
+  Wrapper for struct ft_hints.
+*/
+
+class Ft_hints: public Sql_alloc
+{
+private:
+  struct ft_hints hints;
+
+public:
+  Ft_hints(uint ft_flags)
+  {
+    hints.flags= ft_flags;
+    hints.op_type= FT_OP_UNDEFINED;
+    hints.op_value= 0.0;
+    hints.limit= HA_POS_ERROR;
+  }
+
+  /**
+    Set comparison operation type and and value for master MATCH function.
+
+     @param type   comparison operation type
+     @param value  comparison operation value
+  */
+  void set_hint_op(enum ft_operation type, double value)
+  {
+    hints.op_type= type;
+    hints.op_value= value;
+  }
+
+  /**
+    Set Ft_hints flag.
+
+    @param ft_flag Ft_hints flag
+  */
+  void set_hint_flag(uint ft_flag)
+  {
+    hints.flags|= ft_flag;
+  }
+
+  /**
+    Set Ft_hints limit.
+
+    @param Ft_hints limit
+  */
+  void set_hint_limit(ha_rows ft_limit)
+  {
+    hints.limit= ft_limit;
+  }
+
+  /**
+    Get Ft_hints limit.
+
+    @return Ft_hints limit
+  */
+  ha_rows get_limit()
+  {
+    return hints.limit;
+  }
+
+  /**
+    Get Ft_hints operation value.
+
+    @return operation value
+  */
+  double get_op_value()
+  {
+    return hints.op_value;
+  }
+
+  /**
+    Get Ft_hints operation type.
+
+    @return operation type
+  */
+  enum ft_operation get_op_type()
+  {
+    return hints.op_type;
+  }
+
+  /**
+    Get Ft_hints flags.
+
+    @return Ft_hints flags
+  */
+  uint get_flags()
+  {
+    return hints.flags;
+  }
+
+ /**
+    Get ft_hints struct.
+
+    @return pointer to ft_hints struct
+  */
+  struct ft_hints* get_hints()
+  {
+    return &hints;
+  }
+};
+
+
+/**
   The handler class is the interface for dynamically loadable
   storage engines. Do not add ifdefs and take care when adding or
   changing virtual functions to avoid vtable confusion
@@ -2362,6 +2469,11 @@ public:
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
+  virtual FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
+                                          Ft_hints *hints)
+  {
+    return ft_init_ext(hints->get_flags(), inx, key);
+  }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
   /// @returns @see index_read_map().

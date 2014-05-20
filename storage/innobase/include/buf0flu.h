@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -71,8 +71,10 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*	page,		/*!< in/out: page */
 	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn);	/*!< in: newest modification lsn
+	lsn_t	newest_lsn,	/*!< in: newest modification lsn
 				to the page */
+	bool	skip_checksum);	/*!< in: if true, disable/skip checksum. */
+
 #ifndef UNIV_HOTBACKUP
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**

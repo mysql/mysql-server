@@ -1448,3 +1448,98 @@ UPDATE t1 SET a2={d '1789-07-14'} WHERE a1=0;
 DROP TABLE t1;
 
 SET sql_mode=@org_mode;
+
+--echo #
+--echo # BUG 11756690 - ERROR 22012 DIVISION BY 0 HANDLED BY HANDLER FOR SQLSTATE 23000 (ER_DUP_ENTRY)
+--echo #
+
+SET sql_mode = 'STRICT_ALL_TABLES';
+
+DELIMITER |;
+
+CREATE TABLE t1 (
+Id INTEGER NOT NULL AUTO_INCREMENT,
+PRIMARY KEY(Id),
+c1 INTEGER NOT NULL,
+c2 INTEGER NOT NULL
+)|
+
+CREATE PROCEDURE p1()
+BEGIN
+UPDATE t1 SET c1 = c1 / c2;
+END|
+
+CREATE PROCEDURE p2()
+BEGIN
+DECLARE EXIT HANDLER
+FOR SQLSTATE '23000' # (ER_DUP_ENTRY)
+BEGIN
+SELECT 'Duplication handled!';
+END;
+
+CALL p1();
+END|
+
+DELIMITER ;|
+
+INSERT INTO t1 (Id, c1, c2) VALUES (1, 1, 0);
+
+--error ER_DIVISION_BY_ZERO
+CALL p1();
+
+--error ER_DIVISION_BY_ZERO
+CALL p2();
+
+--echo # Clean-up
+DROP TABLE t1;
+DROP PROCEDURE p1;
+DROP PROCEDURE p2;
+--echo #
+--echo # Restore mode
+--echo #
+SET sql_mode=@org_mode;
+
+--echo #
+--echo # BUG#11744940 - TRADITIONAL MODE: CAST ALLOWS INVALID VALUE
+--echo #
+SET sql_mode='traditional';
+CREATE TABLE t1 (col1 char(3));
+--error ER_DATA_TOO_LONG
+INSERT INTO t1 VALUES(1000);
+SELECT * FROM t1;
+--error ER_DATA_TOO_LONG
+INSERT INTO t1 VALUES(cast(1000 as char(4)));
+SELECT * FROM t1;
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES(cast(1000 as char(3)));
+SELECT * FROM t1;
+--echo # Clean-up
+DROP TABLE t1;
+--echo #
+--echo # Restore mode
+--echo #
+SET sql_mode=@org_mode;
+
+--echo #
+--echo # BUG#11744941 - TRADITIONAL MODE: BIGINT RANGE NOT CORRECTLY DELIMITED 
+--echo #
+SET sql_mode='traditional';
+CREATE TABLE t1 (col1 bigint) engine=innodb;
+INSERT INTO t1 values(-9223372036854775808);
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES(-9223372036854775809);
+SELECT * FROM t1;
+INSERT INTO t1 VALUES(9223372036854775807);
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES(9223372036854775808);
+SELECT * FROM t1;
+CREATE TABLE t2 (col1 bigint unsigned);
+--error ER_WARN_DATA_OUT_OF_RANGE
+INSERT INTO t1 VALUES(9223372036854775808);
+--echo # Clean-up
+DROP TABLE t1;
+DROP TABLE t2;
+--echo #
+--echo # Restore mode
+--echo #
+SET sql_mode=@org_mode;

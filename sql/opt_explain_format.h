@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -64,6 +64,7 @@ enum Extra_tag
   ET_UNIQUE_ROW_NOT_FOUND,
   ET_IMPOSSIBLE_ON_CONDITION,
   ET_PUSHED_JOIN,
+  ET_FT_HINTS,
   //------------------------------------
   ET_total
 };

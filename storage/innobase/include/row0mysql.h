@@ -36,6 +36,7 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0types.h"
 #include "btr0pcur.h"
 #include "trx0types.h"
+#include "sess0sess.h"
 
 // Forward declaration
 struct SysIndexCallback;
@@ -257,17 +258,20 @@ row_lock_table_for_mysql(
 	ulint		mode)		/*!< in: lock mode of table
 					(ignored if table==NULL) */
 	__attribute__((nonnull(1)));
-/*********************************************************************//**
-Does an insert for MySQL.
-@return error code or DB_SUCCESS */
+
+/** Does an insert for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
+@return error code or DB_SUCCESS*/
 
 dberr_t
 row_insert_for_mysql(
-/*=================*/
-	byte*		mysql_rec,	/*!< in: row in the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
-	__attribute__((nonnull, warn_unused_result));
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+	__attribute__((warn_unused_result));
+
 /*********************************************************************//**
 Builds a dummy query graph used in selects. */
 
@@ -296,18 +300,29 @@ ibool
 row_table_got_default_clust_index(
 /*==============================*/
 	const dict_table_t*	table);	/*!< in: table */
-/*********************************************************************//**
-Does an update or delete of a row for MySQL.
+
+/** Does an update or delete of a row for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_update_for_mysql(
-/*=================*/
-	byte*		mysql_rec,	/*!< in: the row to be updated, in
-					the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
-	__attribute__((nonnull, warn_unused_result));
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+	__attribute__((warn_unused_result));
+
+/** Delete all rows for the given table by freeing/truncating indexes.
+@param[in,out]	table	table handler
+@return error code or DB_SUCCESS */
+
+dberr_t
+row_delete_all_rows(
+	dict_table_t*	table)
+	__attribute__((warn_unused_result));
+
 /*********************************************************************//**
 This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
 session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
@@ -415,12 +430,13 @@ row_create_index_for_mysql(
 	dict_index_t*	index,		/*!< in, own: index definition
 					(will be freed) */
 	trx_t*		trx,		/*!< in: transaction handle */
-	const ulint*	field_lengths)	/*!< in: if not NULL, must contain
+	const ulint*	field_lengths,	/*!< in: if not NULL, must contain
 					dict_index_get_n_fields(index)
 					actual field lengths for the
 					index columns, which are
 					then checked for not being too
 					large. */
+	dict_table_t*	handler)	/* ! in/out: table handler. */
 	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Scans a table create SQL string and adds to the data dictionary
@@ -429,27 +445,34 @@ should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in
 bot participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint.
+
+@param[in]	trx		transaction
+@param[in]	sql_string	table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name
+@param[in]	sql_length	length of sql_string
+@param[in]	name		table full name in normalized form
+@param[in]	is_temp_table	true if table is temporary
+@param[in,out]	handler		table handler if table is intrinsic
+@param[in]	reject_fks	if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any
+				foreign keys are found.
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_table_add_foreign_constraints(
-/*==============================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	sql_string,	/*!< in: table create statement where
-					foreign keys are declared like:
-					FOREIGN KEY (a, b) REFERENCES
-					table2(c, d), table2 can be written
-					also with the database name before it:
-					test.table2 */
-	size_t		sql_length,	/*!< in: length of sql_string */
-	const char*	name,		/*!< in: table full name in the
-					normalized form
-					database_name/table_name */
-	bool		is_temp_table,	/*!< in: true if temp-table */
-	bool		reject_fks)	/*!< in: if TRUE, fail with error
-					code DB_CANNOT_ADD_CONSTRAINT if
-					any foreign keys are found. */
+	trx_t*			trx,
+	const char*		sql_string,
+	size_t			sql_length,
+	const char*		name,
+	bool			is_temp_table,
+	dict_table_t*		handler,
+	ibool			reject_fks)
 	__attribute__((warn_unused_result));
+
 /*********************************************************************//**
 The master thread in srv0srv.cc calls this regularly to drop tables which
 we must drop in background after queries to them have ended. Such lazy
@@ -503,10 +526,11 @@ row_drop_table_for_mysql(
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: dictionary transaction handle */
 	bool		drop_db,/*!< in: true=dropping whole database */
-	bool		nonatomic = true)
+	bool		nonatomic = true,
 				/*!< in: whether it is permitted
 				to release and reacquire dict_operation_lock */
-	__attribute__((nonnull));
+	dict_table_t*	handler = NULL);
+				/*!< in/out: table handler. */
 /*********************************************************************//**
 Drop all temporary tables during crash recovery. */
 
@@ -575,9 +599,10 @@ row_scan_index_for_mysql(
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
-	ulint*			n_rows)		/*!< out: number of entries
+	ulint*			n_rows,		/*!< out: number of entries
 						seen in the consistent read */
-	__attribute__((nonnull, warn_unused_result));
+	innodb_session_t*	session)	/*!< in,out: session handler. */
+	__attribute__((warn_unused_result));
 /*********************************************************************//**
 Initialize this module */
 
@@ -851,6 +876,8 @@ struct row_prebuilt_t {
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
 	bool		in_fts_query;	/*!< Whether we are in a FTS query */
+	bool		fts_doc_id_in_read_set; /*!< true if table has externally
+					defined FTS_DOC_ID coulmn. */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */
@@ -885,6 +912,11 @@ struct row_prebuilt_t {
 
 	ulint		magic_n2;	/*!< this should be the same as
 					magic_n */
+
+	bool		ins_sel_stmt;	/*!< if true then ins_sel_statement. */
+
+	innodb_session_t*
+			session;	/*!< InnoDB session handler. */
 };
 
 /** Callback for row_mysql_sys_index_iterate() */
@@ -896,6 +928,8 @@ struct SysIndexCallback {
 	@param pcur persistent cursor. */
 	virtual void operator()(mtr_t* mtr, btr_pcur_t* pcur) throw() = 0;
 };
+
+
 
 #define ROW_PREBUILT_FETCH_MAGIC_N	465765687
 
