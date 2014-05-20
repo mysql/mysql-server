@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -72,6 +72,7 @@ var proto = {
   columnNumberToFieldMap : {},
   fieldNumberToColumnMap : {},
   fieldNumberToFieldMap  : {},
+  foreignKeyMap          : {},
   errorMessages          : '\n',  // error messages during construction
   isValid                : true,
   autoIncFieldName       : null,
@@ -123,6 +124,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
       n,               // a field or column number
       index,           // a DBIndex
       stubFields,      // fields created through default mapping
+      foreignKey,      // foreign key object from dbTable
       nMappedFields;
 
   stats.constructor_calls++;
@@ -159,6 +161,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.fieldNumberToColumnMap = [];
   this.fieldNumberToFieldMap  = [];
   this.fieldNameToFieldMap    = {};
+  this.foreignKeyMap          = {};
   this.dbIndexHandlers        = [];
   this.relationshipFields     = [];
 
@@ -243,6 +246,7 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     }      
     this.resolvedMapping.fields[i] = {};
     if(f) {
+      f.fieldNumber = i;
       this.fieldNumberToColumnMap.push(c);
       this.fieldNumberToFieldMap.push(f);
       this.fieldNameToFieldMap[f.fieldName] = f;
@@ -271,12 +275,27 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     }
     this.dbIndexHandlers.push(new DBIndexHandler(this, index));
   }
+  // build foreign key map
+  for (i = 0; i < this.dbTable.foreignKeys.length; ++i) {
+    foreignKey = this.dbTable.foreignKeys[i];
+    this.foreignKeyMap[foreignKey.name] = foreignKey;
+  }
 
   if (!this.isValid) {
     this.err = new Error(this.errorMessages);
   }
+  
+  if (ctor) {
+    // cache this in ctor.prototype.mynode.dbTableHandler
+    if (!ctor.prototype.mynode) {
+      ctor.prototype.mynode = {};
+    }
+    if (!ctor.prototype.mynode.dbTableHandler) {
+      ctor.prototype.mynode.dbTableHandler = this;
+    }
+  }
   udebug.log("new completed");
-  udebug.log_detail(this);
+  udebug.log_detail("DBTableHandler<ctor>:\n", this);
 }
 
 DBTableHandler.prototype = proto;     // Connect prototype to constructor
@@ -312,6 +331,56 @@ DBTableHandler.prototype.newResultObject = function(values, adapter) {
   return newDomainObj;
 };
 
+
+/* DBTableHandler.newResultObjectFromRow
+ * IMMEDIATE
+
+ * Create a new object using the constructor function (if set).
+ * Values for the object's fields come from the row; first the key fields
+ * and then the non-key fields. The row contains items named '0', '1', etc.
+ * The value for the first key field is in row[offset]. Values obtained
+ * from the row are first processed by the db converter and type converter
+ * if present.
+ */
+DBTableHandler.prototype.newResultObjectFromRow = function(row, adapter,
+    offset, keyFields, nonKeyFields) {
+  var fieldIndex;
+  var rowValue;
+  var field;
+  var newDomainObj;
+
+  udebug.log("newResultObjectFromRow");
+  stats.result_objects_created++;
+
+  if(this.newObjectConstructor && this.newObjectConstructor.prototype) {
+    newDomainObj = Object.create(this.newObjectConstructor.prototype);
+  } else {
+    newDomainObj = {};
+  }
+
+  if(this.newObjectConstructor) {
+    udebug.log("newResultObject calling user constructor");
+    this.newObjectConstructor.call(newDomainObj);
+  }
+  // set key field values from row using type converters
+
+  for (fieldIndex = 0; fieldIndex < keyFields.length; ++fieldIndex) {
+    rowValue = row[offset + fieldIndex];
+    field = keyFields[fieldIndex];
+    this.set(newDomainObj, field.fieldNumber, rowValue, adapter);
+  }
+  
+  // set non-key field values from row using type converters
+  offset += keyFields.length;
+  for (fieldIndex = 0; fieldIndex < nonKeyFields.length; ++fieldIndex) {
+    rowValue = row[offset + fieldIndex];
+    field = nonKeyFields[fieldIndex];
+    this.set(newDomainObj, field.fieldNumber, rowValue, adapter);
+  }
+  
+  udebug.log("newResultObjectFromRow done", newDomainObj.constructor.name, newDomainObj);
+  return newDomainObj;
+};
 
 /** applyMappingToResult(object)
  * IMMEDIATE
@@ -641,6 +710,10 @@ DBTableHandler.prototype.getIndexHandler = function(keys, uniqueOnly) {
     handler = this.dbIndexHandlers[idx];
   }
   return handler;
+};
+
+DBTableHandler.prototype.getForeignKey = function(foreignKeyName) {
+  return this.foreignKeyMap[foreignKeyName];
 };
 
 

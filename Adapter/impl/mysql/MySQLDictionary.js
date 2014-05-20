@@ -422,10 +422,9 @@ exports.DataDictionary.prototype.getTableMetadata = function(databaseName, table
       udebug.log_detail('showCreateTable_callback.forEach metadata:', metadata);
       result = metadata;
       
-      callback(err, result);
+      callback(null, result);
     }
   };
-
   this.connection.query('show create table ' + databaseName + '.' + tableName, showCreateTable_callback);
 };
 
