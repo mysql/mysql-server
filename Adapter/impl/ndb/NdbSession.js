@@ -267,6 +267,19 @@ NdbSession.prototype.buildScanOperation = function(queryHandler, properties,
   return op;
 };
 
+/* buildReadProjectionOperation
+   IMMEDIATE
+*/
+NdbSession.prototype.buildReadProjectionOperation = function(indexHandler, 
+                                            keys, projection, tx, callback) {
+  udebug.log("buildReadProjectionOperation");
+  //FIXME:  ALL OF THIS IS STUB CODE
+  var lockMode = "SHARED";
+  var op = ndboperation.newReadOperation(tx, indexHandler, keys, lockMode);
+  op.userCallback = callback;
+  return op;
+};
+
 
 /* getTransactionHandler() 
    IMMEDIATE

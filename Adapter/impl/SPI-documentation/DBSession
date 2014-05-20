@@ -56,7 +56,7 @@
 
    RETURNS a DBOperation 
 */
-  buildReadOperation(indexHandler, keys, projection, transaction, callback);
+  buildReadProjectionOperation(indexHandler, keys, projection, transaction, callback);
                       
 
 /* buildUpdateOperation(DBIndexHandler dbIndexHandler,
