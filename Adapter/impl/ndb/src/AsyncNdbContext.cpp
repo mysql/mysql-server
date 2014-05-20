@@ -292,7 +292,7 @@ void AsyncNdbContext::completeCallbacks() {
   while(completedNdbs != 0) {
     currentNode = completedNdbs;
     Ndb * ndb = currentNode->item;
-    AsyncExecCall * mcallptr = ndb->getCustomData();
+    AsyncExecCall * mcallptr = static_cast<AsyncExecCall *>(ndb->getCustomData());
     ndb->setCustomData(0);
 
     main_thd_complete_async_call(mcallptr);
