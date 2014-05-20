@@ -20817,7 +20817,19 @@ Dblqh::getFirstInLogQueue(Signal* signal,
   if (queue->firstElement == RNIL) {
     jam();
     queue->lastElement = RNIL;
-  }//if
+  }
+  else
+  {
+    /**
+     * Also needs to set the prev pointer of the new first
+     * element to RNIL to indicate it is now first in the
+     * list.
+     */
+    TcConnectionrecPtr new_first;
+    new_first.i = tmp.p->nextTcLogQueue;
+    ptrCheckGuard(new_first, ctcConnectrecFileSize, tcConnectionrec);
+    new_first.p->prevTcLogQueue = RNIL;
+  }
   tmp.p->nextTcLogQueue = RNIL;
   tmp.p->prevTcLogQueue = RNIL;
   dst = tmp;
