@@ -134,6 +134,7 @@ FastScheduler::doJob()
           }//if
         }
 #endif
+        b->jamBuffer()->markEndOfSigExec();
         b->executeFunction(reg_gsn, signal);
 #ifdef VM_TRACE_TIME
 	const NDB_TICKS t2 = NdbTick_getCurrentTicks();
@@ -175,7 +176,7 @@ FastScheduler::postPoll()
 {
   Signal * signal = getVMSignals();
   SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
-  b_fs->executeFunctionInternal(GSN_SEND_PACKED, signal);
+  b_fs->executeFunction(GSN_SEND_PACKED, signal);
 }
 
 void FastScheduler::sendPacked()
@@ -186,10 +187,10 @@ void FastScheduler::sendPacked()
     SimulatedBlock* b_tup = globalData.getBlock(DBTUP);
     SimulatedBlock* b_fs = globalData.getBlock(NDBFS);
     Signal * signal = getVMSignals();
-    b_lqh->executeFunctionInternal(GSN_SEND_PACKED, signal);
-    b_tc->executeFunctionInternal(GSN_SEND_PACKED, signal);
-    b_tup->executeFunctionInternal(GSN_SEND_PACKED, signal);
-    b_fs->executeFunctionInternal(GSN_SEND_PACKED, signal);
+    b_lqh->executeFunction(GSN_SEND_PACKED, signal);
+    b_tc->executeFunction(GSN_SEND_PACKED, signal);
+    b_tup->executeFunction(GSN_SEND_PACKED, signal);
+    b_fs->executeFunction(GSN_SEND_PACKED, signal);
     return;
   } else if (globalData.activateSendPacked == 0) {
     return;

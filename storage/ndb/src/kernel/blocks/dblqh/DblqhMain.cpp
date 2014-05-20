@@ -24719,7 +24719,7 @@ TraceLCP::restore(SimulatedBlock& lqh, Signal* sig){
 		     JBB);
       break;
     case Sig::Sig_save:
-      lqh.executeFunctionInternal(sig->header.theVerId_signalNumber, sig);
+      lqh.executeFunction(sig->header.theVerId_signalNumber, sig);
       break;
     }
   }
