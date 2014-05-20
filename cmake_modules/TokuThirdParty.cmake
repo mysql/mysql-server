@@ -3,9 +3,7 @@ include(ExternalProject)
 if (NOT DEFINED LIBJEMALLOC)
     ## add jemalloc with an external project
     set(JEMALLOC_SOURCE_DIR "${TokuDB_SOURCE_DIR}/third_party/jemalloc" CACHE FILEPATH "Where to find jemalloc sources.")
-    if (NOT EXISTS "${JEMALLOC_SOURCE_DIR}/configure")
-        message(FATAL_ERROR "Can't find jemalloc sources.  Please check them out to ${JEMALLOC_SOURCE_DIR} or modify JEMALLOC_SOURCE_DIR.")
-    endif ()
+    if (EXISTS "${JEMALLOC_SOURCE_DIR}/configure")
     set(jemalloc_configure_opts "CC=${CMAKE_C_COMPILER}" "--with-jemalloc-prefix=" "--with-private-namespace=tokudb_jemalloc_internal_" "--enable-cc-silence")
     option(JEMALLOC_DEBUG "Build jemalloc with --enable-debug." OFF)
     if (JEMALLOC_DEBUG)
@@ -32,6 +30,7 @@ if (NOT DEFINED LIBJEMALLOC)
     if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
         install(DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/jemalloc/lib" DESTINATION .
           COMPONENT tokukv_libs_extra)
+    endif ()
     endif ()
 endif ()
 
