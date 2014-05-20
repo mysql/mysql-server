@@ -61,21 +61,23 @@ Relationship.prototype.persistent   = true;
 
 function OneToOneMapping() {
 }
-OneToOneMapping.prototype = Relationship.prototype;
+OneToOneMapping.prototype = new Relationship();
 
 function OneToManyMapping() {
 }
-OneToManyMapping.prototype = Relationship.prototype;
+OneToManyMapping.prototype = new Relationship();
 OneToManyMapping.prototype.toMany = true;
 
 function ManyToOneMapping() {
 }
-ManyToOneMapping.prototype = Relationship.prototype;
+ManyToOneMapping.prototype = new Relationship();
+ManyToOneMapping.prototype.manyTo = true;
 
 function ManyToManyMapping() {
 }
-ManyToManyMapping.prototype = Relationship.prototype;
-OneToManyMapping.prototype.toMany = true;
+ManyToManyMapping.prototype = new Relationship();
+ManyToManyMapping.prototype.toMany = true;
+ManyToManyMapping.prototype.manyTo = true;
 
 var fieldMappingProperties = {
   "fieldName"    : isNonEmptyString,

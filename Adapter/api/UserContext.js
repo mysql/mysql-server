@@ -528,7 +528,8 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     mynode = domainObjectTableNameOrConstructor.prototype.mynode;
     // parameter is a constructor; it must have been annotated already
     if (typeof(mynode) === 'undefined') {
-      err = new Error('User exception: constructor must have been annotated.');
+      err = new Error('User exception: constructor for ' +  domainObjectTableNameOrConstructor.prototype.constructor.name +
+      ' must have been annotated (call TableMapping.applyToClass).');
       onTableHandler(err, null);
     } else {
       tableHandler = mynode.tableHandler;
@@ -555,7 +556,8 @@ var getTableHandler = function(domainObjectTableNameOrConstructor, session, onTa
     // parameter is a domain object; it must have been mapped already
     mynode = domainObjectTableNameOrConstructor.constructor.prototype.mynode;
     if (typeof(mynode) === 'undefined') {
-      err = new Error('User exception: constructor must have been annotated.');
+      err = new Error('User exception: constructor for ' +  domainObjectTableNameOrConstructor.constructor.name +
+          ' must have been annotated (call TableMapping.applyToClass).');
       onTableHandler(err, null);
     } else {
       tableHandler = mynode.tableHandler;
@@ -800,6 +802,388 @@ function checkOperation(err, dbOperation) {
   return result;
 }
 
+/** Create a sector object for a domain object in a projection. Each sector is constructed
+ * and then the sector for the included relationship is constructed by recursion.
+ * The sector contains a list of primary key fields and a list of non-primary key fields,
+ * and if this is not the root sector, the name of the field in the previous sector.
+ * The fields are references to the field objects in DBTableHandler and contain names, types,
+ * and converters.
+ * This function is synchronous. When complete, this function returns to the caller.
+ * @param sectors the top level projection.sectors which will grow as createSector is called recursively
+ * @param projection the projection at this level
+ * @param index the index into sectors for the sector being constructed
+ * @param offset the number of fields in all sectors already processed
+ */
+function createSector(sectors, projection, index, offset) {
+  var sector = {};
+  var tableHandler, relationships;
+  var keyFieldCount, nonKeyFieldCount;
+  var fieldNames, field;
+  var indexHandler;
+  var relationshipName;
+  var relatedFieldMapping, relatedSector, relatedTableHandler, relatedTargetFieldName, relatedTargetField;
+  var foreignKeys, foreignKey, fkIndex, foreignKeyName;
+  var i, fkFound;
+
+  // initialize sector
+  sector.keyFields = [];
+  sector.nonKeyFields = [];
+  sector.keyFieldNames = [];
+  sector.projection = projection;
+  tableHandler = projection.domainObject.prototype.mynode.tableHandler;
+  udebug.log_detail('createSector for table handler', tableHandler.dbTable.name);
+  sector.tableHandler = tableHandler;
+
+  // relatedFieldMapping is the field mapping for the sector to the "left" of this sector
+  // it contains the field in the "left" sector and mapping information including join columns
+  relatedFieldMapping = projection.relatedFieldMapping;
+  sector.relatedFieldMapping = relatedFieldMapping;
+  if (relatedFieldMapping) {
+    // resolve the columns involved in the join to the related field
+    // there is either a foreign key or a target field that has a foreign key
+    // the related field mapping is the field mapping on the other side
+    // the field mapping on this side is not used in this projection
+    foreignKeyName = relatedFieldMapping.foreignKey;
+    relatedSector = sectors[index - 1];
+    relatedTableHandler = relatedSector.tableHandler;
+    sector.relatedTableHandler = relatedTableHandler;
+    if (foreignKeyName) {
+      // foreign key is defined on the other side
+      foreignKey = relatedTableHandler.getForeignKey(foreignKeyName);
+      if (!foreignKey) {
+        // this error should have been caught in validateProjection
+        throw new Error('Fatal internal exception: could not find ' + foreignKeyName +
+            ' in ' + relatedTableHandler.dbTable.name);
+      }
+      sector.thisJoinColumns = foreignKey.targetColumnNames;
+      sector.otherJoinColumns = foreignKey.columnNames;
+    } else {
+      // foreign key is defined on this side
+      relatedTargetFieldName = relatedFieldMapping.targetField;
+      // get the fieldMapping for this relationship field
+      relatedTargetField = sector.tableHandler.fieldNameToFieldMap[relatedTargetFieldName];
+      foreignKeyName = relatedTargetField.foreignKey;
+      foreignKey = tableHandler.getForeignKey(foreignKeyName);
+      if (!foreignKey) {
+        // this error should have been caught in validateProjection
+        throw new Error('Fatal internal exception: could not find ' + foreignKeyName +
+            ' in ' + tableHandler.dbTable.name);
+      }
+            sector.thisJoinColumns = foreignKey.columnNames;
+      sector.otherJoinColumns = foreignKey.targetColumnNames;
+    }
+  }
+  // create key fields from primary key index handler
+  indexHandler = tableHandler.dbIndexHandlers[0];
+  keyFieldCount = indexHandler.fieldNumberToFieldMap.length;
+  for (i = 0; i < keyFieldCount; ++i) {
+    field = indexHandler.fieldNumberToFieldMap[i];
+    sector.keyFields.push(field);
+    sector.keyFieldNames.push(field.fieldName);
+  }
+  // create non-key fields from projection fields excluding key fields
+  fieldNames = projection.fields;
+  fieldNames.forEach(function(fieldName) {
+    // is this field in key fields?
+    if (sector.keyFieldNames.indexOf(fieldName) == -1) {
+      // non-key field; add it to non-key fields
+      field = tableHandler.fieldNameToFieldMap[fieldName];
+      sector.nonKeyFields.push(field);
+    }
+  });
+  sector.nonKeyFieldCount = sector.nonKeyFields.length;
+  udebug.log_detail('createSector created new sector for index', index, 'sector', sector);
+  relationships = projection.relationships;
+  sectors.push(sector);
+
+  if (relationships) {
+    // relationships is a key:value object of relationshipFieldName:projection
+    for (relationshipName in relationships) {
+      if (relationships.hasOwnProperty(relationshipName)) {
+        udebug.log_detail('createSector processing relationship', relationshipName);
+        createSector(sectors, relationships[relationshipName], index + 1, offset + keyFieldCount + nonKeyFieldCount);
+        // we can only handle one relationship for now
+        break;
+      }
+    }
+  }
+}
+
+
+/** Mark all projections reachable from this projection as validated. */
+function markValidated(projections) {
+  var projection, relationships, relationshipName;
+  if (projections.length > 0) {
+    // "pop" the top projection
+    projection = projections.shift();
+    // mark the top projection validated
+    projection.validated = true;
+    // if any relationships, add them to the list of projections to validate
+    relationships = projection.relationships;
+    if (relationships) {
+      for (relationshipName in relationships) {
+        if (relationships.hasOwnProperty(relationshipName)) {
+          projections.push(relationships[relationshipName]);
+        }
+      }
+    }
+    // recursively mark related projections
+    markValidated(projections);
+  }
+}
+
+
+/** Validate the projection for find and query operations on the domain object.
+ * this.user_arguments[0] contains the projection for this operation
+ * (first parameter of find or createQuery).
+ * Get the table handler for the constructor and validate that it is mapped.
+ * Validate each field in the projection.
+ * For relationships, validate the name of the relationship. Validate that there
+ * is no projected domain object that would cause an infinite recursion.
+ * Recursively validate the projection that is related to the relationship. 
+ * After all projections have been validated, call the callback with any errors.
+ */
+exports.UserContext.prototype.validateProjection = function(callback) {
+  var userContext = this;
+  var session = userContext.session;
+  var err;
+  var domainObject, domainObjectName;
+  var projections, projection;
+  var mappingIds, mappingId;
+  var relationships, relationshipProjection;
+  var fieldMapping;
+  var index, offset;
+  var errors;
+  var foreignKeyNames, foreignKeyName;
+  var toBeChecked, toBeValidated, allValidated;
+  var domainObjectMynode;
+
+  function validateProjectionOnTableHandler(err, dbTableHandler) {
+    // currently validating projections[index] with the tableHandler for the domain object
+    projection = projections[index];
+    // keep track of how many times this projection has been changed
+    projection.id = (projection.id + 1) % (2^24);
+    
+    domainObject = projection.domainObject;
+    domainObjectName = domainObject.prototype.constructor.name;
+    if (!err) {
+      projection.dbTableHandler = dbTableHandler;
+      // validate using table handler
+      if (typeof(domainObject) === 'function' &&
+          typeof(domainObject.prototype.mynode) === 'object' &&
+          typeof(domainObject.prototype.mynode.mapping) === 'object') {
+        // good domainObject; have we seen this one before?
+        mappingId = domainObject.prototype.mynode.mappingId;
+        if (mappingIds.indexOf(mappingId) === -1) {
+          // have not seen this one before; add its mappingId to list of mappingIds to prevent cycles (recursion)
+          mappingIds.push(mappingId);
+          // validate all fields in projection are mapped
+          if (projection.fields) { // field names
+            projection.fields.forEach(function(fieldName) {
+              fieldMapping = dbTableHandler.fieldNameToFieldMap[fieldName];
+              if (fieldMapping) {
+                if (fieldMapping.relationship) {
+                  errors += '\nBad projection for ' +  domainObjectName + ': field' + fieldName + ' must not be a relationship';
+                }
+              } else {
+                // error: fields must be mapped
+                errors += '\nBad projection for ' +  domainObjectName + ': field ' + fieldName + ' is not mapped';
+              }
+            });
+          }
+          // validate all relationships in mapping regardless of whether they are in this projection
+          
+          dbTableHandler.relationshipFields.forEach(function(relationshipField) {
+            // get the name and projection for each relationship
+            foreignKeyName = relationshipField.foreignKey;
+            if (foreignKeyName) {
+              // make sure the foreign key exists
+              if (!dbTableHandler.foreignKeyMap.hasOwnProperty(foreignKeyName)) {
+                errors += '\nBad relationship field mapping; foreign key ' + foreignKeyName +
+                    ' does not exist in table; possible foreign keys are: ' + Object.keys(dbTableHandler.foreignKeyMap);
+              }
+            }
+          });
+          // add relationship domain objects to the list of domain objects
+          relationships = projection.relationships;
+          if (relationships) {
+            Object.keys(relationships).forEach(function(key) {
+              // each key is the name of a relationship that must be a field in the table handler
+              fieldMapping = dbTableHandler.fieldNameToFieldMap[key];
+              if (fieldMapping) {
+                if (fieldMapping.relationship) {
+                  relationshipProjection = relationships[key];
+                  relationshipProjection.sectors = [];
+                  relationshipProjection.relatedFieldMapping = fieldMapping;
+                  // add each relationship to list of projections
+                  projections.push(relationshipProjection);
+                } else {
+                  // error: field is not a relationship
+                  errors += '\nBad relationship for ' +  domainObjectName + ': field ' + key + ' is not a relationship';
+                }
+              } else {
+                // error: relationships must be mapped
+                errors += '\nBad relationship for ' +  domainObjectName + ': field ' + key + ' is not mapped';
+              }
+            });
+          }
+        } else {
+          // recursive projection
+          errors += '\nRecursive projection for ' + domainObjectName;
+        }
+      } else {
+        // domainObject was not mapped
+        errors += '\nBad domain object: ' + domainObjectName + ' is not mapped.';
+      } 
+    } else {
+        errors += '\nUnable to acquire tableHandler for ' + domainObjectName + ' : ' + err.message;
+    }
+    // finished validating this projection; are there any more?
+    if (projections.length > ++index) {
+      // do the next projection
+      if (projections[index].dbTableHandler) {
+        udebug.log('validateProjection with cached tableHandler for', projections[index].domainObject.prototype.constructor.name);
+        validateProjectionOnTableHandler(null, projections[index].dbTableHandler);
+      } else {
+        udebug.log('validateProjection with no tableHandler for', projections[index].domainObject.prototype.constructor.name);
+        getTableHandler(projections[index].domainObject, session, validateProjectionOnTableHandler);
+      }
+    } else {
+      // there are no more projections to validate -- did another user finish table handling first?
+      if (!userContext.user_arguments[0].validated) {
+        // we are the first to validate table handling -- check for errors
+        if (errors === '') {
+          projection = projections[0];
+          // no errors
+          // we are done getting all of the table handlers for the projection; now create the sectors
+          projection.sectors = [];
+          index = 0;
+          offset = 0;
+          // create the first sector; additional sectors will be created recursively
+          createSector(projection.sectors, projection, index, offset);
+          // mark all projections reachable from this projections as validated
+          // projections will grow at the end as validated marking proceeds
+          toBeValidated = [userContext.user_arguments[0]]; 
+          markValidated(toBeValidated);
+          udebug.log('validateProjection complete for', projections[0].domainObject.prototype.constructor.name);
+          callback(null);
+        } else {
+          // report errors and call back user
+          err = new Error(errors);
+          err.sqlstate = 'HY000';
+          callback(err);
+        }
+      } else {
+        // another completed validation before we did
+        // report errors and call back user
+        if (errors !== '') {
+          err = new Error(errors);
+          err.sqlstate = 'HY000';
+        }
+        callback(err);
+      }
+    }
+  }
+
+  // validateProjection starts here
+  // projection: {domainObject:<constructor>, fields: [field, field], relationships: {field: {projection}, field: {projection}}
+  // first check to see if the projection is already validated. If so, we are done.
+  // the entire projection including all referenced relationships must be checked because a relationship
+  // might have changed since it was last validated.
+  // projections will grow at the end as validation checking proceeds
+  // construct a new array which will grow as validation checking proceeds
+  if (userContext.user_arguments[0].validated) {
+    callback(null);
+  } else {
+    // set up to iteratively validate projection starting with the user parameter
+    projections = [this.user_arguments[0]]; // projections will grow at the end as validation proceeds
+    index = 0;                              // the projection being validated
+    errors = '';                            // errors in validation
+    mappingIds = [];                        // mapping ids seen so far
+
+    // the projection is not already validated; check to see if the domain object already has its dbTableHandler
+    domainObjectMynode = projections[0].domainObject.prototype.mynode;
+    if (domainObjectMynode && domainObjectMynode.dbTableHandler) {
+      udebug.log('validateProjection with cached tableHandler for', projections[0].domainObject.prototype.constructor.name);
+      validateProjectionOnTableHandler(null, domainObjectMynode.dbTableHandler);
+    } else {
+      // get the dbTableHandler the hard way
+      udebug.log('validateProjection with no tableHandler for', projections[0].domainObject.prototype.constructor.name);
+      getTableHandler(projections[index].domainObject, userContext.session, validateProjectionOnTableHandler);
+    }
+  }
+};
+
+/** Use the projection to find a domain object. This is only valid in a session, not a batch.
+ * Multiple operations may be needed to resolve the complete projection.
+ * Take the user's projection and see if it has been resolved. For an unresolved projection, 
+ * load table mappings for all included domain objects and verify the projection against
+ * the resolved table mappings. 
+ * Once the projection has been resolved, get the db index to use for the operation,
+ * call db session to create a read with projection operation, and execute the operation.
+ * The db session will process the projection to populate the result.
+ */
+exports.UserContext.prototype.findWithProjection = function() {
+  var userContext = this;
+  var session = userContext.session;
+  var dbSession = session.dbSession;
+  var projection = userContext.user_arguments[0];
+  var keys = userContext.user_arguments[1];
+  var dbTableHandler;
+  var indexHandler;
+  var transactionHandler;
+
+  function findWithProjectionOnResult(err, dbOperation) {
+      udebug.log('find.findWithProjectionOnResult');
+      var result, values;
+      var error = checkOperation(err, dbOperation);
+      if (error && dbOperation.result.error.sqlstate !== '02000') {
+        if (userContext.session.tx.isActive()) {
+          userContext.session.tx.setRollbackOnly();
+        }
+        userContext.applyCallback(err, null);
+      } else {
+        if(udebug.is_detail()) { udebug.log('findOnResult returning ', dbOperation.result.value); }
+        userContext.applyCallback(null, dbOperation.result.value);      
+      }
+    }
+
+
+  function onValidatedProjection(err) {
+    if (err) {
+      udebug.log('UserContext.onValidProjection err: ', err);
+      userContext.applyCallback(err, null);
+    } else {
+      dbTableHandler = projection.dbTableHandler;
+      userContext.dbTableHandler = dbTableHandler;
+      keys = userContext.user_arguments[1];
+      indexHandler = dbTableHandler.getIndexHandler(keys, true);
+      if (indexHandler === null) {
+        err = new Error('UserContext.find unable to get an index for ' + dbTableHandler.dbTable.name +
+            ' to use with ' + JSON.stringify(keys));
+        userContext.applyCallback(err, null);
+      } else {
+        // create the find operation and execute it
+        dbSession = userContext.session.dbSession;
+        transactionHandler = dbSession.getTransactionHandler();
+        userContext.operation = dbSession.buildReadProjectionOperation(indexHandler, keys, projection,
+            transactionHandler, findWithProjectionOnResult);
+        if (userContext.execute) {
+          transactionHandler.execute([userContext.operation], function() {
+            if(udebug.is_detail()) { udebug.log('find transactionHandler.execute callback.'); }
+          });
+        } else if (typeof(userContext.operationDefinedCallback) === 'function') {
+          userContext.operationDefinedCallback(1);
+        }
+      }
+    }
+  }
+  // findWithProjection starts here
+  // validate the projection and construct the sectors
+  userContext.validateProjection(onValidatedProjection);
+  // the caller will return userContext.promise
+};
+
 /** Find the object by key.
  * 
  */
@@ -858,13 +1242,19 @@ exports.UserContext.prototype.find = function() {
   }
 
   // find starts here
-  // session.find(prototypeOrTableName, key, callback)
+  // session.find(projectionOrPrototypeOrTableName, key, callback)
   // validate first two parameters must be defined
   if (userContext.user_arguments[0] === undefined || userContext.user_arguments[1] === undefined) {
     userContext.applyCallback(new Error('User error: find must have at least two arguments.'), null);
   } else {
-    // get DBTableHandler for prototype/tableName
-    getTableHandler(userContext.user_arguments[0], userContext.session, findOnTableHandler);
+    if (userContext.user_arguments[0].constructor.name === 'Projection' &&
+        typeof userContext.user_arguments[0].constructor.prototype.addRelationship === 'function') {
+      // this is a projection
+      userContext.findWithProjection();
+    } else {
+      // get DBTableHandler for prototype/tableName
+      getTableHandler(userContext.user_arguments[0], userContext.session, findOnTableHandler);
+    }
   }
   return userContext.promise;
 };
@@ -1592,113 +1982,6 @@ exports.UserContext.prototype.closeSession = function() {
   userContext.session.dbSession.close(closeSessionOnDBSessionClose);
   return userContext.promise;
 };
-
-
-/** Apply the projection to future find and query operations on the domain object.
- */
-exports.UserContext.prototype.useProjection = function() {
-  var userContext = this;
-  var session = userContext.session;
-  var err;
-  var domainObject;
-  var domainObjectName;
-  var projections;
-  var projection;
-  var mappingIds;
-  var mappingId;
-  var relationships;
-  var relationship;
-  var dbField;
-  var index;
-  var errors;
-
-  function validateProjectionOnTableHandler(err, tableHandler) {
-    // currently validating projections[index] with the just-acquired tableHandler
-    projection = projections[index];
-    domainObject = projection.constructor;
-    domainObjectName = domainObject.prototype.constructor.name;
-    udebug.log_detail('validateProjectionOnTableHandler with index ' + index + ' for ' + domainObjectName);
-    if (!err) {
-      // validate using table handler
-      if (typeof(domainObject) === 'function' &&
-          typeof(domainObject.prototype.mynode) === 'object' &&
-          typeof(domainObject.prototype.mynode.mapping) === 'object') {
-        // good domainObject; have we seen this one before?
-        mappingId = domainObject.prototype.mynode.mappingId;
-        if (mappingIds.indexOf(mappingId) === -1) {
-          // have not seen this one before; add its mappingId to list of mappingIds
-          mappingIds.push(mappingId);
-          // validate all fields in projection are mapped
-          if (projection.fields) {
-            projection.fields.forEach(function(fieldName) {
-              dbField = tableHandler.fieldNameToFieldMap[fieldName];
-              if (dbField) {
-                if (dbField.isRelationship) {
-                  errors += '\nBad projection for ' +  domainObjectName + ': field' + fieldName + ' must not be a relationship';
-                }
-              } else {
-                // error: fields must be mapped
-                errors += '\nBad projection for ' +  domainObjectName + ': field ' + fieldName + ' is not mapped';
-              }
-            });
-          }
-          // add relationship domain objects to the list of domain objects
-          relationships = projection.relationships;
-          if (relationships) {
-            Object.keys(relationships).forEach(function(key) {
-              // each key is the name of a relationship that must be a field in the table handler
-              dbField = tableHandler.fieldNameToFieldMap[key];
-              if (dbField) {
-                relationship = relationships[key];
-                // add each relationship to list of projections
-                projections.push(relationship);
-              } else {
-                // error: relationships must be mapped
-                errors += '\nBad relationship for ' +  domainObjectName + ': field ' + key + ' is not mapped';
-              }
-            });
-          }
-        } else {
-          // recursive projection
-          errors += '\nRecursive mapping for ' + domainObjectName;
-        }
-      } else {
-        // domainObject was not mapped
-        errors += '\nBad domain object ' + domainObjectName + ' not mapped.';
-      } 
-    } else {
-        errors += '\nUnable to acquire tableHandler for ' + domainObjectName + ' : ' + err.message;
-    }
-    // finished validating this projection; are there any more?
-    if (projections.length > ++index) {
-      // do the next projection
-      getTableHandler(projections[index].constructor, session, validateProjectionOnTableHandler);
-    } else {
-      // we are done
-      if (errors === '') {
-        // no errors
-        session.projections[projections[0].constructor.prototype.mynode.mappingId] = projections[0];
-        userContext.applyCallback(null);
-      } else {
-        // report errors and call back user
-        err = new Error(errors);
-        userContext.applyCallback(err);
-      }
-    }
-  }
-  
-  // useProjection starts here
-  // projection: {constructor:<constructor>, fields: [field, field], relationships: {field: {projection}, field: {projection}}
-  // set up to iteratively validate projection
-  projections = [this.user_arguments[0]]; // projections will grow at the end as validation proceeds
-  index = 0;                              // the projection being validated
-  errors = '';                            // errors in validation
-  mappingIds = [];                        // mapping ids seen so far
-
-  getTableHandler(projections[index].constructor, userContext.session, validateProjectionOnTableHandler);
-  return userContext.promise;
-};
-
 
 /** Complete the user function by calling back the user with the results of the function.
  * Apply the user callback using the current arguments and the extra parameters from the original function.

@@ -68,9 +68,11 @@ create table customerdiscount(
 insert into customer(id, firstname, lastname) values (100, 'Craig', 'Walton');
 insert into customer(id, firstname, lastname) values (101, 'Sam', 'Burton');
 insert into customer(id, firstname, lastname) values (102, 'Wal', 'Greeton');
+insert into customer(id, firstname, lastname) values (103, 'Burn', 'Sexton');
 
 insert into shoppingcart(id, customerid) values(1000, 100);
 insert into shoppingcart(id, customerid) values(1002, 102);
+insert into shoppingcart(id, customerid) values(1003, 103);
 
 insert into item(id, description) values(10000, 'toothpaste');
 insert into item(id, description) values(10001, 'razor blade 10 pack');

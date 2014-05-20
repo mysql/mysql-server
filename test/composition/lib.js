@@ -19,6 +19,7 @@
  */
 
 "use strict";
+var udebug          = unified_debug.getLogger("composition/lib.js");
 
 function Customer(id, first, last) {
   if (typeof id !== 'undefined') {
@@ -78,7 +79,7 @@ function mapShoppingCart() {
   } );
 
   shoppingCartMapping.mapOneToMany( { 
-    fieldName:  'lineitems', 
+    fieldName:  'lineItems', 
     targetField: 'shoppingCart', 
     target:     LineItem
   } );
@@ -96,7 +97,7 @@ function mapLineItem() {
   
   lineItemMapping.mapManyToOne( {
     fieldName:  'shoppingCart',
-    foreignKey: 'fkshoppingcart',
+    foreignKey: 'fkshoppingcartid',
     target:     ShoppingCart
   });
 
@@ -240,49 +241,98 @@ function createLineItem(line, quantity, itemid) {
   return result;
 }
 
-function verifyProjection(testCase, projection, expected, actual) {
-  var domainObjectName = projection.constructor.prototype.constructor.name;
-  var expectedField;
-  var actualField;
-  var expectedRelationship;
-  var actualRelationship;
-  var index;
-  // verify the fields first
-  projection.fields.forEach(function(fieldName) {
-    expectedField = expected[fieldName];
-    actualField = actual[fieldName];
-    if (Array.isArray(expectedField)) {
-      // expected value is an array; check each value in turn
-      for (index = 0; index < expectedField.length; ++index) {
-        if (expectedField[index] != actualField[index]) {
-          testCase.appendErrorMessage('verifyProjection failure for ' + domainObjectName + ' field ' + fieldName +
-              ' at index ' + index +
+function sortFunction(a, b) {
+//  console.log('sort\n', a, '\n', b);
+  // sort based on id if it exists, or on line if it exists or throw an exception
+  if (typeof(a.id) !== 'undefined' && typeof(b.id) !== 'undefined') {
+    return a.id - b.id;
+  } else {
+    if (typeof(a.line) !== 'undefined' && typeof(b.line) !== 'undefined') {
+      return a.line - b.line;
+    } else {
+      throw new Error('Error: can only sort objects containing properties id or line.');
+    }
+  }
+}
+
+function verifyProjection(tc, p, e, a) {
+  var testCase = tc;
+  var projectionVerifications;
+  var projectionVerification;
+  var i;
+  
+  function verifyOneProjection() {
+    udebug.log_detail('verifyOneProjection with', projectionVerifications.length, 'waiting:\n', projectionVerifications[0]);
+    while (projectionVerifications.length > 0) {
+      projectionVerification = projectionVerifications.shift();
+      var projection = projectionVerification[0];
+      var expected = projectionVerification[1];
+      var actual = projectionVerification[2];
+      var domainObjectName = projection.domainObject.prototype.constructor.name;
+      var expectedField;
+      var actualField;
+      var expectedRelationship;
+      var actualRelationship;
+      // verify the fields first
+      projection.fields.forEach(function(fieldName) {
+        expectedField = expected[fieldName];
+        actualField = actual[fieldName];
+        if (expectedField != actualField) {
+          testCase.appendErrorMessage('\n' + testCase.name + ' VerifyProjection failure for ' + domainObjectName + ' field ' + fieldName +
               ' expected: ' + expectedField + '; actual: ' + actualField);
         }
-      }
-    } else {
-      if (expectedField != actualField) {
-        testCase.appendErrorMessage('verifyProjection failure for ' + domainObjectName + ' field ' + fieldName +
-          ' expected: ' + expectedField + '; actual: ' + actualField);
+      });
+      // now verify the relationships (iteratively)
+      if (projection.relationships) {
+        Object.keys(projection.relationships).forEach(function(relationshipName) {
+          expectedRelationship = expected[relationshipName];
+          actualRelationship = actual[relationshipName];
+          if (Array.isArray(expectedRelationship)) {
+            if (Array.isArray(actualRelationship)) {
+              // we need to sort the actual array
+              // TODO let the user provide a sort function
+              actualRelationship.sort(sortFunction);
+              if (expectedRelationship.length === actualRelationship.length) {
+                // check each value in turn
+                for (i = 0; i < expectedRelationship.length; ++i) {
+                  projectionVerifications.push([projection.relationships[relationshipName],
+                      expectedRelationship[i], actualRelationship[i]]);
+                }
+              } else {
+                testCase.appendErrorMessage('\n' + testCase.name + ' VerifyProjection failure for ' + domainObjectName +
+                  ' relationship ' + relationshipName +
+                  ' expected relationship length: ' + expectedRelationship.length +
+                  ' actual relationship length: ' + actualRelationship.length);
+              }
+            } else {
+              testCase.appendErrorMessage('\n' + testCase.name + ' VerifyProjection failure for ' + domainObjectName +
+                  ' relationship ' + relationshipName +
+               ' actual relationship is not an array: ' + actualRelationship);
+            }
+          } else {
+            // expected value is not an array
+            if (typeof expectedRelationship === 'undefined' && typeof actualRelationship !== 'undefined' ||
+                expectedRelationship === null && actualRelationship !== null) {
+              // error
+              testCase.appendErrorMessage('\n' + testCase.name + ' VerifyProjection failure for ' + domainObjectName +
+                  ' relationship ' + relationshipName +
+                  ' expected relationship: ' + expectedRelationship + ' actual relationship: ' + actualRelationship);
+            } else {
+              if (!(typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined' ||
+                    expectedRelationship === null && actualRelationship === null)) {
+                // we need to check the values
+                projectionVerifications.push([projection.relationships[relationshipName],
+                  expectedRelationship, actualRelationship]);
+              }
+            }
+          }
+        });
       }
     }
-  });
-  // now verify the relationships (recursively)
-  // this doesn't quite work yet because of many-valued relationships
-  if (projection.relationships) {
-    Object.keys(projection.relationships).forEach(function(relationshipName) {
-    expectedRelationship = expected[relationshipName];
-    actualRelationship = actual[relationshipName];
-    if (actualRelationship) {
-      console.log('verifyProjection for', domainObjectName, 'relationship', relationshipName, util.inspect(expectedRelationship));
-      verifyProjection(testCase, projection.relationships[relationshipName],
-        expectedRelationship, actualRelationship);
-    } else {
-      testCase.appendErrorMessage('verifyProjection failure for ' + domainObjectName + ' relationship ' + relationshipName +
-          ' actual relationship was not present.');
-    }
-  });
   }
+  // verifyProjection starts here
+  projectionVerifications = [[p, e, a]];
+  verifyOneProjection();
 }
 
 
