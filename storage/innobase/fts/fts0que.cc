@@ -2673,8 +2673,8 @@ fts_query_phrase_split(
 	fts_ast_node_t*		term_node = NULL;
 
 	if (node->type == FTS_AST_TEXT) {
-		phrase.f_str = node->text.ptr;
-		phrase.f_len = ut_strlen(reinterpret_cast<char*>(node->text.ptr));
+		phrase.f_str = node->text.ptr->str;
+		phrase.f_len = node->text.ptr->len;
 		len = phrase.f_len;
 	} else {
 		ut_ad(node->type == FTS_AST_PARSER_PHRASE_LIST);
@@ -2715,9 +2715,8 @@ fts_query_phrase_split(
 			}
 
 			ut_a(term_node->type == FTS_AST_TERM);
-			result_str.f_str = term_node->term.ptr;
-			result_str.f_len =
-				ut_strlen(reinterpret_cast<char*>(term_node->term.ptr));
+			result_str.f_str = term_node->term.ptr->str;
+			result_str.f_len = term_node->term.ptr->len;
 			result_str.f_n_char = fts_get_token_size(
 				query->fts_index_table.charset,
 				reinterpret_cast<char*>(result_str.f_str),
@@ -3003,20 +3002,19 @@ fts_query_get_token(
 	ulint		str_len;
 	byte*		new_ptr = NULL;
 
-	str_len = ut_strlen((char*) node->term.ptr);
+	str_len = node->term.ptr->len;
 
 	ut_a(node->type == FTS_AST_TERM);
 
 	token->f_len = str_len;
-	token->f_str = node->term.ptr;
+	token->f_str = node->term.ptr->str;
 
 	if (node->term.wildcard) {
 
 		token->f_str = static_cast<byte*>(ut_malloc(str_len + 2));
 		token->f_len = str_len + 1;
 
-		/* Need to copy the NUL character too. */
-		memcpy(token->f_str, node->term.ptr, str_len + 1);
+		memcpy(token->f_str, node->term.ptr->str, str_len);
 
 		token->f_str[str_len] = '%';
 		token->f_str[token->f_len] = 0;
@@ -3080,8 +3078,8 @@ fts_query_visitor(
 		break;
 
 	case FTS_AST_TERM:
-		token.f_str = node->term.ptr;
-		token.f_len = ut_strlen(reinterpret_cast<char*>(token.f_str));
+		token.f_str = node->term.ptr->str;
+		token.f_len = node->term.ptr->len;
 
 		/* Add the word to our RB tree that will be used to
 		calculate this terms per document frequency. */
@@ -3394,12 +3392,9 @@ fts_query_read_node(
 	if (query->cur_node->type == FTS_AST_TERM
 	    && query->cur_node->term.wildcard) {
 
-		/* These cast are safe since we only care about the
-		terminating NUL character as an end of string marker. */
-		term.f_len = ut_strlen(reinterpret_cast<char*>
-			(query->cur_node->term.ptr));
+		term.f_len = query->cur_node->term.ptr->len;
 		ut_ad(FTS_MAX_WORD_LEN >= term.f_len);
-		memcpy(term.f_str, query->cur_node->term.ptr, term.f_len);
+		memcpy(term.f_str, query->cur_node->term.ptr->str, term.f_len);
 	} else {
 		term.f_len = word->f_len;
 		ut_ad(FTS_MAX_WORD_LEN >= word->f_len);
@@ -4118,6 +4113,7 @@ fts_query(
 	/* Get the deleted doc ids that are in the cache. */
 	fts_cache_append_deleted_doc_ids(
 		index->table->fts->cache, query.deleted->doc_ids);
+	DEBUG_SYNC_C("fts_deleted_doc_ids_append");
 
 	/* Sort the vector so that we can do a binary search over the ids. */
 	ib_vector_sort(query.deleted->doc_ids, fts_update_doc_id_cmp);

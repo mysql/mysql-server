@@ -40,7 +40,6 @@ scripts/mysql_server_config$
 scripts/mysqld_multi$
 scripts/mysqld_safe$
 scripts/mysqldumpslow$
-scripts/mysqlhotcopy$
 Makefile$
 include/config\\\\.h$
 include/my_config\\\\.h$

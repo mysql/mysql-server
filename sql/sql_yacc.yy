@@ -1103,6 +1103,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 %token  WRITE_SYM                     /* SQL-2003-N */
 %token  X509_SYM
 %token  XA_SYM
+%token  XID_SYM                       /* MYSQL */
 %token  XML_SYM
 %token  XOR
 %token  YEAR_MONTH_SYM
@@ -1141,7 +1142,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         opt_table_alias
 
 %type <table>
-        table_ident table_ident_nodb references xid
+        table_ident table_ident_nodb references
         table_ident_opt_wild
 
 %type <simple_string>
@@ -1367,6 +1368,13 @@ END_OF_INPUT
 
 %type <trg_characteristics> trigger_follows_precedes_clause;
 %type <trigger_action_order_type> trigger_action_order;
+
+%type <xid> xid;
+%type <xa_option_type> opt_join_or_resume;
+%type <xa_option_type> opt_suspend;
+%type <xa_option_type> opt_one_phase;
+
+%type <is_not_empty> opt_convert_xid;
 
 %type <NONE>
         '-' '+' '*' '/' '%' '(' ')'
@@ -9271,35 +9279,39 @@ function_call_keyword:
           }
         | TRIM '(' expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $3);
+            $$= NEW_PTN Item_func_trim(@$, $3,
+                                       Item_func_trim::TRIM_BOTH_DEFAULT);
           }
         | TRIM '(' LEADING expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_ltrim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4,
+                                       Item_func_trim::TRIM_LEADING);
           }
         | TRIM '(' TRAILING expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_rtrim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4,
+                                       Item_func_trim::TRIM_TRAILING);
           }
         | TRIM '(' BOTH expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4, Item_func_trim::TRIM_BOTH);
           }
         | TRIM '(' LEADING FROM expr ')'
           {
-            $$= NEW_PTN Item_func_ltrim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_LEADING);
           }
         | TRIM '(' TRAILING FROM expr ')'
           {
-            $$= NEW_PTN Item_func_rtrim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_TRAILING);
           }
         | TRIM '(' BOTH FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_BOTH);
           }
         | TRIM '(' expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $5,$3);
+            $$= NEW_PTN Item_func_trim(@$, $5, $3,
+                                       Item_func_trim::TRIM_BOTH_DEFAULT);
           }
         | USER '(' ')'
           {
@@ -13197,6 +13209,7 @@ keyword_sp:
         | WORK_SYM                 {}
         | WEIGHT_STRING_SYM        {}
         | X509_SYM                 {}
+        | XID_SYM                  {}
         | XML_SYM                  {}
         | YEAR_SYM                 {}
         ;
@@ -14875,50 +14888,73 @@ xa:
           XA_SYM begin_or_start xid opt_join_or_resume
           {
             Lex->sql_command = SQLCOM_XA_START;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_xa_start($3, $4);
           }
         | XA_SYM END xid opt_suspend
           {
             Lex->sql_command = SQLCOM_XA_END;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_xa_end($3, $4);
           }
         | XA_SYM PREPARE_SYM xid
           {
             Lex->sql_command = SQLCOM_XA_PREPARE;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_xa_prepare($3);
           }
         | XA_SYM COMMIT_SYM xid opt_one_phase
           {
             Lex->sql_command = SQLCOM_XA_COMMIT;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_xa_commit($3, $4);
           }
         | XA_SYM ROLLBACK_SYM xid
           {
             Lex->sql_command = SQLCOM_XA_ROLLBACK;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_xa_rollback($3);
           }
-        | XA_SYM RECOVER_SYM
+        | XA_SYM RECOVER_SYM opt_convert_xid
           {
             Lex->sql_command = SQLCOM_XA_RECOVER;
+            Lex->m_sql_cmd= new (YYTHD->mem_root) Sql_cmd_xa_recover($3);
           }
         ;
+
+opt_convert_xid:
+          /* empty */ { $$= false; }
+         | CONVERT_SYM XID_SYM { $$= true; }
 
 xid:
           text_string
           {
             MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE);
-            if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
+            XID *xid;
+            if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
-            Lex->xid->set(1L, $1->ptr(), $1->length(), 0, 0);
+            xid->set(1L, $1->ptr(), $1->length(), 0, 0);
+            $$= xid;
           }
           | text_string ',' text_string
           {
-            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
-            if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
+            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&
+                                 $3->length() <= MAXBQUALSIZE);
+            XID *xid;
+            if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
-            Lex->xid->set(1L, $1->ptr(), $1->length(), $3->ptr(), $3->length());
+            xid->set(1L, $1->ptr(), $1->length(), $3->ptr(), $3->length());
+            $$= xid;
           }
           | text_string ',' text_string ',' ulong_num
           {
-            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
-            if (!(Lex->xid=(XID *)YYTHD->alloc(sizeof(XID))))
+            // check for overwflow of xid format id 
+            bool format_id_overflow_detected= ($5 > LONG_MAX);
+
+            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&
+                                 $3->length() <= MAXBQUALSIZE
+                                 && !format_id_overflow_detected);
+
+            XID *xid;
+            if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
-            Lex->xid->set($5, $1->ptr(), $1->length(), $3->ptr(), $3->length());
+            xid->set($5, $1->ptr(), $1->length(), $3->ptr(), $3->length());
+            $$= xid;
           }
         ;
 
@@ -14928,27 +14964,23 @@ begin_or_start:
         ;
 
 opt_join_or_resume:
-          /* nothing */ { Lex->xa_opt=XA_NONE;        }
-        | JOIN_SYM      { Lex->xa_opt=XA_JOIN;        }
-        | RESUME_SYM    { Lex->xa_opt=XA_RESUME;      }
+          /* nothing */ { $$= XA_NONE;        }
+        | JOIN_SYM      { $$= XA_JOIN;        }
+        | RESUME_SYM    { $$= XA_RESUME;      }
         ;
 
 opt_one_phase:
-          /* nothing */     { Lex->xa_opt=XA_NONE;        }
-        | ONE_SYM PHASE_SYM { Lex->xa_opt=XA_ONE_PHASE;   }
+          /* nothing */     { $$= XA_NONE;        }
+        | ONE_SYM PHASE_SYM { $$= XA_ONE_PHASE;   }
         ;
 
 opt_suspend:
           /* nothing */
-          { Lex->xa_opt=XA_NONE;        }
+          { $$= XA_NONE;        }
         | SUSPEND_SYM
-          { Lex->xa_opt=XA_SUSPEND;     }
-          opt_migrate
-        ;
-
-opt_migrate:
-          /* nothing */       {}
-        | FOR_SYM MIGRATE_SYM { Lex->xa_opt=XA_FOR_MIGRATE; }
+          { $$= XA_SUSPEND;     }
+        | SUSPEND_SYM FOR_SYM MIGRATE_SYM
+          { $$= XA_FOR_MIGRATE; }
         ;
 
 install:
