@@ -9279,35 +9279,39 @@ function_call_keyword:
           }
         | TRIM '(' expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $3);
+            $$= NEW_PTN Item_func_trim(@$, $3,
+                                       Item_func_trim::TRIM_BOTH_DEFAULT);
           }
         | TRIM '(' LEADING expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_ltrim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4,
+                                       Item_func_trim::TRIM_LEADING);
           }
         | TRIM '(' TRAILING expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_rtrim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4,
+                                       Item_func_trim::TRIM_TRAILING);
           }
         | TRIM '(' BOTH expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4, Item_func_trim::TRIM_BOTH);
           }
         | TRIM '(' LEADING FROM expr ')'
           {
-            $$= NEW_PTN Item_func_ltrim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_LEADING);
           }
         | TRIM '(' TRAILING FROM expr ')'
           {
-            $$= NEW_PTN Item_func_rtrim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_TRAILING);
           }
         | TRIM '(' BOTH FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_BOTH);
           }
         | TRIM '(' expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $5,$3);
+            $$= NEW_PTN Item_func_trim(@$, $5, $3,
+                                       Item_func_trim::TRIM_BOTH_DEFAULT);
           }
         | USER '(' ')'
           {

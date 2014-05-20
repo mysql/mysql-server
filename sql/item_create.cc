@@ -4244,7 +4244,8 @@ Create_func_ltrim Create_func_ltrim::s_singleton;
 Item*
 Create_func_ltrim::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_ltrim(POS(), arg1);
+  return new (thd->mem_root) Item_func_trim(POS(), arg1,
+                                            Item_func_trim::TRIM_LTRIM);
 }
 
 
@@ -4642,7 +4643,8 @@ Create_func_rtrim Create_func_rtrim::s_singleton;
 Item*
 Create_func_rtrim::create(THD *thd, Item *arg1)
 {
-  return new (thd->mem_root) Item_func_rtrim(POS(), arg1);
+  return new (thd->mem_root) Item_func_trim(POS(), arg1,
+                                            Item_func_trim::TRIM_RTRIM);
 }
 
 
