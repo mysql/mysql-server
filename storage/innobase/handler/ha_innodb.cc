@@ -136,6 +136,7 @@ static ulong innobase_read_io_threads;
 static ulong innobase_write_io_threads;
 
 static long long innobase_buffer_pool_size, innobase_log_file_size;
+static long long innobase_max_undo_log_size;
 
 /** Percentage of the buffer pool to reserve for 'old' blocks.
 Connected to buf_LRU_old_ratio. */
@@ -3260,6 +3261,8 @@ innobase_change_buffering_inited_ok:
 	srv_log_buffer_size = (ulint) innobase_log_buffer_size;
 
 	srv_buf_pool_size = (ulint) innobase_buffer_pool_size;
+
+	srv_max_undo_log_size = (ulint) innobase_max_undo_log_size;
 
 	srv_n_file_io_threads = (ulint) innobase_file_io_threads;
 	srv_n_read_io_threads = (ulint) innobase_read_io_threads;
@@ -16651,6 +16654,15 @@ static MYSQL_SYSVAR_ULONG(undo_logs, srv_undo_logs,
   1,			/* Minimum value */
   TRX_SYS_N_RSEGS, 0);	/* Maximum value */
 
+static MYSQL_SYSVAR_LONGLONG(max_undo_log_size, innobase_max_undo_log_size,
+  PLUGIN_VAR_OPCMDARG,
+  "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows "
+  " beyond ths size it will be truncated in due-course). ",
+  NULL, NULL,
+  512 * 1024 * 1024L,
+  10 * 1024* 1024L,
+  LONGLONG_MAX, 0);
+
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
   PLUGIN_VAR_OPCMDARG,
@@ -16988,6 +17000,7 @@ static struct st_mysql_sys_var* innobase_system_variables[]= {
   MYSQL_SYSVAR(print_all_deadlocks),
   MYSQL_SYSVAR(cmp_per_index_enabled),
   MYSQL_SYSVAR(undo_logs),
+  MYSQL_SYSVAR(max_undo_log_size),
   MYSQL_SYSVAR(rollback_segments),
   MYSQL_SYSVAR(undo_directory),
   MYSQL_SYSVAR(undo_tablespaces),

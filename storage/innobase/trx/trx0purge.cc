@@ -225,6 +225,7 @@ trx_purge_sys_create(
 
 	new (&purge_sys->iter) purge_iter_t;
 	new (&purge_sys->limit) purge_iter_t;
+	new (&purge_sys->undo_trunc) undo_trunc_t;
 #ifdef UNIV_DEBUG
 	new (&purge_sys->done) purge_iter_t;
 #endif /* UNIV_DEBUG */
@@ -627,6 +628,196 @@ loop:
 	goto loop;
 }
 
+/** Iterate over all the UNDO tablespaces and check if any of the UNDO
+tablespace qualifies for TRUNCATE (size > threshold).
+@param[in,out]	undo_trunc	undo truncate tracker */
+static
+void
+trx_purge_mark_undo_for_truncate(
+	undo_trunc_t*	undo_trunc)
+{
+	/* Step-1: If UNDO Tablespace already marked for truncate
+	return else search for qualifying undo tablespace. */
+	if (undo_trunc->is_undo_marked_for_trunc()) {
+		return;
+	}
+
+	/* Step-2: Validation/Qualification checks
+	a. At-least 2 UNDO tablespaces so even if one UNDO tablespace
+	   is being truncated server can continue to operate.
+	b. At-least 2 UNDO redo rseg/undo logs (besides the default rseg-0)
+	b. At-least 1 UNDO tablespace size > threshold. */
+	if (srv_undo_tablespaces_open < 2
+	    || (srv_available_undo_logs < (1 + srv_tmp_undo_logs + 2))) {
+		return;
+	}
+
+	/* Avoid bias selection and so start the scan from immediate next
+	of last selected UNDO tablespace for truncate. */
+	ulint space_id = undo_trunc->scan_start();
+
+	for (ulint i = 1; i <= srv_undo_tablespaces_open; i++) {
+
+		if (fil_space_get_size(space_id) > srv_max_undo_log_size) { 
+			/* Tablespace qualifies for truncate. */
+			undo_trunc->mark_for_trunc(space_id);
+			break;
+		}
+
+		space_id = ((space_id + 1) % (srv_undo_tablespaces_open + 1));
+		if (space_id == 0) {
+			/* Note: UNDO tablespace ids starts from 1. */
+			++space_id;
+		}
+	}
+
+	/* Couldn't make any selection. */
+	if (!undo_trunc->is_undo_marked_for_trunc()) {
+		return;
+	}
+
+	/* Step-3: Iterate over all the rsegs of selected UNDO tablespace
+	and mark them temporarily unavailable for allocation.*/
+	for (ulint i = 0; i < TRX_SYS_N_RSEGS; ++i) {
+		trx_rseg_t*	rseg = trx_sys->rseg_array[i];
+
+		if (rseg != NULL && !trx_sys_is_noredo_rseg_slot(rseg->id)) {
+			if (rseg->space
+				== undo_trunc->get_undo_mark_for_trunc()) {
+				/* Once set this rseg will not be allocated
+				to new booting transaction but we will wait
+				for existing active transaction to finish. */
+				rseg->skip_allocation = true;
+				undo_trunc->add_rseg_to_trunc(rseg);
+			}
+		}
+	}
+
+	return;
+}
+
+/** Iterate over selected UNDO tablespace and check if all the rsegs
+that resides in the tablespace are free.
+@param[in]	limit		truncate_limit
+@param[in,out]	undo_trunc	undo truncate tracker */
+static
+void
+trx_purge_initiate_truncate(
+	purge_iter_t*	limit,
+	undo_trunc_t*	undo_trunc)
+{
+	/* Step-1: Early check to findout if any of the the UNDO tablespace
+	is marked for truncate. */
+	if (!undo_trunc->is_undo_marked_for_trunc()) {
+		/* No tablespace marked for truncate yet. */
+		return;
+	}
+
+	/* Step-2: Scan over each rseg and ensure that it doesn't hold any
+	active undo records. */
+	bool all_free = true;
+
+	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs() && all_free; ++i) {
+
+		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+		ut_ad(rseg->skip_allocation);
+
+		/* TODO: if size == 1 then ensure there are undo records to
+		purge .*/
+		if (rseg->curr_size == 1) {
+			continue;
+		} else if (rseg->curr_size == 2) {
+
+			/* There could be cached undo segment. Check if records
+			in these segments can be purged. Normal purge history
+			will not touch these cached segment. */
+
+			trx_undo_t*	undo;
+
+			for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
+			     undo != NULL && all_free;
+			     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
+
+				if (limit->trx_no < undo->trx_id) {
+					all_free = false;
+				}
+			}
+
+			for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+			     undo != NULL && all_free;
+			     undo = UT_LIST_GET_NEXT(undo_list, undo)) {
+
+				if (limit->trx_no < undo->trx_id) {
+					all_free = false;
+				}
+			}
+		} else {
+			all_free = false;
+		}
+	}
+
+	if (!all_free) {
+		/* rseg still holds active data.*/
+		return;
+	}
+
+
+	/* Step-3: Start the actual truncate.
+	TODO: Handle crash/error case during tablepsace truncate.
+	TODO: Ensure that buffer pool pages are freed for the tablespace */
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Truncating UNDO tablespace with space identified " ULINTPF "",
+		undo_trunc->get_undo_mark_for_trunc());
+
+	bool success = fil_truncate_tablespace(
+		undo_trunc->get_undo_mark_for_trunc(),
+		SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+
+	ut_ad(success);
+
+
+	mtr_t		mtr;
+	mtr_start(&mtr);
+
+	fsp_header_init(undo_trunc->get_undo_mark_for_trunc(),
+			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+
+	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs(); ++i) {
+		trx_rsegf_t*	rseg_header;
+
+		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+
+		trx_rseg_header_create(
+			undo_trunc->get_undo_mark_for_trunc(),
+			univ_page_size, ULINT_MAX, rseg->id, &mtr);
+
+		rseg_header = trx_rsegf_get_new(
+				undo_trunc->get_undo_mark_for_trunc(),
+				rseg->page_no, rseg->page_size, &mtr);
+
+		UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
+		UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
+		UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
+		UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
+
+		rseg->max_size = mtr_read_ulint(
+			rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);
+
+		/* Initialize the undo log lists according to the rseg header */
+		ulint sum_of_undo_sizes = trx_undo_lists_init(rseg);
+		rseg->curr_size = mtr_read_ulint(
+			rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr)
+			+ 1 + sum_of_undo_sizes;
+
+		rseg->skip_allocation = false;
+		rseg->last_page_no = FIL_NULL;
+	}
+
+	mtr_commit(&mtr);
+
+	undo_trunc->reset();
+}
+
 /********************************************************************//**
 Removes unnecessary history data from rollback segments. NOTE that when this
 function is called, the caller must not have any latches on undo log pages! */
@@ -667,6 +858,10 @@ trx_purge_truncate_history(
 			trx_purge_truncate_rseg_history(rseg, limit);
 		}
 	}
+
+	/* UNDO tablespace truncate. */
+	trx_purge_mark_undo_for_truncate(&purge_sys->undo_trunc);
+	trx_purge_initiate_truncate(limit, &purge_sys->undo_trunc);
 }
 
 /***********************************************************************//**
