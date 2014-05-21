@@ -105,9 +105,16 @@ ulint	srv_undo_tablespaces_open = 8;
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
 
+/** Maximum size of undo tablespace. */
+ulong	srv_max_undo_log_size;
+
 /** UNDO logs that are not redo logged.
 These logs reside in the temp tablespace.*/
 const ulong		srv_tmp_undo_logs = 32;
+
+/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
+const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
+	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
 
 /** Set if InnoDB must operate in read-only mode. We don't do any
 recovery and open all tables in RO mode instead of RW mode. We don't

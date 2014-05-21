@@ -2976,6 +2976,51 @@ fil_delete_tablespace(
 	return(err);
 }
 
+/** Truncate the tablespace to needed size.
+@param[in]	space_id	id of tablespace to truncate
+@param[in]	size_in_pages	truncate size.
+@return true if truncate was successful. */
+
+bool
+fil_truncate_tablespace(
+	ulint		space_id,
+	ulint		size_in_pages)
+{
+	/* Step-1: Prepare tablespace for truncate. This involves
+	stopping all the new operations + IO on that tablespace
+	and ensuring that related pages are flushed to disk.
+	TODO: ensure all the buffer pool pages are flushed out.*/
+	if (fil_prepare_for_truncate(space_id) != DB_SUCCESS) {
+		return(false);
+	}
+
+	/* Step-2: Truncate the tablespace and accordingly update
+	the fil_space_t handler that is used to access this tablespace. */ 
+	mutex_enter(&fil_system->mutex);
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+
+	/* The following code must change when InnoDB supports
+	multiple datafiles per tablespace. */
+	ut_a(UT_LIST_GET_LEN(space->chain) == 1);
+
+	fil_node_t*	node = UT_LIST_GET_FIRST(space->chain);
+
+	ut_ad(node->is_open);
+
+	space->size = node->size = size_in_pages;
+
+	bool success = os_file_truncate(
+			node->name, node->handle, size_in_pages * UNIV_PAGE_SIZE);
+	if (success) {  
+		space->stop_new_ops = false;
+		space->is_being_truncated = false;
+	}
+
+	mutex_exit(&fil_system->mutex);
+
+	return(success);
+}
+
 /** Check if an index tree is freed by checking a descriptor bit of
 index root page.
 @param[in]	space_id	space id

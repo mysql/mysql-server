@@ -1044,11 +1044,21 @@ get_next_redo_rseg(
 			   && n_tablespaces > 0
 			   && trx_sys->rseg_array[slot] != NULL
 			   && trx_sys->rseg_array[slot]->space
-			   != srv_sys_space.space_id()) {
-			/* If undo-tablespace is configured, skip
+			   	!= srv_sys_space.space_id()) {
+			/** If undo-tablespace is configured, skip
 			rseg from system-tablespace and try to use
 			undo-tablespace rseg unless it is not possible
 			due to lower limit of undo-logs. */
+			continue;
+		} else if (rseg->skip_allocation) {
+			/** This rseg resides in the tablespace that
+			has been marked for truncate so avoid using this
+			rseg. Also, this is possible only if there are
+			at-least 2 UNDO tablespaces active and 2 redo
+			rsegs active (other than default system bound
+			rseg-0). */
+			ut_ad(n_tablespaces > 1);
+			ut_ad(max_undo_logs >= (1 + srv_tmp_undo_logs + 2));
 			continue;
 		}
 		break;

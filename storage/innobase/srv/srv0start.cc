@@ -154,10 +154,6 @@ static char*	srv_monitor_file_name;
 /** Minimum expected tablespace size. (10M) */
 static const ulint MIN_EXPECTED_TABLESPACE_SIZE = 5 * 1024 * 1024;
 
-/** Default undo tablespace size in UNIV_PAGEs count (10MB). */
-static const ulint SRV_UNDO_TABLESPACE_SIZE_IN_PAGES =
-	((1024 * 1024) * 10) / UNIV_PAGE_SIZE_DEF;
-
 /** */
 #define SRV_N_PENDING_IOS_PER_THREAD	OS_AIO_N_PENDING_IOS_PER_THREAD
 #define SRV_MAX_N_PENDING_SYNC_IOS	100
