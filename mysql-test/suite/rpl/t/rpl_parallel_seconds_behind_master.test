@@ -8,7 +8,8 @@
 # Resetting to zero behavior when Slave goes to read events is
 # preserved.
 #
-
+# Test times out in Valgrind
+-- source include/not_valgrind.inc
 -- source include/master-slave.inc
 -- source include/have_debug.inc
 

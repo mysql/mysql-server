@@ -769,7 +769,7 @@ typedef struct st_join_table : public Sql_alloc
     *m_join_cond_ref= cond;
   }
 
-  /// @returns combined condition after attaching where and join condition
+  /// @returns the table condition for this table in the join order.
   Item *condition() const
   {
     return m_condition;
@@ -812,7 +812,12 @@ typedef struct st_join_table : public Sql_alloc
   SQL_SELECT    *select;
   QUICK_SELECT_I *quick;
 private:
-  Item          *m_condition;   /**< condition for this join_tab             */
+  /**
+    Table condition, ie condition to be evaluated for a row from this table.
+    Notice that the condition may refer to rows from previous tables in the
+    join prefix, as well as outer tables.
+  */
+  Item          *m_condition;
   /**
      Pointer to the associated join condition:
      - if this is a table with position==NULL (e.g. internal sort/group
@@ -1048,6 +1053,9 @@ public:
   /** TRUE <=> AM will scan backward */
   bool reversed_access;
 
+  /** FT function */
+  Item_func_match *ft_func;
+
   /** Clean up associated table after query execution, including resources */
   void cleanup();
 
@@ -1234,7 +1242,8 @@ st_join_table::st_join_table()
     distinct(false),
     use_keyread(false),
     join_cache_flags(0),
-    reversed_access(false)
+    reversed_access(false),
+    ft_func(NULL)
 {
   /**
     @todo Add constructor to READ_RECORD.

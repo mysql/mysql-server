@@ -9438,7 +9438,7 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
     while ((ftf2=lj++) != ftf)
     {
       if (ftf->eq(ftf2,1) && !ftf2->master)
-        ftf2->master=ftf;
+        ftf->set_master(ftf2);
     }
   }
 
@@ -9446,7 +9446,7 @@ int setup_ftfuncs(SELECT_LEX *select_lex)
 }
 
 
-int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
+int init_ftfuncs(THD *thd, SELECT_LEX *select_lex)
 {
   if (select_lex->ftfunc_list->elements)
   {
@@ -9456,7 +9456,7 @@ int init_ftfuncs(THD *thd, SELECT_LEX *select_lex, bool no_order)
     THD_STAGE_INFO(thd, stage_fulltext_initialization);
 
     while ((ifm=li++))
-      ifm->init_search(no_order);
+      ifm->init_search();
   }
   return 0;
 }

@@ -343,3 +343,10 @@ XA PREPARE 'xid1';
 XA ROLLBACK 'xid2';
 ERROR XAE04: XAER_NOTA: Unknown XID
 XA ROLLBACK 'xid1';
+#
+# Bug#18107853 - XA LIST GETS CORRUPT, CRASH AND/OR HANG AND/OR ASSERTION
+#
+# Check that the server reports an error in case of too long input value of
+# format ID overflows the type of unsigned long
+XA START '1', 0x01, 18446744073709551615;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '18446744073709551615' at line 1

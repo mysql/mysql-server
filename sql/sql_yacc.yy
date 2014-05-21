@@ -9279,35 +9279,39 @@ function_call_keyword:
           }
         | TRIM '(' expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $3);
+            $$= NEW_PTN Item_func_trim(@$, $3,
+                                       Item_func_trim::TRIM_BOTH_DEFAULT);
           }
         | TRIM '(' LEADING expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_ltrim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4,
+                                       Item_func_trim::TRIM_LEADING);
           }
         | TRIM '(' TRAILING expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_rtrim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4,
+                                       Item_func_trim::TRIM_TRAILING);
           }
         | TRIM '(' BOTH expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $6,$4);
+            $$= NEW_PTN Item_func_trim(@$, $6, $4, Item_func_trim::TRIM_BOTH);
           }
         | TRIM '(' LEADING FROM expr ')'
           {
-            $$= NEW_PTN Item_func_ltrim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_LEADING);
           }
         | TRIM '(' TRAILING FROM expr ')'
           {
-            $$= NEW_PTN Item_func_rtrim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_TRAILING);
           }
         | TRIM '(' BOTH FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $5);
+            $$= NEW_PTN Item_func_trim(@$, $5, Item_func_trim::TRIM_BOTH);
           }
         | TRIM '(' expr FROM expr ')'
           {
-            $$= NEW_PTN Item_func_trim(@$, $5,$3);
+            $$= NEW_PTN Item_func_trim(@$, $5, $3,
+                                       Item_func_trim::TRIM_BOTH_DEFAULT);
           }
         | USER '(' ')'
           {
@@ -14929,7 +14933,8 @@ xid:
           }
           | text_string ',' text_string
           {
-            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&
+                                 $3->length() <= MAXBQUALSIZE);
             XID *xid;
             if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;
@@ -14938,7 +14943,13 @@ xid:
           }
           | text_string ',' text_string ',' ulong_num
           {
-            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE && $3->length() <= MAXBQUALSIZE);
+            // check for overwflow of xid format id 
+            bool format_id_overflow_detected= ($5 > LONG_MAX);
+
+            MYSQL_YYABORT_UNLESS($1->length() <= MAXGTRIDSIZE &&
+                                 $3->length() <= MAXBQUALSIZE
+                                 && !format_id_overflow_detected);
+
             XID *xid;
             if (!(xid= (XID *)YYTHD->alloc(sizeof(XID))))
               MYSQL_YYABORT;

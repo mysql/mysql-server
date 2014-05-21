@@ -388,51 +388,83 @@ public:
 
 class Item_func_trim :public Item_str_func
 {
-protected:
+public:
+  /**
+    Why all the trim modes in this enum?
+    We need to maintain parsing information, so that our print() function
+    can reproduce correct messages and view definitions.
+   */
+  enum TRIM_MODE
+  {
+    TRIM_BOTH_DEFAULT,
+    TRIM_BOTH,
+    TRIM_LEADING,
+    TRIM_TRAILING,
+    TRIM_LTRIM,
+    TRIM_RTRIM
+  };
+
+private:
   String tmp_value;
   String remove;
-public:
-  Item_func_trim(Item *a,Item *b) :Item_str_func(a,b) {}
-  Item_func_trim(const POS &pos, Item *a,Item *b) :Item_str_func(pos, a,b) {}
+  const TRIM_MODE m_trim_mode;
+  const bool m_trim_leading;
+  const bool m_trim_trailing;
 
-  Item_func_trim(Item *a) :Item_str_func(a) {}
-  Item_func_trim(const POS &pos, Item *a) :Item_str_func(pos, a) {}
+public:
+  Item_func_trim(Item *a, Item *b, TRIM_MODE tm)
+    : Item_str_func(a,b), m_trim_mode(tm),
+      m_trim_leading(trim_leading()), m_trim_trailing(trim_trailing())
+  {}
+
+  Item_func_trim(const POS &pos, Item *a, Item *b, TRIM_MODE tm)
+    : Item_str_func(pos, a,b), m_trim_mode(tm),
+      m_trim_leading(trim_leading()), m_trim_trailing(trim_trailing())
+  {}
+
+  Item_func_trim(Item *a, TRIM_MODE tm)
+    : Item_str_func(a), m_trim_mode(tm),
+      m_trim_leading(trim_leading()), m_trim_trailing(trim_trailing())
+  {}
+
+  Item_func_trim(const POS &pos, Item *a, TRIM_MODE tm)
+    : Item_str_func(pos, a), m_trim_mode(tm),
+      m_trim_leading(trim_leading()), m_trim_trailing(trim_trailing())
+  {}
+
+  bool trim_leading() const
+  {
+    return
+      m_trim_mode == TRIM_BOTH_DEFAULT ||
+      m_trim_mode == TRIM_BOTH ||
+      m_trim_mode == TRIM_LEADING ||
+      m_trim_mode == TRIM_LTRIM;
+  }
+
+  bool trim_trailing() const
+  {
+    return
+      m_trim_mode == TRIM_BOTH_DEFAULT ||
+      m_trim_mode == TRIM_BOTH ||
+      m_trim_mode == TRIM_TRAILING ||
+      m_trim_mode == TRIM_RTRIM;
+  }
 
   String *val_str(String *);
   void fix_length_and_dec();
-  const char *func_name() const { return "trim"; }
+  const char *func_name() const
+  {
+    switch(m_trim_mode) {
+    case TRIM_BOTH_DEFAULT:
+    case TRIM_BOTH:
+    case TRIM_LEADING:
+    case TRIM_TRAILING:     return "trim";
+    case TRIM_LTRIM:        return "ltrim";
+    case TRIM_RTRIM:        return "rtrim";
+    }
+    return NULL;
+  }
   virtual void print(String *str, enum_query_type query_type);
-  virtual const char *mode_name() const { return "both"; }
-};
-
-
-class Item_func_ltrim :public Item_func_trim
-{
-public:
-  Item_func_ltrim(Item *a,Item *b) :Item_func_trim(a,b) {}
-  Item_func_ltrim(const POS &pos, Item *a,Item *b) :Item_func_trim(pos, a,b) {}
-
-  Item_func_ltrim(Item *a) :Item_func_trim(a) {}
-  Item_func_ltrim(const POS &pos, Item *a) :Item_func_trim(pos, a) {}
-
-  String *val_str(String *);
-  const char *func_name() const { return "ltrim"; }
-  const char *mode_name() const { return "leading"; }
-};
-
-
-class Item_func_rtrim :public Item_func_trim
-{
-public:
-  Item_func_rtrim(Item *a,Item *b) :Item_func_trim(a,b) {}
-  Item_func_rtrim(const POS &pos, Item *a,Item *b) :Item_func_trim(pos, a,b) {}
-
-  Item_func_rtrim(Item *a) :Item_func_trim(a) {}
-  Item_func_rtrim(const POS &pos, Item *a) :Item_func_trim(pos, a) {}
-
-  String *val_str(String *);
-  const char *func_name() const { return "rtrim"; }
-  const char *mode_name() const { return "trailing"; }
 };
 
 
