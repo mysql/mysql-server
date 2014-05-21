@@ -235,8 +235,14 @@ extern ulint	srv_undo_tablespaces_open;
 /** The number of undo segments to use */
 extern ulong	srv_undo_logs;
 
+/** Maximum size of undo tablespace. */
+extern ulong	srv_max_undo_log_size;
+
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
+
+/** Default size of UNDO tablespace while it is created new. */
+extern const ulint	SRV_UNDO_TABLESPACE_SIZE_IN_PAGES;
 
 extern char*	srv_log_group_home_dir;
 

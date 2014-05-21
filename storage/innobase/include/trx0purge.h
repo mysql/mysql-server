@@ -154,6 +154,98 @@ struct purge_iter_t {
 					space id. */
 };
 
+/** Track UNDO tablespace mark for truncate. */
+class undo_trunc_t {
+public:
+	typedef	std::vector<trx_rseg_t*>	rseg_for_trunc_t;
+
+	undo_trunc_t()
+		:
+		m_undo_for_trunc(ULINT_UNDEFINED),
+		m_rseg_for_trunc(),
+		m_scan_start(1)
+	{
+		/* Do Nothing. */
+	}
+
+	/** Is tablespace selected for truncate.
+	@return true if undo tablespace is marked for truncate */
+	bool is_undo_marked_for_trunc()
+	{
+		return(m_undo_for_trunc == ULINT_UNDEFINED ? false : true);
+	}
+
+	/** Mark the tablespace for truncate.
+	@param[in]	undo_id		tablespace for truncate. */
+	void mark_for_trunc(
+		ulint	undo_id)
+	{
+		m_undo_for_trunc = undo_id;
+
+		m_scan_start = (undo_id + 1) % (srv_undo_tablespaces_open + 1);
+		if (m_scan_start) {
+			/* Note: UNDO tablespace ids starts from 1. */
+			m_scan_start = 1;
+		}
+	}
+
+	/** Get the tablespace marked for truncate.
+	@return tablespace id marked for truncate. */
+	ulint get_undo_mark_for_trunc()
+	{
+		return m_undo_for_trunc;
+	}
+
+	/** Add rseg to truncate vector. 
+	@param[in,out]	rseg	rseg for truncate */
+	void add_rseg_to_trunc(
+		trx_rseg_t*	rseg)
+	{
+		m_rseg_for_trunc.push_back(rseg);
+	}
+
+	/** Get number of rsegs registered for truncate.
+	@return return number of rseg that belongs to tablespace mark for
+	truncate. */
+	ulint get_no_of_rsegs()
+	{
+		return(m_rseg_for_trunc.size());
+	}
+
+	/** Get ith registered rseg.
+	@return reference to registered rseg. */
+	trx_rseg_t* get_ith_rseg(ulint id)
+	{
+		ut_ad(id < m_rseg_for_trunc.size());
+		return(m_rseg_for_trunc.at(id));
+	}
+
+	/** Reset for next rseg truncate. */
+	void reset()
+	{
+		m_undo_for_trunc = ULINT_UNDEFINED;
+		m_rseg_for_trunc.clear();
+	}
+
+	/** Get the tablespace id to start scanning from.
+	@return	id of UNDO tablespace to start scanning from. */
+	ulint scan_start()
+	{
+		return(m_scan_start);
+	}	
+
+private:	
+	/** UNDO tablespace is mark for truncate. */
+	ulint			m_undo_for_trunc;
+
+	/** rseg that resides in UNDO tablespace marked for truncate. */
+	rseg_for_trunc_t	m_rseg_for_trunc;
+
+	/** Start scanning for UNDO tablespace from this space_id.
+	This is to avoid bias selection of one tablespace always. */
+	ulint			m_scan_start;
+};
+
 /** The control structure used in the purge operation */
 struct trx_purge_t{
 	sess_t*		sess;		/*!< System session running the purge
@@ -233,6 +325,9 @@ struct trx_purge_t{
 					TrxUndoRsegs::trx_no. It is protected
 					by the pq_mutex */
 	PQMutex		pq_mutex;	/*!< Mutex protecting purge_queue */
+
+	undo_trunc_t    undo_trunc;	/*!< Track UNDO tablespace marked
+					for truncate. */
 };
 
 /** Info required to purge a record */
