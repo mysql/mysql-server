@@ -813,7 +813,7 @@ function newInsertOperation(tx, tableHandler, row) {
 function newDeleteOperation(tx, dbIndexHandler, keys) {
   verifyIndexHandler(dbIndexHandler);
   var op = new DBOperation(opcodes.OP_DELETE, tx, dbIndexHandler, null);
-  op.keys = dbIndexHandler.getFields(keys, false, 'ndb');
+  op.keys = dbIndexHandler.getFields(keys);
   return op;
 }
 

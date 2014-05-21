@@ -570,13 +570,11 @@ function chooseIndex(self, keys, uniqueOnly) {
 
 
 /** Return the property of obj corresponding to fieldNumber.
- * If resolveDefault is true, replace undefined with the default column value.
- * ResolveDefault is used only for persist, not for write or update.
  * If a domain type converter and/or database type converter is defined, convert the value here.
  * If a fieldValueDefinedListener is passed, notify it via setDefined or setUndefined for each column.
  * Call setDefined if a column value is defined in the object and setUndefined if not.
  */
-DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapter, fieldValueDefinedListener) { 
+DBTableHandler.prototype.get = function(obj, fieldNumber, adapter, fieldValueDefinedListener) { 
   udebug.log_detail("get", fieldNumber);
   if (typeof(obj) === 'string' || typeof(obj) === 'number') {
     if (fieldValueDefinedListener) {
@@ -595,10 +593,6 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapte
   else {
     result = obj[f.fieldName];
   }
-  if ((result === undefined) && resolveDefault) {
-    udebug.log_detail('using default value for', f.fieldName, ':', f.defaultValue);
-    result = f.defaultValue;
-  }
   var databaseTypeConverter = f.databaseTypeConverter && f.databaseTypeConverter[adapter];
   if (databaseTypeConverter && result !== undefined) {
     result = databaseTypeConverter.toDB(result);
@@ -614,11 +608,40 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, resolveDefault, adapte
 };
 
 
+/** Return the property of obj corresponding to fieldNumber.
+*/
+DBTableHandler.prototype.getSimple = function(obj, fieldNumber) {
+  var f;
+  f = this.fieldNumberToFieldMap[fieldNumber];
+  if(f.domainTypeConverter) {
+    return f.domainTypeConverter.toDB(obj[f.fieldName]);
+  }
+  return obj[f.fieldName];
+};
+  
+  
 /* Return an array of values in field order */
-DBTableHandler.prototype.getFields = function(obj, resolveDefault, adapter, fieldValueDefinedListener) {
+DBTableHandler.prototype.getFields = function(obj) {
+  var i, n, fields;
+  fields = [];
+  n = this.getMappedFieldCount();
+  switch(typeof obj) {
+    case 'number':
+    case 'string':
+      fields.push(obj);
+      break;
+    default: 
+      for(i = 0 ; i < n ; i++) { fields.push(this.getSimple(obj, i)); }
+  }
+  return fields;
+};
+
+
+/* Return an array of values in field order */
+DBTableHandler.prototype.getFieldsWithListener = function(obj, adapter, fieldValueDefinedListener) {
   var i, fields = [];
   for( i = 0 ; i < this.getMappedFieldCount() ; i ++) {
-    fields[i] = this.get(obj, i, resolveDefault, adapter, fieldValueDefinedListener);
+    fields[i] = this.get(obj, i, adapter, fieldValueDefinedListener);
   }
   return fields;
 };
@@ -691,7 +714,8 @@ DBIndexHandler.prototype = {
   getMappedFieldCount    : proto.getMappedFieldCount,    // inherited
   get                    : proto.get,                    // inherited
   getFields              : proto.getFields,              // inherited
-  getColumnMetadata      : proto.getColumnMetadata       // inherited
+  getColumnMetadata      : proto.getColumnMetadata,      // inherited
+  getSimple              : proto.getSimple               // inherited
 };
 
 
