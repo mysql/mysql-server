@@ -87,32 +87,51 @@ var sqlStateMessages = {
 
 
 function DBOperationError() {
-  this.ndb_error = null;
   this.message   = "";
-  this.sqlstate  = "NDB00";
-  this.cause     = null;
+  this.ndb_error = null;
 }
 
+DBOperationError.prototype = {
+  sqlstate       : "NDB00",
+  cause          : null
+};
+
 DBOperationError.prototype.fromNdbError = function(ndb_error) {
-  this.ndb_error = ndb_error;
   this.message   = ndb_error.message + " [" + ndb_error.code + "]";
   this.sqlstate  = errorClassificationMap[ndb_error.classification];
+  this.ndb_error = ndb_error;
   return this;
 };
 
 DBOperationError.prototype.fromSqlState = function(sqlstate) {
-  this.sqlstate = sqlstate;
   this.message = sqlStateMessages[sqlstate];
+  this.sqlstate = sqlstate;
   return this;
 };
   
-  
-function IndirectError(cause) {
+DBOperationError.prototype.cascading = function(cause) {
   udebug.log("Adding indirect error from", cause);
-  this.cause = cause;
   this.message = "Cascading Error";
   this.sqlstate = cause.sqlstate;
-}
+  this.cause = cause;
+  return this;
+};
+
+
+function keepIndexStatistics(dbTable, index) {
+  var i, idxStats, keyName;
+    
+	if(typeof index_stats[dbTable.name] === 'undefined') {
+    idxStats = { "PrimaryKey" : 0 };
+    for(i = 1 ; i < dbTable.indexes.length ; i++) {
+      idxStats[dbTable.indexes[i].name] = 0;
+    }
+    index_stats[dbTable.name] = idxStats;
+  }
+
+	keyName = (index.isPrimaryKey ? "PrimaryKey" : index.name);
+	index_stats[dbTable.name][keyName]++;
+}  
 
 var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   assert(tx);
@@ -123,16 +142,16 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   this.keys           = {}; 
   this.values         = {};
   this.lockMode       = "";
-  this.state          = doc.OperationStates[0];  // DEFINED
   this.result         = new DBResult();
   this.indexHandler   = indexHandler;   
   if(indexHandler) { 
     this.tableHandler = indexHandler.tableHandler; 
     this.index        = indexHandler.dbIndex;
+    keepIndexStatistics(this.tableHandler.dbTable, this.index);
   }      
   else {
     this.tableHandler = tableHandler;
-    this.index        = {};  
+    this.index        = null;  
   }
   
   /* NDB Impl-specific properties */
@@ -147,25 +166,9 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   op_stats[opcodes[opcode]]++;
 };
 
-
-function makeStatsForIndexes(dbTable) {
-	var i, idxStats;
-	idxStats = { "PrimaryKey" : 0 };
-	for(i = 1 ; i < dbTable.indexes.length ; i++) {
-		idxStats[dbTable.indexes[i].name] = 0;
-	}
-	index_stats[dbTable.name] = idxStats;
-}
-
 function allocateKeyBuffer(op) {
   assert(op.buffers.key === null);
-  op.buffers.key = new Buffer(op.index.record.getBufferSize());
-	
-	var keyName = (op.index.isPrimaryKey ? "PrimaryKey" : op.index.name);
-	if(typeof index_stats[op.tableHandler.dbTable.name] === 'undefined') {
-		makeStatsForIndexes(op.tableHandler.dbTable);
-	}
-	index_stats[op.tableHandler.dbTable.name][keyName]++;
+  op.buffers.key = new Buffer(op.index.record.getBufferSize());	
 }
 
 function releaseKeyBuffer(op) {
@@ -174,6 +177,9 @@ function releaseKeyBuffer(op) {
   }
 }
 
+/* If an error occurs while encoding, 
+   encodeFieldsInBuffer() returns a DBOperationError
+*/
 function encodeFieldsInBuffer(fields, nfields, metadata, 
                               ndbRecord, buffer, definedColumnList) {
   var i, column, value, encoderError, error;
@@ -486,8 +492,6 @@ DBOperation.prototype.prepareScan = function(dbTransactionContext) {
       this.query.ndbFilterSpec.getScanFilterCode(this.params); 
     this.scan.filter = scanSpec[ScanHelper.filter_code];
   }
-
-  this.state = doc.OperationStates[1];  // PREPARED
   
   this.scanOp = adapter.impl.Scan.create(scanSpec, 33, dbTransactionContext);
   return this.scanOp; 
@@ -678,7 +682,7 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
         /* This operation has no error, but the transaction failed. */
         udebug.log("Case txErr + opOK", transactionHandler.moniker);
         op.result.success = false;
-        op.result.error = new IndirectError(transactionHandler.error);      
+        op.result.error = new DBOperationError().cascading(transactionHandler.error);
       }
     }
     else {
@@ -692,7 +696,7 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
         }
         else {
           udebug.log("Case txOK + OpErr", transactionHandler.moniker);
-          transactionHandler.error = new IndirectError(op.result.error);        
+          transactionHandler.error = new DBOperationError().cascading(op.result.error);
         }
       }
     }
@@ -726,7 +730,6 @@ function completeExecutedOps(dbTxHandler, execMode, operations) {
     }
 
     dbTxHandler.executedOperations.push(op);
-    op.state = doc.OperationStates[2];  // COMPLETED
     if(typeof op.userCallback === 'function') {
       op.userCallback(op.result.error, op);
     }
