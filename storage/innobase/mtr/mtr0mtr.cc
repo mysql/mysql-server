@@ -652,41 +652,45 @@ mtr_t::Command::prepare_write()
 		log_buffer_extend((len + 1) * 2);
 	}
 
-	fil_space_t*	spaces[3];
+	fil_spaces_t	spaces;
 
-	fil_spaces_lookup(spaces,
+	fil_spaces_lookup(&spaces,
 			  m_impl->m_named_space,
 			  m_impl->m_undo_space,
 			  m_impl->m_modifies_sys_space);
 
-	if (spaces[0]) {
-		fil_names_write(spaces[0], m_impl->m_mtr);
+	if (spaces.user) {
+		/* Speculatively write a MLOG_FILE_NAME record
+		for the user tablespace, while not holding the
+		log mutex. Most of the time, this will be removed below. */
+		fil_names_write(spaces.user, m_impl->m_mtr);
 	}
 
 	ut_ad(m_impl->m_n_log_recs >= n_recs);
 
 	log_mutex_enter();
 
-	if (spaces[0] && !fil_names_dirty(spaces[0])) {
-		spaces[0] = NULL;
+	if (spaces.user && UNIV_LIKELY(!fil_names_dirty(spaces.user))) {
+		/* The user tablespace was not dirtied the first time
+		since the log checkpoint. Discard the MLOG_FILE_NAME
+		record that we speculatively wrote above. */
+		spaces.user = NULL;
 		m_impl->m_log.set_size(len);
 	}
 
-	bool dirty = spaces[0] != NULL;
+	bool dirty = spaces.user != NULL;
 
-	if (spaces[1] && fil_names_dirty(spaces[1])) {
-		/* Write MLOG_FILE_NAME for the undo tablespace. */
-		fil_names_write(spaces[1], m_impl->m_mtr);
+	if (UNIV_UNLIKELY(spaces.sys && fil_names_dirty(spaces.sys))) {
+		fil_names_write(spaces.sys, m_impl->m_mtr);
 		dirty = true;
 	}
 
-	if (spaces[2] && fil_names_dirty(spaces[2])) {
-		/* Write MLOG_FILE_NAME for the system tablespace. */
-		fil_names_write(spaces[2], m_impl->m_mtr);
+	if (UNIV_UNLIKELY(spaces.undo && fil_names_dirty(spaces.undo))) {
+		fil_names_write(spaces.undo, m_impl->m_mtr);
 		dirty = true;
 	}
 
-	if (dirty) {
+	if (UNIV_UNLIKELY(dirty)) {
 		/* This mini-transaction was the first one to modify
 		some tablespace since the latest checkpoint. Do include
 		the MLOG_FILE_NAME records that were appended to m_log

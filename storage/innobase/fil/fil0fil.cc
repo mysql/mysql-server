@@ -2737,9 +2737,7 @@ fil_check_pending_operations(
 
 	/* Check for pending IO. */
 
-	if (path != NULL) {
-		*path = 0;
-	}
+	*path = 0;
 
 	do {
 		mutex_enter(&fil_system->mutex);
@@ -2755,7 +2753,7 @@ fil_check_pending_operations(
 
 		count = fil_check_pending_io(operation, sp, &node, count);
 
-		if (count == 0 && path != NULL) {
+		if (count == 0) {
 			*path = mem_strdup(node->name);
 		}
 
@@ -2832,7 +2830,7 @@ fil_space_system_check(
 @retval DB_ERROR		if the data is inconsistent */
 
 dberr_t
-fil_space_undo_check(
+fil_space_undo_check_if_opened(
 	const char*	name,
 	ulint		space_id)
 {
@@ -6398,17 +6396,14 @@ fil_mtr_rename_log(
 	return(true);
 }
 
-/** Look up a tablespace.
-@param[in]	space_id	tablespace identifier
-@return tablespace object, or NULL if not found or being dropped */
+#ifdef UNIV_DEBUG
+/** Check that a tablespace is valid for mtr_commit().
+@param[in]	space	persistent tablespace that has been changed */
 static
-fil_space_t*
-fil_space_lookup(
-	ulint	space_id)
+void
+fil_space_validate_for_mtr_commit(
+	const fil_space_t*	space)
 {
-	ut_ad(mutex_own(&fil_system->mutex));
-
-	fil_space_t*	space = fil_space_get_by_id(space_id);
 	ut_ad(space != NULL);
 	ut_ad(space->purpose == FIL_TYPE_TABLESPACE);
 
@@ -6427,30 +6422,44 @@ fil_space_lookup(
 	ut_ad(!space->stop_new_ops
 	      || space->is_being_truncated /* TRUNCATE sets stop_new_ops */
 	      || space->n_pending_ops > 0);
+}
+#endif /* UNIV_DEBUG */
 
+/** Look up a tablespace.
+@param[in]	space_id	tablespace identifier
+@return tablespace object, or NULL if not found or being dropped */
+static
+fil_space_t*
+fil_space_lookup(
+	ulint	space_id)
+{
+	ut_ad(mutex_own(&fil_system->mutex));
+
+	fil_space_t*	space = fil_space_get_by_id(space_id);
+	ut_d(fil_space_validate_for_mtr_commit(space));
 	return(space);
 }
 
 /** Look up some tablespaces for invoking fil_names_write().
-@param[out]	spaces		three tablespace pointers
+@param[out]	spaces		tablespace pointers
 @param[in]	user_space_id	modified user tablespace, or 0 if none
 @param[in]	undo_space_id	modified undo tablespace, or 0 if none
 @param[in]	find_system	whether to look up the system tablespace */
 
 void
 fil_spaces_lookup(
-	fil_space_t*	spaces[3],
+	fil_spaces_t*	spaces,
 	ulint		user_space_id,
 	ulint		undo_space_id,
 	bool		find_system)
 {
 	mutex_enter(&fil_system->mutex);
 
-	spaces[0] = user_space_id == TRX_SYS_SPACE
+	spaces->user = user_space_id == TRX_SYS_SPACE
 		? NULL : fil_space_lookup(user_space_id);
-	spaces[1] = undo_space_id == TRX_SYS_SPACE
+	spaces->sys = undo_space_id == TRX_SYS_SPACE
 		? NULL : fil_space_lookup(undo_space_id);
-	spaces[2] = !find_system
+	spaces->undo = !find_system
 		? NULL : fil_space_lookup(TRX_SYS_SPACE);
 
 	mutex_exit(&fil_system->mutex);
@@ -6459,9 +6468,9 @@ fil_spaces_lookup(
 /** Write a MLOG_FILE_NAME record for a persistent tablespace.
 @param[in]	space	tablespace
 @param[in,out]	mtr	mini-transaction */
-
+static
 void
-fil_names_write(
+fil_names_write_low(
 	const fil_space_t*	space,
 	mtr_t*			mtr)
 {
@@ -6473,6 +6482,20 @@ fil_names_write(
 		fil_name_write(space, first_page_no, file, mtr);
 		first_page_no += file->size;
 	}
+}
+
+/** Write a MLOG_FILE_NAME record for a persistent tablespace.
+@param[in]	space	tablespace
+@param[in,out]	mtr	mini-transaction */
+
+void
+fil_names_write(
+	const fil_space_t*	space,
+	mtr_t*			mtr)
+{
+	ut_ad(!mutex_own(&fil_system->mutex));
+	ut_d(fil_space_validate_for_mtr_commit(space));
+	fil_names_write_low(space, mtr);
 }
 
 /** Note that a persistent tablespace has been modified.
@@ -6549,7 +6572,7 @@ fil_names_clear(
 		where max_lsn turned nonzero), we could avoid the
 		fil_names_write_low() call if min_lsn > lsn. */
 
-		fil_names_write(space, &mtr);
+		fil_names_write_low(space, &mtr);
 		do_write = true;
 
 		space = next;
