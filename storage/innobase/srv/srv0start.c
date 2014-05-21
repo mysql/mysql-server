@@ -624,16 +624,17 @@ open_or_create_log_file(
 		if (size != srv_calc_low32(srv_log_file_size)
 		    || size_high != srv_calc_high32(srv_log_file_size)) {
 
+			/* By default 5.6 based InnoDB will create 48M log
+			file but 5.5 only 5M. Actual size error must be
+			tested later. */
 			fprintf(stderr,
-				"InnoDB: Error: log file %s is"
+				"InnoDB: Warning: log file %s is"
 				" of different size %lu %lu bytes\n"
 				"InnoDB: than specified in the .cnf"
 				" file %lu %lu bytes!\n",
 				name, (ulong) size_high, (ulong) size,
 				(ulong) srv_calc_high32(srv_log_file_size),
 				(ulong) srv_calc_low32(srv_log_file_size));
-
-			return(DB_ERROR);
 		}
 	} else {
 		*log_file_created = TRUE;
