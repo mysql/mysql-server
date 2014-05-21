@@ -16,6 +16,21 @@
 
 -- source include/have_innodb.inc
 
+# Create Insert Procedure
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+	DECLARE i int DEFAULT 1;
+
+	START TRANSACTION;
+	WHILE (i <= 10000) DO
+		INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+		SET i = i + 1;
+	END WHILE;
+	COMMIT;
+END|
+DELIMITER ;|
+
 # Test scenarios:
 # for three cases: default row format, compressed table, blob.
 # 1. Test restart;
@@ -29,9 +44,9 @@ CREATE TABLE t1(
 	title	VARCHAR(100)
 ) ENGINE=InnoDB;
 
--- disable_warnings
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
--- enable_warnings
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
 
 SELECT COUNT(*) FROM t1;
 
@@ -45,20 +60,6 @@ CREATE INDEX idx_title ON t1(title);
 
 CHECK TABLE t1;
 
-EXPLAIN SELECT * FROM t1 WHERE id = 10;
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
-
-SELECT * FROM t1 WHERE id = 10;
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
-
-SELECT * FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE title = 'History of Dominica';
-
-SELECT * FROM t1 WHERE id = 15517;
-SELECT * FROM t1 WHERE title = 'ITSO';
-
-SELECT * FROM t1 WHERE id = 74607;
-SELECT * FROM t1 WHERE title = 'Big cats';
 
 DROP TABLE t1;
 
@@ -72,9 +73,9 @@ CREATE TABLE t1(
 	title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 
--- disable_warnings
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
--- enable_warnings
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
 
 SELECT COUNT(*) FROM t1;
 
@@ -82,26 +83,40 @@ CREATE INDEX idx_id ON t1(id);
 
 CREATE INDEX idx_title ON t1(title);
 
+EXPLAIN SELECT * FROM t1 WHERE id = 10;
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 10;
+SELECT * FROM t1 WHERE title = 'a10';
+
+SELECT * FROM t1 WHERE id = 5000;
+SELECT * FROM t1 WHERE title = 'a5000';
+
+SELECT * FROM t1 WHERE id = 10000;
+SELECT * FROM t1 WHERE title = 'a10000';
+
+SELECT * FROM t1 WHERE id = 10010;
+SELECT * FROM t1 WHERE title = 'a10010';
+
 --echo # Shutdown and restart mysqld
 --source include/shutdown_mysqld.inc
 --source include/start_mysqld.inc
 
 CHECK TABLE t1;
-
 EXPLAIN SELECT * FROM t1 WHERE id = 10;
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 
 SELECT * FROM t1 WHERE id = 10;
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE id = 5000;
+SELECT * FROM t1 WHERE title = 'a5000';
 
-SELECT * FROM t1 WHERE id = 15517;
-SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE id = 10000;
+SELECT * FROM t1 WHERE title = 'a10000';
 
-SELECT * FROM t1 WHERE id = 74607;
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE id = 10010;
+SELECT * FROM t1 WHERE title = 'a10010';
 
 DROP TABLE t1;
 
@@ -173,9 +188,9 @@ CREATE TABLE t1(
         title   VARCHAR(100)
 ) ENGINE=InnoDB;
 
--- disable_warnings
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
--- enable_warnings
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
 
 SET SESSION debug="+d,crash_commit_before";
 
@@ -193,15 +208,15 @@ SELECT COUNT(*) FROM t1;
 
 CHECK TABLE t1;
 
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a5000';
 
-SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE title = 'a10000';
 
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 
 DROP TABLE t1;
 
@@ -215,9 +230,9 @@ CREATE TABLE t1(
         title   VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
 
--- disable_warnings
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
--- enable_warnings
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
 
 SET SESSION debug="+d,crash_commit_before";
 
@@ -235,15 +250,15 @@ SELECT COUNT(*) FROM t1;
 
 CHECK TABLE t1;
 
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a5000';
 
-SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE title = 'a10000';
 
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 
 DROP TABLE t1;
 
@@ -318,3 +333,5 @@ DROP TABLE t1;
 
 SET GLOBAL innodb_file_per_table=DEFAULT;
 SET GLOBAL innodb_file_format=DEFAULT;
+
+DROP PROCEDURE populate_t1;

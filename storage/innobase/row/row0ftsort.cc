@@ -1089,17 +1089,15 @@ row_fts_start_parallel_merge(
 	}
 }
 
-/********************************************************************//**
+/**
 Write out a single word's data as new entry/entries in the INDEX table.
 @param[in]	ins_ctx	insert context
 @param[in]	word	word string
 @param[in]	node	node colmns
-@retval	DB_SUCCESS	if insertion runs fine
-@retval	error code	if error occurs */
+@return	DB_SUCCUESS if insertion runs fine, otherwise error code */
 static
 dberr_t
 row_merge_write_fts_node(
-/*=====================*/
 	const	fts_psort_insert_t*	ins_ctx,
 	const	fts_string_t*		word,
 	const	fts_node_t*		node)
@@ -1149,8 +1147,7 @@ static __attribute__((nonnull))
 dberr_t
 row_merge_write_fts_word(
 /*=====================*/
-	fts_psort_insert_t*
-				ins_ctx,	/*!< in: insert context */
+	fts_psort_insert_t*	ins_ctx,	/*!< in: insert context */
 	fts_tokenizer_word_t*	word)		/*!< in: sorted and tokenized
 						word */
 {
