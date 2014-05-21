@@ -549,3 +549,25 @@ bug12818542@localhost	bug12818542_dest@localhost
 DROP USER bug12818542@localhost;
 DROP USER bug12818542_dest@localhost;
 End of 5.5 tests
+#
+# Bug #18057562: PROXY USERS LOCKED OUT WHEN UNDERLYING PROXIED USER
+#                PASSWORD IS EXPIRED
+#
+# Restart server with disconnect_on_expired_password OFF;
+CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
+CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';
+GRANT PROXY ON 'employee'@'localhost' TO 'empl_external'@'localhost';
+# Expiring the proxied user's password
+ALTER USER employee@localhost PASSWORD EXPIRE;
+# Connecting with the proxied user and executing a query after the
+# proxied user's password is expired
+Warning: Using a password on the command line interface can be insecure.
+ERROR 1820 (HY000) at line 1: You must SET PASSWORD before executing this statement
+# Connecting with the proxy user and executing a query after the proxied
+# user's password is expired. Here we are not supposed to get error.
+Warning: Using a password on the command line interface can be insecure.
+current_user()
+employee@localhost
+user()
+empl_external@localhost
+DROP USER 'empl_external'@'localhost', 'employee'@'localhost';

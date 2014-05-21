@@ -11352,7 +11352,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
-    if (unlikely(acl_user && acl_user->password_expired
+    if (unlikely(mpvio.acl_user && mpvio.acl_user->password_expired
         && !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
         && disconnect_on_expired_password))
     {
@@ -11383,7 +11383,13 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
-    sctx->password_expired= acl_user->password_expired;
+    /*
+      We are copying the connected user's password expired flag to the security
+      context.
+      This allows proxy user to execute queries even if proxied user password
+      expires.
+    */
+    sctx->password_expired= mpvio.acl_user->password_expired;
 #endif
   }
   else
