@@ -29,6 +29,10 @@
 
 #include "binlog_config.h"
 
+#ifndef STANDALONE_BINLOG
+#define HAVE_MYSYS 1
+#endif
+
 /*
   Define types uint_t typedefs if stdint is not present
 */
