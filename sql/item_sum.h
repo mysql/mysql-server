@@ -1,7 +1,7 @@
 #ifndef ITEM_SUM_INCLUDED
 #define ITEM_SUM_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved. reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved. reserved.
    reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -589,14 +589,24 @@ class Aggregator_distinct : public Aggregator
   */  
   uint tree_key_length;
 
-  /* 
-    Set to true if the result is known to be always NULL.
-    If set deactivates creation and usage of the temporary table (in the 
-    'table' member) and the Unique instance (in the 'tree' member) as well as 
-    the calculation of the final value on the first call to 
-    Item_[sum|avg|count]::val_xxx(). 
-  */
-  bool always_null;
+  enum Const_distinct{
+    NOT_CONST= 0,
+    /**
+      Set to true if the result is known to be always NULL.
+      If set deactivates creation and usage of the temporary table (in the
+      'table' member) and the Unique instance (in the 'tree' member) as well as
+      the calculation of the final value on the first call to
+      Item_[sum|avg|count]::val_xxx().
+     */
+    CONST_NULL,
+    /**
+      Set to true if count distinct is on only const items. Distinct on a const
+      value will always be the constant itself. And count distinct of the same
+      would always be 1. Similar to CONST_NULL, it avoids creation of temporary
+      table and the Unique instance.
+     */
+    CONST_NOT_NULL
+  } const_distinct;
 
   /**
     When feeding back the data in endup() from Unique/temp table back to
@@ -611,7 +621,7 @@ class Aggregator_distinct : public Aggregator
 public:
   Aggregator_distinct (Item_sum *sum) :
     Aggregator(sum), table(NULL), tmp_table_param(NULL), tree(NULL),
-    always_null(false), use_distinct_values(false) {}
+    const_distinct(NOT_CONST), use_distinct_values(false) {}
   virtual ~Aggregator_distinct ();
   Aggregator_type Aggrtype() { return DISTINCT_AGGREGATOR; }
 
