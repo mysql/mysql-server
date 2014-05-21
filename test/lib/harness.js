@@ -130,8 +130,9 @@ Test.prototype.fail = function(message) {
     this.failed = true;
     if (message) {
       this.appendErrorMessage(message);
+      this.stack = message.stack;
     }
-    this.result.fail(this, { 'message' : this.errorMessages});
+    this.result.fail(this, { 'message' : this.errorMessages, 'stack': this.stack});
   }
 };
 
