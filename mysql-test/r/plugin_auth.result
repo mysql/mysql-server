@@ -565,7 +565,7 @@ mysql: [Warning] Using a password on the command line interface can be insecure.
 ERROR 1820 (HY000) at line 1: You must SET PASSWORD before executing this statement
 # Connecting with the proxy user and executing a query after the proxied
 # user's password is expired. Here we are not supposed to get error.
-Warning: Using a password on the command line interface can be insecure.
+mysql: [Warning] Using a password on the command line interface can be insecure.
 current_user()
 employee@localhost
 user()
