@@ -1605,7 +1605,7 @@ struct TABLE_LIST
 private:
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
-     member points to C.
+     member points to C. May also be generated from JOIN ... USING clause.
      It may be modified only by permanent transformations (permanent = done
      once for all executions of a prepared statement).
   */

@@ -608,6 +608,7 @@ public:
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();
+  bool attach_join_conditions(JOIN_TAB *tab);
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
   bool decide_subquery_strategy();
