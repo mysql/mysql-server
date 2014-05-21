@@ -1265,3 +1265,172 @@ SHOW WARNINGS;
 Level	Code	Message
 UNLOCK TABLES;
 DROP TABLE t, t2, tp;
+#
+# Tests for WL#5630: Allow EXCHANGE PARTITION WITHOUT VALIDATION
+#
+CREATE TABLE t (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM;
+CREATE TABLE tp (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100),
+PARTITION p1 VALUES LESS THAN MAXVALUE);
+CREATE TABLE tsp (a INT,
+b VARCHAR(55),
+PRIMARY KEY (a))
+ENGINE = MyISAM
+PARTITION BY RANGE (a)
+SUBPARTITION BY HASH(a)
+(PARTITION p0 VALUES LESS THAN (100)
+(SUBPARTITION sp0,
+SUBPARTITION sp1),
+PARTITION p1 VALUES LESS THAN MAXVALUE
+(SUBPARTITION sp2,
+SUBPARTITION sp3));
+INSERT INTO t VALUES (1, "First value"), (3, "Three"), (5, "Five"),
+(6, "Six"), (8, "Eight"), (99, "End of values");
+INSERT INTO tp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"),
+(200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"),
+(63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"),
+(163, "163"), (164, "164");
+INSERT INTO tsp VALUES (2, "First value"), (10, "Ten"), (50, "Fifty"),
+(200, "Two hundred, end of values"), (61, "Sixty one"), (62, "Sixty two"),
+(63, "Sixty three"), (64, "Sixty four"), (161, "161"), (162, "162"),
+(163, "163"), (164, "164");
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+6	Six
+8	Eight
+99	End of values
+SELECT * FROM tp PARTITION (p1);
+a	b
+161	161
+162	162
+163	163
+164	164
+200	Two hundred, end of values
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
+ERROR HY000: Found a row that does not match the partition
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t WITH VALIDATION;
+ERROR HY000: Found a row that does not match the partition
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t WITHOUT VALIDATION;
+SELECT * FROM t;
+a	b
+161	161
+162	162
+163	163
+164	164
+200	Two hundred, end of values
+SELECT * FROM tp PARTITION (p1);
+a	b
+1	First value
+3	Three
+5	Five
+6	Six
+8	Eight
+99	End of values
+# No need to use WITHOUT VALIDATION on the original partition
+ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
+# Test exchange subpartition WITHOUT VALIDATION
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+6	Six
+8	Eight
+99	End of values
+SELECT * FROM tsp PARTITION (sp3);
+a	b
+161	161
+163	163
+ALTER TABLE tsp EXCHANGE PARTITION sp3 WITH TABLE t WITHOUT VALIDATION;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tsp;
+Table	Create Table
+tsp	CREATE TABLE `tsp` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+SUBPARTITION BY HASH (a)
+(PARTITION p0 VALUES LESS THAN (100)
+ (SUBPARTITION sp0 ENGINE = MyISAM,
+  SUBPARTITION sp1 ENGINE = MyISAM),
+ PARTITION p1 VALUES LESS THAN MAXVALUE
+ (SUBPARTITION sp2 ENGINE = MyISAM,
+  SUBPARTITION sp3 ENGINE = MyISAM)) */
+SELECT * FROM t;
+a	b
+161	161
+163	163
+SELECT * FROM tsp PARTITION (sp3);
+a	b
+1	First value
+3	Three
+5	Five
+6	Six
+8	Eight
+99	End of values
+ALTER TABLE tsp EXCHANGE PARTITION sp3 WITH TABLE t;
+SHOW CREATE TABLE t;
+Table	Create Table
+t	CREATE TABLE `t` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+SHOW CREATE TABLE tp;
+Table	Create Table
+tp	CREATE TABLE `tp` (
+  `a` int(11) NOT NULL,
+  `b` varchar(55) DEFAULT NULL,
+  PRIMARY KEY (`a`)
+) ENGINE=MyISAM DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY RANGE (a)
+(PARTITION p0 VALUES LESS THAN (100) ENGINE = MyISAM,
+ PARTITION p1 VALUES LESS THAN MAXVALUE ENGINE = MyISAM) */
+SELECT * FROM t;
+a	b
+1	First value
+3	Three
+5	Five
+6	Six
+8	Eight
+99	End of values
+SELECT * FROM tsp PARTITION (sp3);
+a	b
+161	161
+163	163
+DROP TABLE t, tp, tsp;
