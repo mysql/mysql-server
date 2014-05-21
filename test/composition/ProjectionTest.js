@@ -72,8 +72,11 @@ t1.run = function() {
     then(function(actualCustomer) {
       lib.verifyProjection(testCase, customerProjection, expectedCustomer, actualCustomer);
       testCase.failOnError();
-      }, function(err) {testCase.fail(err);});
+      }, function(err) {testCase.fail(err);}).
+    then(null, function(err) {
+      testCase.fail(err);
     });
+  });
 };
 
 /** Projection test default null mapping.
@@ -92,7 +95,10 @@ t2.run = function() {
     then(function(actualCustomer) {
       lib.verifyProjection(testCase, customerProjection, expectedCustomer, actualCustomer);
       testCase.failOnError();
-      }, function(err) {testCase.fail(err);});
+      }, function(err) {testCase.fail(err);}).
+    then(null, function(err) {
+      testCase.fail(err);
+    });
   });
 };
 
@@ -115,7 +121,10 @@ t3.run = function() {
     then(function(actualCustomer) {
       lib.verifyProjection(testCase, customerProjection, expectedCustomer, actualCustomer);
       testCase.failOnError();
-      }, function(err) {testCase.fail(err);});
+      }, function(err) {testCase.fail(err);}).
+    then(null, function(err) {
+      testCase.fail(err);
+    });
   });
 };
 
@@ -150,7 +159,10 @@ t4.run = function() {
     then(function(actualShoppingCart2) {
       lib.verifyProjection(testCase, shoppingCartProjection, expectedShoppingCart, actualShoppingCart2);
       testCase.failOnError();
-    }, function(err) {testCase.fail(err);});
+    }, function(err) {testCase.fail(err);}).
+    then(null, function(err) {
+      testCase.fail(err);
+    });
   });
 };
 
@@ -182,7 +194,10 @@ t5.run = function() {
     then(function(actualShoppingCart2) {
       lib.verifyProjection(testCase, shoppingCartProjection, expectedShoppingCart, actualShoppingCart2);
       testCase.failOnError();
-    }, function(err) {testCase.fail(err);});
+    }, function(err) {testCase.fail(err);}).
+    then(null, function(err) {
+      testCase.fail(err);
+    });
   });
 };
 
