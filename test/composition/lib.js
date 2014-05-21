@@ -273,71 +273,67 @@ function verifyProjection(tc, p, e, a) {
       var actualField;
       var expectedRelationship;
       var actualRelationship;
-      // make sure the object is defined
-      if (typeof actual === 'undefined' || typeof actual === 'null') {
-        testCase.appendErrorMessage('\n' + testCase.name +
-            ' VerifyProjection failure for ' + domainObjectName +
-            '\nexpected: ' + util.inspect(expected) + '\nactual: ' + actual);
-      } else {
-        // verify the fields first
-        projection.fields.forEach(function(fieldName) {
-          expectedField = expected[fieldName];
-          actualField = actual[fieldName];
-          if (expectedField != actualField) {
-            testCase.appendErrorMessage('\n' + testCase.name +
-                ' VerifyProjection failure for ' + domainObjectName + ' field ' + fieldName +
-                '\nexpected: ' + expectedField + '\nactual: ' + actualField);
-          }
-        });
-        // now verify the relationships (iteratively)
-        if (projection.relationships) {
-          Object.keys(projection.relationships).forEach(function(relationshipName) {
-            expectedRelationship = expected[relationshipName];
-            actualRelationship = actual[relationshipName];
-            if (Array.isArray(expectedRelationship)) {
-              if (Array.isArray(actualRelationship)) {
-                // we need to sort the actual array
-                // TODO let the user provide a sort function
-                actualRelationship.sort(sortFunction);
-                if (expectedRelationship.length === actualRelationship.length) {
-                  // check each value in turn
-                  for (i = 0; i < expectedRelationship.length; ++i) {
-                    projectionVerifications.push([projection.relationships[relationshipName],
-                        expectedRelationship[i], actualRelationship[i]]);
-                  }
-                } else {
-                  testCase.appendErrorMessage('\n' + testCase.name +
-                    ' VerifyProjection failure for ' + domainObjectName +
-                    ' relationship ' + relationshipName +
-                    ' expected relationship length: ' + expectedRelationship.length +
-                    ' actual relationship length: ' + actualRelationship.length);
+      // verify the fields first
+      projection.fields.forEach(function(fieldName) {
+        expectedField = expected[fieldName];
+        actualField = actual[fieldName];
+        if (expectedField != actualField) {
+          testCase.appendErrorMessage('\n' + testCase.name +
+              ' VerifyProjection failure for ' + domainObjectName + ' field ' + fieldName +
+              '\nexpected: ' + expectedField + '\nactual: ' + actualField);
+        }
+      });
+      // now verify the relationships (iteratively)
+      if (projection.relationships) {
+        Object.keys(projection.relationships).forEach(function(relationshipName) {
+          expectedRelationship = expected[relationshipName];
+          actualRelationship = actual[relationshipName];
+          if (Array.isArray(expectedRelationship)) {
+            if (Array.isArray(actualRelationship)) {
+              // we need to sort the actual array
+              // TODO let the user provide a sort function
+              actualRelationship.sort(sortFunction);
+              if (expectedRelationship.length === actualRelationship.length) {
+                // check each value in turn
+                for (i = 0; i < expectedRelationship.length; ++i) {
+                  projectionVerifications.push([projection.relationships[relationshipName],
+                      expectedRelationship[i], actualRelationship[i]]);
                 }
               } else {
                 testCase.appendErrorMessage('\n' + testCase.name +
-                    ' VerifyProjection failure for ' + domainObjectName +
-                    ' relationship ' + relationshipName +
-                    ' actual relationship is not an array: ' + actualRelationship);
+                  ' VerifyProjection failure for ' + domainObjectName +
+                  ' relationship ' + relationshipName +
+                  ' expected relationship length: ' + expectedRelationship.length +
+                  ' actual relationship length: ' + actualRelationship.length);
               }
             } else {
-              // expected value is not an array
-              if (typeof expectedRelationship === 'undefined' && typeof actualRelationship !== 'undefined' ||
-                  expectedRelationship === null && actualRelationship !== null) {
-                // error
-                testCase.appendErrorMessage('\n' + testCase.name +
-                    ' VerifyProjection failure for ' + domainObjectName +
-                    ' relationship ' + relationshipName +
-                    '\nexpected relationship: ' + expectedRelationship + '\nactual relationship: ' + actualRelationship);
-              } else {
-                if (!(typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined' ||
-                      expectedRelationship === null && actualRelationship === null)) {
-                  // we need to check the values
-                  projectionVerifications.push([projection.relationships[relationshipName],
-                    expectedRelationship, actualRelationship]);
-                }
+              testCase.appendErrorMessage('\n' + testCase.name +
+                  ' VerifyProjection failure for ' + domainObjectName +
+                  ' relationship ' + relationshipName +
+                  ' actual relationship is not an array: ' + actualRelationship);
+            }
+          } else {
+            // expected value is an object
+            if (typeof expectedRelationship === 'undefined' && typeof actualRelationship !== 'undefined' ||
+                expectedRelationship === null && actualRelationship !== null ||
+                typeof expectedRelationship !== 'undefined' & typeof actualRelationship === 'undefined' ||
+                expectedRelationship !== null && actualRelationship === null) {
+              // error
+              testCase.appendErrorMessage('\n' + testCase.name +
+                  ' VerifyProjection failure for ' + domainObjectName +
+                  ' relationship ' + relationshipName +
+                  '\nexpected relationship: ' + util.inspect(expectedRelationship) +
+                  '\nactual relationship: ' + util.inspect(actualRelationship));
+            } else {
+              if (!(typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined' ||
+                    expectedRelationship === null && actualRelationship === null)) {
+                // we need to check the values
+                projectionVerifications.push([projection.relationships[relationshipName],
+                  expectedRelationship, actualRelationship]);
               }
             }
-          });
-        }
+          }
+        });
       }
       verifyOneProjection();
     }
