@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -596,10 +596,15 @@ bool Sql_cmd_alter_table_exchange_partition::
 
   /* Table and partition has same structure/options, OK to exchange */
 
-  thd_proc_info(thd, "verifying data with partition");
+  if (!alter_info->without_validation)
+  {
+    thd_proc_info(thd, "verifying data with partition");
 
-  if (verify_data_with_partition(swap_table, part_table, swap_part_id))
-    DBUG_RETURN(TRUE);
+    if (verify_data_with_partition(swap_table, part_table, swap_part_id))
+    {
+      DBUG_RETURN(true);
+    }
+  }
 
   /*
     Get exclusive mdl lock on both tables, alway the non partitioned table
