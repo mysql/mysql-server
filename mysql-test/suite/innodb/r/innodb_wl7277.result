@@ -1,3 +1,13 @@
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 100
@@ -6,7 +16,6 @@ class	INT,
 id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
@@ -23,56 +32,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE id = 10;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
 class	id	title
-SELECT * FROM t1 WHERE id = 3432;
+SELECT * FROM t1 WHERE title = 'b3000';
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE id = 8050;
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
+SELECT * FROM t1 WHERE title = 'b4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE id = 8051;
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a4001';
 class	id	title
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -81,21 +90,25 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title	content
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -104,24 +117,28 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
-CREATE TABLE t1( 
+CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
 c TEXT) ENGINE=InnoDB ROW_FORMAT=REDUNDANT;
@@ -147,6 +164,17 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 100
@@ -155,7 +183,6 @@ class	INT,
 id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
@@ -172,56 +199,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE id = 10;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
 class	id	title
-SELECT * FROM t1 WHERE id = 3432;
+SELECT * FROM t1 WHERE title = 'b3000';
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE id = 8050;
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
+SELECT * FROM t1 WHERE title = 'b4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE id = 8051;
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a4001';
 class	id	title
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -230,21 +257,25 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title	content
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -253,24 +284,28 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
-CREATE TABLE t1( 
+CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
 c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
@@ -296,6 +331,17 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
+DROP PROCEDURE populate_t1;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 100
@@ -305,7 +351,6 @@ class	INT,
 id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
@@ -322,56 +367,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE id = 10;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
 class	id	title
-SELECT * FROM t1 WHERE id = 3432;
+SELECT * FROM t1 WHERE title = 'b3000';
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE id = 8050;
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
+SELECT * FROM t1 WHERE title = 'b4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE id = 8051;
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a4001';
 class	id	title
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -380,21 +425,25 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title	content
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -403,24 +452,28 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
-CREATE TABLE t1( 
+CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
 c TEXT) ENGINE=InnoDB ROW_FORMAT=DYNAMIC;
@@ -447,6 +500,17 @@ CHAR_LENGTH(b)
 60000
 DROP TABLE t1;
 SET GLOBAL innodb_file_format=default;
+DROP PROCEDURE populate_t1;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 100
@@ -457,7 +521,6 @@ class	INT,
 id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
@@ -474,56 +537,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE id = 10;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
 class	id	title
-SELECT * FROM t1 WHERE id = 3432;
+SELECT * FROM t1 WHERE title = 'b3000';
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE id = 8050;
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
+SELECT * FROM t1 WHERE title = 'b4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE id = 8051;
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a4001';
 class	id	title
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -532,21 +595,25 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title	content
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -555,24 +622,28 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
-CREATE TABLE t1( 
+CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
 c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPRESSED KEY_BLOCK_SIZE=4;
@@ -600,7 +671,18 @@ CHAR_LENGTH(b)
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
+DROP PROCEDURE populate_t1;
 SET GLOBAL innodb_fill_factor=10;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 10
@@ -609,7 +691,6 @@ class	INT,
 id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
@@ -626,56 +707,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE id = 10;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
 class	id	title
-SELECT * FROM t1 WHERE id = 3432;
+SELECT * FROM t1 WHERE title = 'b3000';
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE id = 8050;
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
+SELECT * FROM t1 WHERE title = 'b4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE id = 8051;
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a4001';
 class	id	title
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -684,21 +765,25 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title	content
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -707,24 +792,28 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
-CREATE TABLE t1( 
+CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
 c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
@@ -750,7 +839,18 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
+DROP PROCEDURE populate_t1;
 SET GLOBAL innodb_fill_factor=50;
+CREATE PROCEDURE populate_t1()
+BEGIN
+DECLARE i int DEFAULT 1;
+START TRANSACTION;
+WHILE (i <= 10000) DO
+INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+SET i = i + 1;
+END WHILE;
+COMMIT;
+END|
 SELECT @@innodb_fill_factor;
 @@innodb_fill_factor
 50
@@ -759,7 +859,6 @@ class	INT,
 id	INT,
 title	VARCHAR(100)
 ) ENGINE=InnoDB ROW_FORMAT=COMPACT;
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 10000
@@ -776,56 +875,56 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	t1	NULL	ref	idx_id	idx_id	5	const	1	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`id` = 10)
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx_title	idx_title	103	const	1	100.00	NULL
 Warnings:
-Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'AccessibleComputing')
+Note	1003	/* select#1 */ select `test`.`t1`.`class` AS `class`,`test`.`t1`.`id` AS `id`,`test`.`t1`.`title` AS `title` from `test`.`t1` where (`test`.`t1`.`title` = 'a10')
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-557	10	AccessibleComputing
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-33344753	8051	History of Dominica
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE id = 10;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
+SELECT * FROM t1 WHERE id = 3000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+3000	3000	b3000
+SELECT * FROM t1 WHERE title = 'a3000';
 class	id	title
-SELECT * FROM t1 WHERE id = 3432;
+SELECT * FROM t1 WHERE title = 'b3000';
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+3000	3000	b3000
+SELECT * FROM t1 WHERE id = 4000;
 class	id	title
-557	3432	Isaac Stern
-SELECT * FROM t1 WHERE id = 8050;
+4000	4000	b4000
+SELECT * FROM t1 WHERE title = 'a4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
+SELECT * FROM t1 WHERE title = 'b4000';
 class	id	title
-33344753	8050	JapanConstitution/PreFace
-SELECT * FROM t1 WHERE id = 8051;
+4000	4000	b4000
+SELECT * FROM t1 WHERE id = 4001;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE title = 'a4001';
 class	id	title
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -834,21 +933,25 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10	NULL
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10	NULL
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title	content
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000	NULL
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title	content
-68999668	15517	ITSO	NULL
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000	NULL
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title	content
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title	content
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -857,24 +960,28 @@ Table	Op	Msg_type	Msg_text
 test.t1	check	status	OK
 SELECT * FROM t1 WHERE id = 10;
 class	id	title
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+10	10	a10
+SELECT * FROM t1 WHERE title = 'a10';
 class	id	title
-SELECT * FROM t1 WHERE id = 8051;
+10	10	a10
+SELECT * FROM t1 WHERE id = 5000;
 class	id	title
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+5000	5000	a5000
+SELECT * FROM t1 WHERE title = 'a5000';
 class	id	title
-SELECT * FROM t1 WHERE id = 15517;
+5000	5000	a5000
+SELECT * FROM t1 WHERE id = 10000;
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE title = 'ITSO';
+10000	10000	a10000
+SELECT * FROM t1 WHERE title = 'a10000';
 class	id	title
-68999668	15517	ITSO
-SELECT * FROM t1 WHERE id = 74607;
+10000	10000	a10000
+SELECT * FROM t1 WHERE id = 10010;
 class	id	title
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE title = 'a10010';
 class	id	title
 DROP TABLE t1;
-CREATE TABLE t1( 
+CREATE TABLE t1(
 a INT PRIMARY KEY,
 b TEXT,
 c TEXT) ENGINE=InnoDB ROW_FORMAT=COMPACT;
@@ -900,4 +1007,5 @@ CHAR_LENGTH(b)
 40000
 60000
 DROP TABLE t1;
+DROP PROCEDURE populate_t1;
 SET GLOBAL innodb_fill_factor=default;

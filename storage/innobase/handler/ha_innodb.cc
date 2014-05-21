@@ -15807,7 +15807,7 @@ static MYSQL_SYSVAR_LONG(file_io_threads, innobase_file_io_threads,
 
 static MYSQL_SYSVAR_LONG(fill_factor, innobase_fill_factor,
   PLUGIN_VAR_RQCMDARG,
-  "Number of percentage in a page is filled up in B-tree index.",
+  "Percentage of B-tree page filled during bulk insert",
   NULL, NULL, 100, 10, 100, 0);
 
 static MYSQL_SYSVAR_BOOL(ft_enable_diag_print, fts_enable_diag_print,

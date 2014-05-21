@@ -4,6 +4,21 @@
 
 -- source include/have_innodb.inc
 
+# Create Insert Procedure
+DELIMITER |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+	DECLARE i int DEFAULT 1;
+
+	START TRANSACTION;
+	WHILE (i <= 10000) DO
+		INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+		SET i = i + 1;
+	END WHILE;
+	COMMIT;
+END|
+DELIMITER ;|
+
 SELECT @@innodb_fill_factor;
 
 if ($row_format == 'DYNAMIC')
@@ -14,7 +29,7 @@ if ($row_format == 'DYNAMIC')
 if ($row_format != 'COMPRESSED')
 {
   eval CREATE TABLE t1(
-  	class	INT,
+	class	INT,
 	id	INT,
 	title	VARCHAR(100)
   ) ENGINE=InnoDB ROW_FORMAT=$row_format;
@@ -32,9 +47,9 @@ if ($row_format == 'COMPRESSED')
   ) ENGINE=InnoDB ROW_FORMAT=$row_format KEY_BLOCK_SIZE=4;
 }
 
--- disable_warnings
-LOAD DATA INFILE '../../std_data/wl7277_10000.dat' INTO TABLE t1 FIELDS TERMINATED BY ':';
--- enable_warnings
+-- disable_query_log
+CALL populate_t1();
+-- enable_query_log
 
 SELECT COUNT(*) FROM t1;
 
@@ -48,36 +63,35 @@ CHECK TABLE t1;
 
 /* Select by index. */
 EXPLAIN SELECT * FROM t1 WHERE id = 10;
-EXPLAIN SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+EXPLAIN SELECT * FROM t1 WHERE title = 'a10';
 
 SELECT * FROM t1 WHERE id = 10;
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE id = 5000;
+SELECT * FROM t1 WHERE title = 'a5000';
 
-SELECT * FROM t1 WHERE id = 15517;
-SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE id = 10000;
+SELECT * FROM t1 WHERE title = 'a10000';
 
-SELECT * FROM t1 WHERE id = 74607;
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE id = 10010;
+SELECT * FROM t1 WHERE title = 'a10010';
 
 /*Insert/Update/Delete. */
-INSERT INTO t1 VALUES(33344753, 8050, 'JapanConstitution/PreFace');
-UPDATE t1 SET id = 3432, title = 'Isaac Stern' WHERE id = 10;
-DELETE FROM t1 WHERE id = 8051;
+DELETE FROM t1 WHERE id < 4010 AND id > 3990;
+INSERT INTO t1 VALUES(4000, 4000, 'b4000');
+UPDATE t1 SET title = CONCAT('b', id) WHERE id < 3010 AND id > 2990;
 
-SELECT * FROM t1 WHERE id = 10;
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE id = 3000;
+SELECT * FROM t1 WHERE title = 'a3000';
+SELECT * FROM t1 WHERE title = 'b3000';
 
-SELECT * FROM t1 WHERE id = 3432;
-SELECT * FROM t1 WHERE title = 'Isaac Stern';
+SELECT * FROM t1 WHERE id = 4000;
+SELECT * FROM t1 WHERE title = 'a4000';
+SELECT * FROM t1 WHERE title = 'b4000';
 
-SELECT * FROM t1 WHERE id = 8050;
-SELECT * FROM t1 WHERE title = 'JapanConstitution/PreFace';
-
-SELECT * FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE id = 4001;
+SELECT * FROM t1 WHERE title = 'a4001';
 
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -85,16 +99,16 @@ ALTER TABLE t1 ADD COLUMN content TEXT;
 CHECK TABLE t1;
 
 SELECT * FROM t1 WHERE id = 10;
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE id = 5000;
+SELECT * FROM t1 WHERE title = 'a5000';
 
-SELECT * FROM t1 WHERE id = 15517;
-SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE id = 10000;
+SELECT * FROM t1 WHERE title = 'a10000';
 
-SELECT * FROM t1 WHERE id = 74607;
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE id = 10010;
+SELECT * FROM t1 WHERE title = 'a10010';
 
 /* Drop column. */
 ALTER TABLE t1 DROP COLUMN content;
@@ -102,29 +116,29 @@ ALTER TABLE t1 DROP COLUMN content;
 CHECK TABLE t1;
 
 SELECT * FROM t1 WHERE id = 10;
-SELECT * FROM t1 WHERE title = 'AccessibleComputing';
+SELECT * FROM t1 WHERE title = 'a10';
 
-SELECT * FROM t1 WHERE id = 8051;
-SELECT * FROM t1 WHERE title = 'History of Dominica';
+SELECT * FROM t1 WHERE id = 5000;
+SELECT * FROM t1 WHERE title = 'a5000';
 
-SELECT * FROM t1 WHERE id = 15517;
-SELECT * FROM t1 WHERE title = 'ITSO';
+SELECT * FROM t1 WHERE id = 10000;
+SELECT * FROM t1 WHERE title = 'a10000';
 
-SELECT * FROM t1 WHERE id = 74607;
-SELECT * FROM t1 WHERE title = 'Big cats';
+SELECT * FROM t1 WHERE id = 10010;
+SELECT * FROM t1 WHERE title = 'a10010';
 
 DROP TABLE t1;
 
 # Test Blob
 if ($row_format != 'COMPRESSED') {
-  eval CREATE TABLE t1( 
+  eval CREATE TABLE t1(
 	a INT PRIMARY KEY,
 	b TEXT,
 	c TEXT) ENGINE=InnoDB ROW_FORMAT=$row_format;
 }
 
 if ($row_format == 'COMPRESSED') {
-  eval CREATE TABLE t1( 
+  eval CREATE TABLE t1(
 	a INT PRIMARY KEY,
 	b TEXT,
 	c TEXT) ENGINE=InnoDB ROW_FORMAT=$row_format KEY_BLOCK_SIZE=4;
@@ -136,13 +150,13 @@ INSERT INTO t1 VALUES
         (3, REPEAT('c',40000), 'c'),
         (4, REPEAT('d',60000), 'd');
 
-SELECT CHAR_LENGTH(b) FROM t1; 
+SELECT CHAR_LENGTH(b) FROM t1;
 
 ALTER TABLE t1 DROP COLUMN c;
 
 CHECK TABLE t1;
 
-SELECT CHAR_LENGTH(b) FROM t1; 
+SELECT CHAR_LENGTH(b) FROM t1;
 
 DROP TABLE t1;
 
@@ -157,3 +171,5 @@ if ($row_format == 'DYNAMIC')
 {
   SET GLOBAL innodb_file_format=default;
 }
+
+DROP PROCEDURE populate_t1;
