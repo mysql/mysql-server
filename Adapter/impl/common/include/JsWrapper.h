@@ -95,12 +95,10 @@ public:
 
 /*****************************************************************
  Create a weak handle for a wrapped object.
- Use it to delete the wrapped object 
- when the GC wants to reclaim the handle.
- We do not use this on any "const PTR" type.  For example,
- the "const NdbDictionary::Column *" you get from the dictionary
- is not a wrapped object you would want to delete, and because
- the NDBAPI declares it as const the compiler won't let you do it.
+ Use it to delete the wrapped object when the GC wants to reclaim the handle.
+ For safety, the compiler will not let you use this on any "const PTR" type;
+ (if you hold a const pointer to something, you probably don't own its
+ memory allocation).
 ******************************************************************/
 template<typename PTR> 
 void onGcReclaim(Persistent<Value> notifier, void * param) {
@@ -131,8 +129,10 @@ void wrapPointerInObject(PTR ptr,
   DEBUG_PRINT("Constructor wrapping %s: %p", env.classname, ptr);
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   SET_CLASS_ID(env, PTR);
-  obj->SetInternalField(0, v8::External::Wrap((void *) & env));
-  obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
+  obj->SetPointerInInternalField(0, (void *) & env);
+  obj->SetPointerInInternalField(1, (void *) ptr);
+  // obj->SetInternalField(0, v8::External::Wrap((void *) & env));
+  // obj->SetInternalField(1, v8::External::Wrap((void *) ptr));
 }
 
 /* Specializations for non-pointers reduce gcc warnings.
