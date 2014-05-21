@@ -46,6 +46,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"
+#include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
 #include "lock0lock.h"
@@ -858,7 +859,7 @@ buf_page_is_corrupted(
 	is added and not handled here */
 	}
 
-	DBUG_EXECUTE_IF("buf_page_is_corrupt_failure", return(TRUE); );
+	DBUG_EXECUTE_IF("buf_page_import_corrupt_failure", return(TRUE); );
 
 	return(FALSE);
 }
@@ -4389,11 +4390,14 @@ buf_page_io_complete(
 
 			/* Not a real corruption if it was triggered by
 			error injection */
-			DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+			DBUG_EXECUTE_IF(
+				"buf_page_import_corrupt_failure",
 				if (bpage->id.space() > TRX_SYS_SPACE
+				    && !Tablespace::is_undo_tablespace(
+					    bpage->id.space())
 				    && buf_mark_space_corrupt(bpage)) {
 					ib_logf(IB_LOG_LEVEL_INFO,
-						"Simulated page corruption");
+						"Simulated IMPORT corruption");
 					return(true);
 				}
 				goto page_not_corrupt;
@@ -4437,7 +4441,7 @@ corrupt:
 			}
 		}
 
-		DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+		DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
 				page_not_corrupt:  bpage = bpage; );
 
 		if (recv_recovery_is_on()) {
@@ -4450,6 +4454,7 @@ corrupt:
 		During re-init we have already freed ibuf entries. */
 		if (uncompressed
 		    && !recv_no_ibuf_operations
+		    && !Tablespace::is_undo_tablespace(bpage->id.space())
 		    && !srv_is_tablespace_truncated(bpage->id.space())) {
 
 			ibuf_merge_or_delete_for_page(

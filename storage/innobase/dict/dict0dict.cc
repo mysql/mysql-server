@@ -2391,7 +2391,14 @@ add_field_size:
 
 		/* Check the size limit on leaf pages. */
 		if (UNIV_UNLIKELY(rec_max_size >= page_rec_max)) {
-
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Cannot add field %s in table %s because"
+				" after adding it, the row size is %lu"
+				" which is greater than maximum allowed"
+				" size (%lu) for a record on index leaf"
+				" page.",
+				field->name, table->name, rec_max_size,
+				page_rec_max);
 			return(TRUE);
 		}
 

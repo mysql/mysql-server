@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
 
 #------------------------------------------------------------------------------
 # FTS with FK and update cascade
@@ -461,6 +462,9 @@ INSERT INTO t1 (a,b) VALUES
 # Create the FTS index Using Alter Table
 ALTER TABLE t1 ADD FULLTEXT INDEX idx (a,b);
 EVAL SHOW CREATE TABLE t1;
+
+# Check whether individual space id created for AUX tables
+SELECT count(*) FROM information_schema.innodb_sys_tables WHERE name LIKE "%FTS_%" AND space !=0;
 
 # Insert rows
 INSERT INTO t1 (a,b) VALUES

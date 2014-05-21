@@ -3198,11 +3198,12 @@ row_sel_store_mysql_rec(
 
 	/* FIXME: We only need to read the doc_id if an FTS indexed
 	column is being updated.
-	NOTE, the record must be cluster index record. Secondary index
-	might not have the Doc ID */
-	if (dict_table_has_fts_index(prebuilt->table)
-	    && dict_index_is_clust(index)) {
-
+	NOTE, the record can be cluster or secondary index record.
+	if secondary index is used then FTS_DOC_ID column should be part
+	of this index. */
+	if (dict_table_has_fts_index(prebuilt->table) &&
+		(dict_index_is_clust(index) ||
+			prebuilt->fts_doc_id_in_read_set)) {
 		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 			prebuilt->table, rec, NULL);
 	}

@@ -891,6 +891,8 @@ row_create_prebuilt(
 	prebuilt->ins_sel_stmt = false;
 	prebuilt->session = NULL;
 
+	prebuilt->fts_doc_id_in_read_set = 0;
+
 	return(prebuilt);
 }
 
@@ -3087,7 +3089,7 @@ error_handling:
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
-		row_drop_table_for_mysql(table_name, trx, FALSE, handler);
+		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
 
 		if (trx->state != TRX_STATE_NOT_STARTED) {
 			trx_commit_for_mysql(trx);
@@ -3189,7 +3191,7 @@ row_table_add_foreign_constraints(
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
-		row_drop_table_for_mysql(name, trx, FALSE, handler);
+		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
 
 		if (trx->state != TRX_STATE_NOT_STARTED) {
 			trx_commit_for_mysql(trx);

@@ -26,6 +26,7 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 #include "ha_prototypes.h"
 
 #include "fsp0space.h"
+#include "fsp0sysspace.h"
 #include "fsp0fsp.h"
 #include "os0file.h"
 
@@ -234,4 +235,15 @@ Tablespace::delete_files()
 				"\"%s\"", it->m_name);
 		}
 	}
+}
+
+/** Check if undo tablespace.
+@return true if undo tablespace */
+bool
+Tablespace::is_undo_tablespace(
+	ulint	id)
+{
+	return(id <= srv_undo_tablespaces_open
+	       && id != srv_sys_space.space_id()
+	       && id != srv_tmp_space.space_id());
 }

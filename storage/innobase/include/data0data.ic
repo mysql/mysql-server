@@ -111,7 +111,7 @@ dfield_set_len(
 #endif /* UNIV_VALGRIND_DEBUG */
 
 	field->ext = 0;
-	field->len = len;
+	field->len = static_cast<unsigned int>(len);
 }
 
 /*********************************************************************//**
@@ -173,7 +173,7 @@ dfield_set_data(
 #endif /* UNIV_VALGRIND_DEBUG */
 	field->data = (void*) data;
 	field->ext = 0;
-	field->len = len;
+	field->len = static_cast<unsigned int>(len);
 }
 
 /*********************************************************************//**
