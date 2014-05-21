@@ -60,24 +60,6 @@ stats_module.register(stats,"spi","DBTableHandler");
       field number: an arbitrary ordering of only the mapped fields 
 */
 
-/* DBT prototype */
-var proto = {
-  dbTable                : {},    // TableMetadata 
-  mapping                : {},    // TableMapping
-  resolvedMapping        : null,
-  newObjectConstructor   : null,  // Domain Object Constructor
-  ValueObject            : null,  // Value Object Constructor
-
-  fieldNameToFieldMap    : {},
-  columnNumberToFieldMap : {},
-  fieldNumberToColumnMap : {},
-  fieldNumberToFieldMap  : {},
-  foreignKeyMap          : {},
-  errorMessages          : '\n',  // error messages during construction
-  isValid                : true,
-  autoIncFieldName       : null,
-  autoIncColumnNumber    : null   
-};
 
 /* getColumnByName() is a utility function used in the building of maps.
 */
@@ -95,13 +77,6 @@ function getColumnByName(dbTable, colName) {
   return null;
 }
 
-
-/** Append an error message and mark this DBTableHandler as invalid.
- */
-proto.appendErrorMessage = function(msg) {
-  this.errorMessages += '\n' + msg;
-  this.isValid = false;
-};
 
 /* DBTableHandler() constructor
    IMMEDIATE
@@ -155,6 +130,14 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     this.mapping          = new TableMapping(this.dbTable.name);
     this.mapping.database = this.dbTable.database;
   }
+  
+  /* Default properties */
+  this.resolvedMapping        = null;
+  this.ValueObject            = null;
+  this.errorMessages          = '\n';
+  this.isValid                = true;
+  this.autoIncFieldName       = null;
+  this.autoIncColumnNumber    = null;
   
   /* New Arrays */
   this.columnNumberToFieldMap = [];  
@@ -298,7 +281,13 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   udebug.log_detail("DBTableHandler<ctor>:\n", this);
 }
 
-DBTableHandler.prototype = proto;     // Connect prototype to constructor
+
+/** Append an error message and mark this DBTableHandler as invalid.
+ */
+DBTableHandler.prototype.appendErrorMessage = function(msg) {
+  this.errorMessages += '\n' + msg;
+  this.isValid = false;
+};
 
 
 /* DBTableHandler.newResultObject
@@ -610,7 +599,7 @@ DBTableHandler.prototype.get = function(obj, fieldNumber, adapter, fieldValueDef
 
 /** Return the property of obj corresponding to fieldNumber.
 */
-DBTableHandler.prototype.getSimple = function(obj, fieldNumber) {
+DBTableHandler.prototype.getFieldsSimple = function(obj, fieldNumber) {
   var f;
   f = this.fieldNumberToFieldMap[fieldNumber];
   if(f.domainTypeConverter) {
@@ -631,7 +620,7 @@ DBTableHandler.prototype.getFields = function(obj) {
       fields.push(obj);
       break;
     default: 
-      for(i = 0 ; i < n ; i++) { fields.push(this.getSimple(obj, i)); }
+      for(i = 0 ; i < n ; i++) { fields.push(this.getFieldsSimple(obj, i)); }
   }
   return fields;
 };
@@ -710,12 +699,13 @@ function DBIndexHandler(parent, dbIndex) {
   }
 }
 
+/* DBIndexHandler inherits some methods from DBTableHandler */
 DBIndexHandler.prototype = {
-  getMappedFieldCount    : proto.getMappedFieldCount,    // inherited
-  get                    : proto.get,                    // inherited
-  getFields              : proto.getFields,              // inherited
-  getColumnMetadata      : proto.getColumnMetadata,      // inherited
-  getSimple              : proto.getSimple               // inherited
+  getMappedFieldCount    : DBTableHandler.prototype.getMappedFieldCount,   
+  get                    : DBTableHandler.prototype.get,   
+  getFieldsSimple        : DBTableHandler.prototype.getFieldsSimple,
+  getFields              : DBTableHandler.prototype.getFields,
+  getColumnMetadata      : DBTableHandler.prototype.getColumnMetadata
 };
 
 
