@@ -16661,7 +16661,7 @@ static MYSQL_SYSVAR_LONGLONG(max_undo_log_size, innobase_max_undo_log_size,
   NULL, NULL,
   512 * 1024 * 1024L,
   10 * 1024* 1024L,
-  LONGLONG_MAX, 0);
+  LONGLONG_MAX, 1024 * 1024L);
 
 /* Alias for innodb_undo_logs, this config variable is deprecated. */
 static MYSQL_SYSVAR_ULONG(rollback_segments, srv_undo_logs,
