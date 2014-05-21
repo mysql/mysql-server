@@ -126,14 +126,14 @@ select @a+0, @a:=@a+0+count(*), count(*), @a+0 from t1 group by i;
 set @a=0;
 select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 @a	@a:="hello"	@a	@a:=3	@a	@a:="hello again"
-0	hello	0	3	3	hello again
-0	hello	0	3	3	hello again
-0	hello	0	3	3	hello again
+0	hello	0	3	0	hello again
+0	hello	0	3	0	hello again
+0	hello	0	3	0	hello again
 select @a,@a:="hello",@a,@a:=3,@a,@a:="hello again" from t1 group by i;
 @a	@a:="hello"	@a	@a:=3	@a	@a:="hello again"
-hello again	hello	hello	3	3	hello again
-hello again	hello	hello	3	3	hello again
-hello again	hello	hello	3	3	hello again
+hello again	hello	hello again	3	hello again	hello again
+hello again	hello	hello again	3	hello again	hello again
+hello again	hello	hello again	3	hello again	hello again
 drop table t1;
 set @a=_latin2'test';
 select charset(@a),collation(@a),coercibility(@a);
