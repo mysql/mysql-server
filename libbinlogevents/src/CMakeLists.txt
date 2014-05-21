@@ -13,8 +13,6 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA
 
-# This configuration file builds both the static and shared version of
-# the library.
 SET (REPLICATION_SOURCES
      field_iterator.cpp
      load_data_events.cpp
@@ -28,21 +26,14 @@ SET (REPLICATION_SOURCES
 # Configure for building static library
 ADD_LIBRARY(binlogevents_static STATIC ${REPLICATION_SOURCES})
 
-IF(HAVE_MYSYS)
-  TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys dbug)
-ELSE()
+IF(STANDALONE_BINLOG)
   TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES})
+ELSE()
+  TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys dbug)
 ENDIF()
 
 SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
                       OUTPUT_NAME "binlogevents")
 
-# Configure for building shared library
-IF(NOT HAVE_MYSYS)
-  ADD_LIBRARY(binlogevents_shared SHARED ${REPLICATION_SOURCES})
-  TARGET_LINK_LIBRARIES(binlogevents_shared ${ZLIB_LIBRARIES})
-  SET_TARGET_PROPERTIES(binlogevents_shared PROPERTIES
-                        OUTPUT_NAME "binlogevents")
-  INSTALL(TARGETS binlogevents_shared
-          LIBRARY DESTINATION lib)
-ENDIF()
+SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
+  ARCHIVE_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogevents/lib)
