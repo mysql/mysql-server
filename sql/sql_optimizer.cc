@@ -7819,141 +7819,178 @@ void JOIN::make_outerjoin_info()
 }
 
 /**
-  Build a predicate guarded by match variables for embedding outer joins.
-  The function recursively adds guards for predicate cond
-  assending from tab to the first inner table  next embedding
-  nested outer join and so on until it reaches root_tab
-  (root_tab can be 0).
+  Build a condition guarded by match variables for embedded outer joins.
+  When generating a condition for a table as part of an outer join condition
+  or the WHERE condition, the table in question may also be part of an
+  embedded outer join. In such cases, the condition must be guarded by
+  the match variable for this embedded outer join. Such embedded outer joins
+  may also be recursively embedded in other joins.
 
-  @param tab       the first inner table for most nested outer join
+  The function recursively adds guards for a condition ascending from tab
+  to root_tab, which is the first inner table of an outer join,
+  or NULL if the condition being handled is the WHERE clause.
+
+  @param tab       the first inner table for the inner-most outer join
   @param cond      the predicate to be guarded (must be set)
-  @param root_tab  the first inner table to stop
+  @param root_tab  the inner table to stop at
+                   (is NULL if this is the WHERE clause)
 
   @return
     -  pointer to the guarded predicate, if success
-    -  0, otherwise
+    -  NULL if error
 */
 
 static Item*
 add_found_match_trig_cond(JOIN_TAB *tab, Item *cond, JOIN_TAB *root_tab)
 {
-  Item *tmp;
-  DBUG_ASSERT(cond != 0);
-  if (tab == root_tab)
-    return cond;
-  if ((tmp= add_found_match_trig_cond(tab->first_upper, cond, root_tab)))
-    tmp= new Item_func_trig_cond(tmp, &tab->found, tab,
-                                 Item_func_trig_cond::FOUND_MATCH);
-  if (tmp)
+  DBUG_ASSERT(cond);
+
+  for ( ; tab != root_tab; tab= tab->first_upper)
   {
-    tmp->quick_fix_field();
-    tmp->update_used_tables();
+    if (!(cond= new Item_func_trig_cond(cond, &tab->found, tab,
+                                        Item_func_trig_cond::FOUND_MATCH)))
+      return NULL;
+
+    cond->quick_fix_field();
+    cond->update_used_tables();
   }
-  return tmp;
+
+  return cond;
 }
 
 
 /**
-   Local helper function for make_join_select().
+  Attach outer join conditions to generated table conditions in an optimal way.
 
-   Push down conditions from all on expressions.
-   Each of these conditions are guarded by a variable
-   that turns if off just before null complemented row for
-   outer joins is formed. Thus, the condition from an
-   'on expression' are guaranteed not to be checked for
-   the null complemented row.
-*/ 
-static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
+  @param last_tab - Last table that has been added to the current plan.
+                    Pre-condition: If this is the last inner table of an outer
+                    join operation, a join condition is attached to the first
+                    inner table of that outer join operation.
+
+  @return false if success, true if error.
+
+  Outer join conditions are attached to individual tables, but we can analyze
+  those conditions only when reaching the last inner table of an outer join
+  operation. Notice also that a table can be last within several outer join
+  nests, hence the outer for() loop of this function.
+
+  Example:
+    SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a=t3.a) ON t1.a=t2.a
+
+    Table t3 is last both in the join nest (t2 - t3) and in (t1 - (t2 - t3))
+    Thus, join conditions for both join nests will be evaluated when reaching
+    this table.
+
+  For each outer join operation processed, the join condition is split
+  optimally over the inner tables of the outer join. The split-out conditions
+  are later referred to as table conditions (but note that several table
+  conditions stemming from different join operations may be combined into
+  a composite table condition).
+
+  Example:
+    Consider the above query once more.
+    The predicate t1.a=t2.a can be evaluated when rows from t1 and t2 are ready,
+    ie at table t2. The predicate t2.a=t3.a can be evaluated at table t3.
+
+  Each non-constant split-out table condition is guarded by a match variable
+  that enables it only when a matching row is found for all the embedded
+  outer join operations.
+
+  Each split-out table condition is guarded by a variable that turns the
+  condition off just before a null-complemented row for the outer join
+  operation is formed. Thus, the join condition will not be checked for
+  the null-complemented row.
+*/
+
+bool JOIN::attach_join_conditions(JOIN_TAB *last_tab)
 {
-  DBUG_ENTER("pushdown_on_conditions");
+  DBUG_ENTER("JOIN::attach_join_conditions");
 
-  /* First push down constant conditions from on expressions */
-  for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
-       join_tab < join->join_tab+join->tables ; join_tab++)
-  {
-    if (join_tab->position && join_tab->join_cond())
-    {
-      JOIN_TAB *cond_tab= join_tab->first_inner;
-      Item *tmp_cond= make_cond_for_table(join_tab->join_cond(),
-                                          join->const_table_map,
-                                          (table_map) 0, 0);
-      if (!tmp_cond)
-        continue;
-      tmp_cond= new
-        Item_func_trig_cond(tmp_cond, &cond_tab->not_null_compl, cond_tab,
-                            Item_func_trig_cond::IS_NOT_NULL_COMPL);
-      if (!tmp_cond)
-        DBUG_RETURN(true);
-      tmp_cond->quick_fix_field();
-
-      if (cond_tab->and_with_jt_and_sel_condition(tmp_cond, __LINE__))
-        DBUG_RETURN(true);
-    }       
-  }
-
-  JOIN_TAB *first_inner_tab= last_tab->first_inner; 
-
-  /* Push down non-constant conditions from on expressions */
-  while (first_inner_tab && first_inner_tab->last_inner == last_tab)
+  for (JOIN_TAB *first_inner_tab= last_tab->first_inner; 
+       first_inner_tab && first_inner_tab->last_inner == last_tab;
+     first_inner_tab= first_inner_tab->first_upper)
   {  
-    /* 
-       Table last_tab is the last inner table of an outer join.
-       An on expression is always attached to it.
-    */     
-    Item *on_expr= first_inner_tab->join_cond();
+    /*
+      Table last_tab is the last inner table of an outer join, locate
+      the corresponding join condition from the first inner table of the
+      same outer join:
+    */
+    Item *const join_cond= first_inner_tab->join_cond();
+    DBUG_ASSERT(join_cond);
+    /*
+      Add the constant part of the join condition to the first inner table
+      of the outer join.
+    */
+    Item *cond= make_cond_for_table(join_cond, const_table_map,
+                                    (table_map) 0, false);
+    if (cond)
+    {
+      cond= new Item_func_trig_cond(cond, &first_inner_tab->not_null_compl,
+                                    first_inner_tab,
+                                    Item_func_trig_cond::IS_NOT_NULL_COMPL);
+      if (!cond)
+        DBUG_RETURN(true);
+      if (cond->fix_fields(thd, NULL))
+        DBUG_RETURN(true);
 
-    for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
-         join_tab <= last_tab ; join_tab++)
+      if (first_inner_tab->and_with_jt_and_sel_condition(cond, __LINE__))
+        DBUG_RETURN(true);
+    }
+    /*
+      Split the non-constant part of the join condition into parts that
+      can be attached to the inner tables of the outer join.
+    */
+    for (JOIN_TAB *join_tab= first_inner_tab; join_tab <= last_tab; join_tab++)
     {
       table_map prefix_tables= join_tab->prefix_tables();
       table_map added_tables= join_tab->added_tables();
 
+      /*
+        When handling the first inner table of an outer join, we may also
+        reference all tables ahead of this table:
+      */
+      if (join_tab == first_inner_tab)
+        added_tables= prefix_tables;
+      /*
+        We need RAND_TABLE_BIT on the last inner table, in case there is a
+        non-deterministic function in the join condition.
+        (RAND_TABLE_BIT is set for the last table of the join plan,
+         but this is not sufficient for join conditions, which may have a
+         last inner table that is ahead of the last table of the join plan).
+      */
       if (join_tab == last_tab)
       {
-        /*
-          Need RAND_TABLE_BIT on the last inner table, in case there is a
-          non-deterministic function in the join condition.
-          (RAND_TABLE_BIT is set for the last table of the join plan,
-           but this is not sufficient for join conditions, which may have a
-           last inner table that is ahead of the last table of the join plan).
-        */
         prefix_tables|= RAND_TABLE_BIT;
         added_tables|= RAND_TABLE_BIT;
       }
-      Item *tmp_cond= make_cond_for_table(on_expr, prefix_tables, added_tables,
-                                          false);
-      if (!tmp_cond)
+      cond= make_cond_for_table(join_cond, prefix_tables, added_tables, false);
+      if (cond == NULL)
         continue;
-
-      JOIN_TAB *cond_tab=
-        join_tab < first_inner_tab ? first_inner_tab : join_tab;
       /*
-        First add the guards for match variables of
-        all embedding outer join operations.
+        If the table is part of an outer join that is embedded in the
+        outer join currently being processed, wrap the condition in
+        triggered conditions for match variables of such embedded outer joins.
       */
-      if (!(tmp_cond= add_found_match_trig_cond(cond_tab->first_inner,
-                                                tmp_cond,
-                                                first_inner_tab)))
-        DBUG_RETURN(1);
-      /* 
-         Now add the guard turning the predicate off for 
-         the null complemented row.
-      */ 
-      tmp_cond=
-        new Item_func_trig_cond(tmp_cond, &first_inner_tab->not_null_compl,
-                                first_inner_tab,
-                                Item_func_trig_cond::IS_NOT_NULL_COMPL);
-      if (!tmp_cond)
+      if (!(cond= add_found_match_trig_cond(join_tab->first_inner,
++                                            cond, first_inner_tab)))
         DBUG_RETURN(true);
-      tmp_cond->quick_fix_field();
 
-      /* Add the predicate to other pushed down predicates */
-      if (cond_tab->and_with_jt_and_sel_condition(tmp_cond, __LINE__))
+      // Add the guard turning the predicate off for the null-complemented row.
+      cond= new Item_func_trig_cond(cond, &first_inner_tab->not_null_compl,
+                                    first_inner_tab,
+                                    Item_func_trig_cond::IS_NOT_NULL_COMPL);
+      if (!cond)
+        DBUG_RETURN(true);
+      if (cond->fix_fields(thd, NULL))
+        DBUG_RETURN(true);
+
+      // Add the generated condition to the existing table condition
+      if (join_tab->and_with_jt_and_sel_condition(cond, __LINE__))
         DBUG_RETURN(true);
     }
-    first_inner_tab= first_inner_tab->first_upper;       
   }
-  DBUG_RETURN(0);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -8483,83 +8520,64 @@ static bool make_join_select(JOIN *join, Item *cond)
   THD *thd= join->thd;
   Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("make_join_select");
+
+  // Add IS NOT NULL conditions to table conditions:
+  add_not_null_conds(join);
+
+  /*
+    Extract constant conditions that are part of the WHERE clause.
+    Constant parts of join conditions from outer joins are attached to
+    the appropriate table condition in JOIN::attach_join_conditions().
+  */
+  if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
+  {                        /* there may be a select without a cond. */    
+    if (join->primary_tables > 1)
+      cond->update_used_tables();    // Table number may have changed
+    if (join->plan_is_const() &&
+        join->select_lex->master_unit() ==
+        thd->lex->unit)             // The outer-most query block
+      join->const_table_map|= RAND_TABLE_BIT;
+  }
+  /*
+    Extract conditions that depend on constant tables.
+    The const part of the query's WHERE clause can be checked immediately
+    and if it is not satisfied then the join has empty result
+  */
+  Item *const_cond= NULL;
+  if (cond)
+    const_cond= make_cond_for_table(cond, join->const_table_map,
+                                    (table_map) 0, true);
+
+  // Add conditions added by add_not_null_conds()
+  for (uint i= 0; i < join->const_tables; i++)
   {
-    add_not_null_conds(join);
-    /*
-      Step #1: Extract constant condition
-       - Extract and check the constant part of the WHERE 
-       - Extract constant parts of ON expressions from outer 
-         joins and attach them appropriately.
-    */
-    if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
-    {                        /* there may be a select without a cond. */    
-      if (join->primary_tables > 1)
-        cond->update_used_tables();		// Tablenr may have changed
-
-      if (join->plan_is_const() &&
-	  join->select_lex->master_unit() == thd->lex->unit) // Outer-most query
-        join->const_table_map|= RAND_TABLE_BIT;
-
-      /*
-        Extract expressions that depend on constant tables
-        1. Const part of the join's WHERE clause can be checked immediately
-           and if it is not satisfied then the join has empty result
-        2. Constant parts of outer joins' ON expressions must be attached 
-           there inside the triggers.
-      */
-      {
-        Item *const_cond=
-	  make_cond_for_table(cond,
-                              join->const_table_map,
-                              (table_map) 0, 1);
-        /* Add conditions added by add_not_null_conds(). */
-        for (uint i= 0 ; i < join->const_tables ; i++)
-        {
-          if (and_conditions(&const_cond, join->join_tab[i].condition()))
-            DBUG_RETURN(true);
-        }
+    if (and_conditions(&const_cond, join->join_tab[i].condition()))
+      DBUG_RETURN(true);
+  }
           
-        DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
-        for (JOIN_TAB *tab= join->join_tab+join->const_tables;
-             tab < join->join_tab+join->tables ; tab++)
-        {
-          if (tab->position && tab->join_cond())
-          {
-            JOIN_TAB *cond_tab= tab->first_inner;
-            Item *tmp= make_cond_for_table(tab->join_cond(),
-                                           join->const_table_map,
-                                           (  table_map) 0, 0);
-            if (!tmp)
-              continue;
-            tmp= new
-              Item_func_trig_cond(tmp, &cond_tab->not_null_compl, cond_tab,
-                                  Item_func_trig_cond::IS_NOT_NULL_COMPL);
-            if (!tmp)
-              DBUG_RETURN(true);
-
-            tmp->quick_fix_field();
-            if (cond_tab->and_with_condition(tmp, __LINE__))
-              DBUG_RETURN(true);
-          }       
-        }
-        if (const_cond != NULL)
-        {
-          const bool const_cond_is_true= const_cond->val_int() != 0;
-          Opt_trace_object trace_const_cond(trace);
-          trace_const_cond.add("condition_on_constant_tables", const_cond)
-            .add("condition_value", const_cond_is_true);
-          if (!const_cond_is_true)
-          {
-            DBUG_PRINT("info",("Found impossible WHERE condition"));
-            DBUG_RETURN(1);	 // Impossible const condition
-          }
-        }
-      }
+  DBUG_EXECUTE("where", print_where(const_cond, "constants", QT_ORDINARY););
+  if (const_cond != NULL)
+  {
+    const bool const_cond_result= const_cond->val_int() != 0;
+    Opt_trace_object trace_const_cond(trace);
+    trace_const_cond.add("condition_on_constant_tables", const_cond)
+                    .add("condition_value", const_cond_result);
+    if (!const_cond_result)
+    {
+      DBUG_PRINT("info",("Found impossible WHERE condition"));
+      DBUG_RETURN(true);
     }
+  }
 
-    /*
-      Step #2: Extract WHERE/ON parts
-    */
+  /*
+    Extract remaining conditions from WHERE clause and join conditions,
+    and attach them to the most appropriate table condition. This means that
+    a condition will be evaluated as soon as all fields it depends on are
+    available. For outer join conditions, the additional criterion is that
+    we must have determined whether outer-joined rows are available, or
+    have been NULL-extended, see JOIN::attach_join_conditions() for details.
+  */
+  {
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object
       trace_conditions(trace, "attaching_conditions_to_tables");
@@ -8928,8 +8946,8 @@ static bool make_join_select(JOIN *join, Item *cond)
 	}
       }
       
-      if (pushdown_on_conditions(join, tab))
-        DBUG_RETURN(1);
+      if (join->attach_join_conditions(tab))
+        DBUG_RETURN(true);
     }
     trace_attached_comp.end();
 
