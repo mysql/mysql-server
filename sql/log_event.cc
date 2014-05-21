@@ -6176,8 +6176,7 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
     pos= my_stpcpy(pos, "LOCAL ");
   pos= my_stpcpy(pos, "INFILE ");
   pos= pretty_print_str(pos, fname, fname_len);
-  memcpy(pos, fname, fname_len);
-  pos= my_stpcpy(pos+fname_len, " ");
+  pos= my_stpcpy(pos, " ");
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
     pos= my_stpcpy(pos, "REPLACE ");

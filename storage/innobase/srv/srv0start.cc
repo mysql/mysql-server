@@ -2077,7 +2077,11 @@ files_checked:
 
 			RECOVERY_CRASH(1);
 
-			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			log_mutex_enter();
+
+			fil_names_clear(log_sys->lsn, false);
+
+			min_flushed_lsn = max_flushed_lsn = log_sys->lsn;
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Resizing redo log from %u*%u to %u*%u pages"
@@ -2089,7 +2093,9 @@ files_checked:
 				max_flushed_lsn);
 
 			/* Flush the old log files. */
-			log_buffer_flush_to_disk();
+			log_mutex_exit();
+
+			log_write_up_to(max_flushed_lsn, true);
 
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */

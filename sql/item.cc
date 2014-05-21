@@ -5507,18 +5507,25 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               the Item_field instance in place.
             */
 
-            Field *new_field= (*((Item_field**)res))->field;
+            Item_field *const item_field= (Item_field *)(*res);
+            Field      *const new_field= item_field->field;
 
             if (new_field == NULL)
             {
               /* The column to which we link isn't valid. */
-              my_error(ER_BAD_FIELD_ERROR, MYF(0), (*res)->item_name.ptr(),
-                       current_thd->where);
-              return(1);
+              my_error(ER_BAD_FIELD_ERROR, MYF(0), item_field->item_name.ptr(),
+                       thd->where);
+              return true;
             }
 
             set_field(new_field);
-            return 0;
+
+            // The found column may be an outer reference
+            if (item_field->depended_from)
+              mark_as_dependent(thd, item_field->depended_from,
+                                context->select_lex, this, this);
+
+            return false;
           }
           else
           {

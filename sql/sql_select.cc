@@ -726,7 +726,7 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex, MY_TEST(order));
+  init_ftfuncs(thd, select_lex);
 
   DBUG_VOID_RETURN;
 }
@@ -1247,7 +1247,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
     length=0;
     keyparts=1;
-    ifm->join_key=1;
+    ifm->get_master()->join_key= 1;
   }
   else /* not ftkey */
     calc_length_and_keyparts(keyuse, j, key, used_tables, chosen_keyuses,
@@ -1284,6 +1284,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       DBUG_RETURN(TRUE);                        // not supported yet. SerG
 
     j->type=JT_FT;
+    j->ft_func= ((Item_func_match *)keyuse->val);
     memset(j->ref.key_copy, 0, sizeof(j->ref.key_copy[0]) * keyparts);
   }
   else
@@ -2161,6 +2162,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       break;
     case JT_FT:
+      if (tab->join->fts_index_access(tab))
+      {
+        tab->table->set_keyread(true);
+        tab->table->covering_keys.set_bit(tab->ft_func->key);
+      }
       break;
     default:
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
