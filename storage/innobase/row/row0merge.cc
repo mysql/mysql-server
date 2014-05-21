@@ -3396,8 +3396,11 @@ row_merge_build_indexes(
 
 	DEBUG_SYNC_C("row_merge_after_scan");
 
-	/* Check whether we can skip all redo considering we have checkpoint
-	at the end.*/
+	/* Check whether we can skip redo log for page allocation.
+	Since we have a checkpoint at the end of bulk load, the redo
+	log for page allocation is used in case of transaction rollback
+	(drop a B-tree). If we are rebuilding a table with a single file,
+	we can simply remove the file when rollback. */
 	is_redo_skipped = dict_table_is_temporary(new_table)
 		|| (old_table != new_table
 		    && new_table->flags2 & DICT_TF2_USE_FILE_PER_TABLE);

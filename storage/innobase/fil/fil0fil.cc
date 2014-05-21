@@ -3112,12 +3112,12 @@ fil_tablespace_is_being_deleted(
 }
 
 #ifdef UNIV_DEBUG
-/*******************************************************************//**
-Increase redo skipped count for a tablespace. */
+/**
+Increase redo skipped count for a tablespace.
+@param[in]	id	space id */
 void
 fil_space_inc_redo_skipped_count(
-/*=============================*/
-	ulint		id)			/*!< in: space id */
+	ulint		id)
 {
 	fil_space_t*	space;
 
@@ -3132,12 +3132,12 @@ fil_space_inc_redo_skipped_count(
 	mutex_exit(&fil_system->mutex);
 }
 
-/*******************************************************************//**
-Decrease redo skipped count for a tablespace. */
+/**
+Decrease redo skipped count for a tablespace.
+@param[in]	id	space id */
 void
 fil_space_dec_redo_skipped_count(
-/*=============================*/
-	ulint		id)			/*!< in: space id */
+	ulint		id)
 {
 	fil_space_t*	space;
 
@@ -3153,13 +3153,13 @@ fil_space_dec_redo_skipped_count(
 	mutex_exit(&fil_system->mutex);
 }
 
-/*******************************************************************//**
-Returns true if a single-table tablespace is redo skipped.
+/**
+Check whether a single-table tablespace is redo skipped.
+@param[in]	id	space id
 @return true if redo skipped */
 bool
 fil_space_is_redo_skipped(
-/*======================*/
-	ulint		id)	/*!< in: space id */
+	ulint		id)
 {
 	fil_space_t*	space;
 	bool		is_redo_skipped;

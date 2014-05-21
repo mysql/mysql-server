@@ -32,11 +32,11 @@ Created 03/11/2014 Shaohua Wang
 #include <vector>
 
 #ifdef UNIV_DEBUG
-/* Print bulk load performance data.*/
+/** Print bulk load performance data.*/
 #define BULK_LOAD_PFS_PRINT
 #endif
 
-/* Innodb B-tree index fill factor for bulk load. */
+/** Innodb B-tree index fill factor for bulk load. */
 extern	long	innobase_fill_factor;
 
 class PageBulk
@@ -48,7 +48,8 @@ public:
 	@param[in]	level	page level
 	@param[in]	trx_id	transaction id */
 	PageBulk(dict_index_t* index, ulint trx_id,
-		 ulint page_no, ulint level):
+		 ulint page_no, ulint level)
+		 :
 		 m_index(index),
 		 m_trx_id(trx_id),
 		 m_page_no(page_no),
@@ -72,7 +73,7 @@ public:
 	@param[in]	offsets		record offsets */
 	void insert(const rec_t* rec, ulint* offsets);
 
-	/** Finish a page
+	/** Mark end of insertion to the page
 	Scan all records to set page dirs, and set page header members,
 	redo log all inserts. */
 	void finish();
@@ -128,14 +129,13 @@ public:
 	/** Release block by commiting mtr */
 	inline void release();
 
-	/** Start mtr and lock block */
-	inline void lock();
+	/** Start mtr and latch block */
+	inline void latch();
 
 	/** Check if required length is available in the page.
 	We check fill factor & padding here.
 	@param[in]	length		required length
-	@retval true	if space is available
-	@retval false	if no space is available */
+	@return true	if space is available */
 	inline bool isSpaceAvailable(ulint	rec_size);
 
 	/** Get page no */
@@ -175,53 +175,53 @@ private:
 	/** Initialize members. */
 	void init();
 
-	/* The index B-tree */
+	/** The index B-tree */
 	dict_index_t*	m_index;
 
-	/* The min-transaction */
+	/** The min-transaction */
 	mtr_t*		m_mtr;
 
-	/* The transaction id */
+	/** The transaction id */
 	ulint		m_trx_id;
 
-	/* The buffer block */
+	/** The buffer block */
 	buf_block_t*	m_block;
 
-	/* The page */
+	/** The page */
 	page_t*		m_page;
 
-	/* The page zip descriptor */
+	/** The page zip descriptor */
 	page_zip_des_t*	m_page_zip;
 
-	/* The current rec, just before the next insert rec */
+	/** The current rec, just before the next insert rec */
 	rec_t*		m_cur_rec;
 
-	/* The page no */
+	/** The page no */
 	ulint		m_page_no;
 
-	/* The page level in B-tree */
+	/** The page level in B-tree */
 	ulint		m_level;
 
-	/* Flag: is page in compact format */
+	/** Flag: is page in compact format */
 	bool		m_is_comp;
 
-	/* The heap top in page for next insert */
+	/** The heap top in page for next insert */
 	byte*		m_heap_top;
 
-	/* User record no */
+	/** User record no */
 	ulint		m_rec_no;
 
-	/* The free space left in the page */
+	/** The free space left in the page */
 	ulint		m_free_space;
 
-	/* The reserved space for fill factor */
+	/** The reserved space for fill factor */
 	ulint		m_reserved_space;
 
-	/* The padding space for compressed page */
+	/** The padding space for compressed page */
 	ulint		m_padding_space;
 
 #ifdef UNIV_DEBUG
-	/* Total data in the page */
+	/** Total data in the page */
 	ulint		m_total_data;
 #endif
 };
@@ -234,7 +234,8 @@ public:
 	/** Constructor
 	@param[in]	index	B-tree index
 	@param[in]	trx_id	transaction id */
-	BtrBulk(dict_index_t* index, ulint trx_id):
+	BtrBulk(dict_index_t* index, ulint trx_id)
+		:
 		m_index(index),
 		m_trx_id(trx_id),
 		m_root_level(0)
@@ -294,7 +295,7 @@ private:
 			   PageBulk* next_page_bulk,
 			   bool insert_father);
 
-	/** Abort a page
+	/** Abort a page when an error occurs
 	@param[in]	page_bulk	page bulk object
 	Note: we should call pageAbort for a PageBulk object, which is not in
 	m_page_bulks after pageCommit, and we will commit or abort PageBulk
@@ -308,19 +309,19 @@ private:
 	void logFreeCheck();
 
 private:
-	/* Memory heap for allocation */
-	mem_heap_t*	m_heap;
+	/** Memory heap for allocation */
+	mem_heap_t*		m_heap;
 
-	/* B-tree index */
-	dict_index_t*   m_index;
+	/** B-tree index */
+	dict_index_t*		m_index;
 
-	/* Transaction id */
-	trx_id_t	m_trx_id;
+	/** Transaction id */
+	trx_id_t		m_trx_id;
 
-	/* Root page level */
-	ulint		m_root_level;
+	/** Root page level */
+	ulint			m_root_level;
 
-	/* Page cursor vector for all level */
+	/** Page cursor vector for all level */
 	page_bulk_vector*	m_page_bulks;
 };
 
