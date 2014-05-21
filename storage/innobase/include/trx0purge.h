@@ -183,7 +183,7 @@ public:
 		m_undo_for_trunc = undo_id;
 
 		m_scan_start = (undo_id + 1) % (srv_undo_tablespaces_open + 1);
-		if (m_scan_start) {
+		if (m_scan_start == 0) {
 			/* Note: UNDO tablespace ids starts from 1. */
 			m_scan_start = 1;
 		}
