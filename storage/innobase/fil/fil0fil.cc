@@ -2988,13 +2988,17 @@ fil_truncate_tablespace(
 {
 	/* Step-1: Prepare tablespace for truncate. This involves
 	stopping all the new operations + IO on that tablespace
-	and ensuring that related pages are flushed to disk.
-	TODO: ensure all the buffer pool pages are flushed out.*/
+	and ensuring that related pages are flushed to disk. */
 	if (fil_prepare_for_truncate(space_id) != DB_SUCCESS) {
 		return(false);
 	}
 
-	/* Step-2: Truncate the tablespace and accordingly update
+	/* Step-2: Invalidate buffer pool pages belonging to the tablespace
+	to re-create. Remove all insert buffer entries for the tablespace */
+	buf_LRU_flush_or_remove_pages(space_id, BUF_REMOVE_ALL_NO_WRITE, 0);
+	ibuf_delete_for_discarded_space(space_id);
+
+	/* Step-3: Truncate the tablespace and accordingly update
 	the fil_space_t handler that is used to access this tablespace. */ 
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(space_id);
