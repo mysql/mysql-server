@@ -254,14 +254,16 @@ public:
   enum_alter_table_algorithm    requested_algorithm;
   // Type of ALTER TABLE lock.
   enum_alter_table_lock         requested_lock;
-
+  // WITHOUT VALIDATION was given
+  bool                          without_validation;
 
   Alter_info() :
     flags(0),
     keys_onoff(LEAVE_AS_IS),
     num_parts(0),
     requested_algorithm(ALTER_TABLE_ALGORITHM_DEFAULT),
-    requested_lock(ALTER_TABLE_LOCK_DEFAULT)
+    requested_lock(ALTER_TABLE_LOCK_DEFAULT),
+    without_validation(false)
   {}
 
   void reset()
@@ -277,6 +279,7 @@ public:
     partition_names.empty();
     requested_algorithm= ALTER_TABLE_ALGORITHM_DEFAULT;
     requested_lock= ALTER_TABLE_LOCK_DEFAULT;
+    without_validation= false;
   }
 
 
