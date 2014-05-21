@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
    rights reserved.
 
    This program is free software; you can redistribute it and/or modify
@@ -790,17 +790,39 @@ bool Aggregator_distinct::setup(THD *thd)
     if (!(tmp_table_param= new TMP_TABLE_PARAM))
       return TRUE;
 
-    /* Create a table with an unique key over all parameters */
-    for (uint i=0; i < item_sum->get_arg_count() ; i++)
+    /**
+      Create a table with an unique key over all parameters.
+      If the list contains only const values, const_distinct
+      is set to CONST_NOT_NULL to avoid creation of temp table
+      and thereby counting as count(distinct of const values)
+      will always be 1. If any of these const values is null,
+      const_distinct is set to CONST_NULL to ensure aggregation
+      does not happen.
+     */
+    uint const_items= 0;
+    uint num_args= item_sum->get_arg_count();
+    DBUG_ASSERT(num_args);
+    for (uint i=0; i < num_args; i++)
     {
       Item *item=item_sum->get_arg(i);
       if (list.push_back(item))
-        return TRUE;                              // End of memory
-      if (item->const_item() && item->is_null())
-        always_null= true;
+        return true;                              // End of memory
+      if (item->const_item())
+      {
+        if (item->is_null())
+        {
+          const_distinct= CONST_NULL;
+          return false;
+        }
+        else
+          const_items++;
+      }
     }
-    if (always_null)
-      return FALSE;
+    if (num_args == const_items)
+    {
+      const_distinct= CONST_NOT_NULL;
+      return false;
+    }
     count_field_types(select_lex, tmp_table_param, list, 0);
     tmp_table_param->force_copy_fields= item_sum->has_force_copy_fields();
     DBUG_ASSERT(table == 0);
@@ -928,11 +950,12 @@ bool Aggregator_distinct::setup(THD *thd)
     {
       (void) arg->val_int();
       if (arg->null_value)
-        always_null= true;
+      {
+        const_distinct= CONST_NULL;
+        DBUG_RETURN(false);
+      }
     }
 
-    if (always_null)
-      DBUG_RETURN(FALSE);
 
     enum enum_field_types field_type;
 
@@ -977,7 +1000,7 @@ void Aggregator_distinct::clear()
   item_sum->clear();
   if (tree)
     tree->reset();
-  /* tree and table can be both null only if always_null */
+  /* tree and table can be both null only if const_distinct is enabled*/
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
@@ -1013,7 +1036,7 @@ void Aggregator_distinct::clear()
 
 bool Aggregator_distinct::add()
 {
-  if (always_null)
+  if (const_distinct != NOT_CONST)
     return 0;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
@@ -1080,7 +1103,7 @@ void Aggregator_distinct::endup()
   item_sum->clear();
 
   /* The result will definitely be null : no more calculations needed */
-  if (always_null)
+  if (const_distinct == CONST_NULL)
     return;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
@@ -1088,6 +1111,13 @@ void Aggregator_distinct::endup()
   {
     DBUG_ASSERT(item_sum->fixed == 1);
     Item_sum_count *sum= (Item_sum_count *)item_sum;
+
+    if (const_distinct ==  CONST_NOT_NULL)
+    {
+      sum->count= 1;
+      endup_done= TRUE;
+      return;
+    }
     if (tree && tree->elements == 0)
     {
       /* everything fits in memory */
