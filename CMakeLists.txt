@@ -13,8 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# There's a bug in unzipping prior to 2.8.2
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+IF(WIN32)
+  # CMake 2.8.12 is needed for Visual Studio 2013
+  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+ELSE()
+  # There's a bug in unzipping prior to 2.8.2
+  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+ENDIF()
 
 # We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
 IF(CMAKE_VERSION VERSION_GREATER "2.8.8")
@@ -590,10 +595,6 @@ ELSE()
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
 ADD_SUBDIRECTORY(packaging/solaris)
-
-# Create a single package with "make package"
-# (see http://public.kitware.com/Bug/view.php?id=11452)
-SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
 
 IF(UNIX)
   INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)
