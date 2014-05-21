@@ -547,7 +547,7 @@ fil_space_system_check(
 @retval DB_ERROR		if the data is inconsistent */
 
 dberr_t
-fil_space_undo_check(
+fil_space_undo_check_if_opened(
 	const char*	name,
 	ulint		space_id)
 	__attribute__((warn_unused_result));
@@ -1113,15 +1113,25 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
+/** Tablespaces to look up for invoking fil_names_write() */
+struct fil_spaces_t {
+	/** User tablespace, or NULL if not modified */
+	fil_space_t*	user;
+	/** System tablespace, or NULL if not modified */
+	fil_space_t*	sys;
+	/** Dedicated undo tablespace, or NULL if not modified */
+	fil_space_t*	undo;
+};
+
 /** Look up some tablespaces for invoking fil_names_write().
-@param[out]	spaces		three tablespace pointers
+@param[out]	spaces		tablespace pointers
 @param[in]	user_space_id	modified user tablespace, or 0 if none
 @param[in]	undo_space_id	modified undo tablespace, or 0 if none
 @param[in]	find_system	whether to look up the system tablespace */
 
 void
 fil_spaces_lookup(
-	fil_space_t*	spaces[3],
+	fil_spaces_t*	spaces,
 	ulint		user_space_id,
 	ulint		undo_space_id,
 	bool		find_system);
