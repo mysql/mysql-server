@@ -35,7 +35,7 @@ class Binlog_sender
 {
 public:
   Binlog_sender(THD *thd, const char *start_file, my_off_t start_pos,
-              Gtid_set *exclude_gtids)
+                Gtid_set *exclude_gtids, uint32 flag)
     : m_thd(thd), m_packet(thd->packet), m_start_file(start_file),
     m_start_pos(start_pos), m_exclude_gtid(exclude_gtids),
     m_using_gtid_protocol(exclude_gtids != NULL),
@@ -43,7 +43,7 @@ public:
     m_diag_area(false),
     m_errmsg(NULL), m_errno(0), m_last_file(NULL), m_last_pos(0),
     m_half_buffer_size_req_counter(0), m_new_shrink_size(PACKET_MIN_SIZE),
-    m_observe_transmission(false)
+    m_flag(flag), m_observe_transmission(false)
   {}
 
   ~Binlog_sender() {}
@@ -150,7 +150,7 @@ private:
    */
   const static float PACKET_SHRINK_FACTOR;
 
-  const static uint32 HOOK_NO_FLAG;
+  uint32 m_flag;
   /*
     It is true if any plugin requires to observe the transmission for each event.
     And HOOKs(reserve_header, before_send and after_send) are called when
