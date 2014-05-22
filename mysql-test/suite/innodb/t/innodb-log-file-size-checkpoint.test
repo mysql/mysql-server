@@ -1,4 +1,5 @@
 --source include/have_innodb.inc
+--source include/not_embedded.inc
 
 let $n=250;
 let $t=veryLongTableNameToCreateMLOG_FILE_NAMErecords;
