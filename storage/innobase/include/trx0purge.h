@@ -175,7 +175,7 @@ public:
 		/* Step-1: Create the log file name using the pre-decided
 		prefix/suffix and table id of undo tablepsace to truncate. */
 		ulint log_file_name_sz = 
-			strlen(srv_log_group_home_dir) + 1 + 22 + 1 /* NUL */
+			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
 			+ strlen(undo_trunc_logger_t::s_log_prefix)
 			+ strlen(undo_trunc_logger_t::s_log_ext);
 
@@ -199,7 +199,7 @@ public:
 
 		ut_snprintf(m_log_file_name + log_file_name_len,
 			    log_file_name_sz - log_file_name_len,
-			    "%s_%lu_%s",
+			    "%s%lu_%s",
 			    undo_trunc_logger_t::s_log_prefix,
 			    (ulong) space_id, undo_trunc_logger_t::s_log_ext);
 

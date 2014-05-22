@@ -792,7 +792,7 @@ trx_purge_initiate_truncate(
 
 	dberr_t	err = undo_trunc->undo_logger.init(
 		undo_trunc->get_undo_mark_for_trunc());
-	ut_ad(err != DB_SUCCESS);
+	ut_ad(err == DB_SUCCESS);
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_log_file_creation",
 			DBUG_SUICIDE(););
