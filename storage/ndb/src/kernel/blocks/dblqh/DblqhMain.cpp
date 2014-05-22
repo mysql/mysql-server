@@ -331,7 +331,8 @@ void Dblqh::execCONTINUEB(Signal* signal)
       /**
        * prepare is first in queue...check that it's ok to rock'n'roll
        */
-      if (logPartPtr.p->m_log_problems != 0)
+      if (logPartPtr.p->m_log_problems != 0 ||
+          ERROR_INSERTED(5083))
       {
         /**
          * It will be restarted when problems are cleared...
@@ -6778,7 +6779,7 @@ void Dblqh::logLqhkeyreqLab(Signal* signal)
 /* -------------------------------------------------- */
   LogPartRecord * const regLogPartPtr = logPartPtr.p;
   const bool problem = out_of_log_buffer || regLogPartPtr->m_log_problems != 0;
-  if (unlikely(problem))
+  if (unlikely(problem || ERROR_INSERTED(5083)))
   {
     if (abort_on_redo_problems)
     {
@@ -6935,6 +6936,13 @@ Dblqh::logLqhkeyreqLab_problems(Signal * signal)
   {
     jam();
     terrorCode = ZFILE_CHANGE_PROBLEM_IN_LOG_ERROR;
+  }
+  else
+  {
+    if (ERROR_INSERTED(5083))
+    {
+      terrorCode = 266;
+    }
   }
   abortErrorLab(signal);
 }
@@ -21317,7 +21325,10 @@ Dblqh::remove_from_prepare_log_queue(Signal *signal,
                                      TcConnectionrecPtr tcPtr)
 {
   TcConnectionrecPtr tmp;
-  LogPartRecord::OperationQueue *queue = &logPartPtr.p->m_log_prepare_queue;
+  LogPartRecordPtr regLogPartPtr;
+  regLogPartPtr.i = tcPtr.p->m_log_part_ptr_i;
+  ptrCheckGuard(regLogPartPtr, clogPartFileSize, logPartRecord);
+  LogPartRecord::OperationQueue *queue = &regLogPartPtr.p->m_log_prepare_queue;
 
   if (tcPtr.p->prevTcLogQueue == RNIL)
   {
