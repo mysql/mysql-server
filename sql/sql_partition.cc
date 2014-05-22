@@ -224,16 +224,16 @@ Item* convert_charset_partition_constant(Item *item, const CHARSET_INFO *cs)
     @retval false  String not found
 */
 
-static bool is_name_in_list(char *name, List<char> list_names)
+static bool is_name_in_list(char *name, List<String> list_names)
 {
-  List_iterator<char> names_it(list_names);
+  List_iterator<String> names_it(list_names);
   uint num_names= list_names.elements;
   uint i= 0;
 
   do
   {
-    char *list_name= names_it++;
-    if (!(my_strcasecmp(system_charset_info, name, list_name)))
+    String *list_name= names_it++;
+    if (!(my_strcasecmp(system_charset_info, name, list_name->c_ptr())))
       return TRUE;
   } while (++i < num_names);
   return FALSE;
@@ -1013,7 +1013,8 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
   if (init_lex_with_single_table(thd, table, &lex))
     goto end;
 
-  func_expr->walk(&Item::change_context_processor, 0,
+  func_expr->walk(&Item::change_context_processor,
+                  Item::WALK_POSTFIX,
                   (uchar*) &lex.select_lex->context);
   thd->where= "partition function";
   /*
@@ -1069,7 +1070,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
     in future so that we always throw an error.
   */
   if (func_expr->walk(&Item::check_valid_arguments_processor,
-                      0, NULL))
+                      Item::WALK_POSTFIX, NULL))
   {
     if (is_create_table_ind)
     {
@@ -1088,8 +1089,7 @@ static bool fix_fields_part_func(THD *thd, Item* func_expr, TABLE *table,
 end:
   end_lex_with_single_table(thd, table, old_lex);
 #if !defined(DBUG_OFF)
-  func_expr->walk(&Item::change_context_processor, 0,
-                  (uchar*) 0);
+  func_expr->walk(&Item::change_context_processor, Item::WALK_POSTFIX, NULL);
 #endif
   DBUG_RETURN(result);
 }
@@ -2049,7 +2049,7 @@ static int add_keyword_path(File fptr, const char *keyword,
 #ifdef _WIN32
   /* Convert \ to / to be able to create table on unix */
   char *pos, *end;
-  uint length= strlen(temp_path);
+  size_t length= strlen(temp_path);
   for (pos= temp_path, end= pos+length ; pos < end ; pos++)
   {
     if (*pos == '\\')
@@ -3215,19 +3215,28 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   uint num_columns= part_info->part_field_list.elements;
   uint list_index;
   uint min_list_index= 0;
+  int cmp;
+  /* Notice that max_list_index = last_index + 1 here! */
   uint max_list_index= part_info->num_list_values;
   DBUG_ENTER("get_partition_id_cols_list_for_endpoint");
 
   /* Find the matching partition (including taking endpoint into account). */
   do
   {
-    /* Midpoint, adjusted down, so it can never be > last index. */
+    /* Midpoint, adjusted down, so it can never be >= max_list_index. */
     list_index= (max_list_index + min_list_index) >> 1;
-    if (cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
-                                nparts, left_endpoint, include_endpoint) > 0)
+    cmp= cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
+                                 nparts, left_endpoint, include_endpoint);
+    if (cmp > 0)
+    {
       min_list_index= list_index + 1;
+    }
     else
+    {
       max_list_index= list_index;
+      if (cmp == 0)
+        break;
+    }
   } while (max_list_index > min_list_index);
   list_index= max_list_index;
 
@@ -3244,12 +3253,10 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
                                            nparts, left_endpoint,
                                            include_endpoint)));
 
-  if (!left_endpoint)
-  {
-    /* Set the end after this list tuple if not already after the last. */
-    if (list_index < part_info->num_parts)
-      list_index++;
-  }
+  /* Include the right endpoint if not already passed end of array. */
+  if (!left_endpoint && include_endpoint && cmp == 0 &&
+      list_index < part_info->num_list_values)
+    list_index++;
 
   DBUG_RETURN(list_index);
 }
@@ -3354,7 +3361,7 @@ uint32 get_list_array_idx_for_endpoint(partition_info *part_info,
     }
     else
     {
-      DBUG_RETURN(list_index + test(left_endpoint ^ include_endpoint));
+      DBUG_RETURN(list_index + MY_TEST(left_endpoint ^ include_endpoint));
     }
   } while (max_list_index >= min_list_index);
 notfound:
@@ -4347,6 +4354,7 @@ bool mysql_unpack_partition(THD *thd,
   st_select_lex select(NULL, NULL, NULL, NULL, NULL, NULL, 0);
   lex.new_static_query(&unit, &select);
 
+  sql_digest_state *parent_digest= thd->m_digest;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
   DBUG_ENTER("mysql_unpack_partition");
 
@@ -4378,14 +4386,17 @@ bool mysql_unpack_partition(THD *thd,
   part_info= lex.part_info;
   DBUG_PRINT("info", ("Parse: %s", part_buf));
 
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
   if (parse_sql(thd, & parser_state, NULL) ||
       part_info->fix_parser_data(thd))
   {
     thd->free_items();
+    thd->m_digest= parent_digest;
     thd->m_statement_psi= parent_locker;
     goto end;
   }
+  thd->m_digest= parent_digest;
   thd->m_statement_psi= parent_locker;
   /*
     The parsed syntax residing in the frm file can still contain defaults.
@@ -5869,7 +5880,7 @@ static bool mysql_change_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   if (mysql_trans_commit_alter_copy_data(thd))
     error= 1;                                /* The error has been reported */
 
-  DBUG_RETURN(test(error));
+  DBUG_RETURN(MY_TEST(error));
 }
 
 
@@ -7060,7 +7071,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_drop_partition_5") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query(), thd->query_length()), FALSE)) ||
+                        thd->query().str, thd->query().length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_drop_partition_6") ||
         ERROR_INJECT_ERROR("fail_drop_partition_6") ||
         (frm_install= TRUE, FALSE) ||
@@ -7136,7 +7147,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_add_partition_6") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query(), thd->query_length()), FALSE)) ||
+                        thd->query().str, thd->query().length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_add_partition_7") ||
         ERROR_INJECT_ERROR("fail_add_partition_7") ||
         write_log_rename_frm(lpt) ||
@@ -7239,7 +7250,7 @@ uint fast_alter_partition_table(THD *thd, TABLE *table,
         ERROR_INJECT_ERROR("fail_change_partition_7") ||
         ((!thd->lex->no_write_to_binlog) &&
          (write_bin_log(thd, FALSE,
-                        thd->query(), thd->query_length()), FALSE)) ||
+                        thd->query().str, thd->query().length), FALSE)) ||
         ERROR_INJECT_CRASH("crash_change_partition_8") ||
         ERROR_INJECT_ERROR("fail_change_partition_8") ||
         ((frm_install= TRUE), FALSE) ||
@@ -7666,15 +7677,13 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
   field= val->part_info->part_field_array + n_vals_in_rec;
   if (!(*field))
   {
-    /*
-      Full match, if right endpoint and not including the endpoint,
-      (rec < part) return lesser.
-    */
-    if (!is_left_endpoint && !include_endpoint)
-      return -4;
+    /* Full match. Only equal if including endpoint. */
+    if (include_endpoint)
+      return 0;
 
-    /* Otherwise they are equal! */
-    return 0;
+    if (is_left_endpoint)
+      return +4;     /* Start of range, part_tuple < rec, return higher. */
+    return -4;     /* End of range, rec < part_tupe, return lesser. */
   }
   /*
     The prefix is equal and there are more partition columns to compare.
@@ -7887,8 +7896,8 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
                                            PARTITION_ITERATOR *part_iter)
 {
   Field *field= part_info->part_field_array[0];
-  uint32             UNINIT_VAR(max_endpoint_val);
-  get_endpoint_func  UNINIT_VAR(get_endpoint);
+  uint32             max_endpoint_val= 0;
+  get_endpoint_func  get_endpoint= 0;
   bool               can_match_multiple_values;  /* is not '=' */
   uint field_len= field->pack_length_in_rec();
   MYSQL_TIME start_date;
@@ -7983,7 +7992,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
         index-in-ordered-array-of-list-constants (for LIST) space.
       */
       store_key_image_to_rec(field, min_value, field_len);
-      bool include_endp= !test(flags & NEAR_MIN);
+      bool include_endp= !MY_TEST(flags & NEAR_MIN);
       part_iter->part_nums.start= get_endpoint(part_info, 1, include_endp);
       if (!can_match_multiple_values && part_info->part_expr->null_value)
       {
@@ -8018,7 +8027,7 @@ int get_part_iter_for_interval_via_mapping(partition_info *part_info,
   else
   {
     store_key_image_to_rec(field, max_value, field_len);
-    bool include_endp= !test(flags & NEAR_MAX);
+    bool include_endp= !MY_TEST(flags & NEAR_MAX);
     part_iter->part_nums.end= get_endpoint(part_info, 0, include_endp);
     if (check_zero_dates &&
         !zero_in_start_date &&
@@ -8185,8 +8194,8 @@ int get_part_iter_for_interval_via_walking(partition_info *part_info,
   if ((ulonglong)b - (ulonglong)a == ~0ULL)
     DBUG_RETURN(-1);
 
-  a += test(flags & NEAR_MIN);
-  b += test(!(flags & NEAR_MAX));
+  a += MY_TEST(flags & NEAR_MIN);
+  b += MY_TEST(!(flags & NEAR_MAX));
   ulonglong n_values= b - a;
 
   /*

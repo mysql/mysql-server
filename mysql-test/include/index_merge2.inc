@@ -150,7 +150,7 @@ analyze table t2;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 #
 }
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and  key2a = 2 and key2b is null;
@@ -160,7 +160,7 @@ select count(*) from t1 where
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 #
 }
 explain select count(*) from t1 where
   key1a = 2 and key1b is null and key3a = 2 and key3b is null;
@@ -380,7 +380,7 @@ analyze table t1;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 9 #
+  --replace_column 10 #
 }
 # to test the bug, the following must use "sort_union":
 explain select * from t1 where (key3 > 30 and key3<35) or (key2 >32 and key2 < 40);

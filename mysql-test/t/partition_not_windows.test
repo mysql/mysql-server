@@ -1,13 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Non-windows specific partition tests.
 --source include/not_windows.inc
 --source include/have_partition.inc
 # DATA DIRECTORY/INDEX DIRECTORY require symbolic link support
 --source include/have_symlink.inc
+# Test needs MyISAM for a few subtests
+--source include/have_myisam.inc 
 
 # The test for Bug 20770 is disabled on Windows due to BUG#19107; it
 # should be moved into partition.test once the bug has been resolved.

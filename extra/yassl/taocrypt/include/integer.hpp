@@ -46,6 +46,14 @@
 
 
 #ifdef TAOCRYPT_X86ASM_AVAILABLE
+    #if defined(__GNUC__) && (__GNUC__ >= 4)
+        // GCC 4 or greater optimizes too much inline on recursive for bigint,
+        // -O3 just as fast without asm here anyway
+        #undef TAOCRYPT_X86ASM_AVAILABLE
+    #endif
+#endif
+
+#ifdef TAOCRYPT_X86ASM_AVAILABLE
 
 #ifdef _M_IX86
     #if (defined(__INTEL_COMPILER) && (__INTEL_COMPILER >= 500)) || \

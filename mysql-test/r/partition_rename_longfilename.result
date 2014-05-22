@@ -5,12 +5,9 @@ PARTITION BY RANGE (a)
 PARTITION `p1....................` VALUES LESS THAN (9),
 PARTITION p2 VALUES LESS THAN MAXVALUE);
 # List of files in database `test`, all original t1-files here
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t1#P#p2.MYD
-t1#P#p2.MYI
+t1#P#p0.ibd
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
+t1#P#p2.ibd
 t1.frm
 t1.par
 INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
@@ -19,12 +16,9 @@ INSERT INTO t1 VALUES (1), (2), (3), (4), (5), (6), (7), (8), (9), (10);
 RENAME TABLE t1 TO `t2_............................end`;
 # List of files in database `test`, should not be any t1-files here
 # List of files in database `test`, should be all t2-files here
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p0.MYD
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p0.MYI
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p2.MYD
-t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p2.MYI
+t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p0.ibd
+t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
+t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend#P#p2.ibd
 t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend.frm
 t2_@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002eend.par
 SELECT * FROM `t2_............................end`;
@@ -41,12 +35,9 @@ a
 9
 RENAME TABLE `t2_............................end` to t1;
 # List of files in database `test`, should be all t1-files here
-t1#P#p0.MYD
-t1#P#p0.MYI
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYD
-t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.MYI
-t1#P#p2.MYD
-t1#P#p2.MYI
+t1#P#p0.ibd
+t1#P#p1@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e@002e.ibd
+t1#P#p2.ibd
 t1.frm
 t1.par
 SELECT * FROM t1;

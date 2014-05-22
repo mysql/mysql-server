@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -2105,7 +2105,7 @@ TransporterRegistry::start_service(SocketServer& socket_server)
 
 #ifdef NDB_SHM_TRANSPORTER
 extern "C"
-RETSIGTYPE 
+void
 shm_sig_handler(int signo)
 {
   g_shm_counter++;

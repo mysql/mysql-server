@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -588,6 +588,73 @@ static void end_statement_noop(PSI_statement_locker *locker NNN,
   return;
 }
 
+static PSI_transaction_locker*
+get_thread_transaction_locker_noop(PSI_transaction_locker_state *state NNN,
+                                   const void *xid NNN,
+                                   const ulonglong *trxid NNN,
+                                   int isolation_level NNN,
+                                   my_bool read_only NNN,
+                                   my_bool autocommit NNN)
+{
+  return NULL;
+}
+
+static void start_transaction_noop(PSI_transaction_locker *locker NNN,
+                                   const char *src_file NNN, uint src_line NNN)
+{
+  return;
+}
+
+static void set_transaction_xid_noop(PSI_transaction_locker *locker NNN,
+                                     const void *xid NNN,
+                                     int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_xa_state_noop(PSI_transaction_locker *locker NNN,
+                                          int xa_state NNN)
+{
+  return;
+}
+
+static void set_transaction_gtid_noop(PSI_transaction_locker *locker NNN,
+                                      const void *sid NNN,
+                                      const void *gtid_spec NNN)
+{
+  return;
+}
+
+static void set_transaction_trxid_noop(PSI_transaction_locker *locker NNN,
+                                       const ulonglong *trxid NNN)
+{
+  return;
+}
+
+static void inc_transaction_savepoints_noop(PSI_transaction_locker *locker NNN,
+                                            ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_rollback_to_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                       ulong count NNN)
+{
+  return;
+}
+
+static void inc_transaction_release_savepoint_noop(PSI_transaction_locker *locker NNN,
+                                                   ulong count NNN)
+{
+  return;
+}
+
+static void end_transaction_noop(PSI_transaction_locker *locker NNN,
+                                 my_bool commit NNN)
+{
+  return;
+}
+
 static PSI_socket_locker*
 start_socket_wait_noop(PSI_socket_locker_state *state NNN,
                        PSI_socket *socket NNN,
@@ -624,18 +691,45 @@ static void set_socket_thread_owner_noop(PSI_socket *socket NNN)
   return;
 }
 
+static PSI_prepared_stmt*
+create_prepare_stmt_noop(void *identity NNN, uint stmt_id NNN,
+                         PSI_statement_locker *locker NNN, 
+                         const char *stmt_name NNN, size_t stmt_name_length NNN,
+                         const char *name NNN, size_t length NNN)
+{
+  return NULL;
+}
+
+static void
+execute_prepare_stmt_noop(PSI_statement_locker *locker NNN,
+                        PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
+void
+destroy_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
+void
+reprepare_prepared_stmt_noop(PSI_prepared_stmt *prepared_stmt NNN)
+{
+  return;
+}
+
 static struct PSI_digest_locker*
 digest_start_noop(PSI_statement_locker *locker NNN)
 {
   return NULL;
 }
 
-static PSI_digest_locker*
-digest_add_token_noop(PSI_digest_locker *locker NNN,
-                      uint token NNN,
-                      struct OPAQUE_LEX_YYSTYPE *yylval NNN)
+static void
+digest_end_noop(PSI_digest_locker *locker NNN,
+                const struct sql_digest_storage *digest NNN)
 {
-  return NULL;
+  return;
 }
 
 static int
@@ -835,13 +929,27 @@ static PSI PSI_noop=
   set_statement_no_index_used_noop,
   set_statement_no_good_index_used_noop,
   end_statement_noop,
+  get_thread_transaction_locker_noop,
+  start_transaction_noop,
+  set_transaction_xid_noop,
+  set_transaction_xa_state_noop,
+  set_transaction_gtid_noop,
+  set_transaction_trxid_noop,
+  inc_transaction_savepoints_noop,
+  inc_transaction_rollback_to_savepoint_noop,
+  inc_transaction_release_savepoint_noop,
+  end_transaction_noop,
   start_socket_wait_noop,
   end_socket_wait_noop,
   set_socket_state_noop,
   set_socket_info_noop,
   set_socket_thread_owner_noop,
+  create_prepare_stmt_noop,
+  destroy_prepared_stmt_noop,
+  reprepare_prepared_stmt_noop,
+  execute_prepare_stmt_noop,
   digest_start_noop,
-  digest_add_token_noop,
+  digest_end_noop,
   set_thread_connect_attrs_noop,
   pfs_start_sp_noop,
   pfs_end_sp_noop,

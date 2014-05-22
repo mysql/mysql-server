@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,7 +31,6 @@ class Format_description_log_event;
 class  Logical_clock
 {
 private:
-  my_atomic_rwlock_t m_state_lock;
   int64 state;
 protected:
   void init(){ state= 0; }
@@ -39,7 +38,7 @@ public:
   Logical_clock();
   int64 step();
   int64 get_timestamp();
-  ~Logical_clock();
+  ~Logical_clock() { }
 };
 
 /**
@@ -219,7 +218,7 @@ public:
   void signal_done(THD *queue) {
     mysql_mutex_lock(&m_lock_done);
     for (THD *thd= queue ; thd ; thd = thd->next_to_commit)
-      thd->transaction.flags.pending= false;
+      thd->get_transaction()->m_flags.pending= false;
     mysql_mutex_unlock(&m_lock_done);
     mysql_cond_broadcast(&m_cond_done);
   }
@@ -263,9 +262,6 @@ private:
 #define LOG_CLOSE_TO_BE_OPENED	2
 #define LOG_CLOSE_STOP_EVENT	4
 
-#ifdef HAVE_PSI_INTERFACE
-extern PSI_mutex_key key_LOG_INFO_lock;
-#endif
 
 /*
   Note that we destroy the lock mutex in the destructor here.
@@ -279,15 +275,12 @@ typedef struct st_log_info
   my_off_t pos;
   bool fatal; // if the purge happens to give us a negative offset
   int entry_index; //used in purge_logs(), calculatd in find_log_pos().
-  mysql_mutex_t lock;
   st_log_info()
     : index_file_offset(0), index_file_start_offset(0),
       pos(0), fatal(0), entry_index(0)
     {
       log_file_name[0] = '\0';
-      mysql_mutex_init(key_LOG_INFO_lock, &lock, MY_MUTEX_INIT_FAST);
     }
-  ~st_log_info() { mysql_mutex_destroy(&lock);}
 } LOG_INFO;
 
 /*
@@ -389,7 +382,6 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint *sync_period_ptr;
   uint sync_counter;
 
-  my_atomic_rwlock_t m_prep_xids_lock;
   mysql_cond_t m_prep_xids_cond;
   volatile int32 m_prep_xids;
 
@@ -398,15 +390,13 @@ class MYSQL_BIN_LOG: public TC_LOG
    */
   void inc_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
-    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
 #ifndef DBUG_OFF
     int result= my_atomic_add32(&m_prep_xids, 1);
 #else
     (void) my_atomic_add32(&m_prep_xids, 1);
 #endif
     DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
-    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
-    thd->transaction.flags.xid_written= true;
+    thd->get_transaction()->m_flags.xid_written= true;
     DBUG_VOID_RETURN;
   }
 
@@ -417,11 +407,9 @@ class MYSQL_BIN_LOG: public TC_LOG
    */
   void dec_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
-    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
     int32 result= my_atomic_add32(&m_prep_xids, -1);
     DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
-    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
-    thd->transaction.flags.xid_written= false;
+    thd->get_transaction()->m_flags.xid_written= false;
     /* If the old value was 1, it is zero now. */
     if (result == 1)
     {
@@ -433,9 +421,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   }
 
   int32 get_prep_xids() {
-    my_atomic_rwlock_rdlock(&m_prep_xids_lock);
     int32 result= my_atomic_load32(&m_prep_xids);
-    my_atomic_rwlock_rdunlock(&m_prep_xids_lock);
     return result;
   }
 
@@ -583,6 +569,8 @@ public:
     @param lost_groups Will be filled with all GTIDs in the
     Previous_gtids_log_event of the first binary log that has a
     Previous_gtids_log_event.
+    @param last_gtid Will be filled with the last availble GTID information
+    in the binary/relay log files.
     @param verify_checksum If true, checksums will be checked.
     @param need_lock If true, LOCK_log, LOCK_index, and
     global_sid_lock->wrlock are acquired; otherwise they are asserted
@@ -590,7 +578,8 @@ public:
     @return false on success, true on error.
   */
   bool init_gtid_sets(Gtid_set *gtid_set, Gtid_set *lost_groups,
-                      bool verify_checksum, bool need_lock);
+                      Gtid *last_gtid, bool verify_checksum,
+                      bool need_lock);
 
   void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
   {
@@ -672,6 +661,15 @@ public:
       signal_update();
       unlock_binlog_end_pos();
     }
+  }
+
+  void update_binlog_end_pos(my_off_t pos)
+  {
+    lock_binlog_end_pos();
+    if (pos > binlog_end_pos)
+      binlog_end_pos= pos;
+    signal_update();
+    unlock_binlog_end_pos();
   }
 
   int wait_for_update_relay_log(THD* thd, const struct timespec * timeout);
@@ -760,7 +758,7 @@ public:
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
   int close_crash_safe_index_file();
-  int add_log_to_index(uchar* log_file_name, int name_len,
+  int add_log_to_index(uchar* log_file_name, size_t name_len,
                        bool need_lock_index);
   int move_crash_safe_index_file_to_index_file(bool need_lock_index);
   int set_purge_index_file_name(const char *base_file_name);
@@ -904,7 +902,7 @@ inline bool normalize_binlog_name(char *to, const char *from, bool is_relay_log)
   DBUG_ASSERT(ptr);
   if (ptr)
   {
-    uint length= strlen(ptr);
+    size_t length= strlen(ptr);
 
     // Strips the CR+LF at the end of log name and \0-terminates it.
     if (length && ptr[length-1] == '\n')

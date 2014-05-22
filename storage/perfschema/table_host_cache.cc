@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -183,11 +183,10 @@ table_host_cache::m_share=
 {
   { C_STRING_WITH_LEN("host_cache") },
   &pfs_truncatable_acl,
-  &table_host_cache::create,
+  table_host_cache::create,
   NULL, /* write_row */
   table_host_cache::delete_all_rows,
-  NULL, /* get_row_count */
-  1000, /* records */
+  table_host_cache::get_row_count,
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -216,6 +215,16 @@ table_host_cache::delete_all_rows(void)
   */
   hostname_cache_refresh();
   return 0;
+}
+
+ha_rows
+table_host_cache::get_row_count(void)
+{
+  ha_rows count;
+  hostname_cache_lock();
+  count= hostname_cache_size();
+  hostname_cache_unlock();
+  return count;
 }
 
 table_host_cache::table_host_cache()

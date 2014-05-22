@@ -1,13 +1,17 @@
 #
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
 
+-- source include/not_gtid_enabled.inc
 -- source include/have_debug.inc
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
+-- sync_slave_with_master
+-- connection master
 -- let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- connection slave
@@ -16,7 +20,7 @@ SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- let $saved_submode= `SELECT @@slave_parallel_type`
 
 # must error out since the slave is running
--- error ER_SLAVE_MUST_STOP
+-- error ER_SLAVE_SQL_THREAD_MUST_STOP
 SET GLOBAL slave_parallel_type=LOGICAL_CLOCK;
 
 -- source include/stop_slave.inc
@@ -134,6 +138,7 @@ INSERT INTO db4.t values (1),(2),(3);
 UPDATE db1.t SET db1.t.a= 2 WHERE db1.t.a > 2;
 COMMIT;
 
+SET GLOBAL DEBUG ='-d,set_commit_parent_100';
 # temp tables operations DELETE
 -- connection m1
 DROP TABLE db1.t_temp;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -395,7 +395,7 @@ ok:
 rpl_gno parse_gno(const char **s)
 {
   char *endp;
-  rpl_gno ret= strtoll(*s, &endp, 0);
+  rpl_gno ret= my_strtoll(*s, &endp, 0);
   if (ret < 0 || ret == LLONG_MAX)
     return -1;
   *s= endp;
@@ -845,11 +845,11 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
   Returns the length that the given rpl_sidno (64 bit integer) would
   have, if it was encoded as a string.
 */
-static int get_string_length(rpl_gno gno)
+static size_t get_string_length(rpl_gno gno)
 {
   DBUG_ASSERT(gno >= 1 && gno < MAX_GNO);
   rpl_gno tmp_gno= gno;
-  int len= 0;
+  size_t len= 0;
   do
   {
     tmp_gno /= 10;
@@ -857,7 +857,7 @@ static int get_string_length(rpl_gno gno)
   } while (tmp_gno != 0);
 #ifndef DBUG_OFF
   char buf[22];
-  DBUG_ASSERT(snprintf(buf, 22, "%lld", gno) == len);
+  DBUG_ASSERT(my_snprintf(buf, 22, "%lld", gno) == len);
 #endif
   return len;
 }

@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -700,6 +700,7 @@ CHARSET_INFO my_charset_cp1250_czech_ci =
   1,                            /* casedn_multiply  */
   1,				/* mbminlen  */
   1,				/* mbmaxlen  */
+  1,				/* mbmaxlenlen */
   0,				/* min_sort_char */
   0,				/* max_sort_char */
   ' ',                          /* pad char      */

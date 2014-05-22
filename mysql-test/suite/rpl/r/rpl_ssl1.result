@@ -5,6 +5,7 @@ Note	####	Storing MySQL user name or password information in the master info rep
 [connection master]
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
+include/sync_slave_sql_with_master.inc
 stop slave;
 include/wait_for_slave_to_stop.inc
 change master to master_user='replssl',master_password='';
@@ -20,6 +21,7 @@ include/wait_for_slave_to_stop.inc
 change master to master_ssl=1 , master_ssl_ca ='MYSQL_TEST_DIR/std_data/cacert.pem', master_ssl_cert='MYSQL_TEST_DIR/std_data/client-cert.pem', master_ssl_key='MYSQL_TEST_DIR/std_data/client-key.pem';
 start slave;
 include/wait_for_slave_to_start.inc
+include/sync_slave_sql_with_master.inc
 select * from t1;
 t
 1
@@ -39,6 +41,7 @@ start slave;
 include/wait_for_slave_to_start.inc
 drop user replssl@localhost;
 drop table t1;
+include/sync_slave_sql_with_master.inc
 Master_SSL_Allowed = 'No'
 Master_SSL_CA_Path = ''
 Master_SSL_CA_File = 'MYSQL_TEST_DIR/std_data/cacert.pem'
@@ -58,6 +61,7 @@ start slave;
 include/wait_for_slave_to_start.inc
 create table t1 (t int);
 insert into t1 values (1);
+include/sync_slave_sql_with_master.inc
 on slave
 select * from t1;
 t
@@ -69,6 +73,7 @@ Master_SSL_Cert = 'MYSQL_TEST_DIR/std_data/client-cert.pem'
 Master_SSL_Key = 'MYSQL_TEST_DIR/std_data/client-key.pem'
 include/check_slave_is_running.inc
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 CHANGE MASTER TO
 master_host="127.0.0.1",

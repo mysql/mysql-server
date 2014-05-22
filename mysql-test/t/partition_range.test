@@ -1,14 +1,11 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #--disable_abort_on_error
 #
 # Simple test for the partition storage engine
 # Focuses on range partitioning tests
 # 
 -- source include/have_partition.inc
+# This test needs MyISAM as it has testcases for defined engine MyISAM
+--source include/have_myisam.inc
 
 --disable_warnings
 drop table if exists t1, t2;
@@ -28,6 +25,7 @@ PARTITION BY HASH (a) PARTITIONS 1;
 INSERT INTO t1 VALUES (0, 580092), (3, 894076), (4, 805483), (4, 913540), (6, 611137), (8, 171602), (9, 599495), (9, 746305), (10, 272829), (10, 847519), (12, 258869), (12, 929028), (13, 288970), (15, 20971), (15, 105839), (16, 788272), (17, 76914), (18, 827274), (19, 802258), (20, 123677), (20, 587729), (22, 701449), (25, 31565), (25, 230782), (25, 442887), (25, 733139), (25, 851020);
 
 # Before the fix the 'Extra' column showed 'Using index for group-by'
+analyze table t1;
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10, 100, 3) GROUP BY a;
 
 DROP TABLE t1;
@@ -58,6 +56,7 @@ select partition_method, partition_expression, partition_description
   from information_schema.partitions where table_name = "t1";
 INSERT INTO t1 VALUES ('2007-03-01 12:00:00'), ('2007-03-07 12:00:00');
 INSERT INTO t1 VALUES ('2007-03-08 12:00:00'), ('2007-03-15 12:00:00');
+analyze table t1;
 explain partitions select * from t1 where a < '2007-03-08 00:00:00';
 explain partitions select * from t1 where a < '2007-03-08 00:00:01';
 explain partitions select * from t1 where a <= '2007-03-08 00:00:00';
@@ -74,6 +73,7 @@ partition by range(to_seconds(a))
  partition p1 values less than (to_seconds('2005-01-01')));
 insert into t1 values ('2003-12-30'),('2004-12-31');
 select * from t1;
+analyze table t1;
 explain partitions select * from t1 where a <= '2003-12-31';
 select * from t1 where a <= '2003-12-31';
 explain partitions select * from t1 where a <= '2005-01-01';
@@ -87,6 +87,7 @@ partition by range(to_seconds(a))
  partition p1 values less than (to_seconds('2005-01-01 12:00:00')));
 insert into t1 values ('2004-01-01 11:59:29'),('2005-01-01 11:59:59');
 select * from t1;
+analyze table t1;
 explain partitions select * from t1 where a <= '2004-01-01 11:59.59';
 select * from t1 where a <= '2004-01-01 11:59:59';
 explain partitions select * from t1 where a <= '2005-01-01';
@@ -220,6 +221,7 @@ select * from t1 where a >= 0;
 select * from t1 where a < 0;
 select * from t1 where a <= 0;
 select * from t1 where a > 1;
+analyze table t1;
 explain partitions select * from t1 where a is null;
 explain partitions select * from t1 where a >= 0;
 explain partitions select * from t1 where a < 0;
@@ -241,6 +243,7 @@ select * from t1 where a >= 0;
 select * from t1 where a < 0;
 select * from t1 where a <= 0;
 select * from t1 where a > 1;
+analyze table t1;
 explain partitions select * from t1 where a is null;
 explain partitions select * from t1 where a >= 0;
 explain partitions select * from t1 where a < 0;
@@ -532,11 +535,11 @@ primary key (a,b))
 partition by range (a)
 subpartition by hash (a+b)
 ( partition x1 values less than (1)
-  ( subpartition x11 tablespace t1,
-    subpartition x12 tablespace t2),
+  ( subpartition x11 tablespace t1 engine myisam,
+    subpartition x12 tablespace t2 engine myisam),
    partition x2 values less than (5)
-  ( subpartition x21 tablespace t1,
-    subpartition x22 tablespace t2)
+  ( subpartition x21 tablespace t1 engine myisam,
+    subpartition x22 tablespace t2 engine myisam)
 );
 
 INSERT into t1 VALUES (1,1,1);
@@ -873,6 +876,7 @@ INSERT INTO t1 VALUES ('2006-07-13'),('2006-07-20'),('2006-07-30');
 
 SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
+analyze table t1;
 EXPLAIN PARTITIONS SELECT * FROM t1
 WHERE a >= '2004-07-01' AND a <= '2004-09-30';
 SELECT * from t1
@@ -963,6 +967,8 @@ INSERT INTO t1 SELECT a + 40, b + 40 FROM t1;
 INSERT INTO t2 SELECT * FROM t1;
 
 --echo # plans should be identical
+analyze table t1;
+analyze table t2;
 EXPLAIN SELECT a, MAX(b) FROM t1 WHERE a IN (10,100) GROUP BY a;
 EXPLAIN SELECT a, MAX(b) FROM t2 WHERE a IN (10,100) GROUP BY a;
 

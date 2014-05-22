@@ -356,13 +356,13 @@ statement/sp/jump	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STA
 statement/sp/jump_if_not	NULL	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
 statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
 statement/sp/stmt	INSERT INTO t4(word, mean) VALUES('a','a mean')	stored_programs	PROCEDURE	stored_programs	SampleProc4	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	STATEMENT	1
-statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	STATEMENT	2
-statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	STATEMENT	2
-statement/sp/stmt	UPDATE t1 SET i=new.id+i	stored_programs	TRIGGER	stored_programs	trg2	STATEMENT	2
-statement/sp/stmt	SET @change:= @change + new.id - old.id	stored_programs	TRIGGER	stored_programs	trg3	STATEMENT	1
-statement/sp/stmt	SET @del:= @del + 1	stored_programs	TRIGGER	stored_programs	trg4	STATEMENT	1
-statement/sp/stmt	SET @del:= @del + 8 + old.j	stored_programs	TRIGGER	stored_programs	trg5	STATEMENT	1
+statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	1
+statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	2
+statement/sp/jump_if_not	NULL	stored_programs	TRIGGER	stored_programs	trg1	TRANSACTION	2
+statement/sp/stmt	UPDATE t1 SET i=new.id+i	stored_programs	TRIGGER	stored_programs	trg2	TRANSACTION	2
+statement/sp/stmt	SET @change:= @change + new.id - old.id	stored_programs	TRIGGER	stored_programs	trg3	TRANSACTION	1
+statement/sp/stmt	SET @del:= @del + 1	stored_programs	TRIGGER	stored_programs	trg4	TRANSACTION	1
+statement/sp/stmt	SET @del:= @del + 8 + old.j	stored_programs	TRIGGER	stored_programs	trg5	TRANSACTION	1
 statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	wt_avg	STATEMENT	1
 statement/sp/set	NULL	stored_programs	FUNCTION	stored_programs	wt_avg	STATEMENT	1
 statement/sp/freturn	NULL	stored_programs	FUNCTION	stored_programs	wt_avg	STATEMENT	1

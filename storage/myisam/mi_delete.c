@@ -87,8 +87,6 @@ int mi_delete(MI_INFO *info,const uchar *record)
                 _mi_make_key(info,i,old_key,record,info->lastpos)))
           goto err;
       }
-      /* The above changed info->lastkey2. Inform mi_rnext_same(). */
-      info->update&= ~HA_STATE_RNEXT_SAME;
     }
   }
 
@@ -219,7 +217,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
   uint length,nod_flag,search_key_length;
   my_bool last_key;
   uchar *leaf_buff,*keypos;
-  my_off_t UNINIT_VAR(leaf_page),next_block;
+  my_off_t leaf_page= 0, next_block;
   uchar lastkey[MI_MAX_KEY_BUFF];
   DBUG_ENTER("d_search");
   DBUG_DUMP("page",(uchar*) anc_buff,mi_getint(anc_buff));
@@ -304,7 +302,7 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
     }
   }
   leaf_buff=0;
-  LINT_INIT(leaf_page);
+  leaf_page= 0;
   if (nod_flag)
   {
     leaf_page=_mi_kpos(nod_flag,keypos);
@@ -352,8 +350,8 @@ static int d_search(MI_INFO *info, MI_KEYDEF *keyinfo,
 	DBUG_RETURN(-1);
       }
       /* Page will be update later if we return 1 */
-      DBUG_RETURN(test(length <= (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
-				  (uint) keyinfo->underflow_block_length)));
+      DBUG_RETURN(MY_TEST(length <= (info->quick_mode ? MI_MIN_KEYBLOCK_LENGTH :
+                                     (uint) keyinfo->underflow_block_length)));
     }
     save_flag=1;
     ret_value=del(info,keyinfo,key,anc_buff,leaf_page,leaf_buff,keypos,

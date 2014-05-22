@@ -33,6 +33,7 @@ Created 9/11/1995 Heikki Tuuri
 #include "sync0rw.h"
 #ifdef UNIV_NONINL
 #include "sync0rw.ic"
+#include "sync0arr.ic"
 #endif
 
 #include "ha_prototypes.h"
@@ -403,11 +404,10 @@ lock_loop:
 
 		rw_lock_stats.rw_s_spin_round_count.inc();
 
-		sync_arr = sync_array_get();
+		sync_cell_t*	cell;
 
-		sync_cell_t*	cell = sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_S,
-			file_name, line);
+		sync_arr = sync_array_get_and_reserve_cell(
+				lock, RW_LOCK_S, file_name, line, &cell);
 
 		/* Set waiters before checking lock_word to ensure wake-up
 		signal is sent. This may lead to some unnecessary signals. */
@@ -476,7 +476,8 @@ rw_lock_x_lock_wait_func(
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
-		if(i < srv_n_spin_wait_rounds) {
+
+		if (i < srv_n_spin_wait_rounds) {
 			i++;
 			continue;
 		}
@@ -484,11 +485,10 @@ rw_lock_x_lock_wait_func(
 		/* If there is still a reader, then go to sleep.*/
 		rw_lock_stats.rw_x_spin_round_count.inc();
 
-		sync_arr = sync_array_get();
+		sync_cell_t*	cell;
 
-		sync_cell_t*	cell = sync_array_reserve_cell(
-			sync_arr, lock, RW_LOCK_X_WAIT,
-			file_name, line);
+		sync_arr = sync_array_get_and_reserve_cell(
+				lock, RW_LOCK_X_WAIT, file_name, line, &cell);
 
 		i = 0;
 
@@ -607,7 +607,7 @@ rw_lock_x_lock_low(
 /******************************************************************//**
 Low-level function for acquiring an sx lock.
 @return FALSE if did not succeed, TRUE if success. */
-UNIV_INLINE
+
 ibool
 rw_lock_sx_lock_low(
 /*================*/
@@ -749,10 +749,10 @@ lock_loop:
 
 	rw_lock_stats.rw_x_spin_round_count.inc();
 
-	sync_arr = sync_array_get();
+	sync_cell_t*	cell;
 
-	sync_cell_t*	cell = sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_X, file_name, line);
+	sync_arr = sync_array_get_and_reserve_cell(
+			lock, RW_LOCK_X, file_name, line, &cell);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */
@@ -851,10 +851,10 @@ lock_loop:
 
 	rw_lock_stats.rw_sx_spin_round_count.add(counter_index, i);
 
-	sync_arr = sync_array_get();
+	sync_cell_t*	cell;
 
-	sync_cell_t*	cell = sync_array_reserve_cell(
-		sync_arr, lock, RW_LOCK_SX, file_name, line);
+	sync_arr = sync_array_get_and_reserve_cell(
+			lock, RW_LOCK_SX, file_name, line, &cell);
 
 	/* Waiters must be set before checking lock_word, to ensure signal
 	is sent. This could lead to a few unnecessary wake-up signals. */

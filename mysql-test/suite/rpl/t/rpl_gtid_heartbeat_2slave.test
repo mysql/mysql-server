@@ -1,0 +1,10 @@
+#############################################################
+# Author: Serge Kozlov <Serge.Kozlov@Sun.COM>
+# Date:   02/19/2009
+# Purpose: Testing heartbeat for schema
+# 1 master and 2 slaves
+#############################################################
+
+--source include/have_gtid.inc
+
+--source extra/rpl_tests/rpl_heartbeat_2slaves.inc

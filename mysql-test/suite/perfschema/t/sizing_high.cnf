@@ -44,6 +44,8 @@ loose-performance-schema-events-stages-history-size=-1
 loose-performance-schema-events-stages-history-long-size=-1
 loose-performance-schema-events-statements-history-size=-1
 loose-performance-schema-events-statements-history-long-size=-1
+loose-performance-schema-events-transactions-history-size=-1
+loose-performance-schema-events-transactions-history-long-size=-1
 
 loose-performance-schema-max-mutex-instances=-1
 loose-performance-schema-max-rwlock-instances=-1

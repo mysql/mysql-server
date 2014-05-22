@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,7 +138,7 @@ int chk_del(MI_CHECK *param, MI_INFO *info, uint test_flag)
 {
   ha_rows i;
   uint delete_link_length;
-  my_off_t empty,next_link,UNINIT_VAR(old_link);
+  my_off_t empty,next_link, old_link= 0;
   char buff[22],buff2[22];
   DBUG_ENTER("chk_del");
 
@@ -929,11 +929,11 @@ static uint isam_key_length(MI_INFO *info, MI_KEYDEF *keyinfo)
 int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 {
   int	error,got_error,flag;
-  uint	key,UNINIT_VAR(left_length),b_type,field;
+  uint	key, left_length= 0, b_type, field;
   ha_rows records,del_blocks;
-  my_off_t used,empty,pos,splits,UNINIT_VAR(start_recpos),
+  my_off_t used, empty, pos, splits, start_recpos= 0,
 	   del_length,link_used,start_block;
-  uchar	*record= 0, *UNINIT_VAR(to);
+  uchar	*record= 0, *to= NULL;
   char llbuff[22],llbuff2[22],llbuff3[22];
   ha_checksum intern_record_checksum;
   ha_checksum key_checksum[HA_MAX_POSSIBLE_KEY];
@@ -1154,7 +1154,7 @@ int chk_data_link(MI_CHECK *param, MI_INFO *info,int extend)
 	  if (param->testflag & (T_EXTEND | T_MEDIUM | T_VERBOSE))
 	  {
 	    if (_mi_rec_check(info,record, info->rec_buff,block_info.rec_len,
-                              test(info->s->calc_checksum)))
+                              MY_TEST(info->s->calc_checksum)))
 	    {
 	      mi_check_print_error(param,"Found wrong packed record at %s",
 			  llstr(start_recpos,llbuff));
@@ -2228,7 +2228,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
   ulong   *rec_per_key_part;
   char llbuff[22];
   SORT_INFO sort_info;
-  ulonglong UNINIT_VAR(key_map);
+  ulonglong key_map= 0;
   DBUG_ENTER("mi_repair_by_sort");
 
   start_records=info->state->records;
@@ -2379,7 +2379,7 @@ int mi_repair_by_sort(MI_CHECK *param, MI_INFO *info,
       if (keyseg[i].flag & HA_SPACE_PACK)
 	sort_param.key_length+=get_pack_length(keyseg[i].length);
       if (keyseg[i].flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
-	sort_param.key_length+=2 + test(keyseg[i].length >= 127);
+	sort_param.key_length+=2 + MY_TEST(keyseg[i].length >= 127);
       if (keyseg[i].flag & HA_NULL_PART)
 	sort_param.key_length++;
     }
@@ -2639,7 +2639,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   IO_CACHE new_data_cache; /* For non-quick repair. */
   IO_CACHE_SHARE io_share;
   SORT_INFO sort_info;
-  ulonglong UNINIT_VAR(key_map);
+  ulonglong key_map= 0;
   pthread_attr_t thr_attr;
   ulong max_pack_reclength;
   int error;
@@ -2867,7 +2867,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
       if (keyseg->flag & HA_SPACE_PACK)
         sort_param[i].key_length+=get_pack_length(keyseg->length);
       if (keyseg->flag & (HA_BLOB_PART | HA_VAR_LENGTH_PART))
-        sort_param[i].key_length+=2 + test(keyseg->length >= 127);
+        sort_param[i].key_length+=2 + MY_TEST(keyseg->length >= 127);
       if (keyseg->flag & HA_NULL_PART)
         sort_param[i].key_length++;
     }
@@ -2885,7 +2885,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   sort_info.total_keys=i;
   sort_param[0].master= 1;
   sort_param[0].fix_datafile= (my_bool)(! rep_quick);
-  sort_param[0].calc_checksum= test(param->testflag & T_CALC_CHECKSUM);
+  sort_param[0].calc_checksum= MY_TEST(param->testflag & T_CALC_CHECKSUM);
 
   if (!ftparser_alloc_param(info))
     goto err;
@@ -3126,10 +3126,6 @@ static int sort_key_read(MI_SORT_PARAM *sort_param, void *key)
     (info->s->rec_reflength+
      _mi_make_key(info, sort_param->key, (uchar*) key,
 		  sort_param->record, sort_param->filepos));
-#ifdef HAVE_purify
-  memset(key+sort_param->real_key_length, 0,
-         (sort_param->key_length-sort_param->real_key_length));
-#endif
   DBUG_RETURN(sort_write_record(sort_param));
 } /* sort_key_read */
 
@@ -3166,11 +3162,6 @@ static int sort_ft_key_read(MI_SORT_PARAM *sort_param, void *key)
   sort_param->real_key_length=(info->s->rec_reflength+
 			       _ft_make_key(info, sort_param->key,
 					    key, wptr++, sort_param->filepos));
-#ifdef HAVE_purify
-  if (sort_param->key_length > sort_param->real_key_length)
-    memset(key+sort_param->real_key_length, 0,
-           (sort_param->key_length-sort_param->real_key_length));
-#endif
   if (!wptr->pos)
   {
     free_root(&sort_param->wordroot, MYF(MY_MARK_BLOCKS_FREE));
@@ -3221,7 +3212,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
   int parallel_flag;
   uint found_record,b_type,left_length;
   my_off_t pos;
-  uchar *UNINIT_VAR(to);
+  uchar *to= NULL;
   MI_BLOCK_INFO block_info;
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
@@ -3268,7 +3259,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
       }
     }
   case DYNAMIC_RECORD:
-    LINT_INIT(to);
+    to= NULL;
     pos=sort_param->pos;
     searching=(sort_param->fix_datafile && (param->testflag & T_EXTEND));
     parallel_flag= (sort_param->read_cache.file < 0) ? READING_NEXT : 0;
@@ -3541,7 +3532,7 @@ static int sort_get_next_record(MI_SORT_PARAM *sort_param)
                             sort_param->find_length,
                             (param->testflag & T_QUICK) &&
                             sort_param->calc_checksum &&
-                            test(info->s->calc_checksum)))
+                            MY_TEST(info->s->calc_checksum)))
 	  {
 	    mi_check_print_info(param,"Found wrong packed record at %s",
 				llstr(sort_param->start_recpos,llbuff));
@@ -3700,7 +3691,7 @@ int sort_write_record(MI_SORT_PARAM *sort_param)
 
       do
       {
-	block_length=reclength+ 3 + test(reclength >= (65520-3));
+	block_length=reclength+ 3 + MY_TEST(reclength >= (65520-3));
 	if (block_length < share->base.min_block_length)
 	  block_length=share->base.min_block_length;
 	info->update|=HA_STATE_WRITE_AT_END;
@@ -4623,7 +4614,7 @@ static ha_checksum mi_byte_checksum(const uchar *buf, uint length)
   const uchar *end=buf+length;
   for (crc=0; buf != end; buf++)
     crc=((crc << 1) + *((uchar*) buf)) +
-      test(crc & (((ha_checksum) 1) << (8*sizeof(ha_checksum)-1)));
+      MY_TEST(crc & (((ha_checksum) 1) << (8*sizeof(ha_checksum)-1)));
   return crc;
 }
 

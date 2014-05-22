@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -255,7 +255,7 @@ TREE_ELEMENT *tree_insert(TREE *tree, void *key, uint key_size,
     }
     else
       memcpy((uchar*) element+tree->offset_to_key,key,(size_t) key_size);
-    element->count=1;			/* May give warning in purify */
+    element->count=1;
     tree->elements_in_tree++;
     rb_insert(tree,parent,element);	/* rebalance tree */
   }

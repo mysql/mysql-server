@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -466,8 +466,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     {
        DBUG_PRINT("error", ("Key %d has different definition", i));
        DBUG_PRINT("error", ("t1_fulltext= %d, t2_fulltext=%d",
-                            test(t1_keyinfo[i].flag & HA_FULLTEXT),
-                            test(t2_keyinfo[i].flag & HA_FULLTEXT)));
+                            MY_TEST(t1_keyinfo[i].flag & HA_FULLTEXT),
+                            MY_TEST(t2_keyinfo[i].flag & HA_FULLTEXT)));
        DBUG_RETURN(1);
     }
     if (t1_keyinfo[i].flag & HA_SPATIAL && t2_keyinfo[i].flag & HA_SPATIAL)
@@ -477,8 +477,8 @@ int check_definition(MI_KEYDEF *t1_keyinfo, MI_COLUMNDEF *t1_recinfo,
     {
        DBUG_PRINT("error", ("Key %d has different definition", i));
        DBUG_PRINT("error", ("t1_spatial= %d, t2_spatial=%d",
-                            test(t1_keyinfo[i].flag & HA_SPATIAL),
-                            test(t2_keyinfo[i].flag & HA_SPATIAL)));
+                            MY_TEST(t1_keyinfo[i].flag & HA_SPATIAL),
+                            MY_TEST(t2_keyinfo[i].flag & HA_SPATIAL)));
        DBUG_RETURN(1);
     }
     if ((!mysql_40_compat &&
@@ -1039,7 +1039,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
-  param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
@@ -1069,7 +1068,7 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 			share->state.key_map);
     uint testflag=param.testflag;
 #ifdef HAVE_MMAP
-    bool remap= test(share->file_map);
+    bool remap= MY_TEST(share->file_map);
     /*
       mi_repair*() functions family use file I/O even if memory
       mapping is available.
@@ -1565,10 +1564,6 @@ bool ha_myisam::check_and_repair(THD *thd)
     check_opt.flags|=T_QUICK;
   sql_print_warning("Checking table:   '%s'",table->s->path.str);
 
-  const CSET_STRING query_backup= thd->query_string;
-  thd->set_query(table->s->table_name.str,
-                 (uint) table->s->table_name.length, system_charset_info);
-
   if ((marked_crashed= mi_is_crashed(file)) || check(thd, &check_opt))
   {
     sql_print_warning("Recovering table: '%s'",table->s->path.str);
@@ -1580,7 +1575,6 @@ bool ha_myisam::check_and_repair(THD *thd)
     if (repair(thd, &check_opt))
       error=1;
   }
-  thd->set_query(query_backup);
   DBUG_RETURN(error);
 }
 
@@ -1611,7 +1605,7 @@ ICP_RESULT index_cond_func_myisam(void *arg)
   if (h->end_range && h->compare_key_icp(h->end_range) > 0)
     return ICP_OUT_OF_RANGE; /* caller should return HA_ERR_END_OF_FILE already */
 
-  return (ICP_RESULT) test(h->pushed_idx_cond->val_int());
+  return (ICP_RESULT) MY_TEST(h->pushed_idx_cond->val_int());
 }
 
 C_MODE_END
@@ -2116,8 +2110,7 @@ int ha_myisam::ft_read(uchar *buf)
   if (!ft_handler)
     return -1;
 
-  thread_safe_increment(table->in_use->status_var.ha_read_next_count,
-                        &LOCK_status); // why ?
+  ha_statistic_increment(&SSV::ha_read_next_count);
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 

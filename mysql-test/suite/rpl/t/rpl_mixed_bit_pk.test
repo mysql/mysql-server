@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # BUG
 # ---
@@ -34,6 +29,7 @@
 #
 
 --source include/master-slave.inc
+--source include/have_myisam.inc
 
 disable_query_log;
 call mtr.add_suppression("Unsafe statement written to the binary log using statement format since BINLOG_FORMAT = STATEMENT");
@@ -79,10 +75,10 @@ DELETE FROM `t8` WHERE `bit` < 2 LIMIT 4;
 
 
 --enable_warnings
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # clean up 
 connection master;
 DROP TABLE t1, t2, t3, t4, t5, t6, t7, t8;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

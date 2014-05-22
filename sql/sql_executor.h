@@ -1,7 +1,7 @@
 #ifndef SQL_EXECUTOR_INCLUDED
 #define SQL_EXECUTOR_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,7 +149,7 @@ public:
   const uint table_count;       ///< Number of tables in the sj-nest
   const uint mat_table_index;   ///< Index in join_tab for materialized table
   const uint inner_table_index; ///< Index in join_tab for first inner table
-  TMP_TABLE_PARAM table_param;  ///< The temptable and its related info
+  Temp_table_param table_param; ///< The temptable and its related info
   TABLE *table;                 ///< Reference to temporary table
 };
 
@@ -275,7 +275,7 @@ evaluate_join_record(JOIN *join, JOIN_TAB *join_tab, int error);
 
 
 
-void copy_fields(TMP_TABLE_PARAM *param);
+void copy_fields(Temp_table_param *param);
 bool copy_funcs(Func_ptr_array*, const THD *thd);
 bool cp_buffer_from_ref(THD *thd, TABLE *table, TABLE_REF *ref);
 
@@ -315,7 +315,7 @@ bool alloc_group_fields(JOIN *join, ORDER *group);
 bool prepare_sum_aggregators(Item_sum **func_ptr, bool need_distinct);
 bool setup_sum_funcs(THD *thd, Item_sum **func_ptr);
 bool make_group_fields(JOIN *main_join, JOIN *curr_join);
-bool setup_copy_fields(THD *thd, TMP_TABLE_PARAM *param,
+bool setup_copy_fields(THD *thd, Temp_table_param *param,
 		  Ref_ptr_array ref_pointer_array,
 		  List<Item> &res_selected_fields, List<Item> &res_all_fields,
 		  uint elements, List<Item> &all_fields);

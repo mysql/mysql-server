@@ -180,34 +180,34 @@ COMMIT;
 # column 10 is the row count provided by handler::info().  In InnoDB, this is
 # a statistical estimate.  After the multi-transactional changes above,
 # Solaris reports 10 rows which is correct, but other OSes report 9.
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT * FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t1;
 EXPLAIN SELECT COUNT(*) FROM t3;
 EXPLAIN SELECT COUNT(c1) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT COUNT(c2) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT COUNT(c3) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT SUM(c1) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT SUM(c2) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT AVG(c1), MAX(c1), MIN(c2), AVG(c3), SUM(c4) FROM t1;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT AVG(c1), MAX(c1), MIN(c2), AVG(c3), SUM(c4) FROM t3;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT c1, c2 FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t1) / 2);
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT c1, c2 FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t3) / 2);
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT COUNT(c2) FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t1) / 2);
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT COUNT(c2) FROM t1 WHERE c1 > ((SELECT COUNT(*) FROM t3) / 2);
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c1 > (SELECT AVG(c1) FROM t1);
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT COUNT(*) FROM t1 WHERE c1 > (SELECT AVG(c1) FROM t3);
 
 --echo #

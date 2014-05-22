@@ -1,5 +1,5 @@
-/*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+	/*
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 #include <sql_common.h>
 #include <welcome_copyright_notice.h>           /* ORACLE_WELCOME_COPYRIGHT_NOTICE */
 #include <mysqld_error.h>                       /* to check server error codes */
+#include <string>  /* std::string */
 
 #define ADMIN_VERSION "8.42"
 #define MAX_MYSQL_VAR 512
@@ -40,7 +41,7 @@ ulonglong last_values[MAX_MYSQL_VAR];
 static int interval=0;
 static my_bool option_force=0,interrupted=0,new_line=0,
                opt_compress=0, opt_relative=0, opt_verbose=0, opt_vertical=0,
-               tty_password= 0, opt_nobeep;
+               tty_password= 0, opt_nobeep, opt_secure_auth= TRUE;
 static my_bool debug_info_flag= 0, debug_check_flag= 0;
 static uint tcp_port = 0, option_wait = 0, option_silent=0, nr_iterations;
 static uint opt_count_iterations= 0, my_end_arg;
@@ -76,8 +77,9 @@ extern "C" my_bool get_one_option(int optid, const struct my_option *opt,
                                   char *argument);
 static my_bool sql_connect(MYSQL *mysql, uint wait);
 static int execute_commands(MYSQL *mysql,int argc, char **argv);
+static char **mask_password(int argc, char ***argv);
 static int drop_db(MYSQL *mysql,const char *db);
-extern "C" sig_handler endprog(int signal_number);
+extern "C" void endprog(int signal_number);
 static void nice_time(ulong sec,char *buff);
 static void print_header(MYSQL_RES *result);
 static void print_top(MYSQL_RES *result);
@@ -132,16 +134,24 @@ static struct my_option my_long_options[] =
    "Number of iterations to make. This works with -i (--sleep) only.",
    &nr_iterations, &nr_iterations, 0, GET_UINT,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"force", 'f',
    "Don't ask for confirmation on drop database; with multiple commands, "
    "continue even if an error occurs.",
@@ -183,6 +193,9 @@ static struct my_option my_long_options[] =
    "Currently only works with extended-status.",
    &opt_relative, &opt_relative, 0, GET_BOOL, NO_ARG, 0, 0, 0,
   0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+   " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+   &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name, &shared_memory_base_name,
@@ -316,11 +329,11 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 
 int main(int argc,char *argv[])
 {
-  int error= 0, ho_error;
+  int error= 0, ho_error, temp_argc;
   int first_command;
   my_bool can_handle_passwords;
   MYSQL mysql;
-  char **commands, **save_argv;
+  char **commands, **save_argv, **temp_argv;
 
   MY_INIT(argv[0]);
   mysql_init(&mysql);
@@ -335,6 +348,9 @@ int main(int argc,char *argv[])
     free_defaults(save_argv);
     exit(ho_error);
   }
+  temp_argv= mask_password(argc, &argv);
+  temp_argc= argc;
+
   if (debug_info_flag)
     my_end_arg= MY_CHECK_ERROR | MY_GIVE_INFO;
   if (debug_check_flag)
@@ -345,7 +361,7 @@ int main(int argc,char *argv[])
     usage();
     exit(1);
   }
-  commands = argv;
+  commands = temp_argv;
   if (tty_password)
     opt_password = get_tty_password(NullS);
 
@@ -354,6 +370,8 @@ int main(int argc,char *argv[])
 
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
   if (opt_connect_timeout)
@@ -361,17 +379,7 @@ int main(int argc,char *argv[])
     uint tmp=opt_connect_timeout;
     mysql_options(&mysql,MYSQL_OPT_CONNECT_TIMEOUT, (char*) &tmp);
   }
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
@@ -509,13 +517,20 @@ int main(int argc,char *argv[])
   my_free(shared_memory_base_name);
 #endif
   free_defaults(save_argv);
+  temp_argc--;
+  while(temp_argc >= 0)
+  {
+    my_free(temp_argv[temp_argc]);
+    temp_argc--;
+  }
+  my_free(temp_argv);
   my_end(my_end_arg);
   exit(error ? 1 : 0);
   return 0;
 }
 
 
-sig_handler endprog(int signal_number __attribute__((unused)))
+void endprog(int signal_number __attribute__((unused)))
 {
   interrupted=1;
 }
@@ -806,7 +821,7 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
           /* We don't use mysql_kill(), since it only handles 32-bit IDs. */
           char buff[26], *out; /* "KILL " + max 20 digs + NUL */
           out= strxmov(buff, "KILL ", NullS);
-          ullstr(strtoull(pos, NULL, 0), out);
+          ullstr(my_strtoull(pos, NULL, 0), out);
 
           if (mysql_query(mysql, buff))
 	  {
@@ -914,7 +929,48 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
     }
     case ADMIN_FLUSH_LOGS:
     {
-      if (mysql_refresh(mysql,REFRESH_LOG))
+      std::string command;
+      if (argc > 1)
+      {
+        bool first_arg= true;
+        for (command= "FLUSH "; argc > 1; argc--, argv++)
+        {
+          if (!first_arg)
+            command+= ",";
+
+          if (!my_strcasecmp(&my_charset_latin1, argv[1], "binary"))
+            command+= " BINARY LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "engine"))
+            command+= " ENGINE LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "error"))
+            command+= " ERROR LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "general"))
+            command+= " GENERAL LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "relay"))
+            command+= " RELAY LOGS";
+          else if (!my_strcasecmp(&my_charset_latin1, argv[1], "slow"))
+            command+= " SLOW LOGS";
+          else
+          {
+            /*
+              Not a valid log type, assume it's the next command.
+              Remove the trailing comma if any of the log types is specified
+              or flush all if no specific log type is specified.
+            */
+            if (!first_arg)
+              command.resize(command.size() - 1);
+            else
+              command= "FLUSH LOGS";
+            break;
+          }
+
+          if (first_arg)
+            first_arg= false;
+        }
+      }
+      else
+        command= "FLUSH LOGS";
+      if (mysql_query(mysql, command.c_str()))
       {
 	my_printf_error(0, "refresh failed; error: '%s'", error_flags,
 			mysql_error(mysql));
@@ -985,7 +1041,10 @@ static int execute_commands(MYSQL *mysql,int argc, char **argv)
         }
       }
       else
+      {
+        print_cmdline_password_warning();
         typed_password= argv[1];
+      }
 
       if (typed_password[0])
       {
@@ -1179,6 +1238,47 @@ error:
   return 0;
 }
 
+/**
+   @brief Masking the password if it is passed as command line argument.
+
+   @details It works in Linux and changes cmdline in ps and /proc/pid/cmdline,
+            but it won't work for history file of shell.
+            The command line arguments are copied to another array and the
+            password in the argv is masked. This function is called just after
+            "handle_options" because in "handle_options", the agrv pointers
+            are altered which makes freeing of dynamically allocated memory
+            difficult. The password masking is done before all other operations
+            in order to minimise the time frame of password visibility via cmdline.
+
+   @param argc            command line options (count)
+   @param argv            command line options (values)
+
+   @return temp_argv      copy of argv
+*/
+
+static char **mask_password(int argc, char ***argv)
+{
+  char **temp_argv;
+  temp_argv= (char **)(my_malloc(PSI_NOT_INSTRUMENTED, sizeof(char *) * argc, MYF(MY_WME)));
+  argc--;
+  while (argc > 0)
+  {
+    temp_argv[argc]= my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
+    if (find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_PASSWORD ||
+        find_type((*argv)[argc - 1],&command_typelib, FIND_TYPE_BASIC) == ADMIN_OLD_PASSWORD)
+    {
+      char *start= (*argv)[argc];
+      while (*start)
+        *start++= 'x';
+      start= (*argv)[argc];
+      if (*start)
+        start[1]= 0;                         /* Cut length of argument */
+     }
+    argc--;
+  }
+  temp_argv[argc]= my_strdup(PSI_NOT_INSTRUMENTED, (*argv)[argc], MYF(MY_FAE));
+  return(temp_argv);
+}
 
 static void print_version(void)
 {
@@ -1353,7 +1453,7 @@ static void print_relative_row(MYSQL_RES *result, MYSQL_ROW cur, uint row)
   printf("| %-*s|", (int) field->max_length + 1, cur[0]);
 
   field = mysql_fetch_field(result);
-  tmp = cur[1] ? strtoull(cur[1], NULL, 10) : (ulonglong) 0;
+  tmp = cur[1] ? my_strtoull(cur[1], NULL, 10) : (ulonglong) 0;
   printf(" %-*s|\n", (int) field->max_length + 1,
 	 llstr((tmp - last_values[row]), buff));
   last_values[row] = tmp;
@@ -1371,7 +1471,7 @@ static void print_relative_row_vert(MYSQL_RES *result __attribute__((unused)),
   if (!row)
     putchar('|');
 
-  tmp = cur[1] ? strtoull(cur[1], NULL, 10) : (ulonglong) 0;
+  tmp = cur[1] ? my_strtoull(cur[1], NULL, 10) : (ulonglong) 0;
   printf(" %-*s|", ex_val_max_len[row] + 1,
 	 llstr((tmp - last_values[row]), buff));
 
@@ -1396,7 +1496,7 @@ static void store_values(MYSQL_RES *result)
   for (i = 0; (row = mysql_fetch_row(result)); i++)
   {
     my_stpcpy(ex_var_names[i], row[0]);
-    last_values[i]=strtoull(row[1],NULL,10);
+    last_values[i]= my_strtoull(row[1],NULL,10);
     ex_val_max_len[i]=2;		/* Default print width for values */
   }
   ex_var_count = i;
@@ -1553,7 +1653,7 @@ static void print_warnings(MYSQL *mysql)
 
   /* Get the warnings */
   query= "show warnings";
-  if (mysql_real_query(mysql, query, strlen(query)) ||
+  if (mysql_real_query(mysql, query, static_cast<ulong>(strlen(query))) ||
       !(result= mysql_store_result(mysql)))
   {
     my_printf_error(0,"Could not print warnings; error: '%-.200s'",

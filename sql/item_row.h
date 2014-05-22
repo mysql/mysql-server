@@ -1,7 +1,7 @@
 #ifndef ITEM_ROW_INCLUDED
 #define ITEM_ROW_INCLUDED
 
-/* Copyright (c) 2002, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -16,15 +16,42 @@
    along with this program; if not, write to the Free Software Foundation,
    51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
 
+/**
+   Item which stores (x,y,...) and ROW(x,y,...).
+   Note that this can be recursive: ((x,y),(z,t)) is a ROW of ROWs.
+*/
 class Item_row: public Item
 {
+  typedef Item super;
+
   Item **items;
   table_map used_tables_cache, not_null_tables_cache;
   uint arg_count;
   bool const_item_cache;
+  /**
+     If elements are made only of constants, of which one or more are
+     NULL. For example, this item is (1,2,NULL), or ( (1,NULL), (2,3) ).
+  */
   bool with_null;
 public:
-  Item_row(List<Item> &);
+  /**
+    Row items used for comparing rows and IN operations on rows:
+
+    @param pos    current parse context
+    @param head   first column in the row
+    @param tail   rest of columns in the row
+
+    @verbatim
+    (a, b, c) > (10, 10, 30)
+    (a, b, c) = (select c, d, e, from t1 where x=12)
+    (a, b, c) IN ((1,2,2), (3,4,5), (6,7,8)
+    (a, b, c) IN (select c, d, e, from t1)
+    @endverbatim
+
+    @todo
+      think placing 2-3 component items in item (as it done for function
+  */
+  Item_row(const POS &pos, Item *head, List<Item> &tail);
   Item_row(Item_row *item):
     Item(),
     items(item->items),
@@ -34,6 +61,8 @@ public:
     const_item_cache(item->const_item_cache),
     with_null(0)
   {}
+
+  virtual bool itemize(Parse_context *pc, Item **res);
 
   enum Type type() const { return ROW_ITEM; };
   void illegal_method_call(const char *);
@@ -62,7 +91,7 @@ public:
     illegal_method_call((const char*)"val_decimal");
     return 0;
   };
-  bool get_date(MYSQL_TIME *ltime, uint fuzzydate)
+  bool get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
   {
     illegal_method_call((const char *) "get_date");
     return true;
@@ -86,7 +115,7 @@ public:
   table_map not_null_tables() const { return not_null_tables_cache; }
   virtual void print(String *str, enum_query_type query_type);
 
-  bool walk(Item_processor processor, bool walk_subquery, uchar *arg);
+  bool walk(Item_processor processor, enum_walk walk, uchar *arg);
   Item *transform(Item_transformer transformer, uchar *arg);
 
   uint cols() { return arg_count; }

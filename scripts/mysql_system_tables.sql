@@ -1,4 +1,4 @@
--- Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+-- Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 --
 -- This program is free software; you can redistribute it and/or modify
 -- it under the terms of the GNU General Public License as published by
@@ -18,14 +18,14 @@
 --
 
 set sql_mode='';
-set storage_engine=myisam;
+set default_storage_engine=myisam;
 
 CREATE TABLE IF NOT EXISTS db (   Host char(60) binary DEFAULT '' NOT NULL, Db char(64) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,Db,User), KEY User (User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Database privileges';
 
 -- Remember for later if db table already existed
 set @had_db_table= @@warning_count != 0;
 
-CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT 'mysql_native_password' NOT NULL, authentication_string TEXT, password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
+CREATE TABLE IF NOT EXISTS user (   Host char(60) binary DEFAULT '' NOT NULL, User char(16) binary DEFAULT '' NOT NULL, Password char(41) character set latin1 collate latin1_bin DEFAULT '' NOT NULL, Select_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Insert_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Update_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Delete_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Drop_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Reload_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Shutdown_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Process_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, File_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Grant_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, References_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Index_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_db_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Super_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tmp_table_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Lock_tables_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Execute_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_slave_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Repl_client_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Show_view_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Alter_routine_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_user_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Event_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Trigger_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, Create_tablespace_priv enum('N','Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, ssl_type enum('','ANY','X509', 'SPECIFIED') COLLATE utf8_general_ci DEFAULT '' NOT NULL, ssl_cipher BLOB NOT NULL, x509_issuer BLOB NOT NULL, x509_subject BLOB NOT NULL, max_questions int(11) unsigned DEFAULT 0  NOT NULL, max_updates int(11) unsigned DEFAULT 0  NOT NULL, max_connections int(11) unsigned DEFAULT 0  NOT NULL, max_user_connections int(11) unsigned DEFAULT 0  NOT NULL, plugin char(64) DEFAULT 'mysql_native_password' NOT NULL, authentication_string TEXT, password_expired ENUM('N', 'Y') COLLATE utf8_general_ci DEFAULT 'N' NOT NULL, password_last_changed timestamp NULL DEFAULT NULL, password_lifetime smallint unsigned NULL DEFAULT NULL, PRIMARY KEY Host (Host,User) ) engine=MyISAM CHARACTER SET utf8 COLLATE utf8_bin comment='Users and global privileges';
 
 -- Remember for later if user table already existed
 set @had_user_table= @@warning_count != 0;
@@ -296,7 +296,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_current("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -327,7 +327,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -358,7 +358,7 @@ SET @cmd="CREATE TABLE performance_schema.events_waits_history_long("
   "OBJECT_TYPE VARCHAR(64),"
   "OBJECT_INSTANCE_BEGIN BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "OPERATION VARCHAR(32) not null,"
   "NUMBER_OF_BYTES BIGINT,"
   "FLAGS INTEGER unsigned"
@@ -1065,7 +1065,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1087,7 +1087,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1109,7 +1109,7 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT')"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1256,7 +1256,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_current("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1309,7 +1309,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1362,7 +1362,7 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_history_long("
   "NO_INDEX_USED BIGINT unsigned not null,"
   "NO_GOOD_INDEX_USED BIGINT unsigned not null,"
   "NESTING_EVENT_ID BIGINT unsigned,"
-  "NESTING_EVENT_TYPE ENUM('STATEMENT', 'STAGE', 'WAIT'),"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT'),"
   "NESTING_EVENT_LEVEL INTEGER"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
@@ -1554,6 +1554,253 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_global_by_ev
   "SUM_SORT_SCAN BIGINT unsigned not null,"
   "SUM_NO_INDEX_USED BIGINT unsigned not null,"
   "SUM_NO_GOOD_INDEX_USED BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_CURRENT
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_current("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_HISTORY
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_history("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_HISTORY_LONG
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_history_long("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_ID BIGINT unsigned not null,"
+  "END_EVENT_ID BIGINT unsigned,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "STATE ENUM('ACTIVE', 'COMMITTED', 'ROLLED BACK'),"
+  "TRX_ID BIGINT unsigned,"
+  "GTID VARCHAR(64),"
+  "XID VARCHAR(132),"
+  "XA_STATE VARCHAR(64),"
+  "SOURCE VARCHAR(64),"
+  "TIMER_START BIGINT unsigned,"
+  "TIMER_END BIGINT unsigned,"
+  "TIMER_WAIT BIGINT unsigned,"
+  "ACCESS_MODE ENUM('READ ONLY', 'READ WRITE'),"
+  "ISOLATION_LEVEL VARCHAR(64),"
+  "AUTOCOMMIT ENUM('YES','NO') not null,"
+  "NUMBER_OF_SAVEPOINTS BIGINT unsigned,"
+  "NUMBER_OF_ROLLBACK_TO_SAVEPOINT BIGINT unsigned,"
+  "NUMBER_OF_RELEASE_SAVEPOINT BIGINT unsigned,"
+  "OBJECT_INSTANCE_BEGIN BIGINT unsigned,"
+  "NESTING_EVENT_ID BIGINT unsigned,"
+  "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_THREAD_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_thread_by_event_name("
+  "THREAD_ID BIGINT unsigned not null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_HOST_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_host_by_event_name("
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_USER_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_user_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_BY_ACCOUNT_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_by_account_by_event_name("
+  "USER CHAR(16) collate utf8_bin default null,"
+  "HOST CHAR(60) collate utf8_bin default null,"
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE EVENTS_TRANSACTIONS_SUMMARY_GLOBAL_BY_EVENT_NAME
+--
+
+SET @cmd="CREATE TABLE performance_schema.events_transactions_summary_global_by_event_name("
+  "EVENT_NAME VARCHAR(128) not null,"
+  "COUNT_STAR BIGINT unsigned not null,"
+  "SUM_TIMER_WAIT BIGINT unsigned not null,"
+  "MIN_TIMER_WAIT BIGINT unsigned not null,"
+  "AVG_TIMER_WAIT BIGINT unsigned not null,"
+  "MAX_TIMER_WAIT BIGINT unsigned not null,"
+  "COUNT_READ_WRITE BIGINT unsigned not null,"
+  "SUM_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MIN_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "AVG_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "MAX_TIMER_READ_WRITE BIGINT unsigned not null,"
+  "COUNT_READ_ONLY BIGINT unsigned not null,"
+  "SUM_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MIN_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "AVG_TIMER_READ_ONLY BIGINT unsigned not null,"
+  "MAX_TIMER_READ_ONLY BIGINT unsigned not null"
   ")ENGINE=PERFORMANCE_SCHEMA;";
 
 SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
@@ -1770,7 +2017,7 @@ EXECUTE stmt;
 DROP PREPARE stmt;
 
 --
--- TABLE EVENTS_STATEMENTS_SUMMARY_BY_ROUTINE
+-- TABLE EVENTS_STATEMENTS_SUMMARY_BY_PROGRAM
 --
 
 SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_program("
@@ -1787,6 +2034,53 @@ SET @cmd="CREATE TABLE performance_schema.events_statements_summary_by_program("
   "MIN_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
   "AVG_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
   "MAX_STATEMENTS_WAIT bigint(20) unsigned NOT NULL,"
+  "SUM_LOCK_TIME bigint(20) unsigned NOT NULL,"
+  "SUM_ERRORS bigint(20) unsigned NOT NULL,"
+  "SUM_WARNINGS bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_AFFECTED bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_SENT bigint(20) unsigned NOT NULL,"
+  "SUM_ROWS_EXAMINED bigint(20) unsigned NOT NULL,"
+  "SUM_CREATED_TMP_DISK_TABLES bigint(20) unsigned NOT NULL,"
+  "SUM_CREATED_TMP_TABLES bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_FULL_JOIN bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_FULL_RANGE_JOIN bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_RANGE bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_RANGE_CHECK bigint(20) unsigned NOT NULL,"
+  "SUM_SELECT_SCAN bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_MERGE_PASSES bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_RANGE bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_ROWS bigint(20) unsigned NOT NULL,"
+  "SUM_SORT_SCAN bigint(20) unsigned NOT NULL,"
+  "SUM_NO_INDEX_USED bigint(20) unsigned NOT NULL,"
+  "SUM_NO_GOOD_INDEX_USED bigint(20) unsigned NOT NULL"
+  ")ENGINE=PERFORMANCE_SCHEMA;";
+
+SET @str = IF(@have_pfs = 1, @cmd, 'SET @dummy = 0');
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
+--
+-- TABLE PREPARED_STATEMENT_INSTANCES
+--
+
+SET @cmd="CREATE TABLE performance_schema.prepared_statements_instances("
+  "OBJECT_INSTANCE_BEGIN bigint(20) unsigned NOT NULL,"
+  "STATEMENT_ID bigint(20) unsigned NOT NULL,"
+  "STATEMENT_NAME varchar(64) default NULL,"
+  "SQL_TEXT longtext NOT NULL,"
+  "OWNER_THREAD_ID bigint(20) unsigned NOT NULL,"
+  "OWNER_EVENT_ID bigint(20) unsigned NOT NULL,"
+  "OWNER_OBJECT_TYPE enum('EVENT','FUNCTION','PROCEDURE','TABLE','TRIGGER') DEFAULT NULL,"
+  "OWNER_OBJECT_SCHEMA varchar(64) DEFAULT NULL,"
+  "OWNER_OBJECT_NAME varchar(64) DEFAULT NULL,"
+  "TIMER_PREPARE bigint(20) unsigned NOT NULL,"
+  "COUNT_REPREPARE bigint(20) unsigned NOT NULL,"
+  "COUNT_EXECUTE bigint(20) unsigned NOT NULL,"
+  "SUM_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
+  "MIN_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
+  "AVG_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
+  "MAX_TIMER_EXECUTE bigint(20) unsigned NOT NULL,"
   "SUM_LOCK_TIME bigint(20) unsigned NOT NULL,"
   "SUM_ERRORS bigint(20) unsigned NOT NULL,"
   "SUM_WARNINGS bigint(20) unsigned NOT NULL,"

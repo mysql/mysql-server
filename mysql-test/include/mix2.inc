@@ -103,11 +103,11 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
---replace_column 9 #
+--replace_column 10 #
 explain select level from t1 where level=1;
---replace_column 9 #
+--replace_column 10 #
 explain select level,id from t1 where level=1;
---replace_column 9 #
+--replace_column 10 #
 explain select level,id,parent_id from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
@@ -456,7 +456,7 @@ update ignore t1 set id=id+1; # This will change all rows
 select * from t1;
 update ignore t1 set id=1023 where id=1010;
 select * from t1 where parent_id=102;
---replace_column 9 #
+--replace_column 10 #
 explain select level from t1 where level=1;
 select level,id from t1 where level=1;
 select level,id,parent_id from t1 where level=1;
@@ -550,7 +550,7 @@ drop table t1;
 
 eval create table t1 (a int  primary key,b int, c int, d int, e int, f int, g int, h int, i int, j int, k int, l int, m int, n int, o int, p int, q int, r int, s int, t int, u int, v int, w int, x int, y int, z int, a1 int, a2 int, a3 int, a4 int, a5 int, a6 int, a7 int, a8 int, a9 int, b1 int, b2 int, b3 int, b4 int, b5 int, b6 int) engine = $engine_type;
 insert into t1 values (1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1);
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where a > 0 and a < 50;
 drop table t1;
 
@@ -681,21 +681,21 @@ drop table t1;
 
 eval create table t1 (a int not null, b int not null, c int not null, primary key (a),key(b)) engine=$engine_type;
 insert into t1 values (3,3,3),(1,1,1),(2,2,2),(4,4,4);
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 order by a;
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 order by b;
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 order by c;
---replace_column 9 #
+--replace_column 10 #
 explain select a from t1 order by a;
---replace_column 9 #
+--replace_column 10 #
 explain select b from t1 order by b;
---replace_column 9 #
+--replace_column 10 #
 explain select a,b from t1 order by b;
---replace_column 9 #
+--replace_column 10 #
 explain select a,b from t1;
---replace_column 9 #
+--replace_column 10 #
 explain select a,b,c from t1;
 drop table t1;
 
@@ -961,10 +961,10 @@ insert into t1 (a) select b from t2;
 insert into t2 (a) select b from t1;
 insert into t1 (a) select b from t2;
 select count(*) from t1;
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where c between 1 and 2500;
 update t1 set c=a;
---replace_column 9 #
+--replace_column 10 #
 explain select * from t1 where c between 1 and 2500;
 drop table t1,t2;
 

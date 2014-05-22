@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -165,7 +165,7 @@ void my_b_seek(IO_CACHE *info,my_off_t pos)
   else if (info->type == WRITE_CACHE)
   {
     /* If write is in current buffer, reuse it */
-    if ((ulonglong) offset <
+    if ((ulonglong) offset <=
 	(ulonglong) (info->write_end - info->write_buffer))
     {
       info->write_pos = info->write_buffer + offset;
@@ -407,6 +407,13 @@ process_flags:
       out_length+= length2;
       if (my_b_write(info, (uchar*) par, length2))
 	goto err;
+    }
+    else if (*fmt == 'c')                     /* char type parameter */
+    {
+      char par[2];
+      par[0] = va_arg(args, int);
+      if (my_b_write(info, (uchar*) par, 1))
+        goto err;
     }
     else if (*fmt == 'b')                       /* Sized buffer parameter, only precision makes sense */
     {

@@ -1,5 +1,5 @@
 /*
- * Copyright (c)  2000
+ * Copyright (c)  2000, 2013
  * SWsoft  company
  *
  * This material is provided "as is", with absolutely no warranty expressed
@@ -103,8 +103,8 @@ void embedded_get_error(MYSQL *mysql, MYSQL_DATA *data)
 
 static my_bool
 emb_advanced_command(MYSQL *mysql, enum enum_server_command command,
-		     const uchar *header, ulong header_length,
-		     const uchar *arg, ulong arg_length, my_bool skip_check,
+		     const uchar *header, size_t header_length,
+		     const uchar *arg, size_t arg_length, my_bool skip_check,
                      MYSQL_STMT *stmt)
 {
   my_bool result= 1;
@@ -337,9 +337,9 @@ static int emb_stmt_execute(MYSQL_STMT *stmt)
   thd->client_param_count= stmt->param_count;
   thd->client_params= stmt->params;
 
-  res= test(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
-                                 header, sizeof(header), 1, stmt) ||
-            emb_read_query_result(stmt->mysql));
+  res= MY_TEST(emb_advanced_command(stmt->mysql, COM_STMT_EXECUTE, 0, 0,
+                                    header, sizeof(header), 1, stmt) ||
+               emb_read_query_result(stmt->mysql));
   stmt->affected_rows= stmt->mysql->affected_rows;
   stmt->insert_id= stmt->mysql->insert_id;
   stmt->server_status= stmt->mysql->server_status;
@@ -424,11 +424,8 @@ static void emb_free_embedded_thd(MYSQL *mysql)
   thd->clear_data_list();
   thd->store_globals();
   thd->release_resources();
-
-  remove_global_thread(thd);
-
+  Global_THD_manager::get_instance()->remove_thd(thd);
   delete thd;
-  my_pthread_setspecific_ptr(THR_THD,  0);
   mysql->thd=0;
 }
 
@@ -468,7 +465,8 @@ MYSQL_METHODS embedded_methods=
   emb_free_embedded_thd,
   emb_read_statistics,
   emb_read_query_result,
-  emb_read_rows_from_cursor
+  emb_read_rows_from_cursor,
+  free_rows
 };
 
 /*
@@ -477,7 +475,7 @@ MYSQL_METHODS embedded_methods=
 
 char **copy_arguments(int argc, char **argv)
 {
-  uint length= 0;
+  size_t length= 0;
   char **from, **res, **end= argv+argc;
 
   for (from=argv ; from != end ; from++)
@@ -586,7 +584,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
     opt_mysql_tmpdir=getenv("TMP");
 #endif
   if (!opt_mysql_tmpdir || !opt_mysql_tmpdir[0])
-    opt_mysql_tmpdir=(char*) P_tmpdir;		/* purecov: inspected */
+    opt_mysql_tmpdir= const_cast<char*>(DEFAULT_TMPDIR); /* purecov: inspected*/
 
   init_ssl();
   umask(((~my_umask) & 0666));
@@ -656,7 +654,7 @@ int init_embedded_server(int argc, char **argv, char **groups)
 
   /* Signal successful initialization */
   mysql_mutex_lock(&LOCK_server_started);
-  mysqld_server_started= 1;
+  mysqld_server_started= true;
   mysql_cond_broadcast(&COND_server_started);
   mysql_mutex_unlock(&LOCK_server_started);
 
@@ -704,7 +702,9 @@ void init_embedded_mysql(MYSQL *mysql, int client_flag)
 void *create_embedded_thd(int client_flag)
 {
   THD * thd= new THD;
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
 
   thd->thread_stack= (char*) &thd;
   if (thd->store_globals())
@@ -735,8 +735,7 @@ void *create_embedded_thd(int client_flag)
   thd->first_data= 0;
   thd->data_tail= &thd->first_data;
   memset(&thd->net, 0, sizeof(thd->net));
-
-  add_global_thread(thd);
+  thd_manager->add_thd(thd);
   thd->mysys_var= 0;
   return thd;
 err:
@@ -891,7 +890,7 @@ void THD::clear_data_list()
 }
 
 
-static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
+static char *dup_str_aux(MEM_ROOT *root, const char *from, size_t length,
 			 const CHARSET_INFO *fromcs, const CHARSET_INFO *tocs)
 {
   uint32 dummy32;
@@ -901,7 +900,7 @@ static char *dup_str_aux(MEM_ROOT *root, const char *from, uint length,
   /* 'tocs' is set 0 when client issues SET character_set_results=NULL */
   if (tocs && String::needs_conversion(0, fromcs, tocs, &dummy32))
   {
-    uint new_len= (tocs->mbmaxlen * length) / fromcs->mbminlen + 1;
+    size_t new_len= (tocs->mbmaxlen * length) / fromcs->mbminlen + 1;
     result= (char *)alloc_root(root, new_len);
     length= copy_and_convert(result, new_len,
                              tocs, from, length, fromcs, &dummy_err);
@@ -1305,6 +1304,9 @@ void Protocol_text::prepare_for_resend()
 
 bool Protocol_text::store_null()
 {
+  if (!thd->mysql)            // bootstrap file handling
+    return false;
+
   *(next_field++)= NULL;
   ++next_mysql_field;
   return false;
@@ -1328,10 +1330,6 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
   ++next_mysql_field;
   return FALSE;
 }
-
-#if defined(_MSC_VER) && _MSC_VER < 1400
-#define vsnprintf _vsnprintf
-#endif
 
 void error_log_print(enum loglevel level __attribute__((unused)),
                      const char *format, va_list argsi)

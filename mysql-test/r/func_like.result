@@ -2,14 +2,16 @@ drop table if exists t1;
 create table t1 (a varchar(10), key(a));
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
 explain extended select * from t1 where a like 'abc%';
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	1	100.00	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	13	NULL	1	100.00	Using where; Using index
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like 'abc%')
 explain extended select * from t1 where a like concat('abc','%');
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	range	a	a	13	NULL	1	100.00	Using where; Using index
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	a	a	13	NULL	1	100.00	Using where; Using index
 Warnings:
+Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` like <cache>(concat('abc','%')))
 select * from t1 where a like "abc%";
 a
@@ -188,3 +190,33 @@ DROP TABLE t1, t2;
 SELECT '' LIKE '1' ESCAPE COUNT(1);
 ERROR HY000: Incorrect arguments to ESCAPE
 End of 5.1 tests
+#
+# Bug #18114294	 CRASH IN ITEM_FUNC_LIKE::BM_MATCHES
+#
+select 0x0000000001020003F03F40408484040ADDE40 like 0x256F3B38312A7725;
+0x0000000001020003F03F40408484040ADDE40 like 0x256F3B38312A7725
+0
+select 0x003c8793403032 like '%-112%';
+0x003c8793403032 like '%-112%'
+0
+select 0x903f645a8c507dd79178 like '%-128%';
+0x903f645a8c507dd79178 like '%-128%'
+0
+select 0xac14aa84f000d276d66ed9 like '%-107%';
+0xac14aa84f000d276d66ed9 like '%-107%'
+0
+select 0xf0be117400d02a20b8e049da3e74 like '%-123%';
+0xf0be117400d02a20b8e049da3e74 like '%-123%'
+0
+select 0x961838f6fc3c7f9ec17b5d900410d8aa like '%-113%';
+0x961838f6fc3c7f9ec17b5d900410d8aa like '%-113%'
+0
+select 0x6a8473fc1c64ce4f2684c05a400c5e7ca4a01a like '%emailin%';
+0x6a8473fc1c64ce4f2684c05a400c5e7ca4a01a like '%emailin%'
+0
+select 0x00b25278956e0044683dfc180cd886aeff2f5bc3fc18 like '%-122%';
+0x00b25278956e0044683dfc180cd886aeff2f5bc3fc18 like '%-122%'
+0
+select 0xbc24421ce6194ab5c260e80af647ae58fdbfca18a19dc8411424 like '%-106%';
+0xbc24421ce6194ab5c260e80af647ae58fdbfca18a19dc8411424 like '%-106%'
+0

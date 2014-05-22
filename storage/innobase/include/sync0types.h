@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,8 @@ Created 9/5/1995 Heikki Tuuri
 
 #ifndef sync0types_h
 #define sync0types_h
+
+#include <vector>
 
 #ifdef HAVE_WINDOWS_ATOMICS
 typedef LONG	lock_word_t;	/*!< On Windows, InterlockedExchange operates
@@ -193,7 +195,7 @@ V
 Memory pool mutex */
 
 /** Latching order levels. If you modify these, you have to also update
-sync_thread_add_level(). */
+SyncDebug::check_order(). */
 
 enum latch_level_t {
 	SYNC_UNKNOWN = 0,
@@ -208,8 +210,6 @@ enum latch_level_t {
 
 	SYNC_MONITOR_MUTEX,
 
-	SYNC_MEM_POOL,
-	SYNC_MEM_HASH,
 	SYNC_ANY_LATCH,
 
 	SYNC_DOUBLEWRITE,
@@ -235,6 +235,7 @@ enum latch_level_t {
 	SYNC_RECV,
 	SYNC_LOG_FLUSH_ORDER,
 	SYNC_LOG,
+	SYNC_PAGE_CLEANER,
 	SYNC_PURGE_QUEUE,
 	SYNC_TRX_SYS_HEADER,
 	SYNC_REC_LOCK,
@@ -284,6 +285,8 @@ enum latch_level_t {
 	SYNC_TRX_I_S_LAST_READ,
 
 	SYNC_TRX_I_S_RWLOCK,
+
+	SYNC_RECV_WRITER,
 
 	/** Level is varying. Only used with buffer pool page locks, which
 	do not have a fixed level, but instead have their level set after
@@ -342,7 +345,9 @@ struct btrsea_sync_check : public sync_check_functor_t {
 	virtual bool operator()(const latch_t& latch)
 	{
 		// FIXME: This condition doesn't look right
-		if (!m_has_search_latch || latch.m_level != SYNC_SEARCH_SYS) {
+		if (!m_has_search_latch
+		    || (latch.m_level != SYNC_SEARCH_SYS
+			&& latch.m_level != SYNC_FTS_CACHE)) {
 			m_result = true;
 			return(m_result);
 		}
@@ -374,7 +379,9 @@ struct dict_sync_check : public sync_check_functor_t {
 		if (!m_dict_mutex_allowed
 		    || (latch.m_level != SYNC_DICT
 			&& latch.m_level != SYNC_DICT_OPERATION
-			&& latch.m_level != SYNC_FTS_CACHE)) {
+			&& latch.m_level != SYNC_FTS_CACHE
+			/* This only happens in recv_apply_hashed_log_recs. */
+			&& latch.m_level != SYNC_RECV_WRITER)) {
 
 			m_result = true;
 
@@ -391,6 +398,41 @@ struct dict_sync_check : public sync_check_functor_t {
 
 	bool		m_result;
 	bool		m_dict_mutex_allowed;
+};
+
+/** Functor to check for given latching constraints. */
+struct sync_allowed_latches : public sync_check_functor_t {
+
+	/** Constructor
+	@param[in]	from	first element in an array of latch_level_t
+	@param[in]	to	last element in an array of latch_level_t */
+	sync_allowed_latches(
+		const latch_level_t* from, const latch_level_t* to)
+		: m_result(), m_latches(from, to)
+	{}
+
+	/** Checks whether the given latch_t violates the latch constraint.
+	This object maintains a list of allowed latch levels, and if the given
+	latch belongs to a latch level that is not there in the allowed list,
+	then it is a violation. */
+	virtual bool operator()(const latch_t& latch)
+	{
+		std::vector<latch_level_t>::iterator i = m_latches.begin();
+		for (; i != m_latches.end(); ++i) {
+			if (latch.m_level == *i) {
+				m_result = false;
+				return(false); // no violation
+			}
+		}
+		return(true);
+	}
+
+	virtual bool result() const { return(m_result); }
+private:
+	/** Save the result of validation check here */
+	bool				m_result;
+	/** List of latch levels that are allowed to be held */
+	std::vector<latch_level_t>	m_latches;
 };
 
 #ifdef UNIV_SYNC_DEBUG

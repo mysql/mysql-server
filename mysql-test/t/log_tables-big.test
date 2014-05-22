@@ -9,6 +9,8 @@
 # Test sleeps for long times
 --source include/big_test.inc
 
+set @@global.log_output = 'TABLE';
+
 connect (con1,localhost,root,,);
 connect (con2,localhost,root,,);
 
@@ -35,3 +37,5 @@ connection default;
 
 disconnect con1;
 disconnect con2;
+
+set @@global.log_output=default;

@@ -143,14 +143,18 @@ private:
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
-  /*
-    Current index.
-    When used in key_rec_cmp: If clustered pk, index compare
-    must compare pk if given index is same for two rows.
-    So normally m_curr_key_info[0]= current index and m_curr_key[1]= NULL,
-    and if clustered pk, [0]= current index, [1]= pk, [2]= NULL
+  /**
+    Current index used for sorting.
+    If clustered PK exists, then it will be used as secondary index to
+    sort on if the first is equal in key_rec_cmp.
+    So if clustered pk: m_curr_key_info[0]= current index and
+    m_curr_key_info[1]= pk and [2]= NULL.
+    Otherwise [0]= current index, [1]= NULL, and we will
+    sort by rowid as secondary sort key if equal first key.
   */
-  KEY *m_curr_key_info[3];              // Current index
+  KEY *m_curr_key_info[3];
+  /** Offset in m_ordered_rec_buffer from part buffer to its record buffer. */
+  uint m_rec_offset;
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
@@ -262,6 +266,9 @@ private:
   MY_BITMAP m_key_not_found_partitions;
   bool m_key_not_found;
   bool m_reverse_order;
+  bool m_icp_in_use;
+  /** Need to sort by ref (rowid) too. */
+  bool m_sec_sort_by_rowid;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -951,11 +958,7 @@ public:
   */
   virtual ulong index_flags(uint inx, uint part, bool all_parts) const
   {
-    /*
-      TODO: sergefp: Support Index Condition Pushdown in this table handler.
-    */
-    return m_file[0]->index_flags(inx, part, all_parts) &
-           ~HA_DO_INDEX_COND_PUSHDOWN;
+    return m_file[0]->index_flags(inx, part, all_parts);
   }
 
   /**
@@ -1017,6 +1020,30 @@ public:
     -------------------------------------------------------------------------
   */
   virtual int cmp_ref(const uchar * ref1, const uchar * ref2);
+
+  /*
+    -------------------------------------------------------------------------
+    MODULE condition pushdown
+    -------------------------------------------------------------------------
+    cond_push
+    -------------------------------------------------------------------------
+  */
+
+  /* No support of engine condition pushdown yet! */
+  //const Item *cond_push(const Item *cond);
+  //void cond_pop();
+  /* Only Index condition pushdown is supported currently. */
+  Item *idx_cond_push(uint keyno, Item* idx_cond);
+  void cancel_pushed_idx_cond();
+  /* No support of pushed joins yet! */
+  //uint number_of_pushed_joins()
+  //virtual const TABLE* root_of_pushed_join() const
+  //virtual const TABLE* parent_of_pushed_join() const
+  //virtual int index_read_pushed(uchar * buf, const uchar * key,
+                                //key_part_map keypart_map)
+  //virtual int index_next_pushed(uchar * buf)
+
+
   /*
     -------------------------------------------------------------------------
     MODULE auto increment
@@ -1158,11 +1185,8 @@ public:
     -------------------------------------------------------------------------
     MODULE tablespace support
     -------------------------------------------------------------------------
-    Admin of table spaces is not applicable to the partition handler (InnoDB)
-    This means that the following method is not implemented:
-    -------------------------------------------------------------------------
-    virtual int discard_or_import_tablespace(my_bool discard)
   */
+    virtual int discard_or_import_tablespace(my_bool discard);
 
   /*
     -------------------------------------------------------------------------

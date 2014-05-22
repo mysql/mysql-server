@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -36,6 +36,7 @@ Created 2011-05-26 Marko Makela
 #include "row0ext.h"
 #include "data0data.h"
 #include "que0que.h"
+#include "srv0mon.h"
 #include "handler0alter.h"
 
 #include<map>
@@ -68,11 +69,12 @@ struct row_log_buf_t {
 	mrec_buf_t	buf;	/*!< buffer for accessing a record
 				that spans two blocks */
 	ulint		blocks; /*!< current position in blocks */
-	ulint		bytes;	/*!< current position within buf */
+	ulint		bytes;	/*!< current position within block */
 	ulonglong	total;	/*!< logical position, in bytes from
 				the start of the row_log_table log;
 				0 for row_log_online_op() and
 				row_log_apply(). */
+	ulint		size;	/*!< allocated size of block */
 };
 
 /** Tracks BLOB allocation during online ALTER TABLE */
@@ -183,8 +185,69 @@ struct row_log_t {
 				or by index->lock X-latch only */
 	row_log_buf_t	head;	/*!< reader context; protected by MDL only;
 				modifiable by row_log_apply_ops() */
-	ulint		size;	/*!< allocated size */
 };
+
+
+/** Allocate the file for online log.
+@param[in,out]	log	online rebuild log
+@return TRUE if success, false if not */
+static __attribute__((warn_unused_result))
+bool
+row_log_file_create(
+	row_log_t*	log)
+{
+	DBUG_ENTER("row_log_file_create");
+	if (log->fd == -1) {
+		log->fd = row_merge_file_create_low();
+		DBUG_EXECUTE_IF("simulate_row_log_file_creation_failure",
+				if (log->fd != -1)
+					row_merge_file_destroy_low(log->fd);
+				log->fd = -1;);
+		if (log->fd < 0) {
+			DBUG_RETURN(false);
+		}
+		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_LOG_FILES);
+	}
+	DBUG_RETURN(true);
+}
+
+/** Allocate the memory for the log buffer.
+@param[in,out]	log_buf	Buffer used for log operation
+@return TRUE if success, false if not */
+static __attribute__((warn_unused_result))
+bool
+row_log_block_allocate(
+	row_log_buf_t&	log_buf)
+{
+	DBUG_ENTER("row_log_block_allocate");
+	if (log_buf.block == NULL) {
+		log_buf.size = srv_sort_buf_size;
+		log_buf.block = (byte*) os_mem_alloc_large(&log_buf.size);
+		DBUG_EXECUTE_IF("simulate_row_log_allocation_failure",
+			if (log_buf.block)
+				os_mem_free_large(log_buf.block, log_buf.size);
+			log_buf.block = NULL;);
+		if (!log_buf.block) {
+			DBUG_RETURN(false);
+		}
+	}
+	DBUG_RETURN(true);
+}
+
+/** Free the log buffer.
+@param[in,out]	log_buf	Buffer used for log operation */
+static
+void
+row_log_block_free(
+	row_log_buf_t&	log_buf)
+{
+	DBUG_ENTER("row_log_block_free");
+	if (log_buf.block != NULL) {
+		os_mem_free_large(log_buf.block, log_buf.size);
+		log_buf.block = NULL;
+	}
+	DBUG_VOID_RETURN;
+}
 
 /******************************************************//**
 Logs an operation to a secondary index that is (or was) being created. */
@@ -237,6 +300,11 @@ row_log_online_op(
 		log->max_trx = trx_id;
 	}
 
+	if (!row_log_block_allocate(log->tail)) {
+		log->error = DB_OUT_OF_MEMORY;
+		goto err_exit;
+	}
+
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
 
 	ut_ad(log->tail.bytes < srv_sort_buf_size);
@@ -286,6 +354,12 @@ row_log_online_op(
 			       log->tail.buf, avail_size);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (!row_log_file_create(log)) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
+
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -308,6 +382,7 @@ write_failed:
 	}
 
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
+err_exit:
 	mutex_exit(&log->mutex);
 }
 
@@ -342,8 +417,14 @@ row_log_table_open(
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
 
 	if (log->error != DB_SUCCESS) {
+err_exit:
 		mutex_exit(&log->mutex);
 		return(NULL);
+	}
+
+	if (!row_log_block_allocate(log->tail)) {
+		log->error = DB_OUT_OF_MEMORY;
+		goto err_exit;
 	}
 
 	ut_ad(log->tail.bytes < srv_sort_buf_size);
@@ -389,6 +470,11 @@ row_log_table_close_func(
 			       log->tail.buf, avail);
 		}
 		UNIV_MEM_ASSERT_RW(log->tail.block, srv_sort_buf_size);
+
+		if (!row_log_file_create(log)) {
+			log->error = DB_OUT_OF_MEMORY;
+			goto err_exit;
+		}
 		ret = os_file_write(
 			"(modification log)",
 			OS_FILE_FROM_FD(log->fd),
@@ -408,6 +494,7 @@ write_failed:
 
 	log->tail.total += size;
 	UNIV_MEM_INVALID(log->tail.buf, sizeof log->tail.buf);
+err_exit:
 	mutex_exit(&log->mutex);
 }
 
@@ -431,9 +518,8 @@ row_log_table_delete(
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
-	bool		purge,	/*!< in: true=purging BLOBs */
-	trx_id_t	trx_id)	/*!< in: DB_TRX_ID of the record before
-				it was deleted */
+	const byte*	sys)	/*!< in: DB_TRX_ID,DB_ROLL_PTR that should
+				be logged, or NULL to use those in rec */
 {
 	ulint		old_pk_extra_size;
 	ulint		old_pk_size;
@@ -466,22 +552,21 @@ row_log_table_delete(
 	ut_ad(dict_index_is_clust(new_index));
 	ut_ad(!dict_index_is_online_ddl(new_index));
 
-	/* Create the tuple PRIMARY KEY, DB_TRX_ID in the new_table. */
+	/* Create the tuple PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR in new_table. */
 	if (index->online_log->same_pk) {
-		byte*		db_trx_id;
 		dtuple_t*	tuple;
 		ut_ad(new_index->n_uniq == index->n_uniq);
 
-		/* The PRIMARY KEY and DB_TRX_ID are in the first
+		/* The PRIMARY KEY and DB_TRX_ID,DB_ROLL_PTR are in the first
 		fields of the record. */
 		heap = mem_heap_create(
 			DATA_TRX_ID_LEN
-			+ DTUPLE_EST_ALLOC(new_index->n_uniq + 1));
-		old_pk = tuple = dtuple_create(heap, new_index->n_uniq + 1);
+			+ DTUPLE_EST_ALLOC(new_index->n_uniq + 2));
+		old_pk = tuple = dtuple_create(heap, new_index->n_uniq + 2);
 		dict_index_copy_types(tuple, new_index, tuple->n_fields);
 		dtuple_set_n_fields_cmp(tuple, new_index->n_uniq);
 
-		for (ulint i = 0; i < new_index->n_uniq; i++) {
+		for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
 			ulint		len;
 			const void*	field	= rec_get_nth_field(
 				rec, offsets, i, &len);
@@ -492,42 +577,33 @@ row_log_table_delete(
 			dfield_set_data(dfield, field, len);
 		}
 
-		db_trx_id = static_cast<byte*>(
-			mem_heap_alloc(heap, DATA_TRX_ID_LEN));
-		trx_write_trx_id(db_trx_id, trx_id);
-
-		dfield_set_data(dtuple_get_nth_field(tuple, new_index->n_uniq),
-				db_trx_id, DATA_TRX_ID_LEN);
+		if (sys) {
+			dfield_set_data(
+				dtuple_get_nth_field(tuple,
+						     new_index->n_uniq),
+				sys, DATA_TRX_ID_LEN);
+			dfield_set_data(
+				dtuple_get_nth_field(tuple,
+						     new_index->n_uniq + 1),
+				sys + DATA_TRX_ID_LEN, DATA_ROLL_PTR_LEN);
+		}
 	} else {
 		/* The PRIMARY KEY has changed. Translate the tuple. */
-		dfield_t*	dfield;
-
-		old_pk = row_log_table_get_pk(rec, index, offsets, &heap);
+		old_pk = row_log_table_get_pk(
+			rec, index, offsets, NULL, &heap);
 
 		if (!old_pk) {
 			ut_ad(index->online_log->error != DB_SUCCESS);
+			if (heap) {
+				goto func_exit;
+			}
 			return;
 		}
-
-		/* Remove DB_ROLL_PTR. */
-		ut_ad(dtuple_get_n_fields_cmp(old_pk)
-		      == dict_index_get_n_unique(new_index));
-		ut_ad(dtuple_get_n_fields(old_pk)
-		      == dict_index_get_n_unique(new_index) + 2);
-		const_cast<ulint&>(old_pk->n_fields)--;
-
-		/* Overwrite DB_TRX_ID with the old trx_id. */
-		dfield = dtuple_get_nth_field(old_pk, new_index->n_uniq);
-		ut_ad(dfield_get_type(dfield)->mtype == DATA_SYS);
-		ut_ad(dfield_get_type(dfield)->prtype
-		      == (DATA_NOT_NULL | DATA_TRX_ID));
-		ut_ad(dfield_get_len(dfield) == DATA_TRX_ID_LEN);
-		dfield_dup(dfield, heap);
-		trx_write_trx_id(static_cast<byte*>(dfield->data), trx_id);
 	}
 
-	ut_ad(dtuple_get_n_fields(old_pk) > 1);
 	ut_ad(DATA_TRX_ID_LEN == dtuple_get_nth_field(
+		      old_pk, old_pk->n_fields - 2)->len);
+	ut_ad(DATA_ROLL_PTR_LEN == dtuple_get_nth_field(
 		      old_pk, old_pk->n_fields - 1)->len);
 	old_pk_size = rec_get_converted_size_temp(
 		new_index, old_pk->fields, old_pk->n_fields,
@@ -539,7 +615,7 @@ row_log_table_delete(
 	/* Log enough prefix of the BLOB unless both the
 	old and new table are in COMPACT or REDUNDANT format,
 	which store the prefix in the clustered index record. */
-	if (purge && rec_offs_any_extern(offsets)
+	if (rec_offs_any_extern(offsets)
 	    && (dict_table_get_format(index->table) >= UNIV_FORMAT_B
 		|| dict_table_get_format(new_table) >= UNIV_FORMAT_B)) {
 
@@ -604,6 +680,7 @@ row_log_table_delete(
 			index->online_log, b, mrec_size, avail_size);
 	}
 
+func_exit:
 	mem_heap_free(heap);
 }
 
@@ -880,21 +957,22 @@ row_log_table_get_pk_old_col(
 }
 
 /** Maps an old table column of a PRIMARY KEY column.
-@param col old table column (before ALTER TABLE)
-@param ifield clustered index field in the new table (after ALTER TABLE)
-@param dfield clustered index tuple field in the new table
-@param heap memory heap for allocating dfield contents
-@param rec clustered index leaf page record in the old table
-@param offsets rec_get_offsets(rec)
-@param i rec field corresponding to col
-@param zip_size compressed page size of the old table, or 0 for uncompressed
-@param max_len maximum length of dfield
-@retval DB_INVALID_NULL if a NULL value is encountered
-@retval DB_TOO_BIG_INDEX_COL if the maximum prefix length is exceeded */
+@param[in]	col		old table column (before ALTER TABLE)
+@param[in]	ifield		clustered index field in the new table (after
+ALTER TABLE)
+@param[in,out]	dfield		clustered index tuple field in the new table
+@param[in,out]	heap		memory heap for allocating dfield contents
+@param[in]	rec		clustered index leaf page record in the old
+table
+@param[in]	offsets		rec_get_offsets(rec)
+@param[in]	i		rec field corresponding to col
+@param[in]	page_size	page size of the old table
+@param[in]	max_len		maximum length of dfield
+@retval DB_INVALID_NULL		if a NULL value is encountered
+@retval DB_TOO_BIG_INDEX_COL	if the maximum prefix length is exceeded */
 static
 dberr_t
 row_log_table_get_pk_col(
-/*=====================*/
 	const dict_col_t*	col,
 	const dict_field_t*	ifield,
 	dfield_t*		dfield,
@@ -902,13 +980,11 @@ row_log_table_get_pk_col(
 	const rec_t*		rec,
 	const ulint*		offsets,
 	ulint			i,
-	ulint			zip_size,
+	const page_size_t&	page_size,
 	ulint			max_len)
 {
 	const byte*	field;
 	ulint		len;
-
-	ut_ad(ut_is_2pow(zip_size));
 
 	field = rec_get_nth_field(rec, offsets, i, &len);
 
@@ -931,7 +1007,7 @@ row_log_table_get_pk_col(
 			mem_heap_alloc(heap, field_len));
 
 		len = btr_copy_externally_stored_field_prefix(
-			blob_field, field_len, zip_size, field, len);
+			blob_field, field_len, page_size, field, len);
 		if (len >= max_len + 1) {
 			return(DB_TOO_BIG_INDEX_COL);
 		}
@@ -958,6 +1034,8 @@ row_log_table_get_pk(
 	dict_index_t*	index,	/*!< in/out: clustered index, S-latched
 				or X-latched */
 	const ulint*	offsets,/*!< in: rec_get_offsets(rec,index) */
+	byte*		sys,	/*!< out: DB_TRX_ID,DB_ROLL_PTR for
+				row_log_table_delete(), or NULL */
 	mem_heap_t**	heap)	/*!< in/out: memory heap where allocated */
 {
 	dtuple_t*	tuple	= NULL;
@@ -977,6 +1055,31 @@ row_log_table_get_pk(
 
 	if (log->same_pk) {
 		/* The PRIMARY KEY columns are unchanged. */
+		if (sys) {
+			/* Store the DB_TRX_ID,DB_ROLL_PTR. */
+			ulint	trx_id_offs = index->trx_id_offset;
+
+			if (!trx_id_offs) {
+				ulint	pos = dict_index_get_sys_col_pos(
+					index, DATA_TRX_ID);
+				ulint	len;
+				ut_ad(pos > 0);
+
+				if (!offsets) {
+					offsets = rec_get_offsets(
+						rec, index, NULL, pos + 1,
+						heap);
+				}
+
+				trx_id_offs = rec_get_nth_field_offs(
+					offsets, pos, &len);
+				ut_ad(len == DATA_TRX_ID_LEN);
+			}
+
+			memcpy(sys, rec + trx_id_offs,
+			       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+		}
+
 		return(NULL);
 	}
 
@@ -1018,7 +1121,9 @@ row_log_table_get_pk(
 		dtuple_set_n_fields_cmp(tuple, new_n_uniq);
 
 		const ulint max_len = DICT_MAX_FIELD_LEN_BY_FORMAT(new_table);
-		const ulint zip_size = dict_table_zip_size(index->table);
+
+		const page_size_t&	page_size
+			= dict_table_page_size(index->table);
 
 		for (ulint new_i = 0; new_i < new_n_uniq; new_i++) {
 			dict_field_t*	ifield;
@@ -1045,7 +1150,7 @@ row_log_table_get_pk(
 
 				log->error = row_log_table_get_pk_col(
 					col, ifield, dfield, *heap,
-					rec, offsets, i, zip_size, max_len);
+					rec, offsets, i, page_size, max_len);
 
 				if (log->error != DB_SUCCESS) {
 err_exit:
@@ -1085,6 +1190,20 @@ err_exit:
 
 		const byte* trx_roll = rec
 			+ row_get_trx_id_offset(index, offsets);
+
+		/* Copy the fields, because the fields will be updated
+		or the record may be moved somewhere else in the B-tree
+		as part of the upcoming operation. */
+		if (sys) {
+			memcpy(sys, trx_roll,
+			       DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN);
+			trx_roll = sys;
+		} else {
+			trx_roll = static_cast<const byte*>(
+				mem_heap_dup(
+					*heap, trx_roll,
+					DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN));
+		}
 
 		dfield_set_data(dtuple_get_nth_field(tuple, new_n_uniq),
 				trx_roll, DATA_TRX_ID_LEN);
@@ -1196,8 +1315,7 @@ row_log_table_blob_alloc(
 
 /******************************************************//**
 Converts a log record to a table row.
-@return converted row, or NULL if the conversion fails
-or the transaction has been rolled back */
+@return converted row, or NULL if the conversion fails */
 static __attribute__((nonnull, warn_unused_result))
 const dtuple_t*
 row_log_table_apply_convert_mrec(
@@ -1209,9 +1327,12 @@ row_log_table_apply_convert_mrec(
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
 	trx_id_t		trx_id,		/*!< in: DB_TRX_ID of mrec */
 	dberr_t*		error)		/*!< out: DB_SUCCESS or
+						DB_MISSING_HISTORY or
 						reason of failure */
 {
 	dtuple_t*	row;
+
+	*error = DB_SUCCESS;
 
 	/* This is based on row_build(). */
 	if (log->add_cols) {
@@ -1254,7 +1375,7 @@ row_log_table_apply_convert_mrec(
 		dfield_t*		dfield
 			= dtuple_get_nth_field(row, col_no);
 		ulint			len;
-		const byte*		data= NULL;
+		const byte*		data;
 
 		if (rec_offs_nth_extern(offsets, i)) {
 			ut_ad(rec_offs_any_extern(offsets));
@@ -1274,28 +1395,25 @@ row_log_table_apply_convert_mrec(
 				    && p->second.is_freed(log->head.total)) {
 					/* This BLOB has been freed.
 					We must not access the row. */
-					row = NULL;
+					*error = DB_MISSING_HISTORY;
+					dfield_set_data(dfield, data, len);
+					dfield_set_ext(dfield);
+					goto blob_done;
 				}
 			}
 
-			if (row) {
-				data = btr_rec_copy_externally_stored_field(
-					mrec, offsets,
-					dict_table_zip_size(index->table),
-					i, &len, heap);
-				ut_a(data);
-			}
-
+			data = btr_rec_copy_externally_stored_field(
+				mrec, offsets,
+				dict_table_page_size(index->table),
+				i, &len, heap);
+			ut_a(data);
+			dfield_set_data(dfield, data, len);
+blob_done:
 			rw_lock_x_unlock(dict_index_get_lock(index));
-
-			if (!row) {
-				goto func_exit;
-			}
 		} else {
 			data = rec_get_nth_field(mrec, offsets, i, &len);
+			dfield_set_data(dfield, data, len);
 		}
-
-		dfield_set_data(dfield, data, len);
 
 		/* See if any columns were changed to NULL or NOT NULL. */
 		const dict_col_t*	new_col
@@ -1325,8 +1443,6 @@ row_log_table_apply_convert_mrec(
 						 dfield_get_type(dfield)));
 	}
 
-func_exit:
-	*error = DB_SUCCESS;
 	return(row);
 }
 
@@ -1369,7 +1485,8 @@ row_log_table_apply_insert_low(
 	entry = row_build_index_entry(row, NULL, index, heap);
 
 	error = row_ins_clust_index_entry_low(
-		flags, BTR_MODIFY_TREE, index, index->n_uniq, entry, 0, thr);
+		flags, BTR_MODIFY_TREE, index, index->n_uniq,
+		entry, 0, thr, false);
 
 	switch (error) {
 	case DB_SUCCESS:
@@ -1393,7 +1510,8 @@ row_log_table_apply_insert_low(
 		entry = row_build_index_entry(row, NULL, index, heap);
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
-			index, offsets_heap, heap, entry, trx_id, thr);
+			index, offsets_heap, heap, entry, trx_id, thr,
+			false);
 	} while (error == DB_SUCCESS);
 
 	return(error);
@@ -1421,22 +1539,32 @@ row_log_table_apply_insert(
 	const dtuple_t*	row	= row_log_table_apply_convert_mrec(
 		mrec, dup->index, offsets, log, heap, trx_id, &error);
 
-	ut_ad(error == DB_SUCCESS || !row);
-	/* Handling of duplicate key error requires storing
-	of offending key in a record buffer. */
-	ut_ad(error != DB_DUPLICATE_KEY);
-
-	if (error != DB_SUCCESS)
+	switch (error) {
+	case DB_MISSING_HISTORY:
+		ut_ad(log->blobs);
+		/* Because some BLOBs are missing, we know that the
+		transaction was rolled back later (a rollback of
+		an insert can free BLOBs).
+		We can simply skip the insert: the subsequent
+		ROW_T_DELETE will be ignored, or a ROW_T_UPDATE will
+		be interpreted as ROW_T_INSERT. */
+		return(DB_SUCCESS);
+	case DB_SUCCESS:
+		ut_ad(row != NULL);
+		break;
+	default:
+		ut_ad(0);
+	case DB_INVALID_NULL:
+		ut_ad(row == NULL);
 		return(error);
+	}
 
-	if (row) {
-		error = row_log_table_apply_insert_low(
-			thr, row, trx_id, offsets_heap, heap, dup);
-		if (error != DB_SUCCESS) {
-			/* Report the erroneous row using the new
-			version of the table. */
-			innobase_row_to_mysql(dup->table, log->table, row);
-		}
+	error = row_log_table_apply_insert_low(
+		thr, row, trx_id, offsets_heap, heap, dup);
+	if (error != DB_SUCCESS) {
+		/* Report the erroneous row using the new
+		version of the table. */
+		innobase_row_to_mysql(dup->table, log->table, row);
 	}
 	return(error);
 }
@@ -1499,6 +1627,7 @@ row_log_table_apply_delete_low(
 		const dtuple_t*	entry = row_build_index_entry(
 			row, save_ext, index, heap);
 		mtr_start(mtr);
+		mtr->set_named_space(index->space);
 		btr_pcur_open(index, entry, PAGE_CUR_LE,
 			      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
 			      pcur, mtr);
@@ -1554,10 +1683,11 @@ row_log_table_apply_delete(
 	mem_heap_t*		offsets_heap,	/*!< in/out: memory heap
 						that can be emptied */
 	mem_heap_t*		heap,		/*!< in/out: memory heap */
-	dict_table_t*		new_table,	/*!< in: rebuilt table */
+	const row_log_t*	log,		/*!< in: online log */
 	const row_ext_t*	save_ext)	/*!< in: saved external field
 						info, or NULL */
 {
+	dict_table_t*	new_table = log->table;
 	dict_index_t*	index = dict_table_get_first_index(new_table);
 	dtuple_t*	old_pk;
 	mtr_t		mtr;
@@ -1565,15 +1695,14 @@ row_log_table_apply_delete(
 	ulint*		offsets;
 
 	ut_ad(rec_offs_n_fields(moffsets)
-	      == dict_index_get_n_unique(index) + 1);
+	      == dict_index_get_n_unique(index) + 2);
 	ut_ad(!rec_offs_any_extern(moffsets));
 
 	/* Convert the row to a search tuple. */
-	old_pk = dtuple_create(heap, index->n_uniq + 1);
-	dict_index_copy_types(old_pk, index, old_pk->n_fields);
-	dtuple_set_n_fields_cmp(old_pk, index->n_uniq);
+	old_pk = dtuple_create(heap, index->n_uniq);
+	dict_index_copy_types(old_pk, index, index->n_uniq);
 
-	for (ulint i = 0; i <= index->n_uniq; i++) {
+	for (ulint i = 0; i < index->n_uniq; i++) {
 		ulint		len;
 		const void*	field;
 		field = rec_get_nth_field(mrec, moffsets, i, &len);
@@ -1583,6 +1712,7 @@ row_log_table_apply_delete(
 	}
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
 		      &pcur, &mtr);
@@ -1608,6 +1738,10 @@ flag_ok:
 all_done:
 		mtr_commit(&mtr);
 		/* The record was not found. All done. */
+		/* This should only happen when an earlier
+		ROW_T_INSERT was skipped or
+		ROW_T_UPDATE was interpreted as ROW_T_DELETE
+		due to BLOBs having been freed by rollback. */
 		return(DB_SUCCESS);
 	}
 
@@ -1617,19 +1751,38 @@ all_done:
 	ut_a(!rec_offs_any_null_extern(btr_pcur_get_rec(&pcur), offsets));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
-	/* Only remove the record if DB_TRX_ID matches what was
-	buffered. */
+	/* Only remove the record if DB_TRX_ID,DB_ROLL_PTR match. */
 
 	{
 		ulint		len;
-		const void*	mrec_trx_id
+		const byte*	mrec_trx_id
 			= rec_get_nth_field(mrec, moffsets, trx_id_col, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
-		const void*	rec_trx_id
+		const byte*	rec_trx_id
 			= rec_get_nth_field(btr_pcur_get_rec(&pcur), offsets,
 					    trx_id_col, &len);
 		ut_ad(len == DATA_TRX_ID_LEN);
-		if (memcmp(mrec_trx_id, rec_trx_id, DATA_TRX_ID_LEN)) {
+
+		ut_ad(rec_get_nth_field(mrec, moffsets, trx_id_col + 1, &len)
+		      == mrec_trx_id + DATA_TRX_ID_LEN);
+		ut_ad(len == DATA_ROLL_PTR_LEN);
+		ut_ad(rec_get_nth_field(btr_pcur_get_rec(&pcur), offsets,
+					trx_id_col + 1, &len)
+		      == rec_trx_id + DATA_TRX_ID_LEN);
+		ut_ad(len == DATA_ROLL_PTR_LEN);
+
+		if (memcmp(mrec_trx_id, rec_trx_id,
+			   DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
+			/* The ROW_T_DELETE was logged for a different
+			PRIMARY KEY,DB_TRX_ID,DB_ROLL_PTR.
+			This is possible if a ROW_T_INSERT was skipped
+			or a ROW_T_UPDATE was interpreted as ROW_T_DELETE
+			because some BLOBs were missing due to
+			(1) rolling back the initial insert, or
+			(2) purging the BLOB for a later ROW_T_DELETE
+			(3) purging 'old values' for a later ROW_T_UPDATE
+			or ROW_T_DELETE. */
+			ut_ad(!log->same_pk);
 			goto all_done;
 		}
 	}
@@ -1646,9 +1799,6 @@ dberr_t
 row_log_table_apply_update(
 /*=======================*/
 	que_thr_t*		thr,		/*!< in: query graph */
-	ulint			trx_id_col,	/*!< in: position of
-						DB_TRX_ID in the
-						old clustered index */
 	ulint			new_trx_id_col,	/*!< in: position of
 						DB_TRX_ID in the new
 						clustered index */
@@ -1676,21 +1826,37 @@ row_log_table_apply_update(
 	      == dict_index_get_n_unique(index));
 	ut_ad(dtuple_get_n_fields(old_pk)
 	      == dict_index_get_n_unique(index)
-	      + (dup->index->online_log->same_pk ? 0 : 2));
+	      + (log->same_pk ? 0 : 2));
 
 	row = row_log_table_apply_convert_mrec(
 		mrec, dup->index, offsets, log, heap, trx_id, &error);
 
-	ut_ad(error == DB_SUCCESS || !row);
-	/* Handling of duplicate key error requires storing
-	of offending key in a record buffer. */
-	ut_ad(error != DB_DUPLICATE_KEY);
+	switch (error) {
+	case DB_MISSING_HISTORY:
+		/* The record contained BLOBs that are now missing. */
+		ut_ad(log->blobs);
+		/* Whether or not we are updating the PRIMARY KEY, we
+		know that there should be a subsequent
+		ROW_T_DELETE for rolling back a preceding ROW_T_INSERT,
+		overriding this ROW_T_UPDATE record. (*1)
 
-	if (!row) {
+		This allows us to interpret this ROW_T_UPDATE
+		as ROW_T_DELETE.
+
+		When applying the subsequent ROW_T_DELETE, no matching
+		record will be found. */
+	case DB_SUCCESS:
+		ut_ad(row != NULL);
+		break;
+	default:
+		ut_ad(0);
+	case DB_INVALID_NULL:
+		ut_ad(row == NULL);
 		return(error);
 	}
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	btr_pcur_open(index, old_pk, PAGE_CUR_LE,
 		      BTR_MODIFY_TREE, &pcur, &mtr);
 #ifdef UNIV_DEBUG
@@ -1709,14 +1875,61 @@ row_log_table_apply_update(
 
 	if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
 	    || btr_pcur_get_low_match(&pcur) < index->n_uniq) {
-		mtr_commit(&mtr);
-insert:
-		ut_ad(mtr.state == MTR_COMMITTED);
-		/* The row was not found. Insert it. */
-		error = row_log_table_apply_insert_low(
-			thr, row, trx_id, offsets_heap, heap, dup);
+		/* The record was not found. This should only happen
+		when an earlier ROW_T_INSERT or ROW_T_UPDATE was
+		diverted because BLOBs were freed when the insert was
+		later rolled back. */
+
+		ut_ad(log->blobs);
+
+		if (error == DB_SUCCESS) {
+			/* An earlier ROW_T_INSERT could have been
+			skipped because of a missing BLOB, like this:
+
+			BEGIN;
+			INSERT INTO t SET blob_col='blob value';
+			UPDATE t SET blob_col='';
+			ROLLBACK;
+
+			This would generate the following records:
+			ROW_T_INSERT (referring to 'blob value')
+			ROW_T_UPDATE
+			ROW_T_UPDATE (referring to 'blob value')
+			ROW_T_DELETE
+			[ROLLBACK removes the 'blob value']
+
+			The ROW_T_INSERT would have been skipped
+			because of a missing BLOB. Now we are
+			executing the first ROW_T_UPDATE.
+			The second ROW_T_UPDATE (for the ROLLBACK)
+			would be interpreted as ROW_T_DELETE, because
+			the BLOB would be missing.
+
+			We could probably assume that the transaction
+			has been rolled back and simply skip the
+			'insert' part of this ROW_T_UPDATE record.
+			However, there might be some complex scenario
+			that could interfere with such a shortcut.
+			So, we will insert the row (and risk
+			introducing a bogus duplicate key error
+			for the ALTER TABLE), and a subsequent
+			ROW_T_UPDATE or ROW_T_DELETE will delete it. */
+			mtr_commit(&mtr);
+			error = row_log_table_apply_insert_low(
+				thr, row, trx_id, offsets_heap, heap, dup);
+		} else {
+			/* Some BLOBs are missing, so we are interpreting
+			this ROW_T_UPDATE as ROW_T_DELETE (see *1).
+			Because the record was not found, we do nothing. */
+			ut_ad(error == DB_MISSING_HISTORY);
+			error = DB_SUCCESS;
+func_exit:
+			mtr_commit(&mtr);
+		}
+func_exit_committed:
+		ut_ad(mtr.has_committed());
+
 		if (error != DB_SUCCESS) {
-err_exit:
 			/* Report the erroneous row using the new
 			version of the table. */
 			innobase_row_to_mysql(dup->table, log->table, row);
@@ -1725,44 +1938,92 @@ err_exit:
 		return(error);
 	}
 
-	/* Update the record. */
+	/* Prepare to update (or delete) the record. */
 	ulint*		cur_offsets	= rec_get_offsets(
 		btr_pcur_get_rec(&pcur),
 		index, NULL, ULINT_UNDEFINED, &offsets_heap);
 
+	if (!log->same_pk) {
+		/* Only update the record if DB_TRX_ID,DB_ROLL_PTR match what
+		was buffered. */
+		ulint		len;
+		const void*	rec_trx_id
+			= rec_get_nth_field(btr_pcur_get_rec(&pcur),
+					    cur_offsets, index->n_uniq, &len);
+		ut_ad(len == DATA_TRX_ID_LEN);
+		ut_ad(dtuple_get_nth_field(old_pk, index->n_uniq)->len
+		      == DATA_TRX_ID_LEN);
+		ut_ad(dtuple_get_nth_field(old_pk, index->n_uniq + 1)->len
+		      == DATA_ROLL_PTR_LEN);
+		ut_ad(DATA_TRX_ID_LEN + static_cast<const char*>(
+			      dtuple_get_nth_field(old_pk,
+						   index->n_uniq)->data)
+		      == dtuple_get_nth_field(old_pk,
+					      index->n_uniq + 1)->data);
+		if (memcmp(rec_trx_id,
+			   dtuple_get_nth_field(old_pk, index->n_uniq)->data,
+			   DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
+			/* The ROW_T_UPDATE was logged for a different
+			DB_TRX_ID,DB_ROLL_PTR. This is possible if an
+			earlier ROW_T_INSERT or ROW_T_UPDATE was diverted
+			because some BLOBs were missing due to rolling
+			back the initial insert or due to purging
+			the old BLOB values of an update. */
+			ut_ad(log->blobs);
+			if (error != DB_SUCCESS) {
+				ut_ad(error == DB_MISSING_HISTORY);
+				/* Some BLOBs are missing, so we are
+				interpreting this ROW_T_UPDATE as
+				ROW_T_DELETE (see *1).
+				Because this is a different row,
+				we will do nothing. */
+				error = DB_SUCCESS;
+			} else {
+				/* Because the user record is missing due to
+				BLOBs that were missing when processing
+				an earlier log record, we should
+				interpret the ROW_T_UPDATE as ROW_T_INSERT.
+				However, there is a different user record
+				with the same PRIMARY KEY value already. */
+				error = DB_DUPLICATE_KEY;
+			}
+
+			goto func_exit;
+		}
+	}
+
+	if (error != DB_SUCCESS) {
+		ut_ad(error == DB_MISSING_HISTORY);
+		ut_ad(log->blobs);
+		/* Some BLOBs are missing, so we are interpreting
+		this ROW_T_UPDATE as ROW_T_DELETE (see *1). */
+		error = row_log_table_apply_delete_low(
+			&pcur, cur_offsets, NULL, heap, &mtr);
+		goto func_exit_committed;
+	}
+
 	dtuple_t*	entry	= row_build_index_entry(
 		row, NULL, index, heap);
-	const upd_t*	update	= row_upd_build_difference_binary(
+	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
 		false, NULL, heap);
-
-	error = DB_SUCCESS;
 
 	if (!update->n_fields) {
 		/* Nothing to do. */
 		goto func_exit;
 	}
 
-	if (rec_offs_any_extern(cur_offsets)) {
+	const bool	pk_updated
+		= upd_get_nth_field(update, 0)->field_no < new_trx_id_col;
+
+	if (pk_updated || rec_offs_any_extern(cur_offsets)) {
 		/* If the record contains any externally stored
 		columns, perform the update by delete and insert,
 		because we will not write any undo log that would
 		allow purge to free any orphaned externally stored
 		columns. */
-delete_insert:
-		error = row_log_table_apply_delete_low(
-			&pcur, cur_offsets, NULL, heap, &mtr);
-		ut_ad(mtr.state == MTR_COMMITTED);
 
-		if (error != DB_SUCCESS) {
-			goto err_exit;
-		}
-
-		goto insert;
-	}
-
-	if (upd_get_nth_field(update, 0)->field_no < new_trx_id_col) {
-		if (dup->index->online_log->same_pk) {
+		if (pk_updated && log->same_pk) {
 			/* The ROW_T_UPDATE log record should only be
 			written when the PRIMARY KEY fields of the
 			record did not change in the old table.  We
@@ -1774,40 +2035,16 @@ delete_insert:
 			goto func_exit;
 		}
 
-		/* The PRIMARY KEY columns have changed.
-		Delete the record with the old PRIMARY KEY value,
-		provided that it carries the same
-		DB_TRX_ID,DB_ROLL_PTR. Then, insert the new row. */
-		ulint		len;
-		const byte*	cur_trx_roll	= rec_get_nth_field(
-			mrec, offsets, trx_id_col, &len);
-		ut_ad(len == DATA_TRX_ID_LEN);
-		const dfield_t*	new_trx_roll	= dtuple_get_nth_field(
-			old_pk, new_trx_id_col);
-		/* We assume that DB_TRX_ID,DB_ROLL_PTR are stored
-		in one contiguous block. */
-		ut_ad(rec_get_nth_field(mrec, offsets, trx_id_col + 1, &len)
-		      == cur_trx_roll + DATA_TRX_ID_LEN);
-		ut_ad(len == DATA_ROLL_PTR_LEN);
-		ut_ad(new_trx_roll->len == DATA_TRX_ID_LEN);
-		ut_ad(dtuple_get_nth_field(old_pk, new_trx_id_col + 1)
-		      -> len == DATA_ROLL_PTR_LEN);
-		ut_ad(static_cast<const byte*>(
-			      dtuple_get_nth_field(old_pk, new_trx_id_col + 1)
-			      ->data)
-		      == static_cast<const byte*>(new_trx_roll->data)
-		      + DATA_TRX_ID_LEN);
+		error = row_log_table_apply_delete_low(
+			&pcur, cur_offsets, NULL, heap, &mtr);
+		ut_ad(mtr.has_committed());
 
-		if (!memcmp(cur_trx_roll, new_trx_roll->data,
-			    DATA_TRX_ID_LEN + DATA_ROLL_PTR_LEN)) {
-			/* The old row exists. Remove it. */
-			goto delete_insert;
+		if (error == DB_SUCCESS) {
+			error = row_log_table_apply_insert_low(
+				thr, row, trx_id, offsets_heap, heap, dup);
 		}
 
-		/* Unless we called row_log_table_apply_delete_low(),
-		this will likely cause a duplicate key error. */
-		mtr_commit(&mtr);
-		goto insert;
+		goto func_exit_committed;
 	}
 
 	dtuple_t*	old_row;
@@ -1845,9 +2082,8 @@ delete_insert:
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
 			error = btr_store_big_rec_extern_fields(
-				index, btr_pcur_get_block(&pcur),
-				btr_pcur_get_rec(&pcur), cur_offsets,
-				big_rec, &mtr, BTR_STORE_UPDATE);
+				&pcur, update, cur_offsets, big_rec, &mtr,
+				BTR_STORE_UPDATE);
 		}
 
 		dtuple_big_rec_free(big_rec);
@@ -1876,6 +2112,7 @@ delete_insert:
 		}
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 
 		if (ROW_FOUND != row_search_index_entry(
 			    index, entry, BTR_MODIFY_TREE, &pcur, &mtr)) {
@@ -1899,18 +2136,13 @@ delete_insert:
 			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
 			BTR_MODIFY_TREE, index, offsets_heap, heap,
-			entry, trx_id, thr);
+			entry, trx_id, thr, false);
 
 		mtr_start(&mtr);
+		mtr.set_named_space(index->space);
 	}
 
-func_exit:
-	mtr_commit(&mtr);
-	if (error != DB_SUCCESS) {
-		goto err_exit;
-	}
-
-	return(error);
+	goto func_exit;
 }
 
 /******************************************************//**
@@ -2016,7 +2248,7 @@ row_log_table_apply_op(
 		For fixed-length PRIMARY key columns, it is 0. */
 		mrec += extra_size;
 
-		rec_offs_set_n_fields(offsets, new_index->n_uniq + 1);
+		rec_offs_set_n_fields(offsets, new_index->n_uniq + 2);
 		rec_init_offsets_temp(mrec, new_index, offsets);
 		next_mrec = mrec + rec_offs_data_size(offsets) + ext_size;
 		if (next_mrec > mrec_end) {
@@ -2051,7 +2283,7 @@ row_log_table_apply_op(
 		*error = row_log_table_apply_delete(
 			thr, new_trx_id_col,
 			mrec, offsets, offsets_heap, heap,
-			log->table, ext);
+			log, ext);
 		break;
 
 	case ROW_T_UPDATE:
@@ -2191,7 +2423,7 @@ row_log_table_apply_op(
 					mrec, offsets, trx_id_col, &len);
 			ut_ad(len == DATA_TRX_ID_LEN);
 			*error = row_log_table_apply_update(
-				thr, trx_id_col, new_trx_id_col,
+				thr, new_trx_id_col,
 				mrec, offsets, offsets_heap,
 				heap, dup, trx_read_trx_id(db_trx_id), old_pk);
 		}
@@ -2288,8 +2520,9 @@ next_block:
 	if (UNIV_UNLIKELY(index->online_log->head.blocks
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
-		fprintf(stderr, "InnoDB: unexpected end of temporary file"
-			" for table %s\n", index->table_name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unexpected end of temporary file"
+			" for table %s", index->table_name);
 corruption:
 		error = DB_CORRUPTION;
 		goto func_exit;
@@ -2300,7 +2533,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd != -1
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -2337,14 +2571,20 @@ all_done:
 
 		ut_ad(dict_index_is_online_ddl(index));
 
+		if (!row_log_block_allocate(index->online_log->head)) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
+
 		success = os_file_read_no_error_handling(
 			OS_FILE_FROM_FD(index->online_log->fd),
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
 
 		if (!success) {
-			fprintf(stderr, "InnoDB: unable to read temporary file"
-				" for table %s\n", index->table_name);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to read temporary file"
+				" for table %s", index->table_name);
 			goto corruption;
 		}
 
@@ -2540,6 +2780,7 @@ func_exit:
 
 	mem_heap_free(offsets_heap);
 	mem_heap_free(heap);
+	row_log_block_free(index->online_log->head);
 	ut_free(offsets);
 	return(error);
 }
@@ -2613,9 +2854,7 @@ row_log_allocate(
 	const ulint*	col_map)/*!< in: mapping of old column
 				numbers to new ones, or NULL if !table */
 {
-	byte*		buf;
 	row_log_t*	log;
-	ulint		size;
 	DBUG_ENTER("row_log_allocate");
 
 	ut_ad(!dict_index_is_online_ddl(index));
@@ -2627,21 +2866,12 @@ row_log_allocate(
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(dict_index_get_lock(index), RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-	size = 2 * srv_sort_buf_size + sizeof *log;
-	buf = (byte*) os_mem_alloc_large(&size);
-	if (!buf) {
+	log = (row_log_t*) ut_malloc(sizeof *log);
+	if (!log) {
 		DBUG_RETURN(false);
 	}
 
-	log = (row_log_t*) &buf[2 * srv_sort_buf_size];
-	log->size = size;
-	log->fd = row_merge_file_create_low();
-
-	if (log->fd < 0) {
-		os_mem_free_large(buf, size);
-		DBUG_RETURN(false);
-	}
-
+	log->fd = -1;
 	mutex_create("index_online_log", &log->mutex);
 
 	log->blobs = NULL;
@@ -2651,10 +2881,9 @@ row_log_allocate(
 	log->col_map = col_map;
 	log->error = DB_SUCCESS;
 	log->max_trx = 0;
-	log->head.block = buf;
-	log->tail.block = buf + srv_sort_buf_size;
 	log->tail.blocks = log->tail.bytes = 0;
 	log->tail.total = 0;
+	log->tail.block = log->head.block = NULL;
 	log->head.blocks = log->head.bytes = 0;
 	log->head.total = 0;
 	dict_index_set_online_status(index, ONLINE_INDEX_CREATION);
@@ -2679,9 +2908,11 @@ row_log_free(
 	MONITOR_ATOMIC_DEC(MONITOR_ONLINE_CREATE_INDEX);
 
 	delete log->blobs;
+	row_log_block_free(log->tail);
+	row_log_block_free(log->head);
 	row_merge_file_destroy_low(log->fd);
 	mutex_free(&log->mutex);
-	os_mem_free_large(log->head.block, log->size);
+	ut_free(log);
 	log = 0;
 }
 
@@ -2742,6 +2973,7 @@ row_log_apply_op_low(
 		    rec_printer(entry).str().c_str()));
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 
 	/* We perform the pessimistic variant of the operations if we
 	already hold index->lock exclusively. First, search the
@@ -2774,7 +3006,16 @@ row_log_apply_op_low(
 		switch (op) {
 		case ROW_OP_DELETE:
 			if (!exists) {
-				/* The record was already deleted. */
+				/* The existing record matches the
+				unique secondary index key, but the
+				PRIMARY KEY columns differ. So, this
+				exact record does not exist. For
+				example, we could detect a duplicate
+				key error in some old index before
+				logging an ROW_OP_INSERT for our
+				index. This ROW_OP_DELETE could have
+				been logged for rolling back
+				TRX_UNDO_INSERT_REC. */
 				goto func_exit;
 			}
 
@@ -2789,6 +3030,7 @@ row_log_apply_op_low(
 				Lock the index tree exclusively. */
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
+				mtr.set_named_space(index->space);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0,
@@ -2814,7 +3056,24 @@ row_log_apply_op_low(
 		case ROW_OP_INSERT:
 			if (exists) {
 				/* The record already exists. There
-				is nothing to be inserted. */
+				is nothing to be inserted.
+				This could happen when processing
+				TRX_UNDO_DEL_MARK_REC in statement
+				rollback:
+
+				UPDATE of PRIMARY KEY can lead to
+				statement rollback if the updated
+				value of the PRIMARY KEY already
+				exists. In this case, the UPDATE would
+				be mapped to DELETE;INSERT, and we
+				only wrote undo log for the DELETE
+				part. The duplicate key error would be
+				triggered before logging the INSERT
+				part.
+
+				Theoretically, we could also get a
+				similar situation when a DELETE operation
+				is blocked by a FOREIGN KEY constraint. */
 				goto func_exit;
 			}
 
@@ -2825,17 +3084,18 @@ row_log_apply_op_low(
 				goto insert_the_rec;
 			}
 
-			/* Duplicate key error */
-			ut_ad(dict_index_is_unique(index));
-			row_merge_dup_report(dup, entry->fields);
-			goto func_exit;
+			goto duplicate;
 		}
 	} else {
 		switch (op) {
 			rec_t*		rec;
 			big_rec_t*	big_rec;
 		case ROW_OP_DELETE:
-			/* The record does not exist. */
+			/* The record does not exist. For example, we
+			could detect a duplicate key error in some old
+			index before logging an ROW_OP_INSERT for our
+			index. This ROW_OP_DELETE could be logged for
+			rolling back TRX_UNDO_INSERT_REC. */
 			goto func_exit;
 		case ROW_OP_INSERT:
 			if (dict_index_is_unique(index)
@@ -2845,8 +3105,11 @@ row_log_apply_op_low(
 				>= dict_index_get_n_unique(index))
 			    && (!index->n_nullable
 				|| !dtuple_contains_null(entry))) {
+duplicate:
 				/* Duplicate key */
+				ut_ad(dict_index_is_unique(index));
 				row_merge_dup_report(dup, entry->fields);
+				*error = DB_DUPLICATE_KEY;
 				goto func_exit;
 			}
 insert_the_rec:
@@ -2870,6 +3133,7 @@ insert_the_rec:
 				Lock the index tree exclusively. */
 				mtr_commit(&mtr);
 				mtr_start(&mtr);
+				mtr.set_named_space(index->space);
 				btr_cur_search_to_nth_level(
 					index, 0, entry, PAGE_CUR_LE,
 					BTR_MODIFY_TREE, &cursor, 0,
@@ -3074,6 +3338,11 @@ next_block:
 		goto interrupted;
 	}
 
+	error = index->online_log->error;
+	if (error != DB_SUCCESS) {
+		goto func_exit;
+	}
+
 	if (dict_index_is_corrupted(index)) {
 		error = DB_INDEX_CORRUPT;
 		goto func_exit;
@@ -3083,7 +3352,7 @@ next_block:
 			  > index->online_log->tail.blocks)) {
 unexpected_eof:
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"unexpected end of temporary file for index %s",
+			"Unexpected end of temporary file for index %s",
 			index->name + 1);
 corruption:
 		error = DB_CORRUPTION;
@@ -3095,7 +3364,8 @@ corruption:
 		if (index->online_log->head.blocks) {
 #ifdef HAVE_FTRUNCATE
 			/* Truncate the file in order to save space. */
-			if (ftruncate(index->online_log->fd, 0) == -1) {
+			if (index->online_log->fd != -1
+			    && ftruncate(index->online_log->fd, 0) == -1) {
 				perror("ftruncate");
 			}
 #endif /* HAVE_FTRUNCATE */
@@ -3128,14 +3398,20 @@ all_done:
 
 		log_free_check();
 
+		if (!row_log_block_allocate(index->online_log->head)) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
+
 		success = os_file_read_no_error_handling(
 			OS_FILE_FROM_FD(index->online_log->fd),
 			index->online_log->head.block, ofs,
 			srv_sort_buf_size);
 
 		if (!success) {
-			fprintf(stderr, "InnoDB: unable to read temporary file"
-				" for index %s\n", index->name + 1);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Unable to read temporary file"
+				" for index %s", index->name + 1);
 			goto corruption;
 		}
 
@@ -3328,6 +3604,7 @@ func_exit:
 
 	mem_heap_free(heap);
 	mem_heap_free(offsets_heap);
+	row_log_block_free(index->online_log->head);
 	ut_free(offsets);
 	return(error);
 }
@@ -3363,7 +3640,7 @@ row_log_apply(
 		error = DB_SUCCESS;
 	}
 
-	if (error != DB_SUCCESS || dup.n_dup) {
+	if (error != DB_SUCCESS) {
 		ut_a(!dict_table_is_discarded(index->table));
 		/* We set the flag directly instead of invoking
 		dict_set_corrupted_index_cache_only(index) here,
@@ -3371,12 +3648,9 @@ row_log_apply(
 		index->type |= DICT_CORRUPT;
 		index->table->drop_aborted = TRUE;
 
-		if (error == DB_SUCCESS) {
-			error = DB_DUPLICATE_KEY;
-		}
-
 		dict_index_set_online_status(index, ONLINE_INDEX_ABORTED);
 	} else {
+		ut_ad(dup.n_dup == 0);
 		dict_index_set_online_status(index, ONLINE_INDEX_COMPLETE);
 	}
 

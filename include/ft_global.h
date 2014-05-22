@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,6 +24,9 @@
 #ifdef  __cplusplus
 extern "C" {
 #endif
+
+#include "my_global.h"
+#include "my_base.h"
 
 #define HA_FT_MAXBYTELEN 254
 #define HA_FT_MAXCHARLEN (HA_FT_MAXBYTELEN/3)
@@ -80,10 +83,40 @@ extern struct st_mysql_ftparser ft_default_parser;
 int ft_init_stopwords(void);
 void ft_free_stopwords(void);
 
-#define FT_NL     0
-#define FT_BOOL   1
-#define FT_SORTED 2
-#define FT_EXPAND 4   /* query expansion */
+/**
+  Operation types, used in FT_HINTS.
+*/
+
+enum ft_operation
+{
+  FT_OP_UNDEFINED, /** Operation undefined, use of hints is impossible */
+  FT_OP_NO,        /** No operation, single MATCH function */
+  FT_OP_GT,        /** 'Greater than' operation */
+  FT_OP_GE         /** 'Greater than or equal to' operation */
+};
+
+#define FT_NL              0   /** Normal mode  */
+#define FT_BOOL            1   /** Boolean mode */
+#define FT_SORTED          2   /** perform internal sorting by rank */
+#define FT_EXPAND          4   /** query expansion */
+#define FT_NO_RANKING      8   /** skip rank calculation */
+
+/**
+  Info about FULLTEXT index hints,
+  passed to the storage engine.
+*/
+
+struct ft_hints
+{
+  /** FULLTEXT flags, see FT_NL, etc */
+  uint flags;
+  /** Operation type */
+  enum ft_operation op_type;
+  /** Operation value */
+  double op_value;
+  /** LIMIT value, HA_POS_ERROR if not set */
+  ha_rows limit;
+};
 
 FT_INFO *ft_init_search(uint,void *, uint, uchar *, uint,
                         const CHARSET_INFO *, uchar *);

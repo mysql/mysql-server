@@ -5,9 +5,9 @@ username	event_name	sql_text
 user1	statement/sql/flush	flush tables with read lock
 username	event_name	nesting_event_type
 username	event_name	nesting_event_type
-user1	stage/sql/init	STATEMENT
+user1	stage/sql/starting	STATEMENT
 user1	stage/sql/Waiting for query cache lock	STATEMENT
-user1	stage/sql/init	STATEMENT
+user1	stage/sql/starting	STATEMENT
 user1	stage/sql/query end	STATEMENT
 user1	stage/sql/closing tables	STATEMENT
 user1	stage/sql/freeing items	STATEMENT
@@ -18,7 +18,7 @@ user2	statement/sql/insert	insert into test.t1 values (1), (2), (3)
 username	event_name	nesting_event_type
 user2	stage/sql/Waiting for global read lock	STATEMENT
 username	event_name	nesting_event_type
-user2	stage/sql/init	STATEMENT
+user2	stage/sql/starting	STATEMENT
 user2	stage/sql/checking permissions	STATEMENT
 user2	stage/sql/Opening tables	STATEMENT
 unlock tables;

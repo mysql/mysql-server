@@ -102,7 +102,7 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
 			  ulonglong sortbuff_size)
 {
   int error,maxbuffer,skr;
-  uint sort_length, keys;
+  uint sort_length, keys= 0;
   ulonglong memavl, old_memavl;
   DYNAMIC_ARRAY buffpek;
   ha_rows records;
@@ -133,7 +133,6 @@ int _create_index_by_sort(MI_SORT_PARAM *info,my_bool no_messages,
   memavl= MY_MAX(sortbuff_size, MIN_SORT_BUFFER);
   records=	info->sort_info->max_records;
   sort_length=	info->key_length;
-  LINT_INIT(keys);
 
   if ((memavl - sizeof(BUFFPEK)) / (sort_length + sizeof(char *)) > UINT_MAX32)
     memavl= sizeof(BUFFPEK) + UINT_MAX32 * (sort_length + sizeof(char *));
@@ -314,11 +313,9 @@ pthread_handler_t thr_find_all_keys(void *arg)
   MI_SORT_PARAM *sort_param= (MI_SORT_PARAM*) arg;
   int error;
   ulonglong memavl, old_memavl;
-  uint keys, sort_length;
+  uint keys= 0, sort_length;
   uint idx, maxbuffer;
   uchar **sort_keys=0;
-
-  LINT_INIT(keys);
 
   error=1;
 
@@ -499,7 +496,7 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
 {
   SORT_INFO *sort_info=sort_param->sort_info;
   MI_CHECK *param=sort_info->param;
-  ulong UNINIT_VAR(length), keys;
+  ulong length= 0, keys;
   ulong *rec_per_key_part=param->rec_per_key_part;
   int got_error=sort_info->got_error;
   uint i;
@@ -508,7 +505,6 @@ int thr_write_keys(MI_SORT_PARAM *sort_param)
   MI_SORT_PARAM *sinfo;
   uchar *mergebuf=0;
   DBUG_ENTER("thr_write_keys");
-  LINT_INIT(length);
 
   for (i= 0, sinfo= sort_param ;
        i < sort_info->total_keys ;
@@ -909,7 +905,7 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   int error;
   uint sort_length,maxcount;
   ha_rows count;
-  my_off_t UNINIT_VAR(to_start_filepos);
+  my_off_t to_start_filepos= 0;
   uchar *strpos;
   BUFFPEK *buffpek,**refpek;
   QUEUE queue;
@@ -919,7 +915,6 @@ merge_buffers(MI_SORT_PARAM *info, uint keys, IO_CACHE *from_file,
   count=error=0;
   maxcount=keys/((uint) (Tb-Fb) +1);
   DBUG_ASSERT(maxcount > 0);
-  LINT_INIT(to_start_filepos);
   if (to_file)
     to_start_filepos=my_b_tell(to_file);
   strpos=(uchar*) sort_keys;

@@ -6,7 +6,7 @@ if(WITH_BUNDLED_MEMCACHED)
   # Use bundled memcached
   set(MEMCACHED_ROOT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached)
   set(MEMCACHED_INCLUDE_DIR ${CMAKE_CURRENT_SOURCE_DIR}/extra/memcached/include)
-  set(MEMCACHED_UTILITIES_LIBRARY memcached_utilities)
+  set(MEMCACHED_UTILITIES_LIBRARY ndb_memcached_utilities)
   set(MEMCACHED_BIN_PATH ${CMAKE_INSTALL_PREFIX}/${INSTALL_SBINDIR}/memcached)
 else()   
 

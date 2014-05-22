@@ -15,13 +15,13 @@ SELECT * FROM performance_schema.setup_instruments
 WHERE name IN (
   'wait/synch/mutex/sql/LOCK_user_conn',
   'wait/synch/mutex/sql/LOCK_uuid_generator',
-  'wait/synch/mutex/sql/LOCK_xid_cache',
+  'wait/synch/mutex/sql/LOCK_transaction_cache',
   'stage/sql/creating table')
 AND enabled = 'yes' AND timed = 'no'
 ORDER BY name;
 
 SELECT * FROM performance_schema.setup_instruments
-WHERE name = 'wait/synch/mutex/sql/LOCK_thread_count'
+WHERE name = 'wait/synch/mutex/sql/LOCK_thd_count'
 AND enabled = 'no' AND timed = 'no';
 
 SELECT * FROM performance_schema.setup_instruments

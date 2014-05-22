@@ -39,6 +39,7 @@ RESET SLAVE;
 SELECT COUNT(*) FROM t1;
 COUNT(*)
 5000
+RESET MASTER;
 LOCK TABLES t1 READ;
 START SLAVE;
 UNLOCK TABLES;
@@ -52,4 +53,5 @@ SELECT n FROM t1;
 n
 3456
 DROP TABLE t1;
+# mysql.user table restored to original values.
 include/rpl_end.inc

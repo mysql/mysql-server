@@ -1,0 +1,411 @@
+# Tests of the AES functionality
+#
+# WL#6781: Support multiple AES encryption modes
+#
+#### AES_ENCRYPT return type
+# must be aes-128-ecb
+SELECT @@block_encryption_mode;
+@@block_encryption_mode
+aes-128-ecb
+# must work and return a string
+SELECT TO_BASE64(AES_ENCRYPT('a', 'b'));
+TO_BASE64(AES_ENCRYPT('a', 'b'))
+VIE8melxXCgTE0xsFy5JTg==
+# must return 16
+SELECT LENGTH(AES_ENCRYPT('a', 'b'));
+LENGTH(AES_ENCRYPT('a', 'b'))
+16
+# must return binary
+SELECT CHARSET(AES_ENCRYPT('a', 'b'));
+CHARSET(AES_ENCRYPT('a', 'b'))
+binary
+# must be equal
+SELECT AES_ENCRYPT('a', 'b') = AES_ENCRYPT('a', 'b');
+AES_ENCRYPT('a', 'b') = AES_ENCRYPT('a', 'b')
+1
+#### AES_ENCRYPT parameters
+# must return NULL
+SELECT AES_ENCRYPT('a', NULL);
+AES_ENCRYPT('a', NULL)
+NULL
+SELECT AES_ENCRYPT(NULL, 'a');
+AES_ENCRYPT(NULL, 'a')
+NULL
+SELECT AES_ENCRYPT(NULL, NULL);
+AES_ENCRYPT(NULL, NULL)
+NULL
+# must return value
+SELECT TO_BASE64(AES_ENCRYPT('a', 0));
+TO_BASE64(AES_ENCRYPT('a', 0))
+aYJapBqdtJb5LdZYNnyvSQ==
+SELECT TO_BASE64(AES_ENCRYPT('a', 12.04));
+TO_BASE64(AES_ENCRYPT('a', 12.04))
+zsb8jPtLNXiWI5Kzwf0V0A==
+SELECT TO_BASE64(AES_ENCRYPT(0, 'a'));
+TO_BASE64(AES_ENCRYPT(0, 'a'))
+6k2i7KJUMBKiOkGToSMgxg==
+SELECT TO_BASE64(AES_ENCRYPT(12.04, 'a'));
+TO_BASE64(AES_ENCRYPT(12.04, 'a'))
+TXCHis1z3ZT2p2daWZfwLg==
+SELECT TO_BASE64(AES_ENCRYPT(0, 0));
+TO_BASE64(AES_ENCRYPT(0, 0))
+Nop3grbtyVAOy+Ycpyx7RA==
+SELECT TO_BASE64(AES_ENCRYPT(12.04, 12.04));
+TO_BASE64(AES_ENCRYPT(12.04, 12.04))
+W4FA3x/RuDuacxCfEQY4pQ==
+#### parameter conversion
+must be equal
+SELECT AES_ENCRYPT('a', 12.04) = AES_ENCRYPT('a', '12.04');
+AES_ENCRYPT('a', 12.04) = AES_ENCRYPT('a', '12.04')
+1
+SELECT AES_ENCRYPT('a', 0) = AES_ENCRYPT('a', '0');
+AES_ENCRYPT('a', 0) = AES_ENCRYPT('a', '0')
+1
+SELECT AES_ENCRYPT(12.04, 'a') = AES_ENCRYPT('12.04', 'a');
+AES_ENCRYPT(12.04, 'a') = AES_ENCRYPT('12.04', 'a')
+1
+SELECT AES_ENCRYPT(0, 'a') = AES_ENCRYPT('0', 'a');
+AES_ENCRYPT(0, 'a') = AES_ENCRYPT('0', 'a')
+1
+SELECT AES_ENCRYPT('\x0Z', 'a') = AES_ENCRYPT('\x0Z', 'a');
+AES_ENCRYPT('\x0Z', 'a') = AES_ENCRYPT('\x0Z', 'a')
+1
+SELECT AES_ENCRYPT('a', '\x0Z') = AES_ENCRYPT('a', '\x0Z');
+AES_ENCRYPT('a', '\x0Z') = AES_ENCRYPT('a', '\x0Z')
+1
+# must not be equal
+SELECT AES_ENCRYPT('a', '\x0Y') = AES_ENCRYPT('a', '\x0Z');
+AES_ENCRYPT('a', '\x0Y') = AES_ENCRYPT('a', '\x0Z')
+0
+SELECT AES_ENCRYPT('\x0Y', 'a') = AES_ENCRYPT('\x0Z', 'a');
+AES_ENCRYPT('\x0Y', 'a') = AES_ENCRYPT('\x0Z', 'a')
+0
+#### algorithm
+# must not be equal
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('b', 'a');
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('b', 'a')
+0
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'b');
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'b')
+0
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('aa', 'a');
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('aa', 'a')
+0
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'aa');
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'aa')
+0
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT(REPEAT('a',1000), 'a');
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT(REPEAT('a',1000), 'a')
+0
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', REPEAT('a',1000));
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', REPEAT('a',1000))
+0
+#### persistense
+CREATE TABLE t1 (a BINARY(16) PRIMARY KEY);
+# must pass without a warning
+INSERT INTO t1 VALUES (AES_ENCRYPT('a','a'));
+# must fail
+INSERT INTO t1 VALUES (AES_ENCRYPT('a','a'));
+ERROR 23000: Duplicate entry '{ W]\xA1\x06u\x9D\xBD\xB1\xA3.\xE2\xD9\xA7t' for key 'PRIMARY'
+# must pass
+INSERT INTO t1 VALUES (AES_ENCRYPT('b','a'));
+# must return 1
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('a', 'a');
+COUNT(*)
+1
+# must return 1
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('b', 'a');
+COUNT(*)
+1
+# must return 0
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('c', 'a');
+COUNT(*)
+0
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('a', 'c');
+COUNT(*)
+0
+SELECT TO_BASE64(a) FROM t1 ORDER BY a;
+TO_BASE64(a)
+eyBXXaEGdZ29saMu4tmndA==
+nZ4GgEfF5ib3dWk0Is8MFw==
+# cleanup
+DROP TABLE t1;
+#### IV
+# must be equal
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'a', REPEAT('a', 16));
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'a', REPEAT('a', 16))
+1
+Warnings:
+Warning	1618	<IV> option ignored
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'a', REPEAT('b', 16));
+AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'a', REPEAT('b', 16))
+1
+Warnings:
+Warning	1618	<IV> option ignored
+# must return a warning
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', 'a'));
+TO_BASE64(AES_ENCRYPT('a', 'a', 'a'))
+eyBXXaEGdZ29saMu4tmndA==
+Warnings:
+Warning	1618	<IV> option ignored
+# must pass
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', NULL));
+TO_BASE64(AES_ENCRYPT('a', 'a', NULL))
+eyBXXaEGdZ29saMu4tmndA==
+Warnings:
+Warning	1618	<IV> option ignored
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', REPEAT('a', 1024)));
+TO_BASE64(AES_ENCRYPT('a', 'a', REPEAT('a', 1024)))
+eyBXXaEGdZ29saMu4tmndA==
+Warnings:
+Warning	1618	<IV> option ignored
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', RANDOM_BYTES(16)));
+TO_BASE64(AES_ENCRYPT('a', 'a', RANDOM_BYTES(16)))
+eyBXXaEGdZ29saMu4tmndA==
+Warnings:
+Warning	1618	<IV> option ignored
+#### RANDOM_BYTES
+# must be 1
+SELECT LENGTH(RANDOM_BYTES(1));
+LENGTH(RANDOM_BYTES(1))
+1
+# must return binary
+SELECT CHARSET(RANDOM_BYTES(1));
+CHARSET(RANDOM_BYTES(1))
+binary
+# must return an error
+SELECT RANDOM_BYTES(1000000000000);
+ERROR 22003: length value is out of range in 'random_bytes'
+SELECT LENGTH(RANDOM_BYTES(0));
+ERROR 22003: length value is out of range in 'random_bytes'
+#### AES_DECRYPT
+# must return binary
+SELECT CHARSET(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'));
+CHARSET(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'))
+binary
+# must return 1
+SELECT LENGTH(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'));
+LENGTH(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'))
+1
+# must be equal
+SELECT AES_DECRYPT(AES_ENCRYPT('a','a'), 'a') = 'a';
+AES_DECRYPT(AES_ENCRYPT('a','a'), 'a') = 'a'
+1
+# must be equal
+SELECT AES_DECRYPT(AES_ENCRYPT(_UTF8'Жоро', 'a'), 'a') = _UTF8'Жоро';
+AES_DECRYPT(AES_ENCRYPT(_UTF8'Жоро', 'a'), 'a') = _UTF8'Жоро'
+1
+SELECT AES_DECRYPT(AES_ENCRYPT('Жоро', 'a'), 'a') = 'Жоро';
+AES_DECRYPT(AES_ENCRYPT('Жоро', 'a'), 'a') = 'Жоро'
+1
+# must be NULL
+SELECT AES_DECRYPT(NULL, 'a');
+AES_DECRYPT(NULL, 'a')
+NULL
+SELECT AES_DECRYPT('a', NULL);
+AES_DECRYPT('a', NULL)
+NULL
+SELECT AES_DECRYPT(NULL, NULL);
+AES_DECRYPT(NULL, NULL)
+NULL
+#### AES_DECRYPT IV
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', NULL);
+'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', NULL)
+1
+Warnings:
+Warning	1618	<IV> option ignored
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', REPEAT('a',16));
+'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', REPEAT('a',16))
+1
+Warnings:
+Warning	1618	<IV> option ignored
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', REPEAT('a',100));
+'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', REPEAT('a',100))
+1
+Warnings:
+Warning	1618	<IV> option ignored
+# must return a warning
+SELECT TO_BASE64(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', 'a'));
+TO_BASE64(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', 'a'))
+YQ==
+Warnings:
+Warning	1618	<IV> option ignored
+#### 128, 192 and 256 bit ECB
+CREATE TABLE aes_ecb(a VARCHAR(16), b128 CHAR(16), b192 CHAR(16), b256 CHAR(16));
+INSERT INTO aes_ecb (a) VALUES ('a'), ('Жоро'), (REPEAT('a', 10));
+SET SESSION block_encryption_mode='aes-128-ecb';
+UPDATE aes_ecb SET b128 = AES_ENCRYPT(a, 'a');
+SET SESSION block_encryption_mode='aes-192-ecb';
+UPDATE aes_ecb SET b192 = AES_ENCRYPT(a, 'a');
+SET SESSION block_encryption_mode='aes-256-ecb';
+UPDATE aes_ecb SET b256 = AES_ENCRYPT(a, 'a');
+# must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE b128 = b192 OR B192 = b256 OR b128=b256;
+COUNT(*)
+0
+SET SESSION block_encryption_mode='aes-256-ecb';
+# must return 3
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b256, 'a');
+COUNT(*)
+3
+# must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b256, 'b');
+COUNT(*)
+0
+SET SESSION block_encryption_mode='aes-192-ecb';
+# must return 3
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b192, 'a');
+COUNT(*)
+3
+# must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b192, 'b');
+COUNT(*)
+0
+SET SESSION block_encryption_mode='aes-128-ecb';
+# must return 3
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b128, 'a');
+COUNT(*)
+3
+# must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b128, 'b');
+COUNT(*)
+0
+SET SESSION block_encryption_mode=DEFAULT;
+DROP TABLE aes_ecb;
+#### cbc
+SET @IVA=REPEAT('a', 16);
+SET @IVB=REPEAT('b', 16);
+SET @KEY1=REPEAT('c', 16);
+SET @KEY2=REPEAT('d', 16);
+#### 128-cbc
+SET SESSION block_encryption_mode="aes-128-cbc";
+# must throw an error without an IV
+SELECT AES_ENCRYPT('a', @KEY1);
+ERROR 42000: Incorrect parameter count in the call to native function 'aes_encrypt'
+block mode dependent. Must be non-0 and non-null
+SELECT LENGTH(AES_ENCRYPT('a', @KEY1, @IVA));
+LENGTH(AES_ENCRYPT('a', @KEY1, @IVA))
+16
+block mode dependent
+SELECT TO_BASE64(AES_ENCRYPT('a', @KEY1, @IVA));
+TO_BASE64(AES_ENCRYPT('a', @KEY1, @IVA))
+EDJBpPTlIfYc8nytlcwy0Q==
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', @KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a', @KEY1, @IVA), @KEY1, @IVA)
+1
+# must not be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA)
+NULL
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA)
+0
+#### 192-cbc
+SET SESSION block_encryption_mode="aes-192-cbc";
+# must throw an error without an IV
+SELECT AES_ENCRYPT('a', @KEY1);
+ERROR 42000: Incorrect parameter count in the call to native function 'aes_encrypt'
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA)
+1
+# must not be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA)
+NULL
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA)
+0
+#### 256-cbc
+SET SESSION block_encryption_mode="aes-256-cbc";
+# must throw an error without an IV
+SELECT AES_ENCRYPT('a', @KEY1);
+ERROR 42000: Incorrect parameter count in the call to native function 'aes_encrypt'
+# must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVA)
+1
+# must not be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY1, @IVB)
+0
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('a',@KEY1, @IVA), @KEY2, @IVA)
+NULL
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA);
+'a' = AES_DECRYPT(AES_ENCRYPT('b',@KEY1, @IVA), @KEY1, @IVA)
+0
+SET SESSION block_encryption_mode=DEFAULT;
+#### 128, 192 and 256 bit cbc
+CREATE TABLE aes_cbc(a VARCHAR(128), b128 VARCHAR(144),
+b192 VARCHAR(144), b256 CHAR(144));
+INSERT INTO aes_cbc (a) VALUES (REPEAT('a', 128));
+INSERT INTO aes_cbc (a) VALUES (REPEAT(0x00313233, 32));
+SET SESSION block_encryption_mode="aes-128-cbc";
+UPDATE aes_cbc SET b128 = AES_ENCRYPT(a, @KEY1, @IVA);
+SET SESSION block_encryption_mode="aes-192-cbc";
+UPDATE aes_cbc SET b192 = AES_ENCRYPT(a, @KEY1, @IVA);
+SET SESSION block_encryption_mode="aes-256-cbc";
+UPDATE aes_cbc SET b256 = AES_ENCRYPT(a, @KEY1, @IVA);
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE b128 = b192 OR B192 = b256 OR b128=b256;
+COUNT(*)
+0
+SET SESSION block_encryption_mode="aes-256-cbc";
+# must return 2
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b256, @KEY1, @IVA);
+COUNT(*)
+2
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b256, 'b', @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b256, @KEY1, @IVB);
+COUNT(*)
+0
+SET SESSION block_encryption_mode="aes-192-cbc";
+# must return 2
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b192, @KEY1, @IVA);
+COUNT(*)
+2
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b192, @KEY2, @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b256, @KEY1, @IVB);
+COUNT(*)
+0
+SET SESSION block_encryption_mode="aes-128-cbc";
+# must return 2
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b128, @KEY1, @IVA);
+COUNT(*)
+2
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b128, @KEY2, @IVA);
+COUNT(*)
+0
+# must return 0
+SELECT COUNT(*) FROM aes_cbc WHERE a = AES_DECRYPT(b256, @KEY2, @IVB);
+COUNT(*)
+0
+SET SESSION block_encryption_mode=DEFAULT;
+DROP TABLE aes_cbc;
+#
+# Bug #18259229: SERVER CRASHES WITH THE FUNCTION RANDOM_BYTES()
+#
+# INT_MAX - 9 (terminating 0 + rounding). Should not crash
+SELECT RANDOM_BYTES(2147483647 - 9);
+ERROR 22003: length value is out of range in 'random_bytes'
+#
+# End of 5.7 tests
+#

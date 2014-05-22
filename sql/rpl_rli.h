@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,6 +30,7 @@
 struct RPL_TABLE_LIST;
 class Master_info;
 class Mts_submode;
+class Commit_order_manager;
 extern uint sql_slave_skip_counter;
 
 /*******************************************************************************
@@ -237,18 +238,6 @@ protected:
   char group_master_log_name[FN_REFLEN];
   volatile my_off_t group_master_log_pos;
 
-  /*
-    When it commits, InnoDB internally stores the master log position it has
-    processed so far; the position to store is the one of the end of the
-    committing event (the COMMIT query event, or the event if in autocommit
-    mode).
-  */
-#if MYSQL_VERSION_ID < 40100
-  ulonglong future_master_log_pos;
-#else
-  ulonglong future_group_master_log_pos;
-#endif
-
 private:
   Gtid_set gtid_set;
   /*
@@ -259,8 +248,14 @@ private:
     earlier on in the class constructor.
   */
   bool rli_fake;
+  /* Last gtid retrieved by IO thread */
+  Gtid last_retrieved_gtid;
+  /* Flag that ensures the retrieved GTID set is initialized only once. */
+  bool gtid_retrieved_initialized;
 
 public:
+  Gtid *get_last_retrieved_gtid() { return &last_retrieved_gtid; }
+  void set_last_retrieved_gtid(Gtid gtid) { last_retrieved_gtid= gtid; }
   int add_logged_gtid(rpl_sidno sidno, rpl_gno gno)
   {
     int ret= 0;
@@ -591,13 +586,6 @@ public:
   bool mts_recovery_group_seen_begin;
 
   /*
-    Coordinator's specific mem-root to hold various temporary data while
-    the current group is being schedulled. The root is shunk to default size
-    at the end of the group distribution.
-  */
-  MEM_ROOT mts_coor_mem_root;
-
-  /*
     While distibuting events basing on their properties MTS
     Coordinator changes its mts group status.
     Transition normally flowws to follow `=>' arrows on the diagram:
@@ -653,7 +641,7 @@ public:
     if (workers_array_initialized)
       return workers.elements;
     else
-      return workers_copy_pfs.size();
+      return static_cast<uint>(workers_copy_pfs.size());
   }
 
   /*
@@ -885,16 +873,6 @@ public:
     return (group_master_log_name[0] ? group_master_log_name : "FIRST");
   }
 
-#if MYSQL_VERSION_ID < 40100
-  inline ulonglong get_future_master_log_pos() { return future_master_log_pos; }
-#else
-  inline ulonglong get_future_group_master_log_pos() { return future_group_master_log_pos; }
-  inline void set_future_group_master_log_pos(ulonglong log_pos)
-  {
-    future_group_master_log_pos= log_pos;
-  }
-#endif
-
   static size_t get_number_info_rli_fields();
 
   /**
@@ -915,7 +893,8 @@ public:
     THD_STAGE_INFO(info_thd, stage_sql_thd_waiting_until_delay);
   }
 
-  int32 get_sql_delay() { return sql_delay; }
+  /* Note that this is cast to uint32 in show_slave_status(). */
+  time_t get_sql_delay() { return sql_delay; }
   void set_sql_delay(time_t _sql_delay) { sql_delay= _sql_delay; }
   time_t get_sql_delay_end() { return sql_delay_end; }
 
@@ -995,10 +974,26 @@ public:
   void adapt_to_master_version(Format_description_log_event *fdle);
   uchar slave_version_split[3]; // bytes of the slave server version
 
+  Commit_order_manager *get_commit_order_manager()
+  {
+    return commit_order_mngr;
+  }
+
+  void set_commit_order_manager(Commit_order_manager *mngr)
+  {
+    commit_order_mngr= mngr;
+  }
+
 protected:
   Format_description_log_event *rli_description_event;
 
 private:
+  /*
+    Commit order manager to order commits made by its workers. In context of
+    Multi Source Replication each worker will be ordered by the coresponding
+    corrdinator's order manager.
+   */
+  Commit_order_manager* commit_order_mngr;
 
   /**
     Delay slave SQL thread by this amount, compared to master (in
@@ -1011,7 +1006,7 @@ private:
     slave SQL thread is running, since the SQL thread reads it without
     a lock when executing flush_info().
   */
-  int sql_delay;
+  time_t sql_delay;
 
   /**
     During a delay, specifies the point in time when the delay ends.

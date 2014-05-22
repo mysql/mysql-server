@@ -802,3 +802,14 @@ Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1
 Warning	1264	Out of range value for column 'field1' at row 2
 DROP TABLE table_11757486;
+#
+# Bug #18352634 	"UPDATE ORDER BY" OF MULTI-TABLE VIEW DOES NOT WORK
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+CREATE VIEW v AS SELECT t1.a FROM t1,t1 q;
+UPDATE v SET a=1 ORDER BY a;
+Got one of the listed errors
+UPDATE v SET a=1 LIMIT 3;
+Got one of the listed errors
+DROP TABLE t1;
+DROP VIEW v;

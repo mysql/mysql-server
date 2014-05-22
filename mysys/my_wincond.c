@@ -96,7 +96,7 @@ int pthread_cond_signal(pthread_cond_t *cond)
 
 
 int pthread_cond_timedwait(pthread_cond_t *cond, pthread_mutex_t *mutex,
-  struct timespec *abstime)
+  const struct timespec *abstime)
 {
   DWORD timeout= get_milliseconds(abstime);
   if (!SleepConditionVariableCS(cond, mutex, timeout))

@@ -1,5 +1,5 @@
 /*
-      Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+      Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
       This program is free software; you can redistribute it and/or modify
       it under the terms of the GNU General Public License as published by
@@ -84,11 +84,10 @@ table_replication_connection_status::m_share=
 {
   { C_STRING_WITH_LEN("replication_connection_status") },
   &pfs_readonly_acl,
-  &table_replication_connection_status::create,
+  table_replication_connection_status::create,
   NULL, /* write_row */
   NULL, /* delete_all_rows */
   table_replication_connection_status::get_row_count,
-  1, /* records */
   sizeof(PFS_simple_index), /* ref length */
   &m_table_lock,
   &m_field_def,
@@ -189,7 +188,10 @@ void table_replication_connection_status::make_row()
   mysql_mutex_lock(&active_mi->data_lock);
   mysql_mutex_lock(&active_mi->rli->data_lock);
 
-  memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
+  if (active_mi->master_uuid[0] != 0)
+    memcpy(m_row.source_uuid, active_mi->master_uuid, UUID_LENGTH);
+  else
+    m_row.source_uuid[0]= 0;
 
   m_row.thread_id= 0;
 
@@ -284,7 +286,8 @@ int table_replication_connection_status::read_row_values(TABLE *table,
       switch(f->field_index)
       {
       case 0: /** source_uuid */
-        set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
+        if (m_row.source_uuid[0] != 0)
+          set_field_char_utf8(f, m_row.source_uuid, UUID_LENGTH);
         break;
       case 1: /** thread_id */
         if(m_row.thread_id_is_null)

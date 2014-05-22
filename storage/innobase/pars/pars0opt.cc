@@ -1122,9 +1122,9 @@ opt_clust_access(
 		    && (dict_index_get_nth_field(index, pos)->prefix_len != 0
 		    || dict_index_get_nth_field(clust_index, i)
 		    ->prefix_len != 0)) {
-			fprintf(stderr,
-				"InnoDB: Error in pars0opt.cc:"
-				" table %s has prefix_len != 0\n",
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Error in pars0opt.cc:"
+				" table %s has prefix_len != 0",
 				index->table_name);
 		}
 

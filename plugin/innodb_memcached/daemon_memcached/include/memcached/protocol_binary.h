@@ -1,7 +1,7 @@
 /* -*- Mode: C; tab-width: 4; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 /*
  * Copyright (c) <2008>, Sun Microsystems, Inc.
- * All rights reserved.
+ * Use is subject to license terms
  *
  * Redistribution and use in source and binary forms, with or without
  * modification, are permitted provided that the following conditions are met:

@@ -12,9 +12,11 @@ select * from t1;
 s1
 Montag
 Monday
+include/sync_slave_sql_with_master.inc
 select * from t1;
 s1
 Montag
 Monday
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

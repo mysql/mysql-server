@@ -427,6 +427,55 @@ show status like 'table_open_cache_%';
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;
 
+#
+# Bug#11766596: UPDATE A TIMESTAMP VARIABLE EVERY TIME REACHES MAX_USED_CONNECTIONS
+#
+
+connect (con1,localhost,root,,);
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+SHOW STATUS LIKE 'max_used_connections_time';
+--sleep 1
+connect (con2,localhost,root,,);
+--sleep 1
+connect (con3,localhost,root,,);
+
+--echo # Should report 4
+SHOW STATUS LIKE 'max_used_connections';
+
+let $time_1=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+--sleep 1
+disconnect con2;
+let $time_2=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+--sleep 1
+connect (con4,localhost,root,,);
+
+--echo # Should report 4
+SHOW STATUS LIKE 'max_used_connections';
+
+let $time_3=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+
+--echo # This should report 0 as it must have the same value as above
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--disable_query_log ONCE
+--eval SELECT TIMESTAMPDIFF(SECOND,'$time_1','$time_2') <> 0
+
+--echo # This should report 0 as timestamp is updated only when connection count strictly exceeds the previos highest value
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--disable_query_log ONCE
+--eval SELECT TIMESTAMPDIFF(SECOND,'$time_1','$time_3') <> 0
+
+disconnect con1;
+disconnect con3;
+--sleep 1
+FLUSH STATUS;
+let $time_4=`SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.SESSION_STATUS WHERE VARIABLE_NAME LIKE 'max_used_connections_time'`;
+
+--echo # This should not report 0 as FLUSH STATUS is called.
+--replace_regex /[0-9]*-[0-9]*-[0-9]* [0-9]*:[0-9]*:[0-9]*/DTVALUE/
+--disable_query_log ONCE
+--eval SELECT TIMESTAMPDIFF(SECOND,'$time_4','$time_3') <> 0
+
+disconnect con4;
 
 # Restore global concurrent_insert value. Keep in the end of the test file.
 --connection default

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -42,6 +42,7 @@ Created 2/17/1996 Heikki Tuuri
 #include "btr0pcur.h"
 #include "btr0btr.h"
 #include "ha0ha.h"
+#include "srv0mon.h"
 #include "sync0sync.h"
 
 /** Flag: has the search system been enabled?
@@ -831,6 +832,9 @@ btr_search_guess_on_hash(
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
 	      || (latch_mode == BTR_MODIFY_LEAF));
 
+	/* Not supported for spatial index */
+	ut_ad(!dict_index_is_spatial(index));
+
 	/* Note that, for efficiency, the struct info may not be protected by
 	any latch here! */
 
@@ -1037,17 +1041,17 @@ btr_search_drop_page_hash_index(
 	ulint*			offsets;
 	btr_search_t*		info;
 
+	/* Do a dirty check on block->index, return if the block is
+	not in the adaptive hash index. This is to avoid acquiring
+	shared btr_search_latch for performance consideration. */
+	if (!block->index || block->index->disable_ahi) {
+		return;
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-
-	/* Do a dirty check on block->index, return if the block is
-	not in the adaptive hash index. This is to avoid acquiring
-	shared btr_search_latch for performance consideration. */
-	if (!block->index) {
-		return;
-	}
 
 retry:
 	rw_lock_s_lock(&btr_search_latch);
@@ -1187,12 +1191,10 @@ cleanup:
 #if defined UNIV_AHI_DEBUG || defined UNIV_DEBUG
 	if (UNIV_UNLIKELY(block->n_pointers)) {
 		/* Corruption */
-		ut_print_timestamp(stderr);
-		fprintf(stderr,
-			"  InnoDB: Corruption of adaptive hash index."
-			" After dropping\n"
-			"InnoDB: the hash index to a page of %s,"
-			" still %lu hash nodes remain.\n",
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Corruption of adaptive hash index."
+			" After dropping, the hash index to a page of %s,"
+			" still %lu hash nodes remain.",
 			index->name, (ulong) block->n_pointers);
 		rw_lock_x_unlock(&btr_search_latch);
 
@@ -1207,17 +1209,14 @@ cleanup:
 	ut_free(folds);
 }
 
-/********************************************************************//**
-Drops a possible page hash index when a page is evicted from the buffer pool
-or freed in a file segment. */
-
+/** Drops a possible page hash index when a page is evicted from the
+buffer pool or freed in a file segment.
+@param[in]	page_id		page id
+@param[in]	page_size	page size */
 void
 btr_search_drop_page_hash_when_freed(
-/*=================================*/
-	ulint	space,		/*!< in: space id */
-	ulint	zip_size,	/*!< in: compressed page size in bytes
-				or 0 for uncompressed pages */
-	ulint	page_no)	/*!< in: page number */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size)
 {
 	buf_block_t*	block;
 	mtr_t		mtr;
@@ -1232,7 +1231,7 @@ btr_search_drop_page_hash_when_freed(
 	are possibly holding, we cannot s-latch the page, but must
 	(recursively) x-latch it, even though we are only reading. */
 
-	block = buf_page_get_gen(space, zip_size, page_no, RW_X_LATCH, NULL,
+	block = buf_page_get_gen(page_id, page_size, RW_X_LATCH, NULL,
 				 BUF_PEEK_IF_IN_POOL, __FILE__, __LINE__,
 				 &mtr);
 
@@ -1274,8 +1273,12 @@ btr_search_build_page_hash_index(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
+	if (index->disable_ahi) {
+		return;
+	}
+
+	rec_offs_init(offsets_);
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));
 
@@ -1451,6 +1454,16 @@ btr_search_move_or_delete_hash_entries(
 					from this page */
 	dict_index_t*	index)		/*!< in: record descriptor */
 {
+	/* AHI is disabled for intrinsic table as it depends on index-id
+	which is dynamically assigned for intrinsic table indexes and not
+	through a centralized index generator. */
+	if (index->disable_ahi) {
+		ut_ad(dict_table_is_intrinsic(index->table));
+		return;
+	}
+
+	ut_ad(!dict_table_is_intrinsic(index->table));
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_X));
@@ -1512,6 +1525,10 @@ btr_search_update_hash_on_delete(
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
 
+	if (cursor->index->disable_ahi) {
+		return;
+	}
+
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1571,6 +1588,10 @@ btr_search_update_hash_node_on_insert(
 	buf_block_t*	block;
 	dict_index_t*	index;
 	rec_t*		rec;
+
+	if (cursor->index->disable_ahi) {
+		return;
+	}
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -1648,6 +1669,10 @@ btr_search_update_hash_on_insert(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	if (cursor->index->disable_ahi) {
+		return;
+	}
+
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1667,6 +1692,7 @@ btr_search_update_hash_on_insert(
 
 	rec = btr_cur_get_rec(cursor);
 
+	ut_a(!index->disable_ahi);
 	ut_a(index == cursor->index);
 	ut_a(!dict_index_is_ibuf(index));
 
@@ -1765,9 +1791,11 @@ check_next_rec:
 
 			ha_insert_for_fold(table, ins_fold, block, ins_rec);
 			/*
-			fputs("Hash insert for ", stderr);
-			dict_index_name_print(stderr, index);
-			fprintf(stderr, " fold %lu\n", ins_fold);
+			ib_logf(IB_LOG_LEVEL_INFO, "Hash insert for"
+				" index %s of table %s fold %lu",
+				ut_get_name(NULL, FALSE, index->name).c_str(),
+				ut_get_name(NULL, TRUE, index->table_name).c_str(),
+				ins_fold);
 			*/
 		} else {
 			ha_insert_for_fold(table, next_fold, block, next_rec);
@@ -1845,8 +1873,7 @@ btr_search_validate(void)
 				assertion and the comment below) */
 				hash_block = buf_block_hash_get(
 					buf_pool,
-					buf_block_get_space(block),
-					buf_block_get_page_no(block));
+					block->page.id);
 			} else {
 				hash_block = NULL;
 			}
@@ -1885,17 +1912,16 @@ btr_search_validate(void)
 				const page_t*	page = block->frame;
 
 				ok = FALSE;
-				ut_print_timestamp(stderr);
 
-				fprintf(stderr,
-					"  InnoDB: Error in an adaptive hash"
-					" index pointer to page %lu\n"
-					"InnoDB: ptr mem address %p"
-					" index id %llu,"
-					" node fold %lu, rec fold %lu\n",
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"Error in an adaptive hash"
+					" index pointer to page %lu,"
+					" ptr mem address %p, index id"
+					" " IB_ID_FMT ", node fold %lu,"
+					" rec fold %lu",
 					(ulong) page_get_page_no(page),
 					node->data,
-					(ullint) page_index_id,
+					page_index_id,
 					(ulong) node->fold,
 					(ulong) rec_fold(node->data,
 							 offsets,
@@ -1914,7 +1940,7 @@ btr_search_validate(void)
 
 				if (n_page_dumps < 20) {
 					buf_page_print(
-						page, 0,
+						page, univ_page_size,
 						BUF_PAGE_PRINT_NO_CRASH);
 					n_page_dumps++;
 				}

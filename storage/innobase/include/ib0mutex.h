@@ -90,9 +90,9 @@ struct OSBasicMutex {
 		if (ret != 0) {
 
 			fprintf(stderr,
-				" InnoDB: Return value %lu when calling "
-				"pthread_mutex_destroy(). Byte contents of the "
-				"pthread mutex at %p:",
+				" InnoDB: Return value %lu when calling"
+				" pthread_mutex_destroy(). Byte contents of the"
+				" pthread mutex at %p:",
 				(ulint) ret, (void*) &m_mutex);
 
 			ut_print_buf(stderr, &m_mutex, sizeof(m_mutex));
@@ -1028,10 +1028,9 @@ struct PolicyMutex
 
 		locker = pfs_begin_lock(&state, name, line);
 #endif /* UNIV_PFS_MUTEX */
+		m_impl.enter(n_spins, n_delay, name, line);
 
 		policy().enter(m_impl, name, line);
-
-		m_impl.enter(n_spins, n_delay, name, line);
 
 		policy().locked(m_impl);
 

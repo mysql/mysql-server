@@ -78,8 +78,8 @@
 
 #define MAX_SELECT_NESTING (sizeof(nesting_map)*8-1)
 
-#define DEFAULT_SORT_MEMORY (256U* 1024U)
-#define MIN_SORT_MEMORY     (32U * 1024U)
+#define DEFAULT_SORT_MEMORY (256UL* 1024UL)
+#define MIN_SORT_MEMORY     (32UL * 1024UL)
 
 /* Some portable defines */
 
@@ -162,7 +162,6 @@
 #define UDF_ALLOC_BLOCK_SIZE		1024
 #define TABLE_ALLOC_BLOCK_SIZE		1024
 #define WARN_ALLOC_BLOCK_SIZE		2048
-#define WARN_ALLOC_PREALLOC_SIZE	1024
 
 /*
   The following parameters is to decide when to use an extra cache to

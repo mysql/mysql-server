@@ -25,6 +25,7 @@ num
 
 < ---- Slave selects-- >
 ------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 num
 12
@@ -38,6 +39,7 @@ num
 
 < ---- Slave selects-- >
 ------------------------
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t1;
 num
 13

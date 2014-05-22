@@ -175,7 +175,7 @@ void hostname_cache_unlock()
 static void prepare_hostname_cache_key(const char *ip_string,
                                        char *ip_key)
 {
-  int ip_string_length= strlen(ip_string);
+  size_t ip_string_length= strlen(ip_string);
   DBUG_ASSERT(ip_string_length < HOST_ENTRY_KEY_SIZE);
 
   memset(ip_key, 0, HOST_ENTRY_KEY_SIZE);
@@ -224,12 +224,12 @@ static void add_hostname_impl(const char *ip_key, const char *hostname,
   {
     if (hostname != NULL)
     {
-      uint len= strlen(hostname);
+      size_t len= strlen(hostname);
       if (len > sizeof(entry->m_hostname) - 1)
         len= sizeof(entry->m_hostname) - 1;
       memcpy(entry->m_hostname, hostname, len);
       entry->m_hostname[len]= '\0';
-      entry->m_hostname_length= len;
+      entry->m_hostname_length= static_cast<uint>(len);
 
       DBUG_PRINT("info",
                  ("Adding/Updating '%s' -> '%s' (validated) to the hostname cache...'",
@@ -952,7 +952,7 @@ int ip_to_hostname(struct sockaddr_storage *ip_storage,
 
     DBUG_PRINT("info", ("  - '%s'", (const char *) ip_buffer));
 
-    if (strcasecmp(ip_key, ip_buffer) == 0)
+    if (native_strcasecmp(ip_key, ip_buffer) == 0)
     {
       /* Copy host name string to be stored in the cache. */
 

@@ -20,7 +20,7 @@ user2	statement/sql/drop_function	drop function test.f1
 username	event_name	nesting_event_type
 user2	stage/sql/Waiting for stored function metadata lock	STATEMENT
 username	event_name	nesting_event_type
-user2	stage/sql/init	STATEMENT
+user2	stage/sql/starting	STATEMENT
 select f1();
 f1()
 1

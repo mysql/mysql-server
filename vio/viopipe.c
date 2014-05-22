@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -14,8 +14,6 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #include "vio_priv.h"
-
-#ifdef _WIN32
 
 static size_t wait_overlapped_result(Vio *vio, int timeout)
 {
@@ -59,7 +57,7 @@ size_t vio_read_pipe(Vio *vio, uchar *buf, size_t count)
   DBUG_ENTER("vio_read_pipe");
 
   /* Attempt to read from the pipe (overlapped I/O). */
-  if (ReadFile(vio->hPipe, buf, count, &transferred, &vio->overlapped))
+  if (ReadFile(vio->hPipe, buf, (DWORD)count, &transferred, &vio->overlapped))
   {
     /* The operation completed immediately. */
     ret= transferred;
@@ -79,7 +77,7 @@ size_t vio_write_pipe(Vio *vio, const uchar *buf, size_t count)
   DBUG_ENTER("vio_write_pipe");
 
   /* Attempt to write to the pipe (overlapped I/O). */
-  if (WriteFile(vio->hPipe, buf, count, &transferred, &vio->overlapped))
+  if (WriteFile(vio->hPipe, buf, (DWORD)count, &transferred, &vio->overlapped))
   {
     /* The operation completed immediately. */
     ret= transferred;
@@ -117,6 +115,3 @@ int vio_shutdown_pipe(Vio *vio)
 
   DBUG_RETURN(ret);
 }
-
-#endif
-

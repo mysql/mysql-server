@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,14 @@
 #include <my_global.h>
 #include <my_sys.h>
 #include <m_string.h>
-#undef EXTRA_DEBUG
-#define EXTRA_DEBUG
+
+/*
+  For instrumented code: don't preallocate memory in alloc_root().
+  This gives a lot more memory chunks, each with a red-zone around them.
+ */
+#if !defined(HAVE_VALGRIND) && !defined(HAVE_ASAN)
+#define PREALLOCATE_MEMORY_CHUNKS
+#endif
 
 
 /*
@@ -58,7 +64,7 @@ void init_alloc_root(PSI_memory_key key,
   mem_root->first_block_usage= 0;
   mem_root->m_psi_key= key;
 
-#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+#if defined(PREALLOCATE_MEMORY_CHUNKS)
   if (pre_alloc_size)
   {
     if ((mem_root->free= mem_root->pre_alloc=
@@ -66,8 +72,8 @@ void init_alloc_root(PSI_memory_key key,
                                pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM)),
 			       MYF(0))))
     {
-      mem_root->free->size= pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM));
-      mem_root->free->left= pre_alloc_size;
+      mem_root->free->size= (uint)(pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM)));
+      mem_root->free->left= (uint)pre_alloc_size;
       mem_root->free->next= 0;
     }
   }
@@ -102,7 +108,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
   DBUG_ASSERT(alloc_root_inited(mem_root));
 
   mem_root->block_size= block_size - ALLOC_ROOT_MIN_BLOCK_SIZE;
-#if !(defined(HAVE_purify) && defined(EXTRA_DEBUG))
+#if defined(PREALLOCATE_MEMORY_CHUNKS)
   if (pre_alloc_size)
   {
     size_t size= pre_alloc_size + ALIGN_SIZE(sizeof(USED_MEM));
@@ -116,7 +122,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
       while (*prev)
       {
         mem= *prev;
-        if (mem->size == size)
+        if (mem->size == (uint)size)
         {
           /* We found a suitable block, no need to do anything else */
           mem_root->pre_alloc= mem;
@@ -139,8 +145,8 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
       if ((mem= (USED_MEM *) my_malloc(mem_root->m_psi_key,
                                        size, MYF(0))))
       {
-        mem->size= size; 
-        mem->left= pre_alloc_size;
+        mem->size= (uint)size;
+        mem->left= (uint)pre_alloc_size;
         mem->next= *prev;
         *prev= mem_root->pre_alloc= mem; 
       }
@@ -158,7 +164,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
 
 void *alloc_root(MEM_ROOT *mem_root, size_t length)
 {
-#if defined(HAVE_purify) && defined(EXTRA_DEBUG)
+#if !defined(PREALLOCATE_MEMORY_CHUNKS)
   USED_MEM *next;
   DBUG_ENTER("alloc_root");
   DBUG_PRINT("enter",("root: 0x%lx", (long) mem_root));
@@ -182,7 +188,8 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     DBUG_RETURN((uchar*) 0);			/* purecov: inspected */
   }
   next->next= mem_root->used;
-  next->size= length;
+  next->size= (uint)length;
+  next->left= (uint)(length - ALIGN_SIZE(sizeof(USED_MEM)));
   mem_root->used= next;
   DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
                                            ALIGN_SIZE(sizeof(USED_MEM)))));
@@ -235,14 +242,14 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     }
     mem_root->block_num++;
     next->next= *prev;
-    next->size= get_size;
-    next->left= get_size-ALIGN_SIZE(sizeof(USED_MEM));
+    next->size= (uint)get_size;
+    next->left= (uint)(get_size-ALIGN_SIZE(sizeof(USED_MEM)));
     *prev=next;
   }
 
   point= (uchar*) ((char*) next+ (next->size-next->left));
   /*TODO: next part may be unneded due to mem_root->first_block_usage counter*/
-  if ((next->left-= length) < mem_root->min_malloc)
+  if ((next->left-= (uint)length) < mem_root->min_malloc)
   {						/* Full block */
     *prev= next->next;				/* Remove block from list */
     next->next= mem_root->used;
@@ -316,7 +323,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   last= &root->free;
   for (next= root->free; next; next= *(last= &next->next))
   {
-    next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+    next->left= next->size - (uint)ALIGN_SIZE(sizeof(USED_MEM));
     TRASH_MEM(next);
   }
 
@@ -326,7 +333,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   /* now go through the used blocks and mark them free */
   for (; next; next= next->next)
   {
-    next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+    next->left= next->size - (uint)ALIGN_SIZE(sizeof(USED_MEM));
     TRASH_MEM(next);
   }
 
@@ -393,7 +400,7 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   if (root->pre_alloc)
   {
     root->free=root->pre_alloc;
-    root->free->left=root->pre_alloc->size-ALIGN_SIZE(sizeof(USED_MEM));
+    root->free->left=root->pre_alloc->size-(uint)ALIGN_SIZE(sizeof(USED_MEM));
     TRASH_MEM(root->pre_alloc);
     root->free->next=0;
   }

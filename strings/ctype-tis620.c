@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -465,7 +465,7 @@ static const uchar sort_order_tis620[]=
 static size_t thai2sortable(uchar *tstr, size_t len)
 {
   uchar	*p;
-  int	tlen;
+  size_t	tlen;
   uchar	l2bias;
 
   tlen= len;
@@ -637,17 +637,30 @@ my_strnxfrm_tis620(const CHARSET_INFO *cs,
                    uchar *dst, size_t dstlen, uint nweights,
                    const uchar *src, size_t srclen, uint flags)
 {
-  size_t len, dstlen0= dstlen;
-  len= (uint) (strmake((char*) dst, (char*) src, MY_MIN(dstlen, srclen)) -
-	               (char*) dst);
+  size_t dstlen0= dstlen;
+  size_t min_len= MY_MIN(dstlen, srclen);
+  size_t len= 0;
+
+  /*
+    We don't use strmake here, since it requires one more character for
+    the terminating '\0', while this function itself and the following calling
+    functions do not require it
+  */
+  while (len < min_len)
+  {
+    if (! (dst[len] = src[len]))
+      break;
+    len++;
+  }
+
   len= thai2sortable(dst, len);
   set_if_smaller(dstlen, nweights);
-  set_if_smaller(len, dstlen); 
+  set_if_smaller(len, dstlen);
   len= my_strxfrm_pad_desc_and_reverse(cs, dst, dst + len, dst + dstlen,
-                                       dstlen - len, flags, 0);
+                                       (uint)(dstlen - len), flags, 0);
   if ((flags & MY_STRXFRM_PAD_TO_MAXLEN) && len < dstlen0)
   {
-    uint fill_length= dstlen0 - len;
+    size_t fill_length= dstlen0 - len;
     cs->cset->fill(cs, (char*) dst + len, fill_length, cs->pad_char);
     len= dstlen0;
   }
@@ -927,7 +940,8 @@ CHARSET_INFO my_charset_tis620_thai_ci=
     1,                  /* caseup_multiply  */
     1,                  /* casedn_multiply  */
     1,			/* mbminlen   */
-    1,			/* mbmaxlen  */
+    1,			/* mbmaxlen   */
+    1,			/* mbmaxlenlen */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -960,7 +974,8 @@ CHARSET_INFO my_charset_tis620_bin=
     1,                  /* caseup_multiply  */
     1,                  /* casedn_multiply  */
     1,			/* mbminlen   */
-    1,			/* mbmaxlen  */
+    1,			/* mbmaxlen   */
+    1,			/* mbmaxlenlen */
     0,			/* min_sort_char */
     255,		/* max_sort_char */
     ' ',                /* pad char      */

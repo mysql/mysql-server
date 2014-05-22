@@ -88,9 +88,7 @@ Alter_table_ctx::Alter_table_ctx()
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(0),
     db(NULL), table_name(NULL), alias(NULL),
-    new_db(NULL), new_name(NULL), new_alias(NULL),
-    fk_error_if_delete_row(false), fk_error_id(NULL),
-    fk_error_table(NULL)
+    new_db(NULL), new_name(NULL), new_alias(NULL)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -103,9 +101,7 @@ Alter_table_ctx::Alter_table_ctx(THD *thd, TABLE_LIST *table_list,
                                  char *new_db_arg, char *new_name_arg)
   : datetime_field(NULL), error_if_not_empty(false),
     tables_opened(tables_opened_arg),
-    new_db(new_db_arg), new_name(new_name_arg),
-    fk_error_if_delete_row(false), fk_error_id(NULL),
-    fk_error_table(NULL)
+    new_db(new_db_arg), new_name(new_name_arg)
 #ifndef DBUG_OFF
     , tmp_table(false)
 #endif
@@ -308,12 +304,7 @@ bool Sql_cmd_alter_table::execute(THD *thd)
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
   result= mysql_alter_table(thd, select_lex->db, lex->name.str,
-                            &create_info,
-                            first_table,
-                            &alter_info,
-                            select_lex->order_list.elements,
-                            select_lex->order_list.first,
-                            lex->ignore);
+                            &create_info, first_table, &alter_info);
 
   DBUG_RETURN(result);
 }

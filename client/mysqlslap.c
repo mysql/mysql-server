@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -126,6 +126,7 @@ static char *host= NULL, *opt_password= NULL, *user= NULL,
             *post_system= NULL,
             *opt_mysql_unix_port= NULL;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static my_bool opt_secure_auth= TRUE;
 static uint opt_enable_cleartext_plugin= 0;
 static my_bool using_opt_enable_cleartext_plugin= 0;
 
@@ -148,7 +149,7 @@ static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
                                     CLIENT_REMEMBER_OPTIONS;
 
 
-static int verbose, delimiter_length;
+static int verbose;
 static uint commit_rate;
 static uint detach_rate;
 const char *num_int_cols_opt;
@@ -248,7 +249,7 @@ uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
 uint parse_option(const char *origin, option_string **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
-uint get_random_string(char *buf);
+size_t get_random_string(char *buf);
 static statement *build_table_string(void);
 static statement *build_insert_string(void);
 static statement *build_update_string(void);
@@ -265,7 +266,7 @@ void option_cleanup(option_string *stmt);
 void concurrency_loop(MYSQL *mysql, uint current, option_string *eptr);
 static int run_statements(MYSQL *mysql, statement *stmt);
 int slap_connect(MYSQL *mysql);
-static int run_query(MYSQL *mysql, const char *query, int len);
+static int run_query(MYSQL *mysql, const char *query, size_t len);
 
 static const char ALPHANUMERICS[]=
   "0123456789ABCDEFGHIJKLMNOPQRSTWXYZabcdefghijklmnopqrstuvwxyz";
@@ -322,9 +323,6 @@ int main(int argc, char **argv)
   if (auto_generate_sql)
     srandom((uint)time(NULL));
 
-  /* globals? Yes, so we only have to run strlen once */
-  delimiter_length= strlen(delimiter);
-
   if (argc > 2)
   {
     fprintf(stderr,"%s: Too many arguments\n",my_progname);
@@ -335,17 +333,11 @@ int main(int argc, char **argv)
   mysql_init(&mysql);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-                  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-#endif
+  SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
+  if (!opt_secure_auth && slap_connect(&mysql))
+    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -598,16 +590,21 @@ static struct my_option my_long_options[] =
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  { "debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+    0, 0, 0,
+    GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+    0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     &default_dbug_option, &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
@@ -630,7 +627,7 @@ static struct my_option my_long_options[] =
   {"host", 'h', "Connect to host.", &host, &host, 0, GET_STR,
     REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"iterations", 'i', "Number of times to run the tests.", &iterations,
-    &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 0, 0, 0, 0, 0},
+    &iterations, 0, GET_UINT, REQUIRED_ARG, 1, 1, UINT_MAX, 0, 0, 0},
   {"no-drop", OPT_SLAP_NO_DROP, "Do not drop the schema after the test.",
    &opt_no_drop, &opt_no_drop, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"number-char-cols", 'x', 
@@ -685,6 +682,9 @@ static struct my_option my_long_options[] =
   {"query", 'q', "Query to run or file containing query to run.",
     &user_supplied_query, &user_supplied_query,
     0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
     "Base name of shared memory.", &shared_memory_base_name,
@@ -789,7 +789,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 
-uint
+size_t
 get_random_string(char *buf)
 {
   char *buf_ptr= buf;
@@ -968,10 +968,10 @@ build_update_string(void)
     for (col_count= 1; col_count <= num_char_cols; col_count++)
     {
       char rand_buffer[RAND_STRING_SIZE];
-      int buf_len= get_random_string(rand_buffer);
+      size_t buf_len= get_random_string(rand_buffer);
 
-      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d = '%.*s'", col_count, 
-                   buf_len, rand_buffer) 
+      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d = '%.*s'", col_count,
+                   (int)buf_len, rand_buffer)
           > HUGE_STRING_LENGTH)
       {
         fprintf(stderr, "Memory Allocation error in creating update\n");
@@ -1073,7 +1073,7 @@ build_insert_string(void)
   if (num_char_cols)
     for (col_count= 1; col_count <= num_char_cols; col_count++)
     {
-      int buf_len= get_random_string(buf);
+      size_t buf_len= get_random_string(buf);
       dynstr_append_mem(&insert_string, "'", 1);
       dynstr_append_mem(&insert_string, buf, buf_len);
       dynstr_append_mem(&insert_string, "'", 1);
@@ -1519,17 +1519,17 @@ get_options(int *argc,char ***argv)
 }
 
 
-static int run_query(MYSQL *mysql, const char *query, int len)
+static int run_query(MYSQL *mysql, const char *query, size_t len)
 {
   if (opt_only_print)
   {
-    printf("%.*s;\n", len, query);
+    printf("%.*s;\n", (int)len, query);
     return 0;
   }
 
   if (verbose >= 3)
-    printf("%.*s;\n", len, query);
-  return mysql_real_query(mysql, query, len);
+    printf("%.*s;\n", (int)len, query);
+  return mysql_real_query(mysql, query, (ulong)len);
 }
 
 
@@ -1620,7 +1620,7 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
   char query[HUGE_STRING_LENGTH];
   statement *ptr;
   statement *after_create;
-  int len;
+  size_t len;
   ulonglong count;
   DBUG_ENTER("create_schema");
 
@@ -1655,7 +1655,7 @@ create_schema(MYSQL *mysql, const char *db, statement *stmt,
 
   if (engine_stmt)
   {
-    len= snprintf(query, HUGE_STRING_LENGTH, "set storage_engine=`%s`",
+    len= snprintf(query, HUGE_STRING_LENGTH, "set default_storage_engine=`%s`",
                   engine_stmt->string);
     if (run_query(mysql, query, len))
     {
@@ -1712,7 +1712,7 @@ static int
 drop_schema(MYSQL *mysql, const char *db)
 {
   char query[HUGE_STRING_LENGTH];
-  int len;
+  size_t len;
   DBUG_ENTER("drop_schema");
   len= snprintf(query, HUGE_STRING_LENGTH, "DROP SCHEMA IF EXISTS `%s`", db);
 
@@ -1900,7 +1900,7 @@ limit_not_met:
       if ((ptr->type == UPDATE_TYPE_REQUIRES_PREFIX) ||
           (ptr->type == SELECT_TYPE_REQUIRES_PREFIX))
       {
-        int length;
+        size_t length;
         unsigned int key_val;
         char *key;
         char buffer[HUGE_STRING_LENGTH];
@@ -2082,7 +2082,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   char *ptr= (char *)script;
   statement **sptr= stmt;
   statement *tmp;
-  uint length= strlen(script);
+  size_t length= strlen(script);
   uint count= 0; /* We know that there is always one */
 
   for (tmp= *sptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,

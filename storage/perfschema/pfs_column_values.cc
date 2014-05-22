@@ -46,6 +46,9 @@ LEX_STRING stage_instrument_prefix=
 LEX_STRING statement_instrument_prefix=
 { C_STRING_WITH_LEN("statement/") };
 
+LEX_STRING transaction_instrument_prefix=
+{ C_STRING_WITH_LEN("transaction") };
+
 LEX_STRING socket_instrument_prefix=
 { C_STRING_WITH_LEN("wait/io/socket/") };
 

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -47,6 +47,7 @@ Created 4/20/1996 Heikki Tuuri
 #include "rem0cmp.h"
 #include "read0read.h"
 #include "ut0mem.h"
+#include "gis0geo.h"
 
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
@@ -63,13 +64,16 @@ row_build_index_entry_low(
 	const row_ext_t*	ext,	/*!< in: externally stored column
 					prefixes, or NULL */
 	dict_index_t*		index,	/*!< in: index on the table */
-	mem_heap_t*		heap)	/*!< in: memory heap from which
+	mem_heap_t*		heap,	/*!< in: memory heap from which
 					the memory for the index entry
 					is allocated */
+	bool			del_purge)
+					/*!< in: from delete purge */
 {
 	dtuple_t*	entry;
 	ulint		entry_len;
 	ulint		i;
+
 
 	entry_len = dict_index_get_n_fields(index);
 	entry = dtuple_create(heap, entry_len);
@@ -105,6 +109,74 @@ row_build_index_entry_low(
 			/* The field has not been initialized in the row.
 			This should be from trx_undo_rec_get_partial_row(). */
 			return(NULL);
+		}
+
+		/* Special handle spatial index, set the first field
+		which is for store MBR. */
+		if (dict_index_is_spatial(index) && i == 0) {
+			double*		mbr;
+
+			dfield_copy(dfield, dfield2);
+			dfield->type.prtype |= DATA_GIS_MBR;
+
+			/* Allocate memory for mbr field */
+			ulint mbr_len = DATA_MBR_LEN;
+			mbr = static_cast<double*>(mem_heap_alloc(heap, mbr_len));
+
+			/* Set mbr field data. */
+			dfield_set_data(dfield, mbr, mbr_len);
+
+			if (dfield2->data) {
+				uchar*	dptr = NULL;
+				ulint	dlen = 0;
+				double	tmp_mbr[SPDIMS * 2];
+				mem_heap_t*	temp_heap = NULL;
+
+				if (dfield_is_ext(dfield2)) {
+					if (del_purge) {
+						byte* ptr =
+						static_cast<byte*>(
+							 dfield_get_data(
+								dfield2))
+							    + dfield_get_len(
+								dfield2);
+						memcpy(mbr, ptr, DATA_MBR_LEN);
+						continue;
+					}
+
+
+					temp_heap = mem_heap_create(1000);
+					dptr = btr_copy_externally_stored_field(
+						&dlen, static_cast<byte*>(
+						dfield_get_data(dfield2)),
+						dict_table_page_size(
+							index->table),
+						dfield_get_len(dfield2),
+						temp_heap);
+				} else {
+					dptr = static_cast<uchar*>(
+						dfield_get_data(dfield2));
+					dlen = dfield_get_len(dfield2);
+
+				}
+
+				if (dlen <= GEO_DATA_HEADER_SIZE) {
+					for (uint i = 0; i < SPDIMS; ++i) {
+						tmp_mbr[i * 2] = DBL_MAX;
+						tmp_mbr[i * 2 + 1] = -DBL_MAX;
+					}
+				} else {
+					rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+							   static_cast<uint>(dlen
+							   - GEO_DATA_HEADER_SIZE),
+							   SPDIMS, tmp_mbr);
+				}
+				dfield_write_mbr(dfield, tmp_mbr);
+				if (temp_heap) {
+					mem_heap_free(temp_heap);
+				}
+			}
+			continue;
 		}
 
 		len = dfield_get_len(dfield2);
@@ -254,16 +326,16 @@ row_build(
 	}
 
 #if defined UNIV_DEBUG || defined UNIV_BLOB_LIGHT_DEBUG
-	if (rec_offs_any_null_extern(rec, offsets)) {
-		/* This condition can occur during crash recovery
-		before trx_rollback_active() has completed execution,
-		or when a concurrently executing
-		row_ins_index_entry_low() has committed the B-tree
-		mini-transaction but has not yet managed to restore
-		the cursor position for writing the big_rec. */
-		ut_a(trx_undo_roll_ptr_is_insert(
-			     row_get_rec_roll_ptr(rec, index, offsets)));
-	}
+	/* Some blob refs can be NULL during crash recovery before
+	trx_rollback_active() has completed execution, or when a concurrently
+	executing insert or update has committed the B-tree mini-transaction
+	but has not yet managed to restore the cursor position for writing
+	the big_rec. Note that the mini-transaction can be committed multiple
+	times, and the cursor restore can happen multiple times for single
+	insert or update statement.  */
+	ut_a(!rec_offs_any_null_extern(rec, offsets)
+	     || trx_rw_is_active(row_get_rec_trx_id(rec, index, offsets),
+						    NULL, false));
 #endif /* UNIV_DEBUG || UNIV_BLOB_LIGHT_DEBUG */
 
 	if (type != ROW_COPY_POINTERS) {
@@ -813,7 +885,13 @@ row_search_index_entry(
 
 	ut_ad(dtuple_check_typed(entry));
 
-	btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
+	if (dict_index_is_spatial(index)) {
+		ut_ad(mode & BTR_MODIFY_LEAF || mode & BTR_MODIFY_TREE);
+		rtr_pcur_open(index, entry, PAGE_CUR_RTREE_LOCATE,
+			      mode, pcur, mtr);
+	} else {
+		btr_pcur_open(index, entry, PAGE_CUR_LE, mode, pcur, mtr);
+	}
 
 	switch (btr_pcur_get_btr_cur(pcur)->flag) {
 	case BTR_CUR_DELETE_REF:
@@ -885,7 +963,7 @@ row_raw_format_int(
 
 		ret = ut_snprintf(
 			buf, buf_size,
-			unsigned_type ? UINT64PF : INT64PF, value) + 1;
+			unsigned_type ? UINT64PF : "%" PRId64, value) + 1;
 	} else {
 
 		*format_in_hex = TRUE;
@@ -1037,13 +1115,14 @@ row_raw_format(
 
 #ifdef UNIV_COMPILE_TEST_FUNCS
 
+#ifdef HAVE_UT_CHRONO_T
+
 void
 test_row_raw_format_int()
 {
 	ulint	ret;
 	char	buf[128];
 	ibool	format_in_hex;
-	speedo_t speedo;
 	ulint	i;
 
 #define CALL_AND_TEST(data, data_len, prtype, buf, buf_size,\
@@ -1227,7 +1306,7 @@ test_row_raw_format_int()
 
 	/* speed test */
 
-	speedo_reset(&speedo);
+	ut_chrono_t	ch(__func__);
 
 	for (i = 0; i < 1000000; i++) {
 		row_raw_format_int("\x23", 1,
@@ -1244,8 +1323,8 @@ test_row_raw_format_int()
 				   DATA_UNSIGNED, buf, sizeof(buf),
 				   &format_in_hex);
 	}
-
-	speedo_show(&speedo);
 }
+
+#endif /* HAVE_UT_CHRONO_T */
 
 #endif /* UNIV_COMPILE_TEST_FUNCS */

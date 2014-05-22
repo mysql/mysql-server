@@ -12,6 +12,7 @@ SET @@global.slave_exec_mode = 'STRICT';
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [on slave]
+include/sync_slave_sql_with_master.inc
 ==== Test: SQL thread sees 'INSERT' of existing key ====
 ---- Prepare slave so that it will get duplicate key error ----
 INSERT INTO t1 VALUES (1);
@@ -47,6 +48,7 @@ a
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 [on slave]
+include/sync_slave_sql_with_master.inc
 DELETE FROM t1 WHERE a = 1;
 ---- On master, remove the row that does not exist on slave ----
 [on master]
@@ -74,6 +76,7 @@ a
 [on master]
 DROP TABLE t1;
 [on slave]
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 ######## Run with slave_exec_mode=IDEMPOTENT ########
 set @@global.slave_exec_mode= 'IDEMPOTENT';
@@ -81,6 +84,7 @@ set @@global.slave_exec_mode= 'IDEMPOTENT';
 [on master]
 CREATE TABLE t1(a INT PRIMARY KEY);
 [on slave]
+include/sync_slave_sql_with_master.inc
 ==== Test: SQL thread sees 'INSERT' of existing key ====
 ---- Prepare slave so that it will get duplicate key error ----
 INSERT INTO t1 VALUES (1);
@@ -102,6 +106,7 @@ a
 DELETE FROM t1;
 INSERT INTO t1 VALUES (1);
 [on slave]
+include/sync_slave_sql_with_master.inc
 DELETE FROM t1 WHERE a = 1;
 ---- On master, remove the row that does not exist on slave ----
 [on master]
@@ -117,5 +122,6 @@ a
 [on master]
 DROP TABLE t1;
 [on slave]
+include/sync_slave_sql_with_master.inc
 SET @@global.slave_exec_mode= @old_slave_exec_mode;
 include/rpl_end.inc

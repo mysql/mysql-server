@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -163,13 +163,13 @@ my_bool net_realloc(NET *net, size_t length)
   pkt_length = (length+IO_SIZE-1) & ~(IO_SIZE-1); 
   /*
     We must allocate some extra bytes for the end 0 and to be able to
-    read big compressed blocks + 1 safety byte since uint3korr() in
+    read big compressed blocks in
     net_read_packet() may actually read 4 bytes depending on build flags and
     platform.
   */
   if (!(buff= (uchar*) my_realloc(key_memory_NET_buff,
                                   (char*) net->buff, pkt_length +
-                                  NET_HEADER_SIZE + COMP_HEADER_SIZE + 1,
+                                  NET_HEADER_SIZE + COMP_HEADER_SIZE,
                                   MYF(MY_WME))))
   {
     /* @todo: 1 and 2 codes are identical. */
@@ -317,7 +317,7 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
 #ifndef DEBUG_DATA_PACKETS
   DBUG_DUMP("packet_header", buff, NET_HEADER_SIZE);
 #endif
-  rc= test(net_write_buff(net,packet,len));
+  rc= MY_TEST(net_write_buff(net,packet,len));
   MYSQL_NET_WRITE_DONE(rc);
   return rc;
 }
@@ -391,9 +391,9 @@ net_write_command(NET *net,uchar command,
   }
   int3store(buff,length);
   buff[3]= (uchar) net->pkt_nr++;
-  rc= test(net_write_buff(net, buff, header_size) ||
-           (head_len && net_write_buff(net, header, head_len)) ||
-           net_write_buff(net, packet, len) || net_flush(net));
+  rc= MY_TEST(net_write_buff(net, buff, header_size) ||
+              (head_len && net_write_buff(net, header, head_len)) ||
+              net_write_buff(net, packet, len) || net_flush(net));
   MYSQL_NET_WRITE_DONE(rc);
   DBUG_RETURN(rc);
 }
@@ -526,7 +526,7 @@ net_write_raw_loop(NET *net, const uchar *buf, size_t count)
 #endif
   }
 
-  return test(count);
+  return MY_TEST(count);
 }
 
 
@@ -702,7 +702,7 @@ static my_bool net_read_raw_loop(NET *net, size_t count)
 #endif
   }
 
-  return test(count);
+  return MY_TEST(count);
 }
 
 
@@ -801,7 +801,7 @@ static my_bool net_read_packet_header(NET *net)
   @return The length of the packet, or @packet_error on error.
 */
 
-static ulong net_read_packet(NET *net, size_t *complen)
+static size_t net_read_packet(NET *net, size_t *complen)
 {
   size_t pkt_len, pkt_data_len;
 
@@ -819,12 +819,11 @@ static ulong net_read_packet(NET *net, size_t *complen)
   if (net->compress)
   {
     /*
-      The following uint3korr() may read 4 bytes, so make sure we don't
-      read unallocated or uninitialized memory. The right-hand expression
+      The right-hand expression
       must match the size of the buffer allocated in net_realloc().
     */
     DBUG_ASSERT(net->where_b + NET_HEADER_SIZE + sizeof(uint32) <=
-                net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE + 1);
+                net->max_packet + NET_HEADER_SIZE + COMP_HEADER_SIZE);
 
     /*
       If the packet is compressed then complen > 0 and contains the
@@ -908,14 +907,14 @@ my_net_read(NET *net)
     if (len != packet_error)
       net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
     MYSQL_NET_READ_DONE(0, len);
-    return len;
+    return static_cast<ulong>(len);
 #ifdef HAVE_COMPRESS
   }
   else
   {
     /* We are using the compressed protocol */
 
-    ulong buf_length;
+    size_t buf_length;
     ulong start_of_packet;
     ulong first_packet_offset;
     uint read_length, multi_byte_packet=0;
@@ -1019,7 +1018,7 @@ my_net_read(NET *net)
   }
 #endif /* HAVE_COMPRESS */
   MYSQL_NET_READ_DONE(0, len);
-  return len;
+  return static_cast<ulong>(len);
 }
 
 

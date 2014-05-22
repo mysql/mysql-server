@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,12 +87,12 @@ my_bool my_init(void)
   instrumented_stdin.m_psi= NULL;       /* not yet instrumented */
   mysql_stdin= & instrumented_stdin;
 
-  if (my_thread_global_init())
-    return 1;
-
 #if defined(SAFE_MUTEX)
   safe_mutex_global_init();		/* Must be called early */
 #endif
+
+  if (my_thread_global_init())
+    return 1;
 
 #if defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX)
   fastmutex_global_init();              /* Must be called early */
@@ -163,10 +163,6 @@ void my_end(int infoflag)
   {
 #ifdef HAVE_GETRUSAGE
     struct rusage rus;
-#ifdef HAVE_purify
-    /* Purify assumes that rus is uninitialized after getrusage call */
-    memset(&rus, 0, sizeof(rus));
-#endif
     if (!getrusage(RUSAGE_SELF, &rus))
       fprintf(info_file,"\n\
 User time %.2f, System time %.2f\n\
@@ -203,14 +199,6 @@ Voluntary context switches %ld, Involuntary context switches %ld\n",
 
   my_thread_end();
   my_thread_global_end();
-#if defined(SAFE_MUTEX)
-  /*
-    Check on destroying of mutexes. A few may be left that will get cleaned
-    up by C++ destructors
-  */
-  safe_mutex_end((infoflag & (MY_GIVE_INFO | MY_CHECK_ERROR)) ? stderr :
-                 (FILE *) 0);
-#endif /* defined(SAFE_MUTEX) */
 
 #ifdef _WIN32
   if (have_tcpip)
@@ -260,7 +248,7 @@ int handle_rtc_failure(int err_type, const char *file, int line,
   char   buff[2048];
   size_t len;
 
-  len= snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
+  len= my_snprintf(buff, sizeof(buff), "At %s:%d: ", file, line);
 
   va_start(args, format);
   vsnprintf(buff + len, sizeof(buff) - len, format, args);
@@ -362,17 +350,8 @@ static void my_win_init(void)
   DBUG_ENTER("my_win_init");
 
 #if defined(_MSC_VER)
-#if _MSC_VER < 1300
-  /*
-    Clear the OS system variable TZ and avoid the 100% CPU usage
-    Only for old versions of Visual C++
-  */
-  _putenv("TZ=");
-#endif
-#if _MSC_VER >= 1400
   /* this is required to make crt functions return -1 appropriately */
   _set_invalid_parameter_handler(my_parameter_handler);
-#endif
 #endif
 
 #ifdef __MSVC_RUNTIME_CHECKS
@@ -461,12 +440,8 @@ PSI_stage_info stage_waiting_for_table_level_lock=
 
 #ifdef HAVE_PSI_INTERFACE
 
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-PSI_mutex_key key_my_file_info_mutex;
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
 PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
+  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
@@ -475,14 +450,10 @@ PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
 
 static PSI_mutex_info all_mysys_mutexes[]=
 {
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-  { &key_my_file_info_mutex, "st_my_file_info:mutex", 0},
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
   { &key_BITMAP_mutex, "BITMAP::mutex", 0},
   { &key_IO_CACHE_append_buffer_lock, "IO_CACHE::append_buffer_lock", 0},
   { &key_IO_CACHE_SHARE_mutex, "IO_CACHE::SHARE_mutex", 0},
   { &key_KEY_CACHE_cache_lock, "KEY_CACHE::cache_lock", 0},
-  { &key_LOCK_alarm, "LOCK_alarm", PSI_FLAG_GLOBAL},
   { &key_my_thread_var_mutex, "my_thread_var::mutex", 0},
   { &key_THR_LOCK_charset, "THR_LOCK_charset", PSI_FLAG_GLOBAL},
   { &key_THR_LOCK_heap, "THR_LOCK_heap", PSI_FLAG_GLOBAL},
@@ -497,29 +468,28 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };
 
-PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
+PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
 
 static PSI_cond_info all_mysys_conds[]=
 {
-  { &key_COND_alarm, "COND_alarm", PSI_FLAG_GLOBAL},
   { &key_IO_CACHE_SHARE_cond, "IO_CACHE_SHARE::cond", 0},
   { &key_IO_CACHE_SHARE_cond_writer, "IO_CACHE_SHARE::cond_writer", 0},
   { &key_my_thread_var_suspend, "my_thread_var::suspend", 0},
   { &key_THR_COND_threads, "THR_COND_threads", 0}
 };
 
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
 PSI_file_key key_file_proc_meminfo;
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 PSI_file_key key_file_charset, key_file_cnf;
 
 static PSI_file_info all_mysys_files[]=
 {
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
   { &key_file_proc_meminfo, "proc_meminfo", 0},
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
   { &key_file_charset, "charset", 0},
   { &key_file_cnf, "cnf", 0}
 };
@@ -558,7 +528,6 @@ static PSI_memory_info all_mysys_memory[]=
   { &key_memory_MY_STAT, "MY_STAT", 0},
   { &key_memory_QUEUE, "QUEUE", 0},
   { &key_memory_DYNAMIC_STRING, "DYNAMIC_STRING", 0},
-  { &key_memory_ALARM, "ALARM", 0},
   { &key_memory_TREE, "TREE", 0},
   { &key_memory_radix_sort, "radix_sort", 0}
 };

@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,6 +16,7 @@
 INCLUDE_DIRECTORIES(${CMAKE_SOURCE_DIR}
                     ${CMAKE_SOURCE_DIR}/include
                     ${CMAKE_SOURCE_DIR}/sql
+                    ${CMAKE_BINARY_DIR}/sql
                     ${CMAKE_SOURCE_DIR}/regex
                     ${CMAKE_SOURCE_DIR}/extra/yassl/include
                     ${SSL_INCLUDE_DIRS})
@@ -25,29 +26,11 @@ IF (SSL_DEFINES)
   ADD_DEFINITIONS(${SSL_DEFINES})
 ENDIF()
 
-# Gen_pfs_lex_token
-ADD_EXECUTABLE(gen_pfs_lex_token gen_pfs_lex_token.cc)
-# gen_pfs_lex_token itself depends on ${CMAKE_CURRENT_BINARY_DIR}/sql/sql_yacc.h
-ADD_DEPENDENCIES(gen_pfs_lex_token GenServerSource)
-
-ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
-  COMMAND gen_pfs_lex_token > pfs_lex_token.h
-  DEPENDS gen_pfs_lex_token
-)
-
-SET(PFS_GEN_SOURCES
-  ${CMAKE_CURRENT_BINARY_DIR}/pfs_lex_token.h
-)
-
-SET_SOURCE_FILES_PROPERTIES(${PFS_GEN_SOURCES} PROPERTIES GENERATED 1)
-
 #
 # Maintainer: keep this list sorted, to avoid merge collisions.
 # Tip: ls -1 *.h, ls -1 *.cc
 #
 SET(PERFSCHEMA_SOURCES
-${PFS_GEN_SOURCES}
 ha_perfschema.h
 cursor_by_account.h
 cursor_by_host.h
@@ -62,10 +45,12 @@ pfs_con_slice.h
 pfs_defaults.h
 pfs_digest.h
 pfs_program.h
+pfs_prepared_stmt.h
 pfs_engine_table.h
 pfs_events.h
 pfs_events_stages.h
 pfs_events_statements.h
+pfs_events_transactions.h
 pfs_events_waits.h
 pfs_global.h
 pfs_host.h
@@ -91,11 +76,18 @@ table_esms_by_account_by_event_name.h
 table_esms_by_host_by_event_name.h
 table_esms_by_digest.h
 table_esms_by_program.h
+table_prepared_stmt_instances.h
 table_esms_by_thread_by_event_name.h
 table_esms_by_user_by_event_name.h
 table_esms_global_by_event_name.h
+table_ets_by_account_by_event_name.h
+table_ets_by_host_by_event_name.h
+table_ets_by_thread_by_event_name.h
+table_ets_by_user_by_event_name.h
+table_ets_global_by_event_name.h
 table_events_stages.h
 table_events_statements.h
+table_events_transactions.h
 table_events_waits.h
 table_events_waits_summary.h
 table_ews_by_account_by_event_name.h
@@ -149,7 +141,6 @@ cursor_by_user.cc
 ha_perfschema.cc
 pfs.cc
 pfs_account.cc
-pfs_atomic.cc
 pfs_autosize.cc
 pfs_check.cc
 pfs_column_values.cc
@@ -157,9 +148,11 @@ pfs_con_slice.cc
 pfs_defaults.cc
 pfs_digest.cc
 pfs_program.cc
+pfs_prepared_stmt.cc
 pfs_engine_table.cc
 pfs_events_stages.cc
 pfs_events_statements.cc
+pfs_events_transactions.cc
 pfs_events_waits.cc
 pfs_global.cc
 pfs_host.cc
@@ -183,11 +176,18 @@ table_esms_by_account_by_event_name.cc
 table_esms_by_host_by_event_name.cc
 table_esms_by_digest.cc
 table_esms_by_program.cc
+table_prepared_stmt_instances.cc
 table_esms_by_thread_by_event_name.cc
 table_esms_by_user_by_event_name.cc
 table_esms_global_by_event_name.cc
+table_ets_by_account_by_event_name.cc
+table_ets_by_host_by_event_name.cc
+table_ets_by_thread_by_event_name.cc
+table_ets_by_user_by_event_name.cc
+table_ets_global_by_event_name.cc
 table_events_stages.cc
 table_events_statements.cc
+table_events_transactions.cc
 table_events_waits.cc
 table_events_waits_summary.cc
 table_ews_by_account_by_event_name.cc
@@ -254,10 +254,12 @@ OPTION(DISABLE_PSI_SOCKET "Exclude the performance schema socket instrumentation
 OPTION(DISABLE_PSI_STAGE "Exclude the performance schema stage instrumentation" OFF)
 OPTION(DISABLE_PSI_STATEMENT "Exclude the performance schema statement instrumentation" OFF)
 OPTION(DISABLE_PSI_SP "Exclude the performance schema stored procedure instrumentation" OFF)
+OPTION(DISABLE_PSI_PS "Exclude the performance schema prepared statements instances instrumentation" OFF)
 OPTION(DISABLE_PSI_IDLE "Exclude the performance schema idle instrumentation" OFF)
 OPTION(DISABLE_PSI_STATEMENT_DIGEST "Exclude the performance schema statement digest instrumentation" OFF)
 OPTION(DISABLE_PSI_METADATA "Exclude the performance schema metadata instrumentation" OFF)
 OPTION(DISABLE_PSI_MEMORY "Exclude the performance schema memory instrumentation" OFF)
+OPTION(DISABLE_PSI_TRANSACTION "Exclude the performance schema transaction instrumentation" OFF)
 
 MARK_AS_ADVANCED(DISABLE_PSI_MUTEX)
 MARK_AS_ADVANCED(DISABLE_PSI_RWLOCK)
@@ -268,8 +270,10 @@ MARK_AS_ADVANCED(DISABLE_PSI_SOCKET)
 MARK_AS_ADVANCED(DISABLE_PSI_STAGE)
 MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT)
 MARK_AS_ADVANCED(DISABLE_PSI_SP)
+MARK_AS_ADVANCED(DISABLE_PSI_PS)
 MARK_AS_ADVANCED(DISABLE_PSI_IDLE)
 MARK_AS_ADVANCED(DISABLE_PSI_STATEMENT_DIGEST)
 MARK_AS_ADVANCED(DISABLE_PSI_METADATA)
 MARK_AS_ADVANCED(DISABLE_PSI_MEMORY)
+MARK_AS_ADVANCED(DISABLE_PSI_TRANSACTION)
 

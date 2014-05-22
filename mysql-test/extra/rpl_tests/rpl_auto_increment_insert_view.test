@@ -26,7 +26,7 @@ connection master;
 INSERT INTO v16(c1) VALUES (23), (24);
 INSERT INTO v16(c1) VALUES (25), (26);
 commit;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --echo #Test if the results are consistent on master and slave
 --echo #for 'INSERT DATA INTO VIEW WHICH INVOKES TRIGGERS'
 let $diff_tables= master:t3, slave:t3;
@@ -37,7 +37,7 @@ DROP TABLE t1;
 DROP TABLE t2;
 DROP TABLE t3;
 DROP VIEW  v16;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 
 

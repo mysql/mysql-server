@@ -13,6 +13,8 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301  USA */
 
+// First include (the generated) my_config.h, to get correct platform defines.
+#include "my_config.h"
 #include <stdlib.h>
 #include <ctype.h>
 #include <mysql/plugin.h>
@@ -149,9 +151,9 @@ static int simple_parser_deinit(MYSQL_FTPARSER_PARAM *param
 static void add_word(MYSQL_FTPARSER_PARAM *param, char *word, size_t len)
 {
   MYSQL_FTPARSER_BOOLEAN_INFO bool_info=
-    { FT_TOKEN_WORD, 0, 0, 0, 0, (word - param->doc), ' ', 0 };
+    { FT_TOKEN_WORD, 0, 0, 0, 0, (int)(word - param->doc), ' ', 0 };
 
-  param->mysql_add_word(param, word, len, &bool_info);
+  param->mysql_add_word(param, word, (int)len, &bool_info);
 }
 
 /*

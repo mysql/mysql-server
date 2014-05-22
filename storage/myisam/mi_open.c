@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -92,7 +92,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   ulonglong max_key_file_length, max_data_file_length;
   DBUG_ENTER("mi_open");
 
-  LINT_INIT(m_info);
+  m_info= NULL;
   kfile= -1;
   lock_error=1;
   errpos=0;
@@ -506,9 +506,9 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
       info.s=share;
       if (_mi_read_pack_info(&info,
 			     (pbool)
-			     test(!(share->options &
-				    (HA_OPTION_PACK_RECORD |
-				     HA_OPTION_TEMP_COMPRESS_RECORD)))))
+			     MY_TEST(!(share->options &
+                                       (HA_OPTION_PACK_RECORD |
+                                        HA_OPTION_TEMP_COMPRESS_RECORD)))))
 	goto err;
     }
     else if (share->options & HA_OPTION_PACK_RECORD)
@@ -576,6 +576,7 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
 		       &info.buff,(share->base.max_key_block_length*2+
 				   share->base.max_key_length),
 		       &info.lastkey,share->base.max_key_length*3+1,
+                       &info.rnext_same_key, share->base.max_key_length,
 		       &info.first_mbr_key, share->base.max_key_length,
 		       &info.filename,strlen(name)+1,
 		       &info.rtree_recursion_state,have_rtree ? 1024 : 0,
@@ -590,6 +591,11 @@ MI_INFO *mi_open(const char *name, int mode, uint open_flags)
   memcpy(info.blobs,share->blobs,sizeof(MI_BLOB)*share->base.blobs);
   info.lastkey2=info.lastkey+share->base.max_key_length;
 
+  /*
+    If only mi_rkey is called earlier, rnext_same_key should be set in
+    mi_rnext_same.
+  */
+  info.set_rnext_same_key= FALSE;
   info.s=share;
   info.lastpos= HA_OFFSET_ERROR;
   info.update= (short) (HA_STATE_NEXT_FOUND+HA_STATE_PREV_FOUND);
@@ -702,8 +708,7 @@ err:
 uchar *mi_alloc_rec_buff(MI_INFO *info, ulong length, uchar **buf)
 {
   uint extra;
-  uint32 UNINIT_VAR(old_length);
-  LINT_INIT(old_length);
+  uint32 old_length= 0;
 
   if (! *buf || length > (old_length=mi_get_rec_buff_len(info, *buf)))
   {

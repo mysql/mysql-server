@@ -1,4 +1,4 @@
-/* Copyright (c) 2001, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2001, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,7 +18,10 @@
 
 #include "sql_alloc.h"
 #include "prealloced_array.h"
+#include "sql_array.h"
 #include "sql_sort.h"
+
+class Cost_model_table;
 
 /*
    Unique -- class for unique (removing of duplicates). 
@@ -30,7 +33,7 @@
 
 class Unique :public Sql_alloc
 {
-  Prealloced_array<BUFFPEK, 16, true> file_ptrs;
+  Prealloced_array<Merge_chunk, 16, true> file_ptrs;
   ulong max_elements;
   ulonglong max_in_memory_size;
   IO_CACHE file;
@@ -55,14 +58,21 @@ public:
   }
 
   bool get(TABLE *table);
-  static double get_use_cost(uint *buffer, uint nkeys, uint key_size, 
-                             ulonglong max_in_memory_size);
-  inline static int get_cost_calc_buff_size(ulong nkeys, uint key_size, 
-                                            ulonglong max_in_memory_size)
+
+  typedef Bounds_checked_array<uint> Imerge_cost_buf_type;
+
+  static double get_use_cost(Imerge_cost_buf_type buffer,
+                             uint nkeys, uint key_size, 
+                             ulonglong max_in_memory_size,
+                             const Cost_model_table *cost_model);
+
+  // Returns the number of elements needed in Imerge_cost_buf_type.
+  inline static size_t get_cost_calc_buff_size(ulong nkeys, uint key_size, 
+                                               ulonglong max_in_memory_size)
   {
     ulonglong max_elems_in_tree=
-      (1 + max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
-    return (int) (sizeof(uint)*(1 + nkeys/max_elems_in_tree));
+      (max_in_memory_size / ALIGN_SIZE(sizeof(TREE_ELEMENT)+key_size));
+    return 1 + nkeys/max_elems_in_tree;
   }
 
   void reset();

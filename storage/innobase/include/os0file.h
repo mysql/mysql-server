@@ -1,6 +1,6 @@
 /***********************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2009, Percona Inc.
 
 Portions of this file contain modifications contributed and copyrighted
@@ -151,6 +151,10 @@ enum os_file_create_t {
 #define	OS_FILE_INSUFFICIENT_RESOURCE	78
 #define	OS_FILE_AIO_INTERRUPTED		79
 #define	OS_FILE_OPERATION_ABORTED	80
+
+#define	OS_FILE_ACCESS_VIOLATION	81
+
+#define	OS_FILE_ERROR_MAX		100
 /* @} */
 
 /** Types for aio operations @{ */
@@ -291,26 +295,30 @@ os_file_write
 The wrapper functions have the prefix of "innodb_". */
 
 #ifdef UNIV_PFS_IO
-# define os_file_create(key, name, create, purpose, type, success)	\
+# define os_file_create(key, name, create, purpose, type, read_only,	\
+			success)					\
 	pfs_os_file_create_func(key, name, create, purpose,	type,	\
-				success, __FILE__, __LINE__)
+				read_only, success, __FILE__, __LINE__)
 
-# define os_file_create_simple(key, name, create, access, success)	\
+# define os_file_create_simple(key, name, create, access,		\
+		read_only, success)					\
 	pfs_os_file_create_simple_func(key, name, create, access,	\
-				       success, __FILE__, __LINE__)
+		read_only, success, __FILE__, __LINE__)
 
 # define os_file_create_simple_no_error_handling(			\
-		key, name, create_mode, access, success)		\
+		key, name, create_mode, access, read_only, success)	\
 	pfs_os_file_create_simple_no_error_handling_func(		\
-		key, name, create_mode, access, success, __FILE__, __LINE__)
+		key, name, create_mode, access,				\
+		read_only, success, __FILE__, __LINE__)
 
 # define os_file_close(file)						\
 	pfs_os_file_close_func(file, __FILE__, __LINE__)
 
 # define os_aio(type, mode, name, file, buf, offset,			\
-		n, message1, message2)					\
+		n, read_only, message1, message2)			\
 	pfs_os_aio_func(type, mode, name, file, buf, offset,		\
-			n, message1, message2, __FILE__, __LINE__)
+			n, read_only, message1, message2,		\
+			__FILE__, __LINE__)
 
 # define os_file_read(file, buf, offset, n)				\
 	pfs_os_file_read_func(file, buf, offset, n, __FILE__, __LINE__)
@@ -338,22 +346,27 @@ The wrapper functions have the prefix of "innodb_". */
 
 /* If UNIV_PFS_IO is not defined, these I/O APIs point
 to original un-instrumented file I/O APIs */
-# define os_file_create(key, name, create, purpose, type, success)	\
-	os_file_create_func(name, create, purpose, type, success)
+# define os_file_create(key, name, create, purpose, type, read_only,	\
+			success)					\
+	os_file_create_func(name, create, purpose, type, read_only,	\
+			success)
 
-# define os_file_create_simple(key, name, create_mode, access, success)	\
-	os_file_create_simple_func(name, create_mode, access, success)
+# define os_file_create_simple(key, name, create_mode, access,		\
+		read_only, success)					\
+	os_file_create_simple_func(name, create_mode, access,		\
+		read_only, success)
 
 # define os_file_create_simple_no_error_handling(			\
-		key, name, create_mode, access, success)		\
+		key, name, create_mode, access, read_only, success)	\
 	os_file_create_simple_no_error_handling_func(			\
-		name, create_mode, access, success)
+		name, create_mode, access, read_only, success)
 
 # define os_file_close(file)	os_file_close_func(file)
 
-# define os_aio(type, mode, name, file, buf, offset, n, message1, message2) \
-	os_aio_func(type, mode, name, file, buf, offset, n,		\
-		    message1, message2)
+# define os_aio(type, mode, name, file, buf, offset,			\
+		n, read_only, message1, message2)			\
+	os_aio_func(type, mode, name, file, buf, offset,		\
+		n, read_only, message1, message2)
 
 # define os_file_read(file, buf, offset, n)	\
 	os_file_read_func(file, buf, offset, n)
@@ -382,7 +395,8 @@ enum os_file_type_t {
 	OS_FILE_TYPE_UNKNOWN = 0,
 	OS_FILE_TYPE_FILE,			/* regular file */
 	OS_FILE_TYPE_DIR,			/* directory */
-	OS_FILE_TYPE_LINK			/* symbolic link */
+	OS_FILE_TYPE_LINK,			/* symbolic link */
+	OS_FILE_TYPE_BLOCK			/* block device */
 };
 
 /* Maximum path string length in bytes when referring to tables with in the
@@ -395,7 +409,7 @@ bigger than 4000 bytes */
 struct os_file_stat_t {
 	char		name[OS_FILE_MAX_PATH];	/*!< path to a file */
 	os_file_type_t	type;			/*!< file type */
-	ib_int64_t	size;			/*!< file size */
+	int64_t		size;			/*!< file size */
 	time_t		ctime;			/*!< creation time */
 	time_t		mtime;			/*!< modification time */
 	time_t		atime;			/*!< access time */
@@ -501,6 +515,9 @@ os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success);/*!< out: TRUE if succeed, FALSE if error */
 /****************************************************************//**
 NOTE! Use the corresponding macro
@@ -519,6 +536,9 @@ os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
 	__attribute__((nonnull, warn_unused_result));
 /****************************************************************//**
@@ -553,6 +573,9 @@ os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success)/*!< out: TRUE if succeed, FALSE if error */
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
@@ -618,6 +641,9 @@ pfs_os_file_create_simple_func(
 	ulint		create_mode,/*!< in: create mode */
 	ulint		access_type,/*!< in: OS_FILE_READ_ONLY or
 				OS_FILE_READ_WRITE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -643,6 +669,9 @@ pfs_os_file_create_simple_no_error_handling_func(
 				OS_FILE_READ_WRITE, or
 				OS_FILE_READ_ALLOW_DELETE; the last option is
 				used by a backup program reading the file */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -671,6 +700,9 @@ pfs_os_file_create_func(
 				async i/o or unbuffered i/o: look in the
 				function source code for the exact rules */
 	ulint		type,	/*!< in: OS_DATA_FILE or OS_LOG_FILE */
+	bool		read_only_mode,
+				/*!< in: if true read only mode
+				checks are enforced. */
 	bool*		success,/*!< out: TRUE if succeed, FALSE if error */
 	const char*	src_file,/*!< in: file name where func invoked */
 	ulint		src_line)/*!< in: line where the func invoked */
@@ -742,6 +774,9 @@ pfs_os_aio_func(
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
@@ -1020,26 +1055,7 @@ os_file_make_new_pathname(
 /*======================*/
 	const char*	old_path,	/*!< in: pathname */
 	const char*	new_name);	/*!< in: new file name */
-/****************************************************************//**
-This function returns a remote path name by combining a data directory
-path provided in a DATA DIRECTORY clause with the tablename which is
-in the form 'database/tablename'.  It strips the file basename (which
-is the tablename) found after the last directory in the path provided.
-The full filepath created will include the database name as a directory
-under the path provided.  The filename is the tablename with the '.ibd'
-extension. All input and output strings are null-terminated.
 
-This function allocates memory to be returned.  It is the callers
-responsibility to free the return value after it is no longer needed.
-
-@return own: A full pathname; data_dir_path/databasename/tablename.ibd */
-
-char*
-os_file_make_remote_pathname(
-/*=========================*/
-	const char*	data_dir_path,	/*!< in: pathname */
-	const char*	tablename,	/*!< in: tablename */
-	const char*	extension);	/*!< in: file extension; ibd,cfg*/
 /****************************************************************//**
 This function reduces a null-terminated full remote path name into
 the path that is sent by MySQL for DATA DIRECTORY clause.  It replaces
@@ -1057,6 +1073,7 @@ void
 os_file_make_data_dir_path(
 /*========================*/
 	char*	data_dir_path);	/*!< in/out: full path/data_dir_path */
+
 /****************************************************************//**
 Creates all missing subdirectories along the given path.
 @return TRUE if call succeeded FALSE otherwise */
@@ -1118,6 +1135,9 @@ os_aio_func(
 				to write */
 	os_offset_t	offset,	/*!< in: file offset where to read or write */
 	ulint		n,	/*!< in: number of bytes to read or write */
+	bool		read_only_mode,
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	fil_node_t*	message1,/*!< in: message for the aio handler
 				(can be used to identify a completed
 				aio operation); ignored if mode is
@@ -1249,8 +1269,11 @@ os_file_get_status(
 	const char*	path,		/*!< in: pathname of the file */
 	os_file_stat_t* stat_info,	/*!< information of a file in a
 					directory */
-	bool		check_rw_perm);	/*!< in: for testing whether the
+	bool		check_rw_perm,	/*!< in: for testing whether the
 					file can be opened in RW mode */
+	bool		read_only_mode);
+					/*!< in: if true read only mode
+					checks are enforced. */
 
 #if !defined(UNIV_HOTBACKUP)
 /*********************************************************************//**
@@ -1291,6 +1314,14 @@ os_aio_linux_handle(
 	ulint*	type);		/*!< out: OS_FILE_WRITE or ..._READ */
 #endif /* LINUX_NATIVE_AIO */
 
+/*********************************************************************//**
+Normalizes a directory path for Windows: converts slashes to backslashes.
+@param[in,out] str A null-terminated Windows directory and file path */
+#ifdef _WIN32
+void os_normalize_path_for_win(char*	str);
+#else
+#define os_normalize_path_for_win(str)
+#endif
 #ifndef UNIV_NONINL
 #include "os0file.ic"
 #endif

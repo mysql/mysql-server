@@ -25,6 +25,7 @@ SELECT * FROM test.t1 ORDER BY a;
 a
 1
 2
+include/sync_slave_sql_with_master.inc
 show tables;
 Tables_in_test
 CREATE PROCEDURE test.p3()
@@ -43,6 +44,7 @@ SELECT * FROM test.t2 ORDER BY a;
 a
 6
 7
+include/sync_slave_sql_with_master.inc
 SELECT * FROM test.t2 ORDER BY a;
 a
 6
@@ -53,4 +55,5 @@ DROP PROCEDURE IF EXISTS test.p3;
 DROP PROCEDURE IF EXISTS test.p4;
 DROP TABLE IF EXISTS test.t1;
 DROP TABLE IF EXISTS test.t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

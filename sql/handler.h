@@ -2,7 +2,7 @@
 #define HANDLER_INCLUDED
 
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -241,6 +241,11 @@ enum enum_alter_inplace_result {
   be const-table optimized
 */
 #define HA_BLOCK_CONST_TABLE          (LL(1) << 42)
+
+/*
+  Handler supports FULLTEXT hints
+*/
+#define HA_CAN_FULLTEXT_HINTS         (LL(1) << 43)
 
 /* bits in index_flags(index_number) for what you can do with index */
 #define HA_READ_NEXT            1       /* TODO really use this flag */
@@ -623,9 +628,9 @@ enum enum_schema_tables
 struct TABLE_SHARE;
 struct st_foreign_key_info;
 typedef struct st_foreign_key_info FOREIGN_KEY_INFO;
-typedef bool (stat_print_fn)(THD *thd, const char *type, uint type_len,
-                             const char *file, uint file_len,
-                             const char *status, uint status_len);
+typedef bool (stat_print_fn)(THD *thd, const char *type, size_t type_len,
+                             const char *file, size_t file_len,
+                             const char *status, size_t status_len);
 enum ha_stat_type { HA_ENGINE_STATUS, HA_ENGINE_LOGS, HA_ENGINE_MUTEX };
 extern st_plugin_int *hton2plugin[MAX_HA];
 
@@ -748,6 +753,8 @@ struct handlerton
      this storage engine was accessed in this connection
    */
    int  (*close_connection)(handlerton *hton, THD *thd);
+   /* Terminate connection/statement notification. */
+   void (*kill_connection)(handlerton *hton, THD *thd);
    /*
      sv points to an uninitialized storage area of requested size
      (see savepoint_offset description)
@@ -758,6 +765,13 @@ struct handlerton
      to the savepoint_set call
    */
    int  (*savepoint_rollback)(handlerton *hton, THD *thd, void *sv);
+   /**
+     Check if storage engine allows to release metadata locks which were
+     acquired after the savepoint if rollback to savepoint is done.
+     @return true  - If it is safe to release MDL locks.
+             false - If it is not.
+   */
+   bool (*savepoint_rollback_can_release_mdl)(handlerton *hton, THD *thd);
    int  (*savepoint_release)(handlerton *hton, THD *thd, void *sv);
    /*
      'all' is true if it's a real commit, that makes persistent changes
@@ -1141,6 +1155,15 @@ public:
   static const HA_ALTER_FLAGS RENAME_INDEX               = 1L << 29;
 
   /**
+    Recreate the table for ALTER TABLE FORCE, ALTER TABLE ENGINE
+    and OPTIMIZE TABLE operations.
+  */
+  static const HA_ALTER_FLAGS RECREATE_TABLE             = 1L << 30;
+
+  // Add spatial index
+  static const HA_ALTER_FLAGS ADD_SPATIAL_INDEX          = 1L << 31;
+
+  /**
     Create options (like MAX_ROWS) for the new version of table.
 
     @note The referenced instance of HA_CREATE_INFO object was already
@@ -1248,9 +1271,6 @@ public:
   */
   partition_info *modified_part_info;
 
-  /** true for ALTER IGNORE TABLE ... */
-  const bool ignore;
-
   /** true for online operation (LOCK=NONE) */
   bool online;
 
@@ -1271,8 +1291,7 @@ public:
   Alter_inplace_info(HA_CREATE_INFO *create_info_arg,
                      Alter_info *alter_info_arg,
                      KEY *key_info_arg, uint key_count_arg,
-                     partition_info *modified_part_info_arg,
-                     bool ignore_arg)
+                     partition_info *modified_part_info_arg)
     : create_info(create_info_arg),
     alter_info(alter_info_arg),
     key_info_buffer(key_info_arg),
@@ -1287,7 +1306,6 @@ public:
     group_commit_ctx(NULL),
     handler_flags(0),
     modified_part_info(modified_part_info_arg),
-    ignore(ignore_arg),
     online(false),
     unsupported_reason(NULL)
   {}
@@ -1526,10 +1544,6 @@ private:
   double mem_cost;                              ///< memory used (bytes)
   
 public:
-
-  /// The cost of one I/O operation
-  static double IO_BLOCK_READ_COST() { return  1.0; } 
-
   Cost_estimate() :
     io_cost(0),
     cpu_cost(0),
@@ -1717,6 +1731,108 @@ class Handler_share
 public:
   Handler_share() {}
   virtual ~Handler_share() {}
+};
+
+
+/**
+  Wrapper for struct ft_hints.
+*/
+
+class Ft_hints: public Sql_alloc
+{
+private:
+  struct ft_hints hints;
+
+public:
+  Ft_hints(uint ft_flags)
+  {
+    hints.flags= ft_flags;
+    hints.op_type= FT_OP_UNDEFINED;
+    hints.op_value= 0.0;
+    hints.limit= HA_POS_ERROR;
+  }
+
+  /**
+    Set comparison operation type and and value for master MATCH function.
+
+     @param type   comparison operation type
+     @param value  comparison operation value
+  */
+  void set_hint_op(enum ft_operation type, double value)
+  {
+    hints.op_type= type;
+    hints.op_value= value;
+  }
+
+  /**
+    Set Ft_hints flag.
+
+    @param ft_flag Ft_hints flag
+  */
+  void set_hint_flag(uint ft_flag)
+  {
+    hints.flags|= ft_flag;
+  }
+
+  /**
+    Set Ft_hints limit.
+
+    @param Ft_hints limit
+  */
+  void set_hint_limit(ha_rows ft_limit)
+  {
+    hints.limit= ft_limit;
+  }
+
+  /**
+    Get Ft_hints limit.
+
+    @return Ft_hints limit
+  */
+  ha_rows get_limit()
+  {
+    return hints.limit;
+  }
+
+  /**
+    Get Ft_hints operation value.
+
+    @return operation value
+  */
+  double get_op_value()
+  {
+    return hints.op_value;
+  }
+
+  /**
+    Get Ft_hints operation type.
+
+    @return operation type
+  */
+  enum ft_operation get_op_type()
+  {
+    return hints.op_type;
+  }
+
+  /**
+    Get Ft_hints flags.
+
+    @return Ft_hints flags
+  */
+  uint get_flags()
+  {
+    return hints.flags;
+  }
+
+ /**
+    Get ft_hints struct.
+
+    @return pointer to ft_hints struct
+  */
+  struct ft_hints* get_hints()
+  {
+    return &hints;
+  }
 };
 
 
@@ -2056,25 +2172,88 @@ public:
     table_share= share;
   }
   /* Estimates calculation */
+
+  /**
+    @deprecated This function is deprecated and will be removed in a future
+                version. Use table_scan_cost() instead.
+  */
+
   virtual double scan_time()
   { return ulonglong2double(stats.data_file_length) / IO_SIZE + 2; }
 
+  /**
+    The cost of reading a set of ranges from the table using an index
+    to access it.
 
-/**
-   The cost of reading a set of ranges from the table using an index
-   to access it.
+    @deprecated This function is deprecated and will be removed in a future
+                version. Use read_cost() instead.
    
-   @param index  The index number.
-   @param ranges The number of ranges to be read.
-   @param rows   Total number of rows to be read.
+    @param index  The index number.
+    @param ranges The number of ranges to be read.
+    @param rows   Total number of rows to be read.
    
-   This method can be used to calculate the total cost of scanning a table
-   using an index by calling it using read_time(index, 1, table_size).
-*/
+    This method can be used to calculate the total cost of scanning a table
+    using an index by calling it using read_time(index, 1, table_size).
+  */
+
   virtual double read_time(uint index, uint ranges, ha_rows rows)
   { return rows2double(ranges+rows); }
 
+  /**
+    @deprecated This function is deprecated and will be removed in a future
+                version. Use index_scan_cost() instead.
+  */
+
   virtual double index_only_read_time(uint keynr, double records);
+
+  /**
+    Cost estimate for doing a complete table scan.
+
+    @note For this version it is recommended that storage engines continue
+    to override scan_time() instead of this function.
+
+    @returns the estimated cost
+  */
+
+  virtual Cost_estimate table_scan_cost();
+
+  /**
+    Cost estimate for reading a number of ranges from an index.
+
+    The cost estimate will only include the cost of reading data that
+    is contained in the index. If the records need to be read, use
+    read_cost() instead.
+
+    @note The ranges parameter is currently ignored and is not taken
+    into account in the cost estimate.
+
+    @note For this version it is recommended that storage engines continue
+    to override index_only_read_time() instead of this function.
+ 
+    @param index  the index number
+    @param ranges the number of ranges to be read
+    @param rows   total number of rows to be read
+
+    @returns the estimated cost
+  */
+  
+  virtual Cost_estimate index_scan_cost(uint index, double ranges, double rows);
+
+  /**
+    Cost estimate for reading a set of ranges from the table using an index
+    to access it.
+
+    @note For this version it is recommended that storage engines continue
+    to override read_time() instead of this function.
+
+    @param index  the index number
+    @param ranges the number of ranges to be read
+    @param rows   total number of rows to be read
+
+    @returns the estimated cost
+  */
+
+  virtual Cost_estimate read_cost(uint index, double ranges, double rows);
   
   /**
     Return an estimate on the amount of memory the storage engine will
@@ -2290,6 +2469,11 @@ public:
   void ft_end() { ft_handler=NULL; }
   virtual FT_INFO *ft_init_ext(uint flags, uint inx,String *key)
     { return NULL; }
+  virtual FT_INFO *ft_init_ext_with_hints(uint inx, String *key,
+                                          Ft_hints *hints)
+  {
+    return ft_init_ext(hints->get_flags(), inx, key);
+  }
   virtual int ft_read(uchar *buf) { return HA_ERR_WRONG_COMMAND; }
 protected:
   /// @returns @see index_read_map().
@@ -2505,28 +2689,23 @@ public:
 
   uint max_record_length() const
   {
-    using std::min;
-    return min(HA_MAX_REC_LENGTH, max_supported_record_length());
+    return std::min(HA_MAX_REC_LENGTH, max_supported_record_length());
   }
   uint max_keys() const
   {
-    using std::min;
-    return min<uint>(MAX_KEY, max_supported_keys());
+    return std::min<uint>(MAX_KEY, max_supported_keys());
   }
   uint max_key_parts() const
   {
-    using std::min;
-    return min(MAX_REF_PARTS, max_supported_key_parts());
+    return std::min(MAX_REF_PARTS, max_supported_key_parts());
   }
   uint max_key_length() const
   {
-    using std::min;
-    return min(MAX_KEY_LENGTH, max_supported_key_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_length());
   }
   uint max_key_part_length() const
   {
-    using std::min;
-    return min(MAX_KEY_LENGTH, max_supported_key_part_length());
+    return std::min(MAX_KEY_LENGTH, max_supported_key_part_length());
   }
 
   virtual uint max_supported_record_length() const { return HA_MAX_REC_LENGTH; }
@@ -3253,9 +3432,19 @@ class DsMrr_impl
 public:
   typedef void (handler::*range_check_toggle_func_t)(bool on);
 
-  DsMrr_impl()
-    : h2(NULL) {};
-  ~DsMrr_impl() { DBUG_ASSERT(h2 == NULL); }
+  DsMrr_impl() : h2(NULL) {}
+
+  ~DsMrr_impl()
+  {
+    /*
+      If ha_reset() has not been called then the h2 dialog might still
+      exist. This must be closed and deleted (this is the case for
+      internally created temporary tables).
+    */
+    if (h2)
+      reset();
+    DBUG_ASSERT(h2 == NULL);
+  }
   
   /*
     The "owner" handler object (the one that calls dsmrr_XXX functions.
@@ -3280,11 +3469,25 @@ private:
 
   bool use_default_impl; /* TRUE <=> shortcut all calls to default MRR impl */
 public:
+  /**
+    Initialize the DsMrr_impl object.
+
+    This object is used for both doing default MRR scans and DS-MRR scans.
+    This function just initializes the object. To do a DS-MRR scan,
+    this must also be initialized by calling dsmrr_init().
+
+    @param h_arg     pointer to the handler that owns this object
+    @param table_arg pointer to the TABLE that owns the handler
+  */
+
   void init(handler *h_arg, TABLE *table_arg)
   {
+    DBUG_ASSERT(h_arg != NULL);
+    DBUG_ASSERT(table_arg != NULL);
     h= h_arg; 
     table= table_arg;
   }
+
   int dsmrr_init(handler *h, RANGE_SEQ_IF *seq_funcs, void *seq_init_param, 
                  uint n_ranges, uint mode, HANDLER_BUFFER *buf);
   void dsmrr_close();
@@ -3349,7 +3552,7 @@ static inline const char *ha_resolve_storage_engine_name(const handlerton *db_ty
 
 static inline bool ha_check_storage_engine_flag(const handlerton *db_type, uint32 flag)
 {
-  return db_type == NULL ? FALSE : test(db_type->flags & flag);
+  return db_type == NULL ? FALSE : MY_TEST(db_type->flags & flag);
 }
 
 static inline bool ha_storage_engine_is_enabled(const handlerton *db_type)
@@ -3368,6 +3571,7 @@ int ha_finalize_handlerton(st_plugin_int *plugin);
 TYPELIB* ha_known_exts();
 int ha_panic(enum ha_panic_function flag);
 void ha_close_connection(THD* thd);
+void ha_kill_connection(THD *thd);
 bool ha_flush_logs(handlerton *db_type);
 void ha_drop_database(char* path);
 int ha_create_table(THD *thd, const char *path,
@@ -3443,6 +3647,7 @@ int ha_enable_transaction(THD *thd, bool on);
 
 /* savepoints */
 int ha_rollback_to_savepoint(THD *thd, SAVEPOINT *sv);
+bool ha_rollback_to_savepoint_can_release_mdl(THD *thd);
 int ha_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 
@@ -3450,8 +3655,8 @@ int ha_release_savepoint(THD *thd, SAVEPOINT *sv);
 int ha_make_pushed_joins(THD *thd, const AQP::Join_plan* plan);
 
 /* these are called by storage engines */
-void trans_register_ha(THD *thd, bool all, handlerton *ht);
-
+void trans_register_ha(THD *thd, bool all, handlerton *ht,
+                       const ulonglong *trxid);
 /*
   Storage engine has to assume the transaction will end up with 2pc if
    - there is more than one 2pc-capable storage engine available
@@ -3465,7 +3670,7 @@ int ha_binlog_index_purge_file(THD *thd, const char *file);
 void ha_reset_slave(THD *thd);
 void ha_binlog_log_query(THD *thd, handlerton *db_type,
                          enum_binlog_command binlog_command,
-                         const char *query, uint query_length,
+                         const char *query, size_t query_length,
                          const char *db, const char *table_name);
 void ha_binlog_wait(THD *thd);
 

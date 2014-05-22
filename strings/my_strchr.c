@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,7 +36,7 @@ char *my_strchr(const CHARSET_INFO *cs, const char *str, const char *end,
 {
   while (str < end)
   {
-    uint mbl= my_mbcharlen(cs, *(uchar *)str);
+    uint mbl= my_mbcharlen_ptr(cs, str, end);
     if (mbl == 0)
       return NULL;
     if (mbl == 1)
@@ -93,7 +93,7 @@ size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
 
   for (ptr_str= str; ptr_str < str_end; ptr_str+= mbl)
   {
-    mbl= my_mbcharlen(cs, *((uchar *) ptr_str));
+    mbl= my_mbcharlen_ptr(cs, ptr_str, str_end);
 
     if (mbl == 0)
       return 0;

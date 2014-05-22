@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -58,9 +58,11 @@
 #include "opt_trace.h"     // Optimizer trace information schema tables
 #include "sql_tmp_table.h" // Tmp tables
 #include "sql_optimizer.h" // JOIN
-#include "global_threads.h"
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mutex_lock.h"
 
 #include <algorithm>
+#include <functional>
 using std::max;
 using std::min;
 
@@ -141,7 +143,7 @@ static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
 ** List all table types supported
 ***************************************************************************/
 
-static int make_version_string(char *buf, int buf_length, uint version)
+static size_t make_version_string(char *buf, size_t buf_length, uint version)
 {
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
@@ -522,11 +524,28 @@ ignore_db_dirs_process_additions()
   for (i= 0; i < ignore_db_dirs_array.elements; i++)
   {
     get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
-    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *) dir))
+    if (my_hash_insert(&ignore_db_dirs_hash, (uchar *)dir))
+    {
+      /* ignore duplicates from the config file */
+      if (my_hash_search(&ignore_db_dirs_hash, (uchar *)dir->str, dir->length))
+      {
+        sql_print_warning("Duplicate ignore-db-dir directory name '%.*s' "
+                          "found in the config file(s). Ignoring the duplicate.",
+                          (int) dir->length, dir->str);
+        /*
+          Free the excess element since the array will just be reset at
+          the end of the function, not destructed.
+        */
+        my_free(dir);
+        dir= NULL;
+        set_dynamic(&ignore_db_dirs_array, (uchar *)&dir, i);
+        continue;
+      }
       return true;
+    }
     ptr= my_stpnmov(ptr, dir->str, dir->length);
-    if (i + 1 < ignore_db_dirs_array.elements)
-      ptr= my_stpcpy(ptr, ",");
+    /* It's safe to always do, since the last one will be repalced with a 0 */
+    *ptr++ = ',';
 
     /*
       Set the transferred array element to NULL to avoid double free
@@ -536,6 +555,12 @@ ignore_db_dirs_process_additions()
     set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
   }
 
+  /* get back to the last comma, if there is one */
+  if (ptr > opt_ignore_db_dirs)
+  {
+    ptr--;
+    DBUG_ASSERT(*ptr == ',');
+  }
   /* make sure the string is terminated */
   DBUG_ASSERT(ptr - opt_ignore_db_dirs <= (ptrdiff_t) len);
   *ptr= 0;
@@ -630,7 +655,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     char uname[NAME_LEN + 1];                   /* Unencoded name */
     FILEINFO *file;
     LEX_STRING *file_name= 0;
-    uint file_name_len;
+    size_t file_name_len;
     char *ext;
 
     file=dirp->dir_entry+i;
@@ -743,7 +768,7 @@ public:
     m_view_access_denied_message_ptr(NULL) 
   {
     
-    m_sctx = test(m_top_view->security_ctx) ?
+    m_sctx = MY_TEST(m_top_view->security_ctx) ?
       m_top_view->security_ctx : thd->security_ctx;
   }
 
@@ -1126,7 +1151,7 @@ static const char *require_quotes(const char *name, uint name_length)
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length)
+append_identifier(THD *thd, String *packet, const char *name, size_t length)
 {
   const char *name_end;
   char quote_char;
@@ -1180,7 +1205,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length,
+append_identifier(THD *thd, String *packet, const char *name, size_t length,
                   const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
 {
         String to_name(name,length, from_cs);
@@ -1212,7 +1237,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length,
     #	  Quote character
 */
 
-int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
+int get_quote_char_for_identifier(THD *thd, const char *name, size_t length)
 {
   if (length &&
       !is_keyword(name,length) &&
@@ -1232,7 +1257,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 {
   if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
-    uint length= dirname_length(filename);
+    size_t length= dirname_length(filename);
     packet->append(' ');
     packet->append(dir_type);
     packet->append(STRING_WITH_LEN(" DIRECTORY='"));
@@ -1861,7 +1886,7 @@ static void store_key_options(THD *thd, String *packet, TABLE *table,
       end= longlong10_to_str(key_info->block_size, buff, 10);
       packet->append(buff, (uint) (end - buff));
     }
-    DBUG_ASSERT(test(key_info->flags & HA_USES_COMMENT) == 
+    DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) == 
                (key_info->comment.length > 0));
     if (key_info->flags & HA_USES_COMMENT)
     {
@@ -1877,7 +1902,7 @@ void
 view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 {
   append_algorithm(table, buff);
-  append_definer(thd, buff, &table->definer.user, &table->definer.host);
+  append_definer(thd, buff, table->definer.user, table->definer.host);
   if (table->view_suid)
     buff->append(STRING_WITH_LEN("SQL SECURITY DEFINER "));
   else
@@ -1925,13 +1950,13 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
     definer_host  [in] host name part of definer
 */
 
-void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
-                    const LEX_STRING *definer_host)
+void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
+                    const LEX_CSTRING &definer_host)
 {
   buffer->append(STRING_WITH_LEN("DEFINER="));
-  append_identifier(thd, buffer, definer_user->str, definer_user->length);
+  append_identifier(thd, buffer, definer_user.str, definer_user.length);
   buffer->append('@');
-  append_identifier(thd, buffer, definer_host->str, definer_host->length);
+  append_identifier(thd, buffer, definer_host.str, definer_host.length);
   buffer->append(' ');
 }
 
@@ -2011,16 +2036,13 @@ view_store_create_info(THD *thd, TABLE_LIST *table, String *buff)
   returns for each thread: thread id, user, host, db, command, info
 ****************************************************************************/
 
-class thread_info
+class thread_info : public Sql_alloc
 {
 public:
-  static void *operator new(size_t size)
-  {
-    return (void*) sql_alloc((uint) size);
-  }
-  static void operator delete(void *ptr __attribute__((unused)),
-                              size_t size __attribute__((unused)))
-  { TRASH(ptr, size); }
+  thread_info()
+    : thread_id(0), start_time(0), command(0),
+      user(NULL), host(NULL), db(NULL), proc_info(NULL), state_info(NULL)
+  { }
 
   ulong thread_id;
   time_t start_time;
@@ -2064,17 +2086,129 @@ static const char *thread_state_info(THD *tmp)
   }
 }
 
+/**
+  This class implements callback function used by mysqld_list_processes() to
+  list all the client process information.
+*/
+typedef Mem_root_array<thread_info*, true> Thread_info_array;
+class List_process_list : public Do_THD_Impl
+{
+private:
+  /* Username of connected client. */
+  const char *m_user;
+  Thread_info_array *m_thread_infos;
+  /* THD of connected client. */
+  THD *m_client_thd;
+  size_t m_max_query_length;
+
+public:
+  List_process_list(const char *user_value, Thread_info_array *thread_infos,
+                    THD *thd_value, size_t max_query_length) :
+                    m_user(user_value), m_thread_infos(thread_infos),
+                    m_client_thd(thd_value),
+                    m_max_query_length(max_query_length)
+  {}
+
+  virtual void operator()(THD *inspect_thd)
+  {
+    Security_context *inspect_sctx= inspect_thd->security_ctx;
+
+    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+        (m_user &&
+         (!inspect_sctx->user || strcmp(inspect_sctx->user, m_user))))
+      return;
+
+    thread_info *thd_info= new thread_info;
+
+    /* ID */
+    thd_info->thread_id= inspect_thd->thread_id;
+
+    /* USER */
+    if (inspect_sctx->user)
+      thd_info->user= m_client_thd->strdup(inspect_sctx->user);
+    else if (inspect_thd->system_thread)
+      thd_info->user= "system user";
+    else
+      thd_info->user= "unauthenticated user";
+
+    /* HOST */
+    if (inspect_thd->peer_port &&
+        (inspect_sctx->get_host()->length() ||
+         inspect_sctx->get_ip()->length()) &&
+        m_client_thd->security_ctx->host_or_ip[0])
+    {
+      if ((thd_info->host=
+           (char*) m_client_thd->alloc(LIST_PROCESS_HOST_LEN+1)))
+        my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN, "%s:%u",
+                    inspect_sctx->host_or_ip, inspect_thd->peer_port);
+    }
+    else
+      thd_info->host=
+        m_client_thd->strdup(inspect_sctx->host_or_ip[0] ?
+                             inspect_sctx->host_or_ip :
+                             inspect_sctx->get_host()->length() ?
+                             inspect_sctx->get_host()->ptr() : "");
+
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
+    /* DB */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
+    const char *db= inspect_thd->db;
+    if (db)
+      thd_info->db= m_client_thd->strdup(db);
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
+
+    /* COMMAND */
+    if (inspect_thd->killed == THD::KILL_CONNECTION)
+      thd_info->proc_info= "Killed";
+    thd_info->command=(int) inspect_thd->get_command(); // Used for !killed.
+
+    /* STATE */
+    thd_info->state_info= thread_state_info(inspect_thd);
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
+
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
+    /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
+    if (inspect_thd->query().str)
+    {
+      const size_t width= min(m_max_query_length,
+                              inspect_thd->query().length);
+      char *q= m_client_thd->strmake(inspect_thd->query().str, width);
+      /* Safety: in case strmake failed, we set length to 0. */
+      thd_info->query_string=
+        CSET_STRING(q, q ? width : 0, inspect_thd->charset());
+    }
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
+
+    /* MYSQL_TIME */
+    thd_info->start_time= inspect_thd->start_time.tv_sec;
+
+    m_thread_infos->push_back(thd_info);
+  }
+};
+
 void mysqld_list_processes(THD *thd,const char *user, bool verbose)
 {
   Item *field;
   List<Item> field_list;
-  Mem_root_array<thread_info*, true> thread_infos(thd->mem_root);
-  ulong max_query_length= (verbose ? thd->variables.max_allowed_packet :
-			   PROCESS_LIST_WIDTH);
+  Thread_info_array thread_infos(thd->mem_root);
+  size_t max_query_length= (verbose ? thd->variables.max_allowed_packet :
+                            PROCESS_LIST_WIDTH);
   Protocol *protocol= thd->protocol;
   DBUG_ENTER("mysqld_list_processes");
 
-  field_list.push_back(new Item_int(NAME_STRING("Id"), 0, MY_INT64_NUM_DECIMAL_DIGITS));
+  field_list.push_back(new Item_int(NAME_STRING("Id"),
+                                    0, MY_INT64_NUM_DECIMAL_DIGITS));
   field_list.push_back(new Item_empty_string("User",16));
   field_list.push_back(new Item_empty_string("Host",LIST_PROCESS_HOST_LEN));
   field_list.push_back(field=new Item_empty_string("db",NAME_CHAR_LEN));
@@ -2086,68 +2220,17 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   field->maybe_null=1;
   field_list.push_back(field=new Item_empty_string("Info",max_query_length));
   field->maybe_null=1;
-  if (protocol->send_result_set_metadata(&field_list,
-                            Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
+  if (protocol->
+      send_result_set_metadata(&field_list,
+                               Protocol::SEND_NUM_ROWS | Protocol::SEND_EOF))
     DBUG_VOID_RETURN;
 
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    thread_infos.reserve(get_thread_count());
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD *tmp= *it;
-      Security_context *tmp_sctx= tmp->security_ctx;
-      struct st_my_thread_var *mysys_var;
-      if ((tmp->vio_ok() || tmp->system_thread) &&
-          (!user || (tmp_sctx->user && !strcmp(tmp_sctx->user, user))))
-      {
-        thread_info *thd_info= new thread_info;
-
-        thd_info->thread_id=tmp->thread_id;
-        thd_info->user= thd->strdup(tmp_sctx->user ? tmp_sctx->user :
-                                    (tmp->system_thread ?
-                                     "system user" : "unauthenticated user"));
-	if (tmp->peer_port && (tmp_sctx->get_host()->length() ||
-            tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
-	{
-	  if ((thd_info->host= (char*) thd->alloc(LIST_PROCESS_HOST_LEN+1)))
-	    my_snprintf((char *) thd_info->host, LIST_PROCESS_HOST_LEN,
-			"%s:%u", tmp_sctx->host_or_ip, tmp->peer_port);
-	}
-	else
-	  thd_info->host= thd->strdup(tmp_sctx->host_or_ip[0] ? 
-                                      tmp_sctx->host_or_ip : 
-                                      tmp_sctx->get_host()->length() ?
-                                      tmp_sctx->get_host()->ptr() : "");
-        thd_info->command=(int) tmp->get_command();
-        mysql_mutex_lock(&tmp->LOCK_thd_data);
-        if ((thd_info->db= tmp->db))             // Safe test
-          thd_info->db= thd->strdup(thd_info->db);
-        if ((mysys_var= tmp->mysys_var))
-          mysql_mutex_lock(&mysys_var->mutex);
-        thd_info->proc_info= (char*) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0);
-        thd_info->state_info= thread_state_info(tmp);
-        if (mysys_var)
-          mysql_mutex_unlock(&mysys_var->mutex);
-
-        /* Lock THD mutex that protects its data when looking at it. */
-        if (tmp->query())
-        {
-          uint length= min<uint>(max_query_length, tmp->query_length());
-          char *q= thd->strmake(tmp->query(),length);
-          /* Safety: in case strmake failed, we set length to 0. */
-          thd_info->query_string=
-            CSET_STRING(q, q ? length : 0, tmp->query_charset());
-        }
-        mysql_mutex_unlock(&tmp->LOCK_thd_data);
-        thd_info->start_time= tmp->start_time.tv_sec;
-        thread_infos.push_back(thd_info);
-      }
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    thread_infos.reserve(Global_THD_manager::get_instance()->get_thd_count());
+    List_process_list list_process_list(user, &thread_infos, thd,
+                                        max_query_length);
+    Global_THD_manager::get_instance()->do_for_all_thd_copy(&list_process_list);
   }
 
   // Return list sorted by thread_id.
@@ -2180,104 +2263,140 @@ void mysqld_list_processes(THD *thd,const char *user, bool verbose)
   DBUG_VOID_RETURN;
 }
 
+
+/**
+  This class implements callback function used by fill_schema_processlist()
+  to populate all the client process information into I_S table.
+*/
+class Fill_process_list : public Do_THD_Impl
+{
+private:
+  /* THD of connected client. */
+  THD *m_client_thd;
+  /* Information of each process is added as records into this table. */
+  TABLE_LIST *m_tables;
+
+public:
+  Fill_process_list(THD *thd_value, TABLE_LIST *tables_value) :
+                    m_client_thd(thd_value), m_tables(tables_value) {}
+
+  virtual void operator()(THD *inspect_thd)
+  {
+    Security_context *inspect_sctx= inspect_thd->security_ctx;
+    const char *user= m_client_thd->security_ctx->master_access & PROCESS_ACL ?
+      NullS : m_client_thd->security_ctx->priv_user;
+
+    if ((!inspect_thd->vio_ok() && !inspect_thd->system_thread) ||
+        (user &&
+         (!inspect_sctx->user || strcmp(inspect_sctx->user, user))))
+      return;
+
+    TABLE *table= m_tables->table;
+    restore_record(table, s->default_values);
+
+    /* ID */
+    table->field[0]->store((ulonglong) inspect_thd->thread_id, true);
+
+    /* USER */
+    const char *val= NULL;
+    if (inspect_sctx->user)
+      val= inspect_sctx->user;
+    else if (inspect_thd->system_thread)
+      val= "system user";
+    else
+      val= "unauthenticated user";
+    table->field[1]->store(val, strlen(val), system_charset_info);
+
+    /* HOST */
+    if (inspect_thd->peer_port &&
+        (inspect_sctx->get_host()->length() ||
+         inspect_sctx->get_ip()->length()) &&
+        m_client_thd->security_ctx->host_or_ip[0])
+    {
+      char host[LIST_PROCESS_HOST_LEN + 1];
+      my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
+                  inspect_sctx->host_or_ip, inspect_thd->peer_port);
+      table->field[2]->store(host, strlen(host), system_charset_info);
+    }
+    else
+      table->field[2]->store(inspect_sctx->host_or_ip,
+                             strlen(inspect_sctx->host_or_ip),
+                             system_charset_info);
+
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
+    /* DB */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
+    const char *db= inspect_thd->db;
+    if (db)
+    {
+      table->field[3]->store(db, strlen(db), system_charset_info);
+      table->field[3]->set_notnull();
+    }
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_lock(&inspect_thd->mysys_var->mutex);
+
+    /* COMMAND */
+    if (inspect_thd->killed == THD::KILL_CONNECTION)
+    {
+      val= "Killed";
+      table->field[4]->store(val, strlen(val), system_charset_info);
+    }
+    else
+      table->field[4]->store(command_name[inspect_thd->get_command()].str,
+                             command_name[inspect_thd->get_command()].length,
+                             system_charset_info);
+
+    /* STATE */
+    val= thread_state_info(inspect_thd);
+    if (val)
+    {
+      table->field[6]->store(val, strlen(val), system_charset_info);
+      table->field[6]->set_notnull();
+    }
+
+    if (inspect_thd->mysys_var)
+      mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
+
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
+    /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
+    if (inspect_thd->query().str)
+    {
+      const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
+                                      inspect_thd->query().length);
+      table->field[7]->store(inspect_thd->query().str, width,
+                             inspect_thd->charset());
+      table->field[7]->set_notnull();
+    }
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
+
+    /* MYSQL_TIME */
+    if (inspect_thd->start_time.tv_sec)
+      table->field[5]->
+        store((longlong) (my_time(0) - inspect_thd->start_time.tv_sec), false);
+    else
+      table->field[5]->store(0, false);
+
+    schema_table_store_record(m_client_thd, table);
+  }
+};
+
 int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
 {
-  TABLE *table= tables->table;
-  CHARSET_INFO *cs= system_charset_info;
-  char *user;
-  time_t now= my_time(0);
-  DBUG_ENTER("fill_process_list");
+  DBUG_ENTER("fill_schema_processlist");
 
-  user= thd->security_ctx->master_access & PROCESS_ACL ?
-        NullS : thd->security_ctx->priv_user;
-
+  Fill_process_list fill_process_list(thd, tables);
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD* tmp= *it;
-      Security_context *tmp_sctx= tmp->security_ctx;
-      struct st_my_thread_var *mysys_var;
-      const char *val, *db;
-
-      if ((!tmp->vio_ok() && !tmp->system_thread) ||
-          (user && (!tmp_sctx->user || strcmp(tmp_sctx->user, user))))
-        continue;
-
-      restore_record(table, s->default_values);
-      /* ID */
-
-      table->field[0]->store((ulonglong) tmp->thread_id, TRUE);
-      /* USER */
-      val= tmp_sctx->user ? tmp_sctx->user :
-            (tmp->system_thread ? "system user" : "unauthenticated user");
-      table->field[1]->store(val, strlen(val), cs);
-      /* HOST */
-      if (tmp->peer_port && (tmp_sctx->get_host()->length() ||
-          tmp_sctx->get_ip()->length()) && thd->security_ctx->host_or_ip[0])
-      {
-        char host[LIST_PROCESS_HOST_LEN + 1];
-        my_snprintf(host, LIST_PROCESS_HOST_LEN, "%s:%u",
-                    tmp_sctx->host_or_ip, tmp->peer_port);
-        table->field[2]->store(host, strlen(host), cs);
-      }
-      else
-        table->field[2]->store(tmp_sctx->host_or_ip,
-                               strlen(tmp_sctx->host_or_ip), cs);
-      /* DB */
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      if ((db= tmp->db))
-      {
-        table->field[3]->store(db, strlen(db), cs);
-        table->field[3]->set_notnull();
-      }
-
-      if ((mysys_var= tmp->mysys_var))
-        mysql_mutex_lock(&mysys_var->mutex);
-      /* COMMAND */
-      if ((val= (char *) (tmp->killed == THD::KILL_CONNECTION? "Killed" : 0)))
-        table->field[4]->store(val, strlen(val), cs);
-      else
-        table->field[4]->store(command_name[tmp->get_command()].str,
-                               command_name[tmp->get_command()].length, cs);
-      /* MYSQL_TIME */
-      table->field[5]->store((longlong)(tmp->start_time.tv_sec ?
-                                      now - tmp->start_time.tv_sec : 0), FALSE);
-      /* STATE */
-      if ((val= thread_state_info(tmp)))
-      {
-        table->field[6]->store(val, strlen(val), cs);
-        table->field[6]->set_notnull();
-      }
-
-      if (mysys_var)
-        mysql_mutex_unlock(&mysys_var->mutex);
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
-
-      /* INFO */
-      /* Lock THD mutex that protects its data when looking at it. */
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      if (tmp->query())
-      {
-        size_t const width=
-          min<size_t>(PROCESS_LIST_INFO_WIDTH, tmp->query_length());
-        table->field[7]->store(tmp->query(), width, cs);
-        table->field[7]->set_notnull();
-      }
-      mysql_mutex_unlock(&tmp->LOCK_thd_data);
-
-      if (schema_table_store_record(thd, table))
-      {
-        mysql_mutex_unlock(&LOCK_thread_count);
-        DBUG_RETURN(1);
-      }
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Global_THD_manager::get_instance()->do_for_all_thd_copy(&fill_process_list);
   }
-
   DBUG_RETURN(0);
 }
 
@@ -2285,35 +2404,46 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
   Status functions
 *****************************************************************************/
 
-static DYNAMIC_ARRAY all_status_vars;
+// TODO: allocator based on my_malloc.
+typedef std::vector<st_mysql_show_var> Status_var_array;
+static Status_var_array all_status_vars(0);
+
 static bool status_vars_inited= 0;
 
-C_MODE_START
-static int show_var_cmp(const void *var1, const void *var2)
+static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 {
-  return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
+  return strcmp(var1->name, var2->name);
 }
-C_MODE_END
+
+class Show_var_cmp :
+  public std::binary_function<const st_mysql_show_var &,
+                              const st_mysql_show_var &, bool>
+{
+public:
+  bool operator()(const st_mysql_show_var &var1,
+                  const st_mysql_show_var &var2)
+  {
+    return show_var_cmp(&var1, &var2) < 0;
+  }
+};
+
+
+static inline bool is_show_undef(const st_mysql_show_var &var)
+{
+  return var.type == SHOW_UNDEF;
+}
 
 /*
-  deletes all the SHOW_UNDEF elements from the array and calls
-  delete_dynamic() if it's completely empty.
+  Deletes all the SHOW_UNDEF elements from the array.
+  Shrinks array capacity to zero if it is completely empty.
 */
-static void shrink_var_array(DYNAMIC_ARRAY *array)
+static void shrink_var_array(Status_var_array *array)
 {
-  uint a,b;
-  SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
-
-  for (a= b= 0; b < array->elements; b++)
-    if (all[b].type != SHOW_UNDEF)
-      all[a++]= all[b];
-  if (a)
-  {
-    memset(all+a, 0, sizeof(SHOW_VAR)); // writing NULL-element to the end
-    array->elements= a;
-  }
-  else // array is completely empty - delete it
-    delete_dynamic(array);
+  // remove_if maintains order for the elements that are *not* removed.
+  array->erase(std::remove_if(array->begin(), array->end(), is_show_undef),
+               array->end());
+  if (array->empty())
+    Status_var_array().swap(*array);
 }
 
 /*
@@ -2331,31 +2461,29 @@ static void shrink_var_array(DYNAMIC_ARRAY *array)
 
     As a special optimization, if add_status_vars() is called before
     init_status_vars(), it assumes "startup mode" - neither concurrent access
-    to the array nor SHOW STATUS are possible (thus it skips locks and qsort)
+    to the array nor SHOW STATUS are possible (thus it skips locks and sort)
 
     The last entry of the all_status_vars[] should always be {0,0,SHOW_UNDEF}
 */
 int add_status_vars(SHOW_VAR *list)
 {
-  int res= 0;
-  if (status_vars_inited)
-    mysql_mutex_lock(&LOCK_status);
-  if (!all_status_vars.buffer && // array is not allocated yet - do it now
-      my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
-  {
-    res= 1;
-    goto err;
+  Mutex_lock lock(status_vars_inited ? &LOCK_status : NULL);
+
+  try {
+    while (list->name)
+      all_status_vars.push_back(*list++);
   }
-  while (list->name)
-    res|= insert_dynamic(&all_status_vars, list++);
-  res|= insert_dynamic(&all_status_vars, list); // appending NULL-element
-  all_status_vars.elements--; // but next insert_dynamic should overwite it
+  catch (std::bad_alloc)
+  {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(Status_var_array::value_type)));
+    return 1;
+  }
+
   if (status_vars_inited)
-    sort_dynamic(&all_status_vars, show_var_cmp);
-err:
-  if (status_vars_inited)
-    mysql_mutex_unlock(&LOCK_status);
-  return res;
+    std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
+
+  return 0;
 }
 
 /*
@@ -2369,19 +2497,19 @@ err:
 void init_status_vars()
 {
   status_vars_inited=1;
-  sort_dynamic(&all_status_vars, show_var_cmp);
+  std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
 }
 
 void reset_status_vars()
 {
-  SHOW_VAR *ptr= (SHOW_VAR*) all_status_vars.buffer;
-  SHOW_VAR *last= ptr + all_status_vars.elements;
+  Status_var_array::iterator ptr= all_status_vars.begin();
+  Status_var_array::iterator last= all_status_vars.end();
   for (; ptr < last; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG || ptr->type == SHOW_SIGNED_LONG)
       *(ulong*) ptr->value= 0;
-  }  
+  }
 }
 
 /*
@@ -2395,7 +2523,47 @@ void reset_status_vars()
 */
 void free_status_vars()
 {
-  delete_dynamic(&all_status_vars);
+  Status_var_array().swap(all_status_vars);
+}
+
+/**
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       list       list of SHOW_VAR objects in which function should
+                              search
+  @param[in]       name       name of the status variable
+  @param[in]       var_type   Variable type
+  @param[in/out]   value      buffer in which value of the status variable
+                              needs to be filled in
+  @param[in/out]   length     filled with buffer length
+
+  @return          status
+    @retval        FALSE      if variable is not found in the list
+    @retval        TRUE       if variable is found in the list
+*/
+
+bool get_status_var(THD *thd, SHOW_VAR *list, const char * name,
+                    char * const value, enum_var_type var_type, size_t *length)
+{
+  for (; list->name; list++)
+  {
+    int res= strcmp(list->name, name);
+    if (res == 0)
+    {
+      /*
+        if var->type is SHOW_FUNC, call the function.
+        Repeat as necessary, if new var is again SHOW_FUNC
+       */
+      SHOW_VAR tmp;
+      for (; list->type == SHOW_FUNC; list= &tmp)
+        ((mysql_show_var_func)(list->value))(thd, &tmp, value);
+
+      get_one_variable(thd, list, var_type, list->type, NULL, NULL, value, length);
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 /*
@@ -2417,15 +2585,14 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int a= 0, b= all_status_vars.elements, c= (a+b)/2;
+    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
       int res= 0;
-      for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
+      for (a= 0, b= all_status_vars.size(); b-a > 1; c= (a+b)/2)
       {
-        res= show_var_cmp(list, all+c);
+        res= show_var_cmp(list, &all_status_vars[c]);
         if (res < 0)
           b= c;
         else if (res > 0)
@@ -2434,22 +2601,21 @@ void remove_status_vars(SHOW_VAR *list)
           break;
       }
       if (res == 0)
-        all[c].type= SHOW_UNDEF;
+        all_status_vars[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
     mysql_mutex_unlock(&LOCK_status);
   }
   else
   {
-    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     uint i;
     for (; list->name; list++)
     {
-      for (i= 0; i < all_status_vars.elements; i++)
+      for (i= 0; i < all_status_vars.size(); i++)
       {
-        if (show_var_cmp(list, all+i))
+        if (show_var_cmp(list, &all_status_vars[i]))
           continue;
-        all[i].type= SHOW_UNDEF;
+        all_status_vars[i].type= SHOW_UNDEF;
         break;
       }
     }
@@ -2462,6 +2628,162 @@ inline void make_upper(char *buf)
   for (; *buf; buf++)
     *buf= my_toupper(system_charset_info, *buf);
 }
+
+
+/**
+  @brief Returns the value of a system or a status variable.
+
+  @param thd        [IN]    The thd handle.
+  @param variable   [IN]    Details of the variable.
+  @param value_type [IN]    Variable type.
+  @param show_type  [IN]    Variable show type.
+  @pramm charset    [OUT]   Character set of the value.
+  @param buff       [INOUT] Buffer to store the value.
+                            (Needs to have enough memory
+			     to hold the value of variable.)
+  @param length     [OUT]   Length of the value.
+
+  @return                   Pointer to the value buffer.
+*/
+
+const char* get_one_variable(THD *thd, SHOW_VAR *variable,
+                             enum_var_type value_type, SHOW_TYPE show_type,
+                             system_status_var *status_var,
+                             const CHARSET_INFO **charset, char *buff,
+                             size_t *length)
+{
+  const char *value= variable->value;
+  const char *pos= buff;
+  const char *end= buff;
+
+  if (show_type == SHOW_SYS)
+  {
+    LEX_STRING null_lex_str;
+    null_lex_str.str= 0;                        // For sys_var->value_ptr()
+    null_lex_str.length= 0;
+    sys_var *var= ((sys_var *) variable->value);
+    show_type= var->show_type();
+    value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
+    *charset= var->charset(thd);
+  }
+
+  pos= end= buff;
+  /*
+    note that value may be == buff. All SHOW_xxx code below
+    should still work in this case
+  */
+  switch (show_type) {
+  case SHOW_DOUBLE_STATUS:
+    value= ((char *) status_var + (ulong) value);
+    /* fallthrough */
+
+  case SHOW_DOUBLE:
+    /* 6 is the default precision for '%f' in sprintf() */
+    end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
+    break;
+
+  case SHOW_LONG_STATUS:
+    value= ((char *) status_var + (ulong) value);
+    /* fallthrough */
+
+  case SHOW_LONG:
+  // the difference lies in refresh_status()
+  case SHOW_LONG_NOFLUSH:
+    end= int10_to_str(*(long*) value, buff, 10);
+    break;
+
+  case SHOW_SIGNED_LONG:
+    end= int10_to_str(*(long*) value, buff, -10);
+    break;
+
+  case SHOW_LONGLONG_STATUS:
+    value= ((char *) status_var + (ulong) value);
+    /* fallthrough */
+
+  case SHOW_LONGLONG:
+    end= longlong10_to_str(*(longlong*) value, buff, 10);
+    break;
+
+  case SHOW_HA_ROWS:
+    end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
+    break;
+
+  case SHOW_BOOL:
+    end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
+    break;
+
+  case SHOW_MY_BOOL:
+    end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
+    break;
+
+  case SHOW_INT:
+    end= int10_to_str((long) *(uint32*) value, buff, 10);
+    break;
+
+  case SHOW_HAVE:
+  {
+    SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
+    pos= show_comp_option_name[(int) tmp];
+    end= strend(pos);
+    break;
+  }
+
+  case SHOW_CHAR:
+  {
+    if (!(pos= value))
+      pos= "";
+    end= strend(pos);
+    break;
+  }
+
+  case SHOW_CHAR_PTR:
+  {
+    if (!(pos= *(char**) value))
+      pos= "";
+
+    DBUG_EXECUTE_IF("alter_server_version_str",
+                    if (!my_strcasecmp(system_charset_info,
+                                       variable->name, "version")) {
+                      pos= "some-other-version";
+                    });
+
+    end= strend(pos);
+    break;
+  }
+
+  case SHOW_LEX_STRING:
+  {
+    LEX_STRING *ls=(LEX_STRING*)value;
+    if (!(pos= ls->str))
+      end= pos= "";
+    else
+      end= pos + ls->length;
+    break;
+  }
+
+  case SHOW_KEY_CACHE_LONG:
+    value= (char*) dflt_key_cache + (ulong)value;
+    end= int10_to_str(*(long*) value, buff, 10);
+    break;
+
+  case SHOW_KEY_CACHE_LONGLONG:
+    value= (char*) dflt_key_cache + (ulong)value;
+    end= longlong10_to_str(*(longlong*) value, buff, 10);
+    break;
+
+  case SHOW_UNDEF:
+    break;                                      // Return empty string
+
+  case SHOW_SYS:                                // Cannot happen
+
+  default:
+    DBUG_ASSERT(0);
+    break;
+  }
+  *length= (size_t) (end - pos);
+  return pos;
+}
+
 
 static bool show_status_array(THD *thd, const char *wild,
                               SHOW_VAR *variables,
@@ -2477,7 +2799,6 @@ static bool show_status_array(THD *thd, const char *wild,
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
   int len;
-  LEX_STRING null_lex_str;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
@@ -2486,8 +2807,6 @@ static bool show_status_array(THD *thd, const char *wild,
   DBUG_ENTER("show_status_array");
 
   thd->count_cuted_fields= CHECK_FIELD_WARN;  
-  null_lex_str.str= 0;				// For sys_var->value_ptr()
-  null_lex_str.length= 0;
 
   prefix_end=my_stpnmov(name_buffer, prefix, sizeof(name_buffer)-1);
   if (*prefix)
@@ -2524,117 +2843,15 @@ static bool show_status_array(THD *thd, const char *wild,
                                                  name_buffer, wild)) &&
           (!partial_cond || partial_cond->val_int()))
       {
-        char *value=var->value;
-        const char *pos, *end;                  // We assign a lot of const's
+        const char *pos;
+        size_t length;
 
         mysql_mutex_lock(&LOCK_global_system_variables);
-
-        if (show_type == SHOW_SYS)
-        {
-          sys_var *var= ((sys_var *) value);
-          show_type= var->show_type();
-          value= (char*) var->value_ptr(thd, value_type, &null_lex_str);
-          charset= var->charset(thd);
-        }
-
-        pos= end= buff;
-        /*
-          note that value may be == buff. All SHOW_xxx code below
-          should still work in this case
-        */
-        switch (show_type) {
-        case SHOW_DOUBLE_STATUS:
-          value= ((char *) status_var + (ulong) value);
-          /* fall through */
-        case SHOW_DOUBLE:
-          /* 6 is the default precision for '%f' in sprintf() */
-          end= buff + my_fcvt(*(double *) value, 6, buff, NULL);
-          break;
-        case SHOW_LONG_STATUS:
-          value= ((char *) status_var + (ulong) value);
-          /* fall through */
-        case SHOW_LONG:
-        case SHOW_LONG_NOFLUSH: // the difference lies in refresh_status()
-          end= int10_to_str(*(long*) value, buff, 10);
-          break;
-        case SHOW_SIGNED_LONG:
-          end= int10_to_str(*(long*) value, buff, -10);
-          break;
-        case SHOW_LONGLONG_STATUS:
-          value= ((char *) status_var + (ulong) value);
-          /* fall through */
-        case SHOW_LONGLONG:
-          end= longlong10_to_str(*(longlong*) value, buff, 10);
-          break;
-        case SHOW_HA_ROWS:
-          end= longlong10_to_str((longlong) *(ha_rows*) value, buff, 10);
-          break;
-        case SHOW_BOOL:
-          end= my_stpcpy(buff, *(bool*) value ? "ON" : "OFF");
-          break;
-        case SHOW_MY_BOOL:
-          end= my_stpcpy(buff, *(my_bool*) value ? "ON" : "OFF");
-          break;
-        case SHOW_INT:
-          end= int10_to_str((long) *(uint32*) value, buff, 10);
-          break;
-        case SHOW_HAVE:
-        {
-          SHOW_COMP_OPTION tmp= *(SHOW_COMP_OPTION*) value;
-          pos= show_comp_option_name[(int) tmp];
-          end= strend(pos);
-          break;
-        }
-        case SHOW_CHAR:
-        {
-          if (!(pos= value))
-            pos= "";
-          end= strend(pos);
-          break;
-        }
-       case SHOW_CHAR_PTR:
-        {
-          if (!(pos= *(char**) value))
-            pos= "";
-
-          DBUG_EXECUTE_IF("alter_server_version_str",
-                          if (!my_strcasecmp(system_charset_info,
-                                             variables->name,
-                                             "version")) {
-                            pos= "some-other-version";
-                          });
-
-          end= strend(pos);
-          break;
-        }
-        case SHOW_LEX_STRING:
-        {
-          LEX_STRING *ls=(LEX_STRING*)value;
-          if (!(pos= ls->str))
-            end= pos= "";
-          else
-            end= pos + ls->length;
-          break;
-        }
-        case SHOW_KEY_CACHE_LONG:
-          value= (char*) dflt_key_cache + (ulong)value;
-          end= int10_to_str(*(long*) value, buff, 10);
-          break;
-        case SHOW_KEY_CACHE_LONGLONG:
-          value= (char*) dflt_key_cache + (ulong)value;
-	  end= longlong10_to_str(*(longlong*) value, buff, 10);
-	  break;
-        case SHOW_UNDEF:
-          break;                                        // Return empty string
-        case SHOW_SYS:                                  // Cannot happen
-        default:
-          DBUG_ASSERT(0);
-          break;
-        }
-        table->field[1]->store(pos, (uint32) (end - pos), charset);
+        pos= get_one_variable(thd, var, value_type, show_type, status_var,
+                              &charset, buff, &length);
+        table->field[1]->store(pos, (uint32) length, charset);
         thd->count_cuted_fields= CHECK_FIELD_IGNORE;
         table->field[1]->set_notnull();
-
         mysql_mutex_unlock(&LOCK_global_system_variables);
 
         if (schema_table_store_record(thd, table))
@@ -2651,50 +2868,68 @@ end:
 }
 
 
-/* collect status for all running threads */
+/**
+  Collect status for all running threads.
+*/
+class Add_status : public Do_THD_Impl
+{
+public:
+  Add_status(STATUS_VAR* value) : m_stat_var(value) {}
+  virtual void operator()(THD *thd)
+  {
+    STATUS_VAR* stat = &(thd->status_var);
+    add_to_status(m_stat_var, stat);
+  }
+private:
+  /* Status of all threads are summed into this. */
+  STATUS_VAR* m_stat_var;
+};
 
 void calc_sum_of_all_status(STATUS_VAR *to)
 {
   DBUG_ENTER("calc_sum_of_all_status");
-
-  /* take copy of global_thread_list */
-  std::set<THD*> global_thread_list_copy;
-
-  mysql_mutex_lock(&LOCK_thread_count);
-  mysql_mutex_lock(&LOCK_thread_remove);
-  copy_global_thread_list(&global_thread_list_copy);
-
-  /* 
-    Allow inserts to global_thread_list. Newly added thd
-    will not be accounted for summary calculation.
-    removal from global_thread_list is blocked as LOCK_thread_remove
-    mutex is not released yet 
-  */
-  mysql_mutex_unlock(&LOCK_thread_count);
-  Thread_iterator it= global_thread_list_copy.begin();
-  Thread_iterator end= global_thread_list_copy.end();
-
-  /* Get global values as base */
+  /* Get global values as base. */
   *to= global_status_var;
-  
-  /* Add to this status from existing threads */
-  for (; it != end; ++it)
-    add_to_status(to, &(*it)->status_var);
-  
-  DEBUG_SYNC_C("inside_calc_sum");
-
-  mysql_mutex_unlock(&LOCK_thread_remove);
+  Add_status add_status(to);
+  Global_THD_manager::get_instance()->do_for_all_thd_copy(&add_status);
   DBUG_VOID_RETURN;
 }
-
 
 /* This is only used internally, but we need it here as a forward reference */
 extern ST_SCHEMA_TABLE schema_tables[];
 
+/**
+  Condition pushdown used for INFORMATION_SCHEMA / SHOW queries.
+  This structure is to implement an optimization when
+  accessing data dictionary data in the INFORMATION_SCHEMA
+  or SHOW commands.
+  When the query contain a TABLE_SCHEMA or TABLE_NAME clause,
+  narrow the search for data based on the constraints given.
+*/
 typedef struct st_lookup_field_values
 {
-  LEX_STRING db_value, table_value;
-  bool wild_db_value, wild_table_value;
+  /**
+    Value of a TABLE_SCHEMA clause.
+    Note that this value length may exceed @c NAME_LEN.
+    @sa wild_db_value
+  */
+  LEX_STRING db_value;
+  /**
+    Value of a TABLE_NAME clause.
+    Note that this value length may exceed @c NAME_LEN.
+    @sa wild_table_value
+  */
+  LEX_STRING table_value;
+  /**
+    True when @c db_value is a LIKE clause,
+    false when @c db_value is an '=' clause.
+  */
+  bool wild_db_value;
+  /**
+    True when @c table_value is a LIKE clause,
+    false when @c table_value is an '=' clause.
+  */
+  bool wild_table_value;
 } LOOKUP_FIELD_VALUES;
 
 
@@ -2717,7 +2952,7 @@ bool schema_table_store_record(THD *thd, TABLE *table)
   int error;
   if ((error= table->file->ha_write_row(table->record[0])))
   {
-    TMP_TABLE_PARAM *param= table->pos_in_table_list->schema_table_param;
+    Temp_table_param *param= table->pos_in_table_list->schema_table_param;
 
     if (create_myisam_from_heap(thd, table, param->start_recinfo, 
                                 &param->recinfo, error, FALSE, NULL))
@@ -3099,14 +3334,22 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
 
 
   /*
-    If we have db lookup vaule we just add it to list and
+    If we have db lookup value we just add it to list and
     exit from the function.
     We don't do this for database names longer than the maximum
-    path length.
+    name length.
   */
-  if (lookup_field_vals->db_value.str && 
-      lookup_field_vals->db_value.length < FN_REFLEN)
+  if (lookup_field_vals->db_value.str)
   {
+    if (lookup_field_vals->db_value.length > NAME_LEN)
+    {
+      /*
+        Impossible value for a database name,
+        found in a WHERE DATABASE_NAME = 'xxx' clause.
+      */
+      return 0;
+    }
+
     if (is_infoschema_db(lookup_field_vals->db_value.str,
                          lookup_field_vals->db_value.length))
     {
@@ -3243,15 +3486,24 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   if (!lookup_field_vals->wild_table_value &&
       lookup_field_vals->table_value.str)
   {
+    if (lookup_field_vals->table_value.length > NAME_LEN)
+    {
+      /*
+        Impossible value for a table name,
+        found in a WHERE TABLE_NAME = 'xxx' clause.
+      */
+      return 0;
+    }
+
     if (with_i_schema)
     {
-      LEX_STRING *name;
+      LEX_STRING *name= NULL;
       ST_SCHEMA_TABLE *schema_table=
         find_schema_table(thd, lookup_field_vals->table_value.str);
       if (schema_table && !schema_table->hidden)
       {
-        if (!(name= 
-              thd->make_lex_string(NULL, schema_table->table_name,
+        if (!(name=
+              thd->make_lex_string(name, schema_table->table_name,
                                    strlen(schema_table->table_name), TRUE)) ||
             table_names->push_back(name))
           return 1;
@@ -3711,10 +3963,13 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   int not_used;
   my_hash_value_type hash_value;
   const char *key;
-  uint key_length;
+  size_t key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
   memset(&table_list, 0, sizeof(TABLE_LIST));
+
+  DBUG_ASSERT(db_name->length <= NAME_LEN);
+  DBUG_ASSERT(table_name->length <= NAME_LEN);
 
   if (lower_case_table_names)
   {
@@ -4063,6 +4318,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
+    DBUG_ASSERT(db_name->length <= NAME_LEN);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
@@ -4084,6 +4340,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
       {
+        DBUG_ASSERT(table_name->length <= NAME_LEN);
 	restore_record(table, s->default_values);
         table->field[schema_table->idx_field1]->
           store(db_name->str, db_name->length, system_charset_info);
@@ -4230,6 +4487,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
   List_iterator_fast<LEX_STRING> it(db_names);
   while ((db_name=it++))
   {
+    DBUG_ASSERT(db_name->length <= NAME_LEN);
     if (with_i_schema)       // information schema name is always first in list
     {
       if (store_schema_shemata(thd, table, db_name,
@@ -4712,7 +4970,7 @@ static int get_schema_column_record(THD *thd, TABLE_LIST *tables,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     uint col_access;
     check_access(thd,SELECT_ACL, db_name->str,
-                 &tables->grant.privilege, 0, 0, test(tables->schema_table));
+                 &tables->grant.privilege, 0, 0, MY_TEST(tables->schema_table));
     col_access= get_column_grant(thd, &tables->grant,
                                  db_name->str, table_name->str,
                                  field->field_name) & COL_ACLS;
@@ -4853,13 +5111,13 @@ static my_bool iter_schema_engines(THD *thd, plugin_ref plugin,
       table->field[1]->store(option_name, strlen(option_name), scs);
       table->field[2]->store(plugin_decl(plugin)->descr,
                              strlen(plugin_decl(plugin)->descr), scs);
-      tmp= &yesno[test(hton->commit)];
+      tmp= &yesno[MY_TEST(hton->commit)];
       table->field[3]->store(tmp->str, tmp->length, scs);
       table->field[3]->set_notnull();
-      tmp= &yesno[test(hton->prepare)];
+      tmp= &yesno[MY_TEST(hton->prepare)];
       table->field[4]->store(tmp->str, tmp->length, scs);
       table->field[4]->set_notnull();
-      tmp= &yesno[test(hton->savepoint_set)];
+      tmp= &yesno[MY_TEST(hton->savepoint_set)];
       table->field[5]->store(tmp->str, tmp->length, scs);
       table->field[5]->set_notnull();
 
@@ -5436,7 +5694,7 @@ static int get_schema_stat_record(THD *thd, TABLE_LIST *tables,
         else
           table->field[14]->store("", 0, cs);
         table->field[14]->set_notnull();
-        DBUG_ASSERT(test(key_info->flags & HA_USES_COMMENT) == 
+        DBUG_ASSERT(MY_TEST(key_info->flags & HA_USES_COMMENT) ==
                    (key_info->comment.length > 0));
         if (key_info->flags & HA_USES_COMMENT)
           table->field[15]->store(key_info->comment.str, 
@@ -6538,6 +6796,7 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
+  SHOW_VAR *sys_var_array;
   int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
@@ -6551,10 +6810,21 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 
+  /*
+    Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
+    SHOW_VAR array and hold it until all variables are stored in the table.
+  */
+  mysql_mutex_lock(&LOCK_plugin_delete);
+  // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
-                         option_type, NULL, "", tables->table, upper_case_names, cond);
+  DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
+  sys_var_array= enumerate_sys_vars(thd, sorted_vars, option_type);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
+
+  res= show_status_array(thd, wild, sys_var_array, option_type, NULL, "",
+                         tables->table, upper_case_names, cond);
+
+  mysql_mutex_unlock(&LOCK_plugin_delete);
   DBUG_RETURN(res);
 }
 
@@ -6598,10 +6868,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
+  // Push an empty tail element
+  all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
-                         (SHOW_VAR *)all_status_vars.buffer,
+                         &all_status_vars[0],
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
+  all_status_vars.pop_back(); // Pop the empty element.
+
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);
@@ -6880,9 +7154,10 @@ TABLE *create_schema_table(THD *thd, TABLE_LIST *table_list)
     item->maybe_null= (fields_info->field_flags & MY_I_S_MAYBE_NULL);
     field_count++;
   }
-  TMP_TABLE_PARAM *tmp_table_param =
-    (TMP_TABLE_PARAM*) (thd->alloc(sizeof(TMP_TABLE_PARAM)));
-  tmp_table_param->init();
+  Temp_table_param *tmp_table_param = new (thd->mem_root) Temp_table_param;
+  if (!tmp_table_param)
+    DBUG_RETURN(0);
+
   tmp_table_param->table_charset= cs;
   tmp_table_param->field_count= field_count;
   tmp_table_param->schema_table= 1;

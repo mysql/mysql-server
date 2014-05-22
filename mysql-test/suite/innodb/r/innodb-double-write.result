@@ -1,0 +1,254 @@
+#
+# Bug #17335427 INNODB CAN NOT USE THE DOUBLEWRITE BUFFER PROPERLY
+# Bug #18144349 INNODB CANNOT USE THE DOUBLEWRITE BUFFER FOR THE FIRST
+# PAGE OF SYSTEM TABLESPACE
+#
+SET GLOBAL innodb_fast_shutdown = 0;
+show variables like 'innodb_doublewrite';
+Variable_name	Value
+innodb_doublewrite	ON
+show variables like 'innodb_fil_make_page_dirty_debug';
+Variable_name	Value
+innodb_fil_make_page_dirty_debug	0
+show variables like 'innodb_saved_page_number_debug';
+Variable_name	Value
+innodb_saved_page_number_debug	0
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+start transaction;
+insert into t1 values(1, repeat('#',12));
+insert into t1 values(2, repeat('+',12));
+insert into t1 values(3, repeat('/',12));
+insert into t1 values(4, repeat('-',12));
+insert into t1 values(5, repeat('.',12));
+commit work;
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of user
+# tablespace is full of zeroes.
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+# Wait for purge to complete
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+# Make the first page dirty for table t1
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 12));
+ERROR HY000: Lost connection to MySQL server during query
+# Make the first page (page_no=0) of the user tablespace
+# full of zeroes.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of user
+# tablespace is corrupted.
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+# Make the first page dirty for table t1
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 12));
+ERROR HY000: Lost connection to MySQL server during query
+# Corrupt the first page (page_no=0) of the user tablespace.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of user
+# tablespace is full of zeroes.
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+# Make the 2nd page dirty for table t1
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 400));
+ERROR HY000: Lost connection to MySQL server during query
+# Make the 2nd page (page_no=1) of the tablespace all zeroes.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of user
+# tablespace is corrupted.
+select space from information_schema.innodb_sys_tables
+where name = 'test/t1' into @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+# Make the 2nd page dirty for table t1
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = @space_id;
+# Ensure that dirty pages of table t1 is flushed.
+flush tables t1 for export;
+unlock tables;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 400));
+ERROR HY000: Lost connection to MySQL server during query
+# Corrupt the 2nd page (page_no=1) of the user tablespace.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of
+# system tablespace is full of zeroes.
+# Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+# Make the first page dirty for system tablespace
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = 0;
+# Ensure that the dirty page of system tablespace is also flushed.
+set global innodb_buf_flush_list_now = 1;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 400));
+ERROR HY000: Lost connection to MySQL server during query
+# Make the first page (page_no=0) of the system tablespace
+# all zeroes.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if first page of
+# system tablespace is corrupted.
+# Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+# Make the first page dirty for system tablespace
+set global innodb_saved_page_number_debug = 0;
+set global innodb_fil_make_page_dirty_debug = 0;
+# Ensure that the dirty page of system tablespace is also flushed.
+set global innodb_buf_flush_list_now = 1;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 400));
+ERROR HY000: Lost connection to MySQL server during query
+# Corrupt the first page (page_no=0) of the system tablespace.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of
+# system tablespace is full of zeroes.
+# Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+# Make the second page dirty for system tablespace
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = 0;
+# Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 400));
+ERROR HY000: Lost connection to MySQL server during query
+# Make the 2nd page (page_no=1) of the system tablespace
+# all zeroes.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+# Test Begin: Test if recovery works if 2nd page of
+# system tablespace is corrupted.
+# Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+# Make the second page dirty for system tablespace
+set global innodb_saved_page_number_debug = 1;
+set global innodb_fil_make_page_dirty_debug = 0;
+# Ensure that the dirty page of system tablespace is flushed.
+set global innodb_buf_flush_list_now = 1;
+set debug='+d,crash_commit_before';
+insert into t1 values (6, repeat('%', 400));
+ERROR HY000: Lost connection to MySQL server during query
+# Make the 2nd page (page_no=1) of the system tablespace
+# all zeroes.
+# Server must be started successfully, and table t1 must be fine...
+check table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	check	status	OK
+select f1, f2 from t1;
+f1	f2
+1	############
+2	++++++++++++
+3	////////////
+4	------------
+5	............
+# Test End
+# ---------------------------------------------------------------
+drop table t1;

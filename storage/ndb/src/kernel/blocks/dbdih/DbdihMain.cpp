@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8116,7 +8116,6 @@ Dbdih::sendAddFragreq(Signal* signal, ConnectRecordPtr connectPtr,
   jam();
   const Uint32 fragCount = connectPtr.p->m_alter.m_totalfragments;
   ReplicaRecordPtr replicaPtr;
-  LINT_INIT(replicaPtr.p);
   replicaPtr.i = RNIL;
   FragmentstorePtr fragPtr;
   for(; fragId<fragCount; fragId++){
@@ -15292,7 +15291,6 @@ Dbdih::findBestLogNode(CreateReplicaRecord* createReplica,
 {
   ConstPtr<ReplicaRecord> fblFoundReplicaPtr;
   ConstPtr<ReplicaRecord> fblReplicaPtr;
-  LINT_INIT(fblFoundReplicaPtr.p);
   
   /* --------------------------------------------------------------------- */
   /*       WE START WITH ZERO AS FOUND TO ENSURE THAT FIRST HIT WILL BE    */
@@ -15708,7 +15706,7 @@ void Dbdih::initRestartInfo(Signal* signal)
                                   256);
     if (v && *v != 0)
     {
-      startGci = strtoull(v, NULL, 0);
+      startGci = my_strtoull(v, NULL, 0);
 
       ndbout_c("DbDih : Using value of %u from NDB_START_GCI",
                startGci);

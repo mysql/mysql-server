@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -48,14 +48,6 @@ typedef std::deque<const char*> dict_names_t;
 #ifndef UNIV_HOTBACKUP
 # include "sync0mutex.h"
 # include "sync0rw.h"
-/******************************************************************//**
-Makes all characters in a NUL-terminated UTF-8 string lower case. */
-
-void
-dict_casedn_str(
-/*============*/
-	char*	a)	/*!< in/out: string to put in lower case */
-	__attribute__((nonnull));
 /********************************************************************//**
 Get the database name length in a table name.
 @return database name length */
@@ -363,6 +355,12 @@ dict_table_add_system_columns(
 	mem_heap_t*	heap)	/*!< in: temporary heap */
 	__attribute__((nonnull));
 #ifndef UNIV_HOTBACKUP
+/** Mark if table has big rows.
+@param[in,out]	table	table handler */
+void
+dict_table_set_big_rows(
+	dict_table_t*	table)
+	__attribute__((nonnull));
 /**********************************************************************//**
 Adds a table object to the dictionary cache. */
 
@@ -395,15 +393,17 @@ dict_table_rename_in_cache(
 					to preserve the original table name
 					in constraints which reference it */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Removes an index from the dictionary cache. */
+
+/** Removes an index from the dictionary cache.
+@param[in,out]	table	table whose index to remove
+@param[in,out]	index	index to remove, this object is destroyed and must not
+be accessed by the caller afterwards */
 
 void
 dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
-	__attribute__((nonnull));
+	dict_table_t*	table,
+	dict_index_t*	index);
+
 /**********************************************************************//**
 Change the id of a table object in the dictionary cache. This is used in
 DISCARD TABLESPACE. */
@@ -502,35 +502,37 @@ dict_table_get_foreign_constraint(
 	dict_table_t*	table,	/*!< in: InnoDB table */
 	dict_index_t*	index)	/*!< in: InnoDB index */
 	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
-Scans a table create SQL string and adds to the data dictionary
+/** Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in
 bot participating tables. The indexes are allowed to contain more
 fields than mentioned in the constraint.
+
+@param[in]	trx		transaction
+@param[in]	sql_string	table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name
+@param[in]	sql_length	length of sql_string
+@param[in]	name		table full name in normalized form
+@param[in,out]	handler		table handler if table is intrinsic
+@param[in]	reject_fks	if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any
+				foreign keys are found.
 @return error code or DB_SUCCESS */
 
 dberr_t
 dict_create_foreign_constraints(
-/*============================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	sql_string,	/*!< in: table create statement where
-					foreign keys are declared like:
-					FOREIGN KEY (a, b) REFERENCES
-					table2(c, d), table2 can be written
-					also with the database
-					name before it: test.table2; the
-					default database id the database of
-					parameter name */
-	size_t		sql_length,	/*!< in: length of sql_string */
-	const char*	name,		/*!< in: table full name in the
-					normalized form
-					database_name/table_name */
-	ibool		reject_fks)	/*!< in: if TRUE, fail with error
-					code DB_CANNOT_ADD_CONSTRAINT if
-					any foreign keys are found. */
-	__attribute__((nonnull, warn_unused_result));
+	trx_t*			trx,
+	const char*		sql_string,
+	size_t			sql_length,
+	const char*		name,
+	dict_table_t*		handler,
+	ibool			reject_fks)
+	__attribute__((warn_unused_result));
 /**********************************************************************//**
 Parses the CONSTRAINT id's to be dropped in an ALTER TABLE statement.
 @return DB_SUCCESS or DB_CANNOT_DROP_CONSTRAINT if syntax error or the
@@ -607,14 +609,6 @@ dict_table_get_col_name(
 	const dict_table_t*	table,	/*!< in: table */
 	ulint			col_nr)	/*!< in: column number */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Prints a table data. */
-
-void
-dict_table_print(
-/*=============*/
-	dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull));
 /**********************************************************************//**
 Outputs info on foreign keys of a table. */
 
@@ -737,6 +731,16 @@ dict_index_is_clust(
 /*================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
+
+/** Check if index is auto-generated clustered index.
+@param[in]	index	index
+
+@return true if index is auto-generated clustered index. */
+UNIV_INLINE
+bool
+dict_index_is_auto_gen_clust(
+	const dict_index_t*	index);
+
 /********************************************************************//**
 Check whether the index is unique.
 @return nonzero for unique index, zero for other indexes */
@@ -744,6 +748,15 @@ UNIV_INLINE
 ulint
 dict_index_is_unique(
 /*=================*/
+	const dict_index_t*	index)	/*!< in: index */
+	__attribute__((nonnull, pure, warn_unused_result));
+/********************************************************************//**
+Check whether the index is a Spatial Index.
+@return	nonzero for Spatial Index, zero for other indexes */
+UNIV_INLINE
+ulint
+dict_index_is_spatial(
+/*==================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
@@ -787,7 +800,9 @@ dict_table_get_n_user_cols(
 	const dict_table_t*	table)	/*!< in: table */
 	__attribute__((nonnull, pure, warn_unused_result));
 /********************************************************************//**
-Gets the number of system columns in a table in the dictionary cache.
+Gets the number of system columns in a table.
+For intrinsic table on ROW_ID column is added for all other
+tables TRX_ID and ROLL_PTR are all also appeneded.
 @return number of system (e.g., ROW_ID) columns of a table */
 UNIV_INLINE
 ulint
@@ -856,10 +871,11 @@ dict_table_get_sys_col(
 	ulint			sys)	/*!< in: DATA_ROW_ID, ... */
 	__attribute__((nonnull, warn_unused_result));
 #else /* UNIV_DEBUG */
-#define dict_table_get_nth_col(table, pos) \
+#define dict_table_get_nth_col(table, pos)	\
 ((table)->cols + (pos))
-#define dict_table_get_sys_col(table, sys) \
-((table)->cols + (table)->n_cols + (sys) - DATA_N_SYS_COLS)
+#define dict_table_get_sys_col(table, sys)	\
+((table)->cols + (table)->n_cols + (sys)	\
+ - (dict_table_get_n_sys_cols(table)))
 #endif /* UNIV_DEBUG */
 /********************************************************************//**
 Gets the given system column number of a table.
@@ -937,24 +953,25 @@ dict_tf_to_fsp_flags(
 /*=================*/
 	ulint	flags)	/*!< in: dict_table_t::flags */
 	__attribute__((const));
-/********************************************************************//**
-Extract the compressed page size from table flags.
+
+/** Extract the page size from table flags.
+@param[in]	flags	flags
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_tf_get_zip_size(
-/*=================*/
-	ulint	flags)			/*!< in: flags */
-	__attribute__((const));
-/********************************************************************//**
-Check whether the table uses the compressed compact page format.
+const page_size_t
+dict_tf_get_page_size(
+	ulint	flags)
+__attribute__((const));
+
+/** Get the table page size.
+@param[in]	table	table
 @return compressed page size, or 0 if not compressed */
 UNIV_INLINE
-ulint
-dict_table_zip_size(
-/*================*/
-	const dict_table_t*	table)	/*!< in: table */
-	__attribute__((nonnull, warn_unused_result));
+const page_size_t
+dict_table_page_size(
+	const dict_table_t*	table)
+	__attribute__((warn_unused_result));
+
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
 Obtain exclusive locks on all index trees of the table. This is to prevent
@@ -1039,6 +1056,9 @@ dict_make_room_in_cache(
 /*====================*/
 	ulint		max_tables,	/*!< in: max tables allowed in cache */
 	ulint		pct_check);	/*!< in: max percent to check */
+
+#define BIG_ROW_SIZE	1024
+
 /**********************************************************************//**
 Adds an index to the dictionary cache.
 @return DB_SUCCESS, DB_TOO_BIG_RECORD, or DB_CORRUPTION */
@@ -1054,15 +1074,6 @@ dict_index_add_to_cache(
 				if records could be too big to fit in
 				an B-tree page */
 	__attribute__((nonnull, warn_unused_result));
-/**********************************************************************//**
-Removes an index from the dictionary cache. */
-
-void
-dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
-	__attribute__((nonnull));
 #endif /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Gets the number of fields in the internal representation of an index,
@@ -1449,28 +1460,46 @@ Releases the dictionary system mutex for MySQL. */
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
-/**********************************************************************//**
-Lock the appropriate latch to protect a given table's statistics.
-table->id is used to pick the corresponding latch from a global array of
-latches. */
+
+/** Create a dict_table_t's stats latch or delay for lazy creation.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to create
+@param[in]	enabled	if false then the latch is disabled
+and dict_table_stats_lock()/unlock() become noop on this table. */
+
+void
+dict_table_stats_latch_create(
+	dict_table_t*	table,
+	bool		enabled);
+
+/** Destroy a dict_table_t's stats latch.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to destroy */
+
+void
+dict_table_stats_latch_destroy(
+	dict_table_t*	table);
+
+/** Lock the appropriate latch to protect a given table's statistics.
+@param[in]	table		table whose stats to lock
+@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
 
 void
 dict_table_stats_lock(
-/*==================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
-/**********************************************************************//**
-Unlock the latch that has been locked by dict_table_stats_lock() */
+	dict_table_t*	table,
+	ulint		latch_mode);
+
+/** Unlock the latch that has been locked by dict_table_stats_lock().
+@param[in]	table		table whose stats to unlock
+@param[in]	latch_mode	RW_S_LATCH or RW_X_LATCH */
 
 void
 dict_table_stats_unlock(
-/*====================*/
-	const dict_table_t*	table,		/*!< in: table */
-	ulint			latch_mode)	/*!< in: RW_S_LATCH or
-						RW_X_LATCH */
-	__attribute__((nonnull));
+	dict_table_t*	table,
+	ulint		latch_mode);
+
 /********************************************************************//**
 Checks if the database name in two table names is the same.
 @return TRUE if same db name */
@@ -1483,15 +1512,6 @@ dict_tables_have_same_db(
 	const char*	name2)	/*!< in: table name in the form
 				dbname '/' tablename */
 	__attribute__((nonnull, warn_unused_result));
-/*********************************************************************//**
-Removes an index from the cache */
-
-void
-dict_index_remove_from_cache(
-/*=========================*/
-	dict_table_t*	table,	/*!< in/out: table */
-	dict_index_t*	index)	/*!< in, own: index */
-	__attribute__((nonnull));
 /**********************************************************************//**
 Get index by name
 @return index, NULL if does not exist */
@@ -1540,6 +1560,16 @@ void
 dict_table_move_from_lru_to_non_lru(
 /*================================*/
 	dict_table_t*	table)	/*!< in: table to move from LRU to non-LRU */
+	__attribute__((nonnull));
+/** Looks for an index with the given id given a table instance.
+@param[in]	table	table instance
+@param[in]	id	index id
+@return index or NULL */
+
+dict_index_t*
+dict_table_find_index_on_id(
+	const dict_table_t*	table,
+	index_id_t		id)
 	__attribute__((nonnull));
 /**********************************************************************//**
 Move to the most recently used segment of the LRU list. */
@@ -1605,11 +1635,9 @@ struct dict_sys_t{
 
 /** dummy index for ROW_FORMAT=REDUNDANT supremum and infimum records */
 extern dict_index_t*	dict_ind_redundant;
-/** dummy index for ROW_FORMAT=COMPACT supremum and infimum records */
-extern dict_index_t*	dict_ind_compact;
 
 /**********************************************************************//**
-Inits dict_ind_redundant and dict_ind_compact. */
+Inits dict_ind_redundant. */
 
 void
 dict_ind_init(void);
@@ -1779,7 +1807,37 @@ bool
 dict_table_is_temporary(
 /*====================*/
 	const dict_table_t*	table)	/*!< in: table to check */
-	__attribute__((nonnull, pure, warn_unused_result));
+	__attribute__((pure, warn_unused_result));
+
+/** Check whether the table is intrinsic.
+An intrinsic table is a special kind of temporary table that
+is invisible to the end user.  It is created internally by the MySQL server
+layer or other module connected to InnoDB in order to gather and use data
+as part of a larger task.  Since access to it must be as fast as possible,
+it does not need UNDO semantics, system fields DB_TRX_ID & DB_ROLL_PTR,
+doublewrite, checksum, insert buffer, use of the shared data dictionary,
+locking, or even a transaction.  In short, these are not ACID tables at all,
+just temporary
+
+@param[in]	table	table to check
+@return true if intrinsic table flag is set. */
+UNIV_INLINE
+bool
+dict_table_is_intrinsic(
+	const dict_table_t*	table)
+	__attribute__((pure, warn_unused_result));
+
+/** Check whether locking is disabled for this table.
+Currently this is done for intrinsic table as their visibility is limited
+to the connection only.
+
+@param[in]	table	table to check
+@return true if locking is disabled. */
+UNIV_INLINE
+bool
+dict_table_is_locking_disabled(
+	const dict_table_t*	table)
+	__attribute__((pure, warn_unused_result));
 
 /********************************************************************//**
 Turn-off redo-logging if temporary table. */
@@ -1788,8 +1846,23 @@ void
 dict_disable_redo_if_temporary(
 /*===========================*/
 	const dict_table_t*	table,	/*!< in: table to check */
-	mtr_t*			mtr)	/*!< out: mini-transaction */
-	__attribute__((nonnull));
+	mtr_t*			mtr);	/*!< out: mini-transaction */
+
+/** Get table session row-id and increment the row-id counter for next use.
+@param[in,out]	table	table handler
+@return next table local row-id. */
+UNIV_INLINE
+row_id_t
+dict_table_get_table_sess_row_id(
+	dict_table_t*		table);
+
+/** Get table session trx-id and increment the trx-id counter for next use.
+@param[in,out]	table	table handler
+@return next table local trx-id. */
+UNIV_INLINE
+trx_id_t
+dict_table_get_table_sess_trx_id(
+	dict_table_t*		table);
 
 #ifndef UNIV_HOTBACKUP
 /*********************************************************************//**
@@ -1837,6 +1910,17 @@ dict_index_node_ptr_max_size(
 /*=========================*/
 	const dict_index_t*	index)	/*!< in: index */
 	__attribute__((warn_unused_result, pure));
+/*****************************************************************//**
+Get index by first field of the index
+@return index which is having first field matches
+with the field present in field_index position of table */
+UNIV_INLINE
+dict_index_t*
+dict_table_get_index_on_first_col(
+/*==============================*/
+	const dict_table_t*	table,		/*!< in: table */
+	ulint			col_index);	/*!< in: position of column
+						in table */
 
 #endif /* !UNIV_HOTBACKUP */
 

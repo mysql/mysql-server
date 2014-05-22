@@ -203,8 +203,10 @@ void udf_init()
 
       On windows we must check both FN_LIBCHAR and '/'.
     */
+
+    LEX_CSTRING name_cstr= {name.str, name.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
-        check_string_char_length(&name, "", NAME_CHAR_LEN,
+        check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
@@ -259,8 +261,6 @@ void udf_init()
 end:
   close_mysql_tables(new_thd);
   delete new_thd;
-  /* Remember that we don't have a THD */
-  my_pthread_set_THR_THD(0);
   DBUG_VOID_RETURN;
 }
 
@@ -346,7 +346,7 @@ void free_udf(udf_func *udf)
 
 /* This is only called if using_udf_functions != 0 */
 
-udf_func *find_udf(const char *name,uint length,bool mark_used)
+udf_func *find_udf(const char *name, size_t length,bool mark_used)
 {
   udf_func *udf=0;
   DBUG_ENTER("find_udf");
@@ -361,7 +361,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
     mysql_rwlock_rdlock(&THR_LOCK_udf);  /* Called during parsing */
 
   if ((udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) name,
-                                      length ? length : (uint) strlen(name))))
+                                      length ? length : strlen(name))))
   {
     if (!udf->dlhandle)
       udf=0;					// Could not be opened
@@ -454,7 +454,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
+  LEX_CSTRING udf_name_cstr= {udf->name.str, udf->name.length};
+  if (check_string_char_length(udf_name_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
@@ -524,7 +525,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   restore_record(table, s->default_values);	// Default values for fields
   table->field[0]->store(u_d->name.str, u_d->name.length, system_charset_info);
   table->field[1]->store((longlong) u_d->returns, TRUE);
-  table->field[2]->store(u_d->dl,(uint) strlen(u_d->dl), system_charset_info);
+  table->field[2]->store(u_d->dl, strlen(u_d->dl), system_charset_info);
   if (table->s->fields >= 4)			// If not old func format
     table->field[3]->store((longlong) u_d->type, TRUE);
   error = table->file->ha_write_row(table->record[0]);
@@ -540,7 +541,7 @@ int mysql_create_function(THD *thd,udf_func *udf)
   mysql_rwlock_unlock(&THR_LOCK_udf);
 
   /* Binlog the create function. */
-  if (write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  if (write_bin_log(thd, true, thd->query().str, thd->query().length))
   {
     /* Restore the state of binlog format */
     DBUG_ASSERT(!thd->is_current_stmt_binlog_format_row());
@@ -632,7 +633,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
     Binlog the drop function. Keep the table open and locked
     while binlogging, to avoid binlog inconsistency.
   */
-  if (!write_bin_log(thd, TRUE, thd->query(), thd->query_length()))
+  if (!write_bin_log(thd, true, thd->query().str, thd->query().length))
     error= 0;
 exit:
   /* Restore the state of binlog format */

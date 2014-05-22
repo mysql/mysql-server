@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,34 +35,47 @@ Created 9/17/2000 Heikki Tuuri
 #include "row0mysql.ic"
 #endif
 
-#include "row0ins.h"
-#include "row0merge.h"
-#include "row0sel.h"
-#include "row0upd.h"
-#include "row0row.h"
-#include "que0que.h"
-#include "pars0pars.h"
-#include "dict0dict.h"
-#include "dict0crea.h"
-#include "dict0load.h"
+#include "btr0sea.h"
 #include "dict0boot.h"
+#include "dict0crea.h"
+#include "dict0dict.h"
+#include "dict0load.h"
 #include "dict0stats.h"
 #include "dict0stats_bg.h"
-#include "trx0roll.h"
-#include "trx0purge.h"
-#include "trx0rec.h"
-#include "trx0undo.h"
-#include "lock0lock.h"
-#include "rem0cmp.h"
-#include "log0log.h"
-#include "btr0sea.h"
 #include "fil0fil.h"
-#include "ibuf0ibuf.h"
+#include "fsp0file.h"
+#include "fsp0sysspace.h"
 #include "fts0fts.h"
 #include "fts0types.h"
-#include "srv0space.h"
+#include "ibuf0ibuf.h"
+#include "lock0lock.h"
+#include "log0log.h"
+#include "pars0pars.h"
+#include "que0que.h"
+#include "rem0cmp.h"
 #include "row0import.h"
+#include "row0ins.h"
+#include "row0merge.h"
+#include "row0row.h"
+#include "row0sel.h"
+#include "row0upd.h"
+#include "trx0purge.h"
+#include "trx0rec.h"
+#include "trx0roll.h"
+#include "trx0undo.h"
 #include <deque>
+#include "row0ext.h"
+#include <vector>
+
+const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
+	"A new raw disk partition was initialized. We do not allow database"
+	" modifications by the user at this time.  Shut down mysqld and edit"
+	" my.cnf so that newraw is replaced with raw.";
+
+const char* MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY =
+	"innodb_force_recovery is on. We do not allow database modifications"
+	" by the user. Shut down mysqld and edit my.cnf to set"
+	" innodb_force_recovery=0";
 
 /** Provide optional 4.x backwards compatibility for 5.0 and above */
 ibool	row_rollback_on_timeout	= FALSE;
@@ -86,27 +99,6 @@ static ib_mutex_t row_drop_list_mutex;
 
 /** Flag: has row_mysql_drop_list been initialized? */
 static ibool	row_mysql_drop_list_inited	= FALSE;
-
-/** Magic table names for invoking various monitor threads */
-/* @{ */
-static const char S_innodb_monitor[] = "innodb_monitor";
-static const char S_innodb_lock_monitor[] = "innodb_lock_monitor";
-static const char S_innodb_tablespace_monitor[] = "innodb_tablespace_monitor";
-static const char S_innodb_table_monitor[] = "innodb_table_monitor";
-#ifdef UNIV_MEM_DEBUG
-static const char S_innodb_mem_validate[] = "innodb_mem_validate";
-#endif /* UNIV_MEM_DEBUG */
-/* @} */
-
-/** Evaluates to true if str1 equals str2_onstack, used for comparing
-the magic table names.
-@param[in] str1 string to compare
-@param[in] str1_len length of str1, in bytes, including terminating NUL
-@param[in] str2_onstack char[] array containing a NUL terminated string
-@return TRUE if str1 equals str2_onstack */
-#define STR_EQ(str1, str1_len, str2_onstack) \
-	((str1_len) == sizeof(str2_onstack) \
-	 && memcmp(str1, str2_onstack, sizeof(str2_onstack)) == 0)
 
 /*******************************************************************//**
 Determine if the given name is a name reserved for MySQL system tables.
@@ -336,7 +328,7 @@ row_mysql_store_geometry(
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Write geometry data to"
-					" MySQL WKT format: %s.\n",
+					" MySQL WKT format: %s.",
 					wkt.c_ptr_safe());
 			}
 		}
@@ -377,7 +369,7 @@ row_mysql_read_geometry(
 			{
 				ib_logf(IB_LOG_LEVEL_INFO,
 					"Read geometry data in"
-					" MySQL's WKT format: %s.\n",
+					" MySQL's WKT format: %s.",
 					wkt.c_ptr_safe());
 			}
 		}
@@ -580,11 +572,11 @@ row_mysql_store_col_in_innobase_format(
 		We will try to truncate it to n bytes by stripping
 		space padding.	If the field contains single-byte
 		characters only, it will be truncated to n characters.
-		Consider a CHAR(5) field containing the string ".a   "
-		where "." denotes a 3-byte character represented by
-		the bytes "$%&".  After our stripping, the string will
-		be stored as "$%&a " (5 bytes).	 The string ".abc "
-		will be stored as "$%&abc" (6 bytes).
+		Consider a CHAR(5) field containing the string
+		".a   " where "." denotes a 3-byte character represented
+		by the bytes "$%&". After our stripping, the string will
+		be stored as "$%&a " (5 bytes). The string
+		".abc " will be stored as "$%&abc" (6 bytes).
 
 		The space padding will be restored in row0sel.cc, function
 		row_sel_field_store_in_mysql_format(). */
@@ -629,7 +621,7 @@ row_mysql_convert_row_to_innobase(
 					copied there! */
 	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct where template
 					must be of type ROW_MYSQL_WHOLE_ROW */
-	byte*		mysql_rec)	/*!< in: row in the MySQL format;
+	const byte*	mysql_rec)	/*!< in: row in the MySQL format;
 					NOTE: do not discard as long as
 					row is used, as row may contain
 					pointers to this record! */
@@ -726,6 +718,7 @@ handle_new_error:
 	case DB_FTS_INVALID_DOCID:
 	case DB_INTERRUPTED:
 	case DB_DICT_CHANGED:
+	case DB_CANT_CREATE_GEOMETRY_OBJECT:
 		if (savept) {
 			/* Roll back the latest, possibly incomplete insertion
 			or update */
@@ -769,8 +762,8 @@ handle_new_error:
 			" table or, in a case of widespread corruption,"
 			" dump all InnoDB tables and recreate the whole"
 			" tablespace. If the mysqld server crashes after"
-			" the startup or when you dump the tables, look at"
-			REFMAN "forcing-innodb-recovery.html for help.");
+			" the startup or when you dump the tables. %s",
+			FORCE_RECOVERY_MSG);
 		break;
 	case DB_FOREIGN_EXCEED_MAX_CASCADE:
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -895,6 +888,11 @@ row_create_prebuilt(
 
 	prebuilt->mysql_row_len = mysql_row_len;
 
+	prebuilt->ins_sel_stmt = false;
+	prebuilt->session = NULL;
+
+	prebuilt->fts_doc_id_in_read_set = 0;
+
 	return(prebuilt);
 }
 
@@ -907,19 +905,8 @@ row_prebuilt_free(
 	row_prebuilt_t*	prebuilt,	/*!< in, own: prebuilt struct */
 	ibool		dict_locked)	/*!< in: TRUE=data dictionary locked */
 {
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED
-	    || prebuilt->magic_n2 != ROW_PREBUILT_ALLOCATED) {
-
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt table handle."
-			" magic_n %lu, magic_n2 %lu, table name ",
-			(ulong) prebuilt->magic_n,
-			(ulong) prebuilt->magic_n2);
-		ut_print_name(stderr, NULL, TRUE, prebuilt->table->name);
-		putc('\n', stderr);
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	prebuilt->magic_n = ROW_PREBUILT_FREED;
 	prebuilt->magic_n2 = ROW_PREBUILT_FREED;
@@ -954,33 +941,24 @@ row_prebuilt_free(
 		byte*	ptr = base;
 
 		for (ulint i = 0; i < MYSQL_FETCH_CACHE_SIZE; i++) {
-			byte*	row;
-			ulint	magic1;
-			ulint	magic2;
-
-			magic1 = mach_read_from_4(ptr);
+			ulint	magic1 = mach_read_from_4(ptr);
+			ut_a(magic1 == ROW_PREBUILT_FETCH_MAGIC_N);
 			ptr += 4;
 
-			row = ptr;
+			byte*	row = ptr;
+			ut_a(row == prebuilt->fetch_cache[i]);
 			ptr += prebuilt->mysql_row_len;
 
-			magic2 = mach_read_from_4(ptr);
+			ulint	magic2 = mach_read_from_4(ptr);
+			ut_a(magic2 == ROW_PREBUILT_FETCH_MAGIC_N);
 			ptr += 4;
-
-			if (ROW_PREBUILT_FETCH_MAGIC_N != magic1
-			    || row != prebuilt->fetch_cache[i]
-			    || ROW_PREBUILT_FETCH_MAGIC_N != magic2) {
-
-				ib_logf(IB_LOG_LEVEL_ERROR,
-					"Trying to free a corrupt"
-					" fetch buffer.");
-				mem_analyze_corruption(base);
-				ib_logf(IB_LOG_LEVEL_FATAL,
-					"Memory Corruption");
-			}
 		}
 
 		ut_free(base);
+	}
+
+	if (prebuilt->rtr_info) {
+		rtr_clean_rtr_info(prebuilt->rtr_info, true);
 	}
 
 	dict_table_close(prebuilt->table, dict_locked, TRUE);
@@ -999,25 +977,9 @@ row_update_prebuilt_trx(
 					in MySQL handle */
 	trx_t*		trx)		/*!< in: transaction handle */
 {
-	if (trx->magic_n != TRX_MAGIC_N) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to use a corrupt trx handle. Magic n %lu",
-			(ulong) trx->magic_n);
-		mem_analyze_corruption(trx);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
-
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to use a corrupt table handle. "
-			"Magic n %lu, table name;",
-			(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
-		putc('\n', stderr);
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-	}
+	ut_a(trx->magic_n == TRX_MAGIC_N);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	prebuilt->trx = trx;
 
@@ -1120,8 +1082,8 @@ row_update_statistics_if_needed(
 	if (!table->stat_initialized) {
 		DBUG_EXECUTE_IF(
 			"test_upd_stats_if_needed_not_inited",
-			fprintf(stderr, "test_upd_stats_if_needed_not_inited "
-				"was executed\n");
+			fprintf(stderr, "test_upd_stats_if_needed_not_inited"
+				" was executed\n");
 		);
 		return;
 	}
@@ -1173,11 +1135,9 @@ row_lock_table_autoinc_for_mysql(
 	dberr_t			err;
 	ibool			was_lock_wait;
 
-	ut_ad(trx);
-
 	/* If we already hold an AUTOINC lock on the table then do nothing.
-        Note: We peek at the value of the current owner without acquiring
-	the lock mutex. **/
+	Note: We peek at the value of the current owner without acquiring
+	the lock mutex. */
 	if (trx == table->autoinc_trx) {
 
 		return(DB_SUCCESS);
@@ -1250,8 +1210,6 @@ row_lock_table_for_mysql(
 	dberr_t		err;
 	ibool		was_lock_wait;
 
-	ut_ad(trx);
-
 	trx->op_info = "setting table lock";
 
 	if (prebuilt->sel_graph == NULL) {
@@ -1310,16 +1268,184 @@ run_again:
 	return(err);
 }
 
-/*********************************************************************//**
-Does an insert for MySQL.
+/** Perform explicit rollback in absence of UNDO logs.
+@param[in]	index	apply rollback action on this index
+@param[in]	entry	entry to remove/rollback.
+@param[in,out]	thr	thread handler.
+@param[in,out]	mtr	mini transaction.
 @return error code or DB_SUCCESS */
-
+static
 dberr_t
-row_insert_for_mysql(
-/*=================*/
-	byte*		mysql_rec,	/*!< in: row in the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
+row_explicit_rollback(
+	dict_index_t*		index,
+	const dtuple_t*		entry,
+	que_thr_t*		thr,
+	mtr_t*			mtr)
+{
+	btr_cur_t	cursor;
+	ulint		flags;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets;
+	mem_heap_t*	heap = NULL;
+	dberr_t		err;
+
+	rec_offs_init(offsets_);
+	flags = BTR_NO_LOCKING_FLAG | BTR_NO_UNDO_LOG_FLAG;
+
+	btr_cur_search_to_nth_level_with_no_latch(
+		index, 0, entry, PAGE_CUR_LE,
+		&cursor, __FILE__, __LINE__, mtr);
+
+	offsets = rec_get_offsets(
+		btr_cur_get_rec(&cursor), index, offsets_,
+		ULINT_UNDEFINED, &heap);
+
+	if (dict_index_is_clust(index)) {
+		err = btr_cur_del_mark_set_clust_rec(
+			flags, btr_cur_get_block(&cursor),
+			btr_cur_get_rec(&cursor), index,
+			offsets, thr, mtr);
+	} else {
+		err = btr_cur_del_mark_set_sec_rec(
+			flags, &cursor, TRUE, thr, mtr);
+	}
+	ut_ad(err == DB_SUCCESS);
+
+	/* Void call just to set mtr modification flag
+	to true failing which block is not scheduled for flush*/
+	byte* log_ptr = mlog_open(mtr, 0);
+	ut_ad(log_ptr == NULL);
+	if (log_ptr != NULL) {
+		/* To keep complier happy. */
+		mlog_close(mtr, log_ptr);
+	}
+
+	if (heap != NULL) {
+		mem_heap_free(heap);
+	}
+
+	return(err);
+}
+
+/** Does an insert for MySQL using cursor interface.
+Cursor interface is low level interface that directly interacts at
+Storage Level by-passing all the locking and transaction semantics.
+For InnoDB case, this will also by-pass hidden column generation.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
+@return error code or DB_SUCCESS */
+static
+dberr_t
+row_insert_for_mysql_using_cursor(
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+{
+	dberr_t		err	= DB_SUCCESS;
+	ins_node_t*	node	= NULL;
+	que_thr_t*	thr	= NULL;
+	mtr_t		mtr;
+	trx_id_t	trx_id;
+
+	/* Step-1: Get the reference of row to insert. */
+	row_get_prebuilt_insert_row(prebuilt);
+	node = prebuilt->ins_node;
+	thr = que_fork_get_first_thr(prebuilt->ins_graph);
+
+	/* Step-2: Convert row from MySQL row format to InnoDB row format. */
+	row_mysql_convert_row_to_innobase(node->row, prebuilt, mysql_rec);
+
+	/* Step-3: If an explicit clustered index is not specified then InnoDB
+	appends row-id to make the record unique. */
+	dict_index_t*	clust_index = dict_table_get_first_index(node->table);
+
+	if (dict_index_is_auto_gen_clust(clust_index)) {
+		row_id_t	row_id;
+		row_id = session->get_next_table_sess_row_id(
+			prebuilt->table->name);
+		dict_sys_write_row_id(node->row_id_buf, row_id);
+	}
+
+	trx_id = session->get_next_table_sess_trx_id(prebuilt->table->name);
+	trx_write_trx_id(node->trx_id_buf, trx_id);
+
+	/* Step-4: Iterate over all the indexes and insert entries. */
+	dict_index_t*	inserted_upto = NULL;
+	node->entry = UT_LIST_GET_FIRST(node->entry_list);
+	for (dict_index_t* index = UT_LIST_GET_FIRST(node->table->indexes);
+	     index != NULL;
+	     index = UT_LIST_GET_NEXT(indexes, index),
+	     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
+
+		node->index = index;
+		row_ins_index_entry_set_vals(
+			node->index, node->entry, node->row);
+
+		if (dict_index_is_clust(index)) {
+			err = row_ins_clust_index_entry(
+				node->index, node->entry, thr, 0, false);
+		} else {
+			err = row_ins_sec_index_entry(
+				node->index, node->entry, thr, false);
+		}
+
+		if (err == DB_SUCCESS) {
+			inserted_upto = index;
+		} else {
+			break;
+		}
+	}
+
+	/* Step-5: If error is encountered while inserting entries to any
+	of the index then entries inserted to previous indexes are removed
+	explicity. Automatic rollback is not in action as UNDO logs are
+	turned-off. */
+	if (err != DB_SUCCESS) {
+
+		node->entry = UT_LIST_GET_FIRST(node->entry_list);
+
+		mtr_start(&mtr);
+		dict_disable_redo_if_temporary(node->table, &mtr);
+
+		for (dict_index_t* index =
+			UT_LIST_GET_FIRST(node->table->indexes);
+		     inserted_upto != NULL;
+		     index = UT_LIST_GET_NEXT(indexes, index),
+		     node->entry = UT_LIST_GET_NEXT(tuple_list, node->entry)) {
+
+			row_explicit_rollback(index, node->entry, thr, &mtr);
+
+			if (index == inserted_upto) {
+				break;
+			}
+		}
+
+		mtr_commit(&mtr);
+	} else {
+		/* Not protected by dict_table_stats_lock() for performance
+		reasons, we would rather get garbage in stat_n_rows (which is
+		just an estimate anyway) than protecting the following code
+		, with a latch. */
+		dict_table_n_rows_inc(node->table);
+
+		srv_stats.n_rows_inserted.inc();
+	}
+
+	thr_get_trx(thr)->error_state = DB_SUCCESS;
+	return(err);
+}
+
+/** Does an insert for MySQL using INSERT graph. This function will run/execute
+INSERT graph.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@return error code or DB_SUCCESS */
+static
+dberr_t
+row_insert_for_mysql_using_ins_graph(
+	const byte*	mysql_rec,
+	row_prebuilt_t*	prebuilt)
 {
 	trx_savept_t	savept;
 	que_thr_t*	thr;
@@ -1330,11 +1456,13 @@ row_insert_for_mysql(
 	dict_table_t*	table		= prebuilt->table;
 
 	ut_ad(trx);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 
 	if (dict_table_is_discarded(prebuilt->table)) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"The table %s doesn't have a corresponding "
-			"tablespace, it was discarded.",
+			"The table %s doesn't have a corresponding"
+			" tablespace, it was discarded.",
 			prebuilt->table->name);
 
 		return(DB_TABLESPACE_DELETED);
@@ -1347,26 +1475,26 @@ row_insert_for_mysql(
 
 		return(DB_TABLESPACE_NOT_FOUND);
 
-	} else if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt table handle."
-			" Magic n %lu, table name;",
-			(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
-		putc('\n', stderr);
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
-
-	} else if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A new raw disk partition was initialized or"
-			" innodb_force_recovery is on: We do not allow"
-			" database modifications by the user. Shut down"
-			" mysqld and edit my.cnf so that newraw is replaced"
-			" with raw, and innodb_force_... is removed.");
-
+	} else if (srv_sys_space.created_new_raw()) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		return(DB_ERROR);
+	} else if (srv_force_recovery) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY);
+		return(DB_READ_ONLY);
+	}
+
+	DBUG_EXECUTE_IF("mark_table_corrupted", {
+		/* Mark the table corrupted for the clustered index */
+		dict_index_t*	index = dict_table_get_first_index(table);
+		ut_ad(dict_index_is_clust(index));
+		dict_set_corrupted(index, trx, "INSERT TABLE"); });
+
+	if (dict_table_is_corrupted(table)) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table %s is corrupt.", table->name);
+		return(DB_TABLE_CORRUPT);
 	}
 
 	trx->op_info = "inserting";
@@ -1419,10 +1547,13 @@ error_exit:
 			goto run_again;
 		}
 
+		node->duplicate = NULL;
 		trx->op_info = "";
 
 		return(err);
 	}
+
+	node->duplicate = NULL;
 
 	if (dict_table_has_fts_index(table)) {
 		doc_id_t	doc_id;
@@ -1431,8 +1562,8 @@ error_exit:
 		doc_id = fts_get_doc_id_from_row(table, node->row);
 
 		if (doc_id <= 0) {
-			fprintf(stderr,
-				"InnoDB: FTS Doc ID must be large than 0 \n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"FTS Doc ID must be large than 0");
 			err = DB_FTS_INVALID_DOCID;
 			trx->error_state = DB_FTS_INVALID_DOCID;
 			goto error_exit;
@@ -1443,12 +1574,12 @@ error_exit:
 				= table->fts->cache->next_doc_id;
 
 			if (doc_id < next_doc_id) {
-				fprintf(stderr,
-					"InnoDB: FTS Doc ID must be large than"
-					" "UINT64PF" for table",
-					next_doc_id - 1);
-				ut_print_name(stderr, trx, TRUE, table->name);
-				putc('\n', stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"FTS Doc ID must be large than"
+					" " UINT64PF " for table %s",
+					next_doc_id - 1,
+					ut_get_name(
+						trx, TRUE, table->name).c_str());
 
 				err = DB_FTS_INVALID_DOCID;
 				trx->error_state = DB_FTS_INVALID_DOCID;
@@ -1459,11 +1590,11 @@ error_exit:
 			4 bytes integer. See fts_get_encoded_len() */
 
 			if (doc_id - next_doc_id >= FTS_DOC_ID_MAX_STEP) {
-				fprintf(stderr,
-					"InnoDB: Doc ID "UINT64PF" is too"
+				 ib_logf(IB_LOG_LEVEL_ERROR,
+					"Doc ID " UINT64PF " is too"
 					" big. Its difference with largest"
-					" used Doc ID "UINT64PF" cannot"
-					" exceed or equal to %d\n",
+					" used Doc ID " UINT64PF " cannot"
+					" exceed or equal to %d",
 					doc_id, next_doc_id - 1,
 					FTS_DOC_ID_MAX_STEP);
 				err = DB_FTS_INVALID_DOCID;
@@ -1491,6 +1622,30 @@ error_exit:
 	trx->op_info = "";
 
 	return(err);
+}
+
+/** Does an insert for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
+@return error code or DB_SUCCESS*/
+
+dberr_t
+row_insert_for_mysql(
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+{
+	/* For intrinsic tables there a lot of restrictions that can be
+	relaxed including locking of table, transaction handling, etc.
+	Use direct cursor interface for inserting to intrinsic tables. */
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return(row_insert_for_mysql_using_cursor(
+			mysql_rec, prebuilt, session));
+	} else {
+		return(row_insert_for_mysql_using_ins_graph(
+			mysql_rec, prebuilt));
+	}
 }
 
 /*********************************************************************//**
@@ -1644,7 +1799,8 @@ row_fts_update_or_delete(
 		new_doc_id = fts_read_doc_id((byte*) &trx->fts_next_doc_id);
 
 		if (new_doc_id == 0) {
-			fprintf(stderr, " InnoDB FTS: Doc ID cannot be 0 \n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"InnoDB FTS: Doc ID cannot be 0");
 			return(DB_FTS_INVALID_DOCID);
 		}
 
@@ -1707,24 +1863,331 @@ private:
 };
 
 
-/*********************************************************************//**
-Does an update or delete of a row for MySQL.
-@return error code or DB_SUCCESS */
+typedef	std::vector<btr_pcur_t>	cursors_t;
+typedef	std::vector<bool>	index_update_t;
 
+/** Delete row from table (corresponding entries from all the indexes).
+Function will maintain cursor to the entries to invoke explicity rollback
+just incase update action following delete fails.
+
+@param[in]	node		update node carrying information to delete.
+@param[out]	delete_entries	vector of cursor to deleted entries.
+@param[in]	restore_delete	if true, then restore DELETE records by
+				unmarking delete.
+@return error code or DB_SUCCESS */
+static
 dberr_t
-row_update_for_mysql(
-/*=================*/
-	byte*		mysql_rec,	/*!< in: the row to be updated, in
-					the MySQL format */
-	row_prebuilt_t*	prebuilt)	/*!< in: prebuilt struct in MySQL
-					handle */
+row_delete_for_mysql_using_cursor(
+	const upd_node_t*	node,
+	cursors_t&		delete_entries,
+	bool			restore_delete)
+{
+	mtr_t		mtr;
+	dict_table_t*	table = node->table;
+	mem_heap_t*	heap = mem_heap_create(1000);
+	dberr_t		err = DB_SUCCESS;
+	dtuple_t*	entry;
+
+	mtr_start(&mtr);
+	dict_disable_redo_if_temporary(table, &mtr);
+
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL && err == DB_SUCCESS && !restore_delete;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		entry = row_build_index_entry(
+			node->row, node->ext, index, heap);
+
+		btr_pcur_t	pcur;
+
+		btr_pcur_open(index, entry, PAGE_CUR_LE,
+			      BTR_MODIFY_LEAF, &pcur, &mtr);
+
+#ifdef UNIV_DEBUG
+		ulint           offsets_[REC_OFFS_NORMAL_SIZE];
+		ulint*          offsets         = offsets_;
+		rec_offs_init(offsets_);
+
+		offsets = rec_get_offsets(
+			btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
+			index, offsets, ULINT_UNDEFINED, &heap);
+
+		ut_ad(!cmp_dtuple_rec(
+			entry, btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
+			offsets));
+#endif /* UNIV_DEBUG */
+
+		ut_ad(!rec_get_deleted_flag(
+			btr_cur_get_rec(btr_pcur_get_btr_cur(&pcur)),
+			dict_table_is_comp(index->table)));
+
+		ut_ad(btr_pcur_get_block(&pcur)->made_dirty_with_no_latch);
+
+		if (page_rec_is_infimum(btr_pcur_get_rec(&pcur))
+		    || page_rec_is_supremum(btr_pcur_get_rec(&pcur))) {
+			err = DB_ERROR;
+		} else {
+			btr_cur_t* btr_cur = btr_pcur_get_btr_cur(&pcur);
+
+			btr_rec_set_deleted_flag(
+				btr_cur_get_rec(btr_cur),
+				buf_block_get_page_zip(
+					btr_cur_get_block(btr_cur)),
+				TRUE);
+
+			/* Void call just to set mtr modification flag
+			to true failing which block is not scheduled for flush*/
+			byte* log_ptr = mlog_open(&mtr, 0);
+			ut_ad(log_ptr == NULL);
+			if (log_ptr != NULL) {
+				/* To keep complier happy. */
+				mlog_close(&mtr, log_ptr);
+			}
+
+			btr_pcur_store_position(&pcur, &mtr);
+
+			delete_entries.push_back(pcur);
+		}
+	}
+
+	if (err != DB_SUCCESS || restore_delete) {
+
+		/* Rollback half-way delete action that might have been
+		applied to few of the indexes. */
+		cursors_t::iterator	end = delete_entries.end();
+		for (cursors_t::iterator it = delete_entries.begin();
+		     it != end;
+		     ++it) {
+
+			ibool success = btr_pcur_restore_position(
+				BTR_MODIFY_LEAF, &(*it), &mtr);
+
+			if (!success) {
+				ut_a(success);
+			} else {
+				btr_cur_t* btr_cur = btr_pcur_get_btr_cur(
+					&(*it));
+
+				ut_ad(btr_cur_get_block(
+					btr_cur)->made_dirty_with_no_latch);
+
+				btr_rec_set_deleted_flag(
+					btr_cur_get_rec(btr_cur),
+					buf_block_get_page_zip(
+						btr_cur_get_block(btr_cur)),
+					FALSE);
+
+				/* Void call just to set mtr modification flag
+				to true failing which block is not scheduled for
+				flush. */
+				byte* log_ptr = mlog_open(&mtr, 0);
+				ut_ad(log_ptr == NULL);
+				if (log_ptr != NULL) {
+					/* To keep complier happy. */
+					mlog_close(&mtr, log_ptr);
+				}
+			}
+		}
+	}
+
+	mtr_commit(&mtr);
+
+	mem_heap_free(heap);
+
+	return(err);
+}
+
+/** Does an update of a row for MySQL by inserting new entry with update values.
+@param[in]	node		update node carrying information to delete.
+@param[out]	delete_entries	vector of cursor to deleted entries.
+@param[in]	thr		thread handler
+@param[in,out]	session		session handler
+@return error code or DB_SUCCESS */
+static
+dberr_t
+row_update_for_mysql_using_cursor(
+	const upd_node_t*	node,
+	cursors_t&		delete_entries,
+	que_thr_t*		thr,
+	innodb_session_t*	session)
+{
+	dberr_t		err = DB_SUCCESS;
+	dict_table_t*	table = node->table;
+	mem_heap_t*	heap = mem_heap_create(1000);
+	dtuple_t*	entry;
+	trx_id_t        trx_id;
+	dfield_t*	trx_id_field;
+
+	/* Step-1: Update row-id column if table has auto-generated index.
+	Every update will result in update of auto-generated index. */
+	if (dict_index_is_auto_gen_clust(dict_table_get_first_index(table))) {
+		/* Update the row_id column. */
+		row_id_t	row_id;
+		dfield_t*	row_id_field;
+
+		row_id = session->get_next_table_sess_row_id(node->table->name);
+		row_id_field = dtuple_get_nth_field(
+			node->upd_row, dict_table_get_n_cols(table) - 2);
+
+		dict_sys_write_row_id(
+			static_cast<byte*>(row_id_field->data), row_id);
+	}
+
+	/* Step-2: Update the trx_id column. */
+	trx_id = session->get_next_table_sess_trx_id(node->table->name);
+	trx_id_field = dtuple_get_nth_field(
+		node->upd_row, dict_table_get_n_cols(table) - 1);
+	trx_write_trx_id(static_cast<byte*>(trx_id_field->data), trx_id);
+
+
+	/* Step-3: Check if UPDATE can lead to DUPLICATE key violation.
+	If yes, then avoid executing it and return error. Only after ensuring
+	that UPDATE is safe execute it as we can't rollback. */
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL && err == DB_SUCCESS;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		entry = row_build_index_entry(
+			node->upd_row, node->upd_ext, index, heap);
+
+		if (dict_index_is_clust(index)) {
+			if (!dict_index_is_auto_gen_clust(index)) {
+				err = row_ins_clust_index_entry(
+					index, entry, thr,
+					node->upd_ext
+					? node->upd_ext->n_ext : 0,
+					true);
+			}
+		} else {
+			err = row_ins_sec_index_entry(index, entry, thr, true);
+		}
+	}
+
+	if (err != DB_SUCCESS) {
+		/* This suggest update can't be executed safely.
+		Avoid executing update. Rollback DELETE action. */
+		row_delete_for_mysql_using_cursor(node, delete_entries, true);
+	}
+
+	/* Step-4: It is now safe to execute update if there is no error */
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL && err == DB_SUCCESS;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		entry = row_build_index_entry(
+			node->upd_row, node->upd_ext, index, heap);
+
+		if (dict_index_is_clust(index)) {
+			err = row_ins_clust_index_entry(
+				index, entry, thr,
+				node->upd_ext ? node->upd_ext->n_ext : 0,
+				false);
+			/* Commit the open mtr as we are processing UPDATE. */
+			index->last_ins_cur->release();
+		} else {
+			err = row_ins_sec_index_entry(index, entry, thr, false);
+		}
+
+		/* Too big record is valid error and suggestion is to use
+		bigger page-size or different format. */
+		ut_ad(err == DB_SUCCESS
+		      || err == DB_TOO_BIG_RECORD
+		      || err == DB_OUT_OF_FILE_SPACE);
+
+		if (err == DB_TOO_BIG_RECORD) {
+			row_delete_for_mysql_using_cursor(
+				node, delete_entries, true);
+		}
+	}
+
+	if (heap != NULL) {
+		mem_heap_free(heap);
+	}
+	return(err);
+}
+
+/** Does an update or delete of a row for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
+@return error code or DB_SUCCESS */
+static
+dberr_t
+row_del_upd_for_mysql_using_cursor(
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+{
+	dberr_t			err = DB_SUCCESS;
+	upd_node_t*		node;
+	cursors_t		delete_entries;
+	dict_index_t*		clust_index;
+	que_thr_t*		thr = NULL;
+
+	/* Step-0: If there is cached insert position commit it before
+	starting delete/update action as this can result in btree structure
+	to change. */
+	thr = que_fork_get_first_thr(prebuilt->upd_graph);
+	clust_index = dict_table_get_first_index(prebuilt->table);
+	clust_index->last_ins_cur->release();
+
+	/* Step-1: Select the appropriate cursor that will help build
+	the original row and updated row. */
+	node = prebuilt->upd_node;
+	if (prebuilt->pcur.btr_cur.index == clust_index) {
+		btr_pcur_copy_stored_position(node->pcur, &prebuilt->pcur);
+	} else {
+		btr_pcur_copy_stored_position(node->pcur,
+					      &prebuilt->clust_pcur);
+	}
+	row_upd_store_row(node);
+
+	/* Step-2: Execute DELETE operation. */
+	err = row_delete_for_mysql_using_cursor(node, delete_entries, false);
+
+	/* Step-3: If only DELETE operation then exit immediately. */
+	if (node->is_delete) {
+		if (err == DB_SUCCESS) {
+			dict_table_n_rows_dec(prebuilt->table);
+			srv_stats.n_rows_deleted.inc();
+		}
+	}
+
+	if (err == DB_SUCCESS && !node->is_delete) {
+		/* Step-4: Complete UPDATE operation by inserting new row with
+		updated data. */
+		err = row_update_for_mysql_using_cursor(
+			node, delete_entries, thr, session);
+
+		if (err == DB_SUCCESS) {
+			srv_stats.n_rows_updated.inc();
+		}
+	}
+
+	thr_get_trx(thr)->error_state = DB_SUCCESS;
+	cursors_t::iterator	end = delete_entries.end();
+	for (cursors_t::iterator it = delete_entries.begin(); it != end; ++it) {
+		btr_pcur_close(&(*it));
+	}
+
+	return(err);
+}
+
+/** Does an update or delete of a row for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@return error code or DB_SUCCESS */
+static
+dberr_t
+row_update_for_mysql_using_upd_graph(
+	const byte*	mysql_rec,
+	row_prebuilt_t*	prebuilt)
 {
 	trx_savept_t	savept;
 	dberr_t		err;
 	que_thr_t*	thr;
 	ibool		was_lock_wait;
 	dict_index_t*	clust_index;
-	/*	ulint		ref_len; */
 	upd_node_t*	node;
 	dict_table_t*	table		= prebuilt->table;
 	trx_t*		trx		= prebuilt->trx;
@@ -1733,9 +2196,11 @@ row_update_for_mysql(
 	upd_cascade_t*	processed_cascades;
 	bool		got_s_lock	= false;
 
-	DBUG_ENTER("row_update_for_mysql");
+	DBUG_ENTER("row_update_for_mysql_using_upd_graph");
 
-	ut_ad(prebuilt && trx);
+	ut_ad(trx);
+	ut_a(prebuilt->magic_n == ROW_PREBUILT_ALLOCATED);
+	ut_a(prebuilt->magic_n2 == ROW_PREBUILT_ALLOCATED);
 	UT_NOT_USED(mysql_rec);
 
 	if (prebuilt->table->ibd_file_missing) {
@@ -1744,34 +2209,21 @@ row_update_for_mysql(
 			" file for table %s does not exist. Have you deleted"
 			" the .ibd file from the database directory under"
 			" the MySQL datadir, or have you used DISCARD"
-			" TABLESPACE?  Please refer to " REFMAN
-			"innodb-troubleshooting.html to see how you can"
-			" resolve the problem.",
-			prebuilt->table->name);
+			" TABLESPACE? %s",
+			prebuilt->table->name, TROUBLESHOOTING_MSG);
 		DBUG_RETURN(DB_ERROR);
 	}
 
-	if (prebuilt->magic_n != ROW_PREBUILT_ALLOCATED) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Trying to free a corrupt table handle."
-			" Magic n %lu, table name;",
-			(ulong) prebuilt->magic_n);
-		ut_print_name(stderr, trx, TRUE, prebuilt->table->name);
-		putc('\n', stderr);
-
-		mem_analyze_corruption(prebuilt);
-		ib_logf(IB_LOG_LEVEL_FATAL, "Memory Corruption");
+	if (srv_sys_space.created_new_raw()) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
+		DBUG_RETURN(DB_ERROR);
 	}
 
-	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		ib_logf(IB_LOG_LEVEL_ERROR,
-			"A new raw disk partition was initialized or"
-			" innodb_force_recovery is on: we do not allow"
-			" database modifications by the user. Shut down"
-			" mysqld and edit my.cnf so that newraw is replaced"
-			" with raw, and innodb_force_... is removed.");
-
-		DBUG_RETURN(DB_ERROR);
+	if(srv_force_recovery) {
+		ib_logf(IB_LOG_LEVEL_ERROR,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY);
+		DBUG_RETURN(DB_READ_ONLY);
 	}
 
 	DEBUG_SYNC_C("innodb_row_update_for_mysql_begin");
@@ -1941,8 +2393,10 @@ run_again:
 
 	/* Update the statistics only after completing all cascaded
 	operations */
-	for(upd_cascade_t::iterator i = processed_cascades->begin();
-	    i != processed_cascades->end(); ++i) {
+	for (upd_cascade_t::iterator i = processed_cascades->begin();
+	     i != processed_cascades->end();
+	     ++i) {
+
 		node = *i;
 
 		if (node->is_delete) {
@@ -2017,6 +2471,57 @@ error:
 	DBUG_RETURN(err);
 }
 
+/** Does an update or delete of a row for MySQL.
+@param[in]	mysql_rec	row in the MySQL format
+@param[in,out]	prebuilt	prebuilt struct in MySQL handle
+@param[in,out]	session		session handler
+@return error code or DB_SUCCESS */
+
+dberr_t
+row_update_for_mysql(
+	const byte*		mysql_rec,
+	row_prebuilt_t*		prebuilt,
+	innodb_session_t*	session)
+{
+	if (dict_table_is_intrinsic(prebuilt->table)) {
+		return(row_del_upd_for_mysql_using_cursor(
+			mysql_rec, prebuilt, session));
+	} else {
+		ut_a(prebuilt->template_type == ROW_MYSQL_WHOLE_ROW);
+		return(row_update_for_mysql_using_upd_graph(
+			mysql_rec, prebuilt));
+	}
+}
+
+/** Delete all rows for the given table by freeing/truncating indexes.
+@param[in,out]	table	table handler
+@return error code or DB_SUCCESS */
+
+dberr_t
+row_delete_all_rows(
+	dict_table_t*	table)
+{
+	dberr_t		err = DB_SUCCESS;
+
+	/* Step-0: If there is cached insert position along with mtr
+	commit it before starting delete/update action. */
+	dict_table_get_first_index(table)->last_ins_cur->release();
+
+	/* Step-1: Now truncate all the indexes and re-create them.
+	Note: This is ddl action even though delete all rows is
+	dml action. Any error during this action is ir-reversible. */
+	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
+	     index != NULL && err == DB_SUCCESS;
+	     index = UT_LIST_GET_NEXT(indexes, index)) {
+
+		err = dict_truncate_index_tree_in_mem(index);
+		// TODO: what happen if get an error
+		ut_ad(err == DB_SUCCESS);
+	}
+
+	return (err);
+}
+
 /*********************************************************************//**
 This can only be used when srv_locks_unsafe_for_binlog is TRUE or this
 session is using a READ COMMITTED or READ UNCOMMITTED isolation level.
@@ -2049,11 +2554,14 @@ row_unlock_for_mysql(
 	    (!srv_locks_unsafe_for_binlog
 	     && trx->isolation_level > TRX_ISO_READ_COMMITTED)) {
 
-		fprintf(stderr,
-			"InnoDB: Error: calling row_unlock_for_mysql though\n"
-			"InnoDB: innodb_locks_unsafe_for_binlog is FALSE and\n"
-			"InnoDB: this session is not using"
-			" READ COMMITTED isolation level.\n");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+			"Calling row_unlock_for_mysql though"
+			" innodb_locks_unsafe_for_binlog is FALSE and"
+			" this session is not using"
+			" READ COMMITTED isolation level.");
+		return;
+	}
+	if (dict_index_is_spatial(prebuilt->index)) {
 		return;
 	}
 
@@ -2245,12 +2753,8 @@ row_mysql_unlock_data_dictionary(
 }
 
 /*********************************************************************//**
-Creates a table for MySQL. If the name of the table ends in
-one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also start the printing of monitor
-output by the master thread. If the table name ends in "innodb_mem_validate",
-InnoDB will try to invoke mem_validate(). On failure the transaction will
-be rolled back and the 'table' object will be freed.
+Creates a table for MySQL. On failure the transaction will be rolled back
+and the 'table' object will be freed.
 @return error code or DB_SUCCESS */
 
 dberr_t
@@ -2265,8 +2769,6 @@ row_create_table_for_mysql(
 	tab_node_t*	node;
 	mem_heap_t*	heap;
 	que_thr_t*	thr;
-	const char*	table_name;
-	ulint		table_name_len;
 	dberr_t		err;
 
 #ifdef UNIV_SYNC_DEBUG
@@ -2281,11 +2783,9 @@ row_create_table_for_mysql(
 	);
 
 	if (srv_sys_space.created_new_raw()) {
-		fputs("InnoDB: A new raw disk partition was initialized:\n"
-		      "InnoDB: we do not allow database modifications"
-		      " by the user.\n"
-		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
-		      " is replaced with raw.\n", stderr);
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
+
 err_exit:
 		dict_mem_table_free(table);
 
@@ -2300,68 +2800,14 @@ err_exit:
 
 	if (row_mysql_is_system_table(table->name)) {
 
-		fprintf(stderr,
-			"InnoDB: Error: trying to create a MySQL system"
-			" table %s of type InnoDB.\n"
-			"InnoDB: MySQL system tables must be"
-			" of the MyISAM type!\n",
-			table->name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to create a MySQL system table %s of type"
+			" InnoDB. MySQL system tables must be of the MyISAM"
+			" type!", table->name);
 		goto err_exit;
 	}
 
 	trx_start_if_not_started_xa(trx, true);
-
-	/* The table name is prefixed with the database name and a '/'.
-	Certain table names starting with 'innodb_' have their special
-	meaning regardless of the database name.  Thus, we need to
-	ignore the database name prefix in the comparisons. */
-	table_name = dict_remove_db_name(table->name);
-	table_name_len = strlen(table_name) + 1;
-
-	if (STR_EQ(table_name, table_name_len, S_innodb_monitor)) {
-
-		/* Table equals "innodb_monitor":
-		start monitor prints */
-
-		srv_print_innodb_monitor = TRUE;
-
-		/* The lock timeout monitor thread also takes care
-		of InnoDB monitor prints */
-
-		os_event_set(lock_sys->timeout_event);
-	} else if (STR_EQ(table_name, table_name_len,
-			  S_innodb_lock_monitor)) {
-
-		srv_print_innodb_monitor = TRUE;
-		srv_print_innodb_lock_monitor = TRUE;
-		os_event_set(lock_sys->timeout_event);
-	} else if (STR_EQ(table_name, table_name_len,
-			  S_innodb_tablespace_monitor)) {
-
-		srv_print_innodb_tablespace_monitor = TRUE;
-		os_event_set(lock_sys->timeout_event);
-	} else if (STR_EQ(table_name, table_name_len,
-			  S_innodb_table_monitor)) {
-
-		srv_print_innodb_table_monitor = TRUE;
-		os_event_set(lock_sys->timeout_event);
-#ifdef UNIV_MEM_DEBUG
-	} else if (STR_EQ(table_name, table_name_len,
-			  S_innodb_mem_validate)) {
-		/* We define here a debugging feature intended for
-		developers */
-
-		fputs("Validating InnoDB memory:\n"
-		      "to use this feature you must compile InnoDB with\n"
-		      "UNIV_MEM_DEBUG defined in univ.i and"
-		      " the server must be\n"
-		      "quiet because allocation from a mem heap"
-		      " is not protected\n"
-		      "by any semaphore.\n", stderr);
-		ut_a(mem_validate());
-		fputs("Memory validated\n", stderr);
-#endif /* UNIV_MEM_DEBUG */
-	}
 
 	heap = mem_heap_create(512);
 
@@ -2390,7 +2836,8 @@ err_exit:
 
 	/* Update SYS_TABLESPACES and SYS_DATAFILES if a new file-per-table
 	tablespace was created. */
-	if (!Tablespace::is_system_tablespace(table->space)) {
+	if (!is_system_tablespace(table->space)) {
+
 		ut_a(dict_table_use_file_per_table(table));
 
 		if (err == DB_SUCCESS) {
@@ -2407,7 +2854,7 @@ err_exit:
 
 		if (err != DB_SUCCESS) {
 			/* We must delete the link file. */
-			fil_delete_link_file(table->name);
+			RemoteDatafile::delete_link_file(table->name);
 		}
 	}
 
@@ -2418,11 +2865,9 @@ err_exit:
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
 
-		ut_print_timestamp(stderr);
-		fputs("  InnoDB: Warning: cannot create table ",
-		      stderr);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs(" because tablespace full\n", stderr);
+		ib_logf(IB_LOG_LEVEL_WARN,
+			"Cannot create table %s because tablespace full",
+			ut_get_name(trx, TRUE, table->name).c_str());
 
 		if (dict_table_open_on_name(table->name, TRUE, FALSE,
 					    DICT_ERR_IGNORE_NONE)) {
@@ -2447,13 +2892,11 @@ err_exit:
 			    BUF_REMOVE_FLUSH_NO_WRITE)
 		    != DB_SUCCESS) {
 
-			ut_print_timestamp(stderr);
-			fprintf(stderr,
-				"  InnoDB: Error: not able to"
-				" delete tablespace %lu of table ",
-				(ulong) table->space);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs("!\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Not able to delete tablespace %lu of"
+				" table %s!",
+				(ulong) table->space,
+				ut_get_name(trx, TRUE, table->name).c_str());
 		}
 		/* fall through */
 
@@ -2485,12 +2928,13 @@ row_create_index_for_mysql(
 	dict_index_t*	index,		/*!< in, own: index definition
 					(will be freed) */
 	trx_t*		trx,		/*!< in: transaction handle */
-	const ulint*	field_lengths)	/*!< in: if not NULL, must contain
+	const ulint*	field_lengths,	/*!< in: if not NULL, must contain
 					dict_index_get_n_fields(index)
 					actual field lengths for the
 					index columns, which are
 					then checked for not being too
 					large. */
+	dict_table_t*	handler)	/*!< in/out: table handler. */
 {
 	ind_node_t*	node;
 	mem_heap_t*	heap;
@@ -2500,13 +2944,8 @@ row_create_index_for_mysql(
 	ulint		len;
 	char*		table_name;
 	char*		index_name;
-	dict_table_t*	table;
+	dict_table_t*	table = NULL;
 	ibool		is_fts;
-
-#ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
-#endif /* UNIV_SYNC_DEBUG */
-	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	trx->op_info = "creating index";
 
@@ -2518,8 +2957,24 @@ row_create_index_for_mysql(
 
 	is_fts = (index->type == DICT_FTS);
 
-	table = dict_table_open_on_name(table_name, TRUE, TRUE,
-					DICT_ERR_IGNORE_NONE);
+	if (handler != NULL && dict_table_is_intrinsic(handler)) {
+		table = handler;
+	}
+
+	if (table == NULL) {
+
+#ifdef UNIV_SYNC_DEBUG
+		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+#endif /* UNIV_SYNC_DEBUG */
+		ut_ad(mutex_own(&(dict_sys->mutex)));
+
+		table = dict_table_open_on_name(table_name, TRUE, TRUE,
+						DICT_ERR_IGNORE_NONE);
+
+	} else {
+		++table->n_ref_count;
+		ut_ad(dict_table_is_intrinsic(table));
+	}
 
 	if (!dict_table_is_temporary(table)) {
 		trx_start_if_not_started_xa(trx, true);
@@ -2591,13 +3046,23 @@ row_create_index_for_mysql(
 
 		/* as above function has freed index object re-load it
 		now from dictionary cache using index_id */
-		index = dict_index_get_if_in_cache_low(index_id);
+		if (!dict_table_is_intrinsic(table)) {
+			index = dict_index_get_if_in_cache_low(index_id);
+		} else {
+			index = dict_table_find_index_on_id(table, index_id);
+
+			/* trx_id field is used for tracking which transaction
+			created the index. For intrinsic table this is
+			ir-relevant and so re-use it for tracking consistent
+			view while processing SELECT as part of UPDATE. */
+			index->trx_id = ULINT_UNDEFINED;
+		}
 		ut_a(index != NULL);
 		index->table = table;
 
 		err = dict_create_index_tree_in_mem(index, trx);
 
-		if (err != DB_SUCCESS) {
+		if (err != DB_SUCCESS && !dict_table_is_intrinsic(table)) {
 			dict_index_remove_from_cache(table, index);
 		}
 	}
@@ -2620,9 +3085,11 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_rollback_to_savepoint(trx, NULL);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_rollback_to_savepoint(trx, NULL);
+		}
 
-		row_drop_table_for_mysql(table_name, trx, FALSE);
+		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
 
 		if (trx->state != TRX_STATE_NOT_STARTED) {
 			trx_commit_for_mysql(trx);
@@ -2644,36 +3111,42 @@ Scans a table create SQL string and adds to the data dictionary
 the foreign key constraints declared in the string. This function
 should be called after the indexes for a table have been created.
 Each foreign key constraint must be accompanied with indexes in
-both participating tables. The indexes are allowed to contain more
-fields than mentioned in the constraint. Check also that foreign key
-constraints which reference this table are ok.
+bot participating tables. The indexes are allowed to contain more
+fields than mentioned in the constraint.
+
+@param[in]	trx		transaction
+@param[in]	sql_string	table create statement where
+				foreign keys are declared like:
+				FOREIGN KEY (a, b) REFERENCES table2(c, d),
+				table2 can be written also with the database
+				name before it: test.table2; the default
+				database id the database of parameter name
+@param[in]	sql_length	length of sql_string
+@param[in]	name		table full name in normalized form
+@param[in[	is_temp_table	true if table is temporary
+@param[in,out]	handler		table handler if table is intrinsic
+@param[in]	reject_fks	if TRUE, fail with error code
+				DB_CANNOT_ADD_CONSTRAINT if any
+				foreign keys are found.
 @return error code or DB_SUCCESS */
 
 dberr_t
 row_table_add_foreign_constraints(
-/*==============================*/
-	trx_t*		trx,		/*!< in: transaction */
-	const char*	sql_string,	/*!< in: table create statement where
-					foreign keys are declared like:
-				FOREIGN KEY (a, b) REFERENCES table2(c, d),
-					table2 can be written also with the
-					database name before it: test.table2 */
-	size_t		sql_length,	/*!< in: length of sql_string */
-	const char*	name,		/*!< in: table full name in the
-					normalized form
-					database_name/table_name */
-	bool		is_temp_table,	/*!< in: true if temp-table */
-	bool		reject_fks)	/*!< in: if TRUE, fail with error
-					code DB_CANNOT_ADD_CONSTRAINT if
-					any foreign keys are found. */
+	trx_t*			trx,
+	const char*		sql_string,
+	size_t			sql_length,
+	const char*		name,
+	bool			is_temp_table,
+	dict_table_t*		handler,
+	ibool			reject_fks)
 {
 	dberr_t	err;
 
 	DBUG_ENTER("row_table_add_foreign_constraints");
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(mutex_own(&(dict_sys->mutex)) || handler);
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X) || handler);
 #endif /* UNIV_SYNC_DEBUG */
 	ut_a(sql_string);
 
@@ -2685,15 +3158,18 @@ row_table_add_foreign_constraints(
 
 	trx_set_dict_operation(trx, TRX_DICT_OP_TABLE);
 
-	err = dict_create_foreign_constraints(trx, sql_string, sql_length,
-					      name, reject_fks);
+	err = dict_create_foreign_constraints(
+		trx, sql_string, sql_length, name, handler, reject_fks);
 
 	DBUG_EXECUTE_IF("ib_table_add_foreign_fail",
 			err = DB_DUPLICATE_KEY;);
 
 	DEBUG_SYNC_C("table_add_foreign_constraints");
 
-	if (err == DB_SUCCESS) {
+	/* Check like this shouldn't be done for table that doesn't
+	have foreign keys but code still continues to run with void action.
+	Disable it for intrinsic table at-least */
+	if (err == DB_SUCCESS && handler == NULL) {
 		/* Check that also referencing constraints are ok */
 		dict_names_t	fk_tables;
 		err = dict_load_foreigns(name, NULL, false, true,
@@ -2711,11 +3187,15 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		trx_rollback_to_savepoint(trx, NULL);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_rollback_to_savepoint(trx, NULL);
+		}
 
-		row_drop_table_for_mysql(name, trx, FALSE);
+		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
 
-		trx_commit_for_mysql(trx);
+		if (trx->state != TRX_STATE_NOT_STARTED) {
+			trx_commit_for_mysql(trx);
+		}
 
 		trx->error_state = DB_SUCCESS;
 	}
@@ -2831,10 +3311,9 @@ already_dropped:
 
 	MONITOR_DEC(MONITOR_BACKGROUND_DROP_TABLE);
 
-	ut_print_timestamp(stderr);
-	fputs("  InnoDB: Dropped table ", stderr);
-	ut_print_name(stderr, NULL, TRUE, drop->table_name);
-	fputs(" in background drop queue.\n", stderr);
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Dropped table %s in background drop queue.",
+		ut_get_name(NULL, TRUE, drop->table_name).c_str());
 
 	ut_free(drop->table_name);
 
@@ -2984,7 +3463,7 @@ row_discard_tablespace_begin(
 
 	if (table) {
 		dict_stats_wait_bg_to_stop_using_table(table, trx);
-		ut_a(!Tablespace::is_system_tablespace(table->space));
+		ut_a(!is_system_tablespace(table->space));
 		ut_a(table->n_foreign_key_checks_running == 0);
 	}
 
@@ -3148,7 +3627,7 @@ row_discard_tablespace(
 
 	err = fil_discard_tablespace(table->space);
 
-	switch(err) {
+	switch (err) {
 	case DB_SUCCESS:
 	case DB_IO_ERROR:
 	case DB_TABLESPACE_NOT_FOUND:
@@ -3338,10 +3817,7 @@ run_again:
 }
 
 /*********************************************************************//**
-Drops a table for MySQL.  If the name of the dropped table ends in
-one of "innodb_monitor", "innodb_lock_monitor", "innodb_tablespace_monitor",
-"innodb_table_monitor", then this will also stop the printing of monitor
-output by the master thread.  If the data dictionary was not already locked
+Drops a table for MySQL.  If the data dictionary was not already locked
 by the transaction, the transaction will be committed.  Otherwise, the
 data dictionary will remain locked.
 @return error code or DB_SUCCESS */
@@ -3352,23 +3828,25 @@ row_drop_table_for_mysql(
 	const char*	name,	/*!< in: table name */
 	trx_t*		trx,	/*!< in: transaction handle */
 	bool		drop_db,/*!< in: true=dropping whole database */
-	bool		nonatomic)
+	bool		nonatomic,
 				/*!< in: whether it is permitted
 				to release and reacquire dict_operation_lock */
+	dict_table_t*	handler)
+				/*!< in/out: table handler. */
 {
 	dberr_t		err;
 	dict_foreign_t*	foreign;
-	dict_table_t*	table;
+	dict_table_t*	table			= NULL;
 	bool		print_msg;
 	ulint		space_id;
-	char*		filepath = NULL;
+	char*		filepath		= NULL;
 	const char*	tablename_minus_db;
-	char*		tablename =  NULL;
+	char*		tablename		= NULL;
 	bool		ibd_file_missing;
-	ulint		namelen;
 	bool		locked_dictionary	= false;
 	pars_info_t*	info			= NULL;
 	mem_heap_t*	heap			= NULL;
+	bool		is_intrinsic_temp_table	= false;
 
 	DBUG_ENTER("row_drop_table_for_mysql");
 	DBUG_PRINT("row_drop_table_for_mysql", ("table: '%s'", name));
@@ -3376,12 +3854,8 @@ row_drop_table_for_mysql(
 	ut_a(name != NULL);
 
 	if (srv_sys_space.created_new_raw()) {
-		fputs("InnoDB: A new raw disk partition was initialized:\n"
-		      "InnoDB: we do not allow database modifications"
-		      " by the user.\n"
-		      "InnoDB: Shut down mysqld and edit my.cnf so that newraw"
-		      " is replaced with raw.\n", stderr);
-
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+                        MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		DBUG_RETURN(DB_ERROR);
 	}
 
@@ -3398,75 +3872,56 @@ row_drop_table_for_mysql(
 		tablename_minus_db = name;
 	}
 
-	namelen = strlen(tablename_minus_db) + 1;
-
-	if (namelen == sizeof S_innodb_monitor
-	    && !memcmp(tablename_minus_db, S_innodb_monitor,
-		       sizeof S_innodb_monitor)) {
-
-		/* Table name equals "innodb_monitor":
-		stop monitor prints */
-
-		srv_print_innodb_monitor = FALSE;
-		srv_print_innodb_lock_monitor = FALSE;
-	} else if (namelen == sizeof S_innodb_lock_monitor
-		   && !memcmp(tablename_minus_db, S_innodb_lock_monitor,
-			      sizeof S_innodb_lock_monitor)) {
-		srv_print_innodb_monitor = FALSE;
-		srv_print_innodb_lock_monitor = FALSE;
-	} else if (namelen == sizeof S_innodb_tablespace_monitor
-		   && !memcmp(tablename_minus_db, S_innodb_tablespace_monitor,
-			      sizeof S_innodb_tablespace_monitor)) {
-
-		srv_print_innodb_tablespace_monitor = FALSE;
-	} else if (namelen == sizeof S_innodb_table_monitor
-		   && !memcmp(tablename_minus_db, S_innodb_table_monitor,
-			      sizeof S_innodb_table_monitor)) {
-
-		srv_print_innodb_table_monitor = FALSE;
-	}
-
 	/* Serialize data dictionary operations with dictionary mutex:
 	no deadlocks can occur then in these operations */
 
 	trx->op_info = "dropping table";
 
-	if (trx->dict_operation_lock_mode != RW_X_LATCH) {
-		/* Prevent foreign key checks etc. while we are dropping the
-		table */
-
-		row_mysql_lock_data_dictionary(trx);
-
-		locked_dictionary = true;
-		nonatomic = true;
+	if (handler != NULL && dict_table_is_intrinsic(handler)) {
+		table = handler;
+		is_intrinsic_temp_table = true;
 	}
 
-	ut_ad(mutex_own(&(dict_sys->mutex)));
+	if (table == NULL) {
+
+		if (trx->dict_operation_lock_mode != RW_X_LATCH) {
+			/* Prevent foreign key checks etc. while we are
+			dropping the table */
+
+			row_mysql_lock_data_dictionary(trx);
+
+			locked_dictionary = true;
+			nonatomic = true;
+		}
+
+		ut_ad(mutex_own(&(dict_sys->mutex)));
 #ifdef UNIV_SYNC_DEBUG
-	ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
+		ut_ad(rw_lock_own(&dict_operation_lock, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
 
-	table = dict_table_open_on_name(
-		name, TRUE, FALSE,
-		static_cast<dict_err_ignore_t>(
-			DICT_ERR_IGNORE_INDEX_ROOT | DICT_ERR_IGNORE_CORRUPT));
+		table = dict_table_open_on_name(
+			name, TRUE, FALSE,
+			static_cast<dict_err_ignore_t>(
+				DICT_ERR_IGNORE_INDEX_ROOT
+				| DICT_ERR_IGNORE_CORRUPT));
+	} else {
+		++table->n_ref_count;
+		ut_ad(dict_table_is_intrinsic(table));
+	}
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ut_print_timestamp(stderr);
 
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, name);
-		fputs(" does not exist in the InnoDB internal\n"
-		      "InnoDB: data dictionary though MySQL is"
-		      " trying to drop it.\n"
-		      "InnoDB: Have you copied the .frm file"
-		      " of the table to the\n"
-		      "InnoDB: MySQL database directory"
-		      " from another database?\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
+		if (!row_is_mysql_tmp_table_name(name)) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Table %s does not exist in the InnoDB internal"
+				" data dictionary though MySQL is trying to"
+				" drop it. Have you copied the .frm file"
+				" of the table to the MySQL database directory"
+				" from another database? %s",
+				ut_get_name(trx, TRUE, name).c_str(),
+				TROUBLESHOOTING_MSG);
+		}
 		goto funct_exit;
 	}
 
@@ -3510,7 +3965,7 @@ row_drop_table_for_mysql(
 
 	/* Delete the link file if used. */
 	if (DICT_TF_HAS_DATA_DIR(table->flags)) {
-		fil_delete_link_file(name);
+		RemoteDatafile::delete_link_file(name);
 	}
 
 	if (!dict_table_is_temporary(table)) {
@@ -3529,7 +3984,9 @@ row_drop_table_for_mysql(
 		}
 	}
 
-	dict_table_prevent_eviction(table);
+	if (!dict_table_is_intrinsic(table)) {
+		dict_table_prevent_eviction(table);
+	}
 
 	dict_table_close(table, TRUE, FALSE);
 
@@ -3588,16 +4045,13 @@ check_next_foreign:
 		added = row_add_table_to_background_drop_list(save_tablename);
 
 		if (added) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: You are trying to drop table ",
-			      stderr);
-			ut_print_name(stderr, trx, TRUE, save_tablename);
-			fputs("\n"
-			      "InnoDB: though there is a"
-			      " foreign key check running on it.\n"
-			      "InnoDB: Adding the table to"
-			      " the background drop queue.\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"You are trying to drop table %s"
+				" though there is a"
+				" foreign key check running on it."
+				" Adding the table to"
+				" the background drop queue.",
+				ut_get_name(trx, TRUE, save_tablename).c_str());
 
 			/* We return DB_SUCCESS to MySQL though the drop will
 			happen lazily later */
@@ -3612,7 +4066,7 @@ check_next_foreign:
 	}
 
 	/* Remove all locks that are on the table or its records, if there
-	are no refernces to the table but it has record locks, we release
+	are no references to the table but it has record locks, we release
 	the record locks unconditionally. One use case is:
 
 		CREATE TABLE t2 (PRIMARY KEY (a)) SELECT * FROM t1;
@@ -3631,19 +4085,16 @@ check_next_foreign:
 	} else if (table->n_ref_count > 0 || table->n_rec_locks > 0) {
 		ibool	added;
 
+		ut_ad(!dict_table_is_intrinsic(table));
+
 		added = row_add_table_to_background_drop_list(table->name);
 
 		if (added) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Warning: MySQL is"
-			      " trying to drop table ", stderr);
-			ut_print_name(stderr, trx, TRUE, table->name);
-			fputs("\n"
-			      "InnoDB: though there are still"
-			      " open handles to it.\n"
-			      "InnoDB: Adding the table to the"
-			      " background drop queue.\n",
-			      stderr);
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"MySQL is trying to drop table %s though there"
+				" are still open handles to it. Adding the"
+				" table to the background drop queue.",
+				ut_get_name(trx, TRUE, table->name).c_str());
 
 			/* We return DB_SUCCESS to MySQL though the drop will
 			happen lazily later */
@@ -3847,17 +4298,22 @@ check_next_foreign:
 		/* We do not allow temporary tables with a remote path. */
 		ut_a(!(is_temp && DICT_TF_HAS_DATA_DIR(table->flags)));
 
+		/* Make sure the data_dir_path is set. */
+		dict_get_and_save_data_dir_path(table, true);
+
 		if (space_id && DICT_TF_HAS_DATA_DIR(table->flags)) {
-			dict_get_and_save_data_dir_path(table, true);
 			ut_a(table->data_dir_path);
 
-			filepath = os_file_make_remote_pathname(
-				table->data_dir_path, table->name, "ibd");
+			filepath = fil_make_filepath(
+				table->data_dir_path,
+				table->name, IBD, true);
 		} else if (table->dir_path_of_temp_table) {
-			filepath = fil_make_ibd_name(
-				table->dir_path_of_temp_table, true);
+			filepath = fil_make_filepath(
+				table->dir_path_of_temp_table,
+				NULL, IBD, false);
 		} else {
-			filepath = fil_make_ibd_name(tablename, false);
+			filepath = fil_make_filepath(
+				NULL, tablename, IBD, false);
 		}
 
 		if (dict_table_has_fts_index(table)
@@ -3867,12 +4323,12 @@ check_next_foreign:
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
-				ut_print_timestamp(stderr);
-				fprintf(stderr," InnoDB: Error: (%s) not "
-					"able to remove ancillary FTS tables "
-					"for table ", ut_strerr(err));
-				ut_print_name(stderr, trx, TRUE, tablename);
-				fputs("\n", stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"(%s) not able to remove ancillary FTS"
+					" tables for table %s",
+					ut_strerr(err),
+					ut_get_name(
+						trx, TRUE, tablename).c_str());
 
 				goto funct_exit;
 			}
@@ -3896,16 +4352,31 @@ check_next_foreign:
 		is going to be destroyed below. */
 		trx->mod_tables.erase(table);
 
-		dict_table_remove_from_cache(table);
+		if (!dict_table_is_intrinsic(table)) {
+			dict_table_remove_from_cache(table);
+		} else {
+			for (dict_index_t* index
+				= UT_LIST_GET_FIRST(table->indexes);
+			     index != NULL;
+			     index = UT_LIST_GET_FIRST(table->indexes)) {
+				rw_lock_free(&index->lock);
+
+				UT_LIST_REMOVE(table->indexes, index);
+
+				dict_mem_index_free(index);
+			}
+
+			dict_mem_table_free(table);
+			table = NULL;
+		}
 
 		if (!is_temp
 		    && dict_load_table(tablename, TRUE,
 				       DICT_ERR_IGNORE_NONE) != NULL) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error: not able to remove table ",
-			      stderr);
-			ut_print_name(stderr, trx, TRUE, tablename);
-			fputs(" from the dictionary cache!\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Not able to remove table %s"
+				" from the dictionary cache!",
+				ut_get_name(trx, TRUE, tablename).c_str());
 			err = DB_ERROR;
 		}
 
@@ -3917,7 +4388,7 @@ check_next_foreign:
 		print_msg = !(is_temp || ibd_file_missing);
 
 		if (err == DB_SUCCESS
-		    && !Tablespace::is_system_tablespace(space_id)) {
+		    && !is_system_tablespace(space_id)) {
 			if (!is_temp
 			    && !fil_space_for_table_exists_in_mem(
 				    space_id, tablename,
@@ -3935,8 +4406,8 @@ check_next_foreign:
 						tablename, FALSE);
 
 					ib_logf(IB_LOG_LEVEL_INFO,
-						"Removed the table %s from "
-						"InnoDB's data dictionary",
+						"Removed the table %s from"
+						" InnoDB's data dictionary",
 						msg_tablename);
 				}
 
@@ -3949,20 +4420,17 @@ check_next_foreign:
 					space_id,
 					BUF_REMOVE_FLUSH_NO_WRITE)
 				   != DB_SUCCESS) {
-				fprintf(stderr,
-					"InnoDB: We removed now the InnoDB"
-					" internal data dictionary entry\n"
-					"InnoDB: of table ");
-				ut_print_name(stderr, trx, TRUE, tablename);
-				fprintf(stderr, ".\n");
 
-				ut_print_timestamp(stderr);
-				fprintf(stderr,
-					"  InnoDB: Error: not able to"
-					" delete tablespace %lu of table ",
-					(ulong) space_id);
-				ut_print_name(stderr, trx, TRUE, tablename);
-				fputs("!\n", stderr);
+				std::string str = ut_get_name(
+							trx, TRUE, tablename);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"We removed now the InnoDB"
+					" internal data dictionary entry"
+					" of table %s. Not able to"
+					" delete tablespace %lu of table %s!",
+					str.c_str(), (ulong) space_id,
+					str.c_str());
+
 				err = DB_ERROR;
 			}
 		}
@@ -3987,12 +4455,9 @@ check_next_foreign:
 	default:
 		/* This is some error we do not expect. Print
 		the error number and rollback transaction */
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr, "InnoDB: unknown error code %lu"
-			" while dropping table:", (ulong) err);
-		ut_print_name(stderr, trx, TRUE, tablename);
-		fprintf(stderr, ".\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Unknown error code %lu while dropping table: %s.",
+			(ulong) err, ut_get_name(trx, TRUE, tablename).c_str());
 
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
@@ -4030,7 +4495,12 @@ funct_exit:
 
 	trx->op_info = "";
 
-	srv_wake_master_thread();
+	/* No need to immediately invoke master thread as there is no work
+	generated by intrinsic table operation that needs master thread
+	attention. */
+	if (!is_intrinsic_temp_table) {
+		srv_wake_master_thread();
+	}
 
 	DBUG_RETURN(err);
 }
@@ -4229,8 +4699,8 @@ loop:
 
 		if (!table) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot load table %s from InnoDB internal "
-				"data dictionary during drop database",
+				"Cannot load table %s from InnoDB internal"
+				" data dictionary during drop database",
 				table_name);
 			ut_free(table_name);
 			err = DB_TABLE_NOT_FOUND;
@@ -4244,9 +4714,9 @@ loop:
 			the rest.*/
 			if (table->can_be_evicted) {
 				ib_logf(IB_LOG_LEVEL_WARN,
-					"Orphan table encountered during "
-					"DROP DATABASE. This is possible if "
-					"'%s.frm' was lost.", table->name);
+					"Orphan table encountered during"
+					" DROP DATABASE. This is possible if"
+					" '%s.frm' was lost.", table->name);
 			}
 
 			if (table->ibd_file_missing) {
@@ -4269,15 +4739,12 @@ loop:
 		if (table->n_ref_count > 0) {
 			row_mysql_unlock_data_dictionary(trx);
 
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Warning: MySQL is trying to"
-			      " drop database ", stderr);
-			ut_print_name(stderr, trx, TRUE, name);
-			fputs("\n"
-			      "InnoDB: though there are still"
-			      " open handles to table ", stderr);
-			ut_print_name(stderr, trx, TRUE, table_name);
-			fputs(".\n", stderr);
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"MySQL is trying to drop database %s"
+				" though there are still"
+				" open handles to table %s.",
+				ut_get_name(trx, TRUE, name).c_str(),
+				ut_get_name(trx, TRUE, table_name).c_str());
 
 			os_thread_sleep(1000000);
 
@@ -4290,12 +4757,12 @@ loop:
 		trx_commit_for_mysql(trx);
 
 		if (err != DB_SUCCESS) {
-			fputs("InnoDB: DROP DATABASE ", stderr);
-			ut_print_name(stderr, trx, TRUE, name);
-			fprintf(stderr, " failed with error (%s) for table ",
-				ut_strerr(err));
-			ut_print_name(stderr, trx, TRUE, table_name);
-			putc('\n', stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"DROP DATABASE %s"
+				" failed with error (%s) for table %s",
+				ut_get_name(trx, TRUE, name).c_str(),
+				ut_strerr(err),
+				ut_get_name(trx, TRUE, table_name).c_str());
 			ut_free(table_name);
 			break;
 		}
@@ -4309,10 +4776,10 @@ loop:
 		err = drop_all_foreign_keys_in_db(name, trx);
 
 		if (err != DB_SUCCESS) {
-			fputs("InnoDB: DROP DATABASE ", stderr);
-			ut_print_name(stderr, trx, TRUE, name);
-			fprintf(stderr, " failed with error %d while "
-				"dropping all foreign keys", err);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"DROP DATABASE %s failed with error %d while"
+				" dropping all foreign keys",
+				ut_get_name(trx, TRUE, name).c_str(), err);
 		}
 	}
 
@@ -4422,24 +4889,23 @@ row_rename_table_for_mysql(
 	ut_a(new_name != NULL);
 	ut_ad(trx->state == TRX_STATE_ACTIVE);
 
-	if (srv_sys_space.created_new_raw() || srv_force_recovery) {
-		fputs("InnoDB: A new raw disk partition was initialized or\n"
-		      "InnoDB: innodb_force_recovery is on: we do not allow\n"
-		      "InnoDB: database modifications by the user. Shut down\n"
-		      "InnoDB: mysqld and edit my.cnf so that newraw"
-		      " is replaced\n"
-		      "InnoDB: with raw, and innodb_force_... is removed.\n",
-		      stderr);
-
+	if (srv_sys_space.created_new_raw()) {
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION);
 		goto funct_exit;
+
+	} else if (srv_force_recovery) {
+		ib_logf(IB_LOG_LEVEL_INFO,"%s",
+			MODIFICATIONS_NOT_ALLOWED_MSG_FORCE_RECOVERY);
+		err = DB_READ_ONLY;
+		goto funct_exit;
+
 	} else if (row_mysql_is_system_table(new_name)) {
 
-		fprintf(stderr,
-			"InnoDB: Error: trying to create a MySQL"
-			" system table %s of type InnoDB.\n"
-			"InnoDB: MySQL system tables must be"
-			" of the MyISAM type!\n",
-			new_name);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Trying to create a MySQL system table %s of"
+			" type InnoDB. MySQL system tables must be"
+			" of the MyISAM type!", new_name);
 
 		goto funct_exit;
 	}
@@ -4456,20 +4922,13 @@ row_rename_table_for_mysql(
 
 	if (!table) {
 		err = DB_TABLE_NOT_FOUND;
-		ut_print_timestamp(stderr);
-
-		fputs("  InnoDB: Error: table ", stderr);
-		ut_print_name(stderr, trx, TRUE, old_name);
-		fputs(" does not exist in the InnoDB internal\n"
-		      "InnoDB: data dictionary though MySQL is"
-		      " trying to rename the table.\n"
-		      "InnoDB: Have you copied the .frm file"
-		      " of the table to the\n"
-		      "InnoDB: MySQL database directory"
-		      " from another database?\n"
-		      "InnoDB: You can look for further help from\n"
-		      "InnoDB: " REFMAN "innodb-troubleshooting.html\n",
-		      stderr);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Table %s does not exist in the InnoDB internal data"
+			" dictionary though MySQL is trying to rename the"
+			" table. Have you copied the .frm file of the table to"
+			" the MySQL database directory from another database? %s",
+			ut_get_name(trx, TRUE, old_name).c_str(),
+			TROUBLESHOOTING_MSG);
 		goto funct_exit;
 
 	} else if (table->ibd_file_missing
@@ -4478,9 +4937,8 @@ row_rename_table_for_mysql(
 		err = DB_TABLE_NOT_FOUND;
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Table %s does not have an .ibd file in the database "
-			"directory. See " REFMAN "innodb-troubleshooting.html",
-			old_name);
+			"Table %s does not have an .ibd file in the database"
+			" directory. %s", old_name, TROUBLESHOOTING_MSG);
 
 		goto funct_exit;
 
@@ -4511,12 +4969,10 @@ row_rename_table_for_mysql(
 	}
 
 	if (table->n_foreign_key_checks_running > 0) {
-		ut_print_timestamp(stderr);
-		fputs(" InnoDB: Error: in ALTER TABLE ", stderr);
-		ut_print_name(stderr, trx, TRUE, old_name);
-		fprintf(stderr, "\n"
-			"InnoDB: a FOREIGN KEY check is running.\n"
-			"InnoDB: Cannot rename table.\n");
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"In ALTER TABLE %s a FOREIGN KEY check is running."
+			" Cannot rename table.",
+			ut_get_name(trx, TRUE, old_name).c_str());
 		err = DB_TABLE_IN_FK_CHECK;
 		goto funct_exit;
 	}
@@ -4541,7 +4997,7 @@ row_rename_table_for_mysql(
 	/* SYS_TABLESPACES and SYS_DATAFILES track non-system tablespaces
 	which have space IDs > 0. */
 	if (err == DB_SUCCESS
-	    && !Tablespace::is_system_tablespace(table->space)
+	    && !is_system_tablespace(table->space)
 	    && !table->ibd_file_missing) {
 		/* Make a new pathname to update SYS_DATAFILES. */
 		char*	new_path = row_make_new_pathname(table, new_name);
@@ -4702,57 +5158,65 @@ row_rename_table_for_mysql(
 		err = fts_rename_aux_tables(table, new_name, trx);
 
 		if (err != DB_SUCCESS
-		    && !Tablespace::is_system_tablespace(table->space)) {
+		    && !is_system_tablespace(table->space)) {
 			char*	orig_name = table->name;
+			trx_t*	trx_bg = trx_allocate_for_background();
+
+			/* If the first fts_rename fails, the trx would
+			be rolled back and committed, we can't use it any more,
+			so we have to start a new background trx here. */
+			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+			trx_bg->op_info = "Revert the failing rename"
+					  " for fts aux tables";
+			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
+			trx_start_for_ddl(trx_bg, TRX_DICT_OP_TABLE);
 
 			/* If rename fails and table has its own tablespace,
 			we need to call fts_rename_aux_tables again to
 			revert the ibd file rename, which is not under the
 			control of trx. Also notice the parent table name
-			in cache is not changed yet. */
+			in cache is not changed yet. If the reverting fails,
+			the ibd data may be left in the new database, which
+			can be fixed only manually. */
 			table->name = const_cast<char*>(new_name);
-			fts_rename_aux_tables(table, old_name, trx);
+			fts_rename_aux_tables(table, old_name, trx_bg);
 			table->name = orig_name;
+
+			trx_bg->dict_operation_lock_mode = 0;
+			trx_commit_for_mysql(trx_bg);
+			trx_free_for_background(trx_bg);
 		}
 	}
 
 end:
 	if (err != DB_SUCCESS) {
 		if (err == DB_DUPLICATE_KEY) {
-			ut_print_timestamp(stderr);
-			fputs("  InnoDB: Error; possible reasons:\n"
-			      "InnoDB: 1) Table rename would cause"
-			      " two FOREIGN KEY constraints\n"
-			      "InnoDB: to have the same internal name"
-			      " in case-insensitive comparison.\n"
-			      "InnoDB: 2) table ", stderr);
-			ut_print_name(stderr, trx, TRUE, new_name);
-			fputs(" exists in the InnoDB internal data\n"
-			      "InnoDB: dictionary though MySQL is"
-			      " trying to rename table ", stderr);
-			ut_print_name(stderr, trx, TRUE, old_name);
-			fputs(" to it.\n"
-			      "InnoDB: Have you deleted the .frm file"
-			      " and not used DROP TABLE?\n"
-			      "InnoDB: You can look for further help from\n"
-			      "InnoDB: " REFMAN "innodb-troubleshooting.html\n"
-			      "InnoDB: If table ", stderr);
-			ut_print_name(stderr, trx, TRUE, new_name);
-			fputs(" is a temporary table #sql..., then"
-			      " it can be that\n"
-			      "InnoDB: there are still queries running"
-			      " on the table, and it will be\n"
-			      "InnoDB: dropped automatically when"
-			      " the queries end.\n"
-			      "InnoDB: You can drop the orphaned table"
-			      " inside InnoDB by\n"
-			      "InnoDB: creating an InnoDB table with"
-			      " the same name in another\n"
-			      "InnoDB: database and copying the .frm file"
-			      " to the current database.\n"
-			      "InnoDB: Then MySQL thinks the table exists,"
-			      " and DROP TABLE will\n"
-			      "InnoDB: succeed.\n", stderr);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Possible reasons:");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"(1) Table rename would cause two FOREIGN KEY"
+				" constraints to have the same internal name"
+				" in case-insensitive comparison.");
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"(2) Table %s exists in the InnoDB internal"
+				" data dictionary though MySQL is trying to"
+				" rename table %s to it. Have you deleted the"
+				" .frm file and not used DROP TABLE?",
+				ut_get_name(trx, TRUE, new_name).c_str(),
+				ut_get_name(trx, TRUE, old_name).c_str());
+			ib_logf(IB_LOG_LEVEL_INFO, "%s", TROUBLESHOOTING_MSG);
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"If table %s is a temporary table #sql..., then"
+				" it can be that there are still queries"
+				" running on the table, and it will be dropped"
+				" automatically when the queries end. You can"
+				" drop the orphaned table inside InnoDB by"
+				" creating an InnoDB table with the same name"
+				" in another database and copying the .frm file"
+				" to the current database. Then MySQL thinks"
+				" the table exists, and DROP TABLE will"
+				" succeed.",
+				ut_get_name(trx, TRUE, new_name).c_str());
 		}
 		trx->error_state = DB_SUCCESS;
 		trx_rollback_to_savepoint(trx, NULL);
@@ -4780,29 +5244,23 @@ end:
 			DICT_ERR_IGNORE_NONE, fk_tables);
 
 		if (err != DB_SUCCESS) {
-			ut_print_timestamp(stderr);
 
 			if (old_is_tmp) {
-				fputs("  InnoDB: Error: in ALTER TABLE ",
-				      stderr);
-				ut_print_name(stderr, trx, TRUE, new_name);
-				fputs("\n"
-				      "InnoDB: has or is referenced"
-				      " in foreign key constraints\n"
-				      "InnoDB: which are not compatible"
-				      " with the new table definition.\n",
-				      stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"In ALTER TABLE %s has or is referenced"
+					" in foreign key constraints which are"
+					" not compatible with the new table"
+					" definition.",
+					ut_get_name(
+						trx, TRUE, new_name).c_str());
 			} else {
-				fputs("  InnoDB: Error: in RENAME TABLE"
-				      " table ",
-				      stderr);
-				ut_print_name(stderr, trx, TRUE, new_name);
-				fputs("\n"
-				      "InnoDB: is referenced in"
-				      " foreign key constraints\n"
-				      "InnoDB: which are not compatible"
-				      " with the new table definition.\n",
-				      stderr);
+				ib_logf(IB_LOG_LEVEL_ERROR,
+					"In RENAME TABLE table %s is referenced"
+					" in foreign key constraints which are"
+					" not compatible with the new table"
+					" definition.",
+					ut_get_name(
+						trx, TRUE, new_name).c_str());
 			}
 
 			ut_a(DB_SUCCESS == dict_table_rename_in_cache(
@@ -4853,8 +5311,9 @@ row_scan_index_for_mysql(
 	bool			check_keys,	/*!< in: true=check for mis-
 						ordered or duplicate records,
 						false=count the rows only */
-	ulint*			n_rows)		/*!< out: number of entries
+	ulint*			n_rows,		/*!< out: number of entries
 						seen in the consistent read */
+	innodb_session_t*	session)	/*!< in,out: session handler. */
 {
 	dtuple_t*	prev_entry	= NULL;
 	ulint		matched_fields;
@@ -4872,6 +5331,9 @@ row_scan_index_for_mysql(
 	rec_offs_init(offsets_);
 
 	*n_rows = 0;
+
+	/* Don't support RTree Leaf level scan */
+	ut_ad(!dict_index_is_spatial(index));
 
 	if (dict_index_is_clust(index)) {
 		/* The clustered index of a table is always available.
@@ -4895,7 +5357,7 @@ row_scan_index_for_mysql(
 
 	cnt = 1000;
 
-	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0);
+	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, 0, session);
 loop:
 	/* Check thd->killed every 1,000 scanned rows */
 	if (--cnt == 0) {
@@ -4918,7 +5380,7 @@ loop:
 	{
 		const char* doing = check_keys? "CHECK TABLE" : "COUNT(*)";
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"%s on index %s of table %s returned %d\n",
+			"%s on index %s of table %s returned %d",
 			doing, index->name, index->table_name, ret);
 		/* fall through (this error is ignored by CHECK TABLE) */
 	}
@@ -5022,35 +5484,10 @@ not_ok:
 	}
 
 next_rec:
-	ret = row_search_for_mysql(buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT);
+	ret = row_search_for_mysql(
+		buf, PAGE_CUR_G, prebuilt, 0, ROW_SEL_NEXT, session);
 
 	goto loop;
-}
-
-/*********************************************************************//**
-Determines if a table is a magic monitor table.
-@return true if monitor table */
-
-bool
-row_is_magic_monitor_table(
-/*=======================*/
-	const char*	table_name)	/*!< in: name of the table, in the
-					form database/table_name */
-{
-	const char*	name; /* table_name without database/ */
-	ulint		len;
-
-	name = dict_remove_db_name(table_name);
-	len = strlen(name) + 1;
-
-	return(STR_EQ(name, len, S_innodb_monitor)
-	       || STR_EQ(name, len, S_innodb_lock_monitor)
-	       || STR_EQ(name, len, S_innodb_tablespace_monitor)
-	       || STR_EQ(name, len, S_innodb_table_monitor)
-#ifdef UNIV_MEM_DEBUG
-	       || STR_EQ(name, len, S_innodb_mem_validate)
-#endif /* UNIV_MEM_DEBUG */
-	       );
 }
 
 /*********************************************************************//**

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,6 @@ my_bool	net_flush(NET *net);
 #define unsigned_field(A) ((A)->flags & UNSIGNED_FLAG)
 
 static void append_wild(char *to,char *end,const char *wild);
-sig_handler my_pipe_sig_handler(int sig);
 
 static my_bool mysql_client_init= 0;
 static my_bool org_my_init_done= 0;
@@ -288,21 +287,6 @@ mysql_debug(const char *debug __attribute__((unused)))
     }
 #endif
   }
-#endif
-}
-
-
-/**************************************************************************
-  Ignore SIGPIPE handler
-   ARGSUSED
-**************************************************************************/
-
-sig_handler
-my_pipe_sig_handler(int sig __attribute__((unused)))
-{
-  DBUG_PRINT("info",("Hit by signal %d",sig));
-#ifdef SIGNAL_HANDLER_RESET_ON_DELIVERY
-  (void) signal(SIGPIPE, my_pipe_sig_handler);
 #endif
 }
 
@@ -691,7 +675,7 @@ void mysql_set_local_infile_default(MYSQL *mysql)
 int STDCALL
 mysql_query(MYSQL *mysql, const char *query)
 {
-  return mysql_real_query(mysql,query, (uint) strlen(query));
+  return mysql_real_query(mysql,query, (ulong) strlen(query));
 }
 
 
@@ -844,12 +828,11 @@ mysql_list_fields(MYSQL *mysql, const char *table, const char *wild)
 MYSQL_RES * STDCALL
 mysql_list_processes(MYSQL *mysql)
 {
-  MYSQL_DATA *fields;
+  MYSQL_DATA *fields= NULL;
   uint field_count;
   uchar *pos;
   DBUG_ENTER("mysql_list_processes");
 
-  LINT_INIT(fields);
   if (simple_command(mysql,COM_PROCESS_INFO,0,0,0))
     DBUG_RETURN(0);
   free_old_query(mysql);
@@ -1185,7 +1168,7 @@ myodbc_remove_escape(MYSQL *mysql,char *name)
 {
   char *to;
   my_bool use_mb_flag=use_mb(mysql->charset);
-  char *UNINIT_VAR(end);
+  char *end= NULL;
   if (use_mb_flag)
     for (end=name; *end ; end++) ;
 
@@ -1317,6 +1300,11 @@ static my_bool my_realloc_str(NET *net, ulong length)
     res= net_realloc(net, buf_length + length);
     if (res)
     {
+      if (net->last_errno == ER_OUT_OF_RESOURCES)
+        net->last_errno= CR_OUT_OF_MEMORY;
+      else if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
+        net->last_errno= CR_NET_PACKET_TOO_LARGE;
+
       my_stpcpy(net->sqlstate, unknown_sqlstate);
       my_stpcpy(net->last_error, ER(net->last_errno));
     }
@@ -1925,7 +1913,7 @@ static void store_param_double(NET *net, MYSQL_BIND *param)
 static void store_param_time(NET *net, MYSQL_BIND *param)
 {
   MYSQL_TIME *tm= (MYSQL_TIME *) param->buffer;
-  char buff[MAX_TIME_REP_LENGTH], *pos;
+  uchar buff[MAX_TIME_REP_LENGTH], *pos;
   uint length;
 
   pos= buff+1;
@@ -1948,7 +1936,7 @@ static void store_param_time(NET *net, MYSQL_BIND *param)
 
 static void net_store_datetime(NET *net, MYSQL_TIME *tm)
 {
-  char buff[MAX_DATETIME_REP_LENGTH], *pos;
+  uchar buff[MAX_DATETIME_REP_LENGTH], *pos;
   uint length;
 
   pos= buff+1;
@@ -2070,9 +2058,9 @@ static my_bool execute(MYSQL_STMT *stmt, char *packet, ulong length)
   buff[4]= (char) stmt->flags;
   int4store(buff+5, 1);                         /* iteration count */
 
-  res= test(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
-                                 (uchar*) packet, length, 1, stmt) ||
-            (*mysql->methods->read_query_result)(mysql));
+  res= MY_TEST(cli_advanced_command(mysql, COM_STMT_EXECUTE, buff, sizeof(buff),
+                                    (uchar*) packet, length, 1, stmt) ||
+               (*mysql->methods->read_query_result)(mysql));
   stmt->affected_rows= mysql->affected_rows;
   stmt->server_status= mysql->server_status;
   stmt->insert_id= mysql->insert_id;
@@ -2559,7 +2547,7 @@ int STDCALL mysql_stmt_execute(MYSQL_STMT *stmt)
     reinit_result_set_metadata(stmt);
     prepare_to_fetch_result(stmt);
   }
-  DBUG_RETURN(test(stmt->last_errno));
+  DBUG_RETURN(MY_TEST(stmt->last_errno));
 }
 
 
@@ -3126,9 +3114,9 @@ static void read_binary_date(MYSQL_TIME *tm, uchar **pos)
 */
 
 static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
-                                         uint length)
+                                         size_t length)
 {
-  char *buffer= (char *)param->buffer;
+  uchar *buffer= param->buffer;
   char *endptr= value + length;
 
   /*
@@ -3179,7 +3167,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
     float fdata= (float) data;
-    *param->error= (fdata != data) | test(err);
+    *param->error= (fdata != data) | MY_TEST(err);
     floatstore(buffer, fdata);
     break;
   }
@@ -3187,7 +3175,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
   {
     int err;
     double data= my_strntod(&my_charset_latin1, value, length, &endptr, &err);
-    *param->error= test(err);
+    *param->error= MY_TEST(err);
     doublestore(buffer, data);
     break;
   }
@@ -3196,7 +3184,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
     str_to_time(value, length, tm, &status);
-    *param->error= test(status.warnings);
+    *param->error= MY_TEST(status.warnings);
     break;
   }
   case MYSQL_TYPE_DATE:
@@ -3206,7 +3194,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     MYSQL_TIME_STATUS status;
     MYSQL_TIME *tm= (MYSQL_TIME *)buffer;
     (void) str_to_datetime(value, length, tm, TIME_FUZZY_DATE, &status);
-    *param->error= test(status.warnings) &&
+    *param->error= MY_TEST(status.warnings) &&
                    (param->buffer_type == MYSQL_TYPE_DATE &&
                     tm->time_type != MYSQL_TIMESTAMP_DATE);
     break;
@@ -3225,7 +3213,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
     */
     char *start= value + param->offset;
     char *end= value + length;
-    ulong copy_length;
+    size_t copy_length;
     if (start < end)
     {
       copy_length= end - start;
@@ -3242,7 +3230,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
       param->length will always contain length of entire column;
       number of copied bytes may be way different:
     */
-    *param->length= length;
+    *param->length= (unsigned long)length;
     break;
   }
   }
@@ -3262,7 +3250,7 @@ static void fetch_string_with_conversion(MYSQL_BIND *param, char *value,
 static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                        longlong value, my_bool is_unsigned)
 {
-  char *buffer= (char *)param->buffer;
+  uchar *buffer= param->buffer;
 
   switch (param->buffer_type) {
   case MYSQL_TYPE_NULL: /* do nothing */
@@ -3331,7 +3319,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
     int error;
     value= number_to_datetime(value, (MYSQL_TIME *) buffer, TIME_FUZZY_DATE,
                               &error);
-    *param->error= test(error);
+    *param->error= MY_TEST(error);
     break;
   }
   default:
@@ -3371,7 +3359,7 @@ static void fetch_long_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_float_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
                                         double value, my_gcvt_arg_type type)
 {
-  char *buffer= (char *)param->buffer;
+  uchar *buffer= param->buffer;
   double val64 = (value < 0 ? -floor(-value) : floor(value));
 
   switch (param->buffer_type) {
@@ -3607,7 +3595,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_FLOAT:
   {
     float value;
-    float4get(value,*row);
+    float4get(&value,*row);
     fetch_float_with_conversion(param, field, value, MY_GCVT_ARG_FLOAT);
     *row+= 4;
     break;
@@ -3615,7 +3603,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
   case MYSQL_TYPE_DOUBLE:
   {
     double value;
-    float8get(value,*row);
+    float8get(&value,*row);
     fetch_float_with_conversion(param, field, value, MY_GCVT_ARG_DOUBLE);
     *row+= 8;
     break;
@@ -3678,7 +3666,7 @@ static void fetch_result_with_conversion(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
                                  uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uchar data= **row;
   *(uchar *)param->buffer= data;
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX8;
@@ -3688,7 +3676,7 @@ static void fetch_result_tinyint(MYSQL_BIND *param, MYSQL_FIELD *field,
 static void fetch_result_short(MYSQL_BIND *param, MYSQL_FIELD *field,
                                uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ushort data= (ushort) sint2korr(*row);
   shortstore(param->buffer, data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX16;
@@ -3699,7 +3687,7 @@ static void fetch_result_int32(MYSQL_BIND *param,
                                MYSQL_FIELD *field __attribute__((unused)),
                                uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   uint32 data= (uint32) sint4korr(*row);
   longstore(param->buffer, data);
   *param->error= param->is_unsigned != field_is_unsigned && data > INT_MAX32;
@@ -3710,7 +3698,7 @@ static void fetch_result_int64(MYSQL_BIND *param,
                                MYSQL_FIELD *field __attribute__((unused)),
                                uchar **row)
 {
-  my_bool field_is_unsigned= test(field->flags & UNSIGNED_FLAG);
+  my_bool field_is_unsigned= MY_TEST(field->flags & UNSIGNED_FLAG);
   ulonglong data= (ulonglong) sint8korr(*row);
   *param->error= param->is_unsigned != field_is_unsigned && data > LONGLONG_MAX;
   longlongstore(param->buffer, data);
@@ -3722,7 +3710,7 @@ static void fetch_result_float(MYSQL_BIND *param,
                                uchar **row)
 {
   float value;
-  float4get(value,*row);
+  float4get(&value,*row);
   floatstore(param->buffer, value);
   *row+= 4;
 }
@@ -3732,7 +3720,7 @@ static void fetch_result_double(MYSQL_BIND *param,
                                 uchar **row)
 {
   double value;
-  float8get(value,*row);
+  float8get(&value,*row);
   doublestore(param->buffer, value);
   *row+= 8;
 }
@@ -4741,7 +4729,7 @@ my_bool STDCALL mysql_stmt_close(MYSQL_STMT *stmt)
   my_free(stmt->extension);
   my_free(stmt);
 
-  DBUG_RETURN(test(rc));
+  DBUG_RETURN(MY_TEST(rc));
 }
 
 /*
@@ -4942,6 +4930,11 @@ mysql_reset_connection(MYSQL *mysql)
   else
   {
     mysql_detach_stmt_list(&mysql->stmts, "mysql_reset_connection");
+    /* reset some of the members in mysql */
+    mysql->insert_id= 0;
+    mysql->affected_rows= ~(my_ulonglong) 0;
+    free_old_query(mysql);
+    mysql->status=MYSQL_STATUS_READY;
     DBUG_RETURN(0);
   }
 }

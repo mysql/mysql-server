@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,7 +24,6 @@
 #include "sql_db.h"            // mysql_opt_change_db, mysql_change_db
 #include "sql_table.h"         // prepare_create_field
 #include "auth_common.h"       // *_ACL
-#include "sql_array.h"         // Dynamic_array
 #include "log_event.h"         // append_query_string, Query_log_event
 
 #include "sp_head.h"
@@ -38,7 +37,6 @@
 #include "sql_base.h"          // close_thread_tables
 #include "transaction.h"       // trans_commit_stmt
 #include "opt_trace.h"         // opt_trace_disable_etc
-#include "global_threads.h"
 
 #include <my_user.h>           // parse_user
 #include "mysql/psi/mysql_statement.h"
@@ -82,7 +80,7 @@ struct SP_TABLE
     we count length of key.
   */
   LEX_STRING qname;
-  uint db_length, table_name_length;
+  size_t db_length, table_name_length;
   bool temp;               /* true if corresponds to a temporary table */
   thr_lock_type lock_type; /* lock type used for prelocking */
   uint lock_count;
@@ -262,6 +260,7 @@ sp_head::sp_head(enum_sp_type type)
   m_last_cached_sp(NULL),
   m_trg_list(NULL),
   m_root_parsing_ctx(NULL),
+  m_instructions(&main_mem_root),
   m_sp_cache_version(0),
   m_creation_ctx(NULL),
   unsafe_flags(0)
@@ -269,6 +268,8 @@ sp_head::sp_head(enum_sp_type type)
   m_first_instance= this;
   m_first_free_instance= this;
   m_last_cached_sp= this;
+
+  m_instructions.reserve(32);
 
   m_return_field_def.charset = NULL;
 
@@ -736,11 +737,15 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
       thd->user_var_events_alloc= thd->mem_root;
 
+    sql_digest_state digest_state;
+    sql_digest_state *parent_digest= thd->m_digest;
+    thd->m_digest= & digest_state;
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     PSI_statement_locker_state psi_state;
-    PSI_statement_locker *parent_locker;
     PSI_statement_info *psi_info = i->get_psi_info();
-
+    PSI_statement_locker *parent_locker;
+ 
     parent_locker= thd->m_statement_psi;
     thd->m_statement_psi= MYSQL_START_STATEMENT(&psi_state, psi_info->m_key,
                                                 thd->db, thd->db_length,
@@ -748,12 +753,22 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
                                                 this->m_sp_share);
 #endif
 
+    /*
+      For now, we're mostly concerned with sp_instr_stmt, but that's
+      likely to change in the future, so we'll do it right from the
+      start.
+    */
+    if (thd->rewritten_query.length())
+      thd->rewritten_query.free();
+
     err_status= i->execute(thd, &ip);
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
     MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
     thd->m_statement_psi= parent_locker;
 #endif
+
+    thd->m_digest= parent_digest;
 
     if (i->free_list)
       cleanup_items(i->free_list);
@@ -764,7 +779,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
-      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events.clear();
       thd->user_var_events_alloc= NULL;//DEBUG
     }
 
@@ -950,12 +965,13 @@ bool sp_head::execute_trigger(THD *thd,
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
-
+  LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
+  LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd,
-                                             &m_definer_user,
-                                             &m_definer_host,
+                                             definer_user,
+                                             definer_host,
                                              &m_db,
                                              &save_ctx))
     DBUG_RETURN(true);
@@ -1056,7 +1072,7 @@ err_with_cleanup:
 bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                                Field *return_value_fld)
 {
-  ulonglong binlog_save_options;
+  ulonglong binlog_save_options= 0;
   bool need_binlog_call= FALSE;
   uint arg_no;
   sp_rcontext *parent_sp_runtime_ctx = thd->sp_runtime_ctx;
@@ -1070,7 +1086,6 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
 
-  LINT_INIT(binlog_save_options);
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
   /*
@@ -1199,7 +1214,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call)
   {
     query_id_t q;
-    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events.clear();
     /*
       In case of artificially constructed events for function calls
       we have separate union for each such event and hence can't use
@@ -1212,9 +1227,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
       as one select and not resetting THD::user_var_events before
       each invocation.
     */
-    mysql_mutex_lock(&LOCK_thread_count);
-    q= global_query_id;
-    mysql_mutex_unlock(&LOCK_thread_count);
+    q= my_atomic_load64(&global_query_id); 
     mysql_bin_log.start_union_events(thd, q + 1);
     binlog_save_options= thd->variables.option_bits;
     thd->variables.option_bits&= ~OPTION_BIN_LOG;
@@ -1262,7 +1275,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                      "failed to reflect this change in the binary log");
         err_status= TRUE;
       }
-      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
       thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
       thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
@@ -1658,29 +1671,30 @@ void sp_head::set_info(longlong created,
 }
 
 
-void sp_head::set_definer(const char *definer, uint definerlen)
+void sp_head::set_definer(const char *definer, size_t definerlen)
 {
   char user_name_holder[USERNAME_LENGTH + 1];
-  LEX_STRING user_name= { user_name_holder, USERNAME_LENGTH };
+  LEX_CSTRING user_name= { user_name_holder, USERNAME_LENGTH };
 
   char host_name_holder[HOSTNAME_LENGTH + 1];
-  LEX_STRING host_name= { host_name_holder, HOSTNAME_LENGTH };
+  LEX_CSTRING host_name= { host_name_holder, HOSTNAME_LENGTH };
 
-  parse_user(definer, definerlen, user_name.str, &user_name.length,
-             host_name.str, &host_name.length);
+  parse_user(definer, definerlen,
+             user_name_holder, &user_name.length,
+             host_name_holder, &host_name.length);
 
-  set_definer(&user_name, &host_name);
+  set_definer(user_name, host_name);
 }
 
 
-void sp_head::set_definer(const LEX_STRING *user_name,
-                          const LEX_STRING *host_name)
+void sp_head::set_definer(const LEX_CSTRING &user_name,
+                          const LEX_CSTRING &host_name)
 {
-  m_definer_user.str= strmake_root(mem_root, user_name->str, user_name->length);
-  m_definer_user.length= user_name->length;
+  m_definer_user.str= strmake_root(mem_root, user_name.str, user_name.length);
+  m_definer_user.length= user_name.length;
 
-  m_definer_host.str= strmake_root(mem_root, host_name->str, host_name->length);
-  m_definer_host.length= host_name->length;
+  m_definer_host.str= strmake_root(mem_root, host_name.str, host_name.length);
+  m_definer_host.length= host_name.length;
 }
 
 
@@ -1782,7 +1796,7 @@ bool sp_head::add_instr(THD *thd, sp_instr *instr)
   */
   instr->mem_root= get_persistent_mem_root();
 
-  return m_instructions.append(instr);
+  return m_instructions.push_back(instr);
 }
 
 
@@ -1807,7 +1821,7 @@ void sp_head::optimize()
     {
       if (src != dst)
       {
-        m_instructions.set(dst, i);
+        m_instructions[dst]= i;
 
         /* Move the instruction and update prev. jumps */
         sp_branch_instr *ibp;
@@ -1822,7 +1836,7 @@ void sp_head::optimize()
     }
   }
 
-  m_instructions.elements(dst);
+  m_instructions.resize(dst);
   bp.empty();
 }
 
@@ -2114,10 +2128,12 @@ bool sp_head::check_show_access(THD *thd, bool *full_access)
 bool sp_head::set_security_ctx(THD *thd, Security_context **save_ctx)
 {
   *save_ctx= NULL;
+  LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
+  LEX_CSTRING definer_host= {m_definer_host.str, m_definer_host.length};
 
   if (m_chistics->suid != SP_IS_NOT_SUID &&
       m_security_ctx.change_security_context(thd,
-                                             &m_definer_user, &m_definer_host,
+                                             definer_user, definer_host,
                                              &m_db, save_ctx))
   {
     return true;

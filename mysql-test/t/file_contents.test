@@ -1,7 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
 
 #
 # Testing files that were built to be packaged, both for existence and for contents
@@ -26,6 +22,10 @@ if ($dir_bin =~ m|/usr/|) {
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
+    if (! -d "$dir_docs") {
+      # If not it might be ULN so try that
+      $dir_docs = glob "$dir_bin/share/doc/mysql-community-server*";
+    }
   }
 } elsif ($dir_bin =~ m|/usr$|) {
   # RPM build during development
@@ -36,6 +36,10 @@ if ($dir_bin =~ m|/usr/|) {
   } else {
     # RedHat: version number in directory name
     $dir_docs = glob "$dir_docs/MySQL-server*";
+    if (! -d "$dir_docs") {
+      # If not it might be ULN so try that
+      $dir_docs = glob "$dir_bin/share/doc/mysql-community-server*";
+    }
   }
 } else {
   # tar.gz package, Windows, or developer work (in BZR)

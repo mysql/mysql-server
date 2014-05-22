@@ -46,6 +46,8 @@ let $more_pk_ui_tests= 0;
 # Does not work with --embedded
 --source include/not_embedded.inc
 
+--source include/no_valgrind_without_big.inc
+
 #------------------------------------------------------------------------------#
 # Engine specific settings and requirements
 
