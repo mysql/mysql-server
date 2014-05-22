@@ -22,6 +22,7 @@ START TRANSACTION;
 INSERT INTO test.t1 VALUES (null,test.f1());
 ROLLBACK;
 SET AUTOCOMMIT=1;
+include/sync_slave_sql_with_master.inc
 DROP FUNCTION test.f1;
 DROP TABLE test.t1;
 include/rpl_end.inc
