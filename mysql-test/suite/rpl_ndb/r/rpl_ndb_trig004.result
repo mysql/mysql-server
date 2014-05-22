@@ -15,6 +15,7 @@ n	d
 select * from test.t2;
 n	f
 1	0
+include/sync_slave_sql_with_master.inc
 select * from test.t1;
 n	d
 1	1.234
@@ -24,4 +25,5 @@ n	f
 DROP TRIGGER test.t1_bi_t2;
 DROP TABLE test.t1;
 DROP TABLE test.t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
