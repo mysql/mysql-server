@@ -431,6 +431,7 @@ my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
+my_bool offline_mode= 0;
 uint   opt_large_page_size= 0;
 volatile uint default_password_lifetime= 0;
 #if defined(ENABLED_DEBUG_SYNC)
@@ -695,6 +696,7 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_log_throttle_qni;
+mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -1563,6 +1565,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_sql_slave_skip_counter);
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_error_messages);
+  mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3281,6 +3284,8 @@ static int init_thread_environment()
                    &LOCK_sql_rand, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_log_throttle_qni,
                    &LOCK_log_throttle_qni, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_offline_mode,
+                   &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -7726,6 +7731,7 @@ PSI_mutex_key key_mts_temp_table_LOCK;
 #ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
 #endif
+PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
@@ -7811,8 +7817,9 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
 #ifdef HAVE_REPLICATION
-  { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0}
+  { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
 #endif
+  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,

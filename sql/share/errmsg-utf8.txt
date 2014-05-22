@@ -7149,6 +7149,9 @@ ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 
 ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
   eng "slave_preserve_commit_order is not supported %s."
+
+ER_SERVER_OFFLINE_MODE
+  eng "The server is currently in offline mode"
 #
 #  End of 5.7 error messages.
 #
