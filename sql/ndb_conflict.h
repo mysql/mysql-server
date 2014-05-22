@@ -320,6 +320,21 @@ typedef struct st_ndbcluster_conflict_fn_share {
 /* HAVE_NDB_BINLOG */
 #endif
 
+/**
+ * enum_slave_conflict_role
+ *
+ * These are the roles the Slave can play
+ * in asymmetric conflict algorithms
+ */
+
+enum enum_slave_conflict_role
+{
+  SCR_NONE = 0,
+  SCR_SECONDARY = 1,
+  SCR_PRIMARY = 2,
+  SCR_PASS = 3
+};
+
 enum enum_slave_trans_conflict_apply_state
 {
   /* Normal with optional row-level conflict detection */
@@ -409,6 +424,11 @@ struct st_ndb_slave_state
                          bool is_row_server_id_local);
 
   void resetPerAttemptCounters();
+
+  static
+  bool checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
+                                    enum_slave_conflict_role new_role,
+                                    const char** failure_cause);
 
   st_ndb_slave_state();
 };
