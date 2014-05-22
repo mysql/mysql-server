@@ -870,6 +870,7 @@ st_ndb_slave_state::st_ndb_slave_state()
     current_trans_row_conflict_count(0),
     current_trans_row_reject_count(0),
     current_trans_in_conflict_count(0),
+    last_conflicted_epoch(0),
     max_rep_epoch(0),
     sql_run_id(~Uint32(0)),
     trans_row_conflict_count(0),
@@ -931,7 +932,7 @@ st_ndb_slave_state::atTransactionAbort()
    Called by Slave SQL thread after transaction commit
 */
 void
-st_ndb_slave_state::atTransactionCommit()
+st_ndb_slave_state::atTransactionCommit(Uint64 epoch)
 {
   assert( ((trans_dependency_tracker == NULL) &&
            (trans_conflict_apply_state == SAS_NORMAL)) ||
@@ -942,8 +943,10 @@ st_ndb_slave_state::atTransactionCommit()
   /* Merge committed transaction counters into total state
    * Then reset current transaction counters
    */
+  Uint32 total_conflicts = 0;
   for (int i=0; i < CFT_NUMBER_OF_CFTS; i++)
   {
+    total_conflicts+= current_violation_count[i];
     total_violation_count[i]+= current_violation_count[i];
   }
   trans_row_conflict_count+= current_trans_row_conflict_count;
@@ -959,6 +962,14 @@ st_ndb_slave_state::atTransactionCommit()
                         max_rep_epoch,
                         current_max_rep_epoch));
     max_rep_epoch = current_max_rep_epoch;
+  }
+
+  if (total_conflicts > 0)
+  {
+    DBUG_PRINT("info", ("Last conflicted epoch increases from %llu to %llu",
+                        last_conflicted_epoch,
+                        epoch));
+    last_conflicted_epoch = epoch;
   }
 
   resetPerAttemptCounters();
@@ -1088,6 +1099,7 @@ st_ndb_slave_state::atResetSlave()
 
   retry_trans_count = 0;
   max_rep_epoch = 0;
+  last_conflicted_epoch = 0;
 
   /* Reset current master server epoch
    * This avoids warnings when replaying a lower

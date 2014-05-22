@@ -100,6 +100,7 @@ Ndb_pushed_queries_executed	#
 Ndb_pushed_reads	#
 Ndb_scan_count	#
 Ndb_schema_locks_count	#
+Ndb_slave_last_conflict_epoch	#
 Ndb_slave_max_replicated_epoch	#
 Ndb_sorted_scan_count	#
 SHOW GLOBAL VARIABLES WHERE Variable_name LIKE 'ndb\_%' and 

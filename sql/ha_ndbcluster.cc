@@ -743,6 +743,7 @@ SHOW_VAR ndb_status_injector_variables[]= {
 
 SHOW_VAR ndb_status_slave_variables[]= {
   NDBAPI_COUNTERS("_slave", &g_slave_api_client_stats),
+  {"slave_last_conflict_epoch",    (char*) &g_ndb_slave_state.last_conflicted_epoch, SHOW_LONGLONG},
   {"slave_max_replicated_epoch", (char*) &g_ndb_slave_state.max_rep_epoch, SHOW_LONGLONG},
   {NullS, NullS, SHOW_LONG}
 };
@@ -1170,7 +1171,7 @@ execute_commit(Thd_ndb *thd_ndb, NdbTransaction *trans,
     if (likely(rc == 0))
     {
       /* Success */
-      g_ndb_slave_state.atTransactionCommit();
+      g_ndb_slave_state.atTransactionCommit(thd_ndb->m_last_commit_epoch_session);
     }
     else
     {
