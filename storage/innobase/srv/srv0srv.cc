@@ -2374,7 +2374,9 @@ srv_do_purge(
 {
 	ulint		n_pages_purged;
 
+#ifndef UNIV_DEBUG
 	static ulint	count = 0;
+#endif /* !UNIV_DEBUG */
 	static ulint	n_use_threads = 0;
 	static ulint	rseg_history_len = 0;
 	ulint		old_activity_count = srv_get_activity_count();
@@ -2429,11 +2431,16 @@ srv_do_purge(
 		n_pages_purged = trx_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
+
+#ifndef UNIV_DEBUG
 		if (!(count++ % TRX_SYS_N_RSEGS)) {
+#endif /* !UNIV_DEBUG */
 			/* Force a truncate of the history list. */
 			n_pages_purged += trx_purge(
 				1, srv_purge_batch_size, true);
+#ifndef UNIV_DEBUG
 		}
+#endif /* !UNIV_DEBUG */
 
 		*n_total_purged += n_pages_purged;
 
