@@ -378,6 +378,9 @@ struct st_ndb_slave_state
   Uint32 current_trans_row_reject_count;
   Uint32 current_trans_in_conflict_count;
 
+  /* Last conflict epoch */
+  Uint64 last_conflicted_epoch;
+
   /* Cumulative counter values */
   Uint64 total_violation_count[CFT_NUMBER_OF_CFTS];
   Uint64 max_rep_epoch;
@@ -414,7 +417,7 @@ struct st_ndb_slave_state
   void atBeginTransConflictHandling();
   void atEndTransConflictHandling();
 
-  void atTransactionCommit();
+  void atTransactionCommit(Uint64 epoch);
   void atTransactionAbort();
   void atResetSlave();
 
