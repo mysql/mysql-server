@@ -124,6 +124,8 @@ struct st_ndb_status {
   long pushed_queries_dropped;
   long pushed_queries_executed;
   long pushed_reads;
+  long last_commit_epoch_server;
+  long last_commit_epoch_session;
   long transaction_no_hint_count[MAX_NDB_NODES];
   long transaction_hint_count[MAX_NDB_NODES];
   long long api_client_stats[Ndb::NumClientStatistics];
