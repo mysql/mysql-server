@@ -39,9 +39,21 @@ SET_TARGET_PROPERTIES(binlogstandalone_static PROPERTIES
 # Configure for building shared library
 ADD_LIBRARY(binlogstandalone_shared SHARED ${REPLICATION_SOURCES})
 TARGET_LINK_LIBRARIES(binlogstandalone_shared ${ZLIB_LIBRARIES})
-SET_TARGET_PROPERTIES(binlogstandalone_shared PROPERTIES
-                      OUTPUT_NAME "binlogstandalone")
-SET_TARGET_PROPERTIES(binlogstandalone_shared PROPERTIES
-  LIBRARY_OUTPUT_DIRECTORY ${PROJECT_BINARY_DIR}/libbinlogstandalone/lib)
+SET_TARGET_PROPERTIES(binlogstandalone_shared
+  PROPERTIES OUTPUT_NAME "binlogstandalone")
+SET_TARGET_PROPERTIES(binlogstandalone_shared
+  PROPERTIES LIBRARY_OUTPUT_DIRECTORY
+  ${PROJECT_BINARY_DIR}/libbinlogstandalone/lib)
 
-INSTALL(TARGETS binlogstandalone_shared LIBRARY DESTINATION lib)
+# For gcc on SunOS we need to add C flags to the link command
+GET_TARGET_PROPERTY(binlogstandalone_shared_link_flags
+  binlogstandalone_shared LINK_FLAGS)
+IF(NOT binlogstandalone_shared_link_flags)
+  SET(binlogstandalone_shared_link_flags)
+ENDIF()
+SET(binlogstandalone_shared_link_flags
+  "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${binlogstandalone_shared_link_flags}")
+SET_TARGET_PROPERTIES(binlogstandalone_shared
+  PROPERTIES LINK_FLAGS "${binlogstandalone_shared_link_flags}")
+
+# INSTALL(TARGETS binlogstandalone_shared LIBRARY DESTINATION lib)
