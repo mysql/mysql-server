@@ -2111,7 +2111,6 @@ trx_undo_truncate_tablespace(
 	/* Re-initialize header. */
 	mtr_t		mtr;
 	mtr_start(&mtr);
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	fsp_header_init(undo_trunc->get_undo_mark_for_trunc(),
 			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
