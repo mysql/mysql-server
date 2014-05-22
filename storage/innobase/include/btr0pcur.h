@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,7 @@ Created 2/23/1996 Heikki Tuuri
 #include "btr0cur.h"
 #include "btr0btr.h"
 #include "btr0types.h"
+#include "gis0rtree.h"
 
 /* Relative positions for a stored cursor position */
 #define BTR_PCUR_ON			1
@@ -459,6 +460,13 @@ void
 btr_pcur_move_to_prev_on_page(
 /*==========================*/
 	btr_pcur_t*	cursor);/*!< in/out: persistent cursor */
+/*********************************************************//**
+Moves the persistent cursor to the infimum record on the same page. */
+UNIV_INLINE
+void
+btr_pcur_move_before_first_on_page(
+/*===============================*/
+	btr_pcur_t*	cursor); /*!< in/out: persistent cursor */
 
 /** Position state of persistent B-tree cursor. */
 enum pcur_pos_t {
@@ -529,6 +537,9 @@ struct btr_pcur_t{
 					buffer for old_rec */
 	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf
 					is not NULL */
+
+	/** Return the index of this persistent cursor */
+	dict_index_t*	index() const { return(btr_cur.index); }
 };
 
 #define BTR_PCUR_OLD_STORED	908467085

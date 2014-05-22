@@ -223,13 +223,13 @@ public:
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str, strlen(str), cs);
   }
 
-  ErrConvString(const char *str, uint length)
+  ErrConvString(const char *str, size_t length)
   {
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length,
                          &my_charset_latin1);
   }
 
-  ErrConvString(const char *str, uint length, const CHARSET_INFO* cs)
+  ErrConvString(const char *str, size_t length, const CHARSET_INFO* cs)
   {
     buf_length= err_conv(err_buffer, sizeof(err_buffer), str, length, cs);
   }
@@ -431,7 +431,7 @@ public:
     @return true if the condition list contains an SQL-condition with the given
     message text.
   */
-  bool has_sql_condition(const char *message_text, ulong message_length) const;
+  bool has_sql_condition(const char *message_text, size_t message_length) const;
 
   /**
     Reset the current condition information stored in the Diagnostics Area.

@@ -18,6 +18,7 @@ INSERT INTO T1 VALUES (1);
 SHOW TABLES;
 Tables_in_B37656
 T1
+include/sync_slave_sql_with_master.inc
 use bug37656;
 ### assertion: slave contains lowered case table
 SHOW TABLES;

@@ -162,10 +162,9 @@ buf_LRU_block_free_non_file_page(
 /*=============================*/
 	buf_block_t*	block);	/*!< in: block, must not contain a file page */
 /******************************************************************//**
-Adds a block to the LRU list. Please make sure that the zip_size is
-already set into the page zip when invoking the function, so that we
-can get correct zip_size from the buffer page when adding a block
-into LRU */
+Adds a block to the LRU list. Please make sure that the page_size is
+already set when invoking the function, so that we can get correct
+page_size from the buffer page when adding a block into LRU */
 
 void
 buf_LRU_add_block(

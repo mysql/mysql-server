@@ -120,6 +120,7 @@ Warning	1818	YEAR(3) column type is deprecated. Creating YEAR(4) column instead.
 load data infile '<MYSQLTEST_VARDIR>/std_data/funcs_1/memory_tb2.txt'
 into table tb2 ;
 USE test;
+set optimizer_switch='condition_fanout_filter=off';
 SET SESSION default_storage_engine = <storage_engine>;
 
 ! Attention: The file with the expected results is not
@@ -21428,8 +21429,10 @@ SELECT * FROM test3.v32;
 f1
 1.000
 EXPLAIN SELECT * FROM test3.v32;
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	system	NULL	NULL	NULL	NULL	1	NULL
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1.000' AS `f1` from dual
 DROP VIEW test3.v0;
 SHOW CREATE VIEW test3.v32;
 View	Create View	character_set_client	collation_connection

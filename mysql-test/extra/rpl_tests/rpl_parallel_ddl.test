@@ -1,0 +1,330 @@
+--source include/no_valgrind_without_big.inc
+
+#
+# WL#5569 MTS
+#
+# The test verifies correctness of DDL Query event parallelization
+#
+
+
+--source include/master-slave.inc
+--source include/have_binlog_format_statement.inc
+
+
+# restart in Parallel
+
+let $workers= 4;
+
+connection slave;
+
+source include/stop_slave.inc;
+set @save.slave_parallel_workers= @@global.slave_parallel_workers;
+eval set @@global.slave_parallel_workers= $workers;
+
+# Note, the number of db:s should be greater than MAX_DBS_IN_QUERY_MTS
+# in order to satisfy to the over-max final test.
+let $dbs= 32;
+let $tables= 8;
+let $queries= `select $dbs*$tables * 8`;
+
+#
+# D1. CREATE/DROP database
+#
+#
+# D2. CREATE/DROP/ALTER/RENAME table
+#
+
+--disable_query_log
+
+let $n= $dbs;
+while ($n)
+{
+  connection master;
+  eval create database d$n;
+
+  let $m= $tables;
+  while ($m)
+  {
+     eval create table d$n.t$m (a int) engine=$DEFAULT_ENGINE;
+     eval select round(rand()*$tables) into @var;
+     eval insert into d$n.t$m values (@var);
+
+     dec $m;
+  }
+  dec $n;
+
+  connection master1;
+  eval create database d$n;
+
+  let $m= $tables;
+  while ($m)
+  {
+     eval create table d$n.t$m (a int) engine=$DEFAULT_ENGINE;
+     eval select round(rand()*$tables) into @var;
+     eval insert into d$n.t$m values (@var);
+
+     dec $m;
+  }
+  dec $n;
+}
+
+
+let $k= $queries;
+
+while ($k)
+{
+   let $n_1 = `select floor(rand()*$dbs) + 1`;
+   let $n_2 = `select floor(rand()*$dbs) + 1`;
+   let $n1_1= `select floor(rand()*$dbs) + 1`;
+   let $n1_2= `select floor(rand()*$dbs) + 1`;
+   let $m= `select floor(rand()*$tables) + 1`;
+
+   --error 0,ER_TABLE_EXISTS_ERROR
+   eval rename table d$n_1.t$m to d$n1_1.t$m, d$n_2.t$m to d$n1_2.t$m;
+   --error 0,ER_TABLE_EXISTS_ERROR
+   eval rename table d$n1_1.t$m to d$n_1.t$m,  d$n1_2.t$m to d$n_2.t$m;
+
+   dec $k;
+}
+
+--enable_query_log
+
+#
+# D3. CREATE/DROP Stored Proc, Stored Func, Trigger, Func
+
+connection master;
+
+let $n= $dbs;
+# n'th db tables won't have any trigger to avoid circular dependency
+let $n1= $n;
+dec $n1;
+
+--disable_query_log
+
+while ($n1)
+{
+  let $m= $tables;
+
+  while ($m)
+  {
+     eval create trigger `d$n1`.`trg_t$m` before insert on `d$n1`.`t$m` for each row insert into `d$n`.`t$m` values(1);
+
+     delimiter |;
+
+     eval create function `d$n`.`func_$m` (a int) returns int
+          begin
+	  insert into `d$n`.`t$m` values(1);
+	  return 1;
+	  end|
+
+     eval create procedure `d$n`.`proc_$m`(a int)
+          begin
+	  insert into `d$n`.`t$m` values(1);
+	  end|
+	  
+     delimiter ;|
+
+     dec $m;
+  }
+  dec $n;
+  dec $n1;
+}
+
+#
+# D3. CREATE/ALTER/DROP event
+#
+
+CREATE EVENT d1.e_1 on schedule every '50:20:12:45' day_second do select 1;
+ALTER EVENT d1.e_1 RENAME to d2.e_2;
+DROP EVENT d2.e_2;
+
+#
+# D4. CREATE/DROP view
+#
+
+CREATE VIEW d1.v_1 AS SELECT 1;
+CREATE VIEW d2.v_2 AS SELECT 1;
+DROP VIEW d1.v_1, d2.v_2;
+
+--enable_query_log
+
+
+#
+# Run it on slave;
+#
+
+connection slave;
+source include/start_slave.inc;
+
+connection master;
+sync_slave_with_master;
+
+#
+# Consistency check
+#
+
+let $n = $dbs;
+while($n)
+{
+  let $m= $tables;
+  while ($m)
+  {
+    let $diff_tables=master:d$n.t$m, slave:d$n.t$m;
+    source include/diff_tables.inc;
+    dec $m;
+  }
+  dec $n;
+}
+
+#
+# Finally, over-the-max-limit updated db:s
+#
+
+connection master;
+
+# Prepare the test with dropping the triggers
+
+let $n= $dbs;
+# n'th db tables won't have any trigger to avoid circular dependency
+let $n1= $n;
+dec $n1;
+
+--disable_query_log
+
+while ($n1)
+{
+  let $m= $tables;
+
+  while ($m)
+  {
+     eval drop trigger `d$n1`.`trg_t$m`;
+
+     dec $m;
+  }
+  dec $n;
+  dec $n1;
+}
+
+let $n1= $dbs;
+dec $n1;
+let $n2= $n1;
+dec $n2;
+let $tables_2_rename= ;
+#let $m= `select floor(rand()*$tables) + 1`;
+let $m= `select floor($tables/2)`;
+
+while ($n2)
+{
+    let $tables_2_rename= $tables_2_rename d$n1.t$m to d$n2.t$m ,;
+    eval drop table d$n2.t$m;
+    dec $n1;
+    dec $n2;
+}
+
+
+let $n= $dbs;
+let $n1= $n;
+dec $n1;
+
+--disable_warnings
+# The following query will leave so many warnings as many extra db pairs
+eval rename table $tables_2_rename d$n.t$m to d$n1.t$m;
+--enable_warnings
+
+--enable_query_log
+
+#
+# DEBUG output (to remove)
+# Hunting after bug#13033076.
+# Let's see if rename leaves any garbage after its run
+#
+sync_slave_with_master;
+let $MYSQLD_DATADIR= `SELECT @@datadir`;
+while ($n)
+{
+  echo "database d$n:";
+  --list_files $MYSQLD_DATADIR/d$n
+  dec $n;
+}
+
+
+#
+# Clean-up
+#
+
+connection master;
+
+let $n= $dbs;
+--disable_query_log
+
+# Hunting after bug#13033076: to drop db:s on master concurrently as
+# well through 4 connections.
+
+--connect(con1, localhost, root,,)
+--connect(con2, localhost, root,,)
+--connect(con3, localhost, root,,)
+--connect(con4, localhost, root,,)
+
+let $reap_not_done= 0;
+
+while ($n)
+{
+  --connection con1
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+
+  --connection con2
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+
+  --connection con3
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+
+  --connection con4
+  if ($reap_not_done)
+  {
+    --reap
+  }
+  --send_eval drop database d$n;
+  dec $n;
+  let $reap_not_done= 1;
+}
+
+--enable_query_log
+
+  --connection con1
+  --reap
+  --disconnect con1
+ 
+  --connection con2
+  --reap
+  --disconnect con2
+  
+  --connection con3
+  --reap
+  --disconnect con3
+  
+  --connection con4
+  --reap
+  --disconnect con4
+
+connection master;
+sync_slave_with_master;
+
+set @@global.slave_parallel_workers= @save.slave_parallel_workers;
+
+--source include/rpl_end.inc
+

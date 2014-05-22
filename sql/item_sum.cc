@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2013  Oracle and/or its affiliates. All
-   rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,9 +27,30 @@
 #include "sql_resolver.h"                  // setup_order, fix_inner_refs
 #include "sql_optimizer.h"                 // JOIN
 #include "uniques.h"
+#include "parse_tree_helpers.h"
+#include "parse_tree_nodes.h"
 
 using std::min;
 using std::max;
+
+
+bool Item_sum::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  mark_as_sum_func(pc->select);
+  pc->select->in_sum_expr++;
+  for (uint i= 0; i < arg_count; i++)
+  {
+    if (args[i]->itemize(pc, &args[i]))
+      return true;
+  }
+  pc->select->in_sum_expr--;
+  return false;
+}
+
 
 /**
   Calculate the affordable RAM limit for structures like TREE or Unique
@@ -368,27 +388,28 @@ bool Item_sum::register_sum_func(THD *thd, Item **ref)
 }
 
 
-Item_sum::Item_sum(List<Item> &list) :next(NULL), arg_count(list.elements), 
+Item_sum::Item_sum(const POS &pos, PT_item_list *opt_list)
+: super(pos), next(NULL),
+  arg_count(opt_list == NULL ? 0 : opt_list->elements()),
   forced_const(FALSE)
 {
-  if ((args=(Item**) sql_alloc(sizeof(Item*)*arg_count)))
+  if (arg_count > 0)
   {
+    args= (Item**) sql_alloc(2 * sizeof(Item*) * arg_count);
+    if (args == NULL)
+    {
+      orig_args= NULL;
+      return; // OOM
+    }
+    orig_args= args + arg_count;
     uint i=0;
-    List_iterator_fast<Item> li(list);
+    List_iterator_fast<Item> li(opt_list->value);
     Item *item;
 
     while ((item=li++))
-    {
       args[i++]= item;
-    }
   }
-  if (!(orig_args= (Item **) sql_alloc(sizeof(Item *) * arg_count)))
-  {
-    args= NULL;
-  }
-  mark_as_sum_func();
   init_aggregator();
-  list.empty();					// Fields are used
 }
 
 
@@ -429,7 +450,12 @@ Item_sum::Item_sum(THD *thd, Item_sum *item):
 
 void Item_sum::mark_as_sum_func()
 {
-  SELECT_LEX *cur_select= current_thd->lex->current_select();
+  mark_as_sum_func(current_thd->lex->current_select());
+}
+
+
+void Item_sum::mark_as_sum_func(st_select_lex *cur_select)
+{
   cur_select->n_sum_items++;
   cur_select->with_sum_func= 1;
   with_sum_func= 1;
@@ -480,19 +506,18 @@ Item *Item_sum::get_tmp_table_item(THD *thd)
 }
 
 
-bool Item_sum::walk (Item_processor processor, bool walk_subquery,
-                     uchar *argument)
+bool Item_sum::walk(Item_processor processor, enum_walk walk, uchar *argument)
 {
-  if (arg_count)
+  if ((walk & WALK_PREFIX) && (this->*processor)(argument))
+    return true;
+
+  Item **arg,**arg_end;
+  for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
   {
-    Item **arg,**arg_end;
-    for (arg= args, arg_end= args+arg_count; arg != arg_end; arg++)
-    {
-      if ((*arg)->walk(processor, walk_subquery, argument))
-	return 1;
-    }
+    if ((*arg)->walk(processor, walk, argument))
+      return true;
   }
-  return (this->*processor)(argument);
+  return (walk & WALK_POSTFIX) && (this->*processor)(argument);
 }
 
 
@@ -793,20 +818,42 @@ bool Aggregator_distinct::setup(THD *thd)
     List<Item> list;
     SELECT_LEX *select_lex= thd->lex->current_select();
 
-    if (!(tmp_table_param= new TMP_TABLE_PARAM))
+    if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
       return TRUE;
 
-    /* Create a table with an unique key over all parameters */
-    for (uint i=0; i < item_sum->get_arg_count() ; i++)
+    /**
+      Create a table with an unique key over all parameters.
+      If the list contains only const values, const_distinct
+      is set to CONST_NOT_NULL to avoid creation of temp table
+      and thereby counting as count(distinct of const values)
+      will always be 1. If any of these const values is null,
+      const_distinct is set to CONST_NULL to ensure aggregation
+      does not happen.
+     */
+    uint const_items= 0;
+    uint num_args= item_sum->get_arg_count();
+    DBUG_ASSERT(num_args);
+    for (uint i=0; i < num_args; i++)
     {
       Item *item=item_sum->get_arg(i);
       if (list.push_back(item))
-        return TRUE;                              // End of memory
-      if (item->const_item() && item->is_null())
-        always_null= true;
+        return true;                              // End of memory
+      if (item->const_item())
+      {
+        if (item->is_null())
+        {
+          const_distinct= CONST_NULL;
+          return false;
+        }
+        else
+          const_items++;
+      }
     }
-    if (always_null)
-      return FALSE;
+    if (num_args == const_items)
+    {
+      const_distinct= CONST_NOT_NULL;
+      return false;
+    }
     count_field_types(select_lex, tmp_table_param, list, false, false);
     tmp_table_param->force_copy_fields= item_sum->has_force_copy_fields();
     DBUG_ASSERT(table == 0);
@@ -934,11 +981,12 @@ bool Aggregator_distinct::setup(THD *thd)
     {
       (void) arg->val_int();
       if (arg->null_value)
-        always_null= true;
+      {
+        const_distinct= CONST_NULL;
+        DBUG_RETURN(false);
+      }
     }
 
-    if (always_null)
-      DBUG_RETURN(FALSE);
 
     enum enum_field_types field_type;
 
@@ -983,7 +1031,7 @@ void Aggregator_distinct::clear()
   item_sum->clear();
   if (tree)
     tree->reset();
-  /* tree and table can be both null only if always_null */
+  /* tree and table can be both null only if const_distinct is enabled*/
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
@@ -1019,7 +1067,7 @@ void Aggregator_distinct::clear()
 
 bool Aggregator_distinct::add()
 {
-  if (always_null)
+  if (const_distinct != NOT_CONST)
     return 0;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
@@ -1086,7 +1134,7 @@ void Aggregator_distinct::endup()
   item_sum->clear();
 
   /* The result will definitely be null : no more calculations needed */
-  if (always_null)
+  if (const_distinct == CONST_NULL)
     return;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
@@ -1094,6 +1142,13 @@ void Aggregator_distinct::endup()
   {
     DBUG_ASSERT(item_sum->fixed == 1);
     Item_sum_count *sum= (Item_sum_count *)item_sum;
+
+    if (const_distinct ==  CONST_NOT_NULL)
+    {
+      sum->count= 1;
+      endup_done= TRUE;
+      return;
+    }
     if (tree && tree->elements == 0)
     {
       /* everything fits in memory */
@@ -1108,18 +1163,19 @@ void Aggregator_distinct::endup()
       endup_done= TRUE;
     }
   }
-  else
-  {
-    /*
-      We don't have a tree only if 'setup()' hasn't been called;
-      this is the case of sql_executor.cc:return_zero_rows.
-    */
-    if (tree)
-      table->field[0]->set_notnull();
-  }
 
+ /*
+   We don't have a tree only if 'setup()' hasn't been called;
+   this is the case of sql_executor.cc:return_zero_rows.
+ */
   if (tree && !endup_done)
   {
+   /*
+     All tree's values are not NULL.
+     Note that value of field is changed as we walk the tree, in
+     Aggregator_distinct::unique_walk_function, but it's always not NULL.
+   */
+   table->field[0]->set_notnull();
     /* go over the tree of distinct keys and calculate the aggregate value */
     use_distinct_values= TRUE;
     tree->walk(item_sum_distinct_walk, (void*) this);
@@ -1390,7 +1446,7 @@ bool Item_sum_sum::add()
   {
     my_decimal value;
     const my_decimal *val= aggr->arg_val_decimal(&value);
-    if (!aggr->arg_is_null())
+    if (!aggr->arg_is_null(true))
     {
       my_decimal_add(E_DEC_FATAL_ERROR, dec_buffs + (curr_dec_buff^1),
                      val, dec_buffs + curr_dec_buff);
@@ -1401,7 +1457,7 @@ bool Item_sum_sum::add()
   else
   {
     sum+= aggr->arg_val_real();
-    if (!aggr->arg_is_null())
+    if (!aggr->arg_is_null(true))
       null_value= 0;
   }
   DBUG_RETURN(0);
@@ -1511,9 +1567,27 @@ double Aggregator_simple::arg_val_real()
 }
 
 
-bool Aggregator_simple::arg_is_null()
+bool Aggregator_simple::arg_is_null(bool use_null_value)
 {
-  return item_sum->args[0]->null_value;
+  Item **item= item_sum->args;
+  const uint item_count= item_sum->arg_count;
+  if (use_null_value)
+  {
+    for (uint i= 0; i < item_count; i++)
+    {
+      if (item[i]->null_value)
+        return true;
+    }
+  }
+  else
+  {
+    for (uint i= 0; i < item_count; i++)
+    {
+      if (item[i]->maybe_null && item[i]->is_null())
+        return true;
+    }
+  }
+  return false;
 }
 
 
@@ -1531,10 +1605,17 @@ double Aggregator_distinct::arg_val_real()
 }
 
 
-bool Aggregator_distinct::arg_is_null()
+bool Aggregator_distinct::arg_is_null(bool use_null_value)
 {
-  return use_distinct_values ? table->field[0]->is_null() :
-    item_sum->args[0]->null_value;
+  if (use_distinct_values)
+  {
+    const bool rc= table->field[0]->is_null();
+    DBUG_ASSERT(!rc); // NULLs are never stored in 'tree'
+    return rc;
+  }
+  return use_null_value ?
+    item_sum->args[0]->null_value :
+    (item_sum->args[0]->maybe_null && item_sum->args[0]->is_null());
 }
 
 
@@ -1552,11 +1633,8 @@ void Item_sum_count::clear()
 
 bool Item_sum_count::add()
 {
-  for (uint i=0; i<arg_count; i++)
-  {
-    if (args[i]->maybe_null && args[i]->is_null())
-      return 0;
-  }
+  if (aggr->arg_is_null(false))
+    return 0;
   count++;
   return 0;
 }
@@ -1646,7 +1724,7 @@ bool Item_sum_avg::add()
 {
   if (Item_sum_sum::add())
     return TRUE;
-  if (!aggr->arg_is_null())
+  if (!aggr->arg_is_null(true))
     count++;
   return FALSE;
 }
@@ -1916,8 +1994,8 @@ void Item_sum_variance::update_field()
 
   /* Serialize format is (double)m, (double)s, (longlong)count */
   double field_recurrence_m, field_recurrence_s;
-  float8get(field_recurrence_m, res);
-  float8get(field_recurrence_s, res + sizeof(double));
+  float8get(&field_recurrence_m, res);
+  float8get(&field_recurrence_s, res + sizeof(double));
   field_count=sint8korr(res+sizeof(double)*2);
 
   variance_fp_recurrence_next(&field_recurrence_m, &field_recurrence_s, &field_count, nr);
@@ -1996,7 +2074,7 @@ my_decimal *Item_sum_hybrid::val_decimal(my_decimal *val)
 }
 
 
-bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, uint fuzzydate)
+bool Item_sum_hybrid::get_date(MYSQL_TIME *ltime, my_time_flags_t fuzzydate)
 {
   DBUG_ASSERT(fixed == 1);
   if (null_value)
@@ -2394,7 +2472,7 @@ void Item_sum_sum::update_field()
     double old_nr,nr;
     uchar *res=result_field->ptr;
 
-    float8get(old_nr,res);
+    float8get(&old_nr,res);
     nr= args[0]->val_real();
     if (!args[0]->null_value)
     {
@@ -2449,7 +2527,7 @@ void Item_sum_avg::update_field()
     if (!args[0]->null_value)
     {
       double old_nr;
-      float8get(old_nr, res);
+      float8get(&old_nr, res);
       field_count= sint8korr(res + sizeof(double));
       old_nr+= nr;
       float8store(res,old_nr);
@@ -2626,7 +2704,7 @@ double Item_avg_field::val_real()
   if (hybrid_type == DECIMAL_RESULT)
     return val_real_from_decimal();
 
-  float8get(nr,field->ptr);
+  float8get(&nr,field->ptr);
   res= (field->ptr+sizeof(double));
   count= sint8korr(res);
 
@@ -2734,7 +2812,7 @@ double Item_variance_field::val_real()
 
   double recurrence_s;
   ulonglong count;
-  float8get(recurrence_s, (field->ptr + sizeof(double)));
+  float8get(&recurrence_s, (field->ptr + sizeof(double)));
   count=sint8korr(field->ptr+sizeof(double)*2);
 
   if ((null_value= (count <= sample)))
@@ -2752,6 +2830,18 @@ double Item_variance_field::val_real()
 ****************************************************************************/
 
 #ifdef HAVE_DLOPEN
+
+bool Item_udf_sum::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UDF);
+  pc->thd->lex->safe_to_cache_query= false;
+  return false;
+}
+
 
 void Item_udf_sum::clear()
 {
@@ -3126,16 +3216,15 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   @param separator_arg  string value of separator.
 */
 
-Item_func_group_concat::
-Item_func_group_concat(Name_resolution_context *context_arg,
-                       bool distinct_arg, List<Item> *select_list,
-                       const SQL_I_List<ORDER> &order_list,
+Item_func_group_concat::Item_func_group_concat(const POS &pos,
+                       bool distinct_arg, PT_item_list *select_list,
+                       PT_order_list *opt_order_list,
                        String *separator_arg)
-  :tmp_table_param(0), separator(separator_arg), tree(0),
+  :super(pos), tmp_table_param(0), separator(separator_arg), tree(0),
    unique_filter(NULL), table(0),
-   order(0), context(context_arg),
-   arg_count_order(order_list.elements),
-   arg_count_field(select_list->elements),
+   order(0),
+   arg_count_order(opt_order_list ? opt_order_list->value.elements : 0),
+   arg_count_field(select_list->elements()),
    row_count(0),
    distinct(distinct_arg),
    warning_for_row(FALSE),
@@ -3166,7 +3255,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   order= (ORDER**)(args + arg_count);
 
   /* fill args items of show and sort */
-  List_iterator_fast<Item> li(*select_list);
+  List_iterator_fast<Item> li(select_list->value);
 
   for (arg_ptr=args ; (item_select= li++) ; arg_ptr++)
     *arg_ptr= item_select;
@@ -3174,7 +3263,7 @@ Item_func_group_concat(Name_resolution_context *context_arg,
   if (arg_count_order)
   {
     ORDER **order_ptr= order;
-    for (ORDER *order_item= order_list.first;
+    for (ORDER *order_item= opt_order_list->value.first;
          order_item != NULL;
          order_item= order_item->next)
     {
@@ -3183,7 +3272,18 @@ Item_func_group_concat(Name_resolution_context *context_arg,
       order_item->item= arg_ptr++;
     }
   }
+}
+
+
+bool Item_func_group_concat::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  context= pc->thd->lex->current_context();
   memcpy(orig_args, args, sizeof(Item*) * arg_count);
+  return false;
 }
 
 
@@ -3216,10 +3316,11 @@ Item_func_group_concat::Item_func_group_concat(THD *thd,
     object being copied.
   */
   ORDER *tmp;
-  if (!(order= (ORDER **) thd->alloc(sizeof(ORDER *) * arg_count_order +
+  const size_t order_array_sz= ALIGN_SIZE(sizeof(ORDER *) * arg_count_order);
+  if (!(order= (ORDER **) thd->alloc(order_array_sz +
                                      sizeof(ORDER) * arg_count_order)))
     return;
-  tmp= (ORDER *)(order + arg_count_order);
+  tmp= (ORDER *)((uchar*)order + order_array_sz);
   for (uint i= 0; i < arg_count_order; i++, tmp++)
   {
     /*
@@ -3444,7 +3545,7 @@ bool Item_func_group_concat::setup(THD *thd)
 {
   List<Item> list;
   SELECT_LEX *select_lex= thd->lex->current_select();
-  const bool order_or_distinct= test(arg_count_order > 0 || distinct);
+  const bool order_or_distinct= MY_TEST(arg_count_order > 0 || distinct);
   DBUG_ENTER("Item_func_group_concat::setup");
 
   /*
@@ -3454,7 +3555,7 @@ bool Item_func_group_concat::setup(THD *thd)
   if (table || tree)
     DBUG_RETURN(FALSE);
 
-  if (!(tmp_table_param= new TMP_TABLE_PARAM))
+  if (!(tmp_table_param= new (thd->mem_root) Temp_table_param))
     DBUG_RETURN(TRUE);
 
   /* Push all not constant fields to the list and create a temp table */

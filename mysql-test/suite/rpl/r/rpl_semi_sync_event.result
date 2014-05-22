@@ -43,4 +43,5 @@ include/start_slave.inc
 DROP EVENT ev1;
 DROP EVENT ev2;
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

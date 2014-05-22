@@ -22,6 +22,7 @@ include/assert.inc [SSS shows Slave_SQL_Running as "Yes". So, Service_State from
 
 use test;
 create table t(a int primary key);
+include/sync_slave_sql_with_master.inc
 drop table t;
 insert into t values(1);
 include/wait_for_slave_sql_error.inc [errno=1146]

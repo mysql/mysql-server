@@ -27,26 +27,26 @@
 #   $extra_options
 #     Options for mysqlbinlog, specifying which input file to read.
 
---let $option= --base64-output=never
+--let $options= --base64-output=never
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= --offset=2
+--let $options= --offset=2
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= --start-position=$start_position
+--let $options= --start-position=$start_position
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= --stop-position=$stop_position
+--let $options= --stop-position=$stop_position
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= --start-position=$start_position --stop-position=$stop_position
+--let $options= --start-position=$start_position --stop-position=$stop_position
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= "--start-datetime=$start_datetime"
+--let $options= "--start-datetime=$start_datetime"
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= "--stop-datetime=$stop_datetime"
+--let $options= "--stop-datetime=$stop_datetime"
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
 
---let $option= "--start-datetime=$start_datetime" "--stop-datetime=$stop_datetime"
+--let $options= "--start-datetime=$start_datetime" "--stop-datetime=$stop_datetime"
 --source extra/binlog_tests/mysqlbinlog_start_stop_2.inc

@@ -8,6 +8,7 @@ CREATE TABLE t1 (a int primary key) engine=innodb;
 CREATE TABLE t2 (a int primary key) engine=innodb;
 CREATE TABLE t3 (a int primary key) engine=innodb;
 CREATE TABLE t4 (a int primary key) engine=innodb;
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 SET GLOBAL DEBUG ='+d,crash_in_a_worker';
 SET GLOBAL DEBUG ='-d,set_commit_parent_100';
@@ -27,4 +28,5 @@ CREATE TABLE t5 (a int);
 include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
 DROP TABLES t1, t2, t3, t4, t5;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

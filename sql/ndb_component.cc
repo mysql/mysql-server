@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -82,7 +82,6 @@ Ndb_component::start()
 void
 Ndb_component::run_impl()
 {
-  pthread_detach_this_thread();
   pthread_mutex_lock(&m_start_stop_mutex);
   if (m_thread_state == TS_STARTING)
   {

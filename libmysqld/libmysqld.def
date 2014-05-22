@@ -105,4 +105,5 @@ EXPORTS
 	mysql_stmt_attr_set
 	mysql_stmt_field_count
 	mysql_stmt_next_result
-        mysql_reset_connection
+	mysql_reset_connection
+	mysql_get_option

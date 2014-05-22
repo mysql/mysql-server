@@ -68,7 +68,7 @@ int find_type_or_exit(const char *x, TYPELIB *typelib, const char *option)
 int find_type(const char *x, const TYPELIB *typelib, uint flags)
 {
   int find,pos;
-  int UNINIT_VAR(findpos);                       /* guarded by find */
+  int findpos= 0;                       /* guarded by find */
   const char *i;
   const char *j;
   DBUG_ENTER("find_type");
@@ -375,7 +375,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
       continue;
    err:
       *err_pos= (char*)start;
-      *err_len= end - start;
+      *err_len= (uint)(end - start);
       break;
     }
   }

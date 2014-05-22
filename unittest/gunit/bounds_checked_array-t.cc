@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,8 @@
 #include <gtest/gtest.h>
 
 #include "sql_array.h"
+
+#include <algorithm>
 
 namespace bounds_check_array_unittest {
 
@@ -184,6 +186,17 @@ TEST_F(BoundsCheckedArray, Equality)
 
   int_array_two.pop_front();
   EXPECT_NE(int_array, int_array_two);
+}
+
+TEST_F(BoundsCheckedArray, Sort)
+{
+  int_array= Int_array(c_array, c_array_size);
+  std::random_shuffle(int_array.begin(), int_array.end());
+  std::sort(int_array.begin(), int_array.end());
+  Int_array::const_iterator it;
+  int ix;
+  for (ix= 0, it= int_array.begin(); it != int_array.end(); ++it, ++ix)
+    EXPECT_EQ(ix, *it);
 }
 
 }  // namespace

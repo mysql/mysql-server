@@ -52,6 +52,9 @@ MACRO (MYSQL_USE_BUNDLED_SSL)
     ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/include
   )
   SET(SSL_LIBRARIES  yassl taocrypt)
+  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
+    SET(SSL_LIBRARIES ${SSL_LIBRARIES} ${LIBSOCKET})
+  ENDIF()
   SET(SSL_INCLUDE_DIRS ${INC_DIRS})
   SET(SSL_INTERNAL_INCLUDE_DIRS ${CMAKE_SOURCE_DIR}/extra/yassl/taocrypt/mySTL)
   SET(SSL_DEFINES "-DHAVE_YASSL -DYASSL_PREFIX -DHAVE_OPENSSL -DMULTI_THREADED")
@@ -249,7 +252,7 @@ MACRO (MYSQL_CHECK_SSL)
   ELSE()
     MESSAGE(SEND_ERROR
       "Wrong option or path for WITH_SSL. "
-      "Valid options are : "${WITH_SSL_DOC})
+      "Valid options are : ${WITH_SSL_DOC}")
   ENDIF()
 ENDMACRO()
 

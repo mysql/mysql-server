@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,87 +20,173 @@
 #include "my_global.h"        // ulonglong
 #include "mysql/plugin.h"     // MYSQL_XIDDATASIZE
 #include "mysqld.h"           // server_id
+#include "sql_cmd.h"
 
 #include <string.h>
 
 class Protocol;
 class THD;
+struct xid_t;
+
+enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
+                      XA_SUSPEND, XA_FOR_MIGRATE};
 
 /**
-  Starts an XA transaction with the given xid value.
-
-  @param thd    Current thread
-
-  @retval false  Success
-  @retval true   Failure
+  This class represents SQL statement which starts an XA transaction
+  with the given xid value.
 */
 
-bool trans_xa_start(THD *thd);
+class Sql_cmd_xa_start : public Sql_cmd
+{
+public:
+  Sql_cmd_xa_start(xid_t *xid_arg, enum xa_option_words xa_option)
+  : m_xid(xid_arg), m_xa_opt(xa_option)
+  {}
 
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_XA_START;
+  }
 
-/**
-  Put a XA transaction in the IDLE state.
+  virtual bool execute(THD *thd);
 
-  @param thd    Current thread
-
-  @retval false  Success
-  @retval true   Failure
-*/
-
-bool trans_xa_end(THD *thd);
-
-
-/**
-  Put a XA transaction in the PREPARED state.
-
-  @param thd    Current thread
-
-  @retval false  Success
-  @retval true   Failure
-*/
-
-bool trans_xa_prepare(THD *thd);
+private:
+  bool trans_xa_start(THD *thd);
+  xid_t *m_xid;
+  enum xa_option_words m_xa_opt;
+};
 
 
 /**
-  Return the list of XID's to a client, the same way SHOW commands do.
-
-  @param thd    Current thread
-
-  @retval false  Success
-  @retval true   Failure
-
-  @note
-    I didn't find in XA specs that an RM cannot return the same XID twice,
-    so trans_xa_recover does not filter XID's to ensure uniqueness.
-    It can be easily fixed later, if necessary.
+  This class represents SQL statement which puts in the IDLE state
+  an XA transaction with the given xid value.
 */
 
-bool trans_xa_recover(THD *thd);
+class Sql_cmd_xa_end : public Sql_cmd
+{
+public:
+  Sql_cmd_xa_end(xid_t *xid_arg, enum xa_option_words xa_option)
+  : m_xid(xid_arg), m_xa_opt(xa_option)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_XA_END;
+  }
+
+  virtual bool execute(THD *thd);
+
+private:
+  bool trans_xa_end(THD *thd);
+
+  xid_t *m_xid;
+  enum xa_option_words m_xa_opt;
+};
 
 
 /**
-  Commit and terminate the a XA transaction.
-
-  @param thd    Current thread
-
-  @retval false  Success
-  @retval true   Failure
+  This class represents SQL statement which puts in the PREPARED state
+  an XA transaction with the given xid value.
 */
 
-bool trans_xa_commit(THD *thd);
+class Sql_cmd_xa_prepare : public Sql_cmd
+{
+public:
+  explicit Sql_cmd_xa_prepare(xid_t *xid_arg)
+  : m_xid(xid_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_XA_PREPARE;
+  }
+
+  virtual bool execute(THD *thd);
+
+private:
+  bool trans_xa_prepare(THD *thd);
+
+  xid_t *m_xid;
+};
 
 
 /**
-  Roll back and terminate a XA transaction.
-
-  @param thd    Current thread
-
-  @retval false  Success
-  @retval true   Failure
+  This class represents SQL statement which returns to a client
+  a list of XID's prepared to a XA commit/rollback.
 */
 
-bool trans_xa_rollback(THD *thd);
+class Sql_cmd_xa_recover : public Sql_cmd
+{
+public:
+  explicit Sql_cmd_xa_recover(bool print_xid_as_hex)
+  : m_print_xid_as_hex(print_xid_as_hex)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_XA_RECOVER;
+  }
+
+  virtual bool execute(THD *thd);
+
+private:
+  bool trans_xa_recover(THD *thd);
+
+  bool m_print_xid_as_hex;
+};
+
+
+/**
+  This class represents SQL statement which commits
+  and terminates an XA transaction with the given xid value.
+*/
+
+class Sql_cmd_xa_commit : public Sql_cmd
+{
+public:
+  Sql_cmd_xa_commit(xid_t *xid_arg, enum xa_option_words xa_option)
+  : m_xid(xid_arg), m_xa_opt(xa_option)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_XA_COMMIT;
+  }
+
+  virtual bool execute(THD *thd);
+
+private:
+  bool trans_xa_commit(THD *thd);
+
+  xid_t *m_xid;
+  enum xa_option_words m_xa_opt;
+};
+
+
+/**
+  This class represents SQL statement which rollbacks and
+  terminates an XA transaction with the given xid value.
+*/
+
+class Sql_cmd_xa_rollback : public Sql_cmd
+{
+public:
+  explicit Sql_cmd_xa_rollback(xid_t *xid_arg)
+  : m_xid(xid_arg)
+  {}
+
+  virtual enum_sql_command sql_command_code() const
+  {
+    return SQLCOM_XA_ROLLBACK;
+  }
+
+  virtual bool execute(THD *thd);
+
+private:
+  bool trans_xa_rollback(THD *thd);
+
+  xid_t *m_xid;
+};
 
 
 typedef ulonglong my_xid; // this line is the same as in log_event.h
@@ -123,10 +209,25 @@ private:
   static const uint MYSQL_XID_OFFSET= MYSQL_XID_PREFIX_LEN + sizeof(server_id);
   static const uint MYSQL_XID_GTRID_LEN= MYSQL_XID_OFFSET + sizeof(my_xid);
 
+  /**
+    -1 means that the XID is null
+  */
   long formatID;
+
+  /**
+    value from 1 through 64
+  */
   long gtrid_length;
+
+  /**
+    value from 1 through 64
+  */
   long bqual_length;
-  char data[XIDDATASIZE];  // not \0-terminated !
+
+  /**
+    distributed trx identifier. not \0-terminated.
+  */
+  char data[XIDDATASIZE];
 
 public:
   xid_t()
@@ -134,6 +235,55 @@ public:
     gtrid_length(0),
     bqual_length(0)
   {
+    memset(data, 0, XIDDATASIZE);
+  }
+
+  long get_format_id() const
+  {
+    return formatID;
+  }
+
+  void set_format_id(long v)
+  {
+    formatID= v;
+  }
+
+  long get_gtrid_length() const
+  {
+    return gtrid_length;
+  }
+
+  void set_gtrid_length(long v)
+  {
+    gtrid_length= v;
+  }
+
+  long get_bqual_length() const
+  {
+    return bqual_length;
+  }
+
+  void set_bqual_length(long v)
+  {
+    bqual_length= v;
+  }
+
+  const char* get_data() const
+  {
+    return data;
+  }
+
+  void set_data(const void* v, long l)
+  {
+    DBUG_ASSERT(l <= XIDDATASIZE);
+    memcpy(data, v, l);
+  }
+
+  void reset()
+  {
+    formatID= -1;
+    gtrid_length= 0;
+    bqual_length= 0;
     memset(data, 0, XIDDATASIZE);
   }
 
@@ -184,14 +334,15 @@ public:
   char* xid_to_str(char *buf) const;
 #endif
 
-private:
   bool eq(const xid_t *xid) const
   {
-    return xid->gtrid_length == gtrid_length &&
+    return xid->formatID == formatID &&
+      xid->gtrid_length == gtrid_length &&
       xid->bqual_length == bqual_length &&
       !memcmp(xid->data, data, gtrid_length + bqual_length);
   }
 
+private:
   void set(const xid_t *xid)
   {
     memcpy(this, xid, sizeof(xid->formatID) + xid->key_length());
@@ -216,12 +367,6 @@ private:
   {
     formatID= -1;
   }
-
-  /**
-     This function checks if the XID consists of all printable characters
-     i.e ASCII 32 - 127 and returns true if it is so.
-  */
-  bool is_printable_xid() const;
 
   friend class XID_STATE;
 } XID;
@@ -256,6 +401,9 @@ public:
   void set_state(xa_states state)
   { xa_state= state; }
 
+  enum xa_states get_state()
+  { return xa_state; }
+
   bool has_state(xa_states state) const
   { return xa_state == state; }
 
@@ -263,6 +411,9 @@ public:
   { return xa_state_names[xa_state]; }
 
   const XID *get_xid() const
+  { return &m_xid; }
+
+  XID *get_xid()
   { return &m_xid; }
 
   bool has_same_xid(const XID *xid) const
@@ -318,7 +469,7 @@ public:
   bool is_in_recovery() const
   { return in_recovery; }
 
-  void store_xid_info(Protocol *protocol) const;
+  void store_xid_info(Protocol *protocol, bool print_xid_as_hex) const;
 
   /**
      Mark a XA transaction as rollback-only if the RM unilaterally
@@ -378,8 +529,10 @@ public:
 };
 
 
+class Transaction_ctx;
+
 /**
-  Initialize a cache to store xid values and a mutex to protect access
+  Initialize a cache to store Transaction_ctx and a mutex to protect access
   to the cache
 
   @return        result of initialization
@@ -387,25 +540,66 @@ public:
     @retval true   failure
 */
 
-bool xid_cache_init(void);
+bool transaction_cache_init();
 
 
 /**
-  Deallocate resources held by a cache for storing xid values
-  and by a mutex used to protect access to the cache.
+  Search information about XA transaction by a XID value.
+
+  @param xid    Pointer to a XID structure that identifies a XA transaction.
+
+  @return  pointer to a Transaction_ctx that describes the whole transaction
+           including XA-specific information (XID_STATE).
+    @retval  NULL     failure
+    @retval  != NULL  success
 */
 
-void xid_cache_free(void);
+Transaction_ctx *transaction_cache_search(XID *xid);
 
 
 /**
-  Delete information about XA transaction from cache.
+  Insert information about XA transaction into a cache indexed by XID.
 
-  @param xid_state  Pointer to a XID_STATE structure that describes
-                    an XA transaction.
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains XID_STATE
+                     for this XID value
+    @retval  true    failure
 */
 
-void xid_cache_delete(XID_STATE *xid_state);
+bool transaction_cache_insert(XID *xid, Transaction_ctx *transaction);
 
+
+/**
+  Insert information about XA transaction being recovered into a cache
+  indexed by XID.
+
+  @param xid     Pointer to a XID structure that identifies a XA transaction.
+
+  @return  operation result
+    @retval  false   success or a cache already contains Transaction_ctx
+                     for this XID value
+    @retval  true    failure
+*/
+
+bool transaction_cache_insert_recovery(XID *xid);
+
+
+/**
+  Remove information about transaction from a cache.
+
+  @param transaction     Pointer to a Transaction_ctx that has to be removed
+                         from a cache.
+*/
+
+void transaction_cache_delete(Transaction_ctx *transaction);
+
+
+/**
+  Release resources occupied by transaction cache.
+*/
+
+void transaction_cache_free();
 
 #endif

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -37,38 +37,38 @@ Created 9/30/1995 Heikki Tuuri
 typedef void*			os_process_t;
 typedef unsigned long int	os_process_id_t;
 
-extern ibool os_use_large_pages;
-/* Large page size. This may be a boot-time option on some platforms */
-extern ulint os_large_page_size;
+/** The total amount of memory currently allocated from the operating
+system with os_mem_alloc_large(). */
+extern ulint	os_total_large_mem_allocated;
 
-/****************************************************************//**
-Converts the current process id to a number. It is not guaranteed that the
-number is unique. In Linux returns the 'process number' of the current
-thread. That number is the same as one sees in 'top', for example. In Linux
-the thread id is not the same as one sees in 'top'.
+/** Whether to use large pages in the buffer pool */
+extern my_bool	os_use_large_pages;
+
+/** Large page size. This may be a boot-time option on some platforms */
+extern uint	os_large_page_size;
+
+/** Converts the current process id to a number.
 @return process id as a number */
 
 ulint
 os_proc_get_number(void);
-/*====================*/
-/****************************************************************//**
-Allocates large pages memory.
+
+/** Allocates large pages memory.
+@param[in,out]	n	Number of bytes to allocate
 @return allocated memory */
 
 void*
 os_mem_alloc_large(
-/*===============*/
-	ulint*	n);			/*!< in/out: number of bytes */
-/****************************************************************//**
-Frees large pages memory. */
+	ulint*	n);
+
+/** Frees large pages memory.
+@param[in]	ptr	pointer returned by os_mem_alloc_large()
+@param[in]	size	size returned by os_mem_alloc_large() */
 
 void
 os_mem_free_large(
-/*==============*/
-	void	*ptr,			/*!< in: pointer returned by
-					os_mem_alloc_large() */
-	ulint	size);			/*!< in: size returned by
-					os_mem_alloc_large() */
+	void	*ptr,
+	ulint	size);
 
 #ifndef UNIV_NONINL
 #include "os0proc.ic"

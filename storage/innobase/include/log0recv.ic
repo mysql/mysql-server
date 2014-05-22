@@ -30,8 +30,8 @@ Returns TRUE if recovery is currently running.
 @return recv_recovery_on */
 UNIV_INLINE
 ibool
-recv_recovery_is_on(void)
-/*=====================*/
+recv_recovery_is_on()
+/*=================*/
 {
 	return(recv_recovery_on);
 }

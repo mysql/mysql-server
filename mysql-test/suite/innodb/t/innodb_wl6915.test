@@ -2,6 +2,7 @@
 # WL#6915: InnoDB: Undo logs for temp-tables (and related objects) should
 # reside in temp-tablespace
 #
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 
 ################################################################################

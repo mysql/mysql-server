@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -265,7 +265,7 @@ int opt_sum_query(THD *thd,
   */
   for (TABLE_LIST *tl= tables; tl; tl= tl->next_leaf)
   {
-    if (tl->join_cond() || tl->outer_join_nest())
+    if (tl->optim_join_cond() || tl->outer_join_nest())
     /* Don't replace expression on a table that is part of an outer join */
     {
       outer_tables|= tl->table->map;
@@ -304,9 +304,9 @@ int opt_sum_query(THD *thd,
     }
     else
     {
-      maybe_exact_count&= test(table_filled &&
-                               (tl->table->file->ha_table_flags() &
-                                HA_HAS_RECORDS));
+      maybe_exact_count&= MY_TEST(table_filled &&
+                                  (tl->table->file->ha_table_flags() &
+                                   HA_HAS_RECORDS));
       is_exact_count= FALSE;
       count= 1;                                 // ensure count != 0
     }
@@ -372,7 +372,8 @@ int opt_sum_query(THD *thd,
                  !((Item_sum_count*) item)->get_arg(0)->maybe_null)       // 4
         {
           Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
-          fts_item->init_search(true);
+          fts_item->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR, false);
+          fts_item->init_search();
           if (thd->is_error())
             break;
           count= fts_item->get_count();
@@ -390,7 +391,7 @@ int opt_sum_query(THD *thd,
       case Item_sum::MIN_FUNC:
       case Item_sum::MAX_FUNC:
       {
-        int is_max= test(item_sum->sum_func() == Item_sum::MAX_FUNC);
+        int is_max= MY_TEST(item_sum->sum_func() == Item_sum::MAX_FUNC);
         /*
           If MIN/MAX(expr) is the first part of a key or if all previous
           parts of the key is found in the COND, then we can use
@@ -822,7 +823,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
       Item *value= args[between && max_fl ? 2 : 1];
       value->save_in_field_no_warnings(part->field, true);
       if (part->null_bit) 
-        *key_ptr++= (uchar) test(part->field->is_null());
+        *key_ptr++= (uchar) MY_TEST(part->field->is_null());
       part->field->get_key_image(key_ptr, part->length, Field::itRAW);
     }
     if (is_field_part)
@@ -842,7 +843,7 @@ static bool matching_cond(bool max_fl, TABLE_REF *ref, KEY *keyinfo,
   else if (eq_type)
   {
     if ((!is_null && !cond->val_int()) ||
-        (is_null && !test(part->field->is_null())))
+        (is_null && !MY_TEST(part->field->is_null())))
      DBUG_RETURN(FALSE);                       // Impossible test
   }
   else if (is_field_part)

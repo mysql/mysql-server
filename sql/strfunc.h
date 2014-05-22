@@ -30,7 +30,7 @@ ulonglong find_set_from_flags(TYPELIB *lib, uint default_name,
                               const char *str, uint length,
                               const CHARSET_INFO *cs,
                               char **err_pos, uint *err_len, bool *set_warning);
-uint find_type(const TYPELIB *lib, const char *find, uint length,
+uint find_type(const TYPELIB *lib, const char *find, size_t length,
                bool part_match);
 uint find_type2(const TYPELIB *lib, const char *find, uint length,
                 const CHARSET_INFO *cs);
@@ -47,7 +47,7 @@ char *set_to_string(THD *thd, LEX_STRING *result, ulonglong set,
 /*
   These functions were protected by INNODB_COMPATIBILITY_HOOKS
  */
-uint strconvert(CHARSET_INFO *from_cs, const char *from,
-                CHARSET_INFO *to_cs, char *to, uint to_length, uint *errors);
+size_t strconvert(CHARSET_INFO *from_cs, const char *from,
+                  CHARSET_INFO *to_cs, char *to, size_t to_length, uint *errors);
 
 #endif /* STRFUNC_INCLUDED */

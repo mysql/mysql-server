@@ -640,7 +640,7 @@ bool init_dynarray_intvar_from_file(char *buffer, size_t size,
     */
     char buf_work[(sizeof(long) * 3 + 1) * 16];
     memcpy(buf_work, buf, sizeof(buf_work));
-    num_items= atoi(strtok_r(buf_work, " ", &last));
+    num_items= atoi(my_strtok_r(buf_work, " ", &last));
     size_t snd_size;
     /*
       max size upper bound approximate estimation bases on the formula:

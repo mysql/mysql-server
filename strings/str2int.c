@@ -1,5 +1,4 @@
-/* Copyright (c) 2000-2003, 2006 MySQL AB
-   Use is subject to license terms.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -179,24 +178,3 @@ char *str2int(const char *src, int radix, long int lower,
   errno=0;			/* indicate that all went well */
   return (char*) src;
 }
-
-	/* Theese are so slow compared with ordinary, optimized atoi */
-
-#ifdef WANT_OUR_ATOI
-
-int atoi(const char *src)
-{
-  long val;
-  str2int(src, 10, (long) INT_MIN, (long) INT_MAX, &val);
-  return (int) val;
-}
-
-
-long atol(const char *src)
-{
-  long val;
-  str2int(src, 10, LONG_MIN, LONG_MAX, &val);
-  return val;
-}
-
-#endif /* WANT_OUR_ATOI */

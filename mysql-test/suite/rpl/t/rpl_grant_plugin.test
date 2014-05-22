@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Only needs to be run once. Make it row format,
 # because row runs are included in all pb2 platforms,
@@ -37,7 +32,7 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $assert_cond= `SELECT "$logged_query" LIKE "%$query"`
 --source include/assert.inc
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 --let $query= GRANT ALL PRIVILEGES ON `test`.* TO 'b59708_user2'@'%' IDENTIFIED WITH 'test_plugin_server' AS 'CN=analyst, OU=division1, O=oracle, C=US'
@@ -48,7 +43,7 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $assert_text= Logged query must match the one issued.
 --source include/assert.inc
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 ## testing with escaped characters
@@ -60,14 +55,14 @@ if (`SELECT @@GLOBAL.GTID_MODE != 'OFF'`)
 --let $assert_text= Logged query must match the one issued but properly escaped.
 --source include/assert.inc
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 DROP USER b59708_user1;
 DROP USER b59708_user2;
 DROP USER 'b59708_user\''@'localhost\'';
 
--- sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 -- connection master
 
 --enable_query_log

@@ -1,0 +1,2 @@
+--replicate-ignore-db=ignored_db
+--replicate-ignore-table=db1.ignored_table

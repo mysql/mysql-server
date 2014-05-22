@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -441,7 +441,7 @@ public:
     const Ciphers&    GetCiphers()    const;
     const DH_Parms&   GetDH_Parms()   const;
     const Stats&      GetStats()      const;
-    const VerifyCallback getVerifyCallback() const;
+    VerifyCallback    getVerifyCallback() const;
     pem_password_cb   GetPasswordCb() const;
           void*       GetUserData()   const;
           bool        GetSessionCacheOff()      const;

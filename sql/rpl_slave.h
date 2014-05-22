@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -150,37 +150,37 @@ extern bool server_id_supplied;
       mi.run_lock, rli.run_lock, rli.data_lock, global_sid_lock->wrlock
 
     reset_logs:
-      LOCK_thread_count, .LOCK_log, .LOCK_index, global_sid_lock->wrlock
+      THD::LOCK_thd_data, .LOCK_log, .LOCK_index, global_sid_lock->wrlock
 
     purge_relay_logs:
-      rli.data_lock, (relay.reset_logs) LOCK_thread_count,
+      rli.data_lock, (relay.reset_logs) THD::LOCK_thd_data,
       relay.LOCK_log, relay.LOCK_index, global_sid_lock->wrlock
 
     reset_master:
-      (binlog.reset_logs) LOCK_thread_count, binlog.LOCK_log,
+      (binlog.reset_logs) THD::LOCK_thd_data, binlog.LOCK_log,
       binlog.LOCK_index, global_sid_lock->wrlock
 
     reset_slave:
       mi.run_lock, rli.run_lock, (purge_relay_logs) rli.data_lock,
-      LOCK_thread_count, relay.LOCK_log, relay.LOCK_index,
+      THD::LOCK_thd_data, relay.LOCK_log, relay.LOCK_index,
       global_sid_lock->wrlock
 
     purge_logs:
-      .LOCK_index, LOCK_thread_count, thd.linfo.lock
+      .LOCK_index, LOCK_thd_count, thd.linfo.lock
 
       [Note: purge_logs contains a known bug: LOCK_index should not be
-      taken before LOCK_thread_count.  This implies that, e.g.,
+      taken before LOCK_thd_count.  This implies that, e.g.,
       purge_master_logs can deadlock with reset_master.  However,
       although purge_first_log and reset_slave take locks in reverse
       order, they cannot deadlock because they both first acquire
       rli.data_lock.]
 
     purge_master_logs, purge_master_logs_before_date, purge:
-      (binlog.purge_logs) binlog.LOCK_index, LOCK_thread_count, thd.linfo.lock
+      (binlog.purge_logs) binlog.LOCK_index, LOCK_thd_count, thd.linfo.lock
 
     purge_first_log:
       rli.data_lock, relay.LOCK_index, rli.log_space_lock,
-      (relay.purge_logs) LOCK_thread_count, thd.linfo.lock
+      (relay.purge_logs) LOCK_thd_count, thd.linfo.lock
 
     MYSQL_BIN_LOG::new_file_impl:
       .LOCK_log, .LOCK_index,
@@ -193,7 +193,7 @@ extern bool server_id_supplied;
       global_sid_lock->wrlock
 
     kill_zombie_dump_threads:
-      LOCK_thread_count, thd.LOCK_thd_data
+      LOCK_thd_count, thd.LOCK_thd_data
 
     init_relay_log_pos:
       rli.data_lock, relay.log_lock
@@ -215,7 +215,7 @@ extern bool server_id_supplied;
 
     LOCK_active_mi, mi.run_lock, rli.run_lock,
       ( rli.data_lock,
-        ( LOCK_thread_count,
+        ( LOCK_thd_count,
           (
             ( binlog.LOCK_log, binlog.LOCK_index
             | relay.LOCK_log, relay.LOCK_index
@@ -281,7 +281,30 @@ int flush_master_info(Master_info* mi, bool force);
 void add_slave_skip_errors(const char* arg);
 void set_slave_skip_errors(char** slave_skip_errors_ptr);
 int register_slave_on_master(MYSQL* mysql);
+/**
+  Terminates the slave threads according to the given mask.
+
+  @param mi                the master info repository
+  @param thread_mask       the mask identifying which thread(s) to terminate
+  @param stop_wait_timeout the timeout after which the method returns and error
+  @param need_lock_term
+          If @c false the lock will not be acquired before waiting on
+          the condition. In this case, it is assumed that the calling
+          function acquires the lock before calling this function.
+
+  @return the operation status
+    @retval 0    OK
+    @retval ER_SLAVE_NOT_RUNNING
+      The slave is already stopped
+    @retval ER_STOP_SLAVE_SQL_THREAD_TIMEOUT
+      There was a timeout when stopping the SQL thread
+    @retval ER_STOP_SLAVE_IO_THREAD_TIMEOUT
+      There was a timeout when stopping the IO thread
+    @retval ER_ERROR_DURING_FLUSH_LOGS
+      There was an error while flushing the log/repositories
+*/
 int terminate_slave_threads(Master_info* mi, int thread_mask,
+                            ulong stop_wait_timeout,
                             bool need_lock_term= true);
 int start_slave_threads(bool need_lock_slave, bool wait_for_start,
 			Master_info* mi, int thread_mask);

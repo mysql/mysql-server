@@ -84,3 +84,5 @@ DROP TABLE t1;
 --disconnect con3
 --disconnect con2
 --connection default
+--remove_file $MYSQLD_DATADIR/test/load.in
+

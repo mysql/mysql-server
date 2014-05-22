@@ -112,7 +112,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
     memcpy(m_schema_name, pfs->m_digest_key.m_schema_name, m_schema_name_length);
 
   int safe_byte_count= pfs->m_digest_storage.m_byte_count;
-  if (safe_byte_count > PSI_MAX_DIGEST_STORAGE_SIZE)
+  if (safe_byte_count > MAX_DIGEST_STORAGE_SIZE)
     safe_byte_count= 0;
 
   /*
@@ -122,6 +122,7 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
   */
   if (safe_byte_count > 0)
   {
+    bool truncated;
     /*
       Calculate digest from MD5 HASH collected to be shown as
       DIGEST in this row.
@@ -133,7 +134,10 @@ int PFS_digest_row::make_row(PFS_statements_digest_stat* pfs)
       Calculate digest_text information from the token array collected
       to be shown as DIGEST_TEXT column.
     */
-    get_digest_text(m_digest_text, &pfs->m_digest_storage);
+    compute_digest_text(&pfs->m_digest_storage,
+                        m_digest_text,
+                        sizeof(m_digest_text),
+                        & truncated);
     m_digest_text_length= strlen(m_digest_text);
 
     if (m_digest_text_length == 0)
@@ -440,6 +444,37 @@ void PFS_statement_stat_row::set_field(uint index, Field *f)
   }
 }
 
+void PFS_transaction_stat_row::set_field(uint index, Field *f)
+{
+  switch (index)
+  {
+    case 0: /* COUNT_STAR */
+    case 1: /* SUM_TIMER_WAIT */
+    case 2: /* MIN_TIMER_WAIT */
+    case 3: /* AVG_TIMER_WAIT */
+    case 4: /* MAX_TIMER_WAIT */
+      m_timer1_row.set_field(index, f);
+      break;
+    case 5: /* COUNT_READ_WRITE */
+    case 6: /* SUM_TIMER_READ_WRITE */
+    case 7: /* MIN_TIMER_READ_WRITE */
+    case 8: /* AVG_TIMER_READ_WRITE */
+    case 9: /* MAX_TIMER_READ_WRITE */
+      m_read_write_row.set_field(index-5, f);
+      break;
+    case 10: /* COUNT_READ_ONLY */
+    case 11: /* SUM_TIMER_READ_ONLY */
+    case 12: /* MIN_TIMER_READ_ONLY */
+    case 13: /* AVG_TIMER_READ_ONLY */
+    case 14: /* MAX_TIMER_READ_ONLY */
+      m_read_only_row.set_field(index-10, f);
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+  }
+}
+
 void PFS_connection_stat_row::set_field(uint index, Field *f)
 {
   switch (index)
@@ -666,4 +701,53 @@ void PFS_memory_stat_row::set_field(uint index, Field *f)
       break;
   }
 }
+
+void set_field_isolation_level(Field *f, enum_isolation_level iso_level)
+{
+  switch (iso_level)
+  {
+  case TRANS_LEVEL_READ_UNCOMMITTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ UNCOMMITTED", 16);
+    break;
+  case TRANS_LEVEL_READ_COMMITTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "READ COMMITTED", 14);
+    break;
+  case TRANS_LEVEL_REPEATABLE_READ:
+    PFS_engine_table::set_field_varchar_utf8(f, "REPEATABLE READ", 15);
+    break;
+  case TRANS_LEVEL_SERIALIZABLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "SERIALIZABLE", 12);
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+}
+
+void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state)
+{
+  switch (xa_state)
+  {
+  case TRANS_STATE_XA_NOTR:
+    PFS_engine_table::set_field_varchar_utf8(f, "NOTR", 4);
+    break;
+  case TRANS_STATE_XA_ACTIVE:
+    PFS_engine_table::set_field_varchar_utf8(f, "ACTIVE", 6);
+    break;
+  case TRANS_STATE_XA_IDLE:
+    PFS_engine_table::set_field_varchar_utf8(f, "IDLE", 4);
+    break;
+  case TRANS_STATE_XA_PREPARED:
+    PFS_engine_table::set_field_varchar_utf8(f, "PREPARED", 8);
+    break;
+  case TRANS_STATE_XA_ROLLBACK_ONLY:
+    PFS_engine_table::set_field_varchar_utf8(f, "ROLLBACK ONLY", 13);
+    break;
+  case TRANS_STATE_XA_COMMITTED:
+    PFS_engine_table::set_field_varchar_utf8(f, "COMMITTED", 9);
+    break;
+  default:
+    DBUG_ASSERT(false);
+  }
+}
+
 

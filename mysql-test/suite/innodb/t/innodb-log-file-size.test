@@ -68,13 +68,13 @@ let SEARCH_PATTERN= syntax error in innodb_log_group_home_dir;
 
 # On Windows, DBUG_SUICIDE() does exit(3) instead of SIGKILL (128+9).
 --echo --innodb-force-recovery-crash=1
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=1
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=3
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=3
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
@@ -89,7 +89,7 @@ let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-on
 --remove_file $SEARCH_FILE
 
 --echo --innodb-force-recovery-crash=4
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=4
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
@@ -97,7 +97,7 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=5
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=5
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
@@ -112,7 +112,7 @@ let SEARCH_PATTERN= InnoDB: Can.t initiate database recovery, running in read-on
 --remove_file $SEARCH_FILE
 
 --echo --innodb-force-recovery-crash=6
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=6
 let SEARCH_PATTERN= InnoDB: Starting an apply batch of log records;
 --source include/search_pattern_in_file.inc
@@ -120,7 +120,7 @@ let SEARCH_PATTERN= InnoDB: Resizing redo log from 3\*[0-9]+ to 2\*[0-9]+ pages;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=7
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=7
 # this crashes right after deleting all log files
 --remove_file $SEARCH_FILE
@@ -132,13 +132,13 @@ let SEARCH_PATTERN= InnoDB: Cannot create log files in read-only mode;
 --remove_file $SEARCH_FILE
 
 --echo --innodb-force-recovery-crash=8
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=8
 let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 --echo --innodb-force-recovery-crash=9
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=9
 let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --source include/search_pattern_in_file.inc
@@ -184,7 +184,7 @@ let SEARCH_PATTERN= InnoDB: Log file .*ib_logfile1 is of different size 1048576 
 --move_file $MYSQLD_DATADIR/ib_logfile1_hidden $MYSQLD_DATADIR/ib_logfile1
 
 --echo --innodb-force-recovery-crash=10
---error 3
+--error 137,3
 --exec $MYSQLD_CMD $crash=10
 let SEARCH_PATTERN= InnoDB: Setting log file .*ib_logfile[0-9]+ size to;
 --source include/search_pattern_in_file.inc

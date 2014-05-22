@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -53,8 +53,8 @@ dict_hdr_get(
 	buf_block_t*	block;
 	dict_hdr_t*	header;
 
-	block = buf_page_get(DICT_HDR_SPACE, 0, DICT_HDR_PAGE_NO,
-			     RW_X_LATCH, mtr);
+	block = buf_page_get(page_id_t(DICT_HDR_SPACE, DICT_HDR_PAGE_NO),
+			     univ_page_size, RW_X_LATCH, mtr);
 	header = DICT_HDR + buf_block_get_frame(block);
 
 	buf_block_dbg_add_level(block, SYNC_DICT_HEADER);
@@ -84,10 +84,17 @@ dict_hdr_get_new_id(
 	mtr_t		mtr;
 
 	mtr_start(&mtr);
-	if (table) {	
+	if (table) {
 		dict_disable_redo_if_temporary(table, &mtr);
 	} else if (disable_redo) {
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		/* In non-read-only mode we need to ensure that space-id header
+		page is written to disk else if page is removed from buffer
+		cache and re-loaded it would assign temporary tablespace id
+		to another tablespace.
+		This is not a case with read-only mode as there is no new object
+		that is created except temporary tablespace. */
+		mtr_set_log_mode(&mtr,
+			(srv_read_only_mode ? MTR_LOG_NONE : MTR_LOG_NO_REDO));
 	}
 
 	/* Server started and let's say space-id = x
@@ -183,7 +190,7 @@ dict_hdr_create(
 	block = fseg_create(DICT_HDR_SPACE, 0,
 			    DICT_HDR + DICT_HDR_FSEG_HEADER, mtr);
 
-	ut_a(DICT_HDR_PAGE_NO == buf_block_get_page_no(block));
+	ut_a(DICT_HDR_PAGE_NO == block->page.id.page_no());
 
 	dict_header = dict_hdr_get(mtr);
 
@@ -209,8 +216,8 @@ dict_hdr_create(
 	system tables */
 
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_TABLES_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_TABLES_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -220,8 +227,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_TABLES, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE, 0,
-				  DICT_TABLE_IDS_ID,
+	root_page_no = btr_create(DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_TABLE_IDS_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -231,8 +238,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_TABLE_IDS, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_COLUMNS_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_COLUMNS_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -242,8 +249,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_COLUMNS, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_INDEXES_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_INDEXES_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -253,8 +260,8 @@ dict_hdr_create(
 	mlog_write_ulint(dict_header + DICT_HDR_INDEXES, root_page_no,
 			 MLOG_4BYTES, mtr);
 	/*--------------------------*/
-	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE,
-				  DICT_HDR_SPACE, 0, DICT_FIELDS_ID,
+	root_page_no = btr_create(DICT_CLUSTERED | DICT_UNIQUE, DICT_HDR_SPACE,
+				  univ_page_size, DICT_FIELDS_ID,
 				  dict_ind_redundant, NULL, mtr);
 	if (root_page_no == FIL_NULL) {
 
@@ -487,8 +494,8 @@ dict_boot(void)
 	if (srv_read_only_mode && !ibuf_is_empty()) {
 
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Change buffer must be empty when --innodb-read-only "
-			"is set!");
+			"Change buffer must be empty when --innodb-read-only"
+			" is set!");
 
 		err = DB_ERROR;
 	} else {

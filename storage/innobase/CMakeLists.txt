@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,11 +41,13 @@ SET(INNOBASE_SOURCES
 	dict/dict0mem.cc
 	dict/dict0stats.cc
 	dict/dict0stats_bg.cc
-	dyn/dyn0dyn.cc
 	eval/eval0eval.cc
 	eval/eval0proc.cc
 	fil/fil0fil.cc
 	fsp/fsp0fsp.cc
+	fsp/fsp0file.cc
+	fsp/fsp0space.cc
+	fsp/fsp0sysspace.cc
 	fut/fut0fut.cc
 	fut/fut0lst.cc
 	ha/ha0ha.cc
@@ -60,19 +62,22 @@ SET(INNOBASE_SOURCES
 	fts/fts0que.cc
 	fts/fts0sql.cc
 	fts/fts0tlex.cc
+	gis/gis0geo.cc
+	gis/gis0rtree.cc
+	gis/gis0sea.cc
 	fts/fts0plugin.cc
 	handler/ha_innodb.cc
 	handler/handler0alter.cc
 	handler/i_s.cc
 	ibuf/ibuf0ibuf.cc
 	lock/lock0iter.cc
+	lock/lock0prdt.cc
 	lock/lock0lock.cc
 	lock/lock0wait.cc
 	log/log0log.cc
 	log/log0recv.cc
 	mach/mach0data.cc
 	mem/mem0mem.cc
-	mem/mem0pool.cc
 	mtr/mtr0log.cc
 	mtr/mtr0mtr.cc
 	os/os0file.cc
@@ -111,7 +116,6 @@ SET(INNOBASE_SOURCES
 	srv/srv0conc.cc
 	srv/srv0mon.cc
 	srv/srv0srv.cc
-	srv/srv0space.cc
 	srv/srv0start.cc
 	sync/sync0arr.cc
 	sync/sync0rw.cc

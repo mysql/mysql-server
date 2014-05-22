@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -45,7 +45,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "log0recv.h"
 #include "os0file.h"
 #include "read0read.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 
 /** The file format tag structure with id and name. */
 struct file_format_t {
@@ -67,7 +67,7 @@ char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+int64_t	trx_sys_mysql_master_log_pos = -1;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -77,7 +77,7 @@ here. */
 /** Binlog file name */
 char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Binlog file position, or -1 if unknown */
-ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
+int64_t	trx_sys_mysql_bin_log_pos = -1;
 /* @} */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -128,37 +128,30 @@ static	file_format_t	file_format_max;
 
 #ifdef UNIV_DEBUG
 /****************************************************************//**
-Checks whether a trx is in one of rw_trx_list or ro_trx_list.
-@return TRUE if is in */
+Checks whether a trx is in one of rw_trx_list
+@return true if is in */
 
-ibool
-trx_in_trx_list(
+bool
+trx_in_rw_trx_list(
 /*============*/
 	const trx_t*	in_trx)	/*!< in: transaction */
 {
 	const trx_t*	trx;
-	trx_list_t*	trx_list;
 
 	/* Non-locking autocommits should not hold any locks. */
-	assert_trx_in_list(in_trx);
-
-	trx_list = (in_trx->read_only || in_trx->rsegs.m_redo.rseg == 0)
-		? &trx_sys->ro_trx_list : &trx_sys->rw_trx_list;
+	check_trx_state(in_trx);
 
 	ut_ad(trx_sys_mutex_own());
 
 	ut_ad(trx_assert_started(in_trx));
 
-	for (trx = UT_LIST_GET_FIRST(*trx_list);
-	     trx != 0 && trx != in_trx;
+	for (trx = UT_LIST_GET_FIRST(trx_sys->rw_trx_list);
+	     trx != NULL && trx != in_trx;
 	     trx = UT_LIST_GET_NEXT(trx_list, trx)) {
 
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 
-		ut_ad(!(trx->rsegs.m_redo.rseg == 0 || trx->read_only)
-		      == (trx_list == &trx_sys->rw_trx_list)
-		      || (trx->rsegs.m_redo.rseg != 0 && trx->read_only)
-		      == (trx_list == &trx_sys->ro_trx_list));
+		ut_ad(trx->rsegs.m_redo.rseg != NULL && !trx->read_only);
 	}
 
 	return(trx != 0);
@@ -200,7 +193,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/*!< in: MySQL log file name */
-	ib_int64_t	offset,	/*!< in: position in that log file */
+	int64_t		offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -285,73 +278,19 @@ trx_sys_print_mysql_binlog_offset(void)
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
 	trx_sys_mysql_bin_log_pos
-		= (((ib_int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (ib_int64_t) trx_sys_mysql_bin_log_pos_low;
+		= (((int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
+		+ (int64_t) trx_sys_mysql_bin_log_pos_low;
 
 	ut_memcpy(trx_sys_mysql_bin_log_name,
 		  sys_header + TRX_SYS_MYSQL_LOG_INFO
 		  + TRX_SYS_MYSQL_LOG_NAME, TRX_SYS_MYSQL_LOG_NAME_LEN);
 
-	fprintf(stderr,
-		"InnoDB: Last MySQL binlog file position %lu %lu,"
-		" file name %s\n",
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Last MySQL binlog file position %lu %lu,"
+		" file name %s",
 		trx_sys_mysql_bin_log_pos_high, trx_sys_mysql_bin_log_pos_low,
 		trx_sys_mysql_bin_log_name);
 
-	mtr_commit(&mtr);
-}
-
-/*****************************************************************//**
-Prints to stderr the MySQL master log offset info in the trx system header if
-the magic number shows it valid. */
-
-void
-trx_sys_print_mysql_master_log_pos(void)
-/*====================================*/
-{
-	trx_sysf_t*	sys_header;
-	mtr_t		mtr;
-
-	mtr_start(&mtr);
-
-	sys_header = trx_sysf_get(&mtr);
-
-	if (mach_read_from_4(sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
-	    != TRX_SYS_MYSQL_LOG_MAGIC_N) {
-
-		mtr_commit(&mtr);
-
-		return;
-	}
-
-	fprintf(stderr,
-		"InnoDB: In a MySQL replication slave the last"
-		" master binlog file\n"
-		"InnoDB: position %lu %lu, file name %s\n",
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
-		(ulong) mach_read_from_4(sys_header
-					 + TRX_SYS_MYSQL_MASTER_LOG_INFO
-					 + TRX_SYS_MYSQL_LOG_OFFSET_LOW),
-		sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		+ TRX_SYS_MYSQL_LOG_NAME);
-	/* Copy the master log position info to global variables we can
-	use in ha_innobase.cc to initialize glob_mi to right values */
-
-	ut_memcpy(trx_sys_mysql_master_log_name,
-		  sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-		  + TRX_SYS_MYSQL_LOG_NAME,
-		  TRX_SYS_MYSQL_LOG_NAME_LEN);
-
-	trx_sys_mysql_master_log_pos
-		= (((ib_int64_t) mach_read_from_4(
-			    sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			    + TRX_SYS_MYSQL_LOG_OFFSET_HIGH)) << 32)
-		+ ((ib_int64_t) mach_read_from_4(
-			   sys_header + TRX_SYS_MYSQL_MASTER_LOG_INFO
-			   + TRX_SYS_MYSQL_LOG_OFFSET_LOW));
 	mtr_commit(&mtr);
 }
 
@@ -458,7 +397,7 @@ trx_sysf_create(
 			    mtr);
 	buf_block_dbg_add_level(block, SYNC_TRX_SYS_HEADER);
 
-	ut_a(buf_block_get_page_no(block) == TRX_SYS_PAGE_NO);
+	ut_a(block->page.id.page_no() == TRX_SYS_PAGE_NO);
 
 	page = buf_block_get_frame(block);
 
@@ -495,8 +434,8 @@ trx_sysf_create(
 
 	/* Create the first rollback segment in the SYSTEM tablespace */
 	slot_no = trx_sysf_rseg_find_free(mtr, false, 0);
-	page_no = trx_rseg_header_create(TRX_SYS_SPACE, 0, ULINT_MAX, slot_no,
-					 mtr);
+	page_no = trx_rseg_header_create(TRX_SYS_SPACE, univ_page_size,
+					 ULINT_MAX, slot_no, mtr);
 
 	ut_a(slot_no == TRX_SYS_SYSTEM_RSEG_ID);
 	ut_a(page_no == FSP_FIRST_RSEG_PAGE_NO);
@@ -555,8 +494,6 @@ trx_sys_init_at_db_start(void)
 
 	trx_sys_mutex_enter();
 
-	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
-
 	if (UT_LIST_GET_LEN(trx_sys->rw_trx_list) > 0) {
 		const trx_t*	trx;
 
@@ -577,14 +514,13 @@ trx_sys_init_at_db_start(void)
 			rows_to_undo = rows_to_undo / 1000000;
 		}
 
-		fprintf(stderr,
-			"InnoDB: %lu transaction(s) which must be"
-			" rolled back or cleaned up\n"
-			"InnoDB: in total %lu%s row operations to undo\n",
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"%lu transaction(s) which must be rolled back or"
+			" cleaned up in total %lu%s row operations to undo",
 			(ulong) UT_LIST_GET_LEN(trx_sys->rw_trx_list),
 			(ulong) rows_to_undo, unit);
 
-		fprintf(stderr, "InnoDB: Trx id counter is " TRX_ID_FMT "\n",
+		ib_logf(IB_LOG_LEVEL_INFO, "Trx id counter is " TRX_ID_FMT "",
 			trx_sys->max_trx_id);
 	}
 
@@ -609,7 +545,6 @@ trx_sys_create(void)
 	mutex_create("trx_sys", &trx_sys->mutex);
 
 	UT_LIST_INIT(trx_sys->serialisation_list, &trx_t::no_list);
-	UT_LIST_INIT(trx_sys->ro_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->rw_trx_list, &trx_t::trx_list);
 	UT_LIST_INIT(trx_sys->mysql_trx_list, &trx_t::mysql_trx_list);
 
@@ -655,7 +590,8 @@ trx_sys_file_format_max_write(
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
+		RW_X_LATCH, &mtr);
 
 	file_format_max.id = format_id;
 	file_format_max.name = trx_sys_file_format_id_to_name(format_id);
@@ -692,7 +628,8 @@ trx_sys_file_format_max_read(void)
 	mtr_start(&mtr);
 
 	block = buf_page_get(
-		TRX_SYS_SPACE, 0, TRX_SYS_PAGE_NO, RW_X_LATCH, &mtr);
+		page_id_t(TRX_SYS_SPACE, TRX_SYS_PAGE_NO), univ_page_size,
+		RW_X_LATCH, &mtr);
 
 	ptr = buf_block_get_frame(block) + TRX_SYS_FILE_FORMAT_TAG;
 	file_format_id = mach_read_from_8(ptr);
@@ -756,8 +693,8 @@ trx_sys_file_format_max_check(
 
 		ib_logf(max_format_id <= UNIV_FORMAT_MAX
 			? IB_LOG_LEVEL_ERROR : IB_LOG_LEVEL_WARN,
-			"The system tablespace is in a file "
-			"format that this version doesn't support - %s.",
+			"The system tablespace is in a file"
+			" format that this version doesn't support - %s.",
 			trx_sys_file_format_id_to_name(format_id));
 
 		if (max_format_id <= UNIV_FORMAT_MAX) {
@@ -1018,9 +955,9 @@ trx_sys_print_mysql_binlog_offset_from_page(
 			     + TRX_SYS_MYSQL_LOG_MAGIC_N_FLD)
 	    == TRX_SYS_MYSQL_LOG_MAGIC_N) {
 
-		fprintf(stderr,
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"ibbackup: Last MySQL binlog file position %lu %lu,"
-			" file name %s\n",
+			" file name %s",
 			(ulong) mach_read_from_4(
 				sys_header + TRX_SYS_MYSQL_LOG_INFO
 				+ TRX_SYS_MYSQL_LOG_OFFSET_HIGH),
@@ -1061,19 +998,17 @@ trx_sys_read_file_format_id(
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
+		srv_read_only_mode,
 		&success
 	);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to read system tablespace "
-			"file format,\n"
-			"  ibbackup: but could not open the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to read system tablespace"
+			" file format, but could not open the tablespace"
+			" file %s!", pathname);
 		return(FALSE);
 	}
 
@@ -1086,13 +1021,10 @@ trx_sys_read_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to read system tablespace "
-			"file format,\n"
-			"  ibbackup: but failed to read the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to read system tablespace"
+			" file format, but failed to read the tablespace"
+			" file %s!", pathname);
 
 		os_file_close(file);
 		return(FALSE);
@@ -1141,19 +1073,17 @@ trx_sys_read_pertable_file_format_id(
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
+		srv_read_only_mode,
 		&success
 	);
 	if (!success) {
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to read per-table "
-			"tablespace format,\n"
-			"  ibbackup: but could not open the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to read per-table tablespace"
+			" format, but could not open the tablespace file %s!",
+			pathname);
 
 		return(FALSE);
 	}
@@ -1166,13 +1096,10 @@ trx_sys_read_pertable_file_format_id(
 		/* The following call prints an error message */
 		os_file_get_last_error(true);
 
-		ut_print_timestamp(stderr);
-
-		fprintf(stderr,
-			"  ibbackup: Error: trying to per-table data file "
-			"format,\n"
-			"  ibbackup: but failed to read the tablespace "
-			"file %s!\n", pathname);
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"ibbackup: Error: trying to per-table data file format,"
+			" but failed to read the tablespace file %s!",
+			pathname);
 
 		os_file_close(file);
 		return(FALSE);
@@ -1231,8 +1158,8 @@ trx_sys_close(void)
 
 	if (size > 0) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"All read views were not closed before shutdown: "
-			"%lu read views open", size);
+			"All read views were not closed before shutdown:"
+			" %lu read views open", size);
 	}
 
 
@@ -1245,8 +1172,6 @@ trx_sys_close(void)
 	buf_dblwr_free();
 
 	trx_sys_mutex_enter();
-
-	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 
 	/* Only prepared transactions may be left in the system. Free them. */
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == trx_sys->n_prepared_trx);
@@ -1288,7 +1213,6 @@ trx_sys_close(void)
 
 	delete trx_sys->mvcc;
 
-	ut_a(UT_LIST_GET_LEN(trx_sys->ro_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->rw_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->mysql_trx_list) == 0);
 	ut_a(UT_LIST_GET_LEN(trx_sys->serialisation_list) == 0);
@@ -1351,7 +1275,7 @@ trx_sys_validate_trx_list_low(
 	     trx != NULL;
 	     prev_trx = trx, trx = UT_LIST_GET_NEXT(trx_list, prev_trx)) {
 
-		assert_trx_in_list(trx);
+		check_trx_state(trx);
 		ut_a(prev_trx == NULL || prev_trx->id > trx->id);
 	}
 

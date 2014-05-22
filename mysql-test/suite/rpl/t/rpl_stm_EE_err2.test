@@ -1,13 +1,9 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #############################
 # Author: JBM
 # Date: 2006-01-11
 # Purpose: Engine Wrapper for rpl_stm_EE_err2.test
 ##############################
 -- source include/have_binlog_format_mixed_or_statement.inc
+-- source include/have_myisam.inc
 let $engine_type=myisam;
 -- source extra/rpl_tests/rpl_stm_EE_err2.test

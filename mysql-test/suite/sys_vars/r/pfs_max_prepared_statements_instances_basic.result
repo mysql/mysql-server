@@ -1,0 +1,41 @@
+select @@global.performance_schema_max_prepared_statements_instances;
+@@global.performance_schema_max_prepared_statements_instances
+1000
+select @@global.performance_schema_max_prepared_statements_instances;
+@@global.performance_schema_max_prepared_statements_instances
+1000
+select @@session.performance_schema_max_prepared_statements_instances;
+ERROR HY000: Variable 'performance_schema_max_prepared_statements_instances' is a GLOBAL variable
+show global variables like 'performance_schema_max_prepared_statements_instances';
+Variable_name	Value
+performance_schema_max_prepared_statements_instances	1000
+show session variables like 'performance_schema_max_prepared_statements_instances';
+Variable_name	Value
+performance_schema_max_prepared_statements_instances	1000
+select * from information_schema.global_variables
+where variable_name='performance_schema_max_prepared_statements_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_MAX_PREPARED_STATEMENTS_INSTANCES	1000
+select * from information_schema.session_variables
+where variable_name='performance_schema_max_prepared_statements_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_MAX_PREPARED_STATEMENTS_INSTANCES	1000
+set global performance_schema_max_prepared_statements_instances=1;
+ERROR HY000: Variable 'performance_schema_max_prepared_statements_instances' is a read only variable
+set session performance_schema_max_prepared_statements_instances=1;
+ERROR HY000: Variable 'performance_schema_max_prepared_statements_instances' is a read only variable
+SELECT @@GLOBAL.performance_schema_max_prepared_statements_instances = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='performance_schema_max_prepared_statements_instances';
+@@GLOBAL.performance_schema_max_prepared_statements_instances = VARIABLE_VALUE
+1
+select @@global.performance_schema_max_prepared_statements_instances;
+@@global.performance_schema_max_prepared_statements_instances
+1000
+select * from information_schema.global_variables
+where variable_name='performance_schema_max_prepared_statements_instances';
+VARIABLE_NAME	VARIABLE_VALUE
+PERFORMANCE_SCHEMA_MAX_PREPARED_STATEMENTS_INSTANCES	1000
+SELECT @@performance_schema_max_prepared_statements_instances = @@GLOBAL.performance_schema_max_prepared_statements_instances;
+@@performance_schema_max_prepared_statements_instances = @@GLOBAL.performance_schema_max_prepared_statements_instances
+1

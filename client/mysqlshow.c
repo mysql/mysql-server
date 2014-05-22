@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,6 +38,7 @@ static uint my_end_arg= 0;
 static uint opt_verbose=0;
 static char *default_charset= (char*) MYSQL_AUTODETECT_CHARSET_NAME;
 static char *opt_plugin_dir= 0, *opt_default_auth= 0;
+static my_bool opt_secure_auth= TRUE;
 
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
 static char *shared_memory_base_name=0;
@@ -117,21 +118,13 @@ int main(int argc, char **argv)
   mysql_init(&mysql);
   if (opt_compress)
     mysql_options(&mysql,MYSQL_OPT_COMPRESS,NullS);
-#ifdef HAVE_OPENSSL
-  if (opt_use_ssl)
-  {
-    mysql_ssl_set(&mysql, opt_ssl_key, opt_ssl_cert, opt_ssl_ca,
-		  opt_ssl_capath, opt_ssl_cipher);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRL, opt_ssl_crl);
-    mysql_options(&mysql, MYSQL_OPT_SSL_CRLPATH, opt_ssl_crlpath);
-  }
-  mysql_options(&mysql,MYSQL_OPT_SSL_VERIFY_SERVER_CERT,
-                (char*)&opt_ssl_verify_server_cert);
-#endif
+  SSL_SET_OPTIONS(&mysql);
   if (opt_protocol)
     mysql_options(&mysql,MYSQL_OPT_PROTOCOL,(char*)&opt_protocol);
   if (opt_bind_addr)
     mysql_options(&mysql,MYSQL_OPT_BIND,opt_bind_addr);
+  if (!opt_secure_auth)
+    mysql_options(&mysql, MYSQL_SECURE_AUTH,(char*)&opt_secure_auth);
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   if (shared_memory_base_name)
     mysql_options(&mysql,MYSQL_SHARED_MEMORY_BASE_NAME,shared_memory_base_name);
@@ -244,6 +237,9 @@ static struct my_option my_long_options[] =
   {"protocol", OPT_MYSQL_PROTOCOL, 
    "The protocol to use for connection (tcp, socket, pipe, memory).",
    0, 0, 0, GET_STR,  REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+  {"secure-auth", OPT_SECURE_AUTH, "Refuse client connecting to server if it"
+    " uses old (pre-4.1.1) protocol.", &opt_secure_auth,
+    &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
 #if defined (_WIN32) && !defined (EMBEDDED_LIBRARY)
   {"shared-memory-base-name", OPT_SHARED_MEMORY_BASE_NAME,
    "Base name of shared memory.", &shared_memory_base_name,
@@ -455,7 +451,7 @@ list_dbs(MYSQL *mysql,const char *wild)
 		if ((rresult = mysql_store_result(mysql)))
 		{
 		  rrow = mysql_fetch_row(rresult);
-		  rowcount += (ulong) strtoull(rrow[0], (char**) 0, 10);
+		  rowcount += (ulong) my_strtoull(rrow[0], (char**) 0, 10);
 		  mysql_free_result(rresult);
 		}
 	      }
@@ -596,7 +592,7 @@ list_tables(MYSQL *mysql,const char *db,const char *table)
 	      if ((rresult = mysql_store_result(mysql)))
 	      {
 		rrow = mysql_fetch_row(rresult);
-		rowcount += (unsigned long) strtoull(rrow[0], (char**) 0, 10);
+		rowcount += (unsigned long) my_strtoull(rrow[0], (char**) 0, 10);
 		mysql_free_result(rresult);
 	      }
 	      sprintf(rows,"%10lu",rowcount);
@@ -651,7 +647,7 @@ static int
 list_table_status(MYSQL *mysql,const char *db,const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
 
@@ -691,10 +687,10 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
 	    const char *wild)
 {
   char query[NAME_LEN + 100];
-  int len;
+  size_t len;
   MYSQL_RES *result;
   MYSQL_ROW row;
-  ulong UNINIT_VAR(rows);
+  ulong rows= 0;
 
   if (mysql_select_db(mysql,db))
   {
@@ -713,7 +709,7 @@ list_fields(MYSQL *mysql,const char *db,const char *table,
       return 1;
     }
     row= mysql_fetch_row(result);
-    rows= (ulong) strtoull(row[0], (char**) 0, 10);
+    rows= (ulong) my_strtoull(row[0], (char**) 0, 10);
     mysql_free_result(result);
   }
 

@@ -56,13 +56,13 @@ ANALYZE TABLE t1;
 --echo # REF access optimization
 --echo #
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT pk_2 FROM t1 WHERE pk_1 = 3 and f1 = '2000-01-03';
@@ -72,13 +72,13 @@ SHOW STATUS LIKE 'handler_read%';
 --echo # RANGE access optimization
 --echo #
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT count(*) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
@@ -88,25 +88,25 @@ SHOW STATUS LIKE 'handler_read%';
 --echo # MAX/MIN optimization
 --echo #
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE f1 = '2000-01-03';
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
 FLUSH STATUS;
 SELECT MAX(pk_1) FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03';
@@ -116,13 +116,13 @@ SHOW STATUS LIKE 'handler_read%';
 --echo # Loose index scan
 --echo #
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 BETWEEN 13 AND 14 GROUP BY f2;
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT MIN(pk_1) FROM t1 WHERE f2 IN (1, 2) GROUP BY f2;
 FLUSH STATUS;
 SELECT MIN(pk_1) FROM t1 WHERE f2 IN (1, 2) GROUP BY f2;
@@ -132,7 +132,7 @@ SHOW STATUS LIKE 'handler_read%';
 --echo # JOIN optimization
 --echo #
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT count(*) FROM t1 AS t1 JOIN t1 AS t2
 ON t2.pk_1 = t1.pk_1 WHERE t1.f1 = '2000-01-03' AND t2.f1 = '2000-01-03';
 FLUSH STATUS;
@@ -144,7 +144,7 @@ SHOW STATUS LIKE 'handler_read%';
 --echo # Optimization of sorting
 --echo #
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 FLUSH STATUS;
@@ -152,7 +152,7 @@ SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 = 3 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 SHOW STATUS LIKE 'handler_read%';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f1, pk_1, pk_2 FROM t1 WHERE pk_1 BETWEEN 3 AND 5 AND f1 = '2000-01-03'
 ORDER BY pk_2 DESC LIMIT 5;
 FLUSH STATUS;
@@ -174,14 +174,14 @@ CREATE TABLE t1
   KEY k1 (f11, f12, f13, f14, f15, f16, f17)
 ) ENGINE = InnoDB;
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f17 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 0 AND f2 = 0 AND f3 = 0 AND f4 = 0 AND f5 = 0 AND
 f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND f10 = 0 AND
 f11 = 0 AND f12 = 0 AND f13 = 0 AND f14 = 0 AND
 f15 = 0 AND f16 = 0 AND f17 = 0;
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f17 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 0 AND f2 = 0 AND f3 = 0 AND f4 = 0 AND f5 = 0 AND
 f6 = 0 AND f7 = 0 AND f8 = 0 AND f9 = 0 AND
@@ -203,17 +203,17 @@ CREATE TABLE t1
   KEY k1 (f5, f6, f7)
 ) ENGINE = InnoDB;
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f3 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';
 
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN SELECT f5 FROM t1 FORCE INDEX (k1) WHERE
 f1 = 'a' AND f2 = 'a' AND f4 = 'a' AND
 f5 = 'a' AND f6 = 'a' AND f7 = 'a';

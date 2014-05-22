@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -37,7 +37,7 @@ static const ulong fixed_file_instances= 200;
 static const ulong fixed_socket_instances= 10;
 static const ulong fixed_thread_instances= 50;
 
-static const ulong mutex_per_connection= 3;
+static const ulong mutex_per_connection= 5;
 static const ulong rwlock_per_connection= 1;
 static const ulong cond_per_connection= 2;
 static const ulong file_per_connection= 0;
@@ -52,7 +52,7 @@ static const ulong socket_per_handle= 0;
 static const ulong thread_per_handle= 0;
 
 static const ulong mutex_per_share= 5;
-static const ulong rwlock_per_share= 3;
+static const ulong rwlock_per_share= 4;
 static const ulong cond_per_share= 1;
 static const ulong file_per_share= 3;
 static const ulong socket_per_share= 0;
@@ -80,6 +80,10 @@ struct PFS_sizing_data
   ulong m_events_statements_history_sizing;
   /** Default value for @c PFS_param.m_events_statements_history_long_sizing. */
   ulong m_events_statements_history_long_sizing;
+  /** Default value for @c PFS_param.m_events_transactions_history_sizing. */
+  ulong m_events_transactions_history_sizing;
+  /** Default value for @c PFS_param.m_events_transactions_history_long_sizing. */
+  ulong m_events_transactions_history_long_sizing;
   /** Default value for @c PFS_param.m_digest_sizing. */
   ulong m_digest_sizing;
   /** Default value for @c PFS_param.m_session_connect_attrs_sizing. */
@@ -128,7 +132,7 @@ PFS_sizing_data small_data=
   /* Account / user / host */
   10, 5, 20,
   /* History sizes */
-  5, 100, 5, 100, 5, 100,
+  5, 100, 5, 100, 5, 100, 5, 100,
   /* Digests */
   1000,
   /* Session connect attrs. */
@@ -136,7 +140,7 @@ PFS_sizing_data small_data=
   /* Min tables */
   200,
   /* Load factors */
-  0.90, 0.90, 0.90
+  0.90f, 0.90f, 0.90f
 };
 
 PFS_sizing_data medium_data=
@@ -144,7 +148,7 @@ PFS_sizing_data medium_data=
   /* Account / user / host */
   100, 100, 100,
   /* History sizes */
-  10, 1000, 10, 1000, 10, 1000,
+  10, 1000, 10, 1000, 10, 1000, 10, 1000,
   /* Digests */
   5000,
   /* Session connect attrs. */
@@ -152,7 +156,7 @@ PFS_sizing_data medium_data=
   /* Min tables */
   500,
   /* Load factors */
-  0.70, 0.80, 0.90
+  0.70f, 0.80f, 0.90f
 };
 
 PFS_sizing_data large_data=
@@ -160,7 +164,7 @@ PFS_sizing_data large_data=
   /* Account / user / host */
   100, 100, 100,
   /* History sizes */
-  10, 10000, 10, 10000, 10, 10000,
+  10, 10000, 10, 10000, 10, 10000, 10, 10000,
   /* Digests */
   10000,
   /* Session connect attrs. */
@@ -168,7 +172,7 @@ PFS_sizing_data large_data=
   /* Min tables */
   10000,
   /* Load factors */
-  0.50, 0.65, 0.80
+  0.50f, 0.65f, 0.80f
 };
 
 static inline ulong apply_load_factor(ulong raw_value, float factor)
@@ -206,6 +210,14 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   ulong handle = p->m_hints.m_table_open_cache;
   ulong share = p->m_hints.m_table_definition_cache;
   ulong file = p->m_hints.m_open_files_limit;
+
+  if (p->m_prepared_stmt_sizing < 0)
+  {
+    count= p->m_hints.m_max_prepared_stmt_count;
+
+    p->m_prepared_stmt_sizing= apply_load_factor(count,
+                                                 h->m_load_factor_volatile);
+  }
 
   if (p->m_table_sizing < 0)
   {
@@ -270,6 +282,16 @@ static void apply_heuristic(PFS_global_param *p, PFS_sizing_data *h)
   if (p->m_digest_sizing < 0)
   {
     p->m_digest_sizing= h->m_digest_sizing;
+  }
+
+  if (p->m_events_transactions_history_sizing < 0)
+  {
+    p->m_events_transactions_history_sizing= h->m_events_transactions_history_sizing;
+  }
+
+  if (p->m_events_transactions_history_long_sizing < 0)
+  {
+    p->m_events_transactions_history_long_sizing= h->m_events_transactions_history_long_sizing;
   }
 
   if (p->m_session_connect_attrs_sizing < 0)
@@ -396,6 +418,10 @@ void pfs_automated_sizing(PFS_global_param *param)
     param->m_statement_stack_sizing= 1;
 #endif
 
+#ifndef HAVE_PSI_PS_INTERFACE
+  param->m_prepared_stmt_sizing= 0;
+#endif
+
 #ifndef HAVE_PSI_STATEMENT_DIGEST_INTERFACE
   param->m_digest_sizing= 0;
 #endif
@@ -414,6 +440,7 @@ void pfs_automated_sizing(PFS_global_param *param)
 
   DBUG_ASSERT(param->m_account_sizing >= 0);
   DBUG_ASSERT(param->m_digest_sizing >= 0);
+  DBUG_ASSERT(param->m_prepared_stmt_sizing >= 0);
   DBUG_ASSERT(param->m_host_sizing >= 0);
   DBUG_ASSERT(param->m_user_sizing >= 0);
 
@@ -423,6 +450,8 @@ void pfs_automated_sizing(PFS_global_param *param)
   DBUG_ASSERT(param->m_events_stages_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_sizing >= 0);
   DBUG_ASSERT(param->m_events_statements_history_long_sizing >= 0);
+  DBUG_ASSERT(param->m_events_transactions_history_sizing >= 0);
+  DBUG_ASSERT(param->m_events_transactions_history_long_sizing >= 0);
   DBUG_ASSERT(param->m_session_connect_attrs_sizing >= 0);
 
   DBUG_ASSERT(param->m_mutex_sizing >= 0);

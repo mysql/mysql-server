@@ -62,10 +62,10 @@ insert into t3 select
   A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a, A.a + 10*B.a 
 from t0 A, t0 B where B.a <5;
 
---replace_column 9 #
+--replace_column 10 #
 explain select * from t3 where b in (select a from t0);
 --sorted_result
-select * from t3 where b in (select A.a+B.a from t0 A, t0 B where B.a<5);
+select * from t3 where b in (select a.a+b.a from t0 a, t0 b where b.a<5);
  
 set join_buffer_size= @save_join_buffer_size;
 set max_heap_table_size= @save_max_heap_table_size;

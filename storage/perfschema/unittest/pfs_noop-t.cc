@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -44,6 +44,7 @@ void test_noop()
   PSI_cond_locker *cond_locker;
   PSI_table_locker *table_locker;
   PSI_statement_locker *statement_locker;
+  PSI_transaction_locker *transaction_locker;
   PSI_socket_locker *socket_locker;
   PSI_digest_locker *digest_locker;
   PSI_sp_locker *sp_locker;
@@ -61,6 +62,7 @@ void test_noop()
   PSI_server->register_stage(NULL, NULL, 0);
   PSI_server->register_statement(NULL, NULL, 0);
   PSI_server->register_socket(NULL, NULL, 0);
+
   ok(true, "register");
   mutex= PSI_server->init_mutex(1, NULL);
   ok(mutex == NULL, "no mutex");
@@ -173,8 +175,7 @@ void test_noop()
   PSI_server->set_socket_thread_owner(NULL);
   digest_locker= PSI_server->digest_start(NULL);
   ok(digest_locker == NULL, "no digest_locker");
-  digest_locker= PSI_server->digest_add_token(NULL, 0, NULL);
-  ok(digest_locker == NULL, "no digest_locker");
+  PSI_server->digest_end(NULL, NULL);
   sp_locker= PSI_server->start_sp(NULL, NULL);
   ok(sp_locker == NULL, "no sp_locker");
   PSI_server->end_sp(NULL);
@@ -196,6 +197,20 @@ void test_noop()
   metadata_locker= PSI_server->start_metadata_wait(NULL, NULL, NULL, 0);
   ok(metadata_locker == NULL, "no metadata_locker");
   PSI_server->end_metadata_wait(NULL, 0);
+  
+  transaction_locker= PSI_server->get_thread_transaction_locker(NULL, NULL, NULL, 1, false, 1);
+  ok(transaction_locker == NULL, "no transaction_locker");
+  PSI_server->start_transaction(NULL, NULL, 0);
+  PSI_server->end_transaction(NULL, true);
+
+  PSI_server->set_transaction_gtid(NULL, NULL, NULL);
+  PSI_server->set_transaction_trxid(NULL, NULL);
+  PSI_server->set_transaction_xa_state(NULL, 1);
+  PSI_server->set_transaction_xid(NULL, NULL, 1);
+  PSI_server->inc_transaction_release_savepoint(NULL, 1);
+  PSI_server->inc_transaction_rollback_to_savepoint(NULL, 1);
+  PSI_server->inc_transaction_savepoints(NULL, 1);
+
   ok(true, "all noop api called");
 }
 

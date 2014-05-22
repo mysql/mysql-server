@@ -180,4 +180,4 @@ DROP TABLE IF EXISTS test.t2;
 # if cluster is shutdown while not all tables are
 # properly dropped, the table becomes inconsistent
 # and wrecks later test cases
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc

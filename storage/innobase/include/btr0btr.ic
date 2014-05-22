@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -35,29 +35,32 @@ Created 6/2/1994 Heikki Tuuri
 					in btr_page_set_level and
 					btr_page_get_level_low */
 
-/**************************************************************//**
-Gets a buffer page and declares its latching order level. */
+/** Gets a buffer page and declares its latching order level.
+@param[in]	page_id	page id
+@param[in]	mode	latch mode
+@param[in]	file	file name
+@param[in]	line	line where called
+@param[in]	index	index tree, may be NULL if it is not an insert buffer
+tree
+@param[in,out]	mtr	mini-transaction
+@return block */
 UNIV_INLINE
 buf_block_t*
 btr_block_get_func(
-/*===============*/
-	ulint		space,		/*!< in: space id */
-	ulint		zip_size,	/*!< in: compressed page size in bytes
-					or 0 for uncompressed pages */
-	ulint		page_no,	/*!< in: page number */
-	ulint		mode,		/*!< in: latch mode */
-	const char*	file,		/*!< in: file name */
-	ulint		line,		/*!< in: line where called */
-#ifdef UNIV_SYNC_DEBUG
-	const dict_index_t*	index,	/*!< in: index tree, may be NULL
-					if it is not an insert buffer tree */
-#endif /* UNIV_SYNC_DEBUG */
-	mtr_t*		mtr)		/*!< in/out: mtr */
+	const page_id_t&	page_id,
+	const page_size_t&	page_size,
+	ulint			mode,
+	const char*		file,
+	ulint			line,
+# ifdef UNIV_SYNC_DEBUG
+	const dict_index_t*	index,
+# endif /* UNIV_SYNC_DEBUG */
+	mtr_t*		mtr)
 {
 	buf_block_t*	block;
 
-	block = buf_page_get_gen(space, zip_size, page_no, mode,
-				 NULL, BUF_GET, file, line, mtr);
+	block = buf_page_get_gen(
+		page_id, page_size, mode, NULL, BUF_GET, file, line, mtr);
 
 	if (mode != RW_NO_LATCH) {
 
@@ -163,11 +166,6 @@ btr_page_get_next(
 				/*!< in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
-	ut_ad(mtr_memo_contains_page_flagged(mtr, page,
-					     MTR_MEMO_PAGE_S_FIX
-					     | MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }
 
@@ -263,7 +261,7 @@ btr_node_ptr_get_child_page_no(
 			"InnoDB: a nonsensical page number 0"
 			" in a node ptr record at offset %lu\n",
 			(ulong) page_offset(rec));
-		buf_page_print(page_align(rec), 0, 0);
+		buf_page_print(page_align(rec), univ_page_size, 0);
 		ut_ad(0);
 	}
 
@@ -281,12 +279,27 @@ btr_leaf_page_release(
 					BTR_MODIFY_LEAF */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(latch_mode == BTR_SEARCH_LEAF || latch_mode == BTR_MODIFY_LEAF);
+	ut_ad(latch_mode == BTR_SEARCH_LEAF
+	      || latch_mode == BTR_MODIFY_LEAF
+	      || latch_mode == BTR_NO_LATCHES);
+
 	ut_ad(!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY));
 
-	mtr_memo_release(mtr, block,
-			 latch_mode == BTR_SEARCH_LEAF
-			 ? MTR_MEMO_PAGE_S_FIX
-			 : MTR_MEMO_PAGE_X_FIX);
+	ulint mode;
+	switch (latch_mode) {
+		case BTR_SEARCH_LEAF:
+			mode = MTR_MEMO_PAGE_S_FIX;
+			break;
+		case BTR_MODIFY_LEAF:
+			mode = MTR_MEMO_PAGE_X_FIX;
+			break;
+		case BTR_NO_LATCHES:
+			mode = MTR_MEMO_BUF_FIX;
+			break;
+		default:
+			ut_a(0);
+	}
+
+	mtr->memo_release(block, mode);
 }
 #endif /* !UNIV_HOTBACKUP */

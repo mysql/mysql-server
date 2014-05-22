@@ -410,7 +410,7 @@ static int _mi_find_writepos(MI_INFO *info,
   {
     /* No deleted blocks;  Allocate a new block */
     *filepos=info->state->data_file_length;
-    if ((tmp=reclength+3 + test(reclength >= (65520-3))) <
+    if ((tmp=reclength+3 + MY_TEST(reclength >= (65520-3))) <
 	info->s->base.min_block_length)
       tmp= info->s->base.min_block_length;
     else
@@ -858,7 +858,7 @@ static int update_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *record,
       if (length < reclength)
       {
 	uint tmp=MY_ALIGN(reclength - length + 3 +
-			  test(reclength >= 65520L),MI_DYN_ALIGN_SIZE);
+			  MY_TEST(reclength >= 65520L),MI_DYN_ALIGN_SIZE);
 	/* Don't create a block bigger than MI_MAX_BLOCK_LENGTH */
 	tmp= MY_MIN(length+tmp, MI_MAX_BLOCK_LENGTH)-length;
 	/* Check if we can extend this block */
@@ -1019,7 +1019,7 @@ uint _mi_rec_pack(MI_INFO *info, uchar *to,
 	    pos++;
 	}
 	new_length=(uint) (end-pos);
-	if (new_length +1 + test(rec->length > 255 && new_length > 127)
+	if (new_length +1 + MY_TEST(rec->length > 255 && new_length > 127)
 	    < length)
 	{
 	  if (rec->length > 255 && new_length > 127)
@@ -1139,7 +1139,7 @@ my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
 	    pos++;
 	}
 	new_length=(uint) (end-pos);
-	if (new_length +1 + test(rec->length > 255 && new_length > 127)
+	if (new_length +1 + MY_TEST(rec->length > 255 && new_length > 127)
 	    < length)
 	{
 	  if (!(flag & bit))
@@ -1191,7 +1191,7 @@ my_bool _mi_rec_check(MI_INFO *info,const uchar *record, uchar *rec_buff,
     else
       to+= length;
   }
-  if (packed_length != (uint) (to - rec_buff) + test(info->s->calc_checksum) ||
+  if (packed_length != (uint) (to - rec_buff) + MY_TEST(info->s->calc_checksum) ||
       (bit != 1 && (flag & ~(bit - 1))))
     goto err;
   if (with_checksum && ((uchar) info->checksum != (uchar) *to))
@@ -1437,8 +1437,8 @@ void _mi_store_blob_length(uchar *pos,uint pack_length,uint length)
 int _mi_read_dynamic_record(MI_INFO *info, my_off_t filepos, uchar *buf)
 {
   int block_of_record;
-  uint b_type,UNINIT_VAR(left_length);
-  uchar *UNINIT_VAR(to);
+  uint b_type, left_length= 0;
+  uchar *to= NULL;
   MI_BLOCK_INFO block_info;
   File file;
   DBUG_ENTER("mi_read_dynamic_record");
@@ -1714,7 +1714,7 @@ int _mi_read_rnd_dynamic_record(MI_INFO *info, uchar *buf,
 {
   int block_of_record, info_read, save_errno;
   uint left_len,b_type;
-  uchar *UNINIT_VAR(to);
+  uchar *to= NULL;
   MI_BLOCK_INFO block_info;
   MYISAM_SHARE *share=info->s;
   DBUG_ENTER("_mi_read_rnd_dynamic_record");

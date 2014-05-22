@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Windows-specific partition tests
 --source include/windows.inc
 --source include/have_partition.inc
@@ -26,7 +21,7 @@ CREATE TABLE t1 (
   c2 varchar(30) NOT NULL,
   c3 smallint(5) unsigned DEFAULT NULL,
   PRIMARY KEY (c1)
-) ENGINE = MYISAM 
+) ENGINE = MYISAM
 PARTITION BY HASH(c1)(
   PARTITION p0
     DATA DIRECTORY = 'C:/mysqltest/p0Data'
@@ -42,4 +37,3 @@ INSERT INTO t1 VALUES (NULL, "third", 3);
 ALTER TABLE t1 ADD PARTITION (PARTITION p3 DATA DIRECTORY = 'G:/mysqltest/p3Data' INDEX DIRECTORY = 'H:/mysqltest/p3Index');
 INSERT INTO t1 VALUES (NULL, "last", 4);
 DROP TABLE t1;
-

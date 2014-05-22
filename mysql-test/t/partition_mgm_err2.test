@@ -1,13 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 #
 # Test of partitions that require symlinks
 #
 --source include/have_partition.inc
 --source include/have_symlink.inc
+# The test needs MyISAM for Bug#14354 subtest
+--source include/have_myisam.inc
 
 #
 # This test is disabled on windows due to BUG#19107

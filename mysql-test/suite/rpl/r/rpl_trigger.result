@@ -44,6 +44,7 @@ a	name	old_a	old_b	truncate(rand_value,4)
 105	t2	4	0	0.6635
 106	t2	6	0	0.6699
 107	t2	500	0	0.3593
+include/sync_slave_sql_with_master.inc
 
 --- On slave --
 select a,b, truncate(rand_value,4) from t1;
@@ -99,6 +100,7 @@ FROM information_schema.triggers
 WHERE trigger_name = 't1_first';
 trigger_name	definer
 t1_first	root@localhost
+include/sync_slave_sql_with_master.inc
 
 --- On slave --
 SELECT routine_name, definer
@@ -135,6 +137,7 @@ end|
 create database other;
 use other;
 insert into test.t1 values (1);
+include/sync_slave_sql_with_master.inc
 use test;
 drop table t1,t2;
 drop database other;
@@ -150,6 +153,7 @@ insert into t110 values (-4);
 insert into t110 values (-3);
 insert into t110 values (-2);
 insert into t110 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t110;
 f1
 -5
@@ -194,6 +198,7 @@ UPDATE t110 SET f1=4 where f1=-4;
 UPDATE t110 SET f1=3 where f1=-3;
 UPDATE t110 SET f1=2 where f1=-2;
 UPDATE t110 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t110 /* must be f1 5 ... 1 */;
 f1
 5
@@ -211,6 +216,7 @@ f3
 drop trigger trg110;
 drop table t210,t310;
 drop table t110;
+include/sync_slave_sql_with_master.inc
 -------------------
 9
 -------------------
@@ -222,6 +228,7 @@ insert into t19 values (-4);
 insert into t19 values (-3);
 insert into t19 values (-2);
 insert into t19 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t19;
 f1
 -5
@@ -266,6 +273,7 @@ UPDATE t19 SET f1=4 where f1=-4;
 UPDATE t19 SET f1=3 where f1=-3;
 UPDATE t19 SET f1=2 where f1=-2;
 UPDATE t19 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t19 /* must be f1 5 ... 1 */;
 f1
 5
@@ -283,6 +291,7 @@ f3
 drop trigger trg19;
 drop table t29,t39;
 drop table t19;
+include/sync_slave_sql_with_master.inc
 -------------------
 8
 -------------------
@@ -294,6 +303,7 @@ insert into t18 values (-4);
 insert into t18 values (-3);
 insert into t18 values (-2);
 insert into t18 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t18;
 f1
 -5
@@ -338,6 +348,7 @@ UPDATE t18 SET f1=4 where f1=-4;
 UPDATE t18 SET f1=3 where f1=-3;
 UPDATE t18 SET f1=2 where f1=-2;
 UPDATE t18 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t18 /* must be f1 5 ... 1 */;
 f1
 5
@@ -355,6 +366,7 @@ f3
 drop trigger trg18;
 drop table t28,t38;
 drop table t18;
+include/sync_slave_sql_with_master.inc
 -------------------
 7
 -------------------
@@ -366,6 +378,7 @@ insert into t17 values (-4);
 insert into t17 values (-3);
 insert into t17 values (-2);
 insert into t17 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t17;
 f1
 -5
@@ -410,6 +423,7 @@ UPDATE t17 SET f1=4 where f1=-4;
 UPDATE t17 SET f1=3 where f1=-3;
 UPDATE t17 SET f1=2 where f1=-2;
 UPDATE t17 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t17 /* must be f1 5 ... 1 */;
 f1
 5
@@ -427,6 +441,7 @@ f3
 drop trigger trg17;
 drop table t27,t37;
 drop table t17;
+include/sync_slave_sql_with_master.inc
 -------------------
 6
 -------------------
@@ -438,6 +453,7 @@ insert into t16 values (-4);
 insert into t16 values (-3);
 insert into t16 values (-2);
 insert into t16 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t16;
 f1
 -5
@@ -482,6 +498,7 @@ UPDATE t16 SET f1=4 where f1=-4;
 UPDATE t16 SET f1=3 where f1=-3;
 UPDATE t16 SET f1=2 where f1=-2;
 UPDATE t16 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t16 /* must be f1 5 ... 1 */;
 f1
 5
@@ -499,6 +516,7 @@ f3
 drop trigger trg16;
 drop table t26,t36;
 drop table t16;
+include/sync_slave_sql_with_master.inc
 -------------------
 5
 -------------------
@@ -510,6 +528,7 @@ insert into t15 values (-4);
 insert into t15 values (-3);
 insert into t15 values (-2);
 insert into t15 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t15;
 f1
 -5
@@ -554,6 +573,7 @@ UPDATE t15 SET f1=4 where f1=-4;
 UPDATE t15 SET f1=3 where f1=-3;
 UPDATE t15 SET f1=2 where f1=-2;
 UPDATE t15 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t15 /* must be f1 5 ... 1 */;
 f1
 5
@@ -571,6 +591,7 @@ f3
 drop trigger trg15;
 drop table t25,t35;
 drop table t15;
+include/sync_slave_sql_with_master.inc
 -------------------
 4
 -------------------
@@ -582,6 +603,7 @@ insert into t14 values (-4);
 insert into t14 values (-3);
 insert into t14 values (-2);
 insert into t14 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t14;
 f1
 -5
@@ -626,6 +648,7 @@ UPDATE t14 SET f1=4 where f1=-4;
 UPDATE t14 SET f1=3 where f1=-3;
 UPDATE t14 SET f1=2 where f1=-2;
 UPDATE t14 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t14 /* must be f1 5 ... 1 */;
 f1
 5
@@ -643,6 +666,7 @@ f3
 drop trigger trg14;
 drop table t24,t34;
 drop table t14;
+include/sync_slave_sql_with_master.inc
 -------------------
 3
 -------------------
@@ -654,6 +678,7 @@ insert into t13 values (-4);
 insert into t13 values (-3);
 insert into t13 values (-2);
 insert into t13 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t13;
 f1
 -5
@@ -698,6 +723,7 @@ UPDATE t13 SET f1=4 where f1=-4;
 UPDATE t13 SET f1=3 where f1=-3;
 UPDATE t13 SET f1=2 where f1=-2;
 UPDATE t13 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t13 /* must be f1 5 ... 1 */;
 f1
 5
@@ -715,6 +741,7 @@ f3
 drop trigger trg13;
 drop table t23,t33;
 drop table t13;
+include/sync_slave_sql_with_master.inc
 -------------------
 2
 -------------------
@@ -726,6 +753,7 @@ insert into t12 values (-4);
 insert into t12 values (-3);
 insert into t12 values (-2);
 insert into t12 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t12;
 f1
 -5
@@ -770,6 +798,7 @@ UPDATE t12 SET f1=4 where f1=-4;
 UPDATE t12 SET f1=3 where f1=-3;
 UPDATE t12 SET f1=2 where f1=-2;
 UPDATE t12 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t12 /* must be f1 5 ... 1 */;
 f1
 5
@@ -787,6 +816,7 @@ f3
 drop trigger trg12;
 drop table t22,t32;
 drop table t12;
+include/sync_slave_sql_with_master.inc
 -------------------
 1
 -------------------
@@ -798,6 +828,7 @@ insert into t11 values (-4);
 insert into t11 values (-3);
 insert into t11 values (-2);
 insert into t11 values (-1);
+include/sync_slave_sql_with_master.inc
 select * from t11;
 f1
 -5
@@ -842,6 +873,7 @@ UPDATE t11 SET f1=4 where f1=-4;
 UPDATE t11 SET f1=3 where f1=-3;
 UPDATE t11 SET f1=2 where f1=-2;
 UPDATE t11 SET f1=1 where f1=-1;
+include/sync_slave_sql_with_master.inc
 SELECT * from t11 /* must be f1 5 ... 1 */;
 f1
 5
@@ -859,6 +891,7 @@ f3
 drop trigger trg11;
 drop table t21,t31;
 drop table t11;
+include/sync_slave_sql_with_master.inc
 STOP SLAVE;
 FLUSH LOGS;
 include/rpl_stop_server.inc [server_number=1]
@@ -912,6 +945,7 @@ DROP TABLE IF EXISTS t1;
 DROP TABLE IF EXISTS t2;
 
 ---> Synchronizing slave with master...
+include/sync_slave_sql_with_master.inc
 
 ---> connection: master
 
@@ -934,6 +968,7 @@ c
 10
 
 ---> Synchronizing slave with master...
+include/sync_slave_sql_with_master.inc
 ---> connection: master
 
 ---> Checking on slave...
@@ -949,6 +984,7 @@ c
 ---> Cleaning up...
 DROP TABLE t1;
 DROP TABLE t2;
+include/sync_slave_sql_with_master.inc
 drop table if exists t1;
 create table t1(a int, b varchar(50));
 drop trigger not_a_trigger;
@@ -970,12 +1006,14 @@ a	b
 1	In trigger t1_bi
 2	b
 3	c
+include/sync_slave_sql_with_master.inc
 select * from t1;
 a	b
 1	In trigger t1_bi
 2	b
 3	c
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 create table t1 ( f int ) engine = innodb;
 create table log ( r int ) engine = myisam;
@@ -987,9 +1025,11 @@ insert into t1 values ( 1 );
 rollback;
 Warnings:
 Warning	1196	Some non-transactional changed tables couldn't be rolled back
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:t1, slave:t1]
 include/diff_tables.inc [master:log, slave:log]
 drop table t1, log;
+include/sync_slave_sql_with_master.inc
 #
 # WL#3253: Multiple triggers with the same value TIME/ACTION per table 
 #

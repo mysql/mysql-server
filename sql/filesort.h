@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,9 @@ class THD;
 struct TABLE;
 typedef struct st_sort_field SORT_FIELD;
 typedef struct st_order ORDER;
+class Addon_fields;
+class Field;
+
 
 /**
   Sorting related info.
@@ -46,6 +49,8 @@ public:
   bool own_select;
   /** true means we are using Priority Queue for order by with limit. */
   bool using_pq;
+  /** Addon fields descriptor */
+  Addon_fields *addon_fields;
 
   Filesort(ORDER *order_arg, ha_rows limit_arg, SQL_SELECT *select_arg):
     order(order_arg),
@@ -53,7 +58,8 @@ public:
     sortorder(NULL),
     select(select_arg),
     own_select(false), 
-    using_pq(false)
+    using_pq(false),
+    addon_fields(NULL)
   {
     DBUG_ASSERT(order);
   };
@@ -62,6 +68,10 @@ public:
   /* Prepare ORDER BY list for sorting. */
   uint make_sortorder();
 
+  Addon_fields *get_addon_fields(ulong max_length_for_sort_data,
+                                 Field **ptabfield,
+                                 uint sortlength, uint *plength,
+                                 uint *ppackable_length);
 private:
   void cleanup();
 };
@@ -71,9 +81,6 @@ ha_rows filesort(THD *thd, TABLE *table, Filesort *fsort, bool sort_positions,
 void filesort_free_buffers(TABLE *table, bool full);
 void change_double_for_sort(double nr,uchar *to);
 
-class Sort_param;
-/// Declared here so we can unit test it.
-void make_sortkey(Sort_param *param, uchar *to, uchar *ref_pos);
 /// Declared here so we can unit test it.
 uint sortlength(THD *thd, SORT_FIELD *sortorder, uint s_length,
                 bool *multi_byte_charset);

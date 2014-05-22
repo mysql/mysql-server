@@ -94,7 +94,7 @@ INSERT INTO t2 VALUES (),(),();
 
 # We only need to make sure that there is no buffer overrun and the index map
 # is displayed correctly
---replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X
+--replace_column 1 X 2 X 3 X 5 X 6 X 7 X 8 X 9 X 10 X
 EXPLAIN SELECT 1 FROM
   (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 DROP TABLE t2;
@@ -202,13 +202,13 @@ insert into t1 values ('2001-01-01 1:1:1', '1:1:1'),
 ('2001-01-01 1:1:1', '1:1:1');
 insert into t2 values ('2001-01-01 1:1:1'), ('2001-01-01 1:1:1');
 flush tables;
-EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+EXPLAIN SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN (SELECT innr.dt FROM t2 AS innr WHERE outr.dt IS NULL );
 flush tables;
-SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN (SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.dt IS NULL );
+SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN (SELECT innr.dt FROM t2 AS innr WHERE outr.dt IS NULL );
 flush tables;
-EXPLAIN SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' ); 
+EXPLAIN SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN ( SELECT innr.dt FROM t2 AS innr WHERE outr.t < '2005-11-13 7:41:31' ); 
 flush tables;
-SELECT OUTR.dt FROM t1 AS OUTR WHERE OUTR.dt IN ( SELECT INNR.dt FROM t2 AS INNR WHERE OUTR.t < '2005-11-13 7:41:31' );
+SELECT outr.dt FROM t1 AS outr WHERE outr.dt IN ( SELECT innr.dt FROM t2 AS innr WHERE outr.t < '2005-11-13 7:41:31' );
 drop tables t1, t2;
 set optimizer_switch= @opt_sw_save;
 

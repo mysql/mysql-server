@@ -26,7 +26,7 @@ typedef int opaque_mdl_type;
 typedef int opaque_mdl_duration;
 typedef int opaque_mdl_status;
 struct TABLE_SHARE;
-struct OPAQUE_LEX_YYSTYPE;
+struct sql_digest_storage;
 struct PSI_mutex;
 typedef struct PSI_mutex PSI_mutex;
 struct PSI_rwlock;
@@ -43,10 +43,14 @@ struct PSI_file;
 typedef struct PSI_file PSI_file;
 struct PSI_socket;
 typedef struct PSI_socket PSI_socket;
+struct PSI_prepared_stmt;
+typedef struct PSI_prepared_stmt PSI_prepared_stmt;
 struct PSI_table_locker;
 typedef struct PSI_table_locker PSI_table_locker;
 struct PSI_statement_locker;
 typedef struct PSI_statement_locker PSI_statement_locker;
+struct PSI_transaction_locker;
+typedef struct PSI_transaction_locker PSI_transaction_locker;
 struct PSI_idle_locker;
 typedef struct PSI_idle_locker PSI_idle_locker;
 struct PSI_digest_locker;
@@ -298,23 +302,10 @@ struct PSI_metadata_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
-struct PSI_digest_storage
-{
-  my_bool m_full;
-  int m_byte_count;
-  uint m_charset_number;
-  unsigned char m_token_array[1024];
-};
-typedef struct PSI_digest_storage PSI_digest_storage;
-struct PSI_digest_locker_state
-{
-  int m_last_id_index;
-  PSI_digest_storage m_digest_storage;
-};
-typedef struct PSI_digest_locker_state PSI_digest_locker_state;
 struct PSI_statement_locker_state_v1
 {
   my_bool m_discarded;
+  my_bool m_in_prepare;
   uchar m_no_index_used;
   uchar m_no_good_index_used;
   uint m_flags;
@@ -337,12 +328,29 @@ struct PSI_statement_locker_state_v1
   ulong m_sort_range;
   ulong m_sort_rows;
   ulong m_sort_scan;
-  PSI_digest_locker_state m_digest_state;
+  const struct sql_digest_storage *m_digest;
   char m_schema_name[(64 * 3)];
   uint m_schema_name_length;
   PSI_sp_share *m_parent_sp_share;
+  PSI_prepared_stmt *m_parent_prepared_stmt;
 };
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state_v1;
+struct PSI_transaction_locker_state_v1
+{
+  uint m_flags;
+  void *m_class;
+  struct PSI_thread *m_thread;
+  ulonglong m_timer_start;
+  ulonglong (*m_timer)(void);
+  void *m_transaction;
+  my_bool m_read_only;
+  my_bool m_autocommit;
+  ulong m_statement_count;
+  ulong m_savepoint_count;
+  ulong m_rollback_to_savepoint_count;
+  ulong m_release_savepoint_count;
+};
+typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state_v1;
 struct PSI_socket_locker_state_v1
 {
   uint m_flags;
@@ -561,6 +569,34 @@ typedef void (*set_statement_no_good_index_used_t)
   (struct PSI_statement_locker *locker);
 typedef void (*end_statement_v1_t)
   (struct PSI_statement_locker *locker, void *stmt_da);
+typedef struct PSI_transaction_locker* (*get_thread_transaction_locker_v1_t)
+  (struct PSI_transaction_locker_state_v1 *state, const void *xid,
+   const ulonglong *trxid, int isolation_level, my_bool read_only,
+   my_bool autocommit);
+typedef void (*start_transaction_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const char *src_file, uint src_line);
+typedef void (*set_transaction_xid_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const void *xid, int xa_state);
+typedef void (*set_transaction_xa_state_v1_t)
+  (struct PSI_transaction_locker *locker,
+   int xa_state);
+typedef void (*set_transaction_gtid_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const void *sid, const void *gtid_spec);
+typedef void (*set_transaction_trxid_v1_t)
+  (struct PSI_transaction_locker *locker,
+   const ulonglong *trxid);
+typedef void (*inc_transaction_savepoints_v1_t)
+  (struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_rollback_to_savepoint_v1_t)
+  (struct PSI_transaction_locker *locker, ulong count);
+typedef void (*inc_transaction_release_savepoint_v1_t)
+  (struct PSI_transaction_locker *locker, ulong count);
+typedef void (*end_transaction_v1_t)
+  (struct PSI_transaction_locker *locker,
+   my_bool commit);
 typedef struct PSI_socket_locker* (*start_socket_wait_v1_t)
   (struct PSI_socket_locker_state_v1 *state,
    struct PSI_socket *socket,
@@ -576,10 +612,20 @@ typedef void (*set_socket_info_v1_t)(struct PSI_socket *socket,
                                      const struct sockaddr *addr,
                                      socklen_t addr_len);
 typedef void (*set_socket_thread_owner_v1_t)(struct PSI_socket *socket);
+typedef PSI_prepared_stmt* (*create_prepared_stmt_v1_t)
+  (void *identity, uint stmt_id, PSI_statement_locker *locker,
+   const char *stmt_name, size_t stmt_name_length,
+   const char *name, size_t length);
+typedef void (*destroy_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
+typedef void (*reprepare_prepared_stmt_v1_t)
+  (PSI_prepared_stmt *prepared_stmt);
+typedef void (*execute_prepared_stmt_v1_t)
+  (PSI_statement_locker *locker, PSI_prepared_stmt* prepared_stmt);
 typedef struct PSI_digest_locker * (*digest_start_v1_t)
   (struct PSI_statement_locker *locker);
-typedef struct PSI_digest_locker* (*digest_add_token_v1_t)
-  (struct PSI_digest_locker *locker, uint token, struct OPAQUE_LEX_YYSTYPE *yylval);
+typedef void (*digest_end_v1_t)
+  (struct PSI_digest_locker *locker, const struct sql_digest_storage *digest);
 typedef PSI_sp_locker* (*start_sp_v1_t)
   (struct PSI_sp_locker_state_v1 *state, struct PSI_sp_share* sp_share);
 typedef void (*end_sp_v1_t)
@@ -704,13 +750,27 @@ struct PSI_v1
   set_statement_no_index_used_t set_statement_no_index_used;
   set_statement_no_good_index_used_t set_statement_no_good_index_used;
   end_statement_v1_t end_statement;
+  get_thread_transaction_locker_v1_t get_thread_transaction_locker;
+  start_transaction_v1_t start_transaction;
+  set_transaction_xid_v1_t set_transaction_xid;
+  set_transaction_xa_state_v1_t set_transaction_xa_state;
+  set_transaction_gtid_v1_t set_transaction_gtid;
+  set_transaction_trxid_v1_t set_transaction_trxid;
+  inc_transaction_savepoints_v1_t inc_transaction_savepoints;
+  inc_transaction_rollback_to_savepoint_v1_t inc_transaction_rollback_to_savepoint;
+  inc_transaction_release_savepoint_v1_t inc_transaction_release_savepoint;
+  end_transaction_v1_t end_transaction;
   start_socket_wait_v1_t start_socket_wait;
   end_socket_wait_v1_t end_socket_wait;
   set_socket_state_v1_t set_socket_state;
   set_socket_info_v1_t set_socket_info;
   set_socket_thread_owner_v1_t set_socket_thread_owner;
+  create_prepared_stmt_v1_t create_prepared_stmt;
+  destroy_prepared_stmt_v1_t destroy_prepared_stmt;
+  reprepare_prepared_stmt_v1_t reprepare_prepared_stmt;
+  execute_prepared_stmt_v1_t execute_prepared_stmt;
   digest_start_v1_t digest_start;
-  digest_add_token_v1_t digest_add_token;
+  digest_end_v1_t digest_end;
   set_thread_connect_attrs_v1_t set_thread_connect_attrs;
   start_sp_v1_t start_sp;
   end_sp_v1_t end_sp;
@@ -736,6 +796,7 @@ typedef struct PSI_thread_info_v1 PSI_thread_info;
 typedef struct PSI_file_info_v1 PSI_file_info;
 typedef struct PSI_stage_info_v1 PSI_stage_info;
 typedef struct PSI_statement_info_v1 PSI_statement_info;
+typedef struct PSI_transaction_info_v1 PSI_transaction_info;
 typedef struct PSI_socket_info_v1 PSI_socket_info;
 typedef struct PSI_idle_locker_state_v1 PSI_idle_locker_state;
 typedef struct PSI_mutex_locker_state_v1 PSI_mutex_locker_state;
@@ -744,6 +805,7 @@ typedef struct PSI_cond_locker_state_v1 PSI_cond_locker_state;
 typedef struct PSI_file_locker_state_v1 PSI_file_locker_state;
 typedef struct PSI_table_locker_state_v1 PSI_table_locker_state;
 typedef struct PSI_statement_locker_state_v1 PSI_statement_locker_state;
+typedef struct PSI_transaction_locker_state_v1 PSI_transaction_locker_state;
 typedef struct PSI_socket_locker_state_v1 PSI_socket_locker_state;
 typedef struct PSI_sp_locker_state_v1 PSI_sp_locker_state;
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state;

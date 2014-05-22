@@ -710,7 +710,7 @@ select 'The cost of accessing t1 (dont care if it changes' '^';
 
 select 'vv: Following query must use ALL(t1), eq_ref(A), eq_ref(B): vv' Z;
 
-explain select * from t1, t2 A, t2 B where A.a = t1.a and B.a=A.b;
+explain select * from t1, t2 a, t2 b where a.a = t1.a and b.a=a.b;
 show status like '%cost%';
 select '^^: The above should be ~= 20 + cost(select * from t1). Value less than 20 is an error' Z;
 

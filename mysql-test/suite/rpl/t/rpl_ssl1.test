@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 source include/have_ssl_communication.inc;
 source include/master-slave.inc;
 
@@ -15,7 +10,7 @@ connection master;
 grant replication slave on *.* to replssl@localhost require ssl;
 create table t1 (t int);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #trying to use this user without ssl
 stop slave;
@@ -44,7 +39,7 @@ start slave;
 
 #avoiding unneeded sleeps
 connection master;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 #checking that replication is ok
 select * from t1;
@@ -65,7 +60,7 @@ connection master;
 drop user replssl@localhost;
 drop table t1;
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 source include/show_slave_status.inc;
 source include/check_slave_is_running.inc;
 # End of 4.1 tests
@@ -90,7 +85,7 @@ connection master;
 create table t1 (t int);
 insert into t1 values (1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 echo on slave;
 #checking that replication is ok
@@ -104,7 +99,7 @@ source include/show_slave_status.inc;
 
 connection master;
 drop table t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 --source include/stop_slave.inc
 --replace_column 2 ####
 CHANGE MASTER TO

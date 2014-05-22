@@ -14,6 +14,7 @@ WHERE name LIKE 'wait/synch/mutex/%'
    OR name LIKE 'wait/synch/rwlock/%';
 
 # reset lost counters
+truncate table performance_schema.events_statements_summary_by_digest;
 flush status;
 
 # Make sure objects are instrumented

@@ -33,14 +33,14 @@ ANALYZE TABLE t2;
 # union
 
 --let $query = INTO t2 SELECT * FROM t1 WHERE key3=1025 OR key5 IS NULL
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 
 --let $query = INTO t2 SELECT * FROM t1 WHERE key1=48 OR key4=2 OR key6=3
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
@@ -49,14 +49,14 @@ ANALYZE TABLE t2;
 # sort_union
 
 --let $query = INTO t2 SELECT * FROM t1 WHERE key1<2 OR key2<3
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 
 --let $query = INTO t2 SELECT * FROM t1 WHERE (key1>30 AND key1<35) OR (key2>32 AND key2<40)
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
@@ -65,7 +65,7 @@ ANALYZE TABLE t2;
 # statements with use/force/ignore index
 
 --let $query = INTO t2 SELECT * FROM t1 IGNORE INDEX(i2) WHERE key1<2 OR key2<3
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
@@ -73,14 +73,14 @@ ANALYZE TABLE t2;
 
 INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 --let $query = INTO t2 SELECT * FROM t1 USE INDEX(i6,i3) WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6)
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN  REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 
 --let $query = INTO t2 SELECT * FROM t1 FORCE INDEX(i1,i2) WHERE (key1>1 OR key2>2)
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN REPLACE $query
 --eval SELECT COUNT(*) FROM t2
 --eval REPLACE $query
@@ -94,7 +94,7 @@ INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 
 INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 --let $query = INTO t2 SELECT * FROM t1 WHERE (key4=42 AND key6=3) OR (key1=4 AND key3=6) AND key5<>50
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN INSERT $query
 --eval SELECT COUNT(*) FROM t2
 --eval INSERT $query
@@ -103,7 +103,7 @@ INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 # sort_union
 
 --let $query = INTO t2 SELECT * FROM t1 WHERE key2=10 OR key3=3 OR key4 <=> null
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN INSERT $query
 --eval SELECT COUNT(*) FROM t2
 --eval INSERT $query                   
@@ -112,21 +112,21 @@ INSERT INTO t1 VALUES (42,42,42,42,3,3,3,3),(4,4,6,6,6,6,4,4);
 # statements with use/force/ignore index
 
 --let $query = INTO t2 SELECT * FROM t1 IGNORE INDEX(i1) WHERE key1<2 OR key2<3
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN INSERT $query
 --eval SELECT COUNT(*) FROM t2
 --eval INSERT $query
 --eval SELECT COUNT(*) FROM t2
 
 --let $query = INTO t2 SELECT * FROM t1 USE INDEX(i5,i6) WHERE (key1<2 OR key2<2) AND (key3<3 OR key4<3) AND (key5<5 OR key6<5);
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN INSERT $query
 --eval SELECT COUNT(*) FROM t2
 --eval INSERT $query
 --eval SELECT COUNT(*) FROM t2
 
 --let $query = INTO t2 SELECT * FROM t1 FORCE INDEX(i4,i5) WHERE (key4>3 OR key5>5)
---replace_column 9 #
+--replace_column 10 #
 --eval EXPLAIN INSERT $query
 --eval SELECT COUNT(*) FROM t2
 --eval INSERT $query

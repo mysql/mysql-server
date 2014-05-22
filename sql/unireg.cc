@@ -288,8 +288,8 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   maxlength=(uint) next_io_size((ulong) (uint2korr(forminfo_p)+1000));
   int2store(forminfo+2,maxlength);
   int4store(fileinfo+10,(ulong) (filepos+maxlength));
-  fileinfo[26]= (uchar) test((create_info->max_rows == 1) &&
-			     (create_info->min_rows == 1) && (keys == 0));
+  fileinfo[26]= (uchar) MY_TEST((create_info->max_rows == 1) &&
+                                (create_info->min_rows == 1) && (keys == 0));
   int2store(fileinfo+28,key_info_length);
 
 #ifdef WITH_PARTITION_STORAGE_ENGINE
@@ -866,7 +866,8 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   uint i;
-  uint int_count, comment_length=0;
+  uint int_count;
+  size_t comment_length= 0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
   DBUG_ENTER("pack_fields");
@@ -1137,9 +1138,9 @@ static bool make_empty_rec(THD *thd, File file,
       regfield->store((longlong) 1, TRUE);
     }
     else if (type == Field::YES)		// Old unireg type
-      regfield->store(ER(ER_YES),(uint) strlen(ER(ER_YES)),system_charset_info);
+      regfield->store(ER(ER_YES), strlen(ER(ER_YES)),system_charset_info);
     else if (type == Field::NO)			// Old unireg type
-      regfield->store(ER(ER_NO), (uint) strlen(ER(ER_NO)),system_charset_info);
+      regfield->store(ER(ER_NO), strlen(ER(ER_NO)),system_charset_info);
     else
       regfield->reset();
     /*

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -30,7 +30,6 @@ Created 11/5/1995 Heikki Tuuri
 #include "ut0byte.h"
 #include "log0log.h"
 #ifndef UNIV_HOTBACKUP
-#include "mtr0types.h"
 #include "buf0types.h"
 
 /** Flag indicating if the page_cleaner is in active state. */
@@ -72,8 +71,10 @@ buf_flush_init_for_writing(
 /*=======================*/
 	byte*	page,		/*!< in/out: page */
 	void*	page_zip_,	/*!< in/out: compressed page, or NULL */
-	lsn_t	newest_lsn);	/*!< in: newest modification lsn
+	lsn_t	newest_lsn,	/*!< in: newest modification lsn
 				to the page */
+	bool	skip_checksum);	/*!< in: if true, disable/skip checksum. */
+
 #ifndef UNIV_HOTBACKUP
 # if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 /********************************************************************//**
@@ -88,7 +89,7 @@ buf_flush_page_try(
 /*===============*/
 	buf_pool_t*	buf_pool,	/*!< in/out: buffer pool instance */
 	buf_block_t*	block)		/*!< in/out: buffer control block */
-	__attribute__((nonnull, warn_unused_result));
+	__attribute__((warn_unused_result));
 # endif /* UNIV_DEBUG || UNIV_IBUF_DEBUG */
 /*******************************************************************//**
 This utility flushes dirty blocks from the end of the flush list of
@@ -99,8 +100,8 @@ instance. false if another batch of same type was already running in
 at least one of the buffer pool instance */
 
 bool
-buf_flush_list(
-/*===========*/
+buf_flush_lists(
+/*============*/
 	ulint		min_n,		/*!< in: wished minimum mumber of blocks
 					flushed (it is not guaranteed that the
 					actual number is that big, though) */
@@ -153,8 +154,11 @@ UNIV_INLINE
 void
 buf_flush_note_modification(
 /*========================*/
-	buf_block_t*	block,	/*!< in: block which is modified */
-	mtr_t*		mtr);	/*!< in: mtr */
+	buf_block_t*	block,		/*!< in: block which is modified */
+	lsn_t		start_lsn,	/*!< in: start lsn of the first mtr in a
+					set of mtr's */
+	lsn_t		end_lsn);	/*!< in: end lsn of the last mtr in the
+					set of mtr's */
 /********************************************************************//**
 This function should be called when recovery has modified a buffer page. */
 UNIV_INLINE
@@ -178,14 +182,29 @@ buf_flush_ready_for_replace(
 				buf_page_in_file(bpage) and in the LRU list */
 /******************************************************************//**
 page_cleaner thread tasked with flushing dirty pages from the buffer
-pools. As of now we'll have only one instance of this thread.
+pools. As of now we'll have only one coordinator of this thread.
 @return a dummy parameter */
 extern "C"
 os_thread_ret_t
-DECLARE_THREAD(buf_flush_page_cleaner_thread)(
+DECLARE_THREAD(buf_flush_page_cleaner_coordinator)(
+/*===============================================*/
+	void*	arg);		/*!< in: a dummy parameter required by
+				os_thread_create */
+/******************************************************************//**
+Worker thread of page_cleaner.
+@return a dummy parameter */
+extern "C"
+os_thread_ret_t
+DECLARE_THREAD(buf_flush_page_cleaner_worker)(
 /*==========================================*/
 	void*	arg);		/*!< in: a dummy parameter required by
 				os_thread_create */
+/******************************************************************//**
+Initialize page_cleaner. */
+
+void
+buf_flush_page_cleaner_init(void);
+/*=============================*/
 /*********************************************************************//**
 Clears up tail of the LRU lists:
 * Put replaceable pages at the tail of LRU to the free list
@@ -195,8 +214,8 @@ config parameter innodb_LRU_scan_depth.
 @return total pages flushed */
 
 ulint
-buf_flush_LRU_tail(void);
-/*====================*/
+buf_flush_LRU_lists(void);
+/*=====================*/
 /*********************************************************************//**
 Wait for any possible LRU flushes that are in progress to end. */
 
@@ -237,16 +256,16 @@ NOTE: in simulated aio we must call
 os_aio_simulated_wake_handler_threads after we have posted a batch of
 writes! NOTE: buf_pool->mutex and buf_page_get_mutex(bpage) must be
 held upon entering this function, and they will be released by this
-function. */
+function.
+@return TRUE if page was flushed */
 
-void
+ibool
 buf_flush_page(
 /*===========*/
 	buf_pool_t*	buf_pool,	/*!< in: buffer pool instance */
 	buf_page_t*	bpage,		/*!< in: buffer control block */
 	buf_flush_t	flush_type,	/*!< in: type of flush */
-	bool		sync)		/*!< in: true if sync IO request */
-	__attribute__((nonnull));
+	bool		sync);		/*!< in: true if sync IO request */
 /********************************************************************//**
 Returns true if the block is modified and ready for flushing.
 @return true if can flush immediately */

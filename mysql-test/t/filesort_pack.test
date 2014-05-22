@@ -1,0 +1,36 @@
+CREATE TABLE t1 (
+ id int(10) unsigned NOT NULL auto_increment,
+ k int(10) unsigned NOT NULL default '0',
+ c char(120) NOT NULL default '',
+ pad char(60) NOT NULL default '',
+ PRIMARY KEY (id),
+ KEY k (k)
+) engine=innodb;
+
+--disable_query_log
+let $count= 140;
+while ($count)
+{
+  eval insert into t1(id, k) values ($count, $count);
+  dec $count;
+}
+--enable_query_log
+
+ANALYZE TABLE t1;
+
+SET @@session.sort_buffer_size=32768;
+
+FLUSH STATUS;
+SHOW SESSION STATUS LIKE 'Sort%';
+
+--disable_result_log
+# This is similar to sysbench --oltp-order-ranges --oltp-range-size=1000
+# With packed addon fields, we should get Sort_merge_passes = 0
+SELECT c FROM t1 WHERE id between 2 and 1002 ORDER BY c;
+--enable_result_log
+
+SHOW SESSION STATUS LIKE 'Sort%';
+
+SET @@session.sort_buffer_size=DEFAULT;
+
+DROP TABLE t1;

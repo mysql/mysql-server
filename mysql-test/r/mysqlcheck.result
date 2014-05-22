@@ -314,10 +314,7 @@ CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text
 test.bug47205	check	error	Table rebuild required. Please do "ALTER TABLE `bug47205` FORCE" or dump/reload to fix it!
 # ALTER TABLE ... FORCE should rebuild the table
-# and therefore output "affected rows: 1"
 ALTER TABLE bug47205 FORCE;
-affected rows: 1
-info: Records: 1  Duplicates: 0  Warnings: 0
 # Table should now be ok
 CHECK TABLE bug47205 FOR UPGRADE;
 Table	Op	Msg_type	Msg_text

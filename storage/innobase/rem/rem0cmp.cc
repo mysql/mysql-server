@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -34,6 +34,10 @@ Created 7/1/1994 Heikki Tuuri
 #include "handler0alter.h"
 #include "srv0srv.h"
 
+#include <gstream.h>
+#include <spatial.h>
+#include <gis0geo.h>
+#include <page0cur.h>
 #include <algorithm>
 
 using std::min;
@@ -227,6 +231,95 @@ cmp_decimal(
 	return(swap_flag);
 }
 
+/*************************************************************//**
+Innobase uses this function to compare two geometry data fields
+@return	1, 0, -1, if a is greater, equal, less than b, respectively */
+static
+int
+cmp_geometry_field(
+/*===============*/
+	ulint		mtype,		/*!< in: main type */
+	ulint		prtype,		/*!< in: precise type */
+	const byte*	a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const byte*	b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+{
+	double		x1, x2;
+	double		y1, y2;
+
+	ut_ad(prtype & DATA_GIS_MBR);
+
+	if (a_length < sizeof(double) || b_length < sizeof(double)) {
+		return(0);
+	}
+
+	/* Try to compare mbr left lower corner (xmin, ymin) */
+	x1 = mach_double_read(a);
+	x2 = mach_double_read(b);
+	y1 = mach_double_read(a + sizeof(double) * SPDIMS);
+	y2 = mach_double_read(b + sizeof(double) * SPDIMS);
+
+	if (x1 > x2) {
+		return(1);
+	} else if (x2 > x1) {
+		return(-1);
+	}
+
+	if (y1 > y2) {
+		return(1);
+	} else if (y2 > y1) {
+		return(-1);
+	}
+
+	/* left lower corner (xmin, ymin) overlaps, now right upper corner */
+	x1 = mach_double_read(a + sizeof(double));
+	x2 = mach_double_read(b + sizeof(double));
+	y1 = mach_double_read(a + sizeof(double) * SPDIMS + sizeof(double));
+	y2 = mach_double_read(b + sizeof(double) * SPDIMS + sizeof(double));
+
+	if (x1 > x2) {
+		return(1);
+	} else if (x2 > x1) {
+		return(-1);
+	}
+
+	if (y1 > y2) {
+		return(1);
+	} else if (y2 > y1) {
+		return(-1);
+	}
+
+	return(0);
+}
+/*************************************************************//**
+Innobase uses this function to compare two gis data fields
+@return	1, 0, -1, if mode == PAGE_CUR_MBR_EQUAL. And return
+1, 0 for rest compare modes, depends on a and b qualifies the
+relationship (CONTAINT, WITHIN etc.) */
+static
+int
+cmp_gis_field(
+/*============*/
+	ulint		mode,		/*!< in: compare mode */
+	const byte*	a,		/*!< in: data field */
+	unsigned int	a_length,	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+	const byte*	b,		/*!< in: data field */
+	unsigned int	b_length)	/*!< in: data field length,
+					not UNIV_SQL_NULL */
+{
+	if (mode == PAGE_CUR_MBR_EQUAL) {
+		return(cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR,
+					  a, a_length, b, b_length));
+	} else {
+		return(rtree_key_cmp(static_cast<int>(mode),
+				     a, a_length, b, b_length));
+	}
+}
+
 /** Compare two data fields.
 @param[in] mtype main type
 @param[in] prtype precise type
@@ -283,10 +376,9 @@ cmp_whole_field(
 			       &my_charset_latin1,
 			       a, a_length, b, b_length, 0));
 	case DATA_BLOB:
-	case DATA_GEOMETRY:
 		if (prtype & DATA_BINARY_TYPE) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"comparing a binary BLOB"
+				"Comparing a binary BLOB"
 				" using a character set collation!");
 			ut_ad(0);
 		}
@@ -295,9 +387,12 @@ cmp_whole_field(
 	case DATA_MYSQL:
 		return(innobase_mysql_cmp(prtype,
 					  a, a_length, b, b_length));
+	case DATA_GEOMETRY:
+		return(cmp_geometry_field(mtype, prtype, a, a_length, b,
+				b_length));
 	default:
 		ib_logf(IB_LOG_LEVEL_FATAL,
-			"unknown data type number %lu",
+			"Unknown data type number %lu",
 			(ulong) mtype);
 	}
 
@@ -351,8 +446,16 @@ cmp_data(
 	case DATA_SYS:
 		pad = ULINT_UNDEFINED;
 		break;
-	case DATA_BLOB:
 	case DATA_GEOMETRY:
+		ut_ad(prtype & DATA_BINARY_TYPE);
+		pad = ULINT_UNDEFINED;
+		if (prtype & DATA_GIS_MBR) {
+			return(cmp_whole_field(mtype, prtype,
+					       data1, (unsigned) len1,
+					       data2, (unsigned) len2));
+		}
+		break;
+	case DATA_BLOB:
 		if (prtype & DATA_BINARY_TYPE) {
 			pad = ULINT_UNDEFINED;
 			break;
@@ -364,11 +467,62 @@ cmp_data(
 				       data2, (unsigned) len2));
 	}
 
-	ulint	len	= min(len1, len2);
-	int	cmp	= memcmp(data1, data2, len);
+	ulint	len;
+	int	cmp;
 
-	if (cmp) {
-		return(cmp);
+	if (len1 < len2) {
+		len = len1;
+		len2 -= len;
+		len1 = 0;
+	} else {
+		len = len2;
+		len1 -= len;
+		len2 = 0;
+	}
+
+	if (len) {
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
+		/* Compare the first bytes with a loop to avoid the call
+		overhead of memcmp(). On x86 and x86-64, the GCC built-in
+		(repz cmpsb) seems to be very slow, so we will be calling the
+		libc version. http://gcc.gnu.org/bugzilla/show_bug.cgi?id=43052
+		tracks the slowness of the GCC built-in memcmp().
+
+		We compare up to the first 4..7 bytes with the loop.
+		The (len & 3) is used for "normalizing" or
+		"quantizing" the len parameter for the memcmp() call,
+		in case the whole prefix is equal. On x86 and x86-64,
+		the GNU libc memcmp() of equal strings is faster with
+		len=4 than with len=3.
+
+		On other architectures than the IA32 or AMD64, there could
+		be a built-in memcmp() that is faster than the loop.
+		We only use the loop where we know that it can improve
+		the performance. */
+		for (ulint i = 4 + (len & 3); i > 0; i--) {
+			cmp = int(*data1++) - int(*data2++);
+			if (cmp) {
+				return(cmp);
+			}
+
+			if (!--len) {
+				break;
+			}
+		}
+
+		if (len) {
+#endif /* IA32 or AMD64 */
+			cmp = memcmp(data1, data2, len);
+
+			if (cmp) {
+				return(cmp);
+			}
+
+			data1 += len;
+			data2 += len;
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
+		}
+#endif /* IA32 or AMD64 */
 	}
 
 	cmp = (int) (len1 - len2);
@@ -377,13 +531,15 @@ cmp_data(
 		return(cmp);
 	}
 
-	if (len < len1) {
+	len = 0;
+
+	if (len1) {
 		do {
 			cmp = static_cast<int>(
 				mach_read_from_1(&data1[len++]) - pad);
 		} while (cmp == 0 && len < len1);
 	} else {
-		ut_ad(len < len2);
+		ut_ad(len2 > 0);
 
 		do {
 			cmp = static_cast<int>(
@@ -392,6 +548,43 @@ cmp_data(
 	}
 
 	return(cmp);
+}
+
+/** Compare a GIS data tuple to a physical record.
+@param[in] dtuple data tuple
+@param[in] rec B-tree record
+@param[in] offsets rec_get_offsets(rec)
+@param[in] mode compare mode
+@retval negative if dtuple is less than rec */
+
+int
+cmp_dtuple_rec_with_gis(
+/*====================*/
+	const dtuple_t*	dtuple,	/*!< in: data tuple */
+	const rec_t*	rec,	/*!< in: physical record which differs from
+				dtuple in some of the common fields, or which
+				has an equal number or more fields than
+				dtuple */
+	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
+	ulint		mode)	/*!< in: comprare mode */
+{
+	const dfield_t*	dtuple_field;	/* current field in logical record */
+	ulint		dtuple_f_len;	/* the length of the current field
+					in the logical record */
+	ulint		rec_f_len;	/* length of current field in rec */
+	const byte*	rec_b_ptr;	/* pointer to the current byte in
+					rec field */
+	int		ret = 0;	/* return value */
+
+	dtuple_field = dtuple_get_nth_field(dtuple, 0);
+	dtuple_f_len = dfield_get_len(dtuple_field);
+
+	rec_b_ptr = rec_get_nth_field(rec, offsets, 0, &rec_f_len);
+	ret = cmp_gis_field(
+		mode, static_cast<const byte*>(dfield_get_data(dtuple_field)),
+		(unsigned) dtuple_f_len, rec_b_ptr, (unsigned) rec_f_len);
+
+	return(ret);
 }
 
 /** Compare two data fields.
@@ -736,16 +929,38 @@ cmp_rec_rec_with_match(
 		ulint	mtype;
 		ulint	prtype;
 
+		/* If this is node-ptr records then avoid comparing node-ptr
+		field. Only key field needs to be compared. */
+		if (cur_field == dict_index_get_n_unique_in_tree(index)) {
+			break;
+		}
+
 		if (dict_index_is_univ(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;
 		} else {
-			const dict_col_t*	col
-				= dict_index_get_nth_col(index, cur_field);
+			const dict_col_t*	col;
+
+			/* This is comparing non-leaf node record, skip
+			the page no compare */
+			if (cur_field >= dict_index_get_n_fields(index)
+			    && dict_index_is_spatial(index)) {
+				cur_field--;
+				goto order_resolved;
+			}
+
+			col	= dict_index_get_nth_col(index, cur_field);
 
 			mtype = col->mtype;
 			prtype = col->prtype;
+
+			/* If the index is spatial index, we mark the
+			prtype of the first field as MBR field. */
+			if (cur_field == 0 && dict_index_is_spatial(index)) {
+				ut_ad(DATA_GEOMETRY_MTYPE(mtype));
+				prtype |= DATA_GIS_MBR;
+			}
 		}
 
 		/* We should never encounter an externally stored field.
@@ -783,3 +998,28 @@ order_resolved:
 	*matched_fields = cur_field;
 	return(ret);
 }
+
+#ifdef UNIV_COMPILE_TEST_FUNCS
+
+#ifdef HAVE_UT_CHRONO_T
+
+void
+test_cmp_data_data(ulint len)
+{
+	int		i;
+	static byte	zeros[64];
+
+	if (len > sizeof zeros) {
+		len = sizeof zeros;
+	}
+
+	ut_chrono_t	ch(__func__);
+
+	for (i = 1000000; i > 0; i--) {
+		i += cmp_data(DATA_INT, 0, zeros, len, zeros, len);
+	}
+}
+
+#endif /* HAVE_UT_CHRONO_T */
+
+#endif /* UNIV_COMPILE_TEST_FUNCS */

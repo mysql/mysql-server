@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,19 +26,15 @@
 
 C_MODE_START
 
-#if !defined(HAVE_PREAD) && !defined(_WIN32)
-extern PSI_mutex_key key_my_file_info_mutex;
-#endif /* !defined(HAVE_PREAD) && !defined(_WIN32) */
-
 extern PSI_mutex_key key_BITMAP_mutex, key_IO_CACHE_append_buffer_lock,
-  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock, key_LOCK_alarm,
+  key_IO_CACHE_SHARE_mutex, key_KEY_CACHE_cache_lock,
   key_my_thread_var_mutex, key_THR_LOCK_charset, key_THR_LOCK_heap,
   key_THR_LOCK_lock, key_THR_LOCK_malloc,
   key_THR_LOCK_mutex, key_THR_LOCK_myisam, key_THR_LOCK_net,
   key_THR_LOCK_open, key_THR_LOCK_threads,
   key_TMPDIR_mutex, key_THR_LOCK_myisam_mmap;
 
-extern PSI_cond_key key_COND_alarm, key_IO_CACHE_SHARE_cond,
+extern PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
 
@@ -53,9 +49,9 @@ extern mysql_mutex_t THR_LOCK_charset;
 #include <mysql/psi/mysql_file.h>
 
 #ifdef HAVE_PSI_INTERFACE
-#ifdef HUGETLB_USE_PROC_MEMINFO
+#ifdef HAVE_LINUX_LARGE_PAGES
 extern PSI_file_key key_file_proc_meminfo;
-#endif /* HUGETLB_USE_PROC_MEMINFO */
+#endif /* HAVE_LINUX_LARGE_PAGES */
 extern PSI_file_key key_file_charset;
 
 C_MODE_END
@@ -86,7 +82,6 @@ extern PSI_memory_key key_memory_MY_DIR;
 extern PSI_memory_key key_memory_MY_STAT;
 extern PSI_memory_key key_memory_QUEUE;
 extern PSI_memory_key key_memory_DYNAMIC_STRING;
-extern PSI_memory_key key_memory_ALARM;
 extern PSI_memory_key key_memory_TREE;
 extern PSI_memory_key key_memory_defaults;
 extern PSI_memory_key key_memory_radix_sort;

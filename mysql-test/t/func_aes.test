@@ -1,0 +1,225 @@
+--echo # Tests of the AES functionality
+
+--echo #
+--echo # WL#6781: Support multiple AES encryption modes
+--echo #
+
+--echo #### AES_ENCRYPT return type
+
+--echo # must be aes-128-ecb
+SELECT @@block_encryption_mode;
+
+--echo # must work and return a string
+SELECT TO_BASE64(AES_ENCRYPT('a', 'b'));
+
+--echo # must return 16
+SELECT LENGTH(AES_ENCRYPT('a', 'b'));
+
+--echo # must return binary
+SELECT CHARSET(AES_ENCRYPT('a', 'b'));
+
+--echo # must be equal
+SELECT AES_ENCRYPT('a', 'b') = AES_ENCRYPT('a', 'b');
+
+
+--echo #### AES_ENCRYPT parameters
+
+--echo # must return NULL
+SELECT AES_ENCRYPT('a', NULL);
+SELECT AES_ENCRYPT(NULL, 'a');
+SELECT AES_ENCRYPT(NULL, NULL);
+
+--echo # must return value
+SELECT TO_BASE64(AES_ENCRYPT('a', 0));
+SELECT TO_BASE64(AES_ENCRYPT('a', 12.04));
+SELECT TO_BASE64(AES_ENCRYPT(0, 'a'));
+SELECT TO_BASE64(AES_ENCRYPT(12.04, 'a'));
+SELECT TO_BASE64(AES_ENCRYPT(0, 0));
+SELECT TO_BASE64(AES_ENCRYPT(12.04, 12.04));
+
+
+--echo #### parameter conversion
+
+--echo must be equal
+SELECT AES_ENCRYPT('a', 12.04) = AES_ENCRYPT('a', '12.04');
+SELECT AES_ENCRYPT('a', 0) = AES_ENCRYPT('a', '0');
+SELECT AES_ENCRYPT(12.04, 'a') = AES_ENCRYPT('12.04', 'a');
+SELECT AES_ENCRYPT(0, 'a') = AES_ENCRYPT('0', 'a');
+SELECT AES_ENCRYPT('\x0Z', 'a') = AES_ENCRYPT('\x0Z', 'a');
+SELECT AES_ENCRYPT('a', '\x0Z') = AES_ENCRYPT('a', '\x0Z');
+
+--echo # must not be equal
+SELECT AES_ENCRYPT('a', '\x0Y') = AES_ENCRYPT('a', '\x0Z');
+SELECT AES_ENCRYPT('\x0Y', 'a') = AES_ENCRYPT('\x0Z', 'a');
+
+
+--echo #### algorithm
+
+--echo # must not be equal
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('b', 'a');
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'b');
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('aa', 'a');
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'aa');
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT(REPEAT('a',1000), 'a');
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', REPEAT('a',1000));
+
+
+--echo #### persistense
+
+CREATE TABLE t1 (a BINARY(16) PRIMARY KEY);
+
+--echo # must pass without a warning
+INSERT INTO t1 VALUES (AES_ENCRYPT('a','a'));
+
+--echo # must fail
+--error ER_DUP_ENTRY
+INSERT INTO t1 VALUES (AES_ENCRYPT('a','a'));
+
+--echo # must pass
+INSERT INTO t1 VALUES (AES_ENCRYPT('b','a'));
+
+--echo # must return 1
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('a', 'a');
+
+--echo # must return 1
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('b', 'a');
+
+--echo # must return 0
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('c', 'a');
+SELECT COUNT(*) FROM t1 WHERE a = AES_ENCRYPT('a', 'c');
+
+SELECT TO_BASE64(a) FROM t1 ORDER BY a;
+
+--echo # cleanup
+DROP TABLE t1;
+
+
+--echo #### IV
+
+--echo # must be equal
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'a', REPEAT('a', 16));
+SELECT AES_ENCRYPT('a', 'a') = AES_ENCRYPT('a', 'a', REPEAT('b', 16));
+
+--echo # must return a warning
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', 'a'));
+
+--echo # must pass
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', NULL));
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', REPEAT('a', 1024)));
+SELECT TO_BASE64(AES_ENCRYPT('a', 'a', RANDOM_BYTES(16)));
+
+
+--echo #### RANDOM_BYTES
+
+
+--echo # must be 1
+SELECT LENGTH(RANDOM_BYTES(1));
+
+--echo # must return binary
+SELECT CHARSET(RANDOM_BYTES(1));
+
+--echo # must return an error
+--error ER_DATA_OUT_OF_RANGE
+SELECT RANDOM_BYTES(1000000000000);
+
+--error ER_DATA_OUT_OF_RANGE
+SELECT LENGTH(RANDOM_BYTES(0));
+
+
+--echo #### AES_DECRYPT
+
+--echo # must return binary
+SELECT CHARSET(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'));
+
+--echo # must return 1
+SELECT LENGTH(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a'));
+
+--echo # must be equal
+SELECT AES_DECRYPT(AES_ENCRYPT('a','a'), 'a') = 'a';
+
+--echo # must be equal
+SELECT AES_DECRYPT(AES_ENCRYPT(_UTF8'Жоро', 'a'), 'a') = _UTF8'Жоро';
+SELECT AES_DECRYPT(AES_ENCRYPT('Жоро', 'a'), 'a') = 'Жоро';
+
+--echo # must be NULL
+SELECT AES_DECRYPT(NULL, 'a');
+SELECT AES_DECRYPT('a', NULL);
+SELECT AES_DECRYPT(NULL, NULL);
+
+
+--echo #### AES_DECRYPT IV
+
+--echo # must be equal
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', NULL);
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', REPEAT('a',16));
+SELECT 'a' = AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', REPEAT('a',100));
+
+--echo # must return a warning
+SELECT TO_BASE64(AES_DECRYPT(AES_ENCRYPT('a', 'a'), 'a', 'a'));
+
+
+--echo #### 128, 192 and 256 bit ECB
+
+
+CREATE TABLE aes_ecb(a VARCHAR(16), b128 CHAR(16), b192 CHAR(16), b256 CHAR(16));
+INSERT INTO aes_ecb (a) VALUES ('a'), ('Жоро'), (REPEAT('a', 10));
+
+SET SESSION block_encryption_mode='aes-128-ecb';
+UPDATE aes_ecb SET b128 = AES_ENCRYPT(a, 'a');
+
+SET SESSION block_encryption_mode='aes-192-ecb';
+UPDATE aes_ecb SET b192 = AES_ENCRYPT(a, 'a');
+
+SET SESSION block_encryption_mode='aes-256-ecb';
+UPDATE aes_ecb SET b256 = AES_ENCRYPT(a, 'a');
+
+--echo # must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE b128 = b192 OR B192 = b256 OR b128=b256;
+
+SET SESSION block_encryption_mode='aes-256-ecb';
+
+--echo # must return 3
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b256, 'a');
+
+--echo # must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b256, 'b');
+
+SET SESSION block_encryption_mode='aes-192-ecb';
+
+--echo # must return 3
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b192, 'a');
+
+--echo # must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b192, 'b');
+
+SET SESSION block_encryption_mode='aes-128-ecb';
+
+--echo # must return 3
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b128, 'a');
+
+--echo # must return 0
+SELECT COUNT(*) FROM aes_ecb WHERE a = AES_DECRYPT(b128, 'b');
+
+
+SET SESSION block_encryption_mode=DEFAULT;
+DROP TABLE aes_ecb;
+
+
+let $block_mode=cbc;
+source include/func_aes_block.inc;
+
+let $block_mode=default;
+
+
+--echo #
+--echo # Bug #18259229: SERVER CRASHES WITH THE FUNCTION RANDOM_BYTES()
+--echo #
+
+--echo # INT_MAX - 9 (terminating 0 + rounding). Should not crash
+--error ER_DATA_OUT_OF_RANGE
+SELECT RANDOM_BYTES(2147483647 - 9);
+
+
+--echo #
+--echo # End of 5.7 tests
+--echo #

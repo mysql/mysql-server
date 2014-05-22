@@ -1,0 +1,7 @@
+federated.federated
+sys_vars.all_vars
+main analyze
+main archive
+main blackhole
+perfschema event_aggregate
+rpl rpl_auto_increment

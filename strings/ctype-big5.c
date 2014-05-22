@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -6901,6 +6901,7 @@ CHARSET_INFO my_charset_big5_chinese_ci=
     1,			/* casedn_multiply  */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
+    1,			/* mbmaxlenlen */
     0,			/* min_sort_char */
     0xF9D5,		/* max_sort_char */
     ' ',                /* pad char      */
@@ -6935,6 +6936,7 @@ CHARSET_INFO my_charset_big5_bin=
     1,			/* casedn_multiply  */
     1,			/* mbminlen   */
     2,			/* mbmaxlen   */
+    1,			/* mbmaxlenlen */
     0,			/* min_sort_char */
     0xF9FE,		/* max_sort_char */
     ' ',                /* pad char      */

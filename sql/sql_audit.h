@@ -45,15 +45,16 @@ extern void mysql_audit_notify(THD *thd, uint event_class,
 extern void mysql_audit_release(THD *thd);
 
 #define MAX_USER_HOST_SIZE 512
-static inline uint make_user_name(THD *thd, char *buf)
+static inline size_t make_user_name(THD *thd, char *buf)
 {
   Security_context *sctx= thd->security_ctx;
-  return strxnmov(buf, MAX_USER_HOST_SIZE,
-                  sctx->priv_user[0] ? sctx->priv_user : "", "[",
-                  sctx->user ? sctx->user : "", "] @ ",
-                  sctx->get_host()->length() ? sctx->get_host()->ptr() :
-                  "", " [", sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
-                  "", "]", NullS) - buf;
+  return static_cast<size_t>(strxnmov(buf, MAX_USER_HOST_SIZE,
+                                      sctx->priv_user[0] ? sctx->priv_user : "", "[",
+                                      sctx->user ? sctx->user : "", "] @ ",
+                                      sctx->get_host()->length() ? sctx->get_host()->ptr() :
+                                      "", " [", sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
+                                      "", "]", NullS)
+                             - buf);
 }
 
 /**
@@ -71,9 +72,9 @@ static inline uint make_user_name(THD *thd, char *buf)
  
 static inline
 void mysql_audit_general_log(THD *thd, time_t time,
-                             const char *user, uint userlen,
-                             const char *cmd, uint cmdlen,
-                             const char *query, uint querylen)
+                             const char *user, size_t userlen,
+                             const char *cmd, size_t cmdlen,
+                             const char *query, size_t querylen)
 {
 #ifndef EMBEDDED_LIBRARY
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
@@ -104,7 +105,8 @@ void mysql_audit_general_log(THD *thd, time_t time,
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, MYSQL_AUDIT_GENERAL_LOG,
                        0, time, user, userlen, cmd, cmdlen, query, querylen,
-                       clientcs, 0, sql_command, host, external_user, ip);
+                       clientcs, static_cast<ha_rows>(0),
+                       sql_command, host, external_user, ip);
   }
 #endif
 }
@@ -130,11 +132,12 @@ void mysql_audit_general(THD *thd, uint event_subtype,
   if (mysql_global_audit_mask[0] & MYSQL_AUDIT_GENERAL_CLASSMASK)
   {
     time_t time= my_time(0);
-    uint msglen= msg ? strlen(msg) : 0;
-    uint userlen;
+    size_t msglen= msg ? strlen(msg) : 0;
+    size_t userlen;
     const char *user;
     char user_buff[MAX_USER_HOST_SIZE];
-    CSET_STRING query;
+    LEX_CSTRING query= EMPTY_CSTR;
+    const CHARSET_INFO *query_charset= thd->charset();
     MYSQL_LEX_STRING ip, host, external_user, sql_command;
     ha_rows rows;
     static MYSQL_LEX_STRING empty= { C_STRING_WITH_LEN("") };
@@ -144,11 +147,13 @@ void mysql_audit_general(THD *thd, uint event_subtype,
       if (!thd->rewritten_query.length())
         mysql_rewrite_query(thd);
       if (thd->rewritten_query.length())
-        query= CSET_STRING((char *) thd->rewritten_query.ptr(),
-                           thd->rewritten_query.length(),
-                           thd->rewritten_query.charset());
+      {
+        query.str= thd->rewritten_query.ptr();
+        query.length= thd->rewritten_query.length();
+        query_charset= thd->rewritten_query.charset();
+      }
       else
-        query= thd->query_string;
+        query= thd->query();
       user= user_buff;
       userlen= make_user_name(thd, user_buff);
       rows= thd->get_stmt_da()->current_row_for_condition();
@@ -174,7 +179,7 @@ void mysql_audit_general(THD *thd, uint event_subtype,
 
     mysql_audit_notify(thd, MYSQL_AUDIT_GENERAL_CLASS, event_subtype,
                        error_code, time, user, userlen, msg, msglen,
-                       query.str(), query.length(), query.charset(), rows,
+                       query.str, query.length, query_charset, rows,
                        sql_command, host, external_user, ip);
   }
 #endif

@@ -1,7 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
+# This tests the functionality of the Myisam engine
+# like BUG#31277,Bug#40949,Bug#43973,repair
+# All tests are required to run with Myisam
+# Hence MTR starts mysqld with MyISAM as default
+
 --source include/force_myisam_default.inc
+--source include/have_myisam.inc
 
 -- disable_warnings
 DROP TABLE IF EXISTS t1,t2,t3;

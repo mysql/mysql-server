@@ -1,11 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test need anonymous user when connection are made as "zedjzlcsjhd"
+source include/not_gtid_enabled.inc;
 source include/add_anonymous_users.inc;
 -- source include/master-slave.inc
+-- source include/have_myisam.inc
 
 # Clean up old slave's binlogs.
 # The slave is started with --log-slave-updates
@@ -65,14 +62,20 @@ enable_warnings;
 
 CREATE TEMPORARY TABLE t1 (a char(1));
 INSERT INTO t1 VALUES ('a');
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
+# Temporary table t1 open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
 source include/stop_slave.inc;
+--enable_warnings
+
 source include/start_slave.inc;
 
 connection master;
 INSERT INTO t1 VALUES ('b');
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # case 2: crash on sp_rcontext::find_handler because it used 
 #         reference to invalid THD object after slave restart
@@ -85,20 +88,26 @@ enable_warnings;
 CREATE TEMPORARY TABLE `t1`(`a` tinyint,`b` char(1))engine=myisam;
 INSERT INTO `t1` set `a`=128,`b`='128';
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
+# Temporary table `t1` open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
 source include/stop_slave.inc;
+--enable_warnings
+
 source include/start_slave.inc;
 
 connection master;
 INSERT INTO `t1` set `a`=128,`b`='128';
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # cleanup
 
 connection master;
 DROP TABLE t1;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 connection master;
 
@@ -225,7 +234,7 @@ drop table t1,t2;
 # don't get any memory leaks for this
 
 create temporary table t3 (f int);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # The server will now close done
 
@@ -237,9 +246,16 @@ sync_slave_with_master;
 connection master;
 create temporary table t4 (f int);
 create table t5 (f int);
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 # connection slave
+
+# Temporary table t3,t4 are open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
 stop slave;  # to prepare for reconnecting w/o waiting for timeout
+--enable_warnings
+
 connection master;
 --disable_warnings ONCE
 insert into t5 select * from t4;
@@ -280,7 +296,7 @@ connection master;
 create table t1(f int);
 insert into t1 values (1);
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 select * from t1 /* must be 1 */;
 
@@ -293,23 +309,30 @@ drop table t1;
 --write_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
 create table t1 (a int);
 set names latin1;
-create temporary table `‰ˆ¸ƒ÷‹` (a int);
-insert into `‰ˆ¸ƒ÷‹` values (1);
-insert into t1 select * from `‰ˆ¸ƒ÷‹`
+create temporary table `\E4\F6\FC\C4\D6\DC` (a int);
+insert into `\E4\F6\FC\C4\D6\DC` values (1);
+insert into t1 select * from `\E4\F6\FC\C4\D6\DC`
 EOF
 --exec $MYSQL --character-sets-dir=../sql/share/charsets/ --default-character-set=latin1 test < $MYSQLTEST_VARDIR/tmp/bug14157.sql
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 #connection slave;
 select * from t1;
 
 connection master; 
 drop table t1;
 --remove_file $MYSQLTEST_VARDIR/tmp/bug14157.sql
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 # Delete the anonymous users.
+
+# Temporary table `\E4\F6\FC\C4\D6\DC` open when stop slave is done. So we will have a warning here.
+# But this warning is NOT generated in RBR. So the results will be different in
+# SBR and RBR if we dont disable warnings here.
+--disable_warnings
 --source include/stop_slave.inc
+--enable_warnings
+
 source include/delete_anonymous_users.inc;
 --connection master
 source include/delete_anonymous_users.inc;

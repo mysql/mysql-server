@@ -181,9 +181,7 @@ START SLAVE;
 
 let $slave_sql_errno= 1205; # ER_LOCK_TIMEOUT
 let $show_slave_sql_error= 0;
-let $rpl_debug= 1;
 source include/wait_for_slave_sql_error.inc;
-let $rpl_debug= 0;
 
 rollback;
 

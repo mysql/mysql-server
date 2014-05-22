@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -90,7 +90,7 @@ significant bit denotes that the tail of a field is stored off-page. */
 
 /* Number of elements that should be initially allocated for the
 offsets[] array, first passed to rec_get_offsets() */
-#define REC_OFFS_NORMAL_SIZE	100
+#define REC_OFFS_NORMAL_SIZE	OFFS_IN_REC_NORMAL_SIZE	
 #define REC_OFFS_SMALL_SIZE	10
 
 /******************************************************//**
@@ -445,13 +445,24 @@ rec_get_offsets_func(
 	ulint			n_fields,/*!< in: maximum number of
 					initialized fields
 					 (ULINT_UNDEFINED if all fields) */
-	mem_heap_t**		heap,	/*!< in/out: memory heap */
+#ifdef UNIV_DEBUG
 	const char*		file,	/*!< in: file name where called */
-	ulint			line)	/*!< in: line number where called */
-	__attribute__((nonnull(1,2,5,6),warn_unused_result));
+	ulint			line,	/*!< in: line number where called */
+#endif /* UNIV_DEBUG */
+	mem_heap_t**		heap)	/*!< in/out: memory heap */
+#ifdef UNIV_DEBUG
+	__attribute__((nonnull(1,2,5,7),warn_unused_result));
+#else /* UNIV_DEBUG */
+	__attribute__((nonnull(1,2,5),warn_unused_result));
+#endif /* UNIV_DEBUG */
 
-#define rec_get_offsets(rec,index,offsets,n,heap)	\
-	rec_get_offsets_func(rec,index,offsets,n,heap,__FILE__,__LINE__)
+#ifdef UNIV_DEBUG
+# define rec_get_offsets(rec,index,offsets,n,heap)			\
+	rec_get_offsets_func(rec,index,offsets,n,__FILE__,__LINE__,heap)
+#else /* UNIV_DEBUG */
+# define rec_get_offsets(rec, index, offsets, n, heap)	\
+	rec_get_offsets_func(rec, index, offsets, n, heap)
+#endif /* UNIV_DEBUG */
 
 /******************************************************//**
 The following function determines the offsets to each field
@@ -581,6 +592,14 @@ rec_offs_nth_extern(
 	const ulint*	offsets,/*!< in: array returned by rec_get_offsets() */
 	ulint		n)	/*!< in: nth field */
 	__attribute__((nonnull, pure, warn_unused_result));
+
+/** Mark the nth field as externally stored.
+@param[in]	offsets		array returned by rec_get_offsets()
+@param[in]	n		nth field */
+void
+rec_offs_make_nth_extern(
+        ulint*		offsets,
+        const ulint     n);
 /******************************************************//**
 Returns nonzero if the SQL NULL bit is set in nth field of rec.
 @return nonzero if SQL NULL */
@@ -925,6 +944,16 @@ record header. */
 void
 rec_print_comp(
 /*===========*/
+	FILE*		file,	/*!< in: file where to print */
+	const rec_t*	rec,	/*!< in: physical record */
+	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */
+	__attribute__((nonnull));
+/***************************************************************//**
+Prints a spatial index record. */
+
+void
+rec_print_mbr_rec(
+/*==========*/
 	FILE*		file,	/*!< in: file where to print */
 	const rec_t*	rec,	/*!< in: physical record */
 	const ulint*	offsets)/*!< in: array returned by rec_get_offsets() */

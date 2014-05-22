@@ -45,6 +45,7 @@ title VARCHAR(200)
 INSERT INTO articles (title) VALUES
 ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 ('lṓve'),('LṒVE');
+call mtr.add_suppression("InnoDB: user stopword table test/user_stopword does not exist.");
 CREATE FULLTEXT INDEX ft_idx ON articles(title);
 SELECT * FROM articles WHERE MATCH (title)
 AGAINST ('lòve' IN NATURAL LANGUAGE MODE);

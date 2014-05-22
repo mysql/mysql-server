@@ -4,6 +4,8 @@
 select @@global.metadata_locks_cache_size = 256;
 @@global.metadata_locks_cache_size = 256
 1
+Warnings:
+Warning	1287	'@@metadata_locks_cache_size' is deprecated and will be removed in a future release.
 #
 # Check that variable is read only
 #
@@ -12,6 +14,8 @@ ERROR HY000: Variable 'metadata_locks_cache_size' is a read only variable
 select @@global.metadata_locks_cache_size = 256;
 @@global.metadata_locks_cache_size = 256
 1
+Warnings:
+Warning	1287	'@@metadata_locks_cache_size' is deprecated and will be removed in a future release.
 #
 # And only GLOBAL
 #

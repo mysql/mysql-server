@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,7 @@ Created 3/14/2011 Jimmy Yang
 #include "transaction.h"
 #include "sql_handler.h"
 #include "handler.h"
+#include "mysqld_thd_manager.h"
 
 #include "log_event.h"
 #include "innodb_config.h"
@@ -51,7 +52,7 @@ Created 3/14/2011 Jimmy Yang
 /** Some handler functions defined in sql/sql_table.cc and sql/handler.cc etc.
 and being used here */
 extern int write_bin_log(THD *thd, bool clear_error,
-			 char const *query, ulong query_length,
+			 const char *query, size_t query_length,
 			 bool is_trans= false);
 
 /** function to close a connection and thd, defined in sql/handler.cc */
@@ -87,8 +88,9 @@ handler_create_thd(
 	}
 
 	my_net_init(&thd->net,(st_vio*) 0);
-	thd->variables.pseudo_thread_id = thread_id++;
-	thd->thread_id = thd->variables.pseudo_thread_id;
+        Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+        thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+        thd->thread_id= thd->variables.pseudo_thread_id;
 	thd->thread_stack = reinterpret_cast<char*>(&thd);
 	thd->store_globals();
 
@@ -370,9 +372,6 @@ handler_close_thd(
 
 	thd->release_resources();
 	delete (thd);
-
-	/* Don't have a THD anymore */
-	my_pthread_setspecific_ptr(THR_THD,  0);
 }
 
 /**********************************************************************//**

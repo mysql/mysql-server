@@ -73,6 +73,7 @@ public:
   void aggregate_waits(void);
   void aggregate_stages(void);
   void aggregate_statements(void);
+  void aggregate_transactions(void);
   void aggregate_memory(bool alive);
   void aggregate_stats(void);
   void release(void);

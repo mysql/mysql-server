@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -53,7 +53,8 @@ static const char *json_extra_tags[ET_total]=
   "const_row_not_found",                // ET_CONST_ROW_NOT_FOUND
   "unique_row_not_found",               // ET_UNIQUE_ROW_NOT_FOUND
   "impossible_on_condition",            // ET_IMPOSSIBLE_ON_CONDITION
-  "pushed_join"                         // ET_PUSHED_JOIN
+  "pushed_join",                        // ET_PUSHED_JOIN
+  "ft_hints"                            // ET_FT_HINTS
 };
 
 
@@ -1365,7 +1366,7 @@ bool union_result_ctx::format_body(Opt_trace_context *json,
   @param list   list of context (*_ctx)  objects
   @param hide   if true, ban the output of K_SELECT_ID JSON property
                 in the underlying table_with_where_and_derived_ctx
-                objects
+                and materialize_ctx objects
 
   @return       id of underlying objects
 */
@@ -1439,7 +1440,16 @@ public:
     table_base_ctx(CTX_MATERIALIZATION, K_TABLE, parent_arg)
   {}
 
-  virtual size_t id(bool hide) { return join_ctx::id(hide); }
+  virtual size_t id(bool hide)
+  {
+    if (hide)
+    {
+     is_hidden_id= true;
+     /* Set the materizlize table's id to hide */
+     join_ctx::id(hide);
+    }
+    return table_base_ctx::id(hide);
+  }
   virtual bool cacheable() { return join_ctx::cacheable(); }
   virtual bool dependent() { return join_ctx::dependent(); }
 
@@ -1533,6 +1543,8 @@ public:
   { return unit_ctx::format_unit(json); }
   virtual void set_sort(sort_ctx *ctx)
   { return join_ctx::set_sort(ctx); }
+  virtual qep_row *entry()
+  { return join_ctx::entry(); }
 
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
@@ -1562,7 +1574,26 @@ public:
 private:
   virtual bool format_body(Opt_trace_context *json, Opt_trace_object *obj)
   {
-    return union_result->format(json) || format_unit(json);
+    if (union_result)
+      return (union_result->format(json)) || format_unit(json);
+    else
+    {
+      /*
+        UNION without temporary table. There is no union_result since
+        there is no fake_select_lex.
+      */
+      Opt_trace_object union_res(json, K_UNION_RESULT);
+      union_res.add(K_USING_TMP_TABLE, false);
+      Opt_trace_array specs(json, K_QUERY_SPECIFICATIONS);
+      List_iterator<context> it(query_specs);
+      context *ctx;
+      while ((ctx= it++))
+      {
+        if (ctx->format(json))
+          return true; /* purecov: inspected */
+      }
+      return format_unit(json);
+    }
   }
 
 public:

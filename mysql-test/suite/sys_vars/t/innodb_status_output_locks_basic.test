@@ -1,0 +1,69 @@
+--source include/have_innodb.inc
+
+SET @start_global_value = @@global.innodb_status_output_locks;
+SELECT @start_global_value;
+
+#
+# exists as global only
+#
+--echo Valid values are 'ON' and 'OFF'
+select @@global.innodb_status_output_locks in (0, 1);
+select @@global.innodb_status_output_locks;
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+select @@session.innodb_status_output_locks;
+show global variables like 'innodb_status_output_locks';
+show session variables like 'innodb_status_output_locks';
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+
+#
+# show that it's writable
+#
+set global innodb_status_output_locks='OFF';
+select @@global.innodb_status_output_locks;
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+set @@global.innodb_status_output_locks=1;
+select @@global.innodb_status_output_locks;
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+set global innodb_status_output_locks=0;
+select @@global.innodb_status_output_locks;
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+set @@global.innodb_status_output_locks='ON';
+select @@global.innodb_status_output_locks;
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+--error ER_GLOBAL_VARIABLE
+set session innodb_status_output_locks='OFF';
+--error ER_GLOBAL_VARIABLE
+set @@session.innodb_status_output_locks='ON';
+
+#
+# incorrect types
+#
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_status_output_locks=1.1;
+--error ER_WRONG_TYPE_FOR_VAR
+set global innodb_status_output_locks=1e1;
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_status_output_locks=2;
+--echo NOTE: The following should fail with ER_WRONG_VALUE_FOR_VAR (BUG#50643)
+set global innodb_status_output_locks=-3;
+select @@global.innodb_status_output_locks;
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+set global innodb_status_output_locks=DEFAULT;
+select @@global.innodb_status_output_locks;
+select * from information_schema.global_variables where variable_name='innodb_status_output_locks';
+select * from information_schema.session_variables where variable_name='innodb_status_output_locks';
+--error ER_WRONG_VALUE_FOR_VAR
+set global innodb_status_output_locks='AUTO';
+
+#
+# Cleanup
+#
+
+SET @@global.innodb_status_output_locks = @start_global_value;
+SELECT @@global.innodb_status_output_locks;

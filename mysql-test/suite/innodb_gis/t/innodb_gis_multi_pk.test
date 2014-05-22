@@ -1,0 +1,80 @@
+# WL#6745 InnoDB R-tree support
+# This test case will test R-tree split.
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+--source include/have_debug.inc
+--source include/big_test.inc
+--source include/not_valgrind.inc
+
+# Create table with R-tree index.
+create table t1 (c1 int, c2 varchar(255), c3 geometry not null, primary key(c1, c2), spatial index (c3))engine=innodb;
+
+# Insert enough values to let R-tree split.
+delimiter |;
+
+create function rand_string(str_length tinyint unsigned, str_type tinyint unsigned) returns varchar(255)
+begin
+    declare counter int unsigned default 0;
+    declare const_chars varchar(64) default '0123456789';
+    declare result varchar(255) default '';
+
+    if str_type = 1 then
+        set const_chars = '0123456789';
+    elseif str_type = 2 then
+        set const_chars = 'abcdefghijklmnopqrstuvwxyz';
+    elseif str_type = 3 then
+        set const_chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    elseif str_type = 4 then
+        set const_chars = 'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    elseif str_type = 5 then
+        set const_chars = '0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ';
+    else
+        set const_chars = '0123456789';
+    end if;
+
+    while counter < str_length do
+        set result = concat(result,substr(const_chars,ceil(rand()*(length(const_chars)-1)),1));
+    set counter = counter + 1;
+    end while;
+
+    return result;
+end|
+
+create procedure insert_t1(IN total int)
+begin
+        declare i int default 1;
+        declare i2 int default 1;
+        declare str varchar(100) default '';
+        declare dup_key int default 1;
+        while i <= total DO
+                set i2 = floor(0+(rand()*100));
+                set str = rand_string(i2, 5);
+                select count(*) into dup_key from t1 where c2 = str and c1 = i;
+                while dup_key <> 0 do
+                    set i2 = floor(0+(rand()*100));
+                    set str = rand_string(i2, 5);
+                    select count(*) into dup_key from t1 where c2 = str and c1 = i;
+                end while;
+                insert into t1 values (i, str, Point(i, i));
+                set i = i + 1;
+        end while;
+end|
+
+delimiter ;|
+
+CALL insert_t1(10000);
+check table t1;
+
+start transaction;
+CALL insert_t1(30000);
+rollback;
+check table t1;
+
+# Clean up.
+drop procedure insert_t1;
+drop function rand_string;
+drop table t1;
+

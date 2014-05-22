@@ -12,7 +12,36 @@ before calling SSL_new();
 
 *** end Note ***
 
-yaSSL Release notes, version 2.2.2 (7/5/2012)
+yaSSL Release notes, version 2.3.0 (12/5/2013)
+
+  This release of yaSSL updates asm for newer GCC versions.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 2.2.3b (4/23/2013)
+
+    This release of yaSSL updates the test certificates as they were expired
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 2.2.2d (2/5/2013)
+
+    This release of yaSSL contains countermeasuers for the Lucky 13 TLS 1.1
+    CBC timing padding attack identified by Nadhem AlFardan and Kenneth Paterson
+    see: http://www.isg.rhul.ac.uk/tls/
+
+    It also adds SHA2 certificate verification and better checks for malicious
+    input.
+
+See normal  build instructions below under 1.0.6.
+See libcurl build instructions below under 1.3.0 and note in 1.5.8.
+
+
+*****************yaSSL Release notes, version 2.2.2 (7/5/2012)
 
     This release of yaSSL contains bug fixes and more security checks around
     malicious certificates.

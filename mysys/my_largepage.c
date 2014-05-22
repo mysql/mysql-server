@@ -15,15 +15,8 @@
 
 #include "mysys_priv.h"
 
-#ifdef HAVE_LARGE_PAGES
-
-#ifdef HAVE_SYS_IPC_H
 #include <sys/ipc.h>
-#endif
-
-#ifdef HAVE_SYS_SHM_H
 #include <sys/shm.h>
-#endif
 
 static uint my_get_large_page_size_int(void);
 static uchar* my_large_malloc_int(size_t size, myf my_flags);
@@ -85,7 +78,6 @@ void my_large_free(uchar* ptr)
   DBUG_VOID_RETURN;
 }
 
-#ifdef HUGETLB_USE_PROC_MEMINFO
 /* Linux-specific function to determine the size of large pages */
 
 uint my_get_large_page_size_int(void)
@@ -108,9 +100,7 @@ uint my_get_large_page_size_int(void)
 finish:
   DBUG_RETURN(size * 1024);
 }
-#endif /* HUGETLB_USE_PROC_MEMINFO */
 
-#if HAVE_DECL_SHM_HUGETLB
 /* Linux-specific large pages allocator  */
     
 uchar* my_large_malloc_int(size_t size, myf my_flags)
@@ -164,6 +154,3 @@ my_bool my_large_free_int(uchar *ptr)
   DBUG_ENTER("my_large_free_int");
   DBUG_RETURN(shmdt(ptr) == 0);
 }
-#endif /* HAVE_DECL_SHM_HUGETLB */
-
-#endif /* HAVE_LARGE_PAGES */

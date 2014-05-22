@@ -18,8 +18,8 @@
 
 #include "sys_vars.h"
 #include "my_stacktrace.h"
-#include "global_threads.h"
 #include "connection_handler_manager.h"  // Connection_handler_manager
+#include "mysqld_thd_manager.h"          // Global_THD_manager
 
 #ifdef _WIN32
 #include <crtdbg.h>
@@ -52,7 +52,7 @@ extern volatile sig_atomic_t calling_initgroups;
  *
  * @param sig Signal number
 */
-extern "C" sig_handler handle_fatal_signal(int sig)
+extern "C" void handle_fatal_signal(int sig)
 {
   if (segfaulted)
   {
@@ -114,7 +114,7 @@ extern "C" sig_handler handle_fatal_signal(int sig)
 #endif
   my_safe_printf_stderr("max_threads=%u\n", max_threads);
 
-  my_safe_printf_stderr("thread_count=%u\n", get_thread_count());
+  my_safe_printf_stderr("thread_count=%u\n", Global_THD_manager::global_thd_count);
 
   my_safe_printf_stderr("connection_count=%u\n",
                         Connection_handler_manager::connection_count);
@@ -162,6 +162,9 @@ extern "C" sig_handler handle_fatal_signal(int sig)
     case THD::KILL_QUERY:
       kreason= "KILL_QUERY";
       break;
+    case THD::KILL_TIMEOUT:
+      kreason= "KILL_TIMEOUT";
+      break;
     case THD::KILLED_NO_VALUE:
       kreason= "KILLED_NO_VALUE";
       break;
@@ -170,8 +173,8 @@ extern "C" sig_handler handle_fatal_signal(int sig)
       "Trying to get some variables.\n"
       "Some pointers may be invalid and cause the dump to abort.\n");
 
-    my_safe_printf_stderr("Query (%p): ", thd->query());
-    my_safe_puts_stderr(thd->query(), MY_MIN(1024U, thd->query_length()));
+    my_safe_printf_stderr("Query (%p): ", thd->query().str);
+    my_safe_puts_stderr(thd->query().str, MY_MIN(1024U, thd->query().length));
     my_safe_printf_stderr("Connection ID (thread ID): %lu\n",
                           (ulong) thd->thread_id);
     my_safe_printf_stderr("Status: %s\n\n", kreason);

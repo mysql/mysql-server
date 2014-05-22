@@ -19,6 +19,7 @@ Warning	1071	Specified key was too long; max key length is 1000 bytes
 SET SQL_LOG_BIN=1;
 INSERT INTO t1(c1) VALUES ('insert into t1');
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 SET GLOBAL SLAVE_TYPE_CONVERSIONS= @saved_slave_type_conversions;
 include/stop_slave.inc
 include/start_slave.inc

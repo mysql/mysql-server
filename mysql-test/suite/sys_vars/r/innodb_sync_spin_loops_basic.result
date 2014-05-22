@@ -25,15 +25,28 @@ SET @@global.innodb_sync_spin_loops = 0;
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
 0
-SET @@global.innodb_sync_spin_loops = 1;
+SET @@global.innodb_sync_spin_loops = 65535;
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1
-SET @@global.innodb_sync_spin_loops = 1000;
+65535
+SET @@global.innodb_sync_spin_loops = 4294967295;
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1000
+4294967295
 '#--------------------FN_DYNVARS_046_04-------------------------#'
+SET @@global.innodb_sync_spin_loops = 4294967296;
+SELECT @@global.innodb_sync_spin_loops IN (4294967296,4294967295);
+@@global.innodb_sync_spin_loops IN (4294967296,4294967295)
+1
+SET @@global.innodb_sync_spin_loops = 12345678901;
+SELECT @@global.innodb_sync_spin_loops IN (12345678901,4294967295);
+@@global.innodb_sync_spin_loops IN (12345678901,4294967295)
+1
+SET @@global.innodb_sync_spin_loops = 18446744073709551615;
+SELECT @@global.innodb_sync_spin_loops IN (18446744073709551615,4294967295);
+@@global.innodb_sync_spin_loops IN (18446744073709551615,4294967295)
+1
+'#--------------------FN_DYNVARS_046_05-------------------------#'
 SET @@global.innodb_sync_spin_loops = -1;
 Warnings:
 Warning	1292	Truncated incorrect innodb_sync_spin_loops value: '-1'
@@ -55,21 +68,23 @@ ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
 0
-SET @@global.innodb_sync_spin_loops = 1001;
+SET @@global.innodb_sync_spin_loops = -1024;
+Warnings:
+Warning	1292	Truncated incorrect innodb_sync_spin_loops value: '-1024'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1001
+0
 SET @@global.innodb_sync_spin_loops = " ";
 ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1001
+0
 SET @@global.innodb_sync_spin_loops = ' ';
 ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1001
-'#----------------------FN_DYNVARS_046_05------------------------#'
+0
+'#----------------------FN_DYNVARS_046_06------------------------#'
 SELECT @@global.innodb_sync_spin_loops =
 VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_sync_spin_loops';
@@ -78,23 +93,23 @@ VARIABLE_VALUE
 1
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1001
+0
 SELECT VARIABLE_VALUE FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='innodb_sync_spin_loops';
 VARIABLE_VALUE
-1001
-'#---------------------FN_DYNVARS_046_06-------------------------#'
+0
+'#---------------------FN_DYNVARS_046_07-------------------------#'
 SET @@global.innodb_sync_spin_loops = OFF;
 ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1001
+0
 SET @@global.innodb_sync_spin_loops = ON;
 ERROR 42000: Incorrect argument type to variable 'innodb_sync_spin_loops'
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops
-1001
-'#---------------------FN_DYNVARS_046_07----------------------#'
+0
+'#---------------------FN_DYNVARS_046_08----------------------#'
 SET @@global.innodb_sync_spin_loops = TRUE;
 SELECT @@global.innodb_sync_spin_loops;
 @@global.innodb_sync_spin_loops

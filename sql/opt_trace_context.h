@@ -66,7 +66,7 @@ typedef Prealloced_array<Opt_trace_stmt*, 16> Opt_trace_stmt_array;
         - opens an object for key "transformation"
     #1  Item_in_subselect::select_in_like_transformer - does no tracing
     #2  Item_allany_subselect::select_transformer - does no tracing
-    #3  JOIN::prepare - opens an object for key "join_preparation"
+    #3  SELECT_LEX::prepare - opens an object for key "join_preparation"
 @endverbatim
   So the object opened in #3 would have to be passed in argument to #2 and #1
   in order to finally reach #0 where object "transformation" would be added to

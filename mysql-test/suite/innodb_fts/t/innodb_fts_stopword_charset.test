@@ -66,6 +66,7 @@ INSERT INTO articles (title) VALUES
         ('love'),('LOVE'),('lòve'),('LÒVE'),('löve'),('LÖVE'),('løve'),('LØVE'),
 	('lṓve'),('LṒVE');
 
+call mtr.add_suppression("InnoDB: user stopword table test/user_stopword does not exist.");
 # Build full text index with default stopword
 CREATE FULLTEXT INDEX ft_idx ON articles(title);
 --enable_warnings

@@ -2189,11 +2189,11 @@ restart:
                 The call is thread safe because only the current
                 thread might change the block->hash_link value
               */
-              error= my_pwrite(block->hash_link->file,
-                               block->buffer + block->offset,
-                               block->length - block->offset,
-                               block->hash_link->diskpos + block->offset,
-                               MYF(MY_NABP | MY_WAIT_IF_FULL));
+              error= (int)my_pwrite(block->hash_link->file,
+                                    block->buffer + block->offset,
+                                    block->length - block->offset,
+                                    block->hash_link->diskpos + block->offset,
+                                    MYF(MY_NABP | MY_WAIT_IF_FULL));
               keycache_pthread_mutex_lock(&keycache->cache_lock);
 
               /* Block status must not have changed. */
@@ -2436,7 +2436,7 @@ static void read_block(KEY_CACHE *keycache,
     else
     {
       block->status|= BLOCK_READ;
-      block->length= got_length;
+      block->length= (int)got_length;
       /*
         Do not set block->offset here. If this block is marked
         BLOCK_CHANGED later, we want to flush only the modified part. So
@@ -3502,10 +3502,10 @@ static int flush_cached_blocks(KEY_CACHE *keycache,
                   (BLOCK_READ | BLOCK_IN_FLUSH | BLOCK_CHANGED | BLOCK_IN_USE));
       block->status|= BLOCK_IN_FLUSHWRITE;
       keycache_pthread_mutex_unlock(&keycache->cache_lock);
-      error= my_pwrite(file, block->buffer+block->offset,
-                       block->length - block->offset,
-                       block->hash_link->diskpos+ block->offset,
-                       MYF(MY_NABP | MY_WAIT_IF_FULL));
+      error= (int)my_pwrite(file, block->buffer+block->offset,
+                            block->length - block->offset,
+                            block->hash_link->diskpos+ block->offset,
+                            MYF(MY_NABP | MY_WAIT_IF_FULL));
       keycache_pthread_mutex_lock(&keycache->cache_lock);
       keycache->global_cache_write++;
       if (error)
@@ -3906,11 +3906,11 @@ restart:
             if (!(block->status & (BLOCK_IN_EVICTION | BLOCK_IN_SWITCH |
                                    BLOCK_REASSIGNED)))
             {
-              struct st_hash_link *UNINIT_VAR(next_hash_link);
-              my_off_t UNINIT_VAR(next_diskpos);
-              File UNINIT_VAR(next_file);
-              uint UNINIT_VAR(next_status);
-              uint UNINIT_VAR(hash_requests);
+              struct st_hash_link *next_hash_link= NULL;
+              my_off_t next_diskpos= 0;
+              File next_file= 0;
+              uint next_status= 0;
+              uint hash_requests= 0;
 
               total_found++;
               found++;

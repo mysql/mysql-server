@@ -1,4 +1,4 @@
-/*  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/*  Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
     
     This program is free software; you can redistribute it and/or
     modify it under the terms of the GNU General Public License as
@@ -236,7 +236,7 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       return CR_ERROR;
     /* send the reply to the server */
     res= vio->write_packet(vio, (const unsigned char *) reply, 
-                           strlen(reply) + 1);
+                           (int)strlen(reply) + 1);
 
     if (res)
       return CR_ERROR;
