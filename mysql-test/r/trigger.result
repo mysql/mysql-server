@@ -165,6 +165,8 @@ select @log;
 (BEFORE_INSERT: new=(id=1, data=1))(AFTER_INSERT: new=(id=1, data=1))
 set @log:= "";
 insert ignore t1 values (1, 2);
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 select @log;
 @log
 (BEFORE_INSERT: new=(id=1, data=2))
@@ -1057,9 +1059,10 @@ SELECT @x;
 NULL
 SET @x=2;
 UPDATE t1 SET i1 = @x;
+ERROR 22012: Division by 0
 SELECT @x;
 @x
-NULL
+2
 SET SQL_MODE='';
 SET @x=3;
 INSERT INTO t1 VALUES (@x);
@@ -1068,9 +1071,10 @@ SELECT @x;
 NULL
 SET @x=4;
 UPDATE t1 SET i1 = @x;
+ERROR 22012: Division by 0
 SELECT @x;
 @x
-NULL
+4
 SET @@sql_mode=@save_sql_mode;
 DROP TRIGGER t1_ai;
 DROP TRIGGER t1_au;
@@ -1178,6 +1182,7 @@ Warnings:
 Warning	1365	Division by 0
 create trigger t1_bi before insert on t1 for each row set @a:=1/0|
 insert into t1 values(20, 20)|
+ERROR 22012: Division by 0
 drop trigger t1_bi|
 create trigger t1_bi before insert on t1 for each row
 begin
@@ -1196,9 +1201,10 @@ set @a:=1/0;
 end|
 set @check=0, @t4_bi_called=0, @t4_bu_called=0|
 insert into t1 values(30, 30)|
+ERROR 22012: Division by 0
 select @check, @t4_bi_called, @t4_bu_called|
 @check	@t4_bi_called	@t4_bu_called
-2	1	1
+1	1	1
 SET @@sql_mode=@save_sql_mode;
 drop table t1;
 drop table t2;
@@ -2568,4 +2574,38 @@ DROP TABLE t2;
 INSERT INTO t1 VALUES(0);
 ERROR 42S02: Table 'test.t2' doesn't exist
 DROP TABLE t1;
+#
+# Bug#16522924 : UPDATE TRIGGER INVOKED WHEN UPDATE IGNORE MEANS
+#                      THAT NO UPDATE IS PERFORMED
+#
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (after_update CHAR(50));
+CREATE TABLE t3(b INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t3 VALUES (1);
+CREATE TRIGGER post_update_t1 AFTER UPDATE ON t1
+FOR EACH ROW BEGIN
+INSERT INTO t2 VALUES("POST UPDATE TRIGGER FOR UPDATE IGNORE ON t1 FIRED");
+END|
+UPDATE IGNORE t1 SET a=2 WHERE a=1;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+SELECT * FROM t2;
+after_update
+UPDATE IGNORE t1,t3 SET t1.a=2 WHERE t1.a=1;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+SELECT * FROM t2;
+after_update
+UPDATE IGNORE t3,t1 SET t1.a=2 WHERE t1.a=1;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'PRIMARY'
+SELECT * FROM t1;
+a
+1
+2
+SELECT * FROM t2;
+after_update
+DROP TRIGGER post_update_t1;
+DROP TABLE t1,t2,t3;
 End of 5.7 tests.

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -8032,7 +8032,11 @@ void ha_partition::print_error(int error, myf errflag)
 
   if ((error == HA_ERR_NO_PARTITION_FOUND) &&
       ! (thd->lex->alter_info.flags & Alter_info::ALTER_TRUNCATE_PARTITION))
+  {
     m_part_info->print_no_partition_found(table);
+    // print_no_partition_found() reports an error, so we can just return here.
+    DBUG_VOID_RETURN;
+  }
   else if (error == HA_ERR_ROW_IN_WRONG_PARTITION)
   {
     /* Should only happen on DELETE or UPDATE! */
@@ -8987,7 +8991,7 @@ int ha_partition::indexes_are_disabled(void)
 int ha_partition::check_misplaced_rows(uint read_part_id, bool repair)
 {
   int result= 0;
-  bool ignore= ha_thd()->lex->ignore;
+  bool ignore= ha_thd()->lex->is_ignore();
   uint32 correct_part_id;
   longlong func_value;
   ha_rows num_misplaced_rows= 0;

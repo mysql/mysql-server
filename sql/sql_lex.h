@@ -683,7 +683,6 @@ public:
   uint8 uncacheable;
   enum sub_select_type linkage;
   bool no_table_names_allowed; ///< used for global order by
-  bool no_error;           ///< suppress error message (convert it to warnings)
   Name_resolution_context context;
   /**
     Two fields used by semi-join transformations to know when semi-join is
@@ -2762,7 +2761,12 @@ public:
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;
-  bool subqueries, ignore;
+  bool subqueries;
+private:
+  bool ignore;
+public:
+  bool is_ignore() const { return ignore; }
+  void set_ignore(bool ignore_param) { ignore= ignore_param; }
   st_parsing_options parsing_options;
   Alter_info alter_info;
   /*

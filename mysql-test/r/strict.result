@@ -1755,7 +1755,77 @@ ERROR 22003: Out of range value for column 'col1' at row 1
 # Clean-up
 DROP TABLE t1;
 DROP TABLE t2;
-#
 # Restore mode
-#
 SET sql_mode=@org_mode;
+#
+# WL#6891- Test Coverage for ER_WARN_TOO_FEW_RECORDS in STRICT MODE
+#
+CREATE TABLE t1( a INT);
+CREATE TABLE t2( a INT, b INT);
+INSERT INTO t1 VALUES (1), (2), (3), (4);
+SET sql_mode= STRICT_ALL_TABLES;
+SELECT * INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' FROM t1;
+SELECT LOAD_FILE('MYSQLTEST_VARDIR/tmp/wl6614.txt');
+LOAD_FILE('MYSQLTEST_VARDIR/tmp/wl6614.txt')
+1
+2
+3
+4
+
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' INTO TABLE t2;
+ERROR 01000: Row 1 doesn't contain data for all columns
+SELECT * FROM t2;
+a	b
+LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/wl6614.txt' IGNORE INTO TABLE t2;
+Warnings:
+Warning	1261	Row 1 doesn't contain data for all columns
+Warning	1261	Row 2 doesn't contain data for all columns
+Warning	1261	Row 3 doesn't contain data for all columns
+Warning	1261	Row 4 doesn't contain data for all columns
+SELECT * FROM t2;
+a	b
+1	NULL
+2	NULL
+3	NULL
+4	NULL
+# Clean-up
+DROP TABLE t1;
+DROP TABLE t2;
+# Restore mode
+SET sql_mode=@org_mode;
+#
+# BUG#11751889 - TRIGGERS OVERRIDE STRICT SQL_MODE 
+# Fixed by WL#6891
+#
+SET sql_mode='STRICT_ALL_TABLES';
+CREATE TABLE t1 (
+id TINYINT UNSIGNED NOT NULL DEFAULT 0
+) ENGINE=MyISAM;
+CREATE TRIGGER t1_BI BEFORE INSERT ON t1
+FOR EACH ROW
+SET NEW.id := -1;
+INSERT INTO t1 VALUES (18);
+ERROR 22003: Out of range value for column 'id' at row 1
+# Clean-up
+DROP trigger t1_BI;
+DROP TABLE t1;
+# Restore mode
+SET sql_mode=@org_mode;
+#
+# BUG#16976939 - FIX ERROR MESSAGE ON DUPLICATE INDEX CREATION AND STRICT MODE
+# Fixed by WL#6891
+#
+SET sql_mode='STRICT_ALL_TABLES';
+CREATE TABLE t1(c1 varchar(50)) engine=InnoDB;
+ALTER TABLE t1 ADD KEY in_c1(c1);
+# Previously this statement was giving error ER_DUP_INDEX in STRICT MODE
+# In WL#6891, ER_DUP_INDEX is removed from being affected by STRICT MODE
+# So the below statement will give warning only for ER_DUP_INDEX
+ALTER TABLE t1 ADD KEY in_c2(c1);
+Warnings:
+Warning	1831	Duplicate index 'in_c2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1831	Duplicate index 'in_c2' defined on the table 'test.t1'. This is deprecated and will be disallowed in a future release.
+# Clean-up
+DROP TABLE t1;
