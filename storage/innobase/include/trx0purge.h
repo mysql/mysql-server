@@ -154,6 +154,127 @@ struct purge_iter_t {
 					space id. */
 };
 
+/** UNDO log truncate logger. Needed to track state of truncate
+during crash. A DDL_LOG kind of file will be created that will be removed
+on successful truncate but if server crashes before successful truncate
+this file will be used to initiate fix-up action during server start. */
+
+class undo_trunc_logger_t {
+public:
+	undo_trunc_logger_t()
+		:
+		m_log_file_name()
+	{ /* Do nothing. */ }
+
+
+	/** Create the truncate log file.
+	@param[in]	space_id	id of the undo tablespace to truncate.
+	@return DB_SUCCESS or error code. */
+	dberr_t init(ulint space_id)
+	{
+		/* Step-1: Create the log file name using the pre-decided
+		prefix/suffix and table id of undo tablepsace to truncate. */
+		ulint log_file_name_sz = 
+			strlen(srv_log_group_home_dir) + 1 + 22 + 1 /* NUL */
+			+ strlen(undo_trunc_logger_t::s_log_prefix)
+			+ strlen(undo_trunc_logger_t::s_log_ext);
+
+		m_log_file_name = new (std::nothrow) char[log_file_name_sz];
+		if (m_log_file_name == 0) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		memset(m_log_file_name, 0, log_file_name_sz);
+
+		strcpy(m_log_file_name, srv_log_group_home_dir);
+		ulint	log_file_name_len = strlen(m_log_file_name);
+
+		if (m_log_file_name[log_file_name_len - 1]
+				!= OS_PATH_SEPARATOR) {
+
+			m_log_file_name[log_file_name_len]
+				= OS_PATH_SEPARATOR;
+			log_file_name_len = strlen(m_log_file_name);
+		}
+
+		ut_snprintf(m_log_file_name + log_file_name_len,
+			    log_file_name_sz - log_file_name_len,
+			    "%s_%lu_%s",
+			    undo_trunc_logger_t::s_log_prefix,
+			    (ulong) space_id, undo_trunc_logger_t::s_log_ext);
+
+		/* Step-2: Create the log file, open it and write magic
+		number of 0 to indicate init phase. */
+		bool            ret;
+		os_file_t	handle = os_file_create(
+			innodb_log_file_key, m_log_file_name, OS_FILE_CREATE,
+			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
+		if (!ret) {
+			return(DB_IO_ERROR);
+		}
+
+		byte	buffer[sizeof(undo_trunc_logger_t::s_magic)];
+		memset(buffer, 0x0, sizeof(buffer));
+
+                os_file_write(
+                        m_log_file_name, handle, buffer, 0, sizeof(buffer));
+
+		os_file_flush(handle);
+		os_file_close(handle);
+
+		return(DB_SUCCESS);
+	}
+
+	/** Mark completion of undo truncate action by writing magic number to
+	the log file and then removing it from the disk.
+	If we are going to remove it from disk then why write magic number ?
+	This is to safeguard from unlink (file-system) anomalies that will keep
+	the link to the file even after unlink action is successfull and
+	ref-count = 0. */
+	void done()
+	{
+		bool    ret;
+		os_file_t	handle =
+			os_file_create_simple_no_error_handling(
+				innodb_log_file_key, m_log_file_name,
+				OS_FILE_OPEN, OS_FILE_READ_WRITE,
+				srv_read_only_mode, &ret);
+
+		if (!ret) {
+			os_file_delete(innodb_log_file_key, m_log_file_name);
+			delete[] m_log_file_name;
+			m_log_file_name = NULL;
+			return;
+		}
+
+		byte	buffer[sizeof(undo_trunc_logger_t::s_magic)];
+		mach_write_to_4(buffer, undo_trunc_logger_t::s_magic);
+
+                os_file_write(
+                        m_log_file_name, handle, buffer, 0, sizeof(buffer));
+
+		os_file_flush(handle);
+		os_file_close(handle);
+
+		os_file_delete(innodb_log_file_key, m_log_file_name);
+		delete[] m_log_file_name;
+		m_log_file_name = NULL;
+	}
+
+public:
+        /** Magic Number to indicate truncate action is complete. */
+        const static ib_uint32_t	s_magic;
+
+        /** Truncate Log file Prefix. */
+        const static char*		s_log_prefix;
+
+        /** Truncate Log file Extension. */
+        const static char*		s_log_ext;
+
+private:
+	char*				m_log_file_name;
+};
+
 /** Track UNDO tablespace mark for truncate. */
 class undo_trunc_t {
 public:
@@ -161,6 +282,7 @@ public:
 
 	undo_trunc_t()
 		:
+		undo_logger(),
 		m_undo_for_trunc(ULINT_UNDEFINED),
 		m_rseg_for_trunc(),
 		m_scan_start(1)
@@ -233,6 +355,9 @@ public:
 	{
 		return(m_scan_start);
 	}	
+
+public:
+	undo_trunc_logger_t	undo_logger;
 
 private:	
 	/** UNDO tablespace is mark for truncate. */
