@@ -1,5 +1,6 @@
 include/master-slave.inc
 [connection master]
+include/sync_slave_sql_with_master.inc
 stop slave;
 create table t1 (a int) engine=NDB;
 reset slave;

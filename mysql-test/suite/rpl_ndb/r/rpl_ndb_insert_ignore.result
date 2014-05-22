@@ -21,9 +21,11 @@ INSERT INTO t2 VALUES (5, 4);
 INSERT INTO t2 VALUES (6, 6);
 INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 include/assert.inc [Count of elements in t1 should be 6.]
+include/sync_slave_sql_with_master.inc
 include/diff_tables.inc [master:test.t1 , slave:test.t1]
 INSERT IGNORE INTO t1 SELECT NULL, t2.b FROM t2 ORDER BY t2.a;
 include/assert.inc [Count of elements in t1 should be 6.]
 include/assert.inc [In SBR or MIXED modes, the event in the binlog should be the same that was executed. In RBR mode, binlog position should stay unchanged.]
 drop table t1, t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
