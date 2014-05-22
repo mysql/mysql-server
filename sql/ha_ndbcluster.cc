@@ -18303,6 +18303,114 @@ static MYSQL_SYSVAR_UINT(
   0                                 /* block */
 );
 
+static const char* slave_conflict_role_names[] =
+{
+  "NONE",
+  "SECONDARY",
+  "PRIMARY",
+  "PASS",
+  NullS
+};
+
+static ulong opt_ndb_slave_conflict_role;
+
+static TYPELIB slave_conflict_role_typelib = 
+{
+  array_elements(slave_conflict_role_names) - 1,
+  "",
+  slave_conflict_role_names,
+  NULL
+};
+
+
+/**
+ * slave_conflict_role_check_func.
+ * 
+ * Perform most validation of a role change request.
+ * Inspired by sql_plugin.cc::check_func_enum()
+ */
+static int slave_conflict_role_check_func(THD *thd, struct st_mysql_sys_var *var,
+                                          void *save, st_mysql_value *value)
+{
+  char buff[STRING_BUFFER_USUAL_SIZE];
+  const char *str;
+  long long tmp;
+  long result;
+  int length;
+
+  do
+  {
+    if (value->value_type(value) == MYSQL_VALUE_TYPE_STRING)
+    {
+      length= sizeof(buff);
+      if (!(str= value->val_str(value, buff, &length)))
+        break;
+      if ((result= (long)find_type(str, &slave_conflict_role_typelib, 0) - 1) < 0)
+        break;
+    }
+    else
+    {
+      if (value->val_int(value, &tmp))
+        break;
+      if (tmp < 0 || tmp >= slave_conflict_role_typelib.count)
+        break;
+      result= (long) tmp;
+    }
+    
+    const char* failure_cause_str = NULL;
+    if (!st_ndb_slave_state::checkSlaveConflictRoleChange(
+               (enum_slave_conflict_role) opt_ndb_slave_conflict_role,
+               (enum_slave_conflict_role) result,
+               &failure_cause_str))
+    {
+      char msgbuf[256];
+      my_snprintf(msgbuf, 
+                  sizeof(msgbuf), 
+                  "Role change from %s to %s failed : %s",
+                  get_type(&slave_conflict_role_typelib, opt_ndb_slave_conflict_role),
+                  get_type(&slave_conflict_role_typelib, result),
+                  failure_cause_str);
+      
+      thd->raise_error_printf(ER_ERROR_WHEN_EXECUTING_COMMAND,
+                              "SET GLOBAL ndb_slave_conflict_role",
+                              msgbuf);
+      
+      break;
+    }
+    
+    /* Ok */
+    *(long*)save= result;
+    return 0;
+  } while (0);
+  /* Error */
+  return 1;
+};
+
+/**
+ * slave_conflict_role_update_func
+ *
+ * Perform actual change of role, using saved 'long' enum value
+ * prepared by the update func above.
+ *
+ * Inspired by sql_plugin.cc::update_func_long()
+ */
+static void slave_conflict_role_update_func(THD *thd, struct st_mysql_sys_var *var,
+                                            void *tgt, const void *save)
+{
+  *(long *)tgt= *(long *) save;
+};
+
+static MYSQL_SYSVAR_ENUM(
+  slave_conflict_role,               /* Name */
+  opt_ndb_slave_conflict_role,       /* Var */
+  PLUGIN_VAR_RQCMDARG,
+  "Role for Slave to play in asymmetric conflict algorithms.",
+  slave_conflict_role_check_func,    /* Check func */
+  slave_conflict_role_update_func,   /* Update func */
+  SCR_NONE,                          /* Default value */
+  &slave_conflict_role_typelib       /* typelib */
+);
+
 #ifndef DBUG_OFF
 
 static
@@ -18411,6 +18519,7 @@ static struct st_mysql_sys_var* system_variables[]= {
   MYSQL_SYSVAR(version),
   MYSQL_SYSVAR(version_string),
   MYSQL_SYSVAR(show_foreign_key_mock_tables),
+  MYSQL_SYSVAR(slave_conflict_role),
   NULL
 };
 
