@@ -697,6 +697,10 @@ trx_purge_mark_undo_for_truncate(
 	return;
 }
 
+const ib_uint32_t	undo_trunc_logger_t::s_magic = 76845412;
+const char*		undo_trunc_logger_t::s_log_prefix = "undo_";
+const char*		undo_trunc_logger_t::s_log_ext = "trunc.log";
+
 /** Iterate over selected UNDO tablespace and check if all the rsegs
 that resides in the tablespace are free.
 @param[in]	limit		truncate_limit
@@ -764,57 +768,45 @@ trx_purge_initiate_truncate(
 
 
 	/* Step-3: Start the actual truncate.
-	TODO: Handle crash/error case during tablepsace truncate.
-	TODO: Ensure that buffer pool pages are freed for the tablespace */
+	a. log-checkpoint
+	b. Write the DDL log to protect truncate action from CRASH
+	c. Execute actual truncate
+	d. Remove the DDL log.
+	TODO: Handle crash/error case during tablepsace truncate. */
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Truncating UNDO tablespace with space identified " ULINTPF "",
 		undo_trunc->get_undo_mark_for_trunc());
 
-	bool success = fil_truncate_tablespace(
-		undo_trunc->get_undo_mark_for_trunc(),
-		SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+	DBUG_EXECUTE_IF("ib_undo_trunc_crash_before_checkpoint",
+			DBUG_SUICIDE(););
 
+	/* After truncate if server crashes then redo logging done for this
+	undo tablespace might not stand valid as tablespace has been
+	truncated. */
+	log_make_checkpoint_at(LSN_MAX, TRUE);
+	
+	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_checkpoint",
+			log_buffer_flush_to_disk();
+			os_thread_sleep(1000000);
+			DBUG_SUICIDE(););
+
+	dberr_t	err = undo_trunc->undo_logger.init(
+		undo_trunc->get_undo_mark_for_trunc());
+	ut_ad(err != DB_SUCCESS);
+
+	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_log_file_creation",
+			DBUG_SUICIDE(););
+
+	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	ut_ad(success);
 
+	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_truncate",
+			DBUG_SUICIDE(););
 
-	mtr_t		mtr;
-	mtr_start(&mtr);
+	undo_trunc->undo_logger.done();
 
-	fsp_header_init(undo_trunc->get_undo_mark_for_trunc(),
-			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
-
-	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs(); ++i) {
-		trx_rsegf_t*	rseg_header;
-
-		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
-
-		trx_rseg_header_create(
-			undo_trunc->get_undo_mark_for_trunc(),
-			univ_page_size, ULINT_MAX, rseg->id, &mtr);
-
-		rseg_header = trx_rsegf_get_new(
-				undo_trunc->get_undo_mark_for_trunc(),
-				rseg->page_no, rseg->page_size, &mtr);
-
-		UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
-		UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
-		UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
-		UT_LIST_INIT(rseg->insert_undo_cached, &trx_undo_t::undo_list);
-
-		rseg->max_size = mtr_read_ulint(
-			rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);
-
-		/* Initialize the undo log lists according to the rseg header */
-		ulint sum_of_undo_sizes = trx_undo_lists_init(rseg);
-		rseg->curr_size = mtr_read_ulint(
-			rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr)
-			+ 1 + sum_of_undo_sizes;
-
-		rseg->skip_allocation = false;
-		rseg->last_page_no = FIL_NULL;
-	}
-
-	mtr_commit(&mtr);
+	DBUG_EXECUTE_IF("ib_undo_trunc_crash_on_completion",
+			DBUG_SUICIDE(););
 
 	undo_trunc->reset();
 }
