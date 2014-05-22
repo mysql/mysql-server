@@ -607,10 +607,12 @@ HugoTransactions::loadTable(Ndb* pNdb,
 			    int doSleep,
                             bool oneTrans,
 			    int value,
-			    bool abort)
+			    bool abort,
+                            bool abort_on_first_error)
 {
   return loadTableStartFrom(pNdb, 0, records, batch, allowConstraintViolation,
-                            doSleep, oneTrans, value, abort);
+                            doSleep, oneTrans, value, abort,
+                            abort_on_first_error);
 }
 
 int
@@ -622,7 +624,8 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
                                      int doSleep,
                                      bool oneTrans,
                                      int value,
-                                     bool abort){
+                                     bool abort,
+                                     bool abort_on_first_error){
   int             check;
   int             retryAttempt = 0;
   int             retryMax = 5;
@@ -724,6 +727,10 @@ HugoTransactions::loadTableStartFrom(Ndb* pNdb,
 	break;
 	
       case NdbError::TemporaryError:      
+        if (abort_on_first_error)
+        {
+          return err.code;
+        }
 	NDB_ERR(err);
 	NdbSleep_MilliSleep(50);
 	retryAttempt++;
