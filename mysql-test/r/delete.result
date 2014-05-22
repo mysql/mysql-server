@@ -126,8 +126,8 @@ a	b
 2	12
 delete ignore t11.*, t12.* from t11,t12 where t11.a = t12.a and t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10
@@ -146,8 +146,8 @@ a	b
 2	12
 delete ignore from t11 where t11.b <> (select b from t2 where t11.a < t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t11;
 a	b
 0	10
@@ -547,15 +547,15 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
 CREATE PROCEDURE p1() DELETE IGNORE FROM t1 WHERE i = 1;
 CALL p1();
 Warnings:
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
 PREPARE stm FROM 'CALL p1()';
 EXECUTE stm;
 Warnings:
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
 DEALLOCATE PREPARE stm;
 DROP TABLE t2, t1;
 DROP PROCEDURE p1;
@@ -570,3 +570,48 @@ DELETE z FROM (SELECT 1) AS x, z;
 ERROR HY000: Can not delete from join view 'test.z'
 DROP VIEW z, x, y;
 DROP TABLE b;
+# Bug#11752648 : MULTI-DELETE IGNORE DOES NOT REPORT WARNINGS
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 (a) VALUES (1);
+CREATE TABLE t2 (a INT PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t2 (a) VALUES (1);
+CREATE TABLE t3 (a INT, b INT, CONSTRAINT c_a FOREIGN KEY (a)
+REFERENCES t1 (a), CONSTRAINT c_b FOREIGN KEY (b) REFERENCES t2 (a)) ENGINE=InnoDB;
+INSERT INTO t3 (a, b) VALUES (1, 1);
+DELETE IGNORE FROM t1;
+Warnings:
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_a` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+DELETE IGNORE t1,t2 FROM t1,t2;
+Warnings:
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_a` FOREIGN KEY (`a`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `c_b` FOREIGN KEY (`b`) REFERENCES `t2` (`a`))
+SELECT * FROM t1;
+a
+1
+SELECT * FROM t2;
+a
+1
+DROP TABLE t3,t2,t1;
+#
+# Bug#17550423 : DELETE IGNORE GIVES INCORRECT RESULT WITH FOREIGN KEY
+#                   FOR PARENT TABLE
+#
+CREATE TABLE t1 (a INT PRIMARY KEY) ENGINE=InnoDB;
+CREATE TABLE t2 (b INT) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1), (2), (5);
+INSERT INTO t2 VALUES (1), (5);
+ALTER TABLE t2 ADD CONSTRAINT FOREIGN KEY(b) REFERENCES t1(a);
+SELECT * FROM t2;
+b
+1
+5
+DELETE IGNORE FROM t1;
+Warnings:
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`b`) REFERENCES `t1` (`a`))
+SELECT * FROM t1;
+a
+1
+5
+DROP TABLE t2,t1;

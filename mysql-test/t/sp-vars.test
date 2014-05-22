@@ -111,9 +111,6 @@ SELECT sp_vars_check_ret2();
 --error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD
 SELECT sp_vars_check_ret3();
 
-# TODO: Is it an error, that only a warning is emitted here? Check the same
-# behaviour with tables.
-
 SELECT sp_vars_check_ret4();
 
 --error ER_DIVISION_BY_ZERO
@@ -789,9 +786,6 @@ DROP PROCEDURE p1;
 # Test case for BUG#8768: Functions: For any unsigned data type, -ve values can
 # be passed and returned.
 #
-# TODO: there is a bug here -- the function created in ANSI mode should not
-# throw errors instead of warnings if called in TRADITIONAL mode.
-#
 ###########################################################################
 
 --echo
@@ -827,8 +821,6 @@ SELECT f1(-2500);
 
 SET @@sql_mode = 'traditional';
 
-# TODO: a warning should be emitted here.
---error ER_WARN_DATA_OUT_OF_RANGE
 SELECT f1(-2500);
 
 # Recreate the function in TRADITIONAL mode.
@@ -857,9 +849,6 @@ DROP FUNCTION f1;
 #
 # Test case for BUG#8769: Functions: For Int datatypes, out of range values can
 # be passed and returned.
-#
-# TODO: there is a bug here -- the function created in ANSI mode should not
-# throw errors instead of warnings if called in TRADITIONAL mode.
 #
 ###########################################################################
 
@@ -896,8 +885,6 @@ SELECT f1(8388699);
 
 SET @@sql_mode = 'traditional';
 
-# TODO: a warning should be emitted here.
---error ER_WARN_DATA_OUT_OF_RANGE
 SELECT f1(8388699);
 
 # Recreate the function in TRADITIONAL mode.
