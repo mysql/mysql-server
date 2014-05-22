@@ -30,6 +30,7 @@ IF(STANDALONE_BINLOG)
   TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES})
 ELSE()
   TARGET_LINK_LIBRARIES(binlogevents_static ${ZLIB_LIBRARIES} mysys dbug)
+  ADD_DEPENDENCIES(binlogevents_static GenError)
 ENDIF()
 
 SET_TARGET_PROPERTIES(binlogevents_static PROPERTIES
