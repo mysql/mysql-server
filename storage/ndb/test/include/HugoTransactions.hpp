@@ -38,7 +38,8 @@ public:
 		int doSleep = 0,
                 bool oneTrans = false,
 		int updateValue = 0,
-		bool abort = false);
+		bool abort = false,
+                bool abort_on_first_error = false);
 
   int loadTableStartFrom(Ndb*, 
                          int startFrom,
@@ -48,7 +49,8 @@ public:
                          int doSleep = 0,
                          bool oneTrans = false,
                          int updateValue = 0,
-                         bool abort = false);
+                         bool abort = false,
+                         bool abort_on_first_error = false);
 
   int scanReadRecords(Ndb*, 
 		      int records,
