@@ -55,7 +55,6 @@ connection master;
 SELECT * FROM test.t1; 
 #show binlog events;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
 SELECT * FROM test.t1;
 
 connection master;
@@ -67,7 +66,6 @@ SELECT release_lock("test");
 SELECT * FROM test.t1;
 
 --source include/sync_slave_sql_with_master.inc
-connection slave;
 SELECT * FROM test.t1;
 connection master;
 #show binlog events from 720;
