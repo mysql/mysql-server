@@ -1120,6 +1120,72 @@ st_ndb_slave_state::atStartSlave()
 #endif
 }
 
+bool
+st_ndb_slave_state::checkSlaveConflictRoleChange(enum_slave_conflict_role old_role,
+                                                 enum_slave_conflict_role new_role,
+                                                 const char** failure_cause)
+{
+  if (old_role == new_role)
+    return true;
+  
+  /**
+   * Initial role is SCR_NONE
+   * Allowed transitions :
+   *   SCR_NONE -> SCR_PASS
+   *   SCR_NONE -> SCR_PRIMARY
+   *   SCR_NONE -> SCR_SECONDARY
+   *   SCR_PRIMARY -> SCR_NONE
+   *   SCR_PRIMARY -> SCR_SECONDARY
+   *   SCR_SECONDARY -> SCR_NONE
+   *   SCR_SECONDARY -> SCR_PRIMARY
+   *   SCR_PASS -> SCR_NONE
+   *
+   * Disallowed transitions
+   *   SCR_PASS -> SCR_PRIMARY
+   *   SCR_PASS -> SCR_SECONDARY
+   *   SCR_PRIMARY -> SCR_PASS
+   *   SCR_SECONDARY -> SCR_PASS
+   */
+  bool bad_transition = false;
+  *failure_cause = "Internal error";
+
+  switch (old_role)
+  {
+  case SCR_NONE:
+    break;
+  case SCR_PRIMARY:
+  case SCR_SECONDARY:
+    bad_transition = (new_role == SCR_PASS);
+    break;
+  case SCR_PASS:
+    bad_transition = ((new_role == SCR_PRIMARY) ||
+                      (new_role == SCR_SECONDARY));
+    break;
+  default:
+    assert(false);
+    return false;
+  }
+
+  if (bad_transition)
+  {
+    *failure_cause = "Invalid role change.";
+    return false;
+  }
+  
+#ifdef HAVE_NDB_BINLOG
+  /* Check that Slave SQL thread is not running */
+  if (ndb_mi_get_slave_sql_running())
+  {
+    *failure_cause = "Cannot change role while Slave SQL "
+      "thread is running.  Use STOP SLAVE first.";
+    return false;
+  }
+#endif
+
+  return true;
+}
+
+
 #ifdef HAVE_NDB_BINLOG
 
 /**
@@ -1538,5 +1604,7 @@ st_ndb_slave_state::atConflictPreCommit(bool& retry_slave_trans)
   DBUG_PRINT("info", ("Allowing commit to proceed"));
   DBUG_RETURN(0);
 }
+
+
 
 #endif
