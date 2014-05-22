@@ -40,7 +40,7 @@ extern PSI_memory_key key_memory_log_event;
 #ifndef _GNU_SOURCE
 #define _GNU_SOURCE
 #endif
-#include <cstdlib>
+#include <stdlib.h>
 #include <cstring>
 #endif
 
