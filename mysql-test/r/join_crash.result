@@ -10,7 +10,7 @@ billing_contact_ptr int(11) default NULL,
 comments mediumtext,
 PRIMARY KEY  (project_id),
 UNIQUE KEY project (client_ptr,project_name)
-) ENGINE=MyISAM PACK_KEYS=1;
+) PACK_KEYS=1;
 INSERT INTO t1 VALUES (1,0,'Rejected Time',1,NULL,NULL,NULL,NULL);
 INSERT INTO t1 VALUES (209,0,'MDGRAD Proposal/Investigation',97,NULL,NULL,NULL,'');
 INSERT INTO t1 VALUES (208,0,'Font 9 Design',84,NULL,NULL,NULL,'');
@@ -31,7 +31,7 @@ work_load int(11) default NULL,
 PRIMARY KEY  (period_id),
 KEY period_index (period_type,period_key),
 KEY date_index (start_date,end_date)
-) ENGINE=MyISAM PACK_KEYS=1;
+) PACK_KEYS=1;
 INSERT INTO t2 VALUES (1,'user_table',98,'2000-01-01 00:00:00',NULL,NULL);
 INSERT INTO t2 VALUES (2,'user_table',99,'2000-01-01 00:00:00',NULL,NULL);
 INSERT INTO t2 VALUES (3,'user_table',100,'2000-01-01 00:00:00',NULL,NULL);
@@ -57,7 +57,7 @@ amount_received float(10,2) default NULL,
 adjustment float(10,2) default NULL,
 PRIMARY KEY  (budget_id),
 UNIQUE KEY po (project_ptr,po_number)
-) ENGINE=MyISAM PACK_KEYS=1;
+) PACK_KEYS=1;
 CREATE TABLE t4 (
 client_id int(11) NOT NULL auto_increment,
 client_row_lock int(11) NOT NULL default '0',
@@ -66,7 +66,7 @@ contact_ptr int(11) default NULL,
 comments mediumtext,
 PRIMARY KEY  (client_id),
 UNIQUE KEY client_name (client_name)
-) ENGINE=MyISAM PACK_KEYS=1;
+) PACK_KEYS=1;
 INSERT INTO t4 VALUES (1,0,'CPS',NULL,NULL);
 select distinct
 t1.project_id as project_id,

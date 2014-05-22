@@ -16,7 +16,7 @@ while ($i < $n)
 --enable_result_log
 --enable_query_log
 
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 
 --echo # Build connections to master server
 --disable_query_log

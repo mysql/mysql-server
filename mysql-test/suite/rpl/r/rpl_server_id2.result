@@ -32,4 +32,5 @@ t1
 start slave sql_thread;
 drop table t1;
 drop table t2;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

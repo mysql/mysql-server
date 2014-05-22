@@ -1702,7 +1702,7 @@ ON t2 FOR EACH ROW
 SET NEW.b = CONCAT("new2 a: ", NEW.a, " new2 b: ", NEW.b);
 
 FLUSH STATUS;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN EXTENDED UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(1) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(1) t1.b:", t1.b)
@@ -1733,7 +1733,7 @@ eval $get_handler_status_counts;
 --echo # 2 update
 
 FLUSH STATUS;
---replace_column 9 #
+--replace_column 10 #
 EXPLAIN EXTENDED UPDATE t1, t2
 SET t1.b = CONCAT(t1.b, ",(2) t2.b:", t2.b),
     t2.b = CONCAT(t2.b, ",(2) t1.b:", t1.b)

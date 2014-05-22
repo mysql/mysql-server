@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,8 @@ static const char *traditional_extra_tags[ET_total]=
   "const row not found",               // ET_CONST_ROW_NOT_FOUND
   "unique row not found",              // ET_UNIQUE_ROW_NOT_FOUND
   "Impossible ON condition",           // ET_IMPOSSIBLE_ON_CONDITION
-  ""                                   // ET_PUSHED_JOIN
+  "",                                  // ET_PUSHED_JOIN
+  "Ft_hints:"                          // ET_FT_HINTS
 };
 
 static const char *mod_type_name[]=
@@ -170,16 +171,14 @@ bool Explain_format_traditional::flush_entry()
   if (push(&items, column_buffer.col_id, nil) ||
       push_select_type(&items) ||
       push(&items, column_buffer.col_table_name, nil) ||
-      (current_thd->lex->describe & DESCRIBE_PARTITIONS &&
-       push(&items, column_buffer.col_partitions, nil)) ||
+      push(&items, column_buffer.col_partitions, nil) ||
       push(&items, column_buffer.col_join_type, nil) ||
       push(&items, column_buffer.col_possible_keys, nil) ||
       push(&items, column_buffer.col_key, nil) ||
       push(&items, column_buffer.col_key_len, nil) ||
       push(&items, column_buffer.col_ref, nil) ||
       push(&items, column_buffer.col_rows, nil) ||
-      (current_thd->lex->describe & DESCRIBE_EXTENDED &&
-       push(&items, column_buffer.col_filtered, nil)))
+      push(&items, column_buffer.col_filtered, nil))
     return true;
 
   if (column_buffer.col_message.is_empty() &&

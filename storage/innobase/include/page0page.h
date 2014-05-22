@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -211,6 +211,25 @@ page_update_max_trx_id(
 				uncompressed part will be updated, or NULL */
 	trx_id_t	trx_id,	/*!< in: transaction id */
 	mtr_t*		mtr);	/*!< in/out: mini-transaction */
+/*************************************************************//**
+Returns the RTREE SPLIT SEQUENCE NUMBER (FIL_RTREE_SPLIT_SEQ_NUM).
+@return SPLIT SEQUENCE NUMBER */
+UNIV_INLINE
+node_seq_t
+page_get_ssn_id(
+/*============*/
+	const page_t*	page);	/*!< in: page */
+/*************************************************************//**
+Sets the RTREE SPLIT SEQUENCE NUMBER field value */
+UNIV_INLINE
+void
+page_set_ssn_id(
+/*============*/
+	buf_block_t*	block,	/*!< in/out: page */
+	page_zip_des_t*	page_zip,/*!< in/out: compressed page whose
+				uncompressed part will be updated, or NULL */
+	node_seq_t	ssn_id,	/*!< in: split sequence id */
+	mtr_t*		mtr);	/*!< in/out: mini-transaction */
 
 #endif /* !UNIV_INNOCHECKSUM */
 /*************************************************************//**
@@ -414,9 +433,9 @@ page_dir_get_nth_slot(
 	const page_t*	page,	/*!< in: index page */
 	ulint		n);	/*!< in: position */
 #else /* UNIV_DEBUG */
-# define page_dir_get_nth_slot(page, n)		\
-	((page) + UNIV_PAGE_SIZE - PAGE_DIR	\
-	 - (n + 1) * PAGE_DIR_SLOT_SIZE)
+# define page_dir_get_nth_slot(page, n)			\
+	((page) + (UNIV_PAGE_SIZE - PAGE_DIR		\
+		   - (n + 1) * PAGE_DIR_SLOT_SIZE))
 #endif /* UNIV_DEBUG */
 /**************************************************************//**
 Used to check the consistency of a record on a page.
@@ -1009,7 +1028,7 @@ Parses a log record of a record list end or start deletion.
 byte*
 page_parse_delete_rec_list(
 /*=======================*/
-	byte		type,	/*!< in: MLOG_LIST_END_DELETE,
+	mlog_id_t	type,	/*!< in: MLOG_LIST_END_DELETE,
 				MLOG_LIST_START_DELETE,
 				MLOG_COMP_LIST_END_DELETE or
 				MLOG_COMP_LIST_START_DELETE */
@@ -1018,18 +1037,14 @@ page_parse_delete_rec_list(
 	buf_block_t*	block,	/*!< in/out: buffer block or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */
-/***********************************************************//**
-Parses a redo log record of creating a page.
-@return end of log record or NULL */
+/** Parses a redo log record of creating a page.
+@param[in,out]	block	buffer block, or NULL
+@param[in]	comp	nonzero=compact page format */
 
-byte*
+void
 page_parse_create(
-/*==============*/
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
-	ulint		comp,	/*!< in: nonzero=compact page format */
-	buf_block_t*	block,	/*!< in: block or NULL */
-	mtr_t*		mtr);	/*!< in: mtr or NULL */
+	buf_block_t*	block,
+	ulint		comp);
 #ifndef UNIV_HOTBACKUP
 /************************************************************//**
 Prints record contents including the data relevant only in
@@ -1143,6 +1158,14 @@ page_find_rec_with_heap_no(
 /*=======================*/
 	const page_t*	page,	/*!< in: index page */
 	ulint		heap_no);/*!< in: heap number */
+/** Get the last non-delete-marked record on a page.
+@param[in]	page	index tree leaf page
+@return the last record, not delete-marked
+@retval infimum record if all records are delete-marked */
+
+const rec_t*
+page_find_rec_max_not_deleted(
+	const page_t*	page);
 #ifdef UNIV_MATERIALIZE
 #undef UNIV_INLINE
 #define UNIV_INLINE  UNIV_INLINE_ORIGINAL

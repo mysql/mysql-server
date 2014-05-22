@@ -30,7 +30,7 @@ insert into t1 values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
 create table t2 (a int, b int, pk int, key(a,b), primary key(pk)) engine=innodb;
 insert into t2 select @a:=A.a+10*(B.a + 10*C.a),@a, @a from t1 A, t1 B, t1 C;
 --echo # this must use key 'a', not PRIMARY:
---replace_column 9 #
+--replace_column 10 #
 explain select a from t2 where a=b;
 drop table t1, t2;
 
@@ -474,7 +474,7 @@ EXPLAIN SELECT * FROM t1 WHERE b=1 AND c=1 ORDER BY a;
 EXPLAIN SELECT * FROM t1 FORCE INDEX(i2) WHERE b=1 and c=1 ORDER BY a;
 # With 4k pages, the 'rows' column in the output below is either 120 or 138,
 # not 128 as it is with 8k and 16k. Bug#12602606
---replace_result 128 {checked} 120 {checked} 138 {checked}
+--replace_column 10 # 11 #
 EXPLAIN SELECT * FROM t1 FORCE INDEX(PRIMARY) WHERE b=1 AND c=1 ORDER BY a;
 
 DROP TABLE t1;

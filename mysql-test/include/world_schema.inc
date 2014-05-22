@@ -1,4 +1,4 @@
-CREATE TABLE Country (
+CREATE TABLE country (
   Code char(3) NOT NULL default '',
   Name char(52) NOT NULL default '',
   SurfaceArea float(10,2) NOT NULL default '0.00',
@@ -7,7 +7,7 @@ CREATE TABLE Country (
   PRIMARY KEY  (Code),
   UNIQUE INDEX (Name)
 );
-CREATE TABLE City (
+CREATE TABLE city (
   ID int(11) NOT NULL auto_increment,
   Name char(35) NOT NULL default '',
   Country char(3) NOT NULL default '',
@@ -16,7 +16,7 @@ CREATE TABLE City (
   INDEX (Population),
   INDEX (Country) 
 );
-CREATE TABLE CountryLanguage (
+CREATE TABLE countrylanguage (
   Country char(3) NOT NULL default '',
   Language char(30) NOT NULL default '',
   Percentage float(3,1) NOT NULL default '0.0',

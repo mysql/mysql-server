@@ -2,9 +2,8 @@
 --source include/have_debug_sync.inc
 
 let $innodb_metrics_select=
-SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE subsystem = 'ddl';
-
-call mtr.add_suppression("InnoDB: Warning: Small buffer pool size");
+SELECT name, count FROM INFORMATION_SCHEMA.INNODB_METRICS WHERE
+subsystem = 'ddl' and count > 0;
 
 # DISCARD TABLESPACE needs file-per-table
 SET @global_innodb_file_per_table_orig = @@global.innodb_file_per_table;
@@ -40,6 +39,7 @@ connection default;
 --error ER_DUP_ENTRY
 reap;
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 connection con1;
 SET SESSION DEBUG = '+d,innodb_OOM_prepare_inplace_alter';
@@ -88,6 +88,7 @@ ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR scanned';
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 # Insert a duplicate entry (4) for the already started UNIQUE INDEX(c2).
 BEGIN;
@@ -109,6 +110,8 @@ SET DEBUG_SYNC = 'now WAIT_FOR created';
 # At this point, the index has been created inside InnoDB but not yet
 # in the MySQL data dictionary.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
+
 # A duplicate key error should now be triggered by InnoDB, but reported
 # by the ALTER TABLE because the index does not 'officially' exist yet.
 INSERT INTO t1 VALUES(6,3,1);
@@ -120,6 +123,7 @@ reap;
 DELETE FROM t1 WHERE c1=6;
 ALTER TABLE t1 ADD UNIQUE INDEX(c2);
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 connection default;
 --error ER_DUP_ENTRY
@@ -157,6 +161,7 @@ CREATE INDEX c2d ON t1(c2);
 connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c2d_created';
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 let $ignore= `SELECT @id := $ID`;
 KILL QUERY @id;
 SET DEBUG_SYNC = 'now SIGNAL kill_done';
@@ -165,6 +170,7 @@ connection con1;
 --error ER_QUERY_INTERRUPTED
 reap;
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 connection default;
 CHECK TABLE t1;
@@ -220,6 +226,7 @@ SET DEBUG_SYNC = 'now WAIT_FOR c2e_created';
 # At this point, the clustered index scan must have completed,
 # but the modification log keeps accumulating due to the DEBUG_SYNC.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 let $c= 2;
 while ($c)
 {
@@ -236,6 +243,7 @@ while ($c)
 # Incomplete index c2e should exist until the DDL thread notices the overflow.
 # (The output below strips TEMP_INDEX_PREFIX from the name.)
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = '?c2e';
@@ -252,6 +260,7 @@ reap;
 # when the above error was noticed. It should still exist in the
 # cache with index->online_status = ONLINE_INDEX_ABORTED_DROPPED.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c2e';
@@ -259,6 +268,7 @@ ON si.index_id = sf.index_id WHERE si.name = 'c2e';
 # ddl_background_drop_indexes = 1 here, because the incomplete index c2e still
 # exists in the InnoDB data dictionary cache.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 connection default;
 
@@ -266,6 +276,7 @@ ALTER TABLE t1 COMMENT 'testing if c2e will be dropped';
 
 # Check that the 'zombie' index c2e was dropped.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 connection con1;
 # Accumulate and apply some modification log.
@@ -277,6 +288,7 @@ connection default;
 SET DEBUG_SYNC = 'now WAIT_FOR c2f_created';
 # Generate some log (delete-mark, delete-unmark, insert etc.)
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 BEGIN;
 INSERT INTO t1 SELECT 320 + c1, c2, c3 FROM t1 WHERE c1 > 160;
 DELETE FROM t1 WHERE c1 > 320;
@@ -286,12 +298,14 @@ UPDATE t1 SET c2 = c2 + 1;
 DELETE FROM t1;
 ROLLBACK;
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 # Release con1.
 SET DEBUG_SYNC = 'now SIGNAL dml3_done';
 
 connection con1;
 reap;
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 SELECT COUNT(c22f) FROM t1;
 CHECK TABLE t1;
 
@@ -327,11 +341,13 @@ SELECT sf.name, sf.pos FROM INFORMATION_SCHEMA.INNODB_SYS_INDEXES si
 INNER JOIN INFORMATION_SCHEMA.INNODB_SYS_FIELDS sf
 ON si.index_id = sf.index_id WHERE si.name = 'c3p5';
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 connection default;
 reap;
 # Index c3p5 should still exist in the data dictionary cache.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 
 --disable_parsing
 # Temporarily disabled by fix for bug#14213236. Should be either
@@ -381,6 +397,7 @@ SHOW CREATE TABLE t1;
 ALTER TABLE t1 DROP INDEX c2d, DROP INDEX c2f;
 # The ALTER TABLE should have cleaned up c3p5 from the cache.
 eval $innodb_metrics_select;
+SET GLOBAL innodb_monitor_reset = module_ddl;
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = INPLACE;
 --error ER_DUP_KEYNAME
 ALTER TABLE t1 ADD INDEX c2h(c22f), ALGORITHM = COPY;
@@ -398,6 +415,7 @@ DROP TABLE t1;
 SET GLOBAL DEBUG = '';
 SET GLOBAL innodb_file_per_table = @global_innodb_file_per_table_orig;
 --disable_warnings
-SET GLOBAL innodb_monitor_enable  = default;
+SET GLOBAL innodb_monitor_reset = default;
+SET GLOBAL innodb_monitor_enable = default;
 SET GLOBAL innodb_monitor_disable = default;
 --enable_warnings

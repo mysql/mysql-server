@@ -28,7 +28,7 @@ C_MODE_START
 
 struct st_remember {
   int number;
-  sig_handler (*func)(int number);
+  void (*func)(int number);
 };
 
 extern char curr_dir[FN_REFLEN], home_dir_buff[FN_REFLEN];

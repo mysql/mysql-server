@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -567,5 +567,5 @@ int _mi_decrement_open_count(MI_INFO *info)
     if (!lock_error)
       lock_error=mi_lock_database(info,old_lock);
   }
-  return test(lock_error || write_error);
+  return MY_TEST(lock_error || write_error);
 }

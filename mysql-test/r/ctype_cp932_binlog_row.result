@@ -12,7 +12,7 @@ master-bin.000001	#	Query	#	#	use `test`; CREATE TABLE t1(f1 blob)
 master-bin.000001	#	Query	#	#	BEGIN
 master-bin.000001	#	Table_map	#	#	table_id: # (test.t1)
 master-bin.000001	#	Write_rows	#	#	table_id: # flags: STMT_END_F
-master-bin.000001	#	Query	#	#	COMMIT
+master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 SELECT HEX(f1) FROM t1;
 HEX(f1)
 8300

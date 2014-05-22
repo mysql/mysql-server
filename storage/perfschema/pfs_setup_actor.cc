@@ -174,6 +174,7 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
   uint index;
   uint attempts= 0;
   PFS_setup_actor *pfs;
+  pfs_dirty_state dirty_state;
 
   while (++attempts <= setup_actor_max)
   {
@@ -181,35 +182,32 @@ int insert_setup_actor(const String *user, const String *host, const String *rol
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % setup_actor_max;
     pfs= setup_actor_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      set_setup_actor_key(&pfs->m_key,
+                          user->ptr(), user->length(),
+                          host->ptr(), host->length(),
+                          role->ptr(), role->length());
+      pfs->m_username= &pfs->m_key.m_hash_key[0];
+      pfs->m_username_length= user->length();
+      pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
+      pfs->m_hostname_length= host->length();
+      pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
+      pfs->m_rolename_length= role->length();
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        set_setup_actor_key(&pfs->m_key,
-                            user->ptr(), user->length(),
-                            host->ptr(), host->length(),
-                            role->ptr(), role->length());
-        pfs->m_username= &pfs->m_key.m_hash_key[0];
-        pfs->m_username_length= user->length();
-        pfs->m_hostname= pfs->m_username + pfs->m_username_length + 1;
-        pfs->m_hostname_length= host->length();
-        pfs->m_rolename= pfs->m_hostname + pfs->m_hostname_length + 1;
-        pfs->m_rolename_length= role->length();
-
-        int res;
-        pfs->m_lock.dirty_to_allocated();
-        res= lf_hash_insert(&setup_actor_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          update_setup_actors_derived_flags(thread);
-          return 0;
-        }
-
-        pfs->m_lock.allocated_to_free();
-        if (res > 0)
-          return HA_ERR_FOUND_DUPP_KEY;
-        return HA_ERR_OUT_OF_MEM;
+        update_setup_actors_derived_flags(thread);
+        return 0;
       }
+
+      pfs->m_lock.allocated_to_free();
+      if (res > 0)
+        return HA_ERR_FOUND_DUPP_KEY;
+      return HA_ERR_OUT_OF_MEM;
     }
   }
 

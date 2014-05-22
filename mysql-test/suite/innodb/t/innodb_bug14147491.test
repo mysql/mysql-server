@@ -15,7 +15,7 @@ source include/have_debug.inc;
 
 --disable_query_log
 CALL mtr.add_suppression("Unable to read tablespace .* page no .* into the buffer pool after 100 attempts");
-CALL mtr.add_suppression("InnoDB: Warning: database page corruption or a failed");
+CALL mtr.add_suppression("\\[ERROR\\] InnoDB: Database page corruption on disk or a failed");
 --enable_query_log
 
 --echo # Create and populate the table to be corrupted

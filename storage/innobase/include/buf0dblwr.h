@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -29,6 +29,8 @@ Created 2011/12/19 Inaam Rana
 #include "univ.i"
 #include "ut0byte.h"
 #include "log0log.h"
+#include "buf0types.h"
+#include "log0recv.h"
 
 #ifndef UNIV_HOTBACKUP
 
@@ -45,18 +47,24 @@ __attribute__((warn_unused_result))
 bool
 buf_dblwr_create(void);
 /*==================*/
+
 /****************************************************************//**
 At a database startup initializes the doublewrite buffer memory structure if
 we already have a doublewrite buffer created in the data files. If we are
 upgrading to an InnoDB version which supports multiple tablespaces, then this
 function performs the necessary update operations. If we are in a crash
-recovery, this function uses a possible doublewrite buffer to restore
-half-written pages in the data files. */
+recovery, this function loads the pages from double write buffer into memory. */
 
 void
-buf_dblwr_init_or_restore_pages(
-/*============================*/
-	ibool	restore_corrupt_pages);	/*!< in: TRUE=restore pages */
+buf_dblwr_init_or_load_pages(
+	os_file_t	file,
+	const char*	path);
+
+/** Process and remove the double write buffer pages for all tablespaces. */
+
+void
+buf_dblwr_process(void);
+
 /****************************************************************//**
 frees doublewrite buffer. */
 
@@ -89,6 +97,14 @@ void
 buf_dblwr_add_to_batch(
 /*====================*/
 	buf_page_t*	bpage);	/*!< in: buffer block to write */
+
+/********************************************************************//**
+Flush a batch of writes to the datafiles that have already been
+written to the dblwr buffer on disk. */
+
+void
+buf_dblwr_sync_datafiles();
+
 /********************************************************************//**
 Flushes possible buffered writes from the doublewrite memory buffer to disk,
 and also wakes up the aio thread if simulated aio is used. It is very

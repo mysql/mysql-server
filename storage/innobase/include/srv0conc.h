@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 Portions of this file contain modifications contributed and copyrighted by
 Google, Inc. Those modifications are gratefully acknowledged and are described
@@ -52,17 +52,20 @@ we could get a deadlock. Value of 0 will disable the concurrency check. */
 
 extern ulong	srv_thread_concurrency;
 
-/*********************************************************************//**
-Initialise the concurrency management data structures */
+#ifndef HAVE_ATOMIC_BUILTINS
+/** Mutex protecting some server global variables. */
+extern ib_mutex_t	server_mutex;
+
+/** Initialise the concurrency management data structures. */
+
 void
 srv_conc_init(void);
-/*===============*/
 
-/*********************************************************************//**
-Free the concurrency management data structures */
+/** Free the concurrency management data structures. */
+
 void
 srv_conc_free(void);
-/*===============*/
+#endif /* !HAVE_ATOMIC_BUILTINS */
 
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads

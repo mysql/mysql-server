@@ -16,6 +16,7 @@ a
 2
 3
 REPLACE INTO t1 VALUES (4);
+include/sync_slave_sql_with_master.inc
 SELECT * FROM t1;
 a
 1
@@ -29,4 +30,5 @@ Log_name	File_size
 master-bin.000001	#
 master-bin.000002	#
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

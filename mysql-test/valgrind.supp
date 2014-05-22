@@ -1,4 +1,4 @@
-# Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or
 # modify it under the terms of the GNU Library General Public
@@ -498,200 +498,6 @@
 }
 
 #
-# BUG#45630
-# Suppress valgrind failures within nptl_pthread_exit_hack_handler on Ubuntu 9.04, x86 (but not amd64)
-#
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 1
-   Memcheck:Leak
-   fun:malloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-   fun:clone
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 2
-   Memcheck:Leak
-   fun:malloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-   fun:clone
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 3
-   Memcheck:Leak
-   fun:calloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-   fun:clone
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 4
-   Memcheck:Leak
-   fun:malloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 5
-   Memcheck:Leak
-   fun:calloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-}
-
-# suppressions for glibc 2.6.1 64 bit
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 6
-   Memcheck:Leak
-   fun:malloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 7
-   Memcheck:Leak
-   fun:malloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-   fun:clone
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 8
-   Memcheck:Leak
-   fun:calloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-   fun:start_thread
-   fun:clone
-}
-
-{
-   Mem loss within nptl_pthread_exit_hack_handler 8
-   Memcheck:Leak
-   fun:calloc
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   obj:*/ld-*.so
-   obj:*/libc-*.so
-   fun:__libc_dlopen_mode
-   fun:pthread_cancel_init
-   fun:_Unwind_ForcedUnwind
-   fun:__pthread_unwind
-   fun:pthread_exit
-   fun:nptl_pthread_exit_hack_handler
-}
-
-#
 # Pthread doesn't free all thread specific memory before program exists
 #
 {
@@ -710,20 +516,11 @@
 }
 
 #
-# See related Bug#56666
-# Race condition between the server main thread and the kill server thread.
-#
-# Because of this race condition, the call to shutdown_performance_schema()
-# was commented in sql/mysqld.cc, causing the reported leaks.
-#
-
-{
-   missing shutdown_performance_schema 1a
-   Memcheck:Leak
-   fun:malloc
-   fun:_Z10pfs_mallocmi
-}
-
+# Bug#56666 is fixed by WL#6407
+# Also, as part of WL#6407, call to shutdown_performance_schema()
+# is uncommented in sql/mysqld.cc. As this call was commented out
+# for long time, there are still some leaks which needs to be
+# addressed by pfs.
 {
    missing shutdown_performance_schema 1b
    Memcheck:Leak
@@ -739,7 +536,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_alloc_new
+   fun:lf_alloc_new
    fun:lf_hash_insert
 }
 
@@ -749,7 +546,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_alloc_new
+   fun:lf_alloc_new
    fun:lf_hash_insert
 }
 
@@ -783,7 +580,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
@@ -793,7 +590,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:initialize_bucket
 }
 
@@ -804,8 +601,8 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:_lf_pinbox_get_pins
+   fun:lf_dynarray_lvalue
+   fun:lf_pinbox_get_pins
 }
 
 # The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
@@ -814,8 +611,8 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
-   fun:_lf_pinbox_get_pins
+   fun:lf_dynarray_lvalue
+   fun:lf_pinbox_get_pins
 }
 
 # The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
@@ -825,7 +622,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
@@ -835,7 +632,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_insert
 }
 
@@ -846,7 +643,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
@@ -856,7 +653,7 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_delete
 }
 
@@ -867,7 +664,7 @@
    fun:malloc
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_search
 }
 
@@ -877,130 +674,8 @@
    Memcheck:Leak
    ...
    fun:my_malloc
-   fun:_lf_dynarray_lvalue
+   fun:lf_dynarray_lvalue
    fun:lf_hash_search
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 8
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 8-mem
-   Memcheck:Leak
-   fun:my_malloc
-   ...
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:handle_options
-   fun:_Z20handle_early_optionsv
-}
-
-# The '...' wildcard is for 'fun:my_raw_malloc' which is hidden with HAVE_VALGRIND
-{
-   missing shutdown_performance_schema 9
-   Memcheck:Leak
-   fun:malloc
-   ...
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z25init_pfs_instrument_arrayv
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 9a
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:_Z20handle_early_optionsv
-   fun:_Z11mysqld_mainiPPc
-}
-
-{
-   missing shutdown_performance_schema 9a-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:_Z22add_pfs_instr_to_arrayPKcS0_
-   fun:mysqld_get_one_option
-   fun:my_handle_options
-   fun:_Z20handle_early_optionsv
-   fun:_Z11mysqld_mainiPPc
-}
-
-# Same as shutdown_performance_schema 9,
-# but the compiler/linker can sometime change the
-# calls from:
-# main()
-#   --> init_pfs_instrument_array()
-#     --> init_dynamic_array2()
-# to:
-# main()
-#   --> init_dynamic_array2()
-# when building with optimizations.
-
-{
-   missing shutdown_performance_schema 10
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 10-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:main
-}
-
-{
-   missing shutdown_performance_schema 11
-   Memcheck:Leak
-   fun:malloc
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
-}
-
-{
-   missing shutdown_performance_schema 11-mem
-   Memcheck:Leak
-   fun:my_malloc
-   fun:init_dynamic_array2
-   fun:_Z11mysqld_mainiPPc
-   fun:(below main)
 }
 
 {
@@ -1190,37 +865,7 @@
    fun:my_b_flush_io_cache
    fun:_my_b_write
    fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
-   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIhhEPy
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / two
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_Z15merge_many_buffP10Sort_paramPhP10st_buffpekPjP11st_io_cache
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / three
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
-}
-
-{
-   Bug#12856915 VALGRIND FAILURE IN FILESORT/CREATE_SORT_INDEX / four
-   Memcheck:Param
-   write(buf)
-   ...
-   fun:my_b_flush_io_cache
-   fun:_my_b_write
-   fun:_Z*10write_keysP10Sort_paramP13Filesort_infojP11st_io_cacheS4_
+   fun:_Z*13find_all_keysP10Sort_paramP10SQL_SELECTP13Filesort_infoP11st_io_cacheS6_P13Bounded_queueIPhS8_S_EPy
    fun:_Z8filesortP3THDP5TABLEP8FilesortbPyS5_
 }
 
@@ -1234,24 +879,6 @@
    fun:SSL_COMP_get_compression_methods
    fun:SSL_library_init
 }
-{
-   BUG#14801497 CONDITIONAL JUMP OR MOVE DEPENDS ON UNINITIALISED VALUE(S) IN CREATE_TMP_TABLE
-   Memcheck:Cond
-   fun:_Z16create_tmp_tableP3THDP15TMP_TABLE_PARAMR4ListI4ItemEP8st_orderbbyyPKc
-   fun:_Z19create_schema_tableP3THDP10TABLE_LIST
-   fun:_Z18mysql_schema_tableP3THDP3LEXP10TABLE_LIST
-   ...
-   fun:_Z11open_tablesP3THDPP10TABLE_LISTPjjP19Prelocking_strategy
-   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbjP19Prelocking_strategy
-   fun:_Z20open_and_lock_tablesP3THDP10TABLE_LISTbj
-   fun:_Z21mysql_execute_commandP3THD
-   fun:_Z11mysql_parseP3THDPcjP12Parser_state
-   fun:_Z16dispatch_command19enum_server_commandP3THDPcj
-   fun:_Z24do_handle_one_connectionP3THD
-   fun:handle_one_connection
-   fun:pfs_spawn_thread
-}
-
 
 {
    Bug#16039908 "BYTES STILL REACHABLE" IN VALGRIND TEST ON 5.6/TRUNK
@@ -1264,10 +891,17 @@
    fun:_ZL10plugin_delP13st_plugin_int
    fun:_ZL12reap_pluginsv
    fun:_Z15plugin_shutdownv
-   fun:_ZL8clean_upb
-   fun:_Z10unireg_endv
-   fun:_ZL11kill_serverPv
-   fun:kill_server_thread
+   fun:_ZL8clean_upb*
+}
+
+{
+   main.udf gives similar warning as Bug#16039908
+   Memcheck:Leak
+   fun:calloc
+   fun:_dlerror_run
+   fun:dlclose
+   fun:_Z8udf_freev
+   fun:_ZL8clean_upb*
 }
 
 #Suppress warnings from glibc implementation of 'malloc_info' 

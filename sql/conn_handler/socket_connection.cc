@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,9 +29,16 @@
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
 #endif
+#ifdef HAVE_LIBWRAP
+#include <tcpd.h>
+#include <syslog.h>
+#endif
 
 using std::max;
 
+ulong Mysqld_socket_listener::connection_errors_select= 0;
+ulong Mysqld_socket_listener::connection_errors_accept= 0;
+ulong Mysqld_socket_listener::connection_errors_tcpwrap= 0;
 
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 PSI_statement_info stmt_info_new_packet;
@@ -80,12 +87,13 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
 
     if (! rc)
     {
+      DBUG_ASSERT(thd->m_statement_psi == NULL);
       thd->m_statement_psi= MYSQL_START_STATEMENT(&thd->m_statement_state,
                                                   stmt_info_new_packet.m_key,
                                                   thd->db, thd->db_length,
                                                   thd->charset(), NULL);
 
-      THD_STAGE_INFO(thd, stage_init);
+      THD_STAGE_INFO(thd, stage_starting);
     }
 
     /*
@@ -93,6 +101,7 @@ void net_after_header_psi(struct st_net *net, void *user_data, size_t /* unused:
       by also passing count here.
     */
     MYSQL_SOCKET_SET_STATE(net->vio->mysql_socket, PSI_SOCKET_STATE_ACTIVE);
+    thd->m_server_idle= false;
   }
 }
 
@@ -126,8 +135,6 @@ static void init_net_server_extension(THD *thd)
 */
 class Channel_info_local_socket : public Channel_info
 {
-  // listen socket object
-  MYSQL_SOCKET m_listen_sock;
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
 
@@ -139,15 +146,12 @@ protected:
 
 public:
   /**
-    Constructor that sets listen and connect socket.
+    Constructor that sets the connect socket.
 
-    @param listen_socket  set listen socket descriptor.
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_local_socket(MYSQL_SOCKET listen_socket,
-                            MYSQL_SOCKET connect_socket)
-  : m_listen_sock(listen_socket),
-    m_connect_sock(connect_socket)
+  Channel_info_local_socket(MYSQL_SOCKET connect_socket)
+  : m_connect_sock(connect_socket)
   { }
 
   virtual THD* create_thd()
@@ -184,8 +188,6 @@ public:
 */
 class Channel_info_tcpip_socket : public Channel_info
 {
-  // listen socket object
-  MYSQL_SOCKET m_listen_sock;
   // connect socket object
   MYSQL_SOCKET m_connect_sock;
 
@@ -197,15 +199,12 @@ protected:
 
 public:
   /**
-    Constructor that sets listen and connect socket.
+    Constructor that sets the connect socket.
 
-    @param listen_socket  set listen socket descriptor.
     @param connect_socket set connect socket descriptor.
   */
-  Channel_info_tcpip_socket(MYSQL_SOCKET listen_socket,
-                            MYSQL_SOCKET connect_socket)
-  : m_listen_sock(listen_socket),
-    m_connect_sock(connect_socket)
+  Channel_info_tcpip_socket(MYSQL_SOCKET connect_socket)
+  : m_connect_sock(connect_socket)
   { }
 
   virtual THD* create_thd()
@@ -343,7 +342,7 @@ public:
     char port_buf[NI_MAXSERV];
     my_snprintf(port_buf, NI_MAXSERV, "%d", m_tcp_port);
 
-    if (strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
+    if (native_strcasecmp(my_bind_addr_str, MY_BIND_ALL_ADDRESSES) == 0)
     {
       /*
         That's the case when bind-address is set to a special value ('*'),
@@ -631,6 +630,26 @@ public:
 // Mysqld_socket_listener implementation
 ///////////////////////////////////////////////////////////////////////////
 
+Mysqld_socket_listener::Mysqld_socket_listener(std::string bind_addr_str,
+                                               uint tcp_port,
+                                               uint backlog,
+                                               uint port_timeout,
+                                               std::string unix_sockname)
+  : m_bind_addr_str(bind_addr_str),
+    m_tcp_port(tcp_port),
+    m_backlog(backlog),
+    m_port_timeout(port_timeout),
+    m_unix_sockname(unix_sockname),
+    m_error_count(0)
+{
+#ifdef HAVE_LIBWRAP
+  m_deny_severity = LOG_WARNING;
+  m_libwrap_name= my_progname + dirname_length(my_progname);
+  openlog(m_libwrap_name, LOG_PID, LOG_AUTH);
+#endif /* HAVE_LIBWRAP */
+}
+
+
 bool Mysqld_socket_listener::setup_listener()
 {
   // Setup tcp socket listener
@@ -711,12 +730,14 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 
   /* Is this a new connection request ? */
   MYSQL_SOCKET listen_sock= MYSQL_INVALID_SOCKET;
+  bool is_unix_socket= false;
 #ifdef HAVE_POLL
   for (uint i= 0; i < m_socket_map.size(); ++i)
   {
     if (m_poll_info.m_fds[i].revents & POLLIN)
     {
       listen_sock= m_poll_info.m_pfs_fds[i];
+      is_unix_socket= m_socket_map[listen_sock];
       break;
     }
   }
@@ -728,6 +749,7 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
                  &m_select_info.m_read_fds))
     {
       listen_sock= sock_map_iter->first;
+      is_unix_socket= sock_map_iter->second;
       break;
     }
   }
@@ -760,31 +782,25 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
   }
 
 #ifdef HAVE_LIBWRAP
-  if (mysql_socket_getfd(listen_sock) == mysql_socket_getfd(m_tcp_socket))
+  if (!is_unix_socket)
   {
     struct request_info req;
     signal(SIGCHLD, SIG_DFL);
-    request_init(&req, RQ_DAEMON, libwrapName, RQ_FILE,
+    request_init(&req, RQ_DAEMON, m_libwrap_name, RQ_FILE,
                  mysql_socket_getfd(connect_sock), NULL);
-    my_fromhost(&req);
+    fromhost(&req);
 
-    if (!my_hosts_access(&req))
+    if (!hosts_access(&req))
     {
       /*
         This may be stupid but refuse() includes an exit(0)
         which we surely don't want...
         clean_exit() - same stupid thing ...
       */
-      syslog(deny_severity, "refused connect from %s", my_eval_client(&req));
+      syslog(m_deny_severity, "refused connect from %s", eval_client(&req));
 
-      /*
-        C++ sucks (the gibberish in front just translates the supplied
-        sink function pointer in the req structure from a void (*sink)();
-        to a void(*sink)(int) if you omit the cast, the C++ compiler
-        will cry...
-      */
       if (req.sink)
-        ((void (*)(int))req.sink)(req.fd);
+        (req.sink)(req.fd);
 
       mysql_socket_shutdown(listen_sock, SHUT_RDWR);
       mysql_socket_close(listen_sock);
@@ -799,12 +815,10 @@ Channel_info* Mysqld_socket_listener::listen_for_connection_event()
 #endif // HAVE_LIBWRAP
 
   Channel_info* channel_info= NULL;
-  if (m_socket_map[listen_sock])
-    channel_info= new (std::nothrow) Channel_info_local_socket(listen_sock,
-                                                               connect_sock);
+  if (is_unix_socket)
+    channel_info= new (std::nothrow) Channel_info_local_socket(connect_sock);
   else
-    channel_info= new (std::nothrow) Channel_info_tcpip_socket(listen_sock,
-                                                               connect_sock);
+    channel_info= new (std::nothrow) Channel_info_tcpip_socket(connect_sock);
   if (channel_info == NULL)
   {
     (void) mysql_socket_shutdown(connect_sock, SHUT_RDWR);

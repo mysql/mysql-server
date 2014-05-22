@@ -55,7 +55,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     {
       reinit_io_cache(&info->rec_cache,READ_CACHE,0,
 		      (pbool) (info->lock_type != F_UNLCK),
-		      (pbool) test(info->update & HA_STATE_ROW_CHANGED)
+		      (pbool) MY_TEST(info->update & HA_STATE_ROW_CHANGED)
 		      );
     }
     info->update= ((info->update & HA_STATE_CHANGED) | HA_STATE_NEXT_FOUND |
@@ -116,7 +116,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
     {
       reinit_io_cache(&info->rec_cache,READ_CACHE,info->nextpos,
 		      (pbool) (info->lock_type != F_UNLCK),
-		      (pbool) test(info->update & HA_STATE_ROW_CHANGED));
+		      (pbool) MY_TEST(info->update & HA_STATE_ROW_CHANGED));
       info->update&= ~HA_STATE_ROW_CHANGED;
       if (share->concurrent_insert)
 	info->rec_cache.end_of_file=info->state->data_file_length;
@@ -264,7 +264,7 @@ int mi_extra(MI_INFO *info, enum ha_extra_function function, void *extra_arg)
   case HA_EXTRA_FLUSH:
     if (!share->temporary)
       flush_key_blocks(share->key_cache, share->kfile, FLUSH_KEEP);
-#ifdef HAVE_PWRITE
+#ifndef _WIN32
     _mi_decrement_open_count(info);
 #endif
     if (share->not_flushed)

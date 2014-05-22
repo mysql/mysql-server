@@ -222,17 +222,92 @@ enum enum_object_type
 */
 enum enum_event_type
 {
-  EVENT_TYPE_STATEMENT= 1,
-  EVENT_TYPE_STAGE= 2,
-  EVENT_TYPE_WAIT= 3
+  EVENT_TYPE_TRANSACTION= 1,
+  EVENT_TYPE_STATEMENT= 2,
+  EVENT_TYPE_STAGE= 3,
+  EVENT_TYPE_WAIT= 4
 };
 
 /** Integer, first value of @sa enum_event_type. */
-#define FIRST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_STATEMENT))
+#define FIRST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_TRANSACTION))
 /** Integer, last value of @sa enum_event_type. */
 #define LAST_EVENT_TYPE (static_cast<int> (EVENT_TYPE_WAIT))
 /** Integer, number of values of @sa enum_event_type. */
 #define COUNT_EVENT_TYPE (LAST_EVENT_TYPE - FIRST_EVENT_TYPE + 1)
+
+/**
+  Enum values for transaction state columns.
+*/
+enum enum_transaction_state
+{
+  TRANS_STATE_ACTIVE= 1,
+  TRANS_STATE_COMMITTED= 2,
+  TRANS_STATE_ROLLED_BACK= 3
+};
+
+/** Integer, first value of @sa enum_transaction_state. */
+#define FIRST_TRANS_STATE (static_cast<int> (TRANS_STATE_ACTIVE))
+/** Integer, last value of @sa enum_transaction_state. */
+#define LAST_TRANS_STATE (static_cast<int> (TRANS_STATE_ROLLED_BACK))
+/** Integer, number of values of @sa enum_transaction_state. */
+#define COUNT_TRANS_STATE (LAST_TRANS_STATE - FIRST_TRANS_STATE + 1)
+
+/**
+  Enum values for XA transaction state columns. Enums 1-5 match those used by
+  the server. See XID_STATE::enum xa_states in xa.h.
+*/
+enum enum_xa_transaction_state
+{
+  TRANS_STATE_XA_NOTR,
+  TRANS_STATE_XA_ACTIVE,
+  TRANS_STATE_XA_IDLE,
+  TRANS_STATE_XA_PREPARED,
+  TRANS_STATE_XA_ROLLBACK_ONLY,
+  TRANS_STATE_XA_COMMITTED
+};
+
+/** Integer, first value of @sa enum_xa_transaction_state. */
+#define FIRST_TRANS_STATE_XA (static_cast<int> (TRANS_STATE_XA_NOTR))
+/** Integer, last value of @sa enum_xa_transaction_state. */
+#define LAST_TRANS_STATE_XA (static_cast<int> (TRANS_STATE_XA_COMMITTED))
+/** Integer, number of values of @sa enum_xa_transaction_state. */
+#define COUNT_TRANS_STATE_XA (LAST_TRANS_STATE_XA - FIRST_TRANS_STATE_XA + 1)
+
+/**
+  Enum values for transaction isolation level columns.
+  See enum_tx_isolation in handler.h.
+*/
+enum enum_isolation_level
+{
+  TRANS_LEVEL_READ_UNCOMMITTED,
+  TRANS_LEVEL_READ_COMMITTED,
+  TRANS_LEVEL_REPEATABLE_READ,
+  TRANS_LEVEL_SERIALIZABLE
+};
+
+/** Integer, first value of @sa enum_isolation_level. */
+#define FIRST_TRANS_LEVEL (static_cast<int> (TRANS_LEVEL_READ_UNCOMMITTED))
+/** Integer, last value of @sa enum_isolation_level. */
+#define LAST_TRANS_LEVEL (static_cast<int> (TRANS_LEVEL_SERIALIZABLE))
+/** Integer, number of values of @sa enum_isolation_level. */
+#define COUNT_TRANS_LEVEL (LAST_TRANS_LEVEL - FIRST_TRANS_LEVEL + 1)
+
+/**
+  Enum values for transaction acces mode columns.
+*/
+enum enum_transaction_mode
+{
+  TRANS_MODE_READ_ONLY= 1,
+  TRANS_MODE_READ_WRITE= 2
+};
+
+/** Integer, first value of @sa enum_transaction_mode. */
+#define FIRST_TRANS_MODE (static_cast<int> (TRANS_MODE_READ_WRITE))
+/** Integer, last value of @sa enum_transaction_mode. */
+#define LAST_TRANS_MODE (static_cast<int> (TRANS_MODE_READ_ONLY))
+/** Integer, number of values of @sa enum_transaction_mode. */
+#define COUNT_TRANS_MODE (LAST_TRANS_MODE - FIRST_TRANS_MODE + 1)
+
 
 #endif
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,8 +18,6 @@
 #include "sql_priv.h"
 #include "unireg.h"
 #include "sql_parse.h"                          // check_access
-#include "global_threads.h"
-
 #include "auth_common.h"                        // SUPER_ACL
 #include "log_event.h"
 #include "rpl_filter.h"
@@ -28,6 +26,7 @@
 #include "rpl_master.h"
 #include "debug_sync.h"
 #include "rpl_binlog_sender.h"
+#include "mysqld_thd_manager.h"                 // Global_THD_manager
 
 int max_binlog_dump_events = 0; // unlimited
 my_bool opt_sporadic_binlog_dump_fail = 0;
@@ -281,7 +280,6 @@ bool show_slave_hosts(THD* thd)
     packet_bytes_todo-= BYTES;                                          \
   } while (0)
 
-#define SKIP(BYTES) READ((void)(0), BYTES)
 
 /**
   Check that there are at least BYTES more bytes to read, then read
@@ -310,6 +308,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
   String slave_uuid;
+  ushort flags= 0;
   const uchar* packet_position= (uchar *) packet;
   uint packet_bytes_todo= packet_length;
 
@@ -324,15 +323,17 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
     com_binlog_dump_gtid().
   */
   READ_INT(pos, 4);
-  SKIP(2); /* flags field is unused */
+  READ_INT(flags, 2);
   READ_INT(thd->server_id, 4);
+
+  DBUG_PRINT("info", ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
 
   query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                                  packet + 10, (long) pos);
-  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL);
+  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL, flags);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -352,6 +353,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
     breaking compatitibilty. /Alfranio.
   */
   String slave_uuid;
+  ushort flags= 0;
   uint32 data_size= 0;
   uint64 pos= 0;
   char name[FN_REFLEN + 1];
@@ -367,11 +369,12 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
-  SKIP(2); /* flags field is unused */
+  READ_INT(flags,2);
   READ_INT(thd->server_id, 4);
   READ_INT(name_size, 4);
   READ_STRING(name, name_size, sizeof(name));
   READ_INT(pos, 8);
+  DBUG_PRINT("info", ("pos=%llu flags=%d server_id=%d", pos, flags, thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
@@ -387,7 +390,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
                                  "Log: '%s' Pos: %llu GTIDs: '%s'",
                                  name, pos, gtid_string);
   my_free(gtid_string);
-  mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed);
+  mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed, flags);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -399,9 +402,9 @@ error_malformed_packet:
 }
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       Gtid_set* slave_gtid_executed)
+                       Gtid_set* slave_gtid_executed, uint32 flags)
 {
-  Binlog_sender sender(thd, log_ident, pos, slave_gtid_executed);
+  Binlog_sender sender(thd, log_ident, pos, slave_gtid_executed, flags);
 
   sender.run();
 }
@@ -431,6 +434,36 @@ String *get_slave_uuid(THD *thd, String *value)
     return NULL;
 }
 
+/**
+  Callback function used by kill_zombie_dump_threads() function to
+  to find zombie dump thread from the thd list.
+
+  @note It acquires LOCK_thd_data mutex when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_zombie_dump_thread : public Find_THD_Impl
+{
+public:
+  Find_zombie_dump_thread(char* value): m_slave_uuid(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd != current_thd && (thd->get_command() == COM_BINLOG_DUMP ||
+                               thd->get_command() == COM_BINLOG_DUMP_GTID))
+    {
+      String tmp_uuid;
+      if (get_slave_uuid(thd, &tmp_uuid) != NULL &&
+          !strncmp(m_slave_uuid, tmp_uuid.c_ptr(), UUID_LENGTH))
+      {
+        mysql_mutex_lock(&thd->LOCK_thd_data);
+        return true;
+      }
+    }
+    return false;
+  }
+private:
+  char* m_slave_uuid;
+};
+
 /*
 
   Kill all Binlog_dump threads which previously talked to the same slave
@@ -450,33 +483,15 @@ String *get_slave_uuid(THD *thd, String *value)
 
 */
 
-
 void kill_zombie_dump_threads(String *slave_uuid)
 {
   if (slave_uuid->length() == 0)
     return;
   DBUG_ASSERT(slave_uuid->length() == UUID_LENGTH);
 
-  mysql_mutex_lock(&LOCK_thread_count);
-  THD *tmp= NULL;
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-  {
-    if ((*it) != current_thd && ((*it)->get_command() == COM_BINLOG_DUMP ||
-                                 (*it)->get_command() == COM_BINLOG_DUMP_GTID))
-    {
-      String tmp_uuid;
-      if (get_slave_uuid((*it), &tmp_uuid) != NULL &&
-          !strncmp(slave_uuid->c_ptr(), tmp_uuid.c_ptr(), UUID_LENGTH))
-      {
-        tmp= *it;
-        mysql_mutex_lock(&tmp->LOCK_thd_data);	// Lock from delete
-        break;
-      }
-    }
-  }
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Find_zombie_dump_thread find_zombie_dump_thread(slave_uuid->c_ptr());
+  THD *tmp= Global_THD_manager::get_instance()->
+                                find_thd(&find_zombie_dump_thread);
   if (tmp)
   {
     /*
@@ -617,6 +632,7 @@ bool show_binlogs(THD* thd)
     DBUG_RETURN(TRUE);
   
   mysql_mutex_lock(mysql_bin_log.get_log_lock());
+  DEBUG_SYNC(thd, "show_binlogs_after_lock_log_before_lock_index");
   mysql_bin_log.lock_index();
   index_file=mysql_bin_log.get_index_file();
   

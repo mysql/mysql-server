@@ -106,7 +106,7 @@ void Querycache_stream::store_ll(ulonglong ll)
   cur_data+= 8-rest_len;
 }
 
-void Querycache_stream::store_str_only(const char *str, uint str_len)
+void Querycache_stream::store_str_only(const char *str, size_t str_len)
 {
 #ifndef DBUG_OFF
   stored_size+= str_len;
@@ -127,17 +127,17 @@ void Querycache_stream::store_str_only(const char *str, uint str_len)
   } while(str_len);
 }
 
-void Querycache_stream::store_str(const char *str, uint str_len)
+void Querycache_stream::store_str(const char *str, size_t str_len)
 {
-  store_int(str_len);
+  store_int(static_cast<uint>(str_len));
   store_str_only(str, str_len);
 }
 
-void Querycache_stream::store_safe_str(const char *str, uint str_len)
+void Querycache_stream::store_safe_str(const char *str, size_t str_len)
 {
   if (str)
   {
-    store_int(str_len+1);
+    store_int(static_cast<uint>(str_len+1));
     store_str_only(str, str_len);
   }
   else
@@ -223,7 +223,7 @@ ulonglong Querycache_stream::load_ll()
   return result;
 }
 
-void Querycache_stream::load_str_only(char *buffer, uint str_len)
+void Querycache_stream::load_str_only(char *buffer, size_t str_len)
 {
   do
   {

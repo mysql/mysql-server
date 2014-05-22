@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -219,6 +219,15 @@ struct PFS_stat_row
   /** Column MAX_TIMER_WAIT. */
   ulonglong m_max;
 
+  inline void reset()
+  {
+    m_count= 0;
+    m_sum= 0;
+    m_min= 0;
+    m_avg= 0;
+    m_max= 0;
+  }
+
   /** Build a row with timer fields from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_single_stat *stat)
   {
@@ -421,27 +430,54 @@ struct PFS_statement_stat_row
   /** Build a row from a memory buffer. */
   inline void set(time_normalizer *normalizer, const PFS_statement_stat *stat)
   {
-    m_timer1_row.set(normalizer, & stat->m_timer1_stat);
+    if (stat->m_timer1_stat.m_count != 0)
+    {
+      m_timer1_row.set(normalizer, & stat->m_timer1_stat);
 
-    m_error_count= stat->m_error_count;
-    m_warning_count= stat->m_warning_count;
-    m_lock_time= stat->m_lock_time * MICROSEC_TO_PICOSEC;
-    m_rows_affected= stat->m_rows_affected;
-    m_rows_sent= stat->m_rows_sent;
-    m_rows_examined= stat->m_rows_examined;
-    m_created_tmp_disk_tables= stat->m_created_tmp_disk_tables;
-    m_created_tmp_tables= stat->m_created_tmp_tables;
-    m_select_full_join= stat->m_select_full_join;
-    m_select_full_range_join= stat->m_select_full_range_join;
-    m_select_range= stat->m_select_range;
-    m_select_range_check= stat->m_select_range_check;
-    m_select_scan= stat->m_select_scan;
-    m_sort_merge_passes= stat->m_sort_range;
-    m_sort_range= stat->m_sort_range;
-    m_sort_rows= stat->m_sort_rows;
-    m_sort_scan= stat->m_sort_scan;
-    m_no_index_used= stat->m_no_index_used;
-    m_no_good_index_used= stat->m_no_good_index_used;
+      m_error_count= stat->m_error_count;
+      m_warning_count= stat->m_warning_count;
+      m_lock_time= stat->m_lock_time * MICROSEC_TO_PICOSEC;
+      m_rows_affected= stat->m_rows_affected;
+      m_rows_sent= stat->m_rows_sent;
+      m_rows_examined= stat->m_rows_examined;
+      m_created_tmp_disk_tables= stat->m_created_tmp_disk_tables;
+      m_created_tmp_tables= stat->m_created_tmp_tables;
+      m_select_full_join= stat->m_select_full_join;
+      m_select_full_range_join= stat->m_select_full_range_join;
+      m_select_range= stat->m_select_range;
+      m_select_range_check= stat->m_select_range_check;
+      m_select_scan= stat->m_select_scan;
+      m_sort_merge_passes= stat->m_sort_merge_passes;
+      m_sort_range= stat->m_sort_range;
+      m_sort_rows= stat->m_sort_rows;
+      m_sort_scan= stat->m_sort_scan;
+      m_no_index_used= stat->m_no_index_used;
+      m_no_good_index_used= stat->m_no_good_index_used;
+    }
+    else
+    {
+      m_timer1_row.reset();
+
+      m_error_count= 0;
+      m_warning_count= 0;
+      m_lock_time= 0;
+      m_rows_affected= 0;
+      m_rows_sent= 0;
+      m_rows_examined= 0;
+      m_created_tmp_disk_tables= 0;
+      m_created_tmp_tables= 0;
+      m_select_full_join= 0;
+      m_select_full_range_join= 0;
+      m_select_range= 0;
+      m_select_range_check= 0;
+      m_select_scan= 0;
+      m_sort_merge_passes= 0;
+      m_sort_range= 0;
+      m_sort_rows= 0;
+      m_sort_scan= 0;
+      m_no_index_used= 0;
+      m_no_good_index_used= 0;
+    }
   }
 
   /** Set a table field from the row. */
@@ -466,6 +502,33 @@ struct PFS_sp_stat_row
   }
 };
 
+/** Row fragment for transaction statistics columns. */
+struct PFS_transaction_stat_row
+{
+  PFS_stat_row m_timer1_row;
+  PFS_stat_row m_read_write_row;
+  PFS_stat_row m_read_only_row;
+  ulonglong m_savepoint_count;
+  ulonglong m_rollback_to_savepoint_count;
+  ulonglong m_release_savepoint_count;
+
+  /** Build a row from a memory buffer. */
+  inline void set(time_normalizer *normalizer, const PFS_transaction_stat *stat)
+  {
+    /* Combine read write/read only stats */
+    PFS_single_stat all;
+    all.aggregate(&stat->m_read_only_stat);
+    all.aggregate(&stat->m_read_write_stat);
+
+    m_timer1_row.set(normalizer, &all);
+    m_read_write_row.set(normalizer, &stat->m_read_write_stat);
+    m_read_only_row.set(normalizer, &stat->m_read_only_stat);
+  }
+
+  /** Set a table field from the row. */
+  void set_field(uint index, Field *f);
+};
+
 /** Row fragment for connection statistics. */
 struct PFS_connection_stat_row
 {
@@ -487,6 +550,8 @@ void set_field_lock_type(Field *f, PFS_TL_LOCK_TYPE lock_type);
 void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type);
 void set_field_mdl_duration(Field *f, opaque_mdl_duration mdl_duration);
 void set_field_mdl_status(Field *f, opaque_mdl_status mdl_status);
+void set_field_isolation_level(Field *f, enum_isolation_level iso_level);
+void set_field_xa_state(Field *f, enum_xa_transaction_state xa_state);
 
 /** Row fragment for socket io statistics columns. */
 struct PFS_socket_io_stat_row

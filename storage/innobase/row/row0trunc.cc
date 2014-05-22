@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2013, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -31,7 +31,7 @@ Created 2013-04-12 Sunny Bains
 #include "dict0stats_bg.h"
 #include "lock0lock.h"
 #include "fts0fts.h"
-#include "srv0space.h"
+#include "fsp0sysspace.h"
 #include "srv0start.h"
 #include "row0trunc.h"
 #include "os0file.h"
@@ -115,7 +115,7 @@ public:
 	}
 
 private:
-	// Disably copying
+	// Disable copying
 	IndexIterator(const IndexIterator&);
 	IndexIterator& operator=(const IndexIterator&);
 
@@ -227,7 +227,7 @@ protected:
 	table_id_t		m_id;
 
 	/** Turn off logging. */
-	bool			m_noredo;
+	const bool		m_noredo;
 };
 
 /**
@@ -339,7 +339,7 @@ public:
 		os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
-			OS_LOG_FILE, &ret);
+			OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
 			return(DB_IO_ERROR);
 		}
@@ -409,14 +409,15 @@ public:
 		bool	ret;
 		os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
-			OS_FILE_OPEN, OS_FILE_READ_WRITE, &ret);
+			OS_FILE_OPEN, OS_FILE_READ_WRITE,
+			srv_read_only_mode, &ret);
 		DBUG_EXECUTE_IF("ib_err_trunc_writing_magic_number",
 				os_file_close(handle);
 				ret = false;);
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Failed to open truncate log file %s. "
-				"If server crashes before truncate log is"
+				"Failed to open truncate log file %s."
+				" If server crashes before truncate log is"
 				" removed make sure it is manually removed"
 				" before restarting server",
 				m_log_file_name);
@@ -584,7 +585,7 @@ TruncateLogParser::parse(
 	bool		ret;
 	os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
-		OS_FILE_OPEN, OS_FILE_READ_ONLY, &ret);
+		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Error opening truncate log file: %s",
@@ -710,10 +711,11 @@ public:
 	/**
 	Constructor
 
-	@param table	Table to truncate */
-	explicit DropIndex(dict_table_t* table)
+	@param[in/out]	table	Table to truncate
+	@param[in]	noredo	whether to disable redo logging */
+	DropIndex(dict_table_t* table, bool noredo)
 		:
-		Callback(table->id, false),
+		Callback(table->id, noredo),
 		m_table(table)
 	{
 		/* No op */
@@ -737,10 +739,11 @@ public:
 	/**
 	Constructor
 
-	@param table	Table to truncate */
-	explicit CreateIndex(dict_table_t* table)
+	@param[in/out]	table	Table to truncate
+	@param[in]	noredo	whether to disable redo logging */
+	CreateIndex(dict_table_t* table, bool noredo)
 		:
-		Callback(table->id, false),
+		Callback(table->id, noredo),
 		m_table(table)
 	{
 		/* No op */
@@ -848,7 +851,7 @@ TruncateLogger::operator()(mtr_t* mtr, btr_pcur_t* pcur)
 
 		} else {
 			ib_logf(IB_LOG_LEVEL_WARN,
-				"Index id "IB_ID_FMT " not found",
+				"Index id " IB_ID_FMT " not found",
 				index.m_id);
 		}
 	}
@@ -917,21 +920,23 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		The dict_drop_index_tree() call has freed
 		a page in this mini-transaction, and the rest
 		of this loop could latch another index page.*/
+		const mtr_log_t log_mode = mtr->get_log_mode();
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
+		mtr->set_log_mode(log_mode);
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 	} else {
-		ulint	zip_size;
-
 		/* Check if the .ibd file is missing. */
-		zip_size = fil_space_get_zip_size(m_table->space);
+		bool	found;
+
+		fil_space_get_page_size(m_table->space, &found);
 
 		DBUG_EXECUTE_IF("ib_err_trunc_drop_index",
-				zip_size = ULINT_UNDEFINED;);
+				found = false;);
 
-		if (zip_size == ULINT_UNDEFINED) {
+		if (!found) {
 			return(DB_ERROR);
 		}
 	}
@@ -1014,14 +1019,13 @@ CreateIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 
 	} else {
-		ulint	zip_size;
-
-		zip_size = fil_space_get_zip_size(m_table->space);
+		bool	found;
+		fil_space_get_page_size(m_table->space, &found);
 
 		DBUG_EXECUTE_IF("ib_err_trunc_create_index",
-				zip_size = ULINT_UNDEFINED;);
+				found = false;);
 
-		if (zip_size == ULINT_UNDEFINED) {
+		if (!found) {
 			return(DB_ERROR);
 		}
 	}
@@ -1053,17 +1057,19 @@ sequence works as expected.
 @param new_id			new table id that was suppose to get assigned
 				to the table if truncate executed successfully.
 @param has_internal_doc_id	indicate existence of fts index
+@param no_redo			if true, turn-off redo logging
 @param corrupted		table corrupted status
 @param unlock_index		if true then unlock indexes before action */
 static
 void
 row_truncate_rollback(
-	dict_table_t* table,
-	trx_t* trx,
-	table_id_t new_id,
-	bool has_internal_doc_id,
-	bool corrupted,
-	bool unlock_index)
+	dict_table_t*	table,
+	trx_t*		trx,
+	table_id_t	new_id,
+	bool		has_internal_doc_id,
+	bool		no_redo,
+	bool		corrupted,
+	bool		unlock_index)
 {
 	if (unlock_index) {
 		dict_table_x_unlock_indexes(table);
@@ -1082,7 +1088,7 @@ row_truncate_rollback(
 		it can be recovered using drop/create sequence. */
 		dict_table_x_lock_indexes(table);
 
-		DropIndex       dropIndex(table);
+		DropIndex       dropIndex(table, no_redo);
 
 		SysIndexIterator().for_each(dropIndex);
 
@@ -1148,6 +1154,12 @@ row_truncate_complete(
 	TruncateLogger*		&logger,
 	dberr_t			err)
 {
+        if (table->memcached_sync_count == DICT_TABLE_IN_DDL) {
+                /* We need to set the memcached sync back to 0, unblock
+                memcached operationse. */
+                table->memcached_sync_count = 0;
+        }
+
 	row_mysql_unlock_data_dictionary(trx);
 
 	DEBUG_SYNC_C("ib_trunc_table_trunc_completing");
@@ -1177,7 +1189,7 @@ row_truncate_complete(
 
 	if (!dict_table_is_temporary(table)
 	    && flags != ULINT_UNDEFINED
-	    && !Tablespace::is_system_tablespace(table->space)) {
+	    && !is_system_tablespace(table->space)) {
 
 		/* This function will reset back the stop_new_ops
 		and is_being_truncated so that fil-ops can re-start. */
@@ -1225,6 +1237,7 @@ row_truncate_fts(
 
 	fts_table.id = new_id;
 	fts_table.name = table->name;
+	fts_table.flags2 = table->flags2;
 
 	dberr_t		err;
 
@@ -1378,7 +1391,8 @@ SYSTEM TABLES with the new id.
 @param table,			table being truncated
 @param new_id,			new table id
 @param has_internal_doc_id,	has doc col (fts)
-@param trx)			transaction handle
+@param no_redo			if true, turn-off redo logging
+@param trx			transaction handle
 @return	error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -1386,6 +1400,7 @@ row_truncate_update_system_tables(
 	dict_table_t*	table,
 	table_id_t	new_id,
 	bool		has_internal_doc_id,
+	bool		no_redo,
 	trx_t*		trx)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -1401,16 +1416,16 @@ row_truncate_update_system_tables(
 
 		row_truncate_rollback(
 			table, trx, new_id, has_internal_doc_id,
-			true, false);
+			no_redo, true, false);
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 		innobase_format_name(
 			table_name, sizeof(table_name), table->name, FALSE);
 		ib_logf(IB_LOG_LEVEL_ERROR,
-			"Unable to assign a new identifier to table %s "
-			"after truncating it. Marked the table as corrupted. "
-			"In-memory representation is now different from the "
-			"on-disk representation.", table_name);
+			"Unable to assign a new identifier to table %s"
+			" after truncating it. Marked the table as corrupted."
+			" In-memory representation is now different from the"
+			" on-disk representation.", table_name);
 		err = DB_ERROR;
 	} else {
 		/* Drop the old FTS index */
@@ -1451,7 +1466,7 @@ dberr_t
 row_truncate_prepare(dict_table_t* table, ulint* flags)
 {
 	ut_ad(!dict_table_is_temporary(table));
-	ut_ad(!Tablespace::is_system_tablespace(table->space));
+	ut_ad(!is_system_tablespace(table->space));
 
 	*flags = fil_space_get_flags(table->space);
 
@@ -1533,8 +1548,8 @@ row_truncate_foreign_key_checks(
 			table_name, sizeof(table_name), table->name, FALSE);
 
 		ib_logf(IB_LOG_LEVEL_WARN,
-			"Cannot truncate table %s because there is a "
-			"foreign key check running on it.", table_name);
+			"Cannot truncate table %s because there is a"
+			" foreign key check running on it.", table_name);
 
 		return(DB_ERROR);
 	}
@@ -1554,10 +1569,10 @@ row_truncate_sanity_checks(
 	if (srv_sys_space.created_new_raw()) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"A new raw disk partition was initialized: "
-			"we do not allow database modifications by the "
-			"user. Shut down mysqld and edit my.cnf so that "
-			"newraw is replaced with raw.");
+			"A new raw disk partition was initialized:"
+			" we do not allow database modifications by the"
+			" user. Shut down mysqld and edit my.cnf so that"
+			" newraw is replaced with raw.");
 
 		return(DB_ERROR);
 
@@ -1568,6 +1583,10 @@ row_truncate_sanity_checks(
 	} else if (table->ibd_file_missing) {
 
 		return(DB_TABLESPACE_NOT_FOUND);
+
+	} else if (dict_table_is_corrupted(table)) {
+
+		return(DB_TABLE_CORRUPT);
 	}
 
 	return(DB_SUCCESS);
@@ -1712,6 +1731,23 @@ row_truncate_table_for_mysql(
 		return(row_truncate_complete(table, trx, flags, logger, err));
 	}
 
+	/* Check if memcached DML is running on this table. if is, we don't
+	allow truncate this table. */
+	if (table->memcached_sync_count != 0) {
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Cannot truncate table %s by DROP+CREATE"
+			" because there are memcached operations"
+			" running on it.",
+			ut_get_name(trx, TRUE, table->name).c_str());
+		err = DB_ERROR;
+		trx_rollback_to_savepoint(trx, NULL);
+		return(row_truncate_complete(table, trx, flags, logger, err));
+	} else {
+                /* We need to set this counter to -1 for blocking
+                memcached operations. */
+		table->memcached_sync_count = DICT_TABLE_IN_DDL;
+        }
+
 	/* Remove all locks except the table-level X lock. */
 	lock_remove_all_on_table(table, FALSE);
 	trx->table_id = table->id;
@@ -1754,6 +1790,9 @@ row_truncate_table_for_mysql(
 		dict_table_has_fts_index(table)
 		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
+	bool	no_redo =
+		(!is_system_tablespace(table->space) && !has_internal_doc_id);
+
 	/* Step-8: Log information about tablespace which includes
 	table and index information. If there is a crash in the next step
 	then during recovery we will attempt to fixup the operation. */
@@ -1768,7 +1807,7 @@ row_truncate_table_for_mysql(
 
 	if (!dict_table_is_temporary(table) && !has_internal_doc_id) {
 
-		if (!Tablespace::is_system_tablespace(table->space)) {
+		if (!is_system_tablespace(table->space)) {
 
 			err = row_truncate_prepare(table, &flags);
 
@@ -1778,7 +1817,7 @@ row_truncate_table_for_mysql(
 			if (err != DB_SUCCESS) {
 				row_truncate_rollback(
 					table, trx, new_id, has_internal_doc_id,
-					false, true);
+					no_redo, false, true);
 				return(row_truncate_complete(
 					table, trx, flags, logger, err));
 			}
@@ -1791,7 +1830,7 @@ row_truncate_table_for_mysql(
 			if (flags == ULINT_UNDEFINED) {
 				row_truncate_rollback(
 					table, trx, new_id, has_internal_doc_id,
-					false, true);
+					no_redo, false, true);
 				return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 			}
@@ -1803,7 +1842,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				false, true);
+				no_redo, false, true);
 			return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 
@@ -1813,7 +1852,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				false, true);
+				no_redo, false, true);
 			return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 
@@ -1826,7 +1865,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				false, true);
+				no_redo, false, true);
 			return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 		}
@@ -1841,7 +1880,7 @@ row_truncate_table_for_mysql(
 	indexes) */
 	if (!dict_table_is_temporary(table)) {
 
-		DropIndex	dropIndex(table);
+		DropIndex	dropIndex(table, no_redo);
 
 		err = SysIndexIterator().for_each(dropIndex);
 
@@ -1849,7 +1888,7 @@ row_truncate_table_for_mysql(
 
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				true, true);
+				no_redo, true, true);
 
 			return(row_truncate_complete(
 				table, trx, flags, logger, err));
@@ -1866,7 +1905,7 @@ row_truncate_table_for_mysql(
 			if (err != DB_SUCCESS) {
 				row_truncate_rollback(
 					table, trx, new_id, has_internal_doc_id,
-					true, true);
+					no_redo, true, true);
 				return(row_truncate_complete(
 					table, trx, flags, logger, err));
 			}
@@ -1879,7 +1918,7 @@ row_truncate_table_for_mysql(
 		}
 	}
 
-	if (!Tablespace::is_system_tablespace(table->space)
+	if (!is_system_tablespace(table->space)
 	    && !dict_table_is_temporary(table)
 	    && flags != ULINT_UNDEFINED) {
 
@@ -1903,7 +1942,7 @@ row_truncate_table_for_mysql(
 	/* Step-10: Re-create new indexes. */
 	if (!dict_table_is_temporary(table)) {
 
-		CreateIndex	createIndex(table);
+		CreateIndex	createIndex(table, no_redo);
 
 		err = SysIndexIterator().for_each(createIndex);
 
@@ -1911,7 +1950,7 @@ row_truncate_table_for_mysql(
 
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				true, true);
+				no_redo, true, true);
 
 			return(row_truncate_complete(
 				table, trx, flags, logger, err));
@@ -1930,7 +1969,7 @@ row_truncate_table_for_mysql(
 
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				true, false);
+				no_redo, true, false);
 
 			return(row_truncate_complete(
 				table, trx, flags, logger, err));
@@ -1953,7 +1992,7 @@ row_truncate_table_for_mysql(
 		ut_ad(old_space == table->space);
 
 		err = row_truncate_update_system_tables(
-			table, new_id, has_internal_doc_id, trx);
+			table, new_id, has_internal_doc_id, no_redo, trx);
 
 		if (err != DB_SUCCESS) {
 			return(row_truncate_complete(
@@ -2001,12 +2040,12 @@ truncate_t::fixup_tables()
 		drop indexes and re-create indexes. */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Completing truncate for table with id (%llu)"
+			"Completing truncate for table with id (" IB_ID_FMT ")"
 			" residing in space with id (%lu)",
-			(ullint) (*it)->m_old_table_id,
+			(*it)->m_old_table_id,
 			(ulong) (*it)->m_space_id);
 
-		if (!Tablespace::is_system_tablespace((*it)->m_space_id)) {
+		if (!is_system_tablespace((*it)->m_space_id)) {
 
 			if (!fil_tablespace_exists_in_mem((*it)->m_space_id)) {
 
@@ -2046,7 +2085,7 @@ truncate_t::fixup_tables()
 				(*it)->m_tablename,
 				**it, log_get_lsn());
 
-		} else if (Tablespace::is_system_tablespace(
+		} else if (is_system_tablespace(
 				(*it)->m_space_id)) {
 
 			/* Only tables residing in ibdata1 are truncated.
@@ -2460,42 +2499,42 @@ truncate_t::index_t::set(
 	return(DB_SUCCESS);
 }
 
-/**
-Create an index for a table.
-
-@param table_name		table name, for which to create the index
-@param space_id			space id where we have to create the index
-@param zip_size			page size of the .ibd file
-@param index_type		type of index to truncate
-@param index_id			id of index to truncate
-@param btr_redo_create_info	control info for ::btr_create()
-@param mtr			mini-transaction covering the create index
+/** Create an index for a table.
+@param[in]	table_name		table name, for which to create
+the index
+@param[in]	space_id		space id where we have to
+create the index
+@param[in]	page_size		page size of the .ibd file
+@param[in]	index_type		type of index to truncate
+@param[in]	index_id		id of index to truncate
+@param[in]	btr_redo_create_info	control info for ::btr_create()
+@param[in,out]	mtr			mini-transaction covering the
+create index
 @return root page no or FIL_NULL on failure */
-
 ulint
 truncate_t::create_index(
-	const char*	table_name,
-	ulint		space_id,
-	ulint		zip_size,
-	ulint		index_type,
-	index_id_t	index_id,
-	btr_create_t&	btr_redo_create_info,
-	mtr_t*		mtr) const
+	const char*		table_name,
+	ulint			space_id,
+	const page_size_t&	page_size,
+	ulint			index_type,
+	index_id_t		index_id,
+	const btr_create_t&	btr_redo_create_info,
+	mtr_t*			mtr) const
 {
 	ulint	root_page_no = btr_create(
-		index_type, space_id, zip_size, index_id,
+		index_type, space_id, page_size, index_id,
 		NULL, &btr_redo_create_info, mtr);
 
 	if (root_page_no == FIL_NULL) {
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"innodb_force_recovery was set to %lu. "
-			"Continuing crash recovery even though "
-			"we failed to create index %llu for "
-			"compressed table '%s' with tablespace "
-			"%lu during recovery",
+			"innodb_force_recovery was set to %lu."
+			" Continuing crash recovery even though"
+			" we failed to create index " IB_ID_FMT " for"
+			" compressed table '%s' with tablespace"
+			" %lu during recovery",
 			srv_force_recovery,
-			(ullint) index_id, table_name, (ulong) space_id);
+			index_id, table_name, (ulong) space_id);
 	}
 
 	return(root_page_no);
@@ -2512,14 +2551,19 @@ truncate_t::is_index_modified_since_logged(
 	ulint		space_id,
 	ulint		root_page_no) const
 {
-	mtr_t	mtr;
-	ulint   zip_size = fil_space_get_zip_size(space_id);
+	mtr_t			mtr;
+	bool			found;
+	const page_size_t&	page_size = fil_space_get_page_size(space_id,
+								    &found);
+
+	ut_ad(found);
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 
 	page_t* root = btr_page_get(
-		space_id, zip_size, root_page_no, RW_X_LATCH, NULL, &mtr);
+		page_id_t(space_id, root_page_no), page_size,
+		RW_X_LATCH, NULL, &mtr);
 
 	lsn_t page_lsn = mach_read_from_8(root + FIL_PAGE_LSN);
 
@@ -2549,7 +2593,12 @@ truncate_t::drop_indexes(
 	     ++it) {
 
 		root_page_no = it->m_root_page_no;
-		ulint   zip_size = fil_space_get_zip_size(space_id);
+
+		bool			found;
+		const page_size_t&	page_size
+			= fil_space_get_page_size(space_id, &found);
+
+		ut_ad(found);
 
 		if (is_index_modified_since_logged(
 			space_id, root_page_no)) {
@@ -2558,27 +2607,30 @@ truncate_t::drop_indexes(
 			continue;
 		}
 
-		if (fil_index_tree_is_freed(space_id, root_page_no, zip_size)) {
+		if (fil_index_tree_is_freed(space_id, root_page_no,
+					    page_size)) {
 			continue;
 		}
 
 		mtr_start(&mtr);
 
-		/* Don't log the operation while fixing up table truncate
-		operation as crash at this level can still be sustained with
-		recovery restarting from last checkpoint. */
-		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		if (space_id != TRX_SYS_SPACE) {
+			/* Do not log changes for single-table
+			tablespaces, we are in recovery mode. */
+			mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+		}
 
-		if (root_page_no != FIL_NULL && zip_size != ULINT_UNDEFINED) {
+		if (root_page_no != FIL_NULL) {
+
+			const page_id_t	root_page_id(space_id, root_page_no);
 
 			/* We free all the pages but the root page first;
 			this operation may span several mini-transactions */
-			btr_free_but_not_root(
-				space_id, zip_size, root_page_no,
-				MTR_LOG_NO_REDO);
+			btr_free_but_not_root(root_page_id, page_size,
+					      mtr.get_log_mode());
 
 			/* Then we free the root page. */
-			btr_free_root(space_id, zip_size, root_page_no, &mtr);
+			btr_free_root(root_page_id, page_size, &mtr);
 		}
 
 		/* If tree is already freed then we might return immediately
@@ -2590,19 +2642,17 @@ truncate_t::drop_indexes(
 
 
 /** Create the indexes for a table
-
-@param table_name	table name, for which to create the indexes
-@param space_id		space id where we have to create the indexes
-@param zip_size		page size of the .ibd file
-@param flags		tablespace flags
-@param format_flags	page format flags
+@param[in]	table_name	table name, for which to create the indexes
+@param[in]	space_id	space id where we have to create the indexes
+@param[in]	page_size	page size of the .ibd file
+@param[in]	flags		tablespace flags
+@param[in]	format_flags	page format flags
 @return DB_SUCCESS or error code. */
-
 dberr_t
 truncate_t::create_indexes(
 	const char*		table_name,
 	ulint			space_id,
-	ulint			zip_size,
+	const page_size_t&	page_size,
 	ulint			flags,
 	ulint			format_flags)
 {
@@ -2610,8 +2660,11 @@ truncate_t::create_indexes(
 
 	mtr_start(&mtr);
 
-	/* Don't log changes, we are in recoery mode. */
-	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	if (space_id != TRX_SYS_SPACE) {
+		/* Do not log changes for single-table tablespaces, we
+		are in recovery mode. */
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	}
 
 	/* Create all new index trees with table format, index ids, index
 	types, number of index fields and index field information taken
@@ -2637,7 +2690,7 @@ truncate_t::create_indexes(
 		}
 
 		root_page_no = create_index(
-			table_name, space_id, zip_size, it->m_type, it->m_id,
+			table_name, space_id, page_size, it->m_type, it->m_id,
 			btr_redo_create_info, &mtr);
 
 		if (root_page_no == FIL_NULL) {

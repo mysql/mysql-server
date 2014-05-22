@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,7 +109,6 @@ static char my_defaults_file_buffer[FN_REFLEN];
 static char my_defaults_extra_file_buffer[FN_REFLEN];
 
 static char my_login_file[FN_REFLEN];
-static char my_key[LOGIN_KEY_LEN];
 
 static my_bool defaults_already_read= FALSE;
 
@@ -159,7 +158,6 @@ static int search_default_file_with_ext(Process_option_func func,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
-static int check_file_permissions(const char *file_name);
 
 
 /**
@@ -1153,6 +1151,7 @@ static char *remove_end_comment(char *ptr)
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
 {
   uchar cipher[4096], len_buf[MAX_CIPHER_STORE_LEN];
+  static unsigned char my_key[LOGIN_KEY_LEN];
   int length= 0, cipher_len= 0;
 
   if (is_login_file)
@@ -1161,7 +1160,7 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
     {
       /* Move past unused bytes. */
       mysql_file_fseek(file, 4, SEEK_SET, MYF(MY_WME));
-      if (mysql_file_fread(file, (uchar *) my_key, LOGIN_KEY_LEN,
+      if (mysql_file_fread(file, my_key, LOGIN_KEY_LEN,
                            MYF(MY_WME)) != LOGIN_KEY_LEN)
         return 0;
     }
@@ -1177,8 +1176,8 @@ static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file)
       return 0;
 
     mysql_file_fread(file, cipher, cipher_len, MYF(MY_WME));
-    if ((length= my_aes_decrypt((const char *) cipher, cipher_len, str,
-                                my_key, LOGIN_KEY_LEN)) < 0)
+    if ((length= my_aes_decrypt(cipher, cipher_len, (unsigned char *) str,
+                                my_key, LOGIN_KEY_LEN, my_aes_128_ecb, NULL)) < 0)
     {
       /* Attempt to decrypt failed. */
       return 0;
@@ -1468,7 +1467,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
            1 - Failed to stat.
            2 - Success.
 */
-static int check_file_permissions(const char *file_name)
+int check_file_permissions(const char *file_name)
 {
 #if !defined(_WIN32)
   MY_STAT stat_info;

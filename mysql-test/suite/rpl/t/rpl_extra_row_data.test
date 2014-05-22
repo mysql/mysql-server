@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 --source include/master-slave.inc
 --source include/have_debug.inc
 --source include/have_binlog_format_row.inc
@@ -54,7 +49,7 @@ DELETE FROM t1 WHERE a > 390;
 #--exec $MYSQL_BINLOG --verbose $MYSQLD_DATADIR/master-bin.000001
 
 --echo **** On Slave ****
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 connection slave;
 
 --echo Check row count and that slave is running ok
@@ -63,5 +58,5 @@ source include/check_slave_is_running.inc;
 
 connection master;
 DROP TABLE t1;
---sync_slave_with_master
+--source include/sync_slave_sql_with_master.inc
 --source include/rpl_end.inc

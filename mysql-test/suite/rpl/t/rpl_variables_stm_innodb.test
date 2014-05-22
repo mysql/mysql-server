@@ -1,0 +1,7 @@
+--source include/have_innodb.inc
+
+# Separated testcases for MyISAM and InnoDB because
+# result file differs for autoincrement values.
+
+--let $DEFAULT_ENGINE = INNODB
+--source extra/rpl_tests/rpl_variables_stm.test

@@ -97,8 +97,8 @@ public:
 
 static bool reconstruct_definer_clause(MEM_ROOT *mem_root,
                                        const LEX_USER *lex_definer,
-                                       LEX_STRING *definer_user,
-                                       LEX_STRING *definer_host,
+                                       LEX_CSTRING *definer_user,
+                                       LEX_CSTRING *definer_host,
                                        LEX_STRING *definer)
 {
   if (lex_definer)
@@ -120,8 +120,8 @@ static bool reconstruct_definer_clause(MEM_ROOT *mem_root,
 
   /* non-SUID trigger. */
 
-  *definer_user= NULL_STR;
-  *definer_host= NULL_STR;
+  *definer_user= NULL_CSTR;
+  *definer_host= NULL_CSTR;
   *definer= EMPTY_STR;
 
   return false;
@@ -187,14 +187,14 @@ static bool reconstruct_create_trigger_statement(THD *thd,
     new MySQL versions).
   */
 
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
+  LEX_CSTRING definer_user;
+  LEX_CSTRING definer_host;
 
   if (reconstruct_definer_clause(mem_root, lex->definer,
                                  &definer_user, &definer_host, definer))
     return true;
 
-  append_definer(thd, dd_query, &definer_user, &definer_host);
+  append_definer(thd, dd_query, definer_user, definer_host);
 
   if (binlog_query->append(*dd_query))
     return true; //OOM
@@ -520,7 +520,9 @@ bool Trigger::parse(THD *thd)
   sp_rcontext *sp_runtime_ctx_saved= thd->sp_runtime_ctx;
   thd->sp_runtime_ctx= NULL;
 
+  sql_digest_state *digest_saved= thd->m_digest;
   PSI_statement_locker *statement_locker_saved= thd->m_statement_psi;
+  thd->m_digest= NULL;
   thd->m_statement_psi= NULL;
 
   Trigger_creation_ctx *creation_ctx=
@@ -533,6 +535,7 @@ bool Trigger::parse(THD *thd)
 
   bool parse_error= parse_sql(thd, &parser_state, creation_ctx);
 
+  thd->m_digest= digest_saved;
   thd->m_statement_psi= statement_locker_saved;
   thd->sp_runtime_ctx= sp_runtime_ctx_saved;
   thd->variables.sql_mode= sql_mode_saved;

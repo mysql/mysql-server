@@ -1,4 +1,5 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.  #
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
+#
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
 # the Free Software Foundation; version 2 of the License.
@@ -53,10 +54,10 @@ NDB_CHECK_MYSQL_CLUSTER(${VERSION})
 # Temporarily remove -Werror from compiler flags until
 # storage/ndb/ can be built with it
 IF(CMAKE_C_FLAGS)
-  STRING(REPLACE "-Werror" "" CMAKE_C_FLAGS ${CMAKE_C_FLAGS})
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
 ENDIF()
 IF(CMAKE_CXX_FLAGS)
-  STRING(REPLACE "-Werror" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
+  STRING(REGEX REPLACE "-Werror( |$)" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 ENDIF()
 
 # Disable specific types of warnings for storage/ndb
@@ -64,10 +65,11 @@ ENDIF()
 IF(CMAKE_COMPILER_IS_GNUCXX)
   INCLUDE(CheckCXXCompilerFlag)
   FOREACH(warning "unused-but-set-variable" "strict-aliasing")
-    UNSET(flag_supported CACHE)
-    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" flag_supported)
-    IF(flag_supported)
-      MESSAGE(STATUS "Disabling -W${warning} warning")
+    STRING(REPLACE "-" "_" warning_ ${warning})
+    STRING(TOUPPER ${warning_} WARNING)
+    CHECK_CXX_COMPILER_FLAG("-Wno-${warning}" HAVE_${WARNING})
+    IF(HAVE_${WARNING})
+      MESSAGE(STATUS "Disabling -W${warning} warning for building NDB")
       SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wno-${warning}")
       SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Wno-${warning}")
     ENDIF()
@@ -132,9 +134,11 @@ IF(WITH_NDB_DEFAULT_PLUGIN_DETECT)
   ENDIF()
 ENDIF()
 
-MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-  ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-  LINK_LIBRARIES ndbclient_static)
+IF(NOT WITHOUT_SERVER)
+  MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
+    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    LINK_LIBRARIES ndbclient_static)
+ENDIF()
 
 #
 # Build NDB only if MYSQL_ADD_PLUGIN has decided(by looking at various
@@ -148,7 +152,9 @@ ENDIF()
 # Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
 # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
 # is compiled without this define)
-NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
+IF(NOT WITHOUT_SERVER)
+  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
+ENDIF()
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")

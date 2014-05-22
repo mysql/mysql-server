@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -32,303 +32,118 @@ Created 5/11/1994 Heikki Tuuri
 #ifndef UNIV_HOTBACKUP
 # include "os0thread.h"
 # include "srv0srv.h"
-
-#include <stdlib.h>
-
-/** The total amount of memory currently allocated from the operating
-system with os_mem_alloc_large() or malloc().  Does not count malloc()
-if srv_use_sys_malloc is set.  Protected by ut_list_mutex. */
-ulint		ut_total_allocated_memory	= 0;
-
-/** Mutex protecting ut_total_allocated_memory and ut_mem_block_list */
-SysMutex		ut_list_mutex;
-
-/** Dynamically allocated memory block */
-struct ut_mem_block_t{
-	UT_LIST_NODE_T(ut_mem_block_t) mem_block_list;
-			/*!< mem block list node */
-	ulint	size;	/*!< size of allocated memory */
-	ulint	magic_n;/*!< magic number (UT_MEM_MAGIC_N) */
-};
-
-/** The value of ut_mem_block_t::magic_n.  Used in detecting
-memory corruption. */
-#define UT_MEM_MAGIC_N	1601650166
-
-/** List of all memory blocks allocated from the operating system
-with malloc.  Protected by ut_list_mutex. */
-static UT_LIST_BASE_NODE_T(ut_mem_block_t)   ut_mem_block_list;
-
-/** Flag: has ut_mem_block_list been initialized? */
-static bool  ut_mem_block_list_inited = false;
-
-/**********************************************************************//**
-Initializes the mem block list at database startup. */
-
-void
-ut_mem_init(void)
-/*=============*/
-{
-	ut_a(!ut_mem_block_list_inited);
-	mutex_create("ut_list_mutex", &ut_list_mutex);
-
-	UT_LIST_INIT(ut_mem_block_list, &ut_mem_block_t::mem_block_list);
-
-	ut_mem_block_list_inited = true;
-}
+# include <stdlib.h>
 #endif /* !UNIV_HOTBACKUP */
 
+const char*	OUT_OF_MEMORY_MSG =
+	"Check if you should increase the swap file or ulimits of your"
+	" operating system.  On FreeBSD check that you have compiled the OS"
+	" with a big enough maximum process size.  Note that on most 32-bit"
+	" computers the process memory space is limited to 2 GB or 4 GB.";
+
+/** The number of attempts to make when trying to allcate memory, pausing
+for 1 second between attempts to allow some memory to be freed. */
+static const int	max_attempts = 60;
+
 /** Allocate memory.
-@param[in]	n number of bytes to allocate
-@return		allocated memory block */
+@param[in]	size	number of bytes to allocate
+@return allocated memory block */
 
 void*
 ut_malloc(
-	ulint	n)
+	ulint	size)
 {
-#ifndef UNIV_HOTBACKUP
-	ulint	retry_count;
-	void*	ret;
+	void*	ptr = malloc(size);
 
-	if (UNIV_LIKELY(srv_use_sys_malloc)) {
-		ret = malloc(n);
-		ut_a(ret);
-
-		return(ret);
-	}
-
-	/* check alignment ok */
-	ut_ad((sizeof(ut_mem_block_t) % 8) == 0);
-	ut_a(ut_mem_block_list_inited);
-
-	retry_count = 0;
-retry:
-	mutex_enter(&ut_list_mutex);
-
-	ret = malloc(n + sizeof(ut_mem_block_t));
-
-	if (ret == NULL && retry_count < 60) {
-		if (retry_count == 0) {
-			ut_print_timestamp(stderr);
-
-			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot allocate %lu bytes of memory with "
-				"malloc! Total allocated memory by InnoDB "
-				"is %lu bytes. Operating system errno: %lu "
-				"Check if you should increase the swap file "
-				"or ulimits of your operating system. "
-				"On FreeBSD check that you have compiled the "
-				"OS with a big enough maximum process size. "
-				"Note that on most 32-bit computers the "
-				"process memory space is limited to 2 GB "
-				"or 4 GB. We keep retrying the allocation "
-				"for 60 seconds...",
-				(ulong) n,
-				(ulong) ut_total_allocated_memory,
-#ifdef _WIN32
-				(ulong) GetLastError()
-#else
-				(ulong) errno
-#endif /* _WIN32 */
-				);
+	for (int retry = 1; ; retry++) {
+		if (ptr != NULL) {
+			return(ptr);
+		}
+		if (retry > max_attempts) {
+			break;
 		}
 
-		mutex_exit(&ut_list_mutex);
-
-		/* Sleep for a second and retry the allocation; maybe this is
-		just a temporary shortage of memory */
+		/* Sleep for a second and retry the allocation;
+		maybe this is just a temporary shortage of memory */
 
 		os_thread_sleep(1000000);
 
-		retry_count++;
-
-		goto retry;
+		ptr = malloc(size);
 	}
 
-	ut_a(ret);
-	UNIV_MEM_ALLOC(ret, n + sizeof(ut_mem_block_t));
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Cannot allocate " ULINTPF " bytes of memory after %d"
+		" tries over %d seconds. OS error: %d-%s. %s",
+		size, max_attempts, max_attempts,
+		errno, strerror(errno), OUT_OF_MEMORY_MSG);
 
-	((ut_mem_block_t*) ret)->size = n + sizeof(ut_mem_block_t);
-	((ut_mem_block_t*) ret)->magic_n = UT_MEM_MAGIC_N;
-
-	ut_total_allocated_memory += n + sizeof(ut_mem_block_t);
-
-	UT_LIST_ADD_FIRST(ut_mem_block_list, ((ut_mem_block_t*) ret));
-	mutex_exit(&ut_list_mutex);
-
-	return((void*)((byte*) ret + sizeof(ut_mem_block_t)));
-#else /* !UNIV_HOTBACKUP */
-	void*	ret = malloc(n);
-	ut_a(ret || !assert_on_error);
-
-	return(ret);
-#endif /* !UNIV_HOTBACKUP */
+	return(NULL);
 }
 
 /** Allocate zero-filled memory.
 @param[in]	n number of bytes to allocate
-@return		zero-filled allocated memory block */
+@return zero-filled allocated memory block */
 
 void*
 ut_zalloc(
-	ulint	n)
+	ulint	size)
 {
-	return(memset(ut_malloc(n), 0, n));
+	return(memset(ut_malloc(size), 0, size));
 }
 
 /**********************************************************************//**
-Frees a memory block allocated with ut_malloc. Freeing a NULL pointer is
-a nop. */
+Frees a memory block allocated with ut_malloc.
+Freeing a NULL pointer is a no-op.
+@param[in,out]	mem	memory block, can be NULL */
 
 void
 ut_free(
-/*====*/
-	void* ptr)  /*!< in, own: memory block, can be NULL */
+	void* ptr)
 {
-#ifndef UNIV_HOTBACKUP
-	ut_mem_block_t* block;
-
-	if (ptr == NULL) {
-		return;
-	} else if (UNIV_LIKELY(srv_use_sys_malloc)) {
-		free(ptr);
-		return;
-	}
-
-	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
-
-	mutex_enter(&ut_list_mutex);
-
-	ut_a(block->magic_n == UT_MEM_MAGIC_N);
-	ut_a(ut_total_allocated_memory >= block->size);
-
-	ut_total_allocated_memory -= block->size;
-
-	UT_LIST_REMOVE(ut_mem_block_list, block);
-
-	free(block);
-
-	mutex_exit(&ut_list_mutex);
-
-#else /* !UNIV_HOTBACKUP */
 	free(ptr);
-#endif /* !UNIV_HOTBACKUP */
 }
 
 #ifndef UNIV_HOTBACKUP
-/**********************************************************************//**
-Implements realloc. This is needed by /pars/lexyy.cc. Otherwise, you should not
-use this function because the allocation functions in mem0mem.h are the
-recommended ones in InnoDB.
-
-man realloc in Linux, 2004:
-
-       realloc()  changes the size of the memory block pointed to
-       by ptr to size bytes.  The contents will be  unchanged  to
-       the minimum of the old and new sizes; newly allocated mem-
-       ory will be uninitialized.  If ptr is NULL,  the	 call  is
-       equivalent  to malloc(size); if size is equal to zero, the
-       call is equivalent to free(ptr).	 Unless ptr is	NULL,  it
-       must  have  been	 returned by an earlier call to malloc(),
-       calloc() or realloc().
-
-RETURN VALUE
-       realloc() returns a pointer to the newly allocated memory,
-       which is suitably aligned for any kind of variable and may
-       be different from ptr, or NULL if the  request  fails.  If
-       size  was equal to 0, either NULL or a pointer suitable to
-       be passed to free() is returned.	 If realloc()  fails  the
-       original	 block	is  left  untouched  - it is not freed or
-       moved.
-@return own: pointer to new mem block or NULL */
+/** Wrapper for realloc().
+@param[in,out]	ptr	pointer to old memory block or NULL
+@param[in]	size	desired size
+@return own: pointer to new memory block or NULL */
 
 void*
 ut_realloc(
-/*=======*/
-	void*	ptr,	/*!< in: pointer to old block or NULL */
-	ulint	size)	/*!< in: desired size */
+	void*	ptr,
+	ulint	size)
 {
-	ut_mem_block_t* block;
-	ulint		old_size;
-	ulint		min_size;
-	void*		new_ptr;
-
-	if (UNIV_LIKELY(srv_use_sys_malloc)) {
-		return(realloc(ptr, size));
-	}
-
-	if (ptr == NULL) {
-
-		return(ut_malloc(size));
-	}
-
 	if (size == 0) {
-		ut_free(ptr);
-
+		free(ptr);
 		return(NULL);
 	}
 
-	block = (ut_mem_block_t*)((byte*) ptr - sizeof(ut_mem_block_t));
+	void*	new_ptr = realloc(ptr, size);
 
-	ut_a(block->magic_n == UT_MEM_MAGIC_N);
+	for (int retry = 1; ; retry++) {
+		if (new_ptr != NULL) {
+			return(new_ptr);
+		}
+		if (retry > max_attempts) {
+			break;
+		}
 
-	old_size = block->size - sizeof(ut_mem_block_t);
+		/* Sleep for a second and retry the re-allocation;
+		maybe this is just a temporary shortage of memory */
 
-	if (size < old_size) {
-		min_size = size;
-	} else {
-		min_size = old_size;
+		os_thread_sleep(1000000);
+
+		new_ptr = realloc(ptr, size);
 	}
 
-	new_ptr = ut_malloc(size);
+	ib_logf(IB_LOG_LEVEL_FATAL,
+		"Cannot re-allocate " ULINTPF " bytes of memory after %d"
+		" tries over %d seconds. OS error: %d-%s. %s",
+		size, max_attempts, max_attempts,
+		errno, strerror(errno), OUT_OF_MEMORY_MSG);
 
-	if (new_ptr == NULL) {
-
-		return(NULL);
-	}
-
-	/* Copy the old data from ptr */
-	ut_memcpy(new_ptr, ptr, min_size);
-
-	ut_free(ptr);
-
-	return(new_ptr);
-}
-
-/**********************************************************************//**
-Frees in shutdown all allocated memory not freed yet. */
-
-void
-ut_free_all_mem(void)
-/*=================*/
-{
-	ut_mem_block_t* block;
-
-	ut_a(ut_mem_block_list_inited);
-
-	ut_mem_block_list_inited = false;
-
-	mutex_free(&ut_list_mutex);
-
-	while ((block = UT_LIST_GET_FIRST(ut_mem_block_list))) {
-
-		ut_a(block->magic_n == UT_MEM_MAGIC_N);
-		ut_a(ut_total_allocated_memory >= block->size);
-
-		ut_total_allocated_memory -= block->size;
-
-		UT_LIST_REMOVE(ut_mem_block_list, block);
-
-		::free(block);
-	}
-
-	if (ut_total_allocated_memory != 0) {
-		ib_logf(IB_LOG_LEVEL_WARN,
-			"after shutdown total allocated memory is %lu",
-			(ulong) ut_total_allocated_memory);
-	}
-
-	ut_mem_block_list_inited = false;
+	return(NULL);
 }
 #endif /* !UNIV_HOTBACKUP */
 

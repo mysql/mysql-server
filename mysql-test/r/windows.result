@@ -15,9 +15,11 @@ drop table t1;
 CREATE TABLE t1 (a int, b int);
 INSERT INTO t1 VALUES (1,1);
 EXPLAIN SELECT * FROM t1 WHERE b =  (SELECT max(2));
-id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
-2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE noticed after reading const tables
+2	SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `a`,'1' AS `b` from dual where 0
 DROP TABLE t1;
 CREATE DATABASE `TESTDB`;
 USE `TESTDB`;

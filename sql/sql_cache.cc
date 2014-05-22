@@ -439,6 +439,44 @@ struct Query_cache_wait_state
 
 
 /**
+   Construct the key used for cache lookup.
+   The key is query + NULL + current DB (if any) + cache flags
+   The key is allocated on THD's mem_root.
+
+   @param thd              Thread context
+   @param query            Query string
+   @param flags            Cache query flags
+   @param tot_length[out]  Length of the key
+
+   @return The constructed cache key or NULL if OOM
+*/
+
+static char *make_cache_key(THD *thd,
+                            const LEX_CSTRING &query,
+                            Query_cache_query_flags *flags,
+                            size_t *tot_length)
+{
+  *tot_length= query.length + 1 + thd->db_length + QUERY_CACHE_FLAGS_SIZE;
+  char *cache_key= static_cast<char*>(thd->alloc(*tot_length));
+  if (cache_key == NULL)
+    return NULL;
+
+  memcpy(cache_key, query.str, query.length);
+  cache_key[query.length]= '\0';
+  if (thd->db_length)
+    memcpy(cache_key + query.length + 1, thd->db, thd->db_length);
+
+  /*
+    We should only copy structure (don't use it location directly)
+    because of alignment issue
+  */
+  memcpy((void*) (cache_key + (*tot_length - QUERY_CACHE_FLAGS_SIZE)),
+         flags, QUERY_CACHE_FLAGS_SIZE);
+  return cache_key;
+}
+
+
+/**
   Serialize access to the query cache.
   If the lock cannot be granted the thread hangs in a conditional wait which
   is signalled on each unlock.
@@ -1188,7 +1226,6 @@ ulong Query_cache::set_min_res_unit(ulong size)
 void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 {
   TABLE_COUNTER_TYPE local_tables;
-  ulong tot_length;
   DBUG_ENTER("Query_cache::store_query");
   /*
     Testing 'query_cache_size' without a lock here is safe: the thing
@@ -1214,17 +1251,15 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
 
   uint8 tables_type= 0;
 
-  if ((local_tables= is_cacheable(thd, thd->query_length(),
-				  thd->query(), thd->lex, tables_used,
-				  &tables_type)))
+  if ((local_tables= is_cacheable(thd, thd->lex, tables_used, &tables_type)))
   {
     NET *net= &thd->net;
     Query_cache_query_flags flags;
     // fill all gaps between fields with 0 to get repeatable key
     memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
-    flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
-    flags.client_protocol_41= test(thd->client_capabilities &
-                                   CLIENT_PROTOCOL_41);
+    flags.client_long_flag= MY_TEST(thd->client_capabilities & CLIENT_LONG_FLAG);
+    flags.client_protocol_41= MY_TEST(thd->client_capabilities &
+                                      CLIENT_PROTOCOL_41);
     /*
       Protocol influences result format, so statement results in the binary
       protocol (COM_EXECUTE) cannot be served to statements asking for results
@@ -1233,10 +1268,10 @@ void Query_cache::store_query(THD *thd, TABLE_LIST *tables_used)
     flags.protocol_type= (unsigned int) thd->protocol->type();
     /* PROTOCOL_LOCAL results are not cached. */
     DBUG_ASSERT(flags.protocol_type != (unsigned int) Protocol::PROTOCOL_LOCAL);
-    flags.more_results_exists= test(thd->server_status &
-                                    SERVER_MORE_RESULTS_EXISTS);
+    flags.more_results_exists= MY_TEST(thd->server_status &
+                                       SERVER_MORE_RESULTS_EXISTS);
     flags.in_trans= thd->in_active_multi_stmt_transaction();
-    flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
+    flags.autocommit= MY_TEST(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
     flags.pkt_nr= net->pkt_nr;
     flags.character_set_client_num=
       thd->variables.character_set_client->number;
@@ -1311,35 +1346,23 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     }
 
     /* Key is query + database + flag */
-    if (thd->db_length)
+    size_t tot_length;
+    char *cache_key= make_cache_key(thd, thd->query(), &flags, &tot_length);
+    if (cache_key == NULL)
     {
-      memcpy(thd->query() + thd->query_length() + 1 + sizeof(size_t), 
-             thd->db, thd->db_length);
-      DBUG_PRINT("qcache", ("database: %s  length: %u",
-			    thd->db, (unsigned) thd->db_length)); 
+      unlock();
+      DBUG_VOID_RETURN;
     }
-    else
-    {
-      DBUG_PRINT("qcache", ("No active database"));
-    }
-    tot_length= thd->query_length() + thd->db_length + 1 +
-      sizeof(size_t) + QUERY_CACHE_FLAGS_SIZE;
-    /*
-      We should only copy structure (don't use it location directly)
-      because of alignment issue
-    */
-    memcpy((void*) (thd->query() + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
-	   &flags, QUERY_CACHE_FLAGS_SIZE);
 
     /* Check if another thread is processing the same query? */
     Query_cache_block *competitor = (Query_cache_block *)
-      my_hash_search(&queries, (uchar*) thd->query(), tot_length);
+      my_hash_search(&queries, (uchar*) cache_key, tot_length);
     DBUG_PRINT("qcache", ("competitor 0x%lx", (ulong) competitor));
     if (competitor == 0)
     {
       /* Query is not in cache and no one is working with it; Store it */
       Query_cache_block *query_block;
-      query_block= write_block_data(tot_length, (uchar*) thd->query(),
+      query_block= write_block_data(tot_length, (uchar*) cache_key,
 				    ALIGN_SIZE(sizeof(Query_cache_query)),
 				    Query_cache_block::QUERY, local_tables);
       if (query_block != 0)
@@ -1460,8 +1483,7 @@ send_data_in_chunks(NET *net, const uchar *packet, ulong len)
   to the user.
 
   @param thd Pointer to the thread handler
-  @param sql A pointer to the sql statement *
-  @param query_length Length of the statement in characters
+  @param sql A reference to the sql statement *
 
   @return status code
   @retval 0  Query was not cached.
@@ -1474,8 +1496,7 @@ send_data_in_chunks(NET *net, const uchar *packet, ulong len)
   tot_length= query_length + thd->db_length + 1 + QUERY_CACHE_FLAGS_SIZE;
 */
 
-int
-Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
+int Query_cache::send_result_to_client(THD *thd, const LEX_CSTRING &sql)
 {
   ulonglong engine_data;
   Query_cache_query *query;
@@ -1484,7 +1505,8 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 #endif
   Query_cache_block *result_block;
   Query_cache_block_table *block_table, *block_table_end;
-  ulong tot_length;
+  char *cache_key= NULL;
+  size_t tot_length;
   Query_cache_query_flags flags;
   DBUG_ENTER("Query_cache::send_result_to_client");
 
@@ -1506,7 +1528,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
     that is called when we are checking that query cache is allowed at
     this moment to operate on an InnoDB table.
   */
-  if (thd->transaction.xid_state.check_xa_idle_or_prepared(false))
+  if (thd->get_transaction()->xid_state()->check_xa_idle_or_prepared(false))
     goto err;
 
   if (!thd->lex->safe_to_cache_query)
@@ -1521,7 +1543,7 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       Skip '(' characters in queries like following:
       (select a from t1) union (select a from t1);
     */
-    while (sql[i]=='(')
+    while (sql.str[i]=='(')
       i++;
 
     /*
@@ -1532,48 +1554,25 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
       frequently appeared in real life, consequently we can
       check all such queries, too.
     */
-    if ((my_toupper(system_charset_info, sql[i])     != 'S' ||
-         my_toupper(system_charset_info, sql[i + 1]) != 'E' ||
-         my_toupper(system_charset_info, sql[i + 2]) != 'L') &&
-        sql[i] != '/')
+    if ((my_toupper(system_charset_info, sql.str[i])     != 'S' ||
+         my_toupper(system_charset_info, sql.str[i + 1]) != 'E' ||
+         my_toupper(system_charset_info, sql.str[i + 2]) != 'L') &&
+        sql.str[i] != '/')
     {
       DBUG_PRINT("qcache", ("The statement is not a SELECT; Not cached"));
       goto err;
     }
     
     DBUG_EXECUTE_IF("test_sql_no_cache",
-                    DBUG_ASSERT(has_no_cache_directive(sql, i+6,
-                                                       query_length)););
-    if (has_no_cache_directive(sql, i+6, query_length))
+                    DBUG_ASSERT(has_no_cache_directive(sql.str, i+6,
+                                                       sql.length)););
+    if (has_no_cache_directive(sql.str, i+6, sql.length))
     {
       /*
         We do not increase 'refused' statistics here since it will be done
         later when the query is parsed.
       */
       DBUG_PRINT("qcache", ("The statement has a SQL_NO_CACHE directive"));
-      goto err;
-    }
-  }
-  {
-    /*
-      We have allocated buffer space (in alloc_query) to hold the
-      SQL statement(s) + the current database name + a flags struct.
-      If the database name has changed during execution, which might
-      happen if there are multiple statements, we need to make
-      sure the new current database has a name with the same length
-      as the previous one.
-    */
-    size_t db_len;
-    memcpy((char *) &db_len, (sql + query_length + 1), sizeof(size_t));
-    if (thd->db_length != db_len)
-    {
-      /*
-        We should probably reallocate the buffer in this case,
-        but for now we just leave it uncached
-      */
-
-      DBUG_PRINT("qcache", 
-                 ("Current database has changed since start of query"));
       goto err;
     }
   }
@@ -1592,32 +1591,18 @@ Query_cache::send_result_to_client(THD *thd, char *sql, uint query_length)
 
   Query_cache_block *query_block;
 
-  tot_length= query_length + 1 + sizeof(size_t) + 
-              thd->db_length + QUERY_CACHE_FLAGS_SIZE;
-
-  if (thd->db_length)
-  {
-    memcpy(sql + query_length + 1 + sizeof(size_t), thd->db, thd->db_length);
-    DBUG_PRINT("qcache", ("database: '%s'  length: %u",
-			  thd->db, (unsigned)thd->db_length));
-  }
-  else
-  {
-    DBUG_PRINT("qcache", ("No active database"));
-  }
-
   THD_STAGE_INFO(thd, stage_checking_query_cache_for_query);
 
   // fill all gaps between fields with 0 to get repeatable key
   memset(&flags, 0, QUERY_CACHE_FLAGS_SIZE);
-  flags.client_long_flag= test(thd->client_capabilities & CLIENT_LONG_FLAG);
-  flags.client_protocol_41= test(thd->client_capabilities &
-                                 CLIENT_PROTOCOL_41);
+  flags.client_long_flag= MY_TEST(thd->client_capabilities & CLIENT_LONG_FLAG);
+  flags.client_protocol_41= MY_TEST(thd->client_capabilities &
+                                    CLIENT_PROTOCOL_41);
   flags.protocol_type= (unsigned int) thd->protocol->type();
-  flags.more_results_exists= test(thd->server_status &
-                                  SERVER_MORE_RESULTS_EXISTS);
+  flags.more_results_exists= MY_TEST(thd->server_status &
+                                     SERVER_MORE_RESULTS_EXISTS);
   flags.in_trans= thd->in_active_multi_stmt_transaction();
-  flags.autocommit= test(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
+  flags.autocommit= MY_TEST(thd->server_status & SERVER_STATUS_AUTOCOMMIT);
   flags.pkt_nr= thd->net.pkt_nr;
   flags.character_set_client_num= thd->variables.character_set_client->number;
   flags.character_set_results_num=
@@ -1655,9 +1640,13 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
                           flags.default_week_format,
                           (int)flags.in_trans,
                           (int)flags.autocommit));
-  memcpy((uchar *)(sql + (tot_length - QUERY_CACHE_FLAGS_SIZE)),
-	 (uchar*) &flags, QUERY_CACHE_FLAGS_SIZE);
-  query_block = (Query_cache_block *)  my_hash_search(&queries, (uchar*) sql,
+
+  cache_key= make_cache_key(thd, thd->query(), &flags, &tot_length);
+  if (cache_key == NULL)
+    goto err_unlock;
+
+  query_block = (Query_cache_block *)  my_hash_search(&queries,
+                                                      (uchar*) cache_key,
                                                       tot_length);
   /* Quick abort on unlocked data */
   if (query_block == 0 ||
@@ -1861,7 +1850,7 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
 
   {
     Opt_trace_start ots(thd, NULL, SQLCOM_SELECT, NULL,
-                        thd->query(), thd->query_length(), NULL,
+                        thd->query().str, thd->query().length, NULL,
                         thd->variables.character_set_client);
 
     Opt_trace_object (&thd->opt_trace)
@@ -1879,13 +1868,14 @@ def_week_frmt: %lu, in_trans: %d, autocommit: %d",
     thd->get_stmt_da()->disable_status();
 
   BLOCK_UNLOCK_RD(query_block);
-  MYSQL_QUERY_CACHE_HIT(thd->query(), (ulong) thd->limit_found_rows);
+  MYSQL_QUERY_CACHE_HIT(const_cast<char*>(thd->query().str),
+                        (ulong) thd->limit_found_rows);
   DBUG_RETURN(1);				// Result sent to client
 
 err_unlock:
   unlock();
 err:
-  MYSQL_QUERY_CACHE_MISS(thd->query());
+  MYSQL_QUERY_CACHE_MISS(const_cast<char*>(thd->query().str));
   DBUG_RETURN(0);				// Query was not cached
 }
 
@@ -2906,7 +2896,7 @@ void Query_cache::invalidate_table(THD *thd, TABLE_LIST *table_list)
   else
   {
     const char *key;
-    uint key_length;
+    size_t key_length;
     key_length= get_table_def_key(table_list, &key);
 
     // We don't store temporary tables => no key_length+=4 ...
@@ -3020,7 +3010,7 @@ Query_cache::register_tables_from_list(TABLE_LIST *tables_used,
     if (tables_used->view)
     {
       const char *key;
-      uint key_length;
+      size_t key_length;
       DBUG_PRINT("qcache", ("view: %s  db: %s",
                             tables_used->view_name.str,
                             tables_used->view_db.str));
@@ -3119,7 +3109,7 @@ my_bool Query_cache::register_all_tables(Query_cache_block *block,
 	 tmp++)
       unlink_table(tmp);
   }
-  return test(n);
+  return MY_TEST(n);
 }
 
 
@@ -3766,8 +3756,7 @@ Query_cache::process_and_count_tables(THD *thd, TABLE_LIST *tables_used,
 */
 
 TABLE_COUNTER_TYPE
-Query_cache::is_cacheable(THD *thd, size_t query_len, const char *query,
-                          LEX *lex,
+Query_cache::is_cacheable(THD *thd, LEX *lex,
                           TABLE_LIST *tables_used, uint8 *tables_type)
 {
   TABLE_COUNTER_TYPE table_count;

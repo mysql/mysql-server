@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -259,6 +259,9 @@ my_bool my_thread_init(void)
   struct st_my_thread_var *tmp;
   my_bool error=0;
 
+  if (!my_thread_global_init_done)
+    return 1; /* cannot proceed with unintialized library */
+
 #ifdef EXTRA_DEBUG_THREADS
   my_message_local(INFORMATION_LEVEL, "my_thread_init(): thread_id: 0x%lx",
                    (ulong) pthread_self());
@@ -442,20 +445,16 @@ extern void **my_thread_var_dbug()
   EXCEPTION_BREAKPOINT and then handle_segfault will do its magic.
 */
 
-#if (_MSC_VER >= 1400)
 static void my_sigabrt_handler(int sig)
 {
   __debugbreak();
 }
-#endif /*_MSC_VER >=1400 */
 
 static void install_sigabrt_handler(void)
 {
-#if (_MSC_VER >=1400)
   /*abort() should not override our exception filter*/
   _set_abort_behavior(0,_CALL_REPORTFAULT);
   signal(SIGABRT,my_sigabrt_handler);
-#endif /* _MSC_VER >=1400 */
 }
 #endif
 

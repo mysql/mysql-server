@@ -1,4 +1,4 @@
-# Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -41,7 +41,7 @@ MACRO(CHECK_DTRACE)
  ENDIF()
  SET(HAVE_DTRACE ${ENABLE_DTRACE})
  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
-   IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
+   IF(SIZEOF_VOIDP EQUAL 4)
      SET(DTRACE_FLAGS -32 CACHE INTERNAL "DTrace architecture flags")
    ELSE()
      SET(DTRACE_FLAGS -64 CACHE INTERNAL "DTrace architecture flags")
@@ -110,12 +110,16 @@ FUNCTION(DTRACE_INSTRUMENT target)
         WORKING_DIRECTORY ${objdir}
       )
     ELSEIF(CMAKE_SYSTEM_NAME MATCHES "Linux")
+      # dtrace on Linux runs gcc and uses flags from environment
+      SET(CFLAGS_SAVED $ENV{CFLAGS})
+      SET(ENV{CFLAGS} ${CMAKE_C_FLAGS})
       SET(outfile "${CMAKE_BINARY_DIR}/probes_mysql.o")
       # Systemtap object
       EXECUTE_PROCESS(
         COMMAND ${DTRACE} -G -s ${CMAKE_SOURCE_DIR}/include/probes_mysql.d.base
         -o ${outfile}
         )
+      SET(ENV{CFLAGS} ${CFLAGS_SAVED})
     ENDIF()
 
     # Do not try to extend the library if we have not built the .o file

@@ -14,6 +14,7 @@ dummy2	localhost
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 COUNT(*)
 3
+include/sync_slave_sql_with_master.inc
 **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 user	host
@@ -34,6 +35,7 @@ user	host
 SELECT COUNT(*) FROM mysql.user WHERE user like 'dummy%';
 COUNT(*)
 0
+include/sync_slave_sql_with_master.inc
 **** On Slave ****
 SELECT user,host FROM mysql.user WHERE user like 'dummy%';
 user	host
@@ -63,11 +65,13 @@ call mtr.add_suppression("Slave SQL.*The incident LOST_EVENTS occured on the mas
 include/wait_for_slave_sql_error.inc [errno=1590]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the master for user: b54866_user ******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO 'b54866_user'@'localhost'
 *************************************************************
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -84,6 +88,7 @@ Grants for b54866_user@localhost
 GRANT USAGE ON *.* TO 'b54866_user'@'localhost'
 GRANT CREATE, DROP, ALTER ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 *************************************************************
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -102,6 +107,7 @@ GRANT CREATE, DROP ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 include/wait_for_slave_sql_error.inc [errno=1590]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -124,6 +130,7 @@ GRANT CREATE, DROP ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 GRANT EXECUTE ON PROCEDURE `b54866`.`b54866_p` TO 'b54866_user'@'localhost'
 GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO 'b54866_user'@'localhost'
 *************************************************************
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -149,6 +156,7 @@ GRANT EXECUTE ON FUNCTION `b54866`.`b54866_f` TO 'b54866_user'@'localhost'
 include/wait_for_slave_sql_error.inc [errno=1590]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -172,6 +180,7 @@ GRANT CREATE, DROP ON `b54866`.`t1` TO 'b54866_user'@'localhost'
 include/wait_for_slave_sql_error.inc [errno=1590]
 SET GLOBAL SQL_SLAVE_SKIP_COUNTER=1;
 include/start_slave_sql.inc
+include/sync_slave_sql_with_master.inc
 ****** Checking grants on the slave for user: b54866_user *******
 SHOW GRANTS FOR 'b54866_user'@'localhost';
 Grants for b54866_user@localhost
@@ -190,6 +199,7 @@ REVOKE EXECUTE ON FUNCTION b54866_f FROM 'fake_user'@'localhost';
 ERROR 42000: There is no such grant defined for user 'fake_user' on host 'localhost'
 REVOKE ALL PRIVILEGES, GRANT OPTION FROM 'fake_user'@'localhost';
 ERROR HY000: Can't revoke all privileges for one or more of the requested users
+include/sync_slave_sql_with_master.inc
 ##########
 ########## Cleanup
 ##########
@@ -197,9 +207,11 @@ DROP PROCEDURE b54866_p;
 DROP FUNCTION b54866_f;
 DROP USER 'b54866_user'@'localhost';
 DROP DATABASE b54866;
+include/sync_slave_sql_with_master.inc
 include/rpl_reset.inc
 CREATE USER foo IDENTIFIED WITH 'my_plugin';
 ERROR HY000: Plugin 'my_plugin' is not loaded
+include/sync_slave_sql_with_master.inc
 # Search for occurrences of CREATE USER in the output from mysqlbinlog
 - Occurrences: 0
 include/rpl_end.inc

@@ -51,6 +51,7 @@
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
+#    [--let $rpl_gtid_utils= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -106,6 +107,10 @@
 #
 #    $use_gtids
 #      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#
+#    $rpl_gtid_utils
+#      Create stored functions for GTID manipulation on every server (see
+#      gtid_utils.inc).
 #
 #
 # ==== Side effects ====
@@ -198,10 +203,45 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   USE test;
+  if ($rpl_gtid_utils)
+  {
+    --source include/gtid_utils.inc
+  }
   if (!$rpl_skip_reset_master_and_slave)
   {
     RESET MASTER;
     RESET SLAVE;
+  }
+  # Only way to do this in mtr :-(
+  if ($_rpl_server == 1) {
+    --let $server_1_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 2) {
+    --let $server_2_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 3) {
+    --let $server_3_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 4) {
+    --let $server_4_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 5) {
+    --let $server_5_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 6) {
+    --let $server_6_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 7) {
+    --let $server_7_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 8) {
+    --let $server_8_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 9) {
+    --let $server_9_datadir= `SELECT @@datadir`
+  }
+  if ($_rpl_server == 10) {
+    --let $server_10_datadir= `SELECT @@datadir`
   }
 
   --dec $_rpl_server
@@ -245,6 +285,10 @@ if ($rpl_check_server_ids)
 
 # $rpl_master_list must be set so that include/rpl_change_topology.inc
 # knows which servers are initialized and not.
+if (!`SELECT COUNT(*) = 0 OR VARIABLE_VALUE != 'ON' FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES WHERE VARIABLE_NAME = 'GTID_MODE'`)
+{
+  --let $use_gtids=1
+}
 --let $rpl_master_list= `SELECT REPEAT('x', $rpl_server_count * LENGTH($rpl_server_count))`
 --source include/rpl_change_topology.inc
 

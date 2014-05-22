@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
    
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,7 +63,7 @@ uint sp_make_key(MI_INFO *info, uint keynr, uchar *key,
     DBUG_ASSERT(keyseg->type == HA_KEYTYPE_DOUBLE);
     
     val= mbr[start / sizeof (double)];
-    if (isnan(val))
+    if (my_isnan(val))
     {
       memset(key, 0, length);
       key+= length;
@@ -123,7 +123,7 @@ static int sp_add_point_to_mbr(uchar *(*wkb), uchar *end, uint n_dims,
   {
     if ((*wkb) > end - 8)
       return -1;
-    float8get(ord, (const uchar*) *wkb);
+    float8get(&ord, (const uchar*) *wkb);
     (*wkb)+= 8;
     if (ord < *mbr)
       *mbr= ord;

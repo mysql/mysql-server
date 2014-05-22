@@ -30,11 +30,6 @@ InnoDB Native API
 #include "db0err.h"
 #include <stdio.h>
 
-#ifdef _MSC_VER
-#define strncasecmp		_strnicmp
-#define strcasecmp		_stricmp
-#endif
-
 #if defined(__GNUC__) && (__GNUC__ > 2)
 #define UNIV_NO_IGNORE		__attribute__ ((warn_unused_result))
 #else
@@ -1259,6 +1254,16 @@ Get generic configure status
 int
 ib_cfg_get_cfg();
 /*============*/
+
+/*****************************************************************//**
+Increase/decrease the memcached sync count of table to sync memcached
+DML with SQL DDLs.
+@return DB_SUCCESS or error number */
+ib_err_t
+ib_cursor_set_memcached_sync(
+/*=========================*/
+	ib_crsr_t	ib_crsr,	/*!< in: cursor */
+	ib_bool_t	flag);		/*!< in: true for increasing */
 
 /*****************************************************************//**
 Check whether the table name conforms to our requirements. Currently

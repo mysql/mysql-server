@@ -37,7 +37,7 @@
 
 if ($use_gtids)
 {
-  --let $slave_param= Retrieved_Gtid_set
+  --let $slave_param= Retrieved_Gtid_Set
   --let $slave_param_value= $_saved_gtids
   --source include/wait_for_slave_param.inc
 }

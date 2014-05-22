@@ -1,8 +1,3 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Test of ipv4 (127.0.0.1) in ipv6 format, especially "change master host=..."
 # Options: --skip-name-resolve, --bind-address=0.0.0.0 (see corresponding cnf file)
 # for master and slave

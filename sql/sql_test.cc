@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,7 +28,6 @@
 #include "sql_optimizer.h"  // JOIN
 #include "opt_explain.h"    // join_type_str
 #include <hash.h>
-#include <thr_alarm.h>
 #if defined(HAVE_MALLOC_INFO) && defined(HAVE_MALLOC_H)
 #include <malloc.h>
 #elif defined(HAVE_MALLOC_INFO) && defined(HAVE_SYS_MALLOC_H)
@@ -39,8 +38,12 @@
 #include "events.h"
 #endif
 
-#include "global_threads.h"
 #include "table_cache.h" // table_cache_manager
+#include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "prealloced_array.h"
+
+#include <algorithm>
+#include <functional>
 
 const char *lock_descriptions[TL_WRITE_ONLY + 1] =
 {
@@ -193,29 +196,27 @@ void print_keyuse_array(Opt_trace_context *trace,
 #ifndef DBUG_OFF
 /* purecov: begin inspected */
 
-/* 
+/** 
   Print the current state during query optimization.
 
-  SYNOPSIS
-    print_plan()
-    join         pointer to the structure providing all context info for
-                 the query
-    read_time    the cost of the best partial plan
-    record_count estimate for the number of records returned by the best
-                 partial plan
-    idx          length of the partial QEP in 'join->positions';
-                 also an index in the array 'join->best_ref';
-    info         comment string to appear above the printout
-
-  DESCRIPTION
+  @param join              pointer to the structure providing all context
+                           info for the query
+  @param idx               length of the partial QEP in 'join->positions'
+                           also an index in the array 'join->best_ref'
+  @param record_count      estimate for the number of records returned by
+                           the best partial plan
+  @param read_time         the cost of the best partial plan.
+                           If a complete plan is printed (join->best_read is 
+                           set), this argument is ignored. 
+  @param current_read_time the accumulated cost of the current partial plan
+  @param info              comment string to appear above the printout 
+  
+  @details
     This function prints to the log file DBUG_FILE the members of 'join' that
     are used during query optimization (join->positions, join->best_positions,
     and join->best_ref) and few other related variables (read_time,
     record_count).
     Useful to trace query optimizer functions.
-
-  RETURN
-    None
 */
 
 void
@@ -296,7 +297,6 @@ print_plan(JOIN* join, uint idx, double record_count, double read_time,
 #endif  /* !DBUG_OFF */
 
 C_MODE_START
-static int dl_compare(const void *p1, const void *p2);
 static int print_key_cache_status(const char *name, KEY_CACHE *key_cache);
 C_MODE_END
 
@@ -309,13 +309,11 @@ typedef struct st_debug_lock
   enum thr_lock_type type;
 } TABLE_LOCK_INFO;
 
-static int dl_compare(const void *p1, const void *p2)
+typedef Prealloced_array<TABLE_LOCK_INFO, 20> Saved_locks_array;
+
+static inline int dl_compare(const TABLE_LOCK_INFO *a,
+                             const TABLE_LOCK_INFO *b)
 {
-  TABLE_LOCK_INFO *a, *b;
-
-  a= (TABLE_LOCK_INFO *) p1;
-  b= (TABLE_LOCK_INFO *) p2;
-
   if (a->thread_id > b->thread_id)
     return 1;
   if (a->thread_id < b->thread_id)
@@ -328,7 +326,19 @@ static int dl_compare(const void *p1, const void *p2)
 }
 
 
-static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
+class DL_commpare :
+  public std::binary_function<const TABLE_LOCK_INFO &,
+                              const TABLE_LOCK_INFO &, bool>
+{
+public:
+  bool operator()(const TABLE_LOCK_INFO &a, const TABLE_LOCK_INFO &b)
+  {
+    return dl_compare(&a, &b) < 0;
+  }
+};
+
+
+static void push_locks_into_array(Saved_locks_array *ar, THR_LOCK_DATA *data,
 				  bool wait, const char *text)
 {
   if (data)
@@ -345,7 +355,7 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
       table_lock_info.lock_text=text;
       // lock_type is also obtainable from THR_LOCK_DATA
       table_lock_info.type=table->reginfo.lock_type;
-      (void) push_dynamic(ar,(uchar*) &table_lock_info);
+      ar->push_back(table_lock_info);
     }
   }
 }
@@ -368,11 +378,9 @@ static void push_locks_into_array(DYNAMIC_ARRAY *ar, THR_LOCK_DATA *data,
 static void display_table_locks(void)
 {
   LIST *list;
-  void *saved_base;
-  DYNAMIC_ARRAY saved_table_locks;
+  Saved_locks_array saved_table_locks(key_memory_locked_thread_list);
+  saved_table_locks.reserve(table_cache_manager.cached_tables() + 20);
 
-  (void) my_init_dynamic_array(&saved_table_locks,sizeof(TABLE_LOCK_INFO),
-                               table_cache_manager.cached_tables() + 20,50);
   mysql_mutex_lock(&THR_LOCK_lock);
   for (list= thr_lock_thread_list; list; list= list_rest(list))
   {
@@ -391,26 +399,28 @@ static void display_table_locks(void)
   }
   mysql_mutex_unlock(&THR_LOCK_lock);
 
-  if (!saved_table_locks.elements)
-    goto end;
+  if (saved_table_locks.empty())
+    return;
 
-  saved_base= dynamic_element(&saved_table_locks, 0, TABLE_LOCK_INFO *);
-  my_qsort(saved_base, saved_table_locks.elements, sizeof(TABLE_LOCK_INFO),
-           dl_compare);
-  freeze_size(&saved_table_locks);
+  // shrink_to_fit
+  Saved_locks_array(key_memory_locked_thread_list,
+                    saved_table_locks.begin(), saved_table_locks.end())
+    .swap(saved_table_locks);
+
+  std::sort(saved_table_locks.begin(), saved_table_locks.end(), DL_commpare());
 
   puts("\nThread database.table_name          Locked/Waiting        Lock_type\n");
 
-  unsigned int i;
-  for (i=0 ; i < saved_table_locks.elements ; i++)
+  Saved_locks_array::iterator it;
+  for (it= saved_table_locks.begin(); it != saved_table_locks.end(); ++it)
   {
-    TABLE_LOCK_INFO *dl_ptr=dynamic_element(&saved_table_locks,i,TABLE_LOCK_INFO*);
     printf("%-8ld%-28.28s%-22s%s\n",
-	   dl_ptr->thread_id,dl_ptr->table_name,dl_ptr->lock_text,lock_descriptions[(int)dl_ptr->type]);
+	   it->thread_id,
+           it->table_name,
+           it->lock_text,
+           lock_descriptions[(int)it->type]);
   }
   puts("\n\n");
-end:
-  delete_dynamic(&saved_table_locks);
 }
 
 
@@ -462,7 +472,8 @@ void mysql_print_status()
   printf("\nStatus information:\n\n");
   (void) my_getwd(current_dir, sizeof(current_dir),MYF(0));
   printf("Current dir: %s\n", current_dir);
-  printf("Running threads: %u  Stack size: %ld\n", get_thread_count(),
+  printf("Running threads: %u  Stack size: %ld\n",
+         Global_THD_manager::get_instance()->get_thd_count(),
 	 (long) my_thread_stack_size);
   thr_print_locks();				// Write some debug info
 #ifndef DBUG_OFF
@@ -497,16 +508,6 @@ Open streams:  %10lu\n",
 	 (ulong) table_cache_manager.cached_tables(),
 	 (ulong) my_file_opened,
 	 (ulong) my_stream_opened);
-
-  ALARM_INFO alarm_info;
-  thr_alarm_info(&alarm_info);
-  printf("\nAlarm status:\n\
-Active alarms:   %u\n\
-Max used alarms: %u\n\
-Next alarm time: %lu\n",
-	 alarm_info.active_alarms,
-	 alarm_info.max_used_alarms,
-	 alarm_info.next_alarm_time);
   display_table_locks();
 #ifdef HAVE_MALLOC_INFO
   printf("\nMemory status:\n");

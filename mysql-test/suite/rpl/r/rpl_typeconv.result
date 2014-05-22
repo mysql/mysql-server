@@ -540,5 +540,6 @@ DROP TABLE type_conversions;
 call mtr.add_suppression("Slave SQL.*Column 1 of table .test.t1. cannot be converted from type.* Error_code: 1677");
 call mtr.add_suppression("The slave coordinator and worker threads are stopped, possibly leaving data in inconsistent state");
 DROP TABLE t1;
+include/sync_slave_sql_with_master.inc
 set global slave_type_conversions = @saved_slave_type_conversions;
 include/rpl_end.inc

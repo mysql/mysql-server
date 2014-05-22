@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,8 @@
 #include "my_global.h"
 #include "my_sys.h"
 #include "my_dbug.h"
+
+#include <algorithm>
 
 /**
   A typesafe replacement for DYNAMIC_ARRAY. We do our own memory management,
@@ -63,9 +65,18 @@ class Prealloced_array
     return static_cast<Element_type*>(static_cast<void*>(&m_buff[0]));
   }
 public:
+
+  /// Standard typedefs.
+  typedef Element_type value_type;
+  typedef size_t       size_type;
+  typedef ptrdiff_t    difference_type;
+
+  typedef Element_type *iterator;
+  typedef const Element_type *const_iterator;
+
   explicit Prealloced_array(PSI_memory_key psi_key)
-    : m_psi_key(psi_key),
-      m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(psi_key)
   {
     // We do not want a zero-size array.
     compile_time_assert(Prealloc != 0);
@@ -75,13 +86,45 @@ public:
     An object instance "owns" its array, so we do deep copy here.
    */
   Prealloced_array(const Prealloced_array &that)
-    : m_psi_key(that.m_psi_key),
-      m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff())
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(that.m_psi_key)
   {
     if (this->reserve(that.capacity()))
       return;
     for (const Element_type *p= that.begin(); p != that.end(); ++p)
       this->push_back(*p);
+  }
+
+  /**
+    Range constructor.
+
+    Constructs a container with as many elements as the range [first,last),
+    with each element constructed from its corresponding element in that range,
+    in the same order.
+  */
+  Prealloced_array(PSI_memory_key psi_key,
+                   const_iterator first, const_iterator last)
+    : m_size(0), m_capacity(Prealloc), m_array_ptr(cast_rawbuff()),
+      m_psi_key(psi_key)
+  {
+    if (this->reserve(last - first))
+      return;
+    for (; first != last; ++first)
+      push_back(*first);
+  }
+
+  /**
+    Copies all the elements from 'that' into this container.
+    Any objects in this container are destroyed first.
+   */
+  Prealloced_array &operator=(const Prealloced_array &that)
+  {
+    this->clear();
+    if (this->reserve(that.capacity()))
+      return *this;
+    for (const Element_type *p= that.begin(); p != that.end(); ++p)
+      this->push_back(*p);
+    return *this;
   }
 
   /**
@@ -121,8 +164,8 @@ public:
   Element_type &back() { return at(size() - 1); }
   const Element_type &back() const { return at(size() - 1); }
 
-  typedef Element_type *iterator;
-  typedef const Element_type *const_iterator;
+  Element_type &front() { return at(0); }
+  const Element_type &front() const { return at(0); }
 
   /**
     begin : Returns a pointer to the first element in the array.
@@ -203,21 +246,120 @@ public:
 
     This is generally an inefficient operation, since we need to copy
     elements to fill the "hole" in the array.
-   */
-  void erase(size_t ix)
-  {
-    if (!Has_trivial_destructor)
-      at(ix).~Element_type();
 
-    for (; ix < size() - 1; ++ix)
+    We use std::copy to move objects, hence Element_type must be assignable.
+   */
+  iterator erase(iterator position)
+  {
+    DBUG_ASSERT(position != end());
+    if (position + 1 != end())
+      std::copy(position + 1, end(), position);
+    this->pop_back();
+    return position;
+  }
+
+  /**
+    Removes a single element from the array.
+  */
+  iterator erase(size_t ix)
+  {
+    DBUG_ASSERT(ix < size());
+    return erase(begin() + ix);
+  }
+
+  /**
+    Removes tail elements from the array.
+    The removed elements are destroyed.
+    This effectively reduces the containers size by 'end() - first'.
+   */
+  void erase_at_end(iterator first)
+  {
+    iterator last= end();
+    const difference_type diff= last - first;
+    if (!Has_trivial_destructor)
     {
-      Element_type *to= &at(ix);
-      const Element_type &from= at(ix + 1);
-      ::new (to) Element_type(from);
-      if (!Has_trivial_destructor)
-        from.~Element_type();
+      for (; first != last; ++first)
+        first->~Element_type();
     }
-    m_size-= 1;
+    m_size-= diff;
+  }
+
+  /**
+    Removes a range of elements from the array.
+    The removed elements are destroyed.
+    This effectively reduces the containers size by 'last - first'.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to fill the "hole" in the array.
+
+    We use std::copy to move objects, hence Element_type must be assignable.
+   */
+  iterator erase(iterator first, iterator last)
+  {
+    if (first != last)
+      erase_at_end(std::copy(last, end(), first));
+    return first;
+  }
+
+  /**
+    Exchanges the content of the container by the content of rhs, which
+    is another vector object of the same type. Sizes may differ.
+
+    We use std::swap to do the operation.
+   */
+  void swap(Prealloced_array &rhs)
+  {
+    // Just swap pointers if both arrays have done malloc.
+    if (m_array_ptr != cast_rawbuff() &&
+        rhs.m_array_ptr != rhs.cast_rawbuff())
+    {
+      std::swap(m_size, rhs.m_size);
+      std::swap(m_capacity, rhs.m_capacity);
+      std::swap(m_array_ptr, rhs.m_array_ptr);
+      std::swap(m_psi_key, rhs.m_psi_key);
+      return;
+    }
+    std::swap(*this, rhs);
+  }
+
+  /**
+    Resizes the container so that it contains n elements.
+
+    If n is smaller than the current container size, the content is
+    reduced to its first n elements, removing those beyond (and
+    destroying them).
+
+    If n is greater than the current container size, the content is
+    expanded by inserting at the end as many elements as needed to
+    reach a size of n. If val is specified, the new elements are
+    initialized as copies of val, otherwise, they are
+    value-initialized.
+
+    If n is also greater than the current container capacity, an automatic
+    reallocation of the allocated storage space takes place.
+
+    Notice that this function changes the actual content of the
+    container by inserting or erasing elements from it.
+   */
+  void resize(size_t n, Element_type val= Element_type())
+  {
+    if (n == m_size)
+      return;
+    if (n > m_size)
+    {
+      if (!reserve(n))
+      {
+        while (n != m_size)
+          push_back(val);
+      }
+      return;
+    }
+    if (!Has_trivial_destructor)
+    {
+      while (n != m_size)
+        pop_back();
+    }
+    m_size= n;
   }
 
   /**
@@ -235,14 +377,12 @@ public:
   }
 
 private:
-  PSI_memory_key m_psi_key;
   size_t         m_size;
   size_t         m_capacity;
+  // This buffer must be properly aligned. Two size_t above should ensure it.
   char           m_buff[Prealloc * sizeof(Element_type)];
   Element_type  *m_array_ptr;
-
-  // Not (yet) implemented.
-  Prealloced_array &operator=(const Prealloced_array&);
+  PSI_memory_key m_psi_key;
 };
 
 #endif  // PREALLOCED_ARRAY_INCLUDED

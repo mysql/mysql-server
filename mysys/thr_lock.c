@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,10 +67,6 @@ lock at the same time as multiple read locks.
 
 */
 
-#if !defined(MAIN) && !defined(DBUG_OFF) && !defined(EXTRA_DEBUG)
-#define FORCE_DBUG_OFF
-#endif
-
 #include "mysys_priv.h"
 
 #include "thr_lock.h"
@@ -100,11 +96,6 @@ void thr_set_lock_wait_callback(void (*before_wait)(void),
   after_lock_wait= after_wait;
 }
 
-static inline mysql_cond_t *get_cond(void)
-{
-  return &my_thread_var->suspend;
-}
-
 /*
 ** For the future (now the thread specific cond is alloced by my_pthread.c)
 */
@@ -131,7 +122,7 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
-  THR_LOCK_INFO *UNINIT_VAR(first_owner);
+  THR_LOCK_INFO *first_owner= NULL;
 
   prev= &list->data;
   if (list->data)
@@ -368,18 +359,6 @@ has_old_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner)
   }
   return 0;
 }
-
-static inline my_bool have_specific_lock(THR_LOCK_DATA *data,
-					 enum thr_lock_type type)
-{
-  for ( ; data ; data=data->next)
-  {
-    if (data->type == type)
-      return 1;
-  }
-  return 0;
-}
-
 
 static void wake_up_waiters(THR_LOCK *lock);
 

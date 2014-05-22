@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -49,11 +49,9 @@
 my_bool pfs_enabled= TRUE;
 
 /**
-  PFS_INSTRUMENT option settings array and associated state variable to
-  serialize access during shutdown.
+  PFS_INSTRUMENT option settings array
  */
-DYNAMIC_ARRAY pfs_instr_config_array;
-int pfs_instr_config_state= PFS_INSTR_CONFIG_NOT_INITIALIZED;
+Pfs_instr_config_array *pfs_instr_config_array= NULL;
 
 static void configure_instr_class(PFS_instr_class *entry);
 
@@ -69,12 +67,12 @@ static void init_instr_class(PFS_instr_class *klass,
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 mutex_class_dirty_count= 0;
-static volatile uint32 mutex_class_allocated_count= 0;
-static volatile uint32 rwlock_class_dirty_count= 0;
-static volatile uint32 rwlock_class_allocated_count= 0;
-static volatile uint32 cond_class_dirty_count= 0;
-static volatile uint32 cond_class_allocated_count= 0;
+static uint32 mutex_class_dirty_count= 0;
+static uint32 mutex_class_allocated_count= 0;
+static uint32 rwlock_class_dirty_count= 0;
+static uint32 rwlock_class_allocated_count= 0;
+static uint32 cond_class_dirty_count= 0;
+static uint32 cond_class_allocated_count= 0;
 
 /** Size of the mutex class array. @sa mutex_class_array */
 ulong mutex_class_max= 0;
@@ -117,6 +115,13 @@ ulong memory_class_max= 0;
 /** Number of memory class lost. @sa memory_class_array */
 ulong memory_class_lost= 0;
 
+/**
+  Number of transaction classes. Although there is only one transaction class,
+  this is used for sizing by other event classes.
+  @sa global_transaction_class
+*/
+ulong transaction_class_max= 0;
+
 PFS_mutex_class *mutex_class_array= NULL;
 PFS_rwlock_class *rwlock_class_array= NULL;
 PFS_cond_class *cond_class_array= NULL;
@@ -127,8 +132,8 @@ PFS_cond_class *cond_class_array= NULL;
   - the performance schema initialization
   - a plugin initialization
 */
-static volatile uint32 thread_class_dirty_count= 0;
-static volatile uint32 thread_class_allocated_count= 0;
+static uint32 thread_class_dirty_count= 0;
+static uint32 thread_class_allocated_count= 0;
 
 static PFS_thread_class *thread_class_array= NULL;
 
@@ -144,27 +149,30 @@ PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
 PFS_ALIGNED PFS_table_lock_stat global_table_lock_stat;
 PFS_ALIGNED PFS_single_stat global_metadata_stat;
+PFS_ALIGNED PFS_transaction_stat global_transaction_stat;
 PFS_ALIGNED PFS_instr_class global_table_io_class;
 PFS_ALIGNED PFS_instr_class global_table_lock_class;
 PFS_ALIGNED PFS_instr_class global_idle_class;
 PFS_ALIGNED PFS_instr_class global_metadata_class;
+PFS_ALIGNED PFS_transaction_class global_transaction_class;
 
 /** Class-timer map */
 enum_timer_name *class_timers[] =
-{&wait_timer,      /* PFS_CLASS_NONE */
- &wait_timer,      /* PFS_CLASS_MUTEX */
- &wait_timer,      /* PFS_CLASS_RWLOCK */
- &wait_timer,      /* PFS_CLASS_COND */
- &wait_timer,      /* PFS_CLASS_FILE */
- &wait_timer,      /* PFS_CLASS_TABLE */
- &stage_timer,     /* PFS_CLASS_STAGE */
- &statement_timer, /* PFS_CLASS_STATEMENT */
- &wait_timer,      /* PFS_CLASS_SOCKET */
- &wait_timer,      /* PFS_CLASS_TABLE_IO */
- &wait_timer,      /* PFS_CLASS_TABLE_LOCK */
- &idle_timer,      /* PFS_CLASS_IDLE */
- &wait_timer,      /* PFS_CLASS_METADATA */
- &wait_timer       /* PFS_CLASS_MEMORY */
+{&wait_timer,        /* PFS_CLASS_NONE */
+ &wait_timer,        /* PFS_CLASS_MUTEX */
+ &wait_timer,        /* PFS_CLASS_RWLOCK */
+ &wait_timer,        /* PFS_CLASS_COND */
+ &wait_timer,        /* PFS_CLASS_FILE */
+ &wait_timer,        /* PFS_CLASS_TABLE */
+ &stage_timer,       /* PFS_CLASS_STAGE */
+ &statement_timer,   /* PFS_CLASS_STATEMENT */
+ &transaction_timer, /* PFS_CLASS_TRANSACTION */
+ &wait_timer,        /* PFS_CLASS_SOCKET */
+ &wait_timer,        /* PFS_CLASS_TABLE_IO */
+ &wait_timer,        /* PFS_CLASS_TABLE_LOCK */
+ &idle_timer,        /* PFS_CLASS_IDLE */
+ &wait_timer,        /* PFS_CLASS_METADATA */
+ &wait_timer         /* PFS_CLASS_MEMORY */
 };
 
 /**
@@ -181,28 +189,28 @@ LF_HASH table_share_hash;
 /** True if table_share_hash is initialized. */
 static bool table_share_hash_inited= false;
 
-static volatile uint32 file_class_dirty_count= 0;
-static volatile uint32 file_class_allocated_count= 0;
+static uint32 file_class_dirty_count= 0;
+static uint32 file_class_allocated_count= 0;
 
 PFS_file_class *file_class_array= NULL;
 
-static volatile uint32 stage_class_dirty_count= 0;
-static volatile uint32 stage_class_allocated_count= 0;
+static uint32 stage_class_dirty_count= 0;
+static uint32 stage_class_allocated_count= 0;
 
 static PFS_stage_class *stage_class_array= NULL;
 
-static volatile uint32 statement_class_dirty_count= 0;
-static volatile uint32 statement_class_allocated_count= 0;
+static uint32 statement_class_dirty_count= 0;
+static uint32 statement_class_allocated_count= 0;
 
 static PFS_statement_class *statement_class_array= NULL;
 
-static volatile uint32 socket_class_dirty_count= 0;
-static volatile uint32 socket_class_allocated_count= 0;
+static uint32 socket_class_dirty_count= 0;
+static uint32 socket_class_allocated_count= 0;
 
 static PFS_socket_class *socket_class_array= NULL;
 
-static volatile uint32 memory_class_dirty_count= 0;
-static volatile uint32 memory_class_allocated_count= 0;
+static uint32 memory_class_dirty_count= 0;
+static uint32 memory_class_allocated_count= 0;
 
 static PFS_memory_class *memory_class_array= NULL;
 
@@ -251,6 +259,15 @@ void register_global_classes()
   global_metadata_class.m_enabled= false; /* Disabled by default */
   global_metadata_class.m_timed= false;
   configure_instr_class(&global_metadata_class);
+
+  /* Transaction class */
+  init_instr_class(&global_transaction_class, "transaction", 11,
+                   0, PFS_CLASS_TRANSACTION);
+  global_transaction_class.m_event_name_index= GLOBAL_TRANSACTION_INDEX;
+  global_transaction_class.m_enabled= false; /* Disabled by default */
+  global_transaction_class.m_timed= false;
+  configure_instr_class(&global_transaction_class);
+  transaction_class_max= 1; /* used for sizing by other event classes */
 }
 
 /**
@@ -451,8 +468,8 @@ LF_PINS* get_table_share_hash_pins(PFS_thread *thread)
 */
 static void set_table_share_key(PFS_table_share_key *key,
                                 bool temporary,
-                                const char *schema_name, uint schema_name_length,
-                                const char *table_name, uint table_name_length)
+                                const char *schema_name, size_t schema_name_length,
+                                const char *table_name, size_t table_name_length)
 {
   DBUG_ASSERT(schema_name_length <= NAME_LEN);
   DBUG_ASSERT(table_name_length <= NAME_LEN);
@@ -684,10 +701,13 @@ static void configure_instr_class(PFS_instr_class *entry)
 {
   uint match_length= 0; /* length of matching pattern */
 
-  for (uint i= 0; i < pfs_instr_config_array.elements; i++)
+  // May be NULL in unit tests
+  if (pfs_instr_config_array == NULL)
+    return;
+  Pfs_instr_config_array::iterator it= pfs_instr_config_array->begin();
+  for ( ; it != pfs_instr_config_array->end(); it++)
   {
-    PFS_instr_config* e;
-    get_dynamic(&pfs_instr_config_array, (uchar*)&e, i);
+    PFS_instr_config* e= *it;
 
     /**
       Compare class name to all configuration entries. In case of multiple
@@ -1306,6 +1326,20 @@ PFS_instr_class *sanitize_metadata_class(PFS_instr_class *unsafe)
   return NULL;
 }
 
+PFS_transaction_class *find_transaction_class(uint index)
+{
+  if (index == 1)
+    return &global_transaction_class;
+  return NULL;
+}
+
+PFS_transaction_class *sanitize_transaction_class(PFS_transaction_class *unsafe)
+{
+  if (likely(&global_transaction_class == unsafe))
+    return unsafe;
+  return NULL;
+}
+
 static void set_keys(PFS_table_share *pfs, const TABLE_SHARE *share)
 {
   int len;
@@ -1390,6 +1424,7 @@ PFS_table_share* find_or_create_table_share(PFS_thread *thread,
   uint index;
   uint attempts= 0;
   PFS_table_share *pfs;
+  pfs_dirty_state dirty_state;
 
 search:
   entry= reinterpret_cast<PFS_table_share**>
@@ -1432,47 +1467,44 @@ search:
     index= PFS_atomic::add_u32(& monotonic.m_u32, 1) % table_share_max;
     pfs= table_share_array + index;
 
-    if (pfs->m_lock.is_free())
+    if (pfs->m_lock.free_to_dirty(& dirty_state))
     {
-      if (pfs->m_lock.free_to_dirty())
+      pfs->m_key= key;
+      pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
+      pfs->m_schema_name_length= schema_name_length;
+      pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
+      pfs->m_table_name_length= table_name_length;
+      pfs->m_enabled= enabled;
+      pfs->m_timed= timed;
+      pfs->init_refcount();
+      pfs->m_table_stat.fast_reset();
+      set_keys(pfs, share);
+
+      int res;
+      pfs->m_lock.dirty_to_allocated(& dirty_state);
+      res= lf_hash_insert(&table_share_hash, pins, &pfs);
+      if (likely(res == 0))
       {
-        pfs->m_key= key;
-        pfs->m_schema_name= &pfs->m_key.m_hash_key[1];
-        pfs->m_schema_name_length= schema_name_length;
-        pfs->m_table_name= &pfs->m_key.m_hash_key[schema_name_length + 2];
-        pfs->m_table_name_length= table_name_length;
-        pfs->m_enabled= enabled;
-        pfs->m_timed= timed;
-        pfs->init_refcount();
-        pfs->m_table_stat.fast_reset();
-        set_keys(pfs, share);
-
-        int res;
-        pfs->m_lock.dirty_to_allocated();
-        res= lf_hash_insert(&table_share_hash, pins, &pfs);
-        if (likely(res == 0))
-        {
-          return pfs;
-        }
-
-        pfs->m_lock.allocated_to_free();
-
-        if (res > 0)
-        {
-          /* Duplicate insert by another thread */
-          if (++retry_count > retry_max)
-          {
-            /* Avoid infinite loops */
-            table_share_lost++;
-            return NULL;
-          }
-          goto search;
-        }
-
-        /* OOM in lf_hash_insert */
-        table_share_lost++;
-        return NULL;
+        return pfs;
       }
+
+      pfs->m_lock.allocated_to_free();
+
+      if (res > 0)
+      {
+        /* Duplicate insert by another thread */
+        if (++retry_count > retry_max)
+        {
+          /* Avoid infinite loops */
+          table_share_lost++;
+          return NULL;
+        }
+        goto search;
+      }
+
+      /* OOM in lf_hash_insert */
+      table_share_lost++;
+      return NULL;
     }
   }
 

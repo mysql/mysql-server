@@ -119,6 +119,10 @@ IF(NOT VERSION)
     SET(package_name "mysql${PRODUCT_TAG}-${VERSION}-${SYSTEM_NAME_AND_PROCESSOR}")
   ENDIF()
 
+  IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
+    SET(package_name "${package_name}-gcc")
+  ENDIF()
+
   MESSAGE(STATUS "Packaging as: ${package_name}")
 
   # Sometimes package suffix is added (something like "-icc-glibc23")

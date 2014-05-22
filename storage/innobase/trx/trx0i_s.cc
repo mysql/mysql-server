@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -150,7 +150,7 @@ struct i_s_table_cache_t {
 struct trx_i_s_cache_t {
 	rw_lock_t	rw_lock;	/*!< read-write lock protecting
 					the rest of this structure */
-	ullint		last_read;	/*!< last time the cache was read;
+	uintmax_t	last_read;	/*!< last time the cache was read;
 					measured in microseconds since
 					epoch */
 	ib_mutex_t		last_read_mutex;/*!< mutex protecting the
@@ -344,9 +344,9 @@ table_cache_create_empty_row(
 		cache->mem_allocd += got_bytes;
 
 #if 0
-		printf("allocating chunk %d req bytes=%lu, got bytes=%lu, "
-		       "row size=%lu, "
-		       "req rows=%lu, got rows=%lu\n",
+		printf("allocating chunk %d req bytes=%lu, got bytes=%lu,"
+		       " row size=%lu,"
+		       " req rows=%lu, got rows=%lu\n",
 		       i, req_bytes, got_bytes,
 		       table_cache->row_size,
 		       req_rows, got_rows);
@@ -461,19 +461,12 @@ fill_trx_row(
 						which to copy volatile
 						strings */
 {
-	const char*	stmt;
 	size_t		stmt_len;
 	const char*	s;
 
 	ut_ad(lock_mutex_own());
 
-	/* RO and transactions whose intentions are unknown (whether they
-	will eventually do a WRITE) don't have an ID assigned to them.
-	The only requirement is that for any given snapshot all the trx
-	identifiers are unique. */
-
-	row->trx_id = ulint(trx);
-
+	row->trx_id = trx_get_id_for_print(trx);
 	row->trx_started = (ib_time_t) trx->start_time;
 	row->trx_state = trx_get_que_state_str(trx);
 	row->requested_lock_row = requested_lock_row;
@@ -489,7 +482,7 @@ fill_trx_row(
 		row->trx_wait_started = 0;
 	}
 
-	row->trx_weight = (ullint) TRX_WEIGHT(trx);
+	row->trx_weight = static_cast<uintmax_t>(TRX_WEIGHT(trx));
 
 	if (trx->mysql_thd == NULL) {
 		/* For internal transactions e.g., purge and transactions
@@ -502,17 +495,10 @@ fill_trx_row(
 
 	row->trx_mysql_thread_id = thd_get_thread_id(trx->mysql_thd);
 
-	stmt = innobase_get_stmt(trx->mysql_thd, &stmt_len);
+	char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
+	stmt_len = innobase_get_stmt_safe(trx->mysql_thd, query, sizeof(query));
 
-	if (stmt != NULL) {
-		char	query[TRX_I_S_TRX_QUERY_MAX_LEN + 1];
-
-		if (stmt_len > TRX_I_S_TRX_QUERY_MAX_LEN) {
-			stmt_len = TRX_I_S_TRX_QUERY_MAX_LEN;
-		}
-
-		memcpy(query, stmt, stmt_len);
-		query[stmt_len] = '\0';
+	if (stmt_len > 0) {
 
 		row->trx_query = static_cast<const char*>(
 			ha_storage_put_memlim(
@@ -717,8 +703,8 @@ fill_lock_data(
 
 	mtr_start(&mtr);
 
-	block = buf_page_try_get(lock_rec_get_space_id(lock),
-				 lock_rec_get_page_no(lock),
+	block = buf_page_try_get(page_id_t(lock_rec_get_space_id(lock),
+					   lock_rec_get_page_no(lock)),
 				 &mtr);
 
 	if (block == NULL) {
@@ -762,7 +748,7 @@ fill_lock_data(
 		cache->storage, buf, buf_used + 1,
 		MAX_ALLOWED_FOR_STORAGE(cache));
 
-	if (UNIV_UNLIKELY(heap != NULL)) {
+	if (heap != NULL) {
 
 		/* this means that rec_get_offsets() has created a new
 		heap and has stored offsets in it; check that this is
@@ -1227,7 +1213,7 @@ can_cache_be_updated(
 /*=================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
+	uintmax_t	now;
 
 	/* Here we read cache->last_read without acquiring its mutex
 	because last_read is only updated when a shared rw lock on the
@@ -1275,17 +1261,14 @@ void
 fetch_data_into_cache_low(
 /*======================*/
 	trx_i_s_cache_t*	cache,		/*!< in/out: cache */
-	ibool			only_ac_nl,	/*!< in: only select non-locking
-						autocommit transactions */
+	bool			read_write,	/*!< in: only read-write
+						transactions */
 	trx_list_t*		trx_list)	/*!< in: trx list */
 {
 	const trx_t*		trx;
+	bool			rw_trx_list = trx_list == &trx_sys->rw_trx_list;
 
-	ut_ad(trx_list == &trx_sys->rw_trx_list
-	      || trx_list == &trx_sys->ro_trx_list
-	      || trx_list == &trx_sys->mysql_trx_list);
-
-	ut_ad(only_ac_nl == (trx_list == &trx_sys->mysql_trx_list));
+	ut_ad(rw_trx_list || trx_list == &trx_sys->mysql_trx_list);
 
 	/* Iterate over the transaction list and add each one
 	to innodb_trx's cache. We also add all locks that are relevant
@@ -1295,26 +1278,24 @@ fetch_data_into_cache_low(
 	for (trx = UT_LIST_GET_FIRST(*trx_list);
 	     trx != NULL;
 	     trx =
-	     (trx_list == &trx_sys->mysql_trx_list
-	      ? UT_LIST_GET_NEXT(mysql_trx_list, trx)
-	      : UT_LIST_GET_NEXT(trx_list, trx))) {
+	     (rw_trx_list
+	      ? UT_LIST_GET_NEXT(trx_list, trx)
+	      : UT_LIST_GET_NEXT(mysql_trx_list, trx))) {
 
 		i_s_trx_row_t*		trx_row;
 		i_s_locks_row_t*	requested_lock_row;
 
+		/* Note: Read only transactions that modify temporary
+		tables an have a transaction ID */
 		if (trx->state == TRX_STATE_NOT_STARTED
-		    || (only_ac_nl && !trx_is_autocommit_non_locking(trx))) {
+		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
 			continue;
 		}
 
 		assert_trx_nonlocking_or_in_list(trx);
 
-		ut_ad(trx->in_ro_trx_list
-		      == (trx_list == &trx_sys->ro_trx_list));
-
-		ut_ad(trx->in_rw_trx_list
-		      == (trx_list == &trx_sys->rw_trx_list));
+		ut_ad(trx->in_rw_trx_list == rw_trx_list);
 
 		if (!add_trx_relevant_locks_to_cache(cache, trx,
 						     &requested_lock_row)) {
@@ -1323,9 +1304,9 @@ fetch_data_into_cache_low(
 			return;
 		}
 
-		trx_row = (i_s_trx_row_t*)
-			table_cache_create_empty_row(&cache->innodb_trx,
-						     cache);
+		trx_row = reinterpret_cast<i_s_trx_row_t*>(
+			table_cache_create_empty_row(
+				&cache->innodb_trx, cache));
 
 		/* memory could not be allocated */
 		if (trx_row == NULL) {
@@ -1337,7 +1318,7 @@ fetch_data_into_cache_low(
 		if (!fill_trx_row(trx_row, trx, requested_lock_row, cache)) {
 
 			/* memory could not be allocated */
-			cache->innodb_trx.rows_used--;
+			--cache->innodb_trx.rows_used;
 			cache->is_truncated = TRUE;
 			return;
 		}
@@ -1358,12 +1339,12 @@ fetch_data_into_cache(
 
 	trx_i_s_cache_clear(cache);
 
-	fetch_data_into_cache_low(cache, FALSE, &trx_sys->rw_trx_list);
-	fetch_data_into_cache_low(cache, FALSE, &trx_sys->ro_trx_list);
+	/* Capture the state of the read-write transactions. This includes
+	internal transactions too. They are not on mysql_trx_list */
+	fetch_data_into_cache_low(cache, true, &trx_sys->rw_trx_list);
 
-	/* Only select autocommit non-locking selects because they can
-	only be on the MySQL transaction list (TRUE). */
-	fetch_data_into_cache_low(cache, TRUE, &trx_sys->mysql_trx_list);
+	/* Capture the state of the read-only active transactions */
+	fetch_data_into_cache_low(cache, false, &trx_sys->mysql_trx_list);
 
 	cache->is_truncated = FALSE;
 }
@@ -1489,7 +1470,7 @@ trx_i_s_cache_end_read(
 /*===================*/
 	trx_i_s_cache_t*	cache)	/*!< in: cache */
 {
-	ullint	now;
+	uintmax_t	now;
 
 #ifdef UNIV_SYNC_DEBUG
 	ut_a(rw_lock_own(&cache->rw_lock, RW_LOCK_S));
@@ -1649,7 +1630,7 @@ trx_i_s_create_lock_id(
 	} else {
 		/* table lock */
 		res_len = ut_snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT":"UINT64PF,
+				      TRX_ID_FMT":" UINT64PF,
 				      row->lock_trx_id,
 				      row->lock_table_id);
 	}

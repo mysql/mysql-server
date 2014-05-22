@@ -1,0 +1,48 @@
+#
+# Simple MySQL systemd service file
+#
+# systemd supports lots of fancy features, look here (and linked docs) for a full list: 
+#   http://www.freedesktop.org/software/systemd/man/systemd.exec.html
+#
+# Note: this file ( /usr/lib/systemd/system/mysqld.service )
+# will be overwritten on package upgrade, please copy the file to 
+#
+#  /etc/systemd/system/mysqld.service
+#  
+# to make needed changes.
+# 
+# systemd-delta can be used to check differences between the two mysqld.service files.
+#
+
+[Unit]
+Description=MySQL Community Server
+After=network.target
+After=syslog.target
+
+[Install]
+WantedBy=multi-user.target
+Alias=mysql.service
+
+[Service]
+User=mysql
+Group=mysql
+
+# Execute pre and post scripts as root
+PermissionsStartOnly=true
+
+# Needed to create system tables etc.
+ExecStartPre=/usr/bin/mysql-systemd-start pre
+
+# Start main service
+ExecStart=/usr/bin/mysqld_safe
+
+# Don't signal startup success before a ping works
+ExecStartPost=/usr/bin/mysql-systemd-start post
+
+# Give up if ping don't get an answer
+TimeoutSec=600
+
+Restart=always
+PrivateTmp=false
+
+

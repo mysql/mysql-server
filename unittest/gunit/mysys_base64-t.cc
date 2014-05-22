@@ -52,7 +52,7 @@ TEST(Mysys, Base64)
     needed_length= base64_needed_encoded_length(src_len);
     str= (char *) malloc(needed_length);
     for (k= 0; k < needed_length; k++)
-      str[k]= 0xff; /* Fill memory to check correct NUL termination */
+      str[k]= (char)0xff; /* Fill memory to check correct NUL termination */
     EXPECT_EQ(0, base64_encode(src, src_len, str))
       << "base64_encode: size " << i;
     EXPECT_EQ(needed_length, strlen(str) + 1)

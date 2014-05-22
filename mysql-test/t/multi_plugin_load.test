@@ -4,7 +4,13 @@
 --source include/force_myisam_default.inc
 
 --source include/not_embedded.inc
---source include/have_plugin_auth.inc
+
+if (!`select count(*) FROM INFORMATION_SCHEMA.PLUGINS
+      WHERE PLUGIN_NAME='qa_auth_server'
+      and PLUGIN_LIBRARY LIKE 'qa_auth_server%'`)
+{
+  --skip Need the plugin qa_auth_server
+}
 
 --echo #
 --echo # Bug #11766001: ALLOW MULTIPLE --PLUGIN-LOAD OPTIONS

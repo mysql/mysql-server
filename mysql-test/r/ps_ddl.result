@@ -750,7 +750,7 @@ SUCCESS
 
 drop view t1;
 execute stmt;
-table_name
+ERROR 42S02: Table 'test.t1' doesn't exist
 call p_verify_reprepare_count(0);
 SUCCESS
 

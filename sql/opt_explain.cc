@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,10 +25,10 @@
 #include "sql_base.h"      // lock_tables
 #include "sql_union.h"     // mysql_union_prepare_and_optimize
 #include "sql_acl.h"       // check_global_access, PROCESS_ACL
-#include "global_threads.h"  // LOCK_thread_count
 #include "debug_sync.h"    // DEBUG_SYNC
 #include "opt_trace.h"     // Opt_trace_*
 #include "sql_parse.h"     // is_explainable_query
+#include "mysqld_thd_manager.h"  // Global_THD_manager
 
 typedef qep_row::extra extra;
 
@@ -136,7 +136,6 @@ protected:
   bool explain_subqueries();
   bool mark_subqueries(Item *item, qep_row *destination);
   bool prepare_columns();
-  bool describe(uint8 mask) const { return thd->lex->describe & mask; }
 
   /**
     Push a part of the "extra" column into formatter
@@ -266,7 +265,7 @@ public:
     message(message_arg), rows(rows_arg)
   {
     if (can_walk_clauses())
-      order_list= test(select_lex_arg->order_list.elements);
+      order_list= MY_TEST(select_lex_arg->order_list.elements);
   }
 
 protected:
@@ -294,7 +293,7 @@ public:
     DBUG_ASSERT(select_lex_arg ==
     select_lex_arg->join->unit->fake_select_lex);
     // Use optimized values from fake_select_lex's join
-    order_list= test(select_lex_arg->join->order);
+    order_list= MY_TEST(select_lex_arg->join->order);
     // A plan exists so the reads above are safe:
     DBUG_ASSERT(select_lex_arg->join->get_plan_state() != JOIN::NO_PLAN);
   }
@@ -381,7 +380,7 @@ public:
     DBUG_ASSERT(join->get_plan_state() == JOIN::PLAN_READY);
     /* it is not UNION: */
     DBUG_ASSERT(join->select_lex != join->unit->fake_select_lex);
-    order_list= test(join->order);
+    order_list= MY_TEST(join->order);
   }
 
 private:
@@ -450,7 +449,7 @@ public:
   {
     usable_keys= table->possible_quick_keys;
     if (can_walk_clauses())
-      order_list= test(select_lex_arg->order_list.elements);
+      order_list= MY_TEST(select_lex_arg->order_list.elements);
   }
 
   virtual bool explain_modify_flags();
@@ -472,17 +471,6 @@ private:
     return true;                        // Because we know that we have a plan
   }
 };
-
-
-static join_type calc_join_type(int quick_type)
-{
-  if ((quick_type == QUICK_SELECT_I::QS_TYPE_INDEX_MERGE) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_INTERSECT) ||
-      (quick_type == QUICK_SELECT_I::QS_TYPE_ROR_UNION))
-    return JT_INDEX_MERGE;
-  else
-    return JT_RANGE;
-}
 
 
 /* Explain class functions ****************************************************/
@@ -722,7 +710,7 @@ bool Explain_no_table::shallow_explain()
   return (fmt->begin_context(CTX_MESSAGE) ||
           Explain::shallow_explain() ||
           (can_walk_clauses() &&
-           mark_subqueries(select_lex->where, fmt->entry())) ||
+           mark_subqueries(select_lex->where_cond(), fmt->entry())) ||
           fmt->end_context(CTX_MESSAGE));
 }
 
@@ -1037,7 +1025,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
           pushed_cond)
       {
         StringBuffer<64> buff(cs);
-        if (describe(DESCRIBE_EXTENDED) && can_print_clauses())
+        if (can_print_clauses())
           ((Item *)pushed_cond)->print(&buff, cond_print_flags);
         if (push_extra(ET_USING_WHERE_WITH_PUSHED_CONDITION, buff))
           return true;
@@ -1083,6 +1071,70 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     if (!(mrr_flags & HA_MRR_USE_DEFAULT_IMPL) && push_extra(ET_USING_MRR))
       return true;
   }
+
+  if (tab && tab->type == JT_FT &&
+      (table->file->ha_table_flags() & HA_CAN_FULLTEXT_HINTS))
+  {
+    /*
+      Print info about FT hints.
+    */
+    StringBuffer<64> buff(cs);
+    Ft_hints *ft_hints= tab->ft_func->get_hints();
+    bool not_first= false;
+    if (ft_hints->get_flags() & FT_SORTED)
+    {
+      buff.append("sorted");
+      not_first= true;
+    }
+    else if (ft_hints->get_flags() & FT_NO_RANKING)
+    {
+      buff.append("no_ranking");
+      not_first= true;
+    }
+    if (ft_hints->get_op_type() != FT_OP_UNDEFINED &&
+        ft_hints->get_op_type() != FT_OP_NO)
+    {
+      char buf[64];
+      int len= 0;
+
+      if (not_first)
+        buff.append(", ");
+      switch (ft_hints->get_op_type())
+      {
+        case FT_OP_GT:
+          len= my_snprintf(buf, sizeof(buf) - 1,
+                           "rank > %f", ft_hints->get_op_value());
+          break;
+        case FT_OP_GE:
+          len= my_snprintf(buf, sizeof(buf) - 1,
+                           "rank >= %f", ft_hints->get_op_value());
+          break;
+        default:
+          DBUG_ASSERT(0);
+      }
+
+      buff.append(buf, len, cs);
+      not_first= true;
+    }
+    
+    if (ft_hints->get_limit() != HA_POS_ERROR)
+    {
+      char buf[64];
+      int len= 0;
+
+      if (not_first)
+        buff.append(", ");
+
+      len= my_snprintf(buf, sizeof(buf) - 1,
+                       "limit = %d", ft_hints->get_limit());
+      buff.append(buf, len, cs);
+      not_first= true;
+    }
+    if (not_first)
+      push_extra(ET_FT_HINTS, buff);
+
+  }
+
   return false;
 }
 
@@ -1118,18 +1170,18 @@ bool Explain_join::explain_modify_flags()
       fmt->entry()->mod_type= MT_UPDATE;
     break;
   case SQLCOM_DELETE_MULTI:
+    for (TABLE_LIST *at= query_plan->get_lex()->auxiliary_table_list.first;
+         at;
+         at= at->next_local)
     {
-      TABLE_LIST *aux_tables= query_plan->get_lex()->auxiliary_table_list.first;
-      for (TABLE_LIST *at= aux_tables; at; at= at->next_local)
+      if (at->correspondent_table->updatable &&
+          at->correspondent_table->updatable_base_table()->table == table)
       {
-        if (at->table == table)
-        {
-          fmt->entry()->mod_type= MT_DELETE;
-          break;
-        }
+        fmt->entry()->mod_type= MT_DELETE;
+        break;
       }
-      break;
     }
+    break;
   case SQLCOM_INSERT_SELECT:
     if (table == query_plan->get_lex()->leaf_tables_insert->table)
       fmt->entry()->mod_type= MT_INSERT;
@@ -1262,10 +1314,10 @@ bool Explain_join::explain_join_tab(size_t tab_num)
   select= (tab->filesort && tab->filesort->select) ?
            tab->filesort->select : tab->select;
 
-  if (tab->type == JT_ALL && select && select->quick)
+  if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE)
   {
+    DBUG_ASSERT(select && select->quick);
     quick_type= select->quick->get_type();
-    tab->type= calc_join_type(quick_type);
   }
 
   if (tab->starts_weedout())
@@ -1392,9 +1444,11 @@ bool Explain_join::explain_key_and_len()
   if (tab->ref.key_parts)
     return explain_key_and_len_index(tab->ref.key, tab->ref.key_length,
                                      tab->ref.key_parts);
-  else if (tab->type == JT_INDEX_SCAN)
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_FT)
     return explain_key_and_len_index(tab->index);
-  else if (select && select->quick)
+  else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
+      ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+       select && select->quick))
     return explain_key_and_len_quick(select);
   else
   {
@@ -1441,7 +1495,7 @@ static void human_readable_size(char *buf, int buf_len, double data_size)
   for (i= 0; data_size > 1024 && i < 5; i++)
     data_size/= 1024;
   const char mult= i == 0 ? 0 : size[i];
-  snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
+  my_snprintf(buf, buf_len, "%llu%c", (ulonglong)data_size, mult);
   buf[buf_len - 1]= 0;
 }
 
@@ -1452,32 +1506,58 @@ bool Explain_join::explain_rows_and_filtered()
     return false;
 
   double examined_rows;
-  if (select && select->quick)
+  double access_method_fanout= tab->position->rows_fetched;
+  if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
+      ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
+       select && select->quick))
+  {
+    /*
+      Because filesort can't handle REF it's converted into quick select,
+      but type is kept as is. This is an exception and the only case when
+      REF has quick select.
+    */
+    DBUG_ASSERT(!(tab->type == JT_REF || tab->type == JT_REF_OR_NULL) ||
+                tab->filesort);
     examined_rows= rows2double(select->quick->records);
-  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL)
-    examined_rows= rows2double(tab->rowcount);
+
+    /*
+      Unlike the "normal" range access method, dynamic range access
+      method does not set
+      tab->position->fanout=select->quick->records. If this is EXPLAIN
+      FOR CONNECTION of a table with dynamic range,
+      tab->position->fanout reflects that fanout of table/index scan,
+      not the fanout of the current dynamic range scan.
+    */
+    if (tab->use_quick == QS_DYNAMIC_RANGE)
+      access_method_fanout= examined_rows;
+  }
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_ALL ||
+           tab->type == JT_CONST || tab->type == JT_SYSTEM)
+    examined_rows= tab->rowcount;
   else
-    examined_rows= tab->position->fanout;
+    examined_rows= tab->position->rows_fetched;
 
   fmt->entry()->col_rows.set(static_cast<ulonglong>(examined_rows));
 
   /* Add "filtered" field */
-  if (describe(DESCRIBE_EXTENDED))
   {
-    float f= 0.0;
+    float filter= 0.0;
     if (examined_rows)
-      f= 100.0 * tab->position->fanout / examined_rows;
-    fmt->entry()->col_filtered.set(f);
+    {
+      filter= 100.0 * (access_method_fanout / examined_rows) *
+        tab->position->filter_effect;
+    }
+    fmt->entry()->col_filtered.set(filter);
   }
   // Print cost-related info
-  double prefix_rows= tab->position->prefix_record_count;
+  double prefix_rows= tab->position->prefix_rowcount;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
-  double const cond_cost= prefix_rows * ROW_EVALUATE_COST;
+  double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
   fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?
                                   0.0 : tab->position->read_cost);
-  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost.get_io_cost());
+  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost);
 
   // Calculate amount of data from this table per query
   char data_size_str[32];
@@ -1529,7 +1609,7 @@ bool Explain_join::explain_extra()
     uint keyno= MAX_KEY;
     if (tab->ref.key_parts)
       keyno= tab->ref.key;
-    else if (select && select->quick)
+    else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE)
       keyno = select->quick->index;
 
     if (explain_extra_common(select, tab, quick_type, keyno))
@@ -1744,7 +1824,7 @@ bool Explain_table::shallow_explain()
 
   if (Explain::shallow_explain() ||
       (can_walk_clauses() &&
-       mark_subqueries(select_lex->where, fmt->entry())))
+       mark_subqueries(select_lex->where_cond(), fmt->entry())))
     return true;
 
   if (fmt->end_context(CTX_JOIN_TAB))
@@ -1812,8 +1892,7 @@ bool Explain_table::explain_rows_and_filtered()
   double examined_rows= table->in_use->query_plan.get_plan()->examined_rows;
   fmt->entry()->col_rows.set(static_cast<long long>(examined_rows));
 
-  if (describe(DESCRIBE_EXTENDED))
-    fmt->entry()->col_filtered.set(100.0);
+  fmt->entry()->col_filtered.set(100.0);
   
   return false;
 }
@@ -1927,7 +2006,7 @@ bool explain_single_table_modification(THD *ethd,
 
     For queries with top-level JOIN the caller provides pre-allocated
     select_send object. Then that JOIN object prepares the select_send
-    object calling result->prepare() in JOIN::prepare(),
+    object calling result->prepare() in SELECT_LEX::prepare(),
     result->initalize_tables() in JOIN::optimize() and result->prepare2()
     in JOIN::exec().
     However without the presence of the top-level JOIN we have to
@@ -2025,7 +2104,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                             ctx);
       /* Single select (without union) always returns 0 or 1 row */
       ethd->limit_found_rows= join->send_records;
-      ethd->set_examined_row_count(0);
       break;
     }
     case JOIN::NO_TABLES:
@@ -2052,7 +2130,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       {                                           // Only test of functions
         /* Single select (without union) always returns 0 or 1 row */
         ethd->limit_found_rows= join->send_records;
-        ethd->set_examined_row_count(0);
       }
       break;
     }
@@ -2152,13 +2229,11 @@ bool explain_query(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
        against malformed queries, so skip it if we have an error.
     2) The code also isn't thread-safe, skip if explaining other thread
     (see Explain::can_print_clauses())
-    3) Print only when requested
-    4) Currently only SELECT queries can be printed (TODO: fix this)
+    3) Currently only SELECT queries can be printed (TODO: fix this)
   */
   if (!res &&                                       // (1)
       ethd == query_thd &&                          // (2)
-      (ethd->lex->describe & DESCRIBE_EXTENDED) &&  // (3)
-      query_thd->query_plan.get_command() == SQLCOM_SELECT) // (4)
+      query_thd->query_plan.get_command() == SQLCOM_SELECT) // (3)
   {
     StringBuffer<1024> str;
     /*
@@ -2211,6 +2286,32 @@ bool mysql_explain_unit(THD *ethd, SELECT_LEX_UNIT *unit, select_result *result)
   DBUG_RETURN(res || ethd->is_error());
 }
 
+/**
+  Callback function used by mysql_explain_other() to find thd based
+  on the thread id.
+
+  @note It acquires LOCK_thd_data mutex and LOCK_query_plan mutex,
+  when it finds matching thd.
+  It is the responsibility of the caller to release this mutex.
+*/
+class Find_thd_query_lock: public Find_THD_Impl
+{
+public:
+  Find_thd_query_lock(ulong value): m_id(value) {}
+  virtual bool operator()(THD *thd)
+  {
+    if (thd->thread_id == m_id)
+    {
+      mysql_mutex_lock(&thd->LOCK_thd_data);
+      mysql_mutex_lock(&thd->LOCK_query_plan);
+      return true;
+    }
+    return false;
+  }
+private:
+  ulong m_id;
+};
+
 
 /**
    Entry point for EXPLAIN CONNECTION: locates the connection by its ID, takes
@@ -2252,21 +2353,10 @@ void mysql_explain_other(THD *thd)
   // Pick thread
   if (!thd->killed)
   {
-    mysql_mutex_lock(&LOCK_thread_count);
-    Thread_iterator it= global_thread_list_begin();
-    Thread_iterator end= global_thread_list_end();
-    for (; it != end; ++it)
-    {
-      THD *tmp= *it;
-      if (tmp->thread_id != thd->lex->query_id)
-        continue;
-      query_thd= tmp;
-      unlock_thd_data= true;
-      mysql_mutex_lock(&tmp->LOCK_thd_data);
-      mysql_mutex_lock(&tmp->LOCK_query_plan);
-      break;
-    }
-    mysql_mutex_unlock(&LOCK_thread_count);
+    Find_thd_query_lock find_thd_query_lock(thd->lex->query_id);
+    query_thd= Global_THD_manager::
+               get_instance()->find_thd(&find_thd_query_lock);
+    if (query_thd) unlock_thd_data= true;
   }
 
   if (!query_thd)

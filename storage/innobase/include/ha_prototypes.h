@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2006, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2006, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -249,15 +249,30 @@ CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	thd);	/*!< in: MySQL thread handle */
-/**********************************************************************//**
-Determines the current SQL statement.
-@return SQL statement string */
 
+/** Determines the current SQL statement.
+Thread unsafe, can only be called from the thread owning the THD.
+@param[in]	thd	MySQL thread handle
+@param[out]	length	Length of the SQL statement
+@return			SQL statement string */
 const char*
-innobase_get_stmt(
-/*==============*/
-	THD*	thd,		/*!< in: MySQL thread handle */
-	size_t*	length);		/*!< out: length of the SQL statement */
+innobase_get_stmt_unsafe(
+	THD*	thd,
+	size_t*	length);
+
+/** Determines the current SQL statement.
+Thread safe, can be called from any thread as the string is copied
+into the provided buffer.
+@param[in]	thd	MySQL thread handle
+@param[out]	buf	Buffer containing SQL statement
+@param[in]	buflen	Length of provided buffer
+@return			Length of the SQL statement */
+size_t
+innobase_get_stmt_safe(
+	THD*	thd,
+	char*	buf,
+	size_t	buflen);
+
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function
@@ -340,16 +355,6 @@ compare two character string case insensitively according to their charset. */
 int
 innobase_fts_text_case_cmp(
 /*=======================*/
-	const void*	cs,		/*!< in: Character set */
-	const void*	p1,		/*!< in: key */
-	const void*	p2);		/*!< in: node */
-
-/******************************************************************//**
-compare two character string according to their charset. */
-
-int
-innobase_fts_string_cmp(
-/*====================*/
 	const void*	cs,		/*!< in: Character set */
 	const void*	p1,		/*!< in: key */
 	const void*	p2);		/*!< in: node */
@@ -445,6 +450,16 @@ ib_senderrf(
 	ib_log_level_t	level,		/*!< in: warning level */
 	ib_uint32_t	code,		/*!< MySQL error code */
 	...);				/*!< Args */
+
+extern const char* 	TROUBLESHOOTING_MSG;
+extern const char* 	TROUBLESHOOT_DATADICT_MSG;
+extern const char* 	BUG_REPORT_MSG;
+extern const char* 	FORCE_RECOVERY_MSG;
+extern const char*      ERROR_CREATING_MSG;
+extern const char*      OPERATING_SYSTEM_ERROR_MSG;
+extern const char*      FOREIGN_KEY_CONSTRAINTS_MSG;
+extern const char*      SET_TRANSACTION_MSG;
+extern const char*      INNODB_PARAMETERS_MSG;
 
 /******************************************************************//**
 Write a message to the MySQL log, prefixed with "InnoDB: ".

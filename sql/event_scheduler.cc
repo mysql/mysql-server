@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,28 +20,19 @@
 #include "event_data_objects.h"
 #include "event_queue.h"
 #include "event_db_repository.h"
-#include "sql_connect.h"         // init_new_connection_handler_thread
 #include "auth_common.h"             // SUPER_ACL
-#include "global_threads.h"
 #include "log.h"
+#include "mysqld_thd_manager.h"      // Global_THD_manager
 
 /**
   @addtogroup Event_Scheduler
   @{
 */
 
-#ifdef __GNUC__
-#if __GNUC__ >= 2
-#define SCHED_FUNC __FUNCTION__
-#endif
-#else
-#define SCHED_FUNC "<unknown>"
-#endif
-
-#define LOCK_DATA()       lock_data(SCHED_FUNC, __LINE__)
-#define UNLOCK_DATA()     unlock_data(SCHED_FUNC, __LINE__)
+#define LOCK_DATA()       lock_data(__func__, __LINE__)
+#define UNLOCK_DATA()     unlock_data(__func__, __LINE__)
 #define COND_STATE_WAIT(mythd, abstime, stage) \
-        cond_wait(mythd, abstime, stage, SCHED_FUNC, __FILE__, __LINE__)
+        cond_wait(mythd, abstime, stage, __func__, __FILE__, __LINE__)
 
 extern pthread_attr_t connection_attrib;
 
@@ -139,14 +130,14 @@ Event_worker_thread::print_warnings(THD *thd, Event_job_data *et)
 bool
 post_init_event_thread(THD *thd)
 {
-  (void) init_new_connection_handler_thread();
-  if (init_thr_lock() || thd->store_globals())
+  if (my_thread_init() || init_thr_lock() || thd->store_globals())
   {
     return TRUE;
   }
 
-  inc_thread_running();
-  add_global_thread(thd);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->add_thd(thd);
+  thd_manager->inc_thread_running();
   return FALSE;
 }
 
@@ -162,14 +153,15 @@ post_init_event_thread(THD *thd)
 void
 deinit_event_thread(THD *thd)
 {
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd->proc_info= "Clearing";
   DBUG_ASSERT(thd->net.buff != 0);
   net_end(&thd->net);
   DBUG_PRINT("exit", ("Event thread finishing"));
 
-  dec_thread_running();
   thd->release_resources();
-  remove_global_thread(thd);
+  thd_manager->remove_thd(thd);
+  thd_manager->dec_thread_running();
   delete thd;
 }
 
@@ -192,6 +184,7 @@ void
 pre_init_event_thread(THD* thd)
 {
   DBUG_ENTER("pre_init_event_thread");
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
   thd->client_capabilities= 0;
   thd->security_ctx->master_access= 0;
   thd->security_ctx->db_access= 0;
@@ -202,10 +195,8 @@ pre_init_event_thread(THD* thd)
   thd->slave_thread= 0;
   thd->variables.option_bits|= OPTION_AUTO_IS_NULL;
   thd->client_capabilities|= CLIENT_MULTI_RESULTS;
-  mysql_mutex_lock(&LOCK_thread_count);
-  thd->thread_id= thd->variables.pseudo_thread_id= thread_id++;
-  mysql_mutex_unlock(&LOCK_thread_count);
-
+  thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
+  thd->thread_id= thd->variables.pseudo_thread_id;
   /*
     Guarantees that we will see the thread in SHOW PROCESSLIST though its
     vio is NULL.
@@ -311,6 +302,8 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
   Event_job_data job_data;
   bool res;
 
+  DBUG_ASSERT(thd->m_digest == NULL);
+
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
   PSI_statement_locker_state state;
   DBUG_ASSERT(thd->m_statement_psi == NULL);
@@ -350,9 +343,11 @@ Event_worker_thread::run(THD *thd, Event_queue_element_for_exec *event)
                           job_data.dbname.str, job_data.name.str);
 end:
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
-    MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
-    thd->m_statement_psi= NULL;
+  MYSQL_END_STATEMENT(thd->m_statement_psi, thd->get_stmt_da());
+  thd->m_statement_psi= NULL;
 #endif
+
+  DBUG_ASSERT(thd->m_digest == NULL);
 
   DBUG_PRINT("info", ("Done with Event %s.%s", event->dbname.str,
              event->name.str));
@@ -714,6 +709,26 @@ end:
   DBUG_RETURN(FALSE);
 }
 
+/**
+  This class implements callback for do_for_all_thd().
+  It counts the total number of living event worker threads
+  from global thread list.
+*/
+
+class Is_worker : public Do_THD_Impl
+{
+public:
+  Is_worker() : m_count(0) {}
+  virtual void operator()(THD *thd)
+  {
+    if (thd->system_thread == SYSTEM_THREAD_EVENT_WORKER)
+      m_count++;
+    return;
+  }
+  int get_count() { return m_count; }
+private:
+  int m_count;
+};
 
 /*
   Returns the number of living event worker threads.
@@ -722,19 +737,14 @@ end:
     Event_scheduler::workers_count()
 */
 
-uint
+int
 Event_scheduler::workers_count()
 {
-  uint count= 0;
-
+  int count= 0;
+  Is_worker is_worker;
   DBUG_ENTER("Event_scheduler::workers_count");
-  mysql_mutex_lock(&LOCK_thread_count);
-  Thread_iterator it= global_thread_list_begin();
-  Thread_iterator end= global_thread_list_end();
-  for (; it != end; ++it)
-    if ((*it)->system_thread == SYSTEM_THREAD_EVENT_WORKER)
-      ++count;
-  mysql_mutex_unlock(&LOCK_thread_count);
+  Global_THD_manager::get_instance()->do_for_all_thd(&is_worker);
+  count= is_worker.get_count();
   DBUG_PRINT("exit", ("%d", count));
   DBUG_RETURN(count);
 }
@@ -854,7 +864,7 @@ Event_scheduler::dump_internal_status()
   printf("LUA        : %s:%u\n", mutex_last_unlocked_in_func,
                                  mutex_last_unlocked_at_line);
   printf("WOC        : %s\n", waiting_on_cond? "YES":"NO");
-  printf("Workers    : %u\n", workers_count());
+  printf("Workers    : %d\n", workers_count());
   printf("Executed   : %lu\n", (ulong) started_events);
   printf("Data locked: %s\n", mutex_scheduler_data_locked ? "YES":"NO");
 

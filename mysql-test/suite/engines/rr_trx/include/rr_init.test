@@ -1,8 +1,8 @@
 #
 # Specify storage engine to use. Variable $engine is set in wrapper test.
 #
-eval SET @@storage_engine = $engine;
-if (`SELECT @@storage_engine LIKE 'InnoDB' AND @@version LIKE '%6.%'`)
+eval SET @@default_storage_engine = $engine;
+if (`SELECT @@default_storage_engine LIKE 'InnoDB' AND @@version LIKE '%6.%'`)
 {
     # Need this due to Bug#43447 - Crash when executing SELECT ... LIMIT n FOR UPDATE query
     # Hopefully temporary...
@@ -13,7 +13,7 @@ if (`SELECT @@storage_engine LIKE 'InnoDB' AND @@version LIKE '%6.%'`)
     --enable_query_log
 }
 
-if (`SELECT @@storage_engine LIKE 'PBXT' AND @@version LIKE '%5.1%'`)
+if (`SELECT @@default_storage_engine LIKE 'PBXT' AND @@version LIKE '%5.1%'`)
 {
     --disable_query_log
     SET SESSION binlog_format = 'MIXED';
@@ -22,7 +22,7 @@ if (`SELECT @@storage_engine LIKE 'PBXT' AND @@version LIKE '%5.1%'`)
 }
 
 # Verify default storage engine.
-SHOW VARIABLES LIKE 'storage_engine';
+SHOW VARIABLES LIKE 'default_storage_engine';
 
 # Verify default isolation level
 SHOW VARIABLES LIKE 'tx_isolation';

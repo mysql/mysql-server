@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All rights reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All rights reserved.
 Copyright (c) 2008, 2009, Google Inc.
 Copyright (c) 2009, Percona Inc.
 
@@ -59,7 +59,7 @@ struct srv_stats_t {
 	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
 	typedef ib_counter_t<ulint, 1, single_indexer_t> ulint_ctr_1_t;
 	typedef ib_counter_t<lint, 1, single_indexer_t> lint_ctr_1_t;
-	typedef ib_counter_t<ib_int64_t, 1, single_indexer_t> ib_int64_ctr_1_t;
+	typedef ib_counter_t<int64_t, 1, single_indexer_t> int64_ctr_1_t;
 
 	/** Count the amount of data written in total (in bytes) */
 	ulint_ctr_1_t		data_written;
@@ -69,6 +69,9 @@ struct srv_stats_t {
 
 	/** Number of physical writes to the log performed */
 	ulint_ctr_1_t		log_writes;
+
+	/** Amount of data padded for log write ahead */
+	ulint_ctr_1_t		log_padded;
 
 	/** Amount of data written to the log files in bytes */
 	lsn_ctr_1_t		os_log_written;
@@ -107,7 +110,7 @@ struct srv_stats_t {
 	ulint_ctr_1_t		data_read;
 
 	/** Wait time of database locks */
-	ib_int64_ctr_1_t	n_lock_wait_time;
+	int64_ctr_1_t		n_lock_wait_time;
 
 	/** Number of database lock waits */
 	ulint_ctr_1_t		n_lock_wait_count;
@@ -246,6 +249,7 @@ extern ib_uint64_t	srv_log_file_size_requested;
 extern ulint	srv_log_buffer_size;
 extern ulong	srv_flush_log_at_trx_commit;
 extern uint	srv_flush_log_at_timeout;
+extern ulong	srv_log_write_ahead_size;
 extern char	srv_adaptive_flushing;
 
 /* If this flag is TRUE, then we will load the indexes' (and tables') metadata
@@ -253,11 +257,6 @@ even if they are marked as "corrupted". Mostly it is for DBA to process
 corrupted index and table */
 extern my_bool	srv_load_corrupted;
 
-#ifndef UNIV_HOTBACKUP
-extern my_bool	srv_use_sys_malloc;
-#else
-extern ibool	srv_use_sys_malloc;
-#endif /* UNIV_HOTBACKUP */
 extern ulint	srv_buf_pool_size;	/*!< requested size in bytes */
 #define SRV_BUF_POOL_INSTANCES_NOT_SET	0
 extern ulong	srv_buf_pool_instances; /*!< requested number of buffer pool instances */
@@ -271,7 +270,6 @@ extern ulint	srv_buf_pool_old_size;	/*!< previously requested size */
 extern ulint	srv_buf_pool_curr_size;	/*!< current size in bytes */
 extern ulong	srv_buf_pool_dump_pct;	/*!< dump that may % of each buffer
 					pool during BP dump */
-extern ulint	srv_mem_pool_size;
 extern ulint	srv_lock_table_size;
 
 extern ulint	srv_n_file_io_threads;
@@ -299,13 +297,13 @@ as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
 
 extern char*	srv_file_flush_method_str;
-extern ulint	srv_unix_file_flush_method;
-extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
-extern ulong	srv_max_dirty_pages_pct;
-extern ulong	srv_max_dirty_pages_pct_lwm;
+extern ulong	srv_n_page_cleaners;
+
+extern double	srv_max_dirty_pages_pct;
+extern double	srv_max_dirty_pages_pct_lwm;
 
 extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
@@ -333,22 +331,16 @@ extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
-extern ulong	srv_max_buf_pool_modified_pct;
+extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 
 extern ulong	srv_replication_delay;
 /*-------------------------------------------*/
 
-extern ibool	srv_print_innodb_monitor;
-extern ibool	srv_print_innodb_lock_monitor;
-extern ibool	srv_print_innodb_tablespace_monitor;
+extern my_bool	srv_print_innodb_monitor;
+extern my_bool	srv_print_innodb_lock_monitor;
 extern ibool	srv_print_verbose_log;
-#define DEPRECATED_MSG_INNODB_TABLE_MONITOR \
-	"Using innodb_table_monitor is deprecated and it may be removed " \
-	"in future releases. Please use the InnoDB INFORMATION_SCHEMA " \
-	"tables instead, see " REFMAN "innodb-i_s-tables.html"
-extern ibool	srv_print_innodb_table_monitor;
 
 extern ibool	srv_monitor_active;
 extern ibool	srv_error_monitor_active;
@@ -368,7 +360,6 @@ extern ibool	srv_priority_boost;
 extern ulint	srv_truncated_status_writes;
 extern ulint	srv_available_undo_logs;
 
-extern	ulint	srv_mem_pool_size;
 extern	ulint	srv_lock_table_size;
 
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
@@ -382,11 +373,6 @@ extern my_bool	srv_purge_view_update_only_debug;
 extern ulint	srv_fatal_semaphore_wait_threshold;
 #define SRV_SEMAPHORE_WAIT_EXTENSION	7200
 extern ulint	srv_dml_needed_delay;
-
-#ifndef HAVE_ATOMIC_BUILTINS
-/** Mutex protecting some server global variables. */
-extern ib_mutex_t	server_mutex;
-#endif /* !HAVE_ATOMIC_BUILTINS */
 
 #define SRV_MAX_N_IO_THREADS	130
 
@@ -448,9 +434,10 @@ do {								\
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef _WIN32
 /** Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
-enum {
+enum srv_unix_flush_t {
 	SRV_UNIX_FSYNC = 1,	/*!< fsync, the default */
 	SRV_UNIX_O_DSYNC,	/*!< open log files in O_SYNC mode */
 	SRV_UNIX_LITTLESYNC,	/*!< do not call os_file_flush()
@@ -471,12 +458,15 @@ enum {
 				this case user/DBA should be sure about
 				the integrity of the meta-data */
 };
-
+extern enum srv_unix_flush_t	srv_unix_file_flush_method;
+#else
 /** Alternatives for file i/o in Windows */
-enum {
+enum srv_win_flush_t {
 	SRV_WIN_IO_NORMAL = 1,	/*!< buffered I/O */
 	SRV_WIN_IO_UNBUFFERED	/*!< unbuffered I/O; this is the default */
 };
+extern enum srv_win_flush_t	srv_win_file_flush_method;
+#endif /* _WIN32 */
 
 /** Alternatives for srv_force_recovery. Non-zero values are intended
 to help the user get a damaged database up so that he can dump intact
@@ -810,7 +800,7 @@ struct export_var_t{
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
-	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
+	int64_t innodb_row_lock_time;		/*!< srv_n_lock_wait_time
 						/ 1000 */
 	ulint innodb_row_lock_time_avg;		/*!< srv_n_lock_wait_time
 						/ 1000

@@ -23,15 +23,19 @@ include/wait_for_slave_sql_error.inc [errno=1756]
 include/start_slave.inc
 CREATE TABLE t1 (a int primary key) engine=innodb;
 insert into t1 values (1),(2);
+include/sync_slave_sql_with_master.inc
 insert into t1 values (3);
 insert into t1 values (3);
 include/wait_for_slave_sql_to_stop.inc
 delete from t1 where a=3;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 delete from t1;
+include/sync_slave_sql_with_master.inc
 insert into t1 values (1),(2),(3);
 create table t2m (a int) engine=myisam;
 insert into t2m values (1);
+include/sync_slave_sql_with_master.inc
 begin;
 update t1 set a=31 where a=3;
 insert into t1 values (5),(6),(7);
@@ -45,6 +49,7 @@ update t1 set a=21 where a=2;
 include/wait_for_slave_sql_error.inc [errno=1213, 1205]
 rollback;
 include/start_slave.inc
+include/sync_slave_sql_with_master.inc
 stop slave sql_thread;
 set @@global.sql_slave_skip_counter=7;
 begin;
@@ -64,6 +69,7 @@ set @@global.slave_transaction_retries= 1;
 start slave sql_thread;
 Warnings:
 Note	1753	slave_transaction_retries is not supported in multi-threaded slave mode. In the event of a transient failure, the slave will not retry the transaction and will stop.
+include/sync_slave_sql_with_master.inc
 include/stop_slave.inc
 create table t2 (a int);
 insert into t2 values (1);
@@ -77,6 +83,7 @@ Note	1753	slave_transaction_retries is not supported in multi-threaded slave mod
 drop table t1;
 drop table t2m;
 drop table t2;
+include/sync_slave_sql_with_master.inc
 drop view worker_proc_list;
 drop view coord_proc_list;
 set @@global.slave_transaction_retries= @save.slave_transaction_retries;
@@ -101,6 +108,7 @@ create table d1.t2m (a int) engine=myisam;
 insert into d1.t1 values (1),(2),(3);
 insert into d2.t1 values (1),(2),(3);
 insert into d1.t2m values (1);
+include/sync_slave_sql_with_master.inc
 begin;
 update d1.t1 set a=31 where a=3;
 insert into d1.t1 values (5),(6),(7);
@@ -120,5 +128,6 @@ include/wait_for_slave_sql_to_stop.inc
 include/start_slave.inc
 drop database d1;
 drop database d2;
+include/sync_slave_sql_with_master.inc
 set @@global.slave_parallel_workers= @save.slave_parallel_workers;
 include/rpl_end.inc

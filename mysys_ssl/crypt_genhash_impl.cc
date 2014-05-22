@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,8 @@
 #endif
 
 #include "crypt_genhash_impl.h"
+
+#include "m_string.h"
 
 /* Pre VS2010 compilers doesn't support stdint.h */
 #ifdef HAVE_STDINT_H
@@ -251,18 +253,19 @@ char *
 my_crypt_genhash(char *ctbuffer,
                    size_t ctbufflen,
                    const char *plaintext,
-                   int plaintext_len,
+                   size_t plaintext_len,
                    const char *switchsalt,
                    const char **params)
 {
-  int salt_len, i;
+  int salt_len;
+  size_t i;
   char *salt;
   unsigned char A[DIGEST_LEN];
   unsigned char B[DIGEST_LEN];
   unsigned char DP[DIGEST_LEN];
   unsigned char DS[DIGEST_LEN];
   DIGEST_CTX ctxA, ctxB, ctxC, ctxDP, ctxDS;
-  int rounds = ROUNDS_DEFAULT;
+  uint rounds = ROUNDS_DEFAULT;
   int srounds = 0;
   bool custom_rounds= false;
   char *p;
@@ -342,7 +345,7 @@ my_crypt_genhash(char *ctbuffer,
 
   /* 17. - 19. */
   DIGESTInit(&ctxDS);
-  for (i= 0; i < 16 + (uint8_t)A[0]; i++)
+  for (i= 0; i < 16U + (uint8_t)A[0]; i++)
           DIGESTUpdate(&ctxDS, salt, salt_len);
   DIGESTFinal(DS, &ctxDS);
 
@@ -396,13 +399,13 @@ my_crypt_genhash(char *ctbuffer,
   /* 22. Now make the output string */
   if (custom_rounds)
   {
-    (void) snprintf(ctbuffer, ctbufflen,
-                    "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
+    (void) my_snprintf(ctbuffer, ctbufflen,
+                       "%s$rounds=%zu$", crypt_alg_magic, (size_t)rounds);
   }
   else
   {
-    (void) snprintf(ctbuffer, ctbufflen,
-                    "%s$", crypt_alg_magic);
+    (void) my_snprintf(ctbuffer, ctbufflen,
+                       "%s$", crypt_alg_magic);
   }
   (void) strncat(ctbuffer, (const char *)salt, salt_len);
   (void) strlcat(ctbuffer, "$", ctbufflen);

@@ -1,12 +1,8 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # Let's verify that multi-update is not always skipped by slave if
 # some replicate-* rules exist.
 # (BUG#15699)
 
+source include/not_gtid_enabled.inc;
 source include/master-slave.inc;
 
 ### Clean-up
@@ -37,7 +33,7 @@ insert into d1.t0 values (0); # replication works
 
 ### Check on slave
 
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 use d1;
 select * from t0 where id=0;  # must find
 
@@ -45,7 +41,7 @@ select * from t0 where id=0;  # must find
 connection master;
 drop database d1;
 drop database d2;
-sync_slave_with_master;
+--source include/sync_slave_sql_with_master.inc
 
 # End of test
 --source include/rpl_end.inc

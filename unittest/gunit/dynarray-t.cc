@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,8 +46,8 @@ static inline bool operator<(const Key_use &a, const Key_use &b)
     return a.key < b.key;
   if (a.keypart != b.keypart)
     return a.keypart < b.keypart;
-  const bool atab = test((a.used_tables & ~OUTER_REF_TABLE_BIT));
-  const bool btab = test((b.used_tables & ~OUTER_REF_TABLE_BIT));
+  const bool atab = MY_TEST((a.used_tables & ~OUTER_REF_TABLE_BIT));
+  const bool btab = MY_TEST((b.used_tables & ~OUTER_REF_TABLE_BIT));
   if (atab != btab)
     return atab < btab;
   return
@@ -66,9 +66,9 @@ static inline bool operator==(const Key_use &lhs, const Key_use &rhs)
     lhs.table->tablenr == rhs.table->tablenr &&
     lhs.key            == rhs.key            &&
     lhs.keypart        == rhs.keypart        &&
-    test((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
+    MY_TEST((lhs.used_tables & ~OUTER_REF_TABLE_BIT))
     ==
-    test((rhs.used_tables & ~OUTER_REF_TABLE_BIT)) &&
+    MY_TEST((rhs.used_tables & ~OUTER_REF_TABLE_BIT)) &&
     (lhs.optimize & KEY_OPTIMIZE_REF_OR_NULL)
     ==
     (rhs.optimize & KEY_OPTIMIZE_REF_OR_NULL);
@@ -104,8 +104,8 @@ inline int sort_keyuse(Key_use *a, Key_use *b)
   if (a->keypart != b->keypart)
     return (int) (a->keypart - b->keypart);
   // Place const values before other ones
-  if ((res= test((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
-       test((b->used_tables & ~OUTER_REF_TABLE_BIT))))
+  if ((res= MY_TEST((a->used_tables & ~OUTER_REF_TABLE_BIT)) -
+       MY_TEST((b->used_tables & ~OUTER_REF_TABLE_BIT))))
     return res;
   /* Place rows that are not 'OPTIMIZE_REF_OR_NULL' first */
   return (int) ((a->optimize & KEY_OPTIMIZE_REF_OR_NULL) -
@@ -240,6 +240,7 @@ protected:
 
     m_array_mysys.reserve(num_elements);
     m_array_std.reserve(num_elements);
+    destroy_counter= 0;
   }
 
   virtual void TearDown()
@@ -290,6 +291,8 @@ protected:
   MEM_ROOT *m_mem_root_p;
   Key_use_array m_array_mysys;
   Key_use_array m_array_std;
+public:
+  static size_t  destroy_counter;
 private:
   static Key_use test_data[num_elements];
   static TABLE   table_list[num_elements];
@@ -297,6 +300,7 @@ private:
   GTEST_DISALLOW_COPY_AND_ASSIGN_(MemRootTest);
 };
 
+size_t  MemRootTest::destroy_counter;
 Key_use MemRootTest::test_data[num_elements];
 TABLE   MemRootTest::table_list[num_elements];
 
@@ -370,8 +374,9 @@ TEST_F(MemRootTest, CopyMemRoot)
 class DestroyCounter
 {
 public:
+  DestroyCounter() : p_counter(&MemRootTest::destroy_counter) {};
   DestroyCounter(const DestroyCounter &rhs) : p_counter(rhs.p_counter) {}
-  DestroyCounter(size_t *p) : p_counter(p) {}
+  explicit DestroyCounter(size_t *p) : p_counter(p) {}
   ~DestroyCounter() { (*p_counter)+= 1; }
 private:
   size_t *p_counter;
@@ -416,6 +421,46 @@ TEST_F(MemRootTest, ReserveDestroy)
   counter= 0;
   array.clear();
   EXPECT_EQ(nn, counter);
+}
+
+TEST_F(MemRootTest, ResizeSame)
+{
+  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  array.reserve(100);
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  for (int ix= 0; ix < 10; ++ix)
+    array.push_back(foo);
+  EXPECT_EQ(10U, array.size());
+  array.resize(10U);
+  EXPECT_EQ(10U, array.size());
+  array.clear();
+  EXPECT_EQ(10U, counter);
+}
+
+TEST_F(MemRootTest, ResizeGrow)
+{
+  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  array.reserve(100);
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  array.resize(10, foo);
+  EXPECT_EQ(0U, counter);
+  array.clear();
+  EXPECT_EQ(0U, MemRootTest::destroy_counter);
+  EXPECT_EQ(10U, counter);
+}
+
+TEST_F(MemRootTest, ResizeShrink)
+{
+  Mem_root_array<DestroyCounter, false> array(m_mem_root_p);
+  array.reserve(100);
+  size_t counter= 0;
+  DestroyCounter foo(&counter);
+  array.resize(10, foo);
+  EXPECT_EQ(0U, counter);
+  array.resize(5);
+  EXPECT_EQ(5U, counter);
 }
 
 

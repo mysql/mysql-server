@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -33,6 +33,7 @@ Created 10/4/1994 Heikki Tuuri
 #include "rem0rec.h"
 #include "data0data.h"
 #include "mtr0mtr.h"
+#include "gis0type.h"
 
 
 #define PAGE_CUR_ADAPT
@@ -48,6 +49,15 @@ Created 10/4/1994 Heikki Tuuri
 				 "column LIKE 'abc%' ORDER BY column DESC";
 				 we have to find strings which are <= 'abc' or
 				 which extend it */
+
+/* These search mode is for search R-tree index. */
+#define PAGE_CUR_CONTAIN		7
+#define PAGE_CUR_INTERSECT		8
+#define	PAGE_CUR_WITHIN			9
+#define	PAGE_CUR_DISJOINT		10
+#define	PAGE_CUR_MBR_EQUAL		11
+#define	PAGE_CUR_RTREE_INSERT		12
+#define	PAGE_CUR_RTREE_LOCATE		13
 
 #ifdef UNIV_DEBUG
 /*********************************************************//**
@@ -169,7 +179,10 @@ page_cur_tuple_insert(
 	ulint**		offsets,/*!< out: offsets on *rec */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	mtr_t*		mtr,	/*!< in: mini-transaction handle, or NULL */
+	bool		use_cache = false)
+				/*!< in: if true, then use record cache to
+				hold the tuple converted record. */
 	__attribute__((nonnull(1,2,3,4,5), warn_unused_result));
 #endif /* !UNIV_HOTBACKUP */
 /***********************************************************//**
@@ -209,6 +222,25 @@ page_cur_insert_rec_low(
 	ulint*		offsets,/*!< in/out: rec_get_offsets(rec, index) */
 	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
 	__attribute__((nonnull(1,2,3,4), warn_unused_result));
+
+/** Inserts a record next to page cursor on an uncompressed page.
+@param[in]	current_rec	pointer to current record after which
+				the new record is inserted.
+@param[in]	index		record descriptor
+@param[in]	tuple		pointer to a data tuple
+@param[in]	n_ext		number of externally stored columns
+@param[in]	mtr		mini-transaction handle, or NULL
+
+@return pointer to record if succeed, NULL otherwise */
+
+rec_t*
+page_cur_direct_insert_rec_low(
+	rec_t*		current_rec,
+	dict_index_t*	index,
+	const dtuple_t*	tuple,
+	ulint		n_ext,
+	mtr_t*		mtr);
+
 /***********************************************************//**
 Inserts a record next to page cursor on a compressed and uncompressed
 page. Returns pointer to inserted record if succeed, i.e.,
@@ -307,7 +339,8 @@ page_cur_search_with_match(
 	ulint*			ilow_matched_fields,
 					/*!< in/out: already matched
 					fields in lower limit record */
-	page_cur_t*		cursor);/*!< out: page cursor */
+	page_cur_t*		cursor,	/*!< out: page cursor */
+	rtr_info_t*		rtr_info);/*!< in/out: rtree search stack */
 /***********************************************************//**
 Positions a page cursor on a randomly chosen user record on a page. If there
 are no user records, sets the cursor on the infimum record. */
@@ -326,8 +359,8 @@ byte*
 page_cur_parse_insert_rec(
 /*======================*/
 	ibool		is_short,/*!< in: TRUE if short inserts */
-	byte*		ptr,	/*!< in: buffer */
-	byte*		end_ptr,/*!< in: buffer end */
+	const byte*	ptr,	/*!< in: buffer */
+	const byte*	end_ptr,/*!< in: buffer end */
 	buf_block_t*	block,	/*!< in: page or NULL */
 	dict_index_t*	index,	/*!< in: record descriptor */
 	mtr_t*		mtr);	/*!< in: mtr or NULL */

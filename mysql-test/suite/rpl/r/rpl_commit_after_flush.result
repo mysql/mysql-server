@@ -8,6 +8,8 @@ begin;
 insert into t1 values(1);
 flush tables with read lock;
 commit;
+include/sync_slave_sql_with_master.inc
 unlock tables;
 drop table t1;
+include/sync_slave_sql_with_master.inc
 include/rpl_end.inc

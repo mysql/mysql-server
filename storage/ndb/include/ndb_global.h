@@ -27,6 +27,12 @@
 
 #include <my_global.h>
 
+#if defined __GNUC__
+# define ATTRIBUTE_FORMAT(style, m, n) __attribute__((format(style, m, n)))
+#else
+# define ATTRIBUTE_FORMAT(style, m, n)
+#endif
+
 #ifdef HAVE_NDB_CONFIG_H
 #include "ndb_config.h"
 #endif

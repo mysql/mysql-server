@@ -1,12 +1,10 @@
-# The include statement below is a temp one for tests that are yet to
-#be ported to run with InnoDB,
-#but needs to be kept for tests that would need MyISAM in future.
---source include/force_myisam_default.inc
-
 # t/mix2_myisam.test
 #
 # Last update: 2006-07-26 ML create this test as derivate from innodb.test
-#
+# myisam specific test
+--source include/force_myisam_default.inc
+
+--source include/have_myisam.inc
 
 let $engine_type= MyISAM;
 let $other_engine_type= MEMORY;

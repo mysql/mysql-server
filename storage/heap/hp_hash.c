@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -262,10 +262,10 @@ ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key)
     if (seg->type == HA_KEYTYPE_TEXT)
     {
        const CHARSET_INFO *cs= seg->charset;
-       uint length= seg->length;
+       size_t length= seg->length;
        if (cs->mbmaxlen > 1)
        {
-         uint char_length;
+         size_t char_length;
          char_length= my_charpos(cs, pos, pos + length, length/cs->mbmaxlen);
          set_if_smaller(length, char_length);
        }
@@ -275,10 +275,10 @@ ulong hp_hashnr(HP_KEYDEF *keydef, const uchar *key)
     {
        const CHARSET_INFO *cs= seg->charset;
        uint pack_length= 2;                     /* Key packing is constant */
-       uint length= uint2korr(pos);
+       size_t length= uint2korr(pos);
        if (cs->mbmaxlen > 1)
        {
-         uint char_length;
+         size_t char_length;
          char_length= my_charpos(cs, pos +pack_length,
                                  pos +pack_length + length,
                                  seg->length/cs->mbmaxlen);
@@ -321,7 +321,7 @@ ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec)
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       const CHARSET_INFO *cs= seg->charset;
-      uint char_length= seg->length;
+      size_t char_length= seg->length;
       if (cs->mbmaxlen > 1)
       {
         char_length= my_charpos(cs, pos, pos + char_length,
@@ -334,10 +334,10 @@ ulong hp_rec_hashnr(HP_KEYDEF *keydef, const uchar *rec)
     {
       const CHARSET_INFO *cs= seg->charset;
       uint pack_length= seg->bit_start;
-      uint length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
+      size_t length= (pack_length == 1 ? (uint) *(uchar*) pos : uint2korr(pos));
       if (cs->mbmaxlen > 1)
       {
-        uint char_length;
+        size_t char_length;
         char_length= my_charpos(cs, pos + pack_length,
                                 pos + pack_length + length,
                                 seg->length/cs->mbmaxlen);
@@ -397,13 +397,13 @@ int hp_rec_key_cmp(HP_KEYDEF *keydef, const uchar *rec1, const uchar *rec2,
     if (seg->type == HA_KEYTYPE_TEXT)
     {
       const CHARSET_INFO *cs= seg->charset;
-      uint char_length1;
-      uint char_length2;
+      size_t char_length1;
+      size_t char_length2;
       uchar *pos1= (uchar*)rec1 + seg->start;
       uchar *pos2= (uchar*)rec2 + seg->start;
       if (cs->mbmaxlen > 1)
       {
-        uint char_length= seg->length / cs->mbmaxlen;
+        size_t char_length= seg->length / cs->mbmaxlen;
         char_length1= my_charpos(cs, pos1, pos1 + seg->length, char_length);
         set_if_smaller(char_length1, seg->length);
         char_length2= my_charpos(cs, pos2, pos2 + seg->length, char_length);
@@ -476,7 +476,7 @@ int hp_key_cmp(HP_KEYDEF *keydef, const uchar *rec, const uchar *key)
   {
     if (seg->null_bit)
     {
-      int found_null=test(rec[seg->null_pos] & seg->null_bit);
+      int found_null=MY_TEST(rec[seg->null_pos] & seg->null_bit);
       if (found_null != (int) *key++)
 	return 1;
       if (found_null)
@@ -564,7 +564,7 @@ void hp_make_key(HP_KEYDEF *keydef, uchar *key, const uchar *rec)
     uint char_length= seg->length;
     uchar *pos= (uchar*) rec + seg->start;
     if (seg->null_bit)
-      *key++= test(rec[seg->null_pos] & seg->null_bit);
+      *key++= MY_TEST(rec[seg->null_pos] & seg->null_bit);
     if (cs->mbmaxlen > 1)
     {
       char_length= my_charpos(cs, pos, pos + seg->length,
@@ -594,10 +594,10 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
 
   for (seg= keydef->seg, endseg= seg + keydef->keysegs; seg < endseg; seg++)
   {
-    uint char_length;
+    size_t char_length;
     if (seg->null_bit)
     {
-      if (!(*key++= 1 - test(rec[seg->null_pos] & seg->null_bit)))
+      if (!(*key++= 1 - MY_TEST(rec[seg->null_pos] & seg->null_bit)))
         continue;
     }
     if (seg->flag & HA_SWAP_KEY)
@@ -607,8 +607,8 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       if (seg->type == HA_KEYTYPE_FLOAT)
       {
 	float nr;
-	float4get(nr, pos);
-	if (isnan(nr))
+	float4get(&nr, pos);
+	if (my_isnan(nr))
 	{
 	  /* Replace NAN with zero */
  	  memset(key, 0, length);
@@ -619,8 +619,8 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       else if (seg->type == HA_KEYTYPE_DOUBLE)
       {
 	double nr;
-	float8get(nr, pos);
-	if (isnan(nr))
+	float8get(&nr, pos);
+	if (my_isnan(nr))
 	{
  	  memset(key, 0, length);
 	  key+= length;
@@ -682,7 +682,7 @@ uint hp_rb_pack_key(HP_KEYDEF *keydef, uchar *key, const uchar *old,
   for (seg= keydef->seg, endseg= seg + keydef->keysegs;
        seg < endseg && keypart_map; old+= seg->length, seg++)
   {
-    uint char_length;
+    size_t char_length;
     keypart_map>>= 1;
     if (seg->null_bit)
     {
@@ -854,7 +854,7 @@ void heap_update_auto_increment(HP_INFO *info, const uchar *record)
   case HA_KEYTYPE_FLOAT:                        /* This shouldn't be used */
   {
     float f_1;
-    float4get(f_1,key);
+    float4get(&f_1,key);
     /* Ignore negative values */
     value = (f_1 < (float) 0.0) ? 0 : (ulonglong) f_1;
     break;
@@ -862,7 +862,7 @@ void heap_update_auto_increment(HP_INFO *info, const uchar *record)
   case HA_KEYTYPE_DOUBLE:                       /* This shouldn't be used */
   {
     double f_1;
-    float8get(f_1,key);
+    float8get(&f_1,key);
     /* Ignore negative values */
     value = (f_1 < 0.0) ? 0 : (ulonglong) f_1;
     break;

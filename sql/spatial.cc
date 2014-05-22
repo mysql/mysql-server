@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,7 +204,7 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
   double res;
   if (bo != Geometry::wkb_xdr)
   {
-    float8get(res, ptr);
+    float8get(&res, ptr);
   }
   else
   {
@@ -217,7 +217,7 @@ static double wkb_get_double(const char *ptr, Geometry::wkbByteOrder bo)
     inv_array[5]= ptr[2];
     inv_array[6]= ptr[1];
     inv_array[7]= ptr[0];
-    float8get(res, inv_array);
+    float8get(&res, inv_array);
   }
   return res;
 }
@@ -1117,7 +1117,7 @@ int Gis_polygon::interior_ring_n(uint32 num, String *result) const
 bool Gis_polygon::centroid_xy(point_xy *p) const
 {
   uint32 n_linear_rings;
-  double UNINIT_VAR(res_area);
+  double res_area= 0.0;
   point_xy res(0, 0);              // Initialized only to make compiler happy
   wkb_parser wkb(&m_wkb_data);
   bool first_loop= 1;
@@ -1846,7 +1846,7 @@ int Gis_multi_polygon::centroid(String *result) const
   uint32 n_polygons;
   bool first_loop= 1;
   Gis_polygon p;
-  double UNINIT_VAR(res_area);
+  double res_area= 0.0;
   point_xy res(0, 0);              // Initialized only to make compiler happy
   wkb_parser wkb(&m_wkb_data);
 

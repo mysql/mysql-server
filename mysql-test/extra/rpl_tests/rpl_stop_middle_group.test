@@ -8,6 +8,7 @@
 # Test group sematics and thereby failing in such group is bound to 
 # the Single-Threaded Slave. 
 -- source include/not_mts_slave_parallel_workers.inc
+-- source include/have_myisam.inc
 
 connection master;
 

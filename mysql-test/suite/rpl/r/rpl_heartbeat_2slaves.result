@@ -34,10 +34,12 @@ SHOW TABLES;
 Tables_in_test
 t1
 [on slave_2]
+include/sync_slave_sql_with_master.inc
 SHOW TABLES;
 Tables_in_test
 t1
 [on slave_1]
+include/sync_slave_sql_with_master.inc
 SHOW TABLES;
 Tables_in_test
 [on master]

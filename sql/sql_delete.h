@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -24,8 +24,7 @@ class Item;
 
 template <typename T> class SQL_I_List;
 
-int mysql_prepare_delete(THD *thd, TABLE_LIST *table_list, Item **conds);
-bool mysql_delete(THD *thd, TABLE_LIST *table_list, Item *conds,
-                  SQL_I_List<ORDER> *order, ha_rows rows, ulonglong options);
+bool mysql_prepare_delete(THD *thd, const TABLE_LIST *delete_table_ref);
+bool mysql_delete(THD *thd, ha_rows rows, ulonglong options);
 
 #endif /* SQL_DELETE_INCLUDED */

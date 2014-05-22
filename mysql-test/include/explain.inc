@@ -88,7 +88,7 @@ INSERT INTO t2 VALUES (),(),();
 
 # We only need to make sure that there is no buffer overrun and the index map
 # is displayed correctly
-#--replace_column 1 X 2 X 3 X 4 X 5 X 6 X 7 X 8 X 9 X
+#--replace_column 1 X 2 X 3 X 5 X 6 X 7 X 8 X 9 X 10 X
 eval EXPLAIN $FORMAT SELECT 1 FROM (SELECT 1 FROM t2,t1 WHERE b < c GROUP BY 1 LIMIT 1) AS d2;
 DROP TABLE t2;
 DROP TABLE t1;

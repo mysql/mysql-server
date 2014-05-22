@@ -1,7 +1,7 @@
-SET @@storage_engine = 'InnoDB';
-SHOW VARIABLES LIKE 'storage_engine';
+SET @@default_storage_engine = 'InnoDB';
+SHOW VARIABLES LIKE 'default_storage_engine';
 Variable_name	Value
-storage_engine	InnoDB
+default_storage_engine	InnoDB
 SHOW VARIABLES LIKE 'tx_isolation';
 Variable_name	Value
 tx_isolation	REPEATABLE-READ

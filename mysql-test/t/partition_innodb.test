@@ -658,7 +658,7 @@ DROP TABLE IF EXISTS t1;
 CREATE TABLE t1 (a INT, b TIMESTAMP DEFAULT '0000-00-00 00:00:00')
   ENGINE=INNODB PARTITION BY LINEAR HASH (a) PARTITIONS 1;
 SET @old_mode = @@sql_mode;
-SET SESSION sql_mode = 'NO_ZERO_DATE';
+SET SESSION sql_mode = '';
 OPTIMIZE TABLE t1;
 SET SESSION sql_mode = @old_mode;
 DROP TABLE t1;
@@ -682,4 +682,81 @@ ALTER TABLE t1 ADD UNIQUE KEY (b);
 --echo # have left table intact.
 SHOW CREATE TABLE t1;
 SELECT * FROM t1;
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#16943907: FLUSH TABLES FOR EXPORT: ASSERTION IN HA_PARTITION::EXTRA
+--echo #
+CREATE TABLE t1 (a int, PRIMARY KEY (a)) ENGINE=InnoDB
+PARTITION BY HASH (a) PARTITIONS 2;
+FLUSH TABLES t1 FOR EXPORT;
+--echo # List of files after EXPORT (should include a .cfg file for each part).
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test/ t1*
+--echo # Copying the .cfg and .ibd files as backup
+--copy_file $MYSQLD_DATADIR/test/t1#P#p0.cfg $MYSQLD_DATADIR/test/backup_t1#P#p0.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#P#p0.ibd $MYSQLD_DATADIR/test/backup_t1#P#p0.ibd
+--copy_file $MYSQLD_DATADIR/test/t1#P#p1.cfg $MYSQLD_DATADIR/test/backup_t1#P#p1.cfg
+--copy_file $MYSQLD_DATADIR/test/t1#P#p1.ibd $MYSQLD_DATADIR/test/backup_t1#P#p1.ibd
+UNLOCK TABLES;
+--echo # List of files after UNLOCK (no .cfg files).
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test/ t1*
+ALTER TABLE t1 DISCARD TABLESPACE;
+--echo # List of files after DISCARD (no .cfg/.ibd files).
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test/ t1*
+--echo # Moving the .cfg and .ibd files back from backup
+--move_file $MYSQLD_DATADIR/test/backup_t1#P#p0.cfg $MYSQLD_DATADIR/test/t1#P#p0.cfg
+--move_file $MYSQLD_DATADIR/test/backup_t1#P#p0.ibd $MYSQLD_DATADIR/test/t1#P#p0.ibd
+--move_file $MYSQLD_DATADIR/test/backup_t1#P#p1.cfg $MYSQLD_DATADIR/test/t1#P#p1.cfg
+--move_file $MYSQLD_DATADIR/test/backup_t1#P#p1.ibd $MYSQLD_DATADIR/test/t1#P#p1.ibd
+ALTER TABLE t1 IMPORT TABLESPACE;
+--echo # List of files after IMPORT (.cfg files still there).
+--replace_result #p# #P#
+--list_files $MYSQLD_DATADIR/test/ t1*
+DROP TABLE t1;
+--echo # List of files after DROP (.cfg files should also be removed).
+--list_files $MYSQLD_DATADIR/test/ t1*
+
+--echo #
+--echo # Bug#13737949: CRASH IN HA_PARTITION::INDEX_INIT
+--echo # Bug#18694052: SERVER CRASH IN HA_PARTITION::INIT_RECORD_PRIORITY_QUEUE
+--echo #
+CREATE TABLE t1
+(a INT,
+ b INT,
+ PRIMARY KEY (a))
+ENGINE = InnoDB
+PARTITION BY HASH (a) PARTITIONS 3;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--connect (con1, localhost, root,,)
+--echo # con1
+ALTER TABLE t1 ADD INDEX idx1 (b);
+--connection default
+--echo # con default
+--error ER_TABLE_DEF_CHANGED
+SELECT b FROM t1 WHERE b = 0;
+--error ER_TABLE_DEF_CHANGED
+SELECT b FROM t1 WHERE b = 0;
+--disconnect con1
+DROP TABLE t1;
+
+--echo # Same test without partitioning
+CREATE TABLE t1
+(a INT,
+ b INT,
+ PRIMARY KEY (a))
+ENGINE = InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--echo # con1
+--connect (con1, localhost, root,,)
+ALTER TABLE t1 ADD INDEX idx1 (b);
+--connection default
+--echo # con default
+--error ER_TABLE_DEF_CHANGED
+SELECT b FROM t1 WHERE b = 0;
+--error ER_TABLE_DEF_CHANGED
+SELECT b FROM t1 WHERE b = 0;
+--disconnect con1
 DROP TABLE t1;
