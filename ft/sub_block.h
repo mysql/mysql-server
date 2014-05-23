@@ -112,6 +112,7 @@ struct sub_block {
 
     uint32_t xsum;                    // sub block checksum
 };
+typedef struct sub_block *SUB_BLOCK;
 
 struct stored_sub_block {
     uint32_t uncompressed_size;

@@ -98,8 +98,9 @@ PATENT RIGHTS GRANT:
 #include <util/mempool.h>
 #include <util/omt.h>
 
-#include "txn_manager.h"
-#include "rbuf.h"
+#include "ft/txn_manager.h"
+#include "ft/rbuf.h"
+#include "ft/ft_msg.h"
 
 /*
     Memory format of packed leaf entry
@@ -240,6 +241,8 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry, // NULL if there was no stored
                       uint32_t* keylen,
                       size_t *new_leafentry_memorysize,
                       LEAFENTRY *new_leafentry_p);
+
+class bn_data;
 
 void
 toku_le_apply_msg(FT_MSG   msg,
