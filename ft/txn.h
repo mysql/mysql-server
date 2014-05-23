@@ -142,7 +142,7 @@ int toku_txn_begin_with_xid (
 
 void toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid);
 
-int toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info);
+int toku_txn_load_txninfo (TOKUTXN txn, struct txninfo *info);
 
 int toku_txn_commit_txn (TOKUTXN txn, int nosync,
                          TXN_PROGRESS_POLL_FUNCTION poll, void *poll_extra);

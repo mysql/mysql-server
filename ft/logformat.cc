@@ -195,7 +195,7 @@ const struct logtype logtypes[] = {
                             {"BYTESTRING", "iname", 0},   // pathname of file
                             {"uint8_t", "unlink_on_close", 0},
                             NULLFIELD}, IGNORE_LOG_BEGIN},
-    //We do not use a TXNINFO struct since recovery log has
+    //We do not use a txninfo struct since recovery log has
     //FILENUMS and TOKUTXN has FTs (for open_fts)
     {"xstillopen", 's', FA{{"TXNID_PAIR", "xid", 0}, 
                            {"TXNID_PAIR", "parentxid", 0}, 

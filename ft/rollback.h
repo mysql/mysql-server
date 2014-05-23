@@ -92,8 +92,13 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <util/omt.h>
-#include "sub_block.h"
+#include "ft/sub_block.h"
+#include "ft/cachetable.h"
+
+#include "util/memarena.h"
+
+typedef struct rollback_log_node *ROLLBACK_LOG_NODE;
+typedef struct serialized_rollback_log_node *SERIALIZED_ROLLBACK_LOG_NODE;
 
 void toku_poll_txn_progress_function(TOKUTXN txn, uint8_t is_commit, uint8_t stall_for_checkpoint);
 
@@ -172,6 +177,7 @@ struct serialized_rollback_log_node {
     BLOCKNUM blocknum;
     struct sub_block sub_block[max_sub_blocks];
 };
+typedef struct serialized_rollback_log_node *SERIALIZED_ROLLBACK_LOG_NODE;
 
 static inline void
 toku_static_serialized_rollback_log_destroy(SERIALIZED_ROLLBACK_LOG_NODE log) {
