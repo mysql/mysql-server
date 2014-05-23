@@ -13,8 +13,13 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
-# There's a bug in unzipping prior to 2.8.2
-CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+IF(WIN32)
+  # CMake 2.8.12 is needed for Visual Studio 2013
+  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.12)
+ELSE()
+  # There's a bug in unzipping prior to 2.8.2
+  CMAKE_MINIMUM_REQUIRED(VERSION 2.8.2)
+ENDIF()
 
 # We use CMAKE_SHARED_LIBRARY_<Lang>_FLAGS. See cmake --help-policy CMP0018
 IF(CMAKE_VERSION VERSION_GREATER "2.8.8")
@@ -491,6 +496,9 @@ IF(NOT WITHOUT_SERVER)
   SET (MYSQLD_STATIC_EMBEDDED_PLUGIN_LIBS "" CACHE INTERNAL "")
   # Add storage engines and plugins.
   CONFIGURE_PLUGINS()
+ELSE()
+  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+  ADD_SUBDIRECTORY(storage/ndb)
 ENDIF()
 
 ADD_SUBDIRECTORY(include)
@@ -521,6 +529,7 @@ ENDIF()
 ADD_SUBDIRECTORY(extra)
 ADD_SUBDIRECTORY(client)
 ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(libservices)
 
 IF(UNIX)
   ADD_SUBDIRECTORY(man)
@@ -529,7 +538,6 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
   ADD_SUBDIRECTORY(sql)
-  ADD_SUBDIRECTORY(libservices)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
    ADD_SUBDIRECTORY(libmysqld)
@@ -590,10 +598,6 @@ ELSE()
 ENDIF() 
 ADD_SUBDIRECTORY(packaging/WiX)
 ADD_SUBDIRECTORY(packaging/solaris)
-
-# Create a single package with "make package"
-# (see http://public.kitware.com/Bug/view.php?id=11452)
-SET(CPACK_MONOLITHIC_INSTALL 1 CACHE INTERNAL "")
 
 IF(UNIX)
   INSTALL(FILES Docs/mysql.info DESTINATION ${INSTALL_INFODIR} OPTIONAL COMPONENT Info)

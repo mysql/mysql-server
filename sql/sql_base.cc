@@ -63,7 +63,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              Sql_condition::enum_severity_level,
+                                              Sql_condition::enum_severity_level*,
                                               const char*,
                                               Sql_condition ** cond_hdl)
 {
@@ -91,6 +91,131 @@ bool No_such_table_error_handler::safely_trapped_errors()
 
 
 /**
+  This handler is used for the statements which support IGNORE keyword.
+  If IGNORE is specified in the statement, this error handler converts
+  the given errors codes to warnings.
+  These errors occur for each record. With IGNORE, statements are not
+  aborted and next row is processed.
+
+*/
+bool Ignore_error_handler::handle_condition(THD *thd,
+                                            uint sql_errno,
+                                            const char *sqlstate,
+                                            Sql_condition::enum_severity_level *level,
+                                            const char *msg,
+                                            Sql_condition **cond_hdl)
+{
+  /*
+    If a statement is executed with IGNORE keyword then this handler
+    gets pushed for the statement. If there is trigger on the table
+    which contains statements without IGNORE then this handler should
+    not convert the errors within trigger to warnings.
+  */
+  if (!thd->lex->is_ignore())
+    return false;
+  /*
+    Error codes ER_DUP_ENTRY_WITH_KEY_NAME is used while calling my_error
+    to get the proper error messages depending on the use case.
+    The error code used is ER_DUP_ENTRY to call error functions.
+
+    Same case exists for ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT which uses
+    error code of ER_NO_PARTITION_FOR_GIVEN_VALUE to call error function.
+
+    There error codes are added here to force consistency if these error
+    codes are used in any other case in future.
+  */
+  switch (sql_errno)
+  {
+  case ER_SUBQUERY_NO_1_ROW:
+  case ER_ROW_IS_REFERENCED_2:
+  case ER_NO_REFERENCED_ROW_2:
+  case ER_BAD_NULL_ERROR:
+  case ER_DUP_ENTRY:
+  case ER_DUP_ENTRY_WITH_KEY_NAME:
+  case ER_DUP_KEY:
+  case ER_VIEW_CHECK_FAILED:
+  case ER_NO_PARTITION_FOR_GIVEN_VALUE:
+  case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
+  case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
+    (*level)= Sql_condition::SL_WARNING;
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
+
+/**
+  Implementation of STRICT mode.
+  Upgrades a set of given conditions from warning to error.
+*/
+bool Strict_error_handler::handle_condition(THD *thd,
+                                            uint sql_errno,
+                                            const char *sqlstate,
+                                            Sql_condition::enum_severity_level *level,
+                                            const char *msg,
+                                            Sql_condition **cond_hdl)
+{
+  /* STRICT MODE should affect only the below statements */
+  switch (thd->lex->sql_command)
+  {
+  case SQLCOM_CREATE_TABLE:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_INSERT:
+  case SQLCOM_REPLACE:
+  case SQLCOM_REPLACE_SELECT:
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_UPDATE:
+  case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_DELETE:
+  case SQLCOM_DELETE_MULTI:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_LOAD:
+  case SQLCOM_CALL:
+  case SQLCOM_END:
+  case SQLCOM_SET_OPTION:
+  case SQLCOM_SELECT:
+    break;
+  default:
+    return false;
+  }
+
+  switch (sql_errno)
+  {
+  case ER_TRUNCATED_WRONG_VALUE:
+  case ER_WRONG_VALUE_FOR_TYPE:
+  case ER_WARN_DATA_OUT_OF_RANGE:
+  case ER_DIVISION_BY_ZERO:
+  case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
+  case WARN_DATA_TRUNCATED:
+  case ER_DATA_TOO_LONG:
+  case ER_BAD_NULL_ERROR:
+  case ER_NO_DEFAULT_FOR_FIELD:
+  case ER_TOO_LONG_KEY:
+  case ER_WRONG_ARGUMENTS:
+  case ER_NO_DEFAULT_FOR_VIEW_FIELD:
+  case ER_WARN_NULL_TO_NOTNULL:
+  case ER_CUT_VALUE_GROUP_CONCAT:
+  case ER_DATETIME_FUNCTION_OVERFLOW:
+  case ER_WARN_TOO_FEW_RECORDS:
+  case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
+    if ((*level == Sql_condition::SL_WARNING) &&
+        (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
+         || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
+    {
+      (*level)= Sql_condition::SL_ERROR;
+      thd->killed= THD::KILL_BAD_DATA;
+    }
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
+
+/**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
   ER_WRONG_MRG_TABLE errors during CHECK/REPAIR TABLE for MERGE
   tables.
@@ -106,7 +231,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -136,7 +261,7 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 Sql_condition::enum_severity_level level,
+                                                 Sql_condition::enum_severity_level *level,
                                                  const char*,
                                                  Sql_condition ** cond_hdl)
 {
@@ -2421,7 +2546,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -2440,7 +2565,7 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            Sql_condition::enum_severity_level,
+                                            Sql_condition::enum_severity_level*,
                                             const char*,
                                             Sql_condition ** cond_hdl)
 {
@@ -8830,7 +8955,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   @param thd                        thread handler
   @param fields                     Item_fields list to be filled
   @param values                     values to fill with
-  @param ignore_errors              TRUE if we should ignore errors
   @param bitmap                     Bitmap over fields to fill
   @param insert_into_fields_bitmap  Bitmap for fields that is set
                                     in fill_record
@@ -8845,8 +8969,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
 bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            bool ignore_errors, MY_BITMAP *bitmap,
-            MY_BITMAP *insert_into_fields_bitmap)
+            MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
@@ -8889,7 +9012,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if ((value->save_in_field(rfield, false) < 0) && !ignore_errors)
+    if (value->save_in_field(rfield, false) < 0)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
@@ -8911,11 +9034,10 @@ err:
 
   @param thd            Thread context.
   @param fields         Collection of fields.
-  @param ignore_errors  Flag if errors should be suppressed.
 
   @return Error status.
 */
-static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
+static bool check_record(THD *thd, List<Item> &fields)
 {
   List_iterator_fast<Item> f(fields);
   Item *fld;
@@ -8925,8 +9047,7 @@ static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
   {
     field= fld->field_for_view_update();
     if (field &&
-        field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK &&
-        !ignore_errors)
+        field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       return true;
@@ -9024,7 +9145,6 @@ inline bool call_before_insert_triggers(THD *thd,
   @param thd           thread context
   @param fields        Item_fields list to be filled
   @param values        values to fill with
-  @param ignore_errors TRUE if we should ignore errors
   @param table         TABLE-object holding list of triggers to be invoked
   @param event         event type for triggers to be invoked
 
@@ -9040,8 +9160,7 @@ inline bool call_before_insert_triggers(THD *thd,
 
 bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
-                                     List<Item> &values, bool ignore_errors,
-                                     TABLE *table,
+                                     List<Item> &values, TABLE *table,
                                      enum enum_trigger_event_type event,
                                      int num_fields)
 {
@@ -9063,7 +9182,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       MY_BITMAP insert_into_fields_bitmap;
       bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-      rc= fill_record(thd, fields, values, ignore_errors, NULL,
+      rc= fill_record(thd, fields, values, NULL,
                       &insert_into_fields_bitmap);
 
       if (!rc)
@@ -9074,7 +9193,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     }
     else
     {
-      rc= fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
+      rc= fill_record(thd, fields, values, NULL, NULL) ||
           table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
 
@@ -9085,8 +9204,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   else
   {
     return
-        fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
-        check_record(thd, fields, ignore_errors);
+        fill_record(thd, fields, values, NULL, NULL) ||
+        check_record(thd, fields);
   }
 }
 
@@ -9097,7 +9216,6 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   @param thd                        thread handler
   @param ptr                        pointer on pointer to record
   @param values                     list of fields
-  @param ignore_errors              True if we should ignore errors
   @param bitmap                     Bitmap over fields to fill
   @param insert_into_fields_bitmap  Bitmap for fields that is set
                                     in fill_record
@@ -9112,7 +9230,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 */
 
 bool
-fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
+fill_record(THD *thd, Field **ptr, List<Item> &values,
             MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> v(values);
@@ -9173,7 +9291,6 @@ err:
       thd           thread context
       ptr           NULL-ended array of fields to be filled
       values        values to fill with
-      ignore_errors TRUE if we should ignore errors
       table         TABLE-object holding list of triggers to be invoked
       event         event type for triggers to be invoked
 
@@ -9194,8 +9311,7 @@ err:
 
 bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
-                                     List<Item> &values, bool ignore_errors,
-                                     TABLE *table,
+                                     List<Item> &values, TABLE *table,
                                      enum enum_trigger_event_type event,
                                      int num_fields)
 {
@@ -9211,7 +9327,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     MY_BITMAP insert_into_fields_bitmap;
     bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-    rc= fill_record(thd, ptr, values, ignore_errors, NULL,
+    rc= fill_record(thd, ptr, values, NULL,
                     &insert_into_fields_bitmap);
 
     if (!rc)
@@ -9222,7 +9338,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     table->triggers->disable_fields_temporary_nullability();
   }
   else
-    rc= fill_record(thd, ptr, values, ignore_errors, NULL, NULL);
+    rc= fill_record(thd, ptr, values, NULL, NULL);
 
   if (rc)
     return true;

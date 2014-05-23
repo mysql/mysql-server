@@ -216,8 +216,6 @@ ddl_background_drop_indexes	disabled
 ddl_background_drop_tables	disabled
 ddl_online_create_index	disabled
 ddl_pending_alter_table	disabled
-ddl_sort_file_alter_table	disabled
-ddl_log_file_alter_table	disabled
 icp_attempts	disabled
 icp_no_match	disabled
 icp_out_of_range	disabled

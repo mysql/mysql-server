@@ -1920,7 +1920,7 @@ public:
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
-  int view_check_option(THD *thd, bool ignore_failure) const;
+  int view_check_option(THD *thd) const;
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()

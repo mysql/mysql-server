@@ -26,6 +26,10 @@ ADD_CONVENIENCE_LIBRARY(ndbconf
 )
 TARGET_LINK_LIBRARIES(ndbconf ndbmgmapi)
 
+IF(WITHOUT_SERVER)
+  RETURN()
+ENDIF()
+
 # Define MYSQLCLUSTERDIR, the default location
 # of ndb_mgmd config files
 IF(NOT DEFINED DEFAULT_MYSQL_HOME)
