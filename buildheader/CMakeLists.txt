@@ -19,11 +19,11 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
     FILES "${CMAKE_CURRENT_BINARY_DIR}/db.h"
     DESTINATION include
     RENAME tokudb.h
-    COMPONENT tokukv_headers
+    COMPONENT tokuft_headers
     )
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/db.h"
     DESTINATION include
-    COMPONENT tokukv_headers
+    COMPONENT tokuft_headers
     )
 endif ()
