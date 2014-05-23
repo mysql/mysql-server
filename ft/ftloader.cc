@@ -356,6 +356,8 @@ int ft_loader_open_temp_file (FTLOADER bl, FIDX *file_idx)
  */
 {
     int result = 0;
+    if (result) // debug hack
+        return result;
     FILE *f = NULL;
     int fd = -1;
     char *fname = toku_strdup(bl->temp_file_template);    
@@ -2430,6 +2432,8 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     if (r) {
         result = r; 
         drain_writer_q(q); 
+        r = toku_os_close(fd);
+        assert_zero(r);
         return result;
     }
     FILE *pivots_stream = toku_bl_fidx2file(bl, pivots_file);

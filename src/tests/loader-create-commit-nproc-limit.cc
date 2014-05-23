@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 static int loader_flags = 0;
 static const char *envdir = TOKU_TEST_FILENAME;
 
-static void loader_create_commit(int ndb) {
+static void run_test(int ndb) {
     int r;
 
     char rmcmd[32 + strlen(envdir)];
@@ -202,6 +202,6 @@ static void do_args(int argc, char * const argv[]) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    loader_create_commit(1);
+    run_test(1);
     return 0;
 }

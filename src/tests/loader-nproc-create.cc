@@ -85,6 +85,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+// Verify that env->create_loader works correctly (does not crash, does not leak memory, returns the right error code)
+// when the NPROC limit is exceeded.
+
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
@@ -95,11 +98,7 @@ PATENT RIGHTS GRANT:
 static int loader_flags = 0;
 static const char *envdir = TOKU_TEST_FILENAME;
 
-static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT_ARRAY *UU(dest_keys), DBT_ARRAY *UU(dest_vals), const DBT *UU(src_key), const DBT *UU(src_val)) {
-    return ENOMEM;
-}
-
-static void loader_open_close(int ndb) {
+static void run_test(int ndb) {
     int r;
 
     char rmcmd[32 + strlen(envdir)];
@@ -109,8 +108,6 @@ static void loader_open_close(int ndb) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                                               CKERR(r);
-    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
-    CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
@@ -197,6 +194,6 @@ static void do_args(int argc, char * const argv[]) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    loader_open_close(1);
+    run_test(1);
     return 0;
 }
