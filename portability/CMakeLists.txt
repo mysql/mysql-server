@@ -38,22 +38,22 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
     FILES toku_os_types.h toku_time.h toku_list.h toku_os.h
     DESTINATION include
-    COMPONENT tokuft_headers
+    COMPONENT tokukv_headers
     )
   install(
     FILES "${CMAKE_CURRENT_BINARY_DIR}/toku_config.h"
     DESTINATION include
-    COMPONENT tokuft_headers
+    COMPONENT tokukv_headers
     )
   install(
     TARGETS ${LIBTOKUPORTABILITY}_static
     DESTINATION ${INSTALL_LIBDIR}
-    COMPONENT tokuft_libs_static
+    COMPONENT tokukv_libs_static
     )
   install(
     TARGETS ${LIBTOKUPORTABILITY}
     DESTINATION ${INSTALL_LIBDIR}
-    COMPONENT tokuft_libs_shared
+    COMPONENT tokukv_libs_shared
     )
 endif ()
 

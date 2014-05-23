@@ -44,12 +44,12 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
     TARGETS ${LIBTOKUDB}
     DESTINATION ${INSTALL_LIBDIR}
-    COMPONENT tokuft_libs_shared
+    COMPONENT tokukv_libs_shared
     )
   install(
     TARGETS ${LIBTOKUDB}_static
     DESTINATION ${INSTALL_LIBDIR}
-    COMPONENT tokuft_libs_static
+    COMPONENT tokukv_libs_static
     )
 endif ()
 

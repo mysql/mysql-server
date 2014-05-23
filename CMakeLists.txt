@@ -83,7 +83,7 @@ add_subdirectory(examples)
 install(
   FILES README.md README-TOKUDB
   DESTINATION .
-  COMPONENT tokuft_misc
+  COMPONENT tokukv_misc
   )
 
 ## build tags
