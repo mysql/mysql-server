@@ -45,7 +45,6 @@ set(FT_SOURCES
   ft-serialize
   ft-test-helpers
   ft-verify
-  key
   leafentry
   le-cursor
   logcursor
