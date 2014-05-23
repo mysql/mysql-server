@@ -172,36 +172,14 @@ public:
 	@return DB_SUCCESS or error code. */
 	dberr_t init(ulint space_id)
 	{
+		dberr_t		err;
+
 		/* Step-1: Create the log file name using the pre-decided
 		prefix/suffix and table id of undo tablepsace to truncate. */
-		ulint log_file_name_sz = 
-			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
-			+ strlen(undo_trunc_logger_t::s_log_prefix)
-			+ strlen(undo_trunc_logger_t::s_log_ext);
-
-		m_log_file_name = new (std::nothrow) char[log_file_name_sz];
-		if (m_log_file_name == 0) {
-			return(DB_OUT_OF_MEMORY);
+		err = populate_log_file_name(space_id);
+		if (err != DB_SUCCESS) {
+			return(err);
 		}
-
-		memset(m_log_file_name, 0, log_file_name_sz);
-
-		strcpy(m_log_file_name, srv_log_group_home_dir);
-		ulint	log_file_name_len = strlen(m_log_file_name);
-
-		if (m_log_file_name[log_file_name_len - 1]
-				!= OS_PATH_SEPARATOR) {
-
-			m_log_file_name[log_file_name_len]
-				= OS_PATH_SEPARATOR;
-			log_file_name_len = strlen(m_log_file_name);
-		}
-
-		ut_snprintf(m_log_file_name + log_file_name_len,
-			    log_file_name_sz - log_file_name_len,
-			    "%s%lu_%s",
-			    undo_trunc_logger_t::s_log_prefix,
-			    (ulong) space_id, undo_trunc_logger_t::s_log_ext);
 
 		/* Step-2: Create the log file, open it and write magic
 		number of 0 to indicate init phase. */
@@ -259,6 +237,62 @@ public:
 		os_file_delete(innodb_log_file_key, m_log_file_name);
 		delete[] m_log_file_name;
 		m_log_file_name = NULL;
+	}
+
+	/** Check if TRUNCATE_DDL_LOG file exist.
+	@param[in]	space_id	id of the undo tablespace.
+	@return true if exist else false. */
+	bool is_log_present(
+		ulint	space_id)
+	{
+		/* Step-1: Populate log file name. */
+		populate_log_file_name(space_id);
+
+		/* Check for existence of the file. */
+		bool		exist;
+		os_file_type_t	type;
+		os_file_status(m_log_file_name, &exist, &type);
+
+		return(exist);
+	}
+
+private:
+	/** Populate log file name based on space_id
+	@param[in]	space_id	id of the undo tablespace.
+	@return DB_SUCCESS or error code */
+	dberr_t populate_log_file_name(
+		ulint space_id)
+	{
+		ulint log_file_name_sz = 
+			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
+			+ strlen(undo_trunc_logger_t::s_log_prefix)
+			+ strlen(undo_trunc_logger_t::s_log_ext);
+
+		m_log_file_name = new (std::nothrow) char[log_file_name_sz];
+		if (m_log_file_name == 0) {
+			return(DB_OUT_OF_MEMORY);
+		}
+
+		memset(m_log_file_name, 0, log_file_name_sz);
+
+		strcpy(m_log_file_name, srv_log_group_home_dir);
+		ulint	log_file_name_len = strlen(m_log_file_name);
+
+		if (m_log_file_name[log_file_name_len - 1]
+				!= OS_PATH_SEPARATOR) {
+
+			m_log_file_name[log_file_name_len]
+				= OS_PATH_SEPARATOR;
+			log_file_name_len = strlen(m_log_file_name);
+		}
+
+		ut_snprintf(m_log_file_name + log_file_name_len,
+			    log_file_name_sz - log_file_name_len,
+			    "%s%lu_%s",
+			    undo_trunc_logger_t::s_log_prefix,
+			    (ulong) space_id, undo_trunc_logger_t::s_log_ext);
+
+		return(DB_SUCCESS);
 	}
 
 public:
@@ -355,6 +389,21 @@ public:
 	{
 		return(m_scan_start);
 	}	
+
+	/** Check if the tablespace needs fix-up (based on presence of DDL
+	truncate log)
+	@param	space_id	space id of the undo tablespace to check for.
+	@return true if fix up is needed else false */
+	bool needs_fix_up(
+		ulint	space_id)
+	{
+		bool	needs_fix_up = undo_logger.is_log_present(space_id);
+		if (needs_fix_up) {
+			undo_logger.done();
+		}
+
+		return(needs_fix_up);
+	}
 
 public:
 	undo_trunc_logger_t	undo_logger;
