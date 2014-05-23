@@ -777,36 +777,19 @@ trx_purge_initiate_truncate(
 		"Truncating UNDO tablespace with space identified " ULINTPF "",
 		undo_trunc->get_undo_mark_for_trunc());
 
-	DBUG_EXECUTE_IF("ib_undo_trunc_crash_before_checkpoint",
-			DBUG_SUICIDE(););
-
 	/* After truncate if server crashes then redo logging done for this
 	undo tablespace might not stand valid as tablespace has been
 	truncated. */
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 	
-	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_checkpoint",
-			log_buffer_flush_to_disk();
-			os_thread_sleep(1000000);
-			DBUG_SUICIDE(););
-
 	dberr_t	err = undo_trunc->undo_logger.init(
 		undo_trunc->get_undo_mark_for_trunc());
 	ut_ad(err == DB_SUCCESS);
 
-	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_log_file_creation",
-			DBUG_SUICIDE(););
-
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	ut_ad(success);
 
-	DBUG_EXECUTE_IF("ib_undo_trunc_crash_after_truncate",
-			DBUG_SUICIDE(););
-
 	undo_trunc->undo_logger.done();
-
-	DBUG_EXECUTE_IF("ib_undo_trunc_crash_on_completion",
-			DBUG_SUICIDE(););
 
 	undo_trunc->reset();
 }
