@@ -126,7 +126,9 @@ static my_bool to_last_remote_log= 0, stop_never= 0;
 static my_bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
 static int64 stop_never_slave_server_id= -1;
+#ifndef DBUG_OFF
 static int64 connection_server_id= -1;
+#endif //DBUG_OFF
 static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
