@@ -370,7 +370,7 @@ trx_undo_free_prepared(
 	UNIV_COLD __attribute__((nonnull));
 
 /* Forward declaration. */
-struct undo_trunc_t;
+class undo_trunc_t;
 
 /** Truncate UNDO tablespace, reinitialize header and rseg. 
 @param[in]	undo_trunc	UNDO tablespace handler
