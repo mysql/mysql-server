@@ -1112,7 +1112,7 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
     }
 }
 
-// effect: deserialize a single message from rbuf and enque the result into the given fifo
+// effect: deserialize a single message from rbuf and enqueue the result into the given fifo
 static void
 fifo_deserialize_msg_from_rbuf(FIFO fifo, struct rbuf *rbuf) {
     bytevec key, val;
@@ -1144,16 +1144,25 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf) {
 
     // read in each message tree (fresh, stale, broadcast)
     nfresh = rbuf_int(rbuf);
+    bytevec fresh_offsets_src_v;
+    rbuf_literal_bytes(rbuf, &fresh_offsets_v, nfresh * (sizeof *fresh_offsets));
+    const int32_t *fresh_offsets_src = (const int32_t *) fresh_offsets_src_v;
     for (int i = 0; i < nfresh; i++) {
-        fresh_offsets[i] = rbuf_int(rbuf);
+        fresh_offsets[i] = toku_dtoh32(fresh_offsets_src[i]);
     }
     nstale = rbuf_int(rbuf);
+    bytevec stale_offsets_src_v;
+    rbuf_literal_bytes(rbuf, &stale_offsets_v, nstale * (sizeof *stale_offsets));
+    const int32_t *stale_offsets_src = (const int32_t *) stale_offsets_src_v;
     for (int i = 0; i < nstale; i++) {
-        stale_offsets[i] = rbuf_int(rbuf);
+        stale_offsets[i] = toku_dtoh32(stale_offsets_src[i]);
     }
     nbroadcast_offsets = rbuf_int(rbuf);
+    bytevec broadcast_offsets_src_v;
+    rbuf_literal_bytes(rbuf, &broadcast_offsets_v, nbroadcast_offsets * (sizeof *broadcast_offsets));
+    const int32_t *broadcast_offsets_src = (const int32_t *) broadcast_offsets_src_v;
     for (int i = 0; i < nbroadcast_offsets; i++) {
-        broadcast_offsets[i] = rbuf_int(rbuf);
+        broadcast_offsets[i] = toku_dtoh32(broadcast_offsets_src[i]);
     }
 
     // build OMTs out of each offset array
