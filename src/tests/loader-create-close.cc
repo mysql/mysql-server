@@ -97,11 +97,7 @@ PATENT RIGHTS GRANT:
 static int loader_flags = 0;
 static const char *envdir = TOKU_TEST_FILENAME;
 
-static int put_multiple_generate(DB *UU(dest_db), DB *UU(src_db), DBT_ARRAY *UU(dest_keys), DBT_ARRAY *UU(dest_vals), const DBT *UU(src_key), const DBT *UU(src_val)) {
-    return ENOMEM;
-}
-
-static void loader_open_abort(int ndb) {
+static void test_loader_create_close(int ndb) {
     int r;
 
     char rmcmd[32 + strlen(envdir)];
@@ -111,8 +107,6 @@ static void loader_open_abort(int ndb) {
 
     DB_ENV *env;
     r = db_env_create(&env, 0);                                                                               CKERR(r);
-    r = env->set_generate_row_callback_for_put(env, put_multiple_generate);
-    CKERR(r);
     int envflags = DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_MPOOL | DB_INIT_TXN | DB_CREATE | DB_PRIVATE;
     r = env->open(env, envdir, envflags, S_IRWXU+S_IRWXG+S_IRWXO);                                            CKERR(r);
     env->set_errfile(env, stderr);
@@ -181,8 +175,8 @@ static void do_args(int argc, char * const argv[]) {
 
 int test_main(int argc, char * const *argv) {
     do_args(argc, argv);
-    loader_open_abort(0);
-    loader_open_abort(1);
-    loader_open_abort(2);
+    test_loader_create_close(0);
+    test_loader_create_close(1);
+    test_loader_create_close(2);
     return 0;
 }
