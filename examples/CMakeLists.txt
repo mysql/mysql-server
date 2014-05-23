@@ -11,6 +11,6 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
     DESTINATION
       examples
     COMPONENT
-      tokuft_examples
+      tokukv_examples
     )
 endif ()

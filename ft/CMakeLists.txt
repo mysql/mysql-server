@@ -102,7 +102,7 @@ target_link_libraries(ftverify m)
 install(
   TARGETS tokuftdump
   DESTINATION bin
-  COMPONENT tokuft_tools
+  COMPONENT tokukv_tools
   )
 
 add_subdirectory(tests)
