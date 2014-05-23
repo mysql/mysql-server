@@ -419,7 +419,6 @@ toku_ft_get_status(FT_STATUS s) {
         }                                                                           \
     } while (0)
 
-
 void toku_note_deserialized_basement_node(bool fixed_key_size) {
     if (fixed_key_size) {
         STATUS_INC(FT_BASEMENT_DESERIALIZE_FIXED_KEYSIZE, 1);
@@ -4398,7 +4397,7 @@ do_bn_apply_msg(FT_HANDLE t, BASEMENTNODE bn, struct fifo_entry *entry, txn_gc_i
     if (entry->msn.msn > bn->max_msn_applied.msn) {
         ITEMLEN keylen = entry->keylen;
         ITEMLEN vallen = entry->vallen;
-        enum ft_msg_type type = (enum ft_msg_type) entry->type;
+        enum ft_msg_type type = fifo_entry_get_msg_type(entry);
         MSN msn = entry->msn;
         const XIDS xids = (XIDS) &entry->xids_s;
         bytevec key = xids_get_end_of_array(xids);
@@ -5128,34 +5127,6 @@ ftnode_pf_callback_and_free_bfe(void *ftnode_pv, void* disk_data, void *read_ext
     destroy_bfe_for_prefetch(ffe);
     toku_free(ffe);
     return r;
-}
-
-void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
-                           FT h,
-                           struct ft_cursor *c) {
-    paranoid_invariant(h->h->type == FT_CURRENT);
-    bfe->type = ftnode_fetch_prefetch;
-    bfe->h = h;
-    bfe->search = NULL;
-    toku_init_dbt(&bfe->range_lock_left_key);
-    toku_init_dbt(&bfe->range_lock_right_key);
-    const DBT *left = &c->range_lock_left_key;
-    if (left->data) {
-        toku_clone_dbt(&bfe->range_lock_left_key, *left);
-    }
-    const DBT *right = &c->range_lock_right_key;
-    if (right->data) {
-        toku_clone_dbt(&bfe->range_lock_right_key, *right);
-    }
-    bfe->left_is_neg_infty = c->left_is_neg_infty;
-    bfe->right_is_pos_infty = c->right_is_pos_infty;
-    bfe->child_to_read = -1;
-    bfe->disable_prefetching = c->disable_prefetching;
-    bfe->read_all_partitions = false;
-    bfe->bytes_read = 0;
-    bfe->io_time = 0;
-    bfe->deserialize_time = 0;
-    bfe->decompress_time = 0;
 }
 
 static void

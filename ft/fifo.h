@@ -91,10 +91,10 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/fttypes.h"
-#include "ft/xids-internal.h"
-#include "ft/xids.h"
-#include "ft/ft_msg.h"
+#include "fttypes.h"
+#include "xids-internal.h"
+#include "xids.h"
+
 
 // If the fifo_entry is unpacked, the compiler aligns the xids array and we waste a lot of space
 struct __attribute__((__packed__)) fifo_entry {
@@ -105,6 +105,24 @@ struct __attribute__((__packed__)) fifo_entry {
     MSN           msn;
     XIDS_S        xids_s;
 };
+
+// get and set the ft message type for a fifo entry.
+// it is internally stored as a single unsigned char.
+static inline enum ft_msg_type 
+fifo_entry_get_msg_type(const struct fifo_entry * entry)
+{
+    enum ft_msg_type msg_type;
+    msg_type = (enum ft_msg_type) entry->type;
+    return msg_type;
+}
+
+static inline void
+fifo_entry_set_msg_type(struct fifo_entry * entry,
+        enum ft_msg_type msg_type)
+{
+    unsigned char type = (unsigned char) msg_type;
+    entry->type = type;
+}
 
 typedef struct fifo *FIFO;
 
@@ -132,7 +150,7 @@ void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,IT
       struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off);                \
       ITEMLEN keylenvar = e->keylen;                                                                      \
       ITEMLEN datalenvar = e->vallen;                                                                     \
-      enum ft_msg_type typevar = (enum ft_msg_type) e->type;                                              \
+      enum ft_msg_type typevar = fifo_entry_get_msg_type(e);                                              \
       MSN     msnvar  = e->msn;                                                                           \
       XIDS    xidsvar = &e->xids_s;                                                                       \
       bytevec keyvar  = xids_get_end_of_array(xidsvar);                                                   \

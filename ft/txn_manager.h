@@ -123,7 +123,6 @@ struct txn_manager {
     TXNID last_xid_seen_for_recover;
     TXNID last_calculated_oldest_referenced_xid;
 };
-typedef struct txn_manager *TXN_MANAGER;
 
 struct txn_manager_state { 
     txn_manager_state(TXN_MANAGER mgr) :
@@ -189,22 +188,6 @@ void toku_txn_manager_destroy(TXN_MANAGER txn_manager);
 TXNID toku_txn_manager_get_oldest_living_xid(TXN_MANAGER txn_manager);
 
 TXNID toku_txn_manager_get_oldest_referenced_xid_estimate(TXN_MANAGER txn_manager);
-
-//
-// Types of snapshots that can be taken by a tokutxn
-//  - TXN_SNAPSHOT_NONE: means that there is no snapshot. Reads do not use snapshot reads.
-//                       used for SERIALIZABLE and READ UNCOMMITTED
-//  - TXN_SNAPSHOT_ROOT: means that all tokutxns use their root transaction's snapshot
-//                       used for REPEATABLE READ
-//  - TXN_SNAPSHOT_CHILD: means that each child tokutxn creates its own snapshot
-//                        used for READ COMMITTED
-//
-
-typedef enum __TXN_SNAPSHOT_TYPE { 
-    TXN_SNAPSHOT_NONE=0,
-    TXN_SNAPSHOT_ROOT=1,
-    TXN_SNAPSHOT_CHILD=2
-} TXN_SNAPSHOT_TYPE;
 
 void toku_txn_manager_handle_snapshot_create_for_child_txn(
     TOKUTXN txn,

@@ -115,9 +115,7 @@ PATENT RIGHTS GRANT:
 #include "compress.h"
 #include <util/mempool.h>
 #include <util/omt.h>
-#include "ft/bndata.h"
-#include "ft/rollback.h"
-#include "ft/ft-search.h"
+#include "bndata.h"
 
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { FT_MSG_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
@@ -136,18 +134,6 @@ enum ftnode_fetch_type {
     ftnode_fetch_prefetch, // this is part of a prefetch call
     ftnode_fetch_all, // every partition is needed
     ftnode_fetch_keymatch, // one child is needed if it holds both keys
-};
-
-enum split_mode {
-    SPLIT_EVENLY,
-    SPLIT_LEFT_HEAVY,
-    SPLIT_RIGHT_HEAVY
-};
-
-enum reactivity {
-    RE_STABLE,
-    RE_FUSIBLE,
-    RE_FISSIBLE
 };
 
 static bool is_valid_ftnode_fetch_type(enum ftnode_fetch_type type) UU();
@@ -201,7 +187,6 @@ struct ftnode_fetch_extra {
     tokutime_t decompress_time;
     tokutime_t deserialize_time;
 };
-typedef struct ftnode_fetch_extra *FTNODE_FETCH_EXTRA;
 
 struct toku_fifo_entry_key_msn_heaviside_extra {
     DESCRIPTOR desc;
@@ -588,7 +573,6 @@ struct ft {
     // is this ft a blackhole? if so, all messages are dropped.
     bool blackhole;
 };
-typedef struct ft *FT;
 
 // Allocate a DB struct off the stack and only set its comparison
 // descriptor. We don't bother setting any other fields because
@@ -754,6 +738,22 @@ int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t f
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
 BASEMENTNODE toku_detach_bn(FTNODE node, int childnum);
 
+// Given pinned node and pinned child, split child into two
+// and update node with information about its new child.
+void toku_ft_split_child(
+    FT h,
+    FTNODE node,
+    int childnum,
+    FTNODE child,
+    enum split_mode split_mode
+    );
+// Given pinned node, merge childnum with a neighbor and update node with
+// information about the change
+void toku_ft_merge_child(
+    FT ft,
+    FTNODE node,
+    int childnum
+    );
 static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
     CACHETABLE_WRITE_CALLBACK wc;
     wc.flush_callback = toku_ftnode_flush_callback;
@@ -765,6 +765,27 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
     wc.write_extraargs = h;
     return wc;
 }
+
+static const FTNODE null_ftnode=0;
+
+/* an ft cursor is represented as a kv pair in a tree */
+struct ft_cursor {
+    struct toku_list cursors_link;
+    FT_HANDLE ft_handle;
+    DBT key, val;             // The key-value pair that the cursor currently points to
+    DBT range_lock_left_key, range_lock_right_key;
+    bool prefetching;
+    bool left_is_neg_infty, right_is_pos_infty;
+    bool is_snapshot_read; // true if query is read_committed, false otherwise
+    bool is_leaf_mode;
+    bool disable_prefetching;
+    bool is_temporary;
+    int out_of_range_error;
+    int direction;
+    TOKUTXN ttxn;
+    FT_CHECK_INTERRUPT_CALLBACK interrupt_cb;
+    void *interrupt_cb_extra;
+};
 
 //
 // Helper function to fill a ftnode_fetch_extra with data
@@ -901,22 +922,43 @@ static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
 }
 
 // this is in a strange place because it needs the cursor struct to be defined
-void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
-                           FT h,
-                           struct ft_cursor *c);
+static inline void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
+                                         FT h,
+                                         FT_CURSOR c) {
+    paranoid_invariant(h->h->type == FT_CURRENT);
+    bfe->type = ftnode_fetch_prefetch;
+    bfe->h = h;
+    bfe->search = NULL;
+    toku_init_dbt(&bfe->range_lock_left_key);
+    toku_init_dbt(&bfe->range_lock_right_key);
+    const DBT *left = &c->range_lock_left_key;
+    if (left->data) {
+        toku_clone_dbt(&bfe->range_lock_left_key, *left);
+    }
+    const DBT *right = &c->range_lock_right_key;
+    if (right->data) {
+        toku_clone_dbt(&bfe->range_lock_right_key, *right);
+    }
+    bfe->left_is_neg_infty = c->left_is_neg_infty;
+    bfe->right_is_pos_infty = c->right_is_pos_infty;
+    bfe->child_to_read = -1;
+    bfe->disable_prefetching = c->disable_prefetching;
+    bfe->read_all_partitions = false;
+    bfe->bytes_read = 0;
+    bfe->io_time = 0;
+    bfe->deserialize_time = 0;
+    bfe->decompress_time = 0;
+}
 
 struct ancestors {
     FTNODE   node;     // This is the root node if next is NULL.
     int       childnum; // which buffer holds messages destined to the node whose ancestors this list represents.
-    struct ancestors *next;     // Parent of this node (so next->node.(next->childnum) refers to this node).
+    ANCESTORS next;     // Parent of this node (so next->node.(next->childnum) refers to this node).
 };
-typedef struct ancestors *ANCESTORS;
-
 struct pivot_bounds {
     const DBT * const lower_bound_exclusive;
     const DBT * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
 };
-typedef struct pivot_bounds const * const PIVOT_BOUNDS;
 
 __attribute__((nonnull))
 void toku_move_ftnode_messages_to_stale(FT ft, FTNODE node);
