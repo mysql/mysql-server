@@ -165,8 +165,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
     DBUG_RETURN(TRUE);
   }
 
-  select_lex->no_error= thd->lex->ignore;
-
   const_cond_result= const_cond && (!conds || conds->val_int());
   if (thd->is_error())
   {
@@ -448,8 +446,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
         select && select->quick && select->quick->index != MAX_KEY)
       read_removal= table->check_read_removal(select->quick->index);
 
-    const bool save_abort_on_warning= thd->abort_on_warning;
-    thd->abort_on_warning= thd->is_strict_mode();
     while (!(error=info.read_record(&info)) && !thd->killed &&
            ! thd->is_error())
     {
@@ -496,8 +492,11 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
             InnoDB it can fail in a FOREIGN KEY error or an
             out-of-tablespace error.
           */
-          error= 1;
-          break;
+          if (thd->is_error()) // Could be downgraded to warning by IGNORE
+          {
+            error= 1;
+            break;
+          }
         }
       }
       /*
@@ -509,7 +508,6 @@ bool mysql_delete(THD *thd, ha_rows limit, ulonglong options)
       else
         break;
     }
-    thd->abort_on_warning= save_abort_on_warning;
 
     killed_status= thd->killed;
     if (killed_status != THD::NOT_KILLED || thd->is_error())
@@ -590,8 +588,7 @@ cleanup:
               thd->get_transaction()->cannot_safely_rollback(
                   Transaction_ctx::STMT));
   free_underlaid_joins(thd, select_lex);
-  if (error < 0 ||
-      (thd->lex->ignore && !thd->is_error() && !thd->is_fatal_error))
+  if (error < 0)
   {
     my_ok(thd, deleted);
     DBUG_PRINT("info",("%ld records deleted",(long) deleted));
@@ -912,7 +909,6 @@ bool multi_delete::send_data(List<Item> &values)
   JOIN *const join= unit->first_select()->join;
 
   DBUG_ASSERT(thd->lex->current_select() == unit->first_select());
-  bool ignore= unit->first_select()->no_error;
   int unique_counter= 0;
 
   for (uint i= 0; i < join->primary_tables; i++)
@@ -961,26 +957,25 @@ bool multi_delete::send_data(List<Item> &values)
                                               TRG_ACTION_AFTER, FALSE))
           DBUG_RETURN(true);
       }
-      else if (!ignore)
+      else
       {
-        /*
-          If the IGNORE option is used errors caused by ha_delete_row don't
-          have to stop the iteration.
-        */
         myf error_flags= MYF(0);
         if (table->file->is_fatal_error(error))
           error_flags|= ME_FATALERROR;
-
         table->file->print_error(error, error_flags);
-        DBUG_RETURN(true);
-      }
-      else
-      {
-      /**
-        If IGNORE keyword is used, then 'error' variable will have the error
-        number which is ignored. Reset the 'error' variable if IGNORE is used.
-        This is necessary to call my_ok().
-      */
+
+        /*
+          If IGNORE option is used errors caused by ha_delete_row will
+          be downgraded to warnings and don't have to stop the iteration.
+        */
+        if (thd->is_error())
+          DBUG_RETURN(true);
+
+        /*
+          If IGNORE keyword is used, then 'error' variable will have the error
+          number which is ignored. Reset the 'error' variable if IGNORE is used.
+          This is necessary to call my_ok().
+        */
         error= 0;
       }
     }
@@ -1111,8 +1106,7 @@ int multi_delete::do_deletes()
     if (tempfiles[counter]->get(table))
       DBUG_RETURN(1);
 
-    int local_error= 
-      do_table_deletes(table, unit->first_select()->no_error);
+    int local_error= do_table_deletes(table);
 
     if (thd->killed && !local_error)
       DBUG_RETURN(1);
@@ -1133,16 +1127,13 @@ int multi_delete::do_deletes()
 
    @param table The table from which to delete.
 
-   @param ignore If used, all non fatal errors will be translated
-   to warnings and we should not break the row-by-row iteration.
-
    @return Status code
 
    @retval  0 All ok.
    @retval  1 Triggers or handler reported error.
    @retval -1 End of file from handler.
 */
-int multi_delete::do_table_deletes(TABLE *table, bool ignore)
+int multi_delete::do_table_deletes(TABLE *table)
 {
   myf error_flags= MYF(0);                      /**< Flag for fatal errors */
   int local_error= 0;
@@ -1168,13 +1159,18 @@ int multi_delete::do_table_deletes(TABLE *table, bool ignore)
     }
 
     local_error= table->file->ha_delete_row(table->record[0]);
-    if (local_error && !ignore)
+    if (local_error)
     {
       if (table->file->is_fatal_error(local_error))
         error_flags|= ME_FATALERROR;
 
       table->file->print_error(local_error, error_flags);
-      break;
+      /*
+        If IGNORE option is used errors caused by ha_delete_row will
+        be downgraded to warnings and don't have to stop the iteration.
+      */
+      if (thd->is_error())
+        break;
     }
 
     /*

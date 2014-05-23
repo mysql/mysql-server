@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2012, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2012, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -324,25 +324,6 @@ typedef struct {
 } ib_col_meta_t;
 
 /* Note: Must be in sync with trx0trx.h */
-/** @enum ib_trx_state_t The transaction state can be queried using the
-ib_trx_state() function. The InnoDB deadlock monitor can roll back a
-transaction and users should be prepared for this, especially where there
-is high contention. The way to determine the state of the transaction is to
-query it's state and check. */
-typedef enum {
-	IB_TRX_NOT_STARTED,		/*!< Has not started yet, the
-					transaction has not ben started yet.*/
-
-	IB_TRX_ACTIVE,			/*!< The transaction is currently
-					active and needs to be either
-					committed or rolled back. */
-
-	IB_TRX_COMMITTED_IN_MEMORY,	/*!< Not committed to disk yet */
-
-	IB_TRX_PREPARED			/*!< Support for 2PC/XA */
-} ib_trx_state_t;
-
-/* Note: Must be in sync with trx0trx.h */
 /** @enum ib_trx_level_t Transaction isolation levels */
 typedef enum {
 	IB_TRX_READ_UNCOMMITTED = 0,	/*!< Dirty read: non-locking SELECTs are
@@ -480,20 +461,6 @@ ib_trx_begin(
 					single DML */
 
 /*****************************************************************//**
-Query the transaction's state. This function can be used to check for
-the state of the transaction in case it has been rolled back by the
-InnoDB deadlock detector. Note that when a transaction is selected as
-a victim for rollback, InnoDB will always return an appropriate error
-code indicating this. @see DB_DEADLOCK, @see DB_LOCK_TABLE_FULL and
-@see DB_LOCK_WAIT_TIMEOUT
-@return transaction state */
-
-ib_trx_state_t
-ib_trx_state(
-/*=========*/
-	ib_trx_t	ib_trx);	/*!< in: trx handle */
-
-/*****************************************************************//**
 Release the resources of the transaction. If the transaction was
 selected as a victim by InnoDB and rolled back then use this function
 to free the transaction handle.
@@ -537,18 +504,6 @@ ib_cursor_open_table_using_id(
 	ib_crsr_t*	ib_crsr);	/*!< out,own: InnoDB cursor */
 
 /*****************************************************************//**
-Open an InnoDB index and return a cursor handle to it.
-@return DB_SUCCESS or err code */
-
-ib_err_t
-ib_cursor_open_index_using_id(
-/*==========================*/
-	ib_id_u64_t	index_id,	/*!< in: index id of index to open */
-	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
-					can be NULL */
-	ib_crsr_t*	ib_crsr);	/*!< out: InnoDB cursor */
-
-/*****************************************************************//**
 Open an InnoDB secondary index cursor and return a cursor handle to it.
 @return DB_SUCCESS or err code */
 
@@ -580,15 +535,6 @@ Reset the cursor.
 ib_err_t
 ib_cursor_reset(
 /*============*/
-	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
-
-
-/*****************************************************************//**
-set a cursor trx to NULL*/
-
-void
-ib_cursor_clear_trx(
-/*================*/
 	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
 
 /*****************************************************************//**
@@ -628,15 +574,6 @@ ib_cursor_commit_trx(
 /*=================*/
 	ib_crsr_t	ib_crsr,	/*!< in/out: InnoDB cursor */
 	ib_trx_t	ib_trx);	/*!< in: transaction */
-
-/********************************************************************//**
-Open a table using the table name, if found then increment table ref count.
-@return table instance if found */
-
-void*
-ib_open_table_by_name(
-/*==================*/
-	const char*	name);		/*!< in: table name to lookup */
 
 /*****************************************************************//**
 Insert a row to a table.
@@ -687,15 +624,6 @@ Move cursor to the first record in the table.
 ib_err_t
 ib_cursor_first(
 /*============*/
-	ib_crsr_t	ib_crsr);	/*!< in: InnoDB cursor instance */
-
-/*****************************************************************//**
-Move cursor to the last record in the table.
-@return DB_SUCCESS or err code */
-
-ib_err_t
-ib_cursor_last(
-/*===========*/
 	ib_crsr_t	ib_crsr);	/*!< in: InnoDB cursor instance */
 
 /*****************************************************************//**
@@ -895,17 +823,6 @@ ib_tuple_get_cluster_key(
 	const ib_tpl_t	ib_src_tpl);	/*!< in: source tuple */
 
 /*****************************************************************//**
-Copy the contents of  source tuple to destination tuple. The tuples
-must be of the same type and belong to the same table/index.
-@return DB_SUCCESS or error code */
-
-ib_err_t
-ib_tuple_copy(
-/*==========*/
-	ib_tpl_t	ib_dst_tpl,	/*!< in: destination tuple */
-	const ib_tpl_t	ib_src_tpl);	/*!< in: source tuple */
-
-/*****************************************************************//**
 Create an InnoDB tuple used for index/table search.
 @return tuple for current index */
 
@@ -990,17 +907,6 @@ ib_table_get_id(
 	ib_id_u64_t*	table_id);	/*!< out: table id if found */
 
 /*****************************************************************//**
-Get an index id.
-@return DB_SUCCESS if found */
-
-ib_err_t
-ib_index_get_id(
-/*============*/
-	const char*	table_name,	/*!< in: find index for this table */
-	const char*	index_name,	/*!< in: index to find */
-	ib_id_u64_t*	index_id);	/*!< out: index id if found */
-
-/*****************************************************************//**
 Check if cursor is positioned.
 @return IB_TRUE if positioned */
 
@@ -1057,102 +963,6 @@ void
 ib_cursor_set_cluster_access(
 /*=========================*/
 	ib_crsr_t	ib_crsr);	/*!< in/out: InnoDB cursor */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_i8(
-/*==============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i8_t		val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_i16(
-/*=================*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i16_t	val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_i32(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i32_t	val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_i64(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i64_t	val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_u8(
-/*==============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u8_t		val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_u16(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u16_t	val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_u32(
-/*=================*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u32_t	val);		/*!< in: value to write */
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_u64(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u64_t	val);		/*!< in: value to write */
 
 /*****************************************************************//**
 Inform the cursor that it's the start of an SQL statement. */
@@ -1279,7 +1089,7 @@ ib_table_name_check(
 Return isolation configuration set by "innodb_api_trx_level"
 @return trx isolation level*/
 
-ib_trx_state_t
+ib_trx_level_t
 ib_cfg_trx_level();
 /*==============*/
 
