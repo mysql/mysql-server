@@ -5407,7 +5407,8 @@ select func_20028_b()|
 func_20028_b()
 0
 select func_20028_c()|
-ERROR 22012: Division by 0
+func_20028_c()
+NULL
 call proc_20028_a()|
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -5415,7 +5416,8 @@ call proc_20028_b()|
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 call proc_20028_c()|
-ERROR 22012: Division by 0
+Warnings:
+Warning	1365	Division by 0
 SET sql_mode='TRADITIONAL'|
 drop function func_20028_a|
 drop function func_20028_b|

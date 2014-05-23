@@ -63,12 +63,15 @@ IF(NOT SYSTEM_TYPE)
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
-# http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
+# http://www.oracle.com/technetwork/server-storage/solaris10/cmp-stlport-libcstd-142559.html
 # Use stlport rather than Rogue Wave.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-    SET(CMAKE_CXX_FLAGS
-      "${CMAKE_CXX_FLAGS} -library=stlport4")
+    IF(SUNPRO_CXX_LIBRARY)
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=${SUNPRO_CXX_LIBRARY}")
+    ELSE()
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=stlport4")
+    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -172,7 +175,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   ENDIF()
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+   CMAKE_C_COMPILER_ID MATCHES "SunPro" AND
+   CMAKE_CXX_FLAGS MATCHES "stlport4")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   # Also extract real path to the compiler(which is normally
   # in <install_path>/prod/bin) and try to find the

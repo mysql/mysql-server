@@ -6742,7 +6742,6 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       char llbuff[22];
       char *end;
       enum enum_duplicates handle_dup;
-      bool ignore= 0;
       char *load_data_query;
 
       /*
@@ -6766,7 +6765,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
       {
-        ignore= 1;
+        thd->lex->set_ignore(true);
         handle_dup= DUP_ERROR;
       }
       else
@@ -6833,7 +6832,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       List<Item> tmp_list;
       if (open_temporary_tables(thd, &tables) ||
           mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
-                     handle_dup, ignore, net != 0))
+                     handle_dup, net != 0))
         thd->is_slave_error= 1;
       if (thd->cuted_fields)
       {
@@ -8301,31 +8300,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
 	Create_file_log_event methods
 **************************************************************************/
 
-/*
-  Create_file_log_event ctor
-*/
-
 #ifndef MYSQL_CLIENT
-Create_file_log_event::
-Create_file_log_event(THD* thd_arg, sql_exchange* ex,
-		      const char* db_arg, const char* table_name_arg,
-                      List<Item>& fields_arg,
-                      bool is_concurrent_arg,
-                      enum enum_duplicates handle_dup,
-                      bool ignore,
-		      uchar* block_arg, uint block_len_arg, bool using_trans)
-  :Load_log_event(thd_arg, ex, db_arg, table_name_arg, fields_arg,
-                  is_concurrent_arg,
-                  handle_dup, ignore, using_trans),
-   fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
-   file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
-{
-  DBUG_ENTER("Create_file_log_event");
-  sql_ex.force_new_format();
-  DBUG_VOID_RETURN;
-}
-
-
 /*
   Create_file_log_event::write_data_body()
 */
