@@ -111,6 +111,42 @@ PATENT RIGHTS GRANT:
 
 typedef BLOCKNUM CACHEKEY;
 
+class checkpointer;
+typedef class checkpointer *CHECKPOINTER;
+typedef struct cachetable *CACHETABLE;
+typedef struct cachefile *CACHEFILE;
+typedef struct ctpair *PAIR;
+
+// This struct hold information about values stored in the cachetable.
+// As one can tell from the names, we are probably violating an
+// abstraction layer by placing names.
+//
+// The purpose of having this struct is to have a way for the 
+// cachetable to accumulate the some totals we are interested in.
+// Breaking this abstraction layer by having these names was the 
+// easiest way.
+//
+typedef struct pair_attr_s {
+    long size; // size PAIR's value takes in memory
+    long nonleaf_size; // size if PAIR is a nonleaf node, 0 otherwise, used only for engine status
+    long leaf_size; // size if PAIR is a leaf node, 0 otherwise, used only for engine status
+    long rollback_size; // size of PAIR is a rollback node, 0 otherwise, used only for engine status
+    long cache_pressure_size; // amount PAIR contributes to cache pressure, is sum of buffer sizes and workdone counts
+    bool is_valid;
+} PAIR_ATTR;
+
+static inline PAIR_ATTR make_pair_attr(long size) { 
+    PAIR_ATTR result={
+        .size = size, 
+        .nonleaf_size = 0, 
+        .leaf_size = 0, 
+        .rollback_size = 0, 
+        .cache_pressure_size = 0,
+        .is_valid = true
+    }; 
+    return result; 
+}
+
 void toku_set_cleaner_period (CACHETABLE ct, uint32_t new_period);
 uint32_t toku_get_cleaner_period_unlocked (CACHETABLE ct);
 void toku_set_cleaner_iterations (CACHETABLE ct, uint32_t new_iterations);
@@ -394,8 +430,9 @@ struct unlockers {
     bool       locked;
     void (*f)(void* extra);
     void      *extra;
-    UNLOCKERS  next;
+    struct unlockers *next;
 };
+typedef struct unlockers *UNLOCKERS;
 
 // Effect:  If the block is in the cachetable, then return it.
 //   Otherwise call the functions in unlockers, fetch the data (but don't pin it, since we'll just end up pinning it again later), and return TOKUDB_TRY_AGAIN.
