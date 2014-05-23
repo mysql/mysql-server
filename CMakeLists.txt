@@ -213,7 +213,9 @@ OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
 ENDIF()
-OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+IF(NOT WITHOUT_SERVER)
+  OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
+ENDIF()
 MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
 
 
@@ -447,9 +449,12 @@ IF(WITH_UNIT_TESTS)
 ENDIF()
 
 IF(NOT WITHOUT_SERVER)
-SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
- # Add storage engines and plugins.
- CONFIGURE_PLUGINS()
+  SET (MYSQLD_STATIC_PLUGIN_LIBS "" CACHE INTERNAL "")
+  # Add storage engines and plugins.
+  CONFIGURE_PLUGINS()
+ELSE()
+  # We may still want Cluster client libraries, use -DWITH_NDBCLUSTER=1
+  ADD_SUBDIRECTORY(storage/ndb)
 ENDIF()
 
 ADD_SUBDIRECTORY(include)
@@ -478,26 +483,33 @@ IF(WITH_UNIT_TESTS)
 ENDIF()
 
 ADD_SUBDIRECTORY(extra)
+ADD_SUBDIRECTORY(client)
+ADD_SUBDIRECTORY(sql/share)
+ADD_SUBDIRECTORY(libservices)
+
+IF(UNIX)
+  ADD_SUBDIRECTORY(man)
+ENDIF()
+
 IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(tests)
-  ADD_SUBDIRECTORY(client)
   ADD_SUBDIRECTORY(sql)
-  ADD_SUBDIRECTORY(sql/share)
-  ADD_SUBDIRECTORY(libservices)
   OPTION (WITH_EMBEDDED_SERVER "Compile MySQL with embedded server" OFF)
   IF(WITH_EMBEDDED_SERVER) 
    ADD_SUBDIRECTORY(libmysqld)
    ADD_SUBDIRECTORY(libmysqld/examples)
   ENDIF(WITH_EMBEDDED_SERVER)
+ENDIF()
 
+# scripts/mysql_config depends on client and server targets loaded above.
+# It is referenced by some of the directories below, so we insert it here.
+ADD_SUBDIRECTORY(scripts)
+
+IF(NOT WITHOUT_SERVER)
   ADD_SUBDIRECTORY(mysql-test)
   ADD_SUBDIRECTORY(mysql-test/lib/My/SafeProcess)
   ADD_SUBDIRECTORY(support-files)
-  ADD_SUBDIRECTORY(scripts)
   ADD_SUBDIRECTORY(sql-bench)
-  IF(UNIX)
-    ADD_SUBDIRECTORY(man)
-  ENDIF()
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
