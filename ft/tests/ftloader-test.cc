@@ -412,7 +412,7 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
     ft_loader_fi_close_all(&bl.file_infos);
 
     QUEUE q;
-    r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
+    r = toku_queue_create(&q, 0xFFFFFFFF); // infinite queue.
     assert(r==0);
 
     r = merge_files(&fs, &bl, 0, dest_db, compare_ints, 0, q); CKERR(r);
@@ -436,7 +436,7 @@ static void test_merge_files (const char *tf_template, const char *output_name) 
     // verify the dbfile
     verify_dbfile(10, sorted_keys, sorted_vals, output_name);
 
-    r = queue_destroy(q);
+    r = toku_queue_destroy(q);
     assert(r==0);
 }
 
