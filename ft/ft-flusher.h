@@ -91,7 +91,8 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/ft-internal.h"
+// This must be first to make the 64-bit file mode work right in Linux
+#include "fttypes.h"
 
 typedef enum {
     FT_FLUSHER_CLEANER_TOTAL_NODES = 0,     // total number of nodes whose buffers are potentially flushed by cleaner thread
@@ -157,23 +158,6 @@ toku_ft_flush_node_on_background_thread(
     FTNODE parent
     );
 
-// Given pinned node and pinned child, split child into two
-// and update node with information about its new child.
-void toku_ft_split_child(
-    FT h,
-    FTNODE node,
-    int childnum,
-    FTNODE child,
-    enum split_mode split_mode
-    );
-// Given pinned node, merge childnum with a neighbor and update node with
-// information about the change
-void toku_ft_merge_child(
-    FT ft,
-    FTNODE node,
-    int childnum
-    );
-
 /**
  * Effect: Split a leaf node.
  * Argument "node" is node to be split.
@@ -182,7 +166,6 @@ void toku_ft_merge_child(
  *   nodea is the left node that results from the split
  *   splitk is the right-most key of nodea
  */
-// TODO: Rename toku_ft_leaf_split
 void
 ftleaf_split(
     FT h,
@@ -206,7 +189,6 @@ ftleaf_split(
  *    but it does not guarantee that the resulting nodes are smaller than nodesize.
  */
 void
-// TODO: Rename toku_ft_nonleaf_split
 ft_nonleaf_split(
     FT h,
     FTNODE node,

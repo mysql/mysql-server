@@ -119,7 +119,6 @@ using namespace toku;
 
 #define LOGGER_MIN_BUF_SIZE (1<<24)
 
-// TODO: Remove mylock, it has no value
 struct mylock {
     toku_mutex_t lock;
 };
@@ -284,7 +283,6 @@ struct tokutxn {
                       // txn to not transition to commit or abort
     uint64_t client_id;
 };
-typedef struct tokutxn    *TOKUTXN;
 
 static inline int
 txn_has_current_rollback_log(TOKUTXN txn) {
@@ -307,10 +305,6 @@ struct txninfo {
     BLOCKNUM   spilled_rollback_tail;
     BLOCKNUM   current_rollback;
 };
-typedef struct txninfo    *TXNINFO;
-
-// TODO: Remove null txn
-#define NULL_TXN ((TOKUTXN)0)
 
 static inline int toku_logsizeof_uint8_t (uint32_t v __attribute__((__unused__))) {
     return 1;

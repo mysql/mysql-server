@@ -100,8 +100,6 @@ PATENT RIGHTS GRANT:
 #include "log.h"
 #include "ft-search.h"
 #include "compress.h"
-#include "ft_msg.h"
-#include "ft/cursor.h"
 
 // A callback function is invoked with the key, and the data.
 // The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.
@@ -115,6 +113,8 @@ PATENT RIGHTS GRANT:
 // When lock_only is false, the callback does optional lock tree locking and then processes the key and val.
 // When lock_only is true, the callback only does optional lock tree locking.
 typedef int(*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
+
+typedef bool(*FT_CHECK_INTERRUPT_CALLBACK)(void* extra);
 
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 
@@ -246,7 +246,6 @@ void toku_ft_maybe_delete (FT_HANDLE ft_h, DBT *k, TOKUTXN txn, bool oplsn_valid
 TXNID toku_ft_get_oldest_referenced_xid_estimate(FT_HANDLE ft_h);
 TXN_MANAGER toku_ft_get_txn_manager(FT_HANDLE ft_h);
 
-class txn_gc_info;
 void toku_ft_send_insert(FT_HANDLE ft_h, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info);
 void toku_ft_send_delete(FT_HANDLE ft_h, DBT *key, XIDS xids, txn_gc_info *gc_info);
 void toku_ft_send_commit_any(FT_HANDLE ft_h, DBT *key, XIDS xids, txn_gc_info *gc_info);
@@ -259,6 +258,7 @@ extern int toku_ft_debug_mode;
 int toku_verify_ft (FT_HANDLE ft_h)  __attribute__ ((warn_unused_result));
 int toku_verify_ft_with_progress (FT_HANDLE ft_h, int (*progress_callback)(void *extra, float progress), void *extra, int verbose, int keep_going)  __attribute__ ((warn_unused_result));
 
+typedef struct ft_cursor *FT_CURSOR;
 int toku_ft_cursor (FT_HANDLE, FT_CURSOR*, TOKUTXN, bool, bool)  __attribute__ ((warn_unused_result));
 void toku_ft_cursor_set_leaf_mode(FT_CURSOR);
 // Sets a boolean on the ft cursor that prevents uncessary copying of
