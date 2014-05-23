@@ -24,7 +24,7 @@ if (NOT DEFINED MYSQL_PROJECT_NAME_DOCSTRING)
   install(
     FILES partitioned_counter.h
     DESTINATION include
-    COMPONENT tokukv_headers
+    COMPONENT tokuft_headers
     )
 endif ()
 
