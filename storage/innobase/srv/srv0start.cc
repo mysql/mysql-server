@@ -805,6 +805,43 @@ srv_undo_tablespaces_init(
 	if (!create_new_db) {
 		n_undo_tablespaces = trx_rseg_get_n_undo_tablespaces(
 			undo_tablespace_ids);
+
+		/* Check if any of the UNDO tablespace needs fix-up because
+		server crashed while truncate was active on UNDO tablespace.*/
+		for (i = 0; i < n_undo_tablespaces; ++i) {
+
+			undo_trunc_t	undo_trunc;
+
+			if (undo_trunc.needs_fix_up(undo_tablespace_ids[i])) {
+
+				char	name[OS_FILE_MAX_PATH];
+
+				ut_snprintf(name, sizeof(name),
+					    "%s%cundo%03lu",
+					    srv_undo_dir, OS_PATH_SEPARATOR,
+					    undo_tablespace_ids[i]);
+
+				err = srv_undo_tablespace_create(
+					name,
+					SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+
+				if (err != DB_SUCCESS) {
+					ib_logf(IB_LOG_LEVEL_ERROR,
+						"Could not fix-up undo "
+						" tablespace truncate '%s'.",
+						name);
+					return(err);
+				}
+
+				mtr_t	mtr;
+				mtr_start(&mtr);
+				fsp_header_init(
+					undo_tablespace_ids[i],
+					SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
+					&mtr);
+				mtr_commit(&mtr);
+			}
+		}
 	} else {
 		n_undo_tablespaces = n_conf_tablespaces;
 
