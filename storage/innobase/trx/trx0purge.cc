@@ -774,7 +774,7 @@ trx_purge_initiate_truncate(
 	d. Remove the DDL log.
 	TODO: Handle crash/error case during tablepsace truncate. */
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Truncating UNDO tablespace with space identified " ULINTPF "",
+		"Truncating UNDO tablespace with space identifier " ULINTPF "",
 		undo_trunc->get_undo_mark_for_trunc());
 
 	/* After truncate if server crashes then redo logging done for this
