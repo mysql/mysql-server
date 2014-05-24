@@ -176,7 +176,7 @@ with_open_tree(const char *fname, tree_cb cb, void *cb_extra)
     FT_HANDLE t;
     CACHETABLE ct;
 
-    toku_cachetable_create(&ct, 16*(1<<20), ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 16*(1<<20), ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 
                       0, 
                       &t, 

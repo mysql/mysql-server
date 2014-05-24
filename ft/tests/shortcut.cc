@@ -108,7 +108,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[]  __attribute
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);   assert(r==0);
     r = toku_ft_cursor(ft, &cursor, NULL, false, false);               assert(r==0);
 

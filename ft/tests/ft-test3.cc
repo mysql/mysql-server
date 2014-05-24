@@ -106,7 +106,7 @@ static void test3 (int nodesize, int basementnodesize, int count) {
     int i;
     CACHETABLE ct;
     
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     gettimeofday(&t0, 0);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, toku_builtin_compare_fun);

@@ -123,11 +123,11 @@ int recovery_main (int argc, const char *const argv[]) {
 	return(1);
     }
 
-    int r = tokudb_recover(NULL,
-			   NULL_prepared_txn_callback,
-			   NULL_keep_cachetable_callback,
-			   NULL_logger,
-			   data_dir, log_dir, NULL, NULL, NULL, NULL, 0);
+    int r = tokudb_recover(nullptr,
+			   nullptr,
+			   nullptr,
+			   nullptr,
+			   data_dir, log_dir, nullptr, nullptr, nullptr, nullptr, 0);
     if (r!=0) {
 	fprintf(stderr, "Recovery failed\n");
 	return(1);

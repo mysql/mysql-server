@@ -101,7 +101,7 @@ static void test1 (void) {
     const char *fname = TOKU_TEST_FILENAME;
     DBT k,v;
     
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);

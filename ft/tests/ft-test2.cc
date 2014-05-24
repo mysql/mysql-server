@@ -102,7 +102,7 @@ static void test2 (int limit) {
     const char *fname = TOKU_TEST_FILENAME;
     if (verbose) printf("%s:%d checking\n", __FILE__, __LINE__);
     
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     if (verbose) printf("%s:%d did setup\n", __FILE__, __LINE__);

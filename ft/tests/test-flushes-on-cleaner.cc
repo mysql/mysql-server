@@ -132,7 +132,7 @@ doit (bool keep_other_bn_in_memory) {
 
     int r;
     
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &ft, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);

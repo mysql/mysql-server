@@ -183,9 +183,7 @@ typedef struct {
 
 typedef struct tokulogger *TOKULOGGER;
 typedef struct txn_manager *TXN_MANAGER;
-#define NULL_LOGGER ((TOKULOGGER)0)
 typedef struct tokutxn    *TOKUTXN;
-#define NULL_TXN ((TOKUTXN)0)
 
 typedef struct xids_t *XIDS;
 

@@ -170,7 +170,7 @@ static void test_ft_cursor_first(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -208,7 +208,7 @@ static void test_ft_cursor_last(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -247,7 +247,7 @@ static void test_ft_cursor_first_last(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -289,7 +289,7 @@ static void test_ft_cursor_rfirst(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -353,7 +353,7 @@ static void test_ft_cursor_walk(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -415,7 +415,7 @@ static void test_ft_cursor_rwalk(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -496,7 +496,7 @@ static void test_ft_cursor_rand(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -546,7 +546,7 @@ static void test_ft_cursor_split(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -617,7 +617,7 @@ static void test_multiple_ft_cursors(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -663,7 +663,7 @@ static void test_multiple_ft_cursor_walk(int n) {
     int nodesize = 1<<12;
     int h = log16(n);
     int cachesize = 2 * h * ncursors * nodesize;
-    toku_cachetable_create(&ct, cachesize, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, cachesize, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -736,7 +736,7 @@ static void test_ft_cursor_set(int n, int cursor_op) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -804,7 +804,7 @@ static void test_ft_cursor_set_range(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(r==0);
@@ -864,7 +864,7 @@ static void test_ft_cursor_delete(int n) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare);
     assert(error == 0);

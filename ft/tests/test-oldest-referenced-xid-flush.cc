@@ -131,7 +131,7 @@ static void test_oldest_referenced_xid_gets_propogated(void) {
     FT_HANDLE t;
     BLOCKNUM grandchild_leaf_blocknum, child_nonleaf_blocknum, root_blocknum;
 
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink("foo1.ft_handle");
     r = toku_open_ft_handle("foo1.ft_handle", 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, nullptr, toku_builtin_compare_fun);
     assert(r==0);

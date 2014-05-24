@@ -165,7 +165,7 @@ doit (void) {
     BLOCKNUM node_leaf[2];
     int r;
     
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, NODESIZE, NODESIZE/2, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);

@@ -196,7 +196,7 @@ test_pos_infinity(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     FT_HANDLE ft = NULL;
     error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_keycompare);
@@ -230,7 +230,7 @@ test_neg_infinity(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     FT_HANDLE ft = NULL;
     error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_keycompare);
@@ -284,7 +284,7 @@ test_between(const char *fname, int n) {
     int error;
 
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     FT_HANDLE ft = NULL;
     error = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_keycompare);

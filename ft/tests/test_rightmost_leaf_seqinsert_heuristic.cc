@@ -110,7 +110,7 @@ static void test_seqinsert_heuristic(void) {
     
     FT_HANDLE ft_handle;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(name, 1, &ft_handle,
                             4*1024*1024, 64*1024,
                             TOKU_DEFAULT_COMPRESSION_METHOD, ct, NULL,

@@ -101,7 +101,7 @@ static void test_dump_empty_db (void) {
     CACHETABLE ct;
     int r;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 1024, 256, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -124,7 +124,7 @@ static void test_multiple_files_of_size (int size) {
     toku_os_recursive_delete(TOKU_TEST_FILENAME);
     r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); assert(r == 0);
     
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(n0, 1, &t0, size, size / 4, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     r = toku_open_ft_handle(n1, 1, &t1, size, size / 4, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     for (i=0; i<10000; i++) {
@@ -148,7 +148,7 @@ static void test_multiple_files_of_size (int size) {
     
 
     /* Now see if the data is all there. */
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(n0, 0, &t0, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     if (verbose) printf("%s:%d r=%d\n", __FILE__, __LINE__,r);
     assert(r==0);
@@ -184,7 +184,7 @@ static void test_multiple_ft_handles_one_db_one_file (void) {
     if (verbose) printf("test_multiple_ft_handles_one_db_one_file:");
     
     unlink(fname);
-    toku_cachetable_create(&ct, 32, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 32, ZERO_LSN, nullptr);
     for (i=0; i<MANYN; i++) {
 	r = toku_open_ft_handle(fname, (i==0), &trees[i], 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
 	assert(r==0);
@@ -223,7 +223,7 @@ static void  test_read_what_was_written (void) {
     unlink(fname);
     
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);  assert(r==0);
     r = toku_close_ft_handle_nolsn(ft, 0); assert(r==0);
     toku_cachetable_close(&ct);
@@ -231,7 +231,7 @@ static void  test_read_what_was_written (void) {
     
 
     /* Now see if we can read an empty tree in. */
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 0, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);  assert(r==0);
 
     /* See if we can put something in it. */
@@ -246,7 +246,7 @@ static void  test_read_what_was_written (void) {
     
 
     /* Now see if we can read it in and get the value. */
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 0, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     ft_lookup_and_check_nodup(ft, "hello", "there");
@@ -308,7 +308,7 @@ static void  test_read_what_was_written (void) {
 
     
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 0, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
 
     ft_lookup_and_check_nodup(ft, "hello", "there");
@@ -341,7 +341,7 @@ static void test_cursor_last_empty(void) {
     unlink(fname);
     
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
@@ -375,7 +375,7 @@ static void test_cursor_next (void) {
 
     unlink(fname);
     
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);  assert(r==0);
     //printf("%s:%d %d alloced\n", __FILE__, __LINE__, toku_get_n_items_malloced()); toku_print_malloced_items();
@@ -451,7 +451,7 @@ static void test_wrongendian_compare (int wrong_p, unsigned int N) {
 	assert(wrong_compare_fun(NULL, toku_fill_dbt(&at, b, 4), toku_fill_dbt(&bt, a, 4))<0);
     }
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     //printf("%s:%d WRONG=%d\n", __FILE__, __LINE__, wrong_p);
 
     if (0) { // ???? Why is this commented out?
@@ -548,7 +548,7 @@ static void test_large_kv(int bsize, int ksize, int vsize) {
 
     if (verbose) printf("test_large_kv: %d %d %d\n", bsize, ksize, vsize);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, bsize, bsize / 4, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -592,7 +592,7 @@ static void test_ft_delete_empty(void) {
     int r;
     CACHETABLE ct;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 4096, 1024, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -618,7 +618,7 @@ static void test_ft_delete_present(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 4096, 1024, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -681,7 +681,7 @@ static void test_ft_delete_not_present(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 4096, 1024, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -725,7 +725,7 @@ static void test_ft_delete_cursor_first(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 4096, 1024, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -820,7 +820,7 @@ static void test_insert_delete_lookup(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, 4096, 1024, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);
@@ -907,7 +907,7 @@ static void test_new_ft_cursor_first(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     toku_ft_handle_create(&t);
     toku_ft_handle_set_nodesize(t, 4096);
@@ -959,7 +959,7 @@ static void test_new_ft_cursor_last(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     toku_ft_handle_create(&t);
     toku_ft_handle_set_nodesize(t, 4096);
@@ -1012,7 +1012,7 @@ static void test_new_ft_cursor_next(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     toku_ft_handle_create(&t);
     toku_ft_handle_set_nodesize(t, 4096);
@@ -1055,7 +1055,7 @@ static void test_new_ft_cursor_prev(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     toku_ft_handle_create(&t);
     toku_ft_handle_set_nodesize(t, 4096);
@@ -1098,7 +1098,7 @@ static void test_new_ft_cursor_current(int n) {
     CACHETABLE ct;
     int i;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     toku_ft_handle_create(&t);
     toku_ft_handle_set_nodesize(t, 4096);
@@ -1180,7 +1180,7 @@ static void test_new_ft_cursor_set_range(int n) {
     FT_HANDLE ft=0;
     FT_CURSOR cursor=0;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     toku_ft_handle_create(&ft);
     toku_ft_handle_set_nodesize(ft, 4096);
@@ -1241,7 +1241,7 @@ static void test_new_ft_cursor_set(int n, int cursor_op, DB *db) {
 
     unlink(fname);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     r = toku_open_ft_handle(fname, 1, &ft, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, test_ft_cursor_keycompare); assert(r==0);
 

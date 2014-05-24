@@ -134,7 +134,7 @@ cachetable_getandpin_test (int n) {
     const int test_limit = 1024*1024;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;

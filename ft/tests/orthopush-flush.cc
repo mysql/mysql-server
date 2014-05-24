@@ -1226,7 +1226,7 @@ test_main (int argc, const char *argv[]) {
     initialize_dummymsn();
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     FT_HANDLE t;
     r = toku_open_ft_handle(fname, 1, &t, 128*1024, 4096, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);

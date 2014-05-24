@@ -175,7 +175,7 @@ doit (int state) {
 
     toku_flusher_thread_set_callback(flusher_callback, &state);
     
-    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 500*1024*1024, ZERO_LSN, nullptr);
     unlink("foo3.ft_handle");
     unlink("bar3.ft_handle");
     // note the basement node size is 5 times the node size

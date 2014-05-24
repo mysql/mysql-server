@@ -116,7 +116,7 @@ cachetable_unpin_and_remove_test (int n) {
     int i;
 
     CACHETABLE ct;
-    toku_cachetable_create(&ct, table_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, table_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;
@@ -172,7 +172,7 @@ cachetable_put_evict_remove_test (int n) {
     int i;
 
     CACHETABLE ct;
-    toku_cachetable_create(&ct, table_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, table_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;

@@ -100,7 +100,7 @@ run_test (void) {
     const int test_limit = 20;
     int r;
     ct = NULL;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     f1 = NULL;

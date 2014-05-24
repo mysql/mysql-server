@@ -308,9 +308,6 @@ struct txninfo {
     BLOCKNUM   current_rollback;
 };
 
-// TODO: Remove null txn
-#define NULL_TXN ((TOKUTXN)0)
-
 static inline int toku_logsizeof_uint8_t (uint32_t v __attribute__((__unused__))) {
     return 1;
 }

@@ -123,7 +123,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     CACHETABLE ct;
     FT_HANDLE t;
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     unlink(fname);
     int r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r==0);
 
@@ -137,7 +137,7 @@ test_main (int argc __attribute__((__unused__)), const char *argv[] __attribute_
     r = toku_close_ft_handle_nolsn(t, 0); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &t, nodesize, basementnodesize, compression_method, ct, null_txn, string_cmp); assert(r == 0);
 
     for (int n = 0; n < count/100; ++n) {

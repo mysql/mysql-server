@@ -260,6 +260,4 @@ int toku_get_version_of_logs_on_disk(const char *log_dir, bool *found_any_logs, 
 
 TXN_MANAGER toku_logger_get_txn_manager(TOKULOGGER logger);
 
-static const TOKULOGGER NULL_logger __attribute__((__unused__)) = NULL;
-
 #endif /* TOKU_LOGGER_H */
