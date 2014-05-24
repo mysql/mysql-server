@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include <ft/ft.h>
-#include <ft/ftloader.h>
+#include <ft/loader/loader.h>
 #include <ft/checkpoint.h>
 
 #include "ydb-internal.h"

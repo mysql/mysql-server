@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 
 
 #include "test.h"
-#include "ftloader-internal.h"
+#include "loader/loader-internal.h"
 #include <inttypes.h>
 #include <portability/toku_path.h>
 

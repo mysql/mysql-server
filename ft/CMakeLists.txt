@@ -30,14 +30,11 @@ set(FT_SOURCES
   cachetable
   checkpoint
   compress
-  dbufio
   fifo
   ft
   ft-cachetable-wrappers
   ft-flusher
   ft-hot-flusher
-  ftloader
-  ftloader-callback
   ft_msg
   ft_node-serialize
   ft-node-deserialize
@@ -45,13 +42,16 @@ set(FT_SOURCES
   ft-serialize
   ft-test-helpers
   ft-verify
+  loader/callbacks
+  loader/dbufio
+  loader/loader
+  loader/pqueue
   leafentry
   le-cursor
   logcursor
   logfilemgr
   logger
   log_upgrade
-  pqueue
   quicklz
   recover
   rollback

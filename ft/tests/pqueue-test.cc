@@ -91,8 +91,8 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-#include "ftloader-internal.h"
-#include "pqueue.h"
+#include "loader/loader-internal.h"
+#include "loader/pqueue.h"
 
 int found_dup = -1;
 

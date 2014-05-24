@@ -86,114 +86,148 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <toku_portability.h>
-#include <toku_assert.h>
-#include <toku_pthread.h>
-#include <errno.h>
-#include <string.h>
+#include "toku_os.h"
+#include "ft-internal.h"
+#include "loader/loader-internal.h"
+#include "loader/pqueue.h"
 
-#include "ftloader-internal.h"
-#include "ybt.h"
+#define pqueue_left(i)   ((i) << 1)
+#define pqueue_right(i)  (((i) << 1) + 1)
+#define pqueue_parent(i) ((i) >> 1)
 
-static void error_callback_lock(ft_loader_error_callback loader_error) {
-    toku_mutex_lock(&loader_error->mutex);
-}
-
-static void error_callback_unlock(ft_loader_error_callback loader_error) {
-    toku_mutex_unlock(&loader_error->mutex);
-}
-
-void ft_loader_init_error_callback(ft_loader_error_callback loader_error) {
-    memset(loader_error, 0, sizeof *loader_error);
-    toku_init_dbt(&loader_error->key);
-    toku_init_dbt(&loader_error->val);
-    toku_mutex_init(&loader_error->mutex, NULL);
-}
-
-void ft_loader_destroy_error_callback(ft_loader_error_callback loader_error) { 
-    toku_mutex_destroy(&loader_error->mutex);
-    toku_destroy_dbt(&loader_error->key);
-    toku_destroy_dbt(&loader_error->val);
-    memset(loader_error, 0, sizeof *loader_error);
-}
-
-int ft_loader_get_error(ft_loader_error_callback loader_error) {
-    error_callback_lock(loader_error);
-    int r = loader_error->error;
-    error_callback_unlock(loader_error);
-    return r;
-}
-
-void ft_loader_set_error_function(ft_loader_error_callback loader_error, ft_loader_error_func error_function, void *error_extra) {
-    loader_error->error_callback = error_function;
-    loader_error->extra = error_extra;
-}
-
-int ft_loader_set_error(ft_loader_error_callback loader_error, int error, DB *db, int which_db, DBT *key, DBT *val) {
-    int r;
-    error_callback_lock(loader_error);
-    if (loader_error->error) {              // there can be only one
-        r = EEXIST;
-    } else {
-        r = 0;
-        loader_error->error = error;        // set the error 
-        loader_error->db = db;
-        loader_error->which_db = which_db;
-        if (key != nullptr) {
-            toku_clone_dbt(&loader_error->key, *key);
-        }
-        if (val != nullptr) {
-            toku_clone_dbt(&loader_error->val, *val);
-        }
+int pqueue_init(pqueue_t **result, size_t n, int which_db, DB *db, ft_compare_func compare, struct error_callback_s *err_callback)
+{
+    pqueue_t *MALLOC(q);
+    if (!q) {
+        return get_error_errno();
     }
-    error_callback_unlock(loader_error);
-    return r;
-}
 
-int ft_loader_call_error_function(ft_loader_error_callback loader_error) {
-    int r;
-    error_callback_lock(loader_error);
-    r = loader_error->error;
-    if (r && loader_error->error_callback && !loader_error->did_callback) {
-        loader_error->did_callback = true;
-        loader_error->error_callback(loader_error->db, 
-                                     loader_error->which_db,
-                                     loader_error->error,
-                                     &loader_error->key,
-                                     &loader_error->val,
-                                     loader_error->extra);
+    /* Need to allocate n+1 elements since element 0 isn't used. */
+    MALLOC_N(n + 1, q->d);
+    if (!q->d) {
+        int r = get_error_errno();
+        toku_free(q);
+        return r;
     }
-    error_callback_unlock(loader_error);    
-    return r;
-}
+    q->size = 1;
+    q->avail = q->step = (n+1);  /* see comment above about n+1 */
 
-int ft_loader_set_error_and_callback(ft_loader_error_callback loader_error, int error, DB *db, int which_db, DBT *key, DBT *val) {
-    int r = ft_loader_set_error(loader_error, error, db, which_db, key, val);
-    if (r == 0)
-        r = ft_loader_call_error_function(loader_error);
-    return r;
-}
+    q->which_db = which_db;
+    q->db = db;
+    q->compare = compare;
+    q->dup_error = 0;
 
-int ft_loader_init_poll_callback(ft_loader_poll_callback p) {
-    memset(p, 0, sizeof *p);
+    q->error_callback = err_callback;
+
+    *result = q;
     return 0;
 }
 
-void ft_loader_destroy_poll_callback(ft_loader_poll_callback p) {
-    memset(p, 0, sizeof *p);
+void pqueue_free(pqueue_t *q)
+{
+    toku_free(q->d);
+    toku_free(q);
 }
 
-void ft_loader_set_poll_function(ft_loader_poll_callback p, ft_loader_poll_func poll_function, void *poll_extra) {
-    p->poll_function = poll_function;
-    p->poll_extra = poll_extra;
+
+size_t pqueue_size(pqueue_t *q)
+{
+    /* queue element 0 exists but doesn't count since it isn't used. */
+    return (q->size - 1);
 }
 
-int ft_loader_call_poll_function(ft_loader_poll_callback p, float progress) {
-    int r = 0;
-    if (p->poll_function)
-	r = p->poll_function(p->poll_extra, progress);
-    return r;
+static int pqueue_compare(pqueue_t *q, DBT *next_key, DBT *next_val, DBT *curr_key)
+{
+    int r = q->compare(q->db, next_key, curr_key);
+    if ( r == 0 ) { // duplicate key : next_key == curr_key
+        q->dup_error = 1; 
+        if (q->error_callback)
+            ft_loader_set_error_and_callback(q->error_callback, DB_KEYEXIST, q->db, q->which_db, next_key, next_val);
+    }
+    return ( r > -1 );
+}
+
+static void pqueue_bubble_up(pqueue_t *q, size_t i)
+{
+    size_t parent_node;
+    pqueue_node_t *moving_node = q->d[i];
+    DBT *moving_key = moving_node->key;
+
+    for (parent_node = pqueue_parent(i);
+         ((i > 1) && pqueue_compare(q, q->d[parent_node]->key, q->d[parent_node]->val, moving_key));
+         i = parent_node, parent_node = pqueue_parent(i))
+    {
+        q->d[i] = q->d[parent_node];
+    }
+
+    q->d[i] = moving_node;
+}
+
+
+static size_t pqueue_maxchild(pqueue_t *q, size_t i)
+{
+    size_t child_node = pqueue_left(i);
+
+    if (child_node >= q->size)
+        return 0;
+
+    if ((child_node+1) < q->size &&
+        pqueue_compare(q, q->d[child_node]->key, q->d[child_node]->val, q->d[child_node+1]->key))
+        child_node++; /* use right child instead of left */
+
+    return child_node;
+}
+
+
+static void pqueue_percolate_down(pqueue_t *q, size_t i)
+{
+    size_t child_node;
+    pqueue_node_t *moving_node = q->d[i];
+    DBT *moving_key = moving_node->key;
+    DBT *moving_val = moving_node->val;
+
+    while ((child_node = pqueue_maxchild(q, i)) &&
+           pqueue_compare(q, moving_key, moving_val, q->d[child_node]->key))
+    {
+        q->d[i] = q->d[child_node];
+        i = child_node;
+    }
+
+    q->d[i] = moving_node;
+}
+
+
+int pqueue_insert(pqueue_t *q, pqueue_node_t *d)
+{
+    size_t i;
+
+    if (!q) return 1;
+    if (q->size >= q->avail) return 1;
+
+    /* insert item */
+    i = q->size++;
+    q->d[i] = d;
+    pqueue_bubble_up(q, i);
+
+    if ( q->dup_error ) return DB_KEYEXIST;
+    return 0;
+}
+
+int pqueue_pop(pqueue_t *q, pqueue_node_t **d)
+{
+    if (!q || q->size == 1) {
+        *d = NULL;
+        return 0;
+    }
+
+    *d = q->d[1];
+    q->d[1] = q->d[--q->size];
+    pqueue_percolate_down(q, 1);
+
+    if ( q->dup_error ) return DB_KEYEXIST;
+    return 0;
 }

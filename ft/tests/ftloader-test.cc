@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <stdio.h>
 #include <unistd.h>
-#include "ftloader-internal.h"
+#include "loader/loader-internal.h"
 #include "memory.h"
 #include <portability/toku_path.h>
 

@@ -92,10 +92,10 @@ PATENT RIGHTS GRANT:
 
 #include <db.h>
 #include "fttypes.h"
-#include "ftloader.h"
+#include "loader/loader.h"
 #include "util/queue.h"
 #include <toku_pthread.h>
-#include "dbufio.h"
+#include "loader/dbufio.h"
 
 enum { EXTRACTOR_QUEUE_DEPTH = 2,
        FILE_BUFFER_SIZE  = 1<<24,

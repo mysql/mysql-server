@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 #include <ft/ft-flusher.h>
 #include <ft/checkpoint.h>
 #include <ft/recover.h>
-#include <ft/ftloader.h>
+#include <ft/loader/loader.h>
 
 #include "ydb_env_func.h"
 
