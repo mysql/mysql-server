@@ -92,9 +92,8 @@ PATENT RIGHTS GRANT:
 #include <errno.h>
 #include <string.h>
 
-#include "toku_assert.h"
-#include "fttypes.h"
-#include "minicron.h"
+#include "portability/toku_assert.h"
+#include "util/minicron.h"
 
 static void
 toku_gettime (toku_timespec_t *a) {

@@ -51,7 +51,6 @@ set(FT_SOURCES
   logfilemgr
   logger
   log_upgrade
-  minicron
   pqueue
   quicklz
   recover
