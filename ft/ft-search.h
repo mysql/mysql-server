@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef FT_SEARCH_H
-#define FT_SEARCH_H
 
 #include "ft/ybt.h"
 
@@ -155,5 +154,3 @@ static inline ft_search_t *ft_search_init(ft_search_t *so, ft_search_compare_fun
 static inline void ft_search_finish(ft_search_t *so) {
     toku_destroy_dbt(&so->pivot_bound);
 }
-
-#endif

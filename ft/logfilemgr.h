@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef TOKULOGFILEMGR_H
-#define TOKULOGFILEMGR_H
 
 #ident "$Id$"
 /*
@@ -89,11 +87,12 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <ft/log_header.h>
-
 
 // this is the basic information we need to keep per logfile
 struct toku_logfile_info {
@@ -118,6 +117,3 @@ LSN toku_logfilemgr_get_last_lsn(TOKULOGFILEMGR lfm);
 void toku_logfilemgr_update_last_lsn(TOKULOGFILEMGR lfm, LSN lsn);
 
 void toku_logfilemgr_print(TOKULOGFILEMGR lfm);
-
-
-#endif //TOKULOGFILEMGR_H

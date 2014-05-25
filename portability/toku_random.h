@@ -86,10 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
-#ifndef TOKU_RANDOM_H
-#define TOKU_RANDOM_H
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <portability/toku_config.h>
 #include <toku_portability.h>
@@ -169,5 +168,3 @@ rand_choices(struct random_data *buf, uint32_t choices) {
 
     return result;
 }
-
-#endif // TOKU_RANDOM_H

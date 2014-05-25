@@ -86,10 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
-#ifndef PORTABILITY_TOKU_CRASH_H
-#define PORTABILITY_TOKU_CRASH_H
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -192,5 +191,3 @@ toku_crash_and_dump_core_on_purpose(void) {
 }
 
 void toku_try_gdb_stack_trace(const char *gdb_path);
-
-#endif // PORTABILITY_TOKU_CRASH_H

@@ -86,10 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#ifndef TOKU_PORTABILITY_H
-#define TOKU_PORTABILITY_H
 
 #include "toku_config.h"
 
@@ -363,6 +363,3 @@ static inline uint64_t roundup_to_multiple(uint64_t alignment, uint64_t v)
     assert(result<v+alignment);            // The result is the smallest such multiple of alignment.
     return result;
 }
-    
-
-#endif /* TOKU_PORTABILITY_H */

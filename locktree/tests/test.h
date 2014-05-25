@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef TOKU_TEST_H
-#define TOKU_TEST_H
 
 #include <ft/ybt.h>
 #include <limits.h>
@@ -160,5 +159,3 @@ static int compare_dbts(DB *db, const DBT *key1, const DBT *key2) {
 }
 
 } /* namespace toku */
-
-#endif

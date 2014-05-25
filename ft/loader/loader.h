@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FTLOADER_H
-#define FTLOADER_H
 
 #ident "$Id$"
 /*
@@ -89,6 +87,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -133,5 +133,3 @@ void toku_ft_loader_set_size_factor (uint32_t factor);
 void ft_loader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*));
 
 size_t ft_loader_leafentry_size(size_t key_size, size_t val_size, TXNID xid);
-
-#endif // FTLOADER_H

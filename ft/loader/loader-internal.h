@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FTLOADER_INTERNAL_H
-#define FTLOADER_INTERNAL_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -87,6 +85,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
@@ -362,5 +362,3 @@ int toku_ft_loader_get_error(FTLOADER bl, int *loader_errno);
 void ft_loader_lock_init(FTLOADER bl);
 void ft_loader_lock_destroy(FTLOADER bl);
 void ft_loader_set_fractal_workers_count_from_c(FTLOADER bl);
-
-#endif  // FTLOADER_INTERNAL_H

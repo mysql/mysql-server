@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef TOKU_DBUFIO_H
-#define TOKU_DBUFIO_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -88,6 +86,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 
 #include <toku_portability.h>
@@ -108,5 +108,3 @@ int dbufio_fileset_read (DBUFIO_FILESET bfs, int filenum, void *buf_v, size_t co
 int panic_dbufio_fileset(DBUFIO_FILESET, int error);
 
 void dbufio_print(DBUFIO_FILESET);
-
-#endif

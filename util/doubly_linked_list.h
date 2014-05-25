@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef UTIL_DOUBLY_LINKED_LIST_H
-#define UTIL_DOUBLY_LINKED_LIST_H
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -87,6 +85,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -225,5 +225,3 @@ int DoublyLinkedList<T>::iterate(int (*fun)(T container, extra_t extra), extra_t
 }
 
 }
-
-#endif // UTIL_DOUBLY_LINKED_LIST_H

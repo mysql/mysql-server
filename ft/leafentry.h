@@ -1,9 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
-#ifndef TOKU_LEAFENTRY_H
-#define TOKU_LEAFENTRY_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -89,6 +86,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -265,6 +264,3 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
                         txn_gc_info *gc_info,
                         LEAFENTRY *new_leaf_entry,
                         int64_t * numbytes_delta_p);
-
-#endif /* TOKU_LEAFENTRY_H */
-

@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef TOKU_SUB_BLOCK_H
-#define TOKU_SUB_BLOCK_H
 
 #ident "$Id$"
 /*
@@ -89,12 +87,13 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "compress.h"
 #include "fttypes.h"
-
 
 static const int max_sub_blocks = 8;
 static const int target_sub_block_size = 512*1024;
@@ -213,6 +212,3 @@ int
 decompress_all_sub_blocks(int n_sub_blocks, struct sub_block sub_block[], unsigned char *compressed_data, unsigned char *uncompressed_data, int num_cores, struct toku_thread_pool *pool);
 
 extern int verbose_decompress_sub_block;
-
-
-#endif

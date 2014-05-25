@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef LE_CURSOR_H
-#define LE_CURSOR_H
 
 #include "ft-ops.h"
 
@@ -127,5 +126,3 @@ bool toku_le_cursor_is_key_greater_or_equal(LE_CURSOR le_cursor, const DBT *key)
 // extracts position of le_cursor into estimate. Responsibility of caller to handle
 // thread safety. Caller (the indexer), does so by ensuring indexer lock is held
 void toku_le_cursor_update_estimate(LE_CURSOR le_cursor, DBT* estimate);
-
-#endif

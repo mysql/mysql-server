@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef UTIL_MEMPOOL_H
-#define UTIL_MEMPOOL_H
 
 /* a memory pool is a contiguous region of memory that supports single
    allocations from the pool.  these allocated regions are never recycled.
@@ -181,7 +180,3 @@ static inline int toku_mempool_inrange(struct mempool *mp, void *vp, size_t size
 size_t toku_mempool_footprint(struct mempool *mp);
 
 void toku_mempool_clone(const struct mempool* orig_mp, struct mempool* new_mp);
-
-
-
-#endif // UTIL_MEMPOOL_H

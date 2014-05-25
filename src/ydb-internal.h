@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef YDB_INTERNAL_H
-#define YDB_INTERNAL_H
 
 /*
 COPYING CONDITIONS NOTICE:
@@ -87,6 +85,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
@@ -312,5 +312,3 @@ txn_is_read_only(DB_TXN* txn) {
 void env_panic(DB_ENV * env, int cause, const char * msg);
 void env_note_db_opened(DB_ENV *env, DB *db);
 void env_note_db_closed(DB_ENV *env, DB *db);
-
-#endif

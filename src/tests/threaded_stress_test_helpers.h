@@ -86,6 +86,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2009-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
@@ -101,9 +103,6 @@ PATENT RIGHTS GRANT:
 // compressible we want the data. These tests want the table to be populated
 // with keys in the range [0, table_size - 1] unless disperse_keys is true,
 // then the keys are scrambled up in the integer key space.
-
-#ifndef _THREADED_STRESS_TEST_HELPERS_H_
-#define _THREADED_STRESS_TEST_HELPERS_H_
 
 #include "toku_config.h"
 #include "test.h"
@@ -2924,5 +2923,3 @@ UU() perf_test_main_with_cmp(struct cli_args *args, int (*cmp)(DB *, const DBT *
     // We want to control the row size and its compressibility.
     open_and_stress_tables(args, false, cmp);
 }
-
-#endif

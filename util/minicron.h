@@ -88,12 +88,10 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
 
-#ifndef TOKU_MINICRON_H
-#define TOKU_MINICRON_H
+#pragma once
 
 #include <toku_pthread.h>
 #include <toku_time.h>
-
 
 // Specification:
 // A minicron is a miniature cron job for executing a job periodically inside a pthread.
@@ -126,6 +124,3 @@ uint32_t toku_minicron_get_period_in_seconds_unlocked(struct minicron *p);
 uint32_t toku_minicron_get_period_in_ms_unlocked(struct minicron *p);
 int toku_minicron_shutdown(struct minicron *p);
 bool toku_minicron_has_been_shutdown(struct minicron *p);
-
-
-#endif

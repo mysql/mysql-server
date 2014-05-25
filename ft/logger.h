@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef TOKU_LOGGER_H
-#define TOKU_LOGGER_H
 
 #ident "$Id$"
 /*
@@ -88,6 +86,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
@@ -259,5 +259,3 @@ void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
 int toku_get_version_of_logs_on_disk(const char *log_dir, bool *found_any_logs, uint32_t *version_found);
 
 TXN_MANAGER toku_logger_get_txn_manager(TOKULOGGER logger);
-
-#endif /* TOKU_LOGGER_H */

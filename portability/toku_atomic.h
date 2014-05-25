@@ -85,11 +85,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2012-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
-
-#ifndef TOKU_ATOMIC_H
-#define TOKU_ATOMIC_H
 
 #include <portability/toku_config.h>
 #include <toku_assert.h>
@@ -159,5 +158,3 @@ static inline bool toku_sync_bool_compare_and_swap(T *addr, U oldval, V newval) 
 #pragma GCC poison __sync_synchronize
 #pragma GCC poison __sync_lock_test_and_set
 #pragma GCC poison __sync_release
-
-#endif // TOKU_ATOMIC_H

@@ -2,10 +2,6 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
 
-#ifndef __TEST_H
-#define __TEST_H
-
-
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -91,7 +87,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+
 #include <toku_portability.h>
 
 #include <string.h>
@@ -513,5 +512,3 @@ main(int argc, char * const argv[])
 #ifndef DB_GID_SIZE
 #define	DB_GID_SIZE	DB_XIDDATASIZE
 #endif
-
-#endif // __TEST_H

@@ -86,14 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-
-#ifndef _TOKU_HTONL_H
-#define _TOKU_HTONL_H
-
-#if !__linux__ && !__FreeBSD__ && !__sun__
-//#error
-#endif
 
 #include <toku_htod.h>
 #include <arpa/inet.h>
@@ -105,5 +100,3 @@ static inline uint32_t toku_htonl(uint32_t i) {
 static inline uint32_t toku_ntohl(uint32_t i) {
     return ntohl(i);
 }
-
-#endif
