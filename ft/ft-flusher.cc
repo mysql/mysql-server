@@ -565,6 +565,7 @@ static bool may_node_be_reactive(FT ft, FTNODE node)
  */
 static void
 handle_split_of_child(
+    FT ft,
     FTNODE node,
     int childnum,
     FTNODE childa,
@@ -607,8 +608,20 @@ handle_split_of_child(
 
     paranoid_invariant(BP_BLOCKNUM(node, childnum).b==childa->thisnodename.b); // use the same child
 
+    // We never set the rightmost blocknum to be the root.
+    // Instead, we wait for the root to split and let promotion initialize the rightmost
+    // blocknum to be the first non-root leaf node on the right extreme to recieve an insert.
+    invariant(ft->h->root_blocknum.b != ft->rightmost_blocknum.b);
+    if (childa->thisnodename.b == ft->rightmost_blocknum.b) {
+        // The rightmost leaf (a) split into (a) and (b). We want (b) to swap pair values
+        // with (a), now that it is the new rightmost leaf. This keeps the rightmost blocknum
+        // constant, the same the way we keep the root blocknum constant.
+        toku_ftnode_swap_pair_values(childa, childb);
+        BP_BLOCKNUM(node, childnum) = childa->thisnodename;
+    }
+
     BP_BLOCKNUM(node, childnum+1) = childb->thisnodename;
-    BP_WORKDONE(node, childnum+1)  = 0;
+    BP_WORKDONE(node, childnum+1) = 0;
     BP_STATE(node,childnum+1) = PT_AVAIL;
 
     NONLEAF_CHILDINFO new_bnc = toku_create_empty_nl();
@@ -1071,7 +1084,7 @@ ft_split_child(
         ft_nonleaf_split(h, child, &nodea, &nodeb, &splitk, 2, dep_nodes);
     }
     // printf("%s:%d child did split\n", __FILE__, __LINE__);
-    handle_split_of_child (node, childnum, nodea, nodeb, &splitk);
+    handle_split_of_child (h, node, childnum, nodea, nodeb, &splitk);
 
     // for test
     call_flusher_thread_callback(flt_flush_during_split);
@@ -1489,6 +1502,14 @@ ft_merge_child(
                     &node->childkeys[childnuma+1],
                     (node->n_children-childnumb)*sizeof(node->childkeys[0]));
             REALLOC_N(node->n_children-1, node->childkeys);
+
+            // Handle a merge of the rightmost leaf node.
+            if (did_merge && childb->thisnodename.b == h->rightmost_blocknum.b) {
+                invariant(childb->thisnodename.b != h->h->root_blocknum.b);
+                toku_ftnode_swap_pair_values(childa, childb);
+                BP_BLOCKNUM(node, childnuma) = childa->thisnodename;
+            }
+
             paranoid_invariant(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
             childa->dirty = 1;  // just to make sure
             childb->dirty = 1;  // just to make sure

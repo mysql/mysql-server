@@ -1,8 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FT_CACHETABLE_WRAPPERS_H
-#define FT_CACHETABLE_WRAPPERS_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -91,106 +88,115 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#include <fttypes.h>
-#include "cachetable.h"
-
 /**
- * Put an empty node (that is, no fields filled) into the cachetable. 
- * In the process, write dependent nodes out for checkpoint if 
- * necessary.
+ * Test that unique inserts work correctly. This exercises the rightmost leaf inject optimization.
  */
-void
-cachetable_put_empty_node_with_dep_nodes(
-    FT h,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    BLOCKNUM* name, //output
-    uint32_t* fullhash, //output
-    FTNODE* result
-    );
 
-/**
- * Create a new ftnode with specified height and number of children.
- * In the process, write dependent nodes out for checkpoint if 
- * necessary.
- */
-void
-create_new_ftnode_with_dep_nodes(
-    FT h,
-    FTNODE *result,
-    int height,
-    int n_children,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes
-    );
+#include <portability/toku_random.h>
 
-/**
- * Create a new ftnode with specified height
- * and children. 
- * Used for test functions only.
- */
-void
-toku_create_new_ftnode (
-    FT_HANDLE t,
-    FTNODE *result,
-    int height,
-    int n_children
-    );
+#include "test.h"
 
-// This function returns a pinned ftnode to the caller.
-int
-toku_pin_ftnode_for_query(
-    FT_HANDLE ft_h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    UNLOCKERS unlockers,
-    ANCESTORS ancestors,
-    const PIVOT_BOUNDS pbounds,
-    FTNODE_FETCH_EXTRA bfe,
-    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    FTNODE *node_p,
-    bool* msgs_applied
-    );
+static char random_buf[8];
+static struct random_data random_data;
 
-// Pins an ftnode without dependent pairs
-void toku_pin_ftnode(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    FTNODE *node_p,
-    bool move_messages
-    );
+static void test_simple_unique_insert(DB_ENV *env) {
+    int r;
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
+    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0644); CKERR(r);
 
-// Pins an ftnode with dependent pairs
-// Unlike toku_pin_ftnode_for_query, this function blocks until the node is pinned.
-void toku_pin_ftnode_with_dep_nodes(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE *dependent_nodes,
-    FTNODE *node_p,
-    bool move_messages
-    );
+    DBT key1, key2, key3;
+    dbt_init(&key1, "a", sizeof("a"));
+    dbt_init(&key2, "b", sizeof("b"));
+    dbt_init(&key3, "c", sizeof("c"));
+    r = db->put(db, NULL, &key1, &key1, DB_NOOVERWRITE); CKERR(r);
+    r = db->put(db, NULL, &key1, &key1, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    r = db->put(db, NULL, &key3, &key3, DB_NOOVERWRITE); CKERR(r);
+    r = db->put(db, NULL, &key3, &key3, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    r = db->put(db, NULL, &key2, &key2, DB_NOOVERWRITE); CKERR(r);
+    r = db->put(db, NULL, &key2, &key2, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    // sanity check
+    r = db->put(db, NULL, &key1, &key1, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+    r = db->put(db, NULL, &key1, &key3, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
 
-/**
- * This function may return a pinned ftnode to the caller, if pinning is cheap.
- * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
- */
-int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
+    r = db->close(db, 0); CKERR(r);
+    r = env->dbremove(env, NULL, "db", NULL, 0); CKERR(r);
+}
 
-/**
- * Effect: Unpin an ftnode.
- */
-void toku_unpin_ftnode(FT h, FTNODE node);
-void toku_unpin_ftnode_read_only(FT ft, FTNODE node);
+static void test_large_sequential_insert_unique(DB_ENV *env) {
+    int r;
+    DB *db;
+    r = db_create(&db, env, 0); CKERR(r);
 
-// Effect: Swaps pair values of two pinned nodes
-void toku_ftnode_swap_pair_values(FTNODE nodea, FTNODE nodeb);
+    // very small nodes/basements to make a taller tree
+    r = db->set_pagesize(db, 8 * 1024); CKERR(r);
+    r = db->set_readpagesize(db, 2 * 1024); CKERR(r);
+    r = db->open(db, NULL, "db", NULL, DB_BTREE, DB_CREATE, 0644); CKERR(r);
 
-#endif
+    const int val_size = 1024;
+    char *XMALLOC_N(val_size, val_buf);
+    memset(val_buf, 'k', val_size);
+    DBT val;
+    dbt_init(&val, val_buf, val_size);
+
+    // grow a tree to about depth 3, taking sanity checks along the way
+    const int start_num_rows = (64 * 1024 * 1024) / val_size;
+    for (int i = 0; i < start_num_rows; i++) {
+        DBT key;
+        int k = toku_htonl(i);
+        dbt_init(&key, &k, sizeof(k));
+        r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR(r);
+        if (i % 50 == 0) {
+            // sanity check - should not be able to insert this key twice in a row
+            r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+
+            // .. but re-inserting is okay, if we provisionally deleted the row
+            DB_TXN *txn;
+            r = env->txn_begin(env, NULL, &txn, 0); CKERR(r);
+            r = db->del(db, NULL, &key, DB_DELETE_ANY); CKERR(r);
+            r = db->put(db, NULL, &key, &val, DB_NOOVERWRITE); CKERR(r);
+            r = txn->commit(txn, 0); CKERR(r);
+        }
+        if (i > 0 && i % 250 == 0) {
+            // sanity check - unique checks on random keys we already inserted should
+            //                fail (exercises middle-of-the-tree checks)
+            for (int check_i = 0; check_i < 4; check_i++) {
+                DBT rand_key;
+                int rand_k = toku_htonl(myrandom_r(&random_data) % i);
+                dbt_init(&rand_key, &rand_k, sizeof(rand_k));
+                r = db->put(db, NULL, &rand_key, &val, DB_NOOVERWRITE); CKERR2(r, DB_KEYEXIST);
+            }
+        }
+    }
+
+    toku_free(val_buf);
+    r = db->close(db, 0); CKERR(r);
+    r = env->dbremove(env, NULL, "db", NULL, 0); CKERR(r);
+}
+
+
+int test_main(int argc, char * const argv[]) {
+    default_parse_args(argc, argv);
+
+    int r;
+    const int envflags = DB_INIT_MPOOL | DB_CREATE | DB_THREAD |
+                         DB_INIT_LOCK | DB_INIT_LOG | DB_INIT_TXN | DB_PRIVATE;
+
+    // startup
+    DB_ENV *env;
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, 0755); CKERR(r);
+    r = db_env_create(&env, 0); CKERR(r);
+    r = env->open(env, TOKU_TEST_FILENAME, envflags, 0755);
+
+    r = myinitstate_r(random(), random_buf, 8, &random_data); CKERR(r);
+
+    test_simple_unique_insert(env);
+    test_large_sequential_insert_unique(env);
+
+    // cleanup
+    r = env->close(env, 0); CKERR(r);
+
+    return 0;
+}
+

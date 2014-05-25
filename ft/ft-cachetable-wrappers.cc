@@ -403,3 +403,25 @@ toku_unpin_ftnode_read_only(FT ft, FTNODE node)
         );
     assert(r==0);
 }
+
+void toku_ftnode_swap_pair_values(FTNODE a, FTNODE b)
+// Effect: Swap the blocknum, fullhash, and PAIR for for a and b
+// Requires: Both nodes are pinned
+{
+    BLOCKNUM tmp_blocknum = a->thisnodename;
+    uint32_t tmp_fullhash = a->fullhash;
+    PAIR tmp_pair = a->ct_pair;
+
+    a->thisnodename = b->thisnodename;
+    a->fullhash = b->fullhash;
+    a->ct_pair = b->ct_pair;
+
+    b->thisnodename = tmp_blocknum;
+    b->fullhash = tmp_fullhash;
+    b->ct_pair = tmp_pair;
+
+    // A and B swapped pair pointers, but we still have to swap
+    // the actual pair values (ie: the FTNODEs they represent)
+    // in the cachetable.
+    toku_cachetable_swap_pair_values(a->ct_pair, b->ct_pair);
+}

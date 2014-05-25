@@ -1,8 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FT_CACHETABLE_WRAPPERS_H
-#define FT_CACHETABLE_WRAPPERS_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -33,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuDB, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2007-2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -89,108 +86,98 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#ident "Copyright (c) 2014 Tokutek Inc.  All rights reserved."
 
-#include <fttypes.h>
-#include "cachetable.h"
+#include "test.h"
 
-/**
- * Put an empty node (that is, no fields filled) into the cachetable. 
- * In the process, write dependent nodes out for checkpoint if 
- * necessary.
- */
-void
-cachetable_put_empty_node_with_dep_nodes(
-    FT h,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes,
-    BLOCKNUM* name, //output
-    uint32_t* fullhash, //output
-    FTNODE* result
-    );
+#include <ft/ybt.h>
+#include <ft/ft-cachetable-wrappers.h>
 
-/**
- * Create a new ftnode with specified height and number of children.
- * In the process, write dependent nodes out for checkpoint if 
- * necessary.
- */
-void
-create_new_ftnode_with_dep_nodes(
-    FT h,
-    FTNODE *result,
-    int height,
-    int n_children,
-    uint32_t num_dependent_nodes,
-    FTNODE* dependent_nodes
-    );
+// Each FT maintains a sequential insert heuristic to determine if its
+// worth trying to insert directly into a well-known rightmost leaf node.
+//
+// The heuristic is only maintained when a rightmost leaf node is known.
+//
+// This test verifies that sequential inserts increase the seqinsert score
+// and that a single non-sequential insert resets the score.
 
-/**
- * Create a new ftnode with specified height
- * and children. 
- * Used for test functions only.
- */
-void
-toku_create_new_ftnode (
-    FT_HANDLE t,
-    FTNODE *result,
-    int height,
-    int n_children
-    );
+static void test_seqinsert_heuristic(void) {
+    int r = 0;
+    char name[TOKU_PATH_MAX + 1];
+    toku_path_join(name, 2, TOKU_TEST_FILENAME, "ftdata");
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+    r = toku_os_mkdir(TOKU_TEST_FILENAME, S_IRWXU); CKERR(r);
+    
+    FT_HANDLE ft_handle;
+    CACHETABLE ct;
+    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    r = toku_open_ft_handle(name, 1, &ft_handle,
+                            4*1024*1024, 64*1024,
+                            TOKU_DEFAULT_COMPRESSION_METHOD, ct, NULL,
+                            toku_builtin_compare_fun); CKERR(r);
+    FT ft = ft_handle->ft;
 
-// This function returns a pinned ftnode to the caller.
-int
-toku_pin_ftnode_for_query(
-    FT_HANDLE ft_h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    UNLOCKERS unlockers,
-    ANCESTORS ancestors,
-    const PIVOT_BOUNDS pbounds,
-    FTNODE_FETCH_EXTRA bfe,
-    bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
-    FTNODE *node_p,
-    bool* msgs_applied
-    );
+    int k;
+    DBT key, val;
+    const int val_size = 1024 * 1024;
+    char *XMALLOC_N(val_size, val_buf);
+    memset(val_buf, 'x', val_size);
+    toku_fill_dbt(&val, val_buf, val_size);
 
-// Pins an ftnode without dependent pairs
-void toku_pin_ftnode(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    FTNODE *node_p,
-    bool move_messages
-    );
+    // Insert many rows sequentially. This is enough data to:
+    // - force the root to split (the righmost leaf will then be known)
+    // - raise the seqinsert score high enough to enable direct rightmost injections
+    const int rows_to_insert = 200;
+    for (int i = 0; i < rows_to_insert; i++) {
+        k = toku_htonl(i);
+        toku_fill_dbt(&key, &k, sizeof(k));
+        toku_ft_insert(ft_handle, &key, &val, NULL);
+    }
+    invariant(ft->rightmost_blocknum.b != RESERVED_BLOCKNUM_NULL);
+    invariant(ft->seqinsert_score == FT_SEQINSERT_SCORE_THRESHOLD);
 
-// Pins an ftnode with dependent pairs
-// Unlike toku_pin_ftnode_for_query, this function blocks until the node is pinned.
-void toku_pin_ftnode_with_dep_nodes(
-    FT h,
-    BLOCKNUM blocknum,
-    uint32_t fullhash,
-    FTNODE_FETCH_EXTRA bfe,
-    pair_lock_type lock_type,
-    uint32_t num_dependent_nodes,
-    FTNODE *dependent_nodes,
-    FTNODE *node_p,
-    bool move_messages
-    );
+    // Insert on the left extreme. The seq insert score is high enough
+    // that we will attempt to insert into the rightmost leaf. We won't
+    // be successful because key 0 won't be in the bounds of the rightmost leaf.
+    // This failure should reset the seqinsert score back to 0. 
+    k = toku_htonl(0);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 0);
 
-/**
- * This function may return a pinned ftnode to the caller, if pinning is cheap.
- * If the node is already locked, or is pending a checkpoint, the node is not pinned and -1 is returned.
- */
-int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pair_lock_type lock_type, FTNODE *nodep);
+    // Insert in the middle. The score should not go up.
+    k = toku_htonl(rows_to_insert / 2);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 0);
 
-/**
- * Effect: Unpin an ftnode.
- */
-void toku_unpin_ftnode(FT h, FTNODE node);
-void toku_unpin_ftnode_read_only(FT ft, FTNODE node);
+    // Insert on the right extreme. The score should go up.
+    k = toku_htonl(rows_to_insert);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 1);
 
-// Effect: Swaps pair values of two pinned nodes
-void toku_ftnode_swap_pair_values(FTNODE nodea, FTNODE nodeb);
+    // Insert again on the right extreme again, the score should go up.
+    k = toku_htonl(rows_to_insert + 1);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 2);
 
-#endif
+    // Insert close to, but not at, the right extreme. The score should reset.
+    // -- the magic number 4 derives from the fact that vals are 1mb and nodes are 4mb
+    k = toku_htonl(rows_to_insert - 4);
+    toku_fill_dbt(&key, &k, sizeof(k));
+    toku_ft_insert(ft_handle, &key, &val, NULL);
+    invariant(ft->seqinsert_score == 0);
+
+    toku_free(val_buf);
+    toku_ft_handle_close(ft_handle);
+    toku_cachetable_close(&ct);
+    toku_os_recursive_delete(TOKU_TEST_FILENAME);
+}
+
+int test_main(int argc, const char *argv[]) {
+    default_parse_args(argc, argv);
+    test_seqinsert_heuristic();
+    return 0;
+}
