@@ -549,10 +549,9 @@ trx_undo_get_mbr_from_ext(
 			mbr[i * 2 + 1] = -DBL_MAX;
 		}
 	} else {
-		rtree_mbr_from_wkb(
-			dptr + GEO_DATA_HEADER_SIZE,
-			static_cast<uint>(dlen) - GEO_DATA_HEADER_SIZE,
-			SPDIMS, mbr);
+		rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+				   static_cast<uint>(dlen
+				   - GEO_DATA_HEADER_SIZE), SPDIMS, mbr);
 	}
 
 	mem_heap_free(heap);
@@ -1272,7 +1271,6 @@ trx_undo_report_row_operation(
 	int		loop_count	= 0;
 #endif /* UNIV_DEBUG */
 
-	ut_ad(!srv_read_only_mode);
 	ut_a(dict_index_is_clust(index));
 	ut_ad(!rec || rec_offs_validate(rec, index, offsets));
 
@@ -1284,6 +1282,7 @@ trx_undo_report_row_operation(
 	}
 
 	ut_ad(thr);
+	ut_ad(!srv_read_only_mode);
 	ut_ad((op_type != TRX_UNDO_INSERT_OP)
 	      || (clust_entry && !update && !rec));
 
@@ -1480,7 +1479,7 @@ trx_undo_report_row_operation(
 		" the tablespace",
 		((undo->space == srv_sys_space.space_id())
 		? "system" :
-		  ((undo->space == srv_tmp_space.space_id())
+		  ((fsp_is_system_temporary(undo->space))
 		   ? "temporary" : "undo")));
 
 	/* Did not succeed: out of space */

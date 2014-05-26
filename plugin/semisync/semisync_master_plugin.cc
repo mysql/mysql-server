@@ -581,6 +581,8 @@ static int semi_sync_master_plugin_init(void *p)
 
   if (repl_semisync.initObject())
     return 1;
+  if (ack_receiver.init())
+    return 1;
   if (register_trans_observer(&trans_observer, p))
     return 1;
   if (register_binlog_storage_observer(&storage_observer, p))

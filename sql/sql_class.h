@@ -991,6 +991,10 @@ public:
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
   ulong db_access;                     /* Privileges for current db */
+  /*
+    This flag is set according to connecting user's context and not the
+    effective user.
+  */
   bool password_expired;               /* password expiration flag */
 
   void init();
@@ -1324,7 +1328,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl) = 0;
 
@@ -1345,7 +1349,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -1371,7 +1375,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -2479,7 +2483,8 @@ public:
   bool              tx_read_only;
   enum_check_fields count_cuted_fields;
 
-  DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
+  // For user variables replication
+  Prealloced_array<BINLOG_USER_VAR_EVENT*, 2> user_var_events;
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
   /**
@@ -2642,7 +2647,6 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
-  bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
@@ -2718,7 +2722,7 @@ public:
     This list is later iterated to invoke release_thd() on those
     plugins.
   */
-  DYNAMIC_ARRAY audit_class_plugins;
+  Prealloced_array<plugin_ref, 2> audit_class_plugins;
   /**
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
@@ -3242,14 +3246,6 @@ public:
       my_message(err, ER(err), MYF(ME_FATALERROR));
     }
   }
-  /* return TRUE if we will abort query if we make a warning now */
-  inline bool really_abort_on_warning()
-  {
-    return (abort_on_warning &&
-            (!get_transaction()->cannot_safely_rollback(
-                Transaction_ctx::STMT) ||
-             (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
-  }
   void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);
   void restore_backup_open_tables_state(Open_tables_backup *backup);
@@ -3518,7 +3514,7 @@ private:
   */
   bool handle_condition(uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -4179,8 +4175,6 @@ public:
      @param update_values    The values to be assigned in case of duplicate
                              keys. May be NULL.
      @param duplicate        The policy for handling duplicates.
-     @param ignore           How the insert operation is to handle certain
-                             errors. See COPY_INFO.
 
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
@@ -4220,8 +4214,7 @@ public:
                 List<Item> *target_or_source_columns,
                 List<Item> *update_fields,
                 List<Item> *update_values,
-                enum_duplicates duplic,
-                bool ignore)
+                enum_duplicates duplic)
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
@@ -4231,8 +4224,7 @@ public:
           target_columns,
           // manage_defaults
           (target_columns == NULL || target_columns->elements != 0),
-          duplic,
-          ignore),
+          duplic),
      update(COPY_INFO::UPDATE_OPERATION,
             update_fields,
             update_values),
@@ -4278,7 +4270,7 @@ public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
                  Alter_info *alter_info_arg,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
+		 List<Item> &select_fields,enum_duplicates duplic,
                  TABLE_LIST *select_tables_arg)
     :select_insert (NULL, // table_list_par
                     NULL, // table_par
@@ -4286,8 +4278,7 @@ public:
                     &select_fields,
                     NULL, // update_fields
                     NULL, // update_values
-                    duplic,
-                    ignore),
+                    duplic),
      create_table(table_arg),
      create_info(create_info_par),
      select_tables(select_tables_arg),
@@ -4896,7 +4887,7 @@ public:
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int do_deletes();
-  int do_table_deletes(TABLE *table, bool ignore);
+  int do_table_deletes(TABLE *table);
   bool send_eof();
   inline ha_rows num_deleted()
   {
@@ -4931,7 +4922,6 @@ class multi_update :public select_result_interceptor
   bool do_update, trans_safe;
   /* True if the update operation has made a change in a transactional table */
   bool transactional_tables;
-  bool ignore;
   /* 
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
@@ -4957,7 +4947,7 @@ class multi_update :public select_result_interceptor
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
 	       List<Item> *fields, List<Item> *values,
-	       enum_duplicates handle_duplicates, bool ignore);
+	       enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

@@ -318,8 +318,6 @@ Requires(preun): chkconfig
 # This is for /sbin/service
 Requires(preun): initscripts
 Requires(postun): initscripts
-# mysqlhotcopy needs DBI/DBD support
-Requires: perl-DBI, perl-DBD-MySQL
 Obsoletes: MySQL-server
 Obsoletes: mysql-server < %{version}-%{release}
 Obsoletes: mysql-server-advanced < %{version}-%{release}
@@ -570,7 +568,6 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 # Ensure that needed directories exists
 # TODO / FIXME: needed ?  install -d $RBR%{mysqldatadir}/mysql
 # TODO / FIXME: needed ?  install -d $RBR%{_datadir}/mysql-test
-# TODO / FIXME: needed ?  install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 # TODO / FIXME: needed ?  install -d $RBR%{_includedir}
 # TODO / FIXME: needed ?  install -d $RBR%{_libdir}
 # TODO / FIXME: needed ?  install -d $RBR%{_mandir}
@@ -646,7 +643,6 @@ rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/libmysqlclient*.la
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/*.a
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/plugin/*.la
 rm -f ${RPM_BUILD_ROOT}%{_libdir}/mysql/plugin/*.a
-rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/binary-configure
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/make_binary_distribution
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/make_sharedlib_distribution
 rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/mi_test_all*
@@ -663,9 +659,7 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
 rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
-rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql_waitpid.1*
-rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql_zap.1*
-rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysqlbug.1*
+rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysqlhotcopy.1*
 
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
 echo "%{_libdir}/mysql" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/%{name}-%{_arch}.conf
@@ -870,7 +864,6 @@ fi
 %{_bindir}/mysqldumpslow
 %{_bindir}/mysqld_multi
 %{_bindir}/mysqld_safe
-%{_bindir}/mysqlhotcopy
 %{_bindir}/mysqltest
 %{_bindir}/innochecksum
 %{_bindir}/perror
@@ -903,7 +896,6 @@ fi
 %{_mandir}/man1/mysqlcheck.1*
 %{_mandir}/man1/mysqld_multi.1*
 %{_mandir}/man1/mysqld_safe.1*
-%{_mandir}/man1/mysqlhotcopy.1*
 %{_mandir}/man1/mysqlimport.1*
 %{_mandir}/man1/mysqlman.1*
 %{_mandir}/man1/mysqltest.1*

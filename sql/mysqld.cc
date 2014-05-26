@@ -431,6 +431,7 @@ my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
+my_bool offline_mode= 0;
 uint   opt_large_page_size= 0;
 volatile uint default_password_lifetime= 0;
 #if defined(ENABLED_DEBUG_SYNC)
@@ -453,6 +454,8 @@ my_bool opt_master_verify_checksum= 0;
 my_bool opt_slave_sql_verify_checksum= 1;
 const char *binlog_format_names[]= {"MIXED", "STATEMENT", "ROW", NullS};
 my_bool enforce_gtid_consistency;
+ulong binlogging_impossible_mode;
+const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
@@ -485,6 +488,11 @@ ulonglong slave_type_conversions_options;
 ulong opt_mts_slave_parallel_workers;
 ulonglong opt_mts_pending_jobs_size_max;
 ulonglong slave_rows_search_algorithms_options;
+
+#ifdef HAVE_REPLICATION
+my_bool opt_slave_preserve_commit_order;
+#endif
+
 #ifndef DBUG_OFF
 uint slave_rows_last_search_algorithm_used;
 #endif
@@ -689,6 +697,7 @@ mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_seq_num_map;
 mysql_mutex_t LOCK_log_throttle_qni;
+mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -1562,6 +1571,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_seq_num_map);
   mysql_mutex_destroy(&LOCK_error_messages);
+  mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -3283,6 +3293,8 @@ static int init_thread_environment()
                    &LOCK_sql_rand, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_log_throttle_qni,
                    &LOCK_log_throttle_qni, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_offline_mode,
+                   &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -7733,6 +7745,11 @@ PSI_mutex_key key_mts_temp_table_LOCK;
 #ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
 #endif
+PSI_mutex_key key_LOCK_offline_mode;
+
+#ifdef HAVE_REPLICATION
+PSI_mutex_key key_commit_order_manager_mutex;
+#endif
 
 static PSI_mutex_info all_server_mutexes[]=
 {
@@ -7813,6 +7830,10 @@ static PSI_mutex_info all_server_mutexes[]=
 #ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
+#ifdef HAVE_REPLICATION
+  { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
+#endif
+  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7870,6 +7891,9 @@ PSI_cond_key key_RELAYLOG_COND_done;
 PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
+#ifdef HAVE_REPLICATION
+PSI_cond_key key_commit_order_manager_cond;
+#endif
 
 static PSI_cond_info all_server_conds[]=
 {
@@ -7909,6 +7933,10 @@ static PSI_cond_info all_server_conds[]=
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
   { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL}
+#ifdef HAVE_REPLICATION
+  ,
+  { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
+#endif
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
@@ -8087,6 +8115,9 @@ PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slav
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
 PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+#ifdef HAVE_REPLICATION
+PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
+#endif
 PSI_stage_info stage_starting= { 0, "starting", 0};
 #ifdef HAVE_PSI_INTERFACE
 
@@ -8200,6 +8231,7 @@ static PSI_socket_info all_server_sockets[]=
 
 PSI_memory_key key_memory_buffered_logs;
 PSI_memory_key key_memory_locked_table_list;
+PSI_memory_key key_memory_locked_thread_list;
 PSI_memory_key key_memory_thd_transactions;
 PSI_memory_key key_memory_delegate;
 PSI_memory_key key_memory_acl_mem;
@@ -8331,6 +8363,7 @@ static PSI_memory_info all_server_memory[]=
 {
   { &key_memory_buffered_logs, "buffered_logs", PSI_FLAG_GLOBAL},
   { &key_memory_locked_table_list, "Locked_tables_list::m_locked_tables_root", 0},
+  { &key_memory_locked_thread_list, "display_table_locks", PSI_FLAG_THREAD},
   { &key_memory_thd_transactions, "THD::transactions::mem_root", PSI_FLAG_THREAD},
   { &key_memory_delegate, "Delegate::memroot", 0},
   { &key_memory_acl_mem, "sql_acl_mem", PSI_FLAG_GLOBAL},

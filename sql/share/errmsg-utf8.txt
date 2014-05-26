@@ -7047,6 +7047,9 @@ ER_INNODB_FORCED_RECOVERY
 ER_AES_INVALID_IV
   eng "The initialization vector supplied to %s is too short. Must be at least %d bytes long"
   bg "Инициализационния вектор подаден на %s е прекалено къс. Трябва да е поне %d байта"
+
+ER_PLUGIN_CANNOT_BE_UNINSTALLED
+  eng "Plugin '%s' cannot be uninstalled now. %s"
 #
 #  End of 5.6 error messages.
 #
@@ -7134,6 +7137,21 @@ ER_DUP_LIST_ENTRY
 
 ER_SQL_MODE_NO_EFFECT
   eng "'%s' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead."
+
+ER_AGGREGATE_ORDER_FOR_UNION
+  eng "Expression #%u of ORDER BY contains aggregate function and applies to a UNION"
+
+ER_AGGREGATE_ORDER_NON_AGG_QUERY
+  eng "Expression #%u of ORDER BY contains aggregate function and applies to the result of a non-aggregated query"
+
+ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
+  eng "Slave worker has stopped after at least one previous worker encountered an error when slave-preserve-commit-order was enabled. To preserve commit order, the last transaction executed by this thread has not been committed. When restarting the slave after fixing any failed threads, you should fix this worker as well."
+
+ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
+  eng "slave_preserve_commit_order is not supported %s."
+
+ER_SERVER_OFFLINE_MODE
+  eng "The server is currently in offline mode"
 
 ER_GCS_REPLICATION_CONFIGURATION
   eng "The server is not configured properly to be an active member of the GCS CLUSTER."

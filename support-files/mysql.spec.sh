@@ -556,7 +556,6 @@ MBD=$RPM_BUILD_DIR/%{src_dir}
 install -d $RBR%{_sysconfdir}/{logrotate.d,init.d}
 install -d $RBR%{mysqldatadir}/mysql
 install -d $RBR%{_datadir}/mysql-test
-install -d $RBR%{_datadir}/mysql/SELinux/RHEL4
 install -d $RBR%{_includedir}
 install -d $RBR%{_libdir}
 install -d $RBR%{_mandir}
@@ -585,9 +584,6 @@ ln -s %{_sysconfdir}/init.d/mysql $RBR%{_sbindir}/rcmysql
 # Just to make sure it's in the file list and marked as a config file
 touch $RBR%{_sysconfdir}/my.cnf
 
-# Install SELinux files in datadir
-install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
-  $RBR%{_datadir}/mysql/SELinux/RHEL4
 
 %if %{WITH_TCMALLOC}
 # Even though this is a shared library, put it under /usr/lib*/mysql, so it
@@ -596,20 +592,8 @@ install -m 600 $MBD/%{src_dir}/support-files/RHEL4-SElinux/mysql.{fc,te} \
 install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
-
-# Remove man pages we explicitly do not want to package, avoids 'unpackaged
-# files' warning.
-# This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
-rm -f $RBR%{_mandir}/man1/mysql_convert_table_format.1*
-rm -f $RBR%{_mandir}/man1/mysql_fix_extensions.1*
-rm -f $RBR%{_mandir}/man1/mysql_setpermission.1*
-rm -f $RBR%{_mandir}/man1/msql2mysql.1*
-rm -f $RBR%{_mandir}/man1/mysql_find_rows.1*
-rm -f $RBR%{_mandir}/man1/mysqlaccess.1*
-rm -f $RBR%{_mandir}/man1/mysql_waitpid.1*
-rm -f $RBR%{_mandir}/man1/mysql_zap.1*
-rm -rf $RBR%{_mandir}/man1/mysqlbug.1*
-
+# Temporary removal of man file
+rm -rf $RBR%{_mandir}/man1/mysqlhotcopy.1*
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
@@ -1086,7 +1070,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
@@ -1112,7 +1095,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqldumpslow
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace

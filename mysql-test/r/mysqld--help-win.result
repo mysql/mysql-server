@@ -103,6 +103,10 @@ The following options may be given as the first argument:
  non-transactional engines for the binary log. If you
  often use statements updating a great number of rows, you
  can increase this to get more performance
+ --binlogging-impossible-mode=name 
+ On a fatal error when statements cannot be binlogged the
+ behaviour can be ignore the error and let the master
+ continue or abort the server. 
  --block-encryption-mode=name 
  mode for AES_ENCRYPT/AES_DECRYPT
  --bootstrap         Used by mysql installation scripts.
@@ -479,6 +483,7 @@ The following options may be given as the first argument:
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
  -n, --new           Use very new possible "unsafe" functions
+ --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
  --old-passwords=#   Determine which hash algorithm to use when generating
@@ -913,6 +918,9 @@ The following options may be given as the first argument:
  Max size of Slave Worker queues holding yet not applied
  events.The least possible value must be not less than the
  master side max_allowed_packet.
+ --slave-preserve-commit-order 
+ Force slave workers to make commits in the same order as
+ on the master. Disabled by default.
  --slave-rows-search-algorithms=name 
  Set of searching algorithms that the slave will use while
  searching for records from the storage engine to either
@@ -1068,6 +1076,7 @@ binlog-row-event-max-size 8192
 binlog-row-image FULL
 binlog-rows-query-log-events FALSE
 binlog-stmt-cache-size 32768
+binlogging-impossible-mode IGNORE_ERROR
 block-encryption-mode aes-128-ecb
 bulk-insert-buffer-size 8388608
 character-set-client-handshake TRUE
@@ -1198,6 +1207,7 @@ net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60
 new FALSE
+offline-mode FALSE
 old FALSE
 old-alter-table FALSE
 old-passwords 0
@@ -1318,6 +1328,7 @@ slave-net-timeout 3600
 slave-parallel-type DATABASE
 slave-parallel-workers 0
 slave-pending-jobs-size-max 16777216
+slave-preserve-commit-order FALSE
 slave-rows-search-algorithms TABLE_SCAN,INDEX_SCAN
 slave-skip-errors (No default value)
 slave-sql-verify-checksum TRUE

@@ -63,12 +63,15 @@ IF(NOT SYSTEM_TYPE)
 ENDIF()
 
 # The default C++ library for SunPro is really old, and not standards compliant.
-# http://developers.sun.com/solaris/articles/cmp_stlport_libCstd.html
+# http://www.oracle.com/technetwork/server-storage/solaris10/cmp-stlport-libcstd-142559.html
 # Use stlport rather than Rogue Wave.
 IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
   IF(CMAKE_CXX_COMPILER_ID MATCHES "SunPro")
-    SET(CMAKE_CXX_FLAGS
-      "${CMAKE_CXX_FLAGS} -library=stlport4")
+    IF(SUNPRO_CXX_LIBRARY)
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=${SUNPRO_CXX_LIBRARY}")
+    ELSE()
+      SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -library=stlport4")
+    ENDIF()
   ENDIF()
 ENDIF()
 
@@ -172,7 +175,9 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_COMPILER_IS_GNUCC)
   ENDIF()
 ENDIF()
 
-IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND CMAKE_C_COMPILER_ID MATCHES "SunPro")
+IF(CMAKE_SYSTEM_NAME MATCHES "SunOS" AND
+   CMAKE_C_COMPILER_ID MATCHES "SunPro" AND
+   CMAKE_CXX_FLAGS MATCHES "stlport4")
   DIRNAME(${CMAKE_CXX_COMPILER} CXX_PATH)
   # Also extract real path to the compiler(which is normally
   # in <install_path>/prod/bin) and try to find the
@@ -381,7 +386,6 @@ CHECK_INCLUDE_FILES (termio.h HAVE_TERMIO_H)
 CHECK_INCLUDE_FILES (termcap.h HAVE_TERMCAP_H)
 CHECK_INCLUDE_FILES (unistd.h HAVE_UNISTD_H)
 CHECK_INCLUDE_FILES (utime.h HAVE_UTIME_H)
-CHECK_INCLUDE_FILES (sys/time.h HAVE_SYS_TIME_H)
 CHECK_INCLUDE_FILES (sys/utime.h HAVE_SYS_UTIME_H)
 CHECK_INCLUDE_FILES (sys/wait.h HAVE_SYS_WAIT_H)
 CHECK_INCLUDE_FILES (sys/param.h HAVE_SYS_PARAM_H)
@@ -488,9 +492,6 @@ CHECK_SYMBOL_EXISTS (timeradd "sys/time.h" HAVE_TIMERADD)
 CHECK_SYMBOL_EXISTS (timerclear "sys/time.h" HAVE_TIMERCLEAR)
 CHECK_SYMBOL_EXISTS (timercmp "sys/time.h" HAVE_TIMERCMP)
 CHECK_SYMBOL_EXISTS (timerisset "sys/time.h" HAVE_TIMERISSET)
-CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
-CHECK_FUNCTION_EXISTS (timer_settime HAVE_TIMER_SETTIME)
-CHECK_FUNCTION_EXISTS (kqueue HAVE_KQUEUE)
 
 #--------------------------------------------------------------------
 # Support for WL#2373 (Use cycle counter for timing)
@@ -517,10 +518,8 @@ CHECK_SYMBOL_EXISTS(lrand48 "stdlib.h" HAVE_LRAND48)
 CHECK_SYMBOL_EXISTS(TIOCGWINSZ "sys/ioctl.h" GWINSZ_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/ioctl.h" FIONREAD_IN_SYS_IOCTL)
 CHECK_SYMBOL_EXISTS(FIONREAD "sys/filio.h" FIONREAD_IN_SYS_FILIO)
-CHECK_SYMBOL_EXISTS(gettimeofday "sys/time.h" HAVE_GETTIMEOFDAY)
 CHECK_SYMBOL_EXISTS(SIGEV_THREAD_ID "signal.h;time.h" HAVE_SIGEV_THREAD_ID)
 CHECK_SYMBOL_EXISTS(SIGEV_PORT "signal.h;time.h" HAVE_SIGEV_PORT)
-CHECK_SYMBOL_EXISTS(EVFILT_TIMER "sys/types.h;sys/event.h;sys/time.h" HAVE_EVFILT_TIMER)
 
 CHECK_SYMBOL_EXISTS(log2  math.h HAVE_LOG2)
 CHECK_SYMBOL_EXISTS(rint  math.h HAVE_RINT)
@@ -542,6 +541,11 @@ int main() {
   return 0;
 }" HAVE_FESETROUND)
 
+# The results of these four checks are only needed here, not in code.
+CHECK_FUNCTION_EXISTS (timer_create HAVE_TIMER_CREATE)
+CHECK_FUNCTION_EXISTS (timer_settime HAVE_TIMER_SETTIME)
+CHECK_FUNCTION_EXISTS (kqueue HAVE_KQUEUE)
+CHECK_SYMBOL_EXISTS(EVFILT_TIMER "sys/types.h;sys/event.h;sys/time.h" HAVE_EVFILT_TIMER)
 IF(HAVE_KQUEUE AND HAVE_EVFILT_TIMER)
   SET(HAVE_KQUEUE_TIMERS 1 CACHE INTERNAL "Have kqueue timer-related filter")
 ELSEIF(HAVE_TIMER_CREATE AND HAVE_TIMER_SETTIME)
@@ -727,9 +731,6 @@ IF(NOT CMAKE_CROSSCOMPILING AND NOT MSVC)
   ENDIF()
 ENDIF()
   
-# Assume regular sprintf
-SET(SPRINTFS_RETURNS_INT 1)
-
 IF(CMAKE_COMPILER_IS_GNUCXX AND HAVE_CXXABI_H)
 CHECK_CXX_SOURCE_COMPILES("
  #include <cxxabi.h>

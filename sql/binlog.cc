@@ -39,6 +39,10 @@
 #include "gcs_replication.h"
 #include "mysys_err.h"
 
+#ifdef HAVE_REPLICATION
+#include "rpl_slave_commit_order_manager.h"
+#endif
+
 using std::max;
 using std::min;
 using std::string;
@@ -1506,6 +1510,16 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
                        (ulonglong) thd, stage));
   bool leader= m_queue[stage].append(thd);
 
+#ifdef HAVE_REPLICATION
+  if (stage == FLUSH_STAGE && has_commit_order_manager(thd))
+  {
+    Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
+    Commit_order_manager *mngr= worker->get_commit_order_manager();
+
+    mngr->unregister_trx(worker);
+  }
+#endif
+
   /*
     The stage mutex can be NULL if we are enrolling for the first
     stage.
@@ -2006,6 +2020,7 @@ private:
 static int log_in_use(const char* log_name)
 {
   Log_in_use log_in_use(log_name);
+  DEBUG_SYNC(current_thd,"purge_logs_after_lock_index_before_thread_count");
   Global_THD_manager::get_instance()->do_for_all_thd(&log_in_use);
   return log_in_use.get_count();
 }
@@ -2868,7 +2883,8 @@ bool MYSQL_BIN_LOG::open(
     goto err;
   }
 
-  if (init_and_set_log_file_name(name, new_name))
+  if (init_and_set_log_file_name(name, new_name) ||
+      DBUG_EVALUATE_IF("fault_injection_init_name", 1, 0))
     goto err;
 
   if (io_cache_type == SEQ_READ_APPEND)
@@ -2904,10 +2920,28 @@ bool MYSQL_BIN_LOG::open(
   DBUG_RETURN(0);
 
 err:
-  sql_print_error("Could not use %s for logging (error %d). \
-Turning logging off for the whole duration of the MySQL server process. \
-To turn it on again: fix the cause, \
-shutdown the MySQL server and restart it.", name, errno);
+  if (binlogging_impossible_mode == ABORT_SERVER)
+  {
+    THD *thd= current_thd;
+    /*
+      On fatal error when code enters here we should forcefully clear the
+      previous errors so that a new critical error message can be pushed
+      to the client side.
+     */
+    thd->clear_error();
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+             "file system is read only while opening the binlog. Aborting the "
+             "server");
+    thd->protocol->end_statement();
+    _exit(EXIT_FAILURE);
+  }
+  else
+    sql_print_error("Could not open %s for logging (error %d). "
+                    "Turning logging off for the whole duration "
+                    "of the MySQL server process. To turn it on "
+                    "again: fix the cause, shutdown the MySQL "
+                    "server and restart it.",
+                    name, errno);
   if (file >= 0)
     mysql_file_close(file, MYF(0));
   end_io_cache(&log_file);
@@ -3638,10 +3672,20 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
       all the content of index file is copyed into the crash safe index
       file. Then move the crash safe index file to index file.
     */
+    DBUG_EXECUTE_IF("simulate_disk_full_on_open_binlog",
+                    {DBUG_SET("+d,simulate_no_free_space_error");});
     if (DBUG_EVALUATE_IF("fault_injection_updating_index", 1, 0) ||
         add_log_to_index((uchar*) log_file_name, strlen(log_file_name),
                          need_lock_index))
+    {
+      DBUG_EXECUTE_IF("simulate_disk_full_on_open_binlog",
+                      {
+                        DBUG_SET("-d,simulate_file_write_error");
+                        DBUG_SET("-d,simulate_no_free_space_error");
+                        DBUG_SET("-d,simulate_disk_full_on_open_binlog");
+                      });
       goto err;
+    }
 
 #ifdef HAVE_REPLICATION
     DBUG_EXECUTE_IF("crash_create_after_update_index", DBUG_SUICIDE(););
@@ -3663,15 +3707,31 @@ err:
     purge_index_entry(NULL, NULL, need_lock_index);
   close_purge_index_file();
 #endif
-  sql_print_error("Could not use %s for logging (error %d). \
-Turning logging off for the whole duration of the MySQL server process. \
-To turn it on again: fix the cause, \
-shutdown the MySQL server and restart it.", name, errno);
   end_io_cache(&log_file);
   end_io_cache(&index_file);
   my_free(name);
   name= NULL;
   log_state= LOG_CLOSED;
+  if (binlogging_impossible_mode == ABORT_SERVER)
+  {
+    THD *thd= current_thd;
+    /*
+      On fatal error when code enters here we should forcefully clear the
+      previous errors so that a new critical error message can be pushed
+      to the client side.
+     */
+    thd->clear_error();
+    my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+             "file system is read only while opening the binlog. Aborting the "
+             "server");
+    thd->protocol->end_statement();
+    _exit(EXIT_FAILURE);
+  }
+  else
+    sql_print_error("Could not use %s for logging (error %d). "
+                    "Turning logging off for the whole duration of the MySQL "
+                    "server process. To turn it on again: fix the cause, "
+                    "shutdown the MySQL server and restart it.", name, errno);
   DBUG_RETURN(1);
 }
 
@@ -5279,12 +5339,28 @@ end:
        - ...
     */
     close(LOG_CLOSE_INDEX);
-    sql_print_error("Could not open %s for logging (error %d). "
-                    "Turning logging off for the whole duration "
-                    "of the MySQL server process. To turn it on "
-                    "again: fix the cause, shutdown the MySQL "
-                    "server and restart it.", 
-                    new_name_ptr, errno);
+    if (binlogging_impossible_mode == ABORT_SERVER)
+    {
+      THD *thd= current_thd;
+      /*
+        On fatal error when code enters here we should forcefully clear the
+        previous errors so that a new critical error message can be pushed
+        to the client side.
+       */
+      thd->clear_error();
+      my_error(ER_BINLOG_LOGGING_IMPOSSIBLE, MYF(0), "Either disc is full or "
+               "file system is read only while rotating the binlog. Aborting "
+               "the server");
+      thd->protocol->end_statement();
+      _exit(EXIT_FAILURE);
+    }
+    else
+      sql_print_error("Could not open %s for logging (error %d). "
+                      "Turning logging off for the whole duration "
+                      "of the MySQL server process. To turn it on "
+                      "again: fix the cause, shutdown the MySQL "
+                      "server and restart it.",
+                      new_name_ptr, errno);
   }
 
   mysql_mutex_unlock(&LOCK_index);
@@ -5614,12 +5690,11 @@ bool MYSQL_BIN_LOG::write_event(Log_event *event_info)
           if (cache_data->write_event(thd, &e))
             goto err;
         }
-        if (thd->user_var_events.elements)
+        if (!thd->user_var_events.empty())
         {
-          for (uint i= 0; i < thd->user_var_events.elements; i++)
+          for (size_t i= 0; i < thd->user_var_events.size(); i++)
           {
-            BINLOG_USER_VAR_EVENT *user_var_event;
-            get_dynamic(&thd->user_var_events,(uchar*) &user_var_event, i);
+            BINLOG_USER_VAR_EVENT *user_var_event= thd->user_var_events[i];
 
             /* setting flags for user var log event */
             uchar flags= User_var_log_event::UNDEF_F;
@@ -7423,6 +7498,28 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     anything more since it is possible that a thread entered and
     appointed itself leader for the flush phase.
   */
+
+#ifdef HAVE_REPLICATION
+  if (has_commit_order_manager(thd))
+  {
+    Slave_worker *worker= dynamic_cast<Slave_worker *>(thd->rli_slave);
+    Commit_order_manager *mngr= worker->get_commit_order_manager();
+
+    if (mngr->wait_for_its_turn(worker, all))
+    {
+      DBUG_PRINT("info", ("thd has seen an error signal from old thread"));
+
+      thd->get_stmt_da()->set_overwrite_status(true);
+      my_error(ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR, MYF(0));
+      thd->commit_error= THD::CE_COMMIT_ERROR;
+      DBUG_RETURN(thd->commit_error);
+    }
+
+    if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
+      DBUG_RETURN(finish_commit(thd));
+  }
+  else
+#endif
   if (change_stage(thd, Stage_manager::FLUSH_STAGE, thd, NULL, &LOCK_log))
   {
     DBUG_PRINT("return", ("Thread ID: %lu, commit_error: %d",

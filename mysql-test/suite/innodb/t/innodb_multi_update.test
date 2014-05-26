@@ -21,6 +21,17 @@ select * from bug38999_1;
 update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+10 where bug38999_1.b=2;
 select * from bug38999_1;
 
+# Run ANALYZE in order to increase the likelihood of getting the same
+# query plan on every run of the next update statement.
+# Note: With different query plans, the next update statement can produce
+# different results that are still valid.
+
+--disable_query_log
+--disable_result_log
+ANALYZE TABLE bug38999_1,bug38999_2;
+--enable_result_log
+--enable_query_log
+
 # Range key (in bug38999_1)
 update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+2,bug38999_2.b=bug38999_1.b+10 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
 select * from bug38999_1;

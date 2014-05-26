@@ -205,6 +205,97 @@ fsp_get_space_header(
 	return(header);
 }
 
+/** Validate and return the tablespace flags, which are stored in the
+tablespace header at offset FSP_SPACE_FLAGS.  They should be 0 for
+ROW_FORMAT=COMPACT and ROW_FORMAT=REDUNDANT. The newer row formats,
+COMPRESSED and DYNAMIC, use a file format > Antelope so they should
+have a file format number plus the DICT_TF_COMPACT bit set.
+
+@param[in]	flags	tablespace flags
+@return true if check ok */
+
+bool
+fsp_flags_is_valid(
+	ulint	flags)
+{
+	ulint	post_antelope = FSP_FLAGS_GET_POST_ANTELOPE(flags);
+	ulint	zip_ssize = FSP_FLAGS_GET_ZIP_SSIZE(flags);
+	ulint	atomic_blobs = FSP_FLAGS_HAS_ATOMIC_BLOBS(flags);
+	ulint	page_ssize = FSP_FLAGS_GET_PAGE_SSIZE(flags);
+	ulint	unused = FSP_FLAGS_GET_UNUSED(flags);
+
+	DBUG_EXECUTE_IF("fsp_flags_is_valid_failure", return(false););
+
+	/* fsp_flags is zero unless atomic_blobs is set.
+	Make sure there are no bits that we do not know about. */
+	if (unused != 0 || flags == 1) {
+		return(false);
+	} else if (post_antelope) {
+		/* The Antelope row formats REDUNDANT and COMPACT did
+		not use tablespace flags, so this flag and the entire
+		4-byte field is zero for Antelope row formats. */
+
+		if (!atomic_blobs) {
+			return(false);
+		}
+	}
+
+	if (!atomic_blobs) {
+		/* Barracuda row formats COMPRESSED and DYNAMIC build on
+		the page structure introduced for the COMPACT row format
+		by allowing long fields to be broken into prefix and
+		externally stored parts. */
+
+		if (post_antelope || zip_ssize != 0) {
+			return(false);
+		}
+
+	} else if (!post_antelope || zip_ssize > PAGE_ZIP_SSIZE_MAX) {
+		return(false);
+	} else if (page_ssize > UNIV_PAGE_SSIZE_MAX) {
+
+		/* The page size field can be used for any row type, or it may
+		be zero for an original 16k page size.
+		Validate the page shift size is within allowed range. */
+
+		return(false);
+
+	} else if (UNIV_PAGE_SIZE != UNIV_PAGE_SIZE_ORIG && !page_ssize) {
+		return(false);
+	}
+
+#if UNIV_FORMAT_MAX != UNIV_FORMAT_B
+# error "UNIV_FORMAT_MAX != UNIV_FORMAT_B, Add more validations."
+#endif
+
+	/* The DATA_DIR field can be used for any row type so there is
+	nothing here to validate. */
+
+	return(true);
+}
+
+/** Check if tablespace is system temporary.
+@param[in]	space_id	verify is checksum is enabled for given space.
+@return true if tablespace is system temporary. */
+
+bool
+fsp_is_system_temporary(
+	ulint	space_id)
+{
+	return(space_id == srv_tmp_space.space_id());
+}
+
+/** Check if checksum is disabled for the given space.
+@param[in]	space_id	verify is checksum is enabled for given space.
+@return true if checksum is disabled for given space. */
+
+bool
+fsp_is_checksum_disabled(
+	ulint	space_id)
+{
+	return(fsp_is_system_temporary(space_id));
+}
+
 /**********************************************************************//**
 Gets a descriptor bit of a page.
 @return TRUE if free */
@@ -953,7 +1044,7 @@ fsp_try_extend_data_file(
 			srv_sys_space.set_tablespace_full_status(true);
 		}
 		return(FALSE);
-	} else if (space == srv_tmp_space.space_id()
+	} else if (fsp_is_system_temporary(space)
 		   && !srv_tmp_space.can_auto_extend_last_file()) {
 
 		/* We print the error message only once to avoid
@@ -980,7 +1071,7 @@ fsp_try_extend_data_file(
 
 		size_increase = srv_sys_space.get_increment();
 
-	} else if (space == srv_tmp_space.space_id()) {
+	} else if (fsp_is_system_temporary(space)) {
 
 		size_increase = srv_tmp_space.get_increment();
 
@@ -1098,7 +1189,7 @@ fsp_fill_free_list(
 
 	if (((space == srv_sys_space.space_id()
 	      && srv_sys_space.can_auto_extend_last_file())
-	     || (space == srv_tmp_space.space_id()
+	     || (fsp_is_system_temporary(space)
 		 && srv_tmp_space.can_auto_extend_last_file()))
 	    && size < limit + FSP_EXTENT_SIZE * FSP_FREE_ADD) {
 		/* Try to increase the last data file size */
@@ -3436,9 +3527,8 @@ fseg_free_step(
 
 	inode = fseg_inode_try_get(header, space, page_size, mtr);
 
-	if (UNIV_UNLIKELY(inode == NULL)) {
-		ut_ad(0);
-		ib_logf(IB_LOG_LEVEL_ERROR,
+	if (inode == NULL) {
+		ib_logf(IB_LOG_LEVEL_INFO,
 			"Double free of inode from %u:%u",
 			(unsigned) space, (unsigned) header_page);
 		return(TRUE);

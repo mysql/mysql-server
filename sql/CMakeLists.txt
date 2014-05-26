@@ -177,7 +177,6 @@ SET(SQL_SHARED_SOURCES
   sql_show.cc
   sql_signal.cc
   sql_state.c
-  sql_string.cc 
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
@@ -222,6 +221,7 @@ SET(SQL_SOURCE
   ../sql-common/my_user.c 
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
+  ../sql-common/sql_string.cc 
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
@@ -238,6 +238,7 @@ SET(SQL_SOURCE
   mysqld_thd_manager.cc
   signal_handler.cc
   sql_client.cc
+  rpl_slave_commit_order_manager.cc
   )
 
 IF(WIN32)
@@ -292,10 +293,10 @@ ENDIF()
 SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc
-                   log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
-		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
-		   rpl_injector.cc)
+                   rpl_slave_commit_order_manager.cc rpl_gtid_execution.cc
+                   rpl_gtid_mutex_cond_array.cc log_event.cc log_event_old.cc
+                   binlog.cc sql_binlog.cc rpl_filter.cc rpl_record.cc
+                   rpl_record_old.cc rpl_utility.cc rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
@@ -308,7 +309,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_handler.cc rpl_info_file.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
-                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc)
+                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
+                  rpl_slave_commit_order_manager.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -319,7 +321,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   mdl.cc 
   opt_costmodel.cc
   sql_list.cc 
-  sql_string.cc
+  ../sql-common/sql_string.cc
   thr_malloc.cc
   )
 

@@ -127,6 +127,11 @@ extern ulonglong slave_type_conversions_options;
 extern my_bool read_only, opt_readonly;
 extern my_bool lower_case_file_system;
 extern ulonglong slave_rows_search_algorithms_options;
+
+#ifdef HAVE_REPLICATION
+extern my_bool opt_slave_preserve_commit_order;
+#endif
+
 #ifndef DBUG_OFF
 extern uint slave_rows_last_search_algorithm_used;
 #endif
@@ -160,6 +165,7 @@ extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
+extern my_bool offline_mode;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
@@ -224,6 +230,15 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
+extern ulong binlogging_impossible_mode;
+enum enum_binlogging_impossible_mode
+{
+  /// Ignore the error and let server continue without binlogging
+  IGNORE_ERROR= 0,
+  /// Abort the server
+  ABORT_SERVER= 1
+};
+extern const char *binlogging_impossible_err[];
 enum enum_gtid_mode
 {
   /// Support only anonymous groups, not GTIDs.
@@ -370,6 +385,11 @@ extern PSI_mutex_key key_mts_temp_table_LOCK;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
+extern PSI_mutex_key key_LOCK_offline_mode;
+
+#ifdef HAVE_REPLICATION
+extern PSI_mutex_key key_commit_order_manager_mutex;
+#endif
 
 extern PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
   key_rwlock_LOCK_sys_init_connect, key_rwlock_LOCK_sys_init_slave,
@@ -397,7 +417,9 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_BINLOG_prep_xids_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
-
+#ifdef HAVE_REPLICATION
+extern PSI_cond_key key_commit_order_manager_cond;
+#endif
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
   key_thread_one_connection, key_thread_signal_hand;
@@ -431,6 +453,7 @@ C_MODE_START
 
 extern PSI_memory_key key_memory_buffered_logs;
 extern PSI_memory_key key_memory_locked_table_list;
+extern PSI_memory_key key_memory_locked_thread_list;
 extern PSI_memory_key key_memory_thd_transactions;
 extern PSI_memory_key key_memory_delegate;
 extern PSI_memory_key key_memory_acl_mem;
@@ -665,6 +688,9 @@ extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
 extern PSI_stage_info stage_slave_waiting_for_workers_to_finish;
+#ifdef HAVE_REPLICATION
+extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
+#endif
 extern PSI_stage_info stage_starting;
 #ifdef HAVE_PSI_STATEMENT_INTERFACE
 /**
@@ -734,7 +760,7 @@ extern mysql_mutex_t
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
        LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
-       LOCK_seq_num_map;
+       LOCK_offline_mode, LOCK_seq_num_map;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif

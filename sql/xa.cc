@@ -241,25 +241,34 @@ static bool xa_trans_force_rollback(THD *thd)
 }
 
 
-bool trans_xa_commit(THD *thd)
+/**
+  Commit and terminate a XA transaction.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
+bool Sql_cmd_xa_commit::trans_xa_commit(THD *thd)
 {
   bool res= true;
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_commit");
 
-  if (!xid_state->has_same_xid(thd->lex->xid))
+  if (!xid_state->has_same_xid(m_xid))
   {
     /*
       Note, that there is no race condition here between
       transaction_cache_search and transaction_cache_delete,
       since we always delete our own XID
-      (thd->lex->xid == thd->transaction().xid_state().xid).
-      The only case when thd->lex->xid != thd->transaction.xid_state.xid
+      (m_xid == thd->transaction().xid_state().m_xid).
+      The only case when m_xid != thd->transaction.xid_state.m_xid
       and xid_state->in_thd == 0 is in the function
       transaction_cache_insert_recovery(XID), which is called before starting
       client connections, and thus is always single-threaded.
     */
-    Transaction_ctx *transaction= transaction_cache_search(thd->lex->xid);
+    Transaction_ctx *transaction= transaction_cache_search(m_xid);
     XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     res= !xs || !xs->is_in_recovery();
     if (res)
@@ -267,7 +276,7 @@ bool trans_xa_commit(THD *thd)
     else
     {
       res= xs->xa_trans_rolled_back();
-      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, !res);
+      ha_commit_or_rollback_by_xid(thd, m_xid, !res);
       transaction_cache_delete(transaction);
     }
     DBUG_RETURN(res);
@@ -279,14 +288,14 @@ bool trans_xa_commit(THD *thd)
     res= thd->is_error();
   }
   else if (xid_state->has_state(XID_STATE::XA_IDLE) &&
-           thd->lex->xa_opt == XA_ONE_PHASE)
+           m_xa_opt == XA_ONE_PHASE)
   {
     int r= ha_commit_trans(thd, true);
     if ((res= MY_TEST(r)))
       my_error(r == 1 ? ER_XA_RBROLLBACK : ER_XAER_RMERR, MYF(0));
   }
   else if (xid_state->has_state(XID_STATE::XA_PREPARED) &&
-           thd->lex->xa_opt == XA_NONE)
+           m_xa_opt == XA_NONE)
   {
     MDL_request mdl_request;
 
@@ -351,21 +360,50 @@ bool trans_xa_commit(THD *thd)
 }
 
 
-bool trans_xa_rollback(THD *thd)
+bool Sql_cmd_xa_commit::execute(THD *thd)
+{
+  bool st= trans_xa_commit(thd);
+
+  if (!st)
+  {
+    thd->mdl_context.release_transactional_locks();
+    /*
+        We've just done a commit, reset transaction
+        isolation level and access mode to the session default.
+     */
+    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    thd->tx_read_only= thd->variables.tx_read_only;
+
+    my_ok(thd);
+  }
+  return st;
+}
+
+
+/**
+  Roll back and terminate a XA transaction.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
+bool Sql_cmd_xa_rollback::trans_xa_rollback(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_rollback");
 
-  if (!xid_state->has_same_xid(thd->lex->xid))
+  if (!xid_state->has_same_xid(m_xid))
   {
-    Transaction_ctx *transaction= transaction_cache_search(thd->lex->xid);
+    Transaction_ctx *transaction= transaction_cache_search(m_xid);
     XID_STATE *xs= (transaction ? transaction->xid_state() : NULL);
     if (!xs || !xs->is_in_recovery())
       my_error(ER_XAER_NOTA, MYF(0));
     else
     {
       xs->xa_trans_rolled_back();
-      ha_commit_or_rollback_by_xid(thd, thd->lex->xid, false);
+      ha_commit_or_rollback_by_xid(thd, m_xid, false);
       transaction_cache_delete(transaction);
     }
     DBUG_RETURN(thd->is_error());
@@ -394,15 +432,43 @@ bool trans_xa_rollback(THD *thd)
 }
 
 
-bool trans_xa_start(THD *thd)
+bool Sql_cmd_xa_rollback::execute(THD *thd)
+{
+  bool st= trans_xa_rollback(thd);
+
+  if (!st)
+  {
+    thd->mdl_context.release_transactional_locks();
+    /*
+      We've just done a rollback, reset transaction
+      isolation level and access mode to the session default.
+    */
+    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
+    thd->tx_read_only= thd->variables.tx_read_only;
+    my_ok(thd);
+  }
+  return st;
+}
+
+
+/**
+  Start a XA transaction with the given xid value.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
+bool Sql_cmd_xa_start::trans_xa_start(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_start");
 
   if (xid_state->has_state(XID_STATE::XA_IDLE) &&
-      thd->lex->xa_opt == XA_RESUME)
+      m_xa_opt == XA_RESUME)
   {
-    bool not_equal= !xid_state->has_same_xid(thd->lex->xid);
+    bool not_equal= !xid_state->has_same_xid(m_xid);
     if (not_equal)
       my_error(ER_XAER_NOTA, MYF(0));
     else
@@ -415,7 +481,7 @@ bool trans_xa_start(THD *thd)
   }
 
   /* TODO: JOIN is not supported yet. */
-  if (thd->lex->xa_opt != XA_NONE)
+  if (m_xa_opt != XA_NONE)
     my_error(ER_XAER_INVAL, MYF(0));
   else if (!xid_state->has_state(XID_STATE::XA_NOTR))
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
@@ -423,11 +489,11 @@ bool trans_xa_start(THD *thd)
     my_error(ER_XAER_OUTSIDE, MYF(0));
   else if (!trans_begin(thd))
   {
-    xid_state->start_normal_xa(thd->lex->xid);
+    xid_state->start_normal_xa(m_xid);
     MYSQL_SET_TRANSACTION_XID(thd->m_transaction_psi,
                               (const void *)xid_state->get_xid(),
                               (int)xid_state->get_state());
-    if (transaction_cache_insert(thd->lex->xid, thd->get_transaction()))
+    if (transaction_cache_insert(m_xid, thd->get_transaction()))
     {
       xid_state->reset();
       trans_rollback(thd);
@@ -439,17 +505,37 @@ bool trans_xa_start(THD *thd)
 }
 
 
-bool trans_xa_end(THD *thd)
+bool Sql_cmd_xa_start::execute(THD *thd)
+{
+  bool st= trans_xa_start(thd);
+
+  if (!st)
+    my_ok(thd);
+
+  return st;
+}
+
+
+/**
+  Put a XA transaction in the IDLE state.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
+bool Sql_cmd_xa_end::trans_xa_end(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_end");
 
   /* TODO: SUSPEND and FOR MIGRATE are not supported yet. */
-  if (thd->lex->xa_opt != XA_NONE)
+  if (m_xa_opt != XA_NONE)
     my_error(ER_XAER_INVAL, MYF(0));
   else if (!xid_state->has_state(XID_STATE::XA_ACTIVE))
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
-  else if (!xid_state->has_same_xid(thd->lex->xid))
+  else if (!xid_state->has_same_xid(m_xid))
     my_error(ER_XAER_NOTA, MYF(0));
   else if (!xid_state->xa_trans_rolled_back())
   {
@@ -468,14 +554,34 @@ bool trans_xa_end(THD *thd)
 }
 
 
-bool trans_xa_prepare(THD *thd)
+bool Sql_cmd_xa_end::execute(THD *thd)
+{
+  bool st= trans_xa_end(thd);
+
+  if (!st)
+    my_ok(thd);
+
+  return st;
+}
+
+
+/**
+  Put a XA transaction in the PREPARED state.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+*/
+
+bool Sql_cmd_xa_prepare::trans_xa_prepare(THD *thd)
 {
   XID_STATE *xid_state= thd->get_transaction()->xid_state();
   DBUG_ENTER("trans_xa_prepare");
 
   if (!xid_state->has_state(XID_STATE::XA_IDLE))
     my_error(ER_XAER_RMFAIL, MYF(0), xid_state->state_name());
-  else if (!xid_state->has_same_xid(thd->lex->xid))
+  else if (!xid_state->has_same_xid(m_xid))
     my_error(ER_XAER_NOTA, MYF(0));
   else if (ha_prepare(thd))
   {
@@ -497,7 +603,32 @@ bool trans_xa_prepare(THD *thd)
 }
 
 
-bool trans_xa_recover(THD *thd)
+bool Sql_cmd_xa_prepare::execute(THD *thd)
+{
+  bool st= trans_xa_prepare(thd);
+
+  if (!st)
+    my_ok(thd);
+
+  return st;
+}
+
+
+/**
+  Return the list of XID's to a client, the same way SHOW commands do.
+
+  @param thd    Current thread
+
+  @retval false  Success
+  @retval true   Failure
+
+  @note
+    I didn't find in XA specs that an RM cannot return the same XID twice,
+    so trans_xa_recover does not filter XID's to ensure uniqueness.
+    It can be easily fixed later, if necessary.
+*/
+
+bool Sql_cmd_xa_recover::trans_xa_recover(THD *thd)
 {
   List<Item> field_list;
   Protocol *protocol= thd->protocol;
@@ -527,7 +658,7 @@ bool trans_xa_recover(THD *thd)
     if (xs->has_state(XID_STATE::XA_PREPARED))
     {
       protocol->prepare_for_resend();
-      xs->store_xid_info(protocol);
+      xs->store_xid_info(protocol, m_print_xid_as_hex);
 
       if (protocol->write())
       {
@@ -540,6 +671,15 @@ bool trans_xa_recover(THD *thd)
   mysql_mutex_unlock(&LOCK_transaction_cache);
   my_eof(thd);
   DBUG_RETURN(false);
+}
+
+
+bool Sql_cmd_xa_recover::execute(THD *thd)
+{
+  bool st= trans_xa_recover(thd);
+  DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
+
+  return st;
 }
 
 
@@ -614,18 +754,13 @@ void XID_STATE::set_error(THD *thd)
 }
 
 
-void XID_STATE::store_xid_info(Protocol *protocol) const
+void XID_STATE::store_xid_info(Protocol *protocol, bool print_xid_as_hex) const
 {
   protocol->store_longlong(static_cast<longlong>(m_xid.formatID), false);
   protocol->store_longlong(static_cast<longlong>(m_xid.gtrid_length), false);
   protocol->store_longlong(static_cast<longlong>(m_xid.bqual_length), false);
 
-  if (m_xid.is_printable_xid() == true)
-  {
-    protocol->store(m_xid.data, m_xid.gtrid_length + m_xid.bqual_length,
-                    &my_charset_bin);
-  }
-  else
+  if (print_xid_as_hex)
   {
     /*
       xid_buf contains enough space for 0x followed by HEX representation
@@ -642,6 +777,13 @@ void XID_STATE::store_xid_info(Protocol *protocol) const
                                      m_xid.bqual_length) + 2;
     protocol->store(xid_buf, xid_str_len, &my_charset_bin);
   }
+  else
+  {
+    protocol->store(m_xid.data, m_xid.gtrid_length + m_xid.bqual_length,
+                    &my_charset_bin);
+  }
+
+
 }
 
 
@@ -696,19 +838,6 @@ char* XID::xid_to_str(char *buf) const
   return buf;
 }
 #endif
-
-
-bool XID::is_printable_xid() const
-{
-  for (int i= 0; i < gtrid_length + bqual_length; i++)
-  {
-    uchar c= static_cast<uchar>(data[i]);
-    if (c < 32 || c > 127)
-      return false;
-  }
-
-  return true;
-}
 
 
 extern "C" uchar *transaction_get_hash_key(const uchar *, size_t *, my_bool);

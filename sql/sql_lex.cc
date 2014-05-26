@@ -2112,7 +2112,6 @@ st_select_lex::st_select_lex
   uncacheable(0),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
-  no_error(false),
   context(),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
@@ -3560,6 +3559,8 @@ void st_select_lex_unit::renumber_selects(LEX *lex)
 {
   for (SELECT_LEX *select= first_select(); select; select= select->next_select())
     select->renumber(lex);
+  if (fake_select_lex)
+    fake_select_lex->renumber(lex);
 }
 
 /**
@@ -4111,6 +4112,7 @@ void st_select_lex::include_standalone(st_select_lex_unit *outer,
   next= NULL;
   prev= ref;
   master= outer;
+  nest_level= master->first_select()->nest_level;
 }
 
 

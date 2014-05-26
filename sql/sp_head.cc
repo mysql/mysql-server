@@ -89,6 +89,35 @@ struct SP_TABLE
 };
 
 
+/**
+   A simple RAII wrapper around Strict_error_handler.
+*/
+class Strict_error_handler_wrapper
+{
+  THD *m_thd;
+  Strict_error_handler m_strict_handler;
+  bool m_active;
+
+public:
+  Strict_error_handler_wrapper(THD *thd, sp_head *sp_head)
+    : m_thd(thd), m_active(false)
+  {
+    if (sp_head->m_sql_mode & (MODE_STRICT_ALL_TABLES |
+                               MODE_STRICT_TRANS_TABLES))
+    {
+      m_thd->push_internal_handler(&m_strict_handler);
+      m_active= true;
+    }
+  }
+
+  ~Strict_error_handler_wrapper()
+  {
+    if (m_active)
+      m_thd->pop_internal_handler();
+  }
+};
+
+
 ///////////////////////////////////////////////////////////////////////////
 // Static function implementations.
 ///////////////////////////////////////////////////////////////////////////
@@ -521,7 +550,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   bool err_status= FALSE;
   uint ip= 0;
   sql_mode_t save_sql_mode;
-  bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
@@ -631,8 +659,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
-  save_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning= 0;
   /**
     When inside a substatement (a stored function or trigger
     statement), clear the metadata observer in THD, if any.
@@ -779,7 +805,7 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
     */
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     {
-      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events.clear();
       thd->user_var_events_alloc= NULL;//DEBUG
     }
 
@@ -827,7 +853,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
-  thd->abort_on_warning= save_abort_on_warning;
   thd->pop_reprepare_observer();
 
   thd->stmt_arena= old_arena;
@@ -963,6 +988,9 @@ bool sp_head::execute_trigger(THD *thd,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
+  // Push Strict_error_handler if the SP was created in STRICT mode.
+  Strict_error_handler_wrapper strict_wrapper(thd, this);
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
@@ -1085,6 +1113,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
+
+  // Push Strict_error_handler if the SP was created in STRICT mode.
+  Strict_error_handler_wrapper strict_wrapper(thd, this);
 
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
@@ -1214,7 +1245,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
   if (need_binlog_call)
   {
     query_id_t q;
-    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events.clear();
     /*
       In case of artificially constructed events for function calls
       we have separate union for each such event and hence can't use
@@ -1275,7 +1306,7 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
                      "failed to reflect this change in the binary log");
         err_status= TRUE;
       }
-      reset_dynamic(&thd->user_var_events);
+      thd->user_var_events.clear();
       /* Forget those values, in case more function calls are binlogged: */
       thd->stmt_depends_on_first_successful_insert_id_in_prev_stmt= 0;
       thd->auto_inc_intervals_in_cur_stmt_for_binlog.empty();
@@ -1328,6 +1359,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
+
+  // Push Strict_error_handler if the SP was created in STRICT mode.
+  Strict_error_handler_wrapper strict_wrapper(thd, this);
 
   if (args->elements != params)
   {

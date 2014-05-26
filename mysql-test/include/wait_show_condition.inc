@@ -9,7 +9,7 @@
 #
 # USAGE
 #
-#    All rows of the result must fulfil the condition if $all_rows_fulfil is 1
+#    All rows of the result must fulfil the condition if $wait_for_all is 1
 #    else at least one of the result must fulfil the condition.
 #    let $wait_for_all= 1; 
 #    let $show_statement= SHOW PROCESSLIST;
@@ -87,6 +87,11 @@ if ($wait_for_all != 1)
            # We are behind the last row of the result set.
            let $process_result= 0;
 	   let $do_loop= 0;
+           # For string fields and for "!=" comparision, it is possible that
+           # above if condition (i.e., SELECT '$field_value' $condition) is
+           # true and the current if condition is also true. So set $found=0
+           # here explicitly
+           let $found= 0;
         }
         inc $rowno;
      }

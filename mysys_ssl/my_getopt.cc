@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static void print_cmdline_password_warning();
 static my_bool get_bool_argument(const struct my_option *opts,
                                  const char *argument,
                                  bool *error);
@@ -97,7 +96,7 @@ int handle_options(int *argc, char ***argv,
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
 {
-  return my_handle_options(argc, argv, longopts, get_one_option, NULL);
+  return my_handle_options(argc, argv, longopts, get_one_option, NULL, FALSE);
 }
 
 union ull_dbl
@@ -192,13 +191,17 @@ double getopt_ulonglong2double(ulonglong v)
                              exit, argv [out] would contain all the remaining
                              unparsed options along with the matched command.
 
+  @param [in] ignore_unknown_option When set to TRUE, options are continued to
+                                    be read even when unknown options are
+				    encountered.
+
   @return error in case of ambiguous or unknown options,
           0 on success.
 */
 int my_handle_options(int *argc, char ***argv,
                       const struct my_option *longopts,
                       my_get_one_option get_one_option,
-                      const char **command_list)
+                      const char **command_list, my_bool ignore_unknown_option)
 {
   uint argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
@@ -352,10 +355,10 @@ int my_handle_options(int *argc, char ***argv,
                 my_getopt_error_reporter(option_is_loose ?
                                          WARNING_LEVEL : ERROR_LEVEL,
                                          "unknown option '--%s'", cur_arg);
-	      if (!option_is_loose)
+	      if (!(option_is_loose || ignore_unknown_option))
 		return EXIT_UNKNOWN_OPTION;
 	    }
-	    if (option_is_loose)
+	    if (option_is_loose || ignore_unknown_option)
 	    {
 	      (*argc)--;
 	      continue;
@@ -610,7 +613,7 @@ done:
  * if password string is specified on the command line.
  */
 
-static void print_cmdline_password_warning()
+void print_cmdline_password_warning()
 {
   static my_bool password_warning_announced= FALSE;
 
@@ -850,7 +853,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
         *((ulonglong*)value)=
               find_set_from_flags(opts->typelib, opts->typelib->count, 
                                   *(ulonglong *)value, opts->def_value,
-                                  argument, strlen(argument),
+                                  argument, (uint)strlen(argument),
                                   &error, &error_len);
         if (error)
         {
