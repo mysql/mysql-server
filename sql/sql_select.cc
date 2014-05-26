@@ -2207,8 +2207,6 @@ bool error_if_full_join(JOIN *join)
 
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
-      /* This error should not be ignored. */
-      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return true;

@@ -8040,8 +8040,8 @@ opt_column:
         ;
 
 opt_ignore:
-          /* empty */ { Lex->ignore= 0;}
-        | IGNORE_SYM { Lex->ignore= 1;}
+          /* empty */ { Lex->set_ignore(false);}
+        | IGNORE_SYM { Lex->set_ignore(true);}
         ;
 
 opt_restrict:
@@ -11253,7 +11253,7 @@ delete:
             YYPS->m_lock_type= TL_WRITE_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_WRITE;
 
-            lex->ignore= 0;
+            lex->set_ignore(false);
             lex->select_lex->init_order();
           }
           opt_delete_options single_multi
@@ -11372,7 +11372,7 @@ opt_delete_options:
 opt_delete_option:
           QUICK        { Select->options|= OPTION_QUICK; }
         | LOW_PRIORITY { YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY; }
-        | IGNORE_SYM   { Lex->ignore= 1; }
+        | IGNORE_SYM   { Lex->set_ignore(true); }
         ;
 
 truncate:
@@ -12156,7 +12156,7 @@ load:
             lex->sql_command= SQLCOM_LOAD;
             lex->local_file=  $5;
             lex->duplicates= DUP_ERROR;
-            lex->ignore= 0;
+            lex->set_ignore(false);
             if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
               MYSQL_YYABORT;
           }
@@ -12172,6 +12172,9 @@ load:
             lex->field_list.empty();
             lex->update_list.empty();
             lex->value_list.empty();
+            /* We can't give an error in the middle when using LOCAL files */
+            if (lex->local_file && lex->duplicates == DUP_ERROR)
+              lex->set_ignore(true);
           }
           opt_load_data_charset
           { Lex->exchange->cs= $15; }
@@ -12203,7 +12206,7 @@ load_data_lock:
 opt_duplicate:
           /* empty */ { Lex->duplicates=DUP_ERROR; }
         | REPLACE { Lex->duplicates=DUP_REPLACE; }
-        | IGNORE_SYM { Lex->ignore= 1; }
+        | IGNORE_SYM { Lex->set_ignore(true); }
         ;
 
 opt_field_term:

@@ -132,6 +132,10 @@ insert into t1 values(600),(NULL),(NULL);
 ERROR 23000: Duplicate entry '600' for key 'PRIMARY'
 set @@insert_id=600;
 insert ignore into t1 values(600),(NULL),(NULL),(610),(NULL);
+Warnings:
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
+Warning	1062	Duplicate entry '600' for key 'PRIMARY'
 select * from t1;
 a
 1
