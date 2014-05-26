@@ -196,7 +196,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1, NULL, NULL);
+  fill_record(thd, table->field, values, NULL, NULL);
   if (thd->is_error())
     return 1;
 
@@ -365,7 +365,7 @@ bool select_union_direct::send_data(List<Item> &items)
     return false;
   }
 
-  fill_record(thd, table->field, items, true, NULL, NULL);
+  fill_record(thd, table->field, items, NULL, NULL);
   if (thd->is_error())
     return true; /* purecov: inspected */
 

@@ -53,6 +53,7 @@
 #include "rpl_gtid.h"
 #include "parse_tree_helpers.h"
 #include "sql_optimizer.h"                      // JOIN
+#include "sql_base.h"
 
 using std::min;
 using std::max;
@@ -4829,14 +4830,16 @@ longlong Item_func_sleep::val_int()
     If SQL is STRICT then report error, else report warning and continue
     execution.
   */
-  bool save_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning= thd->is_strict_mode();
+  Strict_error_handler strict_handler;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
 
   if (args[0]->null_value || timeout < 0)
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         ER(ER_WRONG_ARGUMENTS), "sleep.");
 
-  thd->abort_on_warning= save_abort_on_warning;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->pop_internal_handler();
   /*
     If conversion error occurred in the strict SQL_MODE
     then leave method.
@@ -7404,14 +7407,13 @@ Item_func_sp::execute_impl(THD *thd)
     my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
-
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a
     SELECT, leave binlogging on, so execute_function() code writes the
     function call into binlog.
   */
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
-  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field); 
+  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field);
   thd->restore_sub_statement_state(&statement_state);
 
 error:
