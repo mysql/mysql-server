@@ -521,13 +521,11 @@ DROP TABLE t, t2, tp;
 --echo #
 CREATE TABLE t (a INT,
   b VARCHAR(55),
-  PRIMARY KEY (a))
-ENGINE = MyISAM;
+  PRIMARY KEY (a));
 
 CREATE TABLE tp (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 (PARTITION p0 VALUES LESS THAN (100),
  PARTITION p1 VALUES LESS THAN MAXVALUE);
@@ -535,7 +533,6 @@ PARTITION BY RANGE (a)
 CREATE TABLE tsp (a INT,
   b VARCHAR(55),
   PRIMARY KEY (a))
-ENGINE = MyISAM
 PARTITION BY RANGE (a)
 SUBPARTITION BY HASH(a)
 (PARTITION p0 VALUES LESS THAN (100)
@@ -560,6 +557,8 @@ SHOW CREATE TABLE tp;
 --sorted_result
 SELECT * FROM t;
 --sorted_result
+SELECT * FROM tp PARTITION (p0);
+--sorted_result
 SELECT * FROM tp PARTITION (p1);
 --error ER_ROW_DOES_NOT_MATCH_PARTITION
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
@@ -569,9 +568,17 @@ ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t WITHOUT VALIDATION;
 --sorted_result
 SELECT * FROM t;
 --sorted_result
+SELECT * FROM tp PARTITION (p0);
+--sorted_result
 SELECT * FROM tp PARTITION (p1);
 --echo # No need to use WITHOUT VALIDATION on the original partition
 ALTER TABLE tp EXCHANGE PARTITION p1 WITH TABLE t;
+--sorted_result
+SELECT * FROM t;
+--sorted_result
+SELECT * FROM tp PARTITION (p0);
+--sorted_result
+SELECT * FROM tp PARTITION (p1);
 
 --echo # Test exchange subpartition WITHOUT VALIDATION
 --sorted_result
