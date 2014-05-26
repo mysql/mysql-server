@@ -372,7 +372,8 @@ lock_wait_suspend_thread(
 	}
 
 	if (lock_wait_timeout < 100000000
-	    && wait_time > (double) lock_wait_timeout) {
+	    && wait_time > (double) lock_wait_timeout
+	    && trx_can_rollback(trx)) {
 
 		trx->error_state = DB_LOCK_WAIT_TIMEOUT;
 
@@ -456,7 +457,7 @@ lock_wait_check_and_cancel(
 
 		trx_mutex_enter(trx);
 
-		if (trx->lock.wait_lock) {
+		if (trx->lock.wait_lock && trx_can_rollback(trx)) {
 
 			ut_a(trx->lock.que_state == TRX_QUE_LOCK_WAIT);
 
@@ -539,3 +540,4 @@ DECLARE_THREAD(lock_wait_timeout_thread)(
 
 	OS_THREAD_DUMMY_RETURN;
 }
+
