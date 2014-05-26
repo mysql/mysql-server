@@ -1117,8 +1117,7 @@ NdbEventBuffer::NdbEventBuffer(Ndb *ndb) :
   m_max_free_thresh(0),
   m_gci_slip_thresh(0),
   m_dropped_ev_op(0),
-  m_active_op_count(0),
-  m_add_drop_mutex(0)
+  m_active_op_count(0)
 {
 #ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::NdbEventBuffer";
@@ -1325,6 +1324,46 @@ NdbEventBuffer::flushIncompleteEvents(Uint64 gci)
   return 0;
 }
 
+void
+NdbEventBuffer::free_consumed_event_data()
+{
+  if (m_used_data.m_count > 1024)
+  {
+#ifdef VM_TRACE
+    m_latest_command= "NdbEventBuffer::free_consumed_event_data (lock)";
+#endif
+    NdbMutex_Lock(m_mutex);
+    // return m_used_data to m_free_data
+    free_list(m_used_data);
+
+    NdbMutex_Unlock(m_mutex);
+  }
+}
+
+void
+NdbEventBuffer::move_head_event_data_item_to_used_data_queue(EventBufData *data)
+{
+  // Move first available item to used queue prior to processing
+  assert(data == m_available_data.m_head);
+  Uint32 full_count, full_sz;
+  m_available_data.remove_first(full_count, full_sz);
+
+  m_used_data.append_used_data(data, full_count, full_sz);
+
+  m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, full_sz);
+}
+
+EventBufData_list::Gci_ops*
+NdbEventBuffer::remove_consumed_gci_ops(Uint64 firstKeepGci)
+{
+  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
+  while (gci_ops && gci_ops->m_gci < firstKeepGci)
+  {
+    gci_ops = m_available_data.delete_next_gci_ops();
+  }
+  return gci_ops;
+}
+
 NdbEventOperation *
 NdbEventBuffer::nextEvent()
 {
@@ -1333,17 +1372,8 @@ NdbEventBuffer::nextEvent()
   const char *m_latest_command_save= m_latest_command;
 #endif
 
-  if (m_used_data.m_count > 1024)
-  {
-#ifdef VM_TRACE
-    m_latest_command= "NdbEventBuffer::nextEvent (lock)";
-#endif
-    NdbMutex_Lock(m_mutex);
-    // return m_used_data to m_free_data
-    free_list(m_used_data);
+  free_consumed_event_data();
 
-    NdbMutex_Unlock(m_mutex);
-  }
 #ifdef VM_TRACE
   m_latest_command= "NdbEventBuffer::nextEvent";
 #endif
@@ -1377,15 +1407,8 @@ NdbEventBuffer::nextEvent()
 
     // set NdbEventOperation data
     op->m_data_item= data;
-
-    // remove item from m_available_data and return size
-    Uint32 full_count, full_sz;
-    m_available_data.remove_first(full_count, full_sz);
-
-    // add it to used list
-    m_used_data.append_used_data(data, full_count, full_sz);
-
-    m_ndb->theImpl->incClientStat(Ndb::EventBytesRecvdCount, full_sz);
+    move_head_event_data_item_to_used_data_queue(data);
+    gci = op->getGCI();
 
 #ifdef VM_TRACE
     op->m_data_done_count++;
@@ -1405,14 +1428,13 @@ NdbEventBuffer::nextEvent()
            (void)tBlob->atNextEvent();
            tBlob = tBlob->theNext;
          }
-         EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-         while (gci_ops && op->getGCI() > gci_ops->m_gci)
-         {
-           gci_ops = m_available_data.delete_next_gci_ops();
-         }
+
+         EventBufData_list::Gci_ops *gci_ops =
+           remove_consumed_gci_ops(gci);
+
          if (!gci_ops->m_consistent)
            DBUG_RETURN_EVENT(0);
-         assert(gci_ops && (op->getGCI() == gci_ops->m_gci));
+         assert(gci_ops && (gci == gci_ops->m_gci));
          // to return TE_NUL it should be made into data event
          if (SubTableData::getOperation(data->sdata->requestInfo) ==
 	   NdbDictionary::Event::_TE_NUL)
@@ -1437,15 +1459,12 @@ NdbEventBuffer::nextEvent()
   m_latest_command= m_latest_command_save;
 #endif
 
-  EventBufData_list::Gci_ops *gci_ops = m_available_data.first_gci_ops();
-  while (gci_ops)
-  {
-    gci_ops = m_available_data.delete_next_gci_ops();
-  }
   /*
-    gci's consumed up until m_latest_poll_GCI, so we can free all
-    dropped event operations stopped up until that gci
-  */
+   * gci's consumed up until m_latest_poll_GCI, so
+   *  - remove remaining gci_ops from the gci_ops list,
+   *  - free all dropped event operations stopped up until that gci
+   */
+  remove_consumed_gci_ops(UINT_MAX64);
   if (m_dropped_ev_op)
   {
     NdbMutex_Lock(m_mutex);
@@ -1862,9 +1881,28 @@ crash_on_invalid_SUB_GCP_COMPLETE_REP(const Gci_container* bucket,
 }
 
 void
+NdbEventBuffer::complete_empty_bucket_using_exceptional_event(Uint64 gci,
+                                                              Uint32 type)
+{
+  EventBufData *dummy_data= alloc_data();
+  // clear any remains from its previous incarnation
+  // to avoid any side effects
+  if (dummy_data->memory)
+    dealloc_mem(dummy_data, NULL);
+  dummy_data->m_event_op = 0;
+
+  EventBufData_list *dummy_event_list = new EventBufData_list;
+  dummy_event_list->append_used_data(dummy_data);
+  dummy_event_list->m_is_not_multi_list = true;
+  m_complete_data.m_data.append_list(dummy_event_list, gci);
+  assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
+  m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+}
+
+void
 NdbEventBuffer::complete_bucket(Gci_container* bucket)
 {
-  Uint64 gci = bucket->m_gci;
+  const Uint64 gci = bucket->m_gci;
   Gci_container* buckets = (Gci_container*)m_active_gci.getBase();
 
   if (0)
@@ -1901,23 +1939,11 @@ NdbEventBuffer::complete_bucket(Gci_container* bucket)
     {
       /*
        * Bucket marked as possibly missing data, probably due to
-       * kernel running out of event_buffer during node failure
-       * Bucket contained no data so we must add a dummy event list
-       * as inconsistency marker.
+       * kernel running out of event_buffer during node failure.
+       * Bucket contained no data so we must add a dummy event data
+       * and a dummy event list as an inconsistency marker.
        */
-      EventBufData *dummy_data= alloc_data();
-      // clear any remains from its previous incarnation
-      // to avoid any side effects
-      if (dummy_data->memory)
-        dealloc_mem(dummy_data, NULL);
-      dummy_data->m_event_op = 0;
-
-      EventBufData_list *dummy_event_list = new EventBufData_list;
-      dummy_event_list->append_used_data(dummy_data);
-      dummy_event_list->m_is_not_multi_list = true;
-      m_complete_data.m_data.append_list(dummy_event_list, gci);
-      assert(m_complete_data.m_data.m_gci_ops_list_tail != NULL);
-      m_complete_data.m_data.m_gci_ops_list_tail->m_consistent = false;
+      complete_empty_bucket_using_exceptional_event(gci, 0);
     }
   }
 
