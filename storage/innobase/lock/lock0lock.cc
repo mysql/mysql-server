@@ -1535,8 +1535,7 @@ lock_rec_enqueue_waiting(
 	lock = lock_rec_create(
 		type_mode | LOCK_WAIT, block, heap_no, index, trx, TRUE);
 
-	if (type_mode & LOCK_PREDICATE && prdt) {
-		ut_ad(prdt);
+	if (type_mode & LOCK_PREDICATE && prdt != NULL) {
 		lock_prdt_set_prdt(lock, prdt);
 	}
 
@@ -1550,9 +1549,7 @@ lock_rec_enqueue_waiting(
 
 	trx_mutex_exit(trx);
 
-	const trx_t*	victim_trx;
-
-	victim_trx = DeadlockChecker::check_and_resolve(lock, trx);
+	const trx_t*	victim_trx = DeadlockChecker::check_and_resolve(lock, trx);
 
 	trx_mutex_enter(trx);
 
@@ -6793,7 +6790,16 @@ DeadlockChecker::select_victim() const
 	ut_ad(m_start->lock.wait_lock != 0);
 	ut_ad(m_wait_lock->trx != m_start);
 
-	if (trx_weight_ge(m_wait_lock->trx, m_start)) {
+	if (!trx_can_rollback(m_start)) {
+
+		return(m_wait_lock->trx);
+
+	} else if (!trx_can_rollback(m_wait_lock->trx)) {
+
+		return(m_wait_lock->trx);
+
+	} else if (trx_weight_ge(m_wait_lock->trx, m_start)) {
+
 		/* The joining  transaction is 'smaller',
 		choose it as the victim and roll it back. */
 
