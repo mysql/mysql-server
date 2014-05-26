@@ -37,8 +37,6 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-insert into t1 select * from t1;
-insert into t1 select * from t1;
 start transaction;
 insert into t1 select * from t1;
 select count(*) from t1;
@@ -52,6 +50,13 @@ set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where Within(t1.c2, @g1);
 
 set @g1 = GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where Within(t1.c2, @g1);
+
+SET DEBUG='+d,page_copy_rec_list_start_compress_fail';
+delete from t1;
+SET DEBUG='-d,page_copy_rec_list_start_compress_fail';
+
+
 select count(*) from t1 where Within(t1.c2, @g1);
 
 # Clean up.
