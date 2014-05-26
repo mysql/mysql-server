@@ -1172,6 +1172,10 @@ HANDLER_WRITE	19
 # 16 locks (2 tables, 1 + 5 subpartitions lock/unlock)
 FLUSH STATUS;
 INSERT IGNORE INTO t2 PARTITION (subp3) SELECT * FROM t1 PARTITION (subp3, `p10-99`, `p100-99999`);
+Warnings:
+Warning	1748	Found a row not matching the given partition set
+Warning	1748	Found a row not matching the given partition set
+Warning	1748	Found a row not matching the given partition set
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE

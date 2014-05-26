@@ -483,6 +483,7 @@ The following options may be given as the first argument:
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
  -n, --new           Use very new possible "unsafe" functions
+ --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
  --old-passwords=#   Determine which hash algorithm to use when generating
@@ -1198,6 +1199,7 @@ net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60
 new FALSE
+offline-mode FALSE
 old FALSE
 old-alter-table FALSE
 old-passwords 0

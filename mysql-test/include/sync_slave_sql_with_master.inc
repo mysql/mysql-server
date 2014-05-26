@@ -37,6 +37,7 @@
 --let $include_filename= sync_slave_sql_with_master.inc
 --source include/begin_include_file.inc
 
+--source include/wait_for_ndb_committed_to_binlog.inc
 --source include/save_master_pos.inc
 
 --let $rpl_connection_name= slave

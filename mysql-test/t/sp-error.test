@@ -2741,6 +2741,8 @@ DROP TABLE t1;
 --echo # Bug#9857: Stored procedures: handler for sqlwarning ignored
 --echo #
 
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
 SET @sql_mode_saved = @@sql_mode;
 SET sql_mode = traditional;
 
@@ -2751,7 +2753,7 @@ BEGIN
   DECLARE CONTINUE HANDLER FOR SQLWARNING
     SELECT 'warning caught (expected)';
   
-  SELECT 5 / 0;
+  INSERT IGNORE INTO t1 VALUES (1);
 END|
 
 CREATE PROCEDURE p2()
@@ -2759,7 +2761,7 @@ BEGIN
   DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
     SELECT 'error caught (unexpected)';
   
-  SELECT 5 / 0;
+  INSERT IGNORE INTO t1 VALUES (1);
 END|
 
 delimiter ;|
@@ -2772,6 +2774,7 @@ SHOW WARNINGS;
 
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+DROP TABLE t1;
 SET sql_mode = @sql_mode_saved;
 
 --echo #

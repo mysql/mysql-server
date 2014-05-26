@@ -1203,7 +1203,6 @@ drop table t1;
 create table t1 (s1 int);
 create view v1 as select * from t1 where s1 < 5 with check option;
 #single value
--- error ER_VIEW_CHECK_FAILED
 insert ignore into v1 values (6);
 #several values
 insert ignore into v1 values (6),(3);

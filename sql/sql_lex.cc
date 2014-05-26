@@ -2112,7 +2112,6 @@ st_select_lex::st_select_lex
   uncacheable(0),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
-  no_error(false),
   context(),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),

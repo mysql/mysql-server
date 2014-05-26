@@ -4236,33 +4236,25 @@ void TABLE_LIST::cleanup_items()
 }
 
 
-/*
+/**
   check CHECK OPTION condition
 
-  SYNOPSIS
-    TABLE_LIST::view_check_option()
-    ignore_failure ignore check option fail
-
-  RETURN
-    VIEW_CHECK_OK     OK
-    VIEW_CHECK_ERROR  FAILED
-    VIEW_CHECK_SKIP   FAILED, but continue
+  @param thd                Thread object
+ 
+  @retval VIEW_CHECK_OK     OK
+  @retval VIEW_CHECK_ERROR  FAILED
+  @retval VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
+int TABLE_LIST::view_check_option(THD *thd) const
 {
   if (check_option && check_option->val_int() == 0)
   {
     const TABLE_LIST *main_view= top_table();
-    if (ignore_failure)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
-                          main_view->view_db.str, main_view->view_name.str);
-      return(VIEW_CHECK_SKIP);
-    }
     my_error(ER_VIEW_CHECK_FAILED, MYF(0), main_view->view_db.str,
              main_view->view_name.str);
+    if (thd->lex->is_ignore())
+      return(VIEW_CHECK_SKIP);
     return(VIEW_CHECK_ERROR);
   }
   return(VIEW_CHECK_OK);
