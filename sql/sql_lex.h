@@ -30,6 +30,7 @@
 #include "sql_servers.h"
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // XID, xa_option_words
+#include "prealloced_array.h"
 
 /* YACC and LEX Definitions */
 
@@ -2628,8 +2629,9 @@ public:
   THD *thd;
 
   /* maintain a list of used plugins for this LEX */
-  DYNAMIC_ARRAY plugins;
-  plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
+  typedef Prealloced_array<plugin_ref,
+    INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
+  Plugins_array plugins;
 
   const CHARSET_INFO *charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
@@ -2915,8 +2917,7 @@ public:
   virtual ~LEX()
   {
     destroy_query_tables_list();
-    plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
-    delete_dynamic(&plugins);
+    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
     unit= NULL;                     // Created in mem_root - no destructor
     select_lex= NULL;
     m_current_select= NULL;
