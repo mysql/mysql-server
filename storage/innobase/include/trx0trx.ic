@@ -328,3 +328,13 @@ trx_get_read_view(
 {
 	return(!MVCC::is_view_active(trx->read_view) ? NULL : trx->read_view);
 }
+
+/**
+@param[in] trx		Transaction to check
+@return true if the transaction can rollback */
+bool
+trx_can_rollback(const trx_t* trx)
+{
+	return(true);
+}
+
