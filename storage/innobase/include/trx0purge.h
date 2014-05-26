@@ -248,10 +248,44 @@ public:
 		/* Step-1: Populate log file name. */
 		populate_log_file_name(space_id);
 
-		/* Check for existence of the file. */
+		/* Step-2: Check for existence of the file. */
 		bool		exist;
 		os_file_type_t	type;
 		os_file_status(m_log_file_name, &exist, &type);
+
+		/* Step-3: If file exist, check if for presence of magic number.
+		If found, then simple delete the file and report file
+		doesn't exist as presence of magic number suggest that truncate
+		action was complete. */
+		if (exist) {
+			bool    ret;
+			os_file_t	handle =
+				os_file_create_simple_no_error_handling(
+					innodb_log_file_key, m_log_file_name,
+					OS_FILE_OPEN, OS_FILE_READ_WRITE,
+					srv_read_only_mode, &ret);
+			if (!ret) {
+				os_file_delete(innodb_log_file_key,
+					       m_log_file_name);
+				delete[] m_log_file_name;
+				m_log_file_name = NULL;
+				return(false);
+			}
+
+			byte	buffer[sizeof(undo_trunc_logger_t::s_magic)];
+			os_file_read(handle, buffer, 0, sizeof(buffer));
+			os_file_close(handle);
+
+			ulint	magic_no = mach_read_from_4(buffer);
+			if (magic_no == undo_trunc_logger_t::s_magic) {
+				/* Found magic number. */
+				os_file_delete(innodb_log_file_key,
+					       m_log_file_name);
+				delete[] m_log_file_name;
+				m_log_file_name = NULL;
+				return(false);
+			}
+		}
 
 		return(exist);
 	}
