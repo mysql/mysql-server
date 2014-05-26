@@ -328,13 +328,10 @@ lock_check_trx_id_sanity(
 	dict_index_t*	index,		/*!< in: index */
 	const ulint*	offsets)	/*!< in: rec_get_offsets(rec, index) */
 {
-	bool		is_ok;
-	trx_id_t	max_trx_id;
-
 	ut_ad(rec_offs_validate(rec, index, offsets));
 
-	max_trx_id = trx_sys_get_max_trx_id();
-	is_ok = trx_id < max_trx_id;
+	trx_id_t	max_trx_id = trx_sys_get_max_trx_id();
+	bool		is_ok = trx_id < max_trx_id;
 
 	if (!is_ok) {
 		lock_report_trx_id_insanity(
@@ -399,8 +396,6 @@ lock_sec_rec_cons_read_sees(
 	const dict_index_t*	index,	/*!< in: index */
 	const ReadView*	view)	/*!< in: consistent read view */
 {
-	trx_id_t	max_trx_id;
-
 	ut_ad(page_rec_is_user_rec(rec));
 
 	/* NOTE that we might call this function while holding the search
@@ -409,18 +404,20 @@ lock_sec_rec_cons_read_sees(
 	if (recv_recovery_is_on()) {
 
 		return(false);
-	}
 
-	/* Temp-tables are not shared across connections and multiple
-	transactions from different connections cannot simultaneously
-	operate on same temp-table and so read of temp-table is
-	always consistent read. */
-	if (dict_table_is_temporary(index->table)) {
+	} else if (dict_table_is_temporary(index->table)) {
+
+		/* Temp-tables are not shared across connections and multiple
+		transactions from different connections cannot simultaneously
+		operate on same temp-table and so read of temp-table is
+		always consistent read. */
+
 		return(true);
 	}
 
-	max_trx_id = page_get_max_trx_id(page_align(rec));
-	ut_ad(max_trx_id);
+	trx_id_t	max_trx_id = page_get_max_trx_id(page_align(rec));
+
+	ut_ad(max_trx_id > 0);
 
 	return(view->sees(max_trx_id));
 }
@@ -435,8 +432,7 @@ lock_sys_create(
 {
 	ulint	lock_sys_sz;
 
-	lock_sys_sz = sizeof(*lock_sys)
-		+ OS_THREAD_MAX_N * sizeof(srv_slot_t);
+	lock_sys_sz = sizeof(*lock_sys) + OS_THREAD_MAX_N * sizeof(srv_slot_t);
 
 	lock_sys = static_cast<lock_sys_t*>(ut_zalloc(lock_sys_sz));
 
@@ -520,7 +516,7 @@ lock_get_src_table(
 /*===============*/
 	trx_t*		trx,	/*!< in: transaction */
 	dict_table_t*	dest,	/*!< in: destination of ALTER TABLE */
-	enum lock_mode*	mode)	/*!< out: lock mode of the source table */
+	lock_mode*	mode)	/*!< out: lock mode of the source table */
 {
 	dict_table_t*	src;
 	lock_t*		lock;
@@ -542,7 +538,7 @@ lock_get_src_table(
 	     lock != NULL;
 	     lock = UT_LIST_GET_NEXT(trx_locks, lock)) {
 		lock_table_t*	tab_lock;
-		enum lock_mode	lock_mode;
+		lock_mode	lock_mode;
 		if (!(lock_get_type_low(lock) & LOCK_TABLE)) {
 			/* We are only interested in table locks. */
 			continue;
@@ -755,7 +751,7 @@ lock_rec_has_to_wait(
 	ut_ad(lock_get_type_low(lock2) == LOCK_REC);
 
 	if (trx != lock2->trx
-	    && !lock_mode_compatible(static_cast<enum lock_mode>(
+	    && !lock_mode_compatible(static_cast<lock_mode>(
 			             LOCK_MODE_MASK & type_mode),
 				     lock_get_mode(lock2))) {
 
@@ -1059,7 +1055,7 @@ lock_rec_has_expl(
 		    && !lock_rec_get_insert_intention(lock)
 		    && lock_mode_stronger_or_eq(
 			    lock_get_mode(lock),
-			    static_cast<enum lock_mode>(
+			    static_cast<lock_mode>(
 				    precise_mode & LOCK_MODE_MASK))
 		    && !lock_get_wait(lock)
 		    && (!lock_rec_get_rec_not_gap(lock)
@@ -1084,7 +1080,7 @@ Checks if some other transaction has a lock request in the queue.
 const lock_t*
 lock_rec_other_has_expl_req(
 /*========================*/
-	enum lock_mode		mode,	/*!< in: LOCK_S or LOCK_X */
+	lock_mode		mode,	/*!< in: LOCK_S or LOCK_X */
 	const buf_block_t*	block,	/*!< in: buffer block containing
 					the record */
 	bool			wait,	/*!< in: whether also waiting locks
@@ -1635,7 +1631,7 @@ lock_rec_add_to_queue(
 	}
 
 	if (!(type_mode & (LOCK_WAIT | LOCK_GAP))) {
-		enum lock_mode	mode = (type_mode & LOCK_MODE_MASK) == LOCK_S
+		lock_mode	mode = (type_mode & LOCK_MODE_MASK) == LOCK_S
 			? LOCK_X
 			: LOCK_S;
 		const lock_t*	other_lock
@@ -1840,6 +1836,7 @@ lock_rec_lock_slow(
 
 		err = lock_rec_enqueue_waiting(
 			mode, block, heap_no, index, thr, NULL);
+
 	} else if (!impl) {
 		/* Set the requested lock on the record, note that
 		we already own the transaction mutex. */
@@ -3542,7 +3539,7 @@ lock_table_other_has_incompatible(
 					waiting locks are taken into
 					account, or 0 if not */
 	const dict_table_t*	table,	/*!< in: table */
-	enum lock_mode		mode)	/*!< in: lock mode */
+	lock_mode		mode)	/*!< in: lock mode */
 {
 	const lock_t*	lock;
 
@@ -3758,7 +3755,7 @@ lock_rec_unlock(
 					set a record lock */
 	const buf_block_t*	block,	/*!< in: buffer block containing rec */
 	const rec_t*		rec,	/*!< in: record */
-	enum lock_mode		lock_mode)/*!< in: LOCK_S or LOCK_X */
+	lock_mode		lock_mode)/*!< in: LOCK_S or LOCK_X */
 {
 	lock_t*		first_lock;
 	lock_t*		lock;
@@ -4968,7 +4965,7 @@ lock_rec_queue_validate(
 
 		if (!lock_rec_get_gap(lock) && !lock_get_wait(lock)) {
 
-			enum lock_mode	mode;
+			lock_mode	mode;
 
 			if (lock_get_mode(lock) == LOCK_S) {
 				mode = LOCK_X;
@@ -5661,7 +5658,7 @@ lock_sec_rec_read_check_and_lock(
 					read cursor */
 	dict_index_t*		index,	/*!< in: secondary index */
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	enum lock_mode		mode,	/*!< in: mode of the lock which
+	lock_mode		mode,	/*!< in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -5741,7 +5738,7 @@ lock_clust_rec_read_check_and_lock(
 					read cursor */
 	dict_index_t*		index,	/*!< in: clustered index */
 	const ulint*		offsets,/*!< in: rec_get_offsets(rec, index) */
-	enum lock_mode		mode,	/*!< in: mode of the lock which
+	lock_mode		mode,	/*!< in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
@@ -5815,7 +5812,7 @@ lock_clust_rec_read_check_and_lock_alt(
 					be read or passed over by a
 					read cursor */
 	dict_index_t*		index,	/*!< in: clustered index */
-	enum lock_mode		mode,	/*!< in: mode of the lock which
+	lock_mode		mode,	/*!< in: mode of the lock which
 					the read cursor should set on
 					records: LOCK_S or LOCK_X; the
 					latter is possible in
