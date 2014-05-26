@@ -21657,10 +21657,7 @@ my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
       }
     }
     else
-    {
-      DBUG_ASSERT(is_mb_1(*src));
       *dst++= (char) map[(uchar) (*src++)];
-    }
   }
 
   return (size_t) (dst - dst0);
