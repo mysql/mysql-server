@@ -7686,16 +7686,10 @@ alter_commands:
 
 opt_validation:
           /* empty */
-          {
-            Lex->alter_info.without_validation= false;
-          }
         | WITH VALIDATION_SYM
-          {
-            Lex->alter_info.without_validation= false;
-          }
         | WITHOUT_SYM VALIDATION_SYM
           {
-            Lex->alter_info.without_validation= true;
+            Lex->alter_info.with_validation= false;
           }
 	    ;
 
