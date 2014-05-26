@@ -538,14 +538,14 @@ trx_pool_init();
 void
 trx_pool_close();
 
-/*************************************************************//**
+/**
 Set the transaction as a read-write transaction if it is not already
-tagged as such. */
+tagged as such.
+@param[in,out] trx	Transaction that needs to be "upgraded" to RW from RO */
 
 void
 trx_set_rw_mode(
-/*============*/
-	trx_t*		trx);		/*!< in/out: transaction that is RW */
+	trx_t*		trx);
 
 /**
 Increase the reference count. If the transaction is in state
@@ -571,6 +571,13 @@ trx_release_reference(
 /**
 Check if the transaction is being referenced. */
 #define trx_is_referenced(t)	((t)->n_ref > 0)
+
+/**
+@param[in] trx		Transaction to check
+@return true if the transaction can rollback */
+UNIV_INLINE
+bool
+trx_can_rollback(const trx_t* trx);
 
 /**
 Transactions that aren't started by the MySQL server don't set
