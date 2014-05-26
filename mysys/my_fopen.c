@@ -114,6 +114,8 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
 
     fd= _fileno(stream);
   }
+  else
+    _close(fd);
 
   if ((osfh= CreateFile(path, GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE |
