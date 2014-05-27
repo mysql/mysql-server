@@ -125,6 +125,12 @@ bool trans_begin(THD *thd, uint flags)
     thd->tx_read_only= false;
   }
 
+  if (flags & MYSQL_START_TRANS_OPT_HIGH_PRIORITY) {
+    thd->tx_no_rollback= true;
+  } else {
+    thd->tx_no_rollback= false;
+  }
+
   thd->variables.option_bits|= OPTION_BEGIN;
   thd->server_status|= SERVER_STATUS_IN_TRANS;
   if (thd->tx_read_only)
