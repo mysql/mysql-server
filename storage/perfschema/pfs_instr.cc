@@ -1532,7 +1532,12 @@ void PFS_table::safe_aggregate(PFS_table_stat *table_stat,
   uint key_count= sanitize_index_count(table_share->m_key_count);
 
   /* Aggregate to TABLE_IO_SUMMARY, TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate(table_stat, key_count);
+  if (!table_share->m_table_stat)
+    table_share->m_table_stat= get_table_stat(table_share);
+
+  /* table_stat might still be null as get_table_stat might return NULL. */
+  if (table_share->m_table_stat)
+    table_share->m_table_stat->aggregate(table_stat, key_count);
   table_stat->fast_reset();
 }
 
@@ -1545,7 +1550,12 @@ void PFS_table::safe_aggregate_io(PFS_table_stat *table_stat,
   uint key_count= sanitize_index_count(table_share->m_key_count);
 
   /* Aggregate to TABLE_IO_SUMMARY */
-  table_share->m_table_stat.aggregate_io(table_stat, key_count);
+  if (!table_share->m_table_stat)
+    table_share->m_table_stat= get_table_stat(table_share);
+
+  /* table_stat might still be null as get_table_stat might return NULL. */
+  if (table_share->m_table_stat)
+    table_share->m_table_stat->aggregate_io(table_stat, key_count);
   table_stat->fast_reset_io();
 }
 
@@ -1556,7 +1566,12 @@ void PFS_table::safe_aggregate_lock(PFS_table_stat *table_stat,
   DBUG_ASSERT(table_share != NULL);
 
   /* Aggregate to TABLE_LOCK_SUMMARY */
-  table_share->m_table_stat.aggregate_lock(table_stat);
+  if (!table_share->m_table_stat)
+    table_share->m_table_stat= get_table_stat(table_share);
+
+  /* table_stat might still be null as get_table_stat might return NULL. */
+  if (table_share->m_table_stat)
+    table_share->m_table_stat->aggregate_lock(table_stat);
   table_stat->fast_reset_lock();
 }
 
