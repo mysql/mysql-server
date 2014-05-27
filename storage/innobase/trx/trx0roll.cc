@@ -357,7 +357,7 @@ trx_rollback_to_savepoint_for_mysql_low(
 /*====================================*/
 	trx_t*			trx,	/*!< in/out: transaction */
 	trx_named_savept_t*	savep,	/*!< in/out: savepoint */
-	ib_int64_t*		mysql_binlog_cache_pos)
+	int64_t*		mysql_binlog_cache_pos)
 					/*!< out: the MySQL binlog
 					cache position corresponding
 					to this savepoint; MySQL needs
@@ -407,7 +407,7 @@ trx_rollback_to_savepoint_for_mysql(
 /*================================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name,		/*!< in: savepoint name */
-	ib_int64_t*	mysql_binlog_cache_pos)	/*!< out: the MySQL binlog cache
+	int64_t*	mysql_binlog_cache_pos)	/*!< out: the MySQL binlog cache
 						position corresponding to this
 						savepoint; MySQL needs this
 						information to remove the
@@ -461,7 +461,7 @@ trx_savepoint_for_mysql(
 /*====================*/
 	trx_t*		trx,			/*!< in: transaction handle */
 	const char*	savepoint_name,		/*!< in: savepoint name */
-	ib_int64_t	binlog_cache_pos)	/*!< in: MySQL binlog cache
+	int64_t		binlog_cache_pos)	/*!< in: MySQL binlog cache
 						position corresponding to this
 						connection at the time of the
 						savepoint */
@@ -565,7 +565,7 @@ trx_rollback_active(
 	que_thr_t*	thr;
 	roll_node_t*	roll_node;
 	dict_table_t*	table;
-	ib_int64_t	rows_to_undo;
+	int64_t		rows_to_undo;
 	const char*	unit		= "";
 	ibool		dictionary_locked = FALSE;
 

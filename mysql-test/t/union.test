@@ -1180,11 +1180,11 @@ select 4
 order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ;
 
+--error ER_AGGREGATE_ORDER_FOR_UNION
 eval $my_stmt;
 
+--error ER_AGGREGATE_ORDER_FOR_UNION
 eval prepare stmt1 from '$my_stmt';
-execute stmt1;
-execute stmt1;
 
 let $my_stmt=
 select 1 as foo
@@ -1197,13 +1197,11 @@ union
 order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ;
 
+--error ER_AGGREGATE_ORDER_FOR_UNION
 eval $my_stmt;
 
+--error ER_AGGREGATE_ORDER_FOR_UNION
 eval prepare stmt1 from '$my_stmt';
-execute stmt1;
-execute stmt1;
-
-deallocate prepare stmt1;
 
 --echo End of 5.1 tests
 
@@ -1376,3 +1374,116 @@ SELECT FOUND_ROWS();
 DROP TABLE t1, t2;
 
 --echo # End of WL1763 tests
+
+--echo # Bug#18503515 UNION with set function in ORDER BY should be rejected
+
+--echo # UNIONed queries are non-aggregated:
+let $query=
+SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY MAX(1);
+
+--error ER_AGGREGATE_ORDER_FOR_UNION
+eval $query;
+
+--error ER_AGGREGATE_ORDER_FOR_UNION
+eval prepare stmt from '$query';
+
+let $query=
+SELECT MAX(1) AS foo
+UNION
+SELECT MAX(2)
+ORDER BY foo;
+
+eval $query;
+
+let $query=
+SELECT MAX(1) AS foo
+UNION
+SELECT MAX(2)
+ORDER BY 1 DESC;
+
+eval $query;
+
+--echo # UNIONed queries are aggregated:
+let $query=
+SELECT MAX(1) AS foo
+UNION
+SELECT MAX(2)
+ORDER BY MAX(1);
+
+--error ER_AGGREGATE_ORDER_FOR_UNION
+eval $query;
+
+CREATE TABLE t1(a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+
+--echo # Subquery, ORDER BY contains outer reference
+let $query=
+SELECT (SELECT 1 AS foo
+        UNION
+        SELECT 2
+        ORDER BY a) AS x
+FROM t1;
+
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+
+--echo # Subquery, ORDER BY contains outer reference
+let $query=
+SELECT (SELECT 1 AS foo
+        UNION
+        SELECT 2
+        ORDER BY t1.a) AS x
+FROM t1;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+eval $query;
+
+--echo # Subquery, ORDER BY contains set function with outer reference
+let $query=
+SELECT (SELECT 1 AS foo
+        UNION
+        SELECT 2
+        ORDER BY COUNT(a)) AS x
+FROM t1;
+
+--error ER_AGGREGATE_ORDER_FOR_UNION
+eval $query;
+
+--echo # Subquery, ORDER BY contains set function with outer reference
+let $query=
+SELECT (SELECT 1 AS foo
+        UNION
+        SELECT 2
+        ORDER BY COUNT(t1.a)) AS x
+FROM t1;
+
+--error ER_TABLENAME_NOT_ALLOWED_HERE
+eval $query;
+
+--echo # Subquery, ORDER BY contains set function
+let $query=
+SELECT (SELECT 1 AS foo
+        UNION
+        SELECT 2
+        ORDER BY COUNT(*)) AS x
+FROM t1;
+
+--error ER_AGGREGATE_ORDER_FOR_UNION
+eval $query;
+
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t2 VALUES (1,10), (2,20);
+
+let $query=
+SELECT MAX(a) FROM t2 GROUP BY b
+UNION
+SELECT MAX(a) FROM t2 GROUP BY b
+ORDER BY max(a);
+
+--error ER_BAD_FIELD_ERROR
+eval $query;
+
+DROP TABLE t1, t2;

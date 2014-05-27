@@ -529,6 +529,8 @@ SUCCESS
 # 13. Read-write statement: INSERT IGNORE, change 0 rows. 
 #
 insert ignore t1 set a=2;
+Warnings:
+Warning	1062	Duplicate entry '2' for key 'a'
 call p_verify_status_increment(2, 2, 1, 0);
 SUCCESS
 

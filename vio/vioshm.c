@@ -66,7 +66,7 @@ size_t vio_read_shared_memory(Vio *vio, uchar *buf, size_t size)
       }
 
       vio->shared_memory_pos= vio->handle_map;
-      vio->shared_memory_remain= uint4korr((ulong*)vio->shared_memory_pos);
+      vio->shared_memory_remain= uint4korr(vio->shared_memory_pos);
       vio->shared_memory_pos+= 4;
     }
 
@@ -133,7 +133,7 @@ size_t vio_write_shared_memory(Vio *vio, const uchar *buf, size_t size)
     sz= (remain > shared_memory_buffer_length ? shared_memory_buffer_length :
          remain);
 
-    int4store(vio->handle_map, sz);
+    int4store(vio->handle_map, (uint32)sz);
     pos= vio->handle_map + 4;
     memcpy(pos, current_position, sz);
     remain-= sz;

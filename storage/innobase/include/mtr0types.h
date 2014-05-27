@@ -225,8 +225,10 @@ enum mlog_id_t {
 
 /* @} */
 
-/** Size of a MLOG_CHECKPOINT record in bytes */
-#define SIZE_OF_MLOG_CHECKPOINT	1
+/** Size of a MLOG_CHECKPOINT record in bytes.
+The record consists of a MLOG_CHECKPOINT byte followed by
+mach_write_to_8(checkpoint_lsn). */
+#define SIZE_OF_MLOG_CHECKPOINT	9
 
 /** Types for the mlock objects to store in the mtr memo; NOTE that the
 first 3 values must be RW_S_LATCH, RW_X_LATCH, RW_NO_LATCH */
@@ -257,6 +259,7 @@ enum mtr_memo_type_t {
 #endif /* UNIV_DEBUG */
 
 enum mtr_state_t {
+	MTR_STATE_INIT = 0,
 	MTR_STATE_ACTIVE = 12231,
 	MTR_STATE_COMMITTING = 56456,
 	MTR_STATE_COMMITTED = 34676

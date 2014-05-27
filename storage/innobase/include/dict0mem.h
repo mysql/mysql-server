@@ -45,6 +45,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "hash0hash.h"
 #include "trx0types.h"
 #include "fts0fts.h"
+#include "buf0buf.h"
 #include "gis0type.h"
 #include "os0once.h"
 
@@ -194,7 +195,7 @@ ROW_FORMAT=REDUNDANT.  InnoDB engines do not check these flags
 for unknown bits in order to protect backward incompatibility. */
 /* @{ */
 /** Total number of bits in table->flags2. */
-#define DICT_TF2_BITS			7
+#define DICT_TF2_BITS			8
 #define DICT_TF2_BIT_MASK		~(~0 << DICT_TF2_BITS)
 
 /** TEMPORARY; TRUE for tables from CREATE TEMPORARY TABLE. */
@@ -220,6 +221,13 @@ use its own tablespace instead of the system tablespace. */
 /** This bit is set if all aux table names (both common tables and
 index tables) of a FTS table are in HEX format. */
 #define DICT_TF2_FTS_AUX_HEX_NAME	64
+
+/** Intrinsic table bit
+Intrinsic table is table created internally by MySQL modules viz. Optimizer,
+FTS, etc.... Intrinsic table has all the properties of the normal table except
+it is not created by user and so not visible to end-user. */
+#define DICT_TF2_INTRINSIC		128
+
 /* @} */
 
 #define DICT_TF2_FLAG_SET(table, flag)		\
@@ -550,6 +558,103 @@ struct zip_pad_info_t {
 				rounds */
 };
 
+/** If key is fixed length key then cache the record offsets on first
+computation. This will help save computation cycle that generate same
+redundant data. */
+class rec_cache_t
+{
+public:
+	/** Constructor */
+	rec_cache_t()
+		:
+		rec_size(),
+		offsets(),
+		sz_of_offsets(),
+		fixed_len_key(),
+		offsets_cached(),
+		key_has_null_cols()
+	{
+		/* Do Nothing. */
+	}
+
+public:
+	/** Record size. (for fixed length key record size is constant) */
+	ulint		rec_size;
+
+	/** Holds reference to cached offsets for record. */
+	ulint*		offsets;
+
+	/** Size of offset array */
+	uint32_t	sz_of_offsets;
+
+	/** If true, then key is fixed length key. */
+	bool		fixed_len_key;
+
+	/** If true, then offset has been cached for re-use. */
+	bool		offsets_cached;
+
+	/** If true, then key part can have columns that can take
+	NULL values. */
+	bool		key_has_null_cols;
+};
+
+/** Cache position of last inserted or selected record by caching record
+and holding reference to the block where record resides.
+Note: We don't commit mtr and hold it beyond a transaction lifetime as this is
+a special case (intrinsic table) that are not shared accross connection. */
+class last_ops_cur_t
+{
+public:
+	/** Constructor */
+	last_ops_cur_t()
+		:
+		rec(),
+		block(),
+		mtr(),
+		disable_caching(),
+		invalid()
+	{
+		/* Do Nothing. */
+	}
+
+	/* Commit mtr and re-initialize cache record and block to NULL. */
+	void release()
+	{
+		if (mtr.is_active()) {
+			mtr_commit(&mtr);
+		}
+		rec = NULL;
+		block = NULL;
+		invalid = false;
+	}
+
+public:
+	/** last inserted/selected record. */
+	rec_t*		rec;
+
+	/** block where record reside. */
+	buf_block_t*	block;
+
+	/** active mtr that will be re-used for next insert/select. */
+	mtr_t		mtr;
+
+	/** disable caching. (disabled when table involves blob/text.) */
+	bool		disable_caching;
+
+	/** If index structure is undergoing structural change viz.
+	split then invalidate the cached position as it would be no more
+	remain valid. Will be re-cached on post-split insert. */
+	bool		invalid;
+};
+
+/** "GEN_CLUST_INDEX" is the name reserved for InnoDB default
+system clustered index when there is no primary key. */
+const char innobase_index_reserve_name[] = "GEN_CLUST_INDEX";
+
+/* Estimated number of offsets in records (based on columns)
+to start with. */
+#define OFFS_IN_REC_NORMAL_SIZE		100
+
 /** Data structure for an index.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_index_create(). */
 struct dict_index_t{
@@ -579,11 +684,26 @@ struct dict_index_t{
 				/*!< number of columns the user defined to
 				be in the index: in the internal
 				representation we add more columns */
+	unsigned	allow_duplicates:1;
+				/*!< if true, allow duplicate values
+				even if index is created with unique
+				constraint */
+	unsigned	nulls_equal:1;
+				/*!< if true, SQL NULL == SQL NULL */
+	unsigned	disable_ahi:1;
+				/*!< in true, then disable AHI.
+				Currently limited to intrinsic
+				temporary table as index id is not
+				unqiue for such table which is one of the
+				validation criterion for ahi. */
 	unsigned	n_uniq:10;/*!< number of fields from the beginning
 				which are enough to determine an index
 				entry uniquely */
 	unsigned	n_def:10;/*!< number of fields defined so far */
 	unsigned	n_fields:10;/*!< number of fields in the index */
+	unsigned	auto_gen_clust_index:1;
+				/*!< true if index is auto-generated clustered
+				index. */
 	unsigned	n_nullable:10;/*!< number of nullable fields */
 	unsigned	cached:1;/*!< TRUE if the index object is in the
 				dictionary cache */
@@ -597,6 +717,11 @@ struct dict_index_t{
 				by dict_operation_lock and
 				dict_sys->mutex. Other changes are
 				protected by index->lock. */
+#ifdef UNIV_DEBUG
+	uint32_t	magic_n;/*!< magic number */
+/** Value of dict_index_t::magic_n */
+# define DICT_INDEX_MAGIC_N	76789786
+#endif
 	dict_field_t*	fields;	/*!< array of field descriptions */
 	st_mysql_ftparser*	parser;/*!< fulltext plugin parser */
 #ifndef UNIV_HOTBACKUP
@@ -639,22 +764,30 @@ struct dict_index_t{
 				/*!< approximate number of leaf pages in the
 				index tree */
 	/* @} */
-	rw_lock_t	lock;	/*!< read-write lock protecting the
-				upper levels of the index tree */
+	last_ops_cur_t*	last_ins_cur;
+				/*!< cache the last insert position.
+				Currently limited to auto-generated
+				clustered index on intrinsic table only. */
+	last_ops_cur_t*	last_sel_cur;
+				/*!< cache the last selected position
+				Currently limited to intrinsic table only. */
+	rec_cache_t	rec_cache;
+				/*!< cache the field that needs to be
+				re-computed on each insert.
+				Limited to intrinsic table as this is common
+				share and can't be used without protection
+				if table is accessible to multiple-threads. */
+	rtr_ssn_t	rtr_ssn;/*!< Node sequence number for RTree */
+	rtr_info_track_t*
+			rtr_track;/*!< tracking all R-Tree search cursors */
 	trx_id_t	trx_id; /*!< id of the transaction that created this
 				index, or 0 if the index existed
 				when InnoDB was started up */
 	zip_pad_info_t	zip_pad;/*!< Information about state of
 				compression failures and successes */
-	rtr_ssn_t	rtr_ssn;/*!< Node sequence number for RTree */
-	rtr_info_track_t*
-			rtr_track;/*!< tracking all R-Tree search cursors */
+	rw_lock_t	lock;	/*!< read-write lock protecting the
+				upper levels of the index tree */
 #endif /* !UNIV_HOTBACKUP */
-#ifdef UNIV_DEBUG
-	ulint		magic_n;/*!< magic number */
-/** Value of dict_index_t::magic_n */
-# define DICT_INDEX_MAGIC_N	76789786
-#endif
 };
 
 /** The status of online index creation */
@@ -1061,6 +1194,18 @@ struct dict_table_t {
 
 	/** Timestamp of the last modification of this table. */
 	time_t					update_time;
+
+	/** row-id counter for use by intrinsic table for getting row-id.
+	Given intrinsic table semantics, row-id can be locally maintained
+	instead of getting it from central generator which involves mutex
+	locking. */
+	ib_uint64_t				sess_row_id;
+
+	/** trx_id counter for use by intrinsic table for getting trx-id.
+	Intrinsic table are not shared so don't need a central trx-id
+	but just need a increased counter to track consistent view while
+	proceeding SELECT as part of UPDATE. */
+	ib_uint64_t				sess_trx_id;
 #endif /* !UNIV_HOTBACKUP */
 
 #ifdef UNIV_DEBUG

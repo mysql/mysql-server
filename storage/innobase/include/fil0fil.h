@@ -211,7 +211,7 @@ Returns the version number of a tablespace, -1 if not found.
 @return version number, -1 if the tablespace does not exist in the
 memory cache */
 
-ib_int64_t
+int64_t
 fil_space_get_version(
 /*==================*/
 	ulint	id);	/*!< in: space id */
@@ -729,7 +729,7 @@ bool
 fil_tablespace_deleted_or_being_deleted_in_mem(
 /*===========================================*/
 	ulint		id,	/*!< in: space id */
-	ib_int64_t	version);/*!< in: tablespace_version should be this; if
+	int64_t		version);/*!< in: tablespace_version should be this; if
 				you pass -1 as the value of this, then this
 				parameter is ignored */
 /*******************************************************************//**

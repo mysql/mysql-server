@@ -486,7 +486,8 @@ pick_next(
 			/* Introduce some randomness if the record
 			is identical */
 			if (diff == 0) {
-				diff = static_cast<double>(ut_rnd_gen_ibool());
+				diff = static_cast<double>(
+					ut_rnd_gen_ibool());
 			}
 
 			*n_group = 1 + (diff > 0);

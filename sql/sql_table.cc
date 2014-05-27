@@ -4746,7 +4746,7 @@ bool create_table_impl(THD *thd,
       therefore we don't introduce a new error message only for it.
     */
     mysql_mutex_lock(&LOCK_open);
-    if (get_cached_table_share(db, table_name))
+    if (get_cached_table_share(thd, db, table_name))
     {
       mysql_mutex_unlock(&LOCK_open);
       my_error(ER_TABLE_EXISTS_ERROR, MYF(0), table_name);
@@ -5004,9 +5004,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
   /* Got lock. */
   DEBUG_SYNC(thd, "locked_table_name");
 
-  /* We can abort create table for any table type */
-  thd->abort_on_warning= thd->is_strict_mode();
-
   /*
     Promote first timestamp column, when explicit_defaults_for_timestamp
     is not set
@@ -5043,7 +5040,6 @@ bool mysql_create_table(THD *thd, TABLE_LIST *create_table,
     }
   }
 
-  thd->abort_on_warning= false;
 end:
   DBUG_RETURN(result);
 }
@@ -8340,9 +8336,6 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
   DEBUG_SYNC(thd, "alter_table_before_create_table_no_lock");
   DBUG_EXECUTE_IF("sleep_before_create_table_no_lock",
                   my_sleep(100000););
-  /* We can abort alter table for any table type */
-  thd->abort_on_warning= thd->is_strict_mode();
-
   /*
     Promote first timestamp column, when explicit_defaults_for_timestamp
     is not set
@@ -8374,7 +8367,7 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
                            true, 0, true, NULL,
                            &key_info, &key_count);
   reenable_binlog(thd);
-  thd->abort_on_warning= false;
+
   if (error)
     DBUG_RETURN(true);
 
@@ -8881,13 +8874,10 @@ err_new_table_cleanup:
         f_length= 0;
         DBUG_ASSERT(0);
     }
-    bool save_abort_on_warning= thd->abort_on_warning;
-    thd->abort_on_warning= true;
     make_truncated_value_warning(thd, Sql_condition::SL_WARNING,
                                  ErrConvString(my_zero_datetime6, f_length),
                                  t_type,
                                  alter_ctx.datetime_field->field_name);
-    thd->abort_on_warning= save_abort_on_warning;
   }
 
   DBUG_RETURN(true);
@@ -8986,9 +8976,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
   /* We need external lock before we can disable/enable keys */
   alter_table_manage_keys(to, from->file->indexes_are_disabled(), keys_onoff);
-
-  /* We can abort alter table for any table type */
-  thd->abort_on_warning= thd->is_strict_mode();
 
   from->file->info(HA_STATUS_VARIABLE);
   to->file->ha_start_bulk_insert(from->file->stats.records);
@@ -9148,7 +9135,6 @@ copy_data_between_tables(TABLE *from,TABLE *to,
 
  err:
   thd->variables.sql_mode= save_sql_mode;
-  thd->abort_on_warning= 0;
   free_io_cache(from);
   *copied= found_count;
   *deleted=delete_count;

@@ -305,18 +305,20 @@ log_reserve_and_write_fast(
 
 #ifdef UNIV_LOG_LSN_DEBUG
 	/* Append a MLOG_LSN record after mtr_commit(), except when
-	the last byte could be a MLOG_CHECKPOINT marker. We have special
+	the last bytes could be a MLOG_CHECKPOINT marker. We have special
 	handling when the log consists of only a single MLOG_CHECKPOINT
-	marker byte since the latest checkpoint, and appending the
+	record since the latest checkpoint, and appending the
 	MLOG_LSN would ruin that.
 
-	Note that a longer redo log record could happen to end in a
-	MLOG_CHECKPOINT byte, and we could be omitting MLOG_LSN
+	Note that a longer redo log record could happen to end in what
+	looks like MLOG_CHECKPOINT, and we could be omitting MLOG_LSN
 	without reason. This is OK, because writing the MLOG_LSN is
 	just a 'best effort', aimed at finding log corruption due to
 	bugs in the redo log writing logic. */
 	const ulint	lsn_len
-		= static_cast<const char*>(str)[len - 1] == MLOG_CHECKPOINT
+		= len >= SIZE_OF_MLOG_CHECKPOINT
+		&& MLOG_CHECKPOINT == static_cast<const char*>(str)[
+			len - SIZE_OF_MLOG_CHECKPOINT]
 		? 0
 		: 1
 		+ mach_get_compressed_size(log_sys->lsn >> 32)
@@ -430,7 +432,20 @@ void
 log_free_check(void)
 /*================*/
 {
-	dict_sync_check	check(true);
+	/* During row_log_table_apply(), this function will be called while we
+	are holding some latches. This is OK, as long as we are not holding
+	any latches on buffer blocks. */
+
+	static const latch_level_t latches[] = {
+		SYNC_DICT,		/* dict_sys->mutex during
+					commit_try_rebuild() */
+		SYNC_DICT_OPERATION,	/* dict_operation_lock X-latch during
+					commit_try_rebuild() */
+		SYNC_INDEX_TREE		/* index->lock */
+	};
+
+	sync_allowed_latches check(latches,
+				   latches + sizeof(latches)/sizeof(*latches));
 
         ut_ad(!sync_check_iterate(check));
 

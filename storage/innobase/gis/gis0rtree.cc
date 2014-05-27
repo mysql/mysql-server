@@ -348,14 +348,10 @@ rtr_update_mbr_field(
 					index, offsets,
 					rec_offs_size(offsets),
 					false, mtr)) {
-				ulint r_info;
 
 				/* If there's not enought space for
 				inplace update zip page, we do delete
 				insert. */
-				r_info = dtuple_get_info_bits(node_ptr)
-						| REC_INFO_MIN_REC_FLAG;
-				dtuple_set_info_bits(node_ptr, r_info);
 				ins_suc = false;
 
 				/* Since btr_cur_update_alloc_zip could
@@ -1178,13 +1174,13 @@ func_start:
 	For compressed pages, page_cur_tuple_insert() will have
 	attempted this already. */
 	if (rec == NULL) {
-		if (page_cur_get_page_zip(page_cursor)
-		    || !btr_page_reorganize(page_cursor, cursor->index, mtr)) {
-			ut_ad(0);
-		}
-		rec = page_cur_tuple_insert(page_cursor, tuple, cursor->index,
-				    offsets, heap, n_ext, mtr);
+		if (!page_cur_get_page_zip(page_cursor)
+		    && btr_page_reorganize(page_cursor, cursor->index, mtr)) {
+			rec = page_cur_tuple_insert(page_cursor, tuple,
+						    cursor->index, offsets,
+						    heap, n_ext, mtr);
 
+		}
 		/* If insert fail, we will try to split the insert_block
 		again. */
 	}
@@ -1418,7 +1414,8 @@ rtr_page_copy_rec_list_end_no_locks(
 				} else {
 					btr_rec_set_deleted_flag(
 						cur_rec,
-						buf_block_get_page_zip(block),
+						buf_block_get_page_zip(
+							new_block),
 						FALSE);
 					goto next;
 				}
@@ -1543,10 +1540,11 @@ rtr_page_copy_rec_list_start_no_locks(
 					dict_table_is_comp(index->table))) {
 					goto next;
 				} else {
+					/* We have two identical leaf records,
+					skip copying the undeleted one, and
+					unmark deleted on the current page */
 					btr_rec_set_deleted_flag(
-						cur_rec,
-						buf_block_get_page_zip(new_block),
-						FALSE);
+						cur_rec, NULL, FALSE);
 					goto next;
 				}
 			}
@@ -1667,7 +1665,7 @@ rtr_merge_mbr_changed(
 			rec2, index, NULL, ULINT_UNDEFINED, &heap);
 
 		/* Check any primary key fields have been changed */
-		if (cmp_rec_rec(rec1, rec2, offsets1, offsets2, index) > 0) {
+		if (cmp_rec_rec(rec1, rec2, offsets1, offsets2, index) != 0) {
 			changed = true;
 		}
 

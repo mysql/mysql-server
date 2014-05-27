@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -303,9 +303,16 @@ bool Sql_cmd_alter_table::execute(THD *thd)
 
   thd->enable_slow_log= opt_log_slow_admin_statements;
 
+  /* Push Strict_error_handler for alter table*/
+  Strict_error_handler strict_handler;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
+
   result= mysql_alter_table(thd, select_lex->db, lex->name.str,
                             &create_info, first_table, &alter_info);
 
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->pop_internal_handler();
   DBUG_RETURN(result);
 }
 
