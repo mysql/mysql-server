@@ -569,6 +569,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
+rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 %if 0%{?systemd}
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
