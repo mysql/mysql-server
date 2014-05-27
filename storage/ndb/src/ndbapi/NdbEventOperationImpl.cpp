@@ -1382,6 +1382,8 @@ NdbEventBuffer::nextEvent()
   Uint64 gci= 0;
   while ((data= m_available_data.m_head))
   {
+    move_head_event_data_item_to_used_data_queue(data);
+
     NdbEventOperationImpl *op= data->m_event_op;
 
     /*
@@ -1407,7 +1409,6 @@ NdbEventBuffer::nextEvent()
 
     // set NdbEventOperation data
     op->m_data_item= data;
-    move_head_event_data_item_to_used_data_queue(data);
     gci = op->getGCI();
 
 #ifdef VM_TRACE
