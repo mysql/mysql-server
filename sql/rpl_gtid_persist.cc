@@ -467,10 +467,10 @@ int Gtid_table_persistor::save(Gtid_set *gtid_set)
   ret= error= save(table, gtid_set);
 
 end:
-  table_access_ctx.deinit(thd, table, 0 != error, false);
+  table_access_ctx.deinit(thd, table, 0 != error, true);
 
   /* Notify compression thread to compress gtid_executed table. */
-  if (error == 0)
+  if (error == 0 && DBUG_EVALUATE_IF("dont_compress_gtid_table", 0, 1))
   {
     should_compress= true;
     m_count= 0;
