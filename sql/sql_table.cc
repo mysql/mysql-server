@@ -2352,9 +2352,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
 
       /* Check that we have an exclusive lock on the table to be dropped. */
-      DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                                 table->table_name,
-                                                 MDL_EXCLUSIVE));
+      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                     table->db, table->table_name,
+                                     MDL_EXCLUSIVE));
       if (thd->killed)
       {
         error= -1;
@@ -5309,14 +5309,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DBUG_ASSERT(table->table || table->view ||
               (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
               (thd->locked_tables_mode != LTM_LOCK_TABLES &&
-               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                              table->table_name,
-                                              MDL_EXCLUSIVE)) ||
+               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                  table->db, table->table_name,
+                                  MDL_EXCLUSIVE)) ||
               (thd->locked_tables_mode == LTM_LOCK_TABLES &&
                (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
-               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                              table->table_name,
-                                              MDL_SHARED_NO_WRITE)));
+               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                  table->db, table->table_name,
+                                  MDL_SHARED_NO_WRITE)));
 
   DEBUG_SYNC(thd, "create_table_like_before_binlog");
 
@@ -8055,9 +8055,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Global intention exclusive lock must have been already acquired when
         table to be altered was open, so there is no need to do it here.
       */
-      DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL,
-                                                 "", "",
-                                                 MDL_INTENTION_EXCLUSIVE));
+      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                     "", "", MDL_INTENTION_EXCLUSIVE));
 
       if (thd->mdl_context.acquire_locks(&mdl_requests,
                                          thd->variables.lock_wait_timeout))
