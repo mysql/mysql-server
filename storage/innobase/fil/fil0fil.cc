@@ -3014,7 +3014,8 @@ fil_truncate_tablespace(
 	space->size = node->size = size_in_pages;
 
 	bool success = os_file_truncate(
-			node->name, node->handle, size_in_pages * UNIV_PAGE_SIZE);
+			node->name, node->handle,
+			size_in_pages * UNIV_PAGE_SIZE);
 	if (success) {  
 		space->stop_new_ops = false;
 		space->is_being_truncated = false;
