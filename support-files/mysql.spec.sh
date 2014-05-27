@@ -593,6 +593,10 @@ install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
+# Remove man pages we explicitly do not want to package, avoids 'unpackaged
+ # files' warning.
+ # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -rf $RBR%{_bindir}/mysqlhotcopy
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
