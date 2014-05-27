@@ -47,7 +47,10 @@ a	b
 111	11
 102	12
 112	12
-update bug38999_1,bug38999_2 set bug38999_1.b=bug38999_1.b+2,bug38999_2.b=bug38999_1.b+10 where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
+update bug38999_1 force index (b) straight_join bug38999_2
+set bug38999_1.b=bug38999_1.b+2,
+bug38999_2.b=bug38999_1.b+10
+where bug38999_1.b between 3 and 5 and bug38999_1.a=bug38999_2.a+100;
 select * from bug38999_1;
 a	b
 201	1
