@@ -1113,7 +1113,7 @@ fil_mtr_rename_log(
 	mtr_t*			mtr)
 	__attribute__((warn_unused_result));
 
-/** Tablespaces to look up for invoking fil_names_write() */
+/** Tablespaces to look up for invoking fil_names_write_if_was_clean() */
 struct fil_spaces_t {
 	/** User tablespace, or NULL if not modified */
 	fil_space_t*	user;
@@ -1123,7 +1123,7 @@ struct fil_spaces_t {
 	fil_space_t*	undo;
 };
 
-/** Look up some tablespaces for invoking fil_names_write().
+/** Look up some tablespaces for invoking fil_names_write_if_was_clean().
 @param[out]	spaces		tablespace pointers
 @param[in]	user_space_id	modified user tablespace, or 0 if none
 @param[in]	undo_space_id	modified undo tablespace, or 0 if none
@@ -1136,22 +1136,25 @@ fil_spaces_lookup(
 	ulint		undo_space_id,
 	bool		find_system);
 
-/** Write a MLOG_FILE_NAME record for a persistent tablespace.
-@param[in]	space	tablespace
-@param[in,out]	mtr	mini-transaction */
-
-void
-fil_names_write(
-	const fil_space_t*	space,
-	mtr_t*			mtr);
-
-/** Note that a persistent tablespace has been modified.
+/** Check if any persistent tablespaces have been modified.
 @param[in,out]	space	tablespace
 @return whether this is the first dirtying since fil_names_clear() */
 
 bool
 fil_names_dirty(
 	fil_space_t*	space)
+	__attribute__((warn_unused_result));
+
+/** Write MLOG_FILE_NAME records if any persistent tablespace was modified
+for the first time since the latest fil_names_clear().
+@param[in,out]	spaces	tablespaces
+@param[in,out]	mtr	mini-transaction
+@return whether any MLOG_FILE_NAME record was written */
+
+bool
+fil_names_write_if_was_clean(
+	fil_spaces_t*	spaces,
+	mtr_t*		mtr)
 	__attribute__((warn_unused_result));
 
 /** On a log checkpoint, reset fil_names_dirty() flags
