@@ -5209,8 +5209,8 @@ ER_FPARSER_EOF_IN_UNKNOWN_PARAMETER
 ER_VIEW_NO_EXPLAIN  
         eng "EXPLAIN/SHOW can not be issued; lacking privileges for underlying table"
         ger "EXPLAIN/SHOW kann nicht verlangt werden. Rechte für zugrunde liegende Tabelle fehlen"
-        rus "EXPLAIN/SHOW не может быть выполненно; недостаточно прав на такблицы запроса"
-        ukr "EXPLAIN/SHOW не може бути віконано; немає прав на тиблиці запиту"
+        rus "EXPLAIN/SHOW не может быть выполненно; недостаточно прав на таблицы запроса"
+        ukr "EXPLAIN/SHOW не може бути виконано; немає прав на тиблиці запиту"
 ER_FRM_UNKNOWN_TYPE  
         eng "File '%-.192s' has unknown type '%-.64s' in its header"
         ger "Datei '%-.192s' hat unbekannten Typ '%-.64s' im Header"
