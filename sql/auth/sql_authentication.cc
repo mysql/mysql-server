@@ -1144,8 +1144,8 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     Cast *passwd to an unsigned char, so that it doesn't extend the sign for
     *passwd > 127 and become 2**32-127+ after casting to uint.
   */
-  uint passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
-                    (uchar) (*passwd++) : strlen(passwd));
+  size_t passwd_len= (mpvio->client_capabilities & CLIENT_SECURE_CONNECTION ?
+                     (uchar) (*passwd++) : strlen(passwd));
 
   db+= passwd_len + 1;
   /*
@@ -1158,7 +1158,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
     DBUG_RETURN (1);
   }
 
-  uint db_len= strlen(db);
+  size_t db_len= strlen(db);
 
   char *ptr= db + db_len + 1;
 
@@ -2407,6 +2407,17 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     else
       *sctx->priv_host= 0;
 
+    mysql_mutex_lock(&LOCK_offline_mode);
+    bool tmp_offline_mode= MY_TEST(offline_mode);
+    mysql_mutex_unlock(&LOCK_offline_mode);
+
+    if (tmp_offline_mode && !(sctx->master_access & SUPER_ACL)
+	&& !thd->is_error())
+    {
+      my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+      DBUG_RETURN(1);
+    }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       OK. Let's check the SSL. Historically it was checked after the password,
@@ -2423,9 +2434,10 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
-    password_time_expired= check_password_lifetime(thd, acl_user);
+    /* checking password_time_expire for connecting user */
+    password_time_expired= check_password_lifetime(thd, mpvio.acl_user);
 
-    if (unlikely(acl_user && (acl_user->password_expired ||
+    if (unlikely(mpvio.acl_user && (mpvio.acl_user->password_expired ||
 	password_time_expired) &&
         !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
         && disconnect_on_expired_password))
@@ -2457,7 +2469,13 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
-    sctx->password_expired= acl_user->password_expired || password_time_expired;
+    /*
+      We are copying the connected user's password expired flag to the security
+      context.
+      This allows proxy user to execute queries even if proxied user password
+      expires.
+    */
+    sctx->password_expired= mpvio.acl_user->password_expired || password_time_expired;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else
@@ -2859,7 +2877,7 @@ http://dev.mysql.com/doc/internals/en/connection-phase-packets.html#packet-Proto
     */
     if (pkt_len == 1 && *pkt == 1)
     {
-      uint pem_length= strlen(g_rsa_keys.get_public_key_as_pem());
+      uint pem_length= static_cast<uint>(strlen(g_rsa_keys.get_public_key_as_pem()));
       if (vio->write_packet(vio,
                             (unsigned char *)g_rsa_keys.get_public_key_as_pem(),
                             pem_length))

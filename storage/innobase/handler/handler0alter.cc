@@ -289,7 +289,8 @@ ha_innobase::check_if_supported_inplace_alter(
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ADD_SPATIAL_INDEX)
 	    || ((ha_alter_info->handler_flags
-		 & Alter_inplace_info::ADD_PK_INDEX)
+		 & Alter_inplace_info::ADD_PK_INDEX
+		 || innobase_need_rebuild(ha_alter_info))
 		&& innobase_spatial_exist(altered_table))) {
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
@@ -3910,34 +3911,32 @@ check_if_can_drop_indexes:
 			}
 		}
 
-		if (prebuilt->trx->check_foreigns) {
-			for (uint i = 0; i < n_drop_index; i++) {
-			     dict_index_t*	index = drop_index[i];
+		for (uint i = 0; i < n_drop_index; i++) {
+			dict_index_t*	index = drop_index[i];
 
-				if (innobase_check_foreign_key_index(
-					ha_alter_info, index,
-					indexed_table, col_names,
-					prebuilt->trx, drop_fk, n_drop_fk)) {
-					row_mysql_unlock_data_dictionary(
-						prebuilt->trx);
-					prebuilt->trx->error_info = index;
-					print_error(HA_ERR_DROP_INDEX_FK,
-						    MYF(0));
-					goto err_exit;
-				}
-			}
-
-			/* If a primary index is dropped, need to check
-			any depending foreign constraints get affected */
-			if (drop_primary
-			    && innobase_check_foreign_key_index(
-				ha_alter_info, drop_primary,
+			if (innobase_check_foreign_key_index(
+				ha_alter_info, index,
 				indexed_table, col_names,
 				prebuilt->trx, drop_fk, n_drop_fk)) {
-				row_mysql_unlock_data_dictionary(prebuilt->trx);
-				print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
+				row_mysql_unlock_data_dictionary(
+					prebuilt->trx);
+				prebuilt->trx->error_info = index;
+				print_error(HA_ERR_DROP_INDEX_FK,
+					    MYF(0));
 				goto err_exit;
 			}
+		}
+
+		/* If a primary index is dropped, need to check
+		any depending foreign constraints get affected */
+		if (drop_primary
+		    && innobase_check_foreign_key_index(
+			    ha_alter_info, drop_primary,
+			    indexed_table, col_names,
+			    prebuilt->trx, drop_fk, n_drop_fk)) {
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
+			goto err_exit;
 		}
 
 		row_mysql_unlock_data_dictionary(prebuilt->trx);

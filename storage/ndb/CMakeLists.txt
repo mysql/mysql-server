@@ -134,9 +134,11 @@ IF(WITH_NDB_DEFAULT_PLUGIN_DETECT)
   ENDIF()
 ENDIF()
 
-MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
-  ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
-  LINK_LIBRARIES ndbclient_static)
+IF(NOT WITHOUT_SERVER)
+  MYSQL_ADD_PLUGIN(ndbcluster ${NDBCLUSTER_SOURCES} STORAGE_ENGINE
+    ${is_default_plugin} STATIC_ONLY RECOMPILE_FOR_EMBEDDED
+    LINK_LIBRARIES ndbclient_static)
+ENDIF()
 
 #
 # Build NDB only if MYSQL_ADD_PLUGIN has decided(by looking at various
@@ -150,7 +152,9 @@ ENDIF()
 # Add HAVE_NDB_BINLOG to the list of compile definitions used when compiling
 # the ndbcluster plugin library(NOTE! there is also ndbcluster_embedded which
 # is compiled without this define)
-NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
+IF(NOT WITHOUT_SERVER)
+  NDB_ADD_TARGET_PROPERTY(ndbcluster COMPILE_DEFINITIONS "HAVE_NDB_BINLOG")
+ENDIF()
 
 IF(CMAKE_SIZEOF_VOID_P EQUAL 4)
   MESSAGE(STATUS "Building NDB 32-bit")

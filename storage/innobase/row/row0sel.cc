@@ -248,12 +248,12 @@ row_sel_sec_rec_is_for_clust_rec(
 			byte*		dptr =
 				const_cast<byte*>(clust_field);
 
-			rtree_mbr_from_wkb(
-				dptr + GEO_DATA_HEADER_SIZE,
-				static_cast<uint>(clust_len)
-				- GEO_DATA_HEADER_SIZE,
-				SPDIMS,
-				reinterpret_cast<double*>(&tmp_mbr));
+			rtree_mbr_from_wkb(dptr + GEO_DATA_HEADER_SIZE,
+					   static_cast<uint>(clust_len
+					   - GEO_DATA_HEADER_SIZE),
+					   SPDIMS,
+					   reinterpret_cast<double*>(
+						&tmp_mbr));
 			rtr_read_mbr(sec_field, &sec_mbr);
 
 			if (!MBR_CONTAIN_CMP(&sec_mbr, &tmp_mbr)) {
@@ -1158,7 +1158,7 @@ re_scan:
 
 func_end:
 	rw_lock_x_unlock(&(match->block.lock));
-	if (heap) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -3198,11 +3198,12 @@ row_sel_store_mysql_rec(
 
 	/* FIXME: We only need to read the doc_id if an FTS indexed
 	column is being updated.
-	NOTE, the record must be cluster index record. Secondary index
-	might not have the Doc ID */
-	if (dict_table_has_fts_index(prebuilt->table)
-	    && dict_index_is_clust(index)) {
-
+	NOTE, the record can be cluster or secondary index record.
+	if secondary index is used then FTS_DOC_ID column should be part
+	of this index. */
+	if (dict_table_has_fts_index(prebuilt->table) &&
+		(dict_index_is_clust(index) ||
+			prebuilt->fts_doc_id_in_read_set)) {
 		prebuilt->fts_doc_id = fts_get_doc_id_from_rec(
 			prebuilt->table, rec, NULL);
 	}
@@ -3926,35 +3927,339 @@ row_search_idx_cond_check(
 	return(result);
 }
 
-/********************************************************************//**
-Searches for rows in the database. This is used in the interface to
-MySQL. This function opens a cursor, and also implements fetch next
-and fetch prev. NOTE that if we do a search with a full key value
-from a unique index (ROW_SEL_EXACT), then we will not store the cursor
-position and fetch next or fetch prev must not be tried to the cursor!
-@return DB_SUCCESS, DB_RECORD_NOT_FOUND, DB_END_OF_INDEX, DB_DEADLOCK,
-DB_LOCK_TABLE_FULL, DB_CORRUPTION, or DB_TOO_BIG_RECORD */
+/** Traverse to next/previous record.
+@param[in]	moves_up	if true, move to next record else previous
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in,out]	pcur		cursor to record
+@param[in]	mtr		mini transaction
+
+@return DB_SUCCESS or error code */
+static
+dberr_t
+row_search_traverse(
+	bool		moves_up,
+	ulint		match_mode,
+	btr_pcur_t*	pcur,
+	mtr_t*		mtr)
+{
+	dberr_t		err = DB_SUCCESS;
+
+	if (moves_up) {
+		if (!btr_pcur_move_to_next(pcur, mtr)) {
+			err = (match_mode != 0)
+				? DB_RECORD_NOT_FOUND : DB_END_OF_INDEX;
+			return(err);
+		}
+	} else {
+		if (!btr_pcur_move_to_prev(pcur, mtr)) {
+			err = (match_mode != 0)
+				? DB_RECORD_NOT_FOUND : DB_END_OF_INDEX;
+			return(err);
+		}
+	}
+
+	return(err);
+}
+
+/** Searches for rows in the database using cursor.
+function is meant for temporary table that are not shared accross connection
+and so lot of complexity is reduced especially locking and transaction related.
+The cursor is an iterator over the table/index.
+
+@param[out]	buf		buffer for the fetched row in MySQL format
+@param[in]	mode		search mode PAGE_CUR_L
+@param[in,out]	prebuilt	prebuilt struct for the table handler;
+				this contains the info to search_tuple,
+				index; if search tuple contains 0 field then
+				we position the cursor at start or the end of
+				index, depending on 'mode'
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+				Note: if this is != 0, then prebuilt must has a
+				pcur with stored position! In opening of a
+				cursor 'direction' should be 0.
+@param[in,out]	session		session handler
+@return DB_SUCCESS or error code */
 
 dberr_t
-row_search_for_mysql(
-/*=================*/
-	byte*		buf,		/*!< in/out: buffer for the fetched
-					row in the MySQL format */
-	ulint		mode,		/*!< in: search mode PAGE_CUR_L, ... */
-	row_prebuilt_t*	prebuilt,	/*!< in: prebuilt struct for the
-					table handle; this contains the info
-					of search_tuple, index; if search
-					tuple contains 0 fields then we
-					position the cursor at the start or
-					the end of the index, depending on
-					'mode' */
-	ulint		match_mode,	/*!< in: 0 or ROW_SEL_EXACT or
-					ROW_SEL_EXACT_PREFIX */
-	ulint		direction)	/*!< in: 0 or ROW_SEL_NEXT or
-					ROW_SEL_PREV; NOTE: if this is != 0,
-					then prebuilt must have a pcur
-					with stored position! In opening of a
-					cursor 'direction' should be 0. */
+row_search_no_mvcc(
+	byte*			buf,
+	ulint			mode,
+	row_prebuilt_t*		prebuilt,
+	ulint			match_mode,
+	ulint			direction,
+	innodb_session_t*	session)
+{
+	dict_index_t*	index		= prebuilt->index;
+	const dtuple_t*	search_tuple	= prebuilt->search_tuple;
+	btr_pcur_t*	pcur		= &prebuilt->pcur;
+	dict_index_t*	clust_index;
+	que_thr_t*	thr;
+
+	const rec_t*	rec;
+	const rec_t*	result_rec	= NULL;
+	const rec_t*	clust_rec	= NULL;
+
+	dberr_t		err		= DB_SUCCESS;
+	ibool		moves_up	= FALSE;
+
+	mtr_t*		mtr;
+
+	mem_heap_t*	heap		= NULL;
+	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
+	ulint*		offsets		= offsets_;
+	rec_offs_init(offsets_);
+	ut_ad(index && pcur && search_tuple);
+
+	/* Step-0: Re-use the cached mtr. */
+	mtr = &index->last_sel_cur->mtr;
+	clust_index = dict_table_get_first_index(index->table);
+
+	/* Step-1: Build the select graph. */
+	if (direction == 0 && prebuilt->sel_graph == NULL) {
+		row_prebuild_sel_graph(prebuilt);
+	}
+	thr = que_fork_get_first_thr(prebuilt->sel_graph);
+
+	if (direction == 0) {
+		if (mode == PAGE_CUR_GE || mode == PAGE_CUR_G) {
+			moves_up = TRUE;
+		}
+	} else if (direction == ROW_SEL_NEXT) {
+		moves_up = TRUE;
+	}
+
+	/* Step-2: Open or Restore the cursor.
+	If search key is specified, cursor is open using the key else
+	cursor is open to return all the records. */
+	if (direction != 0) {
+		if (index->last_sel_cur->invalid) {
+
+			/* Index tree has changed and so active cached cursor
+			is no more valid. Re-set it based on the last selected
+			position. */
+			index->last_sel_cur->release();
+
+			mtr_start(mtr);
+			dict_disable_redo_if_temporary(index->table, mtr);
+
+			mem_heap_t*	heap = mem_heap_create(256);
+			dtuple_t*	tuple;
+
+			tuple = dict_index_build_data_tuple(
+				index, pcur->old_rec,
+				pcur->old_n_fields, heap);
+
+			btr_pcur_open_with_no_init(
+				index, tuple, pcur->search_mode,
+				BTR_SEARCH_LEAF, pcur, 0, mtr);
+
+			mem_heap_free(heap);
+		} else {
+			/* Restore the cursor for reading next record from cache
+			information. */
+			ut_ad(index->last_sel_cur->rec != NULL);
+
+			pcur->btr_cur.page_cur.rec = index->last_sel_cur->rec;
+			pcur->btr_cur.page_cur.block =
+				index->last_sel_cur->block;
+
+			err = row_search_traverse(
+				moves_up, match_mode, pcur, mtr);
+			if (err != DB_SUCCESS) {
+				return(err);
+			}
+		}
+	} else {
+		/* There could be previous uncommitted transaction if SELECT
+		is operation as part of SELECT (IF NOT FOUND) INSERT
+		(IF DUPLICATE) UPDATE plan. */
+		index->last_sel_cur->release();
+
+		/* Capture table snapshot in form of trx-id. */
+		index->trx_id = session->get_table_curr_sess_trx_id(
+			index->table->name);
+
+		/* Fresh search commences. */
+		mtr_start(mtr);
+		dict_disable_redo_if_temporary(index->table, mtr);
+
+		if (dtuple_get_n_fields(search_tuple) > 0) {
+
+			btr_pcur_open_with_no_init(
+				index, search_tuple, mode, BTR_SEARCH_LEAF,
+				pcur, 0, mtr);
+
+		} else if (mode == PAGE_CUR_G || mode == PAGE_CUR_L) {
+
+			btr_pcur_open_at_index_side(
+				mode == PAGE_CUR_G, index, BTR_SEARCH_LEAF,
+				pcur, false, 0, mtr);
+
+		}
+	}
+
+	/* Step-3: Traverse the records filtering non-qualifiying records. */
+	for (;
+	     err == DB_SUCCESS;
+	     err = row_search_traverse(moves_up, match_mode, pcur, mtr)) {
+
+		rec = btr_pcur_get_rec(pcur);
+
+		if (page_rec_is_infimum(rec)
+		    || page_rec_is_supremum(rec)
+		    || rec_get_deleted_flag(
+			rec, dict_table_is_comp(index->table))) {
+
+			/* The infimum record on a page cannot be in the
+			result set, and neither can a record lock be placed on
+			it: we skip such a record. */
+			continue;
+		}
+
+		offsets = rec_get_offsets(
+			rec, index, offsets, ULINT_UNDEFINED, &heap);
+
+		/* Note that we cannot trust the up_match value in the cursor
+		at this place because we can arrive here after moving the
+		cursor! Thus we have to recompare rec and search_tuple to
+		determine if they match enough. */
+		if (match_mode == ROW_SEL_EXACT) {
+			/* Test if the index record matches completely to
+			search_tuple in prebuilt: if not, then we return with
+			DB_RECORD_NOT_FOUND */
+			if (0 != cmp_dtuple_rec(search_tuple, rec, offsets)) {
+				err = DB_RECORD_NOT_FOUND;
+				continue;
+			}
+		} else if (match_mode == ROW_SEL_EXACT_PREFIX) {
+			if (!cmp_dtuple_is_prefix_of_rec(
+				search_tuple, rec, offsets)) {
+				err = DB_RECORD_NOT_FOUND;
+				continue;
+			}
+		}
+
+		/* Get the clustered index. We always need clustered index
+		record for snapshort verification. */
+		if (index != clust_index) {
+
+			err = row_sel_get_clust_rec_for_mysql(
+				prebuilt, index, rec, thr, &clust_rec,
+				&offsets, &heap, mtr);
+
+			if (err != DB_SUCCESS) {
+				continue;
+			}
+
+			if (rec_get_deleted_flag(
+				clust_rec, dict_table_is_comp(index->table))) {
+
+				/* The record is delete marked in clustered
+				index. We can skip this record. */
+				continue;
+			}
+
+			result_rec = clust_rec;
+		} else {
+			result_rec = rec;
+		}
+
+		/* Step-4: Check if row is part of the consistent view that was
+		captured while SELECT statement started execution. */
+		{
+			trx_id_t	trx_id;
+			trx_id = row_get_rec_trx_id(
+				result_rec, clust_index, offsets);
+			if (trx_id > index->trx_id) {
+				/* This row was recently added skip it from
+				SELECT view. */
+				continue;
+			}
+		}
+
+		/* Step-5: Cache the row-id of selected row to prebuilt cache.*/
+		if (prebuilt->clust_index_was_generated) {
+			row_sel_store_row_id_to_prebuilt(
+				prebuilt, result_rec, clust_index, offsets);
+		}
+
+		/* Step-6: Convert selected record to MySQL format and
+		store it. */
+		if (prebuilt->template_type == ROW_MYSQL_DUMMY_TEMPLATE) {
+
+			const rec_t*	ret_rec =
+				(index != clust_index
+				 && prebuilt->need_to_access_clustered)
+				? result_rec : rec;
+
+			offsets = rec_get_offsets(ret_rec, index, offsets,
+						  ULINT_UNDEFINED, &heap);
+
+			memcpy(buf + 4, ret_rec - rec_offs_extra_size(offsets),
+			rec_offs_size(offsets));
+
+			mach_write_to_4(buf, rec_offs_extra_size(offsets) + 4);
+
+		} else if (!row_sel_store_mysql_rec(
+				buf, prebuilt, result_rec, TRUE,
+				clust_index, offsets)) {
+			continue;
+		}
+
+		/* Step-7: Store cursor position to fetch next record.
+		MySQL calls this function iteratively get_next(), get_next()
+		fashion. */
+		ut_ad(err == DB_SUCCESS);
+		index->last_sel_cur->rec = btr_pcur_get_rec(pcur);
+		index->last_sel_cur->block = btr_pcur_get_block(pcur);
+
+		/* This is needed in order to restore the cursor if index
+		structure changes while SELECT is still active. */
+		pcur->old_rec = dict_index_copy_rec_order_prefix(
+			index, rec, &pcur->old_n_fields,
+			&pcur->old_rec_buf, &pcur->buf_size);
+
+		break;
+	}
+
+	if (err != DB_SUCCESS) {
+		index->last_sel_cur->release();
+	}
+
+	if (heap != NULL) {
+		mem_heap_free(heap);
+	}
+	return(err);
+}
+
+/** Searches for rows in the database using cursor.
+Function is mainly used for tables that are shared accorss connection and
+so it employs technique that can help re-construct the rows that
+transaction is suppose to see.
+It also has optimization such as pre-caching the rows, using AHI, etc.
+
+@param[out]	buf		buffer for the fetched row in MySQL format
+@param[in]	mode		search mode PAGE_CUR_L
+@param[in,out]	prebuilt	prebuilt struct for the table handler;
+				this contains the info to search_tuple,
+				index; if search tuple contains 0 field then
+				we position the cursor at start or the end of
+				index, depending on 'mode'
+@param[in]	match_mode	0 or ROW_SEL_EXACT or ROW_SEL_EXACT_PREFIX
+@param[in]	direction	0 or ROW_SEL_NEXT or ROW_SEL_PREV;
+				Note: if this is != 0, then prebuilt must has a
+				pcur with stored position! In opening of a
+				cursor 'direction' should be 0.
+@return DB_SUCCESS or error code */
+
+dberr_t
+row_search_mvcc(
+	byte*		buf,
+	ulint		mode,
+	row_prebuilt_t*	prebuilt,
+	ulint		match_mode,
+	ulint		direction)
 {
 	dict_index_t*	index		= prebuilt->index;
 	ibool		comp		= dict_table_is_comp(index->table);
@@ -3997,7 +4302,7 @@ row_search_for_mysql(
 	we implemented FTS as reversed inverted index with auxiliary tables.
 	So anything related to traditional index query would not apply to
 	it. */
-	if (index->type & DICT_FTS) {
+	if (prebuilt->index->type & DICT_FTS) {
 		return(DB_END_OF_INDEX);
 	}
 
@@ -4018,7 +4323,7 @@ row_search_for_mysql(
 
 		return(DB_MISSING_HISTORY);
 
-	} else if (dict_index_is_corrupted(index)) {
+	} else if (dict_index_is_corrupted(prebuilt->index)) {
 
 		return(DB_CORRUPTION);
 
@@ -4179,6 +4484,7 @@ row_search_for_mysql(
 		mode = PAGE_CUR_GE;
 
 		if (trx->mysql_n_tables_locked == 0
+		    && !prebuilt->ins_sel_stmt
 		    && prebuilt->select_lock_type == LOCK_NONE
 		    && trx->isolation_level > TRX_ISO_READ_UNCOMMITTED
 		    && MVCC::is_view_active(trx->read_view)) {
@@ -5750,7 +6056,7 @@ row_search_autoinc_read_column(
 		ut_error;
 	}
 
-	if (!unsigned_type && (ib_int64_t) value < 0) {
+	if (!unsigned_type && static_cast<int64_t>(value) < 0) {
 		value = 0;
 	}
 

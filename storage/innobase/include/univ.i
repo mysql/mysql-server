@@ -121,17 +121,32 @@ Sun Studio */
 # define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
 # include <stdint.h>
 #else /* HAVE_STDINT_H */
-# warning stdint.h was not found, InnoDB will use its own integer types
+# if SIZEOF_LONG_LONG != 8
+#  error sizeof long long is not 8 bytes, InnoDB is unable to define int64_t
+# endif
+typedef long long	        int64_t;
+# define INT64_MAX		0x7FFFFFFFFFFFFFFFLL
+typedef unsigned long long	uint64_t;
+# define UINT64_MAX		(~0ULL)
 typedef unsigned long long	uintmax_t;
-# define UINTMAX_MAX		(~0ULL)
+# define UINTMAX_MAX		UINT64_MAX
 #endif
 
 #ifdef HAVE_INTTYPES_H
 # define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
 # include <inttypes.h>
 #else /* HAVE_INTTYPES_H */
+# if SIZEOF_LONG_LONG != 8
+#  error sizeof long long is not 8 bytes, InnoDB is unable to define PRId64
+# endif
+# ifndef PRId64
+#  define PRId64		"lld"
+# endif /* PRId64 */
+# ifndef PRIu64
+#  define PRIu64		"llu"
+# endif /* PRIu64 */
 # ifndef PRIuMAX
-#  define PRIuMAX		"llu"
+#  define PRIuMAX		PRIu64
 # endif /* PRIuMAX */
 #endif /* HAVE_INTTYPES_H */
 
@@ -431,19 +446,15 @@ macro ULINTPF. */
 #ifdef _WIN32
 /* Use the integer types and formatting strings defined in Visual Studio. */
 # define UINT32PF	"%lu"
-# define INT64PF	"%lld"
 # define UINT64PF	"%llu"
 # define UINT64PFx	"%016llx"
-typedef __int64 ib_int64_t;
 typedef unsigned __int64 ib_uint64_t;
 typedef unsigned __int32 ib_uint32_t;
 #else
 /* Use the integer types and formatting strings defined in the C99 standard. */
 # define UINT32PF	"%" PRIu32
-# define INT64PF	"%" PRId64
 # define UINT64PF	"%" PRIu64
 # define UINT64PFx	"%016" PRIx64
-typedef int64_t ib_int64_t;
 typedef uint64_t ib_uint64_t;
 typedef uint32_t ib_uint32_t;
 #endif /* _WIN32 */

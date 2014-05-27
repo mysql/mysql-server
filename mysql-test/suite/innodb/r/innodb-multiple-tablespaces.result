@@ -96,11 +96,11 @@ yyy.ibd
 # YNY; Tablespace found in default and new_dir
 # YYN; Tablespace found in default and alt_dir
 # NYW; Copy the wrong file to new_dir
-# NWY; Copy the wrong file to alt_dir, good one to new_dir.
-# WNY; Copy the wrong file to default, good one to new_dir, delete it form alt_dir
-# YNW; Copy the file to default, wrong one to new_dir, delete it form alt_dir
+# NWY; Move the wrong file to alt_dir, good one to new_dir.
+# WNY; Move the wrong file to default, good one to new_dir, delete it form alt_dir
+# YNW; Move the file to default, wrong one to new_dir, delete it form alt_dir
 # WYN; Copy the wrong file to default
-# YWN; Copy the file to default, wrong one to alt_dir
+# YWN; Move the file to default, wrong one to alt_dir
 # NNN; Delete the tablespace and ISL
 # WWW; Put the wrong file in all three locations
 # NOLINK; Delete the ISL file Since remote location is still in SYS_DATAFILES,
@@ -442,7 +442,7 @@ c1	c2
 1	yy
 2	yy
 COMMIT;
-ERROR HY000: Lost connection to MySQL server during query
+Got one of the listed errors
 #
 # Now that the engine is not running, move files around to test various scenarios.
 #

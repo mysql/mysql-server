@@ -77,7 +77,7 @@ int ft_init_stopwords()
   if (ft_stopword_file)
   {
     File fd;
-    uint len;
+    size_t len;
     uchar *buffer, *start, *end;
     FT_WORD w;
     int error=-1;
@@ -87,7 +87,7 @@ int ft_init_stopwords()
 
     if ((fd=my_open(ft_stopword_file, O_RDONLY, MYF(MY_WME))) == -1)
       return -1;
-    len=(uint)my_seek(fd, 0L, MY_SEEK_END, MYF(0));
+    len= my_seek(fd, 0L, MY_SEEK_END, MYF(0));
     my_seek(fd, 0L, MY_SEEK_SET, MYF(0));
     if (!(start=buffer=my_malloc(mi_key_memory_ft_stopwords,
                                  len+1, MYF(MY_WME))))

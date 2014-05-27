@@ -2296,7 +2296,7 @@ ibuf_get_merge_page_nos_func(
 	mtr_t*		mtr,	/*!< in: mini-transaction holding rec */
 #endif /* UNIV_DEBUG */
 	ulint*		space_ids,/*!< in/out: space id's of the pages */
-	ib_int64_t*	space_versions,/*!< in/out: tablespace version
+	int64_t*	space_versions,/*!< in/out: tablespace version
 				timestamps; used to prevent reading in old
 				pages after DISCARD + IMPORT tablespace */
 	ulint*		page_nos,/*!< in/out: buffer for at least
@@ -2501,13 +2501,13 @@ ibuf_get_merge_pages(
 	ulint		limit,	/*!< in: max page numbers to read */
 	ulint*		pages,	/*!< out: pages read */
 	ulint*		spaces,	/*!< out: spaces read */
-	ib_int64_t*	versions,/*!< out: space versions read */
+	int64_t*	versions,/*!< out: space versions read */
 	ulint*		n_pages,/*!< out: number of pages read */
 	mtr_t*		mtr)	/*!< in: mini transaction */
 {
 	const rec_t*	rec;
 	ulint		volume = 0;
-	ib_int64_t	version = fil_space_get_version(space);
+	int64_t		version = fil_space_get_version(space);
 
 	ut_a(space != ULINT_UNDEFINED);
 
@@ -2553,7 +2553,7 @@ ibuf_merge_pages(
 	ulint		sum_sizes;
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 
 	*n_pages = 0;
 
@@ -2650,7 +2650,7 @@ ibuf_merge_space(
 	ulint		sum_sizes = 0;
 	ulint		pages[IBUF_MAX_N_PAGES_MERGED];
 	ulint		spaces[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		versions[IBUF_MAX_N_PAGES_MERGED];
 
 	if (page_is_empty(btr_pcur_get_page(&pcur))) {
 		/* If a B-tree page is empty, it must be the root page
@@ -3458,7 +3458,7 @@ ibuf_insert_low(
 	dberr_t		err;
 	ibool		do_merge;
 	ulint		space_ids[IBUF_MAX_N_PAGES_MERGED];
-	ib_int64_t	space_versions[IBUF_MAX_N_PAGES_MERGED];
+	int64_t		space_versions[IBUF_MAX_N_PAGES_MERGED];
 	ulint		page_nos[IBUF_MAX_N_PAGES_MERGED];
 	ulint		n_stored;
 	mtr_t		mtr;
@@ -4546,7 +4546,7 @@ ibuf_merge_or_delete_for_page(
 
 	if (srv_force_recovery >= SRV_FORCE_NO_IBUF_MERGE
 	    || trx_sys_hdr_page(page_id)
-	    || page_id.space() == srv_tmp_space.space_id()) {
+	    || fsp_is_system_temporary(page_id.space())) {
 		return;
 	}
 

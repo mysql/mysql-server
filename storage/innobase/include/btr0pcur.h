@@ -537,6 +537,9 @@ struct btr_pcur_t{
 					buffer for old_rec */
 	ulint		buf_size;	/*!< old_rec_buf size if old_rec_buf
 					is not NULL */
+
+	/** Return the index of this persistent cursor */
+	dict_index_t*	index() const { return(btr_cur.index); }
 };
 
 #define BTR_PCUR_OLD_STORED	908467085

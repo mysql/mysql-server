@@ -77,6 +77,7 @@ TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 */
 extern void close_thread_tables(THD *thd);
 
+extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
@@ -1631,6 +1632,13 @@ static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
 
+static Sys_var_enum Sys_binlogging_impossible_mode(
+       "binlogging_impossible_mode",
+       "On a fatal error when statements cannot be binlogged the behaviour can "
+       "be ignore the error and let the master continue or abort the server. ",
+       GLOBAL_VAR(binlogging_impossible_mode), CMD_LINE(REQUIRED_ARG),
+       binlogging_impossible_err, DEFAULT(IGNORE_ERROR));
+
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
        "If set to FALSE (the default), then when --log-bin is used, creation "
@@ -2801,7 +2809,7 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
+static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   if (check_not_null_not_empty(self, thd, var))
@@ -2845,9 +2853,17 @@ static Sys_var_enum Mts_parallel_type(
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
        DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_update_mts_type),
+       NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
+static Sys_var_mybool Sys_slave_preserve_commit_order(
+       "slave_preserve_commit_order",
+       "Force slave workers to make commits in the same order as on the master. "
+       "Disabled by default.",
+       GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_slave_stopped),
+       ON_UPDATE(NULL));
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
@@ -4923,3 +4939,28 @@ static Sys_var_mybool Sys_session_track_state_change(
        ON_CHECK(0),
        ON_UPDATE(update_session_track_state_change));
 
+static bool handle_offline_mode(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("handle_offline_mode");
+  if (offline_mode == TRUE)
+  {
+    /*
+    We allow other global variables to be updated as killing threads
+    can be a time consuming operation. PLock_offline_mode ensures that
+    offline_mode cannot be updated.
+    LOCK_global_system_variables is acquired at the end of this function.
+    */
+    mysql_mutex_unlock(&LOCK_global_system_variables);
+    killall_non_super_threads(thd);
+    mysql_mutex_lock(&LOCK_global_system_variables);
+  }
+  DBUG_RETURN(false);
+}
+
+static PolyLock_mutex PLock_offline_mode(&LOCK_offline_mode);
+static Sys_var_mybool Sys_offline_mode(
+       "offline_mode",
+       "Make the server into offline mode",
+       GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       &PLock_offline_mode, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(handle_offline_mode));

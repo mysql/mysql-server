@@ -196,7 +196,7 @@ void
 sync_print(FILE* file);
 
 /* Number of spin waits on mutexes: for performance monitoring */
-typedef ib_counter_t<ib_int64_t, IB_N_SLOTS> mutex_counter_t;
+typedef ib_counter_t<int64_t, IB_N_SLOTS> mutex_counter_t;
 
 /** The number of OS waits in mutex_spin_wait().  Intended for
 performance monitoring. */

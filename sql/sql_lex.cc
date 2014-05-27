@@ -512,12 +512,11 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  if (!lex->plugins.empty()) /* No function call and no mutex if no plugins. */
   {
-    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                       lex->plugins.elements);
+    plugin_unlock_list(0, lex->plugins.begin(), lex->plugins.size());
   }
-  reset_dynamic(&lex->plugins);
+  lex->plugins.clear();
 
   delete lex->sphead;
   lex->sphead= NULL;
@@ -2112,7 +2111,6 @@ st_select_lex::st_select_lex
   uncacheable(0),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
-  no_error(false),
   context(),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
@@ -3221,15 +3219,13 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), thd(NULL), option_type(OPT_DEFAULT),
+  :result(0), thd(NULL),
+   // Quite unlikely to overflow initial allocation, so no instrumentation.
+   plugins(PSI_NOT_INSTRUMENTED),
+   option_type(OPT_DEFAULT),
   is_set_password_sql(false), is_lex_started(0),
   in_update_value_clause(false)
 {
-
-  my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
-                         plugins_static_buffer,
-                         INITIAL_LEX_PLUGIN_LIST_SIZE, 
-                         INITIAL_LEX_PLUGIN_LIST_SIZE);
   memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
 }
@@ -3560,6 +3556,8 @@ void st_select_lex_unit::renumber_selects(LEX *lex)
 {
   for (SELECT_LEX *select= first_select(); select; select= select->next_select())
     select->renumber(lex);
+  if (fake_select_lex)
+    fake_select_lex->renumber(lex);
 }
 
 /**
@@ -4111,6 +4109,7 @@ void st_select_lex::include_standalone(st_select_lex_unit *outer,
   next= NULL;
   prev= ref;
   master= outer;
+  nest_level= master->first_select()->nest_level;
 }
 
 

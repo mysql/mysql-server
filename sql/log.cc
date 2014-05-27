@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,7 +218,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl)
   {
@@ -1588,10 +1588,19 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {
-  if (outstream && !my_freopen(filename, "a", outstream))
-    return true;
+  int retries= 2, errors= 0;
 
-  if (errstream && !my_freopen(filename, "a", errstream))
+  do
+  {
+    errors= 0;
+    if (errstream && !my_freopen(filename, "a", errstream))
+      errors++;
+    if (outstream && !my_freopen(filename, "a", outstream))
+      errors++;
+  }
+  while(retries-- && errors);
+
+  if(errors)
     return true;
 
   /* The error stream must be unbuffered. */
