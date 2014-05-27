@@ -1584,8 +1584,7 @@ void THD::release_resources()
   mdl_context.destroy();
   ha_close_connection(this);
   mysql_audit_release(this);
-  if (m_enable_plugins)
-    plugin_thdvar_cleanup(this);
+  plugin_thdvar_cleanup(this, m_enable_plugins);
 
 #ifdef HAVE_MY_TIMER
   DBUG_ASSERT(timer == NULL);

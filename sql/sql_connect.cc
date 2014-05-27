@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -729,7 +729,7 @@ static bool login_connection(THD *thd)
 void end_connection(THD *thd)
 {
   NET *net= &thd->net;
-  plugin_thdvar_cleanup(thd);
+  plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
   /*
     The thread may returned back to the pool and assigned to a user
