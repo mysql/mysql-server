@@ -2097,36 +2097,40 @@ bool
 trx_undo_truncate_tablespace(
 	undo_trunc_t*	undo_trunc)
 {
-	bool success = true;
+	bool	success = true;
+	ulint	space_id = undo_trunc->get_undo_mark_for_trunc();
 
 	/* Step-1: Truncate tablespace. */
 	success = fil_truncate_tablespace(
-		undo_trunc->get_undo_mark_for_trunc(),
-		SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
+		space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
 
 	if (!success) {
 		return(success);
 	}
 
-	/* Re-initialize header. */
+	/* Step-2: Re-initialize tablespace header. */
 	mtr_t		mtr;
 	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	fsp_header_init(space_id, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+	mtr_commit(&mtr);
 
-	fsp_header_init(undo_trunc->get_undo_mark_for_trunc(),
-			SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+	/* Step-3: Re-initialize rollback segment header that resides
+	in truncated tablespaced. */
+	mtr_start(&mtr);
+	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
+	mtr_x_lock(fil_space_get_latch(space_id, NULL), &mtr);
 
 	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs(); ++i) {
 		trx_rsegf_t*	rseg_header;
 
 		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
 
-		trx_rseg_header_create(
-			undo_trunc->get_undo_mark_for_trunc(),
-			univ_page_size, ULINT_MAX, rseg->id, &mtr);
+		rseg->page_no = trx_rseg_header_create(
+			space_id, univ_page_size, ULINT_MAX, rseg->id, &mtr);
 
 		rseg_header = trx_rsegf_get_new(
-				undo_trunc->get_undo_mark_for_trunc(),
-				rseg->page_no, rseg->page_size, &mtr);
+			space_id, rseg->page_no, rseg->page_size, &mtr);
 
 		UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
 		UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
@@ -2137,10 +2141,9 @@ trx_undo_truncate_tablespace(
 			rseg_header + TRX_RSEG_MAX_SIZE, MLOG_4BYTES, &mtr);
 
 		/* Initialize the undo log lists according to the rseg header */
-		ulint sum_of_undo_sizes = trx_undo_lists_init(rseg);
 		rseg->curr_size = mtr_read_ulint(
 			rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr)
-			+ 1 + sum_of_undo_sizes;
+			+ 1;
 
 		rseg->skip_allocation = false;
 		rseg->pages_marked_freed = 0;
