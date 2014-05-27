@@ -1255,8 +1255,8 @@ fil_space_free_low(
 		UT_LIST_REMOVE(fil_system->unflushed_spaces, space);
 	}
 
-	/* Could fil_names_dirty() access a tablespace that is being
-	freed or has been freed here? As noted in fil_names_write(),
+	/* Could fil_names_dirty_and_write() access a tablespace
+	that is being freed or has been freed here? As noted there,
 	the answer is no: space->n_pending_flushes > 0 will prevent
 	fil_check_pending_operations() from completing. */
 	if (space->max_lsn != 0) {
@@ -6440,7 +6440,7 @@ fil_space_lookup(
 	return(space);
 }
 
-/** Look up some tablespaces for invoking fil_names_write().
+/** Look up some tablespaces for invoking fil_names_write_if_was_clean().
 @param[out]	spaces		tablespace pointers
 @param[in]	user_space_id	modified user tablespace, or 0 if none
 @param[in]	undo_space_id	modified undo tablespace, or 0 if none
@@ -6470,10 +6470,12 @@ fil_spaces_lookup(
 @param[in,out]	mtr	mini-transaction */
 static
 void
-fil_names_write_low(
+fil_names_write(
 	const fil_space_t*	space,
 	mtr_t*			mtr)
 {
+	ut_ad(mutex_own(&fil_system->mutex));
+
 	ulint	first_page_no = 0;
 
 	for (const fil_node_t* file = UT_LIST_GET_FIRST(space->chain);
@@ -6484,36 +6486,32 @@ fil_names_write_low(
 	}
 }
 
-/** Write a MLOG_FILE_NAME record for a persistent tablespace.
-@param[in]	space	tablespace
-@param[in,out]	mtr	mini-transaction */
-
-void
-fil_names_write(
-	const fil_space_t*	space,
-	mtr_t*			mtr)
-{
-	ut_ad(!mutex_own(&fil_system->mutex));
-	ut_d(fil_space_validate_for_mtr_commit(space));
-	fil_names_write_low(space, mtr);
-}
-
 /** Note that a persistent tablespace has been modified.
 @param[in,out]	space	tablespace
+@param[in,out]	mtr	mini-transaction to be committed, or NULL if none
 @return whether this is the first dirtying since fil_names_clear() */
-
+template<bool do_write>
+static
 bool
-fil_names_dirty(
-	fil_space_t*	space)
+fil_names_dirty_and_write(
+	fil_space_t*	space,
+	mtr_t*		mtr)
 {
 	ut_ad(log_mutex_own());
+	ut_ad(!mutex_own(&fil_system->mutex));
+
+	if (!space) {
+		return(false);
+	}
+
+	ut_d(fil_space_validate_for_mtr_commit(space));
 
 	/* This is the only place where max_lsn can be updated
 	from 0 to nonzero. These changes are protected by
 	log_sys->mutex. */
 	const bool	was_clean	= space->max_lsn == 0;
 
-	if (was_clean) {
+	if (UNIV_UNLIKELY(was_clean)) {
 		/* This should only happen once for each tablespace
 		after a log checkpoint. */
 		mutex_enter(&fil_system->mutex);
@@ -6522,11 +6520,52 @@ fil_names_dirty(
 		we are holding. Thus, it must still be 0. */
 		ut_ad(space->max_lsn == 0);
 		UT_LIST_ADD_LAST(fil_system->named_spaces, space);
+		if (do_write) {
+			fil_names_write(space, mtr);
+		}
 		mutex_exit(&fil_system->mutex);
 	}
 
 	ut_ad(space->max_lsn <= log_sys->lsn);
 	space->max_lsn = log_sys->lsn;
+
+	return(was_clean);
+}
+
+/** Check if any persistent tablespaces have been modified.
+@param[in,out]	space	tablespace
+@return whether this is the first dirtying since fil_names_clear() */
+
+bool
+fil_names_dirty(
+	fil_space_t*	space)
+{
+	return(fil_names_dirty_and_write<false>(space, NULL));
+}
+
+/** Check if any persistent tablespaces have been modified.
+@param[in,out]	spaces	tablespaces
+@param[in,out]	mtr	mini-transaction
+@return whether this is the first dirtying since fil_names_clear() */
+
+bool
+fil_names_write_if_was_clean(
+	fil_spaces_t*	spaces,
+	mtr_t*		mtr)
+{
+	bool	was_clean = false;
+
+	if (fil_names_dirty_and_write<true>(spaces->user, mtr)) {
+		was_clean = true;
+	}
+
+	if (fil_names_dirty_and_write<true>(spaces->sys, mtr)) {
+		was_clean = true;
+	}
+
+	if (fil_names_dirty_and_write<true>(spaces->undo, mtr)) {
+		was_clean = true;
+	}
 
 	return(was_clean);
 }
@@ -6562,7 +6601,7 @@ fil_names_clear(
 			checkpoint LSN. Remove it from the list, so
 			that if the tablespace is not going to be
 			modified any more, subsequent checkpoints will
-			avoid calling fil_names_write_low() on it. */
+			avoid calling fil_names_write() on it. */
 			space->max_lsn = 0;
 			UT_LIST_REMOVE(fil_system->named_spaces, space);
 		}
@@ -6570,9 +6609,9 @@ fil_names_clear(
 		/* max_lsn is the last LSN where fil_names_dirty() was
 		called. If we kept track of "min_lsn" (the first LSN
 		where max_lsn turned nonzero), we could avoid the
-		fil_names_write_low() call if min_lsn > lsn. */
+		fil_names_write() call if min_lsn > lsn. */
 
-		fil_names_write_low(space, &mtr);
+		fil_names_write(space, &mtr);
 		do_write = true;
 
 		space = next;

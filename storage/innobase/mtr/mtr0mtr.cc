@@ -659,59 +659,23 @@ mtr_t::Command::prepare_write()
 			  m_impl->m_undo_space,
 			  m_impl->m_modifies_sys_space);
 
-	if (spaces.user) {
-		/* Speculatively write a MLOG_FILE_NAME record
-		for the user tablespace, while not holding the
-		log mutex. Most of the time, this will be removed below. */
-		fil_names_write(spaces.user, m_impl->m_mtr);
-	}
-
-	ut_ad(m_impl->m_n_log_recs >= n_recs);
+	ut_ad(m_impl->m_n_log_recs == n_recs);
 
 	log_mutex_enter();
 
-	if (spaces.user && UNIV_LIKELY(!fil_names_dirty(spaces.user))) {
-		/* The user tablespace was not dirtied the first time
-		since the log checkpoint. Discard the MLOG_FILE_NAME
-		record that we speculatively wrote above. */
-		spaces.user = NULL;
-		m_impl->m_log.set_size(len);
-	}
-
-	bool dirty = spaces.user != NULL;
-
-	if (UNIV_UNLIKELY(spaces.sys && fil_names_dirty(spaces.sys))) {
-		fil_names_write(spaces.sys, m_impl->m_mtr);
-		dirty = true;
-	}
-
-	if (UNIV_UNLIKELY(spaces.undo && fil_names_dirty(spaces.undo))) {
-		fil_names_write(spaces.undo, m_impl->m_mtr);
-		dirty = true;
-	}
-
-	if (UNIV_UNLIKELY(dirty)) {
+	if (fil_names_write_if_was_clean(&spaces, m_impl->m_mtr)) {
 		/* This mini-transaction was the first one to modify
-		some tablespace since the latest checkpoint. Do include
-		the MLOG_FILE_NAME records that were appended to m_log
-		by fil_names_write().  In all other cases, we will use
-		the old m_log.size() (omitting the MLOG_FILE_NAME)
-		when copying the log to the global redo log buffer. */
+		some tablespace since the latest checkpoint, so
+		some MLOG_FILE_NAME records were appended to m_log. */
 		ut_ad(m_impl->m_n_log_recs > n_recs);
 		mlog_catenate_ulint(
 			&m_impl->m_log, MLOG_MULTI_REC_END, MLOG_1BYTE);
 		len = m_impl->m_log.size();
 	} else {
 		/* This was not the first time of dirtying a
-		tablespace since the latest checkpoint. Thus, we
-		should not append any MLOG_FILE_NAME record.
+		tablespace since the latest checkpoint. */
 
-		If fil_names_write() returned space!=NULL, it would
-		have appended a MLOG_FILE_NAME record. We must copy
-		the m_impl->m_log only up to the start of that
-		MLOG_FILE_NAME record, not including the record. */
-
-		ut_ad(n_recs <= m_impl->m_n_log_recs);
+		ut_ad(n_recs == m_impl->m_n_log_recs);
 
 		if (n_recs <= 1) {
 			ut_ad(n_recs == 1);
