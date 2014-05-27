@@ -2451,6 +2451,10 @@ public:
     See comment above regarding tx_isolation.
   */
   bool              tx_read_only;
+  /*
+    Transaction cannot be rolled back must be given priority.
+  */
+  bool		    tx_no_rollback;
   enum_check_fields count_cuted_fields;
 
   // For user variables replication
