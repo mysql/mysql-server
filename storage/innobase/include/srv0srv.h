@@ -238,6 +238,9 @@ extern ulong	srv_undo_logs;
 /** Maximum size of undo tablespace. */
 extern ulong	srv_max_undo_log_size;
 
+/** Rate at which UNDO records should be purged. */
+extern ulong	srv_undo_purge_lag;
+
 /** UNDO logs not redo logged, these logs reside in the temp tablespace.*/
 extern const ulong	srv_tmp_undo_logs;
 

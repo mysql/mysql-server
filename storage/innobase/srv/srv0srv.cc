@@ -105,6 +105,9 @@ ulint	srv_undo_tablespaces_open = 8;
 /* The number of rollback segments to use */
 ulong	srv_undo_logs = 1;
 
+/** Rate at which UNDO records should be purged. */
+ulong	srv_undo_purge_lag = 128;
+
 /** Maximum size of undo tablespace. */
 ulong	srv_max_undo_log_size;
 
@@ -2374,9 +2377,7 @@ srv_do_purge(
 {
 	ulint		n_pages_purged;
 
-#ifndef UNIV_DEBUG
 	static ulint	count = 0;
-#endif /* !UNIV_DEBUG */
 	static ulint	n_use_threads = 0;
 	static ulint	rseg_history_len = 0;
 	ulint		old_activity_count = srv_get_activity_count();
@@ -2432,15 +2433,11 @@ srv_do_purge(
 			n_use_threads, srv_purge_batch_size, false);
 
 
-#ifndef UNIV_DEBUG
-		if (!(count++ % TRX_SYS_N_RSEGS)) {
-#endif /* !UNIV_DEBUG */
+		if (!(count++ % srv_undo_purge_lag)) {
 			/* Force a truncate of the history list. */
 			n_pages_purged += trx_purge(
 				1, srv_purge_batch_size, true);
-#ifndef UNIV_DEBUG
 		}
-#endif /* !UNIV_DEBUG */
 
 		*n_total_purged += n_pages_purged;
 
