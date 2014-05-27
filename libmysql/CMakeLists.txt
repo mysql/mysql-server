@@ -138,6 +138,7 @@ my_print_help
 )
 
 SET(CLIENT_API_FUNCTIONS_5_5
+my_progname
 mysql_stmt_next_result
 # Charsets
 my_charset_bin
