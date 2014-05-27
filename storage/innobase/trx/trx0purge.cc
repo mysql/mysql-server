@@ -752,11 +752,21 @@ trx_purge_initiate_truncate(
 
 		if (size_of_rsegs == 1) {
 			continue;
-		} else if (size_of_rsegs == 2) {
+		} else if (size_of_rsegs <= 3) {
 
 			/* There could be cached undo segment. Check if records
 			in these segments can be purged. Normal purge history
 			will not touch these cached segment. */
+			ulint upd_len =
+				UT_LIST_GET_LEN(rseg->update_undo_cached);
+			ulint ins_len =
+				UT_LIST_GET_LEN(rseg->insert_undo_cached);
+
+			if (size_of_rsegs == 2) {
+				all_free = (upd_len != 0 || ins_len != 0);
+			} else {
+				all_free = (upd_len != 0 && ins_len != 0);
+			}
 
 			trx_undo_t*	undo;
 
