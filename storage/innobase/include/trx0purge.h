@@ -439,8 +439,39 @@ public:
 		return(needs_fix_up);
 	}
 
+	/** Add undo tablespace to truncate vector.
+	@param[in]	space_id	space id of tablespace to truncate */
+	static void add_space_to_trunc_list(
+		ulint	space_id)
+	{
+		s_spaces_to_truncate.push_back(space_id);
+	}
+
+	/** Clear the truncate vector. */
+	static void clear_trunc_list()
+	{
+		s_spaces_to_truncate.clear();
+	}
+
+	/** Is tablespace marked for truncate.
+	@param[in]	space_id	space id to check	
+	@return true if marked for truncate, else false. */
+	static bool is_tablespace_truncated(
+		ulint	space_id)
+	{
+		return(std::find(s_spaces_to_truncate.begin(),
+				 s_spaces_to_truncate.end(),
+				 space_id) ==
+			s_spaces_to_truncate.end() ? false : true);
+	}
+
 public:
-	undo_trunc_logger_t	undo_logger;
+	/** DDL logger to protect truncate action against server crash. */
+	undo_trunc_logger_t		undo_logger;
+
+	/** List of UNDO tablespace(s) to truncate. */
+	typedef std::vector<ulint>	undo_spaces_t;
+	static undo_spaces_t		s_spaces_to_truncate;
 
 private:	
 	/** UNDO tablespace is mark for truncate. */

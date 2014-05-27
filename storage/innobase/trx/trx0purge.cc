@@ -674,6 +674,7 @@ trx_purge_mark_undo_for_truncate(
 		    > (srv_max_undo_log_size / UNIV_PAGE_SIZE_DEF)) { 
 			/* Tablespace qualifies for truncate. */
 			undo_trunc->mark_for_trunc(space_id);
+			undo_trunc_t::add_space_to_trunc_list(space_id);
 			break;
 		}
 
@@ -712,9 +713,10 @@ trx_purge_mark_undo_for_truncate(
 	return;
 }
 
-const ib_uint32_t	undo_trunc_logger_t::s_magic = 76845412;
-const char*		undo_trunc_logger_t::s_log_prefix = "undo_";
-const char*		undo_trunc_logger_t::s_log_ext = "trunc.log";
+const ib_uint32_t		undo_trunc_logger_t::s_magic = 76845412;
+const char*			undo_trunc_logger_t::s_log_prefix = "undo_";
+const char*			undo_trunc_logger_t::s_log_ext = "trunc.log";
+undo_trunc_t::undo_spaces_t	undo_trunc_t::s_spaces_to_truncate;
 
 /** Iterate over selected UNDO tablespace and check if all the rsegs
 that resides in the tablespace are free.
@@ -819,6 +821,7 @@ trx_purge_initiate_truncate(
 	undo_trunc->undo_logger.done();
 
 	undo_trunc->reset();
+	undo_trunc_t::clear_trunc_list();
 }
 
 /********************************************************************//**
