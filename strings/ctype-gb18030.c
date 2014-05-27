@@ -200,7 +200,7 @@ static const uchar sort_order_gb18030[]=
   '`',   'A',   'B',   'C',   'D',   'E',   'F',   'G',
   'H',   'I',   'J',   'K',   'L',   'M',   'N',   'O',
   'P',   'Q',   'R',   'S',   'T',   'U',   'V',   'W',
-  'X',   'Y',   'Z',   '{',   '|',   '}',   'Y',  0x7F,
+  'X',   'Y',   'Z',   '{',   '|',   '}',   '~',  0x7F,
  0x80,  0x81,  0x82,  0x83,  0x84,  0x85,  0x86,  0x87,
  0x88,  0x89,  0x8A,  0x8B,  0x8C,  0x8D,  0x8E,  0x8F,
  0x90,  0x91,  0x92,  0x93,  0x94,  0x95,  0x96,  0x97,
@@ -21657,10 +21657,7 @@ my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
       }
     }
     else
-    {
-      DBUG_ASSERT(is_mb_1(*src));
       *dst++= (char) map[(uchar) (*src++)];
-    }
   }
 
   return (size_t) (dst - dst0);
@@ -22451,7 +22448,7 @@ static MY_CHARSET_HANDLER my_charset_gb18030_handler=
   my_charpos_mb,
   my_well_formed_len_gb18030,
   my_lengthsp_8bit,
-  my_numcells_8bit,
+  my_numcells_mb,
   my_mb_wc_gb18030,
   my_wc_mb_gb18030_chs,
   my_mb_ctype_mb,
@@ -22482,7 +22479,7 @@ MY_CHARSET_HANDLER my_charset_gb18030_uca_handler=
   my_charpos_mb,
   my_well_formed_len_gb18030,
   my_lengthsp_8bit,
-  my_numcells_8bit,
+  my_numcells_mb,
   my_mb_wc_gb18030,
   my_wc_mb_gb18030_chs,
   my_mb_ctype_mb,
