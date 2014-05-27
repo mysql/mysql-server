@@ -17,6 +17,7 @@
 #include "transitional_methods.h"
 #include <cassert>
 #include <cstdio>
+#include <stdio.h>
 #include <stdint.h>
 
 const unsigned char checksum_version_split[3]= {5, 6, 1};
