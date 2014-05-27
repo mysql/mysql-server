@@ -712,6 +712,12 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
+int thd_tx_no_rollback(const THD *thd)
+{
+ return (int) thd->tx_no_rollback;
+}
+
+extern "C"
 void thd_inc_row_count(THD *thd)
 {
   thd->get_stmt_da()->inc_current_row_for_condition();
