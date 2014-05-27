@@ -216,7 +216,7 @@ private:
 	/** Print info about transaction that was rolled back.
 	@param trx transaction rolled back
 	@param lock lock trx wants */
-	static void joining_trx_print(const trx_t* trx, const lock_t* lock);
+	static void rollback_print(const trx_t* trx, const lock_t* lock);
 
 private:
 	/** DFS state information, used during deadlock checking. */
@@ -6796,7 +6796,7 @@ DeadlockChecker::select_victim() const
 
 	} else if (!trx_can_rollback(m_wait_lock->trx)) {
 
-		return(m_wait_lock->trx);
+		return(m_start);
 
 	} else if (trx_weight_ge(m_wait_lock->trx, m_start)) {
 
@@ -6878,8 +6878,14 @@ DeadlockChecker::search()
 
 			m_too_deep = true;
 
-			/* Select the joining transaction as the victim. */
-			return(m_start);
+			/* Select the joining transaction as the victim
+			if it can be rolled back */
+			if (trx_can_rollback(m_start)) {
+
+				return(m_start);
+			}
+
+			return(m_wait_lock->trx);
 
 		} else if (lock->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
@@ -6917,7 +6923,7 @@ DeadlockChecker::search()
 @param trx transaction rolled back
 @param lock lock trx wants */
 void
-DeadlockChecker::joining_trx_print(const trx_t*	trx, const lock_t* lock)
+DeadlockChecker::rollback_print(const trx_t*	trx, const lock_t* lock)
 {
 	ut_ad(lock_mutex_own());
 
@@ -6960,7 +6966,7 @@ DeadlockChecker::trx_rollback()
 /** Checks if a joining lock request results in a deadlock. If a deadlock is
 found this function will resolve the deadlock by choosing a victim transaction
 and rolling it back. It will attempt to resolve all deadlocks. The returned
-transaction id will be the joining transaction id or 0 if some other
+transaction id will be the joining transaction instance or NULL if some other
 transaction was chosen as a victim and rolled back or no deadlock found.
 
 @param lock lock the transaction is requesting
@@ -6982,15 +6988,24 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 		victim_trx = checker.search();
 
-		/* Search too deep, we rollback the joining transaction. */
+		/* Search too deep, we rollback the joining transaction only
+		if it is possible to rollback. Otherwise we rollback the transaction
+		that is holding the lock that the joining transaction wants. */
 		if (checker.is_too_deep()) {
 
 			ut_ad(trx == checker.m_start);
-			ut_ad(victim_trx == trx);
 
-			joining_trx_print(trx, lock);
+			if (trx_can_rollback(trx)) {
+				victim_trx = checker.m_wait_lock->trx;
+			} else {
+				victim_trx = trx;
+			}
+
+			rollback_print(victim_trx, lock);
 
 			MONITOR_INC(MONITOR_DEADLOCK);
+
+			continue;
 
 		} else if (victim_trx != 0 && victim_trx != trx) {
 
@@ -7003,11 +7018,10 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 			MONITOR_INC(MONITOR_DEADLOCK);
 		}
 
-	} while (victim_trx != 0 && victim_trx != trx);
+	} while (victim_trx != NULL && victim_trx != trx);
 
 	/* If the joining transaction was selected as the victim. */
-	if (victim_trx != 0) {
-		ut_a(victim_trx == trx);
+	if (victim_trx != NULL) {
 
 		print("*** WE ROLL BACK TRANSACTION (2)\n");
 
