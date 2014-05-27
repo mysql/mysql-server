@@ -653,10 +653,9 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     To be able perform any operation on table we should own
     some kind of metadata lock on it.
   */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                             table_list->db,
-                                             table_list->table_name,
-                                             MDL_SHARED));
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 table_list->db, table_list->table_name,
+                                 MDL_SHARED));
 
   /*
     Read table definition from the cache. If the share is being opened,
@@ -1680,10 +1679,9 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
     The metadata lock must be released after giving back
     the table to the table cache.
   */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                             table->s->db.str,
-                                             table->s->table_name.str,
-                                             MDL_SHARED));
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 table->s->db.str, table->s->table_name.str,
+                                 MDL_SHARED));
   table->mdl_ticket= NULL;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -2500,8 +2498,8 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
   *exists= TRUE;
 
   DBUG_ASSERT(thd->mdl_context.
-              is_lock_owner(MDL_key::TABLE, table->db,
-                            table->table_name, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, table->db,
+                                          table->table_name, MDL_SHARED));
 
   mysql_mutex_lock(&LOCK_open);
   share= get_cached_table_share(thd, table->db, table->table_name);
@@ -2903,10 +2901,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       TABLES breaks metadata locking protocol (potentially can lead
       to deadlocks) it should be disallowed.
     */
-    if (thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                       table_list->db,
-                                       table_list->table_name,
-                                       MDL_SHARED))
+    if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                     table_list->db,
+                                                     table_list->table_name,
+                                                     MDL_SHARED))
     {
       char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
@@ -3439,8 +3437,8 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
     cases don't take a global IX lock in order to be compatible with
     global read lock.
   */
-  if (!thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
-                                      MDL_INTENTION_EXCLUSIVE))
+  if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL, "", "",
+                                                    MDL_INTENTION_EXCLUSIVE))
   {
     if (!no_error)
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
@@ -9493,8 +9491,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
     table_cache_manager.assert_owner_all_and_tdc();
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
-              thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
-                                             MDL_EXCLUSIVE));
+              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 db, table_name, MDL_EXCLUSIVE));
 
   key_length= create_table_def_key(thd, key, db, table_name, false);
 
