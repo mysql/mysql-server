@@ -16646,7 +16646,7 @@ static MYSQL_SYSVAR_LONGLONG(max_undo_log_size, innobase_max_undo_log_size,
   "Maximum size of UNDO tablespace in MB (If UNDO tablespace grows"
   " beyond ths size it will be truncated in due-course). ",
   NULL, NULL,
-  512 * 1024 * 1024L,
+  1024 * 1024 * 1024L,
   10 * 1024* 1024L,
   LONGLONG_MAX, 1024 * 1024L);
 
