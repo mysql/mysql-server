@@ -748,8 +748,6 @@ trx_purge_initiate_truncate(
 		ulint	size_of_rsegs =
 			rseg->curr_size - rseg->pages_marked_freed;
 
-		/* TODO: if size == 1 then ensure there are undo records to
-		purge .*/
 		if (size_of_rsegs == 1) {
 			continue;
 		} else if (size_of_rsegs == 2) {
@@ -792,8 +790,7 @@ trx_purge_initiate_truncate(
 	a. log-checkpoint
 	b. Write the DDL log to protect truncate action from CRASH
 	c. Execute actual truncate
-	d. Remove the DDL log.
-	TODO: Handle crash/error case during tablepsace truncate. */
+	d. Remove the DDL log. */
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Truncating UNDO tablespace with space identifier " ULINTPF "",
 		undo_trunc->get_undo_mark_for_trunc());
@@ -808,7 +805,16 @@ trx_purge_initiate_truncate(
 	ut_ad(err == DB_SUCCESS);
 
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
-	ut_ad(success);
+	if (!success) {
+		/* Note: In case of error we don't enable the rsegs
+		and neither unmark the tablespace so the tablespace
+		continue to remain inactive. */
+		ib_logf(IB_LOG_LEVEL_ERROR,
+			"Failed to truncate UNDO tablespace with"
+			" space identifier " ULINTPF "",
+			undo_trunc->get_undo_mark_for_trunc()); 
+		return;
+	}
 
 	undo_trunc->undo_logger.done();
 
