@@ -310,6 +310,27 @@ serialize_ftnode_partition_size (FTNODE node, int i)
 #define FTNODE_PARTITION_DMT_LEAVES 0xaa
 #define FTNODE_PARTITION_FIFO_MSG 0xbb
 
+UU() static int
+assert_fresh(const int32_t &offset, const uint32_t UU(idx), struct fifo *const f) {
+    struct fifo_entry *entry = toku_fifo_get_entry(f, offset);
+    assert(entry->is_fresh);
+    return 0;
+}
+
+UU() static int
+assert_stale(const int32_t &offset, const uint32_t UU(idx), struct fifo *const f) {
+    struct fifo_entry *entry = toku_fifo_get_entry(f, offset);
+    assert(!entry->is_fresh);
+    return 0;
+}
+
+static void bnc_verify_message_trees(NONLEAF_CHILDINFO UU(bnc)) {
+#ifdef TOKU_DEBUG_PARANOID
+    bnc->fresh_message_tree.iterate<struct fifo, assert_fresh>(bnc->buffer);
+    bnc->stale_message_tree.iterate<struct fifo, assert_stale>(bnc->buffer);
+#endif
+}
+
 static int
 wbuf_write_offset(const int32_t &offset, const uint32_t UU(idx), struct wbuf *const wb) {
     wbuf_nocrc_int(wb, offset);
@@ -334,6 +355,8 @@ serialize_child_buffer(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
             wbuf_nocrc_bytes(wb, key, keylen);
             wbuf_nocrc_bytes(wb, data, datalen);
         });
+
+    bnc_verify_message_trees(bnc);
 
     // serialize the message trees (num entries, offsets array):
     //    fresh, stale, broadcast

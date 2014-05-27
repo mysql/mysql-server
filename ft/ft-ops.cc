@@ -1090,9 +1090,10 @@ exit:
     return;
 }
 
+static void ft_bnc_move_messages_to_stale(FT ft, NONLEAF_CHILDINFO bnc);
+
 // replace the child buffer with a compressed version of itself.
-// @return the old child buffer
-static NONLEAF_CHILDINFO
+static void 
 compress_internal_node_partition(FTNODE node, int i, enum toku_compression_method compression_method)
 {
     // if we should evict, compress the
@@ -1103,11 +1104,9 @@ compress_internal_node_partition(FTNODE node, int i, enum toku_compression_metho
     sub_block_init(sb);
     toku_create_compressed_partition_from_available(node, i, compression_method, sb);
 
-    // now set the state to compressed and return the old, available partition
-    NONLEAF_CHILDINFO bnc = BNC(node, i);
+    // now set the state to compressed
     set_BSB(node, i, sb);
     BP_STATE(node,i) = PT_COMPRESSED;
-    return bnc;
 }
 
 void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h) {
@@ -1160,7 +1159,7 @@ int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *write_ext
         for (int i = 0; i < node->n_children; i++) {
             if (BP_STATE(node,i) == PT_AVAIL) {
                 if (BP_SHOULD_EVICT(node,i)) {
-                    NONLEAF_CHILDINFO bnc;
+                    NONLEAF_CHILDINFO bnc = BNC(node, i);
                     if (ft_compress_buffers_before_eviction &&
                         // We may not serialize and compress a partition in memory if its
                         // in memory layout version is different than what's on disk (and
@@ -1171,7 +1170,8 @@ int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *write_ext
                         // this rule would cause upgrade code to upgrade this partition
                         // again after we serialize it as the current version, which is bad.
                         node->layout_version == node->layout_version_read_from_disk) {
-                        bnc = compress_internal_node_partition(
+                        ft_bnc_move_messages_to_stale(ft, bnc);
+                        compress_internal_node_partition(
                             node,
                             i,
                             // Always compress with quicklz
@@ -1180,7 +1180,6 @@ int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *write_ext
                     } else {
                         // We're not compressing buffers before eviction. Simply
                         // detach the buffer and set the child's state to on-disk.
-                        bnc = BNC(node, i);
                         set_BNULL(node, i);
                         BP_STATE(node, i) = PT_ON_DISK;
                     }
@@ -5215,6 +5214,13 @@ int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_
     return 0;
 }
 
+static void ft_bnc_move_messages_to_stale(FT ft, NONLEAF_CHILDINFO bnc) {
+    struct copy_to_stale_extra cts_extra = { .ft = ft, .bnc = bnc };
+    int r = bnc->fresh_message_tree.iterate_over_marked<struct copy_to_stale_extra, copy_to_stale>(&cts_extra);
+    invariant_zero(r);
+    bnc->fresh_message_tree.delete_all_marked();
+}
+
 __attribute__((nonnull))
 void
 toku_move_ftnode_messages_to_stale(FT ft, FTNODE node) {
@@ -5227,10 +5233,7 @@ toku_move_ftnode_messages_to_stale(FT ft, FTNODE node) {
         // We can't delete things out of the fresh tree inside the above
         // procedures because we're still looking at the fresh tree.  Instead
         // we have to move messages after we're done looking at it.
-        struct copy_to_stale_extra cts_extra = { .ft = ft, .bnc = bnc };
-        int r = bnc->fresh_message_tree.iterate_over_marked<struct copy_to_stale_extra, copy_to_stale>(&cts_extra);
-        invariant_zero(r);
-        bnc->fresh_message_tree.delete_all_marked();
+        ft_bnc_move_messages_to_stale(ft, bnc);
     }
 }
 
