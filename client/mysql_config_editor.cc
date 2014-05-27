@@ -49,8 +49,8 @@ static int g_fd;
   excluding the header part.
 */
 static size_t file_size;
-static char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
-            *opt_login_path= NULL, *opt_socket= NULL, *opt_port= NULL;
+static const char *opt_user= NULL, *opt_password= NULL, *opt_host=NULL,
+            *opt_login_path= "client", *opt_socket= NULL, *opt_port= NULL;
 
 static char my_login_file[FN_REFLEN];
 static char my_key[LOGIN_KEY_LEN];
@@ -140,11 +140,11 @@ static struct my_option my_set_command_options[]=
   {"password", 'p', "Prompt for password to be entered into the login file.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"user", 'u', "User name to be entered into the login file.", &opt_user,
-   &opt_user, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_user, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"socket", 'S', "Socket path to be entered into login file.", &opt_socket,
-   &opt_socket, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_socket, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"port", 'P', "Port number to be entered into login file.", &opt_port,
-   &opt_port, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+   &opt_port, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"warn", 'w', "Warn and ask for confirmation if set command attempts to "
    "overwrite an existing login path (enabled by default).",
    &opt_warn, &opt_warn, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
@@ -453,10 +453,6 @@ static int do_handle_options(int argc, char *argv[])
   /* Do not allow multiple commands. */
   if ( argc_cmd > 1)
     goto error;
-
-  /* If NULL, set it to 'client' (default) */
-  if (!opt_login_path)
-    opt_login_path= my_strdup("client", MYF(MY_WME));
 
 done:
   my_free(ptr);
@@ -1046,7 +1042,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   DBUG_ENTER("remove_login_path");
 
   char *start=NULL, *end= NULL;
-  int tot_len, len, diff;
+  int to_move, len, diff;
 
   if((start= locate_login_path(file_buf, path_name)) == NULL)
     /* login path was not found, skip.. */
@@ -1058,7 +1054,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
   {
     end ++;                                     /* Move past '\n' */
     len= ((diff= (start - end)) > 0) ? diff : - diff;
-    tot_len= file_buf->length - len ;
+    to_move= file_buf->length - (end - file_buf->str);
   }
   else
   {
@@ -1067,7 +1063,7 @@ static void remove_login_path(DYNAMIC_STRING *file_buf, const char *path_name)
     goto done;
   }
 
-  while(tot_len --)
+  while(to_move --)
     *(start ++)= *(end ++);
 
   *start= '\0';
