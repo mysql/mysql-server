@@ -75,6 +75,30 @@ SET GLOBAL DEBUG= @debug_save;
 --let $assert_cond= "[SELECT @@GLOBAL.GTID_PURGED]" = "$slave_uuid:1-2"
 --source include/assert.inc
 
+--echo #
+--echo # Verify that we can get the correct set from 'gtid_executed' table
+--echo # when executing a big transaction that exceeds the max size of the
+--echo # binlog if binlog is enabled and log_slave_updates is disabled.
+--echo #
+SET @SIZE_DEFAULT=@@MAX_BINLOG_SIZE;
+SET GLOBAL MAX_BINLOG_SIZE=4096;
+SET @@GLOBAL.DEBUG= '+d, dont_compress_gtid_table';
+
+--let $i= 1
+BEGIN;
+while ($i < 60) {
+  --eval INSERT INTO t1 VALUES ($i);
+  --inc $i
+}
+COMMIT;
+SET GLOBAL DEBUG= @debug_save;
+SET GLOBAL MAX_BINLOG_SIZE=@SIZE_DEFAULT;
+
+--replace_result $master_uuid MASTER_UUID
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$master_uuid"
+--replace_result $slave_uuid SLAVE_UUID
+--eval SELECT * FROM mysql.gtid_executed where source_uuid="$slave_uuid"
+
 --connection master
 DROP TABLE t1,t2;
 
