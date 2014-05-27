@@ -178,8 +178,6 @@ class pair_list;
 // Maps to a file on disk.
 //
 struct cachefile {
-    CACHEFILE next;
-    CACHEFILE prev;
     // these next two fields are protected by cachetable's list lock
     // they are managed whenever we add or remove a pair from
     // the cachetable. As of Riddler, this linked list is only used to
@@ -439,14 +437,12 @@ public:
     bool evict_some_stale_pair(evictor* ev);
     void free_stale_data(evictor* ev);
     // access to these fields are protected by the lock
-    CACHEFILE m_active_head; // head of CACHEFILEs that are active
-    CACHEFILE m_stale_head; // head of CACHEFILEs that are stale
-    CACHEFILE m_stale_tail; // tail of CACHEFILEs that are stale
     FILENUM m_next_filenum_to_use;
     uint32_t m_next_hash_id_to_use;
     toku_pthread_rwlock_t m_lock; // this field is publoc so we are still POD
     toku::omt<CACHEFILE> m_active_filenum;
     toku::omt<CACHEFILE> m_active_fileid;
+    toku::omt<CACHEFILE> m_stale_fileid;
 private:    
     CACHEFILE find_cachefile_in_list_unlocked(CACHEFILE start, struct fileid* fileid);
 };
