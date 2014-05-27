@@ -336,6 +336,6 @@ UNIV_INLINE
 bool
 trx_can_rollback(const trx_t* trx)
 {
-	return(true);
+	return(thd_trx_can_rollback(trx->mysql_thd));
 }
 
