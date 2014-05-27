@@ -533,6 +533,7 @@ trx_purge_truncate_rseg_history(
 	ulint		n_removed_logs	= 0;
 	mtr_t		mtr;
 	trx_id_t	undo_trx_no;
+	ulint		seg_size;
 	const bool	noredo		= trx_sys_is_noredo_rseg_slot(
 		rseg->id);
 
@@ -597,6 +598,7 @@ loop:
 	n_removed_logs++;
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
+	seg_size = flst_get_len(seg_hdr + TRX_UNDO_PAGE_LIST, &mtr);
 
 	if ((mach_read_from_2(seg_hdr + TRX_UNDO_STATE) == TRX_UNDO_TO_PURGE)
 	    && (mach_read_from_2(log_hdr + TRX_UNDO_NEXT_LOG) == 0)) {
@@ -606,7 +608,17 @@ loop:
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		trx_purge_free_segment(rseg, hdr_addr, n_removed_logs, noredo);
+		/* If UNDO tablespace where the given rseg resides, is marked
+		for truncate then avoid freeing actual pages, as anyway after
+		sometime we plan to truncate the complete tablespace.
+		Instead update the free page count that will be used
+		to adjust the rseg->curr_size. */
+		if (rseg->skip_allocation) {
+			rseg->pages_marked_freed += seg_size;
+		} else {
+			trx_purge_free_segment(
+				rseg, hdr_addr, n_removed_logs, noredo);
+		}
 
 		n_removed_logs = 0;
 	} else {
@@ -685,6 +697,9 @@ trx_purge_mark_undo_for_truncate(
 		if (rseg != NULL && !trx_sys_is_noredo_rseg_slot(rseg->id)) {
 			if (rseg->space
 				== undo_trunc->get_undo_mark_for_trunc()) {
+
+				ut_ad(rseg->pages_marked_freed == 0);
+
 				/* Once set this rseg will not be allocated
 				to new booting transaction but we will wait
 				for existing active transaction to finish. */
@@ -727,11 +742,17 @@ trx_purge_initiate_truncate(
 		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
 		ut_ad(rseg->skip_allocation);
 
+		/* We never free the header page so always > and not >= */
+		ut_ad(rseg->curr_size > rseg->pages_marked_freed);
+
+		ulint	size_of_rsegs =
+			rseg->curr_size - rseg->pages_marked_freed;
+
 		/* TODO: if size == 1 then ensure there are undo records to
 		purge .*/
-		if (rseg->curr_size == 1) {
+		if (size_of_rsegs == 1) {
 			continue;
-		} else if (rseg->curr_size == 2) {
+		} else if (size_of_rsegs == 2) {
 
 			/* There could be cached undo segment. Check if records
 			in these segments can be purged. Normal purge history

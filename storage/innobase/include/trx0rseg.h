@@ -223,6 +223,11 @@ struct trx_rseg_t {
 	/** if true then skip allocating this rseg as the tablespace
 	it resides in is marked for truncate. */
 	bool				skip_allocation;
+
+	/** track the segment that can be freed. If UNDO tablespace
+	where the segment resides is marked for truncate then we delay
+	free operation and instead let the truncate do the actual free. */
+	ulint				pages_marked_freed;
 };
 
 /* Undo log segment slot in a rollback segment header */
