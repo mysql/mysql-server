@@ -41,6 +41,7 @@ performance_schema_max_statement_classes	189
 performance_schema_max_statement_stack	10
 performance_schema_max_table_handles	573
 performance_schema_max_table_instances	556
+performance_schema_max_table_stat	1000
 performance_schema_max_thread_classes	50
 performance_schema_max_thread_instances	289
 performance_schema_session_connect_attrs_size	512
@@ -123,12 +124,12 @@ performance_schema	(pfs_file_handle).memory	262144
 performance_schema	events_waits_summary_by_thread_by_event_name.size	32
 performance_schema	events_waits_summary_by_thread_by_event_name.count	110976
 performance_schema	events_waits_summary_by_thread_by_event_name.memory	3551232
-performance_schema	(pfs_table_share).size	22144
+performance_schema	(pfs_table_share).size	12992
 performance_schema	(pfs_table_share).count	556
-performance_schema	(pfs_table_share).memory	12312064
-performance_schema	(pfs_table).size	9216
+performance_schema	(pfs_table_share).memory	7223552
+performance_schema	(pfs_table).size	9280
 performance_schema	(pfs_table).count	573
-performance_schema	(pfs_table).memory	5280768
+performance_schema	(pfs_table).memory	5317440
 performance_schema	setup_actors.size	256
 performance_schema	setup_actors.count	100
 performance_schema	setup_actors.memory	25600
@@ -280,17 +281,20 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	8800
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	100
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	8800
-performance_schema	performance_schema.memory	142130280
+performance_schema	(pfs_table_stat).size	9168
+performance_schema	(pfs_table_stat).count	1000
+performance_schema	(pfs_table_stat).memory	9168000
+performance_schema	performance_schema.memory	146246440
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
-COUNT_ALLOC	60
+COUNT_ALLOC	61
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	142130280
+SUM_NUMBER_OF_BYTES_ALLOC	146246440
 SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	60
-CURRENT_COUNT_USED	60
-HIGH_COUNT_USED	60
-LOW_NUMBER_OF_BYTES_USED	142130280
-CURRENT_NUMBER_OF_BYTES_USED	142130280
-HIGH_NUMBER_OF_BYTES_USED	142130280
+LOW_COUNT_USED	61
+CURRENT_COUNT_USED	61
+HIGH_COUNT_USED	61
+LOW_NUMBER_OF_BYTES_USED	146246440
+CURRENT_NUMBER_OF_BYTES_USED	146246440
+HIGH_NUMBER_OF_BYTES_USED	146246440

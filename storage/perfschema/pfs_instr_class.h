@@ -317,7 +317,7 @@ public:
   /** Number of indexes. */
   uint m_key_count;
   /** Table statistics. */
-  PFS_table_stat m_table_stat;
+  PFS_table_stat *m_table_stat;
   /** Index names. */
   PFS_table_key m_keys[MAX_INDEXES];
 
@@ -437,6 +437,10 @@ int init_thread_class(uint thread_class_sizing);
 void cleanup_thread_class();
 int init_table_share(uint table_share_sizing);
 void cleanup_table_share();
+int init_table_stat(uint table_stat_sizing);
+void cleanup_table_stat();
+PFS_table_stat* get_table_stat(PFS_table_share* share);
+void release_table_stat(PFS_table_stat table_stat);
 int init_table_share_hash();
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
@@ -538,6 +542,8 @@ extern ulong memory_class_max;
 extern ulong memory_class_lost;
 extern ulong table_share_max;
 extern ulong table_share_lost;
+extern ulong table_stat_max;
+extern ulong table_stat_lost;
 
 /* Exposing the data directly, for iterators. */
 
@@ -546,6 +552,7 @@ extern PFS_rwlock_class *rwlock_class_array;
 extern PFS_cond_class *cond_class_array;
 extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
+extern PFS_table_stat *table_stat_array;
 
 void reset_events_waits_by_class();
 void reset_file_class_io();

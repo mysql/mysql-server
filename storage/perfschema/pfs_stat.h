@@ -20,6 +20,7 @@
 #include "sql_const.h"
 /* memcpy */
 #include "string.h"
+#include "pfs_lock.h"
 
 /**
   @file storage/perfschema/pfs_stat.h
@@ -649,6 +650,7 @@ struct PFS_table_lock_stat
 /** Statistics for TABLE usage. */
 struct PFS_table_stat
 {
+  pfs_lock m_lock;
   /**
     Statistics, per index.
     Each index stat is in [0, MAX_INDEXES-1],
@@ -695,7 +697,13 @@ struct PFS_table_stat
 
   inline void fast_reset(void)
   {
-    memcpy(this, & g_reset_template, sizeof(*this));
+    /* TODO: Mayank
+       Fast reset resets everything including m_lock, which is not good as it 
+       is used to identify available placeholder in stat_array. Need to see.
+    */
+    //memcpy(this, & g_reset_template, sizeof(*this));
+    memcpy(& m_index_stat, & g_reset_template.m_index_stat, sizeof(m_index_stat));
+    memcpy(& m_lock_stat, & g_reset_template.m_lock_stat, sizeof(m_lock_stat));
   }
 
   inline void aggregate_io(const PFS_table_stat *stat, uint key_count)

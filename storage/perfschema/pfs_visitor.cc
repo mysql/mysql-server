@@ -1193,7 +1193,8 @@ void PFS_object_wait_visitor::visit_global()
 void PFS_object_wait_visitor::visit_table_share(PFS_table_share *pfs)
 {
   uint safe_key_count= sanitize_index_count(pfs->m_key_count);
-  pfs->m_table_stat.sum(& m_stat, safe_key_count);
+  if(pfs->m_table_stat)
+    pfs->m_table_stat->sum(& m_stat, safe_key_count);
 }
 
 void PFS_object_wait_visitor::visit_table(PFS_table *pfs)
@@ -1225,10 +1226,14 @@ void PFS_table_io_wait_visitor::visit_table_share(PFS_table_share *pfs)
 
   /* Aggregate index stats */
   for (index= 0; index < safe_key_count; index++)
-    io_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
+  {
+    if(pfs->m_table_stat)
+      io_stat.aggregate(& pfs->m_table_stat->m_index_stat[index]);
+  }
 
   /* Aggregate global stats */
-  io_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
+  if(pfs->m_table_stat)
+    io_stat.aggregate(& pfs->m_table_stat->m_index_stat[MAX_INDEXES]);
 
   io_stat.sum(& m_stat);
 }
@@ -1269,10 +1274,14 @@ void PFS_table_io_stat_visitor::visit_table_share(PFS_table_share *pfs)
 
   /* Aggregate index stats */
   for (index= 0; index < safe_key_count; index++)
-    m_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
+  {
+    if(pfs->m_table_stat)
+      m_stat.aggregate(& pfs->m_table_stat->m_index_stat[index]);
+  }
 
   /* Aggregate global stats */
-  m_stat.aggregate(& pfs->m_table_stat.m_index_stat[MAX_INDEXES]);
+  if(pfs->m_table_stat)
+    m_stat.aggregate(& pfs->m_table_stat->m_index_stat[MAX_INDEXES]);
 }
 
 void PFS_table_io_stat_visitor::visit_table(PFS_table *pfs)
@@ -1302,8 +1311,9 @@ PFS_index_io_stat_visitor::~PFS_index_io_stat_visitor()
 {}
 
 void PFS_index_io_stat_visitor::visit_table_share_index(PFS_table_share *pfs, uint index)
-{
-  m_stat.aggregate(& pfs->m_table_stat.m_index_stat[index]);
+{  
+  if(pfs->m_table_stat)
+    m_stat.aggregate(& pfs->m_table_stat->m_index_stat[index]);
 }
 
 void PFS_index_io_stat_visitor::visit_table_index(PFS_table *pfs, uint index)
@@ -1326,7 +1336,8 @@ void PFS_table_lock_wait_visitor::visit_global()
 
 void PFS_table_lock_wait_visitor::visit_table_share(PFS_table_share *pfs)
 {
-  pfs->m_table_stat.sum_lock(& m_stat);
+  if(pfs->m_table_stat)
+    pfs->m_table_stat->sum_lock(& m_stat);
 }
 
 void PFS_table_lock_wait_visitor::visit_table(PFS_table *pfs)
@@ -1344,7 +1355,8 @@ PFS_table_lock_stat_visitor::~PFS_table_lock_stat_visitor()
 
 void PFS_table_lock_stat_visitor::visit_table_share(PFS_table_share *pfs)
 {
-  m_stat.aggregate(& pfs->m_table_stat.m_lock_stat);
+  if(pfs->m_table_stat)
+    m_stat.aggregate(& pfs->m_table_stat->m_lock_stat);
 }
 
 void PFS_table_lock_stat_visitor::visit_table(PFS_table *pfs)
