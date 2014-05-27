@@ -2739,7 +2739,8 @@ srv_is_tablespace_truncated(ulint space_id)
 		return(false);
 	}
 
-	return(truncate_t::is_tablespace_truncated(space_id));
+	return(truncate_t::is_tablespace_truncated(space_id)
+	       || undo_trunc_t::is_tablespace_truncated(space_id));
 
 }
 

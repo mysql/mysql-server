@@ -3013,12 +3013,15 @@ fil_truncate_tablespace(
 
 	space->size = node->size = size_in_pages;
 
-	bool success = os_file_truncate(
-			node->name, node->handle,
-			size_in_pages * UNIV_PAGE_SIZE);
-	if (success) {  
-		space->stop_new_ops = false;
-		space->is_being_truncated = false;
+	bool success = os_file_truncate(node->name, node->handle, 0);
+	if (success) {
+		success = os_file_set_size(
+				node->name, node->handle,
+				size_in_pages * UNIV_PAGE_SIZE);
+		if (success) {  
+			space->stop_new_ops = false;
+			space->is_being_truncated = false;
+		}
 	}
 
 	mutex_exit(&fil_system->mutex);
