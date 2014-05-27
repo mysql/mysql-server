@@ -368,6 +368,14 @@ thd_trx_is_read_only(
 /*=================*/
 	THD*	thd);	/*!< in/out: thread handle */
 
+/**
+Check if the transaction can be rolled back
+@param[in] thd		Session
+@return true if the transaction can be rolled back */
+
+bool
+thd_trx_can_rollback(THD* thd);
+
 /******************************************************************//**
 Check if the transaction is an auto-commit transaction. TRUE also
 implies that it is a SELECT (read-only) transaction.
