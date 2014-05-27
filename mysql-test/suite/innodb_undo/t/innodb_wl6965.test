@@ -77,7 +77,7 @@ commit;
 drop table t1;
 drop PROCEDURE populate_t1;
 #
---sleep 10
+--sleep 15
 --echo "List the size of undo tablespace"
 perl;
 	my $datadir = $ENV{'MYSQL_DATA_DIR_ENV'};
