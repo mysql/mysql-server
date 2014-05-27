@@ -282,7 +282,9 @@ struct mtr_t {
 	}
 
 	/** Copy the tablespaces associated with the mini-transaction
-	(needed for generating MLOG_FILE_NAME records) */
+	(needed for generating MLOG_FILE_NAME records)
+	@param[in]	mtr	mini-transaction that may modify
+	the same set of tablespaces as this one */
 	void set_spaces(const mtr_t& mtr)
 	{
 		ut_ad(!m_impl.m_modifies_sys_space);
