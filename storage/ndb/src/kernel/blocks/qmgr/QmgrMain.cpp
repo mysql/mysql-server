@@ -330,7 +330,6 @@ void Qmgr::execSTTOR(Signal* signal)
       {
         jam();
         set_hb_count(nodePtr.i) = 3;
-        g_eventLogger->info("bug18496153: QMGR start phase 8: %u: %s: ApiNodeId %u, phase %u moves to ZFAIL_CLOSING", __LINE__, __func__, nodePtr.i, nodePtr.p->phase);
         nodePtr.p->phase = ZFAIL_CLOSING;
         nodePtr.p->failState = NORMAL;
       }
@@ -446,16 +445,6 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     jam();
     ndbout_c("Discarding CONNECT_REP(%d)", connectedNodeId);
     infoEvent("Discarding CONNECT_REP(%d)", connectedNodeId);
-    return;
-  }
-
-  if (ERROR_INSERTED(941) &&
-      getNodeInfo(connectedNodeId).getType() == NodeInfo::API)
-  {
-    jam();
-    CLEAR_ERROR_INSERT_VALUE;
-    ndbout_c("Discarding one API CONNECT_REP(%d)", connectedNodeId);
-    infoEvent("Discarding one API CONNECT_REP(%d)", connectedNodeId);
     return;
   }
 
@@ -2868,13 +2857,9 @@ void Qmgr::checkStartInterface(Signal* signal, NDB_TICKS now)
   // least three seconds before allowing new connects. We will also ensure 
   // that handling of the failure is completed before we allow new connections.
   /*------------------------------------------------------------------------*/
-  NodeState state = getNodeState();
   for (nodePtr.i = 1; nodePtr.i < MAX_NODES; nodePtr.i++) {
     ptrAss(nodePtr, nodeRec);
     Uint32 type = getNodeInfo(nodePtr.i).m_type;
-    if(type == NodeInfo::API && state.startLevel == NodeState::SL_STARTING && state.starting.startPhase >= 100 && !c_connectedNodes.get(nodePtr.i) &&
-       !(nodePtr.p->phase == ZAPI_INACTIVE && nodePtr.p->failState == 0) )
-      g_eventLogger->info("bug18496153: QMGR : %u: %s: ApiNodeId %u, phase %u, failState %u, hb_count %u, allow_api_connect %u", __LINE__, __func__, nodePtr.i, nodePtr.p->phase, nodePtr.p->failState, get_hb_count(nodePtr.i), c_allow_api_connect);
     if (nodePtr.p->phase == ZFAIL_CLOSING) {
       jam();
       set_hb_count(nodePtr.i)++;
@@ -3530,8 +3515,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   const Uint32 version = req->version;
   const BlockReference ref = req->ref;
   
-  NodeState state = getNodeState();
-
   Uint32 mysql_version = req->mysql_version;
   if (version < NDBD_SPLIT_VERSION)
     mysql_version = 0;
@@ -3547,8 +3530,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
      * This node is pending CLOSE_COM_CONF
      *   ignore API_REGREQ
      */
-    if(state.startLevel == NodeState::SL_STARTING && state.starting.startPhase >= 100)
-      g_eventLogger->info("bug18496153: QMGR Ignoring API_REGREQ as ZFAIL_CLOSING : %u: %s: ApiNodeId %u", __LINE__, __func__, refToNode(ref));
     return;
   }
 
@@ -3559,8 +3540,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
      * We have not yet heard execCONNECT_REP
      *   so ignore this until we do...
      */
-    if(state.startLevel == NodeState::SL_STARTING && state.starting.startPhase >= 100)
-      g_eventLogger->info("bug18496153: QMGR Ignoring API_REGREQ as not yet officially connected : %u: %s: ApiNodeId %u", __LINE__, __func__, refToNode(ref));
     return;
   }
 
@@ -3617,6 +3596,7 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
   setNodeInfo(apiNodePtr.i).m_mysql_version = mysql_version;
   set_hb_count(apiNodePtr.i) = 0;
 
+  NodeState state = getNodeState();
   if (apiNodePtr.p->phase == ZAPI_INACTIVE)
   {
     apiNodePtr.p->blockRef = ref;
@@ -3641,8 +3621,6 @@ void Qmgr::execAPI_REGREQ(Signal* signal)
       return;
     }
   }
-  if(state.startLevel == NodeState::SL_STARTING && state.starting.startPhase >= 100 && apiNodePtr.p->phase != ZAPI_ACTIVE)
-    g_eventLogger->info("bug18496153: QMGR API_REGREQ ok, sending CONF : %u: %s: ApiNodeId %u, phase %u", __LINE__, __func__, refToNode(ref), apiNodePtr.p->phase);
 
   sendApiRegConf(signal, apiNodePtr.i);
 }//Qmgr::execAPI_REGREQ()
@@ -6169,21 +6147,8 @@ Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type,
 void
 Qmgr::execDUMP_STATE_ORD(Signal* signal)
 {
-  if (signal->theData[0] == 1)
-  {
-    unsigned max_nodes = MAX_NDB_NODES;
-    if (signal->getLength() == 2)
-    {
-      max_nodes = signal->theData[1];
-      if (max_nodes == 0 || max_nodes >= MAX_NODES)
-      {
-        max_nodes = MAX_NODES;
-      }
-      else
-      {
-        max_nodes++; // Include node id argument in loop
-      }
-    }
+  switch (signal->theData[0]) {
+  case 1:
     infoEvent("creadyDistCom = %d, cpresident = %d\n",
 	      creadyDistCom, cpresident);
     infoEvent("cpresidentAlive = %d, cpresidentCand = %d (gci: %d)\n",
@@ -6191,10 +6156,10 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 	      c_start.m_president_candidate, 
 	      c_start.m_president_candidate_gci);
     infoEvent("ctoStatus = %d\n", ctoStatus);
-    for(Uint32 i = 1; i < max_nodes; i++){
+    for(Uint32 i = 1; i<MAX_NDB_NODES; i++){
       NodeRecPtr nodePtr;
       nodePtr.i = i;
-      ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
+      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
       char buf[100];
       switch(nodePtr.p->phase){
       case ZINIT:
@@ -6441,7 +6406,6 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
     if (error)
     {
       jam();
-      g_eventLogger->info("bug18496153: QMGR NodeId allocation error (MGMD req) : %u: %s: ApiNodeId %u, phase %u, error %u, c_allow_api_connect %u, m_secret %llx", __LINE__, __func__, nodePtr.i, nodePtr.p->phase, error, c_allow_api_connect, nodePtr.p->m_secret);
       AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
       ref->senderRef = reference();
       ref->errorCode = error;
@@ -6516,7 +6480,6 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
        * Don't block during NR
        */
       jam();
-      g_eventLogger->info("bug18496153: QMGR NodeId alloc req from pres : %u: %s: ApiNodeId %u, phase %u, c_allow_api_connect %u, m_secret %llx - Don't block during NR", __LINE__, __func__, nodePtr.i, nodePtr.p->phase, c_allow_api_connect, nodePtr.p->m_secret);
     }
     else
     {
@@ -6540,7 +6503,6 @@ Qmgr::execALLOC_NODEID_REQ(Signal * signal)
   if (error)
   {
     jam();
-    g_eventLogger->info("bug18496153: QMGR : Node id alloc req from pres failed : %u: %s: ApiNodeId %u, phase %u, error %u, c_allow_api_connect %u, m_secret %llx", __LINE__, __func__, nodePtr.i, nodePtr.p->phase, error, c_allow_api_connect, nodePtr.p->m_secret);
     AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->errorCode = error;
@@ -6649,11 +6611,6 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
       nodePtr.p->m_secret = 0;
     }
 
-    g_eventLogger->info("bug18496153: QMGR president, alloc_nodeid_req from %u for nodeid %u failed due to error %u.",
-                        refToNode(opAllocNodeIdReq.m_req.senderRef),
-                        opAllocNodeIdReq.m_req.nodeId,
-                        opAllocNodeIdReq.m_error);
-
     AllocNodeIdRef * ref = (AllocNodeIdRef*)signal->getDataPtrSend();
     ref->senderRef = reference();
     ref->senderData = opAllocNodeIdReq.m_req.senderData;
@@ -6667,10 +6624,6 @@ Qmgr::completeAllocNodeIdReq(Signal *signal)
   }
 
   jam();
-
-  g_eventLogger->info("bug18496153: QMGR president, alloc_nodeid_req from %u for nodeid %u succeeded.",
-                      refToNode(opAllocNodeIdReq.m_req.senderRef),
-                      opAllocNodeIdReq.m_req.nodeId);
 
   AllocNodeIdConf * conf = (AllocNodeIdConf*)signal->getDataPtrSend();
   conf->senderRef = reference();

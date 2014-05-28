@@ -1855,7 +1855,6 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
    *   disconnect it (this is really really bad)
    */
   performStates[node_id] = DISCONNECTING;
-  g_eventLogger->info("bug18496153: %s: %u: %s: NodeId %u - Failed to add to epoll_set", __FILE__, __LINE__, __func__, node_id);
   DBUG_VOID_RETURN;
 }
 

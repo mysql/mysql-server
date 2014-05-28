@@ -13,7 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 
-Next QMGR 942
+Next QMGR 938
 Next NDBCNTR 1004
 Next NDBFS 2000
 Next DBACC 3002
@@ -26,7 +26,7 @@ Next CMVMI 9000
 Next BACKUP 10042
 Next DBUTIL 11002
 Next DBTUX 12010
-Next SUMA 13049
+Next SUMA 13048
 Next LGMAN 15001
 Next TSMAN 16001
 Next DBSPJ 17000
