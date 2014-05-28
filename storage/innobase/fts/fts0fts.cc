@@ -2642,22 +2642,18 @@ fts_get_next_doc_id(
 	/* If the Doc ID system has not yet been initialized, we
 	will consult the CONFIG table and user table to re-establish
 	the initial value of the Doc ID */
-
-	if (cache->first_doc_id != 0 || !fts_init_doc_id(table)) {
-		if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
-			*doc_id = FTS_NULL_DOC_ID;
-			return(DB_SUCCESS);
-		}
-
-		/* Otherwise, simply increment the value in cache */
-		mutex_enter(&cache->doc_id_lock);
-		*doc_id = ++cache->next_doc_id;
-		mutex_exit(&cache->doc_id_lock);
-	} else {
-		mutex_enter(&cache->doc_id_lock);
-		*doc_id = cache->next_doc_id;
-		mutex_exit(&cache->doc_id_lock);
+	if (cache->first_doc_id == FTS_NULL_DOC_ID) {
+		fts_init_doc_id(table);
 	}
+
+	if (!DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+		*doc_id = FTS_NULL_DOC_ID;
+		return(DB_SUCCESS);
+	}
+
+	mutex_enter(&cache->doc_id_lock);
+	*doc_id = ++cache->next_doc_id;
+	mutex_exit(&cache->doc_id_lock);
 
 	return(DB_SUCCESS);
 }
