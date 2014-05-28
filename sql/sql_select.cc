@@ -1140,7 +1140,8 @@ JOIN::optimize()
         part of the nested outer join, and we can't do partition pruning
         (TODO: check if this limitation can be lifted)
       */
-      if (!tbl->embedding)
+      if (!tbl->embedding ||
+          (tbl->embedding && tbl->embedding->sj_on_expr))
       {
         Item *prune_cond= tbl->on_expr? tbl->on_expr : conds;
         tbl->table->no_partitions_used= prune_partitions(thd, tbl->table,
