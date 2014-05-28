@@ -33,6 +33,7 @@
 #include <signaldata/UtilSequence.hpp>
 #include <signaldata/SumaImpl.hpp>
 #include <ndbapi/NdbDictionary.hpp>
+#include <NdbTick.h>
 
 #define JAM_FILE_ID 469
 
@@ -521,9 +522,14 @@ private:
   /**
    * for restarting Suma not to start sending data too early
    */
+
   struct Startup
   {
+    Uint32 m_wait_handover_timeout_ms; // Max time to wait in phase 101 for API nodes to connect
     bool m_wait_handover;
+    NDB_TICKS m_wait_handover_expire;
+    NDB_TICKS m_wait_handover_message_expire;
+    bool m_forced_disconnect_attempted;
     Uint32 m_restart_server_node_id;
     NdbNodeBitmask m_handover_nodes;
   } c_startup;
@@ -567,6 +573,8 @@ private:
   void send_dict_unlock_ord(Signal* signal, Uint32 state);
   void send_start_me_req(Signal* signal);
   void check_start_handover(Signal* signal);
+  void check_wait_handover_timeout(Signal* signal);
+  void check_wait_handover_message(NDB_TICKS now);
   void send_handover_req(Signal* signal, Uint32 type);
 
   Uint32 get_responsible_node(Uint32 B) const;
