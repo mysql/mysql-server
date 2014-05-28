@@ -2053,9 +2053,9 @@ void THD::cleanup_after_query()
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
   /* reset replication info structure */
-  if (lex && lex->mi.repl_ignore_server_ids.buffer) 
+  if (lex)
   {
-    delete_dynamic(&lex->mi.repl_ignore_server_ids);
+    lex->mi.repl_ignore_server_ids.clear();
   }
 #ifndef EMBEDDED_LIBRARY
   if (rli_slave)
