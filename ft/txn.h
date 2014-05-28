@@ -221,3 +221,17 @@ bool toku_txn_has_spilled_rollback(TOKUTXN txn);
 
 uint64_t toku_txn_get_client_id(TOKUTXN txn);
 void toku_txn_set_client_id(TOKUTXN txn, uint64_t client_id);
+
+ 
+//
+// This function is used by the leafentry iterators.
+// returns TOKUDB_ACCEPT if live transaction context is allowed to read a value
+// that is written by transaction with LSN of id
+// live transaction context may read value if either id is the root ancestor of context, or if
+// id was committed before context's snapshot was taken.
+// For id to be committed before context's snapshot was taken, the following must be true:
+//  - id < context->snapshot_txnid64 AND id is not in context's live root transaction list
+// For the above to NOT be true:
+//  - id > context->snapshot_txnid64 OR id is in context's live root transaction list
+//
+int toku_txn_reads_txnid(TXNID txnid, TOKUTXN txn);

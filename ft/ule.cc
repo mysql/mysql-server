@@ -103,17 +103,17 @@ PATENT RIGHTS GRANT:
 // TokuWiki/Imp/TransactionsOverview.
 
 #include <toku_portability.h>
-#include "fttypes.h"
-#include "ft-internal.h"
-
+#include "ft/fttypes.h"
+#include "ft/ft-internal.h"
+#include "ft/ft_msg.h"
+#include "ft/leafentry.h"
+#include "ft/logger.h"
+#include "ft/txn.h"
+#include "ft/txn_manager.h"
+#include "ft/ule.h"
+#include "ft/ule-internal.h"
+#include "ft/xids.h"
 #include <util/omt.h>
-
-#include "leafentry.h"
-#include "xids.h"
-#include "ft_msg.h"
-#include "ule.h"
-#include "txn_manager.h"
-#include "ule-internal.h"
 #include <util/status.h>
 #include <util/scoped_malloc.h>
 #include <util/partitioned_counter.h>
@@ -361,6 +361,9 @@ ule_simple_garbage_collection(ULE ule, txn_gc_info *gc_info) {
     
 done:;
 }
+
+// TODO: Clean this up
+extern bool garbage_collection_debug;
 
 static void
 ule_garbage_collect(ULE ule, const xid_omt_t &snapshot_xids, const rx_omt_t &referenced_xids, const xid_omt_t &live_root_txns) {
@@ -2079,7 +2082,7 @@ ule_verify_xids(ULE ule, uint32_t interesting, TXNID *xids) {
 //    is_delp - output parameter that returns answer
 //    context - parameter for f
 //
-int
+static int
 le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, bool *is_delp, TOKUTXN context) {
 #if ULE_DEBUG
     ULE_S ule;
@@ -2145,6 +2148,27 @@ cleanup:
 #endif
     if (!r) *is_delp = is_del;
     return r;
+}
+
+//
+// Returns true if the value that is to be read is empty.
+//
+int le_val_is_del(LEAFENTRY le, bool is_snapshot_read, TOKUTXN txn) {
+    int rval;
+    if (is_snapshot_read) {
+        bool is_del = false;
+        le_iterate_is_del(
+            le,
+            toku_txn_reads_txnid,
+            &is_del,
+            txn
+            );
+        rval = is_del;
+    }
+    else {
+        rval = le_latest_is_del(le);
+    }
+    return rval;
 }
 
 //
@@ -2265,6 +2289,27 @@ cleanup:
         *vallenp = vallen;
     }
     return r;
+}
+
+void le_extract_val(LEAFENTRY le,
+                    // should we return the entire leafentry as the val?
+                    bool is_leaf_mode, bool is_snapshot_read,
+                    TOKUTXN ttxn, uint32_t *vallen, void **val) {
+    if (is_leaf_mode) {
+        *val = le;
+        *vallen = leafentry_memsize(le);
+    } else if (is_snapshot_read) {
+        int r = le_iterate_val(
+            le,
+            toku_txn_reads_txnid,
+            val,
+            vallen,
+            ttxn
+            );
+        lazy_assert_zero(r);
+    } else {
+        *val = le_latest_val_and_len(le, vallen);
+    }
 }
 
 // This is an on-disk format.  static_asserts verify everything is packed and aligned correctly.

@@ -201,6 +201,7 @@ basement nodes, bulk fetch,  and partial fetch:
 */
 
 #include "checkpoint.h"
+#include "cursor.h"
 #include "ft.h"
 #include "ft-cachetable-wrappers.h"
 #include "ft-flusher.h"
@@ -4463,225 +4464,6 @@ void toku_ft_handle_create(FT_HANDLE *ft_handle_ptr) {
     *ft_handle_ptr = ft_handle;
 }
 
-/* ************* CURSORS ********************* */
-
-static inline void
-ft_cursor_cleanup_dbts(FT_CURSOR c) {
-    toku_destroy_dbt(&c->key);
-    toku_destroy_dbt(&c->val);
-}
-
-//
-// This function is used by the leafentry iterators.
-// returns TOKUDB_ACCEPT if live transaction context is allowed to read a value
-// that is written by transaction with LSN of id
-// live transaction context may read value if either id is the root ancestor of context, or if
-// id was committed before context's snapshot was taken.
-// For id to be committed before context's snapshot was taken, the following must be true:
-//  - id < context->snapshot_txnid64 AND id is not in context's live root transaction list
-// For the above to NOT be true:
-//  - id > context->snapshot_txnid64 OR id is in context's live root transaction list
-//
-static int
-does_txn_read_entry(TXNID id, TOKUTXN context) {
-    int rval;
-    TXNID oldest_live_in_snapshot = toku_get_oldest_in_live_root_txn_list(context);
-    if (oldest_live_in_snapshot == TXNID_NONE && id < context->snapshot_txnid64) {
-        rval = TOKUDB_ACCEPT;
-    }
-    else if (id < oldest_live_in_snapshot || id == context->txnid.parent_id64) {
-        rval = TOKUDB_ACCEPT;
-    }
-    else if (id > context->snapshot_txnid64 || toku_is_txn_in_live_root_txn_list(*context->live_root_txn_list, id)) {
-        rval = 0;
-    }
-    else {
-        rval = TOKUDB_ACCEPT;
-    }
-    return rval;
-}
-
-static inline void
-ft_cursor_extract_val(LEAFENTRY le,
-                               FT_CURSOR cursor,
-                               uint32_t *vallen,
-                               void            **val) {
-    if (toku_ft_cursor_is_leaf_mode(cursor)) {
-        *val = le;
-        *vallen = leafentry_memsize(le);
-    } else if (cursor->is_snapshot_read) {
-        int r = le_iterate_val(
-            le,
-            does_txn_read_entry,
-            val,
-            vallen,
-            cursor->ttxn
-            );
-        lazy_assert_zero(r);
-    } else {
-        *val = le_latest_val_and_len(le, vallen);
-    }
-}
-
-int toku_ft_cursor (
-    FT_HANDLE ft_handle,
-    FT_CURSOR *cursorptr,
-    TOKUTXN ttxn,
-    bool is_snapshot_read,
-    bool disable_prefetching
-    )
-{
-    if (is_snapshot_read) {
-        invariant(ttxn != NULL);
-        int accepted = does_txn_read_entry(ft_handle->ft->h->root_xid_that_created, ttxn);
-        if (accepted!=TOKUDB_ACCEPT) {
-            invariant(accepted==0);
-            return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
-        }
-    }
-    FT_CURSOR XCALLOC(cursor);
-    cursor->ft_handle = ft_handle;
-    cursor->prefetching = false;
-    toku_init_dbt(&cursor->range_lock_left_key);
-    toku_init_dbt(&cursor->range_lock_right_key);
-    cursor->left_is_neg_infty = false;
-    cursor->right_is_pos_infty = false;
-    cursor->is_snapshot_read = is_snapshot_read;
-    cursor->is_leaf_mode = false;
-    cursor->ttxn = ttxn;
-    cursor->disable_prefetching = disable_prefetching;
-    cursor->is_temporary = false;
-    *cursorptr = cursor;
-    return 0;
-}
-
-void toku_ft_cursor_remove_restriction(FT_CURSOR ftcursor) {
-    ftcursor->out_of_range_error = 0;
-    ftcursor->direction = 0;
-}
-
-void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR ftcursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra) {
-    ftcursor->interrupt_cb = cb;
-    ftcursor->interrupt_cb_extra = extra;
-}
-
-
-void
-toku_ft_cursor_set_temporary(FT_CURSOR ftcursor) {
-    ftcursor->is_temporary = true;
-}
-
-void
-toku_ft_cursor_set_leaf_mode(FT_CURSOR ftcursor) {
-    ftcursor->is_leaf_mode = true;
-}
-
-int
-toku_ft_cursor_is_leaf_mode(FT_CURSOR ftcursor) {
-    return ftcursor->is_leaf_mode;
-}
-
-void
-toku_ft_cursor_set_range_lock(FT_CURSOR cursor, const DBT *left, const DBT *right,
-                              bool left_is_neg_infty, bool right_is_pos_infty,
-                              int out_of_range_error)
-{
-    // Destroy any existing keys and then clone the given left, right keys
-    toku_destroy_dbt(&cursor->range_lock_left_key);
-    if (left_is_neg_infty) {
-        cursor->left_is_neg_infty = true;
-    } else {
-        toku_clone_dbt(&cursor->range_lock_left_key, *left);
-    }
-
-    toku_destroy_dbt(&cursor->range_lock_right_key);
-    if (right_is_pos_infty) {
-        cursor->right_is_pos_infty = true;
-    } else {
-        toku_clone_dbt(&cursor->range_lock_right_key, *right);
-    }
-
-    // TOKUDB_FOUND_BUT_REJECTED is a DB_NOTFOUND with instructions to stop looking. (Faster)
-    cursor->out_of_range_error = out_of_range_error == DB_NOTFOUND ? TOKUDB_FOUND_BUT_REJECTED : out_of_range_error;
-    cursor->direction = 0;
-}
-
-void toku_ft_cursor_close(FT_CURSOR cursor) {
-    ft_cursor_cleanup_dbts(cursor);
-    toku_destroy_dbt(&cursor->range_lock_left_key);
-    toku_destroy_dbt(&cursor->range_lock_right_key);
-    toku_free(cursor);
-}
-
-static inline void ft_cursor_set_prefetching(FT_CURSOR cursor) {
-    cursor->prefetching = true;
-}
-
-static inline bool ft_cursor_prefetching(FT_CURSOR cursor) {
-    return cursor->prefetching;
-}
-
-//Return true if cursor is uninitialized.  false otherwise.
-static bool
-ft_cursor_not_set(FT_CURSOR cursor) {
-    assert((cursor->key.data==NULL) == (cursor->val.data==NULL));
-    return (bool)(cursor->key.data == NULL);
-}
-
-//
-//
-//
-//
-//
-//
-//
-//
-//
-// TODO: ask Yoni why second parameter here is not const 
-//
-//
-//
-//
-//
-//
-//
-//
-//
-static int
-heaviside_from_search_t(const DBT &kdbt, ft_search_t &search) {
-    int cmp = search.compare(search,
-                              search.k ? &kdbt : 0);
-    // The search->compare function returns only 0 or 1
-    switch (search.direction) {
-    case FT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
-    case FT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
-    }
-    abort(); return 0;
-}
-
-
-//
-// Returns true if the value that is to be read is empty.
-//
-static inline int
-is_le_val_del(LEAFENTRY le, FT_CURSOR ftcursor) {
-    int rval;
-    if (ftcursor->is_snapshot_read) {
-        bool is_del;
-        le_iterate_is_del(
-            le,
-            does_txn_read_entry,
-            &is_del,
-            ftcursor->ttxn
-            );
-        rval = is_del;
-    }
-    else {
-        rval = le_latest_is_del(le);
-    }
-    return rval;
-}
-
 struct store_msg_buffer_offset_extra {
     int32_t *offsets;
     int i;
@@ -5257,38 +5039,6 @@ toku_move_ftnode_messages_to_stale(FT ft, FTNODE node) {
     }
 }
 
-static int cursor_check_restricted_range(FT_CURSOR c, bytevec key, ITEMLEN keylen) {
-    if (c->out_of_range_error) {
-        FT ft = c->ft_handle->ft;
-        FAKE_DB(db, &ft->cmp_descriptor);
-        DBT found_key;
-        toku_fill_dbt(&found_key, key, keylen);
-        if ((!c->left_is_neg_infty && c->direction <= 0 && ft->compare_fun(&db, &found_key, &c->range_lock_left_key) < 0) ||
-            (!c->right_is_pos_infty && c->direction >= 0 && ft->compare_fun(&db, &found_key, &c->range_lock_right_key) > 0)) {
-            invariant(c->out_of_range_error);
-            return c->out_of_range_error;
-        }
-    }
-    // Reset cursor direction to mitigate risk if some query type doesn't set the direction.
-    // It is always correct to check both bounds (which happens when direction==0) but it can be slower.
-    c->direction = 0;
-    return 0;
-}
-
-static int
-ft_cursor_shortcut (
-    FT_CURSOR cursor,
-    int direction,
-    uint32_t index,
-    bn_data* bd,
-    FT_GET_CALLBACK_FUNCTION getf,
-    void *getf_v,
-    uint32_t *keylen,
-    void **key,
-    uint32_t *vallen,
-    void **val
-    );
-
 // Return true if this key is within the search bound.  If there is no search bound then the tree search continues.
 static bool search_continue(ft_search *search, void *key, uint32_t key_len) {
     bool result = true;
@@ -5302,11 +5052,22 @@ static bool search_continue(ft_search *search, void *key, uint32_t key_len) {
     return result;
 }
 
+static int heaviside_from_search_t(const DBT &kdbt, ft_search &search) {
+    int cmp = search.compare(search,
+                              search.k ? &kdbt : 0);
+    // The search->compare function returns only 0 or 1
+    switch (search.direction) {
+    case FT_SEARCH_LEFT:   return cmp==0 ? -1 : +1;
+    case FT_SEARCH_RIGHT:  return cmp==0 ? +1 : -1; // Because the comparison runs backwards for right searches.
+    }
+    abort(); return 0;
+}
+
 // This is a bottom layer of the search functions.
 static int
 ft_search_basement_node(
     BASEMENTNODE bn,
-    ft_search_t *search,
+    ft_search *search,
     FT_GET_CALLBACK_FUNCTION getf,
     void *getf_v,
     bool *doprefetch,
@@ -5314,7 +5075,7 @@ ft_search_basement_node(
     bool can_bulk_fetch
     )
 {
-    // Now we have to convert from ft_search_t to the heaviside function with a direction.  What a pain...
+    // Now we have to convert from ft_search to the heaviside function with a direction.  What a pain...
 
     int direction;
     switch (search->direction) {
@@ -5339,7 +5100,7 @@ ok: ;
 
     if (toku_ft_cursor_is_leaf_mode(ftcursor))
         goto got_a_good_value;        // leaf mode cursors see all leaf entries
-    if (is_le_val_del(le,ftcursor)) {
+    if (le_val_is_del(le, ftcursor->is_snapshot_read, ftcursor->ttxn)) {
         // Provisionally deleted stuff is gone.
         // So we need to scan in the direction to see if we can find something.
         // Every 100 deleted leaf entries check if the leaf's key is within the search bounds.
@@ -5369,7 +5130,9 @@ ok: ;
             }
             r = bn->data_buffer.fetch_klpair(idx, &le, &keylen, &key);
             assert_zero(r); // we just validated the index
-            if (!is_le_val_del(le,ftcursor)) goto got_a_good_value;
+            if (!le_val_is_del(le, ftcursor->is_snapshot_read, ftcursor->ttxn)) {
+                goto got_a_good_value;
+            }
         }
     }
 got_a_good_value:
@@ -5377,42 +5140,31 @@ got_a_good_value:
         uint32_t vallen;
         void *val;
 
-        ft_cursor_extract_val(le,
-                              ftcursor,
-                              &vallen,
-                              &val
-                              );
-        r = cursor_check_restricted_range(ftcursor, key, keylen);
-        if (r==0) {
+        le_extract_val(le, toku_ft_cursor_is_leaf_mode(ftcursor),
+                       ftcursor->is_snapshot_read, ftcursor->ttxn,
+                       &vallen, &val);
+        r = toku_ft_cursor_check_restricted_range(ftcursor, key, keylen);
+        if (r == 0) {
             r = getf(keylen, key, vallen, val, getf_v, false);
         }
-        if (r==0 || r == TOKUDB_CURSOR_CONTINUE) {
+        if (r == 0 || r == TOKUDB_CURSOR_CONTINUE) {
             // 
             // IMPORTANT: bulk fetch CANNOT go past the current basement node,
             // because there is no guarantee that messages have been applied
             // to other basement nodes, as part of #5770
             //
             if (r == TOKUDB_CURSOR_CONTINUE && can_bulk_fetch) {
-                r = ft_cursor_shortcut(
-                    ftcursor,
-                    direction,
-                    idx,
-                    &bn->data_buffer,
-                    getf,
-                    getf_v,
-                    &keylen,
-                    &key,
-                    &vallen,
-                    &val
-                    );
+                r = toku_ft_cursor_shortcut(ftcursor, direction, idx, &bn->data_buffer,
+                                            getf, getf_v, &keylen, &key, &vallen, &val);
             }
 
-            ft_cursor_cleanup_dbts(ftcursor);
+            toku_destroy_dbt(&ftcursor->key);
+            toku_destroy_dbt(&ftcursor->val);
             if (!ftcursor->is_temporary) {
                 toku_memdup_dbt(&ftcursor->key, key, keylen);
                 toku_memdup_dbt(&ftcursor->val, val, vallen);
             }
-            //The search was successful.  Prefetching can continue.
+            // The search was successful.  Prefetching can continue.
             *doprefetch = true;
         }
     }
@@ -5424,7 +5176,7 @@ static int
 ft_search_node (
     FT_HANDLE ft_handle,
     FTNODE node,
-    ft_search_t *search,
+    ft_search *search,
     int child_to_search,
     FT_GET_CALLBACK_FUNCTION getf,
     void *getf_v,
@@ -5491,7 +5243,7 @@ ft_node_maybe_prefetch(FT_HANDLE ft_handle, FTNODE node, int childnum, FT_CURSOR
 
     // if we want to prefetch in the tree
     // then prefetch the next children if there are any
-    if (*doprefetch && ft_cursor_prefetching(ftcursor) && !ftcursor->disable_prefetching) {
+    if (*doprefetch && toku_ft_cursor_prefetching(ftcursor) && !ftcursor->disable_prefetching) {
         int rc = ft_cursor_rightmost_child_wanted(ftcursor, ft_handle, node);
         for (int i = childnum + 1; (i <= childnum + num_nodes_to_prefetch) && (i <= rc); i++) {
             BLOCKNUM nextchildblocknum = BP_BLOCKNUM(node, i);
@@ -5543,7 +5295,7 @@ unlock_ftnode_fun (void *v) {
 
 /* search in a node's child */
 static int
-ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, bool *doprefetch, FT_CURSOR ftcursor, UNLOCKERS unlockers,
+ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, bool *doprefetch, FT_CURSOR ftcursor, UNLOCKERS unlockers,
                  ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool can_bulk_fetch)
 // Effect: Search in a node's child.  Searches are read-only now (at least as far as the hardcopy is concerned).
 {
@@ -5622,7 +5374,7 @@ ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search_t *sea
 }
 
 static inline int
-search_which_child_cmp_with_bound(DB *db, ft_compare_func cmp, FTNODE node, int childnum, ft_search_t *search, DBT *dbt)
+search_which_child_cmp_with_bound(DB *db, ft_compare_func cmp, FTNODE node, int childnum, ft_search *search, DBT *dbt)
 {
     return cmp(db, toku_copy_dbt(dbt, node->childkeys[childnum]), &search->pivot_bound);
 }
@@ -5632,7 +5384,7 @@ toku_ft_search_which_child(
     DESCRIPTOR desc,
     ft_compare_func cmp,
     FTNODE node,
-    ft_search_t *search
+    ft_search *search
     )
 {
     if (node->n_children <= 1) return 0;
@@ -5696,7 +5448,7 @@ static void
 maybe_search_save_bound(
     FTNODE node,
     int child_searched,
-    ft_search_t *search)
+    ft_search *search)
 {
     int p = (search->direction == FT_SEARCH_LEFT) ? child_searched : child_searched - 1;
     if (p >= 0 && p < node->n_children-1) {
@@ -5706,7 +5458,7 @@ maybe_search_save_bound(
 }
 
 // Returns true if there are still children left to search in this node within the search bound (if any).
-static bool search_try_again(FTNODE node, int child_to_search, ft_search_t *search) {
+static bool search_try_again(FTNODE node, int child_to_search, ft_search *search) {
     bool try_again = false;
     if (search->direction == FT_SEARCH_LEFT) {
         if (child_to_search < node->n_children-1) {
@@ -5729,7 +5481,7 @@ static int
 ft_search_node(
     FT_HANDLE ft_handle,
     FTNODE node,
-    ft_search_t *search,
+    ft_search *search,
     int child_to_search,
     FT_GET_CALLBACK_FUNCTION getf,
     void *getf_v,
@@ -5824,8 +5576,7 @@ ft_search_node(
     return r;
 }
 
-static int
-toku_ft_search (FT_HANDLE ft_handle, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, FT_CURSOR ftcursor, bool can_bulk_fetch)
+int toku_ft_search(FT_HANDLE ft_handle, ft_search *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, FT_CURSOR ftcursor, bool can_bulk_fetch)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
 // All searches are performed through this function.
 {
@@ -5855,7 +5606,7 @@ try_again:
     //       and the partial fetch callback (in case the node is perhaps partially in memory) to the fetch the node
     //  - This eventually calls either toku_ftnode_fetch_callback or  toku_ftnode_pf_req_callback depending on whether the node is in
     //     memory at all or not.
-    //  - Within these functions, the "ft_search_t search" parameter is used to evaluate which child the search is interested in.
+    //  - Within these functions, the "ft_search search" parameter is used to evaluate which child the search is interested in.
     //     If the node is not in memory at all, toku_ftnode_fetch_callback will read the node and decompress only the partition for the
     //     relevant child, be it a message buffer or basement node. If the node is in memory, then toku_ftnode_pf_req_callback
     //     will tell the cachetable that a partial fetch is required if and only if the relevant child is not in memory. If the relevant child
@@ -5956,355 +5707,20 @@ try_again:
     return r;
 }
 
-struct ft_cursor_search_struct {
-    FT_GET_CALLBACK_FUNCTION getf;
-    void *getf_v;
-    FT_CURSOR cursor;
-    ft_search_t *search;
-};
-
-/* search for the first kv pair that matches the search object */
-static int
-ft_cursor_search(FT_CURSOR cursor, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, bool can_bulk_fetch)
-{
-    int r = toku_ft_search(cursor->ft_handle, search, getf, getf_v, cursor, can_bulk_fetch);
-    return r;
-}
-
-static inline int compare_k_x(FT_HANDLE ft_handle, const DBT *k, const DBT *x) {
-    FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
-    return ft_handle->ft->compare_fun(&db, k, x);
-}
-
-static int
-ft_cursor_compare_one(const ft_search_t &search __attribute__((__unused__)), const DBT *x __attribute__((__unused__)))
-{
-    return 1;
-}
-
-static int ft_cursor_compare_set(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
-    return compare_k_x(ft_handle, search.k, x) <= 0; /* return min xy: kv <= xy */
-}
-
-static int
-ft_cursor_current_getf(ITEMLEN keylen,                 bytevec key,
-                        ITEMLEN vallen,                 bytevec val,
-                        void *v, bool lock_only) {
-    struct ft_cursor_search_struct *CAST_FROM_VOIDP(bcss, v);
-    int r;
-    if (key==NULL) {
-        r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
-    } else {
-        FT_CURSOR cursor = bcss->cursor;
-        DBT newkey;
-        toku_fill_dbt(&newkey, key, keylen);
-        if (compare_k_x(cursor->ft_handle, &cursor->key, &newkey) != 0) {
-            r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only); // This was once DB_KEYEMPTY
-            if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
-        }
-        else
-            r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
-    }
-    return r;
-}
-
-int
-toku_ft_cursor_current(FT_CURSOR cursor, int op, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    if (ft_cursor_not_set(cursor))
-        return EINVAL;
-    cursor->direction = 0;
-    if (op == DB_CURRENT) {
-        struct ft_cursor_search_struct bcss = {getf, getf_v, cursor, 0};
-        ft_search_t search; 
-        ft_search_init(&search, ft_cursor_compare_set, FT_SEARCH_LEFT, &cursor->key, nullptr, cursor->ft_handle);
-        int r = toku_ft_search(cursor->ft_handle, &search, ft_cursor_current_getf, &bcss, cursor, false);
-        ft_search_finish(&search);
-        return r;
-    }
-    return getf(cursor->key.size, cursor->key.data, cursor->val.size, cursor->val.data, getf_v, false); // ft_cursor_copyout(cursor, outkey, outval);
-}
-
-int
-toku_ft_cursor_first(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = 0;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_one, FT_SEARCH_LEFT, nullptr, nullptr, cursor->ft_handle);
-    int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
-    ft_search_finish(&search);
-    return r;
-}
-
-int
-toku_ft_cursor_last(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = 0;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_one, FT_SEARCH_RIGHT, nullptr, nullptr, cursor->ft_handle);
-    int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
-    ft_search_finish(&search);
-    return r;
-}
-
-static int ft_cursor_compare_next(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
-    return compare_k_x(ft_handle, search.k, x) < 0; /* return min xy: kv < xy */
-}
-
-static int
-ft_cursor_shortcut (
-    FT_CURSOR cursor,
-    int direction,
-    uint32_t index,
-    bn_data* bd,
-    FT_GET_CALLBACK_FUNCTION getf,
-    void *getf_v,
-    uint32_t *keylen,
-    void **key,
-    uint32_t *vallen,
-    void **val
-    )
-{
-    int r = 0;
-    // if we are searching towards the end, limit is last element
-    // if we are searching towards the beginning, limit is the first element
-    uint32_t limit = (direction > 0) ? (bd->num_klpairs() - 1) : 0;
-
-    //Starting with the prev, find the first real (non-provdel) leafentry.
-    while (index != limit) {
-        index += direction;
-        LEAFENTRY le;
-        void* foundkey = NULL;
-        uint32_t foundkeylen = 0;
-        
-        r = bd->fetch_klpair(index, &le, &foundkeylen, &foundkey);
-        invariant_zero(r);
-
-        if (toku_ft_cursor_is_leaf_mode(cursor) || !is_le_val_del(le, cursor)) {
-            ft_cursor_extract_val(
-                le,
-                cursor,
-                vallen,
-                val
-                );
-            *key = foundkey;
-            *keylen = foundkeylen;
-
-            cursor->direction = direction;
-            r = cursor_check_restricted_range(cursor, *key, *keylen);
-            if (r!=0) {
-                paranoid_invariant(r == cursor->out_of_range_error);
-                // We already got at least one entry from the bulk fetch.
-                // Return 0 (instead of out of range error).
-                r = 0;
-                break;
-            }
-            r = getf(*keylen, *key, *vallen, *val, getf_v, false);
-            if (r == TOKUDB_CURSOR_CONTINUE) {
-                continue;
-            }
-            else {
-                break;
-            }
-        }
-    }
-
-    return r;
-}
-
-int
-toku_ft_cursor_next(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = +1;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_next, FT_SEARCH_LEFT, &cursor->key, nullptr, cursor->ft_handle);
-    int r = ft_cursor_search(cursor, &search, getf, getf_v, true);
-    ft_search_finish(&search);
-    if (r == 0) ft_cursor_set_prefetching(cursor);
-    return r;
-}
-
-static int
-ft_cursor_search_eq_k_x_getf(ITEMLEN keylen,               bytevec key,
-                              ITEMLEN vallen,               bytevec val,
-                              void *v, bool lock_only) {
-    struct ft_cursor_search_struct *CAST_FROM_VOIDP(bcss, v);
-    int r;
-    if (key==NULL) {
-        r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, false);
-    } else {
-        FT_CURSOR cursor = bcss->cursor;
-        DBT newkey;
-        toku_fill_dbt(&newkey, key, keylen);
-        if (compare_k_x(cursor->ft_handle, bcss->search->k, &newkey) == 0) {
-            r = bcss->getf(keylen, key, vallen, val, bcss->getf_v, lock_only);
-        } else {
-            r = bcss->getf(0, NULL, 0, NULL, bcss->getf_v, lock_only);
-            if (r==0) r = TOKUDB_FOUND_BUT_REJECTED;
-        }
-    }
-    return r;
-}
-
-/* search for the kv pair that matches the search object and is equal to k */
-static int
-ft_cursor_search_eq_k_x(FT_CURSOR cursor, ft_search_t *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    struct ft_cursor_search_struct bcss = {getf, getf_v, cursor, search};
-    int r = toku_ft_search(cursor->ft_handle, search, ft_cursor_search_eq_k_x_getf, &bcss, cursor, false);
-    return r;
-}
-
-static int ft_cursor_compare_prev(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
-    return compare_k_x(ft_handle, search.k, x) > 0; /* return max xy: kv > xy */
-}
-
-int
-toku_ft_cursor_prev(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = -1;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_prev, FT_SEARCH_RIGHT, &cursor->key, nullptr, cursor->ft_handle);
-    int r = ft_cursor_search(cursor, &search, getf, getf_v, true);
-    ft_search_finish(&search);
-    return r;
-}
-
-static int ft_cursor_compare_set_range(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
-    return compare_k_x(ft_handle, search.k, x) <= 0; /* return kv <= xy */
-}
-
-int
-toku_ft_cursor_set(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = 0;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_set_range, FT_SEARCH_LEFT, key, nullptr, cursor->ft_handle);
-    int r = ft_cursor_search_eq_k_x(cursor, &search, getf, getf_v);
-    ft_search_finish(&search);
-    return r;
-}
-
-int
-toku_ft_cursor_set_range(FT_CURSOR cursor, DBT *key, DBT *key_bound, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = 0;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_set_range, FT_SEARCH_LEFT, key, key_bound, cursor->ft_handle);
-    int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
-    ft_search_finish(&search);
-    return r;
-}
-
-static int ft_cursor_compare_set_range_reverse(const ft_search_t &search, const DBT *x) {
-    FT_HANDLE CAST_FROM_VOIDP(ft_handle, search.context);
-    return compare_k_x(ft_handle, search.k, x) >= 0; /* return kv >= xy */
-}
-
-int
-toku_ft_cursor_set_range_reverse(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    cursor->direction = 0;
-    ft_search_t search; 
-    ft_search_init(&search, ft_cursor_compare_set_range_reverse, FT_SEARCH_RIGHT, key, nullptr, cursor->ft_handle);
-    int r = ft_cursor_search(cursor, &search, getf, getf_v, false);
-    ft_search_finish(&search);
-    return r;
-}
-
-
-//TODO: When tests have been rewritten, get rid of this function.
-//Only used by tests.
-int
-toku_ft_cursor_get (FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)
-{
-    int op = get_flags & DB_OPFLAGS_MASK;
-    if (get_flags & ~DB_OPFLAGS_MASK)
-        return EINVAL;
-
-    switch (op) {
-    case DB_CURRENT:
-    case DB_CURRENT_BINDING:
-        return toku_ft_cursor_current(cursor, op, getf, getf_v);
-    case DB_FIRST:
-        return toku_ft_cursor_first(cursor, getf, getf_v);
-    case DB_LAST:
-        return toku_ft_cursor_last(cursor, getf, getf_v);
-    case DB_NEXT:
-        if (ft_cursor_not_set(cursor)) {
-            return toku_ft_cursor_first(cursor, getf, getf_v);
-        } else {
-            return toku_ft_cursor_next(cursor, getf, getf_v);
-        }
-    case DB_PREV:
-        if (ft_cursor_not_set(cursor)) {
-            return toku_ft_cursor_last(cursor, getf, getf_v);
-        } else {
-            return toku_ft_cursor_prev(cursor, getf, getf_v);
-        }
-    case DB_SET:
-        return toku_ft_cursor_set(cursor, key, getf, getf_v);
-    case DB_SET_RANGE:
-        return toku_ft_cursor_set_range(cursor, key, nullptr, getf, getf_v);
-    default: ;// Fall through
-    }
-    return EINVAL;
-}
-
-void
-toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval)
-// Effect: Retrieves a pointer to the DBTs for the current key and value.
-// Requires:  The caller may not modify the DBTs or the memory at which they points.
-// Requires:  The caller must be in the context of a
-// FT_GET_(STRADDLE_)CALLBACK_FUNCTION
-{
-    *pkey = &cursor->key;
-    *pval = &cursor->val;
-}
-
-bool toku_ft_cursor_uninitialized(FT_CURSOR c) {
-    return ft_cursor_not_set(c);
-}
-
-
-/* ********************************* lookup **************************************/
-
-int
-toku_ft_lookup (FT_HANDLE ft_handle, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)
-{
-    int r, rr;
-    FT_CURSOR cursor;
-
-    rr = toku_ft_cursor(ft_handle, &cursor, NULL, false, false);
-    if (rr != 0) return rr;
-
-    int op = DB_SET;
-    r = toku_ft_cursor_get(cursor, k, getf, getf_v, op);
-
-    toku_ft_cursor_close(cursor);
-
-    return r;
-}
-
 /* ********************************* delete **************************************/
 static int
 getf_nothing (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *UU(pair_v), bool UU(lock_only)) {
     return 0;
 }
 
-int
-toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN txn) {
+int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN txn) {
     int r;
 
     int unchecked_flags = flags;
     bool error_if_missing = (bool) !(flags&DB_DELETE_ANY);
     unchecked_flags &= ~DB_DELETE_ANY;
     if (unchecked_flags!=0) r = EINVAL;
-    else if (ft_cursor_not_set(cursor)) r = EINVAL;
+    else if (toku_ft_cursor_not_set(cursor)) r = EINVAL;
     else {
         r = 0;
         if (error_if_missing) {
@@ -6628,9 +6044,9 @@ static int get_key_after_bytes_in_basementnode(FT ft, BASEMENTNODE bn, const DBT
     return r;
 }
 
-static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search_t *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped);
+static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped);
 
-static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search_t *search, int childnum, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, int childnum, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
     int r;
     struct ancestors next_ancestors = {node, childnum, ancestors};
     BLOCKNUM childblocknum = BP_BLOCKNUM(node, childnum);
@@ -6649,7 +6065,7 @@ static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLO
     return get_key_after_bytes_in_subtree(ft_h, ft, child, &next_unlockers, &next_ancestors, &next_bounds, bfe, search, subtree_bytes, start_key, skip_len, callback, cb_extra, skipped);
 }
 
-static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search_t *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
     int r;
     int childnum = toku_ft_search_which_child(&ft->cmp_descriptor, ft->compare_fun, node, search);
     const uint64_t child_subtree_bytes = subtree_bytes / node->n_children;
@@ -6724,8 +6140,8 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
         }
         struct unlock_ftnode_extra unlock_extra = {ft_h, root, false};
         struct unlockers unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, (UNLOCKERS) nullptr};
-        ft_search_t search;
-        ft_search_init(&search, (start_key == nullptr ? ft_cursor_compare_one : ft_cursor_compare_set_range), FT_SEARCH_LEFT, start_key, nullptr, ft_h);
+        ft_search search;
+        ft_search_init(&search, (start_key == nullptr ? toku_ft_cursor_compare_one : toku_ft_cursor_compare_set_range), FT_SEARCH_LEFT, start_key, nullptr, ft_h);
         
         int r;
         // We can't do this because of #5768, there may be dictionaries in the wild that have negative stats.  This won't affect mongo so it's ok:

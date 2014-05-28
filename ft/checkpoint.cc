@@ -129,6 +129,7 @@ PATENT RIGHTS GRANT:
 #include <toku_portability.h>
 #include <time.h>
 
+#include "ft/ft.h"
 #include "fttypes.h"
 #include "cachetable.h"
 #include "log-internal.h"

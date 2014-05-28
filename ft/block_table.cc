@@ -101,6 +101,9 @@ PATENT RIGHTS GRANT:
 #include "wbuf.h"
 #include <util/nb_mutex.h>
 
+// TODO: reorganize this dependency
+#include "ft/ft-ops.h" // for toku_maybe_truncate_file
+
 //When the translation (btt) is stored on disk:
 //  In Header:
 //      size_on_disk

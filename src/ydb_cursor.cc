@@ -97,6 +97,7 @@ PATENT RIGHTS GRANT:
 #include "ydb-internal.h"
 #include "ydb_cursor.h"
 #include "ydb_row_lock.h"
+#include "ft/cursor.h"
 
 static YDB_C_LAYER_STATUS_S ydb_c_layer_status;
 #ifdef STATUS_VALUE

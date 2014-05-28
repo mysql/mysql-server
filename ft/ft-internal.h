@@ -106,7 +106,6 @@ PATENT RIGHTS GRANT:
 #include "ft_layout_version.h"
 #include "block_allocator.h"
 #include "cachetable.h"
-#include "ft-ops.h"
 #include "toku_list.h"
 #include <util/omt.h>
 #include "leafentry.h"
@@ -116,8 +115,9 @@ PATENT RIGHTS GRANT:
 #include <util/omt.h>
 #include "ft/bndata.h"
 #include "ft/rollback.h"
-#include "ft/ft-search.h"
 #include "ft/msg_buffer.h"
+
+struct ft_search;
 
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { FT_MSG_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
@@ -181,7 +181,7 @@ struct ftnode_fetch_extra {
     FT h;
     // used in the case where type == ftnode_fetch_subset
     // parameters needed to find out which child needs to be decompressed (so it can be read)
-    ft_search_t* search;
+    ft_search *search;
     DBT range_lock_left_key, range_lock_right_key;
     bool left_is_neg_infty, right_is_pos_infty;
     // states if we should try to aggressively fetch basement nodes 
@@ -858,7 +858,7 @@ static inline void fill_bfe_for_keymatch(
 static inline void fill_bfe_for_subset_read(
     struct ftnode_fetch_extra *bfe,
     FT h,
-    ft_search_t* search,
+    ft_search *search,
     const DBT *left,
     const DBT *right,
     bool left_is_neg_infty,
@@ -951,7 +951,7 @@ toku_ft_search_which_child(
     DESCRIPTOR desc,
     ft_compare_func cmp,
     FTNODE node,
-    ft_search_t *search
+    ft_search *search
     );
 
 bool
@@ -1229,3 +1229,22 @@ void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extr
 
 int toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h) __attribute__((nonnull));
 int toku_upgrade_msn_from_root_to_header(int fd, FT h) __attribute__((nonnull));
+
+// A callback function is invoked with the key, and the data.
+// The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.
+// Note: In the thread-safe version, the ftnode remains locked while the callback function runs.  So return soon, and don't call the ft code from the callback function.
+// If the callback function returns a nonzero value (an error code), then that error code is returned from the get function itself.
+// The cursor object will have been updated (so that if result==0 the current value is the value being passed)
+//  (If r!=0 then the cursor won't have been updated.)
+// If r!=0, it's up to the callback function to return that value of r.
+// A 'key' bytevec of NULL means that element is not found (effectively infinity or
+// -infinity depending on direction)
+// When lock_only is false, the callback does optional lock tree locking and then processes the key and val.
+// When lock_only is true, the callback only does optional lock tree locking.
+typedef int (*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
+
+typedef bool (*FT_CHECK_INTERRUPT_CALLBACK)(void *extra);
+
+struct ft_search;
+struct ft_cursor;
+int toku_ft_search(FT_HANDLE ft_handle, ft_search *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, struct ft_cursor *ftcursor, bool can_bulk_fetch);

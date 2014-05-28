@@ -211,6 +211,7 @@ void wbuf_nocrc_LEAFENTRY(struct wbuf *w, LEAFENTRY le);
 int print_klpair (FILE *outf, const void* key, uint32_t keylen, LEAFENTRY v); // Print a leafentry out in human-readable form.
 
 int le_latest_is_del(LEAFENTRY le); // Return true if it is a provisional delete.
+int le_val_is_del(LEAFENTRY le, bool is_snapshot_read, TOKUTXN txn); // Returns true if the value that is to be read is empty
 bool le_is_clean(LEAFENTRY le); //Return how many xids exist (0 does not count)
 bool le_has_xids(LEAFENTRY le, XIDS xids); // Return true transaction represented by xids is still provisional in this leafentry (le's xid stack is a superset or equal to xids)
 void*     le_latest_val (LEAFENTRY le); // Return the latest val (return NULL for provisional deletes)
@@ -227,9 +228,12 @@ uint64_t le_outermost_uncommitted_xid (LEAFENTRY le);
 //      r|r!=0&&r!=TOKUDB_ACCEPT:  Quit early, return r, because something unexpected went wrong (error case)
 typedef int(*LE_ITERATE_CALLBACK)(TXNID id, TOKUTXN context);
 
-int le_iterate_is_del(LEAFENTRY le, LE_ITERATE_CALLBACK f, bool *is_empty, TOKUTXN context);
-
 int le_iterate_val(LEAFENTRY le, LE_ITERATE_CALLBACK f, void** valpp, uint32_t *vallenp, TOKUTXN context);
+
+void le_extract_val(LEAFENTRY le,
+                    // should we return the entire leafentry as the val?
+                    bool is_leaf_mode, bool is_snapshot_read,
+                    TOKUTXN ttxn, uint32_t *vallen, void **val);
 
 size_t
 leafentry_disksize_13(LEAFENTRY_13 le);

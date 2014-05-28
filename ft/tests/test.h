@@ -107,6 +107,7 @@ PATENT RIGHTS GRANT:
 #include "logger.h"
 #include "fttypes.h"
 #include "ft-ops.h"
+#include "cursor.h"
 #include "cachetable.h"
 #include "cachetable-internal.h"
 
