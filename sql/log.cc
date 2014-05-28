@@ -2206,20 +2206,10 @@ void sql_perror(const char *message)
 extern "C" my_bool reopen_fstreams(const char *filename,
                                    FILE *outstream, FILE *errstream)
 {
-  int retries= 2, errors= 0;
-
-  do
-  {
-    errors= 0;
     if (errstream && !my_freopen(filename, "a", errstream))
-      errors++;
+      return true;
     if (outstream && !my_freopen(filename, "a", outstream))
-      errors++;
-  }
-  while(retries-- && errors);
-
-  if(errors)
-    return true;
+      return true;
 
   /* The error stream must be unbuffered. */
   if (errstream)
