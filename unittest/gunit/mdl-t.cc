@@ -165,7 +165,7 @@ public:
     m_release_locks(release_locks),
     m_lock_blocked(lock_blocked),
     m_lock_released(lock_released),
-    m_ignore_notify(false)
+    m_enable_release_on_notify(false)
   {
     m_mdl_context.init(this);
   }
@@ -176,7 +176,7 @@ public:
   }
 
   virtual void run();
-  void ignore_notify() { m_ignore_notify= true; }
+  void enable_release_on_notify() { m_enable_release_on_notify= true; }
 
   virtual bool notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort)
@@ -184,7 +184,7 @@ public:
     if (in_use)
       return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
 
-    if (m_ignore_notify)
+    if (!m_enable_release_on_notify)
       return false;
     if (m_release_locks)
       m_release_locks->notify();
@@ -224,7 +224,7 @@ private:
   Notification  *m_release_locks;
   Notification  *m_lock_blocked;
   Notification  *m_lock_released;
-  bool           m_ignore_notify;
+  bool           m_enable_release_on_notify;
   MDL_context    m_mdl_context;
 };
 
@@ -594,7 +594,6 @@ TEST_F(MDLTest, ConcurrentSharedExclusive)
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
                         NULL, NULL);
-  mdl_thread.ignore_notify();
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -682,6 +681,7 @@ TEST_F(MDLTest, ConcurrentUpgrade)
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
                         NULL, NULL);
+  mdl_thread.enable_release_on_notify();
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -1625,6 +1625,8 @@ TEST_F(MDLTest, HogLockTest5)
   thd_lock_released[THD5_SU].wait_for_notification();
 
   /* CLEANUP */
+  thd_release_locks[THD3_SR].notify();
+  thd_lock_released[THD3_SR].wait_for_notification();
   thd_lock_grabbed[THD6_SNRW].wait_for_notification();
   thd_release_locks[THD6_SNRW].notify();
   thd_lock_released[THD6_SNRW].wait_for_notification();
@@ -1666,7 +1668,6 @@ TEST_F(MDLTest, ConcurrentSharedExclusiveShared)
                          &second_shared_blocked, NULL);
 
   /* Start thread which will acquire S lock. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   first_shared_grabbed.wait_for_notification();
 
@@ -1725,7 +1726,6 @@ TEST_F(MDLTest, ConcurrentExclusiveExclusive)
                          NULL, &second_exclusive_blocked, NULL);
 
   /* Start thread which will acquire X lock. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   first_exclusive_grabbed.wait_for_notification();
 
@@ -1766,11 +1766,9 @@ TEST_F(MDLTest, ConcurrentSharedSharedExclusive)
                          NULL, &exclusive_blocked, NULL);
 
   /* Start two threads which will acquire S locks. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   first_shared_grabbed.wait_for_notification();
 
-  mdl_thread2.ignore_notify();
   mdl_thread2.start();
   second_shared_grabbed.wait_for_notification();
 
@@ -1970,6 +1968,7 @@ TEST_F(MDLTest, NotifyScenarios)
                          NULL, NULL, NULL);
 
   /* Acquire S lock which will be granted using "fast path". */
+  mdl_thread1.enable_release_on_notify();
   mdl_thread1.start();
   first_shared_grabbed.wait_for_notification();
 
@@ -2010,6 +2009,7 @@ TEST_F(MDLTest, NotifyScenarios)
     as requiring lock abort.
   */
   mdl_thread3.get_mdl_context().set_needs_thr_lock_abort(true);
+  mdl_thread3.enable_release_on_notify();
   /* Acquire S lock which will be granted using "fast path". */
   mdl_thread3.start();
   second_shared_grabbed.wait_for_notification();
@@ -2292,12 +2292,10 @@ TEST_F(MDLTest, RescheduleSharedNoWrite)
 
 
   /* Start thread which will acquire S lock. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   shared_grabbed.wait_for_notification();
 
   /* Start thread which will acquire SW lock. */
-  mdl_thread2.ignore_notify();
   mdl_thread2.start();
   first_shared_write_grabbed.wait_for_notification();
 
