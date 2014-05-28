@@ -1057,7 +1057,7 @@ toku_get_node_for_verify(
 
 int
 toku_verify_ftnode (FT_HANDLE ft_h,
-                    MSN rootmsn, MSN parentmsn, bool messages_exist_above,
+                    MSN rootmsn, MSN parentmsn_with_messages, bool messages_exist_above,
                      FTNODE node, int height,
                      const DBT *lesser_pivot,               // Everything in the subtree should be > lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
                      const DBT *greatereq_pivot,            // Everything in the subtree should be <= lesser_pivot.  (lesser_pivot==NULL if there is no lesser pivot.)
