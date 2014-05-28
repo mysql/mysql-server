@@ -1291,5 +1291,34 @@ SELECT * FROM t1, t3 WHERE t3_c IN ( SELECT t1_pk2 FROM t4, t2 WHERE t2_c = t1_p
 
 DROP TABLE t1,t2,t3,t4;
 
+--echo #
+--echo # MDEV-6263: Wrong result when using IN subquery with order by
+--echo #
+CREATE TABLE t1 (
+  id int(11) NOT NULL,
+  nombre varchar(255) NOT NULL,
+  PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t1 (id, nombre) VALUES
+(1, 'row 1'),(2, 'row 2'),(3, 'row 3'),
+(4, 'row 4'),(5, 'row 5'),(6, 'row 6');
+
+CREATE TABLE t2 (
+  id_algo int(11) NOT NULL,
+  id_agente int(11) NOT NULL,
+  PRIMARY KEY (id_algo,id_agente), 
+  KEY another_data (id_agente)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+
+INSERT INTO t2 (id_algo, id_agente) VALUES
+(1, 1),(1, 2),(2, 1),(2, 2),(2, 3),(3, 1);
+
+SELECT * FROM t1 WHERE id in (select distinct id_agente from t2) ORDER BY nombre ASC;
+
+SELECT * FROM t1 WHERE id in (select distinct id_agente from t2);
+
+DROP TABLE t1, t2;
+
 --echo # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;

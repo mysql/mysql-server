@@ -1150,6 +1150,36 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 1	PRIMARY	t3	ALL	NULL	NULL	NULL	NULL	2	Using where; Using join buffer (flat, BNL join)
 1	PRIMARY	t4	index	NULL	PRIMARY	59	NULL	2	Using where; Using index; End temporary
 DROP TABLE t1,t2,t3,t4;
+#
+# MDEV-6263: Wrong result when using IN subquery with order by
+#
+CREATE TABLE t1 (
+id int(11) NOT NULL,
+nombre varchar(255) NOT NULL,
+PRIMARY KEY (id)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t1 (id, nombre) VALUES
+(1, 'row 1'),(2, 'row 2'),(3, 'row 3'),
+(4, 'row 4'),(5, 'row 5'),(6, 'row 6');
+CREATE TABLE t2 (
+id_algo int(11) NOT NULL,
+id_agente int(11) NOT NULL,
+PRIMARY KEY (id_algo,id_agente), 
+KEY another_data (id_agente)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1;
+INSERT INTO t2 (id_algo, id_agente) VALUES
+(1, 1),(1, 2),(2, 1),(2, 2),(2, 3),(3, 1);
+SELECT * FROM t1 WHERE id in (select distinct id_agente from t2) ORDER BY nombre ASC;
+id	nombre
+1	row 1
+2	row 2
+3	row 3
+SELECT * FROM t1 WHERE id in (select distinct id_agente from t2);
+id	nombre
+1	row 1
+2	row 2
+3	row 3
+DROP TABLE t1, t2;
 # This must be the last in the file:
 set optimizer_switch=@subselect_sj2_tmp;
 set optimizer_switch=default;

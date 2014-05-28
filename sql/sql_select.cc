@@ -10270,20 +10270,25 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
 	  else if (!table->covering_keys.is_clear_all() &&
 		   !(tab->select && tab->select->quick))
 	  {					// Only read index tree
+            if (tab->loosescan_match_tab)
+              tab->index= tab->loosescan_key;
+            else 
+            {
 #ifdef BAD_OPTIMIZATION
-	    /*
-              It has turned out that the below change, while speeding things
-              up for disk-bound loads, slows them down for cases when the data
-              is in disk cache (see BUG#35850):
-              See bug #26447: "Using the clustered index for a table scan
-              is always faster than using a secondary index".
-            */
-            if (table->s->primary_key != MAX_KEY &&
-                table->file->primary_key_is_clustered())
-              tab->index= table->s->primary_key;
-            else
+              /*
+                It has turned out that the below change, while speeding things
+                up for disk-bound loads, slows them down for cases when the data
+                is in disk cache (see BUG#35850):
+                See bug #26447: "Using the clustered index for a table scan
+                is always faster than using a secondary index".
+              */
+              if (table->s->primary_key != MAX_KEY &&
+                  table->file->primary_key_is_clustered())
+                tab->index= table->s->primary_key;
+              else
 #endif
-              tab->index=find_shortest_key(table, & table->covering_keys);
+                tab->index=find_shortest_key(table, & table->covering_keys);
+            }
 	    tab->read_first_record= join_read_first;
             /* Read with index_first / index_next */
 	    tab->type= tab->type == JT_ALL ? JT_NEXT : JT_HASH_NEXT;		
