@@ -37,7 +37,7 @@ fi
 
 mybasedir="$basedir/@@instdir@@"
 mystart1="$mybasedir/support-files/mysql.server"
-myinstdb="$mybasedir/scripts/mysql_install_db"
+myinstdb="$mybasedir/bin/mysql_install_db"
 mystart=/etc/init.d/mysql
 
 # Check: Is this a first installation, or an upgrade ?
@@ -79,10 +79,8 @@ if [ -n "$INSTALL" ] ; then
   # We install/update the system tables
   (
     cd "$mybasedir"
-    scripts/mysql_install_db \
-	  --rpm \
+    bin/mysql_install_db \
 	  --user=mysql \
-	  --skip-random-passwords \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )
