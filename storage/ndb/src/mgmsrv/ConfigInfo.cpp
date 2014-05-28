@@ -2241,6 +2241,24 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "true"
   },
 
+  {
+    CFG_DB_AT_RESTART_SUBSCRIBER_CONNECT_TIMEOUT,
+    "RestartSubscriberConnectTimeout",
+    DB_TOKEN,
+    "On node restart the time that a data node will wait for "
+    "subscribing Api nodes to connect.  If it expires, missing "
+    "Api nodes will be disconnected from the cluster.  A zero "
+    "value means that timeout is disabled.  Even if unit is "
+    "milliseconds the actual resolution of timeout will be "
+    "seconds.",
+    ConfigInfo::CI_USED,
+    false,
+    ConfigInfo::CI_INT,
+    "120000",
+    "0",
+    STR_VALUE(MAX_INT_RNIL)
+  },
+
   /***************************************************************************
    * API
    ***************************************************************************/
