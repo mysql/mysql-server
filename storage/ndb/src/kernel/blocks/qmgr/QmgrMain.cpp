@@ -448,6 +448,16 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     return;
   }
 
+  if (ERROR_INSERTED(941) &&
+      getNodeInfo(connectedNodeId).getType() == NodeInfo::API)
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    ndbout_c("Discarding one API CONNECT_REP(%d)", connectedNodeId);
+    infoEvent("Discarding one API CONNECT_REP(%d)", connectedNodeId);
+    return;
+  }
+
   if (c_connectedNodes.get(connectedNodeId) == false)
   {
     jam();
@@ -6147,8 +6157,21 @@ Qmgr::reportArbitEvent(Signal* signal, Ndb_logevent_type type,
 void
 Qmgr::execDUMP_STATE_ORD(Signal* signal)
 {
-  switch (signal->theData[0]) {
-  case 1:
+  if (signal->theData[0] == 1)
+  {
+    unsigned max_nodes = MAX_NDB_NODES;
+    if (signal->getLength() == 2)
+    {
+      max_nodes = signal->theData[1];
+      if (max_nodes == 0 || max_nodes >= MAX_NODES)
+      {
+        max_nodes = MAX_NODES;
+      }
+      else
+      {
+        max_nodes++; // Include node id argument in loop
+      }
+    }
     infoEvent("creadyDistCom = %d, cpresident = %d\n",
 	      creadyDistCom, cpresident);
     infoEvent("cpresidentAlive = %d, cpresidentCand = %d (gci: %d)\n",
@@ -6156,10 +6179,10 @@ Qmgr::execDUMP_STATE_ORD(Signal* signal)
 	      c_start.m_president_candidate, 
 	      c_start.m_president_candidate_gci);
     infoEvent("ctoStatus = %d\n", ctoStatus);
-    for(Uint32 i = 1; i<MAX_NDB_NODES; i++){
+    for(Uint32 i = 1; i < max_nodes; i++){
       NodeRecPtr nodePtr;
       nodePtr.i = i;
-      ptrCheckGuard(nodePtr, MAX_NDB_NODES, nodeRec);
+      ptrCheckGuard(nodePtr, MAX_NODES, nodeRec);
       char buf[100];
       switch(nodePtr.p->phase){
       case ZINIT:
