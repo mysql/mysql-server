@@ -36,7 +36,7 @@ args: -n Mix -l 300 -r 15 T1
 # SYSTEM RESTARTS
 #
 #
-max-time: 3600
+max-time: 9000
 cmd: testSystemRestart
 args: -n SR_FULLDB T6 
 
@@ -134,7 +134,7 @@ cmd: testSystemRestart
 args: -n Bug45154 D1
 
 # Bug18401154 added on 17.04.2014
-max-time: 900
+max-time: 1500
 cmd: testSystemRestart
 args: -n to D2
 
@@ -175,7 +175,7 @@ cmd: testNodeRestart
 args: -n Bug34216 -l 10 T1 I3 D2
 
 # Bug18379486 added on 17.04.2014
-max-time: 900
+max-time: 1500
 cmd: testRedo
 args: -n RestartFD -l 2 T1
 
@@ -201,7 +201,7 @@ cmd: test_event
 args: -r 5000 -n Bug30780 T1
 
 # Bug18401361 added on 17.04.2014
-max-time: 900
+max-time: 1500
 cmd: testBasic
 args: -n Bug54986 D2
 
@@ -306,7 +306,7 @@ cmd: testNdbApi
 args: -n SimpleReadAbortOnError T1 T6 T15
 
 # Bug18401826 added on 17.04.2014
-max-time: 900
+max-time: 1500
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
