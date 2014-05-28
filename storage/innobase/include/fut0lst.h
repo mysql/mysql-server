@@ -125,6 +125,7 @@ does not measure the length of the tail. */
 void
 flst_truncate_end(
 /*==============*/
+	const trx_rseg_t*	rseg,	/*!< in: rollback segment. */
 	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	flst_node_t*		node2,	/*!< in: first node not to remove */
 	ulint			n_nodes,/*!< in: number of nodes to remove */

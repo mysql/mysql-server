@@ -543,6 +543,8 @@ trx_purge_truncate_rseg_history(
 	}
 	mutex_enter(&(rseg->mutex));
 
+	rseg->pages_marked_freed = 0;
+
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
 				 rseg->page_size, &mtr);
 
@@ -583,7 +585,7 @@ loop:
 		trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
+		flst_truncate_end(rseg, rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
 				  n_removed_logs, &mtr);
 
