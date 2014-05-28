@@ -95,6 +95,7 @@ PATENT RIGHTS GRANT:
 #include <limits.h>
 
 #include <ft/cachetable.h>
+#include <ft/cursor.h>
 #include <ft/fttypes.h>
 #include <ft/logger.h>
 #include <ft/txn.h>
@@ -278,7 +279,7 @@ struct __toku_db_txn_external {
 #define db_txn_struct_i(x) (&((struct __toku_db_txn_external *)x)->internal_part)
 
 struct __toku_dbc_internal {
-    struct ft_cursor *c;
+    struct ft_cursor ftcursor;
     DB_TXN *txn;
     TOKU_ISOLATION iso;
     struct simple_dbt skey_s,sval_s;
@@ -295,6 +296,10 @@ struct __toku_dbc_external {
 };
 	
 #define dbc_struct_i(x) (&((struct __toku_dbc_external *)x)->internal_part)
+
+static inline struct ft_cursor *dbc_ftcursor(DBC *c) {
+    return &dbc_struct_i(c)->ftcursor;
+}
 
 static inline int 
 env_opened(DB_ENV *env) {
