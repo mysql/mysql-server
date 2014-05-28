@@ -225,13 +225,13 @@ int
 db_getf_set(DB *db, DB_TXN *txn, uint32_t flags, DBT *key, YDB_CALLBACK_FUNCTION f, void *extra) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
-    DBC *c;
+    DBC c;
     uint32_t create_flags = flags & (DB_ISOLATION_FLAGS | DB_RMW);
     flags &= ~DB_ISOLATION_FLAGS;
     int r = toku_db_cursor_internal(db, txn, &c, create_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r==0) {
-        r = toku_c_getf_set(c, flags, key, f, extra);
-        int r2 = toku_c_close(c);
+        r = toku_c_getf_set(&c, flags, key, f, extra);
+        int r2 = toku_c_close_internal(&c);
         if (r==0) r = r2;
     }
     return r;
@@ -258,12 +258,12 @@ toku_db_get (DB * db, DB_TXN * txn, DBT * key, DBT * data, uint32_t flags) {
     // And DB_GET_BOTH is no longer supported. #2862.
     if (flags != 0) return EINVAL;
 
-    DBC *dbc;
+    DBC dbc;
     r = toku_db_cursor_internal(db, txn, &dbc, iso_flags | DBC_DISABLE_PREFETCHING, 1);
     if (r!=0) return r;
     uint32_t c_get_flags = DB_SET;
-    r = toku_c_get(dbc, key, data, c_get_flags | lock_flags);
-    int r2 = toku_c_close(dbc);
+    r = toku_c_get(&dbc, key, data, c_get_flags | lock_flags);
+    int r2 = toku_c_close_internal(&dbc);
     return r ? r : r2;
 }
 

@@ -709,13 +709,19 @@ c_getf_set_range_reverse_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen, b
     return r;
 }
 
-// Close a cursor.
-int toku_c_close(DBC *c) {
+
+int toku_c_close_internal(DBC *c) {
     HANDLE_PANICKED_DB(c->dbp);
     HANDLE_CURSOR_ILLEGAL_WORKING_PARENT_TXN(c);
     toku_ft_cursor_destroy(dbc_ftcursor(c));
     toku_sdbt_cleanup(&dbc_struct_i(c)->skey_s);
     toku_sdbt_cleanup(&dbc_struct_i(c)->sval_s);
+    return 0;
+}
+
+// Close a cursor.
+int toku_c_close(DBC *c) {
+    toku_c_close_internal(c);
     toku_free(c);
     return 0;
 }
@@ -828,7 +834,7 @@ toku_c_get(DBC* c, DBT* key, DBT* val, uint32_t flag) {
 }
 
 int 
-toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_temporary_cursor) {
+toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC *c, uint32_t flags, int is_temporary_cursor) {
     HANDLE_PANICKED_DB(db);
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     DB_ENV* env = db->dbenv;
@@ -841,11 +847,7 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
             );
     }
 
-    struct __toku_dbc_external *XMALLOC(eresult); // so the internal stuff is stuck on the end
-    memset(eresult, 0, sizeof(*eresult));
-    DBC *result = &eresult->external_part;
-
-#define SCRS(name) result->name = name
+#define SCRS(name) c->name = name
     SCRS(c_getf_first);
     SCRS(c_getf_last);
     SCRS(c_getf_next);
@@ -859,59 +861,49 @@ toku_db_cursor_internal(DB * db, DB_TXN * txn, DBC ** c, uint32_t flags, int is_
     SCRS(c_set_check_interrupt_callback);
 #undef SCRS
 
-    result->c_get = toku_c_get;
-    result->c_getf_set = toku_c_getf_set;
-    result->c_close = toku_c_close;
+    c->c_get = toku_c_get;
+    c->c_getf_set = toku_c_getf_set;
+    c->c_close = toku_c_close;
 
-    result->dbp = db;
+    c->dbp = db;
 
-    dbc_struct_i(result)->txn = txn;
-    dbc_struct_i(result)->skey_s = (struct simple_dbt){0,0};
-    dbc_struct_i(result)->sval_s = (struct simple_dbt){0,0};
+    dbc_struct_i(c)->txn = txn;
+    dbc_struct_i(c)->skey_s = (struct simple_dbt){0,0};
+    dbc_struct_i(c)->sval_s = (struct simple_dbt){0,0};
     if (is_temporary_cursor) {
-        dbc_struct_i(result)->skey = &db->i->skey;
-        dbc_struct_i(result)->sval = &db->i->sval;
+        dbc_struct_i(c)->skey = &db->i->skey;
+        dbc_struct_i(c)->sval = &db->i->sval;
     } else {
-        dbc_struct_i(result)->skey = &dbc_struct_i(result)->skey_s;
-        dbc_struct_i(result)->sval = &dbc_struct_i(result)->sval_s;
+        dbc_struct_i(c)->skey = &dbc_struct_i(c)->skey_s;
+        dbc_struct_i(c)->sval = &dbc_struct_i(c)->sval_s;
     }
     if (flags & DB_SERIALIZABLE) {
-        dbc_struct_i(result)->iso = TOKU_ISO_SERIALIZABLE;
+        dbc_struct_i(c)->iso = TOKU_ISO_SERIALIZABLE;
     } else {
-        dbc_struct_i(result)->iso = txn ? db_txn_struct_i(txn)->iso : TOKU_ISO_SERIALIZABLE;
+        dbc_struct_i(c)->iso = txn ? db_txn_struct_i(txn)->iso : TOKU_ISO_SERIALIZABLE;
     }
-    dbc_struct_i(result)->rmw = (flags & DB_RMW) != 0;
+    dbc_struct_i(c)->rmw = (flags & DB_RMW) != 0;
     bool is_snapshot_read = false;
     if (txn) {
-        is_snapshot_read = (dbc_struct_i(result)->iso == TOKU_ISO_READ_COMMITTED || 
-                            dbc_struct_i(result)->iso == TOKU_ISO_SNAPSHOT);
+        is_snapshot_read = (dbc_struct_i(c)->iso == TOKU_ISO_READ_COMMITTED || 
+                            dbc_struct_i(c)->iso == TOKU_ISO_SNAPSHOT);
     }
     int r = toku_ft_cursor_create(
         db->i->ft_handle, 
-        dbc_ftcursor(result),
+        dbc_ftcursor(c),
         txn ? db_txn_struct_i(txn)->tokutxn : NULL,
         is_snapshot_read,
-        ((flags & DBC_DISABLE_PREFETCHING) != 0)
+        ((flags & DBC_DISABLE_PREFETCHING) != 0),
+        is_temporary_cursor != 0
         );
-    if (r == 0) {
-        // Set the is_temporary_cursor boolean inside the ftnode so
-        // that a query only needing one cursor will not perform
-        // unecessary malloc calls.
-        //
-        // TODO: Move me to toku_ft_cursor_create constructor
-        if (is_temporary_cursor) {
-            toku_ft_cursor_set_temporary(dbc_ftcursor(result));
-        }
-        *c = result;
-    } else {
+    if (r != 0) {
         invariant(r == TOKUDB_MVCC_DICTIONARY_TOO_NEW);
-        toku_free(result);
     }
     return r;
 }
 
 static inline int 
-autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags) {
+autotxn_db_cursor(DB *db, DB_TXN *txn, DBC *c, uint32_t flags) {
     if (!txn && (db->dbenv->i->open_flags & DB_INIT_TXN)) {
         return toku_ydb_do_error(db->dbenv, EINVAL,
               "Cursors in a transaction environment must have transactions.\n");
@@ -920,9 +912,14 @@ autotxn_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags) {
 }
 
 // Create a cursor on a db.
-int 
-toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags) {
-    int r = autotxn_db_cursor(db, txn, c, flags);
+int toku_db_cursor(DB *db, DB_TXN *txn, DBC **c, uint32_t flags) {
+    DBC *XMALLOC(cursor);
+    int r = autotxn_db_cursor(db, txn, cursor, flags);
+    if (r == 0) {
+        *c = cursor;
+    } else {
+        toku_free(cursor);
+    }
     return r;
 }
 

@@ -290,12 +290,17 @@ struct __toku_dbc_internal {
     bool rmw;
 };
 
-struct __toku_dbc_external {
-    struct __toku_dbc          external_part;
-    struct __toku_dbc_internal internal_part;
-};
-	
-#define dbc_struct_i(x) (&((struct __toku_dbc_external *)x)->internal_part)
+static_assert(sizeof(__toku_dbc_internal) <= sizeof(((DBC *) nullptr)->_internal),
+              "__toku_dbc_internal doesn't fit in the internal portion of a DBC");
+
+static inline __toku_dbc_internal *dbc_struct_i(DBC *c) {
+    union dbc_union {
+        __toku_dbc_internal *dbc_internal;
+        char *buf;
+    } u;
+    u.buf = c->_internal;
+    return u.dbc_internal;
+}
 
 static inline struct ft_cursor *dbc_ftcursor(DBC *c) {
     return &dbc_struct_i(c)->ftcursor;
