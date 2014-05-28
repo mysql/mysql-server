@@ -807,14 +807,29 @@ trx_purge_initiate_truncate(
 		"Truncating UNDO tablespace with space identifier " ULINTPF "",
 		undo_trunc->get_undo_mark_for_trunc());
 
+	DBUG_EXECUTE_IF("ib_undo_trunc_before_checkpoint",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"ib_undo_trunc_before_checkpoint");
+			DBUG_SUICIDE(););
+
 	/* After truncate if server crashes then redo logging done for this
 	undo tablespace might not stand valid as tablespace has been
 	truncated. */
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 	
+	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"ib_undo_trunc_before_ddl_log_start");
+			DBUG_SUICIDE(););
+
 	dberr_t	err = undo_trunc->undo_logger.init(
 		undo_trunc->get_undo_mark_for_trunc());
 	ut_ad(err == DB_SUCCESS);
+
+	DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"ib_undo_trunc_before_truncate");
+			DBUG_SUICIDE(););
 
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	if (!success) {
@@ -828,10 +843,21 @@ trx_purge_initiate_truncate(
 		return;
 	}
 
+	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_end",
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"ib_undo_trunc_before_ddl_log_end");
+			DBUG_SUICIDE(););
+
+	log_make_checkpoint_at(LSN_MAX, TRUE);
+
 	undo_trunc->undo_logger.done();
 
 	undo_trunc->reset();
 	undo_trunc_t::clear_trunc_list();
+
+	DBUG_EXECUTE_IF("ib_undo_trunc_trunc_done",
+			ib_logf(IB_LOG_LEVEL_INFO, "ib_undo_trunc_trunc_done");
+			DBUG_SUICIDE(););
 }
 
 /********************************************************************//**

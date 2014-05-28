@@ -760,6 +760,8 @@ srv_undo_tablespaces_init(
 	ulint		prev_space_id = 0;
 	ulint		n_undo_tablespaces;
 	ulint		undo_tablespace_ids[TRX_SYS_N_RSEGS + 1];
+	typedef		std::vector<ulint> undo_spaces_t;
+	undo_spaces_t	fix_up_undo_spaces;
 
 	*n_opened = 0;
 
@@ -821,6 +823,8 @@ srv_undo_tablespaces_init(
 					    srv_undo_dir, OS_PATH_SEPARATOR,
 					    undo_tablespace_ids[i]);
 
+				os_file_delete(innodb_data_file_key, name);
+
 				err = srv_undo_tablespace_create(
 					name,
 					SRV_UNDO_TABLESPACE_SIZE_IN_PAGES);
@@ -833,13 +837,8 @@ srv_undo_tablespaces_init(
 					return(err);
 				}
 
-				mtr_t	mtr;
-				mtr_start(&mtr);
-				fsp_header_init(
-					undo_tablespace_ids[i],
-					SRV_UNDO_TABLESPACE_SIZE_IN_PAGES,
-					&mtr);
-				mtr_commit(&mtr);
+				fix_up_undo_spaces.push_back(
+					undo_tablespace_ids[i]);
 			}
 		}
 	} else {
@@ -955,6 +954,56 @@ srv_undo_tablespaces_init(
 		}
 
 		mtr_commit(&mtr);
+	}
+
+	if (fix_up_undo_spaces.size() != 0) {
+
+		/* Step-1: Initialize the tablespace header and rsegs header. */
+		/* TODO: Ideally this should avoid doing redo logging. */
+		mtr_t		mtr;
+		trx_sysf_t*	sys_header;
+
+		mtr_start(&mtr);
+		sys_header = trx_sysf_get(&mtr);
+
+		for (undo_spaces_t::const_iterator it
+			= fix_up_undo_spaces.begin();
+		     it != fix_up_undo_spaces.end();
+		     ++it) {
+			fsp_header_init(
+				*it, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
+
+			mtr_x_lock(fil_space_get_latch(*it, NULL), &mtr);
+
+			for (ulint i = 0; i < TRX_SYS_N_RSEGS; i++) {
+
+				ulint	space_id = trx_sysf_rseg_get_space(
+						sys_header, i, &mtr); 
+
+				if (space_id == *it) {
+					trx_rseg_header_create(
+						*it, univ_page_size, ULINT_MAX,
+						i, &mtr);
+				}
+			}
+		}
+		mtr_commit(&mtr);
+
+		/* Step-2: Flush the dirty pages from the buffer pool. */
+		for (undo_spaces_t::const_iterator it
+			= fix_up_undo_spaces.begin();
+		     it != fix_up_undo_spaces.end();
+		     ++it) {
+
+			trx_t		trx;
+			trx.mysql_thd = NULL;
+
+			buf_LRU_flush_or_remove_pages(
+				TRX_SYS_SPACE, BUF_REMOVE_FLUSH_WRITE, &trx);
+
+			buf_LRU_flush_or_remove_pages(
+				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
+		}
 	}
 
 	return(DB_SUCCESS);
