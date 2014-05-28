@@ -32,6 +32,7 @@ Created 11/28/1995 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "page0page.h"
+#include "trx0rseg.h"
 
 /********************************************************************//**
 Adds a node to an empty list. */
@@ -463,6 +464,7 @@ does not measure the length of the tail. */
 void
 flst_truncate_end(
 /*==============*/
+	const trx_rseg_t*	rseg,	/*!< in: rollback segment. */
 	flst_base_node_t*	base,	/*!< in: pointer to base node of list */
 	flst_node_t*		node2,	/*!< in: first node not to remove */
 	ulint			n_nodes,/*!< in: number of nodes to remove */
@@ -481,7 +483,8 @@ flst_truncate_end(
 					     | MTR_MEMO_PAGE_SX_FIX));
 	if (n_nodes == 0) {
 
-		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr)));
+		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr))
+		      || (rseg->pages_marked_freed > 0));
 
 		return;
 	}
