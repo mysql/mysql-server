@@ -885,8 +885,16 @@ Suma::check_wait_handover_timeout(Signal* signal)
             /**
              * Force API_FAILREQ
              */
-            signal->theData[0] = nodeId;
-            sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+            if (ERROR_INSERTED(13048))
+            {
+              g_eventLogger->info("Skipping forced disconnect of %u",
+                                  nodeId);
+            }
+            else
+            {
+              signal->theData[0] = nodeId;
+              sendSignal(QMGR_REF, GSN_API_FAILREQ, signal, 1, JBB);
+            }
           }
 
           /* Restart timing checks, but if we expire again
@@ -905,6 +913,7 @@ Suma::check_wait_handover_timeout(Signal* signal)
            */
           g_eventLogger->critical("Failed to establish direct connection to all subscribers, shutting down.  (%s)",
                                   BaseString::getPrettyTextShort(subscribers_not_connected).c_str());
+          CRASH_INSERTION(13048);
           progError(__LINE__,
                     NDBD_EXIT_GENERIC,
                     "Failed to establish direct connection to all subscribers");
