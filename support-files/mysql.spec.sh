@@ -592,8 +592,6 @@ touch $RBR%{_sysconfdir}/my.cnf
 install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
-# Temporary removal of man file
-rm -rf $RBR%{_mandir}/man1/mysqlhotcopy.1*
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
