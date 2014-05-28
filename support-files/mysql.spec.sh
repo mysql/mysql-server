@@ -1126,8 +1126,8 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
-
 %attr(755, root, root) %{_datadir}/mysql/
+%dir %attr(755, mysql, mysql) /var/lib/mysql
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-client%{product_suffix}
@@ -1215,6 +1215,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed May 28 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated usergroup to mysql on datadir
+
 * Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed non gpl file docs/mysql.info from community packages
 
