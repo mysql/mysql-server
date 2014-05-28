@@ -1356,6 +1356,7 @@ void THD::init(void)
                         TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
+  tx_no_rollback= false;
   update_charset();
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();
