@@ -102,6 +102,17 @@ IF(UNIX)
 )
 ENDIF()
 
+INSTALL(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_security_commands.sql
+  ${FIX_PRIVILEGES_SQL}
+  DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
+)
+
+
 # TCMalloc hacks
 IF(MALLOC_LIB)
   MESSAGE("Using tcmalloc '${MALLOC_LIB}'")
