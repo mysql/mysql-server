@@ -448,6 +448,16 @@ void Qmgr::execCONNECT_REP(Signal* signal)
     return;
   }
 
+  if (ERROR_INSERTED(941) &&
+      getNodeInfo(connectedNodeId).getType() == NodeInfo::API)
+  {
+    jam();
+    CLEAR_ERROR_INSERT_VALUE;
+    ndbout_c("Discarding one API CONNECT_REP(%d)", connectedNodeId);
+    infoEvent("Discarding one API CONNECT_REP(%d)", connectedNodeId);
+    return;
+  }
+
   if (c_connectedNodes.get(connectedNodeId) == false)
   {
     jam();
