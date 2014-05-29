@@ -6013,6 +6013,49 @@ runBug16895311_drop(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
+int
+runBug18044717(NDBT_Context* ctx, NDBT_Step* step)
+{
+  int result = NDBT_OK;
+  NdbRestarter restarter;
+  int master = restarter.getMasterNodeId();
+
+  do 
+  {
+    ndbout_c("slow down LCP so that global c_lcpStatus = LCP_INIT_TABLES");
+    ndbout_c("and all tables have tabLcpStatus = TLS_ACTIVE");
+    if (restarter.insertErrorInAllNodes(7236)) 
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+
+    ndbout_c("start LCP");
+    int startLcpDumpCode = 7099;
+    if (restarter.dumpStateAllNodes(&startLcpDumpCode, 1)) 
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+
+    ndbout_c("restart master node so that NODE_FAILREP changes");
+    ndbout_c("c_lcpState from LCP_INIT_TABLES to LCP_STATUS_IDLE");
+    if(restarter.restartOneDbNode(master, false, false, true, true) != 0) 
+    {
+      result = NDBT_FAILED;
+      break;
+    }
+  } while (0);
+  ndbout_c("restore original state of cluster and verify that there");
+  ndbout_c("is no core due to inconsistent c_lcpStatus/tabLcpStatus");
+  restarter.waitNodesStarted(&master, 1);
+  if (restarter.insertErrorInAllNodes(0))
+  {
+    result = NDBT_FAILED;
+  }
+  return result;
+}
+
 NDBT_TESTSUITE(testNodeRestart);
 TESTCASE("NoLoad", 
 	 "Test that one node at a time can be stopped and then restarted "\
@@ -6622,6 +6665,12 @@ TESTCASE("Bug16895311",
   STEP(runBug16895311_update);
   STEP(runRestarter);
   FINALIZER(runBug16895311_drop);
+}
+TESTCASE("Bug18044717", 
+         "Test LCP state change from LCP_INIT_TABLES "
+         "to LCP_STATUS_IDLE during node restart")
+{
+  INITIALIZER(runBug18044717);
 }
 
 NDBT_TESTSUITE_END(testNodeRestart);
