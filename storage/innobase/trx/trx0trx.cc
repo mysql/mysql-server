@@ -48,6 +48,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "trx0undo.h"
 #include "trx0xa.h"
 #include "usr0sess.h"
+#include "ut0new.h"
 #include "ut0pool.h"
 #include "ut0vec.h"
 
@@ -350,7 +351,7 @@ static const ulint MAX_TRX_BLOCK_SIZE = 1024 * 1024 * 4;
 void
 trx_pool_init()
 {
-	trx_pools = new (std::nothrow) trx_pools_t(MAX_TRX_BLOCK_SIZE);
+	trx_pools = UT_NEW(trx_pools_t(MAX_TRX_BLOCK_SIZE));
 
 	ut_a(trx_pools != 0);
 }
@@ -360,7 +361,7 @@ trx_pool_init()
 void
 trx_pool_close()
 {
-	delete trx_pools;
+	UT_DELETE(trx_pools);
 
 	trx_pools = 0;
 }

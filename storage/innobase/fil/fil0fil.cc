@@ -55,6 +55,7 @@ Created 10/25/1995 Heikki Tuuri
 #endif /* !UNIV_HOTBACKUP */
 #include "fsp0file.h"
 #include "fsp0sysspace.h"
+#include "ut0new.h"
 
 /*
 		IMPLEMENTATION OF THE TABLESPACE MEMORY CACHE
@@ -6217,7 +6218,7 @@ fil_get_space_names(
 			char*	name;
 
 			len = ::strlen(space->name);
-			name = new(std::nothrow) char[len + 1];
+			name = UT_NEW_ARRAY(char, len + 1);
 
 			if (name == 0) {
 				/* Caller to free elements allocated so far. */

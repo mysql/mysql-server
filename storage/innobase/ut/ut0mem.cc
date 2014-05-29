@@ -35,12 +35,6 @@ Created 5/11/1994 Heikki Tuuri
 # include <stdlib.h>
 #endif /* !UNIV_HOTBACKUP */
 
-const char*	OUT_OF_MEMORY_MSG =
-	"Check if you should increase the swap file or ulimits of your"
-	" operating system.  On FreeBSD check that you have compiled the OS"
-	" with a big enough maximum process size.  Note that on most 32-bit"
-	" computers the process memory space is limited to 2 GB or 4 GB.";
-
 /** The number of attempts to make when trying to allcate memory, pausing
 for 1 second between attempts to allow some memory to be freed. */
 static const int	max_attempts = 60;
