@@ -226,6 +226,15 @@ typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
 */
 typedef struct st_lex_master_info
 {
+  /*
+    The array of IGNORE_SERVER_IDS has a preallocation, and is not expected
+    to grow to any significant size, so no instrumentation.
+  */
+  st_lex_master_info()
+    : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED)
+  {
+    initialize();
+  }
   char *host, *user, *password, *log_file_name, *bind_addr;
   uint port, connect_retry;
   float heartbeat_period;
@@ -247,9 +256,16 @@ typedef struct st_lex_master_info
   char *ssl_crl, *ssl_crlpath;
   char *relay_log_name;
   ulong relay_log_pos;
-  DYNAMIC_ARRAY repl_ignore_server_ids;
-  ulong server_ids_buffer[2];
+  Prealloced_array<ulong, 2, true> repl_ignore_server_ids;
+
+  /// Initializes everything to zero/NULL/empty.
+  void initialize();
+  /// Sets all fields to their "unspecified" value.
   void set_unspecified();
+private:
+  // Not copyable or assignable.
+  st_lex_master_info(const st_lex_master_info&);
+  st_lex_master_info &operator=(const st_lex_master_info&);
 } LEX_MASTER_INFO;
 
 typedef struct st_lex_reset_slave
