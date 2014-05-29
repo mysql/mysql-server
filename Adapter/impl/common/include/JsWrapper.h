@@ -125,7 +125,7 @@ void freeFromGC(PTR ptr, Handle<Object> obj) {
 template <typename PTR>
 void wrapPointerInObject(PTR ptr,
                          Envelope & env,
-                         Local<Object> obj) {
+                         Handle<Object> obj) {
   DEBUG_PRINT("Constructor wrapping %s: %p", env.classname, ptr);
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   SET_CLASS_ID(env, PTR);
@@ -137,13 +137,13 @@ void wrapPointerInObject(PTR ptr,
 
 /* Specializations for non-pointers reduce gcc warnings.
    Only specialize over primitive types. */
-template <> inline void wrapPointerInObject(int, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(int, Envelope &, Handle<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned long long int, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(unsigned long long int, Envelope &, Handle<Object>) {
   assert(0);
 }
-template <> inline void wrapPointerInObject(unsigned int, Envelope &, Local<Object>) {
+template <> inline void wrapPointerInObject(unsigned int, Envelope &, Handle<Object>) {
   assert(0);
 }
 
@@ -155,7 +155,7 @@ TODO: Find a way to prevent wrapping a pointer as one
       type and unwrapping it as another.
 ******************************************************************/
 template <typename PTR> 
-PTR unwrapPointer(Local<Object> obj) {
+PTR unwrapPointer(Handle<Object> obj) {
   PTR ptr;
   DEBUG_ASSERT(obj->InternalFieldCount() == 2);
   ptr = static_cast<PTR>(obj->GetPointerFromInternalField(1));
