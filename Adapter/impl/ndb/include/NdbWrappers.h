@@ -31,6 +31,7 @@ Handle<Value> Ndb_Wrapper(Ndb *);
 Handle<Value> NdbError_Wrapper(const NdbError &);
 Handle<Value> NdbScanOperation_Wrapper(NdbScanOperation *);
 Handle<Value> DBOperationSet_Wrapper(DBOperationSet *);
+Handle<Value> DBOperationSet_Recycle(Handle<Object>, DBOperationSet *);
 
 /* Not actual wrapper functions, but functions that provide an envelope */
 

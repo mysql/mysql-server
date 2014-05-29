@@ -148,6 +148,9 @@ function attachErrorToTransaction(dbTxHandler, err) {
 /* Common callback for execute, commit, and rollback 
 */
 function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
+  var pendingOpsList = dbTxHandler.pendingOpsLists[execId];
+  var dbOperationSet = pendingOpsList.pendingOperationSet;
+
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
   if(udebug.is_debug()) {
@@ -162,8 +165,14 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
   }
 
   /* Attach results to their operations */
-  ndboperation.completeExecutedOps(dbTxHandler, execMode, 
-                                   dbTxHandler.pendingOpsLists[execId]);
+  ndboperation.completeExecutedOps(dbTxHandler, execMode, pendingOpsList);
+
+  /* Release our reference on the DBOperationSet */
+  if(dbOperationSet) {
+    dbTxHandler.dbSession.usedOperationSets.push(dbOperationSet);
+    pendingOpsList.pendingOperationSet = null;
+  }
+                                   
   /* Next callback */
   if(typeof userCallback === 'function') {
     userCallback(dbTxHandler.error, dbTxHandler);
@@ -289,7 +298,7 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
 
 function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
-  var pendingOps;
+  var pendingOps, recycleWrapper;
 
   function executeNdbTransaction() {
     var execId = getExecIdForOperationList(self, dbOperationList, pendingOps);
@@ -304,7 +313,8 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   function prepareOperations() {
     udebug.log("executeNonScan prepare", dbOperationList.length, 
                "operations", self.moniker);
-    pendingOps = ndboperation.prepareOperations(self.impl, dbOperationList);
+    recycleWrapper = self.dbSession.usedOperationSets.pop();
+    pendingOps = ndboperation.prepareOperations(self.impl, dbOperationList, recycleWrapper);
     executeNdbTransaction();
   }
 
