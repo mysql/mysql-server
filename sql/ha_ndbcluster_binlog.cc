@@ -501,6 +501,14 @@ static void ndbcluster_binlog_wait(THD *thd)
     */
     if (!wait_epoch)
       DBUG_VOID_RETURN;
+
+    /*
+      Binlog Injector should not wait for itself
+    */
+    if (thd && 
+        thd->system_thread == SYSTEM_THREAD_NDBCLUSTER_BINLOG)
+      DBUG_VOID_RETURN;
+
     const char *save_info= thd ? thd->proc_info : 0;
     int count= 30;
     if (thd)
