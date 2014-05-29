@@ -146,7 +146,9 @@ uint64_t inline le64toh(uint64_t x)
   #endif
 }
 #endif
-
+#if defined(_WIN32)
+#define __attribute__(x)
+#endif
 #define do_compile_time_assert(X)                                              \
   do                                                                        \
   {                                                                         \

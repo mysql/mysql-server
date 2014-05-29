@@ -42,7 +42,7 @@ extern PSI_memory_key key_memory_log_event;
 #endif
 #include <stdlib.h>
 #include <string.h>
-#include <strings.h>
+
 #endif
 
 /**
@@ -57,6 +57,34 @@ enum PSI_memory_key_to_int
   INCIDENT_LOG_EVENT_MESSAGE
 };
 
+#if defined(_WIN32)
+/**
+  The strndup() function returns a pointer to a new string which is a duplicate
+  of the string s, but it only copies at most n bytes. If s is longer than n,
+  only n bytes are copied, and a terminating null byte ('\0') is added.
+  Memory for the new string is obtained with malloc,
+  and can be freed with free.
+  @param  s  The string whose copy we want to create
+  @param  n  Number of bytes to be copied
+
+  @return    The duplicated string, or NULL if insufficient memory was available.
+*/
+char *strndup (const char *s, size_t n)
+{
+  char *result;
+  size_t len = strlen (s);
+
+  if (n < len)
+    len = n;
+
+  result = (char *) malloc (len + 1);
+  if (!result)
+    return 0;
+
+  result[len] = '\0';
+  return (char *) memcpy (result, s, len);
+}
+#endif
 /**
   This is a wrapper function, and returns a pointer to a new string which is
   a duplicate of the input string. The terminating Null character is added.
@@ -66,7 +94,7 @@ enum PSI_memory_key_to_int
   string function is called.
 
   @param destination The string to be duplicated
-  @param n The number of bytes to be copied
+  @param n           The number of bytes to be copied
 
   @return The duplicated string, or NULL if insufficient memory was available.
 */

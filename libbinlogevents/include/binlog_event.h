@@ -46,6 +46,11 @@
 #include <sstream>
 #include <vector>
 
+#if defined(_WIN32)
+#include <Winsock2.h>
+#else
+#include <sys/times.h>
+#endif
 /*
   The symbols below are a part of the common definitions between
   the MySQL server and the client. Since they should not be a part of

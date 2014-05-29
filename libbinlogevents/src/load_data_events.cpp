@@ -192,7 +192,7 @@ sql_ex_data_info::init(const char *buf,
     The caller must do buf[event_len] = 0 before he starts using the
     constructed event.
 */
-Load_event::Load_event(const char *buf, uint event_len,
+Load_event::Load_event(const char *buf, unsigned int event_len,
                        const Format_description_event *description_event)
   :Binary_log_event(&buf, description_event->binlog_version,
                     description_event->server_version), num_fields(0),
