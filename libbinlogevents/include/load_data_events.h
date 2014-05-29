@@ -704,7 +704,7 @@ public:
   uint32_t file_id;
   const char* db; /** see comment in Append_block_event */
 
-  Delete_file_event(const char* buf, uint event_len,
+  Delete_file_event(const char* buf, unsigned int event_len,
                     const Format_description_event* description_event);
   ~Delete_file_event() {}
 
@@ -760,7 +760,7 @@ public:
   uint32_t file_id;
   const char* db; /** see comment in Append_block_event */
 
-  Execute_load_event(const char* buf, uint event_len,
+  Execute_load_event(const char* buf, unsigned int event_len,
                      const Format_description_event *description_event);
 
   ~Execute_load_event() {}

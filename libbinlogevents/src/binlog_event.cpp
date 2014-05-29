@@ -15,6 +15,7 @@
 
 #include "binlog_event.h"
 #include "transitional_methods.h"
+#include <algorithm>
 #include <cassert>
 #include <cstdio>
 #include <stdio.h>
@@ -1582,7 +1583,7 @@ Query_event::Query_event(const char* buf, unsigned int event_len,
         }
         #endif
         strncpy(mts_accessed_db_names[i], (char*) pos,
-                std::min<ulong>(NAME_LEN, start + status_vars_len - pos));
+                std::min<unsigned long>(NAME_LEN, start + status_vars_len - pos));
         mts_accessed_db_names[i][NAME_LEN - 1]= 0;
         pos+= 1 + strlen((const char*) pos);
       }
