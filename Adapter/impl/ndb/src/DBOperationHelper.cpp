@@ -54,6 +54,7 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op);
    arg0: Length of Array
    arg1: Array of HelperSpecs
    arg2: DBTransactionContext *
+   arg3: Old DBOperationSet wrapper (for recycling)
 
    Returns: DBOperationSet
 */
@@ -63,6 +64,7 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
   int length = args[0]->Int32Value();
   const Local<Object> array = args[1]->ToObject();
   DBTransactionContext *txc = unwrapPointer<DBTransactionContext *>(args[2]->ToObject());
+  Handle<Value> oldWrapper = args[3];
 
   DBOperationSet * pendingOps = new DBOperationSet(txc, length);
 
@@ -82,7 +84,11 @@ Handle<Value> DBOperationHelper(const Arguments &args) {
     }
   }
   
-  return DBOperationSet_Wrapper(pendingOps);
+  if(oldWrapper->IsObject()) {
+    return DBOperationSet_Recycle(oldWrapper->ToObject(), pendingOps);
+  } else {
+    return DBOperationSet_Wrapper(pendingOps);
+  }
 }
 
 

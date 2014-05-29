@@ -426,9 +426,9 @@ DBOperation.prototype.buildOpHelper = function(helper) {
 };
 
 
-function prepareOperations(dbTransactionContext, dbOperationList) {
+function prepareOperations(dbTransactionContext, dbOperationList, recycleWrapper) {
   assert(dbTransactionContext);
-  var n, length, specs, pendingOpSet;
+  var n, length, specs;
   length = dbOperationList.length;
   if(length == 1) {
     specs = [ helperSpec ];  /* Reuse the global helperSpec */
@@ -442,7 +442,7 @@ function prepareOperations(dbTransactionContext, dbOperationList) {
       dbOperationList[n].buildOpHelper(specs[n]);
     }
   }
-  return adapter.impl.DBOperationHelper(length, specs, dbTransactionContext);
+  return adapter.impl.DBOperationHelper(length, specs, dbTransactionContext, recycleWrapper);
 }
 
 

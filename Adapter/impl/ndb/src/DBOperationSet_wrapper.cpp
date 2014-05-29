@@ -50,6 +50,7 @@ public:
 DBOperationSetEnvelopeClass DBOperationSetEnvelope;
 
 Handle<Value> DBOperationSet_Wrapper(DBOperationSet *set) {
+  DEBUG_PRINT("DBOperationSet wrapper");
   HandleScope scope;
 
   if(set) {
@@ -59,6 +60,16 @@ Handle<Value> DBOperationSet_Wrapper(DBOperationSet *set) {
     return scope.Close(jsobj);
   }
   return Null();
+}
+
+Handle<Value> DBOperationSet_Recycle(Handle<Object> oldWrapper, 
+                                     DBOperationSet * newSet) {
+  DEBUG_PRINT("DBOperationSet *Recycle*");
+  assert(newSet);
+  DBOperationSet * oldSet = unwrapPointer<DBOperationSet *>(oldWrapper);
+  delete oldSet;
+  wrapPointerInObject(newSet, DBOperationSetEnvelope, oldWrapper);
+  return oldWrapper;
 }
 
 Persistent<Value> getWrappedObject(DBOperationSet *set) {
