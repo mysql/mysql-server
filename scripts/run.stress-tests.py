@@ -735,6 +735,7 @@ if __name__ == '__main__':
                          'test_stress6.tdb',
                          'test_stress7.tdb',
                          'test_stress_hot_indexing.tdb',
+                         'test_stress_with_verify.tdb',
                          'test_stress_openclose.tdb']
     default_recover_testnames = ['recover-test_stress1.tdb',
                                  'recover-test_stress2.tdb',
