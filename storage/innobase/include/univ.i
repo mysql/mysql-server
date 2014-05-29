@@ -151,7 +151,7 @@ typedef unsigned long long	uintmax_t;
 #endif /* HAVE_INTTYPES_H */
 
 /* Following defines are to enable performance schema
-instrumentation in each of four InnoDB modules if
+instrumentation in each of five InnoDB modules if
 HAVE_PSI_INTERFACE is defined. */
 #if defined(HAVE_PSI_INTERFACE) && !defined(UNIV_HOTBACKUP)
 # define UNIV_PFS_MUTEX
@@ -165,6 +165,11 @@ resolved */
 #  define UNIV_PFS_IO
 # endif
 # define UNIV_PFS_THREAD
+
+# include "mysql/psi/psi.h" /* HAVE_PSI_MEMORY_INTERFACE */
+# ifdef HAVE_PSI_MEMORY_INTERFACE
+#  define UNIV_PFS_MEMORY
+# endif /* HAVE_PSI_MEMORY_INTERFACE */
 
 /* There are mutexes/rwlocks that we want to exclude from
 instrumentation even if their corresponding performance schema

@@ -50,7 +50,7 @@ struct fil_space_t;
 struct btr_create_t;
 class page_id_t;
 
-typedef std::list<const char*> space_name_list_t;
+typedef std::list<char*> space_name_list_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
 but in the MySQL Embedded Server Library and ibbackup it is not the default
