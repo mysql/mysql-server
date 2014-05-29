@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -100,7 +100,7 @@ function run(self, operationSet, execMode, abortFlag, callback) {
 
     if(this.txIsOpen) {
       canStartImmediate = true;  // Transaction already started
-    } else { 
+    } else if(this.tx.asyncContext) { 
       canStartImmediate = this.operations.tryImmediateStartTransaction();
     }
 
