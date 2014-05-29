@@ -99,11 +99,13 @@ public:
  For safety, the compiler will not let you use this on any "const PTR" type;
  (if you hold a const pointer to something, you probably don't own its
  memory allocation).
+ If the underlying pointer has already been freed and zeroed, just dispose
+ of the JavaScript reference.
 ******************************************************************/
 template<typename PTR> 
 void onGcReclaim(Persistent<Value> notifier, void * param) {
   PTR ptr = static_cast<PTR>(param);
-  delete ptr;
+  if(ptr) delete ptr;
   notifier.Dispose();
 }
 
