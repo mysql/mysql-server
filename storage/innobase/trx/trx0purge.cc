@@ -852,7 +852,7 @@ trx_purge_initiate_truncate(
 
 	log_make_checkpoint_at(LSN_MAX, TRUE);
 
-	undo_trunc->undo_logger.done();
+	undo_trunc->undo_logger.done(undo_trunc->get_undo_mark_for_trunc());
 
 	undo_trunc->reset();
 	undo_trunc_t::clear_trunc_list();
