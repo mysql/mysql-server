@@ -339,7 +339,11 @@ int live_root_txn_list_iter(const TOKUTXN &live_xid, const uint32_t UU(index), T
 // Create list of root transactions that were live when this txn began.
 static inline void
 setup_live_root_txn_list(xid_omt_t* live_root_txnid, xid_omt_t* live_root_txn_list) {
-    live_root_txn_list->clone(*live_root_txnid);
+    if (live_root_txnid->size() > 0) {
+        live_root_txn_list->clone(*live_root_txnid);
+    } else {
+        live_root_txn_list->create_no_array();
+    }
 }
 
 //Heaviside function to search through an OMT by a TXNID
