@@ -3342,12 +3342,8 @@ int ha_tokudb::end_bulk_insert(bool abort) {
                     if (i == primary_key && !share->pk_has_string) {
                         continue;
                     }
-                    error = is_index_unique(
-                        &is_unique, 
-                        transaction, 
-                        share->key_file[i], 
-                        &table->key_info[i]
-                        );
+                    error = is_index_unique(&is_unique, transaction, share->key_file[i], &table->key_info[i], 
+                                            DB_PRELOCKED_WRITE);
                     if (error) goto cleanup;
                     if (!is_unique) {
                         error = HA_ERR_FOUND_DUPP_KEY;
@@ -3394,7 +3390,7 @@ int ha_tokudb::end_bulk_insert() {
     return end_bulk_insert( false );
 }
 
-int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info) {
+int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_info, int lock_flags) {
     int error;
     DBC* tmp_cursor1 = NULL;
     DBC* tmp_cursor2 = NULL;
@@ -3410,49 +3406,23 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
     memset(&packed_key2, 0, sizeof(packed_key2));
     *is_unique = true;
     
-    error = db->cursor(
-        db, 
-        txn, 
-        &tmp_cursor1, 
-        DB_SERIALIZABLE
-        );
+    error = db->cursor(db, txn, &tmp_cursor1, DB_SERIALIZABLE);
     if (error) { goto cleanup; }
 
-    error = db->cursor(
-        db, 
-        txn, 
-        &tmp_cursor2,
-        DB_SERIALIZABLE
-        );
+    error = db->cursor(db, txn, &tmp_cursor2, DB_SERIALIZABLE);
     if (error) { goto cleanup; }
-
     
-    error = tmp_cursor1->c_get(
-        tmp_cursor1, 
-        &key1, 
-        &val, 
-        DB_NEXT
-        );
+    error = tmp_cursor1->c_get(tmp_cursor1, &key1, &val, DB_NEXT + lock_flags);
     if (error == DB_NOTFOUND) {
         *is_unique = true;
         error = 0;
         goto cleanup;
     }
     else if (error) { goto cleanup; }
-    error = tmp_cursor2->c_get(
-        tmp_cursor2, 
-        &key2, 
-        &val, 
-        DB_NEXT
-        );
+    error = tmp_cursor2->c_get(tmp_cursor2, &key2, &val, DB_NEXT + lock_flags);
     if (error) { goto cleanup; }
 
-    error = tmp_cursor2->c_get(
-        tmp_cursor2, 
-        &key2, 
-        &val, 
-        DB_NEXT
-        );
+    error = tmp_cursor2->c_get(tmp_cursor2, &key2, &val, DB_NEXT + lock_flags);
     if (error == DB_NOTFOUND) {
         *is_unique = true;
         error = 0;
@@ -3464,59 +3434,25 @@ int ha_tokudb::is_index_unique(bool* is_unique, DB_TXN* txn, DB* db, KEY* key_in
         bool has_null1;
         bool has_null2;
         int cmp;
-        place_key_into_mysql_buff(
-            key_info,
-            table->record[0], 
-            (uchar *) key1.data + 1
-            );
-        place_key_into_mysql_buff(
-            key_info,
-            table->record[1], 
-            (uchar *) key2.data + 1
-            );
+        place_key_into_mysql_buff(key_info, table->record[0], (uchar *) key1.data + 1);
+        place_key_into_mysql_buff(key_info, table->record[1], (uchar *) key2.data + 1);
         
-        create_dbt_key_for_lookup(
-            &packed_key1,
-            key_info,
-            key_buff,
-            table->record[0],
-            &has_null1
-            );
-        create_dbt_key_for_lookup(
-            &packed_key2,
-            key_info,
-            key_buff2,
-            table->record[1],
-            &has_null2
-            );
+        create_dbt_key_for_lookup(&packed_key1, key_info, key_buff, table->record[0], &has_null1);
+        create_dbt_key_for_lookup(&packed_key2, key_info, key_buff2, table->record[1], &has_null2);
 
         if (!has_null1 && !has_null2) {
             cmp = tokudb_prefix_cmp_dbt_key(db, &packed_key1, &packed_key2);
             if (cmp == 0) {
                 memcpy(key_buff, key1.data, key1.size);
-                place_key_into_mysql_buff(
-                    key_info,
-                    table->record[0], 
-                    (uchar *) key_buff + 1
-                    );
+                place_key_into_mysql_buff(key_info, table->record[0], (uchar *) key_buff + 1);
                 *is_unique = false;
                 break;
             }
         }
 
-        error = tmp_cursor1->c_get(
-            tmp_cursor1, 
-            &key1, 
-            &val, 
-            DB_NEXT
-            );
+        error = tmp_cursor1->c_get(tmp_cursor1, &key1, &val, DB_NEXT + lock_flags);
         if (error) { goto cleanup; }
-        error = tmp_cursor2->c_get(
-            tmp_cursor2, 
-            &key2, 
-            &val, 
-            DB_NEXT
-            );
+        error = tmp_cursor2->c_get(tmp_cursor2, &key2, &val, DB_NEXT + lock_flags);
         if (error && (error != DB_NOTFOUND)) { goto cleanup; }
 
         cnt++;
@@ -7766,7 +7702,8 @@ int ha_tokudb::tokudb_add_index(
             num_processed++; 
 
             if ((num_processed % 1000) == 0) {
-                sprintf(status_msg, "Adding indexes: Fetched %llu of about %llu rows, loading of data still remains.", num_processed, (long long unsigned) share->rows);
+                sprintf(status_msg, "Adding indexes: Fetched %llu of about %llu rows, loading of data still remains.", 
+                        num_processed, (long long unsigned) share->rows);
                 thd_proc_info(thd, status_msg);
 
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
@@ -7798,12 +7735,8 @@ int ha_tokudb::tokudb_add_index(
     for (uint i = 0; i < num_of_keys; i++, curr_index++) {
         if (key_info[i].flags & HA_NOSAME) {
             bool is_unique;
-            error = is_index_unique(
-                &is_unique, 
-                txn, 
-                share->key_file[curr_index], 
-                &key_info[i]
-                );
+            error = is_index_unique(&is_unique, txn, share->key_file[curr_index], &key_info[i],
+                                    creating_hot_index ? 0 : DB_PRELOCKED_WRITE);
             if (error) goto cleanup;
             if (!is_unique) {
                 error = HA_ERR_FOUND_DUPP_KEY;
