@@ -69,7 +69,6 @@ NdbSession = function(pool) {
   this.seizeTxQueue          = null;
   this.maxTxContexts         = pool.properties.ndb_session_concurrency;  
   this.openTxContexts        = 0;  // currently opened
-  this.usedOperationSets     = [];  // Pool for recycling DBOperationSet wrappers
 };
 
 /* fetch DBSessionImpl. Undocumented - private to NdbConnectionPool. 
