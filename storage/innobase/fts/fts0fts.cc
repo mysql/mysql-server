@@ -38,6 +38,7 @@ Full Text Search interface
 #include "dict0stats.h"
 #include "btr0pcur.h"
 #include "sync0sync.h"
+#include "ut0new.h"
 
 static const ulint FTS_MAX_ID_LEN = 32;
 
@@ -6959,7 +6960,7 @@ fts_drop_orphaned_tables(void)
 	     it != space_name_list.end();
 	     ++it) {
 
-		delete[] *it;
+		UT_DELETE_ARRAY(*it);
 	}
 }
 

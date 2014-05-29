@@ -98,6 +98,7 @@ Created 2/16/1996 Heikki Tuuri
 # include "os0event.h"
 # include "zlib.h"
 # include "ut0crc32.h"
+# include "ut0new.h"
 
 /** Log sequence number immediately after startup */
 lsn_t	srv_start_lsn;
@@ -1277,6 +1278,8 @@ innobase_start_or_create_for_mysql(void)
 
 	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
+
+	ut_new_boot();
 
 #ifdef _WIN32
 	switch (os_get_os_version()) {

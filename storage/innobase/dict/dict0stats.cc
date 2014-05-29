@@ -35,6 +35,7 @@ Created Jan 06, 2010 Vasil Dimov
 #include "pars0pars.h"
 #include "dict0stats.h"
 #include "ha_prototypes.h"
+#include "ut0new.h"
 #include <mysql_com.h>
 
 #include <algorithm>
@@ -1975,16 +1976,19 @@ dict_stats_analyze_index(
 
 	/* For each level that is being scanned in the btree, this contains the
 	number of different key values for all possible n-column prefixes. */
-	ib_uint64_t*		n_diff_on_level = new ib_uint64_t[n_uniq];
+	ib_uint64_t*		n_diff_on_level = UT_NEW_ARRAY(ib_uint64_t,
+							       n_uniq);
 
 	/* For each level that is being scanned in the btree, this contains the
 	index of the last record from each group of equal records (when
 	comparing only the first n columns, n=1..n_uniq). */
-	boundaries_t*		n_diff_boundaries = new boundaries_t[n_uniq];
+	boundaries_t*		n_diff_boundaries = UT_NEW_ARRAY(boundaries_t,
+								 n_uniq);
 
 	/* For each n-column prefix this array contains the input data that is
 	used to calculate dict_index_t::stat_n_diff_key_vals[]. */
-	n_diff_data_t*		n_diff_data = new n_diff_data_t[n_uniq];
+	n_diff_data_t*		n_diff_data = UT_NEW_ARRAY(n_diff_data_t,
+							   n_uniq);
 
 	/* total_recs is also used to estimate the number of pages on one
 	level below, so at the start we have 1 page (the root) */
@@ -2152,9 +2156,9 @@ found_level:
 
 	mtr_commit(&mtr);
 
-	delete[] n_diff_boundaries;
+	UT_DELETE_ARRAY(n_diff_boundaries);
 
-	delete[] n_diff_on_level;
+	UT_DELETE_ARRAY(n_diff_on_level);
 
 	/* n_prefix == 0 means that the above loop did not end up prematurely
 	due to tree being changed and so n_diff_data[] is set up. */
@@ -2162,7 +2166,7 @@ found_level:
 		dict_stats_index_set_n_diff(n_diff_data, index);
 	}
 
-	delete[] n_diff_data;
+	UT_DELETE_ARRAY(n_diff_data);
 
 	dict_stats_assert_initialized_index(index);
 	DBUG_VOID_RETURN;

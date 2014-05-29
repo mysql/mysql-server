@@ -72,6 +72,8 @@ dict_index_t*	dict_ind_redundant;
 #include "srv0start.h"
 #include "sync0sync.h"
 #include "trx0undo.h"
+#include "ut0new.h"
+
 #include <vector>
 #include <algorithm>
 
@@ -281,7 +283,7 @@ dict_table_stats_latch_alloc(
 {
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 
-	table->stats_latch = new(std::nothrow) rw_lock_t;
+	table->stats_latch = UT_NEW(rw_lock_t);
 
 	ut_a(table->stats_latch != NULL);
 
@@ -298,7 +300,7 @@ dict_table_stats_latch_free(
 	dict_table_t*	table)
 {
 	rw_lock_free(table->stats_latch);
-	delete table->stats_latch;
+	UT_DELETE(table->stats_latch);
 }
 
 /** Create a dict_table_t's stats latch or delay for lazy creation.
