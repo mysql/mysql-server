@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -35,6 +35,7 @@ Handle<Value> getOperationError(const Arguments &);
 Handle<Value> tryImmediateStartTransaction(const Arguments &);
 Handle<Value> execute(const Arguments &);
 Handle<Value> executeAsynch(const Arguments &);
+Handle<Value> DBOperationSet_freeImpl(const Arguments &);
 
 class DBOperationSetEnvelopeClass : public Envelope {
 public:
@@ -43,7 +44,8 @@ public:
       "tryImmediateStartTransaction", tryImmediateStartTransaction);
     DEFINE_JS_FUNCTION(Envelope::stencil, "getOperationError", getOperationError);
     DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "executeAsynch", executeAsynch);    
+    DEFINE_JS_FUNCTION(Envelope::stencil, "executeAsynch", executeAsynch);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "free", DBOperationSet_freeImpl); 
   }
 };
 
@@ -67,7 +69,7 @@ Handle<Value> DBOperationSet_Recycle(Handle<Object> oldWrapper,
   DEBUG_PRINT("DBOperationSet *Recycle*");
   assert(newSet);
   DBOperationSet * oldSet = unwrapPointer<DBOperationSet *>(oldWrapper);
-  delete oldSet;
+  assert(oldSet == 0);
   wrapPointerInObject(newSet, DBOperationSetEnvelope, oldWrapper);
   return oldWrapper;
 }
@@ -153,5 +155,13 @@ Handle<Value> executeAsynch(const Arguments &args) {
 }
 
 
+Handle<Value> DBOperationSet_freeImpl(const Arguments &args) {
+  HandleScope scope;
+  DBOperationSet * set = unwrapPointer<DBOperationSet *>(args.Holder());
+  delete set;
+  set = 0;
+  wrapPointerInObject(set, DBOperationSetEnvelope, args.Holder());
+  return Undefined();
+}
 
 

@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -44,7 +44,8 @@ var adapter         = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     AO_IGNORE       = adapter.ndbapi.AO_IgnoreError,
     AO_DEFAULT      = adapter.ndbapi.DefaultAbortOption,
     modeNames       = [],
-    serial          = 1;
+    serial          = 1,
+    usedOperationSets = new Array(4000);
 
 stats_module.register(stats, "spi","ndb","DBTransactionHandler");
 
@@ -68,6 +69,19 @@ function DBTransactionHandler(dbsession) {
   stats.created++;
 }
 
+function getOpSetWrapper() {
+  return usedOperationSets.pop();
+}
+
+function releaseOpSetWrapper(dbOperationSet) {
+  if(dbOperationSet) {
+    dbOperationSet.free();  // Free the underlying native object 
+    if(usedOperationSets.length < 4000) {
+      usedOperationSets.push(dbOperationSet);
+    } // Keep the JavaScript wrapper for recycling
+  }
+}
+
 /* NdbTransactionHandler internal run():
    Create a QueuedAsyncCall on the Ndb's execQueue.
 */
@@ -86,7 +100,7 @@ function run(self, operationSet, execMode, abortFlag, callback) {
 
     if(this.txIsOpen) {
       canStartImmediate = true;  // Transaction already started
-    } else { 
+    } else if(this.tx.asyncContext) { 
       canStartImmediate = this.operations.tryImmediateStartTransaction();
     }
 
@@ -149,7 +163,6 @@ function attachErrorToTransaction(dbTxHandler, err) {
 */
 function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
   var pendingOpsList = dbTxHandler.pendingOpsLists[execId];
-  var dbOperationSet = pendingOpsList.pendingOperationSet;
 
   /* Update our own success and error objects */
   attachErrorToTransaction(dbTxHandler, err);
@@ -167,12 +180,6 @@ function onExecute(dbTxHandler, execMode, err, execId, userCallback) {
   /* Attach results to their operations */
   ndboperation.completeExecutedOps(dbTxHandler, execMode, pendingOpsList);
 
-  /* Release our reference on the DBOperationSet */
-  if(dbOperationSet) {
-    dbTxHandler.dbSession.usedOperationSets.push(dbOperationSet);
-    pendingOpsList.pendingOperationSet = null;
-  }
-                                   
   /* Next callback */
   if(typeof userCallback === 'function') {
     userCallback(dbTxHandler.error, dbTxHandler);
@@ -298,13 +305,14 @@ function executeScan(self, execMode, abortFlag, dbOperationList, callback) {
 
 
 function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
-  var pendingOps, recycleWrapper;
+  var pendingOps;
 
   function executeNdbTransaction() {
     var execId = getExecIdForOperationList(self, dbOperationList, pendingOps);
 
     function onCompleteExec(err) {
       onExecute(self, execMode, err, execId, callback);
+      releaseOpSetWrapper(pendingOps);
     }
     
     run(self, pendingOps, execMode, abortFlag, onCompleteExec);
@@ -313,8 +321,8 @@ function executeNonScan(self, execMode, abortFlag, dbOperationList, callback) {
   function prepareOperations() {
     udebug.log("executeNonScan prepare", dbOperationList.length, 
                "operations", self.moniker);
-    recycleWrapper = self.dbSession.usedOperationSets.pop();
-    pendingOps = ndboperation.prepareOperations(self.impl, dbOperationList, recycleWrapper);
+    pendingOps = ndboperation.prepareOperations(self.impl, dbOperationList, 
+                                                getOpSetWrapper());
     executeNdbTransaction();
   }
 
