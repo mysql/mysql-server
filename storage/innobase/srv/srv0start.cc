@@ -1003,6 +1003,10 @@ srv_undo_tablespaces_init(
 
 			buf_LRU_flush_or_remove_pages(
 				*it, BUF_REMOVE_FLUSH_WRITE, &trx);
+
+			/* Remove the DDL log file now. */
+			undo_trunc_t	undo_trunc;
+			undo_trunc.undo_logger.done(*it);
 		}
 	}
 
