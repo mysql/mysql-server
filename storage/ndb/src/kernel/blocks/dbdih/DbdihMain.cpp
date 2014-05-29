@@ -6545,19 +6545,23 @@ void Dbdih::removeNodeFromTable(Signal* signal,
    * The table is participating in an LCP currently
    *   and we removed some replicas that should have been checkpointed
    */
-  ndbrequire(c_lcpState.lcpStatus != LCP_STATUS_IDLE);
   ndbrequire(tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE);
   
   /**
    * Save the table
+   * This can be skipped if the status is LCP_INIT_TABLES because
+   * no metadata updates have been done so far, therefore there
+   * are no changes which need to be reverted.
    */
-  tabPtr.p->tabCopyStatus = TabRecord::CS_REMOVE_NODE;
-  tabPtr.p->tabUpdateState = TabRecord::US_REMOVE_NODE;
-  tabPtr.p->tabRemoveNode = nodeId;
-  signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
-  signal->theData[1] = tabPtr.i;
-  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  
+  if(c_lcpState.lcpStatus != LCP_INIT_TABLES) 
+  {
+    tabPtr.p->tabCopyStatus = TabRecord::CS_REMOVE_NODE;
+    tabPtr.p->tabUpdateState = TabRecord::US_REMOVE_NODE;
+    tabPtr.p->tabRemoveNode = nodeId;
+    signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+    signal->theData[1] = tabPtr.i;
+    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+  }  
   if(noOfRemainingLcpReplicas == 0){
     jam();
     /**
@@ -11354,6 +11358,13 @@ void Dbdih::initLcpLab(Signal* signal, Uint32 senderRef, Uint32 tableId)
    * No more tables
    */
   jam();
+  if (ERROR_INSERTED(7236))
+  {
+    // delay 20s before completing last CONTINUEB(ZINIT_LCP)
+    sendSignalWithDelay(reference(), GSN_CONTINUEB, signal, 20000, 3);
+    CLEAR_ERROR_INSERT_VALUE;
+    return;
+  }
 
   c_lcpState.setLcpStatus(LCP_STATUS_ACTIVE, __LINE__);
 
