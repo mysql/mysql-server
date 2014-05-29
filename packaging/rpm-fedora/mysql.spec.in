@@ -410,7 +410,6 @@ rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysql
 rm -rf %{buildroot}%{_bindir}/mysql_embedded
-rm -rf %{buildroot}%{_mandir}/man1/mysqlhotcopy.1*
 
 %check
 %if 0%{?runselftest}

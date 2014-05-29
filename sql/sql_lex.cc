@@ -3226,7 +3226,6 @@ LEX::LEX()
   is_set_password_sql(false), is_lex_started(0),
   in_update_value_clause(false)
 {
-  memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
 }
 
@@ -4418,12 +4417,29 @@ bool LEX::is_partition_management() const
 }
 
 
-/**
-  Set all fields to their "unspecified" value.
-*/
+void st_lex_master_info::initialize()
+{
+  host= user= password= log_file_name= bind_addr = NULL;
+  port= connect_retry= 0;
+  heartbeat_period= 0;
+  sql_delay= 0;
+  pos= 0;
+  server_id= retry_count= 0;
+  gtid= NULL;
+  gtid_until_condition= UNTIL_SQL_BEFORE_GTIDS;
+  until_after_gaps= false;
+  ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt= 
+    retry_count_opt= auto_position= LEX_MI_UNCHANGED;
+  ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
+  ssl_crl= ssl_crlpath= NULL;
+  relay_log_name= NULL;
+  relay_log_pos= 0;
+  repl_ignore_server_ids.clear();
+}
+
 void st_lex_master_info::set_unspecified()
 {
-  memset(this, 0, sizeof(*this));
+  initialize();
   sql_delay= -1;
 }
 

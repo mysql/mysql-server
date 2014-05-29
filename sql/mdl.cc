@@ -2504,7 +2504,7 @@ MDL_context::try_acquire_lock_impl(MDL_request *mdl_request,
   bool pinned;
 
   DBUG_ASSERT(mdl_request->type != MDL_EXCLUSIVE ||
-              is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
+              owns_equal_or_stronger_lock(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
   DBUG_ASSERT(mdl_request->ticket == NULL);
 
   /* Don't take chances in production. */
@@ -3859,7 +3859,8 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
 
 /**
   Auxiliary function which allows to check if we have some kind of lock on
-  a object. Returns TRUE if we have a lock of a given or stronger type.
+  a object. Returns TRUE if we have a lock of an equal to given or stronger
+  type.
 
   @param mdl_namespace Id of object namespace
   @param db            Name of the database
@@ -3872,9 +3873,10 @@ void MDL_ticket::downgrade_lock(enum_mdl_type new_type)
 */
 
 bool
-MDL_context::is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
-                           const char *db, const char *name,
-                           enum_mdl_type mdl_type)
+MDL_context::owns_equal_or_stronger_lock(
+               MDL_key::enum_mdl_namespace mdl_namespace,
+               const char *db, const char *name,
+               enum_mdl_type mdl_type)
 {
   MDL_request mdl_request;
   enum_mdl_duration not_unused;
