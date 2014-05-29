@@ -161,22 +161,17 @@ this file will be used to initiate fix-up action during server start. */
 
 class undo_trunc_logger_t {
 public:
-	undo_trunc_logger_t()
-		:
-		m_log_file_name()
-	{ /* Do nothing. */ }
-
-
 	/** Create the truncate log file.
 	@param[in]	space_id	id of the undo tablespace to truncate.
 	@return DB_SUCCESS or error code. */
 	dberr_t init(ulint space_id)
 	{
 		dberr_t		err;
+		char*		log_file_name;
 
 		/* Step-1: Create the log file name using the pre-decided
 		prefix/suffix and table id of undo tablepsace to truncate. */
-		err = populate_log_file_name(space_id);
+		err = populate_log_file_name(space_id, log_file_name);
 		if (err != DB_SUCCESS) {
 			return(err);
 		}
@@ -185,7 +180,7 @@ public:
 		number of 0 to indicate init phase. */
 		bool            ret;
 		os_file_t	handle = os_file_create(
-			innodb_log_file_key, m_log_file_name, OS_FILE_CREATE,
+			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
 			return(DB_IO_ERROR);
@@ -195,10 +190,12 @@ public:
 		memset(buffer, 0x0, sizeof(buffer));
 
                 os_file_write(
-                        m_log_file_name, handle, buffer, 0, sizeof(buffer));
+                        log_file_name, handle, buffer, 0, sizeof(buffer));
 
 		os_file_flush(handle);
 		os_file_close(handle);
+
+		delete[] log_file_name;
 
 		return(DB_SUCCESS);
 	}
@@ -208,20 +205,28 @@ public:
 	If we are going to remove it from disk then why write magic number ?
 	This is to safeguard from unlink (file-system) anomalies that will keep
 	the link to the file even after unlink action is successfull and
-	ref-count = 0. */
-	void done()
+	ref-count = 0. 
+	@param[in]	space_id	id of the undo tablespace to truncate.*/
+	void done(
+		ulint	space_id)
 	{
+		dberr_t		err;
+		char*		log_file_name;
+		err = populate_log_file_name(space_id, log_file_name);
+		if (err != DB_SUCCESS) {
+			return;
+		}
+
 		bool    ret;
 		os_file_t	handle =
 			os_file_create_simple_no_error_handling(
-				innodb_log_file_key, m_log_file_name,
+				innodb_log_file_key, log_file_name,
 				OS_FILE_OPEN, OS_FILE_READ_WRITE,
 				srv_read_only_mode, &ret);
 
 		if (!ret) {
-			os_file_delete(innodb_log_file_key, m_log_file_name);
-			delete[] m_log_file_name;
-			m_log_file_name = NULL;
+			os_file_delete(innodb_log_file_key, log_file_name);
+			delete[] log_file_name;
 			return;
 		}
 
@@ -229,14 +234,13 @@ public:
 		mach_write_to_4(buffer, undo_trunc_logger_t::s_magic);
 
                 os_file_write(
-                        m_log_file_name, handle, buffer, 0, sizeof(buffer));
+                        log_file_name, handle, buffer, 0, sizeof(buffer));
 
 		os_file_flush(handle);
 		os_file_close(handle);
 
-		os_file_delete(innodb_log_file_key, m_log_file_name);
-		delete[] m_log_file_name;
-		m_log_file_name = NULL;
+		os_file_delete(innodb_log_file_key, log_file_name);
+		delete[] log_file_name;
 	}
 
 	/** Check if TRUNCATE_DDL_LOG file exist.
@@ -245,13 +249,19 @@ public:
 	bool is_log_present(
 		ulint	space_id)
 	{
+		dberr_t		err;
+		char*		log_file_name;
+
 		/* Step-1: Populate log file name. */
-		populate_log_file_name(space_id);
+		err = populate_log_file_name(space_id, log_file_name);
+		if (err != DB_SUCCESS) {
+			return(false);
+		}
 
 		/* Step-2: Check for existence of the file. */
 		bool		exist;
 		os_file_type_t	type;
-		os_file_status(m_log_file_name, &exist, &type);
+		os_file_status(log_file_name, &exist, &type);
 
 		/* Step-3: If file exist, check if for presence of magic number.
 		If found, then simple delete the file and report file
@@ -261,14 +271,13 @@ public:
 			bool    ret;
 			os_file_t	handle =
 				os_file_create_simple_no_error_handling(
-					innodb_log_file_key, m_log_file_name,
+					innodb_log_file_key, log_file_name,
 					OS_FILE_OPEN, OS_FILE_READ_WRITE,
 					srv_read_only_mode, &ret);
 			if (!ret) {
 				os_file_delete(innodb_log_file_key,
-					       m_log_file_name);
-				delete[] m_log_file_name;
-				m_log_file_name = NULL;
+					       log_file_name);
+				delete[] log_file_name;
 				return(false);
 			}
 
@@ -280,12 +289,13 @@ public:
 			if (magic_no == undo_trunc_logger_t::s_magic) {
 				/* Found magic number. */
 				os_file_delete(innodb_log_file_key,
-					       m_log_file_name);
-				delete[] m_log_file_name;
-				m_log_file_name = NULL;
+					       log_file_name);
+				delete[] log_file_name;
 				return(false);
 			}
 		}
+
+		delete[] log_file_name;
 
 		return(exist);
 	}
@@ -295,32 +305,33 @@ private:
 	@param[in]	space_id	id of the undo tablespace.
 	@return DB_SUCCESS or error code */
 	dberr_t populate_log_file_name(
-		ulint space_id)
+		ulint	space_id,
+		char*&	log_file_name)
 	{
 		ulint log_file_name_sz = 
 			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
 			+ strlen(undo_trunc_logger_t::s_log_prefix)
 			+ strlen(undo_trunc_logger_t::s_log_ext);
 
-		m_log_file_name = new (std::nothrow) char[log_file_name_sz];
-		if (m_log_file_name == 0) {
+		log_file_name = new (std::nothrow) char[log_file_name_sz];
+		if (log_file_name == 0) {
 			return(DB_OUT_OF_MEMORY);
 		}
 
-		memset(m_log_file_name, 0, log_file_name_sz);
+		memset(log_file_name, 0, log_file_name_sz);
 
-		strcpy(m_log_file_name, srv_log_group_home_dir);
-		ulint	log_file_name_len = strlen(m_log_file_name);
+		strcpy(log_file_name, srv_log_group_home_dir);
+		ulint	log_file_name_len = strlen(log_file_name);
 
-		if (m_log_file_name[log_file_name_len - 1]
+		if (log_file_name[log_file_name_len - 1]
 				!= OS_PATH_SEPARATOR) {
 
-			m_log_file_name[log_file_name_len]
+			log_file_name[log_file_name_len]
 				= OS_PATH_SEPARATOR;
-			log_file_name_len = strlen(m_log_file_name);
+			log_file_name_len = strlen(log_file_name);
 		}
 
-		ut_snprintf(m_log_file_name + log_file_name_len,
+		ut_snprintf(log_file_name + log_file_name_len,
 			    log_file_name_sz - log_file_name_len,
 			    "%s%lu_%s",
 			    undo_trunc_logger_t::s_log_prefix,
@@ -338,9 +349,6 @@ public:
 
         /** Truncate Log file Extension. */
         const static char*		s_log_ext;
-
-private:
-	char*				m_log_file_name;
 };
 
 /** Track UNDO tablespace mark for truncate. */
@@ -431,12 +439,7 @@ public:
 	bool needs_fix_up(
 		ulint	space_id)
 	{
-		bool	needs_fix_up = undo_logger.is_log_present(space_id);
-		if (needs_fix_up) {
-			undo_logger.done();
-		}
-
-		return(needs_fix_up);
+		return(undo_logger.is_log_present(space_id));
 	}
 
 	/** Add undo tablespace to truncate vector.
