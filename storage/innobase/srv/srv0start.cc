@@ -959,17 +959,20 @@ srv_undo_tablespaces_init(
 	if (fix_up_undo_spaces.size() != 0) {
 
 		/* Step-1: Initialize the tablespace header and rsegs header. */
-		/* TODO: Ideally this should avoid doing redo logging. */
 		mtr_t		mtr;
 		trx_sysf_t*	sys_header;
 
 		mtr_start(&mtr);
+		mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
 		sys_header = trx_sysf_get(&mtr);
 
 		for (undo_spaces_t::const_iterator it
 			= fix_up_undo_spaces.begin();
 		     it != fix_up_undo_spaces.end();
 		     ++it) {
+
+			undo_trunc_t::add_space_to_trunc_list(*it);
+
 			fsp_header_init(
 				*it, SRV_UNDO_TABLESPACE_SIZE_IN_PAGES, &mtr);
 
@@ -986,6 +989,8 @@ srv_undo_tablespaces_init(
 						i, &mtr);
 				}
 			}
+
+			undo_trunc_t::clear_trunc_list();
 		}
 		mtr_commit(&mtr);
 
