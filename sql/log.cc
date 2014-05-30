@@ -1588,10 +1588,20 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {
+  int retries= 2, errors= 0;
+
+  do
+  {
+    errors= 0;
     if (errstream && !my_freopen(filename, "a", errstream))
-      return true;
+      errors++;
     if (outstream && !my_freopen(filename, "a", outstream))
-      return true;
+      errors++;
+  }
+  while (retries-- && errors);
+
+  if (errors)
+    return true;
 
   /* The error stream must be unbuffered. */
   if (errstream)
