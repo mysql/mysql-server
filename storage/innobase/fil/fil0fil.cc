@@ -2775,7 +2775,9 @@ fil_check_pending_operations(
 /** Check if a file name exists in the system tablespace.
 @param[in]	first_page_no	first page number (0=first file)
 @param[in]	file_name	tablespace file name
-@return whether the name matches the system tablespace */
+@return whether the name matches the system tablespace
+@retval	true	if file_name starts at first_page_no in the system tablespace
+@retval	false	in case of mismatch */
 
 enum fil_space_system_t
 fil_space_system_check(
