@@ -46,7 +46,7 @@ select 1, ST_Within(GeomFromText('LINESTRING(15 15, 16 16)'), GeomFromText('POLY
 
 
 select 1, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(50 15, 15 50)'));
-select 0, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'));
+select 1, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'));
 
 select 1, ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'));
 
@@ -140,4 +140,245 @@ SET @a=0x00000000010300000002000000050000000000000000000000000000000000000000000
 SELECT ASTEXT(TOUCHES(@a, GEOMFROMTEXT('point(0 0)'))) t;
 
 
+--echo #
+--echo # Bug 18408988 - WL7220 : OVERLAPPING MEMCPY CRASH IN BG_GEOMETRY_COLLECTION::CUT
+--echo # Bug 18408919 - WL7220 : OVERLAPPING MEMCPY CRASH IN GEOMETRY::AS_WKB
+--echo # Bug 18408875 - WL7220 : ASSERTION FAILED: *P == 0 || *P == 1
+--echo #
+select st_union((cast(linestring(point(6,-68), point(-22,-4)) as binary(13))),
+                st_intersection(point(6,8),multipoint(point(3,1),point(-4,-6),point(1,6),point(-3,-5),point(5,4))));
+
+select st_difference((convert(st_polygonfromwkb(linestring(point(1,1))) using gb18030)),
+                     st_geomcollfromwkb(point(1,1)));
+
+select mpointfromwkb(st_intersection(linestring(point(-59,82),point(32,29)), point(2,-5)));
+
+SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))'),GeomFromText('POLYGON((5 0,15 25,25 0,15 5,5 0))')));
+SELECT st_equals(GeomFromWKB(AsWKB(Polygon(Linestring(Point(0, 0),Point(1, 0),Point(1, 1),Point(0, 1))))),
+                                  GeomFromText('POLYGON((0 0, 1 0, 1 1, 0 1))'));
+# polygon((0 0, 1 0, 1 1, 0 1))
+SET @plgnwkb=0x0103000000010000000400000000000000000000000000000000000000000000000000F03F0000000000000000000000000000F03F000000000000F03F0000000000000000000000000000F03F;
+
+SELECT ST_equals(GeomFromWKB(@plgnwkb), GeomFromText('polygon((0 0, 1 0, 1 1, 0 1))'));
+
+--echo #
+--echo # Bug 18423730 - WL7220: ASSERTION FAILED: LIST ITERATOR NOT INCREMENTABLE
+--echo # Enable using empty geometry collection as intermediate and final result in GIS computation.
+select astext(st_union(
+             st_intersection(
+                               multipoint(point(-1,-1)),
+                               point(1,-1)
+                                  ),
+              st_difference(
+                              multipoint(point(-1,1)),
+                              point(-1,-1)
+                                 )));
+# More spatial set operations involving empty geometry collections.
+# Empty collection and empty collection
+select astext(st_union(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                       st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_intersection(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                              st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_difference(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                            st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_symdifference(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                               st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+
+
+# Empty collection and non-empty collection
+select astext(st_intersection(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                              st_difference(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_difference(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                            st_difference(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_symdifference(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                               st_difference(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+
+
+# Non-empty collection and empty collection
+select astext(st_union(geomfromtext('multipoint(2 2, 3 3)'), st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_intersection(geomfromtext('multipoint(2 2, 3 3)'), st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_symdifference(geomfromtext('multipoint(2 2, 3 3)'), st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+select astext(st_difference(geomfromtext('multipoint(2 2, 3 3)'), st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))));
+
+# Empty intermediate or final result
+select astext(st_difference(geomfromtext('multipoint(2 2, 3 3)'), geomfromtext('multipoint(0 0, 4 4)')));
+select astext(st_difference(geomfromtext('multipoint(2 2, 3 3)'), geomfromtext('multipoint(2 2, 3 3)')));
+select astext(st_symdifference(geomfromtext('multipoint(2 2, 3 3)'), geomfromtext('multipoint(0 0, 4 4)')));
+select astext(st_symdifference(geomfromtext('multipoint(2 2, 3 3)'), geomfromtext('multipoint(2 2, 3 3)')));
+
+# Spatial relation check operations involving empty geometry collections.
+# Empty collection and empty collection
+select st_intersects(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                     st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_disjoint(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_equals(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                 st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_contains(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_within(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                 st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_touches(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                  st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_overlaps(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_crosses(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                  st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+
+
+# Empty collection and non-empty collection
+select st_intersects(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                     st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_disjoint(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_equals(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                 st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_contains(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_within(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                 st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_touches(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                  st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_overlaps(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_crosses(st_intersection(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                  st_union(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+
+
+# Non-empty collection and empty collection
+select st_intersects(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                     st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_disjoint(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_equals(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                 st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_contains(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_within(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                 st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_touches(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                  st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_overlaps(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                   st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+select st_crosses(st_union(geomfromtext('point(1 1)'), geomfromtext('multipoint(2 2, 3 3)')), 
+                  st_intersection(geomfromtext('point(0 0)'), geomfromtext('point(1 1)')));
+
+--echo #
+--echo # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
+--echo #
+--error ER_WRONG_ARGUMENTS
+select
+st_within(
+           multipoint(point(4,2),point(-6,-8)),
+           polygon(
+                      linestring(point(13,0),point(13,0)),
+                      linestring(point(2,4), point(2,4))
+                         ));
+
+--echo #
+--echo # Bug 18851092 - GEOMFROMTEXT DOES NOT UNDERSTAND NESTED GEOMETRYCOLLECTIONS
+--echo #
+# Checking parsing WKT of empty geometry collection and nested geometry collections.
+SELECT AsText(GeomFromText('GeometryCollection()'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+SELECT AsText(GeomFromText('GeometryCollection(,)'));
+SELECT AsText(GeomFromText('GeometryCollection(())'));
+SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
+SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
+SELECT AsText(GeomFromText('GeometryCollection(())'));
+SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'));
+
+# Spatial set operations on nested geometry collections, which are flattened and
+# their basic components sent to BG algorithms.
+SELECT AsText(st_union(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                       GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
+SELECT AsText(st_difference(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                            GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
+# In below two test cases (st_intersection and st_symdifference) the point disjoint linestring isn't supported 
+# now so the result is not correct. This should get right when WL7224 and WL7225 are completed.
+SELECT AsText(st_intersection(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                              GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
+SELECT AsText(st_symdifference(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                               GeomFromText('GeometryCollection(GeometryCollection(Point(1 1), Point(2 2)))')));
+
+
+
+--echo #
+--echo # Bug 18701114 - WL7220: ASSERTION FAILED: (PTR != 0 && NBYTES > 0) || (PTR == 0 && NBYTES == 0),
+--echo #
+--error ER_WRONG_ARGUMENTS
+select
+st_within(
+           multipoint(point(4,2),point(-6,-8)),
+           polygon(
+                      linestring(point(13,0),point(13,0)),
+                      linestring(point(2,4), point(2,4))
+                         ));
+
+--echo #
+--echo # Bug 18851092 - GEOMFROMTEXT DOES NOT UNDERSTAND NESTED GEOMETRYCOLLECTIONS
+--echo #
+# Checking parsing WKT of empty geometry collection and nested geometry collections.
+SELECT AsText(GeomFromText('GeometryCollection()'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+SELECT AsText(GeomFromText('GeometryCollection(,)'));
+SELECT AsText(GeomFromText('GeometryCollection(())'));
+SELECT AsText(GeomFromText('GeometryCollection(point(0 0),)'));
+SELECT AsText(GeomFromText('GeometryCollection(,point(0 0))'));
+SELECT AsText(GeomFromText('GeometryCollection(())'));
+SELECT AsText(GeomFromText('GeometryCollection((point(0 0)))'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection())'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))'));
+SELECT AsText(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'));
+
+# Spatial set operations on nested geometry collections, which are flattened and
+# their basic components sent to BG algorithms.
+SELECT AsText(st_union(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                       GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
+SELECT AsText(st_difference(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                            GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
+# In below two test cases (st_intersection and st_symdifference) the point disjoint linestring isn't supported 
+# now so the result is not correct. This should get right when WL7224 and WL7225 are completed.
+SELECT AsText(st_intersection(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                              GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)))')));
+SELECT AsText(st_symdifference(GeomFromText('GeometryCollection(GeometryCollection(Point(1 1)), GeometryCollection(linestring(1 1, 2 2)))'),
+                               GeomFromText('GeometryCollection(GeometryCollection(Point(1 1), Point(2 2)))')));
+
+select astext(st_difference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 0 1, 1 1, 1 0, 0 0))'))) as result;
+
+select astext(st_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 0 1, 1 1, 1 0, 0 0))'))) as result;
+
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+select astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 0, 0 0,0 1, 0 0))'))) as result;
+
+SELECT ST_Equals(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 0, 0 0,0 1, 0 0))')) as result;
+
+
+
+select astext(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
+select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
+ select AsText(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+ select area(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+
+ select AsText(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1,1), Point(0, 1))));
+
+ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
+                                                        MULTIPOINT(point(0, 0), point(1, 1)), LINESTRING(point(0, 0),point(10, 10)),
+                                                        MULTILINESTRING(LINESTRING(point(1, 2), point(1, 3))),
+                                                        POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2), Point(1, 1),
+                                                                           Point(10, 20))), MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0),
+                                                                                                                            Point(1, 1), Point(0, 0)))))))) as Result;
+
+
+select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
+                                                      MULTIPOINT(point(0, 0), point(1, 1)), LINESTRING(point(0, 0),point(10, 10)),
+                                                      MULTILINESTRING(LINESTRING(point(1, 2), point(1, 3))),
+                                                      POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2))),
+                                                      MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
+                                                                                      Point(0, 0)))))))) as Result;
 --source include/gis_debug.inc
