@@ -5484,9 +5484,9 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
                                  rt->belong_to_view);
-    (void)sp->add_used_tables_to_table_list(thd,
-                                            &prelocking_ctx->query_tables_last,
-                                            rt->belong_to_view);
+    sp->add_used_tables_to_table_list(thd,
+                                      &prelocking_ctx->query_tables_last,
+                                      rt->belong_to_view);
   }
   sp->propagate_attributes(prelocking_ctx);
   return FALSE;
