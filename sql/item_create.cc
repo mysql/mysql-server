@@ -32,6 +32,7 @@
 #include "sp_head.h"
 #include "sp.h"
 #include "item_inetfunc.h"
+#include "item_geofunc.h"
 #include "sql_time.h"
 #include "parse_tree_helpers.h"
 
@@ -568,6 +569,58 @@ protected:
 };
 
 
+class Create_func_convex_hull : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_convex_hull s_singleton;
+
+protected:
+  Create_func_convex_hull() {}
+  virtual ~Create_func_convex_hull() {}
+};
+
+
+class Create_func_mbr : public Create_func_arg1
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1);
+
+  static Create_func_mbr s_singleton;
+
+protected:
+  Create_func_mbr() {}
+  virtual ~Create_func_mbr() {}
+};
+
+
+class Create_func_mbr_covered_by : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_covered_by s_singleton;
+
+protected:
+  Create_func_mbr_covered_by() {}
+  virtual ~Create_func_mbr_covered_by() {}
+};
+
+
+class Create_func_mbr_covers : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_covers s_singleton;
+
+protected:
+  Create_func_mbr_covers() {}
+  virtual ~Create_func_mbr_covers() {}
+};
+
+
 class Create_func_mbr_contains : public Create_func_arg2
 {
 public:
@@ -669,6 +722,19 @@ public:
 protected:
   Create_func_crosses() {}
   virtual ~Create_func_crosses() {}
+};
+
+
+class Create_func_mbr_crosses : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_crosses s_singleton;
+
+protected:
+  Create_func_mbr_crosses() {}
+  virtual ~Create_func_mbr_crosses() {}
 };
 
 
@@ -2421,6 +2487,19 @@ protected:
 };
 
 
+class Create_func_mbr_touches : public Create_func_arg2
+{
+public:
+  virtual Item *create(THD *thd, Item *arg1, Item *arg2);
+
+  static Create_func_mbr_touches s_singleton;
+
+protected:
+  Create_func_mbr_touches() {}
+  virtual ~Create_func_mbr_touches() {}
+};
+
+
 class Create_func_upper : public Create_func_arg1
 {
 public:
@@ -2989,6 +3068,14 @@ Create_func_centroid::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_convex_hull Create_func_convex_hull::s_singleton;
+
+Item*
+Create_func_convex_hull::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_convex_hull(POS(), arg1);
+}
+
 Create_func_char_length Create_func_char_length::s_singleton;
 
 Item*
@@ -3068,6 +3155,35 @@ Create_func_connection_id::create(THD *thd)
 }
 
 
+Create_func_mbr Create_func_mbr::s_singleton;
+
+Item*
+Create_func_mbr::create(THD *thd, Item *arg1)
+{
+  return new (thd->mem_root) Item_func_geometry_mbr(POS(), arg1);
+}
+
+
+Create_func_mbr_covered_by Create_func_mbr_covered_by::s_singleton;
+
+Item*
+Create_func_mbr_covered_by::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root)
+    Item_func_spatial_mbr_rel(POS(), arg1, arg2, Item_func::SP_COVEREDBY_FUNC);
+}
+
+
+Create_func_mbr_covers Create_func_mbr_covers::s_singleton;
+
+Item*
+Create_func_mbr_covers::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root)
+    Item_func_spatial_mbr_rel(POS(), arg1, arg2, Item_func::SP_COVERS_FUNC);
+}
+
+
 Create_func_mbr_contains Create_func_mbr_contains::s_singleton;
 
 Item*
@@ -3140,6 +3256,21 @@ Create_func_crosses::create(THD *thd, Item *arg1, Item *arg2)
 {
   return new (thd->mem_root) Item_func_spatial_rel(POS(), arg1, arg2,
                                                    Item_func::SP_CROSSES_FUNC);
+}
+
+
+Create_func_mbr_crosses Create_func_mbr_crosses::s_singleton;
+
+Item*
+Create_func_mbr_crosses::create(THD *thd, Item *arg1, Item *arg2)
+{
+  /*
+    For now we keep 'crosses' and 'mbrcrosses' work identical to 'st_crosses',
+    to be backward compatible. In future we may want to make the first two
+    functions do arg1 CROSSES arg2.MBR.
+   */
+  return new (thd->mem_root)
+    Item_func_spatial_rel(POS(), arg1, arg2, Item_func::SP_CROSSES_FUNC);
 }
 
 
@@ -4848,6 +4979,17 @@ Create_func_to_seconds::create(THD *thd, Item *arg1)
 }
 
 
+Create_func_mbr_touches Create_func_mbr_touches::s_singleton;
+
+Item*
+Create_func_mbr_touches::create(THD *thd, Item *arg1, Item *arg2)
+{
+  return new (thd->mem_root) 
+    Item_func_spatial_mbr_rel(POS(), arg1, arg2,
+                              Item_func::SP_TOUCHES_FUNC);
+}
+
+
 Create_func_touches Create_func_touches::s_singleton;
 
 Item*
@@ -5135,10 +5277,13 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("CONNECTION_ID") }, BUILDER(Create_func_connection_id)},
   { { C_STRING_WITH_LEN("CONV") }, BUILDER(Create_func_conv)},
   { { C_STRING_WITH_LEN("CONVERT_TZ") }, BUILDER(Create_func_convert_tz)},
+  { { C_STRING_WITH_LEN("CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
   { { C_STRING_WITH_LEN("COS") }, BUILDER(Create_func_cos)},
   { { C_STRING_WITH_LEN("COT") }, BUILDER(Create_func_cot)},
+  { { C_STRING_WITH_LEN("COVERED_BY") }, GEOM_BUILDER(Create_func_mbr_covered_by)},
+  { { C_STRING_WITH_LEN("COVERS") }, GEOM_BUILDER(Create_func_mbr_covers)},
   { { C_STRING_WITH_LEN("CRC32") }, BUILDER(Create_func_crc32)},
-  { { C_STRING_WITH_LEN("CROSSES") }, GEOM_BUILDER(Create_func_crosses)},
+  { { C_STRING_WITH_LEN("CROSSES") }, GEOM_BUILDER(Create_func_mbr_crosses)},
   { { C_STRING_WITH_LEN("DATEDIFF") }, BUILDER(Create_func_datediff)},
   { { C_STRING_WITH_LEN("DATE_FORMAT") }, BUILDER(Create_func_date_format)},
   { { C_STRING_WITH_LEN("DAYNAME") }, BUILDER(Create_func_dayname)},
@@ -5149,8 +5294,10 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("DEGREES") }, BUILDER(Create_func_degrees)},
   { { C_STRING_WITH_LEN("DES_DECRYPT") }, BUILDER(Create_func_des_decrypt)},
   { { C_STRING_WITH_LEN("DES_ENCRYPT") }, BUILDER(Create_func_des_encrypt)},
+  { { C_STRING_WITH_LEN("DIFFERENCE") }, GEOM_BUILDER(Create_func_difference)},
   { { C_STRING_WITH_LEN("DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
   { { C_STRING_WITH_LEN("DISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
+  { { C_STRING_WITH_LEN("DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
   { { C_STRING_WITH_LEN("ELT") }, BUILDER(Create_func_elt)},
   { { C_STRING_WITH_LEN("ENCODE") }, BUILDER(Create_func_encode)},
   { { C_STRING_WITH_LEN("ENCRYPT") }, BUILDER(Create_func_encrypt)},
@@ -5189,6 +5336,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("INET_NTOA") }, BUILDER(Create_func_inet_ntoa)},
   { { C_STRING_WITH_LEN("INET6_ATON") }, BUILDER(Create_func_inet6_aton)},
   { { C_STRING_WITH_LEN("INET6_NTOA") }, BUILDER(Create_func_inet6_ntoa)},
+  { { C_STRING_WITH_LEN("INTERSECTION") }, GEOM_BUILDER(Create_func_intersection)},
   { { C_STRING_WITH_LEN("IS_IPV4") }, BUILDER(Create_func_is_ipv4)},
   { { C_STRING_WITH_LEN("IS_IPV6") }, BUILDER(Create_func_is_ipv6)},
   { { C_STRING_WITH_LEN("IS_IPV4_COMPAT") }, BUILDER(Create_func_is_ipv4_compat)},
@@ -5228,12 +5376,17 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("MAKETIME") }, BUILDER(Create_func_maketime)},
   { { C_STRING_WITH_LEN("MAKE_SET") }, BUILDER(Create_func_make_set)},
   { { C_STRING_WITH_LEN("MASTER_POS_WAIT") }, BUILDER(Create_func_master_pos_wait)},
+  { { C_STRING_WITH_LEN("MBR") }, GEOM_BUILDER(Create_func_mbr)},
   { { C_STRING_WITH_LEN("MBRCONTAINS") }, GEOM_BUILDER(Create_func_mbr_contains)},
+  { { C_STRING_WITH_LEN("MBRCOVERED_BY") }, GEOM_BUILDER(Create_func_mbr_covered_by)},
+  { { C_STRING_WITH_LEN("MBRCOVERS") }, GEOM_BUILDER(Create_func_mbr_covers)},
+  { { C_STRING_WITH_LEN("MBRCROSSES") }, GEOM_BUILDER(Create_func_mbr_crosses)},
   { { C_STRING_WITH_LEN("MBRDISJOINT") }, GEOM_BUILDER(Create_func_mbr_disjoint)},
+  { { C_STRING_WITH_LEN("MBREQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("MBREQUAL") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("MBRINTERSECTS") }, GEOM_BUILDER(Create_func_mbr_intersects)},
   { { C_STRING_WITH_LEN("MBROVERLAPS") }, GEOM_BUILDER(Create_func_mbr_overlaps)},
-  { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("MBRTOUCHES") }, GEOM_BUILDER(Create_func_mbr_touches)},
   { { C_STRING_WITH_LEN("MBRWITHIN") }, GEOM_BUILDER(Create_func_mbr_within)},
   { { C_STRING_WITH_LEN("MD5") }, BUILDER(Create_func_md5)},
   { { C_STRING_WITH_LEN("MLINEFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
@@ -5302,6 +5455,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_BUFFER") }, GEOM_BUILDER(Create_func_buffer)},
   { { C_STRING_WITH_LEN("ST_CENTROID") }, GEOM_BUILDER(Create_func_centroid)},
   { { C_STRING_WITH_LEN("ST_CONTAINS") }, GEOM_BUILDER(Create_func_contains)},
+  { { C_STRING_WITH_LEN("ST_CONVEXHULL") }, GEOM_BUILDER(Create_func_convex_hull)},
   { { C_STRING_WITH_LEN("ST_CROSSES") }, GEOM_BUILDER(Create_func_crosses)},
   { { C_STRING_WITH_LEN("ST_DIFFERENCE") }, GEOM_BUILDER(Create_func_difference)},
   { { C_STRING_WITH_LEN("ST_DIMENSION") }, GEOM_BUILDER(Create_func_dimension)},
@@ -5309,7 +5463,6 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_DISTANCE") }, GEOM_BUILDER(Create_func_distance)},
   { { C_STRING_WITH_LEN("ST_ENDPOINT") }, GEOM_BUILDER(Create_func_endpoint)},
   { { C_STRING_WITH_LEN("ST_ENVELOPE") }, GEOM_BUILDER(Create_func_envelope)},
-  { { C_STRING_WITH_LEN("ST_EQUALS") }, GEOM_BUILDER(Create_func_mbr_equals)},
   { { C_STRING_WITH_LEN("ST_EXTERIORRING") }, GEOM_BUILDER(Create_func_exteriorring)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMTEXT") }, GEOM_BUILDER(Create_func_geometry_from_text)},
   { { C_STRING_WITH_LEN("ST_GEOMCOLLFROMWKB") }, GEOM_BUILDER(Create_func_geometry_from_wkb)},
@@ -5357,11 +5510,12 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("ST_Y") }, GEOM_BUILDER(Create_func_y)},
   { { C_STRING_WITH_LEN("SUBSTRING_INDEX") }, BUILDER(Create_func_substr_index)},
   { { C_STRING_WITH_LEN("SUBTIME") }, BUILDER(Create_func_subtime)},
+  { { C_STRING_WITH_LEN("SYMDIFFERENCE") }, GEOM_BUILDER(Create_func_symdifference)},
   { { C_STRING_WITH_LEN("TAN") }, BUILDER(Create_func_tan)},
   { { C_STRING_WITH_LEN("TIMEDIFF") }, BUILDER(Create_func_timediff)},
   { { C_STRING_WITH_LEN("TIME_FORMAT") }, BUILDER(Create_func_time_format)},
   { { C_STRING_WITH_LEN("TIME_TO_SEC") }, BUILDER(Create_func_time_to_sec)},
-  { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_touches)},
+  { { C_STRING_WITH_LEN("TOUCHES") }, GEOM_BUILDER(Create_func_mbr_touches)},
   { { C_STRING_WITH_LEN("TO_BASE64") }, BUILDER(Create_func_to_base64)},
   { { C_STRING_WITH_LEN("TO_DAYS") }, BUILDER(Create_func_to_days)},
   { { C_STRING_WITH_LEN("TO_SECONDS") }, BUILDER(Create_func_to_seconds)},
@@ -5369,6 +5523,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("UNCOMPRESS") }, BUILDER(Create_func_uncompress)},
   { { C_STRING_WITH_LEN("UNCOMPRESSED_LENGTH") }, BUILDER(Create_func_uncompressed_length)},
   { { C_STRING_WITH_LEN("UNHEX") }, BUILDER(Create_func_unhex)},
+  { { C_STRING_WITH_LEN("UNION") }, GEOM_BUILDER(Create_func_union)},
   { { C_STRING_WITH_LEN("UNIX_TIMESTAMP") }, BUILDER(Create_func_unix_timestamp)},
   { { C_STRING_WITH_LEN("UPDATEXML") }, BUILDER(Create_func_xml_update)},
   { { C_STRING_WITH_LEN("UPPER") }, BUILDER(Create_func_upper)},

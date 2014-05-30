@@ -387,7 +387,7 @@ SET @g1 = GeomFromText('Polygon((123 456, 123 678, 456 678,456 456,123 456))');
 DELETE FROM t1 WHERE Contains(@g1, t1.spatial_point);
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-0
+353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
@@ -780,7 +780,7 @@ SET @g1 = GeomFromText('Polygon((123 456, 123 678, 456 678,456 456,123 456))');
 DELETE FROM t1 WHERE Contains(@g1, t1.spatial_point);
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-0
+353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
@@ -1173,7 +1173,7 @@ SET @g1 = GeomFromText('Polygon((123 456, 123 678, 456 678,456 456,123 456))');
 DELETE FROM t1 WHERE Contains(@g1, t1.spatial_point);
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-0
+353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;
@@ -1566,7 +1566,7 @@ SET @g1 = GeomFromText('Polygon((123 456, 123 678, 456 678,456 456,123 456))');
 DELETE FROM t1 WHERE Contains(@g1, t1.spatial_point);
 SELECT COUNT(*) FROM t1;
 COUNT(*)
-0
+353
 DROP TABLE t1;
 SET GLOBAL innodb_file_per_table=default;
 SET GLOBAL innodb_file_format=default;

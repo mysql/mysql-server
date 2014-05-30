@@ -92,6 +92,11 @@ typedef struct wkb_header_st
 
 struct MBR
 {
+  /*
+    If later we need an epsilon when comparing doubles, implement a Double
+    class which has arithmetic/comparison member operators to involve the
+    epsilon and use Double class here.
+   */
   double xmin, ymin, xmax, ymax;
 
   MBR()
@@ -144,48 +149,44 @@ struct MBR
       ymax= mbr->ymax;
   }
 
-  int equals(const MBR *mbr)
+  int equals(const MBR *mbr) const
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin == xmin) && (mbr->ymin == ymin) &&
 	    (mbr->xmax == xmax) && (mbr->ymax == ymax));
   }
 
-  int disjoint(const MBR *mbr)
+  int disjoint(const MBR *mbr) const
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin > xmax) || (mbr->ymin > ymax) ||
 	    (mbr->xmax < xmin) || (mbr->ymax < ymin));
   }
 
-  int intersects(const MBR *mbr)
+  int intersects(const MBR *mbr) const
   {
     return !disjoint(mbr);
   }
 
-  int touches(const MBR *mbr)
+  int touches(const MBR *mbr) const;
+
+  int within(const MBR *mbr) const;
+
+  int contains(const MBR *mbr) const
   {
-    /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin == xmax || mbr->xmax == xmin) &&
-            ((mbr->ymin >= ymin && mbr->ymin <= ymax) ||
-             (mbr->ymax >= ymin && mbr->ymax <= ymax))) ||
-           ((mbr->ymin == ymax || mbr->ymax == ymin) &&
-            ((mbr->xmin >= xmin && mbr->xmin <= xmax) ||
-             (mbr->xmax >= xmin && mbr->xmax <= xmax)));
+    return mbr->within(this);
   }
 
-  int within(const MBR *mbr)
+  inline int covered_by(const MBR *mbr) const
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
-	    (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+            (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
   }
 
-  int contains(const MBR *mbr)
+  inline int covers(const MBR *mbr) const
   {
-    /* The following should be safe, even if we compare doubles */
-    return ((mbr->xmin >= xmin) && (mbr->ymin >= ymin) &&
-	    (mbr->xmax <= xmax) && (mbr->ymax <= ymax));
+    return mbr->covered_by(this);
   }
 
   bool inner_point(double x, double y) const
@@ -218,7 +219,7 @@ struct MBR
     return d;
   }
 
-  int overlaps(const MBR *mbr)
+  int overlaps(const MBR *mbr) const
   {
     /*
       overlaps() requires that some point inside *this is also inside
@@ -3587,4 +3588,34 @@ public:
 struct Geometry_buffer : public
   my_aligned_storage<sizeof(Gis_polygon), MY_ALIGNOF(Gis_polygon)> {};
 
+
+class WKB_scanner_event_handler
+{
+public:
+
+  /**
+    Notified when scanner sees the start of a geometry WKB.
+    @param bo byte order of the WKB.
+    @param geotype geometry type of the WKB;
+    @param wkb WKB byte string, the first byte after the WKB header if any.
+    @param len NO. of bytes of the WKB byte string starting from wkb.
+    @param has_hdr whether there is a WKB header right before 'wkb' in the
+                   byte string.
+   */
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)= 0;
+
+  /**
+    Notified when scanner sees the end of a geometry WKB.
+    @param wkb the position of the first byte after the WKB byte string which
+               the scanner just scanned.
+   */
+  virtual void on_wkb_end(const void *wkb)= 0;
+};
+
+
+const char*
+wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
+            WKB_scanner_event_handler *handler);
 #endif

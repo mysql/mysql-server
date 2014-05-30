@@ -26,6 +26,74 @@
 #include "inplace_vector.h"
 
 
+/**
+  We have to hold result buffers in functions that return a GEOMETRY string,
+  because such a function's result
+  geometry's buffer is directly used and set to String result object,
+  so we have to release them properly manually since they won't be released
+  at String object destruction
+*/
+class BG_result_buf_mgr
+{
+public:
+  BG_result_buf_mgr()
+  {
+    bg_result_buf= NULL;
+  }
+
+  ~BG_result_buf_mgr()
+  {
+    free_intermediate_result_buffers();
+    free_result_buffer();
+  }
+
+  void add_buffer(void *buf)
+  {
+    bg_results.insert(buf);
+  }
+
+
+  void free_intermediate_result_buffers()
+  {
+    bg_results.erase(bg_result_buf);
+    for (std::set<void *>::iterator itr= bg_results.begin();
+         itr != bg_results.end(); ++itr)
+      gis_wkb_raw_free(*itr);
+    bg_results.clear();
+  }
+
+
+  void free_result_buffer()
+  {
+    if (bg_result_buf)
+    {
+      gis_wkb_raw_free(bg_result_buf);
+      bg_result_buf= NULL;
+    }
+  }
+
+
+  void set_result_buffer(void *buf)
+  {
+    bg_result_buf= buf;
+    bg_results.erase(bg_result_buf);
+  }
+
+private:
+  /*
+    Hold data buffer of this set operation's final result geometry which is
+    freed next time val_str is called since it can be used by upper Item nodes.
+  */
+  void *bg_result_buf;
+
+  /*
+    Result buffers for intermediate set operation results, which are freed
+    before val_str returns.
+  */
+  std::set<void *> bg_results;
+};
+
+
 class Item_func_spatial_operation;
 
 /**
@@ -74,8 +142,7 @@ public:
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
   template<typename Coord_type, typename Coordsys>
-  void merge_components(Item_func_spatial_operation *ifso,
-                        bool *pdone, my_bool *pnull_value);
+  void merge_components(bool *pdone, my_bool *pnull_value);
 private:
   template<typename Coord_type, typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
@@ -173,9 +240,26 @@ public:
 
 class Item_func_centroid: public Item_geometry_func
 {
+  BG_result_buf_mgr bg_resbuf_mgr;
+
+  template <typename Coordsys>
+  bool bg_centroid(Geometry *geom, String *ptwkb);
 public:
   Item_func_centroid(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
   const char *func_name() const { return "st_centroid"; }
+  String *val_str(String *);
+  Field::geometry_type get_geometry_type() const;
+};
+
+class Item_func_convex_hull: public Item_geometry_func
+{
+  BG_result_buf_mgr bg_resbuf_mgr;
+
+  template <typename Coordsys>
+  bool bg_convex_hull(Geometry *geom, String *wkb);
+public:
+  Item_func_convex_hull(const POS &pos, Item *a): Item_geometry_func(pos, a) {}
+  const char *func_name() const { return "st_convex_hull"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -283,6 +367,25 @@ public:
   const char *func_name() const;
 };
 
+class Item_func_geometry_mbr: public Item_geometry_func
+{
+  void *result_buf;
+public:
+  Item_func_geometry_mbr(const POS &pos, Item *arg)
+    :Item_geometry_func(pos, arg)
+  {
+    result_buf= NULL;
+  }
+
+  ~Item_func_geometry_mbr()
+  {
+    gis_wkb_free(result_buf);
+  }
+
+  const char *func_name() const { return "mbr"; }
+  String *val_str(String *);
+  Field::geometry_type get_geometry_type() const;
+};
 
 /*
   Spatial relations
@@ -453,24 +556,7 @@ protected:
   Gcalc_result_receiver res_receiver;
   Gcalc_operation_reducer operation;
   String tmp_value1,tmp_value2;
-
-  /**
-    We have to hold result buffers here because a set operation result
-    geometry's buffer is directly used and set to String result object,
-    so we have to release them properly manually since they won't be released
-    at String object destruction, hence the need for bg_result_buf and
-    bg_results.
-
-    Hold data buffer of this set operation's final result geometry which is
-    freed next time val_str is called since it can be used by upper Item nodes.
-  */
-  void *bg_result_buf;
-
-  /**
-    Result buffers for intermediate set operation results, which are freed
-    before val_str returns.
-  */
-  std::set<void *> bg_results;
+  BG_result_buf_mgr bg_resbuf_mgr;
 
   bool assign_result(Geometry *geo, String *result);
 
@@ -501,7 +587,7 @@ protected:
 public:
   Item_func_spatial_operation(const POS &pos, Item *a, Item *b,
                               Gcalc_function::op_type sp_op) :
-    Item_geometry_func(pos, a, b), spatial_op(sp_op), bg_result_buf(NULL)
+    Item_geometry_func(pos, a, b), spatial_op(sp_op)
   {
   }
   virtual ~Item_func_spatial_operation();
@@ -682,6 +768,9 @@ public:
 class Item_func_area: public Item_real_func
 {
   String value;
+
+  template <typename Coordsys>
+  double bg_area(Geometry *geom, bool *isdone);
 public:
   Item_func_area(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
@@ -727,8 +816,14 @@ class Item_func_distance: public Item_real_func
   Gcalc_heap collector;
   Gcalc_function func;
   Gcalc_scan_iterator scan_it;
+
+  template <typename Coordsys>
+  double bg_distance(Geometry *g1, Geometry *g2, bool *isdone);
+
 public:
-  Item_func_distance(const POS &pos, Item *a, Item *b): Item_real_func(pos, a, b) {}
+  Item_func_distance(const POS &pos, Item *a, Item *b)
+    : Item_real_func(pos, a, b)
+  {}
   double val_real();
   const char *func_name() const { return "st_distance"; }
 };

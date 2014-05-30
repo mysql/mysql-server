@@ -28,6 +28,134 @@
 #include <ieeefp.h>
 #endif
 
+
+/***************************** MBR *******************************/
+
+int MBR::touches(const MBR *mbr) const
+{
+  int dim1= 0, dim2= 0, ret= 0;
+
+  dim1= dimension();
+  dim2= mbr->dimension();
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+  if (dim1 == 0 && dim2 == 0)
+    ret= 0;
+  else if (dim1 == 0 && dim2 == 1)
+    ret= (xmin == mbr->xmin && ymin == mbr->ymin) ||
+      (xmin == mbr->xmax && ymin == mbr->ymax);
+  else if (dim1 == 1 && dim2 == 0)
+    ret= mbr->touches(this);
+  else
+  {
+    DBUG_ASSERT(dim1 + dim2 > 1);
+    const MBR *mbr2= mbr, *mbr1= this, *mbr3= 0;
+again:
+    /* The following should be safe, even if we compare doubles */
+    ret=
+      ((mbr2->xmin == mbr1->xmax || mbr2->xmax == mbr1->xmin) &&
+       ((mbr2->ymin >= mbr1->ymin && mbr2->ymin <= mbr1->ymax) ||
+        (mbr2->ymax >= mbr1->ymin && mbr2->ymax <= mbr1->ymax))) ||
+      ((mbr2->ymin == mbr1->ymax || mbr2->ymax == mbr1->ymin) &&
+       ((mbr2->xmin >= mbr1->xmin && mbr2->xmin <= mbr1->xmax) ||
+        (mbr2->xmax >= mbr1->xmin && mbr2->xmax <= mbr1->xmax)));
+
+    if (ret == 0 && mbr3 == 0 && !(dim1 == dim2 && dim1 == 2))
+    {
+      mbr3= mbr1;
+      mbr1= mbr2;
+      mbr2= mbr3;
+      // If the two MBRs are of different dimensions, need to switch and retry.
+      goto again;
+    }
+  }
+
+  return ret;
+}
+
+int MBR::within(const MBR *mbr) const
+{
+  int ret, dim1= 0, dim2= 0;
+
+  dim1= dimension();
+  dim2= mbr->dimension();
+  DBUG_ASSERT(dim1 >= 0 && dim1 <= 2 && dim2 >= 0 && dim2 <= 2);
+
+  /*
+    Either/both of the two operands can degrade to a point or a
+    horizontal/vertical line segment, and we have to treat such cases
+    separately.
+   */
+  switch (dim1)
+  {
+  case 0:
+    DBUG_ASSERT(xmin == xmax && ymin == ymax);
+    switch (dim2)
+    {
+    case 0:
+      DBUG_ASSERT(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      ret= equals(mbr);
+      break;
+    case 1:
+      DBUG_ASSERT((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      ret= ((xmin > mbr->xmin && xmin < mbr->xmax && ymin == mbr->ymin) ||
+            (ymin > mbr->ymin && ymin < mbr->ymax && xmin == mbr->xmin));
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      ret= (xmin > mbr->xmin && xmax < mbr->xmax &&
+            ymin > mbr->ymin && ymax < mbr->ymax);
+      break;
+    }
+    break;
+  case 1:
+    DBUG_ASSERT((xmin == xmax && ymin != ymax) ||
+                (ymin == ymax && xmin != xmax));
+    switch (dim2)
+    {
+    case 0:
+      DBUG_ASSERT(mbr->xmin == mbr->xmax && mbr->ymin == mbr->ymax);
+      ret= 0;
+      break;
+    case 1:
+      DBUG_ASSERT((mbr->xmin == mbr->xmax && mbr->ymin != mbr->ymax) ||
+                  (mbr->ymin == mbr->ymax && mbr->xmin != mbr->xmax));
+      ret= ((xmin == xmax && mbr->xmin == mbr->xmax && mbr->xmin == xmin &&
+             mbr->ymin <= ymin && mbr->ymax >= ymax) ||
+            (ymin == ymax && mbr->ymin == mbr->ymax && mbr->ymin == ymin &&
+             mbr->xmin <= xmin && mbr->xmax >= xmax));
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      ret= ((xmin == xmax && xmin > mbr->xmin && xmax < mbr->xmax &&
+             ymin >= mbr->ymin && ymax <= mbr->ymax) ||
+            (ymin == ymax && ymin > mbr->ymin && ymax < mbr->ymax &&
+             xmin >= mbr->xmin && xmax <= mbr->xmax));
+      break;
+    }
+    break;
+  case 2:
+    DBUG_ASSERT(xmin != xmax && ymin != ymax);
+    switch (dim2)
+    {
+    case 0:
+    case 1:
+      ret= 0;
+      break;
+    case 2:
+      DBUG_ASSERT(mbr->xmin != mbr->xmax && mbr->ymin != mbr->ymax);
+      ret= ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
+            (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+      break;
+
+    }
+    break;
+  }
+
+  return ret;
+}
+
+
 /*
   exponential notation :
   1   sign
@@ -435,6 +563,117 @@ uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
     return uint4korr(inv_array_p);
   }
 }
+
+
+/**
+  Scan WKB byte string and notify WKB events by calling registered callbacks.
+  @param wkb a little endian WKB byte string of 'len' bytes, with or
+             without WKB header.
+  @param geotype the type of the geometry to be scanned.
+  @param hashdr whether the 'wkb' point to a WKB header or right after
+                the header. If it is true, the
+                'geotype' should be the same as the type in the header;
+                otherwise, and we will use the type in WKB header.
+  @param handler the registered WKB_scanner_event_handler object to be notified.
+ */
+const char*
+wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
+            WKB_scanner_event_handler *handler)
+{
+  Geometry::wkbType gt;
+  const char *q= NULL;
+  uint32 ngeos= 0, comp_type= 0, gtype= 0;
+  bool comp_hashdr= false, done= false;
+
+  if (has_hdr)
+  {
+    if (*len < WKB_HEADER_SIZE)
+      return NULL;                                 // Invalid WKB data.
+
+    gtype= uint4korr(wkb + 1);
+    // The geotype isn't used in this case.
+    DBUG_ASSERT(geotype == gtype || geotype == 0/* unknown */);
+
+    if ((*wkb != Geometry::wkb_ndr && *wkb != Geometry::wkb_xdr) ||
+        gtype < Geometry::wkb_point || gtype > Geometry::wkb_last)
+      return NULL;
+
+    gt= static_cast<Geometry::wkbType>(gtype);
+
+    q= wkb + WKB_HEADER_SIZE;
+    *len-= WKB_HEADER_SIZE;
+    handler->on_wkb_start(get_byte_order(wkb), gt, q, *len, true);
+  }
+  else
+  {
+    DBUG_ASSERT(geotype >= Geometry::wkb_point && geotype<= Geometry::wkb_last);
+    q= wkb;
+    gt= static_cast<Geometry::wkbType>(geotype);
+    handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
+  }
+
+  if (gt != Geometry::wkb_point)
+  {
+    if (*len < 4)
+      return NULL;
+    ngeos= uint4korr(q);
+    if (ngeos == 0)
+      return NULL;
+    q+= sizeof(uint32);
+    *len-= 4;
+  }
+
+  switch (gt)
+  {
+  case Geometry::wkb_point:
+    if (*len < POINT_DATA_SIZE)
+      return NULL;
+    q+= 2 * POINT_DATA_SIZE;
+    *len-= 2 * POINT_DATA_SIZE;
+    DBUG_ASSERT(POINT_DATA_SIZE == 2 * SIZEOF_STORED_DOUBLE);
+    done= true;
+    handler->on_wkb_end(q);
+    break;
+  case Geometry::wkb_linestring:
+    comp_type= Geometry::wkb_point;
+    break;
+  case Geometry::wkb_polygon:
+    comp_type= Geometry::wkb_linestring;
+    break;
+  case Geometry::wkb_multipoint:
+    comp_type= Geometry::wkb_point;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_multilinestring:
+    comp_type= Geometry::wkb_linestring;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    comp_type= Geometry::wkb_polygon;
+    comp_hashdr= true;
+    break;
+  case Geometry::wkb_geometrycollection:
+    comp_hashdr= true;
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  if (!done)
+  {
+    for (uint32 i= 0; i < ngeos; i++)
+    {
+      q= wkb_scanner(wkb, len, comp_type, comp_hashdr, handler);
+      if (q == NULL)
+        return NULL;
+    }
+    handler->on_wkb_end(q);
+  }
+
+  return q;
+}
+
 
 /**
   Read from 'wkb' (which contains WKB encoded in either endianess) the

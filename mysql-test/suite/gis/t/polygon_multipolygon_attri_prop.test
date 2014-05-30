@@ -1241,12 +1241,15 @@ Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'
 --echo 0 expected
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0))))))) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë')))))));
 --echo 1 expected
+--error ER_WRONG_ARGUMENTS
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0))))))) = Area(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))'));
 --echo 1 expected
 Select Area(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))')) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë')))))));
 --echo 0 expected
+--error ER_WRONG_ARGUMENTS
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'));
 --echo 1 expected
+--error ER_WRONG_ARGUMENTS
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))'));
 --echo 1 expected
 --enable_warnings
@@ -1775,12 +1778,15 @@ Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Poi
 --echo 0 expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))));
 --echo 0 expected
+--error ER_WRONG_ARGUMENTS
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Centroid(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')));
 --echo 0 expected
 Select AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))));
 --echo 0 expected
+--error ER_WRONG_ARGUMENTS
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')));
 --echo 1 expected
+--error ER_WRONG_ARGUMENTS
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')));
 --echo 1 expected
 --enable_warnings

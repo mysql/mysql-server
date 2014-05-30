@@ -82,7 +82,11 @@ public:
   typedef CoordinateSystemType Coordsys;
 };
 
+namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
+
+static bool
+is_colinear(const BG_models<double, bgcs::cartesian>::Linestring &ls);
 
 
 
@@ -350,20 +354,14 @@ String *Item_func_centroid::val_str(String *str)
   String *swkb= args[0]->val_str(&arg_val);
   Geometry_buffer buffer;
   Geometry *geom= NULL;
-  uint32 srid;
 
   if ((null_value= args[0]->null_value ||
        !(geom= Geometry::construct(&buffer, swkb))))
-    return 0;
+    return NULL;
 
   str->set_charset(&my_charset_bin);
-  if (str->reserve(SRID_SIZE, 512))
-    return 0;
-  str->length(0);
-  srid= uint4korr(swkb->ptr());
-  str->q_append(srid);
-
-  return (null_value= MY_TEST(geom->centroid(str))) ? 0 : str;
+  null_value= bg_centroid<bgcs::cartesian>(geom, str);
+  return null_value ? NULL : str;
 }
 
 
@@ -460,6 +458,267 @@ String *Item_func_centroid::val_str(String *str)
     expr;\
     my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
   }
+
+
+class Point_accumulator : public WKB_scanner_event_handler
+{
+  Gis_multi_point *m_mpts;
+  const char *pt_start;
+public:
+  Point_accumulator(Gis_multi_point *mpts) : m_mpts(mpts), pt_start(NULL)
+  {
+  }
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    if (geotype == Geometry::wkb_point)
+    {
+      DBUG_ASSERT(len == POINT_DATA_SIZE);
+      Gis_point pt(wkb, len, Geometry::Flags_t(Geometry::wkb_point, len),
+                   m_mpts->get_srid());
+      m_mpts->push_back(pt);
+      pt_start= static_cast<const char *>(wkb);
+    }
+  }
+
+
+  virtual void on_wkb_end(const void *wkb)
+  {
+    DBUG_ASSERT(pt_start + POINT_DATA_SIZE == wkb);
+  }
+};
+
+
+template <typename Coordsys>
+bool Item_func_centroid::bg_centroid(Geometry *geom, String *ptwkb)
+{
+  typename BG_models<double, Coordsys>::Point respt;
+
+  // Release last call's result buffer.
+  bg_resbuf_mgr.free_result_buffer();
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+    return true;
+
+  try
+  {
+    switch (geom->get_type())
+    {
+    case Geometry::wkb_point:
+      {
+        typename BG_models<double, Coordsys>::Point
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        typename BG_models<double, Coordsys>::Multipoint
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_linestring:
+      {
+        typename BG_models<double, Coordsys>::Linestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      {
+        typename BG_models<double, Coordsys>::Multilinestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_polygon:
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::centroid(geo, respt);
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      {
+        typename BG_models<double, Coordsys>::Multipoint mpts;
+        Point_accumulator pt_acc(&mpts);
+
+        const char *wkb_start= geom->get_cptr();
+        uint32 wkb_len= geom->get_data_size();
+        wkb_scanner(wkb_start, &wkb_len,
+                    Geometry::wkb_geometrycollection, false, &pt_acc);
+        boost::geometry::centroid(mpts, respt);
+      }
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+
+    respt.set_srid(geom->get_srid());
+    if (!null_value)
+      null_value= post_fix_result(&bg_resbuf_mgr, respt, ptwkb);
+
+    bg_resbuf_mgr.set_result_buffer(const_cast<char *>(ptwkb->ptr()));
+  }
+  CATCH_ALL("st_centroid", null_value= true)
+
+  return null_value;
+}
+
+Field::geometry_type Item_func_convex_hull::get_geometry_type() const
+{
+  return Field::GEOM_POLYGON;
+}
+
+String *Item_func_convex_hull::val_str(String *str)
+{
+  String arg_val;
+  String *swkb= args[0]->val_str(&arg_val);
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+
+  if ((null_value= args[0]->null_value ||
+       !(geom= Geometry::construct(&buffer, swkb)) ||
+       geom->get_coordsys() != Geometry::cartesian))
+    return NULL;
+
+  str->set_charset(&my_charset_bin);
+  str->length(0);
+
+  if (bg_convex_hull<bgcs::cartesian>(geom, str))
+    return NULL;
+  return str;
+}
+
+
+template <typename Coordsys>
+bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
+{
+  typename BG_models<double, Coordsys>::Polygon hull;
+  typename BG_models<double, Coordsys>::Linestring line_hull;
+
+  bool is_linear_hull= false;
+
+  // Release last call's result buffer.
+  bg_resbuf_mgr.free_result_buffer();
+
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+    return true;
+
+  try
+  {
+    switch (geom->get_type())
+    {
+    case Geometry::wkb_point:
+      {
+        DBUG_ASSERT(geom->has_geom_header_space());
+        char *p= geom->get_cptr() - GEOM_HEADER_SIZE;
+        write_geometry_header(p, geom->get_srid(), geom->get_geotype());
+        res_hull->set(p, GEOM_HEADER_SIZE + geom->get_nbytes(), &my_charset_bin);
+        bg_resbuf_mgr.set_result_buffer(p);
+        geom->set_ownmem(false);
+        return false;
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        typename BG_models<double, Coordsys>::Multipoint
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_linestring:
+      {
+        typename BG_models<double, Coordsys>::Linestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        if (is_colinear(geo))
+        {
+          is_linear_hull= true;
+          boost::geometry::convex_hull(geo, line_hull);
+        }
+        else
+          boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      {
+        typename BG_models<double, Coordsys>::Multilinestring
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_polygon:
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          geo(geom->get_data_ptr(), geom->get_data_size(),
+              geom->get_flags(), geom->get_srid());
+        boost::geometry::convex_hull(geo, hull);
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      {
+        typename BG_models<double, Coordsys>::Multipoint mpts;
+        Point_accumulator pt_acc(&mpts);
+
+        const char *wkb_start= geom->get_cptr();
+        uint32 wkb_len= geom->get_data_size();
+        wkb_scanner(wkb_start, &wkb_len,
+                    Geometry::wkb_geometrycollection, false, &pt_acc);
+        boost::geometry::convex_hull(mpts, hull);
+      }
+      break;
+    default:
+      break;
+    }
+
+    if (!is_linear_hull)
+    {
+      hull.set_srid(geom->get_srid());
+      null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
+    }
+    else
+    {
+      line_hull.set_srid(geom->get_srid());
+      null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
+    }
+
+    bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+
+  }
+  CATCH_ALL("st_convexhull", null_value= true)
+
+  return null_value;
+}
 
 
 /*
@@ -773,6 +1032,72 @@ err:
 }
 
 
+Field::geometry_type Item_func_geometry_mbr::get_geometry_type() const
+{
+  return Field::GEOM_POLYGON;
+}
+
+
+String *Item_func_geometry_mbr::val_str(String *str)
+{
+  String arg_val;
+  String *swkb= args[0]->val_str(&arg_val);
+  Geometry_buffer buffer;
+  Geometry *geom= NULL;
+  uint32 srid;
+
+  if (result_buf)
+  {
+    gis_wkb_free(result_buf);
+    result_buf= NULL;
+  }
+
+  if ((null_value=
+       args[0]->null_value ||
+       !(geom= Geometry::construct(&buffer, swkb)) ||
+       geom->get_coordsys() != Geometry::cartesian))
+    return 0;
+
+  srid= uint4korr(swkb->ptr());
+  str->set_charset(&my_charset_bin);
+  str->length(0);
+
+  Gis_point pt;
+  Gis_polygon mbrplgn;
+  MBR mbr;
+
+  if ((null_value = geom->get_mbr(&mbr)))
+    return 0;
+
+  pt.set<0>(mbr.xmin);
+  pt.set<1>(mbr.ymin);
+  mbrplgn.outer().push_back(pt);
+  pt.set<0>(mbr.xmax);
+  pt.set<1>(mbr.ymin);
+  mbrplgn.outer().push_back(pt);
+  pt.set<0>(mbr.xmax);
+  pt.set<1>(mbr.ymax);
+  mbrplgn.outer().push_back(pt);
+  pt.set<0>(mbr.xmin);
+  pt.set<1>(mbr.ymax);
+  mbrplgn.outer().push_back(pt);
+  pt.set<0>(mbr.xmin);
+  pt.set<1>(mbr.ymin);
+  mbrplgn.outer().push_back(pt);
+
+  mbrplgn.to_wkb_unparsed();
+  DBUG_ASSERT(mbrplgn.has_geom_header_space());
+
+  char *geom_ptr= mbrplgn.get_cptr();
+  write_geometry_header(geom_ptr - GEOM_HEADER_SIZE, srid,
+                        Geometry::wkb_polygon);
+  str->set(geom_ptr - GEOM_HEADER_SIZE, mbrplgn.get_nbytes() + GEOM_HEADER_SIZE, &my_charset_bin);
+  result_buf= geom_ptr - GEOM_HEADER_SIZE;
+
+  return str;
+}
+
+
 /*
   Functions for spatial relations
 */
@@ -821,6 +1146,15 @@ longlong Item_func_spatial_mbr_rel::val_int()
 	g2->get_mbr(&mbr2))))
     return 0;
 
+  // The two geometry operand must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    null_value= true;
+    return 0;
+  }
+
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       return mbr1.contains(&mbr2);
@@ -837,7 +1171,18 @@ longlong Item_func_spatial_mbr_rel::val_int()
     case SP_OVERLAPS_FUNC:
       return mbr1.overlaps(&mbr2);
     case SP_CROSSES_FUNC:
-      return 0;
+      /*
+        According to OGC's definition for crosses, it's inapplicable to do
+        polygon_1 CROSSES polygon_2 check, and we simply do crosses check
+        for the two geometries using Item_func_spatial_rel rather than for
+        their MBRs.
+       */
+      DBUG_ASSERT(false);
+    case SP_COVERS_FUNC:
+      return mbr1.covers(&mbr2);
+    case SP_COVEREDBY_FUNC:
+      return mbr1.covered_by(&mbr2);
+      break;
     default:
       break;
   }
@@ -1551,6 +1896,14 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
     *pbgdone= true;
     return tres;
   }
+
+  bool opdone= false;
+  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  if (null_value)
+    return tres;
+  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  if (null_value)
+    return tres;
 
   if (spatial_rel == SP_DISJOINT_FUNC || spatial_rel == SP_INTERSECTS_FUNC)
     tres= geocol_relcheck_intersect_disjoint<Coord_type, Coordsys>
@@ -3430,11 +3783,62 @@ int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
 
 Item_func_spatial_operation::~Item_func_spatial_operation()
 {
-  if (bg_result_buf)
-    gis_wkb_raw_free(bg_result_buf);
 }
 
 using std::auto_ptr;
+
+inline static void reassemble_geometry(Geometry *g)
+{
+  Geometry::wkbType gtype= g->get_geotype();
+  if (gtype == Geometry::wkb_polygon)
+    static_cast<Gis_polygon *>(g)->to_wkb_unparsed();
+  else if (gtype == Geometry::wkb_multilinestring)
+    static_cast<Gis_multi_line_string *>(g)->reassemble();
+  else if (gtype == Geometry::wkb_multipolygon)
+    static_cast<Gis_multi_line_string *>(g)->reassemble();
+}
+
+/**
+  For every Geometry object write-accessed by a boost geometry function, i.e.
+  those passed as out parameter into set operation functions, call this
+  function before using the result object's data.
+
+  @param resbuf_mgr tracks the result buffer
+  @return true if got error; false if no error occured.
+*/
+template <typename BG_geotype>
+bool post_fix_result(BG_result_buf_mgr *resbuf_mgr,
+                     BG_geotype &geout, String *res)
+{
+  DBUG_ASSERT(geout.has_geom_header_space());
+  reassemble_geometry(&geout);
+  if (geout.get_ptr() == NULL)
+    return true;
+  if (res)
+  {
+    char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
+    uint32 len= static_cast<uint32>(geout.get_nbytes());
+
+    /*
+      The resptr buffer is now owned by resbuf_mgr and used by res, resptr
+      will be released properly by resbuf_mgr.
+     */
+    resbuf_mgr->add_buffer(resptr);
+    res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
+
+    // Prefix the GEOMETRY header.
+    write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
+
+    /*
+      Give up ownership because the buffer may have to live longer than
+      the object.
+    */
+    geout.set_ownmem(false);
+  }
+
+  return false;
+}
+
 
 #define BGOPCALL(GeoOutType, geom_out, bgop,                            \
                  GeoType1, g1, GeoType2, g2, wkbres, nullval)           \
@@ -3454,7 +3858,8 @@ do                                                                      \
     boost::geometry::bgop(geo1, geo2, *geout);                          \
     (nullval)= false;                                                   \
     if (geout->size() == 0 ||                                           \
-        (nullval= post_fix_result(*geout, wkbres)))                     \
+        (nullval= post_fix_result(&(m_ifso->bg_resbuf_mgr),             \
+                                  *geout, wkbres)))                     \
     {                                                                   \
       if (nullval)                                                      \
         return NULL;                                                    \
@@ -3510,33 +3915,6 @@ class BG_setop_wrapper
   void copy_ifso_state()
   {
     null_value= m_ifso->null_value;
-  }
-
-  /*
-    For every Geometry object write-accessed by a boost geometry function, i.e.
-    those passed as out parameter into set operation functions, call this
-    function before using the result object's data.
-
-    @return true if got error; false if no error occured.
-  */
-  template <typename BG_geotype>
-  bool post_fix_result(BG_geotype &geout, String *res)
-  {
-    DBUG_ASSERT(geout.has_geom_header_space());
-    geout.reassemble();
-    if (geout.get_ptr() == NULL)
-      return true;
-    if (res)
-    {
-      char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
-      uint32 len= static_cast<uint32>(geout.get_nbytes());
-      m_ifso->bg_results.insert(resptr);
-      res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
-      write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
-      geout.set_ownmem(false);
-    }
-
-    return false;
   }
 
 public:
@@ -5336,11 +5714,7 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   bool had_except1= false, had_except2= false;
 
   // Release last call's result buffer.
-  if (bg_result_buf)
-  {
-    gis_wkb_raw_free(bg_result_buf);
-    bg_result_buf= NULL;
-  }
+  bg_resbuf_mgr.free_result_buffer();
 
   // Clean up the result first, since caller may give us one with non-NULL
   // buffer, we don't need it here.
@@ -5394,15 +5768,8 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
       of this set operation.
     */
     if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
-    {
-      bg_result_buf= const_cast<char *>(str_value_arg->ptr());
-      bg_results.erase(bg_result_buf);
-    }
-
-    for (std::set<void *>::iterator itr= bg_results.begin();
-         itr != bg_results.end(); ++itr)
-      gis_wkb_raw_free(*itr);
-    bg_results.clear();
+      bg_resbuf_mgr.set_result_buffer(const_cast<char *>(str_value_arg->ptr()));
+    bg_resbuf_mgr.free_intermediate_result_buffers();
   }
   CATCH_ALL(func_name(), had_except2= true)
 
@@ -5617,6 +5984,15 @@ geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   bggc2.fill(g2);
   *pdone= false;
 
+  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  if (null_value)
+    return gres;
+  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  if (null_value)
+    return gres;
+
+  opdone= false;
+
   for (BG_geometry_collection::Geometry_list::iterator i=
        bggc1.get_geometries().begin(); i != bggc1.get_geometries().end(); ++i)
   {
@@ -5676,11 +6052,12 @@ geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
  */
 template<typename Coord_type, typename Coordsys>
 void BG_geometry_collection::
-merge_components(Item_func_spatial_operation *ifso,
-                 bool *pdone, my_bool *pnull_value)
+merge_components(bool *pdone, my_bool *pnull_value)
 {
+  POS pos;
+  Item_func_spatial_operation ifso(pos, NULL, NULL, Gcalc_function::op_union);
 
-  while (merge_one_run<Coord_type, Coordsys>(ifso, pdone, pnull_value))
+  while (merge_one_run<Coord_type, Coordsys>(&ifso, pdone, pnull_value))
     ;
 }
 
@@ -5832,7 +6209,7 @@ geocol_union(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   bggc.fill(g2);
   *pdone= false;
 
-  bggc.merge_components<Coord_type, Coordsys>(this, pdone, &null_value);
+  bggc.merge_components<Coord_type, Coordsys>(pdone, &null_value);
   if (!null_value && *pdone)
     gres= bggc.as_geometry_collection(result);
 
@@ -5871,6 +6248,15 @@ geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   bggc1.fill(g1);
   bggc2.fill(g2);
   *pdone= false;
+
+  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  if (null_value)
+    return gres;
+  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
+  if (null_value)
+    return gres;
+
+  opdone= false;
 
   for (BG_geometry_collection::Geometry_list::iterator
        i= bggc1.get_geometries().begin();
@@ -6018,7 +6404,7 @@ bool Item_func_spatial_operation::assign_result(Geometry *geo, String *result)
   char *p= geo->get_cptr() - GEOM_HEADER_SIZE;
   write_geometry_header(p, geo->get_srid(), geo->get_geotype());
   result->set(p, GEOM_HEADER_SIZE + geo->get_nbytes(), &my_charset_bin);
-  bg_results.insert(p);
+  bg_resbuf_mgr.add_buffer(p);
   geo->set_ownmem(false);
 
   return false;
@@ -6438,7 +6824,7 @@ int Item_func_buffer::Transporter::collection_add_item(Gcalc_shape_status
   return 0;
 }
 
-// boost geometry doesn't support buffer for any type of geometry
+// Boost.Geometry doesn't support buffer for any type of geometry
 // defined by OGC for now.
 String *Item_func_buffer::val_str(String *str_value_arg)
 {
@@ -6699,6 +7085,88 @@ double Item_func_y::val_real()
 }
 
 
+template <typename Coordsys>
+double Item_func_area::bg_area(Geometry *geom, bool *isdone)
+{
+  double res= 0;
+
+  *isdone= false;
+  if (geom->get_geotype() != Geometry::wkb_geometrycollection &&
+      geom->normalize_ring_order() == NULL)
+  {
+    null_value= true;
+    return 0;
+  }
+
+  try
+  {
+    switch (geom->get_type())
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+      *isdone= true;
+      res= 0;
+      break;
+    case Geometry::wkb_polygon:
+      {
+        typename BG_models<double, Coordsys>::Polygon
+          plgn(geom->get_data_ptr(), geom->get_data_size(),
+               geom->get_flags(), geom->get_srid());
+
+        res= boost::geometry::area(plgn);
+        *isdone= true;
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      {
+        typename BG_models<double, Coordsys>::Multipolygon
+          mplgn(geom->get_data_ptr(), geom->get_data_size(),
+                geom->get_flags(), geom->get_srid());
+
+        res= boost::geometry::area(mplgn);
+        *isdone= true;
+      }
+      break;
+    case Geometry::wkb_geometrycollection:
+      {
+        BG_geometry_collection bggc;
+        bool isdone2= false;
+
+        bggc.fill(geom);
+
+        for (BG_geometry_collection::Geometry_list::iterator
+             i= bggc.get_geometries().begin();
+             i != bggc.get_geometries().end(); ++i)
+        {
+          isdone2= false;
+          res+= bg_area<Coordsys>(*i, &isdone2);
+          if (!isdone2 || null_value)
+            return res;
+        }
+
+        *isdone= true;
+      }
+      break;
+    default:
+      break;
+    }
+  }
+  CATCH_ALL("st_area", null_value= true)
+
+  /*
+    Given a polygon whose rings' points are in counter-clockwise order,
+    boost geometry computes an area of negative value. Also, the inner ring
+    has to be clockwise.
+   */
+  if (res < 0)
+    res= -res;
+
+  return res;
+}
+
+
 double Item_func_area::val_real()
 {
   DBUG_ASSERT(fixed == 1);
@@ -6706,10 +7174,26 @@ double Item_func_area::val_real()
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
   Geometry *geom;
+  bool isdone= false;
 
   null_value= (!swkb ||
 	       !(geom= Geometry::construct(&buffer, swkb)) ||
-	       geom->area(&res));
+	       geom->get_coordsys() != Geometry::cartesian);
+
+  if (null_value)
+    goto exit;
+
+  DBUG_ASSERT(geom->get_coordsys() == Geometry::cartesian);
+  res= bg_area<bgcs::cartesian>(geom, &isdone);
+
+  if (null_value)
+    return 0;
+
+  if (!isdone)
+    null_value= geom->area(&res);
+
+exit:
+
   if (!my_isfinite(res))
   {
     null_value= true;
@@ -6756,7 +7240,7 @@ longlong Item_func_srid::val_int()
 
 double Item_func_distance::val_real()
 {
-  bool cur_point_edge;
+  bool cur_point_edge, isdone= false;
   const Gcalc_scan_iterator::point *evpos;
   const Gcalc_heap::Info *cur_point, *dist_point;
   Gcalc_scan_events ev;
@@ -6773,9 +7257,60 @@ double Item_func_distance::val_real()
   Geometry *g1, *g2;
 
   if ((null_value= (args[0]->null_value || args[1]->null_value ||
-          !(g1= Geometry::construct(&buffer1, res1)) ||
-          !(g2= Geometry::construct(&buffer2, res2)))))
+                    !(g1= Geometry::construct(&buffer1, res1)) ||
+                    !(g2= Geometry::construct(&buffer2, res2)))))
     goto mem_error;
+
+  // The two geometry operand must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    null_value= true;
+    goto exit;
+  }
+
+  if (g1->get_type() != Geometry::wkb_geometrycollection &&
+      g2->get_type() != Geometry::wkb_geometrycollection)
+    distance= bg_distance<bgcs::cartesian>(g1, g2, &isdone);
+  else
+  {
+    BG_geometry_collection bggc1, bggc2;
+    bool inited= false, isdone2= false;
+    double min_distance= DBL_MAX, dist;
+
+    bggc1.fill(g1);
+    bggc2.fill(g2);
+    for (BG_geometry_collection::Geometry_list::iterator
+         i= bggc1.get_geometries().begin();
+         i != bggc1.get_geometries().end(); ++i)
+    {
+      for (BG_geometry_collection::Geometry_list::iterator
+           j= bggc2.get_geometries().begin();
+           j != bggc2.get_geometries().end(); ++j)
+      {
+        dist= bg_distance<bgcs::cartesian>(*i, *j, &isdone2);
+        if (!isdone2 || null_value)
+          goto old_algo;
+
+        if (!inited)
+        {
+          min_distance= dist;
+          inited= true;
+        }
+        else if (min_distance > dist)
+          min_distance= dist;
+      }
+    }
+
+    distance= min_distance;
+    isdone= true;
+  }
+
+  if (isdone && !null_value)
+    goto exit;
+
+old_algo:
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
@@ -6918,6 +7453,264 @@ mem_error:
   DBUG_RETURN(0);
 }
 
+template <typename Coordsys>
+double Item_func_distance::bg_distance(Geometry *g1,
+                                       Geometry *g2, bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  try
+  {
+    if ((g1->get_geotype() != Geometry::wkb_geometrycollection &&
+         g1->normalize_ring_order() == NULL) ||
+        (g2->get_geotype() != Geometry::wkb_geometrycollection &&
+         g2->normalize_ring_order() == NULL))
+    {
+      null_value= true;
+      return 0;
+    }
+
+    switch (g1->get_type())
+    {
+    case Geometry::wkb_point:
+      {
+        typename BG_models<double, Coordsys>::Point
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+
+        switch (g2->get_type())
+        {
+        case Geometry::wkb_point:
+          {
+            typename BG_models<double, Coordsys>::Point
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_multipoint:
+          {
+            typename BG_models<double, Coordsys>::Multipoint
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_linestring:
+          {
+            typename BG_models<double, Coordsys>::Linestring
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_multilinestring:
+          {
+            typename BG_models<double, Coordsys>::Multilinestring
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_polygon:
+          {
+            typename BG_models<double, Coordsys>::Polygon
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_multipolygon:
+          {
+            typename BG_models<double, Coordsys>::Multipolygon
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        default:
+          DBUG_ASSERT(false);
+          break;
+        }
+
+        if (!null_value)
+          *isdone= true;
+      }
+      break;
+    case Geometry::wkb_multipoint:
+      {
+        typename BG_models<double, Coordsys>::Multipoint
+          bg1(g1->get_data_ptr(), g1->get_data_size(),
+              g1->get_flags(), g1->get_srid());
+
+        switch (g2->get_type())
+        {
+        case Geometry::wkb_point:
+          res= bg_distance<Coordsys>(g2, g1, isdone);
+          break;
+        case Geometry::wkb_multipoint:
+          {
+            typename BG_models<double, Coordsys>::Multipoint
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_linestring:
+          {
+            typename BG_models<double, Coordsys>::Linestring
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_multilinestring:
+          {
+            typename BG_models<double, Coordsys>::Multilinestring
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_polygon:
+          {
+            typename BG_models<double, Coordsys>::Polygon
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        case Geometry::wkb_multipolygon:
+          {
+            typename BG_models<double, Coordsys>::Multipolygon
+              bg2(g2->get_data_ptr(), g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+            res= boost::geometry::distance(bg1, bg2);
+          }
+          break;
+        default:
+          DBUG_ASSERT(false);
+          break;
+        }
+
+        if (!null_value)
+          *isdone= true;
+      }
+      break;
+    case Geometry::wkb_linestring:
+      switch (g2->get_type())
+      {
+      case Geometry::wkb_point:
+      case Geometry::wkb_multipoint:
+        res= bg_distance<Coordsys>(g2, g1, isdone);
+        break;
+      case Geometry::wkb_linestring:
+      case Geometry::wkb_multilinestring:
+      case Geometry::wkb_polygon:
+      case Geometry::wkb_multipolygon:
+        // Not supported yet by BG, call BG function when supported.
+        break;
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+      break;
+    case Geometry::wkb_multilinestring:
+      switch (g2->get_type())
+      {
+      case Geometry::wkb_point:
+      case Geometry::wkb_multipoint:
+      case Geometry::wkb_linestring:
+        res= bg_distance<Coordsys>(g2, g1, isdone);
+        break;
+      case Geometry::wkb_multilinestring:
+      case Geometry::wkb_polygon:
+      case Geometry::wkb_multipolygon:
+        // Not supported yet by BG, call BG function when supported.
+        break;
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+      break;
+    case Geometry::wkb_polygon:
+      switch (g2->get_type())
+      {
+      case Geometry::wkb_point:
+      case Geometry::wkb_multipoint:
+      case Geometry::wkb_linestring:
+      case Geometry::wkb_multilinestring:
+        res= bg_distance<Coordsys>(g2, g1, isdone);
+        break;
+      case Geometry::wkb_polygon:
+      case Geometry::wkb_multipolygon:
+        // Not supported yet by BG, call BG function when supported.
+        break;
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+      break;
+    case Geometry::wkb_multipolygon:
+      switch (g2->get_type())
+      {
+      case Geometry::wkb_point:
+      case Geometry::wkb_multipoint:
+      case Geometry::wkb_linestring:
+      case Geometry::wkb_multilinestring:
+      case Geometry::wkb_polygon:
+        res= bg_distance<Coordsys>(g2, g1, isdone);
+        break;
+      case Geometry::wkb_multipolygon:
+        // Not supported yet by BG, call BG function when supported.
+        break;
+      default:
+        DBUG_ASSERT(false);
+        break;
+      }
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+  CATCH_ALL("st_distance", null_value= true)
+
+  return res;
+}
+
+
+// check whether all segments of a linestring are colinear.
+static bool
+is_colinear(const BG_models<double, bgcs::cartesian>::Linestring &ls)
+{
+  if (ls.size() < 3)
+    return true;
+
+  double x1, x2, x3, y1, y2, y3, X1, X2, Y1, Y2;
+
+  for (size_t i= 0; i < ls.size() - 2; i++)
+  {
+    x1= ls[i].get<0>();
+    x2= ls[i + 1].get<0>();
+    x3= ls[i + 2].get<0>();
+
+    y1= ls[i].get<1>();
+    y2= ls[i + 1].get<1>();
+    y3= ls[i + 2].get<1>();
+
+    X1= x2 - x1;
+    X2= x3 - x2;
+    Y1= y2 - y1;
+    Y2= y3 - y2;
+
+    if (X1 * Y2 - X2 * Y1 != 0)
+      return false;
+  }
+
+  return true;
+}
 
 #ifndef DBUG_OFF
 longlong Item_func_gis_debug::val_int()
@@ -6928,3 +7721,4 @@ longlong Item_func_gis_debug::val_int()
   return current_thd->get_gis_debug();
 }
 #endif
+

@@ -1335,31 +1335,31 @@ fid	Area(g)
 505	0
 301	149.5
 302	6300
-303	0
+303	NULL
 304	50
 305	0
 306	6300
 307	3600
-308	0
-309	0
-311	0
+308	NULL
+309	NULL
+311	NULL
 601	100
 602	106
 603	4.5
 604	0.5
 605	1.5
 606	42
-607	0
+607	NULL
 701	0
 702	96
 703	0
 704	4084.5
 706	50
-707	0
-708	0
+707	NULL
+708	NULL
 select count(Area(g)) FROM gis_geometrycollection;
 count(Area(g))
-51
+44
 51 expected
 #Checking the geometry types of some random Geometry Collections.
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(0 0), LINESTRING(0 0,10 10), POLYGON((10 10, 0 10, 0 0, 10 0, 10 10)), POLYGON((10 10, 10 0, 0 0, 0 10, 10 10)))'));
@@ -1375,8 +1375,7 @@ Area(GeometryFromWKB(AsWKB(GeometryCollection(Point(99.99, -0.1111), Point(200.9
 0
 0 expected
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'));
-Area(GeomCollFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((-100 -100, -100 0, 0 0, 0 -100, -100 -100),(-50 -50)),((-100 -100, -100 0, 0 0, 0 -100, -100 -100))), MULTILINESTRING((0 0, -50 -50, -100 -100),(-100 0, -50 -50, 0 -100)), MULTIPOINT(-50 -50))'))
-20000
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 20000 expected
 Select Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'));
 Area(GeometryCollectionFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0 0, 10 10), POLYGON((0 0, 10 0, 10 10, 0 10, 0 0)))'))
@@ -1454,7 +1453,7 @@ NULL
 NULL expected
 Select Area(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINESTRING(point(16, 0), point(16, 23), point(16, 48))), LINESTRING(point(0, 0),point(10, 10))))));
 Area(GeometryFromWKB(AsWKB(GeometryCollection(POINT('@', '$'), MULTIPOLYGON(Polygon(LineString(Point('ëô', 'ôÑ'), Point('%', '-&'), Point(15, 0), Point(0, 0)))), MULTILINESTRING(LINESTRING(point('0.1', 48), point(10, 21), point(10, 0)), LINES
-0
+NULL
 0 expected
 Select Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'));
 Area(GeomCollFromText('GEOMETRYCOLLECTION(POINT(5 5), LINESTRING(0.0009 0.0, 4.999999 4.999999, 9.99999 9.99999), POLYGON((-0 -0, 10.00001 0, 10.00001 10.00001, 0.000009 9.999999, 0 0)), POLYGON((5 -1, 11 5, 5 11, -1 5, 5 -1)))'))
