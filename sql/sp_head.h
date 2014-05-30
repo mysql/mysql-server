@@ -857,11 +857,8 @@ public:
                                           will be added (or to its root).
     @param[in] belong_to_view             Uppermost view which uses this routine,
                                           NULL if none.
-
-    @retval true  if some elements were added
-    @retval false otherwise.
   */
-  bool add_used_tables_to_table_list(THD *thd,
+  void add_used_tables_to_table_list(THD *thd,
                                      TABLE_LIST ***query_tables_last_ptr,
                                      TABLE_LIST *belong_to_view);
 
