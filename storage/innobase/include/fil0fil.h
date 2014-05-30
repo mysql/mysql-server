@@ -532,8 +532,12 @@ enum fil_space_system_t {
 @param[in]	first_page_no	first page number (0=first file)
 @param[in]	file_name	tablespace file name
 @return whether the name matches the system tablespace
-@retval	true	if file_name starts at first_page_no in the system tablespace
-@retval	false	in case of mismatch */
+@retval	FIL_SPACE_SYSTEM_OK		if file_name starts at first_page_no
+in the system tablespace
+@retval	FIL_SPACE_SYSTEM_ALL		if file_name starts at first_page_no
+in the system tablespace
+and this function has been invoked for every file in the system tablespace
+@retval	FIL_SPACE_SYSTEM_MISMATCH	in case of mismatch */
 
 enum fil_space_system_t
 fil_space_system_check(
