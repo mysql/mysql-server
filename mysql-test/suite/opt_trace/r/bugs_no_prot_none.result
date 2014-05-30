@@ -1830,3 +1830,68 @@ SELECT 1 FROM t1 WHERE 1 LIKE
   ] /* steps */
 }	0	0
 DROP TABLE t1;
+#
+# Bug#18791851 CRASH IN ST_SELECT_LEX::PRINT WITH OPTIMIZER_TRACE ON SUBQUERY
+#
+CREATE TABLE t1 (
+pk INT NOT NULL,
+col_int_nokey INT,
+col_int_key INT,
+col_time_key time,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+CREATE TABLE t2 (
+pk INT NOT NULL,
+col_int_nokey INT,
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+CREATE TABLE t3 (
+pk INT NOT NULL,
+col_int_nokey INT,
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+CREATE TABLE t4 (
+pk INT NOT NULL,
+col_int_nokey INT,
+col_int_key INT,
+col_time_key time,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+PRIMARY KEY (pk),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+SELECT alias1.col_int_nokey AS field1,
+alias2.col_varchar_key AS field2,
+alias1.col_time_key AS field3,
+MIN( alias1.col_int_nokey ) AS field4
+FROM (
+(
+SELECT SQ1_alias1.*
+FROM ( t1 AS SQ1_alias1, t2 AS SQ1_alias2 )
+) AS alias1,
+t4 AS alias2
+)
+WHERE
+EXISTS (
+SELECT DISTINCT  SQ2_alias2.col_varchar_nokey AS SQ2_field1
+FROM t2 AS SQ2_alias1
+INNER JOIN (t4 AS SQ2_alias2
+INNER JOIN t3 AS SQ2_alias3
+ON SQ2_alias3.pk = SQ2_alias2.pk)
+ON SQ2_alias3.col_varchar_key = SQ2_alias2.col_varchar_nokey
+)
+AND alias1.col_int_key = alias2.pk
+HAVING  alias1.col_int_nokey  IN ( SELECT 2 FROM DUAL ) ;
+field1	field2	field3	field4
+DROP TABLE t1,t2,t3,t4;
