@@ -1119,7 +1119,9 @@ SELECT Within(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)
 --echo # Invalid function calls
 --echo #=======================================================================================
 
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT Within(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
 SELECT Within(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 SELECT Within(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -1199,7 +1201,9 @@ SELECT ST_Within(GeomFromText(@star_of_elems),);
 --error ER_PARSE_ERROR
 SELECT ST_Within(,GeomFromText(@star_top));
 
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRWithin(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
 SELECT MBRWithin(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 SELECT MBRWithin(GeomFromText(@star_top,0),GeomFromText(@star_center,0));

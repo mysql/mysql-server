@@ -323,8 +323,8 @@ fid	IsClosed(g)
 116	0
 SELECT fid, AsText(Centroid(g)) FROM gis_multi_polygon;
 fid	AsText(Centroid(g))
-117	POINT(55.58852775304245 17.426536064113982)
-118	POINT(55.58852775304245 17.426536064113982)
+117	POINT(57.98031067576927 17.854754130800437)
+118	POINT(57.98031067576927 17.854754130800437)
 119	POINT(2 2)
 SELECT fid, Area(g) FROM gis_multi_polygon;
 fid	Area(g)
@@ -391,10 +391,10 @@ Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
 Intersects(g1.g, g2.g) as i, Crosses(g1.g, g2.g) as r
 FROM gis_geometrycollection g1, gis_geometrycollection g2 ORDER BY first, second;
 first	second	w	c	o	e	d	t	i	r
-120	120	1	1	0	1	0	1	1	0
+120	120	1	1	0	1	0	0	1	0
 120	121	0	0	1	0	0	0	1	0
 121	120	0	0	1	0	0	0	1	0
-121	121	1	1	0	1	0	1	1	0
+121	121	1	1	0	1	0	0	1	0
 explain extended SELECT g1.fid as first, g2.fid as second,
 Within(g1.g, g2.g) as w, Contains(g1.g, g2.g) as c, Overlaps(g1.g, g2.g) as o,
 Equals(g1.g, g2.g) as e, Disjoint(g1.g, g2.g) as d, Touches(g1.g, g2.g) as t,
@@ -405,7 +405,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	g2	NULL	ALL	NULL	NULL	NULL	NULL	#	100.00	Using join buffer (Block Nested Loop)
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,st_touches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
+Note	1003	/* select#1 */ select `test`.`g1`.`fid` AS `first`,`test`.`g2`.`fid` AS `second`,mbrwithin(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `w`,mbrcontains(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `c`,mbroverlaps(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `o`,mbrequals(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `e`,mbrdisjoint(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `d`,mbrtouches(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `t`,mbrintersects(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `i`,st_crosses(`test`.`g1`.`g`,`test`.`g2`.`g`) AS `r` from `test`.`gis_geometrycollection` `g1` join `test`.`gis_geometrycollection` `g2` order by `first`,`second`
 DROP TABLE gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE t1 (
 gp  point,
@@ -663,11 +663,11 @@ insert into t1 values ('85984',GeomFromText('MULTIPOLYGON(((-115.006363
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85998;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85998	MULTIPOLYGON	1	POINT(115.31877315203187 -36.23747282102153)
+85998	MULTIPOLYGON	1	POINT(-115.29706046728724 36.23335610879761)
 select object_id, geometrytype(geo), ISSIMPLE(GEO), ASTEXT(centroid(geo)) from
 t1 where object_id=85984;
 object_id	geometrytype(geo)	ISSIMPLE(GEO)	ASTEXT(centroid(geo))
-85984	MULTIPOLYGON	1	POINT(-114.87787186923313 36.33101763469059)
+85984	MULTIPOLYGON	1	POINT(-114.86854472052883 36.347252182538156)
 drop table t1;
 create table t1 (fl geometry not null);
 insert into t1 values (1);

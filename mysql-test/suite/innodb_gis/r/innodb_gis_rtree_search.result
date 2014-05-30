@@ -14,19 +14,19 @@ count(*)
 set @g1 = GeomFromText('Polygon((0 0,0 1000,1000 1000,1000 0,0 0))');
 select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
-1000
+999
 set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
-100
+99
 set @g1 = GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
 select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
-791
+789
 set @g1 = GeomFromText('Polygon((100 100,100 800,800 800,800 100,100 100))');
 select count(*) from t1 where Within(t1.c2, @g1);
 count(*)
-701
+699
 set @g1 =  GeomFromText('Point(1 1)');
 select count(*) from t1 where equals(t1.c2, @g1);
 count(*)
