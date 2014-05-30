@@ -120,7 +120,10 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
                         FILE_SHARE_DELETE, NULL,
                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
                         NULL)) == INVALID_HANDLE_VALUE)
+  {
+    _close(fd);
     return NULL;
+  }
 
   if ((handle_fd= _open_osfhandle((intptr_t)osfh,
                                   _O_APPEND | _O_TEXT)) == -1)
