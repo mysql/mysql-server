@@ -1708,22 +1708,22 @@ fid	Area(g)
 304	100
 305	2400
 306	450
-307	0
-308	0
-309	0
-310	0
-311	0
+307	NULL
+308	NULL
+309	NULL
+310	NULL
+311	NULL
 312	198
-315	0
-318	0
-329	0
-339	0
-340	0
-341	0
-342	0
+315	NULL
+318	NULL
+329	NULL
+339	NULL
+340	NULL
+341	NULL
+342	NULL
 select count(Area(g)) FROM gis_polygon;
 count(Area(g))
-19
+7
 18 expected
 select fid,Area(g) from gis_multi_polygon where g is not NULL;
 fid	Area(g)
@@ -1733,17 +1733,17 @@ fid	Area(g)
 604	1684.5
 605	1684.5
 606	4.5
-607	0
-608	0
-609	0
-610	0
-611	0
-612	0
-624	0
-636	0
+607	NULL
+608	NULL
+609	NULL
+610	NULL
+611	NULL
+612	NULL
+624	NULL
+636	NULL
 select count(Area(g)) FROM gis_multi_polygon;
 count(Area(g))
-14
+6
 14 expected
 #Checking the Area of some random Polygon and MultiPolygon.
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
@@ -1756,7 +1756,7 @@ Area(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1
 10.5 expected
 select Area(PolygonFromText('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'));
 Area(PolygonFromText('POLYGON((1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1, 1 1))'))
-0
+NULL
 0 expected
 Select Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 1))'));
 Area(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 1))'))
@@ -1842,7 +1842,7 @@ Area(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.909
 2394438914.547233 expected
 Select Area(PolyFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251), (0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))'));
 Area(PolyFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251), (0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))'))
-0
+0.000000476837158203125
 0 expected
 Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))));
 Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))
@@ -1850,11 +1850,11 @@ Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('
 2394438914.547233 expected
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))'));
 Area(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,
-2394438914.547233
+2394438914.5472336
 2394438914.547233 expected
 Select Area(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))'));
 Area(MPolyFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 
-2394438914.547233
+2394438914.5472336
 2394438914.547233 expected
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251')))))));
 Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251')))))))
@@ -1862,11 +1862,11 @@ Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24
 2394438914.547233 expected
 Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0'))))));
 Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0'))))))
-0.050000000000000266
+0.05
 0.050000000000000266 expected
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0')))))));
 Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0')))))))
-0.050000000000000266
+0.05
 0.050000000000000266 expected
 Select Area(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))'));
 Area(PolygonFromText('POLYGON((. ., 1 ~, ^ -000011111,. .))'))
@@ -1904,23 +1904,20 @@ Area(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1', '~'), Poin
 0 expected
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0))))))) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë')))))));
 Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0))))))) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë')))))))
-1
+NULL
 1 expected
 Select Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0))))))) = Area(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))'));
-Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0))))))) = Area(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))'))
-1
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 1 expected
 Select Area(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))')) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë')))))));
 Area(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))')) = Area(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë')))))))
-0
+NULL
 0 expected
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'));
-Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))
-1
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 1 expected
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))'));
-Area(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')) = Area(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))'))
-1
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 1 expected
 #Invalid WKB data
 Select Area(0x000000000200000001000000050000000000000000000000000000000000000000000000004014000000000000401400000000000040140000000000004014000000000000000000000000000000000000000000000000000000000000);
@@ -2567,67 +2564,67 @@ fid	AsText(Centroid(g))
 304	POINT(15 15)
 305	POINT(25.416666666666668 25.416666666666668)
 306	POINT(20 10)
-307	POINT(0 0)
-308	POINT(0 0)
-309	POINT(0 0)
-310	POINT(1 1)
-311	POINT(0 0)
-312	POINT(19.37037037037037 12.62962962962963)
-315	POINT(1.0000000000000001e65 1.0000000000000001e65)
-318	POINT(0 0)
-329	POINT(1 1)
-339	POINT(1 1)
-340	POINT(1 1)
-341	POINT(1 1)
-342	POINT(1 1)
+307	NULL
+308	NULL
+309	NULL
+310	NULL
+311	NULL
+312	POINT(-100.98653198653199 -36.53198653198653)
+315	NULL
+318	NULL
+329	NULL
+339	NULL
+340	NULL
+341	NULL
+342	NULL
 select count(AsText(Centroid(g))) FROM gis_polygon;
 count(AsText(Centroid(g)))
-19
+7
 18 expected
 select fid,AsText(Centroid(g)) from gis_multi_polygon where g is not NULL;
 fid	AsText(Centroid(g))
-601	POINT(55.58852775304245 17.426536064113982)
-602	POINT(55.58852775304245 17.426536064113982)
+601	POINT(57.98031067576927 17.854754130800437)
+602	POINT(57.98031067576927 17.854754130800437)
 603	POINT(2 2)
-604	POINT(55.58852775304245 17.426536064113982)
-605	POINT(55.58852775304245 17.426536064113982)
+604	POINT(57.98031067576927 17.854754130800437)
+605	POINT(57.98031067576927 17.854754130800437)
 606	POINT(2 2)
-607	POINT(0 0)
-608	POINT(0 0)
-609	POINT(0 0)
-610	POINT(0 0)
-611	POINT(0 0)
-612	POINT(0 0)
-624	POINT(0 0)
-636	POINT(0 0)
+607	NULL
+608	NULL
+609	NULL
+610	NULL
+611	NULL
+612	NULL
+624	NULL
+636	NULL
 select count(AsText(Centroid(g))) FROM gis_multi_polygon;
 count(AsText(Centroid(g)))
-14
+6
 14 expected
 #Checking the Centroid of some random Polygon and MultiPolygon.
 Select AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')));
 AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')))
-POINT(5.5 0)
+NULL
 POINT(5.5 0) expected
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')));
 AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')))
-POINT(0 0)
+NULL
 POINT(0 0) expected
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))))
-POINT(5 0.3333333333333333)
+NULL
 POINT(5 0.3333333333333333) expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')))
-POINT(4 -0.25)
+POINT(8 1.3333333333333333)
 POINT(4 -0.25) expected
 Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')));
 AsText(Centroid(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')))
-POINT(4 -0.25)
+POINT(8 1.3333333333333333)
 POINT(4 -0.25) expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))))))
-POINT(5 0.3333333333333333)
+NULL
 POINT(5 0.3333333333333333) expected
 #WKB data, little-endian format
 Select AsText(Centroid(PolyFromWKB(0x010300000001000000050000000000000000000000000000000000000000000000000000000000000000001440000000000000144000000000000014400000000000001440000000000000000000000000000000000000000000000000)));
@@ -2661,7 +2658,7 @@ POINT(2 2)
 POINT(2 2) expected
 Select AsText(Centroid(PolyFromText('POLYGON((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1), (1 1, 2 -1, 3 1, 1 1))')));
 AsText(Centroid(PolyFromText('POLYGON((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1), (1 1, 2 -1, 3 1, 1 1))')))
-POINT(2 2.333333333333333)
+POINT(2 2.3333333333333335)
 POINT(2 2.333333333333333) expected
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(2, -1), Point(3, 1), Point(5, 2), Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1)))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(2, -1), Point(3, 1), Point(5, 2), Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1)))))))
@@ -2669,11 +2666,11 @@ POINT(2 2)
 POINT(2 2) expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1),(1 1, 2 -1, 3 1, 1 1)),((1 1, 2 -1, 3 1, 1 1)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1),(1 1, 2 -1, 3 1, 1 1)),((1 1, 2 -1, 3 1, 1 1)))')))
-POINT(2 1.9999999999999998)
+POINT(2 2)
 POINT(2 1.9999999999999998) expected
 Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1),(1 1, 2 -1, 3 1, 1 1)),((1 1, 2 -1, 3 1, 1 1)))')));
 AsText(Centroid(MPolyFromText('MULTIPOLYGON(((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1),(1 1, 2 -1, 3 1, 1 1)),((1 1, 2 -1, 3 1, 1 1)))')))
-POINT(2 1.9999999999999998)
+POINT(2 2)
 POINT(2 1.9999999999999998) expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(2, -1), Point(3, 1), Point(5, 2), Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(1, 1), Point(2, -1), Point(3, 1), Point(5, 2), Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1))))))))
@@ -2689,7 +2686,7 @@ NULL
 NULL expected
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b')))))))
-POINT(0.03333333333333333 0)
+NULL
 POINT(0.03333333333333333 0) expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.1 b, a -0, -0 ë,0.1 b),(0.1 b, a -0, -0 ë,0.1 b)),((0.1 b, a -0, -0 ë,0.1 b)))')))
@@ -2701,27 +2698,27 @@ NULL
 NULL expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point('-0', 'ë'), Point('.1', 'b'))))))))
-POINT(0.03333333333333333 0)
+NULL
 POINT(0.03333333333333333 0) expected
 Select AsText(Centroid(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')));
 AsText(Centroid(PolygonFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')))
-POINT(214608.54865133335 2551.780403333333)
+POINT(214608.54865133337 2551.7804033333337)
 POINT(214608.54865133335 2551.780403333333) expected
 Select AsText(Centroid(PolyFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251), (0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')));
 AsText(Centroid(PolyFromText('POLYGON((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251), (0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251))')))
-POINT(0 0)
+POINT(-94663.11111111111 -14336)
 POINT(0 0) expected
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251')))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251')))))))
-POINT(214608.54865133335 2551.780403333333)
+POINT(214608.54865133337 2551.7804033333337)
 POINT(214608.54865133335 2551.780403333333) expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)))')));
 AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251),(0.9999 7654.24251, 634736.736354 1.0987, 9087.9097 00000,0.9999 7654.24251)),((0.9999 7654.24251, 634736.736354 1.0987, 9087.
-POINT(0 0)
+POINT(214608.54865133337 2551.7804033333337)
 expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('0.9999', '7654.24251'), Point('634736.736354', '1.0987'), Point('9087.9097', '00000'), Point('0.9999', '7654.24251'))))))))
-POINT(214608.54865133335 2551.780403333333)
+POINT(214608.54865133337 2551.7804033333337)
 POINT(214608.54865133335 2551.780403333333) expected
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0')))))));
 AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0')))))))
@@ -2771,23 +2768,20 @@ AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point('.', '.'), Point('1',
 0 expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))));
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.', '.'), Point('1', '~'), Point(0, 0)))))))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0.1, 'ë'),  Point(0.1, 'ë'))))))))
-0
+NULL
 0 expected
 Select AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Centroid(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')));
-AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point(0, 0), Point(-0, -0)))))))) = AsText(Centroid(PolygonFromText('POLYGON((2.2 0, -9 99.99, 2.2 0))')))
-0
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 0 expected
 Select AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))));
 AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 4 2, 1 1))'))) = AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', 'b'), Point('a', '-0'), Point(0.1, 'ë'))))))))
-0
+NULL
 0 expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')));
-AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))')))
-1
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 1 expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')));
-AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1)), ((1 1, 1 1)))'))) = AsText(Centroid(PolygonFromText('POLYGON((0.99999 1, 360.000001 -0.4, -0 -0,0.99999 1))')))
-1
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
 1 expected
 #Invalid WKB data
 Select AsText(Centroid(0x000000000200000001000000050000000000000000000000000000000000000000000000004014000000000000401400000000000040140000000000004014000000000000000000000000000000000000000000000000000000000000));
@@ -2859,7 +2853,7 @@ NULL
 NumInteriorRings(PolyFromText('POLYGON((-2 -2, -2 2, 2 -2, 2 2, -2 -2), (0 0), (5 5, 6 5, 6 6, 5 6, 5 5))'))
 2
 AsText(Centroid(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')))
-POINT(5.5 0)
+NULL
 AsText(Centroid(MPolyFromWKB(AsWKB(MultiPolygon(Polygon(LineString(Point('.1', '0'), Point('1', '1'), Point('2', '2'),Point('.1', '0'))))))))
 POINT(1.0333333333333334 1)
 POLYGON expected
@@ -2945,12 +2939,10 @@ IsSimple(a.g)=IsSimple(b.g) AND IsEmpty(a.g)=IsEmpty(b.g) AND Area(a.g)=Area(b.g
 ExteriorRing(a.g)=ExteriorRing(b.g) AND InteriorRingN(a.g, 1)=InteriorRingN(b.g, 1) AND 
 NumInteriorRings(a.g)=NumInteriorRings(b.g) and Centroid(a.g)=Centroid(a.g);
 GeometryType(a.g)	SRID(a.g)	Dimension(a.g)	IsSimple(a.g)	IsClosed(a.g)	AsText(Envelope(a.g))	IsSimple(a.g)	IsEmpty(a.g)	Area(a.g)	AsText(ExteriorRing(a.g))	AsText(InteriorRingN(a.g, 1))	NumInteriorRings(a.g)	AsText(Centroid(a.g))
-POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,20 10,20 20,10 20,10 10)	1	POINT(25.416666666666668 25.416666666666668)
-POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,20 10,20 20,10 20,10 10)	1	POINT(25.416666666666668 25.416666666666668)
-POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,20 10,20 20,10 20,10 10)	1	POINT(25.416666666666668 25.416666666666668)
-POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,20 10,20 20,10 20,10 10)	1	POINT(25.416666666666668 25.416666666666668)
-POLYGON	0	2	0	NULL	POLYGON((0 0,0 0,0 0,0 0,0 0))	0	0	0	LINESTRING(0 0,0 0,0 0,0 0,0 0)	LINESTRING(0 0,0 0,0 0,0 0,0 0)	1	POINT(0 0)
-POLYGON	0	2	0	NULL	POLYGON((1 1,1 1,1 1,1 1,1 1))	0	0	0	LINESTRING(1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1)	LINESTRING(1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1,1 1)	1	POINT(0 0)
+POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,10 20,20 20,20 10,10 10)	1	POINT(25.416666666666668 25.416666666666668)
+POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,10 20,20 20,20 10,10 10)	1	POINT(25.416666666666668 25.416666666666668)
+POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,10 20,20 20,20 10,10 10)	1	POINT(25.416666666666668 25.416666666666668)
+POLYGON	0	2	1	NULL	POLYGON((0 0,50 0,50 50,0 50,0 0))	1	0	2400	LINESTRING(0 0,50 0,50 50,0 50,0 0)	LINESTRING(10 10,10 20,20 20,20 10,10 10)	1	POINT(25.416666666666668 25.416666666666668)
 #Checking the aggregate functions on the Line and MultiLine Attributes 
 #Checking the SUM function
 select SUM(GeometryType(g)) FROM gis_polygon;
@@ -3080,11 +3072,11 @@ MIN(IsEmpty(g))
 0 Expected
 select MIN(Area(g)) FROM gis_polygon;
 MIN(Area(g))
-0
+100
 0 Expected
 select MIN(Area(g)) FROM gis_multi_polygon;
 MIN(Area(g))
-0
+4.5
 0 Expected
 select MIN(AsText(ExteriorRing(g))) FROM gis_polygon;
 MIN(AsText(ExteriorRing(g)))
@@ -3100,11 +3092,11 @@ MIN(NumInteriorRings(g))
 0 Expected
 select MIN(AsText(Centroid(g))) FROM gis_polygon;
 MIN(AsText(Centroid(g)))
-POINT(0 0)
+POINT(-100.98653198653199 -36.53198653198653)
 POINT(0 0) Expected
 select MIN(AsText(Centroid(g))) FROM gis_multi_polygon;
 MIN(AsText(Centroid(g)))
-POINT(0 0)
+POINT(2 2)
 POINT(0 0) Expected
 #Checking the MAX function
 select MAX(GeometryType(g)) FROM gis_polygon;
@@ -3181,7 +3173,7 @@ POINT(25.416666666666668 25.416666666666668)
 POINT(25.416666666666668 25.416666666666668) Expected
 select MAX(AsText(Centroid(g))) FROM gis_multi_polygon;
 MAX(AsText(Centroid(g)))
-POINT(55.58852775304245 17.426536064113982)
+POINT(57.98031067576927 17.854754130800437)
 POINT(55.58852775304245 17.426536064113982) Expected
 #Checking the STD function
 select STD(GeometryType(g)) FROM gis_polygon;
@@ -3234,11 +3226,11 @@ STD(IsEmpty(g))
 0 Expected
 select STD(Area(g)) FROM gis_polygon;
 STD(Area(g))
-726.4574080088726
+976.2885154021441
 742.3063575068328 Expected
 select STD(Area(g)) FROM gis_multi_polygon;
 STD(Area(g))
-760.5744740735419
+791.9595949289333
 760.5744740735419 Expected
 select STD(AsText(ExteriorRing(g))) FROM gis_polygon;
 STD(AsText(ExteriorRing(g)))
@@ -3311,11 +3303,11 @@ AVG(IsEmpty(g))
 0.0000 Expected
 select AVG(Area(g)) FROM gis_polygon;
 AVG(Area(g))
-320.94736842105266
+871.1428571428571
 338.77777777777777 Expected
 select AVG(Area(g)) FROM gis_multi_polygon;
 AVG(Area(g))
-481.92857142857144
+1124.5
 481.92857142857144 Expected
 select AVG(AsText(ExteriorRing(g))) FROM gis_polygon;
 AVG(AsText(ExteriorRing(g)))
@@ -3388,11 +3380,11 @@ COUNT(DISTINCT(IsEmpty(g)))
 1 Expected
 select COUNT(DISTINCT(Area(g))) FROM gis_polygon;
 COUNT(DISTINCT(Area(g)))
-5
+4
 5 Expected
 select COUNT(DISTINCT(Area(g))) FROM gis_multi_polygon;
 COUNT(DISTINCT(Area(g)))
-3
+2
 3 Expected
 select COUNT(DISTINCT(AsText(ExteriorRing(g)))) FROM gis_polygon;
 COUNT(DISTINCT(AsText(ExteriorRing(g))))
@@ -3408,11 +3400,11 @@ COUNT(DISTINCT(NumInteriorRings(g)))
 2 Expected
 select COUNT(DISTINCT(AsText(Centroid(g)))) FROM gis_polygon;
 COUNT(DISTINCT(AsText(Centroid(g))))
-7
+4
 7 Expected
 select COUNT(DISTINCT(AsText(Centroid(g)))) FROM gis_multi_polygon;
 COUNT(DISTINCT(AsText(Centroid(g))))
-3
+2
 3 Expected
 #Final Cleanup
 DROP TABLE IF EXISTS gis_polygon, gis_multi_polygon;
