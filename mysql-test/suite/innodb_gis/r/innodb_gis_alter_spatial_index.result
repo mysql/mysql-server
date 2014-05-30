@@ -133,12 +133,10 @@ tab	1	idx6	1	c4	A	#	10	NULL		BTREE
 SET @g1 = GeomFromText('POLYGON((20 20,30 30,40 40,50 50,40 50,30 40,30 30,20 20))');
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Crosses(tab.c4, @g1);
 c1	Astext(c2)	Astext(c4)
-1	POINT(10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 UPDATE tab SET C2 = GeomFromText('POINT(1000 1000)')
 WHERE Crosses(tab.c4, @g1);
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Crosses(tab.c4, @g1);
 c1	Astext(c2)	Astext(c4)
-1	POINT(1000 1000)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 DELETE FROM tab WHERE Crosses(tab.c4, @g1);
 ALTER TABLE tab CHANGE COLUMN c2 c22 POINT NOT NULL;
 ALTER TABLE tab CHANGE COLUMN c3 c33 LINESTRING NOT NULL;
@@ -215,12 +213,12 @@ ALTER TABLE tab ADD PRIMARY KEY(c2) ;
 SET @g1 = GeomFromText( 'POLYGON((0 0,0 30,30 40,40 50,50 30,0 0))');
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1);
 c1	Astext(c2)	Astext(c4)
-2	POINT(20 20)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+2	POINT(20 20)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
 UPDATE tab SET C2 = GeomFromText('POINT(3000 3000)') 
 WHERE Touches(tab.c4, @g1);
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1);
 c1	Astext(c2)	Astext(c4)
-2	POINT(3000 3000)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+2	POINT(3000 3000)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
 DELETE FROM tab WHERE Touches(tab.c4, @g1);
 SELECT c1,Astext(c2),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1);
 c1	Astext(c2)	Astext(c4)
@@ -234,6 +232,7 @@ Table	Op	Msg_type	Msg_text
 test.tab	check	status	OK
 SELECT c1,Astext(c2),Astext(c4) FROM tab ORDER BY c1;
 c1	Astext(c2)	Astext(c4)
+1	POINT(10 10)	POLYGON((30 30,40 40,50 50,30 50,30 40,30 30))
 6	POINT(3 3)	POLYGON((2010 2010,2020 2020,2030 2030,2040 2030,2020 2010,2010 2010))
 7	POINT(60 70)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
 8	POINT(0 0)	POLYGON((3010 3010,3020 3020,3030 3030,3040 3030,3020 3010,3010 3010))
@@ -555,13 +554,13 @@ c1	Astext(c2)	AsText(c3)	Astext(c4)
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
 OR Touches(tab.c3,@g2);
 c1	Astext(c2)	AsText(c3)	Astext(c4)
-2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+2	POINT(20 20)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
 UPDATE tab SET C2 = GeomFromText('POINT(2000 2000)')
 WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
 OR Touches(tab.c3,@g2);
 c1	Astext(c2)	AsText(c3)	Astext(c4)
-2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,40 70,50 100,70 100,80 80,70 50,40 50))
+2	POINT(2000 2000)	LINESTRING(20 20,30 30,40 40)	POLYGON((40 50,70 50,80 80,70 100,50 100,40 70,40 50))
 DELETE FROM tab WHERE Touches(tab.c4, @g1) OR Touches(tab.c3,@g2);
 SELECT c1,Astext(c2),AsText(c3),Astext(c4) FROM tab WHERE Touches(tab.c4, @g1)
 OR Touches(tab.c3,@g2);

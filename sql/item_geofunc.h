@@ -1,7 +1,7 @@
 #ifndef ITEM_GEOFUNC_INCLUDED
 #define ITEM_GEOFUNC_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,6 +20,70 @@
 /* This file defines all spatial functions */
 
 #include "gcalc_slicescan.h"
+#include <vector>
+#include <list>
+#include <set>
+#include "inplace_vector.h"
+
+
+class Item_func_spatial_operation;
+
+/**
+  A utility class to flatten any hierarchy of geometry collection into one
+  with no nested geometry collections. All components are stored separately
+  and all their data stored in this class, in order to easily manipulate them.
+ */
+class BG_geometry_collection
+{
+  size_t m_num_isolated;
+  std::list<Geometry*> m_geos;
+  Inplace_vector<Geometry_buffer> m_geobufs;
+  Inplace_vector<String> m_geosdata;
+public:
+  typedef std::list<Geometry *> Geometry_list;
+
+  BG_geometry_collection()
+    :m_num_isolated(0), m_geobufs(key_memory_Geometry_objects_data),
+    m_geosdata(key_memory_Geometry_objects_data)
+  {}
+
+  bool fill(const Geometry *geo)
+  {
+    return store_geometry(geo);
+  }
+
+  const Geometry_list &get_geometries() const
+  {
+    return m_geos;
+  }
+
+  Geometry_list &get_geometries()
+  {
+    return m_geos;
+  }
+
+  bool all_isolated() const
+  {
+    return m_num_isolated == m_geos.size();
+  }
+
+  size_t num_isolated() const
+  {
+    return m_num_isolated;
+  }
+
+  Gis_geometry_collection *as_geometry_collection(String *geodata) const;
+  template<typename Coord_type, typename Coordsys>
+  void merge_components(Item_func_spatial_operation *ifso,
+                        bool *pdone, my_bool *pnull_value);
+private:
+  template<typename Coord_type, typename Coordsys>
+  bool merge_one_run(Item_func_spatial_operation *ifso,
+                     bool *pdone, my_bool *pnull_value);
+  bool store_geometry(const Geometry *geo);
+  Geometry *store(const Geometry *geo);
+};
+
 
 class Item_geometry_func: public Item_str_func
 {
@@ -99,7 +163,7 @@ public:
   {}
   String *val_str_ascii(String *);
   const char *func_name() const { return "st_geometrytype"; }
-  void fix_length_and_dec() 
+  void fix_length_and_dec()
   {
     // "GeometryCollection" is the longest
     fix_length_and_charset(20, default_charset());
@@ -131,7 +195,7 @@ public:
   Item_func_point(const POS &pos, Item *a, Item *b)
     : Item_geometry_func(pos, a, b)
   {}
-  const char *func_name() const { return "st_point"; }
+  const char *func_name() const { return "point"; }
   String *val_str(String *);
   Field::geometry_type get_geometry_type() const;
 };
@@ -143,8 +207,8 @@ public:
   Item_func_spatial_decomp(const POS &pos, Item *a, Item_func::Functype ft) :
     Item_geometry_func(pos, a)
   { decomp_func = ft; }
-  const char *func_name() const 
-  { 
+  const char *func_name() const
+  {
     switch (decomp_func)
     {
       case SP_STARTPOINT:
@@ -155,7 +219,7 @@ public:
         return "st_exteriorring";
       default:
 	DBUG_ASSERT(0);  // Should never happened
-        return "spatial_decomp_unknown"; 
+        return "spatial_decomp_unknown";
     }
   }
   String *val_str(String *);
@@ -168,8 +232,8 @@ public:
   Item_func_spatial_decomp_n(const POS &pos, Item *a, Item *b, Item_func::Functype ft):
     Item_geometry_func(pos, a, b)
   { decomp_func_n = ft; }
-  const char *func_name() const 
-  { 
+  const char *func_name() const
+  {
     switch (decomp_func_n)
     {
       case SP_POINTN:
@@ -180,7 +244,7 @@ public:
         return "st_interiorringn";
       default:
 	DBUG_ASSERT(0);  // Should never happened
-        return "spatial_decomp_n_unknown"; 
+        return "spatial_decomp_n_unknown";
     }
   }
   String *val_str(String *);
@@ -189,7 +253,7 @@ public:
 class Item_func_spatial_collection: public Item_geometry_func
 {
   String tmp_value;
-  enum Geometry::wkbType coll_type; 
+  enum Geometry::wkbType coll_type;
   enum Geometry::wkbType item_type;
 public:
   Item_func_spatial_collection(const POS &pos,
@@ -215,8 +279,8 @@ public:
       }
     }
   }
- 
-  const char *func_name() const { return "st_multipoint"; }
+
+  const char *func_name() const;
 };
 
 
@@ -234,8 +298,8 @@ public:
                             enum Functype sp_rel)
   : Item_bool_func2(pos, a, b) { spatial_rel = sp_rel; }
   longlong val_int();
-  enum Functype functype() const 
-  { 
+  enum Functype functype() const
+  {
     return spatial_rel;
   }
   enum Functype rev_functype() const
@@ -272,8 +336,8 @@ public:
   Item_func_spatial_rel(const POS &pos, Item *a,Item *b, enum Functype sp_rel);
   virtual ~Item_func_spatial_rel();
   longlong val_int();
-  enum Functype functype() const 
-  { 
+  enum Functype functype() const
+  {
     return spatial_rel;
   }
   enum Functype rev_functype() const
@@ -297,9 +361,62 @@ public:
 
   void fix_length_and_dec() { maybe_null= 1; }
   bool is_null() { (void) val_int(); return null_value; }
+
+  template<typename CoordinateElementType, typename CoordinateSystemType>
+  static int bg_geo_relation_check(Geometry *g1, Geometry *g2, bool *pisdone,
+                                   Functype relchk_type, my_bool *);
+
 protected:
+
+  template<typename Geom_types>
+  friend class BG_wrap;
+
+  template<typename Geotypes>
+  static int within_check(Geometry *g1, Geometry *g2,
+                          bool *pbgdone, my_bool *pnull_value);
+  template<typename Geotypes>
+  static int equals_check(Geometry *g1, Geometry *g2,
+                          bool *pbgdone, my_bool *pnull_value);
+  template<typename Geotypes>
+  static int disjoint_check(Geometry *g1, Geometry *g2,
+                            bool *pbgdone, my_bool *pnull_value);
+  template<typename Geotypes>
+  static int intersects_check(Geometry *g1, Geometry *g2,
+                              bool *pbgdone, my_bool *pnull_value);
+  template<typename Geotypes>
+  static int overlaps_check(Geometry *g1, Geometry *g2,
+                            bool *pbgdone, my_bool *pnull_value);
+  template<typename Geotypes>
+  static int touches_check(Geometry *g1, Geometry *g2,
+                           bool *pbgdone, my_bool *pnull_value);
+  template<typename Geotypes>
+  static int crosses_check(Geometry *g1, Geometry *g2,
+                           bool *pbgdone, my_bool *pnull_value);
+
+  template<typename Coord_type, typename Coordsys>
+  int geocol_relation_check(Geometry *g1, Geometry *g2, bool *pbgdone);
+  template<typename Coord_type, typename Coordsys>
+  int geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
+                                         Geometry_list *gv1,
+                                         const typename BG_geometry_collection::
+                                         Geometry_list *gv2,
+                                         bool *pbgdone);
+  template<typename Coord_type, typename Coordsys>
+  int geocol_relcheck_within(const typename BG_geometry_collection::
+                             Geometry_list *gv1,
+                             const typename BG_geometry_collection::
+                             Geometry_list *gv2,
+                             bool *pbgdone);
+  template<typename Coord_type, typename Coordsys>
+  int geocol_equals_check(const typename BG_geometry_collection::
+                          Geometry_list *gv1,
+                          const typename BG_geometry_collection::
+                          Geometry_list *gv2,
+                          bool *pbgdone);
+
   int func_touches();
   int func_equals();
+
 };
 
 
@@ -309,7 +426,26 @@ protected:
 
 class Item_func_spatial_operation: public Item_geometry_func
 {
-public:
+protected:
+  // It will call the protected member functions in this class,
+  // no data member accessed directly.
+  template<typename Geotypes>
+  friend class BG_setop_wrapper;
+
+  // Calls bg_geo_set_op.
+  friend class BG_geometry_collection;
+
+  template<typename Coord_type, typename Coordsys>
+  Geometry *bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *);
+
+  template<typename Coord_type, typename Coordsys>
+  Geometry *combine_sub_results(Geometry *g1, Geometry *g2, String *result);
+
+  Geometry *empty_result(String *str, uint32 srid);
+  template<typename Coord_type, typename Coordsys>
+  Geometry *geometry_collection_set_operation(Geometry *g1, Geometry *g2,
+                                              String *result, bool *);
+
   Gcalc_function::op_type spatial_op;
   Gcalc_heap collector;
   Gcalc_function func;
@@ -317,11 +453,57 @@ public:
   Gcalc_result_receiver res_receiver;
   Gcalc_operation_reducer operation;
   String tmp_value1,tmp_value2;
+
+  /**
+    We have to hold result buffers here because a set operation result
+    geometry's buffer is directly used and set to String result object,
+    so we have to release them properly manually since they won't be released
+    at String object destruction, hence the need for bg_result_buf and
+    bg_results.
+
+    Hold data buffer of this set operation's final result geometry which is
+    freed next time val_str is called since it can be used by upper Item nodes.
+  */
+  void *bg_result_buf;
+
+  /**
+    Result buffers for intermediate set operation results, which are freed
+    before val_str returns.
+  */
+  std::set<void *> bg_results;
+
+  bool assign_result(Geometry *geo, String *result);
+
+  template <typename Geotypes>
+  Geometry *intersection_operation(Geometry *g1, Geometry *g2,
+                                   String *result, bool *opdone);
+  template <typename Geotypes>
+  Geometry *union_operation(Geometry *g1, Geometry *g2,
+                            String *result, bool *opdone);
+  template <typename Geotypes>
+  Geometry *difference_operation(Geometry *g1, Geometry *g2,
+                                 String *result, bool *opdone);
+  template <typename Geotypes>
+  Geometry *symdifference_operation(Geometry *g1, Geometry *g2,
+                                    String *result, bool *opdone);
+  template<typename Coord_type, typename Coordsys>
+  Geometry *geocol_symdifference(Geometry *g1, Geometry *g2,
+                                 String *result, bool *opdone);
+  template<typename Coord_type, typename Coordsys>
+  Geometry *geocol_difference(Geometry *g1, Geometry *g2,
+                              String *result, bool *opdone);
+  template<typename Coord_type, typename Coordsys>
+  Geometry *geocol_intersection(Geometry *g1, Geometry *g2,
+                                String *result, bool *opdone);
+  template<typename Coord_type, typename Coordsys>
+  Geometry *geocol_union(Geometry *g1, Geometry *g2,
+                         String *result, bool *opdone);
 public:
   Item_func_spatial_operation(const POS &pos, Item *a, Item *b,
                               Gcalc_function::op_type sp_op) :
-    Item_geometry_func(pos, a, b), spatial_op(sp_op)
-  {}
+    Item_geometry_func(pos, a, b), spatial_op(sp_op), bg_result_buf(NULL)
+  {
+  }
   virtual ~Item_func_spatial_operation();
   String *val_str(String *);
   const char *func_name() const;
@@ -441,10 +623,10 @@ public:
   Item_func_x(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_x"; }
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    maybe_null= 1;
   }
 };
 
@@ -456,10 +638,10 @@ public:
   Item_func_y(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_y"; }
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    maybe_null= 1;
   }
 };
 
@@ -504,10 +686,10 @@ public:
   Item_func_area(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_area"; }
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    maybe_null= 1;
   }
 };
 
@@ -519,10 +701,10 @@ public:
   Item_func_glength(const POS &pos, Item *a): Item_real_func(pos, a) {}
   double val_real();
   const char *func_name() const { return "st_length"; }
-  void fix_length_and_dec() 
-  { 
+  void fix_length_and_dec()
+  {
     Item_real_func::fix_length_and_dec();
-    maybe_null= 1; 
+    maybe_null= 1;
   }
 };
 
@@ -563,8 +745,4 @@ public:
 };
 #endif
 
-
-#define GEOM_NEW(thd, obj_constructor) new (thd->mem_root) obj_constructor
-
 #endif /*ITEM_GEOFUNC_INCLUDED*/
-
