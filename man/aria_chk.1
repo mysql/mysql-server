@@ -1,0 +1,245 @@
+.TH ARIA_CHK "1" "May 2014" "aria_chk Ver 1.2" "User Commands"
+.SH NAME
+aria_chk \- Aria table\-maintenance utility
+.SH SYNOPSIS
+.B aria_chk
+[\fIOPTIONS\fR] \fItables\fR[\fI.MAI\fR]
+.SH DESCRIPTION
+Describe, check and repair of Aria tables.
+Used without options all tables on the command will be checked for errors
+.SS "Global options"
+.TP
+\fB\-#\fR, \fB\-\-debug=\fR...
+Output debug log. Often this is 'd:t:o,filename'.
+.TP
+\fB\-H\fR, \fB\-\-HELP\fR
+Print all argument options sorted alphabetically.
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Print all options by groups
+.TP
+\fB\-\-datadir\fR=\fIpath\fR
+Path for control file (and logs if \fB\-\-logdir\fR not used)
+.TP
+\fB\-\-logdir\fR=\fIpath\fR
+Path for log files
+.TP
+\fB\-\-ignore\-control\-file\fR
+Don't open the control file. Only use this if you
+are sure the tables are not in use by another
+program!
+.TP
+\fB\-\-require\-control\-file\fR
+Abort if we can't find/read the maria_log_control
+file
+.TP
+\fB\-s\fR, \fB\-\-silent\fR
+Only print errors.  One can use two \fB\-s\fR to make
+maria_chk very silent.
+.TP
+\fB\-t\fR, \fB\-\-tmpdir\fR=\fIpath\fR
+Path for temporary files. Multiple paths can be
+specified, separated by colon (:), they will be used
+in a round\-robin fashion.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Print more information. This can be used with
+\fB\-\-description\fR and \fB\-\-check\fR. Use many \fB\-v\fR for more verbosity.
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Print version and exit.
+.TP
+\fB\-w\fR, \fB\-\-wait\fR
+Wait if table is locked.
+.SS "Check options (check is the default action for aria_chk)"
+.TP
+\fB\-c\fR, \fB\-\-check\fR
+Check table for errors.
+.TP
+\fB\-e\fR, \fB\-\-extend\-check\fR
+Check the table VERY throughly.  Only use this in
+extreme cases as aria_chk should normally be able to
+find out if the table is ok even without this switch.
+.TP
+\fB\-F\fR, \fB\-\-fast\fR
+Check only tables that haven't been closed properly.
+.TP
+\fB\-C\fR, \fB\-\-check\-only\-changed\fR
+Check only tables that have changed since last check.
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Restart with '\-r' if there are any errors in the table.
+States will be updated as with '\-\-update\-state'.
+.TP
+\fB\-i\fR, \fB\-\-information\fR
+Print statistics information about table that is checked.
+.TP
+\fB\-m\fR, \fB\-\-medium\-check\fR
+Faster than extend\-check, but only finds 99.99% of
+all errors.  Should be good enough for most cases.
+.TP
+\fB\-T\fR, \fB\-\-read\-only\fR
+Don't mark table as checked.
+.TP
+\fB\-U\fR, \fB\-\-update\-state\fR
+Mark tables as crashed if any errors were found and
+clean if check didn't find any errors but table was
+marked as 'not clean' before. This allows one to get
+rid of warnings like 'table not properly closed'. If
+table was updated, update also the timestamp for when
+the check was made. This option is on by default!
+Use \fB\-\-skip\-update\-state\fR to disable.
+.HP
+\fB\-\-warning\-for\-wrong\-transaction\-id\fR
+.IP
+Give a warning if we find a transaction id in the table that is bigger
+than what exists in the control file. Use \fB\-\-skip\-\fR... to disable warning
+.SS "Recover (repair)/ options (When using '--recover' or '--safe-recover')"
+.TP
+\fB\-B\fR, \fB\-\-backup\fR
+Make a backup of the .MAD file as 'filename\-time.BAK'.
+.TP
+\fB\-\-correct\-checksum\fR
+Correct checksum information for table.
+.TP
+\fB\-D\fR, \fB\-\-data\-file\-length=\fR#
+Max length of data file (when recreating data
+file when it's full).
+.TP
+\fB\-e\fR, \fB\-\-extend\-check\fR
+Try to recover every possible row from the data file
+Normally this will also find a lot of garbage rows;
+Don't use this option if you are not totally desperate.
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Overwrite old temporary files.
+.TP
+\fB\-k\fR, \fB\-\-keys\-used=\fR#
+Tell Aria to update only some specific keys. # is a
+bit mask of which keys to use. This can be used to
+get faster inserts.
+.TP
+\fB\-\-max\-record\-length=\fR#
+Skip rows bigger than this if aria_chk can't allocate
+memory to hold it.
+.TP
+\fB\-r\fR, \fB\-\-recover\fR
+Can fix almost anything except unique keys that aren't
+unique.
+.TP
+\fB\-n\fR, \fB\-\-sort\-recover\fR
+Forces recovering with sorting even if the temporary
+file would be very big.
+.TP
+\fB\-p\fR, \fB\-\-parallel\-recover\fR
+Uses the same technique as '\-r' and '\-n', but creates
+all the keys in parallel, in different threads.
+.TP
+\fB\-o\fR, \fB\-\-safe\-recover\fR
+Uses old recovery method; Slower than '\-r' but can
+handle a couple of cases where '\-r' reports that it
+can't fix the data file.
+.TP
+\fB\-\-transaction\-log\fR
+Log repair command to transaction log. This is needed
+if one wants to use the aria_read_log to repeat the
+repair
+.TP
+\fB\-\-character\-sets\-dir=\fR...
+Directory where character sets are.
+.TP
+\fB\-\-set\-collation\fR=\fIname\fR
+Change the collation used by the index.
+.TP
+\fB\-q\fR, \fB\-\-quick\fR
+Faster repair by not modifying the data file.
+One can give a second '\-q' to force aria_chk to
+modify the original datafile in case of duplicate keys.
+NOTE: Tables where the data file is currupted can't be
+fixed with this option.
+.TP
+\fB\-u\fR, \fB\-\-unpack\fR
+Unpack file packed with ariapack.
+.SS "Other actions"
+.TP
+\fB\-a\fR, \fB\-\-analyze\fR
+Analyze distribution of keys. Will make some joins in
+MariaDB faster.  You can check the calculated distribution
+by using '\-\-description \fB\-\-verbose\fR table_name'.
+.TP
+\fB\-\-stats_method\fR=\fIname\fR
+Specifies how index statistics collection code should
+treat NULLs. Possible values of name are "nulls_unequal"
+(default for 4.1/5.0), "nulls_equal" (emulate 4.0), and
+"nulls_ignored".
+.TP
+\fB\-d\fR, \fB\-\-description\fR
+Prints some information about table.
+.TP
+\fB\-A\fR, \fB\-\-set\-auto\-increment\fR[=\fIvalue\fR]
+Force auto_increment to start at this or higher value
+If no value is given, then sets the next auto_increment
+value to the highest used value for the auto key + 1.
+.TP
+\fB\-S\fR, \fB\-\-sort\-index\fR
+Sort index blocks.  This speeds up 'read\-next' in
+applications.
+.TP
+\fB\-R\fR, \fB\-\-sort\-records=\fR#
+Sort records according to an index.  This makes your
+data much more localized and may speed up things
+(It may be VERY slow to do a sort the first time!).
+.TP
+\fB\-b\fR,  \fB\-\-block\-search=\fR#
+Find a record, a block at given offset belongs to.
+.TP
+\fB\-z\fR,  \fB\-\-zerofill\fR
+Fill empty space in data and index files with zeroes.
+This makes the data file movable between different
+servers.
+.TP
+\fB\-\-zerofill\-keep\-lsn\fR
+Like \fB\-\-zerofill\fR but does not zero out LSN of
+data/index pages.
+.PP
+.SS "Variables"
+.TP
+\fB\-\-page_buffer_size=\fR#
+Size of page buffer. Used by \fB\-\-safe\-repair\fR
+.TP
+\fB\-\-read_buffer_size=\fR#
+Read buffer size for sequential reads during scanning
+.TP
+\fB\-\-sort_buffer_size=\fR#
+Size of sort buffer. Used by \fB\-\-recover\fR
+.TP
+\fB\-\-sort_key_blocks=\fR#
+Internal buffer for sorting keys; Don't touch.
+.TP
+\fB\-\-write_buffer_size=\fR#
+Write buffer size for sequential writes during repair
+.PP
+Default options are read from the following files in the given order:
+\fB/etc/my.cnf /etc/mysql/my.cnf ~/.my.cnf\fR
+.PP
+The following groups are read: \fBaria_chk\fR
+.PP
+The following options may be given as the first argument:
+.TP
+\fB\-\-print\-defaults\fR
+Print the program argument list and exit.
+.TP
+\fB\-\-no\-defaults\fR
+Don't read default options from any option file.
+.TP
+\fB\-\-defaults\-file=\fR#
+Only read default options from the given file #.
+.TP
+\fB\-\-defaults\-extra\-file=\fR#
+Read this file after the global files are read.
+.PP
+.SH "SEE ALSO"
+\fBmyisamchk(1)\fR
+.PP
+For more information, please refer to the MariaDB Knowledge Base,
+which is available online at http://mariadb.com/kb/

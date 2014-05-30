@@ -560,7 +560,7 @@ else
         "database and look at the grant tables:",
         "",
         "shell> $bindir/mysql -u root mysql",
-        "mysql> show tables",
+        "mysql> show tables;",
         "",
         "Try 'mysqld --help' if you have problems with paths. Using --log",
         "gives you a log in $opt->{ldata} that may be helpful.",

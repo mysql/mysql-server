@@ -1255,33 +1255,6 @@ indicates a
 FORMAT_DESCRIPTION_EVENT\&. The following table lists the possible type codes\&.
 .TS
 allbox tab(:);
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
-l l l
 l l l.
 T{
 Type
@@ -1310,7 +1283,7 @@ T}:T{
 QUERY_EVENT
 T}:T{
 The most common type of events\&. These contain statements executed on the
-                    master\&.
+master\&.
 T}
 T{
 03
@@ -1332,8 +1305,8 @@ T}:T{
 INTVAR_EVENT
 T}:T{
 Used for AUTO_INCREMENT values or when the
-                    LAST_INSERT_ID()
-                    function is used in the statement\&.
+LAST_INSERT_ID()
+function is used in the statement\&.
 T}
 T{
 06
@@ -1341,7 +1314,7 @@ T}:T{
 LOAD_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE in MySQL 3\&.23\&.
+INFILE in MySQL 3\&.23\&.
 T}
 T{
 07
@@ -1356,9 +1329,9 @@ T}:T{
 CREATE_FILE_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements\&. This indicates the
-                    start of execution of such a statement\&. A temporary
-                    file is created on the slave\&. Used in MySQL 4 only\&.
+INFILE statements\&. This indicates the
+start of execution of such a statement\&. A temporary
+file is created on the slave\&. Used in MySQL 4 only\&.
 T}
 T{
 09
@@ -1366,9 +1339,9 @@ T}:T{
 APPEND_BLOCK_EVENT
 T}:T{
 Contains data for use in a
-                    LOAD DATA
-                    INFILE statement\&. The data is stored in
-                    the temporary file on the slave\&.
+LOAD DATA
+INFILE statement\&. The data is stored in
+the temporary file on the slave\&.
 T}
 T{
 0a
@@ -1376,9 +1349,9 @@ T}:T{
 EXEC_LOAD_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements\&. The contents of the
-                    temporary file is stored in the table on the slave\&.
-                    Used in MySQL 4 only\&.
+INFILE statements\&. The contents of the
+temporary file is stored in the table on the slave\&.
+Used in MySQL 4 only\&.
 T}
 T{
 0b
@@ -1386,8 +1359,8 @@ T}:T{
 DELETE_FILE_EVENT
 T}:T{
 Rollback of a LOAD DATA
-                    INFILE statement\&. The temporary file
-                    should be deleted on the slave\&.
+INFILE statement\&. The temporary file
+should be deleted on the slave\&.
 T}
 T{
 0c
@@ -1395,7 +1368,7 @@ T}:T{
 NEW_LOAD_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE in MySQL 4 and earlier\&.
+INFILE in MySQL 4 and earlier\&.
 T}
 T{
 0d
@@ -1403,8 +1376,8 @@ T}:T{
 RAND_EVENT
 T}:T{
 Used to send information about random values if the
-                    RAND() function is
-                    used in the statement\&.
+RAND() function is
+used in the statement\&.
 T}
 T{
 0e
@@ -1433,7 +1406,7 @@ T}:T{
 BEGIN_LOAD_QUERY_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements in MySQL 5 and later\&.
+INFILE statements in MySQL 5 and later\&.
 T}
 T{
 12
@@ -1441,7 +1414,7 @@ T}:T{
 EXECUTE_LOAD_QUERY_EVENT
 T}:T{
 Used for LOAD DATA
-                    INFILE statements in MySQL 5 and later\&.
+INFILE statements in MySQL 5 and later\&.
 T}
 T{
 13
@@ -1456,7 +1429,7 @@ T}:T{
 PRE_GA_WRITE_ROWS_EVENT
 T}:T{
 Row data for a single table that should be created\&. Used in MySQL 5\&.1\&.5
-                    to 5\&.1\&.17\&.
+to 5\&.1\&.17\&.
 T}
 T{
 15
@@ -1464,7 +1437,7 @@ T}:T{
 PRE_GA_UPDATE_ROWS_EVENT
 T}:T{
 Row data for a single table that needs to be updated\&. Used in MySQL
-                    5\&.1\&.5 to 5\&.1\&.17\&.
+5\&.1\&.5 to 5\&.1\&.17\&.
 T}
 T{
 16
@@ -1472,7 +1445,7 @@ T}:T{
 PRE_GA_DELETE_ROWS_EVENT
 T}:T{
 Row data for a single table that should be deleted\&. Used in MySQL 5\&.1\&.5
-                    to 5\&.1\&.17\&.
+to 5\&.1\&.17\&.
 T}
 T{
 17
@@ -1480,7 +1453,7 @@ T}:T{
 WRITE_ROWS_EVENT
 T}:T{
 Row data for a single table that should be created\&. Used in MySQL 5\&.1\&.18
-                    and later\&.
+and later\&.
 T}
 T{
 18
@@ -1488,7 +1461,7 @@ T}:T{
 UPDATE_ROWS_EVENT
 T}:T{
 Row data for a single table that needs to be updated\&. Used in MySQL
-                    5\&.1\&.18 and later\&.
+5\&.1\&.18 and later\&.
 T}
 T{
 19
@@ -1496,7 +1469,7 @@ T}:T{
 DELETE_ROWS_EVENT
 T}:T{
 Row data for a single table that should be deleted\&. Used in MySQL 5\&.1\&.18
-                    and later\&.
+and later\&.
 T}
 T{
 1a
@@ -1553,10 +1526,6 @@ Master Pos: The position of the next event in the original master log file\&.
 Flags: 16 flags\&. Currently, the following flags are used\&. The others are reserved for future use\&.
 .TS
 allbox tab(:);
-l l l
-l l l
-l l l
-l l l
 l l l.
 T{
 Flag
@@ -1571,13 +1540,13 @@ T}:T{
 LOG_EVENT_BINLOG_IN_USE_F
 T}:T{
 Log file correctly closed\&. (Used only in
-                    FORMAT_DESCRIPTION_EVENT\&.) If
-                    this flag is set (if the flags are, for example,
-                    \'01 00\') in a
-                    FORMAT_DESCRIPTION_EVENT, the log
-                    file has not been properly closed\&. Most probably
-                    this is because of a master crash (for example, due
-                    to power failure)\&.
+FORMAT_DESCRIPTION_EVENT\&.) If
+this flag is set (if the flags are, for example,
+\'01 00\') in a
+FORMAT_DESCRIPTION_EVENT, the log
+file has not been properly closed\&. Most probably
+this is because of a master crash (for example, due
+to power failure)\&.
 T}
 T{
 02
@@ -1592,8 +1561,8 @@ T}:T{
 LOG_EVENT_THREAD_SPECIFIC_F
 T}:T{
 Set if the event is dependent on the connection it was executed in (for
-                    example, \'04 00\'), for example,
-                    if the event uses temporary tables\&.
+example, \'04 00\'), for example,
+if the event uses temporary tables\&.
 T}
 T{
 08
@@ -1601,7 +1570,7 @@ T}:T{
 LOG_EVENT_SUPPRESS_USE_F
 T}:T{
 Set in some circumstances when the event is not dependent on the default
-                    database\&.
+database\&.
 T}
 .TE
 .sp 1

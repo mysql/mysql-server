@@ -26,6 +26,4 @@ usr/share/man/man1/mysqlman.1
 usr/share/man/man1/mysqlreport.1
 usr/share/man/man1/mysqlshow.1
 usr/share/man/man1/mysqlslap.1
-usr/share/man/man1/mysql_tableinfo.1
 usr/share/man/man1/mysql_waitpid.1
-usr/share/man/man8/mysqlmanager.8

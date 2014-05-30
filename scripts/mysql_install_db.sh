@@ -446,7 +446,7 @@ else
   echo "to connect to the mysql database and look at the grant tables:"
   echo
   echo "    shell> $bindir/mysql -u root mysql"
-  echo "    mysql> show tables"
+  echo "    mysql> show tables;"
   echo
   echo "Try 'mysqld --help' if you have problems with paths.  Using"
   echo "--general-log gives you a log in $ldata that may be helpful."

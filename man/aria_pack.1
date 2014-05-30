@@ -1,0 +1,76 @@
+.TH ARIA_PACK "1" "May 2014" "aria_pack Ver 1.0" "User Commands"
+.SH NAME
+aria_pack \- manual page for aria_pack Ver 1.0
+.SH SYNOPSIS
+.B aria_pack
+[\fIOPTIONS\fR] \fIfilename\fR...
+.SH DESCRIPTION
+Pack a Aria\-table to take much less space.
+Keys are not updated, you must run \fBaria_chk \-rq\fR on the index (.MAI) file
+afterwards to update the keys.
+You should give the .MAI file as the filename argument.
+To unpack a packed table, run \fBaria_chk \-u\fR on the table
+.TP
+\fB\-b\fR, \fB\-\-backup\fR
+Make a backup of the table as table_name.OLD.
+.TP
+\fB\-\-character\-sets\-dir\fR=\fIname\fR
+Directory where character sets are.
+.TP
+\fB\-#\fR, \fB\-\-debug\fR[=\fIname\fR]
+Output debug log. Often this is 'd:t:o,filename'.
+.TP
+\fB\-f\fR, \fB\-\-force\fR
+Force packing of table even if it gets bigger or if
+tempfile exists.
+.TP
+\fB\-j\fR, \fB\-\-join\fR=\fIname\fR
+Join all given tables into 'new_table_name'. All tables
+MUST have identical layouts.
+.TP
+\fB\-?\fR, \fB\-\-help\fR
+Display this help and exit.
+.TP
+\fB\-s\fR, \fB\-\-silent\fR
+Be more silent.
+.TP
+\fB\-T\fR, \fB\-\-tmpdir\fR=\fIname\fR
+Use temporary directory to store temporary table.
+.TP
+\fB\-t\fR, \fB\-\-test\fR
+Don't pack table, only test packing it.
+.TP
+\fB\-v\fR, \fB\-\-verbose\fR
+Write info about progress and packing result. Use many \fB\-v\fR
+for more verbosity!
+.TP
+\fB\-V\fR, \fB\-\-version\fR
+Output version information and exit.
+.TP
+\fB\-w\fR, \fB\-\-wait\fR
+Wait and retry if table is in use.
+.PP
+Default options are read from the following files in the given order:
+\fB/etc/my.cnf /etc/mysql/my.cnf ~/.my.cnf\fR
+.PP
+The following groups are read: \fBariapack\fR
+.PP
+The following options may be given as the first argument:
+.TP
+\fB\-\-print\-defaults\fR
+Print the program argument list and exit.
+.TP
+\fB\-\-no\-defaults\fR
+Don't read default options from any option file.
+.TP
+\fB\-\-defaults\-file=\fR#
+Only read default options from the given file #.
+.TP
+\fB\-\-defaults\-extra\-file=\fR#
+Read this file after the global files are read.
+.PP
+.SH "SEE ALSO"
+\fBmyisampack(1)\fR
+.PP
+For more information, please refer to the MariaDB Knowledge Base,
+which is available online at http://mariadb.com/kb/
