@@ -6463,9 +6463,9 @@ fil_spaces_lookup(
 
 	spaces->user = user_space_id == TRX_SYS_SPACE
 		? NULL : fil_space_lookup(user_space_id);
-	spaces->sys = undo_space_id == TRX_SYS_SPACE
+	spaces->undo = undo_space_id == TRX_SYS_SPACE
 		? NULL : fil_space_lookup(undo_space_id);
-	spaces->undo = !find_system
+	spaces->sys = !find_system
 		? NULL : fil_space_lookup(TRX_SYS_SPACE);
 
 	mutex_exit(&fil_system->mutex);
