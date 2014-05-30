@@ -6511,7 +6511,7 @@ fil_names_dirty_and_write(
 	log_sys->mutex. */
 	const bool	was_clean	= space->max_lsn == 0;
 
-	if (UNIV_UNLIKELY(was_clean)) {
+	if (was_clean) {
 		/* This should only happen once for each tablespace
 		after a log checkpoint. */
 		mutex_enter(&fil_system->mutex);
