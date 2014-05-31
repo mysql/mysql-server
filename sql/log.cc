@@ -1732,7 +1732,8 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
     print_buffer_to_file(level, buff, length);
 
 #ifdef _WIN32
-    print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+    if (!abort_loop) // Don't write to the eventlog during shutdown.
+      print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
   }
 
