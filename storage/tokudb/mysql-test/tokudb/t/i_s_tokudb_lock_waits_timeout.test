@@ -1,7 +1,3 @@
-if (`select @@tokudb_version <= "7.1.0"`)
-{
-  --skip Not fixed in TokuDB 7.1.0 or earlier
-}
 # verify that tokudb_locks and tokudb_lock_waits contents for 2 conflicting transactions with a lock timeout
 
 source include/have_tokudb.inc;

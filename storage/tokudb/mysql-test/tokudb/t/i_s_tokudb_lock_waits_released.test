@@ -1,7 +1,7 @@
 # verify that information_schema.tokudb_locks gets populated with locks, information_schema.tokudb_lock_waits gets
-if (`select @@tokudb_version <= "7.1.0"`)
+if (`select @@tokudb_version <= "7.1.6"`)
 {
-  --skip Not fixed in TokuDB 7.1.0 or earlier
+  --skip Race condition in the test in TokuDB 7.1.6 or earlier
 }
 # populated with 1 lock_wait and all transactions are present in information_schema.tokudb_trx for 2 clients
 
