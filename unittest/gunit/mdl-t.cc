@@ -122,10 +122,10 @@ protected:
     mdl_destroy();
   }
 
-  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort)
   {
-    return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
   }
 
   // A utility member for testing single lock requests.
@@ -178,17 +178,13 @@ public:
   virtual void run();
   void enable_release_on_notify() { m_enable_release_on_notify= true; }
 
-  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort)
   {
     if (in_use)
-      return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
-
-    if (!m_enable_release_on_notify)
-      return false;
-    if (m_release_locks)
+      in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    else if (m_enable_release_on_notify && m_release_locks)
       m_release_locks->notify();
-    return true;
   }
 
   virtual void enter_cond(mysql_cond_t *cond,

@@ -458,6 +458,8 @@ ELSE()
   SET(DEFAULT_TMPDIR "\"${TMPDIR}\"")
 ENDIF()
 
+INCLUDE(cmake/boost.cmake)
+
 # Run platform tests
 INCLUDE(configure.cmake)
 
