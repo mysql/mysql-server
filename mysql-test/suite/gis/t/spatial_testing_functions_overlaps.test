@@ -381,7 +381,7 @@ SELECT MBROverlaps(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromTe
 SELECT MBROverlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
 SELECT MBROverlaps(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,geometrycollection
-SELECT MBROverlaps(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems));
+SELECT MBROverlaps(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
 SELECT MBROverlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
 SELECT MBROverlaps(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 SELECT MBROverlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
@@ -494,7 +494,7 @@ SELECT MBROverlaps(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollect
 SELECT MBROverlaps(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
 --echo #geometrycollection,multilinestring
 SELECT MBROverlaps(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-SELECT MBROverlaps(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
+SELECT MBROverlaps(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
 SELECT MBROverlaps(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 SELECT MBROverlaps(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
 --echo #geometrycollection,polygon
@@ -673,7 +673,7 @@ SELECT ST_Overlaps(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromTe
 SELECT ST_Overlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
 SELECT ST_Overlaps(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,geometrycollection
-SELECT ST_Overlaps(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems));
+SELECT ST_Overlaps(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
 SELECT ST_Overlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
 SELECT ST_Overlaps(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 SELECT ST_Overlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
@@ -786,7 +786,7 @@ SELECT ST_Overlaps(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollect
 SELECT ST_Overlaps(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
 --echo #geometrycollection,multilinestring
 SELECT ST_Overlaps(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-SELECT ST_Overlaps(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
+SELECT ST_Overlaps(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
 SELECT ST_Overlaps(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 SELECT ST_Overlaps(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
 --echo #geometrycollection,polygon
@@ -964,7 +964,7 @@ SELECT Overlaps(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(
 SELECT Overlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
 SELECT Overlaps(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,geometrycollection
-SELECT Overlaps(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems));
+SELECT Overlaps(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
 SELECT Overlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
 SELECT Overlaps(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 SELECT Overlaps(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
@@ -1078,7 +1078,7 @@ SELECT Overlaps(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection
 SELECT Overlaps(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
 --echo #geometrycollection,multilinestring
 SELECT Overlaps(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
-SELECT Overlaps(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
+SELECT Overlaps(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
 SELECT Overlaps(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 SELECT Overlaps(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
 --echo #geometrycollection,polygon
@@ -1116,6 +1116,10 @@ SELECT MBROverlaps(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
 SELECT MBROverlaps(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
 SELECT MBROverlaps(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
 SELECT MBROverlaps(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT MBROverlaps(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT MBROverlaps(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT MBROverlaps(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT MBROverlaps(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
 --echo #-------------------------------------------------------------------------------------------
 --echo #ST_Overlaps(g1,g2)
 SELECT ST_Overlaps(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -1123,6 +1127,10 @@ SELECT ST_Overlaps(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
 SELECT ST_Overlaps(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
 SELECT ST_Overlaps(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
 SELECT ST_Overlaps(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT ST_Overlaps(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT ST_Overlaps(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT ST_Overlaps(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT ST_Overlaps(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
 --echo #-------------------------------------------------------------------------------------------
 --echo #Overlaps(g1,g2)
 SELECT Overlaps(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -1130,6 +1138,10 @@ SELECT Overlaps(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
 SELECT Overlaps(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
 SELECT Overlaps(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
 SELECT Overlaps(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT Overlaps(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT Overlaps(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT Overlaps(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT Overlaps(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
 
 --echo #=======================================================================================
 --echo # Invalid function calls
