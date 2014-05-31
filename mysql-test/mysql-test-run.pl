@@ -450,6 +450,13 @@ sub main {
   # Simplify reference to semisync plugins
   $ENV{'SEMISYNC_PLUGIN_OPT'}= $ENV{'SEMISYNC_MASTER_PLUGIN_OPT'};
 
+  if (IS_WINDOWS) {
+    $ENV{'PLUGIN_SUFFIX'}= "dll";
+  }
+  else {
+    $ENV{'PLUGIN_SUFFIX'}= "so";
+  }
+
   # Create child processes
   my %children;
   for my $child_num (1..$opt_parallel){
