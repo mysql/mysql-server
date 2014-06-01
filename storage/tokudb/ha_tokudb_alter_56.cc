@@ -122,6 +122,7 @@ public:
         expand_varchar_update_needed(false),
         expand_fixed_update_needed(false),
         expand_blob_update_needed(false),
+        optimize_needed(false),
         table_kc_info(NULL),
         altered_table_kc_info(NULL) {
     }
@@ -141,6 +142,7 @@ public:
     bool expand_varchar_update_needed;
     bool expand_fixed_update_needed;
     bool expand_blob_update_needed;
+    bool optimize_needed;
     Dynamic_array<uint> changed_fields;
     KEY_AND_COL_INFO *table_kc_info;
     KEY_AND_COL_INFO *altered_table_kc_info;
@@ -439,7 +441,13 @@ enum_alter_inplace_result ha_tokudb::check_if_supported_inplace_alter(TABLE *alt
                 result = HA_ALTER_INPLACE_EXCLUSIVE_LOCK;
             }
         }
+    } 
+#if TOKU_OPTIMIZE_WITH_RECREATE
+    else if (only_flags(ctx->handler_flags, Alter_inplace_info::RECREATE_TABLE + Alter_inplace_info::ALTER_COLUMN_DEFAULT)) {
+        ctx->optimize_needed = true;
+        result = HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE;
     }
+#endif
 
     if (result != HA_ALTER_INPLACE_NOT_SUPPORTED && table->s->null_bytes != altered_table->s->null_bytes &&
         (tokudb_debug & TOKUDB_DEBUG_ALTER_TABLE)) {
@@ -521,6 +529,9 @@ bool ha_tokudb::inplace_alter_table(TABLE *altered_table, Alter_inplace_info *ha
 
     if (error == 0 && ctx->reset_card) {
         error = tokudb::set_card_from_status(share->status_block, ctx->alter_txn, table->s, altered_table->s);
+    }
+    if (error == 0 && ctx->optimize_needed) {
+        error = do_optimize(ha_thd());
     }
 
 #if (50600 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \

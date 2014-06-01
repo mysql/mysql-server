@@ -109,15 +109,6 @@ typedef struct loader_context {
     ha_tokudb* ha;
 } *LOADER_CONTEXT;
 
-typedef struct hot_optimize_context {
-    THD *thd;
-    char* write_status_msg;
-    ha_tokudb *ha;
-    uint progress_stage;
-    uint current_table;
-    uint num_tables;
-} *HOT_OPTIMIZE_CONTEXT;
-
 //
 // This object stores table information that is to be shared
 // among all ha_tokudb objects.
@@ -805,6 +796,7 @@ private:
     void remove_from_trx_handler_list();
 
 private:
+    int do_optimize(THD *thd);
     int map_to_handler_error(int error);
 };
 

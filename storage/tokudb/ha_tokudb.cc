@@ -6299,7 +6299,7 @@ uint32_t ha_tokudb::get_cursor_isolation_flags(enum thr_lock_type lock_type, THD
   lock (if we don't want to use MySQL table locks at all) or add locks
   for many tables (like we do when we are using a MERGE handler).
 
-  Tokudb DB changes all WRITE locks to TL_WRITE_ALLOW_WRITE (which
+  TokuDB changes all WRITE locks to TL_WRITE_ALLOW_WRITE (which
   signals that we are doing WRITES, but we are still allowing other
   reader's and writer's.
 
@@ -6321,31 +6321,22 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
     }
 
     if (lock_type != TL_IGNORE && lock.type == TL_UNLOCK) {
-        // if creating a hot index
-        if (thd_sql_command(thd)== SQLCOM_CREATE_INDEX && get_create_index_online(thd)) {
-            rw_rdlock(&share->num_DBs_lock);
-            if (share->num_DBs == (table->s->keys + tokudb_test(hidden_primary_key))) {
+        enum_sql_command sql_command = (enum_sql_command) thd_sql_command(thd);
+        if (!thd->in_lock_tables) {
+            if (sql_command == SQLCOM_CREATE_INDEX && get_create_index_online(thd)) {
+                // hot indexing
+                rw_rdlock(&share->num_DBs_lock);
+                if (share->num_DBs == (table->s->keys + tokudb_test(hidden_primary_key))) {
+                    lock_type = TL_WRITE_ALLOW_WRITE;
+                }
+                rw_unlock(&share->num_DBs_lock);
+            } else if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
+                       sql_command != SQLCOM_TRUNCATE && !thd_tablespace_op(thd)) {
+                // allow concurrent writes
                 lock_type = TL_WRITE_ALLOW_WRITE;
-            }
-            lock.type = lock_type;
-            rw_unlock(&share->num_DBs_lock);
-        } 
-
-        // 5.5 supports reads concurrent with alter table.  just use the default lock type.
-#if MYSQL_VERSION_ID < 50500
-        else if (thd_sql_command(thd)== SQLCOM_CREATE_INDEX || 
-                 thd_sql_command(thd)== SQLCOM_ALTER_TABLE ||
-                 thd_sql_command(thd)== SQLCOM_DROP_INDEX) {
-            // force alter table to lock out other readers
-            lock_type = TL_WRITE;
-            lock.type = lock_type;
-        }
-#endif
-        else {
-            // If we are not doing a LOCK TABLE, then allow multiple writers
-            if ((lock_type >= TL_WRITE_CONCURRENT_INSERT && lock_type <= TL_WRITE) && 
-                !thd->in_lock_tables && thd_sql_command(thd) != SQLCOM_TRUNCATE && !thd_tablespace_op(thd)) {
-                lock_type = TL_WRITE_ALLOW_WRITE;
+            } else if (sql_command == SQLCOM_OPTIMIZE && lock_type == TL_READ_NO_INSERT) {
+                // hot optimize table
+                lock_type = TL_READ;
             }
             lock.type = lock_type;
         }
