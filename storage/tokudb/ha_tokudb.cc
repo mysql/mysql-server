@@ -6338,8 +6338,8 @@ THR_LOCK_DATA **ha_tokudb::store_lock(THD * thd, THR_LOCK_DATA ** to, enum thr_l
                 // hot optimize table
                 lock_type = TL_READ;
             }
-            lock.type = lock_type;
         }
+        lock.type = lock_type;
     }
     *to++ = &lock;
     if (tokudb_debug & TOKUDB_DEBUG_LOCK)
