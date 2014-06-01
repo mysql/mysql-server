@@ -50,8 +50,7 @@ ENDFOREACH()
 
 IF(UNIX)
   SET(prefix ${CMAKE_INSTALL_PREFIX})
-  FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure
-    config.medium.ini config.small.ini config.huge.ini ndb-config-2-node.ini)
+  FOREACH(script  mysqld_multi.server mysql-log-rotate binary-configure)
     CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/${script}.sh 
                    ${CMAKE_CURRENT_BINARY_DIR}/${script} @ONLY )
 
