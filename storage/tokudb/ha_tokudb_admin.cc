@@ -130,6 +130,12 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
+
+    // stub out analyze if optimize is remapped to alter recreate + analyze
+    if (thd_sql_command(thd) != SQLCOM_ANALYZE) {
+        TOKUDB_HANDLER_DBUG_RETURN(result);
+    }
+
     DB_TXN *txn = transaction;
     if (!txn) {
         result = HA_ADMIN_FAILED;
@@ -171,6 +177,15 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }
 
+typedef struct hot_optimize_context {
+    THD *thd;
+    char* write_status_msg;
+    ha_tokudb *ha;
+    uint progress_stage;
+    uint current_table;
+    uint num_tables;
+} *HOT_OPTIMIZE_CONTEXT;
+
 static int hot_poll_fun(void *extra, float progress) {
     HOT_OPTIMIZE_CONTEXT context = (HOT_OPTIMIZE_CONTEXT)extra;
     if (context->thd->killed) {
@@ -193,10 +208,11 @@ static int hot_poll_fun(void *extra, float progress) {
     return 0;
 }
 
-// flatten all DB's in this table, to do so, peform hot optimize on each db
-int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
-    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
+volatile int ha_tokudb_optimize_wait;
 
+// flatten all DB's in this table, to do so, peform hot optimize on each db
+int ha_tokudb::do_optimize(THD *thd) {
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
     int error;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
 
@@ -206,9 +222,7 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
     thd_progress_init(thd, curr_num_DBs);
 #endif
 
-    //
     // for each DB, run optimize and hot_optimize
-    //
     for (uint i = 0; i < curr_num_DBs; i++) {
         DB* db = share->key_file[i];
         error = db->optimize(db);
@@ -228,14 +242,24 @@ int ha_tokudb::optimize(THD * thd, HA_CHECK_OPT * check_opt) {
             goto cleanup;
         }
     }
-
     error = 0;
-cleanup:
 
+cleanup:
+    while (ha_tokudb_optimize_wait) sleep(1);
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     thd_progress_end(thd);
 #endif
+    TOKUDB_HANDLER_DBUG_RETURN(error);
+}
 
+int ha_tokudb::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
+    TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
+    int error;
+#if TOKU_OPTIMIZE_WITH_RECREATE
+    error = HA_ADMIN_TRY_ALTER;
+#else
+    error = do_optimize(thd);
+#endif
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
