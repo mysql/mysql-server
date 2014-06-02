@@ -1815,7 +1815,7 @@ dict_stats_index_set_n_diff(
 		ut_ad(data->n_leaf_pages_to_analyze > 0);
 		ut_ad(data->n_recs_on_level > 0);
 
-		ulint	n_ordinary_leaf_pages;
+		ib_uint64_t	n_ordinary_leaf_pages;
 
 		if (data->level == 1) {
 			/* If we know the number of records on level 1, then

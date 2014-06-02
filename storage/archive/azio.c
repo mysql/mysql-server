@@ -402,7 +402,7 @@ int destroy (s)
   Reads the given number of uncompressed bytes from the compressed file.
   azread returns the number of bytes actually read (0 for end of file).
 */
-unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, size_t len, int *error)
+size_t ZEXPORT azread ( azio_stream *s, voidp buf, size_t len, int *error)
 {
   Bytef *start = (Bytef*)buf; /* starting point for crc computation */
   Byte  *next_out; /* == stream.next_out but not forced far (for MSDOS) */
@@ -427,7 +427,7 @@ unsigned int ZEXPORT azread ( azio_stream *s, voidp buf, size_t len, int *error)
 
   next_out = (Byte*)buf;
   s->stream.next_out = (Bytef*)buf;
-  s->stream.avail_out = len;
+  s->stream.avail_out = (uInt)len;
 
   if (s->stream.avail_out && s->back != EOF) {
     *next_out++ = s->back;
@@ -745,7 +745,7 @@ my_off_t azseek (s, offset, whence)
   }
   while (offset > 0)  {
     int error;
-    unsigned int size = AZ_BUFSIZE_WRITE;
+    size_t size = AZ_BUFSIZE_WRITE;
     if (offset < AZ_BUFSIZE_WRITE) size = (int)offset;
 
     size = azread(s, s->outbuf, size, &error);

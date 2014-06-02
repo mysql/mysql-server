@@ -24,6 +24,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "dict0stats.h"
+#include <string>
+#include "sess0sess.h"
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -51,7 +53,6 @@ typedef struct st_innobase_share {
 						table between MySQL and
 						InnoDB */
 } INNOBASE_SHARE;
-
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
@@ -132,6 +133,7 @@ class ha_innobase: public handler
 	int write_row(uchar * buf);
 	int update_row(const uchar * old_data, uchar * new_data);
 	int delete_row(const uchar * buf);
+	int delete_all_rows();
 	bool was_semi_consistent_read();
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
@@ -157,10 +159,14 @@ class ha_innobase: public handler
 	int ft_init();
 	void ft_end();
 	FT_INFO *ft_init_ext(uint flags, uint inx, String* key);
+	FT_INFO *ft_init_ext_with_hints(uint inx, String* key,
+					Ft_hints *hints);
 	int ft_read(uchar* buf);
 
 	void position(const uchar *record);
 	int info(uint);
+	int enable_indexes(uint mode);
+	int disable_indexes(uint mode);
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);

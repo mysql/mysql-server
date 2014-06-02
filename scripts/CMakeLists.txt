@@ -270,7 +270,7 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config)
   # Input files with .sh extension
 
-  SET(SH_FILES mysqld_multi mysqldumpslow mysqlhotcopy)
+  SET(SH_FILES mysqld_multi mysqldumpslow)
 
   FOREACH(file ${PLIN_FILES})
     IF(NOT ${file}_COMPONENT)
@@ -294,7 +294,6 @@ ELSE()
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     mysql_config
-    mysqlhotcopy
     mysqldumpslow
     mysqld_multi
     mysqld_safe

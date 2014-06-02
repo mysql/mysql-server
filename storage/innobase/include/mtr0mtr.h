@@ -73,6 +73,19 @@ savepoint. */
 				(m)->memo_release((o), (t))
 
 #ifdef UNIV_DEBUG
+
+/** Check if memo contains the given item ignore if table is intrinsic
+@return TRUE if contains or table is intrinsic. */
+#define mtr_is_block_fix(m, o, t, table)				\
+	(mtr_memo_contains(m, o, t)					\
+	 || dict_table_is_intrinsic(table))
+
+/** Check if memo contains the given page ignore if table is intrinsic
+@return TRUE if contains or table is intrinsic. */
+#define mtr_is_page_fix(m, p, t, table)					\
+	(mtr_memo_contains_page(m, p, t)				\
+	 || dict_table_is_intrinsic(table))
+
 /** Check if memo contains the given item.
 @return	TRUE if contains */
 #define mtr_memo_contains(m, o, t)					\
@@ -165,10 +178,11 @@ struct mtr_t {
 		/** MLOG_FILE_NAME tablespace associated with the
 		mini-transaction, or 0 (TRX_SYS_SPACE) if none yet */
 		ulint		m_named_space;
-#ifdef UNIV_DEBUG
+
 		/** State of the transaction */
 		mtr_state_t	m_state;
 
+#ifdef UNIV_DEBUG
 		/** For checking corruption. */
 		ulint		m_magic_n;
 #endif /* UNIV_DEBUG */
@@ -177,7 +191,10 @@ struct mtr_t {
 		mtr_t*		m_mtr;
 	};
 
-	mtr_t() { }
+	mtr_t() 
+	{
+		m_impl.m_state = MTR_STATE_INIT;
+	}
 
 	~mtr_t() { }
 
@@ -205,8 +222,9 @@ struct mtr_t {
 	but generated some redo log on a higher level, such as
 	MLOG_FILE_NAME records and a MLOG_CHECKPOINT marker.
 	The caller must invoke log_mutex_enter() and log_mutex_exit().
-	This is to be used at log_checkpoint(). */
-	void commit_checkpoint();
+	This is to be used at log_checkpoint().
+	@param[in]	checkpoint_lsn	the LSN of the log checkpoint  */
+	void commit_checkpoint(lsn_t checkpoint_lsn);
 
 	/** Return current size of the buffer.
 	@return	savepoint */
@@ -340,6 +358,13 @@ struct mtr_t {
 		return(m_impl.m_inside_ibuf);
 	}
 
+	/*
+	@return true if the mini-transaction is active */
+	bool is_active() const
+	{
+		return(m_impl.m_state == MTR_STATE_ACTIVE);
+	}
+
 #ifdef UNIV_DEBUG
 	/** Check if memo contains the given item.
 	@param memo	memo stack
@@ -379,12 +404,6 @@ struct mtr_t {
 
 	/** Print info of an mtr handle. */
 	void print() const;
-
-	/** @return true if the mini-transaction is active */
-	bool is_active() const
-	{
-		return(m_impl.m_state == MTR_STATE_ACTIVE);
-	}
 
 	/** @return true if the mini-transaction has committed */
 	bool has_committed() const

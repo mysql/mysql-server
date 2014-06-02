@@ -840,15 +840,23 @@ ALTER TABLE t4_temp ADD PRIMARY KEY (c1);
 INSERT INTO t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t1_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t2_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t3_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t4_temp VALUES (20,1,'a','a','a','a','a',NOW(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 INSERT INTO t1_temp VALUES (1,1,'a','a','a','a','a',NOW(),100.55),
 (20,1,'a','a','a','a','a',NOW(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
@@ -891,9 +899,17 @@ SELECT c1,c2,c3,c4,c5,c6,c7,c9 FROM t4_temp WHERE c1 = 20;
 c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 update ignore t1_temp set c1 = 20 WHERE c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t2_temp set c1 = 20 WHERE c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t3_temp set c1 = 20 WHERE c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t4_temp set c1 = 20 WHERE c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 SELECT count(*) FROM t1_temp WHERE c1 = 140;
 count(*)
 1

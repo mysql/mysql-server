@@ -200,7 +200,7 @@ static const uchar sort_order_gb18030[]=
   '`',   'A',   'B',   'C',   'D',   'E',   'F',   'G',
   'H',   'I',   'J',   'K',   'L',   'M',   'N',   'O',
   'P',   'Q',   'R',   'S',   'T',   'U',   'V',   'W',
-  'X',   'Y',   'Z',   '{',   '|',   '}',   'Y',  0x7F,
+  'X',   'Y',   'Z',   '{',   '|',   '}',   '~',  0x7F,
  0x80,  0x81,  0x82,  0x83,  0x84,  0x85,  0x86,  0x87,
  0x88,  0x89,  0x8A,  0x8B,  0x8C,  0x8D,  0x8E,  0x8F,
  0x90,  0x91,  0x92,  0x93,  0x94,  0x95,  0x96,  0x97,
@@ -21070,7 +21070,7 @@ static const uint16 gb18030_4_weight_py_p2[]=
   @return           the gb18030 code
 */
 static inline
-uint gb18030_chs_to_code(const uchar *src, uint srclen)
+uint gb18030_chs_to_code(const uchar *src, size_t srclen)
 {
   uint r= 0;
 
@@ -21103,10 +21103,10 @@ uint gb18030_chs_to_code(const uchar *src, uint srclen)
   @param[in]  code   gb18030 code
   @return            the length of dest used to store the gb18030 chars
 */
-static uint
-code_to_gb18030_chs(uchar *dst, uint dstlen, uint code)
+static size_t
+code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code)
 {
-  uint i, len= 0;
+  size_t i, len= 0;
   uchar *dst_end= dst + dstlen;
   uchar r[4];
   for (i= 0; code != 0; i++, code>>= 8)
@@ -21634,8 +21634,8 @@ my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
 
       if (code != 0)
       {
-        uint mblen_dst= code_to_gb18030_chs((uchar *) dst, dst_end - dst,
-                                            code);
+        size_t mblen_dst= code_to_gb18030_chs((uchar *) dst, dst_end - dst,
+                                              code);
 
         DBUG_ASSERT(dst + mblen_dst <= dst_end);
         src+= mblen;
@@ -21657,10 +21657,7 @@ my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
       }
     }
     else
-    {
-      DBUG_ASSERT(is_mb_1(*src));
       *dst++= (char) map[(uchar) (*src++)];
-    }
   }
 
   return (size_t) (dst - dst0);
@@ -21875,7 +21872,7 @@ get_weight_if_chinese_character(uint code)
   @return          the weight of the given gb18030 code point
 */
 static uint
-get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src, uint mblen)
+get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src, size_t mblen)
 {
   uint weight, caseup_code, code= gb18030_chs_to_code(src, mblen);
 
@@ -21909,7 +21906,7 @@ get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src, uint mblen)
   @return     weight the weight of the code
 */
 static uint
-get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s, uint s_len)
+get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s, size_t s_len)
 {
   DBUG_ASSERT(s_len == 1 || s_len == 2 || s_len == 4);
 
@@ -21932,11 +21929,11 @@ get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s, uint s_len)
   @retval          the length of the next code, if the code is valid
                    0 if the given string is empty or the code is invalid
 */
-static uint
+static size_t
 get_code_and_length(const CHARSET_INFO *cs, const char *s,
-                    const char *e, uint *code)
+                    const char *e, size_t *code)
 {
-  uint len;
+  size_t len;
 
   if (s >= e)
     return 0;
@@ -22212,7 +22209,7 @@ my_wildcmp_gb18030_impl(const CHARSET_INFO *cs,
                         int recurse_level)
 {
   int result= -1;                      /* Not found, using wildcards */
-  uint s_gb, w_gb;
+  size_t s_gb, w_gb;
   size_t s_len, w_len;
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level))
@@ -22389,7 +22386,8 @@ my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   const uchar *e= s + slen;
   ulong tmp1, tmp2;
   size_t len;
-  uint s_gb, ch;
+  size_t s_gb;
+  uint ch;
 
   /* Skip trailing spaces */
   while (e > s && e[-1] == 0x20)
@@ -22450,7 +22448,7 @@ static MY_CHARSET_HANDLER my_charset_gb18030_handler=
   my_charpos_mb,
   my_well_formed_len_gb18030,
   my_lengthsp_8bit,
-  my_numcells_8bit,
+  my_numcells_mb,
   my_mb_wc_gb18030,
   my_wc_mb_gb18030_chs,
   my_mb_ctype_mb,
@@ -22481,7 +22479,7 @@ MY_CHARSET_HANDLER my_charset_gb18030_uca_handler=
   my_charpos_mb,
   my_well_formed_len_gb18030,
   my_lengthsp_8bit,
-  my_numcells_8bit,
+  my_numcells_mb,
   my_mb_wc_gb18030,
   my_wc_mb_gb18030_chs,
   my_mb_ctype_mb,

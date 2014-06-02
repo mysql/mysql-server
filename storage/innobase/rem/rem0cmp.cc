@@ -315,7 +315,8 @@ cmp_gis_field(
 		return(cmp_geometry_field(DATA_GEOMETRY, DATA_GIS_MBR,
 					  a, a_length, b, b_length));
 	} else {
-		return(rtree_key_cmp(mode, a, a_length, b, b_length));
+		return(rtree_key_cmp(static_cast<int>(mode),
+				     a, a_length, b, b_length));
 	}
 }
 
@@ -928,13 +929,28 @@ cmp_rec_rec_with_match(
 		ulint	mtype;
 		ulint	prtype;
 
+		/* If this is node-ptr records then avoid comparing node-ptr
+		field. Only key field needs to be compared. */
+		if (cur_field == dict_index_get_n_unique_in_tree(index)) {
+			break;
+		}
+
 		if (dict_index_is_univ(index)) {
 			/* This is for the insert buffer B-tree. */
 			mtype = DATA_BINARY;
 			prtype = 0;
 		} else {
-			const dict_col_t*	col
-				= dict_index_get_nth_col(index, cur_field);
+			const dict_col_t*	col;
+
+			/* This is comparing non-leaf node record, skip
+			the page no compare */
+			if (cur_field >= dict_index_get_n_fields(index)
+			    && dict_index_is_spatial(index)) {
+				cur_field--;
+				goto order_resolved;
+			}
+
+			col	= dict_index_get_nth_col(index, cur_field);
 
 			mtype = col->mtype;
 			prtype = col->prtype;
