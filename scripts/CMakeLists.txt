@@ -102,8 +102,8 @@ IF(UNIX)
 )
 ENDIF()
 
-INSTALL(FILES 
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql 
+INSTALL(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
@@ -111,6 +111,7 @@ INSTALL(FILES
   ${FIX_PRIVILEGES_SQL}
   DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
 )
+
 
 # TCMalloc hacks
 IF(MALLOC_LIB)
@@ -175,16 +176,6 @@ SET(HOSTNAME "hostname")
 SET(MYSQLD_USER "mysql")
 
 ENDIF(UNIX)
-
-# Really ugly, one script, "mysql_install_db", needs prefix set to ".",
-# i.e. makes access relative the current directory. This matches
-# the documentation, so better not change this.
-
-IF(INSTALL_LAYOUT MATCHES "STANDALONE")
-  SET(prefix ".")
-ELSE()
-  SET(prefix "${CMAKE_INSTALL_PREFIX}")
-ENDIF()
 
 SET(bindir ${prefix}/${INSTALL_BINDIR})
 SET(sbindir ${prefix}/${INSTALL_SBINDIR})
