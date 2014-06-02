@@ -154,7 +154,6 @@ static int search_default_file_with_ext(Process_option_func func,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
-static int check_file_permissions(const char *file_name);
 
 
 /**
@@ -1460,7 +1459,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
            1 - Failed to stat.
            2 - Success.
 */
-static int check_file_permissions(const char *file_name)
+int check_file_permissions(const char *file_name)
 {
 #if !defined(__WIN__)
   MY_STAT stat_info;

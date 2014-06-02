@@ -1653,7 +1653,7 @@ trx_i_s_create_lock_id(
 	} else {
 		/* table lock */
 		res_len = ut_snprintf(lock_id, lock_id_size,
-				      TRX_ID_FMT":"UINT64PF,
+				      TRX_ID_FMT":" UINT64PF,
 				      row->lock_trx_id,
 				      row->lock_table_id);
 	}

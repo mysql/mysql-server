@@ -2637,4 +2637,34 @@ INSERT INTO t2 VALUES ('Yes', 1, NULL, 'spamfilter','scan_incoming');
 DROP TRIGGER t2_ai;
 DROP TABLE t1, t2, t3;
 
+--echo #
+--echo # Bug#18596756 - FAILED PREPARING OF TRIGGER ON TRUNCATED TABLES CAUSE
+--echo #                ERROR 1054.
+--echo #
+
+CREATE TABLE t1(id INT);
+CREATE TABLE t2(id INT);
+
+CREATE TRIGGER trigger1 BEFORE INSERT ON t1 FOR EACH ROW
+  SET NEW.id= (SELECT * FROM t2);
+
+INSERT INTO t2 VALUES(0);
+INSERT INTO t1 VALUES(0);
+
+TRUNCATE TABLE t2;
+
+INSERT INTO t2 VALUES(0);
+#Without the fix, trigger fired for following INSERT operation reports
+#"ER_BAD_FIELD_ERROR" error.
+INSERT INTO t1 VALUES(0);
+
+DROP TABLE t2;
+
+--error ER_NO_SUCH_TABLE
+#Without the fix, trigger fired for following INSERT operation reports
+#"ER_BAD_FIELD_ERROR" error also here.
+INSERT INTO t1 VALUES(0);
+
+DROP TABLE t1;
+
 --echo End of 6.0 tests.

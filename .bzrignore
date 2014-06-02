@@ -524,7 +524,6 @@ emacs.h
 examples/*.ds?
 examples/*.vcproj
 examples/udf_example/udf_example.def
-extra/.deps/charset2html.Po
 extra/.deps/comp_err.Po
 extra/.deps/innochecksum.Po
 extra/.deps/my_print_defaults.Po
@@ -533,7 +532,6 @@ extra/.deps/perror.Po
 extra/.deps/replace.Po
 extra/.deps/resolve_stack_dump.Po
 extra/.deps/resolveip.Po
-extra/charset2html
 extra/comp_err
 extra/created_include_files
 extra/innochecksum
@@ -1507,7 +1505,6 @@ mysys/.deps/thr_rwlock.Po
 mysys/.deps/tree.Po
 mysys/.deps/trie.Po
 mysys/.deps/typelib.Po
-mysys/charset2html
 mysys/getopt.c
 mysys/getopt1.c
 mysys/main.cc

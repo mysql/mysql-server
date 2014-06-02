@@ -56,10 +56,12 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
 #endif
     case HA_KEY_ALG_BTREE:
     default:
-      if (!(info->update & HA_STATE_RNEXT_SAME))
+
+      if (info->set_rnext_same_key)
       {
-        /* First rnext_same; Store old key */
-        memcpy(info->lastkey2,info->lastkey,info->last_rkey_length);
+        /* First rnext_same and lastkey is filled in mi_rkey */
+        memcpy(info->rnext_same_key, info->lastkey, info->last_rkey_length);
+        info->set_rnext_same_key= FALSE;
       }
       for (;;)
       {
@@ -67,7 +69,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
 			       info->lastkey_length,SEARCH_BIGGER,
 			       info->s->state.key_root[inx])))
           break;
-        if (ha_key_cmp(keyinfo->seg, info->lastkey, info->lastkey2,
+        if (ha_key_cmp(keyinfo->seg, info->lastkey, info->rnext_same_key,
                        info->last_rkey_length, SEARCH_FIND, not_used))
         {
           error=1;
@@ -85,7 +87,7 @@ int mi_rnext_same(MI_INFO *info, uchar *buf)
     mysql_rwlock_unlock(&info->s->key_root_lock[inx]);
 	/* Don't clear if database-changed */
   info->update&= (HA_STATE_CHANGED | HA_STATE_ROW_CHANGED);
-  info->update|= HA_STATE_NEXT_FOUND | HA_STATE_RNEXT_SAME;
+  info->update|= HA_STATE_NEXT_FOUND;
 
   if (error)
   {

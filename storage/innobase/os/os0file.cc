@@ -2643,7 +2643,7 @@ try_again:
 	}
 
 	ib_logf(IB_LOG_LEVEL_ERROR,
-		"Tried to read "ULINTPF" bytes at offset " UINT64PF". "
+		"Tried to read " ULINTPF " bytes at offset " UINT64PF ". "
 		"Was only able to read %ld.", n, offset, (lint) ret);
 #endif /* __WIN__ */
 #ifdef __WIN__
@@ -2969,7 +2969,7 @@ retry:
 
 		fprintf(stderr,
 			" InnoDB: Error: Write to file %s failed"
-			" at offset "UINT64PF".\n"
+			" at offset " UINT64PF ".\n"
 			"InnoDB: %lu bytes should have been written,"
 			" only %ld were written.\n"
 			"InnoDB: Operating system error number %lu.\n"
