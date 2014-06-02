@@ -1481,11 +1481,9 @@ CREATE TABLE t1 (a INT);
 INSERT INTO t1 values (),(),();
 SELECT (SELECT SLEEP(0) FROM t1 ORDER BY AVG(DISTINCT a) ) as x FROM t1 
 GROUP BY x;
-x
-0
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 SELECT 1 FROM t1 GROUP BY (SELECT SLEEP(0) FROM t1 ORDER BY AVG(DISTINCT a) );
-1
-1
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 DROP TABLE t1;
 CREATE TABLE t1 (a int, b date NOT NULL, KEY k1 (a,b));
 SELECT MIN(b) FROM t1 WHERE a=1 AND b>'2007-08-01';
@@ -1879,8 +1877,7 @@ End of 5.1 tests
 CREATE TABLE t1(a int, KEY(a));
 INSERT INTO t1 VALUES (1), (2);
 SELECT 1 FROM t1 ORDER BY AVG(DISTINCT a);
-1
-1
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 DROP TABLE t1;
 #
 # Bug#55648: Server crash on MIN/MAX on maximum time value

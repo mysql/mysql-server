@@ -84,19 +84,20 @@ dict_mem_table_create(
 
 	table->heap = heap;
 
+	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
 	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
-	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
+	table->n_cols = (unsigned int) (n_cols +
+			dict_table_get_n_sys_cols(table));
 
 	table->cols = static_cast<dict_col_t*>(
 		mem_heap_alloc(heap,
-			       (n_cols + DATA_N_SYS_COLS)
-			       * sizeof(dict_col_t)));
-
-	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+			       (n_cols + dict_table_get_n_sys_cols(table))
+				* sizeof(dict_col_t)));
 
 	/* true means that the stats latch will be enabled -
 	dict_table_stats_lock() will not be noop. */

@@ -149,10 +149,12 @@ DROP TABLE t1;
 #
 create table t1 (a varchar(10), key(a), fulltext (a)) ENGINE = InnoDB;
 insert into t1 values ("a"),("abc"),("abcd"),("hello"),("test");
+-- disable_result_log
+ANALYZE TABLE t1;
+-- enable_result_log
 select * from t1 where a like "abc%";
 select * from t1 where a like "test%";
 select * from t1 where a like "te_t";
-# InnoDB_FTS: we don't support the postfix "+0"
 select * from t1 where match a against ("te*" in boolean mode)+0;
 drop table t1;
 

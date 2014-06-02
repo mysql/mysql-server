@@ -2716,7 +2716,7 @@ case SQLCOM_PREPARE:
         TODO: Check if the order of the output of the select statement is
         deterministic. Waiting for BUG#42415
       */
-      if(lex->ignore)
+      if(lex->is_ignore())
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
       
       if(lex->duplicates == DUP_REPLACE)
@@ -2825,14 +2825,26 @@ case SQLCOM_PREPARE:
                                        &alter_info,
                                        select_lex->item_list,
                                        lex->duplicates,
-                                       lex->ignore,
                                        select_tables)))
         {
+          /* Push ignore / strict error handler */
+          Ignore_error_handler ignore_handler;
+          Strict_error_handler strict_handler;
+          if (thd->lex->is_ignore())
+            thd->push_internal_handler(&ignore_handler);
+          else if (thd->is_strict_mode())
+            thd->push_internal_handler(&strict_handler);
+
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
           res= handle_select(thd, result, 0);
+
+          /* Pop ignore / strict error handler */
+          if (thd->lex->is_ignore() || thd->is_strict_mode())
+            thd->pop_internal_handler();
+
           delete result;
         }
 
@@ -2841,6 +2853,10 @@ case SQLCOM_PREPARE:
     }
     else
     {
+      Strict_error_handler strict_handler;
+      /* Push Strict_error_handler */
+      if (!thd->lex->is_ignore() && thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -2854,6 +2870,9 @@ case SQLCOM_PREPARE:
         res= mysql_create_table(thd, create_table,
                                 &create_info, &alter_info);
       }
+      /* Pop Strict_error_handler */
+      if (!thd->lex->is_ignore() && thd->is_strict_mode())
+        thd->pop_internal_handler();
       if (!res)
       {
         /* in case of create temp tables if @@session_track_state_change is
@@ -2902,9 +2921,16 @@ end_with_restore_list:
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
 
+    /* Push Strict_error_handler */
+    Strict_error_handler strict_handler;
+    if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
     DBUG_ASSERT(!select_lex->order_list.elements);
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
                            &create_info, first_table, &alter_info);
+    /* Pop Strict_error_handler */
+    if (thd->is_strict_mode())
+      thd->pop_internal_handler();
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -3079,7 +3105,7 @@ end_with_restore_list:
       TODO: Check if the order of the output of the select statement is
       deterministic. Waiting for BUG#42415
     */
-    if (lex->ignore)
+    if (lex->is_ignore())
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
 
     DBUG_ASSERT(select_lex->offset_limit == 0);
@@ -3091,11 +3117,23 @@ end_with_restore_list:
     {
       if (!all_tables->multitable_view)
       {
+        /* Push ignore / strict error handler */
+        Ignore_error_handler ignore_handler;
+        Strict_error_handler strict_handler;
+        if (thd->lex->is_ignore())
+          thd->push_internal_handler(&ignore_handler);
+        else if (thd->is_strict_mode())
+          thd->push_internal_handler(&strict_handler);
+
         res= mysql_update(thd, select_lex->item_list,
                           lex->value_list,
                           unit->select_limit_cnt,
-                          lex->duplicates, lex->ignore,
+                          lex->duplicates,
                           &found, &updated);
+
+        /* Pop ignore / strict error handler */
+        if (thd->lex->is_ignore() || thd->is_strict_mode())
+          thd->pop_internal_handler();
       }
       else
       {
@@ -3169,6 +3207,14 @@ end_with_restore_list:
     }  /* unlikely */
 #endif
     {
+      /* Push ignore / strict error handler */
+      Ignore_error_handler ignore_handler;
+      Strict_error_handler strict_handler;
+      if (thd->lex->is_ignore())
+        thd->push_internal_handler(&ignore_handler);
+      else if (thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
+
       multi_update *result_obj;
       MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
       res= mysql_multi_update(thd,
@@ -3176,9 +3222,13 @@ end_with_restore_list:
                               &lex->value_list,
                               select_lex->options,
                               lex->duplicates,
-                              lex->ignore,
                               select_lex,
                               &result_obj);
+
+      /* Pop ignore / strict error handler */
+      if (thd->lex->is_ignore() || thd->is_strict_mode())
+        thd->pop_internal_handler();
+
       if (result_obj)
       {
         MYSQL_MULTI_UPDATE_DONE(res, result_obj->num_found(),
@@ -3241,11 +3291,24 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
+    /* Push ignore / strict error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
     MYSQL_INSERT_START(const_cast<char*>(thd->query().str));
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
-                      lex->duplicates, lex->ignore);
+                      lex->duplicates);
     MYSQL_INSERT_DONE(res, (ulong) thd->get_row_count_func());
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
     /*
       If we have inserted into a VIEW, and the base table has
       AUTO_INCREMENT column, but this column is not accessible through
@@ -3286,7 +3349,7 @@ end_with_restore_list:
         lex->duplicates == DUP_UPDATE)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE);
 
-    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->ignore)
+    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->is_ignore())
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT);
 
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
@@ -3312,13 +3375,26 @@ end_with_restore_list:
                                                  &lex->field_list,
                                                  &lex->update_list,
                                                  &lex->value_list,
-                                                 lex->duplicates,
-                                                 lex->ignore)))
+                                                 lex->duplicates)))
       {
         if (lex->describe)
           res= explain_query(thd, thd->lex->unit, sel_result);
         else
+        {
+          /* Push ignore / strict error handler */
+          Ignore_error_handler ignore_handler;
+          Strict_error_handler strict_handler;
+          if (thd->lex->is_ignore())
+            thd->push_internal_handler(&ignore_handler);
+          else if (thd->is_strict_mode())
+            thd->push_internal_handler(&strict_handler);
+
           res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
+
+          /* Pop ignore / strict error handler */
+          if (thd->lex->is_ignore() || thd->is_strict_mode())
+            thd->pop_internal_handler();
+        }
         delete sel_result;
       }
       /* revert changes for SP */
@@ -3345,9 +3421,22 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
+    /* Push ignore / strict error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
     MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
     res = mysql_delete(thd, unit->select_limit_cnt, select_lex->options);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -3387,12 +3476,26 @@ end_with_restore_list:
         DBUG_ASSERT(select_lex->having_cond() == NULL &&
                     !select_lex->order_list.elements &&
                     !select_lex->group_list.elements);
+
+        /* Push ignore / strict error handler */
+        Ignore_error_handler ignore_handler;
+        Strict_error_handler strict_handler;
+        if (thd->lex->is_ignore())
+          thd->push_internal_handler(&ignore_handler);
+        else if (thd->is_strict_mode())
+          thd->push_internal_handler(&strict_handler);
+
         res= mysql_select(thd,
                           select_lex->item_list,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
                           del_result, select_lex);
+
+        /* Pop ignore / strict error handler */
+        if (thd->lex->is_ignore() || thd->is_strict_mode())
+          thd->pop_internal_handler();
+
         res|= thd->is_error();
         if (res)
           del_result->abort_result_set();
@@ -3477,9 +3580,22 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
+    /* Push strict / ignore error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,
-                    lex->ignore, (bool) lex->local_file);
+                    (bool) lex->local_file);
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
     break;
   }
 
@@ -4301,7 +4417,7 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-        /* 
+        /*
           We never write CALL statements into binlog:
            - If the mode is non-prelocked, each statement will be logged
              separately.
@@ -4560,49 +4676,6 @@ end_with_restore_list:
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }
-  case SQLCOM_XA_START:
-    if (trans_xa_start(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_END:
-    if (trans_xa_end(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_PREPARE:
-    if (trans_xa_prepare(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_COMMIT:
-    if (trans_xa_commit(thd))
-      goto error;
-    thd->mdl_context.release_transactional_locks();
-    /*
-      We've just done a commit, reset transaction
-      isolation level and access mode to the session default.
-    */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_ROLLBACK:
-    if (trans_xa_rollback(thd))
-      goto error;
-    thd->mdl_context.release_transactional_locks();
-    /*
-      We've just done a rollback, reset transaction
-      isolation level and access mode to the session default.
-    */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_RECOVER:
-    res= trans_xa_recover(thd);
-    DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
-    break;
   case SQLCOM_ALTER_TABLESPACE:
     if (check_global_access(thd, CREATE_TABLESPACE_ACL))
       break;
@@ -4651,6 +4724,12 @@ end_with_restore_list:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
   case SQLCOM_CHANGE_REPLICATION_FILTER:
+  case SQLCOM_XA_START:
+  case SQLCOM_XA_END:
+  case SQLCOM_XA_PREPARE:
+  case SQLCOM_XA_COMMIT:
+  case SQLCOM_XA_ROLLBACK:
+  case SQLCOM_XA_RECOVER:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -5039,7 +5118,7 @@ void THD::reset_for_next_command()
 
   if (opt_bin_log)
   {
-    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events.clear();
     thd->user_var_events_alloc= thd->mem_root;
   }
   thd->clear_error();
@@ -6200,6 +6279,53 @@ void sql_kill(THD *thd, ulong id, bool only_kill_query)
     my_error(error, MYF(0), id);
 }
 
+/**
+  This class implements callback function used by killall_non_super_threads
+  to kill all threads that do not have the SUPER privilege
+*/
+
+class Kill_non_super_conn : public Do_THD_Impl
+{
+private:
+  /* THD of connected client. */
+  THD *m_client_thd;
+
+public:
+  Kill_non_super_conn(THD *thd) :
+	    m_client_thd(thd)
+  {
+    DBUG_ASSERT(m_client_thd->security_ctx->master_access & SUPER_ACL);
+  }
+
+  virtual void operator()(THD *thd_to_kill)
+  {
+    mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
+
+    /* Kill only if non super thread and non slave thread */
+    if (!(thd_to_kill->security_ctx->master_access & SUPER_ACL)
+	&& thd_to_kill->killed != THD::KILL_CONNECTION
+	&& !thd_to_kill->slave_thread)
+      thd_to_kill->awake(THD::KILL_CONNECTION);
+
+    mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);
+  }
+};
+
+/*
+  kills all the threads that do not have the
+  SUPER privilege.
+
+  SYNOPSIS
+    killall_non_super_threads()
+    thd                 Thread class
+*/
+
+void killall_non_super_threads(THD *thd)
+{
+  Kill_non_super_conn kill_non_super_conn(thd);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->do_for_all_thd(&kill_non_super_conn);
+}
 
 /** If pointer is not a null pointer, append filename to it. */
 

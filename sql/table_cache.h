@@ -119,7 +119,7 @@ public:
   void assert_owner() { mysql_mutex_assert_owner(&m_lock); }
 
   inline TABLE* get_table(THD *thd, my_hash_value_type hash_value,
-                          const char *key, uint key_length,
+                          const char *key, size_t key_length,
                           TABLE_SHARE **share);
 
   inline void release_table(THD *thd, TABLE *table);
@@ -459,7 +459,7 @@ void Table_cache::remove_table(TABLE *table)
 */
 
 TABLE* Table_cache::get_table(THD *thd, my_hash_value_type hash_value,
-                              const char *key, uint key_length,
+                              const char *key, size_t key_length,
                               TABLE_SHARE **share)
 {
   Table_cache_element *el;

@@ -755,10 +755,14 @@ fil_node_open_file(
 	ulint		space_id;
 	ulint		flags;
 	ulint		min_size;
+	bool		read_only_mode;
 
 	ut_ad(mutex_own(&(system->mutex)));
 	ut_a(node->n_pending == 0);
 	ut_a(!node->is_open);
+
+	read_only_mode = fsp_is_system_temporary(space->id)
+			 ? false : srv_read_only_mode;
 
 	if (node->size == 0) {
 		/* It must be a single-table tablespace and we do not know the
@@ -771,7 +775,7 @@ fil_node_open_file(
 
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_data_file_key, node->name, OS_FILE_OPEN,
-			OS_FILE_READ_ONLY, &success);
+			OS_FILE_READ_ONLY, read_only_mode, &success);
 		if (!success) {
 			/* The following call prints an error message */
 			os_file_get_last_error(true);
@@ -889,15 +893,15 @@ add_size:
 	if (space->purpose == FIL_TYPE_LOG) {
 		node->handle = os_file_create(
 			innodb_log_file_key, node->name, OS_FILE_OPEN,
-			OS_FILE_AIO, OS_LOG_FILE, &success);
+			OS_FILE_AIO, OS_LOG_FILE, read_only_mode, &success);
 	} else if (node->is_raw_disk) {
 		node->handle = os_file_create(
 			innodb_data_file_key, node->name, OS_FILE_OPEN_RAW,
-			OS_FILE_AIO, OS_DATA_FILE, &success);
+			OS_FILE_AIO, OS_DATA_FILE, read_only_mode, &success);
 	} else {
 		node->handle = os_file_create(
 			innodb_data_file_key, node->name, OS_FILE_OPEN,
-			OS_FILE_AIO, OS_DATA_FILE, &success);
+			OS_FILE_AIO, OS_DATA_FILE, read_only_mode, &success);
 	}
 
 	ut_a(success);
@@ -2306,7 +2310,8 @@ fil_recreate_tablespace(
 		page_zip.m_start =
 #endif /* UNIV_DEBUG */
 		page_zip.m_end = page_zip.m_nonempty = page_zip.n_blobs = 0;
-		buf_flush_init_for_writing(page, &page_zip, 0);
+		buf_flush_init_for_writing(
+			page, &page_zip, 0, fsp_is_checksum_disabled(space_id));
 
 		err = fil_write(page_id_t(space_id, 0), page_size, 0,
 				page_size.physical(), page_zip.data);
@@ -2369,7 +2374,9 @@ fil_recreate_tablespace(
 
 			ut_ad(!page_size.is_compressed());
 
-			buf_flush_init_for_writing(page, NULL, recv_lsn);
+			buf_flush_init_for_writing(
+				page, NULL, recv_lsn,
+				fsp_is_checksum_disabled(space_id));
 
 			err = fil_write(cur_page_id, page_size, 0,
 					page_size.physical(), page);
@@ -2383,7 +2390,8 @@ fil_recreate_tablespace(
 					buf_block_get_page_zip(block);
 
 				buf_flush_init_for_writing(
-					page, page_zip, recv_lsn);
+					page, page_zip, recv_lsn,
+					fsp_is_checksum_disabled(space_id));
 
 				err = fil_write(cur_page_id, page_size, 0,
 						page_size.physical(),
@@ -3526,6 +3534,7 @@ fil_create_new_single_table_tablespace(
 		OS_FILE_CREATE | OS_FILE_ON_ERROR_NO_EXIT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
+		srv_read_only_mode,
 		&success);
 
 	if (!success) {
@@ -3627,7 +3636,8 @@ fil_create_new_single_table_tablespace(
 	const page_size_t	page_size(flags);
 
 	if (!page_size.is_compressed()) {
-		buf_flush_init_for_writing(page, NULL, 0);
+		buf_flush_init_for_writing(
+			page, NULL, 0, fsp_is_checksum_disabled(space_id));
 		success = os_file_write(path, file, page, 0,
 					page_size.physical());
 	} else {
@@ -3640,7 +3650,9 @@ fil_create_new_single_table_tablespace(
 #endif /* UNIV_DEBUG */
 			page_zip.m_end = page_zip.m_nonempty =
 			page_zip.n_blobs = 0;
-		buf_flush_init_for_writing(page, &page_zip, 0);
+
+		buf_flush_init_for_writing(
+			page, &page_zip, 0, fsp_is_checksum_disabled(space_id));
 		success = os_file_write(path, file, page_zip.data, 0,
 					page_size.physical());
 	}
@@ -3842,7 +3854,7 @@ fil_open_single_table_tablespace(
 	}
 
 #if !defined(NO_FALLOCATE) && defined(UNIV_LINUX)
-	if (!srv_use_doublewrite_buf) {
+	if (!srv_use_doublewrite_buf && df_default.is_open()) {
 		fil_fusionio_enable_atomic_write(df_default.handle());
 
 	}
@@ -4617,6 +4629,8 @@ Fill pages with NULs
 @param[in] page_size	Page size
 @param[in] start	Offset from the start of the file in bytes
 @param[in] len		Length in bytes
+@param[in] read_only_mode
+			if true, then read only mode checks are enforced.
 @return true on success */
 static
 bool
@@ -4624,7 +4638,8 @@ fil_write_zeros(
 	const fil_node_t*	node,
 	const ulint		page_size,
 	const os_offset_t	start,
-	const ulint		len)
+	const ulint		len,
+	const bool		read_only_mode)
 {
 	ut_a(len > 0);
 
@@ -4645,7 +4660,8 @@ fil_write_zeros(
 #else
 		success = os_aio(
 			OS_FILE_WRITE, OS_AIO_SYNC, node->name,
-			node->handle, buf, offset, n_bytes, NULL, NULL);
+			node->handle, buf, offset, n_bytes, read_only_mode,
+			NULL, NULL);
 #endif /* UNIV_HOTBACKUP */
 
 		if (!success) {
@@ -4654,7 +4670,7 @@ fil_write_zeros(
 
 		offset += n_bytes;
 
-		n_bytes = ut_min(n_bytes, end - offset);
+		n_bytes = ut_min(n_bytes, static_cast<ulint>(end - offset));
 
 		DBUG_EXECUTE_IF("ib_crash_during_tablespace_extension",
 				DBUG_SUICIDE(););
@@ -4682,7 +4698,9 @@ fil_extend_space_to_desired_size(
 				extension; if the current space size is bigger
 				than this already, the function does nothing */
 {
-	ut_ad(!srv_read_only_mode);
+	/* In read-only mode we allow write to shared temporary tablespace
+	as intrinsic table created by Optimizer reside in this tablespace. */
+	ut_ad(!srv_read_only_mode || fsp_is_system_temporary(space_id));
 
 retry:
 	bool		success = true;
@@ -4741,7 +4759,7 @@ retry:
 	ut_a(node_start != (os_offset_t) -1);
 
 	/* Number of physical pages in the node/file */
-	ulint		n_node_physical_pages = node_start / page_size;
+	os_offset_t	n_node_physical_pages = node_start / page_size;
 
 	/* Number of pages to extend in the node/file */
 	lint		n_node_extend;
@@ -4783,13 +4801,17 @@ retry:
 
 		if (success) {
 			success = fil_write_zeros(
-				node, page_size, node_start, len);
+				node, page_size, node_start,
+				static_cast<ulint>(len),
+				(fsp_is_system_temporary(space_id)
+				? false : srv_read_only_mode));
 
 			if (!success) {
 				ib_logf(IB_LOG_LEVEL_WARN,
 					"Error while writing %lu zeroes to %s"
 					" starting at offset %lu",
-					(ulint) len, node->name, (ulint) node_start);
+					static_cast<ulint>(len), node->name,
+					static_cast<ulint>(node_start));
 			}
 		}
 
@@ -4799,7 +4821,9 @@ retry:
 
 		os_has_said_disk_full = !(success = (end == node_start + len));
 
-		pages_added = (end - node_start) / page_size;
+		ut_ad((end - node_start) / page_size
+		      < static_cast<os_offset_t>(ULINT_MAX));
+		pages_added = static_cast<ulint>(end - node_start) / page_size;
 
 	} else {
 		success = true;
@@ -4827,7 +4851,7 @@ retry:
 
 	if (space_id == srv_sys_space.space_id()) {
 		srv_sys_space.set_last_file_size(size_in_pages);
-	} else if (space_id == srv_tmp_space.space_id()) {
+	} else if (fsp_is_system_temporary(space_id)) {
 		srv_tmp_space.set_last_file_size(size_in_pages);
 	}
 #endif /* !UNIV_HOTBACKUP */
@@ -5056,7 +5080,8 @@ fil_node_complete_io(
 	--node->n_pending;
 
 	if (type == OS_FILE_WRITE) {
-		ut_ad(!srv_read_only_mode);
+		ut_ad(!srv_read_only_mode
+		      || fsp_is_system_temporary(node->space->id));
 		system->modification_counter++;
 		node->modification_counter = system->modification_counter;
 
@@ -5193,7 +5218,8 @@ fil_io(
 	if (type == OS_FILE_READ) {
 		srv_stats.data_read.add(len);
 	} else if (type == OS_FILE_WRITE) {
-		ut_ad(!srv_read_only_mode);
+		ut_ad(!srv_read_only_mode
+		      || fsp_is_system_temporary(page_id.space()));
 		srv_stats.data_written.add(len);
 	}
 
@@ -5354,14 +5380,18 @@ fil_io(
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset, len);
 	} else {
-		ut_ad(!srv_read_only_mode);
+		ut_ad(!srv_read_only_mode
+		      || fsp_is_system_temporary(page_id.space()));
 		ret = os_file_write(node->name, node->handle, buf,
 				    offset, len);
 	}
 #else
 	/* Queue the aio request */
-	ret = os_aio(type, mode | wake_later, node->name, node->handle, buf,
-		     offset, len, node, message);
+	ret = os_aio(type, mode | wake_later, node->name,
+		     node->handle, buf, offset, len,
+		     fsp_is_system_temporary(page_id.space())
+		     ? false : srv_read_only_mode,
+		     node, message);
 #endif /* UNIV_HOTBACKUP */
 	ut_a(ret);
 
@@ -6013,7 +6043,7 @@ fil_tablespace_iterate(
 
 	file = os_file_create_simple_no_error_handling(
 		innodb_data_file_key, filepath,
-		OS_FILE_OPEN, OS_FILE_READ_WRITE, &success);
+		OS_FILE_OPEN, OS_FILE_READ_WRITE, srv_read_only_mode, &success);
 
 	DBUG_EXECUTE_IF("fil_tablespace_iterate_failure",
 	{
@@ -6407,10 +6437,9 @@ fil_names_clear(
 	mutex_exit(&fil_system->mutex);
 
 	if (do_write) {
-		mtr.commit_checkpoint();
+		mtr.commit_checkpoint(lsn);
 	} else {
 		ut_ad(!mtr.has_modifications());
-		mtr.commit();
 	}
 
 	return(do_write);
@@ -6477,7 +6506,9 @@ truncate_t::truncate(
 
 		node->handle = os_file_create_simple_no_error_handling(
 			innodb_data_file_key, path, OS_FILE_OPEN,
-			OS_FILE_READ_WRITE, &ret);
+			OS_FILE_READ_WRITE,
+			fsp_is_system_temporary(space_id)
+			? false : srv_read_only_mode, &ret);
 
 		if (!ret) {
 

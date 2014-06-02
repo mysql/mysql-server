@@ -39,7 +39,6 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static void print_cmdline_password_warning();
 static my_bool get_bool_argument(const struct my_option *opts,
                                  const char *argument,
                                  bool *error);
@@ -614,7 +613,7 @@ done:
  * if password string is specified on the command line.
  */
 
-static void print_cmdline_password_warning()
+void print_cmdline_password_warning()
 {
   static my_bool password_warning_announced= FALSE;
 
@@ -854,7 +853,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
         *((ulonglong*)value)=
               find_set_from_flags(opts->typelib, opts->typelib->count, 
                                   *(ulonglong *)value, opts->def_value,
-                                  argument, strlen(argument),
+                                  argument, (uint)strlen(argument),
                                   &error, &error_len);
         if (error)
         {
