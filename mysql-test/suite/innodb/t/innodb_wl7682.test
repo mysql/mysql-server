@@ -56,7 +56,7 @@ set session innodb_create_intrinsic = 1;
 #
 --echo "Restarting Server with temp-tablespace auto-extension turned off"
 --exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
+--shutdown_server
 --source include/wait_until_disconnected.inc
 --enable_reconnect
 --exec echo "restart: --innodb_temp_data_file_path=ibtmp1:12M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
@@ -64,12 +64,37 @@ set session innodb_create_intrinsic = 1;
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+# Test an undo log that spans multiple undo pages,
+# both for temporary and non-temporary tables.
+create table t0(a serial) engine=innodb;
+create temporary table t0t(a serial) engine=innodb;
+begin;
+insert into t0 values (),(),(),(),(),(),(),(),(),(),(),(),(),(),(),();
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+insert into t0 select 0 from t0;
+# Trigger insert_undo page overflow for a non-temporary table.
+insert into t0 select 0 from t0;
+# Trigger insert_undo page overflow for a temporary table.
+insert into t0t select 0 from t0;
+# Trigger update_undo page overflow for a non-temporary table.
+update t0 set a=a+1048576;
+delete from t0;
+# Trigger update_undo page overflow for a temporary table.
+update t0t set a=a+1048576;
+delete from t0t;
+rollback;
+select * from t0;
+select * from t0t;
+drop table t0,t0t;
+
 #-----------------------------------------------------------------------------
 #
 # Test scenario that disables auto-extension of temporary tablespace.
 #
 set session innodb_create_intrinsic = 1;
-use test;
 create temporary table t1
         (keyc int, c1 varchar(1024), c2 varchar(1024),
          primary key(keyc)) engine = innodb;
@@ -95,14 +120,7 @@ drop table t1;
 #
 #
 --echo "Restarting Server in normal mode"
---exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---shutdown_server 60
---source include/wait_until_disconnected.inc
---enable_reconnect
---exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
---enable_reconnect
---source include/wait_until_connected_again.inc
---disable_reconnect
+--source include/restart_mysqld.inc
 
 #-----------------------------------------------------------------------------
 #
