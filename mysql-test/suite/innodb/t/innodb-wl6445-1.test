@@ -36,6 +36,37 @@ SELECT @@innodb_large_prefix;
 let $MYSQLD_DATADIR = `SELECT @@datadir`;
 let $data_index_directory = DATA DIRECTORY='$MYSQL_TMP_DIR/alt_dir';
 
+# Test creating too big undo log record for a table.
+CREATE TABLE t0 (a blob, b blob, c blob, d blob, e blob, f blob,
+ index(a(3000)),  index(b(1000)), index(c(1000)),
+ index(d(1000)),  index(e(1000)), index(f(1000))) row_format=dynamic;
+
+BEGIN;
+INSERT INTO t0 VALUES(
+ repeat('a',10000),repeat('b',10000),repeat('c',10000),
+ repeat('d',10000),repeat('e',10000),repeat('f',10000));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t0 SET a=substr(a,9999),b=substr(b,9999),c=substr(c,9999),
+d=substr(d,9999),e=substr(e,9999),f=substr(f,9999);
+UPDATE t0 SET a=substr(a,9999);
+ROLLBACK;
+DROP TABLE t0;
+
+CREATE TEMPORARY TABLE t0 (a blob, b blob, c blob, d blob, e blob, f blob,
+ index(a(3000)),  index(b(1000)), index(c(1000)),
+ index(d(1000)),  index(e(1000)), index(f(1000))) row_format=dynamic;
+
+BEGIN;
+INSERT INTO t0 VALUES(
+ repeat('a',10000),repeat('b',10000),repeat('c',10000),
+ repeat('d',10000),repeat('e',10000),repeat('f',10000));
+--error ER_UNDO_RECORD_TOO_BIG
+UPDATE t0 SET a=substr(a,9999),b=substr(b,9999),c=substr(c,9999),
+d=substr(d,9999),e=substr(e,9999),f=substr(f,9999);
+UPDATE t0 SET a=substr(a,9999);
+ROLLBACK;
+DROP TABLE t0;
+
 CREATE DATABASE testdb_wl6445;
 
 
