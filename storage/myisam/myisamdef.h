@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -245,6 +245,9 @@ struct st_myisam_info {
   char *filename;			/* parameter to open filename       */
   uchar *buff,				/* Temp area for key                */
 	*lastkey,*lastkey2;		/* Last used search key             */
+
+  /* Key used in mi_rnext_same and filled by mi_rkey. */
+  uchar *rnext_same_key;
   uchar *first_mbr_key;			/* Searhed spatial key              */
   uchar	*rec_buff;			/* Tempbuff for recordpack          */
   uchar *int_keypos,			/* Save position for next/previous  */
@@ -294,6 +297,9 @@ struct st_myisam_info {
   my_bool page_changed;		/* If info->buff can't be used for rnext */
   my_bool buff_used;		/* If info->buff has to be reread for rnext */
   my_bool once_flags;           /* For MYISAMMRG */
+
+  /* Used in mi_rnext_same to fill rnext_same_key for the first time. */
+    my_bool set_rnext_same_key;
 
   index_cond_func_t index_cond_func;   /* Index condition function */
   void *index_cond_func_arg;           /* parameter for the func */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1335,6 +1335,10 @@ static my_bool my_realloc_str(NET *net, ulong length)
     res= net_realloc(net, buf_length + length);
     if (res)
     {
+      if (net->last_errno == ER_OUT_OF_RESOURCES)
+        net->last_errno= CR_OUT_OF_MEMORY;
+      else if (net->last_errno == ER_NET_PACKET_TOO_LARGE)
+        net->last_errno= CR_NET_PACKET_TOO_LARGE;
       strmov(net->sqlstate, unknown_sqlstate);
       strmov(net->last_error, ER(net->last_errno));
     }

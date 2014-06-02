@@ -155,7 +155,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       {
 	float nr;
 	float4get(nr,pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
 	  /* Replace NAN with zero */
 	  memset(key, 0, length);
@@ -167,7 +167,7 @@ uint _mi_make_key(register MI_INFO *info, uint keynr, uchar *key,
       {
 	double nr;
 	float8get(nr,pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
 	  memset(key, 0, length);
 	  key+=length;
@@ -427,8 +427,6 @@ static int _mi_put_key_in_record(register MI_INFO *info, uint keynr,
                &blob_ptr, sizeof(char*));
         memcpy(blob_ptr,key,length);
         blob_ptr+=length;
-        /* The above changed info->lastkey2. Inform mi_rnext_same(). */
-        info->update&= ~HA_STATE_RNEXT_SAME;
         _mi_store_blob_length(record+keyseg->start,
                               (uint) keyseg->bit_start,length);
       }
