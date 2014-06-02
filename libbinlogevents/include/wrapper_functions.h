@@ -57,7 +57,6 @@ enum PSI_memory_key_to_int
   INCIDENT_LOG_EVENT_MESSAGE
 };
 
-#if defined(_WIN32)
 /**
   The strndup() function returns a pointer to a new string which is a duplicate
   of the string s, but it only copies at most n bytes. If s is longer than n,
@@ -69,7 +68,8 @@ enum PSI_memory_key_to_int
 
   @return    The duplicated string, or NULL if insufficient memory was available.
 */
-char *strndup (const char *s, size_t n)
+#ifdef _WIN32
+inline char *strndup (const char *s, size_t n)
 {
   char *result;
   size_t len = strlen (s);
@@ -85,6 +85,7 @@ char *strndup (const char *s, size_t n)
   return (char *) memcpy (result, s, len);
 }
 #endif
+
 /**
   This is a wrapper function, and returns a pointer to a new string which is
   a duplicate of the input string. The terminating Null character is added.
