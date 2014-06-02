@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-#
 --let $include_filename= install_semisync.inc
 --source include/begin_include_file.inc
 
