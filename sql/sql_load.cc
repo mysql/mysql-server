@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,13 +61,17 @@ XML_TAG::XML_TAG(int l, String f, String v)
 }
 
 
+#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
+#define PUSH(A) *(stack_pos++)=(A)
+
 class READ_INFO {
   File	file;
   uchar	*buffer,			/* Buffer for read text */
 	*end_of_buff;			/* Data in bufferts ends here */
   uint	buff_length,			/* Length of buffert */
 	max_length;			/* Max length of row */
-  const char *field_term_ptr, *line_term_ptr, *line_start_ptr, *line_start_end;
+  const uchar *field_term_ptr, *line_term_ptr;
+  const char *line_start_ptr, *line_start_end;
   uint	field_term_length,line_term_length,enclosed_length;
   int	field_term_char,line_term_char,enclosed_char,escape_char;
   int	*stack,*stack_pos;
@@ -94,7 +98,7 @@ public:
   int read_fixed_length(void);
   int next_line(void);
   char unescape(char chr);
-  int terminator(const char *ptr,uint length);
+  int terminator(const uchar *ptr, uint length);
   bool find_start_of_fields();
   /* load xml */
   List<XML_TAG> taglist;
@@ -118,6 +122,15 @@ public:
     either the table or THD value
   */
   void set_io_cache_arg(void* arg) { cache.arg = arg; }
+
+  /**
+    skip all data till the eof.
+  */
+  void skip_data_till_eof()
+  {
+    while (GET != my_b_EOF)
+      ;
+  }
 };
 
 static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
@@ -541,8 +554,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (error)
   {
     if (read_file_from_client)
-      while (!read_info.next_line())
-	;
+      read_info.skip_data_till_eof();
 
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
@@ -751,7 +763,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                         strlen(item->item_name.ptr()));
       // Extract exact Item value
       str->copy();
-      pfields.append((char *)str->ptr());
+      pfields.append(str->ptr());
       str->free();
     }
     /*
@@ -767,17 +779,17 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
     return TRUE;
 
-  lle.print_query(FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+  lle.print_query(FALSE, ex->cs ? ex->cs->csname : NULL,
                   load_data_query, &end,
-                  (char **)&fname_start, (char **)&fname_end);
+                  &fname_start, &fname_end);
 
   strcpy(end, p);
   end += pl;
 
   Execute_load_query_log_event
     e(thd, load_data_query, end-load_data_query,
-      (uint) ((char*) fname_start - load_data_query - 1),
-      (uint) ((char*) fname_end - load_data_query),
+      static_cast<uint>(fname_start - load_data_query - 1),
+      static_cast<uint>(fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
       (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
@@ -1358,10 +1370,18 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
    found_end_of_line(false), eof(false), need_end_io_cache(false),
    error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  field_term_ptr= field_term.ptr();
+  /*
+    Field and line terminators must be interpreted as sequence of unsigned char.
+    Otherwise, non-ascii terminators will be negative on some platforms,
+    and positive on others (depending on the implementation of char).
+  */
+  field_term_ptr=
+    static_cast<const uchar*>(static_cast<const void*>(field_term.ptr()));
   field_term_length= field_term.length();
-  line_term_ptr= line_term.ptr();
+  line_term_ptr=
+    static_cast<const uchar*>(static_cast<const void*>(line_term.ptr()));
   line_term_length= line_term.length();
+
   level= 0; /* for load xml */
   if (line_start.length() == 0)
   {
@@ -1370,7 +1390,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   }
   else
   {
-    line_start_ptr=(char*) line_start.ptr();
+    line_start_ptr= line_start.ptr();
     line_start_end=line_start_ptr+line_start.length();
     start_of_line= 1;
   }
@@ -1379,12 +1399,12 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
       !memcmp(field_term_ptr,line_term_ptr,field_term_length))
   {
     line_term_length=0;
-    line_term_ptr=(char*) "";
+    line_term_ptr= NULL;
   }
   enclosed_char= (enclosed_length=enclosed_par.length()) ?
     (uchar) enclosed_par[0] : INT_MAX;
-  field_term_char= field_term_length ? (uchar) field_term_ptr[0] : INT_MAX;
-  line_term_char= line_term_length ? (uchar) line_term_ptr[0] : INT_MAX;
+  field_term_char= field_term_length ? field_term_ptr[0] : INT_MAX;
+  line_term_char= line_term_length ? line_term_ptr[0] : INT_MAX;
 
 
   /* Set of a stack for unget if long terminators */
@@ -1442,17 +1462,14 @@ READ_INFO::~READ_INFO()
 }
 
 
-#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
-#define PUSH(A) *(stack_pos++)=(A)
-
-
-inline int READ_INFO::terminator(const char *ptr,uint length)
+inline int READ_INFO::terminator(const uchar *ptr, uint length)
 {
   int chr=0;					// Keep gcc happy
   uint i;
   for (i=1 ; i < length ; i++)
   {
-    if ((chr=GET) != *++ptr)
+    chr= GET;
+    if (chr != *++ptr)
     {
       break;
     }
@@ -1461,7 +1478,7 @@ inline int READ_INFO::terminator(const char *ptr,uint length)
     return 1;
   PUSH(chr);
   while (i-- > 1)
-    PUSH((uchar) *--ptr);
+    PUSH(*--ptr);
   return 0;
 }
 
@@ -1592,7 +1609,7 @@ int READ_INFO::read_field()
       if (my_mbcharlen(read_charset, chr) > 1 &&
           to + my_mbcharlen(read_charset, chr) <= end_of_buff)
       {
-        uchar* p= (uchar*) to;
+        uchar* p= to;
         int ml, i;
         *to++ = chr;
 
@@ -1617,7 +1634,7 @@ int READ_INFO::read_field()
                         (const char *)to))
           continue;
         for (i= 0; i < ml; i++)
-          PUSH((uchar) *--to);
+          PUSH(*--to);
         chr= GET;
       }
 #endif
@@ -1779,7 +1796,7 @@ bool READ_INFO::find_start_of_fields()
       PUSH(chr);
       while (--ptr != line_start_ptr)
       {						// Restart with next char
-	PUSH((uchar) *ptr);
+	PUSH( *ptr);
       }
       goto try_again;
     }
@@ -1975,7 +1992,7 @@ int READ_INFO::read_xml()
       
       // row tag should be in ROWS IDENTIFIED BY '<row>' - stored in line_term 
       if((tag.length() == line_term_length -2) &&
-         (strncmp(tag.c_ptr_safe(), line_term_ptr + 1, tag.length()) == 0))
+         (memcmp(tag.ptr(), line_term_ptr + 1, tag.length()) == 0))
       {
         DBUG_PRINT("read_xml", ("start-of-row: %i %s %s", 
                                 level,tag.c_ptr_safe(), line_term_ptr));
@@ -2037,7 +2054,7 @@ int READ_INFO::read_xml()
       }
       
       if((tag.length() == line_term_length -2) &&
-         (strncmp(tag.c_ptr_safe(), line_term_ptr + 1, tag.length()) == 0))
+         (memcmp(tag.ptr(), line_term_ptr + 1, tag.length()) == 0))
       {
          DBUG_PRINT("read_xml", ("found end-of-row %i %s", 
                                  level, tag.c_ptr_safe()));

@@ -1,5 +1,5 @@
 #!/bin/sh
-# Copyright (C) 2000-2002, 2004 MySQL AB
+# Copyright (c) 2000, 2014 Oracle and/or its affiliates. All rights reserved.
 # Use is subject to license terms
 # 
 # This program is free software; you can redistribute it and/or modify
@@ -18,6 +18,7 @@
 # Create a bug report and mail it to the mysql mailing list
 # Based on glibc bug reporting script.
 
+echo "Warning: $0 is deprecated and will be removed in a future version." 1>&2
 echo "Finding system information for a MySQL bug report"
 
 VERSION="@VERSION@@MYSQL_SERVER_SUFFIX@"

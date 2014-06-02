@@ -4,7 +4,6 @@ Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
 Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
 [connection master]
 include/rpl_set_gtid_mode.inc
-include/gtid_utils.inc
 ######## Initialize ########
 CREATE TABLE t1 (a INT) ENGINE = InnoDB;
 include/sync_slave_sql_with_master.inc
@@ -196,5 +195,4 @@ include/purge_first_log.inc
 include/assert.inc [lost gtids from 1 to 6 on master]
 ######## Clean up ########
 DROP TABLE t1;
-include/gtid_utils_end.inc
 include/rpl_end.inc

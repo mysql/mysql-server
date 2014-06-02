@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -50,6 +50,7 @@ UNIV_INTERN dict_index_t*	dict_ind_compact;
 #include "btr0btr.h"
 #include "btr0cur.h"
 #include "btr0sea.h"
+#include "os0once.h"
 #include "page0zip.h"
 #include "page0page.h"
 #include "pars0pars.h"
@@ -102,7 +103,7 @@ UNIV_INTERN ulong	zip_pad_max = 50;
 UNIV_INTERN mysql_pfs_key_t	dict_operation_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_tree_rw_lock_key;
 UNIV_INTERN mysql_pfs_key_t	index_online_log_key;
-UNIV_INTERN mysql_pfs_key_t	dict_table_stats_latch_key;
+UNIV_INTERN mysql_pfs_key_t	dict_table_stats_key;
 #endif /* UNIV_PFS_RWLOCK */
 
 #ifdef UNIV_PFS_MUTEX
@@ -319,6 +320,82 @@ dict_mutex_exit_for_mysql(void)
 	mutex_exit(&(dict_sys->mutex));
 }
 
+/** Allocate and init a dict_table_t's stats latch.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table_void	table whose stats latch to create */
+static
+void
+dict_table_stats_latch_alloc(
+	void*	table_void)
+{
+	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
+
+	table->stats_latch = new(std::nothrow) rw_lock_t;
+
+	ut_a(table->stats_latch != NULL);
+
+	rw_lock_create(dict_table_stats_key, table->stats_latch,
+		       SYNC_INDEX_TREE);
+}
+
+/** Deinit and free a dict_table_t's stats latch.
+This function must not be called concurrently on the same table object.
+@param[in,out]	table	table whose stats latch to free */
+static
+void
+dict_table_stats_latch_free(
+	dict_table_t*	table)
+{
+	rw_lock_free(table->stats_latch);
+	delete table->stats_latch;
+}
+
+/** Create a dict_table_t's stats latch or delay for lazy creation.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to create
+@param[in]	enabled	if false then the latch is disabled
+and dict_table_stats_lock()/unlock() become noop on this table. */
+
+void
+dict_table_stats_latch_create(
+	dict_table_t*	table,
+	bool		enabled)
+{
+	if (!enabled) {
+		table->stats_latch = NULL;
+		table->stats_latch_created = os_once::DONE;
+		return;
+	}
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	/* We create this lazily the first time it is used. */
+	table->stats_latch = NULL;
+	table->stats_latch_created = os_once::NEVER_DONE;
+#else /* HAVE_ATOMIC_BUILTINS */
+
+	dict_table_stats_latch_alloc(table);
+
+	table->stats_latch_created = os_once::DONE;
+#endif /* HAVE_ATOMIC_BUILTINS */
+}
+
+/** Destroy a dict_table_t's stats latch.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to destroy */
+
+void
+dict_table_stats_latch_destroy(
+	dict_table_t*	table)
+{
+	if (table->stats_latch_created == os_once::DONE
+	    && table->stats_latch != NULL) {
+
+		dict_table_stats_latch_free(table);
+	}
+}
+
 /**********************************************************************//**
 Lock the appropriate latch to protect a given table's statistics. */
 UNIV_INTERN
@@ -330,6 +407,14 @@ dict_table_stats_lock(
 {
 	ut_ad(table != NULL);
 	ut_ad(table->magic_n == DICT_TABLE_MAGIC_N);
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_once::do_or_wait_for_done(
+		&table->stats_latch_created,
+		dict_table_stats_latch_alloc, table);
+#else /* HAVE_ATOMIC_BUILTINS */
+	ut_ad(table->stats_latch_created == os_once::DONE);
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	if (table->stats_latch == NULL) {
 		/* This is a dummy table object that is private in the current
@@ -5151,8 +5236,6 @@ dict_table_print(
 		dict_index_print_low(index);
 		index = UT_LIST_GET_NEXT(indexes, index);
 	}
-
-	table->stat_initialized = FALSE;
 
 	dict_table_stats_unlock(table, RW_X_LATCH);
 

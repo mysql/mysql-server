@@ -758,7 +758,7 @@ fil_node_open_file(
 			fprintf(stderr,
 				"InnoDB: Error: the size of single-table"
 				" tablespace file %s\n"
-				"InnoDB: is only "UINT64PF","
+				"InnoDB: is only " UINT64PF ","
 				" should be at least %lu!\n",
 				node->name,
 				size_bytes,

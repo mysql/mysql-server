@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -43,6 +43,13 @@ Full Text Search interface
 
 /** Column name from the FTS config table */
 #define FTS_MAX_CACHE_SIZE_IN_MB	"cache_size_in_mb"
+
+/** Verify if a aux table name is a obsolete table
+by looking up the key word in the obsolete table names */
+#define FTS_IS_OBSOLETE_AUX_TABLE(table_name)			\
+	(strstr((table_name), "DOC_ID") != NULL			\
+	 || strstr((table_name), "ADDED") != NULL		\
+	 || strstr((table_name), "STOPWORDS") != NULL)
 
 /** This is maximum FTS cache for each table and would be
 a configurable variable */
@@ -5837,6 +5844,12 @@ fts_is_aux_table_name(
 			}
 		}
 
+		/* Could be obsolete common tables. */
+		if (strncmp(ptr, "ADDED", len) == 0
+		    || strncmp(ptr, "STOPWORDS", len) == 0) {
+			return(true);
+		}
+
 		/* Try and read the index id. */
 		if (!fts_read_object_id(&table->index_id, ptr)) {
 			return(FALSE);
@@ -6432,6 +6445,56 @@ fts_check_and_drop_orphaned_tables(
 							 path);
 
 				mem_free(path);
+			}
+		} else {
+			if (FTS_IS_OBSOLETE_AUX_TABLE(aux_table->name)) {
+
+				/* Current table could be one of the three
+				obsolete tables, in this case, we should
+				always try to drop it but not rename it.
+				This could happen when we try to upgrade
+				from older server to later one, which doesn't
+				contain these obsolete tables. */
+				drop = true;
+
+				dberr_t	err;
+				trx_t*	trx_drop =
+					trx_allocate_for_background();
+
+				trx_drop->op_info = "Drop obsolete aux tables";
+				trx_drop->dict_operation_lock_mode = RW_X_LATCH;
+
+				trx_start_for_ddl(trx_drop, TRX_DICT_OP_TABLE);
+
+				err = row_drop_table_for_mysql(
+					aux_table->name, trx_drop, false, true);
+
+				trx_drop->dict_operation_lock_mode = 0;
+
+				if (err != DB_SUCCESS) {
+					/* We don't need to worry about the
+					failure, since server would try to
+					drop it on next restart, even if
+					the table was broken. */
+
+					ib_logf(IB_LOG_LEVEL_WARN,
+						"Fail to drop obsolete aux"
+						" table '%s', which is"
+						" harmless. will try to drop"
+						" it on next restart.",
+						aux_table->name);
+
+					fts_sql_rollback(trx_drop);
+				} else {
+					ib_logf(IB_LOG_LEVEL_INFO,
+						"Dropped obsolete aux"
+						" table '%s'.",
+						aux_table->name);
+
+					fts_sql_commit(trx_drop);
+				}
+
+				trx_free_for_background(trx_drop);
 			}
 		}
 #ifdef _WIN32

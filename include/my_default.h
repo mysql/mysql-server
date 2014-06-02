@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -36,6 +36,7 @@ int get_defaults_options(int argc, char **argv,
                          char **group_suffix, char **login_path);
 int my_load_defaults(const char *conf_file, const char **groups,
                      int *argc, char ***argv, const char ***);
+int check_file_permissions(const char *file_name);
 int load_defaults(const char *conf_file, const char **groups,
                   int *argc, char ***argv);
 int my_search_option_files(const char *conf_file, int *argc,

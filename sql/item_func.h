@@ -228,7 +228,7 @@ public:
                      void * arg, traverse_order order);
   inline double fix_result(double value)
   {
-    if (isfinite(value))
+    if (my_isfinite(value))
       return value;
     null_value=1;
     return 0.0;
@@ -262,7 +262,7 @@ public:
   */
   inline double check_float_overflow(double value)
   {
-    return isfinite(value) ? value : raise_float_overflow();
+    return my_isfinite(value) ? value : raise_float_overflow();
   }
   /**
     Throw an error if the input BIGINT value represented by the

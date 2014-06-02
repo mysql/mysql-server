@@ -51,6 +51,7 @@
 #    [--let $rpl_debug= 1]
 #    [--let $slave_timeout= NUMBER]
 #    [--let $use_gtids= 1]
+#    [--let $rpl_gtid_utils= 1]
 #    --source include/rpl_init.inc
 #
 #    Parameters:
@@ -106,6 +107,10 @@
 #
 #    $use_gtids
 #      Use option MASTER_AUTO_POSITION = 1 to CHANGE MASTER.
+#
+#    $rpl_gtid_utils
+#      Create stored functions for GTID manipulation on every server (see
+#      gtid_utils.inc).
 #
 #
 # ==== Side effects ====
@@ -198,6 +203,10 @@ while ($_rpl_server)
   --let $rpl_connection_name= server_$_rpl_server
   --source include/rpl_connection.inc
   USE test;
+  if ($rpl_gtid_utils)
+  {
+    --source include/gtid_utils.inc
+  }
   if (!$rpl_skip_reset_master_and_slave)
   {
     RESET MASTER;

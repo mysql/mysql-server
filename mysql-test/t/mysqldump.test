@@ -2461,3 +2461,30 @@ SET @@global.general_log=      @old_general_log_state;
 --echo #
 --echo # End of 5.1 tests
 --echo #
+
+--echo #
+--echo #BUG#17477959 - VIEW COLUMNS EXCEED TABLE LIMITS
+--echo #
+
+#Create a view with a large column name and number of columns.
+let $colnum= 798;
+let $str= 1 AS thisColumnContainsAVeryLongNameThatNearsThe64CharacterLimit;
+while ($colnum)
+{
+  let $str= 1 AS thisColumnContainsAVeryLongNameThatNearsThe64CharacterLimit$colnum, $str;
+  dec $colnum;
+}
+--eval CREATE VIEW v1 AS SELECT $str
+
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug17477959.sql
+#Reload of the dump fails without the patch
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug17477959.sql
+#Cleanup.
+--remove_file $MYSQLTEST_VARDIR/tmp/bug17477959.sql
+DROP VIEW v1;
+
+
+--echo #
+--echo # End of 5.6 tests
+--echo #
+
