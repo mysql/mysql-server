@@ -11458,7 +11458,7 @@ EXPLAIN
           "used_columns": [
             "col_datetime_key"
           ],
-          "attached_condition": "((<if>(is_not_null_compl(alias1), ((`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) or `test`.`alias2`.`col_varchar_nokey`), true) and <if>(is_not_null_compl(alias1), (((`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`), true)) and <if>(is_not_null_compl(alias1), (((`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`alias3`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`), true))"
+          "attached_condition": "<if>(is_not_null_compl(alias1), (((`test`.`alias2`.`col_varchar_key` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`sq2_alias1`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`) and (`test`.`alias3`.`col_varchar_nokey` = `test`.`sq2_alias2`.`col_varchar_key`)) or `test`.`alias2`.`col_varchar_nokey`), true)"
         }
       }
     ]

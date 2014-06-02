@@ -1071,6 +1071,70 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     if (!(mrr_flags & HA_MRR_USE_DEFAULT_IMPL) && push_extra(ET_USING_MRR))
       return true;
   }
+
+  if (tab && tab->type == JT_FT &&
+      (table->file->ha_table_flags() & HA_CAN_FULLTEXT_HINTS))
+  {
+    /*
+      Print info about FT hints.
+    */
+    StringBuffer<64> buff(cs);
+    Ft_hints *ft_hints= tab->ft_func->get_hints();
+    bool not_first= false;
+    if (ft_hints->get_flags() & FT_SORTED)
+    {
+      buff.append("sorted");
+      not_first= true;
+    }
+    else if (ft_hints->get_flags() & FT_NO_RANKING)
+    {
+      buff.append("no_ranking");
+      not_first= true;
+    }
+    if (ft_hints->get_op_type() != FT_OP_UNDEFINED &&
+        ft_hints->get_op_type() != FT_OP_NO)
+    {
+      char buf[64];
+      int len= 0;
+
+      if (not_first)
+        buff.append(", ");
+      switch (ft_hints->get_op_type())
+      {
+        case FT_OP_GT:
+          len= my_snprintf(buf, sizeof(buf) - 1,
+                           "rank > %f", ft_hints->get_op_value());
+          break;
+        case FT_OP_GE:
+          len= my_snprintf(buf, sizeof(buf) - 1,
+                           "rank >= %f", ft_hints->get_op_value());
+          break;
+        default:
+          DBUG_ASSERT(0);
+      }
+
+      buff.append(buf, len, cs);
+      not_first= true;
+    }
+    
+    if (ft_hints->get_limit() != HA_POS_ERROR)
+    {
+      char buf[64];
+      int len= 0;
+
+      if (not_first)
+        buff.append(", ");
+
+      len= my_snprintf(buf, sizeof(buf) - 1,
+                       "limit = %d", ft_hints->get_limit());
+      buff.append(buf, len, cs);
+      not_first= true;
+    }
+    if (not_first)
+      push_extra(ET_FT_HINTS, buff);
+
+  }
+
   return false;
 }
 
@@ -1380,7 +1444,7 @@ bool Explain_join::explain_key_and_len()
   if (tab->ref.key_parts)
     return explain_key_and_len_index(tab->ref.key, tab->ref.key_length,
                                      tab->ref.key_parts);
-  else if (tab->type == JT_INDEX_SCAN)
+  else if (tab->type == JT_INDEX_SCAN || tab->type == JT_FT)
     return explain_key_and_len_index(tab->index);
   else if (tab->type == JT_RANGE || tab->type == JT_INDEX_MERGE ||
       ((tab->type == JT_REF || tab->type == JT_REF_OR_NULL) &&
@@ -1486,14 +1550,14 @@ bool Explain_join::explain_rows_and_filtered()
     fmt->entry()->col_filtered.set(filter);
   }
   // Print cost-related info
-  double prefix_rows= tab->position->prefix_record_count;
+  double prefix_rows= tab->position->prefix_rowcount;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
   double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
   fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?
                                   0.0 : tab->position->read_cost);
-  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost.get_io_cost());
+  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost);
 
   // Calculate amount of data from this table per query
   char data_size_str[32];
@@ -2040,7 +2104,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                             ctx);
       /* Single select (without union) always returns 0 or 1 row */
       ethd->limit_found_rows= join->send_records;
-      ethd->set_examined_row_count(0);
       break;
     }
     case JOIN::NO_TABLES:
@@ -2067,7 +2130,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       {                                           // Only test of functions
         /* Single select (without union) always returns 0 or 1 row */
         ethd->limit_found_rows= join->send_records;
-        ethd->set_examined_row_count(0);
       }
       break;
     }

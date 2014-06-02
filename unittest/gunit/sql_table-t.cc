@@ -109,9 +109,6 @@ TEST_F(SqlTableTest, PromoteFirstTimestampColumn3)
 }
 
 
-/** Prefix used by MySQL to indicate pre-5.1 table name encoding */
-const char		srv_mysql50_table_name_prefix[10] = "#mysql50#";
-
 /*
   This is a test case based on innobase_init()
   There was an out-of-bounds read when converting "-@" to a table name.
@@ -131,7 +128,9 @@ TEST_F(SqlTableTest, FileNameToTableName)
 
   const char test_filename[] = "-@";
   char       test_tablename[sizeof test_filename
-                            + sizeof(srv_mysql50_table_name_prefix) - 1];
+                            + sizeof("#mysql50#") - 1];
+  //#mysql50# is prefix used by MySQL to indicate pre-5.1 table name encoding.
+
 
   // This one used to fail with AddressSanitizer
   size_t name_length;

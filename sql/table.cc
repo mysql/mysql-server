@@ -40,6 +40,7 @@
 #include "opt_trace.h"           // opt_trace_disable_if_no_security_...
 #include "table_cache.h"         // table_cache_manager
 #include "sql_view.h"
+#include "debug_sync.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -2089,6 +2090,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr;
+  Field *fts_doc_id_field = NULL;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
@@ -2178,6 +2180,11 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     new_field->init(outparam);
     new_field->move_field_offset((my_ptrdiff_t) (outparam->record[0] -
                                                  outparam->s->default_values));
+    /* Check if FTS_DOC_ID column is present in the table */
+    if (outparam->file &&
+        (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
+        !strcmp(outparam->field[i]->field_name, FTS_DOC_ID_COL_NAME))
+      fts_doc_id_field= new_field;
   }
   (*field_ptr)= 0;                              // End marker
 
@@ -2232,6 +2239,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       }
       /* Skip unused key parts if they exist */
       key_part+= key_info->unused_key_parts;
+      
+      /* Set TABLE::fts_doc_id_field for tables with FT KEY */
+      if ((key_info->flags & HA_FULLTEXT))
+        outparam->fts_doc_id_field= fts_doc_id_field;
     }
   }
 
@@ -3533,6 +3544,20 @@ end:
   Wait until the subject share is removed from the table
   definition cache and make sure it's destroyed.
 
+  @note This method may access the share concurrently with another
+  thread if the share is in the process of being opened, i.e., that
+  m_open_in_progress is true. In this case, close_cached_tables() may
+  iterate over elements in the table definition cache, and call this
+  method regardless of the share being opened or not. This works anyway
+  since a new flush ticket is added below, and LOCK_open ensures
+  that the share may not be destroyed by another thread in the time
+  between finding this share (having an old version) and adding the flush
+  ticket. Thus, after this thread has added the flush ticket, the thread
+  opening the table will eventually call free_table_share (as a result of
+  releasing the share after using it, or as a result of a failing
+  open_table_def()), which will notify the owners of the flush tickets,
+  and the last one being notified will actually destroy the share.
+
   @param mdl_context     MDL context for thread which is going to wait.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
@@ -3571,6 +3596,8 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
   mdl_context->find_deadlock();
 
+  DEBUG_SYNC(thd, "flush_complete");
+
   wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
                                               &stage_waiting_for_table_flush);
 
@@ -3588,6 +3615,8 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     */
     destroy();
   }
+
+  DEBUG_SYNC(thd, "share_destroyed");
 
   /*
     In cases when our wait was aborted by KILL statement,
@@ -4207,33 +4236,25 @@ void TABLE_LIST::cleanup_items()
 }
 
 
-/*
+/**
   check CHECK OPTION condition
 
-  SYNOPSIS
-    TABLE_LIST::view_check_option()
-    ignore_failure ignore check option fail
-
-  RETURN
-    VIEW_CHECK_OK     OK
-    VIEW_CHECK_ERROR  FAILED
-    VIEW_CHECK_SKIP   FAILED, but continue
+  @param thd                Thread object
+ 
+  @retval VIEW_CHECK_OK     OK
+  @retval VIEW_CHECK_ERROR  FAILED
+  @retval VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
+int TABLE_LIST::view_check_option(THD *thd) const
 {
   if (check_option && check_option->val_int() == 0)
   {
     const TABLE_LIST *main_view= top_table();
-    if (ignore_failure)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
-                          main_view->view_db.str, main_view->view_name.str);
-      return(VIEW_CHECK_SKIP);
-    }
     my_error(ER_VIEW_CHECK_FAILED, MYF(0), main_view->view_db.str,
              main_view->view_name.str);
+    if (thd->lex->is_ignore())
+      return(VIEW_CHECK_SKIP);
     return(VIEW_CHECK_ERROR);
   }
   return(VIEW_CHECK_OK);

@@ -60,39 +60,40 @@ ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
 ADD_DEFINITIONS("-DNOMINMAX")
   
 # Should be available on Windows Server 2003 and above.
-CHECK_CXX_SOURCE_COMPILES(
-"#include <Windows.h>
-int main() {
-  GetCurrentProcessorNumber();
-  return 0;
-} " HAVE_GETCURRENTPROCESSORNUMBER)
-IF(HAVE_GETCURRENTPROCESSORNUMBER)
- ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
-ENDIF()
+ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
 
 IF(MSVC)
-  # Enable debug info also in Release build, and create PDB to be able to analyze 
-  # crashes
-  FOREACH(lang C CXX)
-    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Zi")
-  ENDFOREACH()
+  # Enable debug info also in Release build,
+  # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
-   SET(CMAKE_{type}_LINKER_FLAGS_RELEASE "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
+   SET(CMAKE_{type}_LINKER_FLAGS_RELEASE
+     "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
   ENDFOREACH()
   
-  # Force static runtime libraries
-  # Choose C++ exception handling:
-  #   If /EH is not specified, the compiler will catch structured and
-  #   C++ exceptions, but will not destroy C++ objects that will go out of
-  #   scope as a result of the exception.
-  #   /EHsc catches C++ exceptions only and tells the compiler to assume that
-  #   extern C functions never throw a C++ exception.
+  # For release types Debug Release RelWithDebInfo (but not MinSizeRel):
+  # - Force static runtime libraries
+  # - Choose C++ exception handling:
+  #     If /EH is not specified, the compiler will catch structured and
+  #     C++ exceptions, but will not destroy C++ objects that will go out of
+  #     scope as a result of the exception.
+  #     /EHsc catches C++ exceptions only and tells the compiler to assume that
+  #     extern C functions never throw a C++ exception.
+  # - Choose debugging information:
+  #     /Z7
+  #     Produces an .obj file containing full symbolic debugging
+  #     information for use with the debugger. The symbolic debugging
+  #     information includes the names and types of variables, as well as
+  #     functions and line numbers. No .pdb file is produced by the compiler.
+  FOREACH(lang C CXX)
+    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
+  ENDFOREACH()
   FOREACH(flag 
-   CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO 
-   CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT 
+   CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
+   CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-   CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
+   CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
    SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
   
@@ -109,10 +110,8 @@ IF(MSVC)
   ENDIF()
   
   # Speed up multiprocessor build
-  IF (MSVC_VERSION GREATER 1400)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-  ENDIF()
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
   
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")

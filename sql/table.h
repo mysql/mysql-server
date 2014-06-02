@@ -646,6 +646,7 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
+  bool m_open_in_progress;              /* True: alloc'ed, false: def opened */
   Table_id table_map_id;                   /* for row-based replication */
 
   /*
@@ -1004,6 +1005,7 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
   Table_trigger_dispatcher *triggers;
@@ -1603,7 +1605,7 @@ struct TABLE_LIST
 private:
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
-     member points to C.
+     member points to C. May also be generated from JOIN ... USING clause.
      It may be modified only by permanent transformations (permanent = done
      once for all executions of a prepared statement).
   */
@@ -1918,7 +1920,7 @@ public:
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
-  int view_check_option(THD *thd, bool ignore_failure) const;
+  int view_check_option(THD *thd) const;
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()

@@ -1,0 +1,139 @@
+###############################################################################
+# Bug#11758766:MYSQLD CONTINUES OPERATION WITHOUT LOGGING WHEN BINLOGS
+# CANNOT BE WRITTEN
+#
+# Problem:
+# ========
+# If an error occurs that prevents mysqld writing to the binary logs (disk
+# full, readonly filesystem, etc) then the logs are disabled and operations
+# continue. This can lead to out of sync slaves and improper backups.
+#
+# Test:
+# =====
+# A new option "binlogging_impossible_mode" has been introduced whos values
+# are "IGNORE" or "ABORT". When binlogging becomes impossible if user sets
+# the variable to "ABORT" server will stop if user sets it to "IGNORE" binlog
+# will be turned off and server will continue. 4 different test cases are
+# added to check both the behaviours.
+###############################################################################
+--source include/have_log_bin.inc
+--source include/not_embedded.inc
+--source include/have_binlog_format_statement.inc
+# Don't test this under valgrind, memory leaks will occur
+--source include/not_valgrind.inc
+--source include/have_debug.inc
+# Avoid CrashReporter popup on Mac
+--source include/not_crashrep.inc
+
+call mtr.add_suppression("MYSQL_BIN_LOG::add_log_to_index failed to copy index file to crash safe index file.");
+call mtr.add_suppression("Disk is full writing *");
+call mtr.add_suppression("Retry in 60 secs. *");
+call mtr.add_suppression("Error writing file*");
+call mtr.add_suppression("Could not open .*");
+call mtr.add_suppression("Could not use .*");
+call mtr.add_suppression("Can't generate a unique log-filename master-bin");
+call mtr.add_suppression("The server was unable to create a new log file *");
+
+let $old=`select @@debug`;
+
+RESET MASTER;
+
+--echo Test case1
+# Make binlog index readonly and check the behaviour with ABORT
+let $MYSQLD_DATADIR= `select @@datadir`;
+let $INDEX=$MYSQLD_DATADIR/master-bin.index;
+--chmod 0444 $INDEX
+
+SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+flush logs;
+--chmod 0666 $INDEX
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo Test case2
+# Make MYSQL_BIN_LOG::open_binlog fail with debug simulation and test
+# the behaviour in case of ABORT
+SET SESSION debug="+d,fault_injection_updating_index";
+SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+flush logs;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo Test case3
+# Simulate diskfull during opening of binlog and check for diskfull error
+# behaviour where binlogging impossible error is to abort the server.
+SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
+SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+flush logs;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo Test case4
+SET SESSION debug="+d,fault_injection_init_name";
+SET GLOBAL binlogging_impossible_mode= ABORT_SERVER;
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--error ER_BINLOG_LOGGING_IMPOSSIBLE
+flush logs;
+--exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+--echo Test case5
+# Make binlog index readonly and check the behaviour with IGNORE
+--chmod 0444 $INDEX
+--replace_regex /\.[\\\/]master/master/ /errno: 13 - .*\)/errno: 13 - Permission denied)/
+--error 29
+flush logs;
+CREATE TABLE t1 ( f int );
+SHOW TABLES;
+DROP TABLE t1;
+--chmod 0666 $INDEX
+--source include/restart_mysqld.inc
+
+--echo Test case6
+# Make MYSQL_BIN_LOG::open_binlog fail with debug simulation and test
+# the behaviour in case of IGNORE
+SET SESSION debug="+d,fault_injection_updating_index";
+--replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--error ER_CANT_OPEN_FILE
+flush logs;
+CREATE TABLE t2 (f int );
+SHOW TABLES;
+DROP TABLE t2;
+SET SESSION debug="-d,fault_injection_updating_index";
+--source include/restart_mysqld.inc
+
+--echo Test case7
+# Simulate diskfull during opening of binlog and check for diskfull error
+# behaviour where binlogging impossible error is to continue the server
+# after the error.
+SET SESSION debug="+d,simulate_disk_full_on_open_binlog";
+--replace_regex /\.[\\\/]master/master/ /Errcode: 28 - .*\)/Errcode: 28 - No space left on device)/
+# error EE_WRITE with error code number 3 is expected.
+--error 3
+flush logs;
+SET SESSION debug="-d,simulate_disk_full_on_open_binlog";
+--source include/restart_mysqld.inc
+
+--echo Test case8
+SET SESSION debug="+d,fault_injection_init_name";
+--replace_regex /\.[\\\/]master/master/ /errno: 1 - .*\)/errno: 1 - Operation not permitted)/
+--error ER_CANT_OPEN_FILE
+flush logs;
+CREATE TABLE t2 (f int );
+SHOW TABLES;
+DROP TABLE t2;
+SET SESSION debug="-d,fault_injection_init_name";
+--source include/restart_mysqld.inc
+
+# Cleanup
+eval SET SESSION debug="$old";

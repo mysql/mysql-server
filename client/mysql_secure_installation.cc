@@ -923,10 +923,10 @@ int main(int argc,char *argv[])
   defaults_argv= argv;
   my_getopt_use_args_separator= FALSE;
 
-  if ((rc= handle_options(&argc, &argv, my_connection_options,
-                          my_arguments_get_one_option)))
+  if ((rc= my_handle_options(&argc, &argv, my_connection_options,
+                             my_arguments_get_one_option, NULL, TRUE)))
   {
-    fprintf(stdout, "Skipping unrecognized options");
+    DBUG_ASSERT(0);
   }
 
   init_connection_options(&mysql);

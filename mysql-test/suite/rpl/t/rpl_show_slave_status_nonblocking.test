@@ -7,6 +7,7 @@
 
 # This test do not depends on any binlog format, so testing it with
 # mixed is enough.
+--source include/no_valgrind_without_big.inc
 --source include/have_binlog_format_mixed.inc
 --source include/master-slave.inc
 

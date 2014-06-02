@@ -1,3 +1,4 @@
+-- source include/no_valgrind_without_big.inc
 -- source include/have_innodb.inc
 
 let $MYSQLD_DATADIR= `select @@datadir`;
@@ -182,11 +183,11 @@ set @@sql_mode = @old_sql_mode;
 SET FOREIGN_KEY_CHECKS=0;
 --error ER_FK_COLUMN_CANNOT_DROP
 alter table t2 DROP COLUMN b, ALGORITHM=COPY;
---error ER_FK_COLUMN_CANNOT_DROP
+--error ER_DROP_INDEX_FK
 alter table t2 DROP COLUMN b;
 --error ER_FK_COLUMN_CANNOT_DROP_CHILD
 alter table t1 DROP COLUMN b, ALGORITHM=COPY;
---error ER_FK_COLUMN_CANNOT_DROP_CHILD
+--error ER_DROP_INDEX_FK
 alter table t1 DROP COLUMN b;
 SET FOREIGN_KEY_CHECKS=@OLD_FOREIGN_KEY_CHECKS;
 

@@ -113,9 +113,6 @@ JOIN::exec()
   DEBUG_SYNC(thd, "before_join_exec");
 
   executed= true;
-  // Ignore errors of execution if option IGNORE present
-  if (thd->lex->ignore)
-    thd->lex->current_select()->no_error= true;
 
   if (prepare_result())
     DBUG_VOID_RETURN;
@@ -159,7 +156,6 @@ JOIN::exec()
       }
       /* Query block (without union) always returns 0 or 1 row */
       thd->limit_found_rows= send_records;
-      thd->set_examined_row_count(0);
     }
     else
     {
@@ -607,7 +603,7 @@ end_sj_materialize(JOIN *join, JOIN_TAB *join_tab, bool end_of_records)
         DBUG_RETURN(NESTED_LOOP_OK);
     }
     fill_record(thd, table->field, sjm->sj_nest->nested_join->sj_inner_exprs,
-                1, NULL, NULL);
+                NULL, NULL);
     if (thd->is_error())
       DBUG_RETURN(NESTED_LOOP_ERROR); /* purecov: inspected */
     if ((error= table->file->ha_write_row(table->record[0])))
@@ -718,7 +714,6 @@ return_zero_rows(JOIN *join, List<Item> &fields)
   /* Update results for FOUND_ROWS */
   if (!join->send_row_on_empty_set())
   {
-    join->thd->set_examined_row_count(0);
     join->thd->limit_found_rows= 0;
   }
 
@@ -1838,12 +1833,11 @@ join_read_const_table(JOIN_TAB *tab, POSITION *pos)
     /* Mark for EXPLAIN that the row was not found */
     pos->filter_effect= 1.0;
     pos->rows_fetched= 0.0;
-    pos->prefix_record_count= 0.0;
+    pos->prefix_rowcount= 0.0;
     pos->ref_depend_map= 0;
     if (!table->pos_in_table_list->outer_join || error > 0)
       DBUG_RETURN(error);
   }
-    
 
   if (tab->join_cond() && !table->null_row)
   {
@@ -3376,6 +3370,8 @@ JOIN_TAB::remove_duplicates()
 {
   bool error;
   ulong reclength,offset;
+  uint field_count;
+  List<Item> *field_list= (this-1)->fields;
   DBUG_ENTER("remove_duplicates");
 
   DBUG_ASSERT(join->tmp_tables > 0 && table->s->tmp_table != NO_TMP_TABLE);
@@ -3383,7 +3379,15 @@ JOIN_TAB::remove_duplicates()
 
   table->reginfo.lock_type=TL_WRITE;
 
-  uint field_count= (this-1)->fields->elements;
+  /* Calculate how many saved fields there is in list */
+  field_count=0;
+  List_iterator<Item> it(*field_list);
+  Item *item;
+  while ((item=it++))
+  {
+    if (item->get_tmp_table_field() && ! item->const_item())
+      field_count++;
+  }
 
   if (!field_count && !(join->select_options & OPTION_FOUND_ROWS) && !having) 
   {                    // only const items with no OPTION_FOUND_ROWS
