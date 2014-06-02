@@ -269,7 +269,7 @@ static char *convert_path(const char *argument)
   char *winfilename= my_strdup(PSI_NOT_INSTRUMENTED,
                                argument, MYF(MY_FAE));
   char *pos, *end;
-  int length= strlen(argument);
+  size_t length= strlen(argument);
 
   for (pos= winfilename, end= pos+length ; pos < end ; pos++)
   {
@@ -770,11 +770,11 @@ static int check_options(int argc, char **argv, char *operation)
   
   /* Form prefix strings for the options. */
   const char *basedir_prefix = "--basedir=";
-  int basedir_len= strlen(basedir_prefix);
+  size_t basedir_len= strlen(basedir_prefix);
   const char *datadir_prefix = "--datadir=";
-  int datadir_len= strlen(datadir_prefix);
+  size_t datadir_len= strlen(datadir_prefix);
   const char *plugin_dir_prefix = "--plugin_dir=";
-  int plugin_dir_len= strlen(plugin_dir_prefix);
+  size_t plugin_dir_len= strlen(plugin_dir_prefix);
 
   strcpy(plugin_name, "");
   for (i = 0; i < argc && num_found < 5; i++)

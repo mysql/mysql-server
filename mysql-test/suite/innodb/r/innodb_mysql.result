@@ -328,7 +328,7 @@ INSERT INTO t1 VALUES (1);
 INSERT INTO t2 VALUES (1);
 DELETE IGNORE FROM t1 WHERE i = 1;
 Warnings:
-Error	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`i`) REFERENCES `t1` (`i`) ON DELETE NO ACTION)
 SELECT * FROM t1, t2;
 i	i
 1	1
@@ -1607,10 +1607,15 @@ k	a	c
 1	6	2
 2	7	NULL
 insert ignore into t2 values (null,6,1),(10,8,1);
+Warnings:
+Warning	1062	Duplicate entry '6' for key 'idx_1'
 select last_insert_id();
 last_insert_id()
 0
 insert ignore into t2 values (null,6,1),(null,8,1),(null,15,1),(null,20,1);
+Warnings:
+Warning	1062	Duplicate entry '6' for key 'idx_1'
+Warning	1062	Duplicate entry '8' for key 'idx_1'
 select last_insert_id();
 last_insert_id()
 11
@@ -2260,6 +2265,9 @@ ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fail
 DELETE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
 ERROR 23000: Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
 DELETE IGNORE t2, t1 FROM t2 INNER JOIN t1 ON (t2.aid = t1.id) WHERE t2.id = 1;
+Warnings:
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t3`, CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`bid`) REFERENCES `t2` (`id`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t2`, CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`aid`) REFERENCES `t1` (`id`))
 DROP TABLE t3;
 DROP TABLE t2;
 DROP TABLE t1;
@@ -2328,6 +2336,9 @@ END||
 ** DELETE is prevented by foreign key constrains but errors are silenced.
 ** The AFTER trigger isn't fired.
 DELETE IGNORE t1 FROM t3 LEFT JOIN t1 ON t1.i=t3.i;
+Warnings:
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`))
+Warning	1451	Cannot delete or update a parent row: a foreign key constraint fails (`test`.`t4`, CONSTRAINT `t4_ibfk_1` FOREIGN KEY (`t1i`) REFERENCES `t1` (`i`))
 ** Tables are modified by best effort:
 SELECT * FROM t1 LEFT JOIN t3 ON t1.i=t3.i;
 i	i

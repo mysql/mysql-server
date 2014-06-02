@@ -133,19 +133,16 @@ public:
 static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                              List<Item> &fields_vars, List<Item> &set_fields,
                              List<Item> &set_values, READ_INFO &read_info,
-			     ulong skip_lines,
-			     bool ignore_check_option_errors);
+			     ulong skip_lines);
 static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &fields_vars, List<Item> &set_fields,
                           List<Item> &set_values, READ_INFO &read_info,
-			  const String &enclosed, ulong skip_lines,
-			  bool ignore_check_option_errors);
+			  const String &enclosed, ulong skip_lines);
 
 static int read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &fields_vars, List<Item> &set_fields,
                           List<Item> &set_values, READ_INFO &read_info,
-                          ulong skip_lines,
-                          bool ignore_check_option_errors);
+                          ulong skip_lines);
 
 #ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
@@ -153,7 +150,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* table_name_arg,
                                                bool is_concurrent,
                                                enum enum_duplicates duplicates,
-                                               bool ignore,
                                                bool transactional_table,
                                                int errocode);
 #endif /* EMBEDDED_LIBRARY */
@@ -172,7 +168,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       set_values  - expressions to assign to fields in previous list
       handle_duplicates - indicates whenever we should emit error or
                           replace row if we will meet duplicates.
-      ignore -          - indicates whenever we should ignore duplicates
       read_file_from_client - is this LOAD DATA LOCAL ?
 
   RETURN VALUES
@@ -182,7 +177,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
 int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values,
-                enum enum_duplicates handle_duplicates, bool ignore,
+                enum enum_duplicates handle_duplicates,
                 bool read_file_from_client)
 {
   char name[FN_REFLEN];
@@ -316,9 +311,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (setup_fields(thd, Ref_ptr_array(),
                      fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
         setup_fields(thd, Ref_ptr_array(),
-                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
-        check_that_all_fields_are_given_values(thd, table, table_list))
+                     set_fields, MARK_COLUMNS_WRITE, 0, 0))
       DBUG_RETURN(TRUE);
+    /* We explicitly ignore the return value */
+    (void)check_that_all_fields_are_given_values(thd, table, table_list);
     /* Fix the expressions in SET clause */
     if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
@@ -327,10 +323,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   const int escape_char= (escaped->length() && (ex->escaped_given() ||
                           !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
                           ? (*escaped)[0] : INT_MAX;
-
-  /* We can't give an error in the middle when using LOCAL files */
-  if (read_file_from_client && handle_duplicates == DUP_ERROR)
-    ignore= 1;
 
   /*
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
@@ -344,7 +336,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
                  manage_defaults,
-                 handle_duplicates, ignore, escape_char);
+                 handle_duplicates, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
     DBUG_RETURN(TRUE);
@@ -503,7 +495,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
 
     table->next_number_field=table->found_next_number_field;
-    if (ignore ||
+    if (thd->lex->is_ignore() ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (handle_duplicates == DUP_REPLACE &&
@@ -514,20 +506,18 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
-    thd->abort_on_warning= (!ignore && thd->is_strict_mode());
-
     if (ex->filetype == FILETYPE_XML) /* load xml */
       error= read_xml_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
-                            skip_lines, ignore);
+                            skip_lines);
     else if (!field_term->length() && !enclosed->length())
       error= read_fixed_length(thd, info, insert_table_ref, fields_vars,
                                set_fields, set_values, read_info,
-                               skip_lines, ignore);
+			       skip_lines);
     else
       error= read_sep_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
-                            *enclosed, skip_lines, ignore);
+			    *enclosed, skip_lines);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
@@ -607,7 +597,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                                                       table_list->db, 
                                                       table_list->table_name,
                                                       is_concurrent,
-                                                      handle_duplicates, ignore,
+                                                      handle_duplicates,
                                                       transactional_table,
                                                       errcode);
 	  else
@@ -656,7 +646,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
                                                   is_concurrent,
-                                                  handle_duplicates, ignore,
+                                                  handle_duplicates,
                                                   transactional_table,
                                                   errcode);
       }
@@ -682,7 +672,6 @@ err:
                 Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
-  thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
 
@@ -695,7 +684,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* table_name_arg,
                                                bool is_concurrent,
                                                enum enum_duplicates duplicates,
-                                               bool ignore,
                                                bool transactional_table,
                                                int errcode)
 {
@@ -728,7 +716,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                     strlen(table_name_arg));
   tbl= string_buf.c_ptr_safe();
   Load_log_event       lle(thd, ex, tdb, tbl, fv, is_concurrent,
-                           duplicates, ignore, transactional_table);
+                           duplicates, thd->lex->is_ignore(),
+                           transactional_table);
 
   /*
     force in a LOCAL if there was one in the original.
@@ -805,7 +794,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       static_cast<uint>(fname_start - load_data_query - 1),
       static_cast<uint>(fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
-      (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
+      (thd->lex->is_ignore() ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
   return mysql_bin_log.write_event(&e);
 }
@@ -820,7 +809,7 @@ static int
 read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                   List<Item> &fields_vars, List<Item> &set_fields,
                   List<Item> &set_values, READ_INFO &read_info,
-                  ulong skip_lines, bool ignore_check_option_errors)
+                  ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields_vars);
   TABLE *table= table_list->table;
@@ -916,13 +905,11 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             ignore_check_option_errors,
                                              table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
-    switch (table_list->view_check_option(thd,
-                                          ignore_check_option_errors)) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;
@@ -988,8 +975,7 @@ static int
 read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                List<Item> &fields_vars, List<Item> &set_fields,
                List<Item> &set_values, READ_INFO &read_info,
-	       const String &enclosed, ulong skip_lines,
-	       bool ignore_check_option_errors)
+	       const String &enclosed, ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
@@ -1168,7 +1154,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             ignore_check_option_errors,
                                              table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
@@ -1197,8 +1182,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->is_error())
       DBUG_RETURN(1);
 
-    switch (table_list->view_check_option(thd,
-                                          ignore_check_option_errors)) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;
@@ -1239,8 +1223,7 @@ static int
 read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                List<Item> &fields_vars, List<Item> &set_fields,
                List<Item> &set_values, READ_INFO &read_info,
-               ulong skip_lines,
-               bool ignore_check_option_errors)
+               ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
@@ -1385,13 +1368,11 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             ignore_check_option_errors,
                                              table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
-    switch (table_list->view_check_option(thd,
-                                          ignore_check_option_errors)) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;

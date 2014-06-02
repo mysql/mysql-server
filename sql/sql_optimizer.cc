@@ -93,6 +93,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
                         const bool no_changes, const key_map *map,
                         const char *clause_type);
 
+static Item_func_match *test_if_ft_index_order(ORDER *order);
+
+
 /**
   Optimizes one query block into a query execution plan (QEP.)
 
@@ -236,8 +239,6 @@ JOIN::optimize()
     DBUG_RETURN(1);
   }
 #endif
-
-  optimize_fts_limit_query();
 
   /* 
      Try to optimize count(*), min() and max() to const fields if
@@ -450,7 +451,6 @@ JOIN::optimize()
     (select_lex->ftfunc_list->elements ?  SELECT_NO_JOIN_CACHE : 0);
 
   /* Perform FULLTEXT search before all regular searches */
-  init_ftfuncs(thd, select_lex, MY_TEST(order));
   optimize_fts_query();
 
   /*
@@ -1040,7 +1040,31 @@ void JOIN::test_skip_sort()
 
 
 /**
-  Test if one can use the key to resolve ORDER BY.
+  Test if ORDER BY is a single MATCH function(ORDER BY MATCH)
+  and sort order is descending.
+
+  @param order                 pointer to ORDER struct.
+
+  @retval
+    Pointer to MATCH function if order is 'ORDER BY MATCH() DESC'
+  @retval    
+    NULL otherwise
+*/
+
+static Item_func_match *test_if_ft_index_order(ORDER *order)
+{
+  if (order && order->next == NULL &&
+      order->direction == ORDER::ORDER_DESC &&
+      (*order->item)->type() == Item::FUNC_ITEM &&
+      ((Item_func*) (*order->item))->functype() == Item_func::FT_FUNC)   
+    return static_cast<Item_func_match*> (*order->item)->get_master();
+
+  return NULL;
+}
+
+
+/**
+  Test if one can use the key to resolve ordering. 
 
   @param order                 Sort order
   @param table                 Table to sort
@@ -1425,18 +1449,11 @@ public:
 
 
 /**
-  Test if we can skip the ORDER BY by using an index.
+  Test if we can skip ordering by using an index.
 
-  SYNOPSIS
-    test_if_skip_sort_order()
-      tab
-      order
-      select_limit
-      no_changes
-      map
-
-  If we can use an index, the JOIN_TAB / tab->select struct
-  is changed to use the index.
+  If the current plan is to use an index that provides ordering, the
+  plan will not be changed. Otherwise, if an index can be used, the
+  JOIN_TAB / tab->select struct is changed to use the index.
 
   The index must cover all fields in <order>, or it will not be considered.
 
@@ -1495,6 +1512,68 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   }
 
   /*
+    Check if FT index can be used to retrieve result in the required order.
+    It is possible if ordering is on the first non-constant table.
+  */
+  if (tab->join->simple_order)
+  {
+    /*
+      Check if ORDER is DESC, ORDER BY is a single MATCH function.
+    */
+    Item_func_match *ft_func= test_if_ft_index_order(order);
+    /*
+      Two possible cases when we can skip sort order:
+      1. FT_SORTED must be set(Natural mode, no ORDER BY).
+      2. If FT_SORTED flag is not set then
+      the engine should support deferred sorting. Deferred sorting means
+      that sorting is postponed utill the start of index reading(InnoDB).
+      In this case we set FT_SORTED flag here to let the engine know that
+      internal sorting is needed.
+    */
+    if (ft_func && ft_func->ft_handler && ft_func->ordered_result())
+    {
+      /*
+        FT index scan is used, so the only additional requirement is
+        that ORDER BY MATCH function is the same as the function that
+        is used for FT index.
+      */
+      if (tab->type == JT_FT && ft_func->eq(tab->position->key->val, true))
+      {
+        ft_func->set_hints(tab->join, FT_SORTED, select_limit, false);
+        DBUG_RETURN(true);
+      }
+      /*
+        No index is used, it's possible to use FT index for ORDER BY if
+        LIMIT is present and does not exceed count of the records in FT index
+        and there is no WHERE condition since a condition may potentially
+        require more rows to be fetch from FT index.
+      */
+      else if (!tab->select->cond &&
+               select_limit != HA_POS_ERROR &&
+               select_limit <= ft_func->get_count())
+      {
+        /* test_if_ft_index_order() always returns master MATCH function. */
+        DBUG_ASSERT(!ft_func->master);
+        /* ref is not set since there is no WHERE condition */
+        DBUG_ASSERT(tab->ref.key == -1);
+
+        /*Make EXPLAIN happy */
+        tab->type= JT_FT;
+        tab->ref.key= ft_func->key;
+        tab->ref.key_parts= 0;
+        tab->index= ft_func->key;
+        tab->ft_func= ft_func;
+
+        /* Setup FT handler */
+        ft_func->set_hints(tab->join, FT_SORTED, select_limit, true);
+        ft_func->join_key= true;
+        tab->table->file->ft_handler= ft_func->ft_handler;
+        DBUG_RETURN(true);
+      }
+    }
+  }
+  
+  /*
     Keys disabled by ALTER TABLE ... DISABLE KEYS should have already
     been taken into account.
   */
@@ -1540,6 +1619,12 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     ref_key=	   select->quick->index;
     ref_key_parts= select->quick->used_key_parts;
   }
+  else if (tab->type == JT_INDEX_SCAN)
+  {
+    // The optimizer has decided to use an index scan.
+    ref_key=       tab->index;
+    ref_key_parts= actual_key_parts(&table->key_info[tab->index]);
+  }
 
   Opt_trace_context * const trace= &tab->join->thd->opt_trace;
   Opt_trace_object trace_wrapper(trace);
@@ -1550,7 +1635,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   if (ref_key >= 0)
   {
     /*
-      We come here when there is a {ref or or ordered range access} key.
+      We come here when ref/index scan/range scan access has been set
+      up for this table. Do not change access method if ordering is
+      provided already.
     */
     if (!usable_keys.is_set(ref_key))
     {
@@ -1634,9 +1721,9 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
   }
   {
     /*
-      There was no {ref or or ordered range access} key, or it was not
-      satisfying, neither was any prefix of it. Do a cost-based search on all
-      keys:
+      There is no ref/index scan/range scan access set up for this
+      table, or it does not provide the requested ordering. Do a
+      cost-based search on all keys.
     */
     uint best_key_parts= 0;
     uint saved_best_key_parts= 0;
@@ -1644,8 +1731,17 @@ test_if_skip_sort_order(JOIN_TAB *tab, ORDER *order, ha_rows select_limit,
     JOIN *join= tab->join;
     ha_rows table_records= table->file->stats.records;
 
+    /*
+      If an index scan that cannot provide ordering has been selected
+      then do not use the index scan key as starting hint to
+      test_if_cheaper_ordering()
+    */
+    const int ref_key_hint= (order_direction == 0 &&
+                             tab->type == JT_INDEX_SCAN) ? -1 : ref_key;
+
     test_if_cheaper_ordering(tab, order, table, usable_keys,
-                             ref_key, select_limit,
+                             ref_key_hint,
+                             select_limit,
                              &best_key, &best_key_direction,
                              &select_limit, &best_key_parts,
                              &saved_best_key_parts);
@@ -1829,8 +1925,6 @@ check_reverse_order:
           tab->ref.key= -1;
           tab->ref.key_parts= 0;
         }
-        if (select_limit < table->file->stats.records) 
-          tab->rowcount= select_limit;
       }
       else if (tab->type != JT_ALL)
       {
@@ -1871,7 +1965,8 @@ check_reverse_order:
           save_quick= 0;                // Because set_quick(tmp) frees it
         select->set_quick(tmp);
       }
-      else if (tab->type == JT_REF && tab->ref.key_parts <= used_key_parts)
+      else if ((tab->type == JT_REF || tab->type == JT_INDEX_SCAN) && 
+               tab->ref.key_parts <= used_key_parts)
       {
         /*
           SELECT * FROM t1 WHERE a=1 ORDER BY a DESC,b DESC
@@ -1903,6 +1998,9 @@ fix_ICP:
   */
   if (can_skip_sorting && !no_changes)
   {
+    if (tab->type == JT_INDEX_SCAN && select_limit < table->file->stats.records)
+      tab->rowcount= select_limit;
+
     // Keep current (ordered) select->quick
     if (select && save_quick != select->quick)
       delete save_quick;
@@ -6894,9 +6992,35 @@ add_key_part(Key_use_array *keyuse_array, Key_field *key_field)
 }
 
 
+/**
+   Function parses WHERE condition and add key_use for FT index
+   into key_use array if suitable MATCH function is found.
+   Condition should be a set of AND expression, OR is not supported.
+   MATCH function should be a part of simple expression.
+   Simple expression is MATCH only function or MATCH is a part of
+   comparison expression ('>=' or '>' operations are supported).
+   It also sets FT_HINTS values(op_type, op_value).
+
+   @param keyuse_array      Key_use array
+   @param stat              JOIN_TAB structure
+   @param cond              WHERE condition
+   @param usable_tables     usable tables
+   @param simple_match_expr true if this is the first call false otherwise.
+                            if MATCH function is found at first call it means
+                            that MATCH is simple expression, otherwise, in case
+                            of AND/OR condition this parameter will be false.
+                     
+   @retval
+   true if FT key was added to Key_use array
+   @retval
+   false if no key was added to Key_use array
+
+*/
+
 static bool
 add_ft_keys(Key_use_array *keyuse_array,
-            JOIN_TAB *stat,Item *cond,table_map usable_tables)
+            JOIN_TAB *stat,Item *cond,table_map usable_tables,
+            bool simple_match_expr)
 {
   Item_func_match *cond_func=NULL;
 
@@ -6907,24 +7031,47 @@ add_ft_keys(Key_use_array *keyuse_array,
   {
     Item_func *func=(Item_func *)cond;
     Item_func::Functype functype=  func->functype();
+    enum ft_operation op_type= FT_OP_NO;
+    double op_value= 0.0;
     if (functype == Item_func::FT_FUNC)
-      cond_func=(Item_func_match *)cond;
+    {
+      cond_func= ((Item_func_match *) cond)->get_master();
+      cond_func->set_hints_op(op_type, op_value);
+    }
     else if (func->arg_count == 2)
     {
       Item *arg0=(Item *)(func->arguments()[0]),
            *arg1=(Item *)(func->arguments()[1]);
-      if (arg1->const_item() && arg1->cols() == 1 &&
+      if (arg1->const_item() &&
            arg0->type() == Item::FUNC_ITEM &&
            ((Item_func *) arg0)->functype() == Item_func::FT_FUNC &&
-          ((functype == Item_func::GE_FUNC && arg1->val_real() > 0) ||
-           (functype == Item_func::GT_FUNC && arg1->val_real() >=0)))
-        cond_func= (Item_func_match *) arg0;
+          ((functype == Item_func::GE_FUNC &&
+            (op_value= arg1->val_real()) > 0) ||
+           (functype == Item_func::GT_FUNC &&
+            (op_value= arg1->val_real()) >=0)))
+      {
+        cond_func= ((Item_func_match *) arg0)->get_master();
+        if (functype == Item_func::GE_FUNC)
+          op_type= FT_OP_GE;
+        else if (functype == Item_func::GT_FUNC)
+          op_type= FT_OP_GT;
+        cond_func->set_hints_op(op_type, op_value);
+      }
       else if (arg0->const_item() &&
                 arg1->type() == Item::FUNC_ITEM &&
                 ((Item_func *) arg1)->functype() == Item_func::FT_FUNC &&
-               ((functype == Item_func::LE_FUNC && arg0->val_real() > 0) ||
-                (functype == Item_func::LT_FUNC && arg0->val_real() >=0)))
-        cond_func= (Item_func_match *) arg1;
+               ((functype == Item_func::LE_FUNC &&
+                 (op_value= arg0->val_real()) > 0) ||
+                (functype == Item_func::LT_FUNC &&
+                 (op_value= arg0->val_real()) >=0)))
+      {
+        cond_func= ((Item_func_match *) arg1)->get_master();
+        if (functype == Item_func::LE_FUNC)
+          op_type= FT_OP_GE;
+        else if (functype == Item_func::LT_FUNC)
+          op_type= FT_OP_GT;
+        cond_func->set_hints_op(op_type, op_value);
+      }
     }
   }
   else if (cond->type() == Item::COND_ITEM)
@@ -6936,7 +7083,7 @@ add_ft_keys(Key_use_array *keyuse_array,
       Item *item;
       while ((item=li++))
       {
-        if (add_ft_keys(keyuse_array,stat,item,usable_tables))
+        if (add_ft_keys(keyuse_array, stat, item, usable_tables, false))
           return TRUE;
       }
     }
@@ -6945,6 +7092,8 @@ add_ft_keys(Key_use_array *keyuse_array,
   if (!cond_func || cond_func->key == NO_SUCH_KEY ||
       !(usable_tables & cond_func->table->map))
     return FALSE;
+
+  cond_func->set_simple_expression(simple_match_expr);
 
   const Key_use keyuse(cond_func->table,
                        cond_func,
@@ -7445,7 +7594,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 
   if (select_lex->ftfunc_list->elements)
   {
-    if (add_ft_keys(keyuse,join_tab,cond,normal_tables))
+    if (add_ft_keys(keyuse, join_tab, cond, normal_tables, true))
       return true;
   }
 
@@ -7577,7 +7726,7 @@ void JOIN::mark_const_table(JOIN_TAB *tab, Key_use *key)
   position->key= key;
   position->rows_fetched= 1.0;               // This is a const table
   position->filter_effect= 1.0;
-  position->prefix_record_count= 1.0;
+  position->prefix_rowcount= 1.0;
   position->read_cost= 0.0;
   position->ref_depend_map= 0;
   position->loosescan_key= MAX_KEY;    // Not a LooseScan
@@ -7670,141 +7819,178 @@ void JOIN::make_outerjoin_info()
 }
 
 /**
-  Build a predicate guarded by match variables for embedding outer joins.
-  The function recursively adds guards for predicate cond
-  assending from tab to the first inner table  next embedding
-  nested outer join and so on until it reaches root_tab
-  (root_tab can be 0).
+  Build a condition guarded by match variables for embedded outer joins.
+  When generating a condition for a table as part of an outer join condition
+  or the WHERE condition, the table in question may also be part of an
+  embedded outer join. In such cases, the condition must be guarded by
+  the match variable for this embedded outer join. Such embedded outer joins
+  may also be recursively embedded in other joins.
 
-  @param tab       the first inner table for most nested outer join
+  The function recursively adds guards for a condition ascending from tab
+  to root_tab, which is the first inner table of an outer join,
+  or NULL if the condition being handled is the WHERE clause.
+
+  @param tab       the first inner table for the inner-most outer join
   @param cond      the predicate to be guarded (must be set)
-  @param root_tab  the first inner table to stop
+  @param root_tab  the inner table to stop at
+                   (is NULL if this is the WHERE clause)
 
   @return
     -  pointer to the guarded predicate, if success
-    -  0, otherwise
+    -  NULL if error
 */
 
 static Item*
 add_found_match_trig_cond(JOIN_TAB *tab, Item *cond, JOIN_TAB *root_tab)
 {
-  Item *tmp;
-  DBUG_ASSERT(cond != 0);
-  if (tab == root_tab)
-    return cond;
-  if ((tmp= add_found_match_trig_cond(tab->first_upper, cond, root_tab)))
-    tmp= new Item_func_trig_cond(tmp, &tab->found, tab,
-                                 Item_func_trig_cond::FOUND_MATCH);
-  if (tmp)
+  DBUG_ASSERT(cond);
+
+  for ( ; tab != root_tab; tab= tab->first_upper)
   {
-    tmp->quick_fix_field();
-    tmp->update_used_tables();
+    if (!(cond= new Item_func_trig_cond(cond, &tab->found, tab,
+                                        Item_func_trig_cond::FOUND_MATCH)))
+      return NULL;
+
+    cond->quick_fix_field();
+    cond->update_used_tables();
   }
-  return tmp;
+
+  return cond;
 }
 
 
 /**
-   Local helper function for make_join_select().
+  Attach outer join conditions to generated table conditions in an optimal way.
 
-   Push down conditions from all on expressions.
-   Each of these conditions are guarded by a variable
-   that turns if off just before null complemented row for
-   outer joins is formed. Thus, the condition from an
-   'on expression' are guaranteed not to be checked for
-   the null complemented row.
-*/ 
-static bool pushdown_on_conditions(JOIN* join, JOIN_TAB *last_tab)
+  @param last_tab - Last table that has been added to the current plan.
+                    Pre-condition: If this is the last inner table of an outer
+                    join operation, a join condition is attached to the first
+                    inner table of that outer join operation.
+
+  @return false if success, true if error.
+
+  Outer join conditions are attached to individual tables, but we can analyze
+  those conditions only when reaching the last inner table of an outer join
+  operation. Notice also that a table can be last within several outer join
+  nests, hence the outer for() loop of this function.
+
+  Example:
+    SELECT * FROM t1 LEFT JOIN (t2 LEFT JOIN t3 ON t2.a=t3.a) ON t1.a=t2.a
+
+    Table t3 is last both in the join nest (t2 - t3) and in (t1 - (t2 - t3))
+    Thus, join conditions for both join nests will be evaluated when reaching
+    this table.
+
+  For each outer join operation processed, the join condition is split
+  optimally over the inner tables of the outer join. The split-out conditions
+  are later referred to as table conditions (but note that several table
+  conditions stemming from different join operations may be combined into
+  a composite table condition).
+
+  Example:
+    Consider the above query once more.
+    The predicate t1.a=t2.a can be evaluated when rows from t1 and t2 are ready,
+    ie at table t2. The predicate t2.a=t3.a can be evaluated at table t3.
+
+  Each non-constant split-out table condition is guarded by a match variable
+  that enables it only when a matching row is found for all the embedded
+  outer join operations.
+
+  Each split-out table condition is guarded by a variable that turns the
+  condition off just before a null-complemented row for the outer join
+  operation is formed. Thus, the join condition will not be checked for
+  the null-complemented row.
+*/
+
+bool JOIN::attach_join_conditions(JOIN_TAB *last_tab)
 {
-  DBUG_ENTER("pushdown_on_conditions");
+  DBUG_ENTER("JOIN::attach_join_conditions");
 
-  /* First push down constant conditions from on expressions */
-  for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
-       join_tab < join->join_tab+join->tables ; join_tab++)
-  {
-    if (join_tab->position && join_tab->join_cond())
-    {
-      JOIN_TAB *cond_tab= join_tab->first_inner;
-      Item *tmp_cond= make_cond_for_table(join_tab->join_cond(),
-                                          join->const_table_map,
-                                          (table_map) 0, 0);
-      if (!tmp_cond)
-        continue;
-      tmp_cond= new
-        Item_func_trig_cond(tmp_cond, &cond_tab->not_null_compl, cond_tab,
-                            Item_func_trig_cond::IS_NOT_NULL_COMPL);
-      if (!tmp_cond)
-        DBUG_RETURN(true);
-      tmp_cond->quick_fix_field();
-
-      if (cond_tab->and_with_jt_and_sel_condition(tmp_cond, __LINE__))
-        DBUG_RETURN(true);
-    }       
-  }
-
-  JOIN_TAB *first_inner_tab= last_tab->first_inner; 
-
-  /* Push down non-constant conditions from on expressions */
-  while (first_inner_tab && first_inner_tab->last_inner == last_tab)
+  for (JOIN_TAB *first_inner_tab= last_tab->first_inner; 
+       first_inner_tab && first_inner_tab->last_inner == last_tab;
+     first_inner_tab= first_inner_tab->first_upper)
   {  
-    /* 
-       Table last_tab is the last inner table of an outer join.
-       An on expression is always attached to it.
-    */     
-    Item *on_expr= first_inner_tab->join_cond();
+    /*
+      Table last_tab is the last inner table of an outer join, locate
+      the corresponding join condition from the first inner table of the
+      same outer join:
+    */
+    Item *const join_cond= first_inner_tab->join_cond();
+    DBUG_ASSERT(join_cond);
+    /*
+      Add the constant part of the join condition to the first inner table
+      of the outer join.
+    */
+    Item *cond= make_cond_for_table(join_cond, const_table_map,
+                                    (table_map) 0, false);
+    if (cond)
+    {
+      cond= new Item_func_trig_cond(cond, &first_inner_tab->not_null_compl,
+                                    first_inner_tab,
+                                    Item_func_trig_cond::IS_NOT_NULL_COMPL);
+      if (!cond)
+        DBUG_RETURN(true);
+      if (cond->fix_fields(thd, NULL))
+        DBUG_RETURN(true);
 
-    for (JOIN_TAB *join_tab= join->join_tab+join->const_tables;
-         join_tab <= last_tab ; join_tab++)
+      if (first_inner_tab->and_with_jt_and_sel_condition(cond, __LINE__))
+        DBUG_RETURN(true);
+    }
+    /*
+      Split the non-constant part of the join condition into parts that
+      can be attached to the inner tables of the outer join.
+    */
+    for (JOIN_TAB *join_tab= first_inner_tab; join_tab <= last_tab; join_tab++)
     {
       table_map prefix_tables= join_tab->prefix_tables();
       table_map added_tables= join_tab->added_tables();
 
+      /*
+        When handling the first inner table of an outer join, we may also
+        reference all tables ahead of this table:
+      */
+      if (join_tab == first_inner_tab)
+        added_tables= prefix_tables;
+      /*
+        We need RAND_TABLE_BIT on the last inner table, in case there is a
+        non-deterministic function in the join condition.
+        (RAND_TABLE_BIT is set for the last table of the join plan,
+         but this is not sufficient for join conditions, which may have a
+         last inner table that is ahead of the last table of the join plan).
+      */
       if (join_tab == last_tab)
       {
-        /*
-          Need RAND_TABLE_BIT on the last inner table, in case there is a
-          non-deterministic function in the join condition.
-          (RAND_TABLE_BIT is set for the last table of the join plan,
-           but this is not sufficient for join conditions, which may have a
-           last inner table that is ahead of the last table of the join plan).
-        */
         prefix_tables|= RAND_TABLE_BIT;
         added_tables|= RAND_TABLE_BIT;
       }
-      Item *tmp_cond= make_cond_for_table(on_expr, prefix_tables, added_tables,
-                                          false);
-      if (!tmp_cond)
+      cond= make_cond_for_table(join_cond, prefix_tables, added_tables, false);
+      if (cond == NULL)
         continue;
-
-      JOIN_TAB *cond_tab=
-        join_tab < first_inner_tab ? first_inner_tab : join_tab;
       /*
-        First add the guards for match variables of
-        all embedding outer join operations.
+        If the table is part of an outer join that is embedded in the
+        outer join currently being processed, wrap the condition in
+        triggered conditions for match variables of such embedded outer joins.
       */
-      if (!(tmp_cond= add_found_match_trig_cond(cond_tab->first_inner,
-                                                tmp_cond,
-                                                first_inner_tab)))
-        DBUG_RETURN(1);
-      /* 
-         Now add the guard turning the predicate off for 
-         the null complemented row.
-      */ 
-      tmp_cond=
-        new Item_func_trig_cond(tmp_cond, &first_inner_tab->not_null_compl,
-                                first_inner_tab,
-                                Item_func_trig_cond::IS_NOT_NULL_COMPL);
-      if (!tmp_cond)
+      if (!(cond= add_found_match_trig_cond(join_tab->first_inner,
++                                            cond, first_inner_tab)))
         DBUG_RETURN(true);
-      tmp_cond->quick_fix_field();
 
-      /* Add the predicate to other pushed down predicates */
-      if (cond_tab->and_with_jt_and_sel_condition(tmp_cond, __LINE__))
+      // Add the guard turning the predicate off for the null-complemented row.
+      cond= new Item_func_trig_cond(cond, &first_inner_tab->not_null_compl,
+                                    first_inner_tab,
+                                    Item_func_trig_cond::IS_NOT_NULL_COMPL);
+      if (!cond)
+        DBUG_RETURN(true);
+      if (cond->fix_fields(thd, NULL))
+        DBUG_RETURN(true);
+
+      // Add the generated condition to the existing table condition
+      if (join_tab->and_with_jt_and_sel_condition(cond, __LINE__))
         DBUG_RETURN(true);
     }
-    first_inner_tab= first_inner_tab->first_upper;       
   }
-  DBUG_RETURN(0);
+
+  DBUG_RETURN(false);
 }
 
 
@@ -8334,83 +8520,64 @@ static bool make_join_select(JOIN *join, Item *cond)
   THD *thd= join->thd;
   Opt_trace_context * const trace= &thd->opt_trace;
   DBUG_ENTER("make_join_select");
+
+  // Add IS NOT NULL conditions to table conditions:
+  add_not_null_conds(join);
+
+  /*
+    Extract constant conditions that are part of the WHERE clause.
+    Constant parts of join conditions from outer joins are attached to
+    the appropriate table condition in JOIN::attach_join_conditions().
+  */
+  if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
+  {                        /* there may be a select without a cond. */    
+    if (join->primary_tables > 1)
+      cond->update_used_tables();    // Table number may have changed
+    if (join->plan_is_const() &&
+        join->select_lex->master_unit() ==
+        thd->lex->unit)             // The outer-most query block
+      join->const_table_map|= RAND_TABLE_BIT;
+  }
+  /*
+    Extract conditions that depend on constant tables.
+    The const part of the query's WHERE clause can be checked immediately
+    and if it is not satisfied then the join has empty result
+  */
+  Item *const_cond= NULL;
+  if (cond)
+    const_cond= make_cond_for_table(cond, join->const_table_map,
+                                    (table_map) 0, true);
+
+  // Add conditions added by add_not_null_conds()
+  for (uint i= 0; i < join->const_tables; i++)
   {
-    add_not_null_conds(join);
-    /*
-      Step #1: Extract constant condition
-       - Extract and check the constant part of the WHERE 
-       - Extract constant parts of ON expressions from outer 
-         joins and attach them appropriately.
-    */
-    if (cond)                /* Because of QUICK_GROUP_MIN_MAX_SELECT */
-    {                        /* there may be a select without a cond. */    
-      if (join->primary_tables > 1)
-        cond->update_used_tables();		// Tablenr may have changed
-
-      if (join->plan_is_const() &&
-	  join->select_lex->master_unit() == thd->lex->unit) // Outer-most query
-        join->const_table_map|= RAND_TABLE_BIT;
-
-      /*
-        Extract expressions that depend on constant tables
-        1. Const part of the join's WHERE clause can be checked immediately
-           and if it is not satisfied then the join has empty result
-        2. Constant parts of outer joins' ON expressions must be attached 
-           there inside the triggers.
-      */
-      {
-        Item *const_cond=
-	  make_cond_for_table(cond,
-                              join->const_table_map,
-                              (table_map) 0, 1);
-        /* Add conditions added by add_not_null_conds(). */
-        for (uint i= 0 ; i < join->const_tables ; i++)
-        {
-          if (and_conditions(&const_cond, join->join_tab[i].condition()))
-            DBUG_RETURN(true);
-        }
+    if (and_conditions(&const_cond, join->join_tab[i].condition()))
+      DBUG_RETURN(true);
+  }
           
-        DBUG_EXECUTE("where",print_where(const_cond,"constants", QT_ORDINARY););
-        for (JOIN_TAB *tab= join->join_tab+join->const_tables;
-             tab < join->join_tab+join->tables ; tab++)
-        {
-          if (tab->position && tab->join_cond())
-          {
-            JOIN_TAB *cond_tab= tab->first_inner;
-            Item *tmp= make_cond_for_table(tab->join_cond(),
-                                           join->const_table_map,
-                                           (  table_map) 0, 0);
-            if (!tmp)
-              continue;
-            tmp= new
-              Item_func_trig_cond(tmp, &cond_tab->not_null_compl, cond_tab,
-                                  Item_func_trig_cond::IS_NOT_NULL_COMPL);
-            if (!tmp)
-              DBUG_RETURN(true);
-
-            tmp->quick_fix_field();
-            if (cond_tab->and_with_condition(tmp, __LINE__))
-              DBUG_RETURN(true);
-          }       
-        }
-        if (const_cond != NULL)
-        {
-          const bool const_cond_is_true= const_cond->val_int() != 0;
-          Opt_trace_object trace_const_cond(trace);
-          trace_const_cond.add("condition_on_constant_tables", const_cond)
-            .add("condition_value", const_cond_is_true);
-          if (!const_cond_is_true)
-          {
-            DBUG_PRINT("info",("Found impossible WHERE condition"));
-            DBUG_RETURN(1);	 // Impossible const condition
-          }
-        }
-      }
+  DBUG_EXECUTE("where", print_where(const_cond, "constants", QT_ORDINARY););
+  if (const_cond != NULL)
+  {
+    const bool const_cond_result= const_cond->val_int() != 0;
+    Opt_trace_object trace_const_cond(trace);
+    trace_const_cond.add("condition_on_constant_tables", const_cond)
+                    .add("condition_value", const_cond_result);
+    if (!const_cond_result)
+    {
+      DBUG_PRINT("info",("Found impossible WHERE condition"));
+      DBUG_RETURN(true);
     }
+  }
 
-    /*
-      Step #2: Extract WHERE/ON parts
-    */
+  /*
+    Extract remaining conditions from WHERE clause and join conditions,
+    and attach them to the most appropriate table condition. This means that
+    a condition will be evaluated as soon as all fields it depends on are
+    available. For outer join conditions, the additional criterion is that
+    we must have determined whether outer-joined rows are available, or
+    have been NULL-extended, see JOIN::attach_join_conditions() for details.
+  */
+  {
     Opt_trace_object trace_wrapper(trace);
     Opt_trace_object
       trace_conditions(trace, "attaching_conditions_to_tables");
@@ -8779,8 +8946,8 @@ static bool make_join_select(JOIN *join, Item *cond)
 	}
       }
       
-      if (pushdown_on_conditions(join, tab))
-        DBUG_RETURN(1);
+      if (join->attach_join_conditions(tab))
+        DBUG_RETURN(true);
     }
     trace_attached_comp.end();
 
@@ -9972,152 +10139,101 @@ void JOIN::optimize_keyuse()
   }
 }
 
+/**
+  Function sets FT hints, initializes FT handlers
+  and checks if FT index can be used as covered.
+*/
 
 void JOIN::optimize_fts_query()
 {
-  if (primary_tables > 1)
-    return;    // We only optimize single table FTS queries
+  if (!select_lex->ftfunc_list->elements)
+    return;
 
-  JOIN_TAB * const tab= &(join_tab[0]);
-  if (tab->type != JT_FT)
-    return;    // Access is not using FTS result
-
-  if ((tab->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
-    return;    // Optimizations requires extended FTS support by table engine
-
-  Item_func_match* fts_result= static_cast<Item_func_match*>(tab->keyuse->val);
-
-  /* If we are ordering on the rank of the same result as is used for access,
-     and the table engine deliver result ordered by rank, we can drop ordering.
-   */
-  if (order != NULL 
-      && order->next == NULL &&             
-      order->direction == ORDER::ORDER_DESC && 
-      fts_result->eq(*(order->item), true))
+  for (uint i= const_tables; i < tables; i++)
   {
-    Item_func_match* fts_item= 
-      static_cast<Item_func_match*>(*(order->item)); 
+    JOIN_TAB *tab= &join_tab[i];
+    if (tab->type != JT_FT)
+      continue;
 
-    /* If we applied the LIMIT optimization @see optimize_fts_limit_query,
-       check that the number of matching rows is sufficient.
-       Otherwise, revert this optimization and use table scan instead.
+    Item_func_match *ifm;
+    Item_func_match* ft_func=
+      static_cast<Item_func_match*>(tab->position->key->val);
+    List_iterator<Item_func_match> li(*(select_lex->ftfunc_list));
+
+    while ((ifm= li++))
+    {
+      if (!(ifm->used_tables() & tab->table->map) || ifm->master)
+        continue;
+
+      if (ifm != ft_func)
+      {
+        if (ifm->can_skip_ranking())
+          ifm->set_hints(this, FT_NO_RANKING, HA_POS_ERROR, false);
+      }
+    }
+
+    /* 
+      Check if internal sorting is needed. FT_SORTED flag is set
+      if no ORDER BY clause or ORDER BY MATCH function is the same
+      as the function that is used for FT index and FT table is
+      the first non-constant table in the JOIN.
     */
-    if (min_ft_matches != HA_POS_ERROR && 
-        min_ft_matches > fts_item->get_count())
-    {
-      // revert to table scan
-      tab->type= JT_ALL;
-      tab->use_quick= QS_NONE;
-      tab->ref.key= -1;
+    if (i == const_tables &&
+        !(ft_func->get_hints()->get_flags() & FT_BOOL) &&
+        (!order || ft_func == test_if_ft_index_order(order)))
+      ft_func->set_hints(this, FT_SORTED, m_select_limit, false);
 
-      // Reset join condition
-      tab->select->cond= NULL;
-      where_cond= NULL;
-
-      return;
-    }
-    else if (fts_item->ordered_result())
-      order= NULL;
-  }
-  
-  /* Check whether the FTS result is covering.  If only document id
-     and rank is needed, there is no need to access table rows.
-  */
-  List_iterator<Item> it(all_fields);
-  Item *item;
-  // This optimization does not work with filesort nor GROUP BY
-  bool covering= (!order && !group);
-  bool docid_found= false;
-  while (covering && (item= it++))
-  {
-    switch (item->type()) {
-    case Item::FIELD_ITEM:
-    {
-      Item_field *item_field= static_cast<Item_field*>(item);
-      if (strcmp(item_field->field_name, FTS_DOC_ID_COL_NAME) == 0)
-      {
-        docid_found= true;
-        covering= fts_result->docid_in_result();
-      }
-      else
-        covering= false;
-      break;
-    }
-    case Item::FUNC_ITEM:
-      if (static_cast<Item_func*>(item)->functype() == Item_func::FT_FUNC)
-      {
-        Item_func_match* fts_item= static_cast<Item_func_match*>(item); 
-        if (fts_item->eq(fts_result, true))
-          break;
-      }
-      // Fall-through when not an equivalent MATCH expression
-    default:
-      covering= false;
-    }
+    /* 
+      Check if ranking is not needed. FT_NO_RANKING flag is set if
+      MATCH function is used only in WHERE condition and  MATCH
+      function is not part of an expression.
+    */
+    if (ft_func->can_skip_ranking())
+      ft_func->set_hints(this, FT_NO_RANKING,
+                         !order ? m_select_limit : HA_POS_ERROR, false);
   }
 
-  if (covering) 
-  {
-    if (docid_found)
-    {
-      replace_item_field(FTS_DOC_ID_COL_NAME, 
-                         new Item_func_docid(reinterpret_cast<FT_INFO_EXT*>
-                                             (fts_result->ft_handler)));
-    }
-    
-    // Tell storage engine that row access is not necessary
-    fts_result->table->set_keyread(true);
-    fts_result->table->covering_keys.set_bit(fts_result->key);
-  }
+  init_ftfuncs(thd, select_lex);
 }
 
 
-  /**
-     Optimize FTS queries with ORDER BY/LIMIT, but no WHERE clause.
+/**
+  Check if FTS index only access is possible.
 
-     If MATCH expression is not in WHERE clause, but in ORDER BY,
-     JT_FT access will not apply. However, if we are ordering on rank and
-     there is a limit, normally, only the top ranking rows are needed
-     returned, and one would benefit from the optimizations associated
-     with JT_FT acess (@see optimize_fts_query).  To get JT_FT access we
-     will add the MATCH expression to the WHERE clause.
+  @param tab  pointer to JOIN_TAB structure.
 
-     @note This optimization will only be applied to single table
-           queries with no existing WHERE clause.
-     @note This transformation is not correct if number of matches 
-           is less than the number of rows requested by limit.
-           If this turns out to be the case, the transformation will
-           be reverted @see optimize_fts_query()
-   */
-void 
-JOIN::optimize_fts_limit_query()
+  @return  TRUE if index only access is possible,
+           FALSE otherwise.
+*/
+
+bool JOIN::fts_index_access(JOIN_TAB *tab)
 {
-  /* 
-     Only do this optimization if
-     1. It is a single table query
-     2. There is no WHERE condition
-     3. There is a single ORDER BY element
-     4. Ordering is descending
-     5. There is a LIMIT clause
-     6. Ordering is on a MATCH expression
-   */
-  if (primary_tables == 1 &&                                              // 1
-      where_cond == NULL &&                                               // 2
-      order && order->next == NULL &&                                     // 3
-      order->direction == ORDER::ORDER_DESC &&                            // 4
-      m_select_limit != HA_POS_ERROR)                                     // 5
-  {
-    DBUG_ASSERT(order->item);
-    Item* item= *order->item;
-    DBUG_ASSERT(item);
+  DBUG_ASSERT(tab->type == JT_FT);
 
-    if (item->type() == Item::FUNC_ITEM &&
-        static_cast<Item_func*>(item)->functype() == Item_func::FT_FUNC)  // 6
-    {
-      where_cond= item;
-      min_ft_matches= m_select_limit;
-    }
+  if ((tab->table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
+    return false; // Optimizations requires extended FTS support by table engine
+
+  /*
+    This optimization does not work with filesort nor GROUP BY
+  */
+  if (group || (order && ordered_index_usage != ordered_index_order_by))
+    return false;
+
+  /*
+    Check whether the FTS result is covering.  If only document id
+    and rank is needed, there is no need to access table rows.
+  */
+  TABLE *table= tab->table;
+  for (uint i= bitmap_get_first_set(table->read_set);
+       i < table->s->fields;
+       i= bitmap_get_next_set(table->read_set, i))
+  {
+    if (table->field[i] != table->fts_doc_id_field ||
+        !tab->ft_func->docid_in_result())
+    return false;
   }
+
+  return true;
 }
 
 
@@ -10150,10 +10266,8 @@ static void calculate_materialization_costs(JOIN *join,
       get_partial_join_cost() assumes a regular join, which is correct when
       we optimize a sj-materialization nest (always executed as regular
       join).
-      @todo consider using join->best_rowcount instead.
     */
-    get_partial_join_cost(join, n_tables,
-                          &mat_cost, &mat_rowcount);
+    get_partial_join_cost(join, n_tables, &mat_cost, &mat_rowcount);
     n_tables+= join->const_tables;
     inner_expr_list= &sj_nest->nested_join->sj_inner_exprs;
   }
@@ -10403,25 +10517,25 @@ bool JOIN::compare_costs_of_subquery_strategies(
       if (subs->in_cond_of_tab != INT_MIN)
       {
         /*
-          Subquery is attached to a certain 'pos', pos[-1].prefix_record_count
+          Subquery is attached to a certain 'pos', pos[-1].prefix_rowcount
           is the number of times we'll start a loop accessing 'pos'; each such
-          loop will read pos->rows_fetched records of 'pos', so subquery will
-          be evaluated pos[-1].prefix_record_count * pos->rows_fetched times.
+          loop will read pos->rows_fetched rows of 'pos', so subquery will
+          be evaluated pos[-1].prefix_rowcount * pos->rows_fetched times.
           Exceptions:
-          - if 'pos' is first, use 1 instead of pos[-1].prefix_record_count
+          - if 'pos' is first, use 1.0 instead of pos[-1].prefix_rowcount
           - if 'pos' is first of a sj-materialization nest, same.
 
           If in a sj-materialization nest, pos->rows_fetched and
-          pos[-1].prefix_record_count are of the "nest materialization" plan
+          pos[-1].prefix_rowcount are of the "nest materialization" plan
           (copied back in fix_semijoin_strategies()), which is
           appropriate as it corresponds to evaluations of our subquery.
 
-          pos.prefix_record_count is not suitable because if we have:
+          pos->prefix_rowcount is not suitable because if we have:
           select ... from ot1 where ot1.col in
             (select it1.col1 from it1 where it1.col2 not in (subq));
           and subq does subq-mat, and plan is ot1 - it1+firstmatch(ot1),
           then:
-          - t1.prefix_record_count==1 (due to firstmatch)
+          - t1.prefix_rowcount==1 (due to firstmatch)
           - subq is attached to it1, and is evaluated for each row read from
             t1, potentially way more than 1.
        */
@@ -10434,7 +10548,7 @@ bool JOIN::compare_costs_of_subquery_strategies(
             !sj_is_materialize_strategy(parent_join
                                         ->join_tab[idx].position->sj_strategy))
           parent_fanout*=
-            parent_join->join_tab[idx - 1].position->prefix_record_count;
+            parent_join->join_tab[idx - 1].position->prefix_rowcount;
       }
       else
       {

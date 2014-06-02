@@ -66,7 +66,7 @@ public:
       DBUG_ASSERT(sizeof(buffer) >= 4);
       int4store(const_cast<uchar *>(static_cast<uchar *>
                                     (static_cast<void *>(&buf2))),
-                map2buff);
+                static_cast<uint32>(map2buff));
     }
 
     bitmap_intersect(&map, &map2);

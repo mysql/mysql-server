@@ -77,7 +77,7 @@ using std::max;
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
 char server_version[SERVER_VERSION_LENGTH];
-ulong server_id = 0;
+ulong filter_server_id = 0;
 /* 
   One statement can result in a sequence of several events: Intvar_log_events,
   User_var_log_events, and Rand_log_events, followed by one
@@ -134,7 +134,8 @@ static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
 static my_bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
-static uint stop_never_server_id= 1;
+static int64 stop_never_slave_server_id= -1;
+static int64 connection_server_id= -1;
 static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
@@ -159,7 +160,6 @@ static ulonglong start_position, stop_position;
 static char *start_datetime_str, *stop_datetime_str;
 static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
-static ushort binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 static char* dirname_for_local_load= 0;
 static uint opt_server_id_bits = 0;
@@ -890,7 +890,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         events.
       */
       if (ev_type != ROTATE_EVENT &&
-          server_id && (server_id != ev->server_id))
+          filter_server_id && (filter_server_id != ev->server_id))
         goto end;
     }
     if (((my_time_t) (ev->when.tv_sec) >= stop_datetime)
@@ -1425,16 +1425,24 @@ static struct my_option my_long_options[] =
   {"rewrite-db", OPT_REWRITE_DB, "Rewrite the row event to point so that "
    "it can be applied to a new database", &rewrite, &rewrite, 0,
    GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifdef DBUG_OFF
+   {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log.", &default_dbug_option,
    &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit .",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
@@ -1507,7 +1515,7 @@ static struct my_option my_long_options[] =
     &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
-   &server_id, &server_id, 0, GET_ULONG,
+   &filter_server_id, &filter_server_id, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id-bits", 0,
    "Set number of significant bits in server-id",
@@ -1563,9 +1571,15 @@ static struct my_option my_long_options[] =
    &stop_never, &stop_never, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
-   "The slave server ID used for stop-never",
-   &stop_never_server_id, &stop_never_server_id, 0,
-   GET_UINT, REQUIRED_ARG, 65535, 1, 65535, 0, 0, 0},
+   "The slave server_id used for --read-from-remote-server --stop-never."
+   " This option cannot be used together with connection-server-id.",
+   &stop_never_slave_server_id, &stop_never_slave_server_id, 0,
+   GET_LL, REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
+  {"connection-server-id", OPT_CONNECTION_SERVER_ID,
+   "The slave server_id used for --read-from-remote-server."
+   " This option cannot be used together with stop-never-slave-server-id.",
+   &connection_server_id, &connection_server_id, 0,
+   GET_LL, REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
    "passed on the command line.",
@@ -2088,6 +2102,12 @@ err:
 }
 
 
+static int get_dump_flags()
+{
+  return stop_never ? 0 : BINLOG_DUMP_NON_BLOCK;
+}
+
+
 /**
   Requests binlog dump from a remote server and prints the events it
   receives.
@@ -2136,7 +2156,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Fake a server ID to log continously. This will show as a
     slave on the mysql server.
   */
-  server_id= ((to_last_remote_log && stop_never) ? stop_never_server_id : 0);
+  if (to_last_remote_log && stop_never)
+  {
+    if (stop_never_slave_server_id == -1)
+      server_id= 1;
+    else
+      server_id= stop_never_slave_server_id;
+  }
+  else
+    server_id= 0;
+
+  if (connection_server_id != -1)
+    server_id= connection_server_id;
+
   size_t tlen = strlen(logname);
   if (tlen > UINT_MAX) 
   {
@@ -2165,7 +2197,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
     int4store(ptr_buffer, (uint32) start_position);
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
-    int2store(ptr_buffer, binlog_flags);
+    int2store(ptr_buffer, get_dump_flags());
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
@@ -2197,7 +2229,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
     uchar* ptr_buffer= command_buffer;
 
-    int2store(ptr_buffer, binlog_flags);
+    int2store(ptr_buffer, get_dump_flags());
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
@@ -2836,6 +2868,13 @@ static int args_post_process(void)
   }
 
   global_sid_lock->unlock();
+
+  if (connection_server_id == 0 && stop_never)
+    error("Cannot set --server-id=0 when --stop-never is specified.");
+  if (connection_server_id != -1 && stop_never_slave_server_id != -1)
+    error("Cannot set --connection-server-id= %lld and"
+          "--stop-never-slave-server-id= %lld. ", connection_server_id,
+          stop_never_slave_server_id);
 
   DBUG_RETURN(OK_CONTINUE);
 }

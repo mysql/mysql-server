@@ -1,0 +1,836 @@
+#Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+#Confirming the storage engine
+SHOW VARIABLES LIKE '%engine%';
+Variable_name	Value
+default_storage_engine	MyISAM
+default_tmp_storage_engine	MyISAM
+#Creating the spatial Geometry object
+USE test;
+DROP TABLE IF EXISTS gis_geometrycollection;
+CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_1= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_1= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center_1= 'POINT(15 10)';
+SET @star_top_1= 'POINT(15 25)';
+SET @star_bottom_left_1= 'POINT(5 0)';
+SET @star_bottom_right_1= 'POINT(25 0)';
+SET @star_bottom_points_1= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points_1= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal_1= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical_1= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center_1= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal_1= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical_1= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star_1= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val_1= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val_1= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems_1='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems_1='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_2= 'POLYGON((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_2= 'POLYGON((35 0,10 15,40 15,32 10,35 0))';
+SET @star_center_2= 'POINT(25 10)';
+SET @star_top_2= 'POINT(25 25)';
+SET @star_bottom_left_2= 'POINT(15 0)';
+SET @star_bottom_right_2= 'POINT(35 0)';
+SET @star_bottom_points_2= 'MULTIPOINT(15 0,35 0)';
+SET @star_all_points_2= 'MULTIPOINT(15 0,35 0,35 10,25 25)';
+SET @star_line_horizontal_2= 'LINESTRING(20 15,30 15)';
+SET @star_line_vertical_2= 'LINESTRING(25 5,25 25)';
+SET @star_top_to_center_2= 'LINESTRING(25 25,25 10)';
+SET @star_lines_near_horizontal_2= 'MULTILINESTRING((35 0,10 15,25 30,10 5))';
+SET @star_lines_near_vertical_2= 'MULTILINESTRING((10 5,25 25,10 25))';
+SET @star_2= 'POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0))';
+SET @star_elem_vertical_val_2= '((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_val_2= '((35 0,10 15,40 15,32 10,35 0))';
+SET @star_of_elems_2='MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0)))';
+SET @star_collection_elems_2='GEOMETRYCOLLECTION(MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0))),POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0)),LINESTRING(25 25,25 10),MULTIPOINT(15 0,35 0),POINT(25 25))';
+SET @star_elem_vertical_3= 'POLYGON((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_3= 'POLYGON((85 0,60 15,90 15,82 10,85 0))';
+SET @star_center_3= 'POINT(75 10)';
+SET @star_top_3= 'POINT(75 25)';
+SET @star_bottom_left_3= 'POINT(65 0)';
+SET @star_bottom_right_3= 'POINT(85 0)';
+SET @star_bottom_points_3= 'MULTIPOINT(65 0,85 0)';
+SET @star_all_points_3= 'MULTIPOINT(65 0,85 0,75 10,75 25)';
+SET @star_line_horizontal_3= 'LINESTRING(70 15,80 15)';
+SET @star_line_vertical_3= 'LINESTRING(75 5,75 25)';
+SET @star_top_to_center_3= 'LINESTRING(75 25,75 10)';
+SET @star_lines_near_horizontal_3= 'MULTILINESTRING((85 0,60 15,85 30,60 5))';
+SET @star_lines_near_vertical_3= 'MULTILINESTRING((60 5,75 25,60 25))';
+SET @star_3= 'POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0))';
+SET @star_elem_vertical_val_3= '((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
+SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
+SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
+#INSERT base star
+INSERT INTO gis_geometrycollection VALUES
+(100,GeomFromText(@star)),
+(101,GeomFromText(@star_elem_vertical)),
+(102,GeomFromText(@star_elem_horizontal)),
+(103,GeomFromText(@star_of_elems)),
+(104,GeomFromText(@star_top)),
+(105,GeomFromText(@star_center)),
+(106,GeomFromText(@star_bottom_left)),
+(107,GeomFromText(@star_bottom_right)),
+(108,GeomFromText(@star_bottom_points)),
+(109,GeomFromText(@star_all_points)),
+(110,GeomFromText(@star_line_horizontal)),
+(111,GeomFromText(@star_line_vertical)),
+(112,GeomFromText(@star_top_to_center)),
+(113,GeomFromText(@star_lines_near_horizontal)),
+(114,GeomFromText(@star_lines_near_vertical)),
+(115,GeomFromText(@star_collection_elems));
+#INSERT identical (to base) star
+INSERT INTO gis_geometrycollection VALUES
+(200,GeomFromText(@star_1)),
+(201,GeomFromText(@star_elem_vertical_1)),
+(202,GeomFromText(@star_elem_horizontal_1)),
+(203,GeomFromText(@star_of_elems_1)),
+(204,GeomFromText(@star_top_1)),
+(205,GeomFromText(@star_center_1)),
+(206,GeomFromText(@star_bottom_left_1)),
+(207,GeomFromText(@star_bottom_right_1)),
+(208,GeomFromText(@star_bottom_points_1)),
+(209,GeomFromText(@star_all_points_1)),
+(210,GeomFromText(@star_line_horizontal_1)),
+(211,GeomFromText(@star_line_vertical_1)),
+(212,GeomFromText(@star_top_to_center_1)),
+(213,GeomFromText(@star_lines_near_horizontal_1)),
+(214,GeomFromText(@star_lines_near_vertical_1)),
+(215,GeomFromText(@star_collection_elems_1));
+#INSERT overlapping star
+INSERT INTO gis_geometrycollection VALUES
+(300,GeomFromText(@star_2)),
+(301,GeomFromText(@star_elem_vertical_2)),
+(302,GeomFromText(@star_elem_horizontal_2)),
+(303,GeomFromText(@star_of_elems_2)),
+(304,GeomFromText(@star_top_2)),
+(305,GeomFromText(@star_center_2)),
+(306,GeomFromText(@star_bottom_left_2)),
+(307,GeomFromText(@star_bottom_right_2)),
+(308,GeomFromText(@star_bottom_points_2)),
+(309,GeomFromText(@star_all_points_2)),
+(310,GeomFromText(@star_line_horizontal_2)),
+(311,GeomFromText(@star_line_vertical_2)),
+(312,GeomFromText(@star_top_to_center_2)),
+(313,GeomFromText(@star_lines_near_horizontal_2)),
+(314,GeomFromText(@star_lines_near_vertical_2)),
+(315,GeomFromText(@star_collection_elems_2));
+#INSERT seperate star
+INSERT INTO gis_geometrycollection VALUES
+(400,GeomFromText(@star_3)),
+(401,GeomFromText(@star_elem_vertical_3)),
+(402,GeomFromText(@star_elem_horizontal_3)),
+(403,GeomFromText(@star_of_elems_3)),
+(404,GeomFromText(@star_top_3)),
+(405,GeomFromText(@star_center_3)),
+(406,GeomFromText(@star_bottom_left_3)),
+(407,GeomFromText(@star_bottom_right_3)),
+(408,GeomFromText(@star_bottom_points_3)),
+(409,GeomFromText(@star_all_points_3)),
+(410,GeomFromText(@star_line_horizontal_3)),
+(411,GeomFromText(@star_line_vertical_3)),
+(412,GeomFromText(@star_top_to_center_3)),
+(413,GeomFromText(@star_lines_near_horizontal_3)),
+(414,GeomFromText(@star_lines_near_vertical_3)),
+(415,GeomFromText(@star_collection_elems_3));
+DROP TABLE IF EXISTS gis_geometrycollection_2;
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+#Checking the integrity of the above create/insert statements 
+#64 rows. 
+SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
+count(astext(g) != 'NULL')
+64
+#64 rows. 
+SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
+count(astext(g2) != 'NULL')
+64
+#========================================================================================
+# ST_Symdifference(g1,g2)
+#========================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star_center),GeomFromText(@star_center)));
+AsText(ST_Symdifference(GeomFromText(@star_center),GeomFromText(@star_center)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_center)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_center)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_center))) FROM gis_geometrycollection WHERE fid=105;
+AsText(ST_Symdifference(g,GeomFromText(@star_center)))
+GEOMETRYCOLLECTION()
+#point,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points)));
+AsText(ST_Symdifference(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(MULTIPOINT(25 0))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_center),GeomFromText(@star_bottom_points)));
+AsText(ST_Symdifference(GeomFromText(@star_center),GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(POINT(15 10),MULTIPOINT(5 0,25 0))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=106;
+AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(MULTIPOINT(25 0))
+#point,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(LINESTRING(15 10,15 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_bottom_left),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_bottom_left),GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POINT(5 0),LINESTRING(15 10,15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=104;
+AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(LINESTRING(15 10,15 25),POINT(15 25))
+#point,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,15 25,0 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_center),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_center),GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,15 25,0 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=104;
+AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,15 25,0 25),POINT(15 25))
+#point,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_3),GeomFromText(@star)));
+AsText(ST_Symdifference(GeomFromText(@star_top_3),GeomFromText(@star)))
+GEOMETRYCOLLECTION(POINT(75 25),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star))) FROM gis_geometrycollection WHERE fid=104;
+AsText(ST_Symdifference(g,GeomFromText(@star)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+#point,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_3),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_top_3),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(POINT(75 25),MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=104;
+AsText(ST_Symdifference(g,GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+#point,geometrycollection
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_3),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_top_3),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(75 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=104;
+AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr)));
+AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.2 12),POINT(15 25),LINESTRING(0 15,15 30,6 15))
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_top)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(MULTIPOINT(5 0,15 10,25 0))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_bottom_points),GeomFromText(@star_center)));
+AsText(ST_Symdifference(GeomFromText(@star_bottom_points),GeomFromText(@star_center)))
+GEOMETRYCOLLECTION(MULTIPOINT(5 0,25 0),POINT(15 10))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_bottom_left))) FROM gis_geometrycollection WHERE fid=108;
+AsText(ST_Symdifference(g,GeomFromText(@star_bottom_left)))
+GEOMETRYCOLLECTION(MULTIPOINT(25 0))
+#multipoint,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(MULTIPOINT(15 10,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points)));
+AsText(ST_Symdifference(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(MULTIPOINT(15 10,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_all_points_1)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_all_points_1)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_all_points))) FROM gis_geometrycollection WHERE fid=108;
+AsText(ST_Symdifference(g,GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(MULTIPOINT(15 10,15 25))
+#multipoint,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 10),LINESTRING(15 10,15 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 10),LINESTRING(15 10,15 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=109;
+AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 10),LINESTRING(15 10,15 25),POINT(15 25))
+#multipoint,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(0 5,15 25,0 25),POINT(15 10),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(25 0,4.411764705882352 12.352941176470587),LINESTRING(0 5,4.411764705882352 12.352941176470587),POINT(15 10),LINESTRING(4.411764705882352 12.352941176470587,15 30,0 15,4.411764705882352 12.352941176470587),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=109;
+AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_horizontal)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(25 0,4.411764705882352 12.352941176470587),LINESTRING(0 5,4.411764705882352 12.352941176470587),POINT(15 10),LINESTRING(4.411764705882352 12.352941176470587,15 30,0 15,4.411764705882352 12.352941176470587),POINT(15 25))
+#multipoint,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical)))
+GEOMETRYCOLLECTION(POLYGON((5 0,15 25,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal)))
+GEOMETRYCOLLECTION(MULTIPOINT(5 0,15 25),POLYGON((25 0,0 15,30 15,22 10,25 0)))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_elem_horizontal))) FROM gis_geometrycollection WHERE fid=109;
+AsText(ST_Symdifference(g,GeomFromText(@star_elem_horizontal)))
+GEOMETRYCOLLECTION(MULTIPOINT(5 0,15 25),POLYGON((25 0,0 15,30 15,22 10,25 0)))
+#multipoint,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(MULTIPOINT(0 0,0 30,30 25),MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=109;
+AsText(ST_Symdifference(g,GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+#multipoint,geometrycollection
+SELECT AsText(ST_Symdifference(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(0 0),POINT(5 0),POINT(25 0),POINT(30 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(0 30),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(5 0),POINT(25 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 10),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=109;
+AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(5 0),POINT(25 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 10),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr)));
+AsText(ST_Symdifference(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(5 0),POINT(25 0),POINT(25 0),POINT(15 10),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.2 12),POINT(15 25),LINESTRING(0 15,15 30,6 15))
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_center)));
+AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_center)))
+GEOMETRYCOLLECTION(POINT(15 10),LINESTRING(15 10,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(15 25,15 10)'),GeomFromText('POINT(15 10)')));
+AsText(ST_Symdifference(GeomFromText('LINESTRING(15 25,15 10)'),GeomFromText('POINT(15 10)')))
+GEOMETRYCOLLECTION(POINT(15 10),LINESTRING(15 10,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left)));
+AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left)))
+GEOMETRYCOLLECTION(POINT(5 0),LINESTRING(15 10,15 25))
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+AsText(ST_Symdifference(g,g2))
+GEOMETRYCOLLECTION(POINT(15 10),LINESTRING(10 15,20 15))
+#linestring,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)')));
+AsText(ST_Symdifference(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)')))
+GEOMETRYCOLLECTION(LINESTRING(15 5,15 25),POINT(15 10),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points)));
+AsText(ST_Symdifference(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(15 5,15 25),POINT(15 10),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText('MULTIPOINT(15 10,15 25)'))) FROM gis_geometrycollection WHERE fid=111;
+AsText(ST_Symdifference(g,GeomFromText('MULTIPOINT(15 10,15 25)')))
+GEOMETRYCOLLECTION(LINESTRING(15 5,15 25),POINT(15 10),POINT(15 25))
+#linestring,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center)))
+MULTILINESTRING((15 5,15 25),(15 10,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical)))
+MULTILINESTRING((15 5,15 25),(15 10,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_top_to_center_1)));
+AsText(ST_Symdifference(GeomFromText(@star_top_to_center),GeomFromText(@star_top_to_center_1)))
+MULTILINESTRING((15 10,15 25),(15 10,15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=111;
+AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center)))
+MULTILINESTRING((15 5,15 25),(15 10,15 25))
+#linestring,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal)))
+MULTILINESTRING((25 0,4.411764705882352 12.352941176470587),(0 5,4.411764705882352 12.352941176470587),(4.411764705882352 12.352941176470587,15 30,0 15,4.411764705882352 12.352941176470587),(10 15,20 15))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical)))
+MULTILINESTRING((0 5,15 25,0 25),(10 15,20 15))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=110;
+AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_horizontal)))
+MULTILINESTRING((25 0,4.411764705882352 12.352941176470587),(0 5,4.411764705882352 12.352941176470587),(4.411764705882352 12.352941176470587,15 30,0 15,4.411764705882352 12.352941176470587),(10 15,20 15))
+#linestring,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))')));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))')))
+GEOMETRYCOLLECTION(LINESTRING(10 15,20 15),POLYGON((19 10,11 15,19 15,19 10)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal)))
+GEOMETRYCOLLECTION(LINESTRING(10 15,20 15),POLYGON((25 0,0 15,30 15,22 10,25 0)))
+SELECT AsText(ST_Symdifference(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))) FROM gis_geometrycollection WHERE fid=110;
+AsText(ST_Symdifference(g,GeomFromText('POLYGON((11 15,19 15,11 15))')))
+NULL
+#linestring,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(LINESTRING(10 15,11 15),POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),LINESTRING(19 15,20 15))
+SELECT AsText(ST_Symdifference(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
+AsText(ST_Symdifference(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')))
+NULL
+#linestring,geometrycollection
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(10 15,11 15))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3)))
+GEOMETRYCOLLECTION(POINT(65 0),POINT(85 0),POLYGON((85 0,75 5,65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0)),POINT(75 25),LINESTRING(10 15,20 15))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=110;
+AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(10 15,11 15))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr)));
+AsText(ST_Symdifference(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.2 12),POINT(15 25),LINESTRING(0 15,15 30,6 15),LINESTRING(10 15,11 15))
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,15 25,0 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,15 25,0 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,15 25,0 25),POINT(15 25))
+#multilinestring,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(0 5,15 25,0 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(0 5,15 25,0 25),POINT(15 10),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(0 5,15 25,0 25))
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+AsText(ST_Symdifference(g,g2))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(0 5,15 25,0 25))
+#multilinestring,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical)))
+MULTILINESTRING((0 5,15 25,0 25),(15 5,15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal)))
+MULTILINESTRING((0 5,15 25,0 25),(10 15,20 15))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_line_vertical)))
+MULTILINESTRING((0 5,15 25,0 25),(15 5,15 25))
+#multilinestring,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')))
+MULTILINESTRING((0 5,15 25),(0 5,15 25),(0 15,15 25),(15 25,0 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal)))
+MULTILINESTRING((25 0,5.172413793103447 11.896551724137929),(0 5,5.172413793103447 11.896551724137929),(0 5,4.411764705882352 12.352941176470587),(5.172413793103447 11.896551724137929,15 25,12 25),(5.172413793103447 11.896551724137929,4.411764705882352 12.352941176470587),(4.411764705882352 12.352941176470587,12 25),(4.411764705882352 12.352941176470587,0 15,10 25),(12 25,15 30,10 25),(12 25,10 25),(10 25,0 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')))
+MULTILINESTRING((0 5,15 25),(0 5,15 25),(0 15,15 25),(15 25,0 25))
+#multilinestring,multilinestring
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_line_vertical)))
+MULTILINESTRING((0 5,15 25,0 25),(15 5,15 25))
+#multilinestring,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical)))
+GEOMETRYCOLLECTION(MULTILINESTRING((0 5,15 25,0 25)),POLYGON((5 0,15 25,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)))
+GEOMETRYCOLLECTION(POLYGON((25 0,0 15,30 15,22 10,25 0)),LINESTRING(0 5,5.1724137931034475 11.89655172413793),LINESTRING(7.5 15,15 25,0 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_elem_vertical)))
+GEOMETRYCOLLECTION(MULTILINESTRING((0 5,15 25,0 25)),POLYGON((5 0,15 25,25 0,15 5,5 0)))
+#multilinestring,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical)));
+AsText(ST_Symdifference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical)))
+GEOMETRYCOLLECTION(POLYGON((25 0,15 5,5 0,15 25,25 0)),LINESTRING(10.714285714285715 14.285714285714286,0 25),LINESTRING(25 0,25 30))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,5.1724137931034475 11.89655172413793),POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),LINESTRING(7.5 15,15 25,0 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,5.1724137931034475 11.89655172413793),POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),LINESTRING(7.5 15,15 25,0 25))
+#multilinestring,geometrycollection
+SELECT AsText(ST_Symdifference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(25 0,25 11.875),LINESTRING(25 15,25 30),LINESTRING(10 15,0 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.883720930232558 11.511627906976745),LINESTRING(7.5 15,15 25,0 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
+AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.883720930232558 11.511627906976745),LINESTRING(7.5 15,15 25,0 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_lines_near_horizontal),GeomFromText(@star_collection_multilinestr)));
+AsText(ST_Symdifference(GeomFromText(@star_lines_near_horizontal),GeomFromText(@star_collection_multilinestr)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),LINESTRING(0 5,4.2 12),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.2 12),POINT(15 25),LINESTRING(25 0,8.870967741935484 9.677419354838708),LINESTRING(0 15,15 30),LINESTRING(0 15,15 30),LINESTRING(6 15,15 30),LINESTRING(6 15,15 30))
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_center)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_center)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)')));
+AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)')))
+GEOMETRYCOLLECTION(POLYGON((5 0,15 25,25 0,15 5,5 0)),POINT(0 0))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_center))) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Symdifference(g,GeomFromText(@star_center)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+#polygon,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_all_points)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)')));
+AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)')))
+GEOMETRYCOLLECTION(POLYGON((5 0,15 25,25 0,15 5,5 0)),MULTIPOINT(0 0,30 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_all_points))) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Symdifference(g,GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_all_points)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_all_points)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)))
+#polygon,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_line_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_line_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(15 5,15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal)))
+GEOMETRYCOLLECTION(LINESTRING(10 15,11 15),POLYGON((25 0,15 5,5 0,15 25,25 0)),LINESTRING(19 15,20 15))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Symdifference(g,GeomFromText(@star_line_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(15 5,15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)))
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+AsText(ST_Symdifference(g,g2))
+GEOMETRYCOLLECTION(LINESTRING(15 5,15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)))
+#polygon,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,4.883720930232558 11.511627906976745),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(7.5 15,15 25,0 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal)));
+AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,4.411764705882352 12.352941176470587),POLYGON((25 0,15 5,5 0,15 25,25 0)),LINESTRING(25 0,4.411764705882352 12.352941176470587),LINESTRING(4.411764705882352 12.352941176470587,15 30,0 15,4.411764705882352 12.352941176470587))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,4.883720930232558 11.511627906976745),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(7.5 15,15 25,0 25))
+#polygon,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical)))
+MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_3),GeomFromText(@star_elem_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_3),GeomFromText(@star_elem_vertical)))
+MULTIPOLYGON(((65 0,75 5,85 0,82 10,90 15,80 15,75 25,70 15,60 15,67 10,65 0)),((5 0,15 5,25 0,15 25,5 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star)));
+AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star)))
+MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Symdifference(g,GeomFromText(@star_elem_vertical)))
+MULTIPOLYGON(((15 25,25 0,22 10,30 15,20 15,15 25)),((15 25,10 15,0 15,7 10,5 0,15 25)))
+#polygon,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_of_elems)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_of_elems_3)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_of_elems_3)))
+MULTIPOLYGON(((5 0,15 5,25 0,22 10,30 15,20 15,15 25,10 15,0 15,7 10,5 0)),((65 0,75 5,85 0,75 25,65 0)),((85 0,82 10,90 15,60 15,85 0)))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
+AsText(ST_Symdifference(g,GeomFromText(@star_of_elems)))
+GEOMETRYCOLLECTION()
+#polygon,geometrycollection
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_collection_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_collection_elems_3)));
+AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_collection_elems_3)))
+GEOMETRYCOLLECTION(POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_top)));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)')));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)')))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POINT(30 30))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=103;
+AsText(ST_Symdifference(g,GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+#multipolygon,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points)));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)')));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)')))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),MULTIPOINT(30 30,0 35))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=103;
+AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))))
+#multipolygon,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(15 10,15 15))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)')));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)')))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),LINESTRING(30 30,0 35))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=103;
+AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(15 10,15 15))
+#multipolygon,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,5.1724137931034475 11.89655172413793),POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),LINESTRING(7.5 15,15 25,0 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),MULTILINESTRING((0 30,30 30,0 35)))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
+AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(LINESTRING(0 5,5.1724137931034475 11.89655172413793),POLYGON((25 0,15 5,5 0,8.870967741935484 9.677419354838708,0 15,11 15,15 25,19 15,30 15,22 10,25 0)),LINESTRING(7.5 15,15 25,0 25))
+#multipolygon,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star)));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')))
+MULTIPOLYGON(((23 15,25.333333333333336 12.083333333333334,30 15,23 15)),((6.617647058823529 11.029411764705882,9 15,0 15,6.617647058823529 11.029411764705882)),((15 25,9 15,23 15,15 25)),((25.333333333333336 12.083333333333332,22 10,25 0,35 0,25.333333333333336 12.083333333333332)),((25 0,15 5,5 0,25 0)))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#multipolygon,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#multipolygon,geometrycollectionn
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3)));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3)))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_top)));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)')));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)')))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(30 30),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=115;
+AsText(ST_Symdifference(g,GeomFromText(@star_top)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(15 25),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+#geometrycollection,multipoint
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points)));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(5 0),POINT(25 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)')));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)')))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(30 30),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(0 35),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=115;
+AsText(ST_Symdifference(g,GeomFromText(@star_bottom_points)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(5 0),POINT(25 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25))
+#geometrycollection,linestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center)));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(15 10,15 15))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)')));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)')))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(30 30,0 35),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
+AsText(ST_Symdifference(g,GeomFromText(@star_top_to_center)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(15 25),LINESTRING(15 10,15 15))
+#geometrycollection,multilinestring
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.883720930232558 11.511627906976745),LINESTRING(7.5 15,15 25,0 25),POINT(15 25))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 30,30 30,0 35),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
+AsText(ST_Symdifference(g,GeomFromText(@star_lines_near_vertical)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),LINESTRING(0 5,4.883720930232558 11.511627906976745),LINESTRING(7.5 15,15 25,0 25),POINT(15 25))
+#geometrycollection,polygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#geometrycollection,multipolygon
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=215;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#geometrycollection,geometrycollectionn
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3)));
+AsText(ST_Symdifference(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3)))
+GEOMETRYCOLLECTION(POINT(5 0),POINT(25 0),POINT(65 0),POINT(85 0),POLYGON((25 0,15 5,5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0)),POINT(75 25),POLYGON((85 0,75 5,65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0)),POINT(15 25))
+SELECT AsText(ST_Symdifference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=215;
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_symdifference.
+#=======================================================================================
+# Testing ST_Symdifference() with 2 geometries of same SRID
+#=======================================================================================
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,0),GeomFromText(@star_center,0)));
+AsText(ST_Symdifference(GeomFromText(@star_top,0),GeomFromText(@star_center,0)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,100),GeomFromText(@star_center,100)));
+AsText(ST_Symdifference(GeomFromText(@star_top,100),GeomFromText(@star_center,100)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000)));
+AsText(ST_Symdifference(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456)));
+AsText(ST_Symdifference(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
+AsText(ST_Symdifference(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_SymDifference(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)));
+AsText(ST_SymDifference(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_SymDifference(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+AsText(ST_SymDifference(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_SymDifference(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)));
+AsText(ST_SymDifference(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_SymDifference(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)));
+AsText(ST_SymDifference(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+#=======================================================================================
+# Invalid function calls
+#=======================================================================================
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top),GeomFromText(@star_center,4326)));
+ERROR HY000: Binary geometry function st_symdifference given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326)));
+ERROR HY000: Binary geometry function st_symdifference given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576)));
+AsText(ST_Symdifference(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
+AsText(ST_Symdifference(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,0),GeomFromText(@star_center,0)));
+AsText(ST_Symdifference(GeomFromText(@star_top,0),GeomFromText(@star_center,0)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+AsText(ST_Symdifference(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)))
+GEOMETRYCOLLECTION(POINT(15 25),POINT(15 10))
+SELECT AsText(ST_Symdifference(NULL,GeomFromText(@star_top)));
+AsText(ST_Symdifference(NULL,GeomFromText(@star_top)))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),NULL));
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),NULL))
+NULL
+SELECT AsText(ST_Symdifference(g,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+AsText(ST_Symdifference(g,NULL))
+NULL
+SELECT AsText(ST_Symdifference(NULL,NULL));
+AsText(ST_Symdifference(NULL,NULL))
+NULL
+SELECT AsText(ST_Symdifference(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+AsText(ST_Symdifference(fid,NULL))
+NULL
+SELECT AsText(ST_Symdifference(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+AsText(ST_Symdifference(fid,GeomFromText(@star_top)))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+AsText(ST_Symdifference(GeomFromText(@star_of_elems),fid))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
+SELECT AsText(ST_Symdifference(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
+SELECT AsText(ST_Symdifference(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))' at line 1
+SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+AsText(ST_Symdifference(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')))
+NULL
+SELECT AsText(ST_Symdifference(,));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+SELECT AsText(ST_Symdifference(GeomFromText(@star_of_elems),));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '))' at line 1
+SELECT AsText(ST_Symdifference(,GeomFromText(@star_top)));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top)))' at line 1
+#clean up
+DROP TABLE IF EXISTS gis_geometrycollection;
+DROP TABLE IF EXISTS gis_geometrycollection_2;

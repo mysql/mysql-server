@@ -1805,7 +1805,7 @@ my_uni_utf16le(const CHARSET_INFO *cs __attribute__((unused)),
   {
     if (s + 2 > e)
       return MY_CS_TOOSMALL2;
-    int2store(s, wc);
+    int2store(s, (uint16)wc);
     return 2; /* [0000-D7FF,E000-FFFF] */
   }
 

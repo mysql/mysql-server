@@ -837,7 +837,7 @@ int ndb_to_mysql_error(const NdbError *ndberr)
     If we don't abort directly on warnings push a warning
     with the internal error information
    */
-  if (!current_thd->abort_on_warning)
+  if (!current_thd->is_strict_mode())
   {
     /*
       Push the NDB error message as warning

@@ -166,7 +166,10 @@ static struct my_option my_long_options[] =
   {"correct-checksum", OPT_CORRECT_CHECKSUM,
    "Correct checksum information for table.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
-#ifndef DBUG_OFF
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#',
    "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},

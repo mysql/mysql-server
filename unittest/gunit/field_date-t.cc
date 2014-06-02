@@ -237,7 +237,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeStrict)
                            "0000-00-00",
                            TYPE_ERR_BAD_VALUE,
                            strict_modes[i],
-                           ER_WARN_DATA_OUT_OF_RANGE);
+                           ER_TRUNCATED_WRONG_VALUE);
   }
 
   // Year 0 is valid in strict mode too
@@ -261,7 +261,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeStrict)
                            "0000-00-00",
                            TYPE_ERR_BAD_VALUE,
                            strict_modes[i],
-                           ER_WARN_DATA_OUT_OF_RANGE);
+                           ER_TRUNCATED_WRONG_VALUE);
   }
 
   // Day 0 is NOT valid in strict mode, stores all-zero date
@@ -273,7 +273,7 @@ TEST_F(FieldDateTest, StoreZeroDateSqlModeStrict)
                            "0000-00-00",
                            TYPE_ERR_BAD_VALUE,
                            strict_modes[i],
-                           ER_WARN_DATA_OUT_OF_RANGE);
+                           ER_TRUNCATED_WRONG_VALUE);
   }
 }
 

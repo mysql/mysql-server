@@ -4272,7 +4272,7 @@ innodb_temp_table_populate_cache(
 
 	cache->m_space_id = table->space;
 
-	if (table->space == srv_tmp_space.space_id()) {
+	if (fsp_is_system_temporary(table->space)) {
 		strcpy(cache->m_per_table_tablespace, "FALSE");
 	} else {
 		strcpy(cache->m_per_table_tablespace, "TRUE");

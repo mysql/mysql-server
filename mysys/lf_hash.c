@@ -74,11 +74,11 @@ typedef struct {
     pins[0..2] are used, they are NOT removed on return
 */
 static int lfind(LF_SLIST * volatile *head, CHARSET_INFO *cs, uint32 hashnr,
-                 const uchar *key, uint keylen, CURSOR *cursor, LF_PINS *pins)
+                 const uchar *key, size_t keylen, CURSOR *cursor, LF_PINS *pins)
 {
   uint32       cur_hashnr;
   const uchar  *cur_key;
-  uint         cur_keylen;
+  size_t       cur_keylen;
   intptr       link;
 
 retry:
@@ -384,7 +384,7 @@ static inline const uchar* hash_key(const LF_HASH *hash,
   @note, that the hash value is limited to 2^31, because we need one
   bit to distinguish between normal and dummy nodes.
 */
-static inline uint calc_hash(LF_HASH *hash, const uchar *key, uint keylen)
+static inline uint calc_hash(LF_HASH *hash, const uchar *key, size_t keylen)
 {
   return (hash->hash_function(hash, key, keylen)) & INT_MAX32;
 }

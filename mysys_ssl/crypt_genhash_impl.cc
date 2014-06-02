@@ -253,18 +253,19 @@ char *
 my_crypt_genhash(char *ctbuffer,
                    size_t ctbufflen,
                    const char *plaintext,
-                   int plaintext_len,
+                   size_t plaintext_len,
                    const char *switchsalt,
                    const char **params)
 {
-  int salt_len, i;
+  int salt_len;
+  size_t i;
   char *salt;
   unsigned char A[DIGEST_LEN];
   unsigned char B[DIGEST_LEN];
   unsigned char DP[DIGEST_LEN];
   unsigned char DS[DIGEST_LEN];
   DIGEST_CTX ctxA, ctxB, ctxC, ctxDP, ctxDS;
-  int rounds = ROUNDS_DEFAULT;
+  uint rounds = ROUNDS_DEFAULT;
   int srounds = 0;
   bool custom_rounds= false;
   char *p;
@@ -344,7 +345,7 @@ my_crypt_genhash(char *ctbuffer,
 
   /* 17. - 19. */
   DIGESTInit(&ctxDS);
-  for (i= 0; i < 16 + (uint8_t)A[0]; i++)
+  for (i= 0; i < 16U + (uint8_t)A[0]; i++)
           DIGESTUpdate(&ctxDS, salt, salt_len);
   DIGESTFinal(DS, &ctxDS);
 

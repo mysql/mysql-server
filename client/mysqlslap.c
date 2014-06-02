@@ -149,7 +149,7 @@ static unsigned long connect_flags= CLIENT_MULTI_RESULTS |
                                     CLIENT_REMEMBER_OPTIONS;
 
 
-static int verbose, delimiter_length;
+static int verbose;
 static uint commit_rate;
 static uint detach_rate;
 const char *num_int_cols_opt;
@@ -249,7 +249,7 @@ uint parse_comma(const char *string, uint **range);
 uint parse_delimiter(const char *script, statement **stmt, char delm);
 uint parse_option(const char *origin, option_string **stmt, char delm);
 static int drop_schema(MYSQL *mysql, const char *db);
-uint get_random_string(char *buf);
+size_t get_random_string(char *buf);
 static statement *build_table_string(void);
 static statement *build_insert_string(void);
 static statement *build_update_string(void);
@@ -322,9 +322,6 @@ int main(int argc, char **argv)
   /* Seed the random number generator if we will be using it. */
   if (auto_generate_sql)
     srandom((uint)time(NULL));
-
-  /* globals? Yes, so we only have to run strlen once */
-  delimiter_length= strlen(delimiter);
 
   if (argc > 2)
   {
@@ -593,16 +590,21 @@ static struct my_option my_long_options[] =
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  { "debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+    0, 0, 0,
+    GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0 },
+  { "debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+    0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0 },
 #else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
     &default_dbug_option, &default_dbug_option, 0, GET_STR,
     OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
@@ -787,7 +789,7 @@ get_one_option(int optid, const struct my_option *opt __attribute__((unused)),
 }
 
 
-uint
+size_t
 get_random_string(char *buf)
 {
   char *buf_ptr= buf;
@@ -966,10 +968,10 @@ build_update_string(void)
     for (col_count= 1; col_count <= num_char_cols; col_count++)
     {
       char rand_buffer[RAND_STRING_SIZE];
-      int buf_len= get_random_string(rand_buffer);
+      size_t buf_len= get_random_string(rand_buffer);
 
-      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d = '%.*s'", col_count, 
-                   buf_len, rand_buffer) 
+      if (snprintf(buf, HUGE_STRING_LENGTH, "charcol%d = '%.*s'", col_count,
+                   (int)buf_len, rand_buffer)
           > HUGE_STRING_LENGTH)
       {
         fprintf(stderr, "Memory Allocation error in creating update\n");
@@ -1071,7 +1073,7 @@ build_insert_string(void)
   if (num_char_cols)
     for (col_count= 1; col_count <= num_char_cols; col_count++)
     {
-      int buf_len= get_random_string(buf);
+      size_t buf_len= get_random_string(buf);
       dynstr_append_mem(&insert_string, "'", 1);
       dynstr_append_mem(&insert_string, buf, buf_len);
       dynstr_append_mem(&insert_string, "'", 1);
@@ -2080,7 +2082,7 @@ parse_delimiter(const char *script, statement **stmt, char delm)
   char *ptr= (char *)script;
   statement **sptr= stmt;
   statement *tmp;
-  uint length= strlen(script);
+  size_t length= strlen(script);
   uint count= 0; /* We know that there is always one */
 
   for (tmp= *sptr= (statement *)my_malloc(PSI_NOT_INSTRUMENTED,

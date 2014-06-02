@@ -791,10 +791,16 @@ have_conn:
 	read_crsr = conn_data->read_crsr;
 
 	if (lock_mode == IB_LOCK_TABLE_X) {
-		assert(!conn_data->crsr_trx);
-
-		conn_data->crsr_trx = ib_cb_trx_begin(
-			engine->trx_level, true, false);
+		if(!conn_data->crsr_trx) {
+			conn_data->crsr_trx = ib_cb_trx_begin(
+				engine->trx_level, true, false);
+		} else {
+			/* Write cursor transaction exists.
+			   Reuse this transaction.*/
+			assert(ib_cb_trx_start(conn_data->crsr_trx,
+					       engine->trx_level,
+					       true, false, NULL));
+		}
 
 		err = innodb_api_begin(
 			engine,

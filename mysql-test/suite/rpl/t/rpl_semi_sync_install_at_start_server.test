@@ -1,0 +1,105 @@
+--source include/have_semisync_plugin.inc
+--source include/not_embedded.inc
+
+--let rpl_topology= 1->2,1->3
+--source include/rpl_init.inc
+--source include/have_binlog_format_row.inc
+CALL mtr.add_suppression(".*Got an error reading communication packets.*");
+
+################################################################################
+# Bug#18466390 INCORRECT BEHAIVIOR WHEN SETTING UP SEMISYNC VARIABLES AS STARTUP
+#              OPTIONS
+#
+# Semisync is not initialized correctly if below options are set at starting
+# server option.
+# - rpl_semi_sync_master_wait_no_slave and
+# - rpl_semi_sync_master_wait_slave_count
+#
+# Verify semisync is initialized correctly.
+################################################################################
+
+--echo #
+--echo # Semisync master's status should be OFF if
+--echo # rpl_semi_sync_master_wait_no_slave is set to 0 at starting server.
+--echo #
+--source include/assert_semisync_master_status_off.inc
+
+CREATE TABLE t1(c1 INT);
+
+--let $assert_status_name= rpl_semi_sync_master_tx_waits
+--let $assert_status_value= 0
+--source include/assert_status.inc
+
+--echo #
+--echo # Semisync's status should still be OFF, because there is only one slave
+--echo #
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+--let $assert_variable_name= rpl_semi_sync_master_wait_for_slave_count
+--let $assert_variable_value= 2
+--source include/assert_variable.inc
+
+INSERT INTO t1 VALUES(1);
+--source include/assert_semisync_master_status_off.inc
+
+--echo #
+--echo # Verify 'SET GLOBAL rpl_semi_sync_master_enabled= ON' sets semisync
+--echo # master's status correctly when there are enough semisync slaves.
+--echo #
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/install_semisync_slave.inc
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+
+SET GLOBAL rpl_semi_sync_master_enabled= OFF;
+--source include/assert_semisync_master_status_off.inc
+
+SET GLOBAL rpl_semi_sync_master_enabled= ON;
+--source include/assert_semisync_master_status_on.inc
+DROP TABLE t1;
+
+################################################################################
+# Bug#18266989 ACK_RECEIVER THREAD DOESN'T START WHEN STARTING SEMISYNC THROUGH
+#              SERVER OPTIONS
+#
+# Ack_receiver thread on the master didn't start successfully when setting up
+# semisync replication through server options.
+################################################################################
+--echo #
+--echo # Verify ack_receiver thread is created
+--echo #
+
+--let $assert_text= ack receiver thread is created;
+--let $assert_cond= count(*) = 1 FROM performance_schema.threads WHERE name LIKE "%Ack_receiver"
+--source include/assert.inc
+
+CREATE TABLE t1(c1 INT);
+--source include/rpl_sync.inc
+
+--echo #
+--echo # Verify semisync replication works well
+--echo #
+
+--let $rpl_connection_name= server_1
+--source include/rpl_connection.inc
+--source include/assert_semisync_master_status_on.inc
+
+DROP TABLE t1;
+--source include/rpl_sync.inc
+
+--let $rpl_connection_name= server_2
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--let $rpl_connection_name= server_3
+--source include/rpl_connection.inc
+--source include/uninstall_semisync_slave.inc
+
+--source include/rpl_end.inc

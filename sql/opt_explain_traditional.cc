@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,8 @@ static const char *traditional_extra_tags[ET_total]=
   "const row not found",               // ET_CONST_ROW_NOT_FOUND
   "unique row not found",              // ET_UNIQUE_ROW_NOT_FOUND
   "Impossible ON condition",           // ET_IMPOSSIBLE_ON_CONDITION
-  ""                                   // ET_PUSHED_JOIN
+  "",                                  // ET_PUSHED_JOIN
+  "Ft_hints:"                          // ET_FT_HINTS
 };
 
 static const char *mod_type_name[]=

@@ -81,6 +81,14 @@ public:
   {
     trace_level_= trace_level;
   }
+
+  bool init()
+  {
+    setTraceLevel(rpl_semi_sync_master_trace_level);
+    if (rpl_semi_sync_master_enabled)
+      return start();
+    return false;
+  }
 private:
   enum status {ST_UP, ST_DOWN, ST_STOPPING};
   uint8 m_status;
