@@ -36,7 +36,7 @@ args: -n Mix -l 300 -r 15 T1
 # SYSTEM RESTARTS
 #
 #
-max-time: 9000
+max-time: 14400
 cmd: testSystemRestart
 args: -n SR_FULLDB T6 
 
