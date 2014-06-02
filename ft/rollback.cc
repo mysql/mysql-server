@@ -120,13 +120,17 @@ toku_find_xid_by_xid (const TXNID &xid, const TXNID &xidfind) {
     return 0;
 }
 
+// TODO: fix this name
+//       toku_rollback_malloc
 void *toku_malloc_in_rollback(ROLLBACK_LOG_NODE log, size_t size) {
-    return toku_memarena_malloc(log->rollentry_arena, size);
+    return log->rollentry_arena.malloc_from_arena(size);
 }
 
+// TODO: fix this name
+//       toku_rollback_memdup
 void *toku_memdup_in_rollback(ROLLBACK_LOG_NODE log, const void *v, size_t len) {
-    void *r=toku_malloc_in_rollback(log, len);
-    memcpy(r,v,len);
+    void *r = toku_malloc_in_rollback(log, len);
+    memcpy(r, v, len);
     return r;
 }
 
@@ -145,8 +149,8 @@ static inline PAIR_ATTR make_rollback_pair_attr(long size) {
 PAIR_ATTR
 rollback_memory_size(ROLLBACK_LOG_NODE log) {
     size_t size = sizeof(*log);
-    if (log->rollentry_arena) {
-        size += toku_memarena_total_footprint(log->rollentry_arena);
+    if (&log->rollentry_arena) {
+        size += log->rollentry_arena.total_footprint();
     }
     return make_rollback_pair_attr(size);
 }
@@ -175,11 +179,9 @@ void rollback_empty_log_init(ROLLBACK_LOG_NODE log) {
     log->previous = make_blocknum(0);
     log->oldest_logentry = NULL;
     log->newest_logentry = NULL;
-    log->rollentry_arena = NULL;
+    log->rollentry_arena.create(0);
     log->rollentry_resident_bytecount = 0;
 }
-
-
 
 static void rollback_initialize_for_txn(
     ROLLBACK_LOG_NODE log,
@@ -192,13 +194,14 @@ static void rollback_initialize_for_txn(
     log->previous = previous;
     log->oldest_logentry = NULL;
     log->newest_logentry = NULL;
-    log->rollentry_arena = toku_memarena_create();
+    log->rollentry_arena.create(1024);
     log->rollentry_resident_bytecount = 0;
     log->dirty = true;
 }
 
+// TODO: fix this name
 void make_rollback_log_empty(ROLLBACK_LOG_NODE log) {
-    toku_memarena_destroy(&log->rollentry_arena);
+    log->rollentry_arena.destroy();
     rollback_empty_log_init(log);
 }
 

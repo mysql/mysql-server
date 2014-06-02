@@ -798,7 +798,7 @@ generate_rollbacks (void) {
     fprintf(cf, "  }\n  assert(0);\n  return 0;\n");
     fprintf(cf, "}\n");
 
-    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, uint32_t n_bytes, struct roll_entry **itemp, MEMARENA ma)");
+    fprintf2(cf, hf, "int toku_parse_rollback(unsigned char *buf, uint32_t n_bytes, struct roll_entry **itemp, memarena *ma)");
     fprintf(hf, ";\n");
     fprintf(cf, " {\n  assert(n_bytes>0);\n  struct roll_entry *item;\n  enum rt_cmd cmd = (enum rt_cmd)(buf[0]);\n  size_t mem_needed;\n");
     fprintf(cf, "  struct rbuf rc = {buf, n_bytes, 1};\n");
@@ -806,7 +806,7 @@ generate_rollbacks (void) {
     DO_ROLLBACKS(lt, {
                 fprintf(cf, "  case RT_%s:\n", lt->name);
                 fprintf(cf, "    mem_needed = sizeof(item->u.%s) + __builtin_offsetof(struct roll_entry, u.%s);\n", lt->name, lt->name);
-                fprintf(cf, "    CAST_FROM_VOIDP(item, toku_memarena_malloc(ma, mem_needed));\n");
+                fprintf(cf, "    CAST_FROM_VOIDP(item, ma->malloc_from_arena(mem_needed));\n");
                 fprintf(cf, "    item->cmd = cmd;\n");
                 DO_FIELDS(field_type, lt, fprintf(cf, "    rbuf_ma_%s(&rc, ma, &item->u.%s.%s);\n", field_type->type, lt->name, field_type->name));
                 fprintf(cf, "    *itemp = item;\n");

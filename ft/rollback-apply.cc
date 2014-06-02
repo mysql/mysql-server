@@ -258,9 +258,9 @@ int toku_rollback_commit(TOKUTXN txn, LSN lsn) {
             }
             child_log->newest_logentry = child_log->oldest_logentry = 0;
             // Put all the memarena data into the parent.
-            if (toku_memarena_total_size_in_use(child_log->rollentry_arena) > 0) {
+            if (child_log->rollentry_arena.total_size_in_use() > 0) {
                 // If there are no bytes to move, then just leave things alone, and let the memory be reclaimed on txn is closed.
-                toku_memarena_move_buffers(parent_log->rollentry_arena, child_log->rollentry_arena);
+                child_log->rollentry_arena.move_memory(&parent_log->rollentry_arena);
             }
             // each txn tries to give back at most one rollback log node
             // to the cache. All other rollback log nodes for this child

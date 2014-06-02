@@ -92,43 +92,85 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-/* We have too many memory management tricks:
- *  memarena (this code) is for a collection of objects that cannot be moved.
- *    The pattern is allocate more and more stuff.
- *    Don't free items as you go.
- *    Free all the items at once.
- *    Then reuse the same buffer again.
- *    Allocated objects never move.
- *  A memarena (as currently implemented) is not suitable for interprocess memory sharing.  No reason it couldn't be made to work though.
+/*
+ * A memarena is used to efficiently store a collection of objects that never move
+ * The pattern is allocate more and more stuff and free all of the items at once.
+ * The underlying memory will store 1 or more objects per chunk. Each chunk is 
+ * contiguously laid out in memory but chunks are not necessarily contiguous with
+ * each other.
  */
+class memarena {
+public:
+    memarena() :
+        _current_chunk(arena_chunk()),
+        _other_chunks(nullptr),
+        _n_other_chunks(0),
+        _size_of_other_chunks(0),
+        _footprint_of_other_chunks(0) {
+    }
 
-struct memarena;
+    // Effect: Create a memarena with the specified initial size
+    void create(size_t initial_size);
 
-typedef struct memarena *MEMARENA;
+    void destroy(void);
 
-MEMARENA toku_memarena_create_presized (size_t initial_size);
-// Effect: Create a memarena with initial size.  In case of ENOMEM, aborts.
+    // Effect: Allocate some memory.  The returned value remains valid until the memarena is cleared or closed.
+    //  In case of ENOMEM, aborts.
+    void *malloc_from_arena(size_t size);
 
-MEMARENA toku_memarena_create (void);
-// Effect: Create a memarena with default initial size.  In case of ENOMEM, aborts.
+    // Effect: Move all the memory from this memarena into DEST. 
+    //         When SOURCE is closed the memory won't be freed. 
+    //         When DEST is closed, the memory will be freed, unless DEST moves its memory to another memarena...
+    void move_memory(memarena *dest);
 
-void toku_memarena_clear (MEMARENA ma);
-// Effect: Reset the internal state so that the allocated memory can be used again.
+    // Effect: Calculate the amount of memory used by a memory arena.
+    size_t total_memory_size(void) const;
 
-void* toku_memarena_malloc (MEMARENA ma, size_t size);
-// Effect: Allocate some memory.  The returned value remains valid until the memarena is cleared or closed.
-//  In case of ENOMEM, aborts.
+    // Effect: Calculate the used space of the memory arena (ie: excludes unused space)
+    size_t total_size_in_use(void) const;
 
-void *toku_memarena_memdup (MEMARENA ma, const void *v, size_t len);
+    // Effect: Calculate the amount of memory used, according to toku_memory_footprint(),
+    //         which is a more expensive but more accurate count of memory used.
+    size_t total_footprint(void) const;
 
-void toku_memarena_destroy(MEMARENA *ma);
+    // iterator over the underlying chunks that store objects in the memarena.
+    // a chunk is represented by a pointer to const memory and a usable byte count.
+    class chunk_iterator {
+    public:
+        chunk_iterator(const memarena *ma) :
+            _ma(ma), _chunk_idx(-1) {
+        }
 
-void toku_memarena_move_buffers(MEMARENA dest, MEMARENA source);
-// Effect: Move all the memory from SOURCE into DEST.  When SOURCE is closed the memory won't be freed.  When DEST is closed, the memory will be freed.  (Unless DEST moves its memory to another memarena...)
+        // returns: base pointer to the current chunk
+        //          *used set to the number of usable bytes
+        //          if more() is false, returns nullptr and *used = 0
+        const void *current(size_t *used) const;
 
-size_t toku_memarena_total_memory_size (MEMARENA);
-// Effect: Calculate the amount of memory used by a memory arena.
+        // requires: more() is true
+        void next();
 
-size_t toku_memarena_total_size_in_use (MEMARENA);
+        bool more() const;
 
-size_t toku_memarena_total_footprint (MEMARENA);
+    private:
+        // -1 represents the 'initial' chunk in a memarena, ie: ma->_current_chunk
+        // >= 0 represents the i'th chunk in the ma->_other_chunks array
+        const memarena *_ma;
+        int _chunk_idx;
+    };
+
+private:
+    struct arena_chunk {
+        arena_chunk() : buf(nullptr), used(0), size(0) { }
+        char *buf;
+        size_t used;
+        size_t size;
+    };
+
+    struct arena_chunk _current_chunk;
+    struct arena_chunk *_other_chunks;
+    int _n_other_chunks;
+    size_t _size_of_other_chunks; // the buf_size of all the other chunks.
+    size_t _footprint_of_other_chunks; // the footprint of all the other chunks.
+
+    friend class memarena_unit_test;
+};
