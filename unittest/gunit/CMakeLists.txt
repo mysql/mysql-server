@@ -238,6 +238,7 @@ SET(TESTS
   dynarray
   filesort_buffer
   filesort_compare
+  inplace_vector
   like_range
   mdl
   my_bitmap
@@ -281,6 +282,7 @@ SET(SERVER_TESTS
   explain_filename
   field
   get_diagnostics
+  gis_algos
   handler
   insert_delayed
   item
