@@ -169,6 +169,8 @@ TRUNCATE t2;
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary FIELDS TERMINATED BY 'ъ'
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+SELECT * FROM t1;
+SELECT * FROM t2;
 
 --replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
 --eval SELECT * FROM t1 INTO OUTFILE '$file' LINES STARTING BY 'ъ'
@@ -191,6 +193,8 @@ TRUNCATE t2;
 --eval LOAD DATA INFILE '$file' INTO TABLE t2 CHARACTER SET binary LINES TERMINATED BY 'ъ'
 --remove_file $file
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+SELECT * FROM t1;
+SELECT * FROM t2;
 
 --echo # Default (binary) charset:
 
