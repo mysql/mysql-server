@@ -1867,26 +1867,30 @@ bool close_temporary_tables(THD *thd)
              strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
-        String *s_query;
         /* Separate transactional from non-transactional temp tables */
         if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
         {
           found_trans_table= true;
-          s_query= &s_query_trans;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_trans.append(',');
         }
         else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
         {
           found_non_trans_table= true;
-          s_query= &s_query_non_trans;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_non_trans.append(',');
         }
 
-        /*
-          We are going to add ` around the table names and possible more
-          due to special characters
-        */
-        append_identifier(thd, s_query, table->s->table_name.str,
-                          strlen(table->s->table_name.str));
-        s_query->append(',');
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -5484,9 +5488,9 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
                                  rt->belong_to_view);
-    (void)sp->add_used_tables_to_table_list(thd,
-                                            &prelocking_ctx->query_tables_last,
-                                            rt->belong_to_view);
+    sp->add_used_tables_to_table_list(thd,
+                                      &prelocking_ctx->query_tables_last,
+                                      rt->belong_to_view);
   }
   sp->propagate_attributes(prelocking_ctx);
   return FALSE;
