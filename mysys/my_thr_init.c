@@ -313,6 +313,9 @@ my_bool my_thread_init(void)
   struct st_my_thread_var *tmp;
   my_bool error=0;
 
+  if (!my_thread_global_init_done)
+    return 1; /* cannot proceed with unintialized library */
+
 #ifdef EXTRA_DEBUG_THREADS
   fprintf(stderr,"my_thread_init(): thread_id: 0x%lx\n",
           (ulong) pthread_self());
