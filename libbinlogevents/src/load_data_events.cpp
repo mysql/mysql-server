@@ -394,14 +394,6 @@ Create_file_event::Create_file_event(const char* buf, unsigned int len,
   return;
 }
 
-Create_file_event::Create_file_event(unsigned char* block_arg,
-                                     unsigned int  block_len_arg,
-                                     unsigned int file_id_arg)
-: Load_event(CREATE_FILE_EVENT), fake_base(0), block(block_arg), event_buf(0),
-  block_len(block_len_arg), file_id(file_id_arg)
-{
-  sql_ex_data.force_new_format();
-}
 
 /**
   Delete_file_event constructor

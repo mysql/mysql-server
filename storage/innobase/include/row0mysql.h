@@ -876,6 +876,8 @@ struct row_prebuilt_t {
 	mem_heap_t*	old_vers_heap;	/*!< memory heap where a previous
 					version is built in consistent read */
 	bool		in_fts_query;	/*!< Whether we are in a FTS query */
+	bool		fts_doc_id_in_read_set; /*!< true if table has externally
+					defined FTS_DOC_ID coulmn. */
 	/*----------------------*/
 	ulonglong	autoinc_last_value;
 					/*!< last value of AUTO-INC interval */

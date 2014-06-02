@@ -36,6 +36,7 @@
 #include <mysql/plugin_validate_password.h>
 #include "my_default.h"
 #include "debug_sync.h"
+#include "mutex_lock.h"
 
 #include <algorithm>
 
@@ -790,7 +791,7 @@ static plugin_ref intern_plugin_lock(LEX *lex, plugin_ref rc)
     DBUG_PRINT("info",("thd: %p, plugin: \"%s\", ref_count: %d",
                        current_thd, pi->name.str, pi->ref_count));
     if (lex)
-      insert_dynamic(&lex->plugins, &plugin);
+      lex->plugins.push_back(plugin);
     DBUG_RETURN(plugin);
   }
   DBUG_RETURN(NULL);
@@ -1038,7 +1039,6 @@ static void reap_plugins(void)
 
 static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
 {
-  int i;
   st_plugin_int *pi;
   DBUG_ENTER("intern_plugin_unlock");
 
@@ -1065,13 +1065,18 @@ static void intern_plugin_unlock(LEX *lex, plugin_ref plugin)
       We are searching backwards so that plugins locked last
       could be unlocked faster - optimizing for LIFO semantics.
     */
-    for (i= lex->plugins.elements - 1; i >= 0; i--)
-      if (plugin == *dynamic_element(&lex->plugins, i, plugin_ref*))
+    plugin_ref *iter= lex->plugins.end() - 1;
+    bool found_it= false;
+    for (; iter >= lex->plugins.begin() - 1; --iter)
+    {
+      if (plugin == *iter)
       {
-        delete_dynamic_element(&lex->plugins, i);
+        lex->plugins.erase(iter);
+        found_it= true;
         break;
       }
-    DBUG_ASSERT(i >= 0);
+    }
+    DBUG_ASSERT(found_it);
   }
 
   DBUG_ASSERT(pi->ref_count);
@@ -1103,7 +1108,7 @@ void plugin_unlock(THD *thd, plugin_ref plugin)
 }
 
 
-void plugin_unlock_list(THD *thd, plugin_ref *list, uint count)
+void plugin_unlock_list(THD *thd, plugin_ref *list, size_t count)
 {
   LEX *lex= thd ? thd->lex : 0;
   DBUG_ENTER("plugin_unlock_list");
@@ -2954,29 +2959,27 @@ static void cleanup_variables(THD *thd, struct system_variables *vars)
 }
 
 
-void plugin_thdvar_cleanup(THD *thd)
+void plugin_thdvar_cleanup(THD *thd, bool enable_plugins)
 {
-  uint idx;
-  plugin_ref *list;
   DBUG_ENTER("plugin_thdvar_cleanup");
 
-  mysql_mutex_lock(&LOCK_plugin);
-
-  unlock_variables(thd, &thd->variables);
-  cleanup_variables(thd, &thd->variables);
-
-  if ((idx= thd->lex->plugins.elements))
+  if (enable_plugins)
   {
-    list= ((plugin_ref*) thd->lex->plugins.buffer) + idx - 1;
-    DBUG_PRINT("info",("unlocking %d plugins", idx));
-    while ((uchar*) list >= thd->lex->plugins.buffer)
-      intern_plugin_unlock(thd->lex, *list--);
+    Mutex_lock plugin_lock(&LOCK_plugin);
+    unlock_variables(thd, &thd->variables);
+    size_t idx;
+    if ((idx= thd->lex->plugins.size()))
+    {
+      plugin_ref *list= thd->lex->plugins.end() - 1;
+      DBUG_PRINT("info",("unlocking %u plugins", static_cast<uint>(idx)));
+      while (list >= thd->lex->plugins.begin())
+        intern_plugin_unlock(thd->lex, *list--);
+    }
+
+    reap_plugins();
+    thd->lex->plugins.clear();
   }
-
-  reap_plugins();
-  mysql_mutex_unlock(&LOCK_plugin);
-
-  reset_dynamic(&thd->lex->plugins);
+  cleanup_variables(thd, &thd->variables);
 
   DBUG_VOID_RETURN;
 }

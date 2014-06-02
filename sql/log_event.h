@@ -2050,13 +2050,6 @@ class Create_file_log_event: public Load_log_event, public Create_file_event
 public:
 
 #ifdef MYSQL_SERVER
-  Create_file_log_event(THD* thd, sql_exchange* ex, const char* db_arg,
-			const char* table_name_arg,
-			List<Item>& fields_arg,
-                        bool is_concurrent_arg,
-			enum enum_duplicates handle_dup, bool ignore,
-			uchar* block_arg, uint block_len_arg,
-			bool using_trans);
 #ifdef HAVE_REPLICATION
   int pack_info(Protocol* protocol);
 #endif /* HAVE_REPLICATION */

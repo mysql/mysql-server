@@ -2656,8 +2656,8 @@ DROP TABLE t1;
 # Bug#11765255 58201:
 # VALGRIND/CRASH WHEN ORDERING BY MULTIPLE AGGREGATE FUNCTIONS
 #
-select 1 order by max(1) + min(1);
-1
+select count(*) order by max(1) + min(1);
+count(*)
 1
 End of 5.1 tests
 #
