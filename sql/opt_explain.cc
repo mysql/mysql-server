@@ -1486,14 +1486,14 @@ bool Explain_join::explain_rows_and_filtered()
     fmt->entry()->col_filtered.set(filter);
   }
   // Print cost-related info
-  double prefix_rows= tab->position->prefix_record_count;
+  double prefix_rows= tab->position->prefix_rowcount;
   fmt->entry()->col_prefix_rows.set(static_cast<ulonglong>(prefix_rows));
   double const cond_cost= join->cost_model()->row_evaluate_cost(prefix_rows);
   fmt->entry()->col_cond_cost.set(cond_cost < 0 ? 0 : cond_cost);
 
   fmt->entry()->col_read_cost.set(tab->position->read_cost < 0.0 ?
                                   0.0 : tab->position->read_cost);
-  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost.get_io_cost());
+  fmt->entry()->col_prefix_cost.set(tab->position->prefix_cost);
 
   // Calculate amount of data from this table per query
   char data_size_str[32];
@@ -2040,7 +2040,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
                             ctx);
       /* Single select (without union) always returns 0 or 1 row */
       ethd->limit_found_rows= join->send_records;
-      ethd->set_examined_row_count(0);
       break;
     }
     case JOIN::NO_TABLES:
@@ -2067,7 +2066,6 @@ explain_query_specification(THD *ethd, SELECT_LEX *select_lex,
       {                                           // Only test of functions
         /* Single select (without union) always returns 0 or 1 row */
         ethd->limit_found_rows= join->send_records;
-        ethd->set_examined_row_count(0);
       }
       break;
     }

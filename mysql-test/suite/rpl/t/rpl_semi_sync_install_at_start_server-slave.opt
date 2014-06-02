@@ -1,0 +1,3 @@
+$SEMISYNC_PLUGIN_OPT
+--plugin-load=semisync_slave.so
+--rpl_semi_sync_slave_enabled=1

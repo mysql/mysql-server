@@ -332,7 +332,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
   {
     char buf[64];
 
-    my_gcvt(v, MY_GCVT_ARG_DOUBLE, sizeof(buf) - 1, buf, NULL);
+    my_gcvt(v, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buf)) - 1, buf, NULL);
 
     if (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)
     {

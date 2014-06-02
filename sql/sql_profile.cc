@@ -1,4 +1,4 @@
-/* Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -732,4 +732,15 @@ int PROFILING::fill_statistics_info(THD *thd_arg, TABLE_LIST *tables, Item *cond
 
   DBUG_RETURN(0);
 }
+/**
+  Clear all the profiling information.
+*/
+void PROFILING::cleanup()
+{
+  while (!history.is_empty())
+    delete history.pop();
+  delete current;
+  current= NULL;
+}
+
 #endif /* ENABLED_PROFILING */

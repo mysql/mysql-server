@@ -35,7 +35,6 @@
 #include "rpl_filter.h"
 #include "rpl_info_factory.h"
 #include "transaction.h"
-#include <thr_alarm.h>
 #include <my_dir.h>
 #include <sql_common.h>
 #include <errmsg.h>
@@ -59,6 +58,7 @@
 #include "debug_sync.h"
 #include "rpl_mts_submode.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "rpl_slave_commit_order_manager.h"
 
 using std::min;
 using std::max;
@@ -74,7 +74,6 @@ bool use_slave_mask = 0;
 MY_BITMAP slave_error_mask;
 char slave_skip_error_names[SHOW_VAR_FUNC_BUFF_SIZE];
 
-static unsigned long stop_wait_timeout;
 char* slave_load_tmpdir = 0;
 Master_info *active_mi= 0;
 my_bool replicate_same_server_id;
@@ -212,15 +211,18 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi);
 int io_thread_init_commands(MYSQL *mysql, Master_info *mi);
 static Log_event* next_event(Relay_log_info* rli);
 static int queue_event(Master_info* mi,const char* buf,ulong event_len);
-static void set_stop_slave_wait_timeout(unsigned long wait_timeout);
 static int terminate_slave_thread(THD *thd,
                                   mysql_mutex_t *term_lock,
                                   mysql_cond_t *term_cond,
                                   volatile uint *slave_running,
+                                  ulong *stop_wait_timeout,
                                   bool need_lock_term);
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
+
+static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
+
 /*
   Function to set the slave's max_allowed_packet based on the value
   of slave_max_allowed_packet.
@@ -731,10 +733,6 @@ static void print_slave_skip_errors(void)
   DBUG_VOID_RETURN;
 }
 
-static void set_stop_slave_wait_timeout(unsigned long wait_timeout) {
-  stop_wait_timeout = wait_timeout;
-}
-
 /**
  Change arg to the string with the nice, human-readable skip error values.
    @param slave_skip_errors_ptr
@@ -875,7 +873,8 @@ static void set_thd_in_use_temporary_tables(Relay_log_info *rli)
   }
 }
 
-int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
+int terminate_slave_threads(Master_info* mi, int thread_mask,
+                            ulong stop_wait_timeout, bool need_lock_term)
 {
   DBUG_ENTER("terminate_slave_threads");
 
@@ -884,7 +883,13 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
   int error,force_all = (thread_mask & SLAVE_FORCE_ALL);
   mysql_mutex_t *sql_lock = &mi->rli->run_lock, *io_lock = &mi->run_lock;
   mysql_mutex_t *log_lock= mi->rli->relay_log.get_log_lock();
-  set_stop_slave_wait_timeout(rpl_stop_slave_timeout);
+  /*
+    Set it to a variable, so the value is shared by both stop methods.
+    This guarantees that the user defined value for the timeout value is for
+    the time the 2 threads take to shutdown, and not the time of each thread
+    stop operation.
+  */
+  ulong total_stop_wait_timeout= stop_wait_timeout;
 
   if (thread_mask & (SLAVE_SQL|SLAVE_FORCE_ALL))
   {
@@ -893,6 +898,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
     if ((error=terminate_slave_thread(mi->rli->info_thd, sql_lock,
                                       &mi->rli->stop_cond,
                                       &mi->rli->slave_running,
+                                      &total_stop_wait_timeout,
                                       need_lock_term)) &&
         !force_all)
     {
@@ -928,6 +934,7 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
     if ((error=terminate_slave_thread(mi->info_thd,io_lock,
                                       &mi->stop_cond,
                                       &mi->slave_running,
+                                      &total_stop_wait_timeout,
                                       need_lock_term)) &&
         !force_all)
     {
@@ -990,6 +997,10 @@ int terminate_slave_threads(Master_info* mi,int thread_mask,bool need_lock_term)
    @param slave_running
           Pointer to predicate to check for slave thread termination
 
+   @param stop_wait_timeout
+          A pointer to a variable that denotes the time the thread has
+          to stop before we time out and throw an error.
+
    @param need_lock_term
           If @c false the lock will not be acquired before waiting on
           the condition. In this case, it is assumed that the calling
@@ -1007,6 +1018,7 @@ terminate_slave_thread(THD *thd,
                        mysql_mutex_t *term_lock,
                        mysql_cond_t *term_cond,
                        volatile uint *slave_running,
+                       ulong *stop_wait_timeout,
                        bool need_lock_term)
 {
   DBUG_ENTER("terminate_slave_thread");
@@ -1052,7 +1064,7 @@ terminate_slave_thread(THD *thd,
       EINVAL: invalid signal number (can't happen)
       ESRCH: thread already killed (can happen, should be ignored)
     */
-    int err __attribute__((unused))= pthread_kill(thd->real_id, thr_client_alarm);
+    int err __attribute__((unused))= pthread_kill(thd->real_id, SIGUSR1);
     DBUG_ASSERT(err != EINVAL);
     thd->awake(THD::NOT_KILLED);
     mysql_mutex_unlock(&thd->LOCK_thd_data);
@@ -1067,8 +1079,8 @@ terminate_slave_thread(THD *thd,
     int error=
 #endif
       mysql_cond_timedwait(term_cond, term_lock, &abstime);
-    if (stop_wait_timeout >= 2)
-      stop_wait_timeout= stop_wait_timeout - 2;
+    if ((*stop_wait_timeout) >= 2)
+      (*stop_wait_timeout)= (*stop_wait_timeout) - 2;
     else if (*slave_running)
     {
       if (need_lock_term)
@@ -1237,7 +1249,8 @@ int start_slave_threads(bool need_lock_slave, bool wait_for_start,
                                 &mi->rli->slave_running, &mi->rli->slave_run_id,
                                 mi);
     if (error)
-      terminate_slave_threads(mi, thread_mask & SLAVE_IO, need_lock_slave);
+      terminate_slave_threads(mi, thread_mask & SLAVE_IO,
+                              rpl_stop_slave_timeout, need_lock_slave);
   }
   DBUG_RETURN(error);
 }
@@ -1268,7 +1281,8 @@ void end_slave()
       list_walk(&master_list, (list_walk_action)end_slave_on_walk,0);
       once multi-master code is ready.
     */
-    terminate_slave_threads(active_mi,SLAVE_FORCE_ALL);
+    terminate_slave_threads(active_mi, SLAVE_FORCE_ALL,
+                            rpl_stop_slave_timeout);
   }
   mysql_mutex_unlock(&LOCK_active_mi);
   DBUG_VOID_RETURN;
@@ -1642,6 +1656,12 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   MYSQL_ROW master_row= NULL;
   int ret= 0;
 
+  DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID",
+                  {
+                    mi->master_uuid[0]= 0;
+                    return 0;
+                  };);
+
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
                     const char act[]= "now wait_for signal.get_master_uuid";
@@ -1705,6 +1725,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   }
   else if (!master_row && master_res)
   {
+    mi->master_uuid[0]= 0;
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_UUID' on master. "
                "A probable cause is that the variable is not supported on the "
@@ -3018,8 +3039,23 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
+
+  /*
+    Replication threads are:
+    - background threads in the server, not user sessions,
+    - yet still assigned a PROCESSLIST_ID,
+      for historical reasons (displayed in SHOW PROCESSLIST).
+  */
   thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
   thd->thread_id= thd->variables.pseudo_thread_id;
+
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Populate the PROCESSLIST_ID in the instrumentation.
+  */
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id);
+#endif /* HAVE_PSI_INTERFACE */
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
@@ -4502,6 +4538,10 @@ log space");
         if (event_buf[EVENT_TYPE_OFFSET] == XID_EVENT)
            thd->killed= THD::KILLED_NO_VALUE;
       );
+      DBUG_EXECUTE_IF("stop_io_after_reading_write_rows_log_event",
+        if (event_buf[EVENT_TYPE_OFFSET] == WRITE_ROWS_EVENT)
+           thd->killed= THD::KILLED_NO_VALUE;
+      );
     }
   }
 
@@ -4675,6 +4715,7 @@ pthread_handler_t handle_slave_worker(void *arg)
     sql_print_error("Failed during slave worker initialization");
     goto err;
   }
+  thd->rli_slave= w;
   thd->init_for_queries(w);
   thd_manager->add_thd(thd);
   thd_added= true;
@@ -5586,6 +5627,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   const char *errmsg;
   bool mts_inited= false;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  Commit_order_manager *commit_order_mngr= NULL;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -5623,6 +5665,13 @@ pthread_handler_t handle_slave_sql(void *arg)
    rli->current_mts_submode= new Mts_submode_logical_clock();
  else
    rli->current_mts_submode= new Mts_submode_database();
+
+
+  if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0 &&
+      opt_bin_log && opt_log_slave_updates)
+    commit_order_mngr= new Commit_order_manager(rli->opt_slave_parallel_workers);
+
+  rli->set_commit_order_manager(commit_order_mngr);
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 
@@ -5969,6 +6018,12 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   THD_CHECK_SENTRY(thd);
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= NULL;
+  if (commit_order_mngr)
+  {
+    delete commit_order_mngr;
+    rli->set_commit_order_manager(NULL);
+  }
+
   mysql_mutex_unlock(&rli->info_thd_lock);
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
@@ -7867,6 +7922,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
+  bool error_reported= false;
+
   DBUG_ENTER("start_slave");
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
@@ -8057,6 +8114,12 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                               "In the event of a transient failure, the slave will "
                               "not retry the transaction and will stop.");
         }
+        if (!slave_errno)
+        {
+          slave_errno= check_slave_sql_config_conflict(thd, mi->rli);
+          if (slave_errno)
+            error_reported= true;
+        }
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -8090,7 +8153,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   if (slave_errno)
   {
-    if (net_report)
+    if (net_report && !error_reported)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);
   }
@@ -8147,6 +8210,7 @@ int stop_slave(THD* thd, Master_info* mi, bool net_report )
   if (thread_mask)
   {
     slave_errno= terminate_slave_threads(mi,thread_mask,
+                                         rpl_stop_slave_timeout,
                                          false/*need_lock_term=false*/);
   }
   else
@@ -8993,6 +9057,38 @@ err:
   unlock_slave_threads(mi);
   DBUG_RETURN(true);
 }
+
+/**
+  Check if there is any slave SQL config conflict.
+
+  @param[in] thd The THD object of current session.
+  @param[in] rli The slave's rli object.
+
+  @return 0 is returned if there is no conflict, otherwise 1 is returned.
+ */
+static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
+{
+  if (opt_slave_preserve_commit_order && opt_mts_slave_parallel_workers > 0)
+  {
+    if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+    {
+      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
+               "when slave_parallel_type is DATABASE");
+      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+    }
+
+    if ((!opt_bin_log || !opt_log_slave_updates) &&
+        mts_parallel_option == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+    {
+      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
+               "unless the binlog and log_slave update options are "
+               "both enabled");
+      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+    }
+  }
+  return 0;
+}
+
 /**
   @} (end of group Replication)
 */

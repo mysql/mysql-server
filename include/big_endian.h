@@ -54,29 +54,35 @@ static inline void float8get  (double *V, const uchar *M)
   ((uchar*) &def_temp)[7]=(M)[0];
   (*V) = def_temp; }
 
-#define ushortget(V,M)  do { V = (uint16) (((uint16) ((uchar) (M)[1]))+\
-                                 ((uint16) ((uint16) (M)[0]) << 8)); } while(0)
-#define shortget(V,M)   do { V = (short) (((short) ((uchar) (M)[1]))+\
-                                 ((short) ((short) (M)[0]) << 8)); } while(0)
-#define longget(V,M)    do { int32 def_temp;\
-                             ((uchar*) &def_temp)[0]=(M)[0];\
-                             ((uchar*) &def_temp)[1]=(M)[1];\
-                             ((uchar*) &def_temp)[2]=(M)[2];\
-                             ((uchar*) &def_temp)[3]=(M)[3];\
-                             (V)=def_temp; } while(0)
-#define ulongget(V,M)   do { uint32 def_temp;\
-                            ((uchar*) &def_temp)[0]=(M)[0];\
-                            ((uchar*) &def_temp)[1]=(M)[1];\
-                            ((uchar*) &def_temp)[2]=(M)[2];\
-                            ((uchar*) &def_temp)[3]=(M)[3];\
-                            (V)=def_temp; } while(0)
-#define shortstore(T,A) do { uint def_temp=(uint) (A) ;\
-                             *(((char*)T)+1)=(char)(def_temp); \
-                             *(((char*)T)+0)=(char)(def_temp >> 8); } while(0)
-#define longstore(T,A)  do { *(((char*)T)+3)=((A));\
-                             *(((char*)T)+2)=(((A) >> 8));\
-                             *(((char*)T)+1)=(((A) >> 16));\
-                             *(((char*)T)+0)=(((A) >> 24)); } while(0)
+static inline void ushortget(uint16 *V, const uchar *pM)
+{ *V = (uint16) (((uint16) ((uchar) (pM)[1]))+
+                 ((uint16) ((uint16) (pM)[0]) << 8)); }
+static inline void shortget (int16  *V, const uchar *pM)
+{ *V = (short) (((short) ((uchar) (pM)[1]))+
+                ((short) ((short) (pM)[0]) << 8)); }
+static inline void longget  (int32  *V, const uchar *pM)
+{ int32 def_temp;
+  ((uchar*) &def_temp)[0]=(pM)[0];
+  ((uchar*) &def_temp)[1]=(pM)[1];
+  ((uchar*) &def_temp)[2]=(pM)[2];
+  ((uchar*) &def_temp)[3]=(pM)[3];
+  (*V)=def_temp; }
+static inline void ulongget (uint32 *V, const uchar *pM)
+{ uint32 def_temp;
+  ((uchar*) &def_temp)[0]=(pM)[0];
+  ((uchar*) &def_temp)[1]=(pM)[1];
+  ((uchar*) &def_temp)[2]=(pM)[2];
+  ((uchar*) &def_temp)[3]=(pM)[3];
+  (*V)=def_temp; }
+static inline void shortstore(uchar *T, int16 A)
+{ uint def_temp=(uint) (A) ;
+  *(((char*)T)+1)=(char)(def_temp);
+  *(((char*)T)+0)=(char)(def_temp >> 8); }
+static inline void longstore (uchar *T, int32 A)
+{ *(((char*)T)+3)=((A));
+  *(((char*)T)+2)=(((A) >> 8));
+  *(((char*)T)+1)=(((A) >> 16));
+  *(((char*)T)+0)=(((A) >> 24)); }
 
 static inline void floatget(float *V, const uchar *M)
 {
@@ -98,5 +104,11 @@ static inline void doublestore(uchar *T, double V)
   memcpy((T), &V, sizeof(double));
 }
 
-#define longlongget(V,M)   memcpy(&V, (M), sizeof(ulonglong))
-#define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
+static inline void longlongget(longlong *V, const uchar *M)
+{
+  memcpy(V, (M), sizeof(ulonglong));
+}
+static inline void longlongstore(uchar *T, longlong V)
+{
+  memcpy((T), &V, sizeof(ulonglong));
+}

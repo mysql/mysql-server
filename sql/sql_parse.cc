@@ -103,10 +103,10 @@
 #include "table_cache.h" // table_cache_manager
 #include "sql_timer.h"   // thd_timer_set, thd_timer_reset
 #include "sp_rcontext.h"
+#include "parse_location.h"
 
 #include <algorithm>
 using std::max;
-using std::min;
 
 #define FLAGSTR(V,F) ((V)&(F)?#F" ":"")
 
@@ -1133,7 +1133,6 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     thd->status_var.com_other++;
     thd->cleanup_connection();
-    thd->reset_first_successful_insert_id();
     my_ok(thd);
     break;
   }
@@ -4561,49 +4560,6 @@ end_with_restore_list:
     res= mysql_create_or_drop_trigger(thd, all_tables, 0);
     break;
   }
-  case SQLCOM_XA_START:
-    if (trans_xa_start(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_END:
-    if (trans_xa_end(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_PREPARE:
-    if (trans_xa_prepare(thd))
-      goto error;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_COMMIT:
-    if (trans_xa_commit(thd))
-      goto error;
-    thd->mdl_context.release_transactional_locks();
-    /*
-      We've just done a commit, reset transaction
-      isolation level and access mode to the session default.
-    */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_ROLLBACK:
-    if (trans_xa_rollback(thd))
-      goto error;
-    thd->mdl_context.release_transactional_locks();
-    /*
-      We've just done a rollback, reset transaction
-      isolation level and access mode to the session default.
-    */
-    thd->tx_isolation= (enum_tx_isolation) thd->variables.tx_isolation;
-    thd->tx_read_only= thd->variables.tx_read_only;
-    my_ok(thd);
-    break;
-  case SQLCOM_XA_RECOVER:
-    res= trans_xa_recover(thd);
-    DBUG_EXECUTE_IF("crash_after_xa_recover", {DBUG_SUICIDE();});
-    break;
   case SQLCOM_ALTER_TABLESPACE:
     if (check_global_access(thd, CREATE_TABLESPACE_ACL))
       break;
@@ -4652,6 +4608,12 @@ end_with_restore_list:
   case SQLCOM_RESIGNAL:
   case SQLCOM_GET_DIAGNOSTICS:
   case SQLCOM_CHANGE_REPLICATION_FILTER:
+  case SQLCOM_XA_START:
+  case SQLCOM_XA_END:
+  case SQLCOM_XA_PREPARE:
+  case SQLCOM_XA_COMMIT:
+  case SQLCOM_XA_ROLLBACK:
+  case SQLCOM_XA_RECOVER:
     DBUG_ASSERT(lex->m_sql_cmd != NULL);
     res= lex->m_sql_cmd->execute(thd);
     break;
@@ -4878,6 +4840,7 @@ static bool execute_sqlcom_select(THD *thd, TABLE_LIST *all_tables)
     reset_statement_timer(thd);
 #endif
 
+  DEBUG_SYNC(thd, "after_table_open");
   return res;
 }
 
@@ -5039,7 +5002,7 @@ void THD::reset_for_next_command()
 
   if (opt_bin_log)
   {
-    reset_dynamic(&thd->user_var_events);
+    thd->user_var_events.clear();
     thd->user_var_events_alloc= thd->mem_root;
   }
   thd->clear_error();
@@ -5074,19 +5037,19 @@ void THD::reset_for_next_command()
 
   This will crash with a core dump if the variable doesn't exists.
 
+  @param pc                     Current parse context
   @param var_name		Variable name
 */
 
-void create_select_for_variable(const char *var_name)
+void create_select_for_variable(Parse_context *pc, const char *var_name)
 {
-  THD *thd;
+  THD *thd= pc->thd;
   LEX *lex;
   LEX_STRING tmp, null_lex_string;
   Item *var;
   char buff[MAX_SYS_VAR_LENGTH*2+4+8], *end;
   DBUG_ENTER("create_select_for_variable");
 
-  thd= current_thd;
   lex= thd->lex;
   lex->sql_command= SQLCOM_SELECT;
   tmp.str= (char*) var_name;
@@ -5096,7 +5059,7 @@ void create_select_for_variable(const char *var_name)
     We set the name of Item to @@session.var_name because that then is used
     as the column name in the output.
   */
-  if ((var= get_system_var(thd, OPT_SESSION, tmp, null_lex_string)))
+  if ((var= get_system_var(pc, OPT_SESSION, tmp, null_lex_string)))
   {
     end= strxmov(buff, "@@session.", var_name, NullS);
     var->item_name.copy(buff, end - buff);
@@ -5506,19 +5469,14 @@ void store_position_for_column(const char *name)
   save order by and tables in own lists.
 */
 
-bool add_to_list(THD *thd, SQL_I_List<ORDER> &list, Item *item,bool asc)
+void add_to_list(SQL_I_List<ORDER> &list, ORDER *order)
 {
-  ORDER *order;
   DBUG_ENTER("add_to_list");
-  if (!(order = (ORDER *) thd->alloc(sizeof(ORDER))))
-    DBUG_RETURN(1);
-  order->item_ptr= item;
   order->item= &order->item_ptr;
-  order->direction= (asc ? ORDER::ORDER_ASC : ORDER::ORDER_DESC);
   order->used_alias= false;
   order->used=0;
   list.link_in_list(order, &order->next);
-  DBUG_RETURN(0);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -5647,7 +5605,7 @@ TABLE_LIST *st_select_lex::add_table_to_list(THD *thd,
     ptr->schema_table_name= ptr->table_name;
     ptr->schema_table= schema_table;
   }
-  ptr->select_lex=  lex->current_select();
+  ptr->select_lex= this;
   ptr->cacheable_table= 1;
   ptr->index_hints= index_hints_arg;
   ptr->option= option ? option->str : 0;
@@ -6000,7 +5958,6 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
       just before the parser starts processing order_list
     */ 
     fake_select_lex->no_table_names_allowed= 1;
-    thd_arg->lex->set_current_select(fake_select_lex);
   }
   thd->lex->pop_context();
   DBUG_RETURN(false);
@@ -6016,7 +5973,7 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
     to be used for name resolution, and push the newly created
     context to the stack of contexts of the query.
 
-  @param thd       pointer to current thread
+  @param pc        current parse context
   @param left_op   left  operand of the JOIN
   @param right_op  rigth operand of the JOIN
 
@@ -6030,9 +5987,10 @@ bool st_select_lex_unit::add_fake_select_lex(THD *thd_arg)
 */
 
 bool
-push_new_name_resolution_context(THD *thd,
+push_new_name_resolution_context(Parse_context *pc,
                                  TABLE_LIST *left_op, TABLE_LIST *right_op)
 {
+  THD *thd= pc->thd;
   Name_resolution_context *on_context;
   if (!(on_context= new (thd->mem_root) Name_resolution_context))
     return TRUE;
@@ -6041,7 +5999,7 @@ push_new_name_resolution_context(THD *thd,
     left_op->first_leaf_for_name_resolution();
   on_context->last_name_resolution_table=
     right_op->last_leaf_for_name_resolution();
-  on_context->select_lex= thd->lex->current_select();
+  on_context->select_lex= pc->select;
   // Save join nest's context in right_op, to find it later in view merging.
   DBUG_ASSERT(right_op->context_of_embedding == NULL);
   right_op->context_of_embedding= on_context;
@@ -6229,32 +6187,6 @@ bool append_file_to_dir(THD *thd, const char **filename_ptr,
     return 1;					// End of memory
   *filename_ptr=ptr;
   strxmov(ptr,buff,table_name,NullS);
-  return 0;
-}
-
-
-/**
-  Check if the select is a simple select (not an union).
-
-  @retval
-    0	ok
-  @retval
-    1	error	; In this case the error messege is sent to the client
-*/
-
-bool check_simple_select()
-{
-  THD *thd= current_thd;
-  LEX *lex= thd->lex;
-  if (lex->current_select() != lex->select_lex)
-  {
-    char command[80];
-    Lex_input_stream *lip= & thd->m_parser_state->m_lip;
-    strmake(command, lip->yylval->symbol.str,
-	    min<size_t>(lip->yylval->symbol.length, sizeof(command)-1));
-    my_error(ER_CANT_USE_OPTION_HERE, MYF(0), command);
-    return 1;
-  }
   return 0;
 }
 
@@ -6455,14 +6387,14 @@ void create_table_set_open_action_and_adjust_tables(LEX *lex)
 /**
   negate given expression.
 
-  @param thd  thread handler
+  @param pc   current parse context
   @param expr expression for negation
 
   @return
     negated expression
 */
 
-Item *negate_expression(THD *thd, Item *expr)
+Item *negate_expression(Parse_context *pc, Item *expr)
 {
   Item *negated;
   if (expr->type() == Item::FUNC_ITEM &&
@@ -6470,7 +6402,7 @@ Item *negate_expression(THD *thd, Item *expr)
   {
     /* it is NOT(NOT( ... )) */
     Item *arg= ((Item_func *) expr)->arguments()[0];
-    enum_parsing_context place= thd->lex->current_select()->parsing_place;
+    enum_parsing_context place= pc->select->parsing_place;
     if (arg->is_bool_func() || place == CTX_WHERE || place == CTX_HAVING)
       return arg;
     /*
@@ -6480,7 +6412,7 @@ Item *negate_expression(THD *thd, Item *expr)
     return new Item_func_ne(arg, new Item_int_0());
   }
 
-  if ((negated= expr->neg_transformer(thd)) != 0)
+  if ((negated= expr->neg_transformer(pc->thd)) != 0)
     return negated;
   return new Item_func_not(expr);
 }
@@ -6777,7 +6709,7 @@ bool check_host_name(const LEX_CSTRING &str)
 }
 
 
-extern int MYSQLparse(void *thd); // from sql_yacc.cc
+extern int MYSQLparse(class THD *thd); // from sql_yacc.cc
 
 
 /**

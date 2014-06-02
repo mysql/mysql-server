@@ -2500,9 +2500,9 @@ DROP VIEW v1;
 CREATE DATABASE `a\\k`;
 CREATE TABLE `a\\k`.t1(i INT);
 SHOW TABLES FROM `a\\k`;
---exec $MYSQL_DUMP --databases "a\\\\k" > $MYSQLTEST_VARDIR/tmp/bug18109728.sql;
+--exec $MYSQL_DUMP -uroot --all-databases > $MYSQLTEST_VARDIR/tmp/bug18109728.sql
 DROP DATABASE `a\\k`;
---exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug18109728.sql;
+--exec $MYSQL < $MYSQLTEST_VARDIR/tmp/bug18109728.sql
 SHOW TABLES FROM `a\\k`;
 #clean up
 DROP DATABASE `a\\k`;

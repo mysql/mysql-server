@@ -124,7 +124,7 @@ buf_read_ibuf_merge_pages(
 					to get read in, before this
 					function returns */
 	const ulint*	space_ids,	/*!< in: array of space ids */
-	const ib_int64_t* space_versions,/*!< in: the spaces must have
+	const int64_t*	space_versions,	/*!< in: the spaces must have
 					this version number
 					(timestamp), otherwise we
 					discard the read; we use this

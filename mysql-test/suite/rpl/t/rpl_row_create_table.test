@@ -17,10 +17,10 @@ connection master;
 # effect, since the variable is only read on start-up.
 --source include/sync_slave_sql_with_master.inc
 --disable_query_log
-set @storage_engine = @@global.storage_engine;
+set @default_storage_engine = @@global.default_storage_engine;
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
-SET GLOBAL storage_engine=memory;
+SET GLOBAL default_storage_engine=memory;
 START SLAVE;
 --source include/wait_for_slave_to_start.inc
 --enable_query_log
@@ -116,7 +116,7 @@ DROP TABLE IF EXISTS t1,t2,t3,t4,t5,t6,t7,t8,t9;
 # Here we reset the value of the default storage engine
 STOP SLAVE;
 --source include/wait_for_slave_to_stop.inc
-SET GLOBAL storage_engine=@storage_engine;
+SET GLOBAL default_storage_engine=@default_storage_engine;
 START SLAVE;
 --source include/wait_for_slave_to_start.inc
 --enable_ps_protocol

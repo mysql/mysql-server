@@ -67,7 +67,7 @@ char	trx_sys_mysql_master_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-ib_int64_t	trx_sys_mysql_master_log_pos	= -1;
+int64_t	trx_sys_mysql_master_log_pos = -1;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -77,7 +77,7 @@ here. */
 /** Binlog file name */
 char	trx_sys_mysql_bin_log_name[TRX_SYS_MYSQL_LOG_NAME_LEN];
 /** Binlog file position, or -1 if unknown */
-ib_int64_t	trx_sys_mysql_bin_log_pos	= -1;
+int64_t	trx_sys_mysql_bin_log_pos = -1;
 /* @} */
 #endif /* !UNIV_HOTBACKUP */
 
@@ -193,7 +193,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/*!< in: MySQL log file name */
-	ib_int64_t	offset,	/*!< in: position in that log file */
+	int64_t		offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr)	/*!< in: mtr */
@@ -278,8 +278,8 @@ trx_sys_print_mysql_binlog_offset(void)
 		+ TRX_SYS_MYSQL_LOG_OFFSET_LOW);
 
 	trx_sys_mysql_bin_log_pos
-		= (((ib_int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
-		+ (ib_int64_t) trx_sys_mysql_bin_log_pos_low;
+		= (((int64_t) trx_sys_mysql_bin_log_pos_high) << 32)
+		+ (int64_t) trx_sys_mysql_bin_log_pos_low;
 
 	ut_memcpy(trx_sys_mysql_bin_log_name,
 		  sys_header + TRX_SYS_MYSQL_LOG_INFO
@@ -998,6 +998,7 @@ trx_sys_read_file_format_id(
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
+		srv_read_only_mode,
 		&success
 	);
 	if (!success) {
@@ -1072,6 +1073,7 @@ trx_sys_read_pertable_file_format_id(
 		pathname,
 		OS_FILE_OPEN,
 		OS_FILE_READ_ONLY,
+		srv_read_only_mode,
 		&success
 	);
 	if (!success) {

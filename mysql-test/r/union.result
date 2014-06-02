@@ -1771,8 +1771,7 @@ union
 select 4
 order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ;
-foo
-1
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
 prepare stmt1 from 'select 1 as foo
 union
 select 2
@@ -1782,12 +1781,7 @@ union
 select 4
 order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ';
-execute stmt1;
-foo
-1
-execute stmt1;
-foo
-1
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
 select 1 as foo
 union
 select 2
@@ -1797,8 +1791,7 @@ union
 (select 4)
 order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ;
-foo
-1
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
 prepare stmt1 from 'select 1 as foo
 union
 select 2
@@ -1808,13 +1801,7 @@ union
 (select 4)
 order by max(42) + max(1) + max(1) + max(1) + max(1) + max(1)
 ';
-execute stmt1;
-foo
-1
-execute stmt1;
-foo
-1
-deallocate prepare stmt1;
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
 End of 5.1 tests
 #
 # Bug#57986 ORDER BY clause is not used after a UNION, 
@@ -2048,3 +2035,80 @@ FOUND_ROWS()
 1
 DROP TABLE t1, t2;
 # End of WL1763 tests
+# Bug#18503515 UNION with set function in ORDER BY should be rejected
+# UNIONed queries are non-aggregated:
+SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY MAX(1);
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+prepare stmt from 'SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY MAX(1)';
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+SELECT MAX(1) AS foo
+UNION
+SELECT MAX(2)
+ORDER BY foo;
+foo
+1
+2
+SELECT MAX(1) AS foo
+UNION
+SELECT MAX(2)
+ORDER BY 1 DESC;
+foo
+2
+1
+# UNIONed queries are aggregated:
+SELECT MAX(1) AS foo
+UNION
+SELECT MAX(2)
+ORDER BY MAX(1);
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+CREATE TABLE t1(a INTEGER);
+INSERT INTO t1 VALUES (1), (2);
+# Subquery, ORDER BY contains outer reference
+SELECT (SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY a) AS x
+FROM t1;
+ERROR 21000: Subquery returns more than 1 row
+# Subquery, ORDER BY contains outer reference
+SELECT (SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY t1.a) AS x
+FROM t1;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
+# Subquery, ORDER BY contains set function with outer reference
+SELECT (SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY COUNT(a)) AS x
+FROM t1;
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+# Subquery, ORDER BY contains set function with outer reference
+SELECT (SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY COUNT(t1.a)) AS x
+FROM t1;
+ERROR 42000: Table 't1' from one of the SELECTs cannot be used in field list
+# Subquery, ORDER BY contains set function
+SELECT (SELECT 1 AS foo
+UNION
+SELECT 2
+ORDER BY COUNT(*)) AS x
+FROM t1;
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to a UNION
+CREATE TABLE t2(a INTEGER, b INTEGER);
+INSERT INTO t2 VALUES (1,10), (2,20);
+SELECT MAX(a) FROM t2 GROUP BY b
+UNION
+SELECT MAX(a) FROM t2 GROUP BY b
+ORDER BY max(a);
+ERROR 42S22: Unknown column 'a' in 'order clause'
+DROP TABLE t1, t2;
