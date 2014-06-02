@@ -4499,6 +4499,17 @@ static int init_server_auto_options()
   /* load_defaults require argv[0] is not null */
   char **argv= &name;
   int argc= 1;
+  if (!check_file_permissions(fname))
+  {
+    /*
+      Found a world writable file hence removing it as it is dangerous to write
+      a new UUID into the same file.
+     */
+    my_delete(fname,MYF(MY_WME));
+    sql_print_warning("World-writable config file '%s' has been removed.\n",
+                      fname);
+  }
+
   /* load all options in 'auto.cnf'. */
   if (my_load_defaults(fname, groups, &argc, &argv, NULL))
     DBUG_RETURN(1);

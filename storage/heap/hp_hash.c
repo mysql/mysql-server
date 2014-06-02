@@ -730,7 +730,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       {
 	float nr;
 	float4get(nr, pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
 	  /* Replace NAN with zero */
  	  memset(key, 0, length);
@@ -742,7 +742,7 @@ uint hp_rb_make_key(HP_KEYDEF *keydef, uchar *key,
       {
 	double nr;
 	float8get(nr, pos);
-	if (isnan(nr))
+	if (my_isnan(nr))
 	{
  	  memset(key, 0, length);
 	  key+= length;

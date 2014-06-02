@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -1435,6 +1435,28 @@ UNIV_INTERN
 void
 dict_mutex_exit_for_mysql(void);
 /*===========================*/
+
+/** Create a dict_table_t's stats latch or delay for lazy creation.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to create
+@param[in]	enabled	if false then the latch is disabled
+and dict_table_stats_lock()/unlock() become noop on this table. */
+
+void
+dict_table_stats_latch_create(
+	dict_table_t*	table,
+	bool		enabled);
+
+/** Destroy a dict_table_t's stats latch.
+This function is only called from either single threaded environment
+or from a thread that has not shared the table object with other threads.
+@param[in,out]	table	table whose stats latch to destroy */
+
+void
+dict_table_stats_latch_destroy(
+	dict_table_t*	table);
+
 /**********************************************************************//**
 Lock the appropriate latch to protect a given table's statistics.
 table->id is used to pick the corresponding latch from a global array of

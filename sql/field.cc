@@ -2348,7 +2348,7 @@ type_conversion_status Field_decimal::store(double nr)
     return TYPE_WARN_OUT_OF_RANGE;
   }
   
-  if (!isfinite(nr)) // Handle infinity as special case
+  if (!my_isfinite(nr)) // Handle infinity as special case
   {
     overflow(nr < 0.0);
     return TYPE_WARN_OUT_OF_RANGE;
@@ -4492,7 +4492,7 @@ type_conversion_status Field_double::store(longlong nr, bool unsigned_val)
 
 bool Field_real::truncate(double *nr, double max_value)
 {
-  if (isnan(*nr))
+  if (my_isnan(*nr))
   {
     *nr= 0;
     set_null();
@@ -7767,8 +7767,7 @@ Field_blob::store_internal(const char *from, uint length,
       If content of the 'from'-address is cached in the 'value'-object
       it is possible that the content needs a character conversion.
     */
-    uint32 dummy_offset;
-    if (!String::needs_conversion(length, cs, field_charset, &dummy_offset))
+    if (!String::needs_conversion_on_storage(length, cs, field_charset))
     {
       store_ptr_and_length(from, length);
       return TYPE_OK;
@@ -8398,12 +8397,11 @@ Field_enum::store(const char *from,uint length,const CHARSET_INFO *cs)
   ASSERT_COLUMN_MARKED_FOR_WRITE;
   int err= 0;
   type_conversion_status ret= TYPE_OK;
-  uint32 not_used;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if necessary */
-  if (String::needs_conversion(length, cs, field_charset, &not_used))
+  if (String::needs_conversion_on_storage(length, cs, field_charset))
   { 
     uint dummy_errors;
     tmpstr.copy(from, length, cs, field_charset, &dummy_errors);
@@ -8629,12 +8627,11 @@ Field_set::store(const char *from,uint length,const CHARSET_INFO *cs)
   type_conversion_status ret= TYPE_OK;
   char *not_used;
   uint not_used2;
-  uint32 not_used_offset;
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmpstr(buff,sizeof(buff), &my_charset_bin);
 
   /* Convert character set if necessary */
-  if (String::needs_conversion(length, cs, field_charset, &not_used_offset))
+  if (String::needs_conversion_on_storage(length, cs, field_charset))
   { 
     uint dummy_errors;
     tmpstr.copy(from, length, cs, field_charset, &dummy_errors);

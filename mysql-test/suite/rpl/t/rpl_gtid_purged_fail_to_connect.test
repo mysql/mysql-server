@@ -18,10 +18,10 @@
 
 --source include/have_debug.inc
 --source include/have_gtid.inc
+--let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 
 call mtr.add_suppression("Got fatal error 1236 from master when reading data from binary log: 'The slave is connecting using CHANGE MASTER TO MASTER_AUTO_POSITION = 1, but the master has purged binary logs containing GTIDs that the slave requires.");
---source include/gtid_utils.inc
 
 --echo ######## Initialize ########
 
@@ -93,5 +93,4 @@ DROP TABLE t1;
 --source include/sync_slave_sql_with_master.inc
 
 --connection master
---source include/gtid_utils_end.inc
 --source include/rpl_end.inc
