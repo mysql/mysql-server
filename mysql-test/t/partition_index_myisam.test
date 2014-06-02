@@ -1,3 +1,8 @@
+--source include/have_partition.inc
+
+--echo #
+--echo # Bug#18167648: WRONG RESULTS WITH PARTITIONING, INDEX_MERGE AND NO PK
+--echo #
 CREATE TABLE t1 (
   a smallint,
   b smallint,
