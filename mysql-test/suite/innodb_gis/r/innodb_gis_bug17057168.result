@@ -15,7 +15,7 @@ EXPLAIN SELECT id, AsText(location) FROM t1 WHERE location = POINT(1,
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	location	location	28	const	1	100.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `geotest`.`t1`.`id` AS `id`,st_astext(`geotest`.`t1`.`location`) AS `AsText(location)` from `geotest`.`t1` where (`geotest`.`t1`.`location` = <cache>(st_point(1,2)))
+Note	1003	/* select#1 */ select `geotest`.`t1`.`id` AS `id`,st_astext(`geotest`.`t1`.`location`) AS `AsText(location)` from `geotest`.`t1` where (`geotest`.`t1`.`location` = <cache>(point(1,2)))
 SELECT id, AsText(location) FROM t1 WHERE location = POINT(1, 2);
 id	AsText(location)
 163	POINT(1 2)

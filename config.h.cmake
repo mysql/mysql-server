@@ -414,6 +414,19 @@
 #cmakedefine DISABLE_PSI_MEMORY 1
 #cmakedefine DISABLE_PSI_TRANSACTION 1
 
+/* Platform-specific C++ compiler behaviors we rely upon */
+
+/*
+  This macro defines whether the compiler in use needs a 'typename' keyword
+  to access the types defined inside a class template, such types are called
+  dependent types. Some compilers require it, some others forbid it, and some
+  others may work with or without it. For example, GCC requires the 'typename'
+  keyword whenever needing to access a type inside a template, but msvc
+  forbids it.
+ */
+#cmakedefine HAVE_IMPLICIT_DEPENDENT_NAME_TYPING 1
+
+
 /*
  * MySQL version
  */

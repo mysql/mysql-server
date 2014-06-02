@@ -2849,11 +2849,8 @@ public:
     @param needs_thr_lock_abort Indicates that to wake up thread
                                 this call needs to abort its waiting
                                 on table-level lock.
-
-    @retval  TRUE  if the thread was woken up
-    @retval  FALSE otherwise.
    */
-  virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
+  virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
   /**
