@@ -6174,3 +6174,22 @@ DROP TABLE t1;
 
 set @@optimizer_switch=@old_opt_switch;
 # New tests go here.
+
+--echo #
+--echo # Bug #18486607 ASSERTION FAILED:
+--echo # IN_SUBQ_PRED->LEFT_EXPR->FIXED IN CONVERT_SUBQUERY_TO_SEMIJOIN 
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+
+# not with prepared statements because of Bug#16926177
+--disable_ps_protocol
+SELECT (SELECT 1 FROM t2
+        WHERE a IN (SELECT 1 FROM t2)
+       ) AS scalar
+FROM t1
+GROUP BY a;
+--enable_ps_protocol
+
+DROP TABLE t1,t2;

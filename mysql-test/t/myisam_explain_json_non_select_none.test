@@ -3,7 +3,7 @@
 #
 --source include/force_myisam_default.inc
 --source include/have_myisam.inc
-
+--source include/have_64bit.inc
 --source include/not_embedded.inc
 
 --disable_query_log

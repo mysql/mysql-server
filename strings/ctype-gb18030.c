@@ -21070,7 +21070,7 @@ static const uint16 gb18030_4_weight_py_p2[]=
   @return           the gb18030 code
 */
 static inline
-uint gb18030_chs_to_code(const uchar *src, uint srclen)
+uint gb18030_chs_to_code(const uchar *src, size_t srclen)
 {
   uint r= 0;
 
@@ -21103,10 +21103,10 @@ uint gb18030_chs_to_code(const uchar *src, uint srclen)
   @param[in]  code   gb18030 code
   @return            the length of dest used to store the gb18030 chars
 */
-static uint
-code_to_gb18030_chs(uchar *dst, uint dstlen, uint code)
+static size_t
+code_to_gb18030_chs(uchar *dst, size_t dstlen, uint code)
 {
-  uint i, len= 0;
+  size_t i, len= 0;
   uchar *dst_end= dst + dstlen;
   uchar r[4];
   for (i= 0; code != 0; i++, code>>= 8)
@@ -21634,8 +21634,8 @@ my_casefold_gb18030(const CHARSET_INFO *cs, char *src, size_t srclen,
 
       if (code != 0)
       {
-        uint mblen_dst= code_to_gb18030_chs((uchar *) dst, dst_end - dst,
-                                            code);
+        size_t mblen_dst= code_to_gb18030_chs((uchar *) dst, dst_end - dst,
+                                              code);
 
         DBUG_ASSERT(dst + mblen_dst <= dst_end);
         src+= mblen;
@@ -21875,7 +21875,7 @@ get_weight_if_chinese_character(uint code)
   @return          the weight of the given gb18030 code point
 */
 static uint
-get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src, uint mblen)
+get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src, size_t mblen)
 {
   uint weight, caseup_code, code= gb18030_chs_to_code(src, mblen);
 
@@ -21909,7 +21909,7 @@ get_weight_for_mbchar(const CHARSET_INFO *cs, const uchar *src, uint mblen)
   @return     weight the weight of the code
 */
 static uint
-get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s, uint s_len)
+get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s, size_t s_len)
 {
   DBUG_ASSERT(s_len == 1 || s_len == 2 || s_len == 4);
 
@@ -21932,11 +21932,11 @@ get_weight_for_gb18030_chs(const CHARSET_INFO *cs, const char *s, uint s_len)
   @retval          the length of the next code, if the code is valid
                    0 if the given string is empty or the code is invalid
 */
-static uint
+static size_t
 get_code_and_length(const CHARSET_INFO *cs, const char *s,
-                    const char *e, uint *code)
+                    const char *e, size_t *code)
 {
-  uint len;
+  size_t len;
 
   if (s >= e)
     return 0;
@@ -22212,7 +22212,7 @@ my_wildcmp_gb18030_impl(const CHARSET_INFO *cs,
                         int recurse_level)
 {
   int result= -1;                      /* Not found, using wildcards */
-  uint s_gb, w_gb;
+  size_t s_gb, w_gb;
   size_t s_len, w_len;
 
   if (my_string_stack_guard && my_string_stack_guard(recurse_level))
@@ -22389,7 +22389,8 @@ my_hash_sort_gb18030(const CHARSET_INFO *cs, const uchar *s, size_t slen,
   const uchar *e= s + slen;
   ulong tmp1, tmp2;
   size_t len;
-  uint s_gb, ch;
+  size_t s_gb;
+  uint ch;
 
   /* Skip trailing spaces */
   while (e > s && e[-1] == 0x20)

@@ -375,7 +375,7 @@ my_ulonglong find_set_from_flags(const TYPELIB *lib, uint default_name,
       continue;
    err:
       *err_pos= (char*)start;
-      *err_len= end - start;
+      *err_len= (uint)(end - start);
       break;
     }
   }

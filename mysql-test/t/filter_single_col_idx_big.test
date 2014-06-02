@@ -46,3 +46,52 @@ analyze table t2;
 --enable_warnings
 
 DROP TABLE t1,t2;
+
+--echo #
+--echo # Bug#18446462: ASSERT `ROWS >= 0.0' AT
+--echo #               COST_MODEL_SERVER::ROW_EVALUATE_COST IN 
+--echo #               OPT_COSTMODEL.H
+--echo #
+
+# 10 rows
+create table t10 (pk int primary key, i int);
+insert into t10 values (1,1);
+insert into t10 select pk+1, i from t10;
+insert into t10 select pk+2, i from t10;
+insert into t10 select pk+4, i from t10;
+insert into t10 select pk+8, i from t10 limit 2;
+
+# 19 rows
+create table t19 (pk int primary key, i int);
+insert into t19 values (1,1);
+insert into t19 select pk+1, i from t19;
+insert into t19 select pk+2, i from t19;
+insert into t19 select pk+4, i from t19;
+insert into t19 select pk+8, i from t19;
+insert into t19 select pk+16, i from t19 limit 3;
+
+# 25 rows
+create table t25 (pk int primary key, i int);
+insert into t25 values (1,1);
+insert into t25 select pk+1, i from t25;
+insert into t25 select pk+2, i from t25;
+insert into t25 select pk+4, i from t25;
+insert into t25 select pk+8, i from t25;
+insert into t25 select pk+16, i from t25 limit 9;
+
+EXPLAIN SELECT * FROM (
+SELECT t10_1.*
+FROM t10 AS t10_1,
+     t10 AS t10_2,
+     t10 AS t10_3,
+     t10 AS t10_4,
+     t10 AS t10_5,
+     t10 AS t10_6,
+     t25 AS t25_1, 
+     t25 AS t25_2,
+     t19
+) AS d;
+
+DROP TABLE t10;
+DROP TABLE t19;
+DROP TABLE t25;

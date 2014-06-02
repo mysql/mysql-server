@@ -1421,15 +1421,22 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
-      /* Corrupt the event for Dump thread*/
+      /*
+        Corrupt the event for Dump thread.
+        We also need to exclude Previous_gtids_log_event and Gtid_log_event
+        events from injected corruption to allow dump thread to move forward
+        on binary log until the missing transactions from slave when
+        MASTER_AUTO_POSITION= 1.
+      */
       DBUG_EXECUTE_IF("corrupt_read_log_event",
 	uchar *debug_event_buf_c = (uchar*) packet->ptr() + ev_offset;
-        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+            debug_event_buf_c[EVENT_TYPE_OFFSET] != PREVIOUS_GTIDS_LOG_EVENT &&
+            debug_event_buf_c[EVENT_TYPE_OFFSET] != GTID_LOG_EVENT)
         {
           int debug_cor_pos = rand() % (data_len + sizeof(buf) - BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
-          DBUG_SET("-d,corrupt_read_log_event");
 	}
       );                                                                                           
       /*
@@ -2884,7 +2891,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
     "The master does not support the selected parallelization mode. "
     "It may be too old, or replication was started from an event internal "
-    "to a transaaction.");
+    "to a transaction.");
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;
@@ -3059,6 +3066,12 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ret_worker=
       rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
                                                           this);
+    if (ret_worker == NULL)
+    {
+      /* get_least_occupied_worker may return NULL if the thread is killed */
+      DBUG_ASSERT(thd->killed);
+      DBUG_RETURN(NULL);
+    }
     ptr_group->worker_id= ret_worker->id;
   }
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
@@ -6327,22 +6340,22 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   db_len = (uint32) strlen(db);
   table_name_len = (uint32) strlen(table_name);
   fname_len = (fname) ? (uint) strlen(fname) : 0;
-  sql_ex.field_term = (char*) ex->field_term->ptr();
-  sql_ex.field_term_len = (uint8) ex->field_term->length();
-  sql_ex.enclosed = (char*) ex->enclosed->ptr();
-  sql_ex.enclosed_len = (uint8) ex->enclosed->length();
-  sql_ex.line_term = (char*) ex->line_term->ptr();
-  sql_ex.line_term_len = (uint8) ex->line_term->length();
-  sql_ex.line_start = (char*) ex->line_start->ptr();
-  sql_ex.line_start_len = (uint8) ex->line_start->length();
-  sql_ex.escaped = (char*) ex->escaped->ptr();
-  sql_ex.escaped_len = (uint8) ex->escaped->length();
+  sql_ex.field_term = ex->field.field_term->ptr();
+  sql_ex.field_term_len = (uint8) ex->field.field_term->length();
+  sql_ex.enclosed = ex->field.enclosed->ptr();
+  sql_ex.enclosed_len = (uint8) ex->field.enclosed->length();
+  sql_ex.line_term = ex->line.line_term->ptr();
+  sql_ex.line_term_len = (uint8) ex->line.line_term->length();
+  sql_ex.line_start = ex->line.line_start->ptr();
+  sql_ex.line_start_len = (uint8) ex->line.line_start->length();
+  sql_ex.escaped = (char*) ex->field.escaped->ptr();
+  sql_ex.escaped_len = (uint8) ex->field.escaped->length();
   sql_ex.opt_flags = 0;
   sql_ex.cached_new_format = -1;
     
   if (ex->dumpfile)
     sql_ex.opt_flags|= DUMPFILE_FLAG;
-  if (ex->opt_enclosed)
+  if (ex->field.opt_enclosed)
     sql_ex.opt_flags|= OPT_ENCLOSED_FLAG;
 
   sql_ex.empty_flags= 0;
@@ -6358,15 +6371,15 @@ Load_log_event::Load_log_event(THD *thd_arg, sql_exchange *ex,
   if (ignore)
     sql_ex.opt_flags|= IGNORE_FLAG;
 
-  if (!ex->field_term->length())
+  if (!ex->field.field_term->length())
     sql_ex.empty_flags |= FIELD_TERM_EMPTY;
-  if (!ex->enclosed->length())
+  if (!ex->field.enclosed->length())
     sql_ex.empty_flags |= ENCLOSED_EMPTY;
-  if (!ex->line_term->length())
+  if (!ex->line.line_term->length())
     sql_ex.empty_flags |= LINE_TERM_EMPTY;
-  if (!ex->line_start->length())
+  if (!ex->line.line_start->length())
     sql_ex.empty_flags |= LINE_START_EMPTY;
-  if (!ex->escaped->length())
+  if (!ex->field.escaped->length())
     sql_ex.empty_flags |= ESCAPED_EMPTY;
     
   skip_lines = ex->skip_lines;
@@ -6791,15 +6804,15 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       String line_start(sql_ex.line_start,sql_ex.line_start_len,log_cs);
       String escaped(sql_ex.escaped,sql_ex.escaped_len, log_cs);
       const String empty_str("", 0, log_cs);
-      ex.field_term= &field_term;
-      ex.enclosed= &enclosed;
-      ex.line_term= &line_term;
-      ex.line_start= &line_start;
-      ex.escaped= &escaped;
+      ex.field.field_term= &field_term;
+      ex.field.enclosed= &enclosed;
+      ex.line.line_term= &line_term;
+      ex.line.line_start= &line_start;
+      ex.field.escaped= &escaped;
 
-      ex.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
+      ex.field.opt_enclosed = (sql_ex.opt_flags & OPT_ENCLOSED_FLAG);
       if (sql_ex.empty_flags & FIELD_TERM_EMPTY)
-        ex.field_term= &empty_str;
+        ex.field.field_term= &empty_str;
 
       ex.skip_lines = skip_lines;
       List<Item> field_list;
@@ -7089,10 +7102,18 @@ int Rotate_log_event::do_update_pos(Relay_log_info *rli)
     5.0.0, there also are some rotates from the slave itself, in the
     relay log, which shall not change the group positions.
   */
+
+  /*
+    The way we check if SQL thread is currently in a group is different
+    for STS and MTS.
+  */
+  bool in_group = rli->is_parallel_exec() ?
+    (rli->mts_group_status == Relay_log_info::MTS_IN_GROUP) :
+    rli->is_in_group();
+
   if ((server_id != ::server_id || rli->replicate_same_server_id) &&
       !is_relay_log_event() &&
-      ((!rli->is_parallel_exec() && !rli->is_in_group()) ||
-       rli->mts_group_status != Relay_log_info::MTS_IN_GROUP))
+      !in_group)
   {
     if (!is_mts_db_partitioned(rli) && server_id != ::server_id && log_pos )
     {
@@ -7609,6 +7630,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
                   DBUG_SUICIDE(););
 
   error= do_commit(thd);
+  if (error)
+    w->rollback_positions(ptr_group);
 err:
   return error;
 }
@@ -7931,10 +7954,10 @@ bool User_var_log_event::write(IO_CACHE* file)
     case DECIMAL_RESULT:
     {
       my_decimal *dec= (my_decimal *)val;
-      dec->fix_buffer_pointer();
+      dec->sanity_check();
       buf2[0]= (char)(dec->intg + dec->frac);
       buf2[1]= (char)dec->frac;
-      decimal2bin((decimal_t*)val, buf2+2, buf2[0], buf2[1]);
+      decimal2bin(dec, buf2+2, buf2[0], buf2[1]);
       val_len= decimal_bin_size(buf2[0], buf2[1]) + 2;
       break;
     }

@@ -408,12 +408,17 @@ disconnect con2;
 --echo # characters in the XID previosuly. Now there is another column
 --echo # in the result set which is a Hex Encoded String of the XID.
 --echo #
+
+--echo # Check that XIDs which are not normally printable are displayed
+--echo # in readable format when CONVERT XID clause is used.
 xa start 0xABCDEF1234567890, 0x01, 0x02 ;
 xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
-xa recover;
+xa recover convert xid;
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
 
+--echo # Check that XID which has only printable characters are displayed
+--echo # correctly without using of CONVERT XID clause
 xa start 0x4142434445, 0x46, 0x02 ;
 xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;

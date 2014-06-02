@@ -832,6 +832,9 @@ btr_search_guess_on_hash(
 	ut_ad((latch_mode == BTR_SEARCH_LEAF)
 	      || (latch_mode == BTR_MODIFY_LEAF));
 
+	/* Not supported for spatial index */
+	ut_ad(!dict_index_is_spatial(index));
+
 	/* Note that, for efficiency, the struct info may not be protected by
 	any latch here! */
 
@@ -1038,17 +1041,17 @@ btr_search_drop_page_hash_index(
 	ulint*			offsets;
 	btr_search_t*		info;
 
+	/* Do a dirty check on block->index, return if the block is
+	not in the adaptive hash index. This is to avoid acquiring
+	shared btr_search_latch for performance consideration. */
+	if (!block->index || block->index->disable_ahi) {
+		return;
+	}
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_S));
 	ut_ad(!rw_lock_own(&btr_search_latch, RW_LOCK_X));
 #endif /* UNIV_SYNC_DEBUG */
-
-	/* Do a dirty check on block->index, return if the block is
-	not in the adaptive hash index. This is to avoid acquiring
-	shared btr_search_latch for performance consideration. */
-	if (!block->index) {
-		return;
-	}
 
 retry:
 	rw_lock_s_lock(&btr_search_latch);
@@ -1270,8 +1273,12 @@ btr_search_build_page_hash_index(
 	mem_heap_t*	heap		= NULL;
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
 	ulint*		offsets		= offsets_;
-	rec_offs_init(offsets_);
 
+	if (index->disable_ahi) {
+		return;
+	}
+
+	rec_offs_init(offsets_);
 	ut_ad(index);
 	ut_a(!dict_index_is_ibuf(index));
 
@@ -1447,6 +1454,16 @@ btr_search_move_or_delete_hash_entries(
 					from this page */
 	dict_index_t*	index)		/*!< in: record descriptor */
 {
+	/* AHI is disabled for intrinsic table as it depends on index-id
+	which is dynamically assigned for intrinsic table indexes and not
+	through a centralized index generator. */
+	if (index->disable_ahi) {
+		ut_ad(dict_table_is_intrinsic(index->table));
+		return;
+	}
+
+	ut_ad(!dict_table_is_intrinsic(index->table));
+
 #ifdef UNIV_SYNC_DEBUG
 	ut_ad(rw_lock_own(&(block->lock), RW_LOCK_X));
 	ut_ad(rw_lock_own(&(new_block->lock), RW_LOCK_X));
@@ -1508,6 +1525,10 @@ btr_search_update_hash_on_delete(
 	mem_heap_t*	heap		= NULL;
 	rec_offs_init(offsets_);
 
+	if (cursor->index->disable_ahi) {
+		return;
+	}
+
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1567,6 +1588,10 @@ btr_search_update_hash_node_on_insert(
 	buf_block_t*	block;
 	dict_index_t*	index;
 	rec_t*		rec;
+
+	if (cursor->index->disable_ahi) {
+		return;
+	}
 
 	rec = btr_cur_get_rec(cursor);
 
@@ -1644,6 +1669,10 @@ btr_search_update_hash_on_insert(
 	ulint*		offsets		= offsets_;
 	rec_offs_init(offsets_);
 
+	if (cursor->index->disable_ahi) {
+		return;
+	}
+
 	block = btr_cur_get_block(cursor);
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1663,6 +1692,7 @@ btr_search_update_hash_on_insert(
 
 	rec = btr_cur_get_rec(cursor);
 
+	ut_a(!index->disable_ahi);
 	ut_a(index == cursor->index);
 	ut_a(!dict_index_is_ibuf(index));
 

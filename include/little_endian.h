@@ -72,12 +72,18 @@ static inline void doubleget  (double *V, const uchar *M) { memcpy(V, M, sizeof(
 
 #endif /* Bi-endian hardware.... */
 
-#define ushortget(V,M)	do { uchar *pM= (uchar*)(M);V = uint2korr(pM);} while(0)
-#define shortget(V,M)	do { uchar *pM= (uchar*)(M);V = sint2korr(pM);} while(0)
-#define longget(V,M)	do { uchar *pM= (uchar*)(M);V = sint4korr(pM);} while(0)
-#define ulongget(V,M)   do { uchar *pM= (uchar*)(M);V = uint4korr(pM);} while(0)
-#define shortstore(T,V) int2store(T,V)
-#define longstore(T,V)	int4store(T,V)
+static inline void ushortget(uint16 *V, const uchar *pM) { *V= uint2korr(pM); }
+static inline void shortget (int16  *V, const uchar *pM) { *V= sint2korr(pM); }
+static inline void longget  (int32  *V, const uchar *pM) { *V= sint4korr(pM); }
+static inline void ulongget (uint32 *V, const uchar *pM) { *V= uint4korr(pM); }
+static inline void shortstore(uchar *T, int16 V) { int2store(T, V); }
+static inline void longstore (uchar *T, int32 V) { int4store(T, V); }
 
-#define longlongget(V,M) memcpy(&V, (M), sizeof(ulonglong))
-#define longlongstore(T,V) memcpy((T), &V, sizeof(ulonglong))
+static inline void longlongget(longlong *V, const uchar *M)
+{
+  memcpy(V, (M), sizeof(ulonglong));
+}
+static inline void longlongstore(uchar *T, longlong V)
+{
+  memcpy((T), &V, sizeof(ulonglong));
+}
