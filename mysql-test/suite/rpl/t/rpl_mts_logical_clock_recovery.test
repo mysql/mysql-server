@@ -1,7 +1,3 @@
-#
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-#
-
 # In this test we make sure that the slave does a recovery when the it is
 # brought up after it has stopped due to error in one or more of its workers.
 -- source include/have_debug.inc
