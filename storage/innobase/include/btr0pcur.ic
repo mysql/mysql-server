@@ -439,9 +439,21 @@ btr_pcur_open_low(
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
 	ut_ad(!dict_index_is_spatial(index));
-	btr_cur_search_to_nth_level(index, level, tuple, mode,
-				    latch_mode, btr_cursor, 0, file,
-				    line, mtr);
+
+	if (dict_table_is_intrinsic(index->table)) {
+		ut_ad((latch_mode & BTR_MODIFY_LEAF)
+		      || (latch_mode & BTR_SEARCH_LEAF)
+		      || (latch_mode & BTR_MODIFY_TREE));
+		btr_cur_search_to_nth_level_with_no_latch(
+			index, level, tuple, mode, btr_cursor,
+			file, line, mtr,
+			(((latch_mode & BTR_MODIFY_LEAF)
+			 || (latch_mode & BTR_MODIFY_TREE)) ? true : false));
+	} else {
+		btr_cur_search_to_nth_level(
+			index, level, tuple, mode, latch_mode,
+			btr_cursor, 0, file, line, mtr);
+	}
 
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
@@ -485,9 +497,19 @@ btr_pcur_open_with_no_init_func(
 
 	btr_cursor = btr_pcur_get_btr_cur(cursor);
 
-	btr_cur_search_to_nth_level(index, 0, tuple, mode, latch_mode,
-				    btr_cursor, has_search_latch,
-				    file, line, mtr);
+	if (dict_table_is_intrinsic(index->table)) {
+		ut_ad((latch_mode & BTR_MODIFY_LEAF)
+		      || (latch_mode & BTR_SEARCH_LEAF));
+		btr_cur_search_to_nth_level_with_no_latch(
+			index, 0, tuple, mode, btr_cursor,
+			file, line, mtr,
+			((latch_mode & BTR_MODIFY_LEAF) ? true : false));
+	} else {
+		btr_cur_search_to_nth_level(
+			index, 0, tuple, mode, latch_mode, btr_cursor,
+			has_search_latch, file, line, mtr);
+	}
+
 	cursor->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	cursor->old_stored = BTR_PCUR_OLD_NOT_STORED;
@@ -519,8 +541,15 @@ btr_pcur_open_at_index_side(
 		btr_pcur_init(pcur);
 	}
 
-	btr_cur_open_at_index_side(from_left, index, latch_mode,
-				   btr_pcur_get_btr_cur(pcur), level, mtr);
+	if (dict_table_is_intrinsic(index->table)) {
+		btr_cur_open_at_index_side_with_no_latch(
+			from_left, index,
+			btr_pcur_get_btr_cur(pcur), level, mtr);
+	} else {
+		btr_cur_open_at_index_side(
+			from_left, index, latch_mode,
+			btr_pcur_get_btr_cur(pcur), level, mtr);
+	}
 	pcur->pos_state = BTR_PCUR_IS_POSITIONED;
 
 	pcur->old_stored = BTR_PCUR_OLD_NOT_STORED;

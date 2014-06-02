@@ -252,11 +252,13 @@ page_cur_tuple_insert(
 	ulint**		offsets,/*!< out: offsets on *rec */
 	mem_heap_t**	heap,	/*!< in/out: pointer to memory heap, or NULL */
 	ulint		n_ext,	/*!< in: number of externally stored columns */
-	mtr_t*		mtr)	/*!< in: mini-transaction handle, or NULL */
+	mtr_t*		mtr,	/*!< in: mini-transaction handle, or NULL */
+	bool		use_cache)
+				/*!< in: if true, then use record cache to
+				hold the tuple converted record. */
 {
-	ulint		size
-		= rec_get_converted_size(index, tuple, n_ext);
 	rec_t*		rec;
+	ulint		size = rec_get_converted_size(index, tuple, n_ext);
 
 	if (!*heap) {
 		*heap = mem_heap_create(size
@@ -267,8 +269,8 @@ page_cur_tuple_insert(
 
 	rec = rec_convert_dtuple_to_rec((byte*) mem_heap_alloc(*heap, size),
 					index, tuple, n_ext);
-	*offsets = rec_get_offsets(
-		rec, index, *offsets, ULINT_UNDEFINED, heap);
+
+	*offsets = rec_get_offsets(rec, index, *offsets, ULINT_UNDEFINED, heap);
 
 	if (buf_block_get_page_zip(cursor->block)) {
 		rec = page_cur_insert_rec_zip(
@@ -279,6 +281,35 @@ page_cur_tuple_insert(
 	}
 
 	ut_ad(!rec || !cmp_dtuple_rec(tuple, rec, *offsets));
+	return(rec);
+}
+
+/** Insert a record next to page cursor. Record is directly copied to
+the page from tuple without creating intermediate copy of the record.
+
+@param[in,out]	cursor	a page cursor
+@param[in]	tuple	pointer to a data tuple
+@param[in]	index	record descriptor
+@param[in]	n_ext	number of externally stored columns
+@param[in]	mtr	mini-transaction handle, or NULL
+
+@return pointer to record if succeed, NULL otherwise */
+UNIV_INLINE
+rec_t*
+page_cur_tuple_direct_insert(
+	page_cur_t*	cursor,
+	const dtuple_t*	tuple,
+	dict_index_t*	index,
+	ulint		n_ext,
+	mtr_t*		mtr)
+{
+	rec_t*		rec;
+
+	ut_ad(dict_table_is_intrinsic(index->table));
+
+	rec = page_cur_direct_insert_rec_low(
+		cursor->rec, index, tuple, n_ext, mtr);
+
 	return(rec);
 }
 #endif /* !UNIV_HOTBACKUP */

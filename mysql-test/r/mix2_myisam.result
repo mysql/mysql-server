@@ -13,6 +13,8 @@ id	code	name
 6	3	Jeremy
 7	4	Matt
 update ignore t1 set id = 8, name = 'Sinisa' where id < 3;
+Warnings:
+Warning	1062	Duplicate entry '8' for key 'PRIMARY'
 select id, code, name from t1 order by id;
 id	code	name
 2	1	Monty
@@ -23,6 +25,8 @@ id	code	name
 7	4	Matt
 8	1	Sinisa
 update ignore t1 set id = id + 10, name = 'Ralph' where id < 4;
+Warnings:
+Warning	1062	Duplicate entry 'Ralph' for key 'name'
 select id, code, name from t1 order by id;
 id	code	name
 3	2	David
@@ -93,6 +97,34 @@ id	parent_id	level
 1005	101	1
 1179	105	2
 update ignore t1 set id=id+1;
+Warnings:
+Warning	1062	Duplicate entry '1002' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1004' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1005' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1009' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1018' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1025' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1029' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1030' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1031' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1032' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1033' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1034' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1021' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1003' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1016' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1007' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1035' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1036' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1017' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1008' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1037' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1019' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1027' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1028' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1026' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1020' for key 'PRIMARY'
+Warning	1062	Duplicate entry '1006' for key 'PRIMARY'
 select * from t1;
 id	parent_id	level
 1001	100	0
@@ -135,6 +167,8 @@ id	parent_id	level
 1005	101	1
 1180	105	2
 update ignore t1 set id=1023 where id=1010;
+Warnings:
+Warning	1062	Duplicate entry '1023' for key 'PRIMARY'
 select * from t1 where parent_id=102;
 id	parent_id	level
 1008	102	2
@@ -708,6 +742,8 @@ id
 2
 99
 insert ignore into t1 values (100,1,2,'D'),(1,1,99,'D');
+Warnings:
+Warning	1062	Duplicate entry '1-1' for key 'PRIMARY'
 commit;
 select id,id3 from t1;
 id	id3

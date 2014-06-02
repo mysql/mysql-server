@@ -2125,6 +2125,7 @@ public:
 
 /* for fulltext search */
 #include <ft_global.h>
+class JOIN;
 
 class Item_func_match :public Item_real_func
 {
@@ -2137,15 +2138,29 @@ public:
   DTCollation cmp_collation;
   FT_INFO *ft_handler;
   TABLE *table;
-  Item_func_match *master;   // for master-slave optimization
+  /**
+     Master item means that if idendical items are present in the
+     statement, they use the same FT handler. FT handler is initialized
+     only for master item and slave items just use it. FT hints initialized
+     for master only, slave items HINTS are not accessed.
+  */
+  Item_func_match *master;
   Item *concat_ws;           // Item_func_concat_ws
   String value;              // value of concat_ws
   String search_value;       // key_item()'s value converted to cmp_collation
 
-  Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b)
-    : Item_real_func(pos, a), against(against_arg), key(0), flags(b),
-      join_key(0), ft_handler(0), table(0), master(0), concat_ws(0)
-  {}
+  /**
+     Constructor for Item_func_match class.
+
+     @param a  List of arguments.
+     @param b  FT Flags.
+     @param c  Parsing context.
+  */
+  Item_func_match(const POS &pos, PT_item_list *a, Item *against_arg, uint b):
+    Item_real_func(pos, a), against(against_arg), key(0), flags(b),
+    join_key(0), ft_handler(0), table(0), master(0), concat_ws(0),
+    hints(NULL), simple_expression(false)
+  { }
   
   virtual bool itemize(Parse_context *pc, Item **res);
 
@@ -2154,7 +2169,10 @@ public:
     DBUG_ENTER("Item_func_match::cleanup");
     Item_real_func::cleanup();
     if (!master && ft_handler)
+    {
       ft_handler->please->close_search(ft_handler);
+      delete hints;
+    }
     ft_handler= 0;
     concat_ws= 0;
     table= 0;           // required by Item_func_match::eq()
@@ -2173,7 +2191,7 @@ public:
   virtual void print(String *str, enum_query_type query_type);
 
   bool fix_index();
-  void init_search(bool no_order);
+  void init_search();
 
   /**
      Get number of matching rows from FT handler.
@@ -2199,7 +2217,8 @@ public:
    */
   bool ordered_result()
   {
-    if (flags & FT_SORTED)
+    DBUG_ASSERT(!master);
+    if (hints->get_flags() & FT_SORTED)
       return true;
 
     if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) == 0)
@@ -2231,7 +2250,114 @@ public:
                              table_map read_tables,
                              const MY_BITMAP *fields_to_ignore,
                              double rows_in_table);
+
+  /**
+     Returns master MATCH function.
+
+     @return pointer to master MATCH function.
+  */
+  Item_func_match *get_master()
+  {
+    if (master)
+      return master->get_master();
+    return this;
+  }
+
+  /**
+     Set master MATCH function and adjust used_in_where_only value.
+
+     @param item item for which master should be set.
+  */
+  void set_master(Item_func_match *item)
+  {
+    used_in_where_only&= item->used_in_where_only;
+    item->master= this;
+  }
+
+  /**
+     Returns pointer to Ft_hints object belonging to master MATCH function.
+
+     @return pointer to Ft_hints object
+  */
+  Ft_hints *get_hints()
+  {
+    DBUG_ASSERT(!master);
+    return hints;
+  }
+
+  /**
+     Set comparison operation type and and value for master MATCH function.
+
+     @param type   comparison operation type
+     @param value  comparison operation value
+  */
+  void set_hints_op(enum ft_operation type, double value)
+  {
+    DBUG_ASSERT(!master);
+    hints->set_hint_op(type, value);
+  }
+  
+  /**
+     Set FT hints.
+  */
+  void set_hints(JOIN *join, uint ft_flag, ha_rows ft_limit, bool no_cond);
+  
+  /**
+     Check if ranking is not needed.
+
+     @return true if ranking is not needed
+     @return false otherwise
+  */
+  bool can_skip_ranking()
+  {
+    DBUG_ASSERT(!master);
+    return (!(hints->get_flags() & FT_SORTED) && // FT_SORTED is no set
+            used_in_where_only &&                // MATCH result is not used
+                                                 // in expression
+            hints->get_op_type() == FT_OP_NO);   // MATCH is single function
+  }
+
+  /**
+     Set flag that the function is a simple expression.
+
+     @param val true if the function is a simple expression, false otherwise
+  */
+  void set_simple_expression(bool val)
+  {
+    DBUG_ASSERT(!master);
+    simple_expression= val;
+  }
+
+  /**
+     Check if this MATCH function is a simple expression in WHERE condition.
+
+     @return true if simple expression
+     @return false otherwise
+  */
+  bool is_simple_expression()
+  {
+    DBUG_ASSERT(!master);
+    return simple_expression;
+  }
+
 private:
+  /**
+     Fulltext index hints, initialized for master MATCH function only.
+  */
+  Ft_hints *hints;
+  /**
+     Flag is true when MATCH function is used as a simple expression in
+     WHERE condition, i.e. there is no AND/OR combinations, just simple
+     MATCH function or [MATCH, rank] comparison operation.
+  */
+  bool simple_expression;
+  /**
+     true if MATCH function is used in WHERE condition only.
+     Used to dermine what hints can be used for FT handler. 
+     Note that only master MATCH function has valid value.
+     it's ok since only master function is involved in the hint processing.
+  */
+  bool used_in_where_only;
   /**
      Check whether storage engine for given table, 
      allows FTS Boolean search on non-indexed columns.
@@ -2265,40 +2391,8 @@ private:
 
     return false;
   }
-
 };
 
-/**
-   Item_func class used to fetch document ID from FTS result.  This
-   class is used to replace Item_field objects in order to fetch
-   document ID from FTS result instead of table.
- */
-class Item_func_docid : public Item_int_func
-{
-  FT_INFO_EXT *ft_handler;
-public:
-  Item_func_docid(FT_INFO_EXT *handler) : ft_handler(handler) 
-  { 
-    max_length= 21;
-    maybe_null= false; 
-    unsigned_flag= true;
-  } 
-
-  const char *func_name() const { return "docid"; }
-
-  void update_used_tables()
-  {
-    Item_int_func::update_used_tables();
-    used_tables_cache|= RAND_TABLE_BIT;
-    const_item_cache= false;
-  }
-
-  longlong val_int() 
-  { 
-    DBUG_ASSERT(ft_handler);
-    return ft_handler->could_you->get_docid(ft_handler);
-  }
-};
 
 class Item_func_bit_xor : public Item_func_bit
 {

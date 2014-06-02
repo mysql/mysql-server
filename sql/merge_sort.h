@@ -99,7 +99,7 @@ void insert_sort(Element_type **first, Element_type **last, Comp_func comp)
 template<typename Element_type, typename Comp_func>
 void merge_sort(Element_type **first, Element_type **last, Comp_func comp)
 {
-  const uint elements= last - first;
+  const uint elements= static_cast<uint>(last - first);
 
   /*
     Tests showed that the value 5 was a good number for JOIN_TAB

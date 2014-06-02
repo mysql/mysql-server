@@ -115,6 +115,7 @@ void store_position_for_column(const char *name);
 void init_update_queries(void);
 Item *negate_expression(Parse_context *pc, Item *expr);
 bool check_stack_overrun(THD *thd, long margin, uchar *dummy);
+void killall_non_super_threads(THD *thd);
 
 /* Variables */
 

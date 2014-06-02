@@ -60,15 +60,7 @@ ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
 ADD_DEFINITIONS("-DNOMINMAX")
   
 # Should be available on Windows Server 2003 and above.
-CHECK_CXX_SOURCE_COMPILES(
-"#include <Windows.h>
-int main() {
-  GetCurrentProcessorNumber();
-  return 0;
-} " HAVE_GETCURRENTPROCESSORNUMBER)
-IF(HAVE_GETCURRENTPROCESSORNUMBER)
- ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
-ENDIF()
+ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
 
 IF(MSVC)
   # Enable debug info also in Release build,
@@ -118,10 +110,8 @@ IF(MSVC)
   ENDIF()
   
   # Speed up multiprocessor build
-  IF (MSVC_VERSION GREATER 1400)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-  ENDIF()
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
   
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")

@@ -1846,8 +1846,6 @@ scripts/mysql_upgrade_shell
 scripts/mysqld_multi
 scripts/mysqld_safe
 scripts/mysqldumpslow
-scripts/mysqlhotcopy
-scripts/mysqlhotcopy.sh.rej
 scripts/safe_mysqld
 select_test
 server-tools/instance-manager/.deps/buffer.Po
@@ -2870,7 +2868,6 @@ support-files/MacOSX/postflight
 support-files/MacOSX/postinstall
 support-files/MacOSX/preflight
 support-files/MacOSX/preinstall
-support-files/binary-configure
 support-files/my-default.cnf
 support-files/my-huge.cnf
 support-files/my-innodb-heavy-4G.cnf

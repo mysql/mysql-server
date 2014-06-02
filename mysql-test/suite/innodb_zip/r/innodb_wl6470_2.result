@@ -452,18 +452,28 @@ set autocommit = 0;
 insert into t1 values (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t1 values (20,1,'a','a','a','a','a',now(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 insert into t2 values (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t2 values (20,1,'a','a','a','a','a',now(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 insert into t3 values (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t3 values (20,1,'a','a','a','a','a',now(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 insert into t4 values (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t4 values (20,1,'a','a','a','a','a',now(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 insert into t5 values (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
 insert ignore into t5 values (20,1,'a','a','a','a','a',now(),100.55);
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 insert into t1 values (1,1,'a','a','a','a','a',now(),100.55),
 (20,1,'a','a','a','a','a',now(),100.55);
 ERROR 23000: Duplicate entry '20' for key 'PRIMARY'
@@ -516,10 +526,20 @@ select c1,c2,c3,c4,c5,c6,c7,c9 from t5 where c1 = 20;
 c1	c2	c3	c4	c5	c6	c7	c9
 20	1	a	a	a	a	a	100.550
 update ignore t1 set c1 = 20 where c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t2 set c1 = 20 where c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t3 set c1 = 20 where c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t4 set c1 = 20 where c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 update ignore t5 set c1 = 20 where c1 = 140 ;
+Warnings:
+Warning	1062	Duplicate entry '20' for key 'PRIMARY'
 select count(*) from t1 where c1 = 140;
 count(*)
 1

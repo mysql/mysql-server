@@ -263,8 +263,13 @@ static struct my_option my_long_options[] =
   {"character-sets-dir", OPT_CHARSETS_DIR_MP,
    "Directory where character sets are.", &charsets_dir,
    &charsets_dir, 0, GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
+#ifdef DBUG_OFF
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"force", 'f',
    "Force packing of table even if it gets bigger or if tempfile exists.",
    0, 0, 0, GET_NO_ARG, NO_ARG, 0, 0, 0, 0, 0, 0},
@@ -2053,8 +2058,8 @@ static int write_header(PACK_MRG_INFO *mrg,uint head_length,uint trees,
   int4store(buff+4,head_length);
   int4store(buff+8, mrg->min_pack_length);
   int4store(buff+12,mrg->max_pack_length);
-  int4store(buff+16,tot_elements);
-  int4store(buff+20,intervall_length);
+  int4store(buff+16, (uint32)tot_elements);
+  int4store(buff+20, (uint32)intervall_length);
   int2store(buff+24,trees);
   buff[26]=(char) mrg->ref_length;
 	/* Save record pointer length */

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -372,7 +372,8 @@ int opt_sum_query(THD *thd,
                  !((Item_sum_count*) item)->get_arg(0)->maybe_null)       // 4
         {
           Item_func_match* fts_item= static_cast<Item_func_match*>(conds); 
-          fts_item->init_search(true);
+          fts_item->set_hints(NULL, FT_NO_RANKING, HA_POS_ERROR, false);
+          fts_item->init_search();
           if (thd->is_error())
             break;
           count= fts_item->get_count();

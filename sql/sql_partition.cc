@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3215,19 +3215,28 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
   uint num_columns= part_info->part_field_list.elements;
   uint list_index;
   uint min_list_index= 0;
+  int cmp;
+  /* Notice that max_list_index = last_index + 1 here! */
   uint max_list_index= part_info->num_list_values;
   DBUG_ENTER("get_partition_id_cols_list_for_endpoint");
 
   /* Find the matching partition (including taking endpoint into account). */
   do
   {
-    /* Midpoint, adjusted down, so it can never be > last index. */
+    /* Midpoint, adjusted down, so it can never be >= max_list_index. */
     list_index= (max_list_index + min_list_index) >> 1;
-    if (cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
-                                nparts, left_endpoint, include_endpoint) > 0)
+    cmp= cmp_rec_and_tuple_prune(list_col_array + list_index*num_columns,
+                                 nparts, left_endpoint, include_endpoint);
+    if (cmp > 0)
+    {
       min_list_index= list_index + 1;
+    }
     else
+    {
       max_list_index= list_index;
+      if (cmp == 0)
+        break;
+    }
   } while (max_list_index > min_list_index);
   list_index= max_list_index;
 
@@ -3244,12 +3253,10 @@ uint32 get_partition_id_cols_list_for_endpoint(partition_info *part_info,
                                            nparts, left_endpoint,
                                            include_endpoint)));
 
-  if (!left_endpoint)
-  {
-    /* Set the end after this list tuple if not already after the last. */
-    if (list_index < part_info->num_parts)
-      list_index++;
-  }
+  /* Include the right endpoint if not already passed end of array. */
+  if (!left_endpoint && include_endpoint && cmp == 0 &&
+      list_index < part_info->num_list_values)
+    list_index++;
 
   DBUG_RETURN(list_index);
 }
@@ -4840,10 +4847,9 @@ uint prep_alter_part_table(THD *thd, TABLE *table, Alter_info *alter_info,
       Open it as a copy of the original table, and modify its partition_info
       object to allow fast_alter_partition_table to perform the changes.
     */
-    DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                               alter_ctx->db,
-                                               alter_ctx->table_name,
-                                               MDL_INTENTION_EXCLUSIVE));
+    DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                   alter_ctx->db, alter_ctx->table_name,
+                                   MDL_INTENTION_EXCLUSIVE));
 
     tab_part_info= table->part_info;
 
@@ -5943,10 +5949,10 @@ static bool mysql_drop_partitions(ALTER_PARTITION_PARAM_TYPE *lpt)
   int error;
   DBUG_ENTER("mysql_drop_partitions");
 
-  DBUG_ASSERT(lpt->thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                                lpt->table->s->db.str,
-                                                lpt->table->s->table_name.str,
-                                                MDL_EXCLUSIVE));
+  DBUG_ASSERT(lpt->thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                      lpt->table->s->db.str,
+                                      lpt->table->s->table_name.str,
+                                      MDL_EXCLUSIVE));
 
   build_table_filename(path, sizeof(path) - 1, lpt->db, lpt->table_name, "", 0);
   if ((error= lpt->table->file->ha_drop_partitions(path)))
@@ -6708,9 +6714,9 @@ void handle_alter_part_error(ALTER_PARTITION_PARAM_TYPE *lpt,
       Better to do that here, than leave the cleaning up to others.
       Aquire EXCLUSIVE mdl lock if not already aquired.
     */
-    if (!thd->mdl_context.is_lock_owner(MDL_key::TABLE, lpt->db,
-                                        lpt->table_name,
-                                        MDL_EXCLUSIVE))
+    if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE, lpt->db,
+                                                      lpt->table_name,
+                                                      MDL_EXCLUSIVE))
     {
       if (wait_while_table_is_used(thd, table, HA_EXTRA_FORCE_REOPEN))
       {
@@ -7670,15 +7676,13 @@ static int cmp_rec_and_tuple_prune(part_column_list_val *val,
   field= val->part_info->part_field_array + n_vals_in_rec;
   if (!(*field))
   {
-    /*
-      Full match, if right endpoint and not including the endpoint,
-      (rec < part) return lesser.
-    */
-    if (!is_left_endpoint && !include_endpoint)
-      return -4;
+    /* Full match. Only equal if including endpoint. */
+    if (include_endpoint)
+      return 0;
 
-    /* Otherwise they are equal! */
-    return 0;
+    if (is_left_endpoint)
+      return +4;     /* Start of range, part_tuple < rec, return higher. */
+    return -4;     /* End of range, rec < part_tupe, return lesser. */
   }
   /*
     The prefix is equal and there are more partition columns to compare.

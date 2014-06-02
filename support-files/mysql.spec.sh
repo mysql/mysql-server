@@ -592,20 +592,6 @@ touch $RBR%{_sysconfdir}/my.cnf
 install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
-
-# Remove man pages we explicitly do not want to package, avoids 'unpackaged
-# files' warning.
-# This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
-rm -f $RBR%{_mandir}/man1/mysql_convert_table_format.1*
-rm -f $RBR%{_mandir}/man1/mysql_fix_extensions.1*
-rm -f $RBR%{_mandir}/man1/mysql_setpermission.1*
-rm -f $RBR%{_mandir}/man1/msql2mysql.1*
-rm -f $RBR%{_mandir}/man1/mysql_find_rows.1*
-rm -f $RBR%{_mandir}/man1/mysqlaccess.1*
-rm -f $RBR%{_mandir}/man1/mysql_waitpid.1*
-rm -f $RBR%{_mandir}/man1/mysql_zap.1*
-rm -rf $RBR%{_mandir}/man1/mysqlbug.1*
-
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
@@ -1082,7 +1068,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
@@ -1108,7 +1093,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqldumpslow
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
@@ -1126,8 +1110,8 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
-
 %attr(755, root, root) %{_datadir}/mysql/
+%dir %attr(755, mysql, mysql) /var/lib/mysql
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-client%{product_suffix}
@@ -1205,6 +1189,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed May 28 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated usergroup to mysql on datadir
+
 * Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed non gpl file docs/mysql.info from community packages
 

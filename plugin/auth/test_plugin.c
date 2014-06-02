@@ -236,7 +236,7 @@ static int test_plugin_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
       return CR_ERROR;
     /* send the reply to the server */
     res= vio->write_packet(vio, (const unsigned char *) reply, 
-                           strlen(reply) + 1);
+                           (int)strlen(reply) + 1);
 
     if (res)
       return CR_ERROR;
