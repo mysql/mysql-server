@@ -428,28 +428,18 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_moveto,
 	(ib_cb_t) ib_cursor_first,
 	(ib_cb_t) ib_cursor_next,
-	(ib_cb_t) ib_cursor_last,
 	(ib_cb_t) ib_cursor_set_match_mode,
 	(ib_cb_t) ib_sec_search_tuple_create,
 	(ib_cb_t) ib_clust_read_tuple_create,
 	(ib_cb_t) ib_tuple_delete,
-	(ib_cb_t) ib_tuple_copy,
 	(ib_cb_t) ib_tuple_read_u8,
-	(ib_cb_t) ib_tuple_write_u8,
 	(ib_cb_t) ib_tuple_read_u16,
-	(ib_cb_t) ib_tuple_write_u16,
 	(ib_cb_t) ib_tuple_read_u32,
-	(ib_cb_t) ib_tuple_write_u32,
 	(ib_cb_t) ib_tuple_read_u64,
-	(ib_cb_t) ib_tuple_write_u64,
 	(ib_cb_t) ib_tuple_read_i8,
-	(ib_cb_t) ib_tuple_write_i8,
 	(ib_cb_t) ib_tuple_read_i16,
-	(ib_cb_t) ib_tuple_write_i16,
 	(ib_cb_t) ib_tuple_read_i32,
-	(ib_cb_t) ib_tuple_write_i32,
 	(ib_cb_t) ib_tuple_read_i64,
-	(ib_cb_t) ib_tuple_write_i64,
 	(ib_cb_t) ib_tuple_get_n_cols,
 	(ib_cb_t) ib_col_set_value,
 	(ib_cb_t) ib_col_get_value,
@@ -459,12 +449,10 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_trx_rollback,
 	(ib_cb_t) ib_trx_start,
 	(ib_cb_t) ib_trx_release,
-	(ib_cb_t) ib_trx_state,
 	(ib_cb_t) ib_cursor_lock,
 	(ib_cb_t) ib_cursor_close,
 	(ib_cb_t) ib_cursor_new_trx,
 	(ib_cb_t) ib_cursor_reset,
-	(ib_cb_t) ib_open_table_by_name,
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
@@ -476,7 +464,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cfg_trx_level,
 	(ib_cb_t) ib_tuple_get_n_user_cols,
 	(ib_cb_t) ib_cursor_set_lock_mode,
-	(ib_cb_t) ib_cursor_clear_trx,
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval,
@@ -1020,6 +1007,16 @@ normalize_table_name_low(
 	ibool           set_lower_case); /* in: TRUE if we want to set
 					 name to lower case */
 
+
+/***********************************************************************
+Store doc_id value into FTS_DOC_ID field */
+static
+void
+innobase_fts_store_docid(
+/*=====================*/
+		TABLE * tbl,		/*!< in: FTS table */
+		ulonglong doc_id);	/*!< in: FTS_DOC_ID value */
+
 /*************************************************************//**
 Check for a valid value of innobase_commit_concurrency.
 @return 0 for valid innodb_commit_concurrency */
@@ -1168,13 +1165,15 @@ thd_start_time_in_secs(
 
 /******************************************************************//**
 Save some CPU by testing the value of srv_thread_concurrency in inline
-functions. */
+functions.
+@param[in/out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_enter_innodb(
-/*===========================*/
-	trx_t*	trx)	/*!< in: transaction handle */
+	row_prebuilt_t*	prebuilt)
 {
+	trx_t*	trx	= prebuilt->trx;
+
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1192,23 +1191,25 @@ innobase_srv_conc_enter_innodb(
 				srv_replication_delay * 1000);
 
 		} else {
-			srv_conc_enter_innodb(trx);
+			srv_conc_enter_innodb(prebuilt);
 		}
 	}
 }
 
 /******************************************************************//**
 Note that the thread wants to leave InnoDB only if it doesn't have
-any spare tickets. */
+any spare tickets.
+@param[in/out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_exit_innodb(
-/*==========================*/
-	trx_t*	trx)	/*!< in: transaction handle */
+	row_prebuilt_t*	prebuilt)
 {
+	trx_t*	trx	= prebuilt->trx;
 	btrsea_sync_check	check(trx->has_search_latch);
 
-	ut_ad(!sync_check_iterate(check));
+	ut_ad(dict_table_is_intrinsic(prebuilt->table)
+	      || !sync_check_iterate(check));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb
@@ -2340,6 +2341,7 @@ ha_innobase::ha_innobase(
 		  HA_TABLE_SCAN_ON_INDEX |
 		  HA_CAN_FULLTEXT |
 		  HA_CAN_FULLTEXT_EXT |
+		  HA_CAN_FULLTEXT_HINTS |
 		  HA_CAN_EXPORT |
 		  HA_CAN_RTREEKEYS |
 		  HA_HAS_RECORDS
@@ -6617,7 +6619,7 @@ no_commit:
 		build_template(true);
 	}
 
-	innobase_srv_conc_enter_innodb(prebuilt->trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
 	error = row_insert_for_mysql(
@@ -6712,7 +6714,7 @@ set_max_autoinc:
 		}
 	}
 
-	innobase_srv_conc_exit_innodb(prebuilt->trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 report_error:
 	/* Step-7: Cleanup and exit. */
@@ -7089,7 +7091,7 @@ ha_innobase::update_row(
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
 
-	innobase_srv_conc_enter_innodb(trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	error = row_update_for_mysql(
 		(byte*) old_row, prebuilt, thd_to_innodb_session(user_thd));
@@ -7133,7 +7135,7 @@ ha_innobase::update_row(
 		}
 	}
 
-	innobase_srv_conc_exit_innodb(trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 func_exit:
 	int err = convert_error_code_to_mysql(error,
@@ -7192,12 +7194,12 @@ ha_innobase::delete_row(
 
 	prebuilt->upd_node->is_delete = TRUE;
 
-	innobase_srv_conc_enter_innodb(trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	error = row_update_for_mysql(
 		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
 
-	innobase_srv_conc_exit_innodb(trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -7537,7 +7539,7 @@ ha_innobase::index_read(
 
 	if (mode != PAGE_CUR_UNSUPP) {
 
-		innobase_srv_conc_enter_innodb(prebuilt->trx);
+		innobase_srv_conc_enter_innodb(prebuilt);
 
 		if (!dict_table_is_intrinsic(prebuilt->table)) {
 			prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(user_thd);
@@ -7550,10 +7552,10 @@ ha_innobase::index_read(
 
 			ret = row_search_no_mvcc(
 				buf, mode, prebuilt, match_mode, 0,
-				prebuilt->session);  
+				prebuilt->session);
 		}
 
-		innobase_srv_conc_exit_innodb(prebuilt->trx);
+		innobase_srv_conc_exit_innodb(prebuilt);
 	} else {
 
 		ret = DB_UNSUPPORTED;
@@ -7754,10 +7756,28 @@ ha_innobase::change_active_index(
 
 	ut_a(prebuilt->search_tuple != 0);
 
-	dtuple_set_n_fields(prebuilt->search_tuple, prebuilt->index->n_fields);
+	/* Initialization of search_tuple is not needed for FT index
+	since FT search returns rank only. In addition engine should
+	be able to retrieve FTS_DOC_ID column value if necessary. */
+	if ((prebuilt->index->type & DICT_FTS)) {
+		if (table->fts_doc_id_field
+		    && bitmap_is_set(table->read_set,
+				     table->fts_doc_id_field->field_index
+				     && prebuilt->read_just_key)) {
+			prebuilt->fts_doc_id_in_read_set = 1;
+		}
+	} else {
+		dtuple_set_n_fields(prebuilt->search_tuple,
+				    prebuilt->index->n_fields);
 
-	dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
-			      prebuilt->index->n_fields);
+		dict_index_copy_types(prebuilt->search_tuple, prebuilt->index,
+				      prebuilt->index->n_fields);
+		/* If it's FTS query and FTS_DOC_ID exists FTS_DOC_ID field is
+		always added to read_set. */
+		prebuilt->fts_doc_id_in_read_set =
+			(prebuilt->read_just_key && table->fts_doc_id_field
+			 && prebuilt->in_fts_query);
+	}
 
 	/* MySQL changes the active index for a handle also during some
 	queries, for example SELECT MAX(a), SUM(a) first retrieves the MAX()
@@ -7817,7 +7837,7 @@ ha_innobase::general_fetch(
 
 	ut_ad(prebuilt->trx == thd_to_trx(user_thd));
 
-	innobase_srv_conc_enter_innodb(prebuilt->trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	if (!dict_table_is_intrinsic(prebuilt->table)) {
 		ret = row_search_mvcc(buf, 0, prebuilt, match_mode, direction);
@@ -7827,7 +7847,7 @@ ha_innobase::general_fetch(
 			prebuilt->session);
 	}
 
-	innobase_srv_conc_exit_innodb(prebuilt->trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 	switch (ret) {
 	case DB_SUCCESS:
@@ -8225,6 +8245,21 @@ ha_innobase::ft_init_ext(
 	return((FT_INFO*) fts_hdl);
 }
 
+/**********************************************************************//**
+Initialize FT index scan
+@return FT_INFO structure if successful or NULL */
+
+FT_INFO*
+ha_innobase::ft_init_ext_with_hints(
+/*================================*/
+	uint			keynr,		/* in: key num */
+	String*			key,		/* in: key */
+	Ft_hints*		hints)		/* in: hints  */
+{
+	/* TODO Implement function properly working with FT hint. */
+	return(ft_init_ext(hints->get_flags(), keynr, key));
+}
+
 /*****************************************************************//**
 Set up search tuple for a query through FTS_DOC_ID_INDEX on
 supplied Doc ID. This is used by MySQL to retrieve the documents
@@ -8318,6 +8353,13 @@ next_record:
 		/* If we only need information from result we can return
 		   without fetching the table row */
 		if (ft_prebuilt->read_just_key) {
+			if (prebuilt->fts_doc_id_in_read_set) {
+				fts_ranking_t* ranking;
+				ranking = rbt_value(fts_ranking_t,
+						    result->current);
+				innobase_fts_store_docid(
+					table, ranking->doc_id);
+			}
 			table->status= 0;
 			return(0);
 		}
@@ -8341,12 +8383,12 @@ next_record:
 		tuple. */
 		innobase_fts_create_doc_id_key(tuple, index, &search_doc_id);
 
-		innobase_srv_conc_enter_innodb(prebuilt->trx);
+		innobase_srv_conc_enter_innodb(prebuilt);
 
 		dberr_t ret = row_search_for_mysql(
 			(byte*) buf, PAGE_CUR_GE, prebuilt, ROW_SEL_EXACT, 0);
 
-		innobase_srv_conc_exit_innodb(prebuilt->trx);
+		innobase_srv_conc_exit_innodb(prebuilt);
 
 		switch (ret) {
 		case DB_SUCCESS:
@@ -8971,6 +9013,10 @@ found:
 		row_create_index_for_mysql(index, trx, field_lengths, handler),
 		flags, NULL);
 
+	if (error && handler != NULL) {
+		priv->unregister_table_handler(table_name);
+	}
+
 	my_free(field_lengths);
 
 	DBUG_RETURN(error);
@@ -9013,6 +9059,10 @@ create_clustered_index_when_no_primary(
 	}
 
 	error = row_create_index_for_mysql(index, trx, NULL, handler);
+
+	if (error != DB_SUCCESS && handler != NULL) {
+		priv->unregister_table_handler(table_name);
+	}
 
 	return(convert_error_code_to_mysql(error, flags, NULL));
 }
@@ -9920,6 +9970,9 @@ ha_innobase::create(
 		error = convert_error_code_to_mysql(err, flags, NULL);
 
 		if (error) {
+			if (handler != NULL) {
+				priv->unregister_table_handler(norm_name);
+			}
 			goto cleanup;
 		}
 	}
@@ -10025,22 +10078,26 @@ cleanup:
 			thd_to_innodb_session(thd)->lookup_table_handler(
 			norm_name);
 
-		thd_to_innodb_session(thd)->unregister_table_handler(norm_name);
+		if (intrinsic_table != NULL) {
+			thd_to_innodb_session(thd)->unregister_table_handler(
+				norm_name);
 
-		for (;;) {
-			dict_index_t*	index;
-			index = UT_LIST_GET_FIRST(intrinsic_table->indexes);
-			if (index == NULL) {
-				break;
+			for (;;) {
+				dict_index_t*	index;
+				index = UT_LIST_GET_FIRST(
+					intrinsic_table->indexes);
+				if (index == NULL) {
+					break;
+				}
+				rw_lock_free(&index->lock);
+				UT_LIST_REMOVE(intrinsic_table->indexes, index);
+				dict_mem_index_free(index);
+				index = NULL;
 			}
-			rw_lock_free(&index->lock);
-			UT_LIST_REMOVE(intrinsic_table->indexes, index);
-			dict_mem_index_free(index);
-			index = NULL;
-		}
 
-		dict_mem_table_free(intrinsic_table);
-		intrinsic_table = NULL;
+			dict_mem_table_free(intrinsic_table);
+			intrinsic_table = NULL;
+		}
 	}
 
 	trx_free_for_mysql(trx);
@@ -10341,7 +10398,7 @@ ha_innobase::delete_table(
 			err = row_drop_table_for_mysql(
 				par_case_name, trx,
 				thd_sql_command(thd) == SQLCOM_DROP_DB,
-				handler);
+				true, handler);
 		}
 	}
 
@@ -11142,6 +11199,7 @@ innodb_rec_per_key(
 	ut_a(index->table->stat_initialized);
 
 	ut_ad(i < dict_index_get_n_unique(index));
+	ut_ad(!dict_index_is_spatial(index));
 
 	if (records == 0) {
 		/* "Records per key" is meaningless for empty tables.
@@ -11494,9 +11552,10 @@ ha_innobase::info_low(
 
 			for (j = 0; j < key->actual_key_parts; j++) {
 
-				if (key->flags & HA_FULLTEXT) {
-					/* The whole concept has no validity
-					for FTS indexes. */
+				if ((key->flags & HA_FULLTEXT)
+				    || (key->flags & HA_SPATIAL)) {
+					/* The record per key does not apply to
+					FTS or Spatial indexes. */
 					key->rec_per_key[j] = 1;
 					key->set_records_per_key(j, 1.0);
 					continue;
@@ -15576,15 +15635,10 @@ innobase_fts_retrieve_ranking(
 
 	ft_prebuilt = ((NEW_FT_INFO*) fts_hdl)->ft_prebuilt;
 
-	if (ft_prebuilt->read_just_key) {
-		fts_ranking_t*  ranking =
-			rbt_value(fts_ranking_t, result->current);
-		return(ranking->rank);
-	}
+	fts_ranking_t*  ranking = rbt_value(fts_ranking_t, result->current);
+	ft_prebuilt->fts_doc_id= ranking->doc_id;
 
-	/* Retrieve the ranking value for doc_id with value of
-	prebuilt->fts_doc_id */
-	return(fts_retrieve_ranking(result, ft_prebuilt->fts_doc_id));
+	return(ranking->rank);
 }
 
 /***********************************************************************
@@ -15780,6 +15834,23 @@ innobase_fts_retrieve_docid(
 	}
 
 	return(ft_prebuilt->fts_doc_id);
+}
+
+
+/***********************************************************************
+Store doc_id value into FTS_DOC_ID field */
+static
+void
+innobase_fts_store_docid(
+/*=====================*/
+		TABLE * tbl,		/*!< in: FTS table */
+		ulonglong doc_id)	/*!< in: FTS_DOC_ID value */
+{
+	my_bitmap_map *old_map = dbug_tmp_use_all_columns(tbl, tbl->write_set);
+
+	tbl->fts_doc_id_field->store(static_cast<longlong>(doc_id), true);
+
+	dbug_tmp_restore_column_map(tbl->write_set, old_map);
 }
 
 /***********************************************************************

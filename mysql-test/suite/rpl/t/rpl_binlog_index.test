@@ -28,6 +28,7 @@ source include/have_binlog_format_row.inc;
 # test case any further. It is prepared to support windows, but
 # it is not 100% compliant.
 --source include/not_windows.inc
+--source include/no_valgrind_without_big.inc
 
 connection master;
 --let $master_datadir= `select @@datadir`

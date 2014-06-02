@@ -713,7 +713,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 };
@@ -723,13 +723,13 @@ Silence_deprecated_warning::handle_condition(
   THD *,
   uint sql_errno,
   const char*,
-  Sql_condition::enum_severity_level level,
+  Sql_condition::enum_severity_level *level,
   const char*,
   Sql_condition ** cond_hdl)
 {
   *cond_hdl= NULL;
   if (sql_errno == ER_WARN_DEPRECATED_SYNTAX &&
-      level == Sql_condition::SL_WARNING)
+      (*level) == Sql_condition::SL_WARNING)
     return TRUE;
 
   return FALSE;
@@ -814,7 +814,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* message,
                                 Sql_condition ** cond_hdl);
 
@@ -828,7 +828,7 @@ bool
 Bad_db_error_handler::handle_condition(THD *thd,
                                        uint sql_errno,
                                        const char* sqlstate,
-                                       Sql_condition::enum_severity_level level,
+                                       Sql_condition::enum_severity_level *level,
                                        const char* message,
                                        Sql_condition ** cond_hdl)
 {
@@ -1491,7 +1491,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -1580,10 +1580,10 @@ bool lock_db_routines(THD *thd, char *db)
   close_system_tables(thd, &open_tables_state_backup);
 
   /* We should already hold a global IX lock and a schema X lock. */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
-                                             MDL_INTENTION_EXCLUSIVE) &&
-              thd->mdl_context.is_lock_owner(MDL_key::SCHEMA, db, "",
-                                             MDL_EXCLUSIVE));
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                 "", "", MDL_INTENTION_EXCLUSIVE) &&
+              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::SCHEMA,
+                                 db, "", MDL_EXCLUSIVE));
   DBUG_RETURN(thd->mdl_context.acquire_locks(&mdl_requests,
                                              thd->variables.lock_wait_timeout));
 }
@@ -2710,7 +2710,6 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
 {
   Item *expr_item;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
-  bool save_abort_on_warning= thd->abort_on_warning;
   unsigned int stmt_unsafe_rollback_flags=
     thd->get_transaction()->get_unsafe_rollback_flags(Transaction_ctx::STMT);
 
@@ -2728,7 +2727,6 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   */
 
   thd->count_cuted_fields= CHECK_FIELD_ERROR_FOR_NULL;
-  thd->abort_on_warning= thd->is_strict_mode();
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::STMT);
 
   /* Save the value in the field. Convert the value if needed. */
@@ -2736,7 +2734,6 @@ bool sp_eval_expr(THD *thd, Field *result_field, Item **expr_item_ptr)
   expr_item->save_in_field(result_field, false);
 
   thd->count_cuted_fields= save_count_cuted_fields;
-  thd->abort_on_warning= save_abort_on_warning;
   thd->get_transaction()->set_unsafe_rollback_flags(Transaction_ctx::STMT,
                                                     stmt_unsafe_rollback_flags);
 

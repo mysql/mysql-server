@@ -318,8 +318,6 @@ Requires(preun): chkconfig
 # This is for /sbin/service
 Requires(preun): initscripts
 Requires(postun): initscripts
-# mysqlhotcopy needs DBI/DBD support
-Requires: perl-DBI, perl-DBD-MySQL
 Obsoletes: MySQL-server
 Obsoletes: mysql-server < %{version}-%{release}
 Obsoletes: mysql-server-advanced < %{version}-%{release}
@@ -865,7 +863,6 @@ fi
 %{_bindir}/mysqldumpslow
 %{_bindir}/mysqld_multi
 %{_bindir}/mysqld_safe
-%{_bindir}/mysqlhotcopy
 %{_bindir}/mysqltest
 %{_bindir}/innochecksum
 %{_bindir}/perror
@@ -898,7 +895,6 @@ fi
 %{_mandir}/man1/mysqlcheck.1*
 %{_mandir}/man1/mysqld_multi.1*
 %{_mandir}/man1/mysqld_safe.1*
-%{_mandir}/man1/mysqlhotcopy.1*
 %{_mandir}/man1/mysqlimport.1*
 %{_mandir}/man1/mysqlman.1*
 %{_mandir}/man1/mysqltest.1*

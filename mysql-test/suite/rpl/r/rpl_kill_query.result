@@ -39,7 +39,7 @@ DROP DATABASE db1;
 USE test;
 ---- Verify there is an error on slave ----
 include/sync_slave_io_with_master.inc
-include/wait_for_slave_sql_error.inc [errno=1885 #ER_ERROR_ON_MASTER]
+include/wait_for_slave_sql_error.inc [errno=1886]
 ---- Verify that nothing was inserted on slave -----
 include/assert.inc [Nothing should be inserted on slave]
 ---- Clean up ----

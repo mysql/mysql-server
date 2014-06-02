@@ -643,9 +643,6 @@ public:
   Create_file_event(const char* buf, unsigned int event_len,
                     const Format_description_event* description_event);
 
-  Create_file_event(unsigned char* block_arg,
-                    unsigned int  block_len_arg, unsigned int file_id_arg);
-
   ~Create_file_event()
   {
     bapi_free((void*) event_buf);

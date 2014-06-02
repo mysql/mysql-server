@@ -2407,6 +2407,19 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     else
       *sctx->priv_host= 0;
 
+    if (!(sctx->master_access & SUPER_ACL) && !thd->is_error())
+    {
+      mysql_mutex_lock(&LOCK_offline_mode);
+      bool tmp_offline_mode= MY_TEST(offline_mode);
+      mysql_mutex_unlock(&LOCK_offline_mode);
+
+      if (tmp_offline_mode)
+      {
+	my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+        DBUG_RETURN(1);
+      }
+    }
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     /*
       OK. Let's check the SSL. Historically it was checked after the password,
@@ -2423,9 +2436,10 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
       DBUG_RETURN(1);
     }
 
-    password_time_expired= check_password_lifetime(thd, acl_user);
+    /* checking password_time_expire for connecting user */
+    password_time_expired= check_password_lifetime(thd, mpvio.acl_user);
 
-    if (unlikely(acl_user && (acl_user->password_expired ||
+    if (unlikely(mpvio.acl_user && (mpvio.acl_user->password_expired ||
 	password_time_expired) &&
         !(mpvio.client_capabilities & CLIENT_CAN_HANDLE_EXPIRED_PASSWORDS)
         && disconnect_on_expired_password))
@@ -2457,7 +2471,13 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
           &acl_user->user_resource))
       DBUG_RETURN(1); // The error is set by get_or_create_user_conn()
 
-    sctx->password_expired= acl_user->password_expired || password_time_expired;
+    /*
+      We are copying the connected user's password expired flag to the security
+      context.
+      This allows proxy user to execute queries even if proxied user password
+      expires.
+    */
+    sctx->password_expired= mpvio.acl_user->password_expired || password_time_expired;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
   }
   else

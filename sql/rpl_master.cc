@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -281,7 +281,6 @@ bool show_slave_hosts(THD* thd)
     packet_bytes_todo-= BYTES;                                          \
   } while (0)
 
-#define SKIP(BYTES) READ((void)(0), BYTES)
 
 /**
   Check that there are at least BYTES more bytes to read, then read
@@ -310,6 +309,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
   String slave_uuid;
+  ushort flags= 0;
   const uchar* packet_position= (uchar *) packet;
   uint packet_bytes_todo= packet_length;
 
@@ -324,15 +324,17 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
     com_binlog_dump_gtid().
   */
   READ_INT(pos, 4);
-  SKIP(2); /* flags field is unused */
+  READ_INT(flags, 2);
   READ_INT(thd->server_id, 4);
+
+  DBUG_PRINT("info", ("pos=%lu flags=%d server_id=%d", pos, flags, thd->server_id));
 
   get_slave_uuid(thd, &slave_uuid);
   kill_zombie_dump_threads(&slave_uuid);
 
   query_logger.general_log_print(thd, thd->get_command(), "Log: '%s'  Pos: %ld",
                                  packet + 10, (long) pos);
-  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL);
+  mysql_binlog_send(thd, thd->strdup(packet + 10), (my_off_t) pos, NULL, flags);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -352,6 +354,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
     breaking compatitibilty. /Alfranio.
   */
   String slave_uuid;
+  ushort flags= 0;
   uint32 data_size= 0;
   uint64 pos= 0;
   char name[FN_REFLEN + 1];
@@ -367,11 +370,12 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
   if (check_global_access(thd, REPL_SLAVE_ACL))
     DBUG_RETURN(false);
 
-  SKIP(2); /* flags field is unused */
+  READ_INT(flags,2);
   READ_INT(thd->server_id, 4);
   READ_INT(name_size, 4);
   READ_STRING(name, name_size, sizeof(name));
   READ_INT(pos, 8);
+  DBUG_PRINT("info", ("pos=%llu flags=%d server_id=%d", pos, flags, thd->server_id));
   READ_INT(data_size, 4);
   CHECK_PACKET_SIZE(data_size);
   if (slave_gtid_executed.add_gtid_encoding(packet_position, data_size) !=
@@ -387,7 +391,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
                                  "Log: '%s' Pos: %llu GTIDs: '%s'",
                                  name, pos, gtid_string);
   my_free(gtid_string);
-  mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed);
+  mysql_binlog_send(thd, name, (my_off_t) pos, &slave_gtid_executed, flags);
 
   unregister_slave(thd, true, true/*need_lock_slave_list=true*/);
   /*  fake COM_QUIT -- if we get here, the thread needs to terminate */
@@ -399,9 +403,9 @@ error_malformed_packet:
 }
 
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       Gtid_set* slave_gtid_executed)
+                       Gtid_set* slave_gtid_executed, uint32 flags)
 {
-  Binlog_sender sender(thd, log_ident, pos, slave_gtid_executed);
+  Binlog_sender sender(thd, log_ident, pos, slave_gtid_executed, flags);
 
   sender.run();
 }

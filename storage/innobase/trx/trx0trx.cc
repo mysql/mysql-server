@@ -2025,7 +2025,7 @@ trx_cleanup_at_db_startup(
 		trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
 	}
 
-	trx->rsegs.m_redo.rseg = NULL;
+	memset(&trx->rsegs, 0x0, sizeof(trx->rsegs));
 	trx->undo_no = 0;
 	trx->undo_rseg_space = 0;
 	trx->last_sql_stat_start.least_undo_no = 0;

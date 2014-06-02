@@ -1262,6 +1262,7 @@ INSERT INTO t1 VALUES (@x);
 SELECT @x;
 
 SET @x=2;
+--error ER_DIVISION_BY_ZERO
 UPDATE t1 SET i1 = @x;
 SELECT @x;
 
@@ -1272,6 +1273,7 @@ INSERT INTO t1 VALUES (@x);
 SELECT @x;
 
 SET @x=4;
+--error ER_DIVISION_BY_ZERO
 UPDATE t1 SET i1 = @x;
 SELECT @x;
 
@@ -1435,6 +1437,7 @@ select 1/0 from t1|
 
 create trigger t1_bi before insert on t1 for each row set @a:=1/0|
 
+--error ER_DIVISION_BY_ZERO
 insert into t1 values(20, 20)|
 
 drop trigger t1_bi|
@@ -1456,6 +1459,7 @@ begin
 end|
 
 set @check=0, @t4_bi_called=0, @t4_bu_called=0|
+--error ER_DIVISION_BY_ZERO
 insert into t1 values(30, 30)|
 select @check, @t4_bi_called, @t4_bu_called|
 
@@ -2832,7 +2836,6 @@ let $column2_value = 'text';
 SET sql_mode= @save_sql_mode;
 
 # End of tests for Bug#17864349
-
 --echo #
 --echo # Bug#18596756 - FAILED PREPARING OF TRIGGER ON TRUNCATED TABLES CAUSE
 --echo #                ERROR 1054.
@@ -2862,5 +2865,30 @@ DROP TABLE t2;
 INSERT INTO t1 VALUES(0);
 
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#16522924 : UPDATE TRIGGER INVOKED WHEN UPDATE IGNORE MEANS
+--echo #                      THAT NO UPDATE IS PERFORMED
+--echo #
+CREATE TABLE t1 (a INT PRIMARY KEY);
+CREATE TABLE t2 (after_update CHAR(50));
+CREATE TABLE t3(b INT PRIMARY KEY);
+INSERT INTO t1 VALUES (1), (2);
+INSERT INTO t3 VALUES (1);
+DELIMITER |;
+CREATE TRIGGER post_update_t1 AFTER UPDATE ON t1
+FOR EACH ROW BEGIN
+  INSERT INTO t2 VALUES("POST UPDATE TRIGGER FOR UPDATE IGNORE ON t1 FIRED");
+END|
+DELIMITER ;|
+UPDATE IGNORE t1 SET a=2 WHERE a=1;
+SELECT * FROM t2;
+UPDATE IGNORE t1,t3 SET t1.a=2 WHERE t1.a=1;
+SELECT * FROM t2;
+UPDATE IGNORE t3,t1 SET t1.a=2 WHERE t1.a=1;
+SELECT * FROM t1;
+SELECT * FROM t2;
+DROP TRIGGER post_update_t1;
+DROP TABLE t1,t2,t3;
 
 --echo End of 5.7 tests.
