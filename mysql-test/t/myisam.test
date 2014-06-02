@@ -1745,3 +1745,73 @@ CREATE TABLE t1 (f1 year(4), key k1(f1)) ENGINE=MYISAM;
 INSERT INTO t1 VALUES(0000),(0000);
 SELECT * FROM t1 FORCE INDEX(k1) WHERE f1 = 'lhsi';
 DROP TABLE t1;
+
+--echo #
+--echo # Bug 17156940 THE UPDATE AND SELECT BEHAVE DIFFERENTLY
+--echo #              UNDER THE SAME CONDITIONS.
+--echo #
+
+CREATE TABLE t1 (
+  col1 VARCHAR(255) DEFAULT NULL,
+  col1_id INT(11) DEFAULT NULL,
+  KEY col1 (col1),
+  KEY col1_id (col1_id)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (col1, col1_id) VALUES
+  ('5cm', 10000), ('people', 10000), ('king', 10000), ('queen', 10000),
+  ('minister', 10000), ('servent', 13000);
+INSERT INTO t1 (col1, col1_id)
+  SELECT col1, col1_id FROM t1 WHERE col1 <> '5cm';
+INSERT INTO t1 (col1, col1_id)
+  SELECT col1, col1_id FROM t1 WHERE col1 <> '5cm';
+INSERT INTO t1 (col1, col1_id)
+  SELECT col1, col1_id FROM t1 WHERE col1 <> '5cm';
+INSERT INTO t1 (col1, col1_id) VALUES
+  ('5cm ', 10000), ('5cm ', 10000);
+SELECT col1, hex(col1), col1_id, count(*) from t1
+  WHERE col1= '5cm' GROUP BY hex(col1), col1_id;
+UPDATE t1 SET col1_id= 1414 WHERE col1= '5cm';
+SELECT count(*) FROM t1 WHERE col1= '5cm';
+SELECT count(*) FROM t1 WHERE col1_id= 1414;
+DELETE FROM t1 WHERE col1= '5cm';
+SELECT count(*) FROM t1 WHERE col1= '5cm';
+DROP TABLE t1;
+
+
+--echo # Test for multi column key.
+
+CREATE TABLE t1 (
+  col1 VARCHAR(255) DEFAULT NULL,
+  col1_dummy VARCHAR(25) DEFAULT NULL,
+  col1_id INT(11) DEFAULT NULL,
+  col1_id_dummy INT(10) DEFAULT NULL,
+
+  KEY col1 (col1, col1_dummy),
+  KEY col1_id (col1, col1_id_dummy)
+) ENGINE=MyISAM;
+
+INSERT INTO t1 (col1, col1_dummy, col1_id, col1_id_dummy) VALUES
+  ('5cm', '5cm' , 10000, 100), ('people', 'people', 10000, 100),
+  ('king', 'king' , 10000, 100), ('queen', 'queen', 10000, 100),
+  ('minister', 'minister', 10000, 100), ('servent', 'servent', 13000, 100);
+INSERT INTO t1 (col1, col1_dummy, col1_id, col1_id_dummy)
+  SELECT col1, col1_dummy, col1_id, col1_id_dummy FROM t1
+    WHERE col1 <> '5cm';
+INSERT INTO t1 (col1, col1_dummy, col1_id, col1_id_dummy)
+  SELECT col1, col1_dummy, col1_id, col1_id_dummy FROM t1
+    WHERE col1 <> '5cm';
+INSERT INTO t1 (col1, col1_dummy, col1_id, col1_id_dummy)
+  SELECT col1, col1_dummy, col1_id, col1_id_dummy FROM t1
+  WHERE col1 <> '5cm';
+INSERT INTO t1 (col1, col1_dummy, col1_id, col1_id_dummy) VALUES
+  ('5cm ', '5cm ',  10000, 100), ('5cm ', '5cm ', 10000, 100);
+SELECT col1, hex(col1), col1_id, count(*) from t1 WHERE col1= '5cm'
+  GROUP BY hex(col1), col1_id;
+UPDATE t1 SET col1_id= 1414 WHERE col1= '5cm' AND col1_dummy= '5cm';
+SELECT count(*) FROM t1 WHERE col1= '5cm';
+SELECT count(*) FROM t1 WHERE col1_id= 1414;
+DELETE FROM t1 WHERE col1= '5cm' AND col1_dummy= '5cm';
+SELECT count(*) FROM t1 WHERE col1= '5cm';
+DROP TABLE t1;
+

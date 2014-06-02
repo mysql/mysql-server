@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -576,6 +576,17 @@ void
 btr_estimate_number_of_different_key_vals(
 /*======================================*/
 	dict_index_t*	index);	/*!< in: index */
+
+/** Gets the externally stored size of a record, in units of a database page.
+@param[in]	rec	record
+@param[in]	offsets	array returned by rec_get_offsets()
+@return externally stored part, in units of a database page */
+
+ulint
+btr_rec_get_externally_stored_len(
+	const rec_t*	rec,
+	const ulint*	offsets);
+
 /*******************************************************************//**
 Marks non-updated off-page fields as disowned by this record. The ownership
 must be transferred to the updated record which is inserted elsewhere in the

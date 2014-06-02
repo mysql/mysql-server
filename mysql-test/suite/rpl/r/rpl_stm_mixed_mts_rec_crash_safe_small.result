@@ -367,69 +367,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -476,69 +419,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -568,69 +454,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -677,69 +506,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -786,69 +558,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -929,69 +644,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1038,69 +696,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1181,69 +782,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1290,69 +834,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1399,69 +886,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1508,69 +938,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1651,69 +1024,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1794,69 +1110,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc
@@ -1937,69 +1196,12 @@ master-bin.000001	#	Xid	#	#	COMMIT /* XID */
 ==== begin rpl_mts_crash_safe.inc:recovery ====
 include/start_slave_io.inc
 ** fixing gaps **
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
 include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0]
-==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0'
-.==== BEGIN include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-.==== END include/rpl_reconnect.inc ====
-. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --relay-log-recovery=0 --slave-parallel-workers=0] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 START SLAVE UNTIL SQL_AFTER_MTS_GAPS;
 include/wait_for_slave_param.inc [Until_Condition]
 include/wait_for_slave_sql_to_stop.inc
 ** regular restart **
 include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1]
-==== BEGIN include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-.==== BEGIN include/rpl_stop_server.inc ====
-[connection server_2]
-[connection slave]
-.==== END include/rpl_stop_server.inc [server_number=2] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-# debug: rpl_server_number='2' rpl_start_with_gtids='' rpl_server_parameters='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1' _RPL_START_SERVER_PARAMETERS='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-.==== BEGIN include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection server_2]
-# debug: params='--skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1'
-..==== BEGIN include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
----- Enable reconnect ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
----- Wait for reconnect and disable reconnect on all connections ----
-[connection slave]
-[connection slave1]
-[connection server_2]
-[connection server_2_1]
-[connection server_2]
-..==== END include/rpl_reconnect.inc ====
-.. con='server_2' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-.==== END include/rpl_start_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
-. con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
-[connection slave]
-==== END include/rpl_restart_server.inc [server_number=2 parameters: --skip-slave-start --slave-transaction-retries=0 --relay-log-info-repository=TABLE --master-info-repository=TABLE --sync-master-info=1] ====
- con='slave' warn='1' qlog='1' rlog='1' aborterr='1'
 include/start_slave_io.inc
 include/start_slave_sql.inc
 include/stop_slave.inc

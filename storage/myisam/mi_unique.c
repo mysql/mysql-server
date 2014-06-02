@@ -29,9 +29,6 @@ my_bool mi_check_unique(MI_INFO *info, MI_UNIQUEDEF *def, uchar *record,
   mi_unique_store(record+key->seg->start, unique_hash);
   _mi_make_key(info,def->key,key_buff,record,0);
 
-  /* The above changed info->lastkey2. Inform mi_rnext_same(). */
-  info->update&= ~HA_STATE_RNEXT_SAME;
-
   if (_mi_search(info,info->s->keyinfo+def->key,key_buff,MI_UNIQUE_HASH_LENGTH,
 		 SEARCH_FIND,info->s->state.key_root[def->key]))
   {

@@ -1,4 +1,4 @@
-/* Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -63,6 +63,10 @@ int main(int argc, char *argv[])
   int pid= 0, t= 0, sig= 0;
 
   progname= argv[0];
+
+  fprintf(stderr, 
+	  "Warning: %s is deprecated and will be removed in a future version.\n", 
+	  progname);
 
   if (handle_options(&argc, &argv, my_long_options, get_one_option))
     exit(-1);

@@ -131,9 +131,6 @@ int mi_write(MI_INFO *info, uchar *record)
         }
       }
 
-      /* The above changed info->lastkey2. Inform mi_rnext_same(). */
-      info->update&= ~HA_STATE_RNEXT_SAME;
-
       if (local_lock_tree)
         mysql_rwlock_unlock(&share->key_root_lock[i]);
     }
