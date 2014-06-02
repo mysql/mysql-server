@@ -39,6 +39,7 @@
 #include <m_ctype.h>
 #include <errno.h>
 #include "sql_join_buffer.h"             // CACHE_FIELD
+#include "sql_base.h"
 
 using std::max;
 using std::min;
@@ -2820,7 +2821,8 @@ Field_new_decimal::store(const char *from, size_t length,
                           from, length, charset_arg,
                           &decimal_value);
 
-  if (err != 0 && table->in_use->abort_on_warning)
+  if (err != 0 && !table->in_use->lex->is_ignore()
+               && table->in_use->is_strict_mode())
   {
     ErrConvString errmsg(from, length, charset_arg);
     const Diagnostics_area *da= table->in_use->get_stmt_da();
@@ -6748,7 +6750,7 @@ Field_longstr::report_if_important_data(const char *pstr, const char *end,
       // Warning should only be written when count_cuted_fields is set
       if (table->in_use->count_cuted_fields)
       {
-        if (table->in_use->abort_on_warning)
+        if (!table->in_use->lex->is_ignore() && table->in_use->is_strict_mode())
           set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
         else
           set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -6824,7 +6826,7 @@ type_conversion_status Field_str::store(double nr)
 
   if (error)
   {
-    if (table->in_use->abort_on_warning)
+    if (!table->in_use->lex->is_ignore() && table->in_use->is_strict_mode())
       set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     else
       set_warning(Sql_condition::SL_WARNING, WARN_DATA_TRUNCATED, 1);
@@ -8418,8 +8420,7 @@ Field_geom::store_internal(const char *from, size_t length,
   // Check given WKB
   if (from == Geometry::bad_geometry_data.ptr() ||
       length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE * 2 ||
-      (wkb_type= uint4korr(from + SRID_SIZE + 1)) < (uint32) Geometry::wkb_point ||
-       wkb_type > (uint32) Geometry::wkb_last)
+      !Geometry::is_valid_geotype(wkb_type= uint4korr(from + SRID_SIZE + 1)))
   {
     memset(ptr, 0, Field_blob::pack_length());  
     my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,
@@ -9177,7 +9178,7 @@ Field_bit::store(const char *from, size_t length, const CHARSET_INFO *cs)
   {
     set_rec_bits((1 << bit_len) - 1, bit_ptr, bit_ofs, bit_len);
     memset(ptr, 0xff, bytes_in_rec);
-    if (table->in_use->really_abort_on_warning())
+    if (table->in_use->is_strict_mode())
       set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     else
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -9618,7 +9619,7 @@ type_conversion_status Field_bit_as_char::store(const char *from, size_t length,
     memset(ptr, 0xff, bytes_in_rec);
     if (bits)
       *ptr&= ((1 << bits) - 1); /* set first uchar */
-    if (table->in_use->really_abort_on_warning())
+    if (table->in_use->is_strict_mode())
       set_warning(Sql_condition::SL_WARNING, ER_DATA_TOO_LONG, 1);
     else
       set_warning(Sql_condition::SL_WARNING, ER_WARN_DATA_OUT_OF_RANGE, 1);
@@ -10780,7 +10781,10 @@ Field_temporal::set_datetime_warning(Sql_condition::enum_severity_level level,
                                      int cut_increment)
 {
   THD *thd= table ? table->in_use : current_thd;
-  if (thd->really_abort_on_warning() ||
+  if ((!thd->lex->is_ignore() &&
+       ((thd->variables.sql_mode & MODE_STRICT_ALL_TABLES) ||
+        (thd->variables.sql_mode & MODE_STRICT_TRANS_TABLES &&
+         !thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)))) ||
       set_warning(level, code, cut_increment))
     make_truncated_value_warning(thd, level, val, ts_type, field_name);
 }

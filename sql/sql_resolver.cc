@@ -1612,8 +1612,7 @@ SELECT_LEX::convert_subquery_to_semijoin(Item_exists_subselect *subq_pred)
   {
     Item_in_subselect *in_subq_pred= (Item_in_subselect *)subq_pred;
 
-    /* Left side of IN predicate is already resolved */
-    DBUG_ASSERT(in_subq_pred->left_expr->fixed);
+    DBUG_ASSERT(is_fixed_or_outer_ref(in_subq_pred->left_expr));
 
     in_subq_pred->exec_method= Item_exists_subselect::EXEC_SEMI_JOIN;
     /*
@@ -2520,19 +2519,56 @@ find_order_in_list(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables
 int setup_order(THD *thd, Ref_ptr_array ref_pointer_array, TABLE_LIST *tables,
 		List<Item> &fields, List<Item> &all_fields, ORDER *order)
 {
+  SELECT_LEX *const select= thd->lex->current_select();
+
   thd->where="order clause";
-  DBUG_ASSERT(thd->lex->current_select()->cur_pos_in_all_fields ==
+  DBUG_ASSERT(select->cur_pos_in_all_fields ==
               SELECT_LEX::ALL_FIELDS_UNDEF_POS);
-  for (; order; order=order->next)
+
+  const bool for_union= select->master_unit()->is_union() &&
+                        select == select->master_unit()->fake_select_lex;
+  const bool is_aggregated= select->agg_func_used() ||
+                            select->group_list.elements;
+
+  for (uint number= 1; order; order=order->next, number++)
   {
-    thd->lex->current_select()->cur_pos_in_all_fields=
+    select->cur_pos_in_all_fields=
       fields.elements - all_fields.elements - 1;
     if (find_order_in_list(thd, ref_pointer_array, tables, order, fields,
 			   all_fields, FALSE))
       return 1;
+    if ((*order->item)->with_sum_func)
+    {
+      /*
+        Aggregated expressions in ORDER BY are not supported by SQL standard,
+        but MySQL has some limited support for them. The limitations are
+        checked below:
+
+        1. A UNION query is not aggregated, so ordering by a set function
+           is always wrong.
+      */
+      if (for_union)
+      {
+        my_error(ER_AGGREGATE_ORDER_FOR_UNION, MYF(0), number);
+        return 1;
+      }
+
+      /*
+        2. A non-aggregated query combined with a set function in ORDER BY
+           that does not contain an outer reference is illegal, because it
+           would cause the query to become aggregated.
+           (Since is_aggregated is false, this expression would cause
+            agg_func_used() to become true).
+      */
+      if (!is_aggregated && select->agg_func_used())
+      {
+        my_error(ER_AGGREGATE_ORDER_NON_AGG_QUERY, MYF(0), number);
+        return 1;
+      }
+    }
   }
-  thd->lex->current_select()->cur_pos_in_all_fields=
-		SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+  select->cur_pos_in_all_fields= SELECT_LEX::ALL_FIELDS_UNDEF_POS;
+
   return 0;
 }
 

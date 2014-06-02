@@ -52,6 +52,8 @@
 #include <mysql/service_thd_wait.h>
 #include "rpl_gtid.h"
 #include "parse_tree_helpers.h"
+#include "sql_optimizer.h"                      // JOIN
+#include "sql_base.h"
 
 using std::min;
 using std::max;
@@ -1993,9 +1995,11 @@ void Item_func_int_div::fix_length_and_dec()
 {
   Item_result argtype= args[0]->result_type();
   /* use precision ony for the data type it is applicable for and valid */
-  max_length=args[0]->max_length -
-    (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
-     args[0]->decimals : 0);
+  uint32 char_length= args[0]->max_char_length() -
+                      (argtype == DECIMAL_RESULT || argtype == INT_RESULT ?
+                       args[0]->decimals : 0);
+  fix_char_length(char_length > MY_INT64_NUM_DECIMAL_DIGITS ?
+                  MY_INT64_NUM_DECIMAL_DIGITS : char_length);
   maybe_null=1;
   unsigned_flag=args[0]->unsigned_flag | args[1]->unsigned_flag;
 }
@@ -4826,14 +4830,16 @@ longlong Item_func_sleep::val_int()
     If SQL is STRICT then report error, else report warning and continue
     execution.
   */
-  bool save_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning= thd->is_strict_mode();
+  Strict_error_handler strict_handler;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
 
   if (args[0]->null_value || timeout < 0)
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         ER(ER_WRONG_ARGUMENTS), "sleep.");
 
-  thd->abort_on_warning= save_abort_on_warning;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->pop_internal_handler();
   /*
     If conversion error occurred in the strict SQL_MODE
     then leave method.
@@ -5824,7 +5830,7 @@ get_var_with_binlog(THD *thd, enum_sql_command sql_command,
   }
   /* Mark that this variable has been used by this query */
   var_entry->used_query_id= thd->query_id;
-  if (insert_dynamic(&thd->user_var_events, &user_var_event))
+  if (thd->user_var_events.push_back(user_var_event))
     goto err;
 
   *out_entry= var_entry;
@@ -6473,11 +6479,22 @@ bool Item_func_match::itemize(Parse_context *pc, Item **res)
 
   pc->select->add_ftfunc_to_list(this);
   pc->thd->lex->set_using_match();
+
+  switch (pc->select->parsing_place)
+  {
+    case CTX_WHERE:
+    case CTX_ON:
+      used_in_where_only= true;
+      break;
+    default:
+      used_in_where_only= false;
+  }
+
   return false;
 }
 
 
-void Item_func_match::init_search(bool no_order)
+void Item_func_match::init_search()
 {
   DBUG_ENTER("Item_func_match::init_search");
 
@@ -6489,7 +6506,7 @@ void Item_func_match::init_search(bool no_order)
     DBUG_VOID_RETURN;
 
   /* Check if init_search() has been called before */
-  if (ft_handler)
+  if (ft_handler && !master)
   {
     /*
       We should reset ft_handler as it is cleaned up
@@ -6520,10 +6537,8 @@ void Item_func_match::init_search(bool no_order)
 
   if (master)
   {
-    join_key=master->join_key=join_key|master->join_key;
-    master->init_search(no_order);
+    master->init_search();
     ft_handler=master->ft_handler;
-    join_key=master->join_key;
     DBUG_VOID_RETURN;
   }
 
@@ -6550,9 +6565,8 @@ void Item_func_match::init_search(bool no_order)
      DBUG_VOID_RETURN;
   }
 
-  if (join_key && !no_order)
-    flags|=FT_SORTED;
-  ft_handler=table->file->ft_init_ext(flags, key, ft_tmp);
+  DBUG_ASSERT(master == NULL);
+  ft_handler= table->file->ft_init_ext_with_hints(key, ft_tmp, get_hints());
 
   if (join_key)
     table->file->ft_handler=ft_handler;
@@ -6579,6 +6593,24 @@ float Item_func_match::get_filtering_effect(table_map filter_for_table,
                                                   COND_FILTER_BETWEEN);
 }
 
+
+/**
+   Add field into table read set.
+
+   @param field field to be added to the table read set.
+*/
+static void update_table_read_set(Field *field)
+{
+  TABLE *table= field->table;
+
+  if (!bitmap_fast_test_and_set(table->read_set, field->field_index))
+  {
+    table->used_fields++;
+    table->covering_keys.intersect(field->part_of_key);
+  }
+}
+
+
 bool Item_func_match::fix_fields(THD *thd, Item **ref)
 {
   DBUG_ASSERT(fixed == 0);
@@ -6593,13 +6625,21 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     to remove;  If it would ever to be removed, this should include
     modifications to find_best and auto_close as complement to auto_init code
     above.
-   */
+  */
+  enum_mark_columns save_mark_used_columns= thd->mark_used_columns;
+  /*
+    Since different engines require different columns for FTS index lookup
+    we prevent updating of table read_set in argument's ::fix_fields().
+  */
+  thd->mark_used_columns= MARK_COLUMNS_NONE;
   if (Item_func::fix_fields(thd, ref) ||
       fix_func_arg(thd, &against) || !against->const_during_execution())
   {
+    thd->mark_used_columns= save_mark_used_columns;
     my_error(ER_WRONG_ARGUMENTS,MYF(0),"AGAINST");
     return TRUE;
   }
+  thd->mark_used_columns= save_mark_used_columns;
 
   bool allows_multi_table_search= true;
   const_item_cache=0;
@@ -6636,7 +6676,52 @@ bool Item_func_match::fix_fields(THD *thd, Item **ref)
     my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
     return 1;
   }
+
+  /*
+    Here we make an assumption that if the engine supports
+    fulltext extension(HA_CAN_FULLTEXT_EXT flag) then table
+    can have FTS_DOC_ID column. Atm this is the only way
+    to distinguish MyISAM and InnoDB engines.
+  */
+  if ((table->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT))
+  {
+    Field *doc_id_field= table->fts_doc_id_field;
+    /*
+      Update read set with FTS_DOC_ID column so that indexes that have
+      FTS_DOC_ID part can be considered as a covering index.
+    */
+    if (doc_id_field)
+      update_table_read_set(doc_id_field);
+    /*
+      Prevent index only accces by non-FTS index if table does not have
+      FTS_DOC_ID column, find_relevance does not work properly without
+      FTS_DOC_ID value. Decision for FTS index about index only access
+      is made later by JOIN::fts_index_access() function.
+    */
+    else
+      table->no_keyread= true;
+  }
+  else
+  {
+    /*
+      Since read_set is not updated for MATCH arguments
+      it's necessary to update it here for MyISAM.
+    */
+    for (uint i= 0; i < arg_count; i++)
+      update_table_read_set(((Item_field*)args[i])->field);
+  }
+
   table->fulltext_searched=1;
+
+  if (!master)
+  {
+    hints= new Ft_hints(flags);
+    if (!hints)
+    {
+      my_error(ER_TABLE_CANT_HANDLE_FT, MYF(0));
+      return true;
+    }
+  }
   return agg_item_collations_for_comparison(cmp_collation, func_name(),
                                             args, arg_count, 0);
 }
@@ -6763,11 +6848,11 @@ double Item_func_match::val_real()
   if (key != NO_SUCH_KEY && table->null_row) /* NULL row from an outer join */
     DBUG_RETURN(0.0);
 
-  if (join_key)
+  if (get_master()->join_key)
   {
     if (table->file->ft_handler)
       DBUG_RETURN(ft_handler->please->get_relevance(ft_handler));
-    join_key=0;
+    get_master()->join_key= 0;
   }
 
   if (key == NO_SUCH_KEY)
@@ -6794,6 +6879,50 @@ void Item_func_match::print(String *str, enum_query_type query_type)
     str->append(STRING_WITH_LEN(" with query expansion"));
   str->append(STRING_WITH_LEN("))"));
 }
+
+
+/**
+  Function sets FT hints(LIMIT, flags) depending on
+  various join conditions.
+
+  @param join     Pointer to JOIN object.
+  @param ft_flag  FT flag value.
+  @param ft_limit Limit value.
+  @param no_cond  true if MATCH is not used in WHERE condition.
+*/
+
+void Item_func_match::set_hints(JOIN *join, uint ft_flag,
+                                ha_rows ft_limit, bool no_cond)
+{
+  DBUG_ASSERT(!master);
+
+  if (!join)  // used for count() optimization
+  {
+    hints->set_hint_flag(ft_flag);
+    return;
+  }
+
+  /* skip hints setting if there are aggregates(except of FT_NO_RANKING) */
+  if (join->implicit_grouping || join->group_list || join->select_distinct)
+  {
+    /* 'No ranking' is possibe even if aggregates are present */
+    if ((ft_flag & FT_NO_RANKING))
+      hints->set_hint_flag(FT_NO_RANKING);
+    return;
+  }
+
+  hints->set_hint_flag(ft_flag);
+
+  /**
+    Only one table is used, there is no aggregates,
+    WHERE condition is a single MATCH expression
+    (WHERE MATCH(..) or WHERE MATCH(..) [>=,>] value) or
+    there is no WHERE condition.
+  */
+  if (join->primary_tables == 1 && (no_cond || is_simple_expression()))
+    hints->set_hint_limit(ft_limit);
+}
+
 
 longlong Item_func_bit_xor::val_int()
 {
@@ -7278,14 +7407,13 @@ Item_func_sp::execute_impl(THD *thd)
     my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
-
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a
     SELECT, leave binlogging on, so execute_function() code writes the
     function call into binlog.
   */
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
-  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field); 
+  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field);
   thd->restore_sub_statement_state(&statement_state);
 
 error:

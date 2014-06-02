@@ -57,8 +57,11 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+#include "template_utils.h"
+
 using std::min;
 using std::max;
+
 
 /*
   For the Items which have only val_str_ascii() method
@@ -1863,202 +1866,99 @@ String *Item_func_substr_index::val_str(String *str)
 ** a substring that points at the original string.
 */
 
-
-String *Item_func_ltrim::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  String tmp(buff,sizeof(buff),system_charset_info);
-  String *res, *remove_str;
-  uint remove_length= 0;
-
-  res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  remove_str= &remove;                          /* Default value. */
-  if (arg_count == 2)
-  {
-    remove_str= args[1]->val_str(&tmp);
-    if ((null_value= args[1]->null_value))
-      return 0;
-  }
-
-  if ((remove_length= remove_str->length()) == 0 ||
-      remove_length > res->length())
-    return res;
-
-  ptr= (char*) res->ptr();
-  end= ptr+res->length();
-  if (remove_length == 1)
-  {
-    char chr=(*remove_str)[0];
-    while (ptr != end && *ptr == chr)
-      ptr++;
-  }
-  else
-  {
-    const char *r_ptr=remove_str->ptr();
-    end-=remove_length;
-    while (ptr <= end && !memcmp(ptr, r_ptr, remove_length))
-      ptr+=remove_length;
-    end+=remove_length;
-  }
-  if (ptr == res->ptr())
-    return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
-  return &tmp_value;
-}
-
-
-String *Item_func_rtrim::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  String tmp(buff, sizeof(buff), system_charset_info);
-  String *res, *remove_str;
-  uint remove_length= 0;
-
-  res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  remove_str= &remove;                          /* Default value. */
-  if (arg_count == 2)
-  {
-    remove_str= args[1]->val_str(&tmp);
-    if ((null_value= args[1]->null_value))
-      return 0;
-  }
-
-  if ((remove_length= remove_str->length()) == 0 ||
-      remove_length > res->length())
-    return res;
-
-  ptr= (char*) res->ptr();
-  end= ptr+res->length();
-  char *p=ptr;
-  uint32 l;
-  if (remove_length == 1)
-  {
-    char chr=(*remove_str)[0];
-    if (use_mb(res->charset()))
-    {
-      while (ptr < end)
-      {
-	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l,p=ptr;
-	else ++ptr;
-      }
-      ptr=p;
-    }
-    while (ptr != end  && end[-1] == chr)
-      end--;
-  }
-  else
-  {
-    const char *r_ptr=remove_str->ptr();
-    if (use_mb(res->charset()))
-    {
-  loop:
-      while (ptr + remove_length < end)
-      {
-	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l;
-	else ++ptr;
-      }
-      if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
-      {
-	end-=remove_length;
-	ptr=p;
-	goto loop;
-      }
-    }
-    else
-    {
-      while (ptr + remove_length <= end &&
-	     !memcmp(end-remove_length, r_ptr, remove_length))
-	end-=remove_length;
-    }
-  }
-  if (end == res->ptr()+res->length())
-    return res;
-  tmp_value.set(*res,0,(uint) (end-res->ptr()));
-  return &tmp_value;
-}
-
-
 String *Item_func_trim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  const char *r_ptr;
-  String tmp(buff, sizeof(buff), system_charset_info);
-  String *res, *remove_str;
-  uint remove_length= 0;
 
-  res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  remove_str= &remove;                          /* Default value. */
+  String *res= args[0]->val_str(str);
+  if ((null_value = args[0]->null_value))
+    return NULL;
+
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  const String *remove_str= &remove;            // Default value.
+
   if (arg_count == 2)
   {
     remove_str= args[1]->val_str(&tmp);
     if ((null_value= args[1]->null_value))
-      return 0;
+      return NULL;
   }
 
-  if ((remove_length= remove_str->length()) == 0 ||
+  const size_t remove_length= remove_str->length();
+  if (remove_length == 0 ||
       remove_length > res->length())
     return res;
 
-  ptr= (char*) res->ptr();
-  end= ptr+res->length();
-  r_ptr= remove_str->ptr();
+  const char *ptr= res->ptr();
+  const char *end= ptr + res->length();
+  const char *const r_ptr= remove_str->ptr();
+
   if (use_mb(res->charset()))
   {
-    while (ptr + remove_length <= end)
+    if (m_trim_leading)
     {
-      uint num_bytes= 0;
-      while (num_bytes < remove_length)
+      while (ptr + remove_length <= end)
       {
-        uint len;
-        if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
-          num_bytes+= len;
-        else
-          ++num_bytes;
+        uint num_bytes= 0;
+        while (num_bytes < remove_length)
+        {
+          uint len;
+          if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
+            num_bytes+= len;
+          else
+            ++num_bytes;
+        }
+        if (num_bytes != remove_length)
+          break;
+        if (memcmp(ptr, r_ptr, remove_length))
+          break;
+        ptr+= remove_length;
       }
-      if (num_bytes != remove_length)
-        break;
-      if (memcmp(ptr, r_ptr, remove_length))
-        break;
-      ptr+= remove_length;
     }
-    char *p=ptr;
-    uint32 l;
- loop:
-    while (ptr + remove_length < end)
+    if (m_trim_trailing)
     {
-      if ((l= my_ismbchar(res->charset(), ptr,end)))
-        ptr+= l;
-      else
-        ++ptr;
+      bool found;
+      const char *p= ptr;
+      do
+      {
+        found= false;
+        while (ptr + remove_length < end)
+        {
+          uint32 l;
+          if ((l= my_ismbchar(res->charset(), ptr, end)))
+            ptr+= l;
+          else
+            ++ptr;
+        }
+        if (ptr + remove_length == end && !memcmp(ptr, r_ptr, remove_length))
+        {
+          end-= remove_length;
+          found= true;
+        }
+        ptr= p;
+      }
+      while (found);
     }
-    if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
-    {
-      end-=remove_length;
-      ptr=p;
-      goto loop;
-    }
-    ptr=p;
   }
   else
   {
-    while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
-      ptr+=remove_length;
-    while (ptr + remove_length <= end &&
-	   !memcmp(end-remove_length,r_ptr,remove_length))
-      end-=remove_length;
+    if (m_trim_leading)
+    {
+      while (ptr + remove_length <= end && !memcmp(ptr, r_ptr, remove_length))
+        ptr+= remove_length;
+    }
+    if (m_trim_trailing)
+    {
+      while (ptr + remove_length <= end &&
+             !memcmp(end-remove_length, r_ptr, remove_length))
+        end-=remove_length;
+    }
   }
-  if (ptr == res->ptr() && end == ptr+res->length())
+  if (ptr == res->ptr() && end == ptr + res->length())
     return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
+  tmp_value.set(*res, static_cast<uint>(ptr - res->ptr()),
+                static_cast<uint>(end - ptr));
   return &tmp_value;
 }
 
@@ -2084,17 +1984,32 @@ void Item_func_trim::fix_length_and_dec()
 
 void Item_func_trim::print(String *str, enum_query_type query_type)
 {
-  if (arg_count == 1)
-  {
-    Item_func::print(str, query_type);
-    return;
-  }
   str->append(Item_func_trim::func_name());
   str->append('(');
-  str->append(mode_name());
-  str->append(' ');
-  args[1]->print(str, query_type);
-  str->append(STRING_WITH_LEN(" from "));
+  const char *mode_name;
+  switch(m_trim_mode) {
+  case TRIM_BOTH:
+    mode_name= "both ";
+    break;
+  case TRIM_LEADING:
+    mode_name= "leading ";
+    break;
+  case TRIM_TRAILING:
+    mode_name= "trailing ";
+    break;
+  default:
+    mode_name= NULL;
+    break;
+  }
+  if (mode_name)
+  {
+    str->append(mode_name);
+  }
+  if (arg_count == 2)
+  {
+    args[1]->print(str, query_type);
+    str->append(STRING_WITH_LEN(" from "));
+  }
   args[0]->print(str, query_type);
   str->append(')');
 }
@@ -4534,8 +4449,10 @@ String *Item_func_uncompress::val_str(String *str)
   if (buffer.realloc((uint32)new_size))
     goto err;
 
-  if ((err= uncompress((Byte*)buffer.ptr(), &new_size,
-		       ((const Bytef*)res->ptr())+4,res->length())) == Z_OK)
+  if ((err= uncompress(pointer_cast<Byte*>(const_cast<char*>(buffer.ptr())),
+                       &new_size,
+                       pointer_cast<const Bytef*>(res->ptr()) + 4,
+                       res->length() - 4)) == Z_OK)
   {
     buffer.length((uint32) new_size);
     return &buffer;

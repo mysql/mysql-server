@@ -33,10 +33,7 @@ INSERT INTO test.t1 VALUES (NULL, repeat('b',16*1024));
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 3;
-save_master_pos;
-connection slave;
-sync_with_master; 
---source include/wait_for_ndb_to_binlog.inc
+--source include/sync_slave_sql_with_master.inc
 --echo
 --echo **** Data Insert Validation Slave Section test.t1 ****
 --echo
@@ -56,10 +53,7 @@ UPDATE t1 set data=repeat('c',17*1024) where c1 = 2;
 --echo
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 1;
 SELECT LENGTH(data) FROM test.t1 WHERE c1 = 2;
-save_master_pos;
-connection slave;
-sync_with_master; 
---source include/wait_for_ndb_to_binlog.inc
+--source include/sync_slave_sql_with_master.inc
 --echo
 --echo **** Data Update Validation Slave Section test.t1 ****
 --echo
@@ -127,10 +121,7 @@ SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=1;
 SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=2;
-save_master_pos;
-connection slave;
-sync_with_master; 
---source include/wait_for_ndb_to_binlog.inc
+--source include/sync_slave_sql_with_master.inc
 --echo
 --echo **** Data Insert Validation Slave Section test.t2 ****
 --echo
@@ -153,10 +144,7 @@ SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=1;
 SELECT c1, LENGTH(c2), SUBSTR(c2,1+2*900,2), LENGTH(c4), SUBSTR(c4,1+3*900,3)
 FROM test.t2 WHERE c1=2;
-save_master_pos;
-connection slave;
-sync_with_master; 
---source include/wait_for_ndb_to_binlog.inc
+--source include/sync_slave_sql_with_master.inc
 --echo
 --echo **** Data Update Validation Slave Section test.t2 ****
 --echo

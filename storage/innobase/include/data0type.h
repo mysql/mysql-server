@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -157,6 +157,10 @@ be less than 256 */
 
 #define	DATA_N_SYS_COLS 3	/* number of system columns defined above */
 
+#define	DATA_ITT_N_SYS_COLS	2
+				/* number of system columns for intrinsic
+				temporary table */
+
 #define DATA_FTS_DOC_ID	3	/* Used as FTS DOC ID column */
 
 #define DATA_SYS_PRTYPE_MASK 0xF /* mask to extract the above from prtype */
@@ -174,6 +178,9 @@ be less than 256 */
 				In earlier versions this was set for some
 				BLOB columns.
 */
+#define DATA_GIS_MBR	2048	/* Used as GIS MBR column */
+#define DATA_MBR_LEN	SPDIMS * 2 * sizeof(double) /* GIS MBR length*/
+
 #define	DATA_LONG_TRUE_VARCHAR 4096	/* this is ORed to the precise data
 				type when the column is true VARCHAR where
 				MySQL uses 2 bytes to store the data len;
@@ -202,9 +209,13 @@ because in GCC it returns a long. */
 /* Get mbmaxlen from mbminmaxlen. */
 #define DATA_MBMAXLEN(mbminmaxlen) ((ulint) ((mbminmaxlen) / DATA_MBMAX))
 
+/* For checking if mtype is GEOMETRY datatype */
+#define DATA_GEOMETRY_MTYPE(mtype)	((mtype) == DATA_GEOMETRY)
+
 /* For checking if mtype is BLOB or GEOMETRY, since we use BLOB as
 the underling datatype of GEOMETRY data. */
-#define DATA_LARGE_MTYPE(mtype) ((mtype) == DATA_BLOB || (mtype) == DATA_GEOMETRY)
+#define DATA_LARGE_MTYPE(mtype) ((mtype) == DATA_BLOB	\
+				 || DATA_GEOMETRY_MTYPE(mtype))
 
 /* For checking if data type is big length data type. */
 #define DATA_BIG_LEN_MTYPE(len, mtype) ((len) > 255 || DATA_LARGE_MTYPE(mtype))

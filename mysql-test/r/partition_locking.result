@@ -3264,6 +3264,8 @@ HANDLER_WRITE	17
 # 2 locks (1 table, 0 partition lock/unlock)
 FLUSH STATUS;
 INSERT IGNORE INTO v1_25 VALUES (17, "Insert ignore in v1_25");
+Warnings:
+Warning	1748	Found a row not matching the given partition set
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE
@@ -3290,6 +3292,8 @@ HANDLER_WRITE	17
 # 2 locks (1 table, 0 partition lock/unlock)
 FLUSH STATUS;
 INSERT IGNORE INTO v1_25_check VALUES (30, "Insert ignore in v1_25_check");
+Warnings:
+Warning	1748	Found a row not matching the given partition set
 SELECT * FROM INFORMATION_SCHEMA.SESSION_STATUS
 WHERE VARIABLE_NAME LIKE 'HANDLER_%' AND VARIABLE_VALUE > 0;
 VARIABLE_NAME	VARIABLE_VALUE

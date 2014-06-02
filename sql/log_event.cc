@@ -1421,15 +1421,22 @@ int Log_event::read_log_event(IO_CACHE* file, String* packet,
     }
     else
     {
-      /* Corrupt the event for Dump thread*/
+      /*
+        Corrupt the event for Dump thread.
+        We also need to exclude Previous_gtids_log_event and Gtid_log_event
+        events from injected corruption to allow dump thread to move forward
+        on binary log until the missing transactions from slave when
+        MASTER_AUTO_POSITION= 1.
+      */
       DBUG_EXECUTE_IF("corrupt_read_log_event",
 	uchar *debug_event_buf_c = (uchar*) packet->ptr() + ev_offset;
-        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT)
+        if (debug_event_buf_c[EVENT_TYPE_OFFSET] != FORMAT_DESCRIPTION_EVENT &&
+            debug_event_buf_c[EVENT_TYPE_OFFSET] != PREVIOUS_GTIDS_LOG_EVENT &&
+            debug_event_buf_c[EVENT_TYPE_OFFSET] != GTID_LOG_EVENT)
         {
           int debug_cor_pos = rand() % (data_len + sizeof(buf) - BINLOG_CHECKSUM_LEN);
           debug_event_buf_c[debug_cor_pos] =~ debug_event_buf_c[debug_cor_pos];
           DBUG_PRINT("info", ("Corrupt the event at Log_event::read_log_event: byte on position %d", debug_cor_pos));
-          DBUG_SET("-d,corrupt_read_log_event");
 	}
       );                                                                                           
       /*
@@ -2884,7 +2891,7 @@ bool schedule_next_event(Log_event* ev, Relay_log_info* rli)
     ev->get_type_str(), rli->get_event_relay_log_name(), llbuff,
     "The master does not support the selected parallelization mode. "
     "It may be too old, or replication was started from an event internal "
-    "to a transaaction.");
+    "to a transaction.");
   case ER_MTS_INCONSISTENT_DATA:
     /* Don't have to do anything. */
     return true;
@@ -3059,6 +3066,12 @@ Slave_worker *Log_event::get_slave_worker(Relay_log_info *rli)
     ret_worker=
       rli->current_mts_submode->get_least_occupied_worker(rli, &rli->workers,
                                                           this);
+    if (ret_worker == NULL)
+    {
+      /* get_least_occupied_worker may return NULL if the thread is killed */
+      DBUG_ASSERT(thd->killed);
+      DBUG_RETURN(NULL);
+    }
     ptr_group->worker_id= ret_worker->id;
   }
   else if (contains_partition_info(rli->mts_end_group_sets_max_dbs))
@@ -6115,7 +6128,7 @@ uint Load_log_event::get_query_buffer_length()
   return
     //the DB name may double if we escape the quote character
     5 + 2*db_len + 3 +
-    18 + fname_len + 2 +                    // "LOAD DATA INFILE 'file''"
+    18 + fname_len*4 + 2 +                    // "LOAD DATA INFILE 'file''"
     11 +                                    // "CONCURRENT "
     7 +					    // LOCAL
     9 +                                     // " REPLACE or IGNORE "
@@ -6161,9 +6174,9 @@ void Load_log_event::print_query(bool need_db, const char *cs, char *buf,
 
   if (check_fname_outside_temp_buf())
     pos= my_stpcpy(pos, "LOCAL ");
-  pos= my_stpcpy(pos, "INFILE '");
-  memcpy(pos, fname, fname_len);
-  pos= my_stpcpy(pos+fname_len, "' ");
+  pos= my_stpcpy(pos, "INFILE ");
+  pos= pretty_print_str(pos, fname, fname_len);
+  pos= my_stpcpy(pos, " ");
 
   if (sql_ex.opt_flags & REPLACE_FLAG)
     pos= my_stpcpy(pos, "REPLACE ");
@@ -6729,7 +6742,6 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       char llbuff[22];
       char *end;
       enum enum_duplicates handle_dup;
-      bool ignore= 0;
       char *load_data_query;
 
       /*
@@ -6753,7 +6765,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
         handle_dup= DUP_REPLACE;
       else if (sql_ex.opt_flags & IGNORE_FLAG)
       {
-        ignore= 1;
+        thd->lex->set_ignore(true);
         handle_dup= DUP_ERROR;
       }
       else
@@ -6820,7 +6832,7 @@ int Load_log_event::do_apply_event(NET* net, Relay_log_info const *rli,
       List<Item> tmp_list;
       if (open_temporary_tables(thd, &tables) ||
           mysql_load(thd, &ex, &tables, field_list, tmp_list, tmp_list,
-                     handle_dup, ignore, net != 0))
+                     handle_dup, net != 0))
         thd->is_slave_error= 1;
       if (thd->cuted_fields)
       {
@@ -7617,6 +7629,8 @@ int Xid_log_event::do_apply_event_worker(Slave_worker *w)
                   DBUG_SUICIDE(););
 
   error= do_commit(thd);
+  if (error)
+    w->rollback_positions(ptr_group);
 err:
   return error;
 }
@@ -8286,31 +8300,7 @@ int Stop_log_event::do_update_pos(Relay_log_info *rli)
 	Create_file_log_event methods
 **************************************************************************/
 
-/*
-  Create_file_log_event ctor
-*/
-
 #ifndef MYSQL_CLIENT
-Create_file_log_event::
-Create_file_log_event(THD* thd_arg, sql_exchange* ex,
-		      const char* db_arg, const char* table_name_arg,
-                      List<Item>& fields_arg,
-                      bool is_concurrent_arg,
-                      enum enum_duplicates handle_dup,
-                      bool ignore,
-		      uchar* block_arg, uint block_len_arg, bool using_trans)
-  :Load_log_event(thd_arg, ex, db_arg, table_name_arg, fields_arg,
-                  is_concurrent_arg,
-                  handle_dup, ignore, using_trans),
-   fake_base(0), block(block_arg), event_buf(0), block_len(block_len_arg),
-   file_id(thd_arg->file_id = mysql_bin_log.next_file_id())
-{
-  DBUG_ENTER("Create_file_log_event");
-  sql_ex.force_new_format();
-  DBUG_VOID_RETURN;
-}
-
-
 /*
   Create_file_log_event::write_data_body()
 */
@@ -9212,9 +9202,9 @@ void Execute_load_query_log_event::print(FILE* file,
   if (local_fname)
   {
     my_b_write(head, (uchar*) query, fn_pos_start);
-    my_b_printf(head, " LOCAL INFILE \'");
-    my_b_printf(head, "%s", local_fname);
-    my_b_printf(head, "\'");
+    my_b_printf(head, " LOCAL INFILE ");
+    pretty_print_str(head, local_fname, strlen(local_fname));
+
     if (dup_handling == LOAD_DUP_REPLACE)
       my_b_printf(head, " REPLACE");
     my_b_printf(head, " INTO");

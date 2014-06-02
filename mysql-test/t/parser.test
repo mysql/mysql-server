@@ -1186,4 +1186,18 @@ LIMIT 100;
 DROP TABLE t1, t2;
 
 --echo #
+--echo # Bug#18486460 ASSERTION FAILED: N < M_SIZE AFTER FIX_INNER_REFS
+--echo #
 
+CREATE TABLE t1(b INT);
+CREATE TABLE t2(a INT, b INT, c INT, d INT);
+
+EXPLAIN SELECT
+(
+  SELECT
+  ROW(t1.b, a) = ROW( ROW(1, t2.c) = ROW(1, d), c) = a
+  FROM t1
+)
+FROM t2 GROUP BY a;
+
+DROP TABLE t1, t2;
