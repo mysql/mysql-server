@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2012, Facebook Inc.
 
 This program is free software; you can redistribute it and/or modify it under
@@ -84,23 +84,24 @@ dict_mem_table_create(
 
 	table->heap = heap;
 
+	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
 	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
-	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
+	table->n_cols = (unsigned int) (n_cols +
+			dict_table_get_n_sys_cols(table));
 
 	table->cols = static_cast<dict_col_t*>(
 		mem_heap_alloc(heap,
-			       (n_cols + DATA_N_SYS_COLS)
-			       * sizeof(dict_col_t)));
+			       (n_cols + dict_table_get_n_sys_cols(table))
+				* sizeof(dict_col_t)));
 
-	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
-
-	table->stats_latch = new rw_lock_t;
-	rw_lock_create(dict_table_stats_key, table->stats_latch,
-		       SYNC_INDEX_TREE);
+	/* true means that the stats latch will be enabled -
+	dict_table_stats_lock() will not be noop. */
+	dict_table_stats_latch_create(table, true);
 
 #ifndef UNIV_HOTBACKUP
 	table->autoinc_lock = static_cast<ib_lock_t*>(
@@ -156,8 +157,7 @@ dict_mem_table_free(
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
 
-	rw_lock_free(table->stats_latch);
-	delete table->stats_latch;
+	dict_table_stats_latch_destroy(table);
 
 	ut_free(table->name);
 	mem_heap_free(table->heap);
@@ -467,6 +467,17 @@ dict_mem_index_create(
 
 	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
 
+	if (type & DICT_SPATIAL) {
+		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
+		index->rtr_track = static_cast<rtr_info_track_t*>(
+					mem_heap_alloc(
+						heap,
+						sizeof(*index->rtr_track)));
+		mutex_create("rtr_active_mutex",
+			     &index->rtr_track->rtr_active_mutex);
+		index->rtr_track->rtr_active = new(std::nothrow) rtr_info_active();
+	}
+
 	return(index);
 }
 
@@ -597,6 +608,22 @@ dict_mem_index_free(
 	ut_ad(index->magic_n == DICT_INDEX_MAGIC_N);
 
 	mutex_destroy(&index->zip_pad.mutex);
+
+	if (dict_index_is_spatial(index)) {
+		rtr_info_active::iterator	it;
+		rtr_info_t*			rtr_info;
+
+		for (it = index->rtr_track->rtr_active->begin();
+		     it != index->rtr_track->rtr_active->end(); ++it) {
+			rtr_info = *it;
+
+			rtr_info->index = NULL;
+                }
+
+		mutex_destroy(&index->rtr_ssn.mutex);
+		mutex_destroy(&index->rtr_track->rtr_active_mutex);
+		delete index->rtr_track->rtr_active;
+	}
 
 	mem_heap_free(index->heap);
 }

@@ -69,7 +69,7 @@ Connection::Connection(MYSQL_PLUGIN_VIO *vio): m_vio(vio), m_error(0)
 
 int Connection::write(const Blob &blob)
 {
-  m_error= m_vio->write_packet(m_vio, blob.ptr(), blob.len());
+  m_error= m_vio->write_packet(m_vio, blob.ptr(), static_cast<int>(blob.len()));
 
 #ifndef DBUG_OFF
   if (m_error)

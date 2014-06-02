@@ -38,7 +38,6 @@
 #include "mysql_com.h"
 
 #include "events.h"
-#include <thr_alarm.h>
 #include "rpl_slave.h"
 #include "rpl_mi.h"
 #include "rpl_rli.h"
@@ -1632,6 +1631,13 @@ static Sys_var_ulong Sys_rpl_stop_slave_timeout(
        GLOBAL_VAR(rpl_stop_slave_timeout), CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(2, LONG_TIMEOUT), DEFAULT(LONG_TIMEOUT), BLOCK_SIZE(1));
 
+static Sys_var_enum Sys_binlogging_impossible_mode(
+       "binlogging_impossible_mode",
+       "On a fatal error when statements cannot be binlogged the behaviour can "
+       "be ignore the error and let the master continue or abort the server. ",
+       GLOBAL_VAR(binlogging_impossible_mode), CMD_LINE(REQUIRED_ARG),
+       binlogging_impossible_err, DEFAULT(IGNORE_ERROR));
+
 static Sys_var_mybool Sys_trust_function_creators(
        "log_bin_trust_function_creators",
        "If set to FALSE (the default), then when --log-bin is used, creation "
@@ -1900,14 +1906,6 @@ static Sys_var_ulong Sys_max_binlog_size(
        BLOCK_SIZE(IO_SIZE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_max_binlog_size));
 
-static bool fix_max_connections(sys_var *self, THD *thd, enum_var_type type)
-{
-#ifndef EMBEDDED_LIBRARY
-  resize_thr_alarm(static_cast<uint>(max_connections + 10));
-#endif
-  return false;
-}
-
 static Sys_var_ulong Sys_max_connections(
        "max_connections", "The number of simultaneous clients allowed",
        GLOBAL_VAR(max_connections), CMD_LINE(REQUIRED_ARG),
@@ -1917,7 +1915,7 @@ static Sys_var_ulong Sys_max_connections(
        NO_MUTEX_GUARD,
        NOT_IN_BINLOG,
        ON_CHECK(0),
-       ON_UPDATE(fix_max_connections),
+       ON_UPDATE(0),
        NULL,
        /* max_connections is used as a sizing hint by the performance schema. */
        sys_var::PARSE_EARLY);
@@ -1947,7 +1945,7 @@ static Sys_var_ulong Sys_max_insert_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        NO_CMD_LINE, VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_delayed_threads(
@@ -1958,7 +1956,7 @@ static Sys_var_ulong Sys_max_delayed_threads(
        SESSION_VAR(max_insert_delayed_threads),
        CMD_LINE(REQUIRED_ARG), VALID_RANGE(0, 16384), DEFAULT(20),
        BLOCK_SIZE(1), NO_MUTEX_GUARD, NOT_IN_BINLOG,
-       ON_CHECK(check_max_delayed_threads), ON_UPDATE(fix_max_connections),
+       ON_CHECK(check_max_delayed_threads), ON_UPDATE(0),
        DEPRECATED(""));
 
 static Sys_var_ulong Sys_max_error_count(
@@ -2810,7 +2808,7 @@ static bool check_not_null_not_empty(sys_var *self, THD *thd, set_var *var)
   return false;
 }
 
-static bool check_update_mts_type(sys_var *self, THD *thd, set_var *var)
+static bool check_slave_stopped(sys_var *self, THD *thd, set_var *var)
 {
   bool result= false;
   if (check_not_null_not_empty(self, thd, var))
@@ -2854,9 +2852,17 @@ static Sys_var_enum Mts_parallel_type(
        GLOBAL_VAR(mts_parallel_option), CMD_LINE(REQUIRED_ARG),
        mts_parallel_type_names,
        DEFAULT(MTS_PARALLEL_TYPE_DB_NAME),  NO_MUTEX_GUARD,
-       NOT_IN_BINLOG, ON_CHECK(check_update_mts_type),
+       NOT_IN_BINLOG, ON_CHECK(check_slave_stopped),
        ON_UPDATE(NULL));
 
+static Sys_var_mybool Sys_slave_preserve_commit_order(
+       "slave_preserve_commit_order",
+       "Force slave workers to make commits in the same order as on the master. "
+       "Disabled by default.",
+       GLOBAL_VAR(opt_slave_preserve_commit_order), CMD_LINE(OPT_ARG),
+       DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG,
+       ON_CHECK(check_slave_stopped),
+       ON_UPDATE(NULL));
 #endif
 
 bool Sys_var_enum_binlog_checksum::global_update(THD *thd, set_var *var)
@@ -3369,14 +3375,6 @@ static Sys_var_plugin Sys_default_tmp_storage_engine(
        SESSION_VAR(temp_table_plugin), NO_CMD_LINE,
        MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_tmp_storage_engine),
        NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null));
-
-//  Alias for @@default_storage_engine
-static Sys_var_plugin Sys_storage_engine(
-       "storage_engine", "Alias for @@default_storage_engine. Deprecated",
-       SESSION_VAR(table_plugin), NO_CMD_LINE,
-       MYSQL_STORAGE_ENGINE_PLUGIN, DEFAULT(&default_storage_engine),
-       NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(check_not_null),
-       ON_UPDATE(NULL), DEPRECATED("'@@default_storage_engine'"));
 
 #if defined(ENABLED_DEBUG_SYNC)
 /*
@@ -4068,8 +4066,8 @@ static bool fix_general_log_state(sys_var *self, THD *thd, enum_var_type type)
 }
 static Sys_var_mybool Sys_general_log(
        "general_log", "Log connections and queries to a table or log file. "
-       "Defaults logging to a file hostname.log or a table mysql.general_log"
-       "if --log-output=TABLE is used",
+       "Defaults to logging to a file hostname.log, "
+       "or if --log-output=TABLE is used, to a table mysql.general_log.",
        GLOBAL_VAR(opt_general_log), CMD_LINE(OPT_ARG),
        DEFAULT(FALSE), NO_MUTEX_GUARD, NOT_IN_BINLOG, ON_CHECK(0),
        ON_UPDATE(fix_general_log_state));

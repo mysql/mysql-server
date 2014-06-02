@@ -65,7 +65,7 @@ static void die(const char *fmt, ...)
 
 char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
 {
-  char *line= fgets(buffer, size, (FILE*) input);
+  char *line= fgets(buffer, (int)size, (FILE*) input);
   if (error)
     *error= (line == NULL) ? ferror((FILE*)input) : 0;
   return line;

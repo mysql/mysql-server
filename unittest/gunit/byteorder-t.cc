@@ -186,23 +186,23 @@ template<typename T> void get_integral(T &val, uchar *buf)
 { ADD_FAILURE() << "unknown type in get_integral"; }
 
 template<> void put_integral(uchar *buf, short val)  { shortstore(buf, val); }
-template<> void get_integral(short &val, uchar *buf) { shortget(val, buf); }
+template<> void get_integral(short &val, uchar *buf) { shortget(&val, buf); }
 
 // Hmm, there's no ushortstore...
 template<> void put_integral(uchar *buf, ushort val)  { shortstore(buf, val); }
-template<> void get_integral(ushort &val, uchar *buf) { ushortget(val, buf); }
+template<> void get_integral(ushort &val, uchar *buf) { ushortget(&val, buf); }
 
 template<> void put_integral(uchar *buf, int val)  { longstore(buf, val); }
-template<> void get_integral(int &val, uchar *buf) { longget(val, buf); }
+template<> void get_integral(int &val, uchar *buf) { longget(&val, buf); }
 
 // Hmm, there's no ulongstore...
 template<> void put_integral(uchar *buf, unsigned val)  { longstore(buf, val); }
-template<> void get_integral(unsigned &val, uchar *buf) { ulongget(val, buf); }
+template<> void get_integral(unsigned &val, uchar *buf) { ulongget(&val, buf); }
 
 template<> void put_integral(uchar *buf, longlong val)
 { longlongstore(buf, val); }
 template<> void get_integral(longlong &val, uchar *buf)
-{ longlongget(val, buf); }
+{ longlongget(&val, buf); }
 
 // Reading ulonglong is different from all the above ....
 template<> void put_integral(uchar *buf, ulonglong val)

@@ -1,0 +1,295 @@
+#
+# Bug #18451287 REDUNDANT DELETE MARKING AFTER DB_LOCK_WAIT
+#
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+create table t2 (f1 int primary key, f2 int,
+foreign key (f2) references t1(f1) on update cascade) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` blob,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values (1, repeat('+', 20000));
+insert into t1 values (2, repeat('-', 20000));
+insert into t1 values (3, repeat('=', 20000));
+insert into t2 values (1, 2);
+select f1, right(f2, 20) as p2 from t1;
+f1	p2
+1	++++++++++++++++++++
+2	--------------------
+3	====================
+select f1, f2 from t2;
+f1	f2
+1	2
+# Connection con1:
+start transaction;
+select f1, f2 from t2 for update;
+f1	f2
+1	2
+# Connection default:
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+# send: update t1 set f1 = 10 where f1 = 2;
+update t1 set f1 = 10 where f1 = 2;
+# Connection con1:
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+set debug_sync='now SIGNAL go_upd';
+# Connection default:
+# reap: update t1 set f1 = 10 where f1 = 2;
+select f1, right(f2, 20) as p2 from t1;
+f1	p2
+1	++++++++++++++++++++
+3	====================
+10	--------------------
+select f1, f2 from t2;
+f1	f2
+1	10
+drop table t2, t1;
+set debug_sync = reset;
+#
+# Test Scenario: Two tables t1 -> t2 are involved in update cascade.
+# If DB_LOCK_WAIT happens when t1 is being updated and FK constraints
+# are being checked in t2, then retry must happen on t1.  The update
+# cascade happens in secondary index. For secondary index testing,
+# blobs are not needed.
+#
+create table t1 (f1 int primary key, f2 int, key k1(f2)) engine=innodb;
+create table t2 (f1 int primary key, f2 int,
+foreign key (f2) references t1(f2) on update cascade) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `k1` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f2`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values (1, 91);
+insert into t2 values (1, 91);
+select f1, f2 from t1;
+f1	f2
+1	91
+select f1, f2 from t2;
+f1	f2
+1	91
+# Connection con1:
+start transaction;
+select f1, f2 from t2 for update;
+f1	f2
+1	91
+# Connection default:
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+# send: update t1 set f1 = 10 where f1 = 2;
+update t1 set f2 = 28 where f2 = 91;
+# Connection con1:
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+set debug_sync='now SIGNAL go_upd';
+# Connection default:
+# reap: update t1 set f1 = 10 where f1 = 2;
+select f1, f2 from t1;
+f1	f2
+1	28
+select f1, f2 from t2;
+f1	f2
+1	28
+drop table t2, t1;
+set debug_sync = reset;
+#
+# Test Scenario: Three tables t1 -> t2 -> t3 are involved in update cascade.
+# If DB_LOCK_WAIT happens when t2 is being updated, then retry must happen
+# on t2.
+#
+create table t1 (f1 int primary key, f2 blob) engine=innodb;
+create table t2 (f1 int primary key, f2 blob,
+foreign key (f1) references t1(f1) on update cascade) engine=innodb;
+create table t3 (f1 int primary key, f2 blob,
+foreign key (f1) references t2(f1) on update cascade) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` blob,
+  PRIMARY KEY (`f1`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) NOT NULL,
+  `f2` blob,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t1` (`f1`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) NOT NULL,
+  `f2` blob,
+  PRIMARY KEY (`f1`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`f1`) REFERENCES `t2` (`f1`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values (2, repeat('-', 20000));
+insert into t2 values (2, repeat('%', 20000));
+insert into t3 values (2, repeat('+', 20000));
+select f1, right(f2, 20) as p2 from t1;
+f1	p2
+2	--------------------
+select f1, right(f2, 20) as p2 from t2;
+f1	p2
+2	%%%%%%%%%%%%%%%%%%%%
+select f1, right(f2, 20) as p2 from t3;
+f1	p2
+2	++++++++++++++++++++
+# Connection con1:
+start transaction;
+select f1 from t3 for update;
+f1
+2
+# Connection default:
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+# send: update t1 set f1 = 10 where f1 = 2;
+update t1 set f1 = 10 where f1 = 2;
+# Connection con1:
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+# The table t1 is updated.
+# In t2 delete-mark happened. Retry will happen on t2.
+# In t3 yet to be updated.
+set session transaction isolation level read uncommitted;
+start transaction;
+select f1, right(f2, 20) as p2 from t1;
+f1	p2
+10	--------------------
+select f1, right(f2, 20) as p2 from t2;
+f1	p2
+select f1, right(f2, 20) as p2 from t3;
+f1	p2
+2	++++++++++++++++++++
+commit;
+set debug_sync='now SIGNAL go_upd';
+# Connection default:
+# reap: update t1 set f1 = 10 where f1 = 2;
+start transaction;
+select f1, right(f2, 20) as p2 from t1;
+f1	p2
+10	--------------------
+select f1, right(f2, 20) as p2 from t2;
+f1	p2
+10	%%%%%%%%%%%%%%%%%%%%
+select f1, right(f2, 20) as p2 from t3;
+f1	p2
+10	++++++++++++++++++++
+commit;
+drop table t3, t2, t1;
+set debug_sync = reset;
+#
+# Test Scenario: Three tables t1 -> t2 -> t3 are involved in update
+# cascade. If DB_LOCK_WAIT happens when t2 is being updated, then
+# retry must happen on t2.  The update cascade is happening via
+# secondary index (hence blobs are not needed).
+#
+create table t1 (f1 int primary key, f2 int, key k1(f2)) engine=innodb;
+create table t2 (f1 int primary key, f2 int,
+foreign key (f2) references t1(f2) on update cascade) engine=innodb;
+create table t3 (f1 int primary key, f2 int,
+foreign key (f2) references t2(f2) on update cascade) engine=innodb;
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `k1` (`f2`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t2;
+Table	Create Table
+t2	CREATE TABLE `t2` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t2_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t1` (`f2`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+show create table t3;
+Table	Create Table
+t3	CREATE TABLE `t3` (
+  `f1` int(11) NOT NULL,
+  `f2` int(11) DEFAULT NULL,
+  PRIMARY KEY (`f1`),
+  KEY `f2` (`f2`),
+  CONSTRAINT `t3_ibfk_1` FOREIGN KEY (`f2`) REFERENCES `t2` (`f2`) ON UPDATE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+insert into t1 values (2, 91);
+insert into t2 values (2, 91);
+insert into t3 values (2, 91);
+select f1, f2 from t1;
+f1	f2
+2	91
+select f1, f2 from t2;
+f1	f2
+2	91
+select f1, f2 from t3;
+f1	f2
+2	91
+# Connection con1:
+start transaction;
+select f1 from t3 for update;
+f1
+2
+# Connection default:
+set debug_sync='lock_wait_suspend_thread_enter SIGNAL upd_waiting WAIT_FOR go_upd';
+# send: update t1 set f2 = 28 where f2 = 91;
+update t1 set f2 = 28 where f2 = 91;
+# Connection con1:
+set debug_sync='now WAIT_FOR upd_waiting';
+rollback;
+# The table t1 is updated.
+# In t2 delete-mark happened. Retry will happen on t2.
+# In t3 yet to be updated.
+set session transaction isolation level read uncommitted;
+start transaction;
+select f1, f2 from t1;
+f1	f2
+2	28
+select f1, f2 from t2;
+f1	f2
+select f1, f2 from t3;
+f1	f2
+2	91
+commit;
+set debug_sync='now SIGNAL go_upd';
+# Connection default:
+# reap: update t1 set f2 = 28 where f2 = 91;
+start transaction;
+select f1, f2 from t1;
+f1	f2
+2	28
+select f1, f2 from t2;
+f1	f2
+2	28
+select f1, f2 from t3;
+f1	f2
+2	28
+commit;
+drop table t3, t2, t1;
+set debug_sync = reset;

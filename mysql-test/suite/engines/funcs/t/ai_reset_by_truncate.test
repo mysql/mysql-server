@@ -2,7 +2,7 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -15,7 +15,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -29,7 +29,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -42,7 +42,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -56,7 +56,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -69,7 +69,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -83,7 +83,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -96,7 +96,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -110,7 +110,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -123,7 +123,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -137,7 +137,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -150,7 +150,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -164,7 +164,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -177,7 +177,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -191,7 +191,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -204,7 +204,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -218,7 +218,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -231,7 +231,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -245,7 +245,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -258,7 +258,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -272,7 +272,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -285,7 +285,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -299,7 +299,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -312,7 +312,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -326,7 +326,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -339,7 +339,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -353,7 +353,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -366,7 +366,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -380,7 +380,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -393,7 +393,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -407,7 +407,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -420,7 +420,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -434,7 +434,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -447,7 +447,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -461,7 +461,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -474,7 +474,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -488,7 +488,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -501,7 +501,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -515,7 +515,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -528,7 +528,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -542,7 +542,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -555,7 +555,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -569,7 +569,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -582,7 +582,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -596,7 +596,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -609,7 +609,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -623,7 +623,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -636,7 +636,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -650,7 +650,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT   AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -663,7 +663,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -677,7 +677,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT   AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -690,7 +690,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -704,7 +704,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT   AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -717,7 +717,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -731,7 +731,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT   AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -744,7 +744,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -758,7 +758,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER   AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -771,7 +771,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -785,7 +785,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT   AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -798,7 +798,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -812,7 +812,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -825,7 +825,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -839,7 +839,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -852,7 +852,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -866,7 +866,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -879,7 +879,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -893,7 +893,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -906,7 +906,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -920,7 +920,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -933,7 +933,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -947,7 +947,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -960,7 +960,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -974,7 +974,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -987,7 +987,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1001,7 +1001,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1014,7 +1014,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1028,7 +1028,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1041,7 +1041,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1055,7 +1055,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1068,7 +1068,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1082,7 +1082,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1095,7 +1095,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1109,7 +1109,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1122,7 +1122,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1136,7 +1136,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1149,7 +1149,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1163,7 +1163,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1176,7 +1176,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1190,7 +1190,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1203,7 +1203,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1217,7 +1217,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1230,7 +1230,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1244,7 +1244,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1257,7 +1257,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1271,7 +1271,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1284,7 +1284,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1298,7 +1298,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1311,7 +1311,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1325,7 +1325,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1338,7 +1338,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1352,7 +1352,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1365,7 +1365,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1379,7 +1379,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1392,7 +1392,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1406,7 +1406,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1419,7 +1419,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1433,7 +1433,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL UNIQUE KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1446,7 +1446,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1460,7 +1460,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 TINYINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1473,7 +1473,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1487,7 +1487,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 SMALLINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1500,7 +1500,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1514,7 +1514,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 MEDIUMINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1527,7 +1527,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1541,7 +1541,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1554,7 +1554,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1568,7 +1568,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 INTEGER UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1581,7 +1581,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1595,7 +1595,7 @@ INSERT INTO t1 VALUES(null);
 SELECT * FROM t1;
 DROP TABLE t1;
 CREATE TABLE t1(c1 BIGINT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY ) AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);
@@ -1608,7 +1608,7 @@ INSERT INTO t1 VALUES(null);
 --sorted_result
 SELECT * FROM t1;
 ALTER TABLE t1 AUTO_INCREMENT=10;
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 --replace_result $ENGINE ENGINE " PAGE_CHECKSUM=0" ""
 SHOW CREATE TABLE t1;
 INSERT INTO t1 VALUES(null);

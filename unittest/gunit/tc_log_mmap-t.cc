@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -46,7 +46,12 @@ public:
     initializer.SetUp();
     total_ha_2pc= 2;
     tc_heuristic_recover= 0;
-    EXPECT_EQ(0, tc_log_mmap.open("tc_log_mmap_test"));
+    char namebuff[FN_REFLEN];
+    // Make a slightly randomized name for the file,
+    // to avoid recovery from other runs.
+    my_snprintf(namebuff, FN_REFLEN,
+                "tc_log_mmap_test_%d", static_cast<int>(getpid()));
+    ASSERT_EQ(0, tc_log_mmap.open(namebuff));
   }
 
   virtual void TearDown()

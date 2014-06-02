@@ -102,12 +102,11 @@ my_bool	net_flush(NET *net);
 
 #define STATE_DATA(M) (MYSQL_EXTENSION_PTR(M)->state_change)
 
-#define ADD_INFO(M, element)                                                    \
-{                                                                      \
-  M= &STATE_DATA(mysql);                                               \
-  M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node=              \
-    list_add(M->info_list[SESSION_TRACK_SYSTEM_VARIABLES].head_node,   \
-	     element);                                                 \
+#define ADD_INFO(M, element, type)                                             \
+{                                                                              \
+  M= &STATE_DATA(mysql);                                                       \
+  M->info_list[type].head_node= list_add(M->info_list[type].head_node,         \
+                                         element);                             \
 }
 
 #define native_password_plugin_name "mysql_native_password"
@@ -740,7 +739,22 @@ void read_ok_ex(MYSQL *mysql, ulong length)
   if (mysql->server_capabilities & CLIENT_SESSION_TRACK)
   {
     size_t length_msg_member= (size_t) net_field_length(&pos);
-    mysql->info= (length_msg_member ? (char *) pos : NULL);
+    if (length_msg_member)
+    {
+      if (!mysql->info_buffer)
+	mysql->info_buffer= (char *) my_malloc(PSI_NOT_INSTRUMENTED,
+	                                       MYSQL_ERRMSG_SIZE, MYF(MY_WME));
+      /*
+        If memory allocation succeeded, the string is copied.
+	Else, mysql->info remains NULL.
+      */
+      if (mysql->info_buffer)
+      {
+	strmake(mysql->info_buffer, (const char *) pos,
+	        MY_MIN(length_msg_member, MYSQL_ERRMSG_SIZE - 1));
+	mysql->info= mysql->info_buffer;
+      }
+    }
     pos += (length_msg_member);
     free_state_change_info(mysql->extension);
     if (mysql->server_status & SERVER_SESSION_STATE_CHANGED)
@@ -780,7 +794,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           /*
             Check if the changed variable was charset. In that case we need to
@@ -813,7 +827,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SYSTEM_VARIABLES);
 
           if (is_charset == 1)
           {
@@ -858,7 +872,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-	  ADD_INFO(info, element);
+	  ADD_INFO(info, element, SESSION_TRACK_SCHEMA);
 
 	  if (!(db= (char *) my_malloc(key_memory_MYSQL_state_change_info,
 		                       data->length + 1, MYF(MY_WME))))
@@ -900,7 +914,7 @@ void read_ok_ex(MYSQL *mysql, ulong length)
           pos += len;
 
           element->data= data;
-          ADD_INFO(info, element);
+          ADD_INFO(info, element, SESSION_TRACK_STATE_CHANGE);
 
           break;
         default:
@@ -3148,7 +3162,7 @@ static int send_client_reply_packet(MCPVIO_EXT *mpvio,
   else
   {
     uchar *buff_p= (uchar*) buff;
-    int2store(buff_p, mysql->client_flag);
+    int2store(buff_p, (uint16)mysql->client_flag);
     int3store(buff_p + 2, net->max_packet_size);
     end= buff+5;
   }
@@ -3457,11 +3471,11 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
   switch (vio->type) {
   case VIO_TYPE_TCPIP:
     info->protocol= MYSQL_VIO_TCP;
-    info->socket= vio_fd(vio);
+    info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SOCKET:
     info->protocol= MYSQL_VIO_SOCKET;
-    info->socket= vio_fd(vio);
+    info->socket= (int)vio_fd(vio);
     return;
   case VIO_TYPE_SSL:
     {
@@ -3471,7 +3485,7 @@ void mpvio_info(Vio *vio, MYSQL_PLUGIN_VIO_INFO *info)
         return;
       info->protocol= addr.sa_family == AF_UNIX ?
         MYSQL_VIO_SOCKET : MYSQL_VIO_TCP;
-      info->socket= vio_fd(vio);
+      info->socket= (int)vio_fd(vio);
       return;
     }
 #ifdef _WIN32
@@ -3650,7 +3664,7 @@ int run_plugin_auth(MYSQL *mysql, char *data, uint data_len,
       /* new "use different plugin" packet */
       uint len;
       auth_plugin_name= (char*)mysql->net.read_pos + 1;
-      len= strlen(auth_plugin_name); /* safe as my_net_read always appends \0 */
+      len= (uint)strlen(auth_plugin_name); /* safe as my_net_read always appends \0 */
       mpvio.cached_server_reply.pkt_len= pkt_length - len - 2;
       mpvio.cached_server_reply.pkt= mysql->net.read_pos + len + 2;
       DBUG_PRINT ("info", ("change plugin packet from server for plugin %s",
@@ -4118,7 +4132,8 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       }
 
       DBUG_PRINT("info", ("Connect socket"));
-      status= vio_socket_connect(net->vio, t_res->ai_addr, t_res->ai_addrlen,
+      status= vio_socket_connect(net->vio, t_res->ai_addr,
+                                 (socklen_t)t_res->ai_addrlen,
                                  get_vio_connect_timeout(mysql));
       /*
         Here we rely on vio_socket_connect() to return success only if
@@ -4315,11 +4330,11 @@ CLI_MYSQL_REAL_CONNECT(MYSQL *mysql,const char *host, const char *user,
       scramble_data_len= pkt_scramble_len;
       scramble_plugin= scramble_data + scramble_data_len;
       if (scramble_data + scramble_data_len > pkt_end)
-        scramble_data_len= pkt_end - scramble_data;
+        scramble_data_len= (int)(pkt_end - scramble_data);
     }
     else
     {
-      scramble_data_len= pkt_end - scramble_data;
+      scramble_data_len= (int)(pkt_end - scramble_data);
       scramble_plugin= native_password_plugin_name;
     }
   }
@@ -5542,17 +5557,27 @@ no_data:
 
   RETURN
    Signed number > 323000
+   Zero if there is no connection
 */
 
 ulong STDCALL
 mysql_get_server_version(MYSQL *mysql)
 {
-  uint major, minor, version;
-  char *pos= mysql->server_version, *end_pos;
-  major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
-  minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
-  version= (uint) strtoul(pos, &end_pos, 10);
-  return (ulong) major*10000L+(ulong) (minor*100+version);
+  ulong major= 0, minor= 0, version= 0;
+
+  if (mysql->server_version)
+  {
+    char *pos= mysql->server_version, *end_pos;
+    major=   strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+    minor=   strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+    version= strtoul(pos, &end_pos, 10);
+  }
+  else
+  {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+  }
+
+  return major*10000 + minor*100 + version;
 }
 
 
@@ -5748,7 +5773,7 @@ static int clear_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
 
   /* send password in clear text */
   res= vio->write_packet(vio, (const unsigned char *) mysql->passwd, 
-						 strlen(mysql->passwd) + 1);
+						 (int)strlen(mysql->passwd) + 1);
 
   return res ? CR_ERROR : CR_OK;
 }

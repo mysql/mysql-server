@@ -17,7 +17,7 @@
 if (!$engine_type)
 {
   # Use the default storage engine
-  let $engine_type=`SELECT @@storage_engine`;
+  let $engine_type=`SELECT @@default_storage_engine`;
 }
 
 connection master;

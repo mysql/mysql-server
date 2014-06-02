@@ -197,21 +197,6 @@ ELSE()
   SET(localstatedir ${MYSQL_DATADIR})
 ENDIF()
 
-IF(UNIX)
-  SET(EXT)
-ELSE()
-  SET(EXT ".pl")
-ENDIF()
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
-  ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT} ESCAPE_QUOTES @ONLY)
-SET(DEST ${INSTALL_SCRIPTDIR})
-
-INSTALL_SCRIPT(
- "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT}"
-  DESTINATION ${DEST}
-  COMPONENT Server
-  )
-
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})
 SET(bindir ${prefix}/${INSTALL_BINDIR})
@@ -219,6 +204,7 @@ SET(libexecdir ${prefix}/${INSTALL_SBINDIR})
 SET(scriptdir ${prefix}/${INSTALL_BINDIR})
 SET(datadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
 SET(pkgdatadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
+SET(libsubdir  ${INSTALL_LIBDIR})
 SET(pkgincludedir ${prefix}/${INSTALL_INCLUDEDIR})
 SET(pkglibdir ${prefix}/${INSTALL_LIBDIR})
 SET(pkgplugindir ${prefix}/${INSTALL_PLUGINDIR})
@@ -324,7 +310,6 @@ ELSE()
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     mysql_config
-    mysql_zap
     mysqlhotcopy
     mysqldumpslow
     mysqld_multi

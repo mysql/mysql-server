@@ -26,7 +26,7 @@ Created 12/7/1995 Heikki Tuuri
 #include "buf0dblwr.h"
 #include "fsp0types.h"
 #include "mach0data.h"
-#include "trx0sys.h"
+#include "trx0types.h"
 
 /********************************************************//**
 Opens a buffer to mlog. It must be closed with mlog_close.
@@ -165,6 +165,38 @@ mlog_catenate_ull_compressed(
 	mlog_close(mtr, log_ptr);
 }
 
+/** Writes a log record about an operation.
+@param[in]	type		redo log record type
+@param[in]	space_id	tablespace identifier
+@param[in]	page_no		page number
+@param[in,out]	log_ptr		current end of mini-transaction log
+@param[in,out]	mtr		mini-transaction
+@return	end of mini-transaction log */
+UNIV_INLINE
+byte*
+mlog_write_initial_log_record_low(
+	mlog_id_t	type,
+	ulint		space_id,
+	ulint		page_no,
+	byte*		log_ptr,
+	mtr_t*		mtr)
+{
+	ut_ad(type <= MLOG_BIGGEST_TYPE);
+	ut_ad(type == MLOG_FILE_NAME
+	      || type == MLOG_FILE_DELETE
+	      || type == MLOG_FILE_RENAME2
+	      || mtr->is_named_space(space_id));
+
+	mach_write_to_1(log_ptr, type);
+	log_ptr++;
+
+	log_ptr += mach_write_compressed(log_ptr, space_id);
+	log_ptr += mach_write_compressed(log_ptr, page_no);
+
+	mtr->added_rec();
+	return(log_ptr);
+}
+
 /********************************************************//**
 Writes the initial part of a log record (3..11 bytes).
 If the implementation of this function is changed, all
@@ -190,7 +222,6 @@ mlog_write_initial_log_record_fast(
 			ptr,
 			MTR_MEMO_PAGE_X_FIX | MTR_MEMO_PAGE_SX_FIX));
 
-	ut_ad(type <= MLOG_BIGGEST_TYPE);
 	ut_ad(ptr && log_ptr);
 
 	page = (const byte*) ut_align_down(ptr, UNIV_PAGE_SIZE);
@@ -221,15 +252,8 @@ mlog_write_initial_log_record_fast(
 		}
 	}
 
-	mach_write_to_1(log_ptr, type);
-
-	++log_ptr;
-
-	log_ptr += mach_write_compressed(log_ptr, space);
-
-	log_ptr += mach_write_compressed(log_ptr, offset);
-
-	mtr->added_rec();
+	log_ptr = mlog_write_initial_log_record_low(
+		type, space, offset, log_ptr, mtr);
 
 #ifdef UNIV_DEBUG
 	/* We now assume that all x-latched pages have been modified! */
@@ -239,35 +263,6 @@ mlog_write_initial_log_record_fast(
 		mtr->memo_push(block, MTR_MEMO_MODIFY);
 	}
 #endif /* UNIV_DEBUG */
-
-	return(log_ptr);
-}
-
-/********************************************************//**
-Writes a log record about an .ibd file create/delete/rename/truncate.
-@return	new value of log_ptr */
-UNIV_INLINE
-byte*
-mlog_write_initial_log_record_for_file_op(
-/*======================================*/
-	mlog_id_t	type,	/*!< in: MLOG_FILE_CREATE, MLOG_FILE_DELETE, or
-				MLOG_FILE_RENAME */
-	ulint		space_id,/*!< in: space id, if applicable */
-	ulint		page_no,/*!< in: page number (not relevant currently) */
-	byte*		log_ptr,/*!< in: pointer to mtr log which has been
-				opened */
-	mtr_t*		mtr)	/*!< in: mtr */
-{
-	ut_ad(log_ptr);
-
-	mach_write_to_1(log_ptr, type);
-	log_ptr++;
-
-	/* We write dummy space id and page number */
-	log_ptr += mach_write_compressed(log_ptr, space_id);
-	log_ptr += mach_write_compressed(log_ptr, page_no);
-
-	mtr->added_rec();
 
 	return(log_ptr);
 }

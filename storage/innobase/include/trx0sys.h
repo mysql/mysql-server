@@ -30,7 +30,6 @@ Created 3/26/1996 Heikki Tuuri
 
 #include "buf0buf.h"
 #include "fil0fil.h"
-#include "fsp0types.h"
 #include "trx0types.h"
 #ifndef UNIV_HOTBACKUP
 #include "mem0mem.h"
@@ -58,7 +57,7 @@ extern char		trx_sys_mysql_master_log_name[];
 /** Master binlog file position.  We have successfully got the updates
 up to this position.  -1 means that no crash recovery was needed, or
 there was no master log position info inside InnoDB.*/
-extern ib_int64_t	trx_sys_mysql_master_log_pos;
+extern int64_t		trx_sys_mysql_master_log_pos;
 /* @} */
 
 /** If this MySQL server uses binary logging, after InnoDB has been inited
@@ -68,7 +67,7 @@ here. */
 /** Binlog file name */
 extern char		trx_sys_mysql_bin_log_name[];
 /** Binlog file position, or -1 if unknown */
-extern ib_int64_t	trx_sys_mysql_bin_log_pos;
+extern int64_t		trx_sys_mysql_bin_log_pos;
 /* @} */
 
 /** The transaction system */
@@ -300,7 +299,7 @@ void
 trx_sys_update_mysql_binlog_offset(
 /*===============================*/
 	const char*	file_name,/*!< in: MySQL log file name */
-	ib_int64_t	offset,	/*!< in: position in that log file */
+	int64_t		offset,	/*!< in: position in that log file */
 	ulint		field,	/*!< in: offset of the MySQL log info field in
 				the trx sys header */
 	mtr_t*		mtr);	/*!< in: mtr */
@@ -471,15 +470,10 @@ trx_sys_validate_trx_list();
 /*========================*/
 #endif /* UNIV_DEBUG */
 
-/* The automatically created system rollback segment has this id */
+/** The automatically created system rollback segment has this id */
 #define TRX_SYS_SYSTEM_RSEG_ID	0
 
-/* Space id and page no where the trx system file copy resides */
-#define	TRX_SYS_SPACE	0	/* the SYSTEM tablespace */
-#include "fsp0fsp.h"
-#define	TRX_SYS_PAGE_NO	FSP_TRX_SYS_PAGE_NO
-
-/* The offset of the transaction system header on the page */
+/** The offset of the transaction system header on the page */
 #define	TRX_SYS		FSEG_PAGE_DATA
 
 /** Transaction system header */
