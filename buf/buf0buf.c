@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -2519,7 +2519,9 @@ loop:
 		rw_lock_s_unlock(&buf_pool->page_hash_latch);
 	}
 
+#if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 loop2:
+#endif
 	if (block && buf_pool_watch_is_sentinel(buf_pool, &block->page)) {
 		mutex_exit(block_mutex);
 		block = NULL;
