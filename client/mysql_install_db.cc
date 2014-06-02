@@ -585,21 +585,26 @@ bool locate_file(const string &filename, vector<Path > *search_paths,
   return true;
 }
 
-void add_standard_search_paths(vector<Path > *spaths, const string &path)
+void add_standard_search_paths(vector<Path > *spaths)
 {
   Path p;
   if (!p.getcwd())
     warning << "Can't determine current working directory." << endl;
 
   spaths->push_back(p);
-  spaths->push_back(Path(p).append("/").
-    append(path));
-  spaths->push_back(Path("/usr/").
-    append(path));
-  spaths->push_back(Path("/usr/local/").
-    append(path));
-  spaths->push_back(Path("/opt/mysql/").
-    append(path));
+  spaths->push_back(Path(p).append("/bin"));
+  spaths->push_back(Path("/usr/bin"));
+  spaths->push_back(Path("/usr/local/bin"));
+  spaths->push_back(Path("/opt/mysql/bin"));
+#ifdef DEFAULT_MYSQL_HOME
+  spaths->push_back(Path(DEFAULT_MYSQL_HOME));
+  spaths->push_back(Path(DEFAULT_MYSQL_HOME).append("/bin"));
+#endif
+#ifdef DEFAULT_BASEDIR
+  spaths->push_back(Path(DEFAULT_BASEDIR));
+  spaths->push_back(Path(DEFAULT_BASEDIR).append("/bin"));
+#endif
+  
 }
 
 /**
@@ -648,7 +653,7 @@ bool assert_mysqld_exists(const string &opt_mysqldfile,
         append("sql"));
     }
 
-    add_standard_search_paths(&spaths,"bin");
+    add_standard_search_paths(&spaths);
 
     if (!locate_file(MYSQLD_EXECUTABLE, &spaths, qpath))
     {
@@ -791,6 +796,73 @@ private:
 
 };
 
+struct Comment_extractor
+{
+  Comment_extractor() : m_in_comment(false) {}
+  ~Comment_extractor() {}
+
+ bool operator()(string &line);
+private:
+  bool m_in_comment;
+};
+
+bool Comment_extractor::operator ()(string& line)
+{
+
+  /* Are we in a multi comment? */
+  if (m_in_comment)
+  {
+    string::size_type i= line.find("*/");
+    if (i != string::npos)
+    {
+      m_in_comment= false;
+      string::iterator b= line.begin();
+      advance(b, i+2);
+      line.erase(line.begin(), b);
+      if (line.empty())
+        return true;
+    }
+    else
+    {
+      /* We're still in a multi comment clear the line */
+      line.clear();
+    }
+  }
+  else
+  {
+    string::size_type i= line.find("--");
+    if (i != string::npos)
+    {
+      string::iterator it= line.begin();
+      advance(it, i);
+      line.erase(it,line.end());
+      return true;
+    }
+    i= line.find("/*");
+    if (i != string::npos)
+    {
+      m_in_comment= true;
+      string::iterator a= line.begin();
+      advance(a, i);
+      string::iterator b;
+      string::size_type j= line.find("*/");
+      if (j != string::npos)
+      {
+        b= line.begin();
+        advance(b, j+2);
+        m_in_comment= false;
+      }
+      else
+        b= line.end();
+      line.erase(a, b);
+      if (line.empty())
+        return true;
+    }
+  }
+
+  return m_in_comment;
+}
+
 class Process_writer
 {
 public:
@@ -875,11 +947,16 @@ public:
         string sql_command;
         string default_se_command("SET default_storage_engine=INNODB;\n");
         int n= write(fh, default_se_command.c_str(), default_se_command.length());
+        Comment_extractor strip_comments;
         while (!getline(fin, sql_command).eof() && errno != EPIPE &&
              n != 0)
         {
-          sql_command.append("\n");
-          n= write(fh, sql_command.c_str(), sql_command.length());
+          bool is_comment= strip_comments(sql_command);
+          if (!is_comment)
+          {
+            sql_command.append("\n");
+            n= write(fh, sql_command.c_str(), sql_command.length());
+          }
         }
         fin.close();
       }
