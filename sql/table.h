@@ -2096,7 +2096,7 @@ struct TABLE_LIST
   void set_materialized_derived()
   {
     DBUG_ENTER("set_materialized_derived");
-    derived_type= ((derived_type & DTYPE_MASK) |
+    derived_type= ((derived_type & (derived ? DTYPE_MASK : DTYPE_VIEW)) |
                    DTYPE_TABLE | DTYPE_MATERIALIZE);
     set_check_materialized();
     DBUG_VOID_RETURN;

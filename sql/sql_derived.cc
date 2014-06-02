@@ -392,17 +392,13 @@ bool mysql_derived_merge(THD *thd, LEX *lex, TABLE_LIST *derived)
     if (parent_lex->get_free_table_map(&map, &tablenr))
     {
       /* There is no enough table bits, fall back to materialization. */
-      derived->change_refs_to_fields();
-      derived->set_materialized_derived();
-      goto exit_merge;
+      goto unconditional_materialization;
     }
 
     if (dt_select->leaf_tables.elements + tablenr > MAX_TABLES)
     {
       /* There is no enough table bits, fall back to materialization. */
-      derived->change_refs_to_fields();
-      derived->set_materialized_derived();
-      goto exit_merge;
+      goto unconditional_materialization;
     }
 
     if (dt_select->options & OPTION_SCHEMA_TABLE)
@@ -473,6 +469,15 @@ exit_merge:
   if (arena)
     thd->restore_active_arena(arena, &backup);
   DBUG_RETURN(res);
+
+unconditional_materialization:
+  derived->change_refs_to_fields();
+  derived->set_materialized_derived();
+  if (!derived->table || !derived->table->created)
+    res= mysql_derived_create(thd, lex, derived);
+  if (!res)
+    res= mysql_derived_fill(thd, lex, derived);
+  goto exit_merge;
 }
 
 

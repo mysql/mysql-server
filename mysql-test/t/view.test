@@ -1,7 +1,7 @@
 
 --disable_warnings
-drop table if exists t1,t2,t3,t4,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
-drop view if exists t1,t2,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop table if exists t1,t2,t3,t4,t5,t6,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
+drop view if exists t1,t2,t3,t4,t5,t6,t9,`t1a``b`,v1,v2,v3,v4,v5,v6;
 drop database if exists mysqltest;
 --enable_warnings
 use test;
@@ -4083,6 +4083,118 @@ select * from t2;
 DROP VIEW v1,v2,v3;
 DROP TABLE t1,t2;
 
+--echo #
+--echo # MDEV-6251: SIGSEGV in query optimizer (in set_check_materialized 
+--echo # with MERGE view)
+--echo #
+
+CREATE TABLE t1 (a1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (b1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t3 (c1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t4 (d1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t5 (e1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t6 (f1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+  
+CREATE OR REPLACE view v1 AS
+  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+;
+
+SELECT 1
+FROM ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t1)
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t2) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t3) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t4) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t5) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t6) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t7) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t8) ON 1=1
+;
+
+SELECT 1
+FROM (v1 t1)
+LEFT OUTER JOIN (v1 t2) ON 1=1
+LEFT OUTER JOIN (v1 t3) ON 1=1
+LEFT OUTER JOIN (v1 t4) ON 1=1
+LEFT OUTER JOIN (v1 t5) ON 1=1
+LEFT OUTER JOIN (v1 t6) ON 1=1
+LEFT OUTER JOIN (v1 t7) ON 1=1
+LEFT OUTER JOIN (v1 t8) ON 1=1
+;
+
+drop view v1;
+drop table t1,t2,t3,t4,t5,t6;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.2 tests.
 --echo # -----------------------------------------------------------------
@@ -4971,6 +5083,119 @@ execute stmt1;
 deallocate prepare stmt1;
 drop view v1,v2;
 drop table t1,t2;
+
+--echo #
+--echo # MDEV-6251: SIGSEGV in query optimizer (in set_check_materialized 
+--echo # with MERGE view)
+--echo #
+
+CREATE TABLE t1 (a1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t2 (b1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t3 (c1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t4 (d1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t5 (e1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+CREATE TABLE t6 (f1 INT(11) NOT NULL DEFAULT NULL AUTO_INCREMENT PRIMARY KEY);
+  
+CREATE OR REPLACE view v1 AS
+  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+;
+
+SELECT 1
+FROM ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t1)
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t2) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t3) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t4) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t5) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t6) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t7) ON 1=1
+LEFT OUTER JOIN ((  SELECT 1
+  FROM t1 a_alias_1
+    LEFT JOIN (t2 b_alias_1 JOIN t1 a_alias_2) ON b_alias_1.b1 = a_alias_1.a1 AND a_alias_2.a1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_1 ON c_alias_1.c1 = a_alias_1.a1
+    LEFT JOIN t4 d_alias_1 ON d_alias_1.d1 = a_alias_1.a1
+    LEFT JOIN t3 c_alias_2 ON c_alias_2.c1 = a_alias_1.a1
+    LEFT JOIN t5 e_alias_1 ON e_alias_1.e1 = a_alias_1.a1
+    LEFT JOIN t6 f_alias_1 ON f_alias_1.f1 = a_alias_1.a1
+) t8) ON 1=1
+;
+
+SELECT 1
+FROM (v1 t1)
+LEFT OUTER JOIN (v1 t2) ON 1=1
+LEFT OUTER JOIN (v1 t3) ON 1=1
+LEFT OUTER JOIN (v1 t4) ON 1=1
+LEFT OUTER JOIN (v1 t5) ON 1=1
+LEFT OUTER JOIN (v1 t6) ON 1=1
+LEFT OUTER JOIN (v1 t7) ON 1=1
+LEFT OUTER JOIN (v1 t8) ON 1=1
+;
+
+drop view v1;
+drop table t1,t2,t3,t4,t5,t6;
+
 --echo # -----------------------------------------------------------------
 --echo # -- End of 5.3 tests.
 --echo # -----------------------------------------------------------------

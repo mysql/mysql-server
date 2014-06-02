@@ -4975,6 +4975,10 @@ void TABLE_LIST::set_check_merged()
 
 void TABLE_LIST::set_check_materialized()
 {
+  DBUG_ENTER("TABLE_LIST::set_check_materialized");
+  SELECT_LEX_UNIT *derived= this->derived;
+  if (view)
+    derived= &view->unit;
   DBUG_ASSERT(derived);
   if (!derived->first_select()->exclude_from_table_unique_test)
     derived->set_unique_exclude();
@@ -4987,6 +4991,7 @@ void TABLE_LIST::set_check_materialized()
                 derived->first_select()->first_inner_unit()->first_select()->
                 exclude_from_table_unique_test);
   }
+  DBUG_VOID_RETURN;
 }
 
 TABLE *TABLE_LIST::get_real_join_table()
