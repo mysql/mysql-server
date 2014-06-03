@@ -1274,8 +1274,8 @@ SELECT(SELECT 1 AS a LIMIT 1) AS dev;
 SELECT(SELECT 1 AS a FROM dual ORDER BY a DESC LIMIT 1) AS dev;
 
 --echo #
---echo # LP bug#1010729: Unexpected syntax error from UNION
---echo # (bug #54382)    with single-table join nest      
+--echo # lp:1010729: Unexpected syntax error from UNION
+--echo # (bug #54382) with single-table join nest      
 --echo #
 CREATE TABLE t1 (a int);
 CREATE TABLE t2 (b int);
@@ -1292,3 +1292,11 @@ SELECT t1.pk FROM t1 LEFT JOIN (t2) ON (t1.pk = t2.fk);
 
 DROP TABLE t1,t2;
 
+#
+# Bug #18167356: EXPLAIN W/ EXISTS(SELECT* UNION SELECT*)
+#                WHERE ONE OF SELECT* IS DISTINCT FAILS.
+#
+create table t1 (a int);
+insert t1 values (1),(2),(3),(1);
+explain select 1 from dual where exists (select max(a) from t1 group by a union select a+2 from t1);
+drop table t1;
