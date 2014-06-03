@@ -111,6 +111,7 @@ insert into customerdiscount(customerid, discountid) values(101, 1);
 insert into customerdiscount(customerid, discountid) values(101, 3);
 insert into customerdiscount(customerid, discountid) values(101, 4);
 insert into customerdiscount(customerid, discountid) values(102, 2);
+insert into customerdiscount(customerid, discountid) values(103, 3);
 
 create table testfk.fkdifferentdb (
   id int not null primary key,

@@ -137,6 +137,7 @@ var oneToOneMappingProperties = {
 
 // These functions return error message, or empty string if valid
 function verifyProperty(property, value, verifiers) {
+  udebug.log_detail('verifyProperty', property, value);
   var isValid = '', chk;
   if(verifiers[property]) {
     chk = verifiers[property](value);    
@@ -183,6 +184,7 @@ function isValidFieldMappingArray(fieldMappings) {
 }
 
 var tableMappingProperties = {
+  "error"         : isString,
   "table"         : isNonEmptyString,
   "database"      : isString, 
   "mapAllColumns" : isBool,
@@ -192,7 +194,15 @@ var tableMappingProperties = {
 };
 
 function isValidTableMapping(tm) {
-  return isValidMapping(tm, tableMappingProperties);
+  var err = isValidMapping(tm, tableMappingProperties);
+  if (!err) {
+    // make sure there is a valid table
+    if (!tm.hasOwnProperty('table')) {
+      return '\nRequired property \'table\' is missing.';
+    }
+  } else {
+    return err;
+  }
 }
 
 function buildMappingFromObject(mapping, literal, verifier) {
@@ -237,7 +247,10 @@ function TableMapping(tableNameOrLiteral) {
 
     case 'string':
       var parts = tableNameOrLiteral.split(".");
-      if(parts[0] && parts[1]) {
+      if (parts[2] || tableNameOrLiteral.indexOf(' ') !== -1) {
+        this.error = 'MappingError: tableName must contain one or two parts: [database.]table';
+        this.table = parts[0];
+      } else if(parts[0] && parts[1]) {
         this.database = parts[0];
         this.table = parts[1];
       }
@@ -248,13 +261,12 @@ function TableMapping(tableNameOrLiteral) {
       break;
     
     default: 
-      throw new Error("TableMapping(): tableName or tableMapping required.");
+      this.error = "MappingError: string tableName or literal tableMapping is a required parameter.";
   }
-  
   err = isValidTableMapping(this);
-  if(err.length) {
-    throw new Error(err);
-  }  
+  if (err) {
+    this.error += err;
+  }
 }
 /* Get prototype from documentation
 */
@@ -279,7 +291,7 @@ FieldMapping.prototype = doc.FieldMapping;
    Create or replace FieldMapping for fieldName
 */
 TableMapping.prototype.mapField = function() {
-  var i, args, fieldName, fieldMapping, err;
+  var i, args, fieldName, fieldMapping;
   args = arguments;  
 
   function getFieldMapping(tableMapping, fieldName) {
@@ -312,7 +324,7 @@ TableMapping.prototype.mapField = function() {
           fieldMapping.converter = args[i];
           break;
         default:
-          throw new Error("Invalid argument " + args[i]);
+          this.error += "mapField(): Invalid argument " + args[i];
       }
     }
   }
@@ -322,20 +334,18 @@ TableMapping.prototype.mapField = function() {
     buildMappingFromObject(fieldMapping, args[0], fieldMappingProperties);
   }
   else {
-    throw new Error("mapField() expects a literal FieldMapping or valid arguments list");
+    this.error +="\nmapField() expects a literal FieldMapping or valid arguments list";
   }
 
   /* Validate the candidate mapping */
-  err = isValidFieldMapping(fieldMapping);
-  if(err.length) {
-    throw new Error(err);
-  }
+  this.error  += isValidFieldMapping(fieldMapping);
 
   return this;
 };
 
 function createRelationshipFieldFromLiteral(relationshipProperties, tableMapping, literal) {
   var relationship = new relationshipProperties.ctor();
+  relationship.error = '';
   var fieldValidator, value, valid;
   var errorMessage = "";
   // iterate the literal and set properties
@@ -347,7 +357,7 @@ function createRelationshipFieldFromLiteral(relationshipProperties, tableMapping
           literal[literalField]);
       fieldValidator = relationshipProperties[literalField];
       if (!fieldValidator) {
-        errorMessage += "Invalid literal field: " + literalField + "\n";
+        errorMessage += "\nMappingError: invalid literal field: " + literalField + "\n";
       } else {
         value = literal[literalField];
         valid = fieldValidator(value);
@@ -355,16 +365,22 @@ function createRelationshipFieldFromLiteral(relationshipProperties, tableMapping
         if (valid) {
           relationship[literalField] = value;
         } else {
-          errorMessage += "Invalid value for literal field: " + literalField + "\n";
+          errorMessage += "\nMappingError: invalid value for literal field: " + literalField + "\n";
         }
       }
     }
   }
   if (!relationship.fieldName) {
-    errorMessage += "fieldName is a required field for literal mapping";
+    errorMessage += "\nMappingError: fieldName is a required field for relationship mapping";
+  }
+  if (!relationship.targetField && !relationship.foreignKey && !relationship.joinTable) {
+    errorMessage += "\nMappingError: targetField, foreignKey, or joinTable is a required field for relationship mapping";
+  }
+  if (!relationship.target) {
+    errorMessage += '\nMappingError: target is a required field for relationship mapping';
   }
   if (errorMessage) {
-    throw new Error("Error while mapping " + relationshipProperties.type + ":\n" + errorMessage);
+    tableMapping.error += errorMessage;
   }
   return relationship;
 }
@@ -378,7 +394,7 @@ TableMapping.prototype.mapOneToOne = function(literalMapping) {
     mapping = createRelationshipFieldFromLiteral(oneToOneMappingProperties, this, literalMapping);
     this.fields.push(mapping);
   } else {
-    throw new Error('mapOneToOne supports only literal field mapping');
+    this.error += '\nMappingError: mapOneToOne supports only literal field mapping';
   }
   return this;
 };
@@ -392,7 +408,7 @@ TableMapping.prototype.mapManyToOne = function(literalMapping) {
     mapping = createRelationshipFieldFromLiteral(manyToOneMappingProperties, this, literalMapping);
     this.fields.push(mapping);
   } else {
-    throw new Error('mapManyToOne supports only literal field mapping');
+    this.error += '\nMappingError: mapManyToOne supports only literal field mapping';
   }
   return this;
 };
@@ -406,7 +422,7 @@ TableMapping.prototype.mapOneToMany = function(literalMapping) {
     mapping = createRelationshipFieldFromLiteral(oneToManyMappingProperties, this, literalMapping);
     this.fields.push(mapping);
   } else {
-    throw new Error('mapManyToOne supports only literal field mapping');
+    this.error += '\nMappingError: mapManyToOne supports only literal field mapping';
   }
   return this;
 };
@@ -420,7 +436,7 @@ TableMapping.prototype.mapManyToMany = function(literalMapping) {
     mapping = createRelationshipFieldFromLiteral(manyToManyMappingProperties, this, literalMapping);
     this.fields.push(mapping);
   } else {
-    throw new Error('mapManyToOne supports only literal field mapping');
+    this.error += '\nMappingError: mapManyToOne supports only literal field mapping';
   }
   return this;
 };
@@ -437,7 +453,7 @@ TableMapping.prototype.applyToClass = function(ctor) {
     ctor.prototype.mynode.mappingId = ++mappingId;
   }
   else {
-    throw new Error("applyToClass() parameter must be constructor");
+    this.error += '\nMappingError: applyToClass() parameter must be constructor';
   }
   
   return ctor;

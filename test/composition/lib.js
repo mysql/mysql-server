@@ -52,6 +52,14 @@ function Item(id, description) {
   }  
 }
 
+function Discount(id, description, percent) {
+  if (typeof id !== 'undefined') {
+    this.id = id;
+    this.description = description;
+    this.percent = percent;
+  }  
+}
+
 function mapCustomer() {
   // map customer
   var customerMapping = new mynode.TableMapping('customer');
@@ -63,6 +71,11 @@ function mapCustomer() {
     target:      ShoppingCart, 
     targetField: 'customer' 
   } ); 
+  customerMapping.mapManyToMany( {
+    fieldName:   'discounts',
+    target:      Discount,
+    targetField: 'customers'
+  } );
 
   customerMapping.applyToClass(Customer);
 }
@@ -124,14 +137,6 @@ function mapItem() {
   itemMapping.applyToClass(Item);
 }
 
-function Discount(id, description, percent) {
-  if (typeof id !== 'undefined') {
-    this.id = id;
-    this.description = description;
-    this.percent = percent;
-  }  
-}
-
 function mapDiscount() {
   var discountMapping = new mynode.TableMapping('discount');
   discountMapping.mapField('id');
@@ -142,7 +147,6 @@ function mapDiscount() {
     fieldName:  'customers',
     target:      Customer,
     joinTable:  'customerdiscount',
-    targetField: 'discounts' 
   } ); 
 
   discountMapping.applyToClass(Discount);
@@ -273,6 +277,19 @@ function verifyProjection(tc, p, e, a) {
       var actualField;
       var expectedRelationship;
       var actualRelationship;
+      // check that the actual object exists and is unexpected
+      if (expected !== null && actual === null ||
+          typeof expected !== 'undefined' && typeof actual === 'undefined') {
+        testCase.appendErrorMessage('\n' + testCase.name +
+              ' VerifyProjection failure for ' + domainObjectName +
+              '\nexpected: ' + util.inspect(expected) + '\nactual: ' + actual);
+        return;
+      }
+      // check for null and undefined 
+      if (typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined' ||
+          expectedRelationship === null && actualRelationship === null) {
+        return;
+      }
       // verify the fields first
       projection.fields.forEach(function(fieldName) {
         expectedField = expected[fieldName];
