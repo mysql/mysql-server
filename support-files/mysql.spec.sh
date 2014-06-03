@@ -592,8 +592,6 @@ touch $RBR%{_sysconfdir}/my.cnf
 install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
-# Temporary removal of man file
-rm -rf $RBR%{_mandir}/man1/mysqlhotcopy.1*
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
@@ -1112,8 +1110,8 @@ echo "====="                                     >> $STATUS_HISTORY
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
-
 %attr(755, root, root) %{_datadir}/mysql/
+%dir %attr(755, mysql, mysql) /var/lib/mysql
 
 # ----------------------------------------------------------------------------
 %files -n MySQL-client%{product_suffix}
@@ -1191,6 +1189,9 @@ echo "====="                                     >> $STATUS_HISTORY
 # merging BK trees)
 ##############################################################################
 %changelog
+* Wed May 28 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
+- Updated usergroup to mysql on datadir
+
 * Wed Oct 30 2013 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com>
 - Removed non gpl file docs/mysql.info from community packages
 

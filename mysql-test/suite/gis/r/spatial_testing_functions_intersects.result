@@ -1,0 +1,2676 @@
+#Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+#Confirming the storage engine
+SHOW VARIABLES LIKE '%engine%';
+Variable_name	Value
+default_storage_engine	MyISAM
+default_tmp_storage_engine	MyISAM
+#Creating the spatial Geometry object
+USE test;
+DROP TABLE IF EXISTS gis_geometrycollection;
+CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_1= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_1= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center_1= 'POINT(15 10)';
+SET @star_top_1= 'POINT(15 25)';
+SET @star_bottom_left_1= 'POINT(5 0)';
+SET @star_bottom_right_1= 'POINT(25 0)';
+SET @star_bottom_points_1= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points_1= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal_1= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical_1= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center_1= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal_1= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical_1= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star_1= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val_1= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val_1= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems_1='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems_1='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_2= 'POLYGON((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_2= 'POLYGON((35 0,10 15,40 15,32 10,35 0))';
+SET @star_center_2= 'POINT(25 10)';
+SET @star_top_2= 'POINT(25 25)';
+SET @star_bottom_left_2= 'POINT(15 0)';
+SET @star_bottom_right_2= 'POINT(35 0)';
+SET @star_bottom_points_2= 'MULTIPOINT(15 0,35 0)';
+SET @star_all_points_2= 'MULTIPOINT(15 0,35 0,35 10,25 25)';
+SET @star_line_horizontal_2= 'LINESTRING(20 15,30 15)';
+SET @star_line_vertical_2= 'LINESTRING(25 5,25 25)';
+SET @star_top_to_center_2= 'LINESTRING(25 25,25 10)';
+SET @star_lines_near_horizontal_2= 'MULTILINESTRING((35 0,10 15,25 30,10 5))';
+SET @star_lines_near_vertical_2= 'MULTILINESTRING((10 5,25 25,10 25))';
+SET @star_2= 'POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0))';
+SET @star_elem_vertical_val_2= '((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_val_2= '((35 0,10 15,40 15,32 10,35 0))';
+SET @star_of_elems_2='MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0)))';
+SET @star_collection_elems_2='GEOMETRYCOLLECTION(MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0))),POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0)),LINESTRING(25 25,25 10),MULTIPOINT(15 0,35 0),POINT(25 25))';
+SET @star_elem_vertical_3= 'POLYGON((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_3= 'POLYGON((85 0,60 15,90 15,82 10,85 0))';
+SET @star_center_3= 'POINT(75 10)';
+SET @star_top_3= 'POINT(75 25)';
+SET @star_bottom_left_3= 'POINT(65 0)';
+SET @star_bottom_right_3= 'POINT(85 0)';
+SET @star_bottom_points_3= 'MULTIPOINT(65 0,85 0)';
+SET @star_all_points_3= 'MULTIPOINT(65 0,85 0,75 10,75 25)';
+SET @star_line_horizontal_3= 'LINESTRING(70 15,80 15)';
+SET @star_line_vertical_3= 'LINESTRING(75 5,75 25)';
+SET @star_top_to_center_3= 'LINESTRING(75 25,75 10)';
+SET @star_lines_near_horizontal_3= 'MULTILINESTRING((85 0,60 15,85 30,60 5))';
+SET @star_lines_near_vertical_3= 'MULTILINESTRING((60 5,75 25,60 25))';
+SET @star_3= 'POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0))';
+SET @star_elem_vertical_val_3= '((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
+SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
+SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
+#INSERT base star
+INSERT INTO gis_geometrycollection VALUES
+(100,GeomFromText(@star)),
+(101,GeomFromText(@star_elem_vertical)),
+(102,GeomFromText(@star_elem_horizontal)),
+(103,GeomFromText(@star_of_elems)),
+(104,GeomFromText(@star_top)),
+(105,GeomFromText(@star_center)),
+(106,GeomFromText(@star_bottom_left)),
+(107,GeomFromText(@star_bottom_right)),
+(108,GeomFromText(@star_bottom_points)),
+(109,GeomFromText(@star_all_points)),
+(110,GeomFromText(@star_line_horizontal)),
+(111,GeomFromText(@star_line_vertical)),
+(112,GeomFromText(@star_top_to_center)),
+(113,GeomFromText(@star_lines_near_horizontal)),
+(114,GeomFromText(@star_lines_near_vertical)),
+(115,GeomFromText(@star_collection_elems));
+#INSERT identical (to base) star
+INSERT INTO gis_geometrycollection VALUES
+(200,GeomFromText(@star_1)),
+(201,GeomFromText(@star_elem_vertical_1)),
+(202,GeomFromText(@star_elem_horizontal_1)),
+(203,GeomFromText(@star_of_elems_1)),
+(204,GeomFromText(@star_top_1)),
+(205,GeomFromText(@star_center_1)),
+(206,GeomFromText(@star_bottom_left_1)),
+(207,GeomFromText(@star_bottom_right_1)),
+(208,GeomFromText(@star_bottom_points_1)),
+(209,GeomFromText(@star_all_points_1)),
+(210,GeomFromText(@star_line_horizontal_1)),
+(211,GeomFromText(@star_line_vertical_1)),
+(212,GeomFromText(@star_top_to_center_1)),
+(213,GeomFromText(@star_lines_near_horizontal_1)),
+(214,GeomFromText(@star_lines_near_vertical_1)),
+(215,GeomFromText(@star_collection_elems_1));
+#INSERT overlapping star
+INSERT INTO gis_geometrycollection VALUES
+(300,GeomFromText(@star_2)),
+(301,GeomFromText(@star_elem_vertical_2)),
+(302,GeomFromText(@star_elem_horizontal_2)),
+(303,GeomFromText(@star_of_elems_2)),
+(304,GeomFromText(@star_top_2)),
+(305,GeomFromText(@star_center_2)),
+(306,GeomFromText(@star_bottom_left_2)),
+(307,GeomFromText(@star_bottom_right_2)),
+(308,GeomFromText(@star_bottom_points_2)),
+(309,GeomFromText(@star_all_points_2)),
+(310,GeomFromText(@star_line_horizontal_2)),
+(311,GeomFromText(@star_line_vertical_2)),
+(312,GeomFromText(@star_top_to_center_2)),
+(313,GeomFromText(@star_lines_near_horizontal_2)),
+(314,GeomFromText(@star_lines_near_vertical_2)),
+(315,GeomFromText(@star_collection_elems_2));
+#INSERT seperate star
+INSERT INTO gis_geometrycollection VALUES
+(400,GeomFromText(@star_3)),
+(401,GeomFromText(@star_elem_vertical_3)),
+(402,GeomFromText(@star_elem_horizontal_3)),
+(403,GeomFromText(@star_of_elems_3)),
+(404,GeomFromText(@star_top_3)),
+(405,GeomFromText(@star_center_3)),
+(406,GeomFromText(@star_bottom_left_3)),
+(407,GeomFromText(@star_bottom_right_3)),
+(408,GeomFromText(@star_bottom_points_3)),
+(409,GeomFromText(@star_all_points_3)),
+(410,GeomFromText(@star_line_horizontal_3)),
+(411,GeomFromText(@star_line_vertical_3)),
+(412,GeomFromText(@star_top_to_center_3)),
+(413,GeomFromText(@star_lines_near_horizontal_3)),
+(414,GeomFromText(@star_lines_near_vertical_3)),
+(415,GeomFromText(@star_collection_elems_3));
+DROP TABLE IF EXISTS gis_geometrycollection_2;
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+#Checking the integrity of the above create/insert statements 
+#64 rows. 
+SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
+count(astext(g) != 'NULL')
+64
+#64 rows. 
+SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
+count(astext(g2) != 'NULL')
+64
+#=======================================================================================
+# MBRIntersects(g1,g2)
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT MBRIntersects(GeomFromText(@star_center),GeomFromText(@star_center));
+MBRIntersects(GeomFromText(@star_center),GeomFromText(@star_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_center));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_center))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+MBRIntersects(g,GeomFromText(@star_center))
+1
+#point,multipoint
+SELECT MBRIntersects(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+MBRIntersects(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+MBRIntersects(g,GeomFromText(@star_bottom_points))
+1
+#point,linestring
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+#point,multilinestring
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+1
+#point,polygon
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star))
+1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
+0
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+MBRIntersects(g,GeomFromText(@star))
+1
+#point,multipolygon
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+#point,geometrycollection
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_top));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_top))
+1
+SELECT MBRIntersects(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+MBRIntersects(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+MBRIntersects(g,GeomFromText(@star_bottom_left))
+1
+#multipoint,multipoint
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+1
+SELECT MBRIntersects(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+MBRIntersects(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+MBRIntersects(g,GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+MBRIntersects(g,GeomFromText(@star_all_points))
+1
+#multipoint,linestring
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+#multipoint,multilinestring
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+MBRIntersects(g,GeomFromText(@star_lines_near_horizontal))
+1
+#multipoint,polygon
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+MBRIntersects(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+MBRIntersects(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+MBRIntersects(g,GeomFromText(@star_elem_horizontal))
+1
+#multipoint,multipolygon
+SELECT MBRIntersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+#multipoint,geometrycollection
+SELECT MBRIntersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT MBRIntersects(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+MBRIntersects(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+MBRIntersects(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+MBRIntersects(g,g2)
+0
+#linestring,multipoint
+SELECT MBRIntersects(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+MBRIntersects(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+MBRIntersects(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+MBRIntersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT MBRIntersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+MBRIntersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT MBRIntersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+MBRIntersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+#linestring,linestring
+SELECT MBRIntersects(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+MBRIntersects(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+MBRIntersects(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+0
+#linestring,multilinestring
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+MBRIntersects(g,GeomFromText(@star_lines_near_horizontal))
+1
+#linestring,polygon
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT MBRIntersects(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+MBRIntersects(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+1
+#linestring,multipolygon
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+0
+SELECT MBRIntersects(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+MBRIntersects(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+#linestring,geometrycollection
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+0
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText(@star_top))
+1
+#multilinestring,multipoint
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+0
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText(@star_bottom_points))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+MBRIntersects(g,g2)
+0
+#multilinestring,linestring
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+0
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText(@star_line_vertical))
+1
+#multilinestring,multilinestring
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+0
+SELECT MBRIntersects(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+#multilinestring,polygon
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+#multilinestring,multipolygon
+SELECT MBRIntersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+#multilinestring,geometrycollection
+SELECT MBRIntersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_center));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+MBRIntersects(g,GeomFromText(@star_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_center))
+0
+#polygon,multipoint
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_all_points));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_all_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_all_points))
+0
+#polygon,linestring
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_line_vertical));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_line_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_line_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_line_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_line_vertical))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+MBRIntersects(g,g2)
+1
+#polygon,multilinestring
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#polygon,polygon
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+0
+#polygon,multipolygon
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+0
+#polygon,geometrycollection
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRIntersects(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_top))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_top))
+0
+#multipolygon,multipoint
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_bottom_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_bottom_points))
+0
+#multipolygon,linestring
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+0
+#multipolygon,multilinestring
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#multipolygon,polygon
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+0
+#multipolygon,multipolygon
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_of_elems))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRIntersects(g,g2)
+1
+#multipolygon,geometrycollection
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+MBRIntersects(g,g2)
+1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_top))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_top))
+0
+#geometrycollection,multipoint
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_bottom_points))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_bottom_points))
+0
+#geometrycollection,linestring
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_top_to_center))
+0
+#geometrycollection,multilinestring
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#geometrycollection,polygon
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_elem_vertical))
+0
+#geometrycollection,multipolygon
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems))
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+MBRIntersects(g,g2)
+1
+#geometrycollection,geometrycollection
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRIntersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+MBRIntersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRIntersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+MBRIntersects(g,g2)
+1
+SELECT MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+MBRIntersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+1
+#=======================================================================================
+# ST_Intersects(g1,g2)
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT ST_Intersects(GeomFromText(@star_center),GeomFromText(@star_center));
+ST_Intersects(GeomFromText(@star_center),GeomFromText(@star_center))
+1
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_center));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+ST_Intersects(g,GeomFromText(@star_center))
+1
+#point,multipoint
+SELECT ST_Intersects(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+ST_Intersects(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+1
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+ST_Intersects(g,GeomFromText(@star_bottom_points))
+1
+#point,linestring
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
+0
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+#point,multilinestring
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
+0
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#point,polygon
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star))
+1
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
+0
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+ST_Intersects(g,GeomFromText(@star))
+1
+#point,multipolygon
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+#point,geometrycollection
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top))
+1
+SELECT ST_Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+ST_Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+ST_Intersects(g,GeomFromText(@star_bottom_left))
+1
+#multipoint,multipoint
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+1
+SELECT ST_Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+ST_Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+ST_Intersects(g,GeomFromText(@star_all_points))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+ST_Intersects(g,GeomFromText(@star_all_points))
+0
+#multipoint,linestring
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+#multipoint,multilinestring
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+0
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_Intersects(g,GeomFromText(@star_lines_near_horizontal))
+0
+#multipoint,polygon
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_Intersects(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+ST_Intersects(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+ST_Intersects(g,GeomFromText(@star_elem_horizontal))
+0
+#multipoint,multipolygon
+SELECT ST_Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+0
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+0
+#multipoint,geometrycollection
+SELECT ST_Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+ST_Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT ST_Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+ST_Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+0
+SELECT ST_Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+ST_Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+ST_Intersects(g,g2)
+0
+#linestring,multipoint
+SELECT ST_Intersects(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+ST_Intersects(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+ST_Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+0
+SELECT ST_Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+ST_Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT ST_Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+ST_Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT ST_Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+ST_Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+#linestring,linestring
+SELECT ST_Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+ST_Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+ST_Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+#linestring,multilinestring
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+ST_Intersects(g,GeomFromText(@star_lines_near_horizontal))
+0
+#linestring,polygon
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT ST_Intersects(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+ST_Intersects(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+0
+#linestring,multipolygon
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+0
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+0
+SELECT ST_Intersects(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+ST_Intersects(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+0
+#linestring,geometrycollection
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+1
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+ST_Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText(@star_top))
+0
+#multilinestring,multipoint
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText(@star_bottom_points))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+ST_Intersects(g,g2)
+0
+#multilinestring,linestring
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText(@star_line_vertical))
+1
+#multilinestring,multilinestring
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+0
+SELECT ST_Intersects(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+#multilinestring,polygon
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
+0
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#multilinestring,multipolygon
+SELECT ST_Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+#multilinestring,geometrycollection
+SELECT ST_Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_center));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_center))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_center))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+ST_Intersects(g,GeomFromText(@star_center))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_center))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_center))
+0
+#polygon,multipoint
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_all_points));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_all_points))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_all_points))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_all_points))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_all_points))
+0
+#polygon,linestring
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_line_vertical));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_line_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_line_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_line_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_line_vertical))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+ST_Intersects(g,g2)
+1
+#polygon,multilinestring
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#polygon,polygon
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#polygon,multipolygon
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+0
+#polygon,goemetrycollection
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+ST_Intersects(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_top))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_top))
+0
+#multipolygon,multipoint
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_bottom_points))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_bottom_points))
+0
+#multipolygon,linestring
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+#multipolygon,multilinestring
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#multipolygon,polygon
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#multipolygon,multipolygon
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_of_elems))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Intersects(g,g2)
+1
+#multipolygon,geometrycollection
+SELECT ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+ST_Intersects(g,g2)
+1
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_top))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_top))
+0
+#geometrycollection,multipoint
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_bottom_points))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_bottom_points))
+0
+#geometrycollection,linestring
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_top_to_center))
+0
+#geometrycollection,multilinestring
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#geometrycollection,polygon
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#geometrycollection,multipolygon
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems))
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+ST_Intersects(g,g2)
+1
+#geometrycollection,geometrycollection
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+ST_Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+ST_Intersects(g,g2)
+1
+SELECT ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+ST_Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+1
+#=======================================================================================
+# Intersects(g1,g2)
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT Intersects(GeomFromText(@star_center),GeomFromText(@star_center));
+Intersects(GeomFromText(@star_center),GeomFromText(@star_center))
+1
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_center));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_center))
+0
+SELECT Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+Intersects(g,GeomFromText(@star_center))
+1
+#point,multipoint
+SELECT Intersects(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+Intersects(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+1
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
+0
+SELECT Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+Intersects(g,GeomFromText(@star_bottom_points))
+1
+#point,linestring
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
+0
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+#point,multilinestring
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+#point,polygon
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star));
+Intersects(GeomFromText(@star_top),GeomFromText(@star))
+1
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
+0
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+Intersects(g,GeomFromText(@star))
+1
+#point,multipolygon
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
+Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
+0
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+#point,geometrycollection
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
+0
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top))
+1
+SELECT Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+0
+SELECT Intersects(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+Intersects(g,GeomFromText(@star_bottom_left))
+1
+#multipoint,multipoint
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+1
+SELECT Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+Intersects(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+1
+SELECT Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+Intersects(g,GeomFromText(@star_all_points))
+1
+SELECT Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+Intersects(g,GeomFromText(@star_all_points))
+1
+#multipoint,linestring
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+#multipoint,multilinestring
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+Intersects(g,GeomFromText(@star_lines_near_horizontal))
+1
+#multipoint,polygon
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+Intersects(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+Intersects(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+Intersects(g,GeomFromText(@star_elem_horizontal))
+1
+#multipoint,multipolygon
+SELECT Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+#multipoint,geometrycollection
+SELECT Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+Intersects(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+1
+SELECT Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+Intersects(g,g2)
+0
+#linestring,multipoint
+SELECT Intersects(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+Intersects(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+1
+SELECT Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+Intersects(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+#linestring,linestring
+SELECT Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+Intersects(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+Intersects(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+Intersects(g,GeomFromText(@star_top_to_center))
+0
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+Intersects(g,GeomFromText(@star_top_to_center))
+0
+#linestring,multilinestring
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+Intersects(g,GeomFromText(@star_lines_near_horizontal))
+1
+#linestring,polygon
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT Intersects(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+Intersects(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+1
+#linestring,multipolygon
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+0
+SELECT Intersects(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+Intersects(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+#linestring,multipolygon
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+0
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+Intersects(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+0
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+0
+SELECT Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText(@star_top))
+1
+#multilinestring,multipoint
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+0
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+1
+SELECT Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText(@star_bottom_points))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+Intersects(g,g2)
+0
+#multilinestring,linestring
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+0
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+0
+SELECT Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText(@star_line_vertical))
+1
+#multilinestring,multilinestring
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+0
+SELECT Intersects(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+#multilinestring,polygon
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+#multilinestring,multipolygon
+SELECT Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+#multilinestring,geometrycollection
+SELECT Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+Intersects(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_center));
+Intersects(GeomFromText(@star),GeomFromText(@star_center))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+0
+SELECT Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_center))
+1
+SELECT Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+Intersects(g,GeomFromText(@star_center))
+1
+SELECT Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_center))
+1
+SELECT Intersects(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_center))
+0
+#polygon,multipoint
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_all_points));
+Intersects(GeomFromText(@star),GeomFromText(@star_all_points))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+1
+SELECT Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_all_points))
+1
+SELECT Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_all_points))
+1
+SELECT Intersects(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_all_points))
+0
+#polygon,linestring
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_line_vertical));
+Intersects(GeomFromText(@star),GeomFromText(@star_line_vertical))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_line_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_line_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_line_vertical))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+Intersects(g,g2)
+1
+#polygon,multilinestring
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+Intersects(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#polygon,polygon
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#polygon,multipolygon
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_of_elems))
+0
+#polygon,geometrycollection
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT Intersects(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+Intersects(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+Intersects(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_top))
+1
+SELECT Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_top))
+0
+#multipolygon,multipoint
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_bottom_points))
+1
+SELECT Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_bottom_points))
+0
+#multipolygon,linestring
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+Intersects(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_top_to_center))
+0
+#multipolygon,multilinestring
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#multipolygon,polygon
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+Intersects(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#multipolygon,multipolygon
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+Intersects(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+Intersects(g,GeomFromText(@star_of_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_of_elems))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Intersects(g,g2)
+1
+#multipolygon,geometrycollection
+SELECT Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+Intersects(g,g2)
+1
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_top))
+1
+SELECT Intersects(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_top))
+0
+#geometrycollection,multipoint
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_bottom_points))
+1
+SELECT Intersects(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_bottom_points))
+0
+#geometrycollection,linestring
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_top_to_center))
+1
+SELECT Intersects(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_top_to_center))
+0
+#geometrycollection,multilinestring
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_lines_near_vertical))
+0
+#geometrycollection,polygon
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+Intersects(g,GeomFromText(@star_elem_vertical))
+1
+SELECT Intersects(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_elem_vertical))
+0
+#geometrycollection,multipolygon
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems))
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+Intersects(g,g2)
+1
+#geometrycollection,geometrycollection
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+Intersects(g,GeomFromText(@star_collection_elems))
+1
+SELECT Intersects(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+Intersects(g,GeomFromText(@star_collection_elems))
+0
+SELECT Intersects(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+Intersects(g,g2)
+1
+SELECT Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+Intersects(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+1
+#=======================================================================================
+# Testing Intersects() with 2 geometries of same SRID
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#MBRIntersects(g1,g2)
+SELECT MBRIntersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+MBRIntersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+MBRIntersects(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+MBRIntersects(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+MBRIntersects(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+MBRIntersects(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+MBRIntersects(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+MBRIntersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+MBRIntersects(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+MBRIntersects(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
+#-------------------------------------------------------------------------------------------
+#ST_Intersects(g1,g2)
+SELECT ST_Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+ST_Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+ST_Intersects(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+ST_Intersects(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+ST_Intersects(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+ST_Intersects(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+ST_Intersects(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+ST_Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+ST_Intersects(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+ST_Intersects(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
+#-------------------------------------------------------------------------------------------
+#Intersects(g1,g2)
+SELECT Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT Intersects(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+Intersects(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+0
+SELECT Intersects(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+Intersects(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+0
+SELECT Intersects(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+Intersects(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+0
+SELECT Intersects(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+Intersects(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT Intersects(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+Intersects(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT Intersects(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+Intersects(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT Intersects(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+Intersects(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
+#=======================================================================================
+# Invalid function calls
+#=======================================================================================
+SELECT Intersects(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+Intersects(GeomFromText(@star_top),GeomFromText(@star_center,4326))
+0
+SELECT Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326))
+0
+SELECT Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
+Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
+0
+SELECT Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT Intersects(NULL,GeomFromText(@star_top));
+Intersects(NULL,GeomFromText(@star_top))
+NULL
+SELECT Intersects(GeomFromText(@star_of_elems),NULL);
+Intersects(GeomFromText(@star_of_elems),NULL)
+NULL
+SELECT Intersects(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Intersects(g,NULL)
+NULL
+SELECT Intersects(NULL,NULL);
+Intersects(NULL,NULL)
+NULL
+SELECT Intersects(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Intersects(fid,NULL)
+NULL
+SELECT Intersects(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Intersects(fid,GeomFromText(@star_top))
+NULL
+SELECT Intersects(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Intersects(GeomFromText(@star_of_elems),fid)
+NULL
+SELECT Intersects(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT Intersects(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT Intersects(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Intersects(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT Intersects(GeomFromText(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT Intersects(,GeomFromText(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
+SELECT ST_Intersects(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_intersects given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT ST_Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_intersects given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT ST_Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
+ST_Intersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+ST_Intersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT ST_Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+ST_Intersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT ST_Intersects(NULL,GeomFromText(@star_top));
+ST_Intersects(NULL,GeomFromText(@star_top))
+NULL
+SELECT ST_Intersects(GeomFromText(@star_of_elems),NULL);
+ST_Intersects(GeomFromText(@star_of_elems),NULL)
+NULL
+SELECT ST_Intersects(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Intersects(g,NULL)
+NULL
+SELECT ST_Intersects(NULL,NULL);
+ST_Intersects(NULL,NULL)
+NULL
+SELECT ST_Intersects(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Intersects(fid,NULL)
+NULL
+SELECT ST_Intersects(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Intersects(fid,GeomFromText(@star_top))
+NULL
+SELECT ST_Intersects(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Intersects(GeomFromText(@star_of_elems),fid)
+NULL
+SELECT ST_Intersects(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_Intersects(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_Intersects(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Intersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Intersects(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT ST_Intersects(GeomFromText(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT ST_Intersects(,GeomFromText(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
+SELECT MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+MBRIntersects(GeomFromText(@star_top),GeomFromText(@star_center,4326))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+MBRIntersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
+MBRIntersects(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+MBRIntersects(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT MBRIntersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+MBRIntersects(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT MBRIntersects(NULL,GeomFromText(@star_top));
+MBRIntersects(NULL,GeomFromText(@star_top))
+NULL
+SELECT MBRIntersects(GeomFromText(@star_of_elems),NULL);
+MBRIntersects(GeomFromText(@star_of_elems),NULL)
+NULL
+SELECT MBRIntersects(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRIntersects(g,NULL)
+NULL
+SELECT MBRIntersects(NULL,NULL);
+MBRIntersects(NULL,NULL)
+NULL
+SELECT MBRIntersects(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRIntersects(fid,NULL)
+NULL
+SELECT MBRIntersects(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRIntersects(fid,GeomFromText(@star_top))
+NULL
+SELECT MBRIntersects(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRIntersects(GeomFromText(@star_of_elems),fid)
+NULL
+SELECT MBRIntersects(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT MBRIntersects(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT MBRIntersects(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT MBRIntersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRIntersects(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRIntersects(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT MBRIntersects(GeomFromText(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT MBRIntersects(,GeomFromText(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
+#clean up
+DROP TABLE IF EXISTS gis_geometrycollection;
+DROP TABLE IF EXISTS gis_geometrycollection_2;

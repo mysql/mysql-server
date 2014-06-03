@@ -4951,17 +4951,7 @@ static bool handle_offline_mode(sys_var *self, THD *thd, enum_var_type type)
 {
   DBUG_ENTER("handle_offline_mode");
   if (offline_mode == TRUE)
-  {
-    /*
-    We allow other global variables to be updated as killing threads
-    can be a time consuming operation. PLock_offline_mode ensures that
-    offline_mode cannot be updated.
-    LOCK_global_system_variables is acquired at the end of this function.
-    */
-    mysql_mutex_unlock(&LOCK_global_system_variables);
     killall_non_super_threads(thd);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-  }
   DBUG_RETURN(false);
 }
 

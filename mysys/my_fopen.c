@@ -117,15 +117,16 @@ static FILE *my_win_freopen(const char *path, const char *mode, FILE *stream)
 
     fd= _fileno(stream);
   }
-  else
-    _close(fd);
 
   if ((osfh= CreateFile(path, GENERIC_READ | GENERIC_WRITE,
                         FILE_SHARE_READ | FILE_SHARE_WRITE |
                         FILE_SHARE_DELETE, NULL,
                         OPEN_ALWAYS, FILE_ATTRIBUTE_NORMAL,
                         NULL)) == INVALID_HANDLE_VALUE)
+  {
+    _close(fd);
     return NULL;
+  }
 
   if ((handle_fd= _open_osfhandle((intptr_t)osfh,
                                   _O_APPEND | _O_TEXT)) == -1)

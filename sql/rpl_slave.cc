@@ -8531,10 +8531,9 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
-  for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
+  for (size_t i= 0; i < lex_mi->repl_ignore_server_ids.size(); i++)
   {
-    ulong s_id;
-    get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
+    ulong s_id= lex_mi->repl_ignore_server_ids[i];
     if (s_id == ::server_id && replicate_same_server_id)
     {
       my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
