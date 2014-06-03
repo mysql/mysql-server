@@ -322,6 +322,9 @@ public:
   static bool needs_conversion(uint32 arg_length,
   			       CHARSET_INFO *cs_from, CHARSET_INFO *cs_to,
 			       uint32 *offset);
+  static bool needs_conversion_on_storage(uint32 arg_length,
+                                          CHARSET_INFO *cs_from,
+                                          CHARSET_INFO *cs_to);
   bool copy_aligned(const char *s, uint32 arg_length, uint32 offset,
 		    CHARSET_INFO *cs);
   bool set_or_copy_aligned(const char *s, uint32 arg_length, CHARSET_INFO *cs);

@@ -637,3 +637,24 @@ create table t1(a point);
 drop table t1;
 
 --echo End of 5.1 tests
+
+--echo #
+--echo # Bug#11759519 INFINITE HANG WITH 100% CPU USAGE WITH LOAD DATA LOCAL AND IMPORT ERRORS
+--echo #
+SET @old_mode= @@sql_mode;
+CREATE TABLE t1 (fld1 INT);
+--copy_file $EXE_MYSQL $MYSQLTEST_VARDIR/mysql
+
+SET sql_mode='strict_all_tables';
+
+--echo # Without fix, load data hangs forever.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,1000
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
+     FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
+
+SET @@sql_mode= @old_mode;
+
+--remove_file $MYSQLTEST_VARDIR/mysql
+DROP TABLE t1;
+

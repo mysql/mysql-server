@@ -147,6 +147,14 @@ SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
 a	b	c
 1	ABC-АБВ	DEF-ÂÃÄ
 2	NULL	NULL
+SELECT * FROM t1;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t2;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
 SELECT * FROM t1 INTO OUTFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' LINES STARTING BY 'ъ';
 Warnings:
 Warning	1638	Non-ASCII separator arguments are not fully supported
@@ -172,6 +180,14 @@ LOAD DATA INFILE 'MYSQLTEST_VARDIR/tmp/t1.txt' INTO TABLE t2 CHARACTER SET binar
 Warnings:
 Warning	1638	Non-ASCII separator arguments are not fully supported
 SELECT * FROM t1 UNION SELECT * FROM t2 ORDER BY a, b, c;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t1;
+a	b	c
+1	ABC-АБВ	DEF-ÂÃÄ
+2	NULL	NULL
+SELECT * FROM t2;
 a	b	c
 1	ABC-АБВ	DEF-ÂÃÄ
 2	NULL	NULL

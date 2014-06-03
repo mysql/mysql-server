@@ -4319,21 +4319,31 @@ const char * STDCALL mysql_error(MYSQL *mysql)
 
   RETURN
    Signed number > 323000
+   Zero if there is no connection
 */
 
 ulong STDCALL
 mysql_get_server_version(MYSQL *mysql)
 {
-  uint major, minor, version;
-  const char *pos= mysql->server_version;
-  char *end_pos;
-  /* Skip possible prefix */
-  while (*pos && !my_isdigit(&my_charset_latin1, *pos))
-    pos++;
-  major=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
-  minor=   (uint) strtoul(pos, &end_pos, 10);	pos=end_pos+1;
-  version= (uint) strtoul(pos, &end_pos, 10);
-  return (ulong) major*10000L+(ulong) (minor*100+version);
+  ulong major= 0, minor= 0, version= 0;
+
+  if (mysql->server_version)
+  {
+    const char *pos= mysql->server_version;
+    char *end_pos;
+    /* Skip possible prefix */
+    while (*pos && !my_isdigit(&my_charset_latin1, *pos))
+      pos++;
+    major=   strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+    minor=   strtoul(pos, &end_pos, 10);	pos=end_pos+1;
+    version= strtoul(pos, &end_pos, 10);
+  }
+  else
+  {
+    set_mysql_error(mysql, CR_COMMANDS_OUT_OF_SYNC, unknown_sqlstate);
+  }
+
+  return major*10000 + minor*100 + version;
 }
 
 
