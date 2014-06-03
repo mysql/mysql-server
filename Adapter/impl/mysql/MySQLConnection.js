@@ -607,12 +607,34 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
   };
 }
 
+function showProjection(projections, msg) {
+  var projection, next;
+  if (projections.length > 0) {
+    projection = projections.shift();
+    next = projection.firstNestedProjection;
+    msg += '\nprojection name: ' + projection.name + ' for ' + projection.domainObject.name;
+    msg += ' with ' + projection.sectors.length + ' sectors.';
+    if (next) {
+      msg += '\n    ' + next.domainObject.name;
+      projections.push(next);
+    }
+    showProjection(projections, msg);
+  } else {
+    console.log(msg);
+    return msg;
+  }
+}
+
 /** Initialize the projection object for use with mysql adapter.
  * The projection object is organized into sectors, one for each domain object.
  * A sector contains a count of fields, a list of field names, and the offset column 
  * corresponding to the first column mapped to the first field.
  * All primary key fields are always included, plus any fields identified in the fields array
  * of the corresponding projection for the domain object.
+ * Build the sql statement to use for the projection. SELECT... FROM... WHERE... ORDER BY...
+ * For each sector, add the mapped table to the FROM clause including the join condition.
+ * Add the key and non-key columns to the SELECT clause.
+ * Add ORDER BY key columns for multi-value relationships.
  */
 function initializeProjection(projection) {
   var mysql = {};
@@ -621,12 +643,14 @@ function initializeProjection(projection) {
   var sector, sectorName;
   var relatedSectorName;
   var select, from, on, alias, order;
+  var thisOn, otherOn, and;
 
   var selectDelimiter, fromDelimiter, orderDelimiter;
   var columnName;
   var joinType, joinIndex;
   var offset;
   var keyField, nonKeyField;
+  var errors = '';
 
   // create the sql query for the find method.
   select = 'SELECT ';
@@ -637,6 +661,7 @@ function initializeProjection(projection) {
   orderDelimiter = '';
   alias = 0;
   offset = 0;
+
   for (i = 0; i < projection.sectors.length; ++i) {
     sector = projection.sectors[i];
     udebug.log_detail('initializeProjection for sector\n', sector);
@@ -650,32 +675,74 @@ function initializeProjection(projection) {
     relatedSectorName = 't' + (i - 1);
     joinType = '';
     on = '';
-    if (sector.relatedFieldMapping) {
+    if (sector.relatedFieldMapping && i > 0) {
       sector.relatedTableName = sector.relatedTableHandler.dbTable.database + '.' + sector.relatedTableHandler.dbTable.name;
-      joinType = ' LEFT OUTER JOIN ';
-      on = ' ON ';
-      for (joinIndex = 0; joinIndex < sector.thisJoinColumns.length; ++joinIndex) {
-        on += relatedSectorName + '.' + sector.otherJoinColumns[joinIndex] + ' = ' + 
-              sectorName + '.' + sector.thisJoinColumns[joinIndex];
-      }
-      if (sector.relatedFieldMapping.toMany) {
-        // order by key columns that can have multiple values (toMany relationships)
-        for (j = 0; j < sector.keyFields.length; ++j) {
-          keyField = sector.keyFields[j];
-          columnName = keyField.columnName;
-          order += orderDelimiter + sectorName + '.' + columnName;
-          orderDelimiter = ', ';
+      if (sector.relatedFieldMapping.toMany && sector.relatedFieldMapping.manyTo) {
+        // join table mapping
+        // create a join table reference based on current table name
+        // join tables are "between" tables that are joined for many-to-many relationships
+        // ... t1 LEFT OUTER JOIN customerdiscount AS t15 on [t1.k = t15.k and...] 
+        //     LEFT OUTER JOIN discount AS t2 on [t15.k = t2.k and ...]
+        sector.joinTableName = sector.joinTableHandler.dbTable.database + '.' + sector.joinTableHandler.dbTable.name;
+        sector.joinTableAlias = relatedSectorName + 'J';
+        udebug.log_detail('initializeProjection join table handling for', sector.joinTableName, 'AS', sector.joinTableAlias,
+            'thisForeignKey.columnNames', sector.relatedFieldMapping.thisForeignKey.columnNames,
+            'otherForeignKey.columnNames', sector.relatedFieldMapping.otherForeignKey.columnNames);
+        // generate the join from the previous domain table to the join table
+        joinType = ' LEFT OUTER JOIN ';
+        thisOn = ' ON ';
+        and = '';
+        for (joinIndex = 0; joinIndex < sector.relatedFieldMapping.thisForeignKey.columnNames.length; ++joinIndex) {
+          thisOn += and + relatedSectorName + '.' + sector.relatedFieldMapping.thisForeignKey.targetColumnNames[joinIndex] + ' = ' +
+              sector.joinTableAlias + '.' + sector.relatedFieldMapping.thisForeignKey.columnNames[joinIndex];
+          and = ' AND ';
         }
+        from += fromDelimiter + joinType + sector.joinTableName + ' AS ' + sector.joinTableAlias + thisOn;
+
+        // generate the join from the join table to this domain table
+        otherOn = ' ON ';
+        and = '';
+        for (joinIndex = 0; joinIndex < sector.relatedFieldMapping.otherForeignKey.columnNames.length; ++joinIndex) {
+          otherOn += and + sector.joinTableAlias + '.' + sector.relatedFieldMapping.otherForeignKey.columnNames[joinIndex] + ' = ' +
+          sectorName + '.' + sector.relatedFieldMapping.otherForeignKey.targetColumnNames[joinIndex];
+          and = ' AND ';
+        }
+        from += fromDelimiter + joinType + sector.tableName + ' AS ' + sectorName + otherOn;
+        
+      } else {
+        // foreign key mapping for one-to-one, one-to-many, and many-to-one relationships
+        joinType = ' LEFT OUTER JOIN ';
+        on = ' ON ';
+        and = '';
+        for (joinIndex = 0; joinIndex < sector.thisJoinColumns.length; ++joinIndex) {
+          on += and + relatedSectorName + '.' + sector.otherJoinColumns[joinIndex] + ' = ' + 
+                sectorName + '.' + sector.thisJoinColumns[joinIndex];
+          and = ' AND ';
+        }
+        if (sector.relatedFieldMapping.toMany) {
+          // order by key columns that can have multiple values (toMany relationships)
+          for (j = 0; j < sector.keyFields.length; ++j) {
+            keyField = sector.keyFields[j];
+            columnName = keyField.columnName;
+            order += orderDelimiter + sectorName + '.' + columnName;
+            orderDelimiter = ', ';
+          }
+        }
+        from += fromDelimiter + joinType + sector.tableName + ' AS ' + sectorName + on;
       }
+    } else {
+      // first table is always t0
+      from += sector.tableName + ' AS ' + sectorName;
+      fromDelimiter = ' ';
     }
-    from += fromDelimiter + joinType + sector.tableName + ' AS ' + sectorName + on;
-    fromDelimiter = ' ';
+    // add key column names to SELECT clause
     for (j = 0; j < sector.keyFields.length; ++j) {
       keyField = sector.keyFields[j];
       columnName = keyField.columnName;
       select += selectDelimiter + sectorName + '.' + columnName + ' AS \'' + alias++ + '\'';
       selectDelimiter = ', ';
     }
+    // add non-key column names to SELECT clause
     for (j = 0; j < sector.nonKeyFields.length; ++j) {
       nonKeyField = sector.nonKeyFields[j];
       columnName = nonKeyField.columnName;
@@ -685,6 +752,7 @@ function initializeProjection(projection) {
   }
   mysql.select = select;
   mysql.from = from;
+  mysql.sectors = projection.sectors;
   if (order) {
     mysql.order = 'ORDER BY ' + order;
   } else {
@@ -692,20 +760,20 @@ function initializeProjection(projection) {
   }
   // mark this as having been processed
   projection.mysql.id = projection.id;
-
-  udebug.log_detail('initializeProjection after initializing sector\n', sector);
 }
 
 
 /** Read projection executes sql with parameters and creates results according to the projection.
- * Each row returned from felix contains results for possibly many objects. 
- * The results are kept in a tuple in which each object is contained in the object to its left.
- * When analyzing rows, starting with the leftmost object in the tuple, the key values in each tuple
+ * Each row returned from felix contains results for possibly many objects.
+ * Each sector may create a new domain object (tuple) using the DBTableHandler constructor.
+ * The results are kept in a tuple array in which each domain object is contained in the object to its left.
+ * When analyzing rows, starting with the leftmost object in the tuple array, the key values in each tuple
  * are compared to the corresponding key values in the row. If the keys are the same, processing
- * continues with the next object in the tuple. If the keys are different, or no object exists,
- * a new object is created and processing continues with the next object in the tuple. 
- * Processing the last tuple in the row will always create a new object.
- * Once the last tuple is processed, the function returns and the next row will be processed.
+ * continues with the next object in the tuple array. If the keys are different, or no object exists,
+ * a new object is created and processing continues with the next object in the tuple.
+ * In this case, the tuples to the "right" of the newly created tuple belong to the previous tuple and are discarded.
+ * [Processing the last tuple in the row will always create a new object.]
+ * Once the last sector is processed, the function returns and the next row will be processed.
  * At the end of the last row, the callback is called, which will return the result.value to the user.
  */
 function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, keys, callback) {
@@ -713,12 +781,13 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
   this.selectSQL = projection.mysql.select + projection.mysql.from + where + projection.mysql.order;
   var query;
   this.type = 'read';
-  this.projection = projection;
   this.keys = keys;
   this.callback = callback;
   this.result = {};
   this.err = null;
-  var tuples = [];
+  this.tuples = [];
+  this.sectors = projection.mysql.sectors;
+  this.rows = 0;
   op_stats.read++;
 
   /** Is the key of the sector in this row null? */
@@ -752,28 +821,27 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
     return false;
   }
   
-  /** Set to null tuples starting at tupleStart to the end of the tuples array */
+  /** Set to null those tuples starting at tupleStart to the end of the tuples array */
   function resetTuples(tupleStart) {
     var tupleIndex;
-    for (tupleIndex = tupleStart; tupleIndex < tuples.length; ++tupleIndex) {
-      tuples[tupleIndex] = null;
+    for (tupleIndex = tupleStart; tupleIndex < op.tuples.length; ++tupleIndex) {
+      op.tuples[tupleIndex] = null;
     }
   }
   
-
-
   function onResult(row) {
     var i;
     var sector;
-    var tuple;
+    var tuple = null;
     var relationship;
     var nullValue;
+    op.rows++;
     // process the row by sector, left to right
-    udebug.log_detail('ScanProjectionOperation.onResult processing row:\n', row);
+    udebug.log_detail('onResult processing row with', op.sectors.length, 'sectors:\n', row);
     // do each sector in turn
-    for (i = 0; i < projection.sectors.length; ++i) {
-      sector = projection.sectors[i];
-      tuple = tuples[i];
+    for (i = 0; i < op.sectors.length; ++i) {
+      sector = op.sectors[i];
+      tuple = op.tuples[i];
       // if the keys in the row for this sector are null set the related object if any
       if (isRowSectorKeyNull(row, sector)) {
         // if there is a relationship, set the value to the default for the relationship
@@ -784,7 +852,7 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
           } else {
             nullValue = null;
           }
-          tuples[i - 1][sector.relatedFieldMapping.fieldName] = nullValue;
+          op.tuples[i - 1][sector.relatedFieldMapping.fieldName] = nullValue;
         }
         resetTuples(i);
         break;
@@ -794,40 +862,50 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
         // keys do not match the current object; create a new one
         tuple = sector.tableHandler.newResultObjectFromRow(row, 'mysql',
             sector.offset, sector.keyFields, sector.nonKeyFields);
-        tuples[i] = tuple;
+        op.tuples[i] = tuple;
         // the rest of the tuples belong to the previous object
         resetTuples(i + 1);
         // assign the new object to the relationship field of the previous object
         if (i > 0) {
           if (sector.relatedFieldMapping.toMany) {
             // relationship is an array
-            relationship = tuples[i - 1][sector.relatedFieldMapping.fieldName];
+            relationship = op.tuples[i - 1][sector.relatedFieldMapping.fieldName];
             if (!relationship) {
-              relationship = tuples[i - 1][sector.relatedFieldMapping.fieldName] = [];
+              relationship = op.tuples[i - 1][sector.relatedFieldMapping.fieldName] = [];
             }
             relationship.push(tuple);
           } else {
             // relationship is a reference
-            tuples[i - 1][sector.relatedFieldMapping.fieldName] = tuple;
+            op.tuples[i - 1][sector.relatedFieldMapping.fieldName] = tuple;
           }
         }
       }
     }
   }
-  function onFields(fields) {
-    // we don't need this because we already know what to expect
-  }
+
   function onError(e) {
-    // just remember the error
-    // the error will be returned at onEnd
+    // remember the error; the error will be returned at onEnd
+    e.message += '\nsql:\n' + op.selectSQL + '\nwith keys: ' + op.keys;
     op.result.error = e;
+    op.result.error.sqlstate = 'HY000';
   }
+
   function onEnd() {
     // done processing all the rows
-    if (tuples[0]) {
+    if (op.tuples.length !== 0) {
       // we had a result
-      op.result.value = tuples[0];
+      op.result.value = op.tuples[0];
       op.result.success = true;
+    } else if (!op.result.error) {
+      if (op.rows > 0) {
+        throw new Error(op.rows + ' were processed but no tuples were returned. Sectors:\n' + op.sectors);
+      }
+      // no error was reported, but there is no result, so make up a "row not found" error
+      op.result.value = null;
+      op.result.success = false;
+      op.result.error = {};
+      op.result.error.code = 1032;
+      op.result.error.sqlstate = "02000";
     }
     if (typeof(op.callback) === 'function') {
     // call the UserContext callback
@@ -838,7 +916,7 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
   }
   
   this.execute = function(connection, operationCompleteCallback) {
-    udebug.log('ReadProjectionOperation.execute with SQL:\n ', this.selectSQL, '\nkeys: ', this.keys);
+    udebug.log_detail('ReadProjectionOperation.execute with SQL:\n ', this.selectSQL, '\nkeys: ', this.keys);
     op.operationCompleteCallback = operationCompleteCallback;
     // we have to format the query string ourselves because the variant of connection.query
     // with no callback does not allow formatting parameters
@@ -850,7 +928,6 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
     query.
     on('end', onEnd).
     on('error', onError).
-    on('fields', onFields).
     on('result', onResult);
   };
 }
@@ -1260,8 +1337,9 @@ exports.DBSession.prototype.buildReadProjectionOperation =
     function(dbIndexHandler, keys, projection, transaction, callback) {
   udebug.log_detail('dbSession.buildReadProjectionOperation with indexHandler:\n', dbIndexHandler.dbIndex.name,
       'keys:\n', keys);
+
   // process the projection object if it has not been processed since it was last changed
-  if (!projection.mysql || projection.mysql.id !== projection.id) {
+  if (!projection.mysql || (projection.mysql.id !== projection.id)) {
     // we need to (re-)initialize the projection object for use with mysql adapter
     initializeProjection(projection);
   }

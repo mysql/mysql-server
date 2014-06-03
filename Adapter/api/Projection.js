@@ -28,14 +28,16 @@ var udebug       = unified_debug.getLogger("Projection.js"),
 function Projection(domainObject) {
   if (typeof domainObject === 'function') {
     this.domainObject = domainObject;
+    this.name = 'no-name';
+    this.validated = false; // this projection has not been validated or has changed since validation
+    this.id = 0;            // initial value for projection id; when validated it will be 1
+    this.fields = [];
+    this.relationships = {};
+    this.usedBy = [];
+    this.error = '';
   } else {
-    throw new Error ('The parameter of Projection constructor must be a domain object (constructor function).');
+    this.error = 'The parameter of Projection constructor must be a domain object (constructor function).';
   }
-  this.validated = false; // this projection has not been validated or has changed since validation
-  this.id = 0;            // initial value for projection id; when validated it will be 1
-  this.fields = [];
-  this.relationships = {};
-  this.usedBy = [];
 }
 
 /** Invalidate this projection and all projections used by this projection.
@@ -59,7 +61,6 @@ Projection.prototype.addFields = function() {
   var projection = this;
   var toBeInvalidated = [this];
   invalidateAll(toBeInvalidated);
-  var errors = '';
   var i, j;
   var argument;
   var field;
@@ -74,15 +75,14 @@ Projection.prototype.addFields = function() {
         if (typeof field === 'string') {
           projection.fields.push(field);
         } else {
-          errors += '\nField names must be strings or arrays of strings ' + field;
+          projection.error += '\nError in addFields for ' + projection.domainObject.prototype.constructor.name +
+          ' Field names must be strings or arrays of strings ' + field;
         }
       }
     } else {
-      errors += '\nField names must be strings or arrays of strings ' + argument;
+      projection.error += '\nError in addFields for ' + projection.domainObject.prototype.constructor.name +
+          ' Field names must be strings or arrays of strings ' + argument;
     }
-  }
-  if (errors !== '') {
-    throw new Error('Error in addFields: ' + errors);
   }
 
   return this;
@@ -97,18 +97,19 @@ Projection.prototype.addRelationship = function(fieldName, relationshipProjectio
   invalidateAll(toBeInvalidated);
   var errors = '';
   if (typeof fieldName !== 'string') {
-    errors += '\nfieldName must be a string';
+    projection.error += '\nError in addRelationship for ' + projection.domainObject.prototype.constructor.name +
+        'fieldName must be a string ' + fieldName;
   }
   if (typeof relationshipProjection !== 'object' ||
       relationshipProjection.constructor.name !== 'Projection') {
-    errors += '\nrelationshipProjection must be a projection';
+    projection.error += '\nError in addRelationship for ' + projection.domainObject.prototype.constructor.name +
+        ' parameter relationshipProjection must be a projection for field ' + fieldName;
   }
-  if (errors !== '') {
-    throw new Error('Error in addRelationship: ' + errors);
-  } 
-  projection.relationships[fieldName] = relationshipProjection;
-  // establish the used-by relationship
-  relationshipProjection.usedBy.push(this);
+  if (!projection.error) {
+    projection.relationships[fieldName] = relationshipProjection;
+    // establish the used-by relationship
+    relationshipProjection.usedBy.push(this);
+  }
 
   return this;
 };

@@ -9,6 +9,7 @@
  */
 Projection = {
   domainObject       :  "" ,  /** function */
+  error              :  "",   /** error report for this projection */
   fields             :  "" ,  /** field names */
   relationships      : null   /** relationships, which consist of a name and projection */
 };
