@@ -92,11 +92,6 @@ typedef struct wkb_header_st
 
 struct MBR
 {
-  /*
-    If later we need an epsilon when comparing doubles, implement a Double
-    class which has arithmetic/comparison member operators to involve the
-    epsilon and use Double class here.
-   */
   double xmin, ymin, xmax, ymax;
 
   MBR()
@@ -149,44 +144,48 @@ struct MBR
       ymax= mbr->ymax;
   }
 
-  int equals(const MBR *mbr) const
+  int equals(const MBR *mbr)
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin == xmin) && (mbr->ymin == ymin) &&
 	    (mbr->xmax == xmax) && (mbr->ymax == ymax));
   }
 
-  int disjoint(const MBR *mbr) const
+  int disjoint(const MBR *mbr)
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin > xmax) || (mbr->ymin > ymax) ||
 	    (mbr->xmax < xmin) || (mbr->ymax < ymin));
   }
 
-  int intersects(const MBR *mbr) const
+  int intersects(const MBR *mbr)
   {
     return !disjoint(mbr);
   }
 
-  int touches(const MBR *mbr) const;
-
-  int within(const MBR *mbr) const;
-
-  int contains(const MBR *mbr) const
+  int touches(const MBR *mbr)
   {
-    return mbr->within(this);
+    /* The following should be safe, even if we compare doubles */
+    return ((mbr->xmin == xmax || mbr->xmax == xmin) &&
+            ((mbr->ymin >= ymin && mbr->ymin <= ymax) ||
+             (mbr->ymax >= ymin && mbr->ymax <= ymax))) ||
+           ((mbr->ymin == ymax || mbr->ymax == ymin) &&
+            ((mbr->xmin >= xmin && mbr->xmin <= xmax) ||
+             (mbr->xmax >= xmin && mbr->xmax <= xmax)));
   }
 
-  inline int covered_by(const MBR *mbr) const
+  int within(const MBR *mbr)
   {
     /* The following should be safe, even if we compare doubles */
     return ((mbr->xmin <= xmin) && (mbr->ymin <= ymin) &&
-            (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
+	    (mbr->xmax >= xmax) && (mbr->ymax >= ymax));
   }
 
-  inline int covers(const MBR *mbr) const
+  int contains(const MBR *mbr)
   {
-    return mbr->covered_by(this);
+    /* The following should be safe, even if we compare doubles */
+    return ((mbr->xmin >= xmin) && (mbr->ymin >= ymin) &&
+	    (mbr->xmax <= xmax) && (mbr->ymax <= ymax));
   }
 
   bool inner_point(double x, double y) const
@@ -219,7 +218,7 @@ struct MBR
     return d;
   }
 
-  int overlaps(const MBR *mbr) const
+  int overlaps(const MBR *mbr)
   {
     /*
       overlaps() requires that some point inside *this is also inside

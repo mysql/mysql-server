@@ -182,37 +182,37 @@ MBRWithin(g,GeomFromText(@star_center))
 #point,multipoint
 SELECT MBRWithin(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
 MBRWithin(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
 0
 SELECT MBRWithin(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
 MBRWithin(g,GeomFromText(@star_bottom_points))
-0
+1
 #point,linestring
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
 0
 SELECT MBRWithin(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 MBRWithin(g,GeomFromText(@star_top_to_center))
-0
+1
 #point,multilinestring
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
 1
 SELECT MBRWithin(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 MBRWithin(g,GeomFromText(@star_lines_near_vertical))
-0
+1
 #point,polygon
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_center),GeomFromText(@star));
 MBRWithin(GeomFromText(@star_center),GeomFromText(@star))
 1
@@ -221,30 +221,30 @@ MBRWithin(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
 0
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
-0
+1
 SELECT MBRWithin(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
 MBRWithin(g,GeomFromText(@star))
-0
+1
 #point,multipolygon
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_of_elems));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_of_elems))
-0
+1
 SELECT MBRWithin(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
 MBRWithin(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
 0
 SELECT MBRWithin(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
 MBRWithin(g,GeomFromText(@star_of_elems))
-0
+1
 #point,geometrycollection
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
-0
+1
 SELECT MBRWithin(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
 MBRWithin(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
 0
 SELECT MBRWithin(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
 MBRWithin(g,GeomFromText(@star_collection_elems))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
 MBRWithin(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
 1
@@ -265,10 +265,10 @@ MBRWithin(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
 0
 SELECT MBRWithin(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
 MBRWithin(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
-0
+1
 SELECT MBRWithin(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
 MBRWithin(g,GeomFromText(@star_all_points))
-0
+1
 SELECT MBRWithin(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
 MBRWithin(g,GeomFromText(@star_all_points))
 0
@@ -406,10 +406,10 @@ MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15
 0
 SELECT MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
 MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
 MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
 MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
 0
@@ -419,7 +419,7 @@ MBRWithin(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
 #linestring,multipolygon
 SELECT MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+1
 SELECT MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
 MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
 1
@@ -431,7 +431,7 @@ MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
 0
 SELECT MBRWithin(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 MBRWithin(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+1
 #linestring,geometrycollection
 SELECT MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
 MBRWithin(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
@@ -1625,37 +1625,37 @@ Within(g,GeomFromText(@star_center))
 #point,multipoint
 SELECT Within(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
 Within(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
-0
+1
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
 Within(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
 0
 SELECT Within(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
 Within(g,GeomFromText(@star_bottom_points))
-0
+1
 #point,linestring
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
 Within(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
-0
+1
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
 Within(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
 0
 SELECT Within(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
 Within(g,GeomFromText(@star_top_to_center))
-0
+1
 #point,multilinestring
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
 Within(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
-0
+1
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
 Within(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
 1
 SELECT Within(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
 Within(g,GeomFromText(@star_lines_near_vertical))
-0
+1
 #point,polygon
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star));
 Within(GeomFromText(@star_top),GeomFromText(@star))
-0
+1
 SELECT Within(GeomFromText(@star_center),GeomFromText(@star));
 Within(GeomFromText(@star_center),GeomFromText(@star))
 1
@@ -1664,30 +1664,30 @@ Within(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
 0
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
 Within(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
-0
+1
 SELECT Within(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
 Within(g,GeomFromText(@star))
-0
+1
 #point,multipolygon
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_of_elems));
 Within(GeomFromText(@star_top),GeomFromText(@star_of_elems))
-0
+1
 SELECT Within(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
 Within(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
 0
 SELECT Within(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
 Within(g,GeomFromText(@star_of_elems))
-0
+1
 #point,geometrycollection
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
 Within(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
-0
+1
 SELECT Within(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
 Within(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
 0
 SELECT Within(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
 Within(g,GeomFromText(@star_collection_elems))
-0
+1
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
 Within(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
 1
@@ -1708,10 +1708,10 @@ Within(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
 0
 SELECT Within(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
 Within(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
-0
+1
 SELECT Within(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
 Within(g,GeomFromText(@star_all_points))
-0
+1
 SELECT Within(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
 Within(g,GeomFromText(@star_all_points))
 0
@@ -1849,10 +1849,10 @@ Within(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19
 0
 SELECT Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
 Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
-0
+1
 SELECT Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
 Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
-0
+1
 SELECT Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
 Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
 0
@@ -1862,7 +1862,7 @@ Within(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
 #linestring,multipolygon
 SELECT Within(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
 Within(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+1
 SELECT Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
 Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
 1
@@ -1874,7 +1874,7 @@ Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
 0
 SELECT Within(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
 Within(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
-0
+1
 #linestring,geometrycollection
 SELECT Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
 Within(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
@@ -2389,9 +2389,11 @@ Within(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
 # Invalid function calls
 #=======================================================================================
 SELECT Within(GeomFromText(@star_top),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrwithin given two geometries of different srids: 0 and 4326, which should have been identical.
+Within(GeomFromText(@star_top),GeomFromText(@star_center,4326))
+0
 SELECT Within(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrwithin given two geometries of different srids: 1048576 and 4326, which should have been identical.
+Within(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326))
+0
 SELECT Within(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 Within(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
 0
@@ -2549,9 +2551,11 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_Within(,GeomFromText(@star_top));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
 SELECT MBRWithin(GeomFromText(@star_top),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrwithin given two geometries of different srids: 0 and 4326, which should have been identical.
+MBRWithin(GeomFromText(@star_top),GeomFromText(@star_center,4326))
+0
 SELECT MBRWithin(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrwithin given two geometries of different srids: 1048576 and 4326, which should have been identical.
+MBRWithin(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326))
+0
 SELECT MBRWithin(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 MBRWithin(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
 0
