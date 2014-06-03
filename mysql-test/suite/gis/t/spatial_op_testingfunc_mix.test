@@ -264,7 +264,6 @@ SELECT ST_Crosses(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),Geo
 SELECT ST_Crosses(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),GeomFromText(@star_top_to_center_2));
 SELECT ST_Touches(ST_Difference(ST_Union(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),GeomFromText(@star_top_1));
 
-
 SELECT AsText(GeomFromText(@star));
 SELECT AsText(GeomFromText(@star_elem_vertical));
 SELECT AsText(GeomFromText(@star_elem_horizontal));
@@ -348,7 +347,6 @@ SELECT AsText(ST_Union(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_h
 SELECT AsText(ST_Difference(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
 SELECT AsText(ST_Symdifference(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
 SELECT AsText(ST_Intersection(ST_Intersection(ST_Intersection(GeomFromText(@star_elem_horizontal),GeomFromText(@star_elem_vertical)),GeomFromtext(@star_2)),ST_Intersection(GeomFromText(@star_1),GeomFromText(@star_2))));
-
 
 --echo #=======================================================================================
 --echo # Testing with combinations of 3 functions
@@ -598,6 +596,82 @@ SELECT AsText(ST_Union(ST_Intersection(GeomFromText(@star),GeomFromText(@star_el
 SELECT AsText(ST_Difference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 SELECT AsText(ST_Symdifference(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
 SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText(@star),GeomFromText(@star_elem_vertical)),ST_Symdifference(GeomFromText(@star),GeomFromText(@star_elem_vertical))));
+
+--echo #=======================================================================================
+--echo # Spatial set operations involving empty geometry collections.
+--echo #=======================================================================================
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT AsText(ST_Union(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_Difference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_SymDifference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and non-empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT AsText(ST_Union(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_Intersection(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_Difference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_SymDifference(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Difference(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Non-empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT AsText(ST_Union(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_Intersection(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_SymDifference(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+SELECT AsText(ST_Difference(GeomFromText('MULTIPOINT(2 2, 3 3)'),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)'))));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty intermediate or final result
+--echo #---------------------------------------------------------------------------------------------
+SELECT AsText(ST_Difference(GeomFromText('MULTIPOINT(2 2, 3 3)'),GeomFromText('MULTIPOINT(0 0, 4 4)')));
+SELECT AsText(ST_Difference(GeomFromText('MULTIPOINT(2 2, 3 3)'),GeomFromText('MULTIPOINT(2 2, 3 3)')));
+SELECT AsText(ST_SymDifference(GeomFromText('MULTIPOINT(2 2, 3 3)'),GeomFromText('MULTIPOINT(0 0, 4 4)')));
+SELECT AsText(ST_SymDifference(GeomFromText('MULTIPOINT(2 2, 3 3)'),GeomFromText('MULTIPOINT(2 2, 3 3)')));
+
+--echo #=======================================================================================
+--echo # Spatial relation check operations involving empty geometry collections.
+--echo #=======================================================================================
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_Intersects(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Disjoint(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Equals(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Contains(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Within(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Touches(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Overlaps(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Crosses(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Empty collection and non-empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_Intersects(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Disjoint(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Equals(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Contains(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Within(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Touches(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Overlaps(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Crosses(ST_Intersection(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Union(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+
+--echo #---------------------------------------------------------------------------------------------
+--echo # Non-empty collection and empty collection
+--echo #---------------------------------------------------------------------------------------------
+SELECT ST_Intersects(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Disjoint(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Equals(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Contains(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Within(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Touches(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Overlaps(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
+SELECT ST_Crosses(ST_Union(GeomFromText('POINT(1 1)'),GeomFromText('MULTIPOINT(2 2, 3 3)')),ST_Intersection(GeomFromText('POINT(0 0)'), GeomFromText('POINT(1 1)')));
 
 --echo #clean up
 --disable_warnings

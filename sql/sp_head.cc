@@ -2069,12 +2069,10 @@ bool sp_head::merge_table_list(THD *thd,
 }
 
 
-bool sp_head::add_used_tables_to_table_list(THD *thd,
+void sp_head::add_used_tables_to_table_list(THD *thd,
                                             TABLE_LIST ***query_tables_last_ptr,
                                             TABLE_LIST *belong_to_view)
 {
-  bool result= false;
-
   /*
     Use persistent arena for table list allocation to be PS/SP friendly.
     Note that we also have to copy database/table names and alias to PS/SP
@@ -2096,7 +2094,7 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
                                         stab->lock_count)) ||
         !(key_buff= (char*)thd->memdup(stab->qname.str,
                                        stab->qname.length)))
-      return false;
+      return;
 
     for (uint j= 0; j < stab->lock_count; j++)
     {
@@ -2130,11 +2128,8 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
       *query_tables_last_ptr= &table->next_global;
 
       tab_buff+= ALIGN_SIZE(sizeof(TABLE_LIST));
-      result= true;
     }
   }
-
-  return result;
 }
 
 

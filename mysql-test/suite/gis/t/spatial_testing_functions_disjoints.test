@@ -437,7 +437,7 @@ SELECT MBRDisjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_top_t
 SELECT MBRDisjoint(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multilinestring
 SELECT MBRDisjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_3));
-SELECT MBRDisjoint(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
+SELECT MBRDisjoint(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
 SELECT MBRDisjoint(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,polygon
 SELECT MBRDisjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
@@ -665,7 +665,7 @@ SELECT ST_Disjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_top_t
 SELECT ST_Disjoint(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multilinestring
 SELECT ST_Disjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_3));
-SELECT ST_Disjoint(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
+SELECT ST_Disjoint(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
 SELECT ST_Disjoint(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,polygon
 SELECT ST_Disjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
@@ -893,7 +893,7 @@ SELECT Disjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_c
 SELECT Disjoint(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multilinestring
 SELECT Disjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_3));
-SELECT Disjoint(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
+SELECT Disjoint(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
 SELECT Disjoint(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,polygon
 SELECT Disjoint(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
@@ -925,6 +925,10 @@ SELECT MBRDisjoint(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
 SELECT MBRDisjoint(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
 SELECT MBRDisjoint(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
 SELECT MBRDisjoint(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT MBRDisjoint(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT MBRDisjoint(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT MBRDisjoint(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT MBRDisjoint(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
 --echo #-------------------------------------------------------------------------------------------
 --echo #ST_Disjoint(g1,g2)
 SELECT ST_Disjoint(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -932,6 +936,10 @@ SELECT ST_Disjoint(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
 SELECT ST_Disjoint(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
 SELECT ST_Disjoint(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
 SELECT ST_Disjoint(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT ST_Disjoint(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT ST_Disjoint(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT ST_Disjoint(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT ST_Disjoint(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
 --echo #-------------------------------------------------------------------------------------------
 --echo #Disjoint(g1,g2)
 SELECT Disjoint(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -939,6 +947,10 @@ SELECT Disjoint(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
 SELECT Disjoint(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
 SELECT Disjoint(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
 SELECT Disjoint(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+SELECT Disjoint(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+SELECT Disjoint(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+SELECT Disjoint(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+SELECT Disjoint(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
 
 --echo #=======================================================================================
 --echo # Invalid function calls

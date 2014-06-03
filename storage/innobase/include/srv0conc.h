@@ -67,15 +67,15 @@ void
 srv_conc_free(void);
 #endif /* !HAVE_ATOMIC_BUILTINS */
 
+struct row_prebuilt_t;
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
-(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
+(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
+@param[in,out]	prebuilt	row prebuilt handler */
 
 void
 srv_conc_enter_innodb(
-/*==================*/
-	trx_t*	trx);		/*!< in: transaction object associated
-				with the thread */
+	row_prebuilt_t*	prebuilt);
 
 /*********************************************************************//**
 This lets a thread enter InnoDB regardless of the number of threads inside

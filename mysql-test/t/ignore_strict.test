@@ -1,7 +1,3 @@
-#
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
 #        This test file contains test cases divided in 6 different parts.
 #        Part 1 : Statments WITH IGNORE (Error to Warning )
 #        Part 2 : Statements WITH IGNORE in STRICT Mode ( Error to Warning )
