@@ -381,4 +381,11 @@ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
                                                       POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2))),
                                                       MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
                                                                                       Point(0, 0)))))))) as Result;
+
+
+select astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))));
+select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
+select astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
+select astext(centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
+select astext(convexhull(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
 --source include/gis_debug.inc

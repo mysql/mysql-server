@@ -603,7 +603,7 @@ String *Item_func_convex_hull::val_str(String *str)
   str->set_charset(&my_charset_bin);
   str->length(0);
 
-  if (bg_convex_hull<bgcs::cartesian>(geom, str))
+  if ((null_value= bg_convex_hull<bgcs::cartesian>(geom, str)))
     return NULL;
   return str;
 }
