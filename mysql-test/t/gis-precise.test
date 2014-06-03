@@ -114,24 +114,6 @@ SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13
 SELECT ST_Equals(PolyFromText('POLYGON((67 13, 67 18, 67 18, 59 18, 59 13, 67 13) )'),PolyFromText('POLYGON((67 13, 67 18, 59 18, 59 13, 59 13, 67 13) )')) as result;
 SELECT ST_Equals(PointFromText('POINT (12 13)'),PointFromText('POINT (12 13)')) as result;
 
-#MBR covers/covered by/within/touches
-select mbrcovered_by(geomfromtext("point(2 4)"), geomfromtext("polygon((2 2, 10 2, 10 10, 2 10, 2 2))"));
-select mbrcontains(geomfromtext("polygon((2 2, 10 2, 10 10, 2 10, 2 2))"), geomfromtext("point(2 4)"));
-select mbrcovers(geomfromtext("polygon((2 2, 10 2, 10 10, 2 10, 2 2))"), geomfromtext("point(2 4)"));
-select mbrtouches(geomfromtext("point (2 4)"), geomfromtext("point (2 4)"));
-select mbrtouches(geomfromtext("point(2 4)"), geomfromtext("linestring(2 0, 2 6)"));
-select mbrtouches(geomfromtext("point(2 4)"), geomfromtext("linestring(2 0, 2 4)"));
-select mbrtouches(geomfromtext("point(2 4)"), geomfromtext("polygon((2 2, 6 2, 6 6, 2 6, 2 2))"));
-select mbrtouches(geomfromtext("linestring(1 0, 2 0)"), geomfromtext("polygon((0 0, 3 0, 3 3, 0 3, 0 0))"));
-select mbrtouches(geomfromtext("linestring(3 2, 4 2)"), geomfromtext("polygon((0 0, 3 0, 3 3, 0 3, 0 0))"));
-select mbrwithin(geomfromtext("point(2 4)"), geomfromtext("point(2 4)"));
-select mbrwithin(geomfromtext("point(2 4)"), geomfromtext("linestring(2 0, 2 6)"));
-select mbrwithin(geomfromtext("point(2 4)"), geomfromtext("linestring(2 0, 2 4)"));
-select mbrwithin(geomfromtext("point(2 4)"), geomfromtext("polygon((2 2, 10 2, 10 10, 2 10, 2 2))"));
-select mbrwithin(geomfromtext("linestring(1 0, 2 0)"), geomfromtext("linestring(0 0, 3 0)"));
-select mbrwithin(geomfromtext("linestring(1 0, 2 0)"), geomfromtext("polygon((0 0, 3 0, 3 3, 0 3, 0 0))"));
-select mbrwithin(geomfromtext("linestring(1 1, 2 1)"), geomfromtext("polygon((0 0, 3 0, 3 3, 0 3, 0 0))"));
-select mbrwithin(geomfromtext("linestring(0 1, 3 1)"), geomfromtext("polygon((0 0, 3 0, 3 3, 0 3, 0 0))"));
 
 --echo #
 --echo # BUG#11755628/47429: INTERSECTION FUNCTION CRASHED MYSQLD 

@@ -937,9 +937,7 @@ SELECT Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,104857
 --echo #=======================================================================================
 --echo # Invalid function calls
 --echo #=======================================================================================
---error ER_GIS_DIFFERENT_SRIDS
 SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
---error ER_GIS_DIFFERENT_SRIDS
 SELECT Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
 SELECT Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 SELECT Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
@@ -1020,9 +1018,7 @@ SELECT ST_Contains(GeomFromText(@star_of_elems),);
 --error ER_PARSE_ERROR
 SELECT ST_Contains(,GeomFromText(@star_top));
 
---error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
---error ER_GIS_DIFFERENT_SRIDS
 SELECT MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
 SELECT MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 SELECT MBRContains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));

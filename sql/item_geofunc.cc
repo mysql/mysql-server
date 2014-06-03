@@ -1032,72 +1032,6 @@ err:
 }
 
 
-Field::geometry_type Item_func_geometry_mbr::get_geometry_type() const
-{
-  return Field::GEOM_POLYGON;
-}
-
-
-String *Item_func_geometry_mbr::val_str(String *str)
-{
-  String arg_val;
-  String *swkb= args[0]->val_str(&arg_val);
-  Geometry_buffer buffer;
-  Geometry *geom= NULL;
-  uint32 srid;
-
-  if (result_buf)
-  {
-    gis_wkb_free(result_buf);
-    result_buf= NULL;
-  }
-
-  if ((null_value=
-       args[0]->null_value ||
-       !(geom= Geometry::construct(&buffer, swkb)) ||
-       geom->get_coordsys() != Geometry::cartesian))
-    return 0;
-
-  srid= uint4korr(swkb->ptr());
-  str->set_charset(&my_charset_bin);
-  str->length(0);
-
-  Gis_point pt;
-  Gis_polygon mbrplgn;
-  MBR mbr;
-
-  if ((null_value = geom->get_mbr(&mbr)))
-    return 0;
-
-  pt.set<0>(mbr.xmin);
-  pt.set<1>(mbr.ymin);
-  mbrplgn.outer().push_back(pt);
-  pt.set<0>(mbr.xmax);
-  pt.set<1>(mbr.ymin);
-  mbrplgn.outer().push_back(pt);
-  pt.set<0>(mbr.xmax);
-  pt.set<1>(mbr.ymax);
-  mbrplgn.outer().push_back(pt);
-  pt.set<0>(mbr.xmin);
-  pt.set<1>(mbr.ymax);
-  mbrplgn.outer().push_back(pt);
-  pt.set<0>(mbr.xmin);
-  pt.set<1>(mbr.ymin);
-  mbrplgn.outer().push_back(pt);
-
-  mbrplgn.to_wkb_unparsed();
-  DBUG_ASSERT(mbrplgn.has_geom_header_space());
-
-  char *geom_ptr= mbrplgn.get_cptr();
-  write_geometry_header(geom_ptr - GEOM_HEADER_SIZE, srid,
-                        Geometry::wkb_polygon);
-  str->set(geom_ptr - GEOM_HEADER_SIZE, mbrplgn.get_nbytes() + GEOM_HEADER_SIZE, &my_charset_bin);
-  result_buf= geom_ptr - GEOM_HEADER_SIZE;
-
-  return str;
-}
-
-
 /*
   Functions for spatial relations
 */
@@ -1146,15 +1080,6 @@ longlong Item_func_spatial_mbr_rel::val_int()
 	g2->get_mbr(&mbr2))))
     return 0;
 
-  // The two geometry operand must be in the same coordinate system.
-  if (g1->get_srid() != g2->get_srid())
-  {
-    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
-             g1->get_srid(), g2->get_srid());
-    null_value= true;
-    return 0;
-  }
-
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       return mbr1.contains(&mbr2);
@@ -1171,18 +1096,7 @@ longlong Item_func_spatial_mbr_rel::val_int()
     case SP_OVERLAPS_FUNC:
       return mbr1.overlaps(&mbr2);
     case SP_CROSSES_FUNC:
-      /*
-        According to OGC's definition for crosses, it's inapplicable to do
-        polygon_1 CROSSES polygon_2 check, and we simply do crosses check
-        for the two geometries using Item_func_spatial_rel rather than for
-        their MBRs.
-       */
-      DBUG_ASSERT(false);
-    case SP_COVERS_FUNC:
-      return mbr1.covers(&mbr2);
-    case SP_COVEREDBY_FUNC:
-      return mbr1.covered_by(&mbr2);
-      break;
+      return 0;
     default:
       break;
   }
@@ -1896,14 +1810,6 @@ int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
     *pbgdone= true;
     return tres;
   }
-
-  bool opdone= false;
-  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
-  if (null_value)
-    return tres;
-  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
-  if (null_value)
-    return tres;
 
   if (spatial_rel == SP_DISJOINT_FUNC || spatial_rel == SP_INTERSECTS_FUNC)
     tres= geocol_relcheck_intersect_disjoint<Coord_type, Coordsys>
@@ -5984,15 +5890,6 @@ geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   bggc2.fill(g2);
   *pdone= false;
 
-  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
-  if (null_value)
-    return gres;
-  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
-  if (null_value)
-    return gres;
-
-  opdone= false;
-
   for (BG_geometry_collection::Geometry_list::iterator i=
        bggc1.get_geometries().begin(); i != bggc1.get_geometries().end(); ++i)
   {
@@ -6052,12 +5949,11 @@ geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
  */
 template<typename Coord_type, typename Coordsys>
 void BG_geometry_collection::
-merge_components(bool *pdone, my_bool *pnull_value)
+merge_components(Item_func_spatial_operation *ifso,
+                 bool *pdone, my_bool *pnull_value)
 {
-  POS pos;
-  Item_func_spatial_operation ifso(pos, NULL, NULL, Gcalc_function::op_union);
 
-  while (merge_one_run<Coord_type, Coordsys>(&ifso, pdone, pnull_value))
+  while (merge_one_run<Coord_type, Coordsys>(ifso, pdone, pnull_value))
     ;
 }
 
@@ -6209,7 +6105,7 @@ geocol_union(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   bggc.fill(g2);
   *pdone= false;
 
-  bggc.merge_components<Coord_type, Coordsys>(pdone, &null_value);
+  bggc.merge_components<Coord_type, Coordsys>(this, pdone, &null_value);
   if (!null_value && *pdone)
     gres= bggc.as_geometry_collection(result);
 
@@ -6248,15 +6144,6 @@ geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
   bggc1.fill(g1);
   bggc2.fill(g2);
   *pdone= false;
-
-  bggc1.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
-  if (null_value)
-    return gres;
-  bggc2.merge_components<Coord_type, Coordsys>(&opdone, &null_value);
-  if (null_value)
-    return gres;
-
-  opdone= false;
 
   for (BG_geometry_collection::Geometry_list::iterator
        i= bggc1.get_geometries().begin();

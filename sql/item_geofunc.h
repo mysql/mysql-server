@@ -142,7 +142,8 @@ public:
 
   Gis_geometry_collection *as_geometry_collection(String *geodata) const;
   template<typename Coord_type, typename Coordsys>
-  void merge_components(bool *pdone, my_bool *pnull_value);
+  void merge_components(Item_func_spatial_operation *ifso,
+                        bool *pdone, my_bool *pnull_value);
 private:
   template<typename Coord_type, typename Coordsys>
   bool merge_one_run(Item_func_spatial_operation *ifso,
@@ -367,25 +368,6 @@ public:
   const char *func_name() const;
 };
 
-class Item_func_geometry_mbr: public Item_geometry_func
-{
-  void *result_buf;
-public:
-  Item_func_geometry_mbr(const POS &pos, Item *arg)
-    :Item_geometry_func(pos, arg)
-  {
-    result_buf= NULL;
-  }
-
-  ~Item_func_geometry_mbr()
-  {
-    gis_wkb_free(result_buf);
-  }
-
-  const char *func_name() const { return "mbr"; }
-  String *val_str(String *);
-  Field::geometry_type get_geometry_type() const;
-};
 
 /*
   Spatial relations
