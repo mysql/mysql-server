@@ -2407,15 +2407,17 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
     else
       *sctx->priv_host= 0;
 
-    mysql_mutex_lock(&LOCK_offline_mode);
-    bool tmp_offline_mode= MY_TEST(offline_mode);
-    mysql_mutex_unlock(&LOCK_offline_mode);
-
-    if (tmp_offline_mode && !(sctx->master_access & SUPER_ACL)
-	&& !thd->is_error())
+    if (!(sctx->master_access & SUPER_ACL) && !thd->is_error())
     {
-      my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
-      DBUG_RETURN(1);
+      mysql_mutex_lock(&LOCK_offline_mode);
+      bool tmp_offline_mode= MY_TEST(offline_mode);
+      mysql_mutex_unlock(&LOCK_offline_mode);
+
+      if (tmp_offline_mode)
+      {
+	my_error(ER_SERVER_OFFLINE_MODE, MYF(0));
+        DBUG_RETURN(1);
+      }
     }
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS

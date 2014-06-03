@@ -2056,6 +2056,12 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
   bool error;
   Drop_table_error_handler err_handler;
   TABLE_LIST *table;
+  /*
+    The following flags will be used to check if this statement will be split
+  */
+  uint have_non_tmp_table= 0;
+  uint have_trans_tmp_table= 0;
+  uint have_non_trans_tmp_table= 0;
 
   DBUG_ENTER("mysql_rm_table");
 
@@ -2066,6 +2072,17 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
     {
       my_error(ER_BAD_LOG_STATEMENT, MYF(0), "DROP");
       DBUG_RETURN(true);
+    }
+    /*
+      Here we are sure that the tmp table exists and will set the flag based on
+      table transactional type.
+    */
+    if (is_temporary_table(table))
+    {
+      if (table->table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+        have_trans_tmp_table= 1;
+      else if (table->table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+        have_non_trans_tmp_table= 1;
     }
   }
 
@@ -2083,6 +2100,8 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
 
         tdc_remove_table(thd, TDC_RT_REMOVE_ALL, table->db, table->table_name,
                          false);
+        /* Here we are sure that a non-tmp table exists */
+        have_non_tmp_table= 1;
       }
     }
     else
@@ -2119,8 +2138,29 @@ bool mysql_rm_table(THD *thd,TABLE_LIST *tables, my_bool if_exists,
           if (!table->table)
             DBUG_RETURN(true);
           table->mdl_request.ticket= table->table->mdl_ticket;
+          /* Here we are sure that a non-tmp table exists */
+          have_non_tmp_table= 1;
         }
     }
+  }
+
+  /*
+    DROP TABLE statements mixing non-temporary and temporary tables or
+    transactional and non-transactional temporary tables are unsafe to execute
+    if GTID_NEXT is set to GTID_GROUP because these statements will be split to
+    be sent to binlog and there is only one GTID is available to log multiple
+    statements.
+    See comments in the beginning of mysql_rm_table_no_locks() for more info.
+  */
+  if (thd->variables.gtid_next.type == GTID_GROUP &&
+      (have_non_tmp_table + have_trans_tmp_table +
+       have_non_trans_tmp_table > 1))
+  {
+    DBUG_PRINT("err",("have_non_tmp_table: %d, have_trans_tmp_table: %d, "
+                      "have_non_trans_tmp_table: %d", have_non_tmp_table,
+                      have_trans_tmp_table, have_non_trans_tmp_table));
+    my_error(ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP, MYF(0));
+    DBUG_RETURN(true);
   }
 
   /* mark for close and remove all cached entries */
@@ -2181,9 +2221,11 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
   bool non_tmp_error= 0;
   bool trans_tmp_table_deleted= 0, non_trans_tmp_table_deleted= 0;
   bool non_tmp_table_deleted= 0;
+  bool have_nonexistent_tmp_table= 0;
   bool is_drop_tmp_if_exists_added= 0;
   String built_query;
   String built_trans_tmp_query, built_non_trans_tmp_query;
+  String nonexistent_tmp_tables;
   DBUG_ENTER("mysql_rm_table_no_locks");
 
   /*
@@ -2246,6 +2288,7 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       built_non_trans_tmp_query.set_charset(system_charset_info);
       built_non_trans_tmp_query.append("DROP TEMPORARY TABLE ");
     }
+    nonexistent_tmp_tables.set_charset(system_charset_info);
   }
 
   for (table= tables; table; table= table->next_local)
@@ -2302,16 +2345,18 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       {
         /*
           If there is an error, we don't know the type of the engine
-          at this point. So, we keep it in the trx-cache.
+          at this point. So, we keep it in the nonexistent_tmp_table list.
         */
-        is_trans= error ? TRUE : is_trans;
-        if (is_trans)
+        if (error == 1)
+          have_nonexistent_tmp_table= true;
+        else if (is_trans)
           trans_tmp_table_deleted= TRUE;
         else
           non_trans_tmp_table_deleted= TRUE;
 
         String *built_ptr_query=
-          (is_trans ? &built_trans_tmp_query : &built_non_trans_tmp_query);
+          (error == 1 ? &nonexistent_tmp_tables :
+           (is_trans ? &built_trans_tmp_query : &built_non_trans_tmp_query));
         /*
           Write the database name if it is not the current one or if
           thd->db is NULL or 'IF EXISTS' clause is present in 'DROP TEMPORARY'
@@ -2352,9 +2397,9 @@ int mysql_rm_table_no_locks(THD *thd, TABLE_LIST *tables, bool if_exists,
       }
 
       /* Check that we have an exclusive lock on the table to be dropped. */
-      DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                                 table->table_name,
-                                                 MDL_EXCLUSIVE));
+      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                     table->db, table->table_name,
+                                     MDL_EXCLUSIVE));
       if (thd->killed)
       {
         error= -1;
@@ -2529,72 +2574,103 @@ err:
     error= 1;
   }
 
-  if (non_trans_tmp_table_deleted ||
+  if (have_nonexistent_tmp_table || non_trans_tmp_table_deleted ||
       trans_tmp_table_deleted || non_tmp_table_deleted)
   {
-    if (non_trans_tmp_table_deleted ||
+    if (have_nonexistent_tmp_table || non_trans_tmp_table_deleted ||
         trans_tmp_table_deleted)
       thd->get_transaction()->mark_dropped_temp_table(Transaction_ctx::STMT);
 
+    /*
+      The statement may contain up to three types of temporary tables:
+      transactional, non-transactional, and non-existent tables.
+
+      The statement is logged using up to two statements: non-transactional
+      and transactional tables are logged in different statements.
+
+      The non-existing tables are logged together with transactional ones, if
+      any transactional tables exist or if there is only non-existing tables;
+      otherwise are logged together with non-transactional ones.
+
+      This logic ensures that:
+      - On master, transactional and non-transactional tables are written to
+        different statements.
+      - Therefore, slave will never see statements containing both transactional
+        and non-transactional tables.
+      - Since non-existing temporary tables are logged together with whatever
+        type of temporary tables that exist, the slave thus writes any statement
+        as just one statement. I.e., the slave never splits a statement into two.
+        This is crucial when GTIDs are enabled, since otherwise the statement,
+        which already has a GTID, would need two different GTIDs.
+    */
     if (!dont_log_query && mysql_bin_log.is_open())
     {
       if (non_trans_tmp_table_deleted)
       {
-          /* Chop of the last comma */
-          built_non_trans_tmp_query.chop();
-          built_non_trans_tmp_query.append(" /* generated by server */");
-          error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                                     built_non_trans_tmp_query.ptr(),
-                                     built_non_trans_tmp_query.length(),
-                                     FALSE, FALSE,
-                                     is_drop_tmp_if_exists_added,
-                                     0);
-          /*
-            When temporary and regular tables or temporary tables with
-            different storage engines are dropped on a single
-            statement, the original statement is split in two.
-            These two statements are logged in two events to binary
-            logs, when gtid_mode is ON each DDL event must have its own
-            GTID. Since drop temporary table does not implicitly
-            commit, in these cases we must force a commit.
-          */
-          if (gtid_mode > 0 && (trans_tmp_table_deleted || non_tmp_table_deleted))
-            error |= mysql_bin_log.commit(thd, true);
+        /*
+          Add the list of nonexistent tmp tables here only if there is no
+          trans tmp table deleted.
+        */
+        if (!trans_tmp_table_deleted && have_nonexistent_tmp_table)
+          built_non_trans_tmp_query.append(nonexistent_tmp_tables);
+        /* Chop of the last comma */
+        built_non_trans_tmp_query.chop();
+        built_non_trans_tmp_query.append(" /* generated by server */");
+        error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                                   built_non_trans_tmp_query.ptr(),
+                                   built_non_trans_tmp_query.length(),
+                                   FALSE, FALSE,
+                                   is_drop_tmp_if_exists_added,
+                                   0);
+        /*
+          When temporary and regular tables or temporary tables with
+          different storage engines are dropped on a single
+          statement, the original statement is split in two or more.
+          These statements are logged in distinct events to binary
+          logs, when gtid_mode is ON each DDL event must have its own
+          GTID. Since drop temporary table does not implicitly
+          commit, in these cases we must force a commit.
+        */
+        if (gtid_mode > 0 && (trans_tmp_table_deleted || non_tmp_table_deleted))
+          error |= mysql_bin_log.commit(thd, true);
       }
-      if (trans_tmp_table_deleted)
+      if (trans_tmp_table_deleted ||
+          (have_nonexistent_tmp_table && !non_trans_tmp_table_deleted))
       {
-          /* Chop of the last comma */
-          built_trans_tmp_query.chop();
-          built_trans_tmp_query.append(" /* generated by server */");
-          error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                                     built_trans_tmp_query.ptr(),
-                                     built_trans_tmp_query.length(),
-                                     TRUE, FALSE,
-                                     is_drop_tmp_if_exists_added,
-                                     0);
-          /*
-            When temporary and regular tables are dropped on a single
-            statement, the original statement is split in two.
-            These two statements are logged in two events to binary
-            logs, when gtid_mode is ON each DDL event must have its own
-            GTID. Since drop temporary table does not implicitly
-            commit, in these cases we must force a commit.
-          */
-          if (gtid_mode > 0 && non_tmp_table_deleted)
-            error |= mysql_bin_log.commit(thd, true);
+        if (have_nonexistent_tmp_table)
+          built_trans_tmp_query.append(nonexistent_tmp_tables);
+        /* Chop of the last comma */
+        built_trans_tmp_query.chop();
+        built_trans_tmp_query.append(" /* generated by server */");
+        error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                                   built_trans_tmp_query.ptr(),
+                                   built_trans_tmp_query.length(),
+                                   TRUE, FALSE,
+                                   is_drop_tmp_if_exists_added,
+                                   0);
+        /*
+          When temporary and regular tables are dropped on a single
+          statement, the original statement is split in two or more.
+          These statements are logged in distinct events to binary
+          logs, when gtid_mode is ON each DDL event must have its own
+          GTID. Since drop temporary table does not implicitly
+          commit, in these cases we must force a commit.
+        */
+        if (gtid_mode > 0 && non_tmp_table_deleted)
+          error |= mysql_bin_log.commit(thd, true);
       }
       if (non_tmp_table_deleted)
       {
-          /* Chop of the last comma */
-          built_query.chop();
-          built_query.append(" /* generated by server */");
-          int error_code = (non_tmp_error ?
-            (foreign_key_error ? ER_ROW_IS_REFERENCED : ER_BAD_TABLE_ERROR) : 0);
-          error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
-                                     built_query.ptr(),
-                                     built_query.length(),
-                                     TRUE, FALSE, FALSE,
-                                     error_code);
+        /* Chop of the last comma */
+        built_query.chop();
+        built_query.append(" /* generated by server */");
+        int error_code = (non_tmp_error ?
+          (foreign_key_error ? ER_ROW_IS_REFERENCED : ER_BAD_TABLE_ERROR) : 0);
+        error |= thd->binlog_query(THD::STMT_QUERY_TYPE,
+                                   built_query.ptr(),
+                                   built_query.length(),
+                                   TRUE, FALSE, FALSE,
+                                   error_code);
       }
     }
   }
@@ -5309,14 +5385,14 @@ bool mysql_create_like_table(THD* thd, TABLE_LIST* table, TABLE_LIST* src_table,
   DBUG_ASSERT(table->table || table->view ||
               (create_info->options & HA_LEX_CREATE_TMP_TABLE) ||
               (thd->locked_tables_mode != LTM_LOCK_TABLES &&
-               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                              table->table_name,
-                                              MDL_EXCLUSIVE)) ||
+               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                  table->db, table->table_name,
+                                  MDL_EXCLUSIVE)) ||
               (thd->locked_tables_mode == LTM_LOCK_TABLES &&
                (create_info->options & HA_LEX_CREATE_IF_NOT_EXISTS) &&
-               thd->mdl_context.is_lock_owner(MDL_key::TABLE, table->db,
-                                              table->table_name,
-                                              MDL_SHARED_NO_WRITE)));
+               thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                  table->db, table->table_name,
+                                  MDL_SHARED_NO_WRITE)));
 
   DEBUG_SYNC(thd, "create_table_like_before_binlog");
 
@@ -8055,9 +8131,8 @@ bool mysql_alter_table(THD *thd,char *new_db, char *new_name,
         Global intention exclusive lock must have been already acquired when
         table to be altered was open, so there is no need to do it here.
       */
-      DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::GLOBAL,
-                                                 "", "",
-                                                 MDL_INTENTION_EXCLUSIVE));
+      DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                     "", "", MDL_INTENTION_EXCLUSIVE));
 
       if (thd->mdl_context.acquire_locks(&mdl_requests,
                                          thd->variables.lock_wait_timeout))

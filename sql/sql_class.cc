@@ -1884,11 +1884,10 @@ void THD::disconnect()
 }
 
 
-bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
+void THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
                              bool needs_thr_lock_abort)
 {
   THD *in_use= ctx_in_use->get_thd();
-  bool signalled= FALSE;
 
   if (needs_thr_lock_abort)
   {
@@ -1905,11 +1904,10 @@ bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
         (e.g. see partitioning code).
       */
       if (!thd_table->needs_reopen())
-        signalled|= mysql_lock_abort_for_thread(this, thd_table);
+        mysql_lock_abort_for_thread(this, thd_table);
     }
     mysql_mutex_unlock(&in_use->LOCK_thd_data);
   }
-  return signalled;
 }
 
 
@@ -2053,9 +2051,9 @@ void THD::cleanup_after_query()
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
   /* reset replication info structure */
-  if (lex && lex->mi.repl_ignore_server_ids.buffer) 
+  if (lex)
   {
-    delete_dynamic(&lex->mi.repl_ignore_server_ids);
+    lex->mi.repl_ignore_server_ids.clear();
   }
 #ifndef EMBEDDED_LIBRARY
   if (rli_slave)

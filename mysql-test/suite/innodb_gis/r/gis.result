@@ -469,7 +469,7 @@ id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered
 1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	No tables used
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
-Note	1003	/* select#1 */ select st_issimple(st_multipoint(st_point(3,6),st_point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(st_point(3,6)) AS `issimple(Point(3, 6))`
+Note	1003	/* select#1 */ select st_issimple(multipoint(point(3,6),point(4,10))) AS `issimple(MultiPoint(Point(3, 6), Point(4, 10)))`,st_issimple(point(3,6)) AS `issimple(Point(3, 6))`
 create table t1 (a geometry not null);
 insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
@@ -1104,8 +1104,7 @@ DROP TABLE t0, t1, t2;
 # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
 #
 SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
-ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)))
-NULL
+ERROR HY000: Geometry byte string must be little endian.
 #
 # BUG#12537203 - CRASH WHEN SUBSELECTING GLOBAL VARIABLES IN
 # GEOMETRY FUNCTION ARGUMENTS
@@ -1423,11 +1422,11 @@ Area(shores)
 8
 # Conformance Item T37
 SELECT ST_Equals(boundary,
-PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
+PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 FROM named_places
 WHERE name = 'Goose Island';
 ST_Equals(boundary,
-PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
+PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
 1
 # Conformance Item T38
 SELECT ST_Disjoint(centerlines, boundary)
@@ -1477,20 +1476,20 @@ FROM named_places, forests
 WHERE named_places.name = 'Ashton'
 AND forests.name = 'Green Forest';
 AsText(ST_Difference(named_places.boundary, forests.boundary))
-POLYGON((56 34,62 48,84 48,84 42,56 34))
+MULTIPOLYGON(((84 42,84 48,62 48,56 34,84 42)))
 SELECT AsText(ST_Union(shore, boundary))
 FROM lakes, named_places
 WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Goose Island';
 AsText(ST_Union(shore, boundary))
-POLYGON((48 6,52 18,66 23,73 9,48 6))
+MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18)))
 # Conformance Item T50
 SELECT AsText(ST_SymDifference(shore, boundary))
 FROM lakes, named_places
 WHERE lakes.name = 'Blue Lake'
 AND named_places.name = 'Ashton';
 AsText(ST_SymDifference(shore, boundary))
-MULTIPOLYGON(((48 6,52 18,66 23,73 9,48 6),(59 13,59 18,67 18,67 13,59 13)),((56 30,56 34,62 48,84 48,84 30,56 30)))
+MULTIPOLYGON(((52 18,48 6,73 9,66 23,52 18),(59 18,67 18,67 13,59 13,59 18)),((62 48,56 34,56 30,84 30,84 48,62 48)))
 # Conformance Item T51
 SELECT count(*)
 FROM buildings, bridges
