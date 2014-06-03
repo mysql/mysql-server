@@ -5407,7 +5407,8 @@ select func_20028_b()|
 func_20028_b()
 0
 select func_20028_c()|
-ERROR 22012: Division by 0
+func_20028_c()
+NULL
 call proc_20028_a()|
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
@@ -5415,7 +5416,8 @@ call proc_20028_b()|
 Warnings:
 Warning	1329	No data - zero rows fetched, selected, or processed
 call proc_20028_c()|
-ERROR 22012: Division by 0
+Warnings:
+Warning	1365	Division by 0
 SET sql_mode='TRADITIONAL'|
 drop function func_20028_a|
 drop function func_20028_b|
@@ -6886,9 +6888,9 @@ drop procedure if exists p;
 set @old_mode= @@sql_mode;
 set @@sql_mode= cast(pow(2,32)-1 as unsigned integer);
 Warnings:
-Warning	1911	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	1911	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
-Warning	1911	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1912	'NO_ZERO_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1912	'NO_ZERO_IN_DATE' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 select @@sql_mode into @full_mode;
 create procedure p() begin end;
 call p();

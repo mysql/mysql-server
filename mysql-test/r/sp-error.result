@@ -1916,37 +1916,36 @@ DROP TABLE t1;
 #
 # Bug#9857: Stored procedures: handler for sqlwarning ignored
 #
+CREATE TABLE t1(a INT PRIMARY KEY);
+INSERT INTO t1 VALUES(1);
 SET @sql_mode_saved = @@sql_mode;
 SET sql_mode = traditional;
 CREATE PROCEDURE p1()
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLWARNING
 SELECT 'warning caught (expected)';
-SELECT 5 / 0;
+INSERT IGNORE INTO t1 VALUES (1);
 END|
 CREATE PROCEDURE p2()
 BEGIN
 DECLARE CONTINUE HANDLER FOR SQLEXCEPTION
 SELECT 'error caught (unexpected)';
-SELECT 5 / 0;
+INSERT IGNORE INTO t1 VALUES (1);
 END|
 CALL p1();
-5 / 0
-NULL
 warning caught (expected)
 warning caught (expected)
 SHOW WARNINGS;
 Level	Code	Message
 CALL p2();
-5 / 0
-NULL
 Warnings:
-Warning	1365	Division by 0
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 SHOW WARNINGS;
 Level	Code	Message
-Warning	1365	Division by 0
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 DROP PROCEDURE p1;
 DROP PROCEDURE p2;
+DROP TABLE t1;
 SET sql_mode = @sql_mode_saved;
 #
 # Bug#55850: Trigger warnings not cleared.

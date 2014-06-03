@@ -156,7 +156,7 @@ SELECT MAX_STATEMENT_TIME=60000 f2();
 f2()
 1
 Warnings:
-Note	1909	Select is not a read only statement, disabling timer
+Note	1910	Select is not a read only statement, disabling timer
 DROP FUNCTION f1;
 DROP FUNCTION f2;
 CREATE PROCEDURE p1()

@@ -1,0 +1,539 @@
+###############################################################################
+#                                                                             #
+# This test is aimed to focus on Operators creating Geometry objects.         #
+#                                                                             #
+# These operators take 2 geometries as input parameters and return            #
+# a new geometry object.                                                      #
+#                                                                             #
+# Creation Date: 2014-02-20                                                   #
+# Author : Horst Hunger                                                       #
+#                                                                             #
+###############################################################################
+
+
+--source include/force_myisam_default.inc
+#SET default_storage_engine=MyISAM;
+#SET default_tmp_storage_engine=MyISAM;
+
+--source include/have_debug.inc
+--source include/not_embedded.inc
+--source include/have_geometry.inc
+
+# Turn on the geometry data print.
+--echo #Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+
+#Confirming the storage engine
+--echo #Confirming the storage engine
+SHOW VARIABLES LIKE '%engine%';
+
+############################################################################################
+# Creating the spatial objects                                                             #
+############################################################################################
+
+--echo #Creating the spatial Geometry object
+USE test;
+
+--disable_warnings
+DROP TABLE IF EXISTS gis_geometrycollection;
+--enable_warnings
+
+
+CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+
+
+############################################################################################
+# Inserting the values specific to the spatial objects                                     #
+############################################################################################
+
+# Geometric elements constructing a star and some of its elememts as base
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+
+# Star identical to the base star 
+SET @star_elem_vertical_1= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_1= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center_1= 'POINT(15 10)';
+SET @star_top_1= 'POINT(15 25)';
+SET @star_bottom_left_1= 'POINT(5 0)';
+SET @star_bottom_right_1= 'POINT(25 0)';
+SET @star_bottom_points_1= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points_1= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal_1= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical_1= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center_1= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal_1= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical_1= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star_1= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val_1= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val_1= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems_1='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems_1='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+
+# Star like the base star, but shifted to right by 10 on X to overlap base star
+SET @star_elem_vertical_2= 'POLYGON((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_2= 'POLYGON((35 0,10 15,40 15,32 10,35 0))';
+SET @star_center_2= 'POINT(25 10)';
+SET @star_top_2= 'POINT(25 25)';
+SET @star_bottom_left_2= 'POINT(15 0)';
+SET @star_bottom_right_2= 'POINT(35 0)';
+SET @star_bottom_points_2= 'MULTIPOINT(15 0,35 0)';
+SET @star_all_points_2= 'MULTIPOINT(15 0,35 0,35 10,25 25)';
+SET @star_line_horizontal_2= 'LINESTRING(20 15,30 15)';
+SET @star_line_vertical_2= 'LINESTRING(25 5,25 25)';
+SET @star_top_to_center_2= 'LINESTRING(25 25,25 10)';
+SET @star_lines_near_horizontal_2= 'MULTILINESTRING((35 0,10 15,25 30,10 5))';
+SET @star_lines_near_vertical_2= 'MULTILINESTRING((10 5,25 25,10 25))';
+SET @star_2= 'POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0))';
+SET @star_elem_vertical_val_2= '((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_val_2= '((35 0,10 15,40 15,32 10,35 0))';
+SET @star_of_elems_2='MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0)))';
+SET @star_collection_elems_2='GEOMETRYCOLLECTION(MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0))),POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0)),LINESTRING(25 25,25 10),MULTIPOINT(15 0,35 0),POINT(25 25))';
+
+# Star like the base star, but shifted to right by 60 on X to be completly separate
+SET @star_elem_vertical_3= 'POLYGON((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_3= 'POLYGON((85 0,60 15,90 15,82 10,85 0))';
+SET @star_center_3= 'POINT(75 10)';
+SET @star_top_3= 'POINT(75 25)';
+SET @star_bottom_left_3= 'POINT(65 0)';
+SET @star_bottom_right_3= 'POINT(85 0)';
+SET @star_bottom_points_3= 'MULTIPOINT(65 0,85 0)';
+SET @star_all_points_3= 'MULTIPOINT(65 0,85 0,75 10,75 25)';
+SET @star_line_horizontal_3= 'LINESTRING(70 15,80 15)';
+SET @star_line_vertical_3= 'LINESTRING(75 5,75 25)';
+SET @star_top_to_center_3= 'LINESTRING(75 25,75 10)';
+SET @star_lines_near_horizontal_3= 'MULTILINESTRING((85 0,60 15,85 30,60 5))';
+SET @star_lines_near_vertical_3= 'MULTILINESTRING((60 5,75 25,60 25))';
+SET @star_3= 'POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0))';
+SET @star_elem_vertical_val_3= '((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
+SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
+SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
+
+
+--echo #INSERT base star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (100,GeomFromText(@star)),
+ (101,GeomFromText(@star_elem_vertical)),
+ (102,GeomFromText(@star_elem_horizontal)),
+ (103,GeomFromText(@star_of_elems)),
+ (104,GeomFromText(@star_top)),
+ (105,GeomFromText(@star_center)),
+ (106,GeomFromText(@star_bottom_left)),
+ (107,GeomFromText(@star_bottom_right)),
+ (108,GeomFromText(@star_bottom_points)),
+ (109,GeomFromText(@star_all_points)),
+ (110,GeomFromText(@star_line_horizontal)),
+ (111,GeomFromText(@star_line_vertical)),
+ (112,GeomFromText(@star_top_to_center)),
+ (113,GeomFromText(@star_lines_near_horizontal)),
+ (114,GeomFromText(@star_lines_near_vertical)),
+ (115,GeomFromText(@star_collection_elems));
+--enable_warnings
+
+--echo #INSERT identical (to base) star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (200,GeomFromText(@star_1)),
+ (201,GeomFromText(@star_elem_vertical_1)),
+ (202,GeomFromText(@star_elem_horizontal_1)),
+ (203,GeomFromText(@star_of_elems_1)),
+ (204,GeomFromText(@star_top_1)),
+ (205,GeomFromText(@star_center_1)),
+ (206,GeomFromText(@star_bottom_left_1)),
+ (207,GeomFromText(@star_bottom_right_1)),
+ (208,GeomFromText(@star_bottom_points_1)),
+ (209,GeomFromText(@star_all_points_1)),
+ (210,GeomFromText(@star_line_horizontal_1)),
+ (211,GeomFromText(@star_line_vertical_1)),
+ (212,GeomFromText(@star_top_to_center_1)),
+ (213,GeomFromText(@star_lines_near_horizontal_1)),
+ (214,GeomFromText(@star_lines_near_vertical_1)),
+ (215,GeomFromText(@star_collection_elems_1));
+--enable_warnings
+
+--echo #INSERT overlapping star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (300,GeomFromText(@star_2)),
+ (301,GeomFromText(@star_elem_vertical_2)),
+ (302,GeomFromText(@star_elem_horizontal_2)),
+ (303,GeomFromText(@star_of_elems_2)),
+ (304,GeomFromText(@star_top_2)),
+ (305,GeomFromText(@star_center_2)),
+ (306,GeomFromText(@star_bottom_left_2)),
+ (307,GeomFromText(@star_bottom_right_2)),
+ (308,GeomFromText(@star_bottom_points_2)),
+ (309,GeomFromText(@star_all_points_2)),
+ (310,GeomFromText(@star_line_horizontal_2)),
+ (311,GeomFromText(@star_line_vertical_2)),
+ (312,GeomFromText(@star_top_to_center_2)),
+ (313,GeomFromText(@star_lines_near_horizontal_2)),
+ (314,GeomFromText(@star_lines_near_vertical_2)),
+ (315,GeomFromText(@star_collection_elems_2));
+--enable_warnings
+
+--echo #INSERT seperate star
+--disable_warnings
+INSERT INTO gis_geometrycollection VALUES
+ (400,GeomFromText(@star_3)),
+ (401,GeomFromText(@star_elem_vertical_3)),
+ (402,GeomFromText(@star_elem_horizontal_3)),
+ (403,GeomFromText(@star_of_elems_3)),
+ (404,GeomFromText(@star_top_3)),
+ (405,GeomFromText(@star_center_3)),
+ (406,GeomFromText(@star_bottom_left_3)),
+ (407,GeomFromText(@star_bottom_right_3)),
+ (408,GeomFromText(@star_bottom_points_3)),
+ (409,GeomFromText(@star_all_points_3)),
+ (410,GeomFromText(@star_line_horizontal_3)),
+ (411,GeomFromText(@star_line_vertical_3)),
+ (412,GeomFromText(@star_top_to_center_3)),
+ (413,GeomFromText(@star_lines_near_horizontal_3)),
+ (414,GeomFromText(@star_lines_near_vertical_3)),
+ (415,GeomFromText(@star_collection_elems_3));
+--enable_warnings
+
+--disable_warnings
+DROP TABLE IF EXISTS gis_geometrycollection_2;
+--enable_warnings
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+
+--echo #Checking the integrity of the above create/insert statements 
+
+--echo #64 rows. 
+SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
+--echo #64 rows. 
+SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
+
+############################################################################################
+# Checking the spatial operator functions                                                  #
+############################################################################################
+
+--echo #========================================================================================
+--echo # ST_Union(g1,g2)
+--echo #========================================================================================
+
+--echo #-------------------------------------------------------------------------------------------
+--echo #point,point
+SELECT AsText(ST_Union(GeomFromText(@star_center),GeomFromText(@star_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_center)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_center))) FROM gis_geometrycollection WHERE fid=105;
+--echo #point,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_center),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=106;
+--echo #point,linestring
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_bottom_left),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=104;
+--echo #point,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_center),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=104;
+--echo #point,polygon
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star)));
+SELECT AsText(ST_Union(GeomFromText(@star_top_3),GeomFromText(@star)));
+SELECT AsText(ST_Union(g,GeomFromText(@star))) FROM gis_geometrycollection WHERE fid=104;
+--echo #point,multipolygon
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_top_3),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=104;
+--echo #point,geometrycollection
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_top_3),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=104;
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr)));
+--echo #-------------------------------------------------------------------------------------------
+--echo #multipoint,point
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_top)));
+SELECT AsText(ST_Union(GeomFromText(@star_bottom_points),GeomFromText(@star_center)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_bottom_left))) FROM gis_geometrycollection WHERE fid=108;
+--echo #multipoint,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_all_points_1)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_all_points))) FROM gis_geometrycollection WHERE fid=108;
+--echo #multipoint,linestring
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=109;
+--echo #multipoint,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=109;
+--echo #multipoint,polygon
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_elem_horizontal))) FROM gis_geometrycollection WHERE fid=109;
+--echo #multipoint,multipolygon
+SELECT AsText(ST_Union(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=109;
+--echo #multipoint,geometrycollection
+SELECT AsText(ST_Union(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=109;
+SELECT AsText(ST_Union(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr)));
+--echo #-------------------------------------------------------------------------------------------
+--echo #linestring,point
+SELECT AsText(ST_Union(GeomFromText(@star_top_to_center),GeomFromText(@star_center)));
+SELECT AsText(ST_Union(GeomFromText('LINESTRING(15 25,15 10)'),GeomFromText('POINT(15 10)')));
+SELECT AsText(ST_Union(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left)));
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=110 and fid2=105;
+--echo #linestring,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)')));
+SELECT AsText(ST_Union(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points)));
+SELECT AsText(ST_Union(g,GeomFromText('MULTIPOINT(15 10,15 25)'))) FROM gis_geometrycollection WHERE fid=111;
+--echo #linestring,linestring
+SELECT AsText(ST_Union(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_top_to_center),GeomFromText(@star_top_to_center_1)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=111;
+--echo #linestring,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal)));
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_horizontal))) FROM gis_geometrycollection WHERE fid=110;
+--echo #linestring,polygon
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))')));
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))) FROM gis_geometrycollection WHERE fid=110;
+--echo #linestring,multipolygon
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15))),((25 0,0 15,25 0))')));
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))) FROM gis_geometrycollection WHERE fid=110;
+--echo #linestring,geometrycollection
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3)));
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems_3))) FROM gis_geometrycollection WHERE fid=110;
+SELECT AsText(ST_Union(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr)));
+--echo #-------------------------------------------------------------------------------------------
+--echo #multilinestring,point
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top)));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=114;
+--echo #multilinestring,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=114;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=114 and fid2=108;
+--echo #multilinestring,linestring
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
+--echo #multilinestring,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
+--echo #multilinestring,multilinestring
+SELECT AsText(ST_Union(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
+--echo #multilinestring,polygon
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=114;
+--echo #multilinestring,multipolygon
+SELECT AsText(ST_Union(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
+--echo #multilinestring,geometrycollection
+SELECT AsText(ST_Union(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
+SELECT AsText(ST_Union(GeomFromText(@star_lines_near_horizontal),GeomFromText(@star_collection_multilinestr)));
+--echo #-------------------------------------------------------------------------------------------
+--echo #polygon,point
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_center))) FROM gis_geometrycollection WHERE fid=100;
+--echo #polygon,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_all_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_all_points))) FROM gis_geometrycollection WHERE fid=100;
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_all_points)));
+--echo #polygon,linestring
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_line_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=100;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=100 and fid2=111;
+--echo #polygon,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=100;
+--echo #polygon,polygon
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText(@star)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=100;
+--echo #polygon,multipolygon
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_of_elems_3)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=100;
+--echo #polygon,geometrycollection
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_collection_elems_3)));
+SELECT AsText(ST_Union(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
+SELECT AsText(ST_Union(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)));
+--echo #-------------------------------------------------------------------------------------------
+--echo #multipolygon,point
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_top)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=103;
+--echo #multipolygon,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=103;
+--echo #multipolygon,linestring
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=103;
+--echo #multipolygon,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=103;
+--echo #multipolygon,polygon
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=103;
+--echo #multipolygon,multipolygon
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_of_elems)));
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+SELECT AsText(ST_Union(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=103;
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+--echo #multipolygon,geometrycollectionn
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_collection_elems_3)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=103;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=115 and fid2=115;
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
+--echo #-------------------------------------------------------------------------------------------
+--echo #geometrycollection,point
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_top)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=115;
+--echo #geometrycollection,multipoint
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=115;
+--echo #geometrycollection,linestring
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
+--echo #geometrycollection,multilinestring
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
+--echo #geometrycollection,polygon
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
+--echo #geometrycollection,multipolygon
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=115 and fid2=215;
+--echo #geometrycollection,geometrycollectionn
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=115 and fid2=215;
+SELECT AsText(ST_Union(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems)));
+
+--echo #=======================================================================================
+--echo # Testing ST_Union() with 2 geometries of same SRID
+--echo #=======================================================================================
+
+SELECT AsText(ST_Union(GeomFromText(@star_top,0),GeomFromText(@star_center,0)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,100),GeomFromText(@star_center,100)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)));
+
+--echo #=======================================================================================
+--echo # Invalid function calls
+--echo #=======================================================================================
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT AsText(ST_Union(GeomFromText(@star_top),GeomFromText(@star_center,4326)));
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT AsText(ST_Union(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,0),GeomFromText(@star_center,0)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+SELECT AsText(ST_Union(NULL,GeomFromText(@star_top)));
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),NULL));
+SELECT AsText(ST_Union(g,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+SELECT AsText(ST_Union(NULL,NULL));
+SELECT AsText(ST_Union(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+SELECT AsText(ST_Union(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
+       WHERE fid=103 and fid2=103;
+SELECT AsText(ST_Union(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_PARSE_ERROR
+SELECT AsText(ST_Union(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_PARSE_ERROR
+SELECT AsText(ST_Union(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_PARSE_ERROR
+SELECT AsText(ST_Union(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+SELECT AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_PARSE_ERROR
+SELECT AsText(ST_Union(,));
+--error ER_PARSE_ERROR
+SELECT AsText(ST_Union(GeomFromText(@star_of_elems),));
+--error ER_PARSE_ERROR
+SELECT AsText(ST_Union(,GeomFromText(@star_top)));
+
+--echo #clean up
+--disable_warnings
+DROP TABLE IF EXISTS gis_geometrycollection;
+DROP TABLE IF EXISTS gis_geometrycollection_2;
+--enable_warnings
+
+

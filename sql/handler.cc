@@ -2141,7 +2141,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
@@ -2153,7 +2153,7 @@ Ha_delete_table_error_handler::
 handle_condition(THD *,
                  uint,
                  const char*,
-                 Sql_condition::enum_severity_level,
+                 Sql_condition::enum_severity_level*,
                  const char* msg,
                  Sql_condition ** cond_hdl)
 {
@@ -4337,10 +4337,10 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
      In this case, we might be rolling back after a failed lock upgrade,
      so we could be holding the same lock level as for inplace_alter_table().
    */
-   DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                                   table->s->db.str,
-                                                   table->s->table_name.str,
-                                                   MDL_EXCLUSIVE) ||
+   DBUG_ASSERT(ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                       table->s->db.str,
+                                       table->s->table_name.str,
+                                       MDL_EXCLUSIVE) ||
                !commit);
 
    return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
@@ -4693,7 +4693,6 @@ int ha_create_table(THD *thd, const char *path,
   char name_buff[FN_REFLEN];
   const char *name;
   TABLE_SHARE share;
-  bool saved_abort_on_warning;
   DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
   my_bool temp_table= (my_bool)is_temp_table ||
@@ -4718,10 +4717,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  saved_abort_on_warning = thd->abort_on_warning; 
-  thd->abort_on_warning = false;
   error= table.file->ha_create(name, &table, create_info);
-  thd->abort_on_warning = saved_abort_on_warning;
   if (error)
   {
     table.file->print_error(error, MYF(0));

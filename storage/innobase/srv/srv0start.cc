@@ -1243,18 +1243,14 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 #if defined(COMPILER_HINTS_ENABLED)
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compiler hints enabled.");
+	ib_logf(IB_LOG_LEVEL_INFO, "Compiler hints enabled.");
 #endif /* defined(COMPILER_HINTS_ENABLED) */
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" IB_ATOMICS_STARTUP_MSG "");
+	ib_logf(IB_LOG_LEVEL_INFO, IB_ATOMICS_STARTUP_MSG);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" MUTEX_TYPE"");
+	ib_logf(IB_LOG_LEVEL_INFO, MUTEX_TYPE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compressed tables use zlib " ZLIB_VERSION
+	ib_logf(IB_LOG_LEVEL_INFO, "Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
 #endif /* UNIV_ZIP_DEBUG */
@@ -1262,7 +1258,6 @@ innobase_start_or_create_for_mysql(void)
 #ifdef UNIV_ZIP_COPY
 	ib_logf(IB_LOG_LEVEL_INFO, "and extra copying");
 #endif /* UNIV_ZIP_COPY */
-
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -2064,7 +2059,11 @@ files_checked:
 
 			RECOVERY_CRASH(1);
 
-			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			log_mutex_enter();
+
+			fil_names_clear(log_sys->lsn, false);
+
+			min_flushed_lsn = max_flushed_lsn = log_sys->lsn;
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Resizing redo log from %u*%u to %u*%u pages"
@@ -2076,7 +2075,9 @@ files_checked:
 				max_flushed_lsn);
 
 			/* Flush the old log files. */
-			log_buffer_flush_to_disk();
+			log_mutex_exit();
+
+			log_write_up_to(max_flushed_lsn, true);
 
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */

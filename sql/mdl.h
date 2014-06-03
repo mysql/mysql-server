@@ -104,7 +104,7 @@ public:
   /**
      @see THD::notify_shared_lock()
    */
-  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) = 0;
 
   /**
@@ -781,9 +781,9 @@ public:
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_lock(MDL_ticket *ticket);
 
-  bool is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
-                     const char *db, const char *name,
-                     enum_mdl_type mdl_type);
+  bool owns_equal_or_stronger_lock(MDL_key::enum_mdl_namespace mdl_namespace,
+                                   const char *db, const char *name,
+                                   enum_mdl_type mdl_type);
 
   bool has_lock(const MDL_savepoint &mdl_savepoint, MDL_ticket *mdl_ticket);
 
