@@ -2568,7 +2568,7 @@ make_external:
 		if (total_blob_len > redo_10p) {
 			ib_logf(IB_LOG_LEVEL_ERROR, "The total blob data"
 				" length (" ULINTPF ") is greater than"
-				" 10%% of the redo log file size (" ULINTPF
+				" 10%% of the redo log file size (" UINT64PF
 				"). Please increase innodb_log_file_size.",
 				total_blob_len, srv_log_file_size);
 			if (n_reserved > 0) {
@@ -4433,7 +4433,7 @@ btr_store_big_rec_extern_fields(
 		ut_ad(op == BTR_STORE_INSERT);
 		ib_logf(IB_LOG_LEVEL_ERROR, "The total blob data length"
 			" (" ULINTPF ") is greater than 10%% of the"
-			" redo log file size (" ULINTPF "). Please"
+			" redo log file size (" UINT64PF "). Please"
 			" increase innodb_log_file_size.",
 			total_blob_len, srv_log_file_size);
 		return(DB_TOO_BIG_RECORD);
