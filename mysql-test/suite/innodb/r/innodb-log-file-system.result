@@ -4,7 +4,7 @@ CREATE TABLE t1(a INT PRIMARY KEY) ENGINE=InnoDB;
 # Start with new data file path
 INSERT INTO t1 VALUES (1);
 # Fault 2: Missing file in innodb_data_file_path
-# Recovery and clean shutdown with new (matching) data file path
+# Recovery and shutdown with innodb-force-recovery (ignore unknown file)
 # Cleanup
 SELECT * FROM t1;
 a
