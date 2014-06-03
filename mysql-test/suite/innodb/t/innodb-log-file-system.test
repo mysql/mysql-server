@@ -113,18 +113,16 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Redo log refers to system tablespace file 
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
---echo # Recovery and clean shutdown with new (matching) data file path
-
+--echo # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
 --error 2
---exec $new_mysqld --innodb-nonexistent-option
+--exec $old_mysqld --innodb-force-recovery=1 --innodb-nonexistent-option
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
 
---remove_file $MYSQLD_DATADIR/foo
-
 --echo # Cleanup
 
+--remove_file $MYSQLD_DATADIR/foo
 --remove_file $NEW_CNF
 
 --exec echo "restart" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
