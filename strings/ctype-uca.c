@@ -26470,8 +26470,8 @@ CHARSET_INFO my_charset_gb18030_unicode_520_ci=
     NULL,              /* state_map     */
     NULL,              /* ident_map     */
     8,                 /* strxfrm_multiply */
-    1,                 /* caseup_multiply  */
-    1,                 /* casedn_multiply  */
+    2,                 /* caseup_multiply  */
+    2,                 /* casedn_multiply  */
     1,                 /* mbminlen      */
     4,                 /* mbmaxlen      */
     2,                 /* mbmaxlenlen   */

@@ -227,7 +227,7 @@ Uu	55,75
 Vv	56,76
 Ww	57,77
 Xx	58,78
-Yy~	59,79,7E
+Yy	59,79
 Zz	5A,7A
 [	5B
 \	5C
@@ -238,6 +238,7 @@ _	5F
 {	7B
 |	7C
 }	7D
+~	7E
 	7F
 drop table t1;
 SET collation_connection='gb18030_bin';

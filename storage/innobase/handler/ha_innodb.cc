@@ -428,28 +428,18 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cursor_moveto,
 	(ib_cb_t) ib_cursor_first,
 	(ib_cb_t) ib_cursor_next,
-	(ib_cb_t) ib_cursor_last,
 	(ib_cb_t) ib_cursor_set_match_mode,
 	(ib_cb_t) ib_sec_search_tuple_create,
 	(ib_cb_t) ib_clust_read_tuple_create,
 	(ib_cb_t) ib_tuple_delete,
-	(ib_cb_t) ib_tuple_copy,
 	(ib_cb_t) ib_tuple_read_u8,
-	(ib_cb_t) ib_tuple_write_u8,
 	(ib_cb_t) ib_tuple_read_u16,
-	(ib_cb_t) ib_tuple_write_u16,
 	(ib_cb_t) ib_tuple_read_u32,
-	(ib_cb_t) ib_tuple_write_u32,
 	(ib_cb_t) ib_tuple_read_u64,
-	(ib_cb_t) ib_tuple_write_u64,
 	(ib_cb_t) ib_tuple_read_i8,
-	(ib_cb_t) ib_tuple_write_i8,
 	(ib_cb_t) ib_tuple_read_i16,
-	(ib_cb_t) ib_tuple_write_i16,
 	(ib_cb_t) ib_tuple_read_i32,
-	(ib_cb_t) ib_tuple_write_i32,
 	(ib_cb_t) ib_tuple_read_i64,
-	(ib_cb_t) ib_tuple_write_i64,
 	(ib_cb_t) ib_tuple_get_n_cols,
 	(ib_cb_t) ib_col_set_value,
 	(ib_cb_t) ib_col_get_value,
@@ -459,12 +449,10 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_trx_rollback,
 	(ib_cb_t) ib_trx_start,
 	(ib_cb_t) ib_trx_release,
-	(ib_cb_t) ib_trx_state,
 	(ib_cb_t) ib_cursor_lock,
 	(ib_cb_t) ib_cursor_close,
 	(ib_cb_t) ib_cursor_new_trx,
 	(ib_cb_t) ib_cursor_reset,
-	(ib_cb_t) ib_open_table_by_name,
 	(ib_cb_t) ib_col_get_name,
 	(ib_cb_t) ib_table_truncate,
 	(ib_cb_t) ib_cursor_open_index_using_name,
@@ -476,7 +464,6 @@ ib_cb_t innodb_api_cb[] = {
 	(ib_cb_t) ib_cfg_trx_level,
 	(ib_cb_t) ib_tuple_get_n_user_cols,
 	(ib_cb_t) ib_cursor_set_lock_mode,
-	(ib_cb_t) ib_cursor_clear_trx,
 	(ib_cb_t) ib_get_idx_field_name,
 	(ib_cb_t) ib_trx_get_start_time,
 	(ib_cb_t) ib_cfg_bk_commit_interval,
@@ -1178,13 +1165,15 @@ thd_start_time_in_secs(
 
 /******************************************************************//**
 Save some CPU by testing the value of srv_thread_concurrency in inline
-functions. */
+functions.
+@param[in/out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_enter_innodb(
-/*===========================*/
-	trx_t*	trx)	/*!< in: transaction handle */
+	row_prebuilt_t*	prebuilt)
 {
+	trx_t*	trx	= prebuilt->trx;
+
 	if (srv_thread_concurrency) {
 		if (trx->n_tickets_to_enter_innodb > 0) {
 
@@ -1202,23 +1191,25 @@ innobase_srv_conc_enter_innodb(
 				srv_replication_delay * 1000);
 
 		} else {
-			srv_conc_enter_innodb(trx);
+			srv_conc_enter_innodb(prebuilt);
 		}
 	}
 }
 
 /******************************************************************//**
 Note that the thread wants to leave InnoDB only if it doesn't have
-any spare tickets. */
+any spare tickets.
+@param[in/out]	prebuilt	row prebuilt handler */
 static inline
 void
 innobase_srv_conc_exit_innodb(
-/*==========================*/
-	trx_t*	trx)	/*!< in: transaction handle */
+	row_prebuilt_t*	prebuilt)
 {
+	trx_t*	trx	= prebuilt->trx;
 	btrsea_sync_check	check(trx->has_search_latch);
 
-	ut_ad(!sync_check_iterate(check));
+	ut_ad(dict_table_is_intrinsic(prebuilt->table)
+	      || !sync_check_iterate(check));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb
@@ -6628,7 +6619,7 @@ no_commit:
 		build_template(true);
 	}
 
-	innobase_srv_conc_enter_innodb(prebuilt->trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
 	error = row_insert_for_mysql(
@@ -6723,7 +6714,7 @@ set_max_autoinc:
 		}
 	}
 
-	innobase_srv_conc_exit_innodb(prebuilt->trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 report_error:
 	/* Step-7: Cleanup and exit. */
@@ -7100,7 +7091,7 @@ ha_innobase::update_row(
 	/* This is not a delete */
 	prebuilt->upd_node->is_delete = FALSE;
 
-	innobase_srv_conc_enter_innodb(trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	error = row_update_for_mysql(
 		(byte*) old_row, prebuilt, thd_to_innodb_session(user_thd));
@@ -7144,7 +7135,7 @@ ha_innobase::update_row(
 		}
 	}
 
-	innobase_srv_conc_exit_innodb(trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 func_exit:
 	int err = convert_error_code_to_mysql(error,
@@ -7203,12 +7194,12 @@ ha_innobase::delete_row(
 
 	prebuilt->upd_node->is_delete = TRUE;
 
-	innobase_srv_conc_enter_innodb(trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	error = row_update_for_mysql(
 		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
 
-	innobase_srv_conc_exit_innodb(trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 	/* Tell the InnoDB server that there might be work for
 	utility threads: */
@@ -7548,7 +7539,7 @@ ha_innobase::index_read(
 
 	if (mode != PAGE_CUR_UNSUPP) {
 
-		innobase_srv_conc_enter_innodb(prebuilt->trx);
+		innobase_srv_conc_enter_innodb(prebuilt);
 
 		if (!dict_table_is_intrinsic(prebuilt->table)) {
 			prebuilt->ins_sel_stmt = thd_is_ins_sel_stmt(user_thd);
@@ -7561,10 +7552,10 @@ ha_innobase::index_read(
 
 			ret = row_search_no_mvcc(
 				buf, mode, prebuilt, match_mode, 0,
-				prebuilt->session);  
+				prebuilt->session);
 		}
 
-		innobase_srv_conc_exit_innodb(prebuilt->trx);
+		innobase_srv_conc_exit_innodb(prebuilt);
 	} else {
 
 		ret = DB_UNSUPPORTED;
@@ -7846,7 +7837,7 @@ ha_innobase::general_fetch(
 
 	ut_ad(prebuilt->trx == thd_to_trx(user_thd));
 
-	innobase_srv_conc_enter_innodb(prebuilt->trx);
+	innobase_srv_conc_enter_innodb(prebuilt);
 
 	if (!dict_table_is_intrinsic(prebuilt->table)) {
 		ret = row_search_mvcc(buf, 0, prebuilt, match_mode, direction);
@@ -7856,7 +7847,7 @@ ha_innobase::general_fetch(
 			prebuilt->session);
 	}
 
-	innobase_srv_conc_exit_innodb(prebuilt->trx);
+	innobase_srv_conc_exit_innodb(prebuilt);
 
 	switch (ret) {
 	case DB_SUCCESS:
@@ -8392,12 +8383,12 @@ next_record:
 		tuple. */
 		innobase_fts_create_doc_id_key(tuple, index, &search_doc_id);
 
-		innobase_srv_conc_enter_innodb(prebuilt->trx);
+		innobase_srv_conc_enter_innodb(prebuilt);
 
 		dberr_t ret = row_search_for_mysql(
 			(byte*) buf, PAGE_CUR_GE, prebuilt, ROW_SEL_EXACT, 0);
 
-		innobase_srv_conc_exit_innodb(prebuilt->trx);
+		innobase_srv_conc_exit_innodb(prebuilt);
 
 		switch (ret) {
 		case DB_SUCCESS:

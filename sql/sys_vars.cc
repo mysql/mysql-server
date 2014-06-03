@@ -77,6 +77,7 @@ TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 */
 extern void close_thread_tables(THD *thd);
 
+extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
@@ -4947,3 +4948,18 @@ static Sys_var_mybool Sys_session_track_state_change(
        ON_CHECK(0),
        ON_UPDATE(update_session_track_state_change));
 
+static bool handle_offline_mode(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("handle_offline_mode");
+  if (offline_mode == TRUE)
+    killall_non_super_threads(thd);
+  DBUG_RETURN(false);
+}
+
+static PolyLock_mutex PLock_offline_mode(&LOCK_offline_mode);
+static Sys_var_mybool Sys_offline_mode(
+       "offline_mode",
+       "Make the server into offline mode",
+       GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       &PLock_offline_mode, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(handle_offline_mode));

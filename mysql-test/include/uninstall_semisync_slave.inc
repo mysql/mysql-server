@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-#
 # Uninstall semisync slave plugin
 # Usage:
 # --source include/uninstall_semisync_slave.inc

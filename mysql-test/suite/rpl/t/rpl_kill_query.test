@@ -52,7 +52,7 @@ CALL mtr.add_suppression("The slave coordinator and worker threads are stopped, 
 
 --echo ---- Verify there is an error on slave ----
 --source include/sync_slave_io_with_master.inc
---let $slave_sql_errno= 1885 #ER_ERROR_ON_MASTER
+--let $slave_sql_errno= convert_error(ER_ERROR_ON_MASTER)
 --source include/wait_for_slave_sql_error.inc
 
 --echo ---- Verify that nothing was inserted on slave -----

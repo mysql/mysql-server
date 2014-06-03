@@ -1622,7 +1622,7 @@ struct TABLE_LIST
 private:
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
-     member points to C.
+     member points to C. May also be generated from JOIN ... USING clause.
      It may be modified only by permanent transformations (permanent = done
      once for all executions of a prepared statement).
   */
@@ -1937,7 +1937,7 @@ public:
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
-  int view_check_option(THD *thd, bool ignore_failure) const;
+  int view_check_option(THD *thd) const;
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()
