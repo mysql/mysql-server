@@ -61,6 +61,7 @@ IF(UNIX AND NOT APPLE)
   # Compiling with PIC speeds up embedded build, on PIC sensitive systems 
   # Predefine it to OFF in release builds, because of the performance penalty
   SET(WITH_PIC ${WITH_PIC_DEFAULT} CACHE BOOL "Compile with PIC.")
+  MARK_AS_ADVANCED(WITH_PIC)
 ENDIF()
 
 # Optionally set project name, e.g.
@@ -262,6 +263,10 @@ IF (ENABLE_GCOV AND NOT WIN32 AND NOT APPLE)
   SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage")
   SET(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} -fprofile-arcs -ftest-coverage -lgcov")
 ENDIF()
+
+MY_CHECK_C_COMPILER_FLAG(-ggdb3 HAVE_GGDB3)
+SET(CMAKE_C_FLAGS_DEBUG "${CMAKE_C_FLAGS_DEBUG} -ggdb3")
+SET(CMAKE_CXX_FLAGS_DEBUG "${CMAKE_CXX_FLAGS_DEBUG} -ggdb3")
 
 OPTION(ENABLED_LOCAL_INFILE
  "If we should should enable LOAD DATA LOCAL by default" ${IF_WIN})

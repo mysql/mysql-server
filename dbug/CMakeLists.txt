@@ -30,6 +30,8 @@ TARGET_LINK_LIBRARIES(factorial dbug)
 IF(NOT WIN32 AND NOT CMAKE_GENERATOR MATCHES Xcode)
   FIND_PROGRAM(GROFF groff)
   FIND_PROGRAM(NROFF nroff)
+  MARK_AS_ADVANCED(GROFF)
+  MARK_AS_ADVANCED(NROFF)
   SET(OUTPUT_INC output1.r output2.r output3.r output4.r output5.r)
   SET(SOURCE_INC factorial.r main.r example1.r example2.r example3.r)
   ADD_CUSTOM_COMMAND(OUTPUT ${OUTPUT_INC}
