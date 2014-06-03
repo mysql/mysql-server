@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -18,11 +18,7 @@ IF(NOT WIN32)
 ENDIF()
 
 FIND_PATH(WIX_DIR heat.exe
-   $ENV{WIX_DIR}/bin
-   $ENV{ProgramFiles}/wix/bin
-  "$ENV{ProgramFiles}/Windows Installer XML v3/bin"
-  "$ENV{ProgramFiles}/Windows Installer XML v3.5/bin"
-  "$ENV{ProgramFiles}/WiX Toolset V3.6/bin"
+  "$ENV{ProgramFiles}/WiX Toolset V3.8/bin"
 )
 
 IF(NOT WIX_DIR)
@@ -123,13 +119,4 @@ ADD_CUSTOM_TARGET(
   -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
 )
 ADD_DEPENDENCIES(MSI wixca)
-
-ADD_CUSTOM_TARGET(
-  MSI_ESSENTIALS
-  COMMAND set VS_UNICODE_OUTPUT=
-  COMMAND ${CMAKE_COMMAND} -DESSENTIALS=1 
-  ${CONFIG_PARAM}
-  -P  ${CMAKE_CURRENT_BINARY_DIR}/create_msi.cmake
-)
-ADD_DEPENDENCIES(MSI_ESSENTIALS wixca)
 

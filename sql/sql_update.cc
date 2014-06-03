@@ -210,7 +210,7 @@ bool mysql_update(THD *thd,
                   List<Item> &fields,
                   List<Item> &values,
                   ha_rows limit,
-                  enum enum_duplicates handle_duplicates, bool ignore,
+                  enum enum_duplicates handle_duplicates,
                   ha_rows *found_return, ha_rows *updated_return)
 {
   myf           error_flags= MYF(0);            /**< Flag for fatal errors */
@@ -718,7 +718,7 @@ bool mysql_update(THD *thd,
       table->file->ha_index_or_rnd_end();
     }
 
-    if (ignore)
+    if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   
     if (select && select->quick && (error= select->quick->reset()))
@@ -744,7 +744,6 @@ bool mysql_update(THD *thd,
     THD_STAGE_INFO(thd, stage_updating);
 
     transactional_table= table->file->has_transactions();
-    thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
     if (table->triggers &&
         table->triggers->has_triggers(TRG_EVENT_UPDATE,
@@ -762,7 +761,7 @@ bool mysql_update(THD *thd,
       will_batch= !table->file->start_bulk_update();
 
     if ((table->file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL) &&
-        !ignore && !using_limit &&
+        !thd->lex->is_ignore() && !using_limit &&
         select && select->quick && select->quick->index != MAX_KEY &&
         check_constant_expressions(values))
       read_removal= table->check_read_removal(select->quick->index);
@@ -777,7 +776,7 @@ bool mysql_update(THD *thd,
           continue;  /* repeat the read of the same row if it still exists */
 
       store_record(table,record[1]);
-      if (fill_record_n_invoke_before_triggers(thd, fields, values, 0,
+      if (fill_record_n_invoke_before_triggers(thd, fields, values,
                                                table,
                                                TRG_EVENT_UPDATE, 0))
         break; /* purecov: inspected */
@@ -786,8 +785,7 @@ bool mysql_update(THD *thd,
 
         if (!records_are_comparable(table) || compare_records(table))
         {
-          if ((res= table_list->view_check_option(thd, ignore)) !=
-              VIEW_CHECK_OK)
+          if ((res= table_list->view_check_option(thd)) != VIEW_CHECK_OK)
           {
             found--;
             if (res == VIEW_CHECK_SKIP)
@@ -846,29 +844,24 @@ bool mysql_update(THD *thd,
             error= table->file->ha_update_row(table->record[1],
                                               table->record[0]);
           }
-          if (!error || error == HA_ERR_RECORD_IS_THE_SAME)
+          if (error == 0)
+            updated++;
+          else if (error == HA_ERR_RECORD_IS_THE_SAME)
+            error= 0;
+          else
           {
-            if (error != HA_ERR_RECORD_IS_THE_SAME)
-              updated++;
-            else
-              error= 0;
-          }
-          else if ((!table->file->is_ignorable_error(error)) || !ignore)
-          {
-            /*
-              If (ignore && error is ignorable) we don't have to
-              do anything; otherwise...
-            */
             if (table->file->is_fatal_error(error))
               error_flags|= ME_FATALERROR;
 
             table->file->print_error(error, error_flags);
-            error= 1;
-            break;
+
+            // The error can have been downgraded to warning by IGNORE.
+            if (thd->is_error())
+              break;
           }
         }
 
-        if (table->triggers &&
+        if (!error && table->triggers &&
             table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                               TRG_ACTION_AFTER, TRUE))
         {
@@ -1059,7 +1052,6 @@ bool mysql_update(THD *thd,
     DBUG_PRINT("info",("%ld records updated", (long) updated));
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;		/* calc cuted fields */
-  thd->abort_on_warning= 0;
   *found_return= found;
   *updated_return= updated;
   DBUG_RETURN((error >= 0 || thd->is_error()) ? 1 : 0);
@@ -1069,7 +1061,6 @@ exit_without_my_ok:
   delete saved_selects[1];
   free_underlaid_joins(thd, select_lex);
   table->set_keyread(FALSE);
-  thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
 
@@ -1540,7 +1531,6 @@ bool mysql_multi_update(THD *thd,
                         List<Item> *values,
                         ulonglong options,
                         enum enum_duplicates handle_duplicates,
-                        bool ignore,
                         SELECT_LEX *select_lex,
                         multi_update **result)
 {
@@ -1550,12 +1540,10 @@ bool mysql_multi_update(THD *thd,
   if (!(*result= new multi_update(select_lex->get_table_list(),
                                   select_lex->leaf_tables,
                                   fields, values,
-                                  handle_duplicates, ignore)))
+                                  handle_duplicates)))
   {
     DBUG_RETURN(TRUE);
   }
-
-  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
   if (thd->lex->describe)
     res= explain_query(thd, thd->lex->unit, *result);
@@ -1581,7 +1569,6 @@ bool mysql_multi_update(THD *thd,
       (*result)->abort_result_set();
     }
   }
-  thd->abort_on_warning= 0;
   DBUG_RETURN(res);
 }
 
@@ -1589,14 +1576,12 @@ bool mysql_multi_update(THD *thd,
 multi_update::multi_update(TABLE_LIST *table_list,
 			   TABLE_LIST *leaves_list,
 			   List<Item> *field_list, List<Item> *value_list,
-			   enum enum_duplicates handle_duplicates_arg,
-                           bool ignore_arg)
+			   enum enum_duplicates handle_duplicates_arg)
   :all_tables(table_list), leaves(leaves_list), update_tables(0),
    tmp_tables(0), updated(0), found(0), fields(field_list),
    values(value_list), table_count(0), copy_field(0),
    handle_duplicates(handle_duplicates_arg), do_update(1), trans_safe(1),
-   transactional_tables(0), ignore(ignore_arg), error_handled(0),
-   update_operations(NULL)
+   transactional_tables(0), error_handled(0), update_operations(NULL)
 {}
 
 
@@ -1895,7 +1880,7 @@ multi_update::initialize_tables(JOIN *join)
     ORDER     group;
     Temp_table_param *tmp_param;
 
-    if (ignore)
+    if (thd->lex->is_ignore())
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (table == main_table)			// First table in join
     {
@@ -2049,7 +2034,7 @@ multi_update::~multi_update()
   for (table= update_tables ; table; table= table->next_local)
   {
     table->table->no_keyread= table->table->no_cache= 0;
-    if (ignore)
+    if (thd->lex->is_ignore())
       table->table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
   }
 
@@ -2108,7 +2093,6 @@ bool multi_update::send_data(List<Item> &not_used_values)
       if (fill_record_n_invoke_before_triggers(thd,
                                                *fields_for_table[offset],
                                                *values_for_table[offset],
-                                               false, // ignore_errors
                                                table,
                                                TRG_EVENT_UPDATE, 0))
 	DBUG_RETURN(1);
@@ -2119,12 +2103,12 @@ bool multi_update::send_data(List<Item> &not_used_values)
       */
       table->auto_increment_field_not_null= FALSE;
       found++;
+      int error= 0;
       if (!records_are_comparable(table) || compare_records(table))
       {
         update_operations[offset]->set_function_defaults(table);
 
-	int error;
-        if ((error= cur_table->view_check_option(thd, ignore)) !=
+        if ((error= cur_table->view_check_option(thd)) !=
             VIEW_CHECK_OK)
         {
           found--;
@@ -2147,19 +2131,15 @@ bool multi_update::send_data(List<Item> &not_used_values)
             error != HA_ERR_RECORD_IS_THE_SAME)
         {
           updated--;
-          if (!table->file->is_ignorable_error(error) || !ignore)
-          {
-            /*
-              If (ignore && error == is ignorable) we don't have to
-              do anything; otherwise...
-            */
-            myf error_flags= MYF(0);
-            if (table->file->is_fatal_error(error))
-              error_flags|= ME_FATALERROR;
+          myf error_flags= MYF(0);
+          if (table->file->is_fatal_error(error))
+            error_flags|= ME_FATALERROR;
 
-            table->file->print_error(error, error_flags);
+          table->file->print_error(error, error_flags);
+
+          /* Errors could be downgraded to warning by IGNORE */
+          if (thd->is_error())
             DBUG_RETURN(1);
-          }
         }
         else
         {
@@ -2180,7 +2160,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
           }
         }
       }
-      if (table->triggers &&
+      if (!error && table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                             TRG_ACTION_AFTER, TRUE))
         DBUG_RETURN(1);
@@ -2227,7 +2207,7 @@ bool multi_update::send_data(List<Item> &not_used_values)
       /* Store regular updated fields in the row. */
       fill_record(thd,
                   tmp_table->field + 1 + unupdated_check_opt_tables.elements,
-                  *values_for_table[offset], 1, NULL, NULL);
+                  *values_for_table[offset], NULL, NULL);
 
       /* Write row, ignoring duplicated updates to a row */
       error= tmp_table->file->ha_write_row(tmp_table->record[0]);
@@ -2451,7 +2431,7 @@ int multi_update::do_updates()
       {
         update_operations[offset]->set_function_defaults(table);
         int error;
-        if ((error= cur_table->view_check_option(thd, ignore)) !=
+        if ((error= cur_table->view_check_option(thd)) !=
             VIEW_CHECK_OK)
         {
           if (error == VIEW_CHECK_SKIP)
@@ -2466,19 +2446,19 @@ int multi_update::do_updates()
           updated++;
         else if (local_error == HA_ERR_RECORD_IS_THE_SAME)
           local_error= 0;
-        else if (!table->file->is_ignorable_error(local_error) || !ignore)
+        else
 	{
           if (table->file->is_fatal_error(local_error))
             error_flags|= ME_FATALERROR;
 
           table->file->print_error(local_error, error_flags);
-          goto err;
-	}
-        else
-          local_error= 0;
+          /* Errors could be downgraded to warning by IGNORE */
+          if (thd->is_error())
+            goto err;
+        }
       }
 
-      if (table->triggers &&
+      if (!local_error && table->triggers &&
           table->triggers->process_triggers(thd, TRG_EVENT_UPDATE,
                                             TRG_ACTION_AFTER, TRUE))
         goto err;
@@ -2606,7 +2586,8 @@ bool multi_update::send_eof()
   id= thd->arg_of_last_insert_id_function ?
     thd->first_successful_insert_id_in_prev_stmt : 0;
   my_snprintf(buff, sizeof(buff), ER(ER_UPDATE_INFO),
-              (ulong) found, (ulong) updated, (ulong) thd->cuted_fields);
+              (ulong) found, (ulong) updated,
+              (ulong) thd->get_stmt_da()->current_statement_cond_count());
   ::my_ok(thd, (thd->client_capabilities & CLIENT_FOUND_ROWS) ? found : updated,
           id, buff);
   DBUG_RETURN(FALSE);

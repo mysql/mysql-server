@@ -166,6 +166,7 @@ extern ulong opt_tc_log_size, tc_log_max_pages_used, tc_log_page_size;
 extern ulong tc_log_page_waits;
 extern my_bool relay_log_purge, opt_innodb_safe_binlog, opt_innodb;
 extern my_bool relay_log_recovery;
+extern my_bool offline_mode;
 extern uint test_flags,select_errors,ha_open_options;
 extern uint protocol_version, mysqld_port, dropping_tables;
 extern ulong delay_key_write_options;
@@ -386,6 +387,7 @@ extern PSI_mutex_key key_LOCK_compress_gtid_table;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
+extern PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 extern PSI_mutex_key key_commit_order_manager_mutex;
@@ -497,6 +499,7 @@ extern PSI_memory_key key_memory_Event_queue_element_for_exec_names;
 extern PSI_memory_key key_memory_Event_scheduler_scheduler_param;
 extern PSI_memory_key key_memory_Gcalc_dyn_list_block;
 extern PSI_memory_key key_memory_Gis_read_stream_err_msg;
+extern PSI_memory_key key_memory_Geometry_objects_data;
 extern PSI_memory_key key_memory_host_cache_hostname;
 extern PSI_memory_key key_memory_User_level_lock_key;
 extern PSI_memory_key key_memory_Filesort_info_record_pointers;
@@ -764,7 +767,8 @@ extern mysql_mutex_t
        LOCK_slave_list, LOCK_active_mi, LOCK_manager,
        LOCK_global_system_variables, LOCK_user_conn, LOCK_log_throttle_qni,
        LOCK_prepared_stmt_count, LOCK_error_messages,
-       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout;
+       LOCK_sql_slave_skip_counter, LOCK_slave_net_timeout,
+       LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 extern mysql_mutex_t LOCK_des_key_file;
 #endif
