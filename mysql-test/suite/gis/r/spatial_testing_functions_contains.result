@@ -228,17 +228,17 @@ MBRContains(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
 #multipoint,point
 SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_top));
 MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_top))
-0
+1
 SELECT MBRContains(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
 MBRContains(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
 0
 SELECT MBRContains(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 MBRContains(g,GeomFromText(@star_bottom_left))
-0
+1
 #multipoint,multipoint
 SELECT MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
 MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
-0
+1
 SELECT MBRContains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
 MBRContains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
 0
@@ -299,7 +299,7 @@ MBRContains(GeomFromText(@star_all_points),GeomFromText(@star_collection_multili
 #linestring,point
 SELECT MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
 MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
-0
+1
 SELECT MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
 MBRContains(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
 0
@@ -378,13 +378,13 @@ MBRContains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_mu
 #multilinestring,point
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
-0
+1
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
-0
+1
 SELECT MBRContains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 MBRContains(g,GeomFromText(@star_top))
-0
+1
 #multilinestring,multipoint
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
@@ -402,13 +402,13 @@ MBRContains(g,g2)
 #multilinestring,linestring
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
-0
+1
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
 0
 SELECT MBRContains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 MBRContains(g,GeomFromText(@star_line_vertical))
-0
+1
 #multilinestring,multilinestring
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
@@ -422,7 +422,7 @@ MBRContains(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
 #multilinestring,multilinestring
 SELECT MBRContains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 MBRContains(g,GeomFromText(@star_line_vertical))
-0
+1
 #multilinestring,polygon
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
@@ -538,23 +538,23 @@ MBRContains(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
 #multipolygon,point
 SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_top));
 MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_top))
-0
+1
 SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
 MBRContains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
 0
 SELECT MBRContains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
 MBRContains(g,GeomFromText(@star_top))
-0
+1
 #multipolygon,multipoint
 SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
 MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
-0
+1
 SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
 MBRContains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
 0
 SELECT MBRContains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 MBRContains(g,GeomFromText(@star_bottom_points))
-0
+1
 #multipolygon,linestring
 SELECT MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
 MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
@@ -627,23 +627,23 @@ MBRContains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multiline
 #geometrycollection,point
 SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
 MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
-0
+1
 SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
 MBRContains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
 0
 SELECT MBRContains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 MBRContains(g,GeomFromText(@star_top))
-0
+1
 #geometrycollection,multipoint
 SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
 MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
-0
+1
 SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
 MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
 0
 SELECT MBRContains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 MBRContains(g,GeomFromText(@star_bottom_points))
-0
+1
 #geometrycollection,linestring
 SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
 MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
@@ -1303,17 +1303,17 @@ Contains(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
 #multipoint,point
 SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_top));
 Contains(GeomFromText(@star_all_points),GeomFromText(@star_top))
-0
+1
 SELECT Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
 Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
 0
 SELECT Contains(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
 Contains(g,GeomFromText(@star_bottom_left))
-0
+1
 #multipoint,multipoint
 SELECT Contains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
 Contains(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
-0
+1
 SELECT Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
 Contains(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
 0
@@ -1374,7 +1374,7 @@ Contains(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilines
 #linestring,point
 SELECT Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
 Contains(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
-0
+1
 SELECT Contains(GeomFromText('LINESTRING(15 25,15 10'),GeomFromText('POINT(15 10)'));
 Contains(GeomFromText('LINESTRING(15 25,15 10'),GeomFromText('POINT(15 10)'))
 NULL
@@ -1452,13 +1452,13 @@ Contains(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multi
 #multilinestring,point
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
-0
+1
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
-0
+1
 SELECT Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
 Contains(g,GeomFromText(@star_top))
-0
+1
 #multilinestring,multipoint
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
@@ -1476,13 +1476,13 @@ Contains(g,g2)
 #multilinestring,linestring
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
-0
+1
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
 0
 SELECT Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 Contains(g,GeomFromText(@star_line_vertical))
-0
+1
 #multilinestring,multilinestring
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
@@ -1496,7 +1496,7 @@ Contains(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
 #multilinestring,multilinestring
 SELECT Contains(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
 Contains(g,GeomFromText(@star_line_vertical))
-0
+1
 #multilinestring,polygon
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
@@ -1615,23 +1615,23 @@ Contains(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
 #multipolygon,point
 SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top));
 Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top))
-0
+1
 SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
 Contains(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
 0
 SELECT Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
 Contains(g,GeomFromText(@star_top))
-0
+1
 #multipolygon,multipoint
 SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
 Contains(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
-0
+1
 SELECT Contains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
 Contains(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
 0
 SELECT Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
 Contains(g,GeomFromText(@star_bottom_points))
-0
+1
 #multipolygon,linestring
 SELECT Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
 Contains(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
@@ -1700,23 +1700,23 @@ Contains(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr
 #geometrycollection,point
 SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
 Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
-0
+1
 SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
 Contains(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
 0
 SELECT Contains(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
 Contains(g,GeomFromText(@star_top))
-0
+1
 #geometrycollection,multipoint
 SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
 Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
-0
+1
 SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
 Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
 0
 SELECT Contains(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
 Contains(g,GeomFromText(@star_bottom_points))
-0
+1
 #geometrycollection,linestring
 SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
 Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
@@ -1836,9 +1836,11 @@ Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
 # Invalid function calls
 #=======================================================================================
 SELECT Contains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 0 and 4326, which should have been identical.
+Contains(GeomFromText(@star_top),GeomFromText(@star_center,4326))
+0
 SELECT Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 1048576 and 4326, which should have been identical.
+Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326))
+0
 SELECT Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 Contains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
 0
@@ -1999,9 +2001,11 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 SELECT ST_Contains(,GeomFromText(@star_top));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
 SELECT MBRContains(GeomFromText(@star_top),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 0 and 4326, which should have been identical.
+MBRContains(GeomFromText(@star_top),GeomFromText(@star_center,4326))
+0
 SELECT MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
-ERROR HY000: Binary geometry function mbrcontains given two geometries of different srids: 1048576 and 4326, which should have been identical.
+MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326))
+0
 SELECT MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 MBRContains(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
 0

@@ -1135,9 +1135,7 @@ SELECT Overlaps(GeomFromText(@star_top,1048575),GeomFromText(@star_center,104857
 --echo # Invalid function calls
 --echo #=======================================================================================
 
---error ER_GIS_DIFFERENT_SRIDS
 SELECT Overlaps(GeomFromText(@star_top),GeomFromText(@star_center,4326));
---error ER_GIS_DIFFERENT_SRIDS
 SELECT Overlaps(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
 SELECT Overlaps(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 SELECT Overlaps(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -1217,9 +1215,7 @@ SELECT ST_Overlaps(GeomFromText(@star_of_elems),);
 --error ER_PARSE_ERROR
 SELECT ST_Overlaps(,GeomFromText(@star_top));
 
---error ER_GIS_DIFFERENT_SRIDS
 SELECT MBROverlaps(GeomFromText(@star_top),GeomFromText(@star_center,4326));
---error ER_GIS_DIFFERENT_SRIDS
 SELECT MBROverlaps(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
 SELECT MBROverlaps(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
 SELECT MBROverlaps(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
