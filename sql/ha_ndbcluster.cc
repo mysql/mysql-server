@@ -4618,10 +4618,18 @@ handle_conflict_op_error(NdbTransaction* trans,
 
     if (table_has_trans_conflict_detection)
     {
-      /* Perform special transactional conflict-detected handling */
-      int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
-      if (res)
-        DBUG_RETURN(res);
+      /* Mark this transaction as in-conflict, unless this is a 
+       * Delete-Delete conflict, which we can't currently handle
+       * in the normal way
+       */
+      if (! ((causing_op_type == DELETE_ROW) &&
+             (conflict_cause == ROW_DOES_NOT_EXIST)))
+      {
+        /* Perform special transactional conflict-detected handling */
+        int res = g_ndb_slave_state.atTransConflictDetected(ex_data.trans_id);
+        if (res)
+          DBUG_RETURN(res);
+      }
     }
 
     if (cfn_share)
