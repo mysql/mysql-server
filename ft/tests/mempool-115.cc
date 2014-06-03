@@ -149,7 +149,7 @@ public:
         // just copy this code from a previous test
         // don't care what it does, just want to get a node up and running
         sn.flags = 0x11223344;
-        sn.thisnodename.b = 20;
+        sn.blocknum.b = 20;
         sn.layout_version = FT_LAYOUT_VERSION;
         sn.layout_version_original = FT_LAYOUT_VERSION;
         sn.height = 0;

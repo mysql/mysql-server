@@ -239,7 +239,7 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT h) {
     printf(" disksize    =%" PRId64 "\n", disksize);
     printf(" serialize_size =%u\n", toku_serialize_ftnode_size(n));
     printf(" flags       =%u\n", n->flags);
-    printf(" thisnodename=%" PRId64 "\n", n->thisnodename.b);
+    printf(" blocknum=%" PRId64 "\n", n->blocknum.b);
     //printf(" log_lsn     =%lld\n", n->log_lsn.lsn); // The log_lsn is a memory-only value.
     printf(" height      =%d\n",   n->height);
     printf(" layout_version=%d\n", n->layout_version);

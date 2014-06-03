@@ -271,7 +271,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
 
     sn.max_msn_applied_to_node_on_disk = PRESERIALIZE_MSN_ON_DISK;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;
@@ -330,7 +330,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
@@ -405,7 +405,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;
@@ -471,7 +471,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
     
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
@@ -546,7 +546,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;
@@ -606,7 +606,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
@@ -687,7 +687,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;
@@ -750,7 +750,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
@@ -831,7 +831,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;
@@ -893,7 +893,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
@@ -966,7 +966,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;
@@ -1022,7 +1022,7 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);
@@ -1076,7 +1076,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     //    source_ft.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 1;
@@ -1147,7 +1147,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
 
     setup_dn(bft, fd, ft_h, &dn, &dest_ndd);
 
-    assert(dn->thisnodename.b==20);
+    assert(dn->blocknum.b==20);
 
     assert(dn->layout_version ==FT_LAYOUT_VERSION);
     assert(dn->layout_version_original ==FT_LAYOUT_VERSION);

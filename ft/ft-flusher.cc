@@ -606,21 +606,21 @@ handle_split_of_child(
     memset(&node->bp[childnum+1],0,sizeof(node->bp[0]));
     node->n_children++;
 
-    paranoid_invariant(BP_BLOCKNUM(node, childnum).b==childa->thisnodename.b); // use the same child
+    paranoid_invariant(BP_BLOCKNUM(node, childnum).b==childa->blocknum.b); // use the same child
 
     // We never set the rightmost blocknum to be the root.
     // Instead, we wait for the root to split and let promotion initialize the rightmost
     // blocknum to be the first non-root leaf node on the right extreme to recieve an insert.
     invariant(ft->h->root_blocknum.b != ft->rightmost_blocknum.b);
-    if (childa->thisnodename.b == ft->rightmost_blocknum.b) {
+    if (childa->blocknum.b == ft->rightmost_blocknum.b) {
         // The rightmost leaf (a) split into (a) and (b). We want (b) to swap pair values
         // with (a), now that it is the new rightmost leaf. This keeps the rightmost blocknum
         // constant, the same the way we keep the root blocknum constant.
         toku_ftnode_swap_pair_values(childa, childb);
-        BP_BLOCKNUM(node, childnum) = childa->thisnodename;
+        BP_BLOCKNUM(node, childnum) = childa->blocknum;
     }
 
-    BP_BLOCKNUM(node, childnum+1) = childb->thisnodename;
+    BP_BLOCKNUM(node, childnum+1) = childb->blocknum;
     BP_WORKDONE(node, childnum+1) = 0;
     BP_STATE(node,childnum+1) = PT_AVAIL;
 
@@ -1120,8 +1120,8 @@ static void bring_node_fully_into_memory(FTNODE node, FT ft) {
             toku_ftnode_pf_callback,
             &bfe,
             ft->cf,
-            node->thisnodename,
-            toku_cachetable_hash(ft->cf, node->thisnodename)
+            node->blocknum,
+            toku_cachetable_hash(ft->cf, node->blocknum)
             );
     }
 }
@@ -1143,7 +1143,7 @@ flush_this_child(
     bring_node_fully_into_memory(child, h);
     toku_ftnode_assert_fully_in_memory(child);
     paranoid_invariant(node->height>0);
-    paranoid_invariant(child->thisnodename.b!=0);
+    paranoid_invariant(child->blocknum.b!=0);
     // VERIFY_NODE does not work off client thread as of now
     //VERIFY_NODE(t, child);
     node->dirty = 1;
@@ -1504,13 +1504,13 @@ ft_merge_child(
             REALLOC_N(node->n_children-1, node->childkeys);
 
             // Handle a merge of the rightmost leaf node.
-            if (did_merge && childb->thisnodename.b == h->rightmost_blocknum.b) {
-                invariant(childb->thisnodename.b != h->h->root_blocknum.b);
+            if (did_merge && childb->blocknum.b == h->rightmost_blocknum.b) {
+                invariant(childb->blocknum.b != h->h->root_blocknum.b);
                 toku_ftnode_swap_pair_values(childa, childb);
-                BP_BLOCKNUM(node, childnuma) = childa->thisnodename;
+                BP_BLOCKNUM(node, childnuma) = childa->blocknum;
             }
 
-            paranoid_invariant(BP_BLOCKNUM(node, childnuma).b == childa->thisnodename.b);
+            paranoid_invariant(BP_BLOCKNUM(node, childnuma).b == childa->blocknum.b);
             childa->dirty = 1;  // just to make sure
             childb->dirty = 1;  // just to make sure
         } else {
@@ -1610,7 +1610,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // the parent before finishing reading in the entire child node.
     bool may_child_be_reactive = ft_ftnode_may_be_reactive(ft, child);
 
-    paranoid_invariant(child->thisnodename.b!=0);
+    paranoid_invariant(child->blocknum.b!=0);
 
     // only do the following work if there is a flush to perform
     if (toku_bnc_n_entries(BNC(parent, childnum)) > 0 || parent->height == 1) {
@@ -1914,7 +1914,7 @@ toku_ftnode_cleaner_callback(
     void *extraargs)
 {
     FTNODE node = (FTNODE) ftnode_pv;
-    invariant(node->thisnodename.b == blocknum.b);
+    invariant(node->blocknum.b == blocknum.b);
     invariant(node->fullhash == fullhash);
     invariant(node->height > 0);   // we should never pick a leaf node (for now at least)
     FT h = (FT) extraargs;

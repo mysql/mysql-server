@@ -311,7 +311,7 @@ test_serialize_nonleaf(void) {
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     char *hello_string;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 1;
@@ -411,7 +411,7 @@ test_serialize_leaf(void) {
 
     sn.max_msn_applied_to_node_on_disk.msn = 0;
     sn.flags = 0x11223344;
-    sn.thisnodename.b = 20;
+    sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
     sn.layout_version_original = FT_LAYOUT_VERSION;
     sn.height = 0;

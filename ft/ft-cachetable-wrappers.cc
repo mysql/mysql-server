@@ -409,15 +409,15 @@ void toku_ftnode_swap_pair_values(FTNODE a, FTNODE b)
 // Effect: Swap the blocknum, fullhash, and PAIR for for a and b
 // Requires: Both nodes are pinned
 {
-    BLOCKNUM tmp_blocknum = a->thisnodename;
+    BLOCKNUM tmp_blocknum = a->blocknum;
     uint32_t tmp_fullhash = a->fullhash;
     PAIR tmp_pair = a->ct_pair;
 
-    a->thisnodename = b->thisnodename;
+    a->blocknum = b->blocknum;
     a->fullhash = b->fullhash;
     a->ct_pair = b->ct_pair;
 
-    b->thisnodename = tmp_blocknum;
+    b->blocknum = tmp_blocknum;
     b->fullhash = tmp_fullhash;
     b->ct_pair = tmp_pair;
 

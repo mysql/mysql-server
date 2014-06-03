@@ -111,7 +111,7 @@ void
 initialize_ftnode(FTNODE node, BLOCKNUM blocknum)
 {
     node->fullhash = 0xDEADBEEF; // <CER> Is this 'spoof' ok?
-    node->thisnodename = blocknum;
+    node->blocknum = blocknum;
     node->dirty = 0;
     node->bp = NULL;
     // <CER> Can we use this initialization as a correctness assert in

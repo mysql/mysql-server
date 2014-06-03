@@ -149,7 +149,7 @@ static void test_split_merge(void) {
                    toku_cachetable_hash(ft->cf, ft->h->root_blocknum),
                    &bfe, PL_WRITE_EXPENSIVE, &root_node, true);
     // root blocknum should be consistent
-    invariant(root_node->thisnodename.b == ft->h->root_blocknum.b);
+    invariant(root_node->blocknum.b == ft->h->root_blocknum.b);
     // root should have split at least once, and it should now be at height 1
     invariant(root_node->n_children > 1);
     invariant(root_node->height == 1);

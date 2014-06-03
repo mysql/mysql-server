@@ -154,7 +154,7 @@ static void
 setup_ftnode_header(struct ftnode *node)
 {
     node->flags = 0x11223344;
-    node->thisnodename.b = 20;
+    node->blocknum.b = 20;
     node->layout_version = FT_LAYOUT_VERSION;
     node->layout_version_original = FT_LAYOUT_VERSION;
     node->height = 0;
