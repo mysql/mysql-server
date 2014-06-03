@@ -575,6 +575,9 @@ MBREqual(GeomFromText(@star),GeomFromText(@star_1))
 SELECT MBREqual(GeomFromText(@star_elem_vertical),GeomFromText(@star));
 MBREqual(GeomFromText(@star_elem_vertical),GeomFromText(@star))
 0
+SELECT MBREqual(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'));
+MBREqual(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'))
+1
 SELECT MBREqual(g,GeomFromText(@star_1)) FROM gis_geometrycollection WHERE fid=100;
 MBREqual(g,GeomFromText(@star_1))
 1
@@ -737,9 +740,9 @@ MBREqual(g,GeomFromText(@star_top_to_center))
 SELECT MBREqual(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_1));
 MBREqual(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_1))
 0
-SELECT MBREqual(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
-MBREqual(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'))
-NULL
+SELECT MBREqual(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+MBREqual(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
 SELECT MBREqual(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 MBREqual(g,GeomFromText(@star_lines_near_vertical))
 0
@@ -1180,6 +1183,9 @@ ST_Equals(GeomFromText(@star),GeomFromText(@star_1))
 SELECT ST_Equals(GeomFromText(@star_elem_vertical),GeomFromText(@star));
 ST_Equals(GeomFromText(@star_elem_vertical),GeomFromText(@star))
 0
+SELECT ST_Equals(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'));
+ST_Equals(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'))
+0
 SELECT ST_Equals(g,GeomFromText(@star_1)) FROM gis_geometrycollection WHERE fid=100;
 ST_Equals(g,GeomFromText(@star_1))
 1
@@ -1342,9 +1348,9 @@ ST_Equals(g,GeomFromText(@star_top_to_center))
 SELECT ST_Equals(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_1));
 ST_Equals(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_1))
 0
-SELECT ST_Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
-ST_Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'))
-NULL
+SELECT ST_Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
 SELECT ST_Equals(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 ST_Equals(g,GeomFromText(@star_lines_near_vertical))
 0
@@ -1789,6 +1795,9 @@ Equals(GeomFromText(@star),GeomFromText(@star_1))
 SELECT Equals(GeomFromText(@star_elem_vertical),GeomFromText(@star));
 Equals(GeomFromText(@star_elem_vertical),GeomFromText(@star))
 0
+SELECT Equals(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'));
+Equals(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 1 0, 0 0,0 1, 0 0))'))
+1
 SELECT Equals(g,GeomFromText(@star_1)) FROM gis_geometrycollection WHERE fid=100;
 Equals(g,GeomFromText(@star_1))
 1
@@ -1951,9 +1960,9 @@ Equals(g,GeomFromText(@star_top_to_center))
 SELECT Equals(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_1));
 Equals(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical_1))
 0
-SELECT Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
-Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'))
-NULL
+SELECT Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+Equals(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
 SELECT Equals(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 Equals(g,GeomFromText(@star_lines_near_vertical))
 0
@@ -2027,6 +2036,18 @@ MBREqual(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
 SELECT MBREqual(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
 MBREqual(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
 0
+SELECT MBREqual(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+MBREqual(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT MBREqual(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+MBREqual(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT MBREqual(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+MBREqual(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT MBREqual(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+MBREqual(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
 #-------------------------------------------------------------------------------------------
 #ST_Equals(g1,g2)
 SELECT ST_Equals(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -2044,6 +2065,18 @@ ST_Equals(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
 SELECT ST_Equals(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
 ST_Equals(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
 0
+SELECT ST_Equals(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+ST_Equals(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT ST_Equals(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+ST_Equals(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT ST_Equals(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+ST_Equals(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT ST_Equals(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+ST_Equals(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
 #-------------------------------------------------------------------------------------------
 #Equals(g1,g2)
 SELECT Equals(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -2060,6 +2093,18 @@ Equals(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
 0
 SELECT Equals(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
 Equals(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT Equals(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+Equals(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT Equals(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+Equals(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT Equals(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+Equals(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT Equals(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+Equals(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
 0
 #=======================================================================================
 # Invalid function calls
