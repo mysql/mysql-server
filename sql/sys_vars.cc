@@ -720,6 +720,28 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
+       "binlog_group_commit_sync_delay",
+       "The number of microseconds the server waits for the "
+       "binary log group commit sync queue to fill before "
+       "continuing. Default: 0. Min: 0. Max: 1000000.",
+       GLOBAL_VAR(opt_binlog_group_commit_sync_delay),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 1000000 /* max 1 sec */), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
+       "binlog_group_commit_sync_no_delay_count",
+       "If there are this many transactions in the commit sync "
+       "queue and the server is waiting for more transactions "
+       "to be enqueued (as set using --binlog-group-commit-sync-delay), "
+       "the commit procedure resumes.",
+       GLOBAL_VAR(opt_binlog_group_commit_sync_no_delay_count),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 100000 /* max connections */),
+       DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
@@ -4943,17 +4965,7 @@ static bool handle_offline_mode(sys_var *self, THD *thd, enum_var_type type)
 {
   DBUG_ENTER("handle_offline_mode");
   if (offline_mode == TRUE)
-  {
-    /*
-    We allow other global variables to be updated as killing threads
-    can be a time consuming operation. PLock_offline_mode ensures that
-    offline_mode cannot be updated.
-    LOCK_global_system_variables is acquired at the end of this function.
-    */
-    mysql_mutex_unlock(&LOCK_global_system_variables);
     killall_non_super_threads(thd);
-    mysql_mutex_lock(&LOCK_global_system_variables);
-  }
   DBUG_RETURN(false);
 }
 

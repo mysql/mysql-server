@@ -1540,10 +1540,11 @@ rtr_page_copy_rec_list_start_no_locks(
 					dict_table_is_comp(index->table))) {
 					goto next;
 				} else {
+					/* We have two identical leaf records,
+					skip copying the undeleted one, and
+					unmark deleted on the current page */
 					btr_rec_set_deleted_flag(
-						cur_rec,
-						buf_block_get_page_zip(new_block),
-						FALSE);
+						cur_rec, NULL, FALSE);
 					goto next;
 				}
 			}

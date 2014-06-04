@@ -659,7 +659,6 @@ rm -f ${RPM_BUILD_ROOT}%{_datadir}/mysql/ChangeLog
 rm -fr ${RPM_BUILD_ROOT}%{_datadir}/mysql/solaris/
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-stress-test.pl.1*
 rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysql-test-run.pl.1*
-rm -f ${RPM_BUILD_ROOT}%{_mandir}/man1/mysqlhotcopy.1*
 
 mkdir -p $RPM_BUILD_ROOT/etc/ld.so.conf.d
 echo "%{_libdir}/mysql" > $RPM_BUILD_ROOT/etc/ld.so.conf.d/%{name}-%{_arch}.conf
