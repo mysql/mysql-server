@@ -1623,10 +1623,12 @@ row_fts_merge_insert(
 
 	/* Create bulk load instance */
 	ins_ctx.btr_bulk = new BtrBulk(aux_index, trx->id);
+	ins_ctx.btr_bulk->init();
 
 	/* Create tuple for insert */
 	ins_ctx.tuple = dtuple_create(heap, dict_index_get_n_fields(aux_index));
-	dict_index_copy_types(ins_ctx.tuple, aux_index, dict_index_get_n_fields(aux_index));
+	dict_index_copy_types(ins_ctx.tuple, aux_index,
+			      dict_index_get_n_fields(aux_index));
 
 	/* Set TRX_ID and ROLL_PTR */
 	trx_write_trx_id(trx_id_buf, trx->id);

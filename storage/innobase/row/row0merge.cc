@@ -2216,6 +2216,8 @@ row_merge_bulk_load_index(
 	} else {
 		BtrBulk	btr_bulk(index, trx_id);
 
+		btr_bulk.init();
+
 		buf = static_cast<mrec_buf_t*>(
 			mem_heap_alloc(heap, sizeof *buf));
 

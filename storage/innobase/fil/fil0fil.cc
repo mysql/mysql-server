@@ -3112,8 +3112,7 @@ fil_tablespace_is_being_deleted(
 }
 
 #ifdef UNIV_DEBUG
-/**
-Increase redo skipped count for a tablespace.
+/** Increase redo skipped count for a tablespace.
 @param[in]	id	space id */
 void
 fil_space_inc_redo_skipped_count(
@@ -3132,8 +3131,7 @@ fil_space_inc_redo_skipped_count(
 	mutex_exit(&fil_system->mutex);
 }
 
-/**
-Decrease redo skipped count for a tablespace.
+/** Decrease redo skipped count for a tablespace.
 @param[in]	id	space id */
 void
 fil_space_dec_redo_skipped_count(

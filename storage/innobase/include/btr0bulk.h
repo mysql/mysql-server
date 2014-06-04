@@ -34,7 +34,7 @@ Created 03/11/2014 Shaohua Wang
 #ifdef UNIV_DEBUG
 /** Print bulk load performance data.*/
 #define BULK_LOAD_PFS_PRINT
-#endif
+#endif /* UNIV_DEBUG */
 
 /** Innodb B-tree index fill factor for bulk load. */
 extern	long	innobase_fill_factor;
@@ -47,17 +47,18 @@ public:
 	@param[in]	page_no	page number
 	@param[in]	level	page level
 	@param[in]	trx_id	transaction id */
-	PageBulk(dict_index_t* index, ulint trx_id,
-		 ulint page_no, ulint level)
-		 :
-		 m_index(index),
-		 m_trx_id(trx_id),
-		 m_page_no(page_no),
-		 m_level(level)
+	PageBulk(
+		dict_index_t* index,
+		ulint trx_id,
+		ulint page_no,
+		ulint level)
+		:
+		m_heap(NULL),
+		m_index(index),
+		m_trx_id(trx_id),
+		m_page_no(page_no),
+		m_level(level)
 	{
-		m_heap = mem_heap_create(1000);
-
-		init();
 	}
 
 	/** Deconstructor */
@@ -66,21 +67,21 @@ public:
 		mem_heap_free(m_heap);
 	}
 
+	/** Initialize members and allocate page if needed and start mtr.
+	Note: must be called right after constructor. */
+	void init();
+
 	/** Insert a record in the page.
-	We insert a record in the page and update releated members,
-	it should succeed.
 	@param[in]	rec		record
 	@param[in]	offsets		record offsets */
 	void insert(const rec_t* rec, ulint* offsets);
 
-	/** Mark end of insertion to the page
-	Scan all records to set page dirs, and set page header members,
-	redo log all inserts. */
+	/** Mark end of insertion to the page. Scan all records to set page
+	dirs, and set page header members. */
 	void finish();
 
 	/** Commit mtr for a page
-	@param[in]	success		Flag whether all inserts succeed.
-	@return error code */
+	@param[in]	success		Flag whether all inserts succeed. */
 	void commit(bool success);
 
 	/** Compress if it is compressed table
@@ -100,18 +101,16 @@ public:
 	dberr_t storeExt(const big_rec_t* big_rec, const ulint* offsets);
 
 	/** Get node pointer
-	Note: should before mtr commit */
+	@return node pointer */
 	dtuple_t* getNodePtr();
 
-	/** Get split rec in the page.
-	We split a page in half when compresssion fails, and the split rec
-	should be copied to the new page.
+	/** Get split rec in the page. We split a page in half when compresssion
+	fails, and the split rec should be copied to the new page.
 	@return split rec */
 	rec_t*	getSplitRec();
 
 	/** Copy all records after split rec including itself.
-	@param[in]	rec	split rec
-	Note: the page where split rec resizes is locked by another mtr.*/
+	@param[in]	rec	split rec */
 	void copyIn(rec_t*	split_rec);
 
 	/** Remove all records after split rec including itself.
@@ -132,8 +131,8 @@ public:
 	/** Start mtr and latch block */
 	inline void latch();
 
-	/** Check if required length is available in the page.
-	We check fill factor & padding here.
+	/** Check if required space is available in the page for the rec
+	to be inserted.	We check fill factor & padding here.
 	@param[in]	length		required length
 	@return true	if space is available */
 	inline bool isSpaceAvailable(ulint	rec_size);
@@ -172,9 +171,6 @@ public:
 	mem_heap_t*	m_heap;
 
 private:
-	/** Initialize members. */
-	void init();
-
 	/** The index B-tree */
 	dict_index_t*	m_index;
 
@@ -234,19 +230,18 @@ public:
 	/** Constructor
 	@param[in]	index	B-tree index
 	@param[in]	trx_id	transaction id */
-	BtrBulk(dict_index_t* index, ulint trx_id)
+	BtrBulk(
+		dict_index_t* index,
+		ulint trx_id)
 		:
+		m_heap(NULL),
 		m_index(index),
 		m_trx_id(trx_id),
 		m_root_level(0)
 	{
-		m_heap = mem_heap_create(1000);
-
-		m_page_bulks = new page_bulk_vector();
-
 #ifdef UNIV_DEBUG
 		fil_space_inc_redo_skipped_count(m_index->space);
-#endif
+#endif /* UNIV_DEBUG */
 	}
 
 	/** Destructor */
@@ -257,17 +252,29 @@ public:
 
 #ifdef UNIV_DEBUG
 		fil_space_dec_redo_skipped_count(m_index->space);
-#endif
+#endif /* UNIV_DEBUG */
+	}
+
+	/** Initialization
+	Note: must be called right after constructor. */
+	void init()
+	{
+		ut_ad(m_heap == NULL);
+		m_heap = mem_heap_create(1000);
+
+		m_page_bulks = new page_bulk_vector();
 	}
 
 	/** Insert a tuple
 	@param[in]	tuple	tuple to insert.
 	@return error code */
-	dberr_t	insert(dtuple_t*	tuple) {
+	dberr_t	insert(dtuple_t*	tuple)
+	{
 		return(insert(tuple, 0));
 	}
 
-	/** Finish bulk load
+	/** Finish bulk load. We commit last page in each level and copy last
+	page in top level to root page of the index if no error occurs.
 	@param[in]	err	error code of insert.
 	@return	error code */
 	dberr_t finish(dberr_t	err);
@@ -286,7 +293,9 @@ private:
 	dberr_t pageSplit(PageBulk* page_bulk,
 			  PageBulk* next_page_bulk);
 
-	/** Commit(finish) a page
+	/** Commit(finish) a page. We set next/prev page no, compress a page of
+	compressed table and split the page if compression fails, insert a node
+	pointer to father page if needed, and commit mini-transaction.
 	@param[in]	page_bulk	page to commit
 	@param[in]	next_page_bulk	next page
 	@param[in]	insert_father	flag whether need to insert node ptr
