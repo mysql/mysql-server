@@ -1017,6 +1017,13 @@ bool mysql_prepare_update(THD *thd, TABLE_LIST *table_list,
 
   thd->lex->allow_sum_func= 0;
 
+  /*
+    We do not call DT_MERGE_FOR_INSERT because it has no sense for simple
+    (not multi-) update
+  */
+  if (mysql_handle_derived(thd->lex, DT_PREPARE))
+    DBUG_RETURN(TRUE);
+
   if (setup_tables_and_check_access(thd, &select_lex->context, 
                                     &select_lex->top_join_list,
                                     table_list,

@@ -465,6 +465,7 @@ drop table t1;
 #
 # MDEV-5012 Server crashes in Item_ref::real_item on EXPLAIN with select subqueries or views, constant table, derived_merge+derived_with_keys
 #
+set @save_derived_optimizer_switch_bug=@@optimizer_switch;
 SET optimizer_switch = 'derived_merge=on,derived_with_keys=on,in_to_exists=on';
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (8);
@@ -473,5 +474,23 @@ INSERT INTO t2 VALUES (1),(7);
 EXPLAIN SELECT * FROM (SELECT * FROM t1) AS table1,
   (SELECT DISTINCT * FROM t2) AS table2 WHERE b = a AND a <> ANY (SELECT 9);
 DROP TABLE t1, t2;
+set optimizer_switch=@save_derived_optimizer_switch_bug;
+
+--echo #
+--echo # MDEV-6163: Error while executing an update query that has the
+--echo # same table in a sub-query
+--echo #
+
+set @save_derived_optimizer_switch_bug=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+create table t1 (balance float, accountId varchar(64), primary key (accountId));
+
+insert into t1 (accountId,balance) values 
+('dealer-1',199354.0),('dealer-2',0),('dealer-3',0),('dealer-5',0),('FINANCE',-200000),('OPERATOR',0);
+
+update t1 set balance=(select sum(balance) from (SELECT balance FROM t1 where accountId like 'dealer%') AS copied) where accountId = 'OPERATOR'; 
+set optimizer_switch=@save_derived_optimizer_switch_bug;
+drop table t1;
+
 
 set optimizer_switch=@save_derived_optimizer_switch;

@@ -539,6 +539,7 @@ n	d1	d2	result
 2085	2012-01-01 00:00:00	2013-01-01 00:00:00	0
 2084	2012-02-01 00:00:00	2013-01-01 00:00:00	0
 drop table t1;
+set @save_derived_optimizer_switch_bug=@@optimizer_switch;
 SET optimizer_switch = 'derived_merge=on,derived_with_keys=on,in_to_exists=on';
 CREATE TABLE t1 (a INT) ENGINE=MyISAM;
 INSERT INTO t1 VALUES (8);
@@ -553,4 +554,17 @@ id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
 Warnings:
 Note	1249	Select 4 was reduced during optimization
 DROP TABLE t1, t2;
+set optimizer_switch=@save_derived_optimizer_switch_bug;
+#
+# MDEV-6163: Error while executing an update query that has the
+# same table in a sub-query
+#
+set @save_derived_optimizer_switch_bug=@@optimizer_switch;
+SET optimizer_switch = 'derived_merge=on';
+create table t1 (balance float, accountId varchar(64), primary key (accountId));
+insert into t1 (accountId,balance) values 
+('dealer-1',199354.0),('dealer-2',0),('dealer-3',0),('dealer-5',0),('FINANCE',-200000),('OPERATOR',0);
+update t1 set balance=(select sum(balance) from (SELECT balance FROM t1 where accountId like 'dealer%') AS copied) where accountId = 'OPERATOR';
+set optimizer_switch=@save_derived_optimizer_switch_bug;
+drop table t1;
 set optimizer_switch=@save_derived_optimizer_switch;
