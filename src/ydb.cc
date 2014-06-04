@@ -1153,6 +1153,7 @@ env_close(DB_ENV * env, uint32_t flags) {
             goto panic_and_quit_early;
         }
     }
+    env_fsync_log_cron_destroy(env);
     if (env->i->cachetable) {
         toku_cachetable_minicron_shutdown(env->i->cachetable);
         if (env->i->logger) {
@@ -1193,7 +1194,6 @@ env_close(DB_ENV * env, uint32_t flags) {
     }
 
     env_fs_destroy(env);
-    env_fsync_log_cron_destroy(env);
     env->i->ltm.destroy();
     if (env->i->data_dir)
         toku_free(env->i->data_dir);
