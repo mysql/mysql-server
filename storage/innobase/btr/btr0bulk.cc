@@ -40,6 +40,9 @@ void PageBulk::init()
 	page_zip_des_t*	new_page_zip;
 	ulint		new_page_no;
 
+	ut_ad(m_heap == NULL);
+	m_heap = mem_heap_create(1000);
+
 	mtr = static_cast<mtr_t*>(
 		mem_heap_alloc(m_heap, sizeof(mtr_t)));
 	mtr_start(mtr);
@@ -127,22 +130,20 @@ void PageBulk::init()
 	m_total_data = 0;
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_page + UNIV_PAGE_SIZE - 1);
-#endif
+#endif /* UNIV_DEBUG */
 }
 
 /** Insert a record in the page.
-We insert a record in the page and update related members,
-it should succeed.
 @param[in]	rec		record
 @param[in]	offsets		record offsets */
-void PageBulk::insert(
+void
+PageBulk::insert(
 	const rec_t*		rec,
 	ulint*			offsets)
 {
 	ulint		rec_size;
-	rec_t*		insert_rec;
-	rec_t*		next_rec;
-	ulint		slot_size;
+
+	ut_ad(m_heap != NULL);
 
 	rec_size = rec_offs_size(offsets);
 
@@ -161,15 +162,15 @@ void PageBulk::insert(
 			    m_page + UNIV_PAGE_SIZE - 1);
 
 	m_total_data += rec_size;
-#endif
-
-	rec_size = rec_offs_size(offsets);
+#endif /* UNIV_DEBUG */
 
 	/** 1. Copy the record to page. */
+	rec_t*		insert_rec;
 	insert_rec = rec_copy(m_heap_top, rec, offsets);
 	rec_offs_make_valid(insert_rec, m_index, offsets);
 
 	/** 2. Insert the record in the linked list. */
+	rec_t*		next_rec;
 	next_rec = page_rec_get_next(m_cur_rec);
 
 	page_rec_set_next(insert_rec, next_rec);
@@ -188,6 +189,7 @@ void PageBulk::insert(
 	}
 
 	/** 4. Set member variables. */
+	ulint		slot_size;
 	slot_size = page_dir_calc_reserved_space(m_rec_no + 1)
 		- page_dir_calc_reserved_space(m_rec_no);
 
@@ -200,18 +202,12 @@ void PageBulk::insert(
 	m_cur_rec = insert_rec;
 }
 
-/** Mark end of insertion to the page
-Scan all records to set page dirs, and set page header members.
+/** Mark end of insertion to the page. Scan all records to set page dirs,
+and set page header members.
 Note: we refer to page_copy_rec_list_end_to_created_page. */
-void PageBulk::finish()
+void
+PageBulk::finish()
 {
-	rec_t*		insert_rec;
-	rec_t*		prev_rec;
-	ulint		count;
-	ulint		n_recs;
-	ulint		slot_index;
-	page_dir_slot_t* slot = NULL;
-
 	ut_ad(m_rec_no > 0);
 
 #ifdef UNIV_DEBUG
@@ -223,12 +219,14 @@ void PageBulk::finish()
 	page_dir_set_n_slots(m_page, NULL, UNIV_PAGE_SIZE / 2);
 #endif
 
+	ulint		count = 0;
+	ulint		n_recs = 0;
+	ulint		slot_index = 0;
+	rec_t*		insert_rec;
+	page_dir_slot_t* slot = NULL;
+
 	/** Set owner & dir. */
-	count = 0;
-	slot_index = 0;
-	n_recs = 0;
-	prev_rec = page_get_infimum_rec(m_page);
-	insert_rec = page_rec_get_next(prev_rec);
+	insert_rec = page_rec_get_next(page_get_infimum_rec(m_page));
 
 	do {
 
@@ -284,9 +282,10 @@ void PageBulk::finish()
 }
 
 /** Commit inserts done to the page
-@param[in]	success		Flag whether all inserts succeed.
-@return error code */
-void PageBulk::commit(bool	success)
+@param[in]	success		Flag whether all inserts succeed. */
+void
+PageBulk::commit(
+	bool	success)
 {
 	if (success) {
 		ut_ad(page_validate(m_page, m_index));
@@ -303,33 +302,32 @@ void PageBulk::commit(bool	success)
 	mtr_commit(m_mtr);
 }
 
-/** Compress if it is compressed table
+/** Compress a page of compressed table
 @return	true	compress successfully or no need to compress
 @return	false	compress failed. */
-bool PageBulk::compress()
+bool
+PageBulk::compress()
 {
-	bool	ret = true;
+	bool	ret;
+	ulint	zip_level = page_zip_level;
 
 	ut_ad(m_page_zip != NULL);
-
-	ulint	zip_level = page_zip_level;
 
 	/** Debug page split with Z_NO_COMPRESSION.*/
 	DBUG_EXECUTE_IF("btr_bulk_load_page_split_instrument",
 		zip_level = 0;
 	);
 
-	if (!page_zip_compress(m_page_zip, m_page, m_index,
-			       zip_level, NULL, m_mtr)) {
-		ret = false;
-	}
+	ret = page_zip_compress(m_page_zip, m_page, m_index,
+				zip_level, NULL, m_mtr);
 
 	return(ret);
 }
 
 /** Get node pointer
-Note: should before mtr commit */
-dtuple_t* PageBulk::getNodePtr()
+@return node pointer */
+dtuple_t*
+PageBulk::getNodePtr()
 {
 	rec_t*		first_rec;
 	dtuple_t*	node_ptr;
@@ -343,27 +341,27 @@ dtuple_t* PageBulk::getNodePtr()
 	return(node_ptr);
 }
 
-/** Get split rec in left page.
-We split a page in half when compresssion fails, and the split rec
-will be copied to right page.
+/** Get split rec in left page.We split a page in half when compresssion fails,
+and the split rec will be copied to right page.
 @return split rec */
-rec_t*	PageBulk::getSplitRec()
+rec_t*
+PageBulk::getSplitRec()
 {
 	rec_t*		rec;
 	ulint*		offsets;
-	ulint		incl_data;
-	ulint		total_space;
-	ulint		n;
+	ulint		total_used_size;
+	ulint		total_recs_size;
+	ulint		n_recs;
 
 	ut_ad(m_page_zip != NULL);
 	ut_ad(m_rec_no >= 2);
 
 	ut_ad(page_get_free_space_of_empty(m_is_comp) > m_free_space);
-	total_space = page_get_free_space_of_empty(m_is_comp)
+	total_used_size = page_get_free_space_of_empty(m_is_comp)
 		- m_free_space;
 
-	incl_data = 0;
-	n = 0;
+	total_recs_size = 0;
+	n_recs = 0;
 	offsets = NULL;
 	rec = page_get_infimum_rec(m_page);
 
@@ -374,9 +372,10 @@ rec_t*	PageBulk::getSplitRec()
 		offsets = rec_get_offsets(rec, m_index,
 					  offsets, ULINT_UNDEFINED,
 					  &(m_heap));
-		incl_data += rec_offs_size(offsets);
-		n++;
-	} while (incl_data + page_dir_calc_reserved_space(n) < total_space / 2);
+		total_recs_size += rec_offs_size(offsets);
+		n_recs++;
+	} while (total_recs_size + page_dir_calc_reserved_space(n_recs)
+		 < total_used_size / 2);
 
 	/** Keep at least one record on left page */
 	if (page_rec_is_infimum(page_rec_get_prev(rec))) {
@@ -388,9 +387,10 @@ rec_t*	PageBulk::getSplitRec()
 }
 
 /** Copy all records after split rec including itself.
-@param[in]	rec	split rec
-Note: the page where split rec resizes is locked by another mtr.*/
-void PageBulk::copyIn(rec_t*	split_rec)
+@param[in]	rec	split rec */
+void
+PageBulk::copyIn(
+	rec_t*		split_rec)
 {
 
 	rec_t*		rec;
@@ -418,11 +418,12 @@ void PageBulk::copyIn(rec_t*	split_rec)
 
 /** Remove all records after split rec including itself.
 @param[in]	rec	split rec	*/
-void PageBulk::copyOut(rec_t*	split_rec)
+void
+PageBulk::copyOut(
+	rec_t*		split_rec)
 {
 	rec_t*		rec;
 	rec_t*		last_rec;
-	ulint*		offsets;
 	ulint		n;
 
 	/** Suppose before copyOut, we have 5 records on the page:
@@ -431,18 +432,19 @@ void PageBulk::copyOut(rec_t*	split_rec)
 	after copyOut, we have 2 records on the page:
 	infimum->r1->r2->supremum. slot ajustment is not done. */
 
-	last_rec = page_rec_get_prev(page_get_supremum_rec(m_page));
-
-	n = 0;
 	rec = page_rec_get_next(page_get_infimum_rec(m_page));
+	last_rec = page_rec_get_prev(page_get_supremum_rec(m_page));
+	n = 0;
 
 	while (rec != split_rec) {
 		rec = page_rec_get_next(rec);
 		n++;
 	}
 
-	/** Set last record's next in page */
 	ut_ad(n > 0);
+
+	/** Set last record's next in page */
+	ulint*		offsets;
 	offsets = NULL;
 	rec = page_rec_get_prev(split_rec);
 	offsets = rec_get_offsets(rec, m_index,
@@ -467,28 +469,34 @@ void PageBulk::copyOut(rec_t*	split_rec)
 
 #ifdef UNIV_DEBUG
 	m_total_data -= rec_get_end(last_rec, offsets) - m_heap_top;
-#endif
+#endif /* UNIV_DEBUG */
 }
 
 /** Set next page
 @param[in]	next_page_no	next page no */
-void PageBulk::setNext(ulint	next_page_no)
+void
+PageBulk::setNext(
+	ulint		next_page_no)
 {
 	btr_page_set_next(m_page, NULL, next_page_no, m_mtr);
 }
 
 /** Set previous page
 @param[in]	prev_page_no	previous page no */
-void PageBulk::setPrev(ulint	prev_page_no)
+void
+PageBulk::setPrev(
+	ulint		prev_page_no)
 {
 	btr_page_set_prev(m_page, NULL, prev_page_no, m_mtr);
 }
 
-/** Check if required length is available in the page.
+/** Check if required space is available in the page for the rec to be inserted.
 We check fill factor & padding here.
 @param[in]	length		required length
 @return true	if space is available */
-bool PageBulk::isSpaceAvailable(ulint        rec_size)
+bool
+PageBulk::isSpaceAvailable(
+	ulint		rec_size)
 {
 	ulint	slot_size;
 	ulint	required_space;
@@ -519,7 +527,10 @@ bool PageBulk::isSpaceAvailable(ulint        rec_size)
 
 /** Check whether the record needs to be stored externally.
 @return false if the entire record can be stored locally on the page  */
-bool PageBulk::needExt(const dtuple_t*	tuple, ulint	rec_size)
+bool
+PageBulk::needExt(
+	const dtuple_t*		tuple,
+	ulint			rec_size)
 {
 	return(page_zip_rec_needs_ext(rec_size, m_is_comp,
 		dtuple_get_n_fields(tuple), m_block->page.size));
@@ -531,7 +542,10 @@ the blob data is logged first, then the record is logged in bulk mode.
 @param[in]	big_rec		external recrod
 @param[in]	offsets		record offsets
 @return	error code */
-dberr_t PageBulk::storeExt(const big_rec_t* big_rec, const ulint* offsets)
+dberr_t
+PageBulk::storeExt(
+	const big_rec_t*	big_rec,
+	const ulint*		offsets)
 {
 	return(btr_store_big_rec_extern_fields(
 		m_index, m_block, m_cur_rec,
@@ -540,12 +554,14 @@ dberr_t PageBulk::storeExt(const big_rec_t* big_rec, const ulint* offsets)
 
 /** Release block by commiting mtr
 Note: log_free_check requires holding no lock/latch in current thread. */
-void PageBulk::release()
+void
+PageBulk::release()
 {
 #ifdef UNIV_DEBUG
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_heap_top - m_total_data);
-#endif
+#endif /* UNIV_DEBUG */
+
 	/** We fix the block because we will re-pin it soon. */
 	buf_page_mutex_enter(m_block);
 	buf_block_buf_fix_inc(m_block, __FILE__, __LINE__);
@@ -555,7 +571,8 @@ void PageBulk::release()
 }
 
 /** Start mtr and latch the block */
-void PageBulk::latch()
+void
+PageBulk::latch()
 {
 	ibool	ret;
 
@@ -583,19 +600,18 @@ void PageBulk::latch()
 #ifdef UNIV_DEBUG
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_page + UNIV_PAGE_SIZE - 1);
-#endif
+#endif /* UNIV_DEBUG */
 }
 
 /** Split a page
 @param[in]	page_bulk	page to split
 @param[in]	next_page_bulk	next page
 @return	error code */
-dberr_t BtrBulk::pageSplit(PageBulk* page_bulk,
-			   PageBulk* next_page_bulk)
+dberr_t
+BtrBulk::pageSplit(
+	PageBulk*	page_bulk,
+	PageBulk*	next_page_bulk)
 {
-	dberr_t		err = DB_SUCCESS;
-	rec_t*		split_rec;
-
 	ut_ad(page_bulk->getPageZip() != NULL);
 
 	/** 1. Check if we have only one user record on the page. */
@@ -606,13 +622,16 @@ dberr_t BtrBulk::pageSplit(PageBulk* page_bulk,
 	/** 2. create a new page. */
 	PageBulk new_page_bulk(m_index, m_trx_id, FIL_NULL,
 			       page_bulk->getLevel());
+	new_page_bulk.init();
 
 	/** 3. copy the upper half to new page. */
+	rec_t*	split_rec;
 	split_rec = page_bulk->getSplitRec();
 	new_page_bulk.copyIn(split_rec);
 	page_bulk->copyOut(split_rec);
 
 	/** 4. commit the splitted page. */
+	dberr_t	err;
 	err = pageCommit(page_bulk, &new_page_bulk, true);
 	if (err != DB_SUCCESS) {
 		pageAbort(&new_page_bulk);
@@ -629,17 +648,19 @@ dberr_t BtrBulk::pageSplit(PageBulk* page_bulk,
 	return(err);
 }
 
-/** Commit(finish) a page
+/** Commit(finish) a page. We set next/prev page no, compress a page of
+compressed table and split the page if compression fails, insert a node
+pointer to father page if needed, and commit mini-transaction.
 @param[in]	page_bulk	page to commit
 @param[in]	next_page_bulk	next page
 @param[in]	insert_father	flag whether need to insert node ptr
 @return	error code */
-dberr_t BtrBulk::pageCommit(PageBulk* page_bulk,
-			    PageBulk* next_page_bulk,
-			    bool insert_father)
+dberr_t
+BtrBulk::pageCommit(
+	PageBulk*	page_bulk,
+	PageBulk*	next_page_bulk,
+	bool		insert_father)
 {
-	dberr_t		err = DB_SUCCESS;
-
 	page_bulk->finish();
 
 	/** Set page links */
@@ -649,7 +670,8 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk,
 		page_bulk->setNext(next_page_bulk->getPageNo());
 		next_page_bulk->setPrev(page_bulk->getPageNo());
 	} else {
-		/** Important: we should make sure the page is modified. */
+		/** Suppose a page is released and latched again, we need to
+		mark it modified in mini-transaction.  */
 		page_bulk->setNext(FIL_NULL);
 	}
 
@@ -661,6 +683,7 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk,
 	/** Insert node pointer to father page. */
 	if (insert_father) {
 		dtuple_t*	node_ptr;
+		dberr_t		err;
 
 		node_ptr = page_bulk->getNodePtr();
 		err = insert(node_ptr, page_bulk->getLevel() + 1);
@@ -672,11 +695,12 @@ dberr_t BtrBulk::pageCommit(PageBulk* page_bulk,
 	/** Commit mtr. */
 	page_bulk->commit(true);
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
 /** Log free check */
-void BtrBulk::logFreeCheck()
+void
+BtrBulk::logFreeCheck()
 {
 	ut_ad(m_root_level + 1 == m_page_bulks->size());
 
@@ -698,20 +722,20 @@ void BtrBulk::logFreeCheck()
 @param[in]	tuple	tuple to insert
 @param[in]	level	B-tree level
 @return error code */
-dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
+dberr_t
+BtrBulk::insert(
+	dtuple_t*	tuple,
+	ulint		level)
 {
-	PageBulk*	page_bulk;
-	ulint		rec_size;
-	ulint		n_ext = 0;
-	big_rec_t*	big_rec = NULL;
-	ulint*		offsets;
-	rec_t*		rec;
 	bool		is_left_most = false;
-	dberr_t		err = DB_SUCCESS;
 
+	ut_ad(m_heap != NULL);
+
+	/** Check if we need to create a PageBulk for the level. */
 	if (level + 1 > m_page_bulks->size()) {
 		PageBulk* new_page_bulk = new PageBulk(m_index, m_trx_id,
 						       FIL_NULL, level);
+		new_page_bulk->init();
 
 		m_page_bulks->push_back(new_page_bulk);
 		ut_ad(level + 1 == m_page_bulks->size());
@@ -721,6 +745,8 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 	}
 
 	ut_ad(m_page_bulks->size() > level);
+
+	PageBulk*	page_bulk;
 	page_bulk = m_page_bulks->at(level);
 
 	if (is_left_most && level > 0 && page_bulk->getRecNo() == 0) {
@@ -730,6 +756,10 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 		dtuple_set_info_bits(tuple, dtuple_get_info_bits(tuple)
 					    | REC_INFO_MIN_REC_FLAG);
 	}
+
+	ulint		n_ext = 0;
+	ulint		rec_size;
+	big_rec_t*	big_rec = NULL;
 
 	/** Calculate the record size when entry is converted to a record */
         rec_size = rec_get_converted_size(m_index, tuple, n_ext);
@@ -747,10 +777,12 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 
 	if (!page_bulk->isSpaceAvailable(rec_size)) {
 		PageBulk*	sibling_page_bulk;
+		dberr_t		err;
 
 		/** Create a sibling page_bulk. */
 		sibling_page_bulk = new PageBulk(m_index, m_trx_id,
 						 FIL_NULL, level);
+		sibling_page_bulk->init();
 
 		/** Commit page bulk. */
 		err = pageCommit(page_bulk, sibling_page_bulk, true);
@@ -779,8 +811,9 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 		}
 	}
 
+	rec_t*		rec;
+	ulint*		offsets = NULL;
 	/** Convert tuple to rec. */
-	offsets = NULL;
         rec = rec_convert_dtuple_to_rec(static_cast<byte*>(mem_heap_alloc(
 		page_bulk->m_heap, rec_size)), m_index, tuple, n_ext);
         offsets = rec_get_offsets(rec, m_index, offsets, ULINT_UNDEFINED,
@@ -789,21 +822,28 @@ dberr_t	BtrBulk::insert(dtuple_t*	tuple, ulint	level)
 	page_bulk->insert(rec, offsets);
 
 	if (big_rec != NULL) {
-		ut_ad(err == DB_SUCCESS);
+		dberr_t		err;
+
 		ut_ad(dict_index_is_clust(m_index));
 		ut_ad(page_bulk->getLevel() == 0);
 
 		err = page_bulk->storeExt(big_rec, offsets);
 
 		dtuple_convert_back_big_rec(m_index, tuple, big_rec);
+
+		return(err);
 	}
 
-	return(err);
+	return(DB_SUCCESS);
 }
 
-/** Btree bulk load finish
-@param[in]	success		whether bulk load is successful */
-dberr_t BtrBulk::finish(dberr_t	err)
+/** Btree bulk load finish. We commit last page in each level and copy last
+page in top level to root page of the index if no error occurs.
+@param[in]	success		whether bulk load is successful
+@return error code  */
+dberr_t
+BtrBulk::finish(
+	dberr_t		err)
 {
 	ulint		last_page_no = FIL_NULL;
 
@@ -855,6 +895,7 @@ dberr_t BtrBulk::finish(dberr_t	err)
 		ut_ad(page_rec_is_user_rec(first_rec));
 
 		/** Copy last page to root page. */
+		root_page_bulk.init();
 		root_page_bulk.copyIn(first_rec);
 
 		/** Remove last page. */
@@ -870,7 +911,7 @@ dberr_t BtrBulk::finish(dberr_t	err)
 	dict_sync_check check(true);
 
 	ut_ad(!sync_check_iterate(check));
-#endif
+#endif /* UNIV_DEBUG */
 
 	return(err);
 }
