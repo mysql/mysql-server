@@ -1138,6 +1138,10 @@ Check if the transaction can be rolled back
 bool
 thd_trx_can_rollback(THD* thd)
 {
+	/* Non-user (thd==0) transactions by default can rollback, in
+	practice DDL transactions should never rollback but that's because
+	they should never wait on table/record locks either */
+
 	return(thd == 0 || !thd_tx_no_rollback(thd));
 }
 
