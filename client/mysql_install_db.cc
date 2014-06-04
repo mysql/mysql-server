@@ -604,7 +604,7 @@ void add_standard_search_paths(vector<Path > *spaths)
   spaths->push_back(Path(DEFAULT_BASEDIR));
   spaths->push_back(Path(DEFAULT_BASEDIR).append("/bin"));
 #endif
-  
+
 }
 
 /**
@@ -751,9 +751,9 @@ int get_admin_credentials(const string &opt_adminlogin,
   for( map<string, string >::iterator it= options.begin();
        it != options.end(); ++it)
   {
-    if (it->first == "user" && adminuser->length() == 0)
+    if (it->first == "user")
       *adminuser= it->second;
-    if (it->first == "host" && adminhost->length() == 0)
+    if (it->first == "host")
       *adminhost= it->second;
     if (it->first == "password")
       *password= it->second;
@@ -1126,6 +1126,7 @@ int main(int argc,char *argv[])
     info.enabled(false);
   }
 
+
   /*
    1. Verify all option parameters
    2. Create missing directories
@@ -1164,8 +1165,8 @@ int main(int argc,char *argv[])
     }
   }
 
-  if (!assert_valid_root_account(create_string(opt_adminuser),
-                                 create_string(opt_adminhost),
+  if (!assert_valid_root_account(adminuser,
+                                 adminhost,
                                  create_string(opt_authplugin),
                                  opt_ssl))
   {
