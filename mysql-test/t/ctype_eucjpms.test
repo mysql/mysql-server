@@ -1,4 +1,5 @@
---source include/no_valgrind_without_big.inc
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
 
  #Get deafult engine value
 --let $DEFAULT_ENGINE = `select @@global.default_storage_engine`

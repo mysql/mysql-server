@@ -1209,8 +1209,7 @@ innobase_srv_conc_exit_innodb(
 	trx_t*	trx	= prebuilt->trx;
 	btrsea_sync_check	check(trx->has_search_latch);
 
-	ut_ad(dict_table_is_intrinsic(prebuilt->table)
-	      || !sync_check_iterate(check));
+	ut_ad(!sync_check_iterate(check));
 
 	/* This is to avoid making an unnecessary function call. */
 	if (trx->declared_to_be_inside_innodb
