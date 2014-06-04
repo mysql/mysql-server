@@ -157,9 +157,8 @@ public:
         sn.dirty = 1;
         sn.oldest_referenced_xid_known = TXNID_NONE;
         MALLOC_N(sn.n_children, sn.bp);
-        MALLOC_N(1, sn.childkeys);
-        toku_memdup_dbt(&sn.childkeys[0], "b", 2);
-        sn.totalchildkeylens = 2;
+        DBT pivotkey;
+        sn.pivotkeys.create_from_dbts(toku_fill_dbt(&pivotkey, "b", 2), 1);
         BP_STATE(&sn,0) = PT_AVAIL;
         BP_STATE(&sn,1) = PT_AVAIL;
         set_BLB(&sn, 0, toku_create_empty_bn());
@@ -167,8 +166,6 @@ public:
         le_add_to_bn(BLB_DATA(&sn, 0), 0, "a", 2, "aval", 5);
         le_add_to_bn(BLB_DATA(&sn, 0), 1, "b", 2, "bval", 5);
         le_add_to_bn(BLB_DATA(&sn, 1), 0, "x", 2, "xval", 5);
-    
-    
     
         // now this is the test. If I keep getting space for overwrite
         // like crazy, it should expose the bug
@@ -187,15 +184,7 @@ public:
         // on. It may be that some algorithm has changed.
         assert(new_size < 5*old_size);
     
-    
-        for (int i = 0; i < sn.n_children-1; ++i) {
-            toku_free(sn.childkeys[i].data);
-        }
-        for (int i = 0; i < sn.n_children; i++) {
-            destroy_basement_node(BLB(&sn, i));
-        }
-        toku_free(sn.bp);
-        toku_free(sn.childkeys);
+        toku_destroy_ftnode_internals(&sn);
     }
 };
 

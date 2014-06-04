@@ -120,7 +120,7 @@ cachetable_put_empty_node_with_dep_nodes(
     uint32_t* fullhash, //output
     FTNODE* result)
 {
-    FTNODE XMALLOC(new_node);
+    FTNODE XCALLOC(new_node);
     PAIR dependent_pairs[num_dependent_nodes];
     enum cachetable_dirty dependent_dirty_bits[num_dependent_nodes];
     for (uint32_t i = 0; i < num_dependent_nodes; i++) {

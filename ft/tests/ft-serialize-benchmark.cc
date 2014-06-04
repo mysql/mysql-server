@@ -152,8 +152,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy, int ser_runs, int de
     sn->dirty = 1;
     sn->oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn->n_children, sn->bp);
-    MALLOC_N(sn->n_children-1, sn->childkeys);
-    sn->totalchildkeylens = 0;
+    sn->pivotkeys.create_empty();
     for (int i = 0; i < sn->n_children; ++i) {
         BP_STATE(sn,i) = PT_AVAIL;
         set_BLB(sn, i, toku_create_empty_bn());
@@ -181,8 +180,8 @@ test_serialize_leaf(int valsize, int nelts, double entropy, int ser_runs, int de
                 );
         }
         if (ck < 7) {
-            toku_memdup_dbt(&sn->childkeys[ck], &k, sizeof k);
-            sn->totalchildkeylens += sizeof k;
+            DBT pivotkey;
+            sn->pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), ck);
         }
     }
 
@@ -307,8 +306,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.totalchildkeylens = 0;
+    sn.pivotkeys.create_empty();
     for (int i = 0; i < sn.n_children; ++i) {
         BP_BLOCKNUM(&sn, i).b = 30 + (i*5);
         BP_STATE(&sn,i) = PT_AVAIL;
@@ -337,8 +335,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
             toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, FT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp);
         }
         if (ck < 7) {
-            toku_memdup_dbt(&sn.childkeys[ck], &k, sizeof k);
-            sn.totalchildkeylens += sizeof k;
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), ck);
         }
     }
 
@@ -408,15 +406,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
            );
 
     toku_ftnode_free(&dn);
-
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; ++i) {
-        destroy_nonleaf_childinfo(BNC(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);

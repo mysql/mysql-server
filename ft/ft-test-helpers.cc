@@ -124,15 +124,15 @@ int toku_testsetup_leaf(FT_HANDLE ft_handle, BLOCKNUM *blocknum, int n_children,
     FTNODE node;
     assert(testsetup_initialized);
     toku_create_new_ftnode(ft_handle, &node, 0, n_children);
-    int i;
-    for (i=0; i<n_children; i++) {
-        BP_STATE(node,i) = PT_AVAIL;
+    for (int i = 0; i < n_children; i++) {
+        BP_STATE(node, i) = PT_AVAIL;
     }
 
-    for (i=0; i+1<n_children; i++) {
-        toku_memdup_dbt(&node->childkeys[i], keys[i], keylens[i]);
-        node->totalchildkeylens += keylens[i];
+    DBT *XMALLOC_N(n_children - 1, pivotkeys);
+    for (int i = 0; i + 1 < n_children; i++) {
+        toku_memdup_dbt(&pivotkeys[i], keys[i], keylens[i]);
     }
+    node->pivotkeys.create_from_dbts(pivotkeys, n_children - 1);
 
     *blocknum = node->blocknum;
     toku_unpin_ftnode(ft_handle->ft, node);
@@ -144,15 +144,15 @@ int toku_testsetup_nonleaf (FT_HANDLE ft_handle, int height, BLOCKNUM *blocknum,
     FTNODE node;
     assert(testsetup_initialized);
     toku_create_new_ftnode(ft_handle, &node, height, n_children);
-    int i;
-    for (i=0; i<n_children; i++) {
+    for (int i = 0; i < n_children; i++) {
         BP_BLOCKNUM(node, i) = children[i];
         BP_STATE(node,i) = PT_AVAIL;
     }
-    for (i=0; i+1<n_children; i++) {
-        toku_memdup_dbt(&node->childkeys[i], keys[i], keylens[i]);
-        node->totalchildkeylens += keylens[i];
+    DBT *XMALLOC_N(n_children - 1, pivotkeys);
+    for (int i = 0; i + 1 < n_children; i++) {
+        toku_memdup_dbt(&pivotkeys[i], keys[i], keylens[i]);
     }
+    node->pivotkeys.create_from_dbts(pivotkeys, n_children - 1);
     *blocknum = node->blocknum;
     toku_unpin_ftnode(ft_handle->ft, node);
     return 0;

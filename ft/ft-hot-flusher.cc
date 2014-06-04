@@ -202,7 +202,7 @@ hot_update_flusher_keys(FTNODE parent,
     // child node.
     if (childnum < (parent->n_children - 1)) {
         toku_destroy_dbt(&flusher->max_current_key);
-        toku_clone_dbt(&flusher->max_current_key, parent->childkeys[childnum]);
+        toku_clone_dbt(&flusher->max_current_key, *parent->pivotkeys.get_pivot(childnum));
     }
 }
 

@@ -93,6 +93,68 @@ PATENT RIGHTS GRANT:
 #include "ft/fttypes.h"
 #include "ft/msg_buffer.h"
 
+/* Pivot keys.
+ * Child 0's keys are <= pivotkeys[0]. 
+ * Child 1's keys are <= pivotkeys[1]. 
+ * Child 1's keys are > pivotkeys[0].
+ * etc
+ */
+class ftnode_pivot_keys {
+public:
+    // effect: create an empty set of pivot keys
+    void create_empty();
+
+    // effect: create pivot keys by copying the given DBT array
+    void create_from_dbts(const DBT *keys, int num_pivots);
+
+    // effect: create pivot keys as a clone of an existing set of pivotkeys
+    void create_from_pivot_keys(const ftnode_pivot_keys &pivotkeys);
+
+    void destroy();
+
+    // effect: deserialize pivot keys previously serialized by serialize_to_wbuf()
+    void deserialize_from_rbuf(struct rbuf *rb, int num_pivots);
+
+    // returns: unowned DBT representing the i'th pivot key
+    const DBT *get_pivot(int i) const;
+
+    // effect: insert a pivot into the i'th position, shifting others to the right
+    void insert_at(const DBT *key, int i);
+
+    // effect: append pivotkeys to the end of our own pivot keys
+    void append(const ftnode_pivot_keys &pivotkeys);
+
+    // effect: replace the pivot at the i'th position
+    void replace_at(const DBT *key, int i);
+
+    // effect: removes the i'th pivot key, shifting others to the left
+    void delete_at(int i);
+
+    // effect: split the pivot keys, removing all pivots at position greater
+    //         than or equal to `i' and storing them in *other
+    // requires: *other is empty (size == 0)
+    void split_at(int i, ftnode_pivot_keys *other);
+
+    int num_pivots() const;
+
+    // return: the sum of the keys sizes of each pivot
+    size_t total_size() const;
+
+    // effect: serialize pivot keys to a wbuf
+    // requires: wbuf has at least ftnode_pivot_keys::total_size() bytes available
+    void serialize_to_wbuf(struct wbuf *wb) const;
+
+private:
+    // adds/destroys keys at a certain index, maintaining _total_size, but not _num_pivots
+    void _add_key(const DBT *key, int i);
+    void _destroy_key(int i);
+
+    DBT *_keys;
+    int _num_pivots;
+    size_t _total_size;
+};
+
+// TODO: class me up
 struct ftnode {
     MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
     unsigned int flags;
@@ -104,11 +166,11 @@ struct ftnode {
     int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
     int    dirty;
     uint32_t fullhash;
-    int n_children; //for internal nodes, if n_children==fanout+1 then the tree needs to be rebalanced.
-                    // for leaf nodes, represents number of basement nodes
-    unsigned int    totalchildkeylens;
-    DBT *childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
-                                                                        Child 1's keys are > childkeys[0]. */
+
+    // for internal nodes, if n_children==fanout+1 then the tree needs to be rebalanced.
+    // for leaf nodes, represents number of basement nodes
+    int n_children;
+    ftnode_pivot_keys pivotkeys;
 
     // What's the oldest referenced xid that this node knows about? The real oldest
     // referenced xid might be younger, but this is our best estimate. We use it
@@ -243,8 +305,7 @@ void toku_ftnode_clone_partitions(FTNODE node, FTNODE cloned_node);
 void toku_initialize_empty_ftnode(FTNODE node, BLOCKNUM blocknum, int height, int num_children, 
                                   int layout_version, unsigned int flags);
 
-int toku_ftnode_which_child(FTNODE node, const DBT *k,
-                            DESCRIPTOR desc, ft_compare_func cmp);
+int toku_ftnode_which_child(FTNODE node, const DBT *k, DESCRIPTOR desc, ft_compare_func cmp);
 
 //
 // Field in ftnode_fetch_extra that tells the 

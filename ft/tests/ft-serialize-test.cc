@@ -279,9 +279,8 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], "b", 2);
-    sn.totalchildkeylens = 2;
+    DBT pivotkey;
+    sn.pivotkeys.create_from_dbts(toku_fill_dbt(&pivotkey, "b", 2), 1);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BLB(&sn, 0, toku_create_empty_bn());
@@ -346,7 +345,6 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
         elts[1].init("b", "bval");
         elts[2].init("x", "xval");
         const uint32_t npartitions = dn->n_children;
-        assert(dn->totalchildkeylens==(2*(npartitions-1)));
         uint32_t last_i = 0;
         for (uint32_t bn = 0; bn < npartitions; ++bn) {
             assert(BLB_MAX_MSN_APPLIED(dn, bn).msn == POSTSERIALIZE_MSN_ON_DISK.msn);
@@ -363,7 +361,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(elts[last_i].le));
                 assert(memcmp(curr_le, elts[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, elts[last_i].keyp) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, elts[last_i].keyp) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -372,16 +370,9 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
         }
         assert(last_i == 3);
     }
-    toku_ftnode_free(&dn);
 
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_ftnode_free(&dn);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
@@ -414,8 +405,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     sn.oldest_referenced_xid_known = TXNID_NONE;
 
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
+    sn.pivotkeys.create_empty();
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn());
@@ -430,7 +420,8 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
             uint32_t keylen;
             void* curr_key;
             BLB_DATA(&sn, i)->fetch_key_and_len(0, &keylen, &curr_key);
-            toku_memdup_dbt(&sn.childkeys[i], curr_key, keylen);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, curr_key, keylen), i);
         }
     }
 
@@ -489,7 +480,6 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
             }
         }
         const uint32_t npartitions = dn->n_children;
-        assert(dn->totalchildkeylens==(keylens*(npartitions-1)));
         uint32_t last_i = 0;
         for (uint32_t bn = 0; bn < npartitions; ++bn) {
             assert(dest_ndd[bn].start > 0);
@@ -506,7 +496,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
                 assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, les[last_i].keyp) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, les[last_i].keyp) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -517,14 +507,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
     }
 
     toku_ftnode_free(&dn);
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    toku_free(sn.childkeys);
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
@@ -555,8 +538,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     sn.oldest_referenced_xid_known = TXNID_NONE;
 
     XMALLOC_N(sn.n_children, sn.bp);
-    XMALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.totalchildkeylens = (sn.n_children-1)*sizeof(int);
+    sn.pivotkeys.create_empty();
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn()); 
@@ -621,7 +603,6 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
             }
         }
         const uint32_t npartitions = dn->n_children;
-        assert(dn->totalchildkeylens==(sizeof(int)*(npartitions-1)));
         uint32_t last_i = 0;
         for (uint32_t bn = 0; bn < npartitions; ++bn) {
             assert(dest_ndd[bn].start > 0);
@@ -638,7 +619,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
                 assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    uint32_t *CAST_FROM_VOIDP(pivot, dn->childkeys[bn].data);
+                    uint32_t *CAST_FROM_VOIDP(pivot, dn->pivotkeys.get_pivot(bn)->data);
                     void* tmp = les[last_i].keyp;
                     uint32_t *CAST_FROM_VOIDP(item, tmp);
                     assert(*pivot >= *item);
@@ -654,14 +635,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
     }
 
     toku_ftnode_free(&dn);
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
@@ -696,8 +670,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     sn.oldest_referenced_xid_known = TXNID_NONE;
     
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    sn.totalchildkeylens = (sn.n_children-1)*8;
+    sn.pivotkeys.create_empty();
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn());
@@ -771,7 +744,6 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
         }
         const uint32_t npartitions = dn->n_children;
         assert(npartitions == nrows);
-        assert(dn->totalchildkeylens==(key_size*(npartitions-1)));
         uint32_t last_i = 0;
         for (uint32_t bn = 0; bn < npartitions; ++bn) {
             assert(dest_ndd[bn].start > 0);
@@ -788,7 +760,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
                 assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(les[last_i].keyp)) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, (char*)(les[last_i].keyp)) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -800,14 +772,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
     }
 
     toku_ftnode_free(&dn);
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
@@ -839,14 +804,14 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], "A", 2);
-    toku_memdup_dbt(&sn.childkeys[1], "a", 2);
-    toku_memdup_dbt(&sn.childkeys[2], "a", 2);
-    toku_memdup_dbt(&sn.childkeys[3], "b", 2);
-    toku_memdup_dbt(&sn.childkeys[4], "b", 2);
-    toku_memdup_dbt(&sn.childkeys[5], "x", 2);
-    sn.totalchildkeylens = (sn.n_children-1)*2;
+    DBT pivotkeys[6];
+    toku_fill_dbt(&pivotkeys[0], "A", 2);
+    toku_fill_dbt(&pivotkeys[1], "a", 2);
+    toku_fill_dbt(&pivotkeys[2], "a", 2);
+    toku_fill_dbt(&pivotkeys[3], "b", 2);
+    toku_fill_dbt(&pivotkeys[4], "b", 2);
+    toku_fill_dbt(&pivotkeys[5], "x", 2);
+    sn.pivotkeys.create_from_dbts(pivotkeys, 6);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn());
@@ -909,7 +874,6 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
         elts[1].init("b", "bval");
         elts[2].init("x", "xval");
         const uint32_t npartitions = dn->n_children;
-        assert(dn->totalchildkeylens==(2*(npartitions-1)));
         uint32_t last_i = 0;
         for (uint32_t bn = 0; bn < npartitions; ++bn) {
             assert(dest_ndd[bn].start > 0);
@@ -925,7 +889,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(elts[last_i].le));
                 assert(memcmp(curr_le, elts[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->childkeys[bn].data, (char*)(elts[last_i].keyp)) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, (char*)(elts[last_i].keyp)) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -934,16 +898,9 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
         }
         assert(last_i == 3);
     }
-    toku_ftnode_free(&dn);
 
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_ftnode_free(&dn);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
@@ -974,11 +931,11 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], "A", 2);
-    toku_memdup_dbt(&sn.childkeys[1], "A", 2);
-    toku_memdup_dbt(&sn.childkeys[2], "A", 2);
-    sn.totalchildkeylens = (sn.n_children-1)*2;
+    DBT pivotkeys[3];
+    toku_fill_dbt(&pivotkeys[0], "A", 2);
+    toku_fill_dbt(&pivotkeys[1], "A", 2);
+    toku_fill_dbt(&pivotkeys[2], "A", 2);
+    sn.pivotkeys.create_from_dbts(pivotkeys, 3);
     for (int i = 0; i < sn.n_children; ++i) {
         BP_STATE(&sn,i) = PT_AVAIL;
         set_BLB(&sn, i, toku_create_empty_bn());
@@ -1031,7 +988,6 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
     assert(dn->n_children == 1);
     {
         const uint32_t npartitions = dn->n_children;
-        assert(dn->totalchildkeylens==(2*(npartitions-1)));
         for (uint32_t i = 0; i < npartitions; ++i) {
             assert(dest_ndd[i].start > 0);
             assert(dest_ndd[i].size  > 0);
@@ -1041,16 +997,9 @@ test_serialize_leaf_with_multiple_empty_basement_nodes(enum ftnode_verify_type b
             assert(BLB_DATA(dn, i)->num_klpairs() == 0);
         }
     }
+    
     toku_ftnode_free(&dn);
-
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
@@ -1084,9 +1033,8 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(2, sn.bp);
-    MALLOC_N(1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], "hello", 6);
-    sn.totalchildkeylens = 6;
+    DBT pivotkey;
+    sn.pivotkeys.create_from_dbts(toku_fill_dbt(&pivotkey, "hello", 6), 1);
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
     BP_STATE(&sn,0) = PT_AVAIL;
@@ -1154,9 +1102,8 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     assert(dn->layout_version_read_from_disk ==FT_LAYOUT_VERSION);
     assert(dn->height == 1);
     assert(dn->n_children==2);
-    assert(strcmp((char*)dn->childkeys[0].data, "hello")==0);
-    assert(dn->childkeys[0].size==6);
-    assert(dn->totalchildkeylens==6);
+    assert(strcmp((char*)dn->pivotkeys.get_pivot(0)->data, "hello")==0);
+    assert(dn->pivotkeys.get_pivot(0)->size==6);
     assert(BP_BLOCKNUM(dn,0).b==30);
     assert(BP_BLOCKNUM(dn,1).b==35);
 
@@ -1169,12 +1116,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     assert(src_msg_buffer2->equals(dest_msg_buffer2));
 
     toku_ftnode_free(&dn);
-
-    toku_free(sn.childkeys[0].data);
-    destroy_nonleaf_childinfo(BNC(&sn, 0));
-    destroy_nonleaf_childinfo(BNC(&sn, 1));
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);

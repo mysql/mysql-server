@@ -159,7 +159,6 @@ setup_ftnode_header(struct ftnode *node)
     node->layout_version_original = FT_LAYOUT_VERSION;
     node->height = 0;
     node->dirty = 1;
-    node->totalchildkeylens = 0;
     node->oldest_referenced_xid_known = TXNID_NONE;
 }
 
@@ -169,12 +168,12 @@ setup_ftnode_partitions(struct ftnode *node, int n_children, const MSN msn, size
     node->n_children = n_children;
     node->max_msn_applied_to_node_on_disk = msn;
     MALLOC_N(node->n_children, node->bp);
-    MALLOC_N(node->n_children - 1, node->childkeys);
     for (int bn = 0; bn < node->n_children; ++bn) {
         BP_STATE(node, bn) = PT_AVAIL;
         set_BLB(node, bn, toku_create_empty_bn());
         BLB_MAX_MSN_APPLIED(node, bn) = msn;
     }
+    node->pivotkeys.create_empty();
 }
 
 static void
@@ -210,8 +209,8 @@ test_split_on_boundary(void)
             insert_dummy_value(&sn, bn, k, i);
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
 
@@ -233,10 +232,7 @@ test_split_on_boundary(void)
     r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -270,8 +266,8 @@ test_split_with_everything_on_the_left(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k, i);
             }
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         } else {
             k = bn * eltsperbn;
             // we want this to be as big as the rest of our data and a
@@ -300,10 +296,7 @@ test_split_with_everything_on_the_left(void)
     r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -339,8 +332,8 @@ test_split_on_boundary_of_last_node(void)
                 k = bn * eltsperbn + i;
                 big_val_size += insert_dummy_value(&sn, bn, k, i);
             }
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         } else {
             k = bn * eltsperbn;
             // we want this to be slightly smaller than all the rest of
@@ -372,10 +365,7 @@ test_split_on_boundary_of_last_node(void)
     r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -405,8 +395,8 @@ test_split_at_begin(void)
             totalbytes += insert_dummy_value(&sn, bn, k, i-1);
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
     {  // now add the first element
@@ -436,10 +426,7 @@ test_split_at_begin(void)
     r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -476,8 +463,8 @@ test_split_at_end(void)
             }
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
 
@@ -496,10 +483,7 @@ test_split_at_end(void)
     r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 
@@ -530,8 +514,8 @@ test_split_odd_nodes(void)
             insert_dummy_value(&sn, bn, k, i);
         }
         if (bn < sn.n_children - 1) {
-            toku_memdup_dbt(&sn.childkeys[bn], &k, sizeof k);
-            sn.totalchildkeylens += (sizeof k);
+            DBT pivotkey;
+            sn.pivotkeys.insert_at(toku_fill_dbt(&pivotkey, &k, sizeof(k)), bn);
         }
     }
 
@@ -553,10 +537,7 @@ test_split_odd_nodes(void)
     r = toku_close_ft_handle_nolsn(ft, NULL); assert(r == 0);
     toku_cachetable_close(&ct);
 
-    if (splitk.data) {
-        toku_free(splitk.data);
-    }
-
+    toku_destroy_dbt(&splitk);
     toku_destroy_ftnode_internals(&sn);
 }
 

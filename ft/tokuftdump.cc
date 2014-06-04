@@ -254,11 +254,11 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT h) {
         );
 
     printf(" n_children=%d\n", n->n_children);
-    printf(" total_childkeylens=%u\n", n->totalchildkeylens);
+    printf(" pivotkeys.total_size()=%u\n", (unsigned) n->pivotkeys.total_size());
 
     printf(" pivots:\n");
     for (int i=0; i<n->n_children-1; i++) {
-        const DBT *piv = &n->childkeys[i];
+        const DBT *piv = n->pivotkeys.get_pivot(i);
         printf("  pivot %2d:", i);
         if (n->flags)
             printf(" flags=%x ", n->flags);

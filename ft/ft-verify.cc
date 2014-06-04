@@ -411,24 +411,24 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
     }
     // Verify that all the pivot keys are in order.
     for (int i = 0; i < node->n_children-2; i++) {
-        int compare = compare_pairs(ft_handle, &node->childkeys[i], &node->childkeys[i+1]);
+        int compare = compare_pairs(ft_handle, node->pivotkeys.get_pivot(i), node->pivotkeys.get_pivot(i + 1));
         VERIFY_ASSERTION(compare < 0, i, "Value is >= the next value");
     }
     // Verify that all the pivot keys are lesser_pivot < pivot <= greatereq_pivot
     for (int i = 0; i < node->n_children-1; i++) {
         if (lesser_pivot) {
-            int compare = compare_pairs(ft_handle, lesser_pivot, &node->childkeys[i]);
+            int compare = compare_pairs(ft_handle, lesser_pivot, node->pivotkeys.get_pivot(i));
             VERIFY_ASSERTION(compare < 0, i, "Pivot is >= the lower-bound pivot");
         }
         if (greatereq_pivot) {
-            int compare = compare_pairs(ft_handle, greatereq_pivot, &node->childkeys[i]);
+            int compare = compare_pairs(ft_handle, greatereq_pivot, node->pivotkeys.get_pivot(i));
             VERIFY_ASSERTION(compare >= 0, i, "Pivot is < the upper-bound pivot");
         }
     }
 
     for (int i = 0; i < node->n_children; i++) {
-        const DBT *curr_less_pivot = (i==0) ? lesser_pivot : &node->childkeys[i-1];
-        const DBT *curr_geq_pivot = (i==node->n_children-1) ? greatereq_pivot : &node->childkeys[i];
+        const DBT *curr_less_pivot = (i==0) ? lesser_pivot : node->pivotkeys.get_pivot(i - 1);
+        const DBT *curr_geq_pivot = (i==node->n_children-1) ? greatereq_pivot : node->pivotkeys.get_pivot(i);
         if (node->height > 0) {
             NONLEAF_CHILDINFO bnc = BNC(node, i);
             // Verify that messages in the buffers are in the right place.
@@ -537,8 +537,8 @@ toku_verify_ftnode (FT_HANDLE ft_handle,
                                         : parentmsn_with_messages),
                                        messages_exist_above || toku_bnc_n_entries(BNC(node, i)) > 0,
                                        child_node, node->height-1,
-                                       (i==0)                  ? lesser_pivot        : &node->childkeys[i-1],
-                                       (i==node->n_children-1) ? greatereq_pivot     : &node->childkeys[i],
+                                       (i==0)                  ? lesser_pivot        : node->pivotkeys.get_pivot(i - 1),
+                                       (i==node->n_children-1) ? greatereq_pivot     : node->pivotkeys.get_pivot(i),
                                        progress_callback, progress_extra,
                                        recurse, verbose, keep_going_on_failure);
             if (r) {
