@@ -116,7 +116,8 @@ public:
 
       EXPECT_FALSE(m_mdl_context->acquire_lock(&request, 3600));
       EXPECT_TRUE(m_mdl_context->
-                  is_lock_owner(MDL_key::TABLE, "db", "table", m_mdl_type));
+                  owns_equal_or_stronger_lock(MDL_key::TABLE, "db", "table",
+                                              m_mdl_type));
 
       if (m_lock_grabbed)
         m_lock_grabbed->notify();
