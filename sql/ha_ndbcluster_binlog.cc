@@ -6671,16 +6671,30 @@ injectApplyStatusWriteRow(injector::transaction& trans,
   }
 
   longlong gci_to_store = (longlong) gci;
-  DBUG_EXECUTE_IF("ndb_binlog_injector_repeat_gcis",
+
+#ifndef DBUG_OFF
+  DBUG_EXECUTE_IF("ndb_binlog_injector_cycle_gcis",
                   {
                     ulonglong gciHi = ((gci_to_store >> 32) 
                                        & 0xffffffff);
                     ulonglong gciLo = (gci_to_store & 0xffffffff);
                     gciHi = (gciHi % 3);
+                    sql_print_warning("NDB Binlog injector cycling gcis (%llu -> %llu)",
+                                      gci_to_store, (gciHi << 32) + gciLo);
+                    gci_to_store = (gciHi << 32) + gciLo;
+                  });
+  DBUG_EXECUTE_IF("ndb_binlog_injector_repeat_gcis",
+                  {
+                    ulonglong gciHi = ((gci_to_store >> 32) 
+                                       & 0xffffffff);
+                    ulonglong gciLo = (gci_to_store & 0xffffffff);
+                    gciHi=0xffffff00;
+                    gciLo=0;
                     sql_print_warning("NDB Binlog injector repeating gcis (%llu -> %llu)",
                                       gci_to_store, (gciHi << 32) + gciLo);
                     gci_to_store = (gciHi << 32) + gciLo;
                   });
+#endif
 
   /* Build row buffer for generated ndb_apply_status
      WRITE_ROW event
