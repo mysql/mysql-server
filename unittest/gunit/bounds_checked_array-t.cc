@@ -175,7 +175,8 @@ TEST_F(BoundsCheckedArray, Equality)
   EXPECT_EQ(int_array, int_array);
 
   Int_array int_array_copy(int_array);
-  EXPECT_EQ(int_array, int_array_copy);
+  EXPECT_EQ(int_array, int_array_copy) << " original " << int_array
+                                       << " copy " << int_array_copy;
 
   int_array_copy.resize(c_array_size - 1);
   EXPECT_NE(int_array, int_array_copy);

@@ -30,6 +30,7 @@
 #include "sql_servers.h"
 #include "trigger_def.h"              // enum_trigger_action_time_type
 #include "xa.h"                       // XID, xa_option_words
+#include "prealloced_array.h"
 
 /* YACC and LEX Definitions */
 
@@ -225,6 +226,15 @@ typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
 */
 typedef struct st_lex_master_info
 {
+  /*
+    The array of IGNORE_SERVER_IDS has a preallocation, and is not expected
+    to grow to any significant size, so no instrumentation.
+  */
+  st_lex_master_info()
+    : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED)
+  {
+    initialize();
+  }
   char *host, *user, *password, *log_file_name, *bind_addr;
   uint port, connect_retry;
   float heartbeat_period;
@@ -246,9 +256,16 @@ typedef struct st_lex_master_info
   char *ssl_crl, *ssl_crlpath;
   char *relay_log_name;
   ulong relay_log_pos;
-  DYNAMIC_ARRAY repl_ignore_server_ids;
-  ulong server_ids_buffer[2];
+  Prealloced_array<ulong, 2, true> repl_ignore_server_ids;
+
+  /// Initializes everything to zero/NULL/empty.
+  void initialize();
+  /// Sets all fields to their "unspecified" value.
   void set_unspecified();
+private:
+  // Not copyable or assignable.
+  st_lex_master_info(const st_lex_master_info&);
+  st_lex_master_info &operator=(const st_lex_master_info&);
 } LEX_MASTER_INFO;
 
 typedef struct st_lex_reset_slave
@@ -2628,8 +2645,9 @@ public:
   THD *thd;
 
   /* maintain a list of used plugins for this LEX */
-  DYNAMIC_ARRAY plugins;
-  plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
+  typedef Prealloced_array<plugin_ref,
+    INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
+  Plugins_array plugins;
 
   const CHARSET_INFO *charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
@@ -2915,8 +2933,7 @@ public:
   virtual ~LEX()
   {
     destroy_query_tables_list();
-    plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
-    delete_dynamic(&plugins);
+    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
     unit= NULL;                     // Created in mem_root - no destructor
     select_lex= NULL;
     m_current_select= NULL;
