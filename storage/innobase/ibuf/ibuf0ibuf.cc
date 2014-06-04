@@ -5196,13 +5196,13 @@ ibuf_check_bitmap_on_import(
 	return(DB_SUCCESS);
 }
 
-/**********************************************************************//**
-Updates free bits and buffered bits for bulk loaded page. */
+/** Updates free bits and buffered bits for bulk loaded page.
+@param[in]	block	index page
+@param]in]	reset	flag if reset free val */
 void
 ibuf_set_bitmap_for_bulk_load(
-/*==========================*/
-	buf_block_t*	block,	/*!< in: index page */
-	bool		reset)	/*!< in: if reset free val. */
+	buf_block_t*	block,
+	bool		reset)
 {
 	page_t*	bitmap_page;
 	mtr_t	mtr;

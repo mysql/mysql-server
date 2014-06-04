@@ -929,15 +929,13 @@ fil_tablespace_is_being_deleted(
 	ulint		id);	/*!< in: space id */
 
 #ifdef UNIV_DEBUG
-/**
-Increase redo skipped of a tablespace.
+/** Increase redo skipped of a tablespace.
 @param[in]	id	space id */
 void
 fil_space_inc_redo_skipped_count(
 	ulint		id);
 
-/**
-Decrease redo skipped of a tablespace.
+/** Decrease redo skipped of a tablespace.
 @param[in]	id	space id */
 void
 fil_space_dec_redo_skipped_count(
