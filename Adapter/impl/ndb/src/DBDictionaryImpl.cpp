@@ -580,6 +580,7 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
                    || (col_type == NDB_TYPE_VARBINARY) || (col_type == NDB_TYPE_LONGVARBINARY));
   bool is_char = ((col_type == NDB_TYPE_CHAR) || (col_type == NDB_TYPE_TEXT)
                    || (col_type == NDB_TYPE_VARCHAR) || (col_type == NDB_TYPE_LONGVARCHAR));
+  bool is_lob =  ((col_type == NDB_TYPE_BLOB) || (col_type == NDB_TYPE_TEXT));
 
   /* Required Properties */
 
@@ -659,6 +660,10 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
              Boolean::New(is_binary),
              ReadOnly);
   
+    obj->Set(String::NewSymbol("isLob"),
+             Boolean::New(is_lob),
+             ReadOnly);
+    
     if(is_char) {
       obj->Set(String::NewSymbol("charsetNumber"),
                Number::New(col->getCharsetNumber()),

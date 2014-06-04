@@ -107,6 +107,7 @@ DECLARE_ENCODER(Datetime2);
 DECLARE_ENCODER(Time);
 DECLARE_ENCODER(Time2);
 DECLARE_ENCODER(Date);
+DECLARE_ENCODER(NOP);
 
 DECLARE_ENCODER(Decimal);
 EncoderWriter UnsignedDecimalWriter;
@@ -133,7 +134,7 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & VarbinaryEncoder,                     // 17 VARBINARY
   & DatetimeEncoder,                      // 18 DATETIME
   & DateEncoder,                          // 19 DATE
-  & UnsupportedTypeEncoder,               // 20 BLOB
+  & NOPEncoder,                           // 20 BLOB
   & UnsupportedTypeEncoder,               // 21 TEXT
   & UnsupportedTypeEncoder,               // 22 BIT
   & LongVarcharEncoder,                   // 23 LONGVARCHAR
@@ -393,6 +394,16 @@ Handle<Value> UnsupportedTypeWriter(const NdbDictionary::Column * col,
   return Undefined();
 }
 
+// NO-OP Encoder; used for BLOB values
+Handle<Value> NOPReader(const NdbDictionary::Column *, char *, size_t) {
+  HandleScope scope;
+  return Undefined();
+}
+
+Handle<Value> NOPWriter(const NdbDictionary::Column *, Handle<Value>, 
+                        char *, size_t) {
+  return writerOK;
+}
 
 // Int
 Handle<Value> IntReader(const NdbDictionary::Column *col, 
@@ -1425,4 +1436,3 @@ Handle<Value> DateWriter(const NdbDictionary::Column * col,
   
   return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }
-
