@@ -29,8 +29,10 @@ START SLAVE;
 --source ndb_rpl_get_server_error_log.inc
 --disable_query_log
 --disable_result_log
-select @init_warn_count:=count(1) as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
-select @init_err_count:=count(1) as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select @init_lower_warn_count:=count(1) from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select @init_lower_err_count:=count(1) from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select @init_repeat_err_count:=count(1) from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select @init_skipped_err_count:=count(1) from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
 --enable_query_log
 --enable_result_log
 
@@ -38,42 +40,17 @@ select @init_err_count:=count(1) as err_count from test.server_error_log where l
 
 # Create some distinct epochs by writing data, and 
 # synchronising on binlog...
-insert into test.t1 values (1, repeat('B', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (2, repeat('B', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (3, repeat('B', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (4, repeat('B', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (5, repeat('B', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (6, repeat('B', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
+--let $i=6
+while($i)
+{
+  eval insert into test.t1 values ($i, repeat('B', 1000));
+  --disable_query_log
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+  --enable_query_log
+  --dec $i
+}
 
 --echo Expect that we have at least 2 epochs logged.
 select count(1) > 1 from 
@@ -85,10 +62,12 @@ select count(1) > 1 from
 --echo Any slave positioning warnings?
 --echo Should be none
 --source ndb_rpl_get_server_error_log.inc
-select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
-
-select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
-
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
 --echo Now stop and manually replay old binlog.
 stop slave;
 change master to master_log_pos=4;
@@ -102,9 +81,12 @@ start slave;
 --echo Any slave positioning warnings?
 --echo Should be one
 --source ndb_rpl_get_server_error_log.inc
-select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
-
-select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
 
 --echo Repeat
 stop slave;
@@ -119,9 +101,12 @@ start slave;
 --echo Any slave positioning warnings?
 --echo Should be two
 --source ndb_rpl_get_server_error_log.inc
-select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
-
-select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
 
 
 --echo Now try re-positioning after RESET SLAVE
@@ -138,9 +123,12 @@ RESET SLAVE;
 --echo This avoids warnings when slave context has been explicitly reset
 
 --source ndb_rpl_get_server_error_log.inc
-select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
-
-select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
 
 
 # TODO : Test replay exactly on last-applied epoch, as this is probably a
@@ -149,54 +137,29 @@ select count(1) - @init_err_count as err_count from test.server_error_log where 
 --connection master
 --echo Now get unexpected epoch back-step using fault injection
 --echo on the Master.
-call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
+call mtr.add_suppression("NDB Binlog injector cycling gcis .*");
 
 set @old_debug = @@global.debug;
 set global debug="";
-set global debug="+d,ndb_binlog_injector_repeat_gcis";
+set global debug="+d,ndb_binlog_injector_cycle_gcis";
 show variables like 'debug';
 
 --echo Let's make some epochs
-insert into test.t1 values (7, repeat('E', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (8, repeat('E', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (9, repeat('E', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (10, repeat('E', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (11, repeat('E', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
-insert into test.t1 values (12, repeat('E', 1000));
---disable_query_log
---disable_result_log
-show binlog events;
---enable_result_log
---enable_query_log
+--let $i=6
+while($i)
+{
+  eval insert into test.t1 values ($i + 6, repeat('E', 1000));
+  --disable_query_log
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+  --enable_query_log
+  --dec $i
+}
 
 --connection slave
 
-call mtr.add_suppression("NDB Slave : ERROR.  SQL thread stopped as applying epoch .*");
+call mtr.add_suppression("NDB Slave : SQL thread stopped as applying epoch .*");
 call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
 call mtr.add_suppression("Slave: Got error 173 .*");
 
@@ -207,9 +170,13 @@ call mtr.add_suppression("Slave: Got error 173 .*");
 --echo Let's look at the warnings and errors now...
 
 --source ndb_rpl_get_server_error_log.inc
-select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
 
-select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
 
 --echo Now check that we can manually restart the slave
 
@@ -235,9 +202,176 @@ insert into test.t1 values (13, repeat('A', 1000));
 --echo e.g. 2 warnings, 1 error
 
 --source ndb_rpl_get_server_error_log.inc
-select count(1) - @init_warn_count as warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
 
-select count(1) - @init_err_count as err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+--connection master
+
+delete from test.t1;
+--sync_slave_with_master
+
+
+--connection master
+--echo Now get unexpected epoch repeat using fault-injection on the master
+call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
+
+set @old_debug = @@global.debug;
+set global debug="";
+set global debug="+d,ndb_binlog_injector_repeat_gcis";
+show variables like 'debug';
+
+--echo Let's make some epochs
+--let $i=6
+while($i)
+{
+  eval insert into test.t1 values ($i, repeat('E', 1000));
+  --disable_query_log
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+  --enable_query_log
+  --dec $i
+}
+
+--connection slave
+
+call mtr.add_suppression("NDB Slave : SQL thread stopped as attempted to reapply already committed epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
+
+--echo Check that slave stopped with an error
+--let $slave_sql_errno=1296
+--source include/wait_for_slave_sql_error.inc
+
+--echo Let's look at the warnings and errors now...
+--echo Should be increase in repeat error count.
+
+--source ndb_rpl_get_server_error_log.inc
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
+
+--echo Now check that we can manually restart the slave
+
+--connection master
+set global debug = @old_debug;
+
+reset master;
+
+--connection slave
+stop slave;
+
+change master to master_log_pos=4;
+
+start slave;
+
+--connection master
+insert into test.t1 values (13, repeat('A', 1000));
+
+--sync_slave_with_master
+--connection slave
+
+--echo Check slave warnings now, should be no extras
+
+--source ndb_rpl_get_server_error_log.inc
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
+
+--connection master
+
+delete from test.t1;
+--sync_slave_with_master
+
+
+--connection slave
+--echo Now get skipped epoch using fault injection on the slave
+
+set @old_debug = @@global.debug;
+set global debug="";
+set global debug="+d,ndb_slave_fail_marking_epoch_committed";
+show variables like 'debug';
+
+--connection master
+
+--echo Let's make some epochs
+--let $i=6
+while($i)
+{
+  eval insert into test.t1 values ($i, repeat('E', 1000));
+  --disable_query_log
+  --disable_result_log
+  show binlog events;
+  --enable_result_log
+  --enable_query_log
+  --dec $i
+}
+
+--connection slave
+
+call mtr.add_suppression("NDB Slave : SQL thread stopped as attempting to apply new epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
+
+--echo Check that slave stopped with an error
+--let $slave_sql_errno=1296
+--source include/wait_for_slave_sql_error.inc
+
+--echo Let's look at the warnings and errors now...
+--echo Should be increase in repeat error count.
+
+--source ndb_rpl_get_server_error_log.inc
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
+
+
+--echo Now check that we can manually restart the slave
+
+--connection slave
+set global debug = @old_debug;
+
+--connection master
+
+reset master;
+
+--connection slave
+stop slave;
+
+change master to master_log_pos=4;
+
+start slave;
+
+--connection master
+insert into test.t1 values (13, repeat('A', 1000));
+
+--sync_slave_with_master
+--connection slave
+
+--echo Check slave warnings now, should be no extras
+
+--source ndb_rpl_get_server_error_log.inc
+--disable_query_log
+select count(1) - @init_lower_warn_count as lower_warn_count from test.server_error_log where line like '%Ndb Slave%lower than previously applied%Check slave positioning%';
+select count(1) - @init_lower_err_count as lower_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%lower than previously applied%';
+select count(1) - @init_repeat_err_count as repeat_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%reapply already committed epoch%';
+select count(1) - @init_skipped_err_count as skipped_err_count from test.server_error_log where line like '%Ndb Slave%SQL thread stopped%has not been committed%';
+--enable_query_log
+
+
 drop table test.server_error_log;
 
 --connection master
