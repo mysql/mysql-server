@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -187,6 +187,48 @@ exports.DBConnectionPool.prototype.getDomainTypeConverter = function(typeName) {
   return this.domainTypeConverterMap[typeName];
 };
 
+/** Get a connection. If pooling via felix, get a connection from the pool.
+ * If not, create a connection. This api does not manage the list of open connections.
+ * 
+ * @param callback (err, connection)
+ */
+exports.DBConnectionPool.prototype.getConnection = function(callback) {
+  var connectionPool = this;
+  var connection, error;
+
+  function getConnectionOnConnection(err, c) {
+    if (err) {
+      stats.connections.failed++;
+      // create a new Error with a message and this stack
+      error = new Error('Connection failed.');
+      // add cause to the error
+      error.cause = err;
+      // add sqlstate to error
+      error.sqlstate = '08000';
+      callback(error);      
+    } else {
+      stats.connections.successful++;
+      callback(null, c);
+    }
+  }
+
+  // getConnection starts here
+  if (connectionPool.is_connected) {
+    connection = mysql.createConnection(connectionPool.driverproperties);
+    connection.connect(getConnectionOnConnection);
+  } else {
+    callback(new Error('GetConnection called before connect.'));
+  }
+};
+
+/** Release a connection (synchronous). If pooling via felix, return the connection to the pool.
+ * If not, end the connection. No errors are reported to the user.
+ */
+exports.DBConnectionPool.prototype.releaseConnection = function(connection) {
+  var connectionPool = this;
+  connection.end();
+};
+
 exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
@@ -312,140 +354,91 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   }
 };
 
-exports.DBConnectionPool.prototype.returnPooledConnection = function(index) {
-throw new Error('Fatal internal exception: returnPooledConnection is not supported.');
-//var pooledConnection = this.openConnections[index];
-//  this.openConnections[index] = null;
-//  this.pooledConnections.push(pooledConnection);
-//  udebug.log('MySQLConnectionPool.returnPooledConnection; ', 
-//      ' pooledConnections:', this.pooledConnections.length,
-//      ' openConnections: ', countOpenConnections(this));
+/** Close the connection being used by the dbSession.
+ * @param dbSession contains index the index into the openConnections array
+ *                           pooledConnection the connection being used
+ * @param callback when the connection is closed call the user
+ */
+exports.DBConnectionPool.prototype.closeConnection = function(dbSession, callback) {
+  var connectionPool = this;
+  if (dbSession.pooledConnection) {
+    dbSession.pooledConnection.end(function(err) {
+      udebug.log('close dbSession', dbSession);
+    });
+  }
+  connectionPool.openConnections[dbSession.index] = null;
+  if (typeof(callback) === 'function') {
+    callback(null);
+  }
 };
 
 exports.DBConnectionPool.prototype.getTableMetadata = function(databaseName, tableName, dbSession, user_callback) {
-
-  var TableMetadataHandler = function(databaseName, tableName, dbConnectionPool, user_callback) {
-    this.databaseName = databaseName;
-    this.tableName = tableName;
-    this.dbConnectionPool = dbConnectionPool;
-    this.user_callback = user_callback;
-    
-    this.getTableMetadata = function() {
-      var metadataHandler = this;
-      var pooledConnection;
-      var dictionary;
-
-      var metadataHandlerOnTableMetadata = function(err, tableMetadata) {
-        udebug.log_detail('getTableMetadataHandler.metadataHandlerOnTableMetadata');
-        // put back the pooledConnection
-        if (typeof(pooledConnection) === 'undefined' || pooledConnection === null) {
-          throw new Error('Fatal internal exception: got null for pooledConnection');
-        }
-        metadataHandler.dbConnectionPool.pooledConnections.push(pooledConnection);
-        metadataHandler.user_callback(err, tableMetadata);
-      };
-
-      var metadataHandlerOnConnect = function() {
-        udebug.log_detail('getTableMetadataHandler.metadataHandlerOnConnect');
-
-        dictionary = new mysqlDictionary.DataDictionary(pooledConnection, this.dbConnectionPool);
-        dictionary.getTableMetadata(metadataHandler.databaseName, metadataHandler.tableName, 
-            metadataHandlerOnTableMetadata);
-      };
-      udebug.log_detail('getTableMetadataHandler.getTableMetadata');
-      if (this.dbConnectionPool.pooledConnections.length > 0) {
-        // pop a connection from the pool
-        pooledConnection = this.dbConnectionPool.pooledConnections.pop();
-        dictionary = new mysqlDictionary.DataDictionary(pooledConnection, this.dbConnectionPool);
-        dictionary.getTableMetadata(databaseName, metadataHandler.tableName, user_callback);
-      } else {
-        pooledConnection = mysql.createConnection(this.dbConnectionPool.driverproperties);
-        pooledConnection.connect(metadataHandlerOnConnect);
-      }
-    };
-
-  };
-
-  // getTableMetadata starts here
-  // getTableMetadata = function(databaseName, tableName, dbSession, user_callback)
-  var pooledConnection, dictionary;
+  var connectionPool = this;
+  var connection, dictionary;
   stats.get_table_metadata++;
 
-  if (dbSession) {
-    // dbSession exists; call the dictionary directly
-    pooledConnection = dbSession.pooledConnection;
-    dictionary = new mysqlDictionary.DataDictionary(pooledConnection, this);
-    udebug.log_detail('MySQLConnectionPool.getTableMetadata calling dictionary.getTableMetadata for',
-        databaseName, tableName);
-    dictionary.getTableMetadata(databaseName, tableName, user_callback);
-  } else {
-    // dbSession does not exist; create a closure to handle it
-    var handler = new TableMetadataHandler(databaseName, tableName, this, user_callback);
-    handler.getTableMetadata();
+  function getTableMetadataOnMetadata(err, metadata) {
+    if (!dbSession) {
+      connectionPool.releaseConnection(connection);
+    }
+    user_callback(err, metadata);
   }
-  
+
+  function getTableMetadataOnConnection(err, c) {
+    if (err) {
+      user_callback(err);
+    } else {
+      connection = c;
+      dictionary = new mysqlDictionary.DataDictionary(connection, connectionPool);
+      udebug.log_detail('MySQLConnectionPool.getTableMetadata calling dictionary.getTableMetadata for',
+          databaseName, tableName);
+      dictionary.getTableMetadata(databaseName, tableName, getTableMetadataOnMetadata);
+    }
+  }
+
+  // getTableMetadata starts here
+
+  if (dbSession) {
+    // dbSession exists; use the connection in the db session
+    getTableMetadataOnConnection(null, dbSession.pooledConnection);
+  } else {
+    // dbSession does not exist; get a connection for the call
+    connectionPool.getConnection(getTableMetadataOnConnection);
+  }
+
 };
 
 exports.DBConnectionPool.prototype.listTables = function(databaseName, dbSession, user_callback) {
-  var ListTablesHandler = function(databaseName, dbConnectionPool, user_callback) {
-    this.databaseName = databaseName;
-    this.dbConnectionPool = dbConnectionPool;
-    this.user_callback = user_callback;
-    this.pooledConnection = null;
-    
-    this.listTables = function() {
-      var listTablesHandler = this;
 
-      var listTablesHandlerOnTableList = function(err, tableList) {
-        udebug.log_detail('listTablesHandler.listTablesHandlerOnTableList');
-        // put back the pooledConnection
-        if (typeof(listTablesHandler.pooledConnection) === 'undefined') {
-          throw new Error('Fatal internal exception: got undefined pooledConnection for createConnection');
-        }
-        if (listTablesHandler.pooledConnection === null) {
-          throw new Error('Fatal internal exception: got null pooledConnection for createConnection');
-        }
-        listTablesHandler.dbConnectionPool.pooledConnections.push(listTablesHandler.pooledConnection);
-        listTablesHandler.user_callback(err, tableList);
-      };
+  var connectionPool = this;
+  var connection, dictionary;
+  stats.list_tables++;
 
-      var listTablesHandlerOnConnect = function() {
-        var dictionary;
-        udebug.log_detail('listTablesHandler.listTablesHandlerOnConnect');
+  function listTablesOnTableList(err, list) {
+    if (!dbSession) {
+      // return the connection we got just for this call
+      connectionPool.releaseConnection(connection);
+    }
+    // return the list to the user
+    user_callback(err, list);
+  }
 
-        dictionary = new mysqlDictionary.DataDictionary(listTablesHandler.pooledConnection);
-        dictionary.listTables(listTablesHandler.databaseName, listTablesHandlerOnTableList);
-      };
-
-      udebug.log_detail('listTablesHandler.listTables');
-      if (listTablesHandler.dbConnectionPool.pooledConnections.length > 0) {
-        var dictionary;
-        // pop a connection from the pool
-        listTablesHandler.pooledConnection = listTablesHandler.connectionPool.pooledConnections.pop();
-        dictionary = new mysqlDictionary.DataDictionary(listTablesHandler.pooledConnection);
-        dictionary.listTables(listTablesHandler.databaseName, listTablesHandler.tableName, listTablesHandlerOnTableList);
-      } else {
-        listTablesHandler.pooledConnection = mysql.createConnection(listTablesHandler.dbConnectionPool.driverproperties);
-        listTablesHandler.pooledConnection.connect(listTablesHandlerOnConnect);
-      }
-    };
-
-  };
+  function listTablesOnConnection(err, c) {
+    if (err) {
+      user_callback(err);
+    } else {
+      connection = c;
+      dictionary = new mysqlDictionary.DataDictionary(connection);
+      dictionary.listTables(databaseName, listTablesOnTableList);
+    }
+  }
 
   // listTables starts here
-  // listTables = function(databaseName, dbSession, user_callback)
-  var pooledConnection, dictionary;
-  stats.list_tables++;
   
   if (dbSession) {
-    // dbSession exists; call the dictionary directly
-    pooledConnection = dbSession.pooledConnection;
-    dictionary = new mysqlDictionary.DataDictionary(pooledConnection);
-    dictionary.listTables(databaseName, user_callback);
+    listTablesOnConnection(null, dbSession.pooledConnection);
   } else {
-    // no dbSession; create a list table handler
-    var handler = new ListTablesHandler(databaseName, this, user_callback);
-    handler.listTables();
+    // dbSession does not exist; get a connection for the call
+    connectionPool.getConnection(listTablesOnConnection);
   }
-  
 };
