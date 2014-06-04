@@ -1,4 +1,4 @@
-# Copyright (c) 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_API_EXPORTS} clusterj-api)
 
 CREATE_JAR(clusterj-api ${JAVA_SOURCES}
   CLASSPATH target/classes
-  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf)
+  MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.mf)
 
 INSTALL(FILES ${CMAKE_CURRENT_BINARY_DIR}/clusterj-api-${JAVA_NDB_VERSION}.jar
         DESTINATION ${INSTALL_MYSQLSHAREDIR}/java COMPONENT ClusterJ)
