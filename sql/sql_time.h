@@ -48,7 +48,7 @@ bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
 bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
                                    ulonglong fuzzydate,
                                    const char *name);
-bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+bool int_to_datetime_with_warn(bool neg, ulonglong value, MYSQL_TIME *ltime,
                                ulonglong fuzzydate,
                                const char *name);
 

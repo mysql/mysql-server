@@ -1091,9 +1091,9 @@ NULL
 select isnull(week(now() + 0)), isnull(week(now() + 0.2)),
 week(20061108), week(20061108.01), week(20061108085411.000002);
 isnull(week(now() + 0))	isnull(week(now() + 0.2))	week(20061108)	week(20061108.01)	week(20061108085411.000002)
-0	0	45	NULL	45
+0	0	45	45	45
 Warnings:
-Warning	1292	Incorrect datetime value: '20061108.01'
+Warning	1292	Truncated incorrect datetime value: '20061108.01'
 End of 4.1 tests
 select time_format('100:00:00', '%H %k %h %I %l');
 time_format('100:00:00', '%H %k %h %I %l')
@@ -2408,3 +2408,11 @@ SELECT 1 FROM t1 GROUP BY MONTHNAME(0) WITH ROLLUP;
 1
 1
 DROP TABLE t1;
+#
+# MDEV-6099 Bad results for DATE_ADD(.., INTERVAL 2000000000000000000.0 SECOND)
+#
+SELECT DATE_ADD('2001-01-01 10:20:30',INTERVAL 250000000000.0 SECOND) AS c1, DATE_ADD('2001-01-01 10:20:30',INTERVAL 2000000000000000000.0 SECOND) AS c2;
+c1	c2
+9923-03-10 22:47:10.0	NULL
+Warnings:
+Warning	1292	Truncated incorrect DECIMAL value: '2000000000000000000.0'

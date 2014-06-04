@@ -544,11 +544,16 @@ public:
 
 class ErrConvInteger : public ErrConv
 {
-  longlong num;
+  longlong m_value;
+  bool m_unsigned;
 public:
-  ErrConvInteger(longlong num_arg) : ErrConv(), num(num_arg) {}
+  ErrConvInteger(longlong num_arg, bool unsigned_flag= false) :
+    ErrConv(), m_value(num_arg), m_unsigned(unsigned_flag) {}
   const char *ptr() const
-  { return llstr(num, err_buffer); }
+  {
+    return m_unsigned ? ullstr(m_value, err_buffer) :
+                         llstr(m_value, err_buffer);
+  }
 };
 
 class ErrConvDouble: public ErrConv

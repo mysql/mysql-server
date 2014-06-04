@@ -79,6 +79,13 @@ typedef long my_time_t;
 
 #define MYSQL_TIME_WARN_TRUNCATED    1
 #define MYSQL_TIME_WARN_OUT_OF_RANGE 2
+#define MYSQL_TIME_NOTE_TRUNCATED    16
+
+#define MYSQL_TIME_WARN_WARNINGS (MYSQL_TIME_WARN_TRUNCATED|MYSQL_TIME_WARN_OUT_OF_RANGE)
+#define MYSQL_TIME_WARN_NOTES    (MYSQL_TIME_NOTE_TRUNCATED)
+
+#define MYSQL_TIME_WARN_HAVE_WARNINGS(x) MY_TEST((x) & MYSQL_TIME_WARN_WARNINGS)
+#define MYSQL_TIME_WARN_HAVE_NOTES(x) MY_TEST((x) & MYSQL_TIME_WARN_NOTES)
 
 /* Limits for the TIME data type */
 #define TIME_MAX_HOUR 838
@@ -112,7 +119,7 @@ longlong double_to_datetime(double nr, MYSQL_TIME *ltime, uint flags, int *cut)
                             ltime, flags, cut);
 }
 
-int number_to_time(my_bool neg, longlong nr, ulong sec_part,
+int number_to_time(my_bool neg, ulonglong nr, ulong sec_part,
                    MYSQL_TIME *ltime, int *was_cut);
 ulonglong TIME_to_ulonglong_datetime(const MYSQL_TIME *);
 ulonglong TIME_to_ulonglong_date(const MYSQL_TIME *);

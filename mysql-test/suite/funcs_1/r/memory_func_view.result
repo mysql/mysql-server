@@ -3695,14 +3695,14 @@ my_double, id FROM t1_values
 WHERE select_id = 53 OR select_id IS NULL order by id;
 CAST(my_double AS TIME)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e308	2
-NULL	1.7976931348623e308	3
+-838:59:59	-1.7976931348623e308	2
+838:59:59	1.7976931348623e308	3
 00:00:00	0	4
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 2
-Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 3
+Warning	1292	Incorrect time value: '-1.7976931348623e308' for column 'my_double' at row 2
+Warning	1292	Incorrect time value: '1.7976931348623e308' for column 'my_double' at row 3
 SHOW CREATE VIEW v1;
 View	Create View	character_set_client	collation_connection
 v1	CREATE ALGORITHM=UNDEFINED DEFINER=`root`@`localhost` SQL SECURITY DEFINER VIEW `v1` AS select cast(`t1_values`.`my_double` as time) AS `CAST(my_double AS TIME)`,`t1_values`.`my_double` AS `my_double`,`t1_values`.`id` AS `id` from `t1_values`	latin1	latin1_swedish_ci
@@ -3711,14 +3711,14 @@ WHERE v1.id IN (SELECT id FROM t1_values
 WHERE select_id = 53 OR select_id IS NULL) order by id;
 CAST(my_double AS TIME)	my_double	id
 NULL	NULL	1
-NULL	-1.7976931348623e308	2
-NULL	1.7976931348623e308	3
+-838:59:59	-1.7976931348623e308	2
+838:59:59	1.7976931348623e308	3
 00:00:00	0	4
 -00:00:01	-1	5
 00:17:58	1758	25
 Warnings:
-Warning	1292	Incorrect datetime value: '-1.7976931348623e308' for column 'my_double' at row 1
-Warning	1292	Incorrect datetime value: '1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect time value: '-1.7976931348623e308' for column 'my_double' at row 1
+Warning	1292	Incorrect time value: '1.7976931348623e308' for column 'my_double' at row 1
 DROP VIEW v1;
 
 

@@ -1001,29 +1001,29 @@ Warnings:
 Warning	1292	Truncated incorrect time value: '1223.5aa'
 select column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time);
 column_get(column_create(1, 18446744073709551615 AS unsigned int), 1 as time)
-NULL
+838:59:59
 Warnings:
-Warning	1292	Incorrect datetime value: '1.8446744073709552e19'
+Warning	1292	Truncated incorrect time value: '1.8446744073709552e19'
 select column_get(column_create(1, 9223372036854775807 AS int), 1 as time);
 column_get(column_create(1, 9223372036854775807 AS int), 1 as time)
-NULL
+838:59:59
 Warnings:
-Warning	1292	Incorrect datetime value: '9223372036854775807'
+Warning	1292	Truncated incorrect time value: '9223372036854775807'
 select column_get(column_create(1, -9223372036854775808 AS int), 1 as time);
 column_get(column_create(1, -9223372036854775808 AS int), 1 as time)
-NULL
+-838:59:59
 Warnings:
-Warning	1292	Incorrect datetime value: '-9223372036854775808'
+Warning	1292	Truncated incorrect time value: '-9223372036854775808'
 select column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time);
 column_get(column_create(1, 99999999999999999999999999999 AS decimal(32,10)), 1 as time)
-NULL
+838:59:59
 Warnings:
-Warning	1292	Incorrect datetime value: '99999999999999999999999999999'
+Warning	1292	Truncated incorrect time value: '99999999999999999999999999999'
 select column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time);
 column_get(column_create(1, 99999999999999999999999999999 AS double), 1 as time)
-NULL
+838:59:59
 Warnings:
-Warning	1292	Incorrect datetime value: '1e29'
+Warning	1292	Truncated incorrect time value: '1e29'
 select column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time);
 column_get(column_create(1, "2011-02-32 8:46:06.23434" AS CHAR), 1 as time)
 NULL
@@ -1424,6 +1424,17 @@ Warnings:
 Warning	1265	Data truncated for column 'dyncol' at row 1
 SELECT COLUMN_ADD( dyncol, 7, '22:22:22', 8, REPEAT('x',270) AS CHAR ) FROM t1;
 DROP table t1;
+#
+# MDEV-4858 Wrong results for a huge unsigned value inserted into a TIME column
+#
+SELECT
+column_get(column_create(1, -999999999999999 AS int), 1 AS TIME) AS t1,
+column_get(column_create(1, -9223372036854775808 AS int), 1 AS TIME) AS t2;
+t1	t2
+-838:59:59	-838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '-999999999999999'
+Warning	1292	Truncated incorrect time value: '-9223372036854775808'
 #
 # end of 5.3 tests
 #

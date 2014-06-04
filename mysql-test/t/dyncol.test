@@ -627,6 +627,13 @@ SELECT COLUMN_ADD( dyncol, 7, '22:22:22', 8, REPEAT('x',270) AS CHAR ) FROM t1;
 DROP table t1;
 
 --echo #
+--echo # MDEV-4858 Wrong results for a huge unsigned value inserted into a TIME column
+--echo #
+SELECT
+  column_get(column_create(1, -999999999999999 AS int), 1 AS TIME) AS t1,
+  column_get(column_create(1, -9223372036854775808 AS int), 1 AS TIME) AS t2; 
+
+--echo #
 --echo # end of 5.3 tests
 --echo #
 

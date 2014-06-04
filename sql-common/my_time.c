@@ -1223,7 +1223,7 @@ longlong number_to_datetime(longlong nr, ulong sec_part, MYSQL_TIME *time_res,
   *was_cut= 0;
   time_res->time_type=MYSQL_TIMESTAMP_DATE;
 
-  if (nr == 0 || nr >= 10000101000000LL || sec_part)
+  if (nr == 0 || nr >= 10000101000000LL)
   {
     time_res->time_type=MYSQL_TIMESTAMP_DATETIME;
     goto ok;
@@ -1281,7 +1281,11 @@ longlong number_to_datetime(longlong nr, ulong sec_part, MYSQL_TIME *time_res,
       time_res->minute <= 59 && time_res->second <= 59 &&
       sec_part <= TIME_MAX_SECOND_PART &&
       !check_date(time_res, nr || sec_part, flags, was_cut))
+  {
+    if (time_res->time_type == MYSQL_TIMESTAMP_DATE && sec_part != 0)
+       *was_cut= MYSQL_TIME_NOTE_TRUNCATED;
     return nr;
+  }
 
   /* Don't want to have was_cut get set if NO_ZERO_DATE was violated. */
   if (nr || !(flags & TIME_NO_ZERO_DATE))
@@ -1315,10 +1319,10 @@ longlong number_to_datetime(longlong nr, ulong sec_part, MYSQL_TIME *time_res,
     0        time value is valid, but was possibly truncated
     -1       time value is invalid
 */
-int number_to_time(my_bool neg, longlong nr, ulong sec_part,
+int number_to_time(my_bool neg, ulonglong nr, ulong sec_part,
                    MYSQL_TIME *ltime, int *was_cut)
 {
-  if (nr > 9999999 && neg == 0)
+  if (nr > 9999999 && nr < 99991231235959ULL && neg == 0)
   {
     if (number_to_datetime(nr, sec_part, ltime,
                            TIME_INVALID_DATES, was_cut) < 0)
@@ -1326,7 +1330,7 @@ int number_to_time(my_bool neg, longlong nr, ulong sec_part,
 
     ltime->year= ltime->month= ltime->day= 0;
     ltime->time_type= MYSQL_TIMESTAMP_TIME;
-    *was_cut= MYSQL_TIME_WARN_TRUNCATED;
+    *was_cut= MYSQL_TIME_NOTE_TRUNCATED;
     return 0;
   }
 

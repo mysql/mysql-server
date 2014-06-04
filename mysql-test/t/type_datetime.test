@@ -519,6 +519,14 @@ DELIMITER ;|
 call test5041();
 drop procedure test5041;
 
+--echo #
+--echo # MDEV-6097 Inconsistent results for CAST(int,decimal,double AS DATETIME)
+--echo #
+SELECT
+  CAST(010203101112 AS DATETIME(1)) AS c1,
+  CAST(010203101112.2 AS DATETIME(1)) AS c2,
+  CAST(010203101112.2+0e0 AS DATETIME(1)) AS c3;
+
 
 --echo End of 5.3 tests
 

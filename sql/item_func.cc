@@ -1118,7 +1118,9 @@ bool Item_func_hybrid_result_type::get_date(MYSQL_TIME *ltime,
   case INT_RESULT:
   {
     longlong value= int_op();
-    if (null_value || int_to_datetime_with_warn(value, ltime, fuzzydate,
+    bool neg= !unsigned_flag && value < 0;
+    if (null_value || int_to_datetime_with_warn(neg, neg ? -value : value,
+                                                ltime, fuzzydate,
                                                 field_name_or_null()))
       goto err;
     break;

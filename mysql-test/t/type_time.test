@@ -201,6 +201,23 @@ SELECT * FROM t2;
 SHOW COLUMNS FROM t2;
 DROP TABLE t2,t1;
 
+--echo #
+--echo # MDEV-4858 Wrong results for a huge unsigned value inserted into a TIME column
+--echo #
+SET sql_mode=traditional;
+CREATE TABLE t1 (a TIME(6));
+--error ER_TRUNCATED_WRONG_VALUE
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED)); 
+SET sql_mode=DEFAULT;
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED)); 
+SELECT * FROM t1;
+DROP TABLE t1;
+SELECT TIME'00:00:00'> CAST(0xFFFFFFFF00000000 AS UNSIGNED);
+
+--echo #
+--echo # MDEV-6100 No warning on CAST(9000000 AS TIME)
+--echo #
+SELECT CAST(9000000 AS TIME);
 
 --echo #
 --echo # End of 5.3 tests

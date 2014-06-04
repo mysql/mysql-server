@@ -1302,6 +1302,7 @@ bool Item::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
   case INT_RESULT:
   {
     longlong value= val_int();
+    bool neg= !unsigned_flag && value < 0;
     if (field_type() == MYSQL_TYPE_YEAR)
     {
       if (max_length == 2)
@@ -1313,7 +1314,8 @@ bool Item::get_date(MYSQL_TIME *ltime,ulonglong fuzzydate)
       }
       value*= 10000; /* make it YYYYMMHH */
     }
-    if (null_value || int_to_datetime_with_warn(value, ltime, fuzzydate,
+    if (null_value || int_to_datetime_with_warn(neg, neg ? -value : value,
+                                                ltime, fuzzydate,
                                                 field_name_or_null()))
       goto err;
     break;

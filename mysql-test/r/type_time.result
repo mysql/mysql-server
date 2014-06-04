@@ -299,6 +299,34 @@ Field	Type	Null	Key	Default	Extra
 MAX(t1)+1	decimal(22,1)	YES		NULL	
 DROP TABLE t2,t1;
 #
+# MDEV-4858 Wrong results for a huge unsigned value inserted into a TIME column
+#
+SET sql_mode=traditional;
+CREATE TABLE t1 (a TIME(6));
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED));
+ERROR 22007: Incorrect time value: '18446744069414584320' for column 'a' at row 1
+SET sql_mode=DEFAULT;
+INSERT INTO t1 VALUES (CAST(0xFFFFFFFF00000000 AS UNSIGNED));
+Warnings:
+Warning	1264	Out of range value for column 'a' at row 1
+SELECT * FROM t1;
+a
+838:59:59.999999
+DROP TABLE t1;
+SELECT TIME'00:00:00'> CAST(0xFFFFFFFF00000000 AS UNSIGNED);
+TIME'00:00:00'> CAST(0xFFFFFFFF00000000 AS UNSIGNED)
+0
+Warnings:
+Warning	1292	Truncated incorrect DOUBLE value: '00:00:00'
+#
+# MDEV-6100 No warning on CAST(9000000 AS TIME)
+#
+SELECT CAST(9000000 AS TIME);
+CAST(9000000 AS TIME)
+838:59:59
+Warnings:
+Warning	1292	Truncated incorrect time value: '9000000'
+#
 # End of 5.3 tests
 #
 CREATE TABLE t1 (f1 TIME);
