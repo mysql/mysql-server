@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -1521,20 +1521,9 @@ exports.DBSession.prototype.rollback = function(callback) {
 
 exports.DBSession.prototype.close = function(callback) {
   udebug.log('MySQLConnection.close');
-  var dbSession = this;
   session_stats.closed++;
-  if (dbSession.pooledConnection) {
-    dbSession.pooledConnection.end(function(err) {
-      udebug.log('close dbSession', dbSession);
-    });
-  }
-  dbSession.connectionPool.openConnections[dbSession.index] = null;
-  // always make the callback
-  if (typeof(callback) === 'function') {
-    callback(null);
-  }
+  this.connectionPool.closeConnection(this, callback);
 };
-
 
 exports.DBSession.prototype.getConnectionPool = function() {
   return this.connectionPool;
