@@ -251,7 +251,13 @@ struct st_ndb_slave_state
 {
   /* Counter values for current slave transaction */
   Uint32 current_violation_count[CFT_NUMBER_OF_CFTS];
+  
+  /* Track the current epoch from the immediate master,
+   * and whether we've committed it
+   */
   Uint64 current_master_server_epoch;
+  bool current_master_server_epoch_committed;
+  
   Uint64 current_max_rep_epoch;
   uint8 conflict_flags; /* enum_slave_conflict_flags */
     /* Transactional conflict detection */
@@ -304,6 +310,8 @@ struct st_ndb_slave_state
                          Uint32 row_server_id,
                          Uint64 row_epoch,
                          bool is_row_server_id_local);
+  bool verifyNextEpoch(Uint64 next_epoch,
+                       Uint32 master_server_id) const;
 
   void resetPerAttemptCounters();
 
