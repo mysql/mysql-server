@@ -876,10 +876,13 @@ public:
 
 class Lazy_string_num : public Lazy_string
 {
-  longlong num;
+  longlong m_value;
+  bool m_unsigned;
 public:
-  Lazy_string_num(longlong num_arg) : Lazy_string(), num(num_arg) {}
-  void copy_to(String *dst) const { dst->set(num, &my_charset_bin); }
+  Lazy_string_num(longlong num_arg, bool unsigned_flag= false) :
+    Lazy_string(), m_value(num_arg), m_unsigned(unsigned_flag) {}
+  void copy_to(String *dst) const
+  { dst->set_int(m_value, m_unsigned, &my_charset_bin); }
 };
 
 class Lazy_string_decimal: public Lazy_string
@@ -2540,7 +2543,7 @@ bool double_to_datetime_with_warn(double value, MYSQL_TIME *ltime,
                                   ulong fuzzydate, const char *field_name);
 bool decimal_to_datetime_with_warn(const my_decimal *value, MYSQL_TIME *ltime,
                                    ulong fuzzydate, const char *field_name);
-bool int_to_datetime_with_warn(longlong value, MYSQL_TIME *ltime,
+bool int_to_datetime_with_warn(bool neg, ulonglong value, MYSQL_TIME *ltime,
                                ulong fuzzydate, const char *field_name);
 
 static inline void make_truncated_value_warning(THD *thd,

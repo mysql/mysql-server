@@ -4664,7 +4664,7 @@ int Field_timestamp::store(longlong nr, bool unsigned_val)
 {
   MYSQL_TIME l_time;
   int error;
-  Lazy_string_num str(nr);
+  Lazy_string_num str(nr, unsigned_val);
   THD *thd= table->in_use;
 
   /* We don't want to store invalid or fuzzy datetime values in TIMESTAMP */
@@ -5067,6 +5067,17 @@ int Field_temporal::store_TIME_with_warning(MYSQL_TIME *ltime,
   
   ASSERT_COLUMN_MARKED_FOR_WRITE_OR_COMPUTED;
 
+#if MARIADB_VERSION_ID < 1000000
+  /*
+    Check if the YYYYMMDD part was truncated.
+    Translate a note into a warning.
+    In MariaDB-10.0 we have a better warnings/notes handling,
+    so this code is not needed. 
+  */
+  if (was_cut & MYSQL_TIME_NOTE_TRUNCATED)
+    was_cut|= MYSQL_TIME_WARN_TRUNCATED;
+#endif
+
   if (was_cut == 0 &&
       have_smth_to_conv == 0 &&
       temporal_type() != MYSQL_TIMESTAMP_TIME) // special case: zero date
@@ -5157,7 +5168,7 @@ int Field_temporal::store(longlong nr, bool unsigned_val)
   MYSQL_TIME ltime;
   longlong tmp;
   THD *thd= table->in_use;
-  Lazy_string_num str(nr);
+  Lazy_string_num str(nr, unsigned_val);
 
   tmp= number_to_datetime(nr, 0, &ltime, (thd->variables.sql_mode &
                                        (MODE_NO_ZERO_IN_DATE |
@@ -5255,7 +5266,7 @@ int Field_time::store(double nr)
   bool neg= nr < 0;
   if (neg)
     nr= -nr;
-  int have_smth_to_conv= !number_to_time(neg, (longlong)nr,
+  int have_smth_to_conv= !number_to_time(neg, (ulonglong) nr,
                                          (ulong)((nr - floor(nr)) * TIME_SECOND_PART_FACTOR),
                                          &ltime, &was_cut);
 
@@ -5266,9 +5277,12 @@ int Field_time::store(double nr)
 int Field_time::store(longlong nr, bool unsigned_val)
 {
   MYSQL_TIME ltime;
-  Lazy_string_num str(nr);
+  Lazy_string_num str(nr, unsigned_val);
   int was_cut;
-  int have_smth_to_conv= !number_to_time(nr < 0, nr < 0 ? -nr : nr,
+  if (nr < 0 && unsigned_val)
+    nr= 99991231235959LL + 1;
+  int have_smth_to_conv= !number_to_time(nr < 0,
+                                         (ulonglong) (nr < 0 ? -nr : nr),
                                          0, &ltime, &was_cut);
 
   return store_TIME_with_warning(&ltime, &str, was_cut, have_smth_to_conv);
@@ -5633,7 +5647,8 @@ bool Field_year::get_date(MYSQL_TIME *ltime,uint fuzzydate)
   int tmp= (int) ptr[0];
   if (tmp || field_length != 4)
     tmp+= 1900;
-  return int_to_datetime_with_warn(tmp * 10000, ltime, fuzzydate, field_name);
+  return int_to_datetime_with_warn(false, tmp * 10000,
+                                    ltime, fuzzydate, field_name);
 }
 
 

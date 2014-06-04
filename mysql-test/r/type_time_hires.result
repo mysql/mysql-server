@@ -16,46 +16,46 @@ Warnings:
 Warning	1265	Data truncated for column 'a' at row 1
 insert t1 values (99991231235959e1);
 Warnings:
-Warning	1265	Data truncated for column 'a' at row 1
+Warning	1264	Out of range value for column 'a' at row 1
 select * from t1;
 a
-00:00:00.000
 00:20:03.123
 01:02:03.456
 03:04:05.789
 15:47:11.123
+838:59:59.999
 select truncate(a, 6) from t1;
 truncate(a, 6)
-0.000000
 2003.123000
 10203.456000
 30405.789062
 154711.123000
+8385959.999000
 select a DIV 1 from t1;
 a DIV 1
-0
 2003
 10203
 30405
 154711
+8385959
 select group_concat(distinct a) from t1;
 group_concat(distinct a)
-00:00:00.000,00:20:03.123,01:02:03.456,03:04:05.789,15:47:11.123
+00:20:03.123,01:02:03.456,03:04:05.789,15:47:11.123,838:59:59.999
 alter table t1 engine=innodb;
 select * from t1 order by a;
 a
-00:00:00.000
 00:20:03.123
 01:02:03.456
 03:04:05.789
 15:47:11.123
+838:59:59.999
 select * from t1 order by a+0;
 a
-00:00:00.000
 00:20:03.123
 01:02:03.456
 03:04:05.789
 15:47:11.123
+838:59:59.999
 drop table t1;
 create table t1 (a time(4)) engine=innodb;
 insert t1 values ('2010-12-11 01:02:03.456789');

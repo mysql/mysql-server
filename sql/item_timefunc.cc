@@ -1206,6 +1206,18 @@ bool get_interval_value(Item *args,interval_type int_type,
     if (!(val= args->val_decimal(&decimal_value)))
       return true;
     interval->neg= my_decimal2seconds(val, &second, &second_part);
+    if (second == LONGLONG_MAX)
+    {
+      char buff[DECIMAL_MAX_STR_LENGTH];
+      int length= sizeof(buff);
+      decimal2string(val, buff, &length, 0, 0, 0);
+      push_warning_printf(current_thd, MYSQL_ERROR::WARN_LEVEL_WARN,
+                          ER_TRUNCATED_WRONG_VALUE,
+                          ER(ER_TRUNCATED_WRONG_VALUE), "DECIMAL",
+                          buff);
+      return true;
+    }
+
     interval->second= second;
     interval->second_part= second_part;
     return false;

@@ -4149,8 +4149,10 @@ bool Item_dyncol_get::get_date(MYSQL_TIME *ltime, uint fuzzy_date)
   case DYN_COL_UINT:
     if (signed_value || val.x.ulong_value <= LONGLONG_MAX)
     {
-      if (int_to_datetime_with_warn(val.x.ulong_value, ltime, fuzzy_date,
-                                   0 /* TODO */))
+      bool neg= val.x.ulong_value > LONGLONG_MAX;
+      if (int_to_datetime_with_warn(neg, neg ? -val.x.ulong_value :
+                                                val.x.ulong_value,
+                                    ltime, fuzzy_date, 0 /* TODO */))
         goto null;
       return 0;
     }
