@@ -185,7 +185,7 @@ const char *ha_legacy_type_name(legacy_db_type legacy_type)
 }
 #endif
 
-template <class type> uint calc_hash(type T)
+template <class type> uint32 calc_hash(type T)
 {
   return (murmur3_32((const uchar*)T, strlen(T), 0));
 }
@@ -243,7 +243,7 @@ void add_pke_to_list(TABLE *table, THD *thd)
     pk= (char *)pke.c_str();
     DBUG_PRINT("info", ("The hashed value is %s for %lu", pk,
                         thd->thread_id));
-    uint temp_1= calc_hash<const char *>(pk);
+    uint32 temp_1= calc_hash<const char *>(pk);
     delete[] pk_value;
     thd->add_write_set(temp_1);
   }
