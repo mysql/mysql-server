@@ -685,25 +685,27 @@ static void txn_progress_func(TOKU_TXN_PROGRESS progress, void* extra) {
 }
 
 static void commit_txn_with_progress(DB_TXN* txn, uint32_t flags, THD* thd) {
-    int r;
+    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     struct txn_progress_info info;
     info.thd = thd;
-    r = txn->commit_with_progress(txn, flags, txn_progress_func, &info);
+    int r = txn->commit_with_progress(txn, flags, txn_progress_func, &info);
     if (r != 0) {
         sql_print_error("tried committing transaction %p and got error code %d", txn, r);
     }
     assert(r == 0);
+    thd_proc_info(thd, orig_proc_info);
 }
 
 static void abort_txn_with_progress(DB_TXN* txn, THD* thd) {
-    int r;
+    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     struct txn_progress_info info;
     info.thd = thd;
-    r = txn->abort_with_progress(txn, txn_progress_func, &info);
+    int r = txn->abort_with_progress(txn, txn_progress_func, &info);
     if (r != 0) {
         sql_print_error("tried aborting transaction %p and got error code %d", txn, r);
     }
     assert(r == 0);
+    thd_proc_info(thd, orig_proc_info);
 }
 
 static void tokudb_cleanup_handlers(tokudb_trx_data *trx, DB_TXN *txn) {
