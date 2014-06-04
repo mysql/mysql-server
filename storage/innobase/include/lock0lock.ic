@@ -130,36 +130,3 @@ lock_hash_get(
 	}
 }
 
-/*********************************************************************//**
-Creates a new record lock and inserts it to the lock queue. Does NOT check
-for deadlocks or lock compatibility!
-@return created lock */
-UNIV_INLINE
-lock_t*
-lock_rec_create(
-/*============*/
-	ulint			type_mode,/*!< in: lock mode and wait
-					flag, type is ignored and
-					replaced by LOCK_REC */
-	const buf_block_t*	block,	/*!< in: buffer block containing
-					the record */
-	ulint			heap_no,/*!< in: heap number of the record */
-	dict_index_t*		index,	/*!< in: index of record */
-	trx_t*			trx,	/*!< in/out: transaction */
-	ibool			caller_owns_trx_mutex)
-					/*!< in: TRUE if caller owns
-					trx mutex */
-{
-	ulint           page_no;
-	ulint           space;
-	const page_t*   page;
-
-	space = block->page.id.space();
-	page_no = block->page.id.page_no();
-	page = block->frame;
-
-	btr_assert_not_corrupted(block, index);
-
-	return(lock_rec_create_low(type_mode, space, page_no, page, heap_no,
-				   index, trx, caller_owns_trx_mutex));
-}
