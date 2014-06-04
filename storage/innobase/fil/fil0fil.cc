@@ -6578,7 +6578,7 @@ fil_names_write_if_was_clean(
 
 /** On a log checkpoint, reset fil_names_dirty() flags
 and write out MLOG_FILE_NAME and MLOG_CHECKPOINT if needed.
-@param[ịn]	lsn		checkpoint LSN
+@param[in]	lsn		checkpoint LSN
 @param[in]	do_write	whether to always write MLOG_CHECKPOINT
 @return whether anything was written to the redo log
 @retval false	if no flags were set and nothing written
