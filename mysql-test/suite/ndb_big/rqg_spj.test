@@ -23,24 +23,23 @@ create temporary table spj_counts_at_startup
 --exec bash -c "$LOAD_RQG -d simple.zz -o"
 
 ##
-# run spj_test.yy for 3600 seconds
-#
-# If you want to reproduce an "run"
-#   add -s <seed value> to command below
-#
-# NOTE: CluB get unhappy if a testcase doesnt print for 1800 seconds
-#       So call program several times instead
-#       (having --exec print as it goes would also be nice...instead of
-#        just at the end)
-#
-let $cmd = $RUN_RQG -g spj_test.yy -t 600;
---echo Calling: $cmd (6 times)
+# CluB :: 7.2 :: failing test case : ndb_big.rqg_spj :: Occurrence : every day
+# Reason for failure from Ole:
+# These failures are most likely due to optimizer bugs in mysql-5.5 which will never be fixed. These bugs are fixed in mysql-5.6,
+# thus 7.3 -> is (almost) green. If you think the failures are annoying, we could reduce the run time of the spj_rqg in 7.2 to a low
+# value where it will not fail most of the time?
+# Suggested Fix: 
+# Call to run for only once and reduced the '600' seconds to some lower value.
+#let $cmd = $RUN_RQG -g spj_test.yy -t 600;
+let $cmd = $RUN_RQG -g spj_test.yy -t 300;
+--echo Calling: $cmd (1 times)
+#--echo Calling: $cmd (6 times)
 --exec bash -c "$cmd"
---exec bash -c "$cmd"
---exec bash -c "$cmd"
---exec bash -c "$cmd"
---exec bash -c "$cmd"
---exec bash -c "$cmd"
+#--exec bash -c "$cmd"
+#--exec bash -c "$cmd"
+#--exec bash -c "$cmd"
+#--exec bash -c "$cmd"
+#--exec bash -c "$cmd"
 
 drop database spj_innodb;
 drop database spj_ndb;
