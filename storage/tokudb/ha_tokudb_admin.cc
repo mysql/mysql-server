@@ -128,6 +128,7 @@ static int analyze_progress(void *v_extra, uint64_t rows) {
 
 int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
+    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     uint64_t rec_per_key[table_share->key_parts];
     int result = HA_ADMIN_OK;
 
@@ -174,6 +175,7 @@ int ha_tokudb::analyze(THD *thd, HA_CHECK_OPT *check_opt) {
         if (error) 
             result = HA_ADMIN_FAILED;
     }
+    thd_proc_info(thd, orig_proc_info);
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }
 
@@ -254,12 +256,14 @@ cleanup:
 
 int ha_tokudb::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
+    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     int error;
 #if TOKU_OPTIMIZE_WITH_RECREATE
     error = HA_ADMIN_TRY_ALTER;
 #else
     error = do_optimize(thd);
 #endif
+    thd_proc_info(thd, orig_proc_info);
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
@@ -290,10 +294,7 @@ static void ha_tokudb_check_info(THD *thd, TABLE *table, const char *msg) {
 
 int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
-
-    const char *old_proc_info = tokudb_thd_get_proc_info(thd);
-    thd_proc_info(thd, "tokudb::check");
-
+    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     int result = HA_ADMIN_OK;
     int r;
 
@@ -345,6 +346,6 @@ int ha_tokudb::check(THD *thd, HA_CHECK_OPT *check_opt) {
             }
         }
     }
-    thd_proc_info(thd, old_proc_info);
+    thd_proc_info(thd, orig_proc_info);
     TOKUDB_HANDLER_DBUG_RETURN(result);
 }
