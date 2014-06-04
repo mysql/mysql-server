@@ -104,8 +104,7 @@ Source7:        %{compatsrc}
 %endif
 Source90:       filter-provides.sh
 Source91:       filter-requires.sh
-Patch0:         mysql-5.6.16-mysql-install.patch
-Patch1:         mysql-5.7-libmysqlclient-symbols.patch
+Patch0:         mysql-5.7-libmysqlclient-symbols.patch
 BuildRequires:  cmake >= 2.8.2
 BuildRequires:  perl
 %{?el7:BuildRequires: perl(Time::HiRes)}
@@ -413,8 +412,7 @@ package has been split into several subpackages.
 %setup -q -T -a 0 -c -n %{src_dir}
 %endif # 0%{?compatlib}
 pushd %{src_dir}
-#patch0 -p1
-%{?el7:%patch1 -p1}
+%{?el7:%patch0 -p1}
 
 %build
 # Fail quickly and obviously if user tries to build as root
@@ -569,6 +567,7 @@ rm -rf %{buildroot}%{_datadir}/mysql/solaris
 rm -rf %{buildroot}%{_infodir}/mysql.info*
 rm -rf %{buildroot}%{_datadir}/mysql/mysql.server
 rm -rf %{buildroot}%{_datadir}/mysql/mysqld_multi.server
+rm -rf %{buildroot}%{_bindir}/mysqlhotcopy
 %if 0%{?systemd}
 rm -rf %{buildroot}%{_sysconfdir}/init.d/mysqld
 %endif
@@ -657,7 +656,6 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_plugin.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_secure_installation.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_upgrade.1*
-%attr(644, root, root) %{_mandir}/man1/mysqlhotcopy.1*
 %attr(644, root, root) %{_mandir}/man1/mysqlman.1*
 %attr(644, root, root) %{_mandir}/man1/mysql.server.1*
 %attr(644, root, root) %{_mandir}/man1/mysql_tzinfo_to_sql.1*
@@ -682,7 +680,6 @@ fi
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqldumpslow
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
 %attr(755, root, root) %{_bindir}/resolve_stack_dump

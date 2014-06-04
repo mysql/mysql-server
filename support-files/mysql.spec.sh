@@ -593,6 +593,10 @@ install -m 644 "%{malloc_lib_source}" \
   "$RBR%{_libdir}/mysql/%{malloc_lib_target}"
 %endif
 
+# Remove man pages we explicitly do not want to package, avoids 'unpackaged
+ # files' warning.
+ # This has become obsolete:  rm -f $RBR%{_mandir}/man1/make_win_bin_dist.1*
+rm -rf $RBR%{_bindir}/mysqlhotcopy
 ##############################################################################
 #  Post processing actions, i.e. when installed
 ##############################################################################
@@ -855,7 +859,7 @@ if ! grep '^MySQL RPM upgrade' $STATUS_FILE >/dev/null 2>&1 ; then
 	# Fix bug#45415: no "mysql_install_db" on an upgrade
 	# Do this as a negative to err towards more "install" runs
 	# rather than to miss one.
-	%{_bindir}/mysql_install_db --rpm --user=%{mysqld_user}
+	%{_bindir}/mysql_install_db --user=%{mysqld_user}
 
 	# Attention: Now 'root' is the only database user,
 	# its password is a random value found in ~/.mysql_secret,
@@ -1069,7 +1073,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_plugin.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_secure_installation.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql_upgrade.1*
-%doc %attr(644, root, man) %{_mandir}/man1/mysqlhotcopy.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqlman.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysql.server.1*
 %doc %attr(644, root, man) %{_mandir}/man1/mysqltest.1*
@@ -1095,7 +1098,6 @@ echo "====="                                     >> $STATUS_HISTORY
 %attr(755, root, root) %{_bindir}/mysqld_multi
 %attr(755, root, root) %{_bindir}/mysqld_safe
 %attr(755, root, root) %{_bindir}/mysqldumpslow
-%attr(755, root, root) %{_bindir}/mysqlhotcopy
 %attr(755, root, root) %{_bindir}/mysqltest
 %attr(755, root, root) %{_bindir}/perror
 %attr(755, root, root) %{_bindir}/replace
@@ -1110,6 +1112,7 @@ echo "====="                                     >> $STATUS_HISTORY
 %if %{WITH_TCMALLOC}
 %attr(755, root, root) %{_libdir}/mysql/%{malloc_lib_target}
 %endif
+
 
 %attr(644, root, root) %config(noreplace,missingok) %{_sysconfdir}/logrotate.d/mysql
 %attr(755, root, root) %{_sysconfdir}/init.d/mysql
