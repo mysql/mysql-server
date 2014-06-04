@@ -972,8 +972,12 @@ runBug16772(NDBT_Context* ctx, NDBT_Step* step){
   while (deadNodeId == aliveNodeId)
     deadNodeId = restarter.getDbNodeId(rand() % restarter.getNumDbNodes());
   
+  // Suppress NDB_FAILCONF; simulates that it arrives late,
+  // or out of order, relative to node restart.
   if (restarter.insertErrorInNode(aliveNodeId, 930))
     return NDBT_FAILED;
+
+  ndbout << "Restart node " << deadNodeId << endl; 
 
   if (restarter.restartOneDbNode(deadNodeId,
 				 /** initial */ false, 
@@ -981,22 +985,26 @@ runBug16772(NDBT_Context* ctx, NDBT_Step* step){
 				 /** abort   */ true))
     return NDBT_FAILED;
   
-  if (restarter.waitNodesNoStart(&deadNodeId, 1))
-    return NDBT_FAILED;
+  // It should now be hanging since we throw away NDB_FAILCONF
+  const int ret = restarter.waitNodesNoStart(&deadNodeId, 1);
+
+  // So this should fail...i.e node should not restart (yet)
+  if (ret)
+  {
+    // Now send a NDB_FAILCONF for deadNo
+    int dump[] = { 7020, 323, 252, 0 };
+    dump[3] = deadNodeId;
+    if (restarter.dumpStateOneNode(aliveNodeId, dump, 4))
+      return NDBT_FAILED;
+  
+    // Got (the delayed) NDB_NODECONF, and should now start.
+    if (restarter.waitNodesNoStart(&deadNodeId, 1))
+      return NDBT_FAILED;
+  }
 
   if (restarter.startNodes(&deadNodeId, 1))
     return NDBT_FAILED;
 
-  // It should now be hanging since we throw away NDB_FAILCONF
-  int ret = restarter.waitNodesStartPhase(&deadNodeId, 1, 3, 10);
-  // So this should fail...i.e it should not reach startphase 3
-
-  // Now send a NDB_FAILCONF for deadNo
-  int dump[] = { 7020, 323, 252, 0 };
-  dump[3] = deadNodeId;
-  if (restarter.dumpStateOneNode(aliveNodeId, dump, 4))
-    return NDBT_FAILED;
-  
   if (restarter.waitNodesStarted(&deadNodeId, 1))
     return NDBT_FAILED;
 
