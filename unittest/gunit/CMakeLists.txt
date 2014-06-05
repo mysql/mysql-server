@@ -295,6 +295,7 @@ SET(SERVER_TESTS
   make_sortkey
   mdl_sync
   my_decimal
+  opt_guessrecperkey
   opt_range
   opt_ref
   opt_trace

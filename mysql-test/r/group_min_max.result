@@ -2497,10 +2497,11 @@ MIN(c)
 DROP TABLE t1,t2;
 CREATE TABLE t1 (a INT, b INT, INDEX (a,b));
 INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
-(2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6);
+(2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6),
+(5,1), (5,2), (5,3), (5,4), (5,5);
 EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 FLUSH STATUS;
@@ -2510,20 +2511,21 @@ max(b)	a
 3	2
 1	3
 6	4
+5	5
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	0
 EXPLAIN SELECT max(b), a FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`
 FLUSH STATUS;
 CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	0
 FLUSH STATUS;
 SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b;
@@ -2532,9 +2534,10 @@ max(b)	a
 3	2
 1	3
 6	4
+5	5
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	0
 FLUSH STATUS;
 (SELECT max(b), a FROM t1 GROUP BY a) UNION 
@@ -2544,68 +2547,69 @@ max(b)	a
 3	2
 1	3
 6	4
+5	5
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	16
+Handler_read_key	20
 Handler_read_next	0
 EXPLAIN (SELECT max(b), a FROM t1 GROUP BY a) UNION 
 (SELECT max(b), a FROM t1 GROUP BY a);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
-2	UNION	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
+2	UNION	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 NULL	UNION RESULT	<union1,2>	NULL	ALL	NULL	NULL	NULL	NULL	NULL	NULL	Using temporary
 Warnings:
 Note	1003	(/* select#1 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`) union (/* select#2 */ select max(`test`.`t1`.`b`) AS `max(b)`,`test`.`t1`.`a` AS `a` from `test`.`t1` group by `test`.`t1`.`a`)
 EXPLAIN SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	15	100.00	Using index
-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	20	100.00	Using index
+2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)) AS `x` from `test`.`t1` `t1_outer`
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE EXISTS 
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	15	100.00	Using index
-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	20	100.00	Using index
+2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where 1
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) > 12;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	Impossible WHERE
-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where 0
 EXPLAIN SELECT 1 FROM t1 AS t1_outer WHERE 
 a IN (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	15	100.00	Using where; Using index
-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1_outer	NULL	index	NULL	a	10	NULL	20	100.00	Using where; Using index
+2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` where <in_optimizer>(`test`.`t1_outer`.`a`,`test`.`t1_outer`.`a` in ( <materialize> (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2) ), <primary_index_lookup>(`test`.`t1_outer`.`a` in <temporary table> on <auto_key> where ((`test`.`t1_outer`.`a` = `materialized-subquery`.`max(b)`)))))
 EXPLAIN SELECT 1 FROM t1 AS t1_outer GROUP BY a HAVING 
 a > (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_outer	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1_outer	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
+2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer` group by `test`.`t1_outer`.`a` having (`test`.`t1_outer`.`a` > (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)))
 EXPLAIN SELECT 1 FROM t1 AS t1_outer1 JOIN t1 AS t1_outer2 
 ON t1_outer1.a = (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) 
 AND t1_outer1.b = t1_outer2.b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_outer1	NULL	ref	a	a	5	const	1	100.00	Using where; Using index
-1	PRIMARY	t1_outer2	NULL	index	NULL	a	10	NULL	15	6.67	Using where; Using index; Using join buffer (Block Nested Loop)
-2	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1_outer1	NULL	ref	a	a	5	const	5	100.00	Using where; Using index
+1	PRIMARY	t1_outer2	NULL	index	NULL	a	10	NULL	20	5.00	Using where; Using index; Using join buffer (Block Nested Loop)
+2	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` `t1_outer1` join `test`.`t1` `t1_outer2` where ((`test`.`t1_outer2`.`b` = `test`.`t1_outer1`.`b`) and (`test`.`t1_outer1`.`a` = (/* select#2 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2))))
 EXPLAIN SELECT (SELECT (SELECT max(b) FROM t1 GROUP BY a HAVING a < 2) x
 FROM t1 AS t1_outer) x2 FROM t1 AS t1_outer2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	PRIMARY	t1_outer2	NULL	index	NULL	a	10	NULL	15	100.00	Using index
-2	SUBQUERY	t1_outer	NULL	index	NULL	a	10	NULL	15	100.00	Using index
-3	SUBQUERY	t1	NULL	range	a	a	5	NULL	8	100.00	Using index for group-by
+1	PRIMARY	t1_outer2	NULL	index	NULL	a	10	NULL	20	100.00	Using index
+2	SUBQUERY	t1_outer	NULL	index	NULL	a	10	NULL	20	100.00	Using index
+3	SUBQUERY	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select (/* select#2 */ select (/* select#3 */ select max(`test`.`t1`.`b`) from `test`.`t1` group by `test`.`t1`.`a` having (`test`.`t1`.`a` < 2)) AS `x` from `test`.`t1` `t1_outer`) AS `x2` from `test`.`t1` `t1_outer2`
 CREATE TABLE t3 LIKE t1;
@@ -2613,7 +2617,7 @@ FLUSH STATUS;
 INSERT INTO t3 SELECT a,MAX(b) FROM t1 GROUP BY a;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	0
 DELETE FROM t3;
 FLUSH STATUS;
@@ -2621,13 +2625,13 @@ INSERT INTO t3 SELECT 1, (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2)
 FROM t1 LIMIT 1;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	0
 FLUSH STATUS;
 DELETE FROM t3 WHERE (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) > 10000;
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	0
 FLUSH STATUS;
 DELETE FROM t3 WHERE (SELECT (SELECT MAX(b) FROM t1 GROUP BY a HAVING a < 2) x 
@@ -2635,16 +2639,17 @@ FROM t1) > 10000;
 ERROR 21000: Subquery returns more than 1 row
 SHOW STATUS LIKE 'handler_read__e%';
 Variable_name	Value
-Handler_read_key	8
+Handler_read_key	10
 Handler_read_next	1
 DROP TABLE t1,t2,t3;
 CREATE TABLE t1 (a int, INDEX idx(a));
 INSERT INTO t1 VALUES
 (4), (2), (1), (2), (4), (2), (1), (4),
+(4), (2), (1), (2), (2), (4), (1), (4),
 (4), (2), (1), (2), (2), (4), (1), (4);
 EXPLAIN SELECT DISTINCT(a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	13	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1`
 SELECT DISTINCT(a) FROM t1;
@@ -2654,7 +2659,7 @@ a
 4
 EXPLAIN SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	13	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select distinct sql_big_result `test`.`t1`.`a` AS `a` from `test`.`t1`
 SELECT SQL_BIG_RESULT DISTINCT(a) FROM t1;
@@ -2667,14 +2672,19 @@ CREATE TABLE t1 (a INT, b INT);
 INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3);
 INSERT INTO t1 SELECT a + 1, b FROM t1;
 INSERT INTO t1 SELECT a + 2, b FROM t1;
+INSERT INTO t1 SELECT a + 4, b FROM t1;
 EXPLAIN
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	12	100.00	Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	24	100.00	Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)
+8	1	3
+7	1	3
+6	1	3
+5	1	3
 4	1	3
 3	1	3
 2	1	3
@@ -2683,7 +2693,7 @@ CREATE INDEX break_it ON t1 (a, b);
 EXPLAIN
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	break_it	break_it	10	NULL	7	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	break_it	break_it	10	NULL	13	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` order by `test`.`t1`.`a`
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a;
@@ -2692,14 +2702,22 @@ a	MIN(b)	MAX(b)
 2	1	3
 3	1	3
 4	1	3
+5	1	3
+6	1	3
+7	1	3
+8	1	3
 EXPLAIN
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	break_it	break_it	10	NULL	7	100.00	Using index for group-by; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	range	break_it	break_it	10	NULL	13	100.00	Using index for group-by; Using temporary; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)
+8	1	3
+7	1	3
+6	1	3
+5	1	3
 4	1	3
 3	1	3
 2	1	3
@@ -2707,11 +2725,15 @@ a	MIN(b)	MAX(b)
 EXPLAIN
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	break_it	break_it	10	NULL	12	100.00	Using index
+1	SIMPLE	t1	NULL	index	break_it	break_it	10	NULL	24	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,min(`test`.`t1`.`b`) AS `MIN(b)`,max(`test`.`t1`.`b`) AS `MAX(b)`,avg(`test`.`t1`.`b`) AS `AVG(b)` from `test`.`t1` group by `test`.`t1`.`a` desc order by `test`.`t1`.`a` desc
 SELECT a, MIN(b), MAX(b), AVG(b) FROM t1 GROUP BY a ORDER BY a DESC;
 a	MIN(b)	MAX(b)	AVG(b)
+8	1	3	2.0000
+7	1	3	2.0000
+6	1	3	2.0000
+5	1	3	2.0000
 4	1	3	2.0000
 3	1	3	2.0000
 2	1	3	2.0000
@@ -2789,7 +2811,7 @@ a	b
 3	13
 explain extended select sql_buffer_result a, max(b)+1 from t1 where a = 0 group by a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ref	PRIMARY,index	PRIMARY	4	const	15	100.00	Using index; Using temporary
+1	SIMPLE	t1	NULL	range	PRIMARY,index	index	4	NULL	3	100.00	Using where; Using index for group-by; Using temporary
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select sql_buffer_result `test`.`t1`.`a` AS `a`,(max(`test`.`t1`.`b`) + 1) AS `max(b)+1` from `test`.`t1` where (`test`.`t1`.`a` = 0) group by `test`.`t1`.`a`
@@ -2802,7 +2824,7 @@ INSERT INTO t1 SELECT * FROM t1;
 INSERT INTO t1 SELECT a,b,c+1,d FROM t1;
 EXPLAIN SELECT DISTINCT c FROM t1 WHERE d=4;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	foo,bar	foo	10	NULL	9	100.00	Using where; Using index for group-by
+1	SIMPLE	t1	NULL	range	foo,bar	foo	10	NULL	11	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`c` AS `c` from `test`.`t1` where (`test`.`t1`.`d` = 4)
 SELECT DISTINCT c FROM t1 WHERE d=4;
@@ -2818,12 +2840,13 @@ CREATE TABLE t (a INT, b INT, INDEX (a,b));
 INSERT INTO t VALUES (2,0), (2,0), (2,1), (2,1);
 INSERT INTO t SELECT * FROM t;
 INSERT INTO t SELECT * FROM t;
+INSERT INTO t SELECT * FROM t;
 # test MIN
 #should use range with index for group by
 EXPLAIN
 SELECT a, MIN(b) FROM t WHERE b <> 0 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	a	a	10	NULL	9	100.00	Using where; Using index for group-by
+1	SIMPLE	t	NULL	range	a	a	10	NULL	11	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,min(`test`.`t`.`b`) AS `MIN(b)` from `test`.`t` where (`test`.`t`.`b` <> 0) group by `test`.`t`.`a`
 #should return 1 row
@@ -2835,7 +2858,7 @@ a	MIN(b)
 EXPLAIN
 SELECT a, MAX(b) FROM t WHERE b <> 1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	a	a	10	NULL	9	100.00	Using where; Using index for group-by
+1	SIMPLE	t	NULL	range	a	a	10	NULL	11	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where (`test`.`t`.`b` <> 1) group by `test`.`t`.`a`
 #should return 1 row
@@ -2848,7 +2871,7 @@ INSERT INTO t SELECT a, 2 FROM t;
 EXPLAIN
 SELECT a, MAX(b) FROM t WHERE b > 0 AND b < 2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t	NULL	range	a	a	10	NULL	9	100.00	Using where; Using index for group-by
+1	SIMPLE	t	NULL	range	a	a	10	NULL	11	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t`.`a` AS `a`,max(`test`.`t`.`b`) AS `MAX(b)` from `test`.`t` where ((`test`.`t`.`b` > 0) and (`test`.`t`.`b` < 2)) group by `test`.`t`.`a`
 #should return 1 row
@@ -3201,64 +3224,70 @@ CREATE TABLE t1 (a INT, b INT, c INT, KEY (a,b));
 INSERT INTO t1 VALUES (1,1,1), (1,2,1), (1,3,1), (1,4,1);
 INSERT INTO t1 SELECT a, b + 4, 1 FROM t1;
 INSERT INTO t1 SELECT a + 1, b, 1 FROM t1;
+INSERT INTO t1 SELECT a + 2, b + 8, 1 FROM t1;
 CREATE TABLE t2 (a INT, b INT, c INT, d INT, e INT, f INT, KEY (a,b,c));
 INSERT INTO t2 VALUES (1,1,1,1,1,1), (1,2,1,1,1,1), (1,3,1,1,1,1), 
 (1,4,1,1,1,1);
 INSERT INTO t2 SELECT a, b + 4, c,d,e,f FROM t2;
 INSERT INTO t2 SELECT a + 1, b, c,d,e,f FROM t2;
+INSERT INTO t2 SELECT a + 2, b + 8, c,d,e,f FROM t2;
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1`
 SELECT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
-2
+4
 EXPLAIN SELECT COUNT(DISTINCT a,b) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`,`test`.`t1`.`b`) AS `COUNT(DISTINCT a,b)` from `test`.`t1`
 SELECT COUNT(DISTINCT a,b) FROM t1;
 COUNT(DISTINCT a,b)
-16
+32
 EXPLAIN SELECT COUNT(DISTINCT b,a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`,`test`.`t1`.`a`) AS `COUNT(DISTINCT b,a)` from `test`.`t1`
 SELECT COUNT(DISTINCT b,a) FROM t1;
 COUNT(DISTINCT b,a)
-16
+32
 EXPLAIN SELECT COUNT(DISTINCT b) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	a	a	10	NULL	16	100.00	Using index
+1	SIMPLE	t1	NULL	index	a	a	10	NULL	32	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1`
 SELECT COUNT(DISTINCT b) FROM t1;
 COUNT(DISTINCT b)
-8
+16
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY a;
 COUNT(DISTINCT a)
 1
 1
+1
+1
 EXPLAIN SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`b`) AS `COUNT(DISTINCT b)` from `test`.`t1` group by `test`.`t1`.`a`
 SELECT COUNT(DISTINCT b) FROM t1 GROUP BY a;
 COUNT(DISTINCT b)
 8
 8
+8
+8
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	a	a	10	NULL	16	100.00	Using index; Using filesort
+1	SIMPLE	t1	NULL	index	a	a	10	NULL	32	100.00	Using index; Using filesort
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` group by `test`.`t1`.`b`
 SELECT COUNT(DISTINCT a) FROM t1 GROUP BY b;
@@ -3271,41 +3300,49 @@ COUNT(DISTINCT a)
 2
 2
 2
+2
+2
+2
+2
+2
+2
+2
+2
 EXPLAIN SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	a	a	10	NULL	16	100.00	Using index
+1	SIMPLE	t1	NULL	index	a	a	10	NULL	32	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1`
 SELECT DISTINCT COUNT(DISTINCT a) FROM t1;
 COUNT(DISTINCT a)
-2
+4
 EXPLAIN SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	10	NULL	16	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	a	10	NULL	32	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`,(`test`.`t1`.`b` + 0)) AS `COUNT(DISTINCT a, b + 0)` from `test`.`t1`
 SELECT COUNT(DISTINCT a, b + 0) FROM t1;
 COUNT(DISTINCT a, b + 0)
-16
-EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 10;
+32
+EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	NULL	a	10	NULL	16	100.00	Using index
+1	SIMPLE	t1	NULL	index	NULL	a	10	NULL	32	100.00	Using index
 Warnings:
-Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` having (count(distinct `test`.`t1`.`b`) < 10)
-SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 10;
+Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` having (count(distinct `test`.`t1`.`b`) < 20)
+SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT b) < 20;
 COUNT(DISTINCT a)
-2
+4
 EXPLAIN SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)` from `test`.`t1` having (count(distinct `test`.`t1`.`c`) < 10)
 SELECT COUNT(DISTINCT a) FROM t1 HAVING COUNT(DISTINCT c) < 10;
 COUNT(DISTINCT a)
-2
+4
 EXPLAIN SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` having (count(distinct `test`.`t1`.`a`) < 10)
 SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
@@ -3313,82 +3350,86 @@ SELECT 1 FROM t1 HAVING COUNT(DISTINCT a) < 10;
 1
 EXPLAIN SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` group by `test`.`t1`.`a` having (count(distinct `test`.`t1`.`b`) > 1)
 SELECT 1 FROM t1 GROUP BY a HAVING COUNT(DISTINCT b) > 1;
 1
 1
 1
+1
+1
 EXPLAIN SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1_1	NULL	index	a	a	10	NULL	16	100.00	Using index; Using temporary; Using filesort
-1	SIMPLE	t1_2	NULL	index	NULL	a	10	NULL	16	100.00	Using index; Using join buffer (Block Nested Loop)
+1	SIMPLE	t1_1	NULL	index	a	a	10	NULL	32	100.00	Using index; Using temporary; Using filesort
+1	SIMPLE	t1_2	NULL	index	NULL	a	10	NULL	32	100.00	Using index; Using join buffer (Block Nested Loop)
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1_1`.`a`) AS `COUNT(DISTINCT t1_1.a)` from `test`.`t1` `t1_1` join `test`.`t1` `t1_2` group by `test`.`t1_1`.`a`
 SELECT COUNT(DISTINCT t1_1.a) FROM t1 t1_1, t1 t1_2 GROUP BY t1_1.a;
 COUNT(DISTINCT t1_1.a)
 1
 1
+1
+1
 EXPLAIN SELECT COUNT(DISTINCT a), 12 FROM t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	a	a	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t1`.`a`) AS `COUNT(DISTINCT a)`,12 AS `12` from `test`.`t1`
 SELECT COUNT(DISTINCT a), 12 FROM t1;
 COUNT(DISTINCT a)	12
-2	12
+4	12
 EXPLAIN SELECT COUNT(DISTINCT a, b, c) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	15	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	15	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`) AS `COUNT(DISTINCT a, b, c)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b, c) FROM t2;
 COUNT(DISTINCT a, b, c)
-16
+32
 EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	5	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`) AS `COUNT(DISTINCT a)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t2`.`a`) AS `AVG(DISTINCT a)` from `test`.`t2`
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT a) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT a)
-2	3	1.5000
+4	10	2.5000
 EXPLAIN SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`) AS `COUNT(DISTINCT a)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)`,avg(distinct `test`.`t2`.`f`) AS `AVG(DISTINCT f)` from `test`.`t2`
 SELECT COUNT(DISTINCT a), SUM(DISTINCT a), AVG(DISTINCT f) FROM t2;
 COUNT(DISTINCT a)	SUM(DISTINCT a)	AVG(DISTINCT f)
-2	3	1.0000
+4	10	1.0000
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,count(distinct `test`.`t2`.`b`,`test`.`t2`.`a`) AS `COUNT(DISTINCT b, a)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, a) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, a)
-16	16
+32	32
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,count(distinct `test`.`t2`.`b`,`test`.`t2`.`f`) AS `COUNT(DISTINCT b, f)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, f) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, f)
-16	8
+32	16
 EXPLAIN SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	16	100.00	NULL
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	32	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,count(distinct `test`.`t2`.`b`,`test`.`t2`.`d`) AS `COUNT(DISTINCT b, d)` from `test`.`t2`
 SELECT COUNT(DISTINCT a, b), COUNT(DISTINCT b, d) FROM t2;
 COUNT(DISTINCT a, b)	COUNT(DISTINCT b, d)
-16	8
+32	16
 EXPLAIN SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	15	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	15	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c`,count(distinct `test`.`t2`.`c`,`test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT c, a, b)` from `test`.`t2` group by `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`
 SELECT a, c, COUNT(DISTINCT c, a, b) FROM t2 GROUP BY a, b, c;
@@ -3409,6 +3450,22 @@ a	c	COUNT(DISTINCT c, a, b)
 2	1	1
 2	1	1
 2	1	1
+3	1	1
+3	1	1
+3	1	1
+3	1	1
+3	1	1
+3	1	1
+3	1	1
+3	1	1
+4	1	1
+4	1	1
+4	1	1
+4	1	1
+4	1	1
+4	1	1
+4	1	1
+4	1	1
 EXPLAIN SELECT COUNT(DISTINCT c, a, b) FROM t2
 WHERE a > 5 AND b BETWEEN 10 AND 20 GROUP BY a, b, c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
@@ -3429,25 +3486,29 @@ GROUP BY b;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
 EXPLAIN SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,count(distinct `test`.`t2`.`b`) AS `COUNT(DISTINCT b)`,sum(distinct `test`.`t2`.`b`) AS `SUM(DISTINCT b)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT a, COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 a	COUNT(DISTINCT b)	SUM(DISTINCT b)
 1	8	36
 2	8	36
+3	8	100
+4	8	100
 EXPLAIN SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	10	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	10	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`b`) AS `COUNT(DISTINCT b)`,sum(distinct `test`.`t2`.`b`) AS `SUM(DISTINCT b)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT COUNT(DISTINCT b), SUM(DISTINCT b) FROM t2 GROUP BY a;
 COUNT(DISTINCT b)	SUM(DISTINCT b)
 8	36
 8	36
+8	100
+8	100
 EXPLAIN SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	16	0.39	Using where
+1	SIMPLE	t2	NULL	ALL	a	NULL	NULL	NULL	32	0.16	Using where
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)` from `test`.`t2` where ((`test`.`t2`.`d` = 42) and (`test`.`t2`.`c` = 13))
 SELECT COUNT(DISTINCT a, b) FROM t2 WHERE c = 13 AND d = 42;
@@ -3456,7 +3517,7 @@ COUNT(DISTINCT a, b)
 EXPLAIN SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
 WHERE b = 13 AND c = 42 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	15	NULL	9	100.00	Using where; Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	15	NULL	11	100.00	Using where; Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`a` AS `a`,count(distinct `test`.`t2`.`a`) AS `COUNT(DISTINCT a)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)` from `test`.`t2` where ((`test`.`t2`.`c` = 42) and (`test`.`t2`.`b` = 13)) group by `test`.`t2`.`a`
 SELECT a, COUNT(DISTINCT a), SUM(DISTINCT a) FROM t2
@@ -3466,7 +3527,7 @@ a	COUNT(DISTINCT a)	SUM(DISTINCT a)
 # the second part of count(..) is defined by a constant predicate
 EXPLAIN SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	16	6.25	Using where; Using index
+1	SIMPLE	t2	NULL	index	NULL	a	15	NULL	32	3.12	Using where; Using index
 Warnings:
 Note	1003	/* select#1 */ select count(distinct `test`.`t2`.`a`,`test`.`t2`.`b`) AS `COUNT(DISTINCT a, b)`,sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)` from `test`.`t2` where (`test`.`t2`.`b` = 42)
 SELECT COUNT(DISTINCT a, b), SUM(DISTINCT a) FROM t2 WHERE b = 42;
@@ -3474,16 +3535,18 @@ COUNT(DISTINCT a, b)	SUM(DISTINCT a)
 0	NULL
 EXPLAIN SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	15	NULL	16	100.00	Using index
+1	SIMPLE	t2	NULL	index	a	a	15	NULL	32	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select sum(distinct `test`.`t2`.`a`) AS `SUM(DISTINCT a)`,max(`test`.`t2`.`b`) AS `MAX(b)` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT SUM(DISTINCT a), MAX(b) FROM t2 GROUP BY a;
 SUM(DISTINCT a)	MAX(b)
 1	8
 2	8
+3	16
+4	16
 EXPLAIN SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	range	a	a	15	NULL	9	100.00	Using index for group-by
+1	SIMPLE	t2	NULL	range	a	a	15	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select (42 * ((`test`.`t2`.`a` + `test`.`t2`.`c`) + count(distinct `test`.`t2`.`c`,`test`.`t2`.`a`,`test`.`t2`.`b`))) AS `42 * (a + c + COUNT(DISTINCT c, a, b))` from `test`.`t2` group by `test`.`t2`.`a`,`test`.`t2`.`b`,`test`.`t2`.`c`
 SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
@@ -3504,15 +3567,33 @@ SELECT 42 * (a + c + COUNT(DISTINCT c, a, b)) FROM t2 GROUP BY a, b, c;
 168
 168
 168
+210
+210
+210
+210
+210
+210
+210
+210
+252
+252
+252
+252
+252
+252
+252
+252
 EXPLAIN SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	index	a	a	15	NULL	16	100.00	Using index
+1	SIMPLE	t2	NULL	index	a	a	15	NULL	32	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select (sum(distinct `test`.`t2`.`a`) + max(`test`.`t2`.`b`)) AS `(SUM(DISTINCT a) + MAX(b))` from `test`.`t2` group by `test`.`t2`.`a`
 SELECT (SUM(DISTINCT a) + MAX(b)) FROM t2 GROUP BY a;
 (SUM(DISTINCT a) + MAX(b))
 9
 10
+19
+20
 DROP TABLE t1,t2;
 # end of WL#3220 tests
 #
@@ -3538,6 +3619,36 @@ Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1`,count(distinct `test`.`t1`.`f2`) AS `COUNT(DISTINCT f2)` from `test`.`t1` group by `test`.`t1`.`f1`
 drop table t1;
 # End of test#50539.
+#
+# Bug#18497308 WRONG COST ESTIMATE FOR LOOSE INDEX SCAN WHEN
+#              INDEX STATISTICS IS MISSING
+#
+CREATE TABLE t1 (
+a INTEGER,
+b INTEGER,
+c INTEGER,
+d INTEGER,
+KEY foo (a,b,c,d)
+) ENGINE=MyISAM;
+INSERT INTO t1 VALUES (1, 1, 1, 1), (1, 2, 1, 2), (1, 3, 1, 3), (1, 4, 1, 4);
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+INSERT INTO t1 SELECT * FROM t1;
+EXPLAIN SELECT DISTINCT a FROM t1 WHERE b=4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	NULL	range	foo	foo	10	NULL	103	100.00	Using where; Using index for group-by
+Warnings:
+Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`b` = 4)
+SELECT DISTINCT a FROM t1 WHERE b=4;
+a
+1
+DROP TABLE t1;
 #
 # Bug#17217128 -  BAD INTERACTION BETWEEN MIN/MAX AND
 #                 "HAVING SUM(DISTINCT)": WRONG RESULTS.
