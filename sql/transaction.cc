@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -175,6 +175,16 @@ bool trans_commit(THD *thd)
     ~(SERVER_STATUS_IN_TRANS | SERVER_STATUS_IN_TRANS_READONLY);
   DBUG_PRINT("info", ("clearing SERVER_STATUS_IN_TRANS"));
   res= ha_commit_trans(thd, TRUE);
+  /*
+    When gtid mode is enabled, a transaction may cause binlog
+    rotation, which inserts a record into the gtid system table
+    (which is probably a transactional table). Thence, the flag
+    SERVER_STATUS_IN_TRANS may be set again while calling
+    ha_commit_trans(...) Consequently, we need to reset it back,
+    much like we are doing before calling ha_commit_trans(...).
+  */
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
   thd->variables.option_bits&= ~OPTION_BEGIN;
   thd->get_transaction()->reset_unsafe_rollback_flags(Transaction_ctx::SESSION);
   thd->lex->start_transaction_opt= 0;
