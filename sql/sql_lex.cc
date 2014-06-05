@@ -2728,8 +2728,8 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     curr->print(thd, str, query_type);          // Print table
 
     // Print join condition
-    Item *const cond= (curr->select_lex->join &&
-                       curr->select_lex->join->optimized) ?
+    Item *const cond=
+      (curr->select_lex->join && curr->optim_join_cond() != (Item*)1) ?
       curr->optim_join_cond() : curr->join_cond();
     if (cond)
     {
@@ -3041,8 +3041,8 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // Where
-  Item *const cur_where= (join && join->optimized) ?
-                         join->where_cond : m_where_cond;
+  Item *const cur_where=
+    (join && join->where_cond != (Item*)1) ? join->where_cond : m_where_cond;
 
   if (cur_where || cond_value != Item::COND_UNDEF)
   {
@@ -3072,7 +3072,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // having
-  Item *const cur_having= (join && join->optimized) ?
+  Item *const cur_having= (join && join->having_for_explain != (Item*)1) ?
     join->having_for_explain : m_having_cond;
 
   if (cur_having || having_value != Item::COND_UNDEF)
