@@ -1670,6 +1670,7 @@ SELECT * FROM t1 WHERE fd='😁';
 SELECT * FROM t1 WHERE fd='😁';
 
 --echo # The following must not use range access:
+--replace_column 9 #
 explain select count(*) from t1 where fd <'😁';
 select count(*) from t1 where fd <'😁';
 select count(*) from t1 ignore index (ix_fd) where fd <'😁';

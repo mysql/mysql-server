@@ -2087,7 +2087,7 @@ Warning	1366	Incorrect string value: '\xF0\x9F\x98\x81' for column 'fd' at row 1
 # The following must not use range access:
 explain select count(*) from t1 where fd <'😁';
 id	select_type	table	type	possible_keys	key	key_len	ref	rows	Extra
-1	SIMPLE	t1	index	ix_fd	ix_fd	63	NULL	41410	Using where; Using index
+1	SIMPLE	t1	index	ix_fd	ix_fd	63	NULL	#	Using where; Using index
 Warnings:
 Warning	1366	Incorrect string value: '\xF0\x9F\x98\x81' for column 'fd' at row 1
 select count(*) from t1 where fd <'😁';
