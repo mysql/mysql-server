@@ -50,6 +50,79 @@
 #include "ha_partition.h"
 #endif
 
+/**
+  @def MYSQL_TABLE_IO_WAIT
+  Instrumentation helper for table io_waits.
+  Note that this helper is intended to be used from
+  within the handler class only, as it uses members
+  from @c handler
+  Performance schema events are instrumented as follows:
+  - in non batch mode, one event is generated per call
+  - in batch mode, the number of rows affected is saved
+  in @c m_psi_numrows, so that @c end_psi_batch_mode()
+  generates a single event for the batch.
+  @param OP the table operation to be performed
+  @param INDEX the table index used if any, or MAY_KEY.
+  @param PAYLOAD instrumented code to execute
+  @sa handler::end_psi_batch_mode.
+*/
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD)       \
+    {                                                   \
+      if ((m_psi != NULL) && ! m_psi_batch_mode)        \
+      {                                                 \
+        PSI_table_locker *sub_locker;                   \
+        sub_locker= PSI_TABLE_CALL(start_table_io_wait) \
+          (& m_psi_locker_state, m_psi, OP, INDEX,      \
+           __FILE__, __LINE__);                         \
+        PAYLOAD                                         \
+        if (sub_locker != NULL)                         \
+          PSI_TABLE_CALL(end_table_io_wait)             \
+            (sub_locker, 1);                            \
+      }                                                 \
+      else                                              \
+      {                                                 \
+        m_psi_numrows++;                                \
+        PAYLOAD                                         \
+      }                                                 \
+    }
+#else
+  #define MYSQL_TABLE_IO_WAIT(OP, INDEX, PAYLOAD) \
+    PAYLOAD
+#endif
+
+/**
+  @def MYSQL_TABLE_LOCK_WAIT
+  Instrumentation helper for table io_waits.
+  @param PSI the instrumented table
+  @param OP the table operation to be performed
+  @param FLAGS per table operation flags.
+  @param PAYLOAD the code to instrument.
+  @sa MYSQL_END_TABLE_WAIT.
+*/
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
+    {                                                    \
+      if (PSI != NULL)                                   \
+      {                                                  \
+        PSI_table_locker *locker;                        \
+        PSI_table_locker_state state;                    \
+        locker= PSI_TABLE_CALL(start_table_lock_wait)    \
+          (& state, PSI, OP, FLAGS, __FILE__, __LINE__); \
+        PAYLOAD                                          \
+        if (locker != NULL)                              \
+          PSI_TABLE_CALL(end_table_lock_wait)(locker);   \
+      }                                                  \
+      else                                               \
+      {                                                  \
+        PAYLOAD                                          \
+      }                                                  \
+    }
+#else
+  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
+    PAYLOAD
+#endif
+
 using std::min;
 using std::max;
 using std::list;
@@ -2316,6 +2389,35 @@ void handler::rebind_psi()
 #endif
 }
 
+void handler::start_psi_batch_mode()
+{
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(! m_psi_batch_mode);
+  DBUG_ASSERT(m_psi_locker == NULL);
+  m_psi_batch_mode= true;
+  m_psi_numrows= 0;
+  if (m_psi != NULL)
+  {
+    m_psi_locker= PSI_TABLE_CALL(start_table_io_wait)
+      (& m_psi_locker_state, m_psi, PSI_TABLE_FETCH_ROW, active_index,
+       __FILE__, __LINE__);
+  }
+#endif
+}
+
+void handler::end_psi_batch_mode()
+{
+#ifdef HAVE_PSI_TABLE_INTERFACE
+  DBUG_ASSERT(m_psi_batch_mode);
+  m_psi_batch_mode= false;
+  if (m_psi_locker != NULL)
+  {
+    PSI_TABLE_CALL(end_table_io_wait)(m_psi_locker, m_psi_numrows);
+    m_psi_locker= NULL;
+  }
+#endif
+}
+
 PSI_table_share *handler::ha_table_share_psi(const TABLE_SHARE *share) const
 {
   return share->m_psi;
@@ -2526,7 +2628,7 @@ int handler::ha_rnd_next(uchar *buf)
               m_lock_type != F_UNLCK);
   DBUG_ASSERT(inited == RND);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY,
     { result= rnd_next(buf); })
   DBUG_RETURN(result);
 }
@@ -2552,7 +2654,7 @@ int handler::ha_rnd_pos(uchar *buf, uchar *pos)
   /* TODO: Find out how to solve ha_rnd_pos when finding duplicate update. */
   /* DBUG_ASSERT(inited == RND); */
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, MAX_KEY, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, MAX_KEY,
     { result= rnd_pos(buf, pos); })
   DBUG_RETURN(result);
 }
@@ -2594,7 +2696,7 @@ int handler::ha_index_read_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read_map(buf, key, keypart_map, find_flag); })
   DBUG_RETURN(result);
 }
@@ -2609,7 +2711,7 @@ int handler::ha_index_read_last_map(uchar *buf, const uchar *key,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read_last_map(buf, key, keypart_map); })
   DBUG_RETURN(result);
 }
@@ -2631,7 +2733,7 @@ int handler::ha_index_read_idx_map(uchar *buf, uint index, const uchar *key,
   DBUG_ASSERT(end_range == NULL);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, index,
     { result= index_read_idx_map(buf, index, key, keypart_map, find_flag); })
   return result;
 }
@@ -2657,7 +2759,7 @@ int handler::ha_index_next(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_next(buf); })
   DBUG_RETURN(result);
 }
@@ -2683,7 +2785,7 @@ int handler::ha_index_prev(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_prev(buf); })
   DBUG_RETURN(result);
 }
@@ -2709,7 +2811,7 @@ int handler::ha_index_first(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_first(buf); })
   DBUG_RETURN(result);
 }
@@ -2735,7 +2837,7 @@ int handler::ha_index_last(uchar * buf)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_last(buf); })
   DBUG_RETURN(result);
 }
@@ -2763,7 +2865,7 @@ int handler::ha_index_next_same(uchar *buf, const uchar *key, uint keylen)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_next_same(buf, key, keylen); })
   DBUG_RETURN(result);
 }
@@ -2793,7 +2895,7 @@ int handler::ha_index_read(uchar *buf, const uchar *key, uint key_len,
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read(buf, key, key_len, find_flag); })
   DBUG_RETURN(result);
 }
@@ -2821,7 +2923,7 @@ int handler::ha_index_read_last(uchar *buf, const uchar *key, uint key_len)
   DBUG_ASSERT(inited == INDEX);
   DBUG_ASSERT(!pushed_idx_cond || buf == table->record[0]);
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_FETCH_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_FETCH_ROW, active_index,
     { result= index_read_last(buf, key, key_len); })
   DBUG_RETURN(result);
 }
@@ -7286,7 +7388,7 @@ int handler::ha_write_row(uchar *buf)
   MYSQL_INSERT_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_WRITE_ROW, MAX_KEY, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_WRITE_ROW, MAX_KEY,
     { error= write_row(buf); })
 
   MYSQL_INSERT_ROW_DONE(error);
@@ -7318,7 +7420,7 @@ int handler::ha_update_row(const uchar *old_data, uchar *new_data)
   MYSQL_UPDATE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_UPDATE_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_UPDATE_ROW, active_index,
     { error= update_row(old_data, new_data);})
 
   MYSQL_UPDATE_ROW_DONE(error);
@@ -7346,7 +7448,7 @@ int handler::ha_delete_row(const uchar *buf)
   MYSQL_DELETE_ROW_START(table_share->db.str, table_share->table_name.str);
   mark_trx_read_write();
 
-  MYSQL_TABLE_IO_WAIT(m_psi, PSI_TABLE_DELETE_ROW, active_index, 0,
+  MYSQL_TABLE_IO_WAIT(PSI_TABLE_DELETE_ROW, active_index,
     { error= delete_row(buf);})
 
   MYSQL_DELETE_ROW_DONE(error);
