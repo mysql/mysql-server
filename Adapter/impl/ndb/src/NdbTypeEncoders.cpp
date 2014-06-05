@@ -55,6 +55,7 @@ Handle<Value>   /* SQLState Error Codes */
   K_22001_StringTooLong,
   K_22003_OutOfRange,
   K_22007_InvalidDatetime,
+  K_0F001_Bad_BLOB,
   K_HY000;
 
 #define ENCODER(A, B, C) NdbTypeEncoder A = { & B, & C, 0 }
@@ -107,7 +108,7 @@ DECLARE_ENCODER(Datetime2);
 DECLARE_ENCODER(Time);
 DECLARE_ENCODER(Time2);
 DECLARE_ENCODER(Date);
-DECLARE_ENCODER(NOP);
+DECLARE_ENCODER(Blob);
 
 DECLARE_ENCODER(Decimal);
 EncoderWriter UnsignedDecimalWriter;
@@ -134,7 +135,7 @@ const NdbTypeEncoder * AllEncoders[NDB_TYPE_MAX] = {
   & VarbinaryEncoder,                     // 17 VARBINARY
   & DatetimeEncoder,                      // 18 DATETIME
   & DateEncoder,                          // 19 DATE
-  & NOPEncoder,                           // 20 BLOB
+  & BlobEncoder,                          // 20 BLOB
   & UnsupportedTypeEncoder,               // 21 TEXT
   & UnsupportedTypeEncoder,               // 22 BIT
   & LongVarcharEncoder,                   // 23 LONGVARCHAR
@@ -209,6 +210,7 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_22001_StringTooLong = Persistent<String>::New(String::NewSymbol("22001"));
   K_22003_OutOfRange = Persistent<String>::New(String::NewSymbol("22003"));
   K_22007_InvalidDatetime = Persistent<String>::New(String::NewSymbol("22007"));
+  K_0F001_Bad_BLOB = Persistent<String>::New(String::NewSymbol("0F001"));
   K_HY000 = Persistent<String>::New(String::NewSymbol("HY000"));
 }
 
@@ -392,17 +394,6 @@ Handle<Value> UnsupportedTypeWriter(const NdbDictionary::Column * col,
                                     char *buffer, size_t offset) {
   //TODO EXCEPTION
   return Undefined();
-}
-
-// NO-OP Encoder; used for BLOB values
-Handle<Value> NOPReader(const NdbDictionary::Column *, char *, size_t) {
-  HandleScope scope;
-  return Undefined();
-}
-
-Handle<Value> NOPWriter(const NdbDictionary::Column *, Handle<Value>, 
-                        char *, size_t) {
-  return writerOK;
 }
 
 // Int
@@ -1436,3 +1427,19 @@ Handle<Value> DateWriter(const NdbDictionary::Column * col,
   
   return tm.valid ? writerOK : K_22007_InvalidDatetime;  
 }
+
+
+// BLOB
+// BlobReader is a no-op
+Handle<Value> BlobReader(const NdbDictionary::Column *, char *, size_t) {
+  HandleScope scope;
+  return Undefined();
+}
+
+// The BlobWriter does write anything, but it does verify that the 
+// intended value is a Node Buffer.
+Handle<Value> BlobWriter(const NdbDictionary::Column *, Handle<Value> value,
+                        char *, size_t) {
+  return node::Buffer::HasInstance(value) ? writerOK : K_0F001_Bad_BLOB;  
+}
+

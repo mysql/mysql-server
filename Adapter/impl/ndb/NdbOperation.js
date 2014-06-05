@@ -78,6 +78,7 @@ var sqlStateMessages = {
   "22007" : "Invalid datetime",
   "23000" : "Column cannot be null",
   "HY000" : "Incorrect numeric value",
+  "0F001" : "Invalid BLOB value",
   "WCTOR" : 
       "A Domain Object Constructor has overwritten persistent properties "+
       "that were read from the database.  The Domain Object Constructor "+
