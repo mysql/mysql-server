@@ -154,6 +154,8 @@ if(defined $ENV{"CXXFLAGS"} and $ENV{"CXXFLAGS"} =~ "-fno-exceptions")
     # Hardcoded options controlling how to build NDB
     push(@args, "-DWITH_PLUGIN_NDBCLUSTER=1");
     push(@args, "-DWITH_NDB_TEST=1");
+    push(@args, "-DWITH_NDBAPI_EXAMPLES=1")
+      unless ($^O eq "cygwin" or $^O eq "MSWin32")
   }
 
   if ($opt_autotest)
