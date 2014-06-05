@@ -11,6 +11,7 @@ def	mysql	PRIMARY	mysql	columns_priv	PRIMARY KEY
 def	mysql	PRIMARY	mysql	db	PRIMARY KEY
 def	mysql	PRIMARY	mysql	event	PRIMARY KEY
 def	mysql	PRIMARY	mysql	func	PRIMARY KEY
+def	mysql	PRIMARY	mysql	gtid_executed	PRIMARY KEY
 def	mysql	name	mysql	help_category	UNIQUE
 def	mysql	PRIMARY	mysql	help_category	PRIMARY KEY
 def	mysql	name	mysql	help_keyword	UNIQUE

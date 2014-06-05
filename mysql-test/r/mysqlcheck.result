@@ -9,6 +9,7 @@ mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
+mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -41,6 +42,9 @@ mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
+mysql.gtid_executed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -81,6 +85,7 @@ mysql.event                                        OK
 mysql.func                                         OK
 mysql.general_log
 note     : The storage engine for the table doesn't support analyze
+mysql.gtid_executed                                OK
 mysql.help_category                                OK
 mysql.help_keyword                                 OK
 mysql.help_relation                                OK
@@ -111,6 +116,9 @@ mysql.event                                        Table is already up to date
 mysql.func                                         Table is already up to date
 mysql.general_log
 note     : The storage engine for the table doesn't support optimize
+mysql.gtid_executed
+note     : Table does not support optimize, doing recreate + analyze instead
+status   : OK
 mysql.help_category                                Table is already up to date
 mysql.help_keyword                                 Table is already up to date
 mysql.help_relation                                Table is already up to date

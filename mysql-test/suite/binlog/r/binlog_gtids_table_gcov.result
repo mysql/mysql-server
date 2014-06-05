@@ -1,0 +1,35 @@
+call mtr.add_suppression("Failed to save set of GTIDs of the last binlog into "
+                         "gtid_executed table on server shutdown, so we save "
+                         "it into gtid_executed table and executed_gtids "
+                         "during next server startup.");
+SET @debug_save= @@GLOBAL.DEBUG;
+CREATE TABLE t1 (a INT) ENGINE=InnoDB;
+SET @@GLOBAL.DEBUG= "+d,simulate_err_on_write_gtid_into_table";
+#
+# Verify that we can get correct gtid sets after server restarts
+# even if we encounter an error on writing gtids into table on
+# server shutdown.
+#
+include/assert.inc [committed gtid set is MASTER_UUID:1-2]
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	2
+SET GLOBAL DEBUG= @debug_save;
+call mtr.add_suppression(".* Turning logging off for the whole duration of the "
+                         "MySQL server process. To turn it on again: fix the "
+                         "cause, shutdown the MySQL server and restart it.");
+INSERT INTO t1 VALUES(1);
+SET SESSION debug="+d,simulate_err_on_write_gtid_into_table";
+FLUSH LOGS;
+ERROR HY000: Got error -1 from storage engine
+SET SESSION debug="-d,simulate_err_on_write_gtid_into_table";
+#
+# Verify that GTIDs are not saved into gtid_executed table if we
+# encounter an error on writing gtids into table on binlog rotation.
+#
+SELECT * FROM mysql.gtid_executed;
+source_uuid	interval_start	interval_end
+MASTER_UUID	1	2
+include/assert.inc [committed gtid set is MASTER_UUID:1-4]
+DROP TABLE t1;
+RESET MASTER;

@@ -552,4 +552,14 @@ FLUSH LOGS;
 FLUSH LOGS;
 include/rpl_reset.inc
 DROP TABLE t1;
+# Failure on creating compression thread
+include/sync_slave_sql_with_master.inc
+include/stop_slave.inc
+call mtr.add_suppression("Can not create thread to compress gtid_executed table .*");
+include/rpl_restart_server.inc [server_number=2 gtids=on parameters: --debug=d,simulate_create_compress_thread_failure]
+include/assert.inc [compression thread is destroied;]
+call mtr.add_suppression("Plugin 'InnoDB' will be forced to shutdown");
+call mtr.add_suppression("Plugin 'InnoDB' has ref_count=.* after shutdown");
+include/rpl_restart_server.inc [server_number=2 gtids=on]
+include/start_slave.inc
 include/rpl_end.inc
