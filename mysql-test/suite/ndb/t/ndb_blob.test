@@ -69,7 +69,7 @@ select length(@x0),length(@b2),length(@d2) from dual;
 insert into t1 values(1,@b1,111,@d1);
 insert into t1 values(2,@b2,222,@d2);
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1 where a = 1;
 
 # pk read
@@ -118,7 +118,7 @@ select count(*) from t1;
 replace t1 set a=1,b=@b1,c=111,d=@d1;
 replace t1 set a=2,b=@b2,c=222,d=@d2;
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1 where a = 1;
 
 # pk read
@@ -161,7 +161,7 @@ select count(*) from t1;
 insert into t1 values(1,@b1,111,@d1);
 insert into t1 values(2,@b2,222,@d2);
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1 where c = 111;
 
 # hash key read
@@ -202,7 +202,7 @@ insert into t1 values(7,'b7',777,'dd7');
 insert into t1 values(8,'b8',888,'dd8');
 insert into t1 values(9,'b9',999,'dd9');
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1;
 
 # table scan read
@@ -223,7 +223,7 @@ select count(*) from t1;
 insert into t1 values(1,@b1,111,@d1);
 insert into t1 values(2,@b2,222,@d2);
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1;
 
 # table scan read
@@ -253,7 +253,7 @@ insert into t1 values(7,'b7',777,'dd7');
 insert into t1 values(8,'b8',888,'dd8');
 insert into t1 values(9,'b9',999,'dd9');
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1 where c >= 100 order by a;
 
 # range scan read
@@ -275,7 +275,7 @@ select count(*) from t1;
 insert into t1 values(1,@b1,111,@d1);
 insert into t1 values(2,@b2,222,@d2);
 commit;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1 where c >= 100 order by a;
 
 # range scan read

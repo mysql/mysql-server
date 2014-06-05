@@ -24,7 +24,7 @@
 # (Didn't start, or completed before the other), 'error 0'
 # is also allowed as an outcome from these tests.
 #
-# '--replace_column 9 ###' is used for explains throughout
+# '--replace_column 10 ### 11 ###' is used for explains throughout
 # the test as experience has shown that 'rows' estimates
 # may vary depending on OS, compiler and .. phase of moon.
 #
@@ -107,7 +107,7 @@ call mtr.add_suppression(".*NDB_SHARE.*Moving away for safety, but possible meml
 --echo Early 'online' drop of REF'ed child's KEY b.
 --echo ============================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query3;
 --disable_query_log
 send_eval $query3;
@@ -128,7 +128,7 @@ alter table child add key(b);
 --echo Late 'online' drop of REF'ed child's KEY b.
 --echo ============================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query3;
 --disable_query_log
 send_eval $query3;
@@ -151,7 +151,7 @@ alter table child add key(b);
 --echo Early drop of EQ_REF'ed child's PRIMARY KEY.
 --echo ============================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
@@ -172,7 +172,7 @@ alter table child add primary key(a,b);
 --echo Drop of EQ_REF'ed child's PRIMARY KEY after executed a while.
 --echo =============================================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
@@ -196,7 +196,7 @@ alter table child add primary key(a,b);
 --echo ONLINE ALTER: Rename table to make it go away - temporarily
 --echo ===========================================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
@@ -218,7 +218,7 @@ alter table child_orig rename to child;
 --echo OFFLINE ALTER: Rename table to make it go away - temporarily
 --echo ==========================================*=================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
@@ -241,7 +241,7 @@ alter table child_orig rename to child;
 --echo ONLINE ALTER: drop + recreate table 'child' key b in use by query
 --echo =================================================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query3;
 --disable_query_log
 send_eval $query3;
@@ -263,7 +263,7 @@ alter table child add key(b);
 --echo ONLINE ALTER: drop + recreate table 'parent' key b in use by query
 --echo ==================================================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
@@ -285,7 +285,7 @@ alter table parent add key(b);
 --echo OFFLINE ALTER: add + drop column c from 'child'
 --echo ===============================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
@@ -307,7 +307,7 @@ alter table child drop column c;
 --echo OFFLINE ALTER: drop + recreate primary key(a,b) for 'child'
 --echo ==========================================================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query2;
 --disable_query_log
 send_eval $query2;
@@ -329,7 +329,7 @@ alter table child add primary key(a,b);
 --echo DROP TABLE 'child'
 --echo ==================
 connection server1;
---replace_column 9 ###
+--replace_column 10 ### 11 ###
 eval explain $query1;
 --disable_query_log
 send_eval $query1;
