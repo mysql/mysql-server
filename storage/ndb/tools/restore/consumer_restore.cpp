@@ -217,7 +217,7 @@ BackupRestore::convert_integral(const void * source,
   return target;
 }
 
-static const uint
+static uint
 truncate_fraction(uint f, uint n_old, uint n_new, bool& truncated)
 {
   static const uint pow10[1 + 6] = {
