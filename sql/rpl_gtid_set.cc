@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -838,6 +838,36 @@ int Gtid_set::to_string(char *buf, const Gtid_set::String_format *sf) const
              (ulong) strlen(buf), (ulong) (s - buf), get_string_length(sf)));
   DBUG_ASSERT(s - buf == get_string_length(sf));
   DBUG_RETURN((int)(s - buf));
+}
+
+
+void Gtid_set::get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const
+{
+  DBUG_ENTER("Gtid_set::get_gtid_intervals");
+  DBUG_ASSERT(sid_map != NULL);
+  if (sid_lock != NULL)
+    sid_lock->assert_some_wrlock();
+  rpl_sidno map_max_sidno= sid_map->get_max_sidno();
+  DBUG_ASSERT(get_max_sidno() <= map_max_sidno);
+  for (int sid_i= 0; sid_i < map_max_sidno; sid_i++)
+  {
+    rpl_sidno sidno= sid_map->get_sorted_sidno(sid_i);
+    if (contains_sidno(sidno))
+    {
+      Const_interval_iterator ivit(this, sidno);
+      const Interval *iv= ivit.get();
+      while (iv != NULL)
+      {
+        Gtid_interval gtid_interval;
+        gtid_interval.set(sidno, iv->start, iv->end - 1);
+        gtid_intervals->push_back(gtid_interval);
+        ivit.next();
+        iv= ivit.get();
+      };
+    }
+  }
+
+  DBUG_VOID_RETURN;
 }
 
 
