@@ -1,6 +1,6 @@
 
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,9 @@
  *
  */
 
-
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
