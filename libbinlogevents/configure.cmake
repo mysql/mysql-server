@@ -17,11 +17,14 @@
 INCLUDE(CheckTypeSize)
 INCLUDE(CheckIncludeFiles)
 INCLUDE(CheckSymbolExists)
+INCLUDE(CheckFunctionExists)
 INCLUDE(TestBigEndian)
 
 CHECK_INCLUDE_FILES(stdint.h HAVE_STDINT_H)
 # depending on the platform, we may or may not have this file
 CHECK_INCLUDE_FILES(endian.h HAVE_ENDIAN_H)
+
+CHECK_FUNCTION_EXISTS(strndup HAVE_STRNDUP)
 
 # The header for glibc versions less than 2.9 will not
 # have the endian conversion macros defined
