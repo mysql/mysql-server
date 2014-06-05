@@ -2006,8 +2006,17 @@ public:
   */
   PSI_table *m_psi;
 
+private:
+  bool m_psi_batch_mode;
+  ulonglong m_psi_numrows;
+  PSI_table_locker *m_psi_locker;
+  PSI_table_locker_state m_psi_locker_state;
+
+public:
   virtual void unbind_psi();
   virtual void rebind_psi();
+  void start_psi_batch_mode();
+  void end_psi_batch_mode();
 
 private:
   friend class DsMrr_impl;
@@ -2037,7 +2046,8 @@ public:
     pushed_cond(0), pushed_idx_cond(NULL), pushed_idx_cond_keyno(MAX_KEY),
     next_insert_id(0), insert_id_for_cur_row(0),
     auto_inc_intervals_count(0),
-    m_psi(NULL), m_lock_type(F_UNLCK), ha_share(NULL)
+    m_psi(NULL), m_psi_batch_mode(false), m_psi_numrows(0), m_psi_locker(NULL),
+    m_lock_type(F_UNLCK), ha_share(NULL)
     {
       DBUG_PRINT("info",
                  ("handler created F_UNLCK %d F_RDLCK %d F_WRLCK %d",
