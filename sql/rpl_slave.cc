@@ -3421,14 +3421,6 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   DBUG_RETURN(0);
 }
 
-/**
-   a sort_dynamic function on ulong type
-   returns as specified by @c qsort_cmp
-*/
-int ulong_cmp(ulong *id1, ulong *id2)
-{
-  return *id1 < *id2? -1 : (*id1 > *id2? 1 : 0);
-}
 
 /**
   Applies the given event and advances the relay log position.
@@ -5214,9 +5206,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   {
     Slave_worker *w_i;
     get_dynamic(&rli->workers, (uchar *) &w_i, i);
-    set_dynamic(&rli->least_occupied_workers, (uchar*) &w_i->jobs.len, w_i->id);
+    rli->least_occupied_workers[w_i->id]= w_i->jobs.len;
   };
-  sort_dynamic(&rli->least_occupied_workers, (qsort_cmp) ulong_cmp);
+  std::sort(rli->least_occupied_workers.begin(),
+            rli->least_occupied_workers.end());
 
   if (need_data_lock)
     mysql_mutex_lock(&rli->data_lock);
@@ -5323,8 +5316,10 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
   mysql_mutex_unlock(&w->jobs_lock);
   // Least occupied inited with zero
-  insert_dynamic(&rli->least_occupied_workers, (uchar*) &w->jobs.len);
-
+  {
+    ulong jobs_len= w->jobs.len;
+    rli->least_occupied_workers.push_back(jobs_len);
+  }
 err:
   if (error && w)
   {
@@ -5378,7 +5373,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
   my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
-  my_init_dynamic_array(&rli->least_occupied_workers, sizeof(ulong), n, 0); 
+  rli->least_occupied_workers.resize(n); 
 
   /* 
      GAQ  queue holds seqno:s of scheduled groups. C polls workers in 
@@ -5589,7 +5584,7 @@ end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
-  delete_dynamic(&rli->least_occupied_workers);    // least occupied
+  rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
   for (uint i= 0; i < rli->curr_group_da.elements; i++)
