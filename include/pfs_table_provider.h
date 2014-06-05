@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -66,7 +66,7 @@ pfs_start_table_lock_wait_v1(PSI_table_locker_state *state,
                              ulong op_flags,
                              const char *src_file, uint src_line);
 
-void pfs_end_table_io_wait_v1(PSI_table_locker* locker);
+void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows);
 
 void pfs_end_table_lock_wait_v1(PSI_table_locker* locker);
 

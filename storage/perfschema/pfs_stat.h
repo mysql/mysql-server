@@ -106,6 +106,16 @@ struct PFS_single_stat
     if (unlikely(m_max < value))
       m_max= value;
   }
+
+  inline void aggregate_many_value(ulonglong value, ulonglong count)
+  {
+    m_count+= count;
+    m_sum+= value;
+    if (unlikely(m_min > value))
+      m_min= value;
+    if (unlikely(m_max < value))
+      m_max= value;
+  }
 };
 
 /** Combined statistic. */

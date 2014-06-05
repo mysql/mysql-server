@@ -3984,7 +3984,7 @@ void pfs_end_cond_wait_v1(PSI_cond_locker* locker, int rc)
   Implementation of the table instrumentation interface.
   @sa PSI_v1::end_table_io_wait.
 */
-void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
+void pfs_end_table_io_wait_v1(PSI_table_locker* locker, ulonglong numrows)
 {
   PSI_table_locker_state *state= reinterpret_cast<PSI_table_locker_state*> (locker);
   DBUG_ASSERT(state != NULL);
@@ -4030,11 +4030,11 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
   {
     timer_end= state->m_timer();
     wait_time= timer_end - state->m_timer_start;
-    stat->aggregate_value(wait_time);
+    stat->aggregate_many_value(wait_time, numrows);
   }
   else
   {
-    stat->aggregate_counted();
+    stat->aggregate_counted(numrows);
   }
 
   if (flags & STATE_FLAG_THREAD)
@@ -4051,11 +4051,11 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
     */
     if (flags & STATE_FLAG_TIMED)
     {
-      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_value(wait_time);
+      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_many_value(wait_time, numrows);
     }
     else
     {
-      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_counted();
+      event_name_array[GLOBAL_TABLE_IO_EVENT_INDEX].aggregate_counted(numrows);
     }
 
     if (flags & STATE_FLAG_EVENT)
@@ -4065,6 +4065,7 @@ void pfs_end_table_io_wait_v1(PSI_table_locker* locker)
 
       wait->m_timer_end= timer_end;
       wait->m_end_event_id= thread->m_event_id;
+      wait->m_number_of_bytes= numrows;
       if (flag_events_waits_history)
         insert_events_waits_history(thread, wait);
       if (flag_events_waits_history_long)

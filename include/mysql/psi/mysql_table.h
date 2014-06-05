@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -51,72 +51,6 @@
     PSI_table_locker_state STATE;
 #else
   #define MYSQL_TABLE_WAIT_VARIABLES(LOCKER, STATE)
-#endif
-
-/**
-  @def MYSQL_TABLE_IO_WAIT
-  Instrumentation helper for table io_waits.
-  This instrumentation marks the start of a wait event.
-  @param PSI the instrumented table
-  @param OP the table operation to be performed
-  @param INDEX the table index used if any, or MAY_KEY.
-  @param FLAGS per table operation flags.
-  @sa MYSQL_END_TABLE_WAIT.
-*/
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  #define MYSQL_TABLE_IO_WAIT(PSI, OP, INDEX, FLAGS, PAYLOAD) \
-    {                                                         \
-      if (PSI != NULL)                                        \
-      {                                                       \
-        PSI_table_locker *locker;                             \
-        PSI_table_locker_state state;                         \
-        locker= PSI_TABLE_CALL(start_table_io_wait)           \
-          (& state, PSI, OP, INDEX, __FILE__, __LINE__);      \
-        PAYLOAD                                               \
-        if (locker != NULL)                                   \
-          PSI_TABLE_CALL(end_table_io_wait)(locker);          \
-      }                                                       \
-      else                                                    \
-      {                                                       \
-        PAYLOAD                                               \
-      }                                                       \
-    }
-#else
-  #define MYSQL_TABLE_IO_WAIT(PSI, OP, INDEX, FLAGS, PAYLOAD) \
-    PAYLOAD
-#endif
-
-/**
-  @def MYSQL_TABLE_LOCK_WAIT
-  Instrumentation helper for table io_waits.
-  This instrumentation marks the start of a wait event.
-  @param PSI the instrumented table
-  @param OP the table operation to be performed
-  @param FLAGS per table operation flags.
-  @param PAYLOAD the code to instrument.
-  @sa MYSQL_END_TABLE_WAIT.
-*/
-#ifdef HAVE_PSI_TABLE_INTERFACE
-  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
-    {                                                    \
-      if (PSI != NULL)                                   \
-      {                                                  \
-        PSI_table_locker *locker;                        \
-        PSI_table_locker_state state;                    \
-        locker= PSI_TABLE_CALL(start_table_lock_wait)    \
-          (& state, PSI, OP, FLAGS, __FILE__, __LINE__); \
-        PAYLOAD                                          \
-        if (locker != NULL)                              \
-          PSI_TABLE_CALL(end_table_lock_wait)(locker);   \
-      }                                                  \
-      else                                               \
-      {                                                  \
-        PAYLOAD                                          \
-      }                                                  \
-    }
-#else
-  #define MYSQL_TABLE_LOCK_WAIT(PSI, OP, FLAGS, PAYLOAD) \
-    PAYLOAD
 #endif
 
 /**
