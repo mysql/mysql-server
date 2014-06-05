@@ -22,7 +22,7 @@
 
 --source include/not_gtid_enabled.inc
 # connection-server-id is a debug option. That's why we need include/have_debug.inc
---source include/have_debug.inc
+--source include/mysqlbinlog_have_debug.inc
 
 # As it is enough to test with one binlog format.
 --source include/have_binlog_format_statement.inc
