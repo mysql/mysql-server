@@ -605,12 +605,14 @@ public:
                       Gtid *last_gtid, bool verify_checksum,
                       bool need_lock);
 
-  void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
+  void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
-    previous_gtid_set= previous_gtid_set_param;
+    DBUG_ASSERT(is_relay_log);
+    previous_gtid_set_relaylog= previous_gtid_set_param;
   }
 private:
-  Gtid_set* previous_gtid_set;
+  /* The prevoius gtid set in relay log. */
+  Gtid_set* previous_gtid_set_relaylog;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
   bool change_stage(THD *thd, Stage_manager::StageID stage,

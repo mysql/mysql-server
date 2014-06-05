@@ -12799,7 +12799,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   if (keys_per_group == 0)
   {
     /* If there is no statistics try to guess */
-    keys_per_group= guess_rec_per_key(table, index_info, group_key_parts);
+    keys_per_group=
+      static_cast<uint>(guess_rec_per_key(table, index_info, group_key_parts));
   }
   num_groups= (uint)(table_records / keys_per_group) + 1;
 
@@ -12819,7 +12820,8 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
     if (keys_per_subgroup == 0)
     {
       // If no index statistics then we use a guessed records per key value.
-      keys_per_subgroup= guess_rec_per_key(table, index_info, used_key_parts);
+      keys_per_subgroup=
+        static_cast<uint>(guess_rec_per_key(table, index_info, used_key_parts));
       set_if_smaller(keys_per_subgroup, keys_per_group);
     }
 
