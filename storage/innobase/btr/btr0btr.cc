@@ -909,6 +909,7 @@ log record during recovery
 @param[in]	mtr			mini-transaction handle
 record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
+
 ulint
 btr_create(
 	ulint			type,
@@ -924,6 +925,8 @@ btr_create(
 	buf_frame_t*		frame;
 	page_t*			page;
 	page_zip_des_t*		page_zip;
+
+	ut_ad(mtr->is_named_space(space));
 
 	/* Create the two new segments (one, in the case of an ibuf tree) for
 	the index tree; the segment headers are put on the allocated root page
@@ -1131,6 +1134,7 @@ top_loop:
 /** Frees the B-tree root page. Other tree MUST already have been freed.
 @param[in]	root_page_id	id of the root page
 @param[in,out]	mtr		mini-transaction */
+
 void
 btr_free_root(
 	const page_id_t&	root_page_id,
@@ -1140,7 +1144,7 @@ btr_free_root(
 	buf_block_t*	block;
 	fseg_header_t*	header;
 
-	mtr->set_named_space(root_page_id.space());
+	ut_ad(mtr->is_named_space(root_page_id.space()));
 
 	block = btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
 
