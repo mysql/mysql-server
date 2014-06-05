@@ -68,7 +68,7 @@ enum PSI_memory_key_to_int
 
   @return    The duplicated string, or NULL if insufficient memory was available.
 */
-#ifdef _WIN32
+#ifndef HAVE_STRNDUP
 inline char *strndup (const char *s, size_t n)
 {
   char *result;
