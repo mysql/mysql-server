@@ -68,4 +68,15 @@ inline const T pointer_cast(const void *p)
   return static_cast<const T>(p);
 }
 
+/**
+  Casts from one pointer type to another in a type hierarchy.
+  In debug mode, we verify the cast is indeed legal.
+ */
+template<typename Target, typename Source>
+inline Target down_cast(Source arg)
+{
+  DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
+  return static_cast<Target>(arg);
+}
+
 #endif  // TEMPLATE_UTILS_INCLUDED

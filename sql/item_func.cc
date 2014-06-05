@@ -5660,7 +5660,8 @@ Item_func_get_user_var::val_str(String *str)
   DBUG_ENTER("Item_func_get_user_var::val_str");
   if (!var_entry)
     DBUG_RETURN((String*) 0);			// No such variable
-  DBUG_RETURN(var_entry->val_str(&null_value, str, decimals));
+  String *res= var_entry->val_str(&null_value, str, decimals);
+  DBUG_RETURN(res);
 }
 
 
