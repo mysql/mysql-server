@@ -372,10 +372,10 @@ testcase(Ndb_cluster_connection&cc, int flag)
 		}
 		memset(c.buf, 'B', c.bufsiz);
 		if (useBuf) {
-		    if (op->getValue(c.aAttrName, c.buf + off) < 0)
+                    if (op->getValue(c.aAttrName, c.buf + off) == NULL)
 			return ndberror("getValue key=%d col=%d", key, i);
 		} else {
-		    if ((c.aRa = op->getValue(c.aAttrName)) == 0)
+                    if ((c.aRa = op->getValue(c.aAttrName)) == NULL)
 			return ndberror("getValue key=%d col=%d", key, i);
 		}
 	    }
@@ -469,7 +469,7 @@ testcase(Ndb_cluster_connection&cc, int flag)
 	for (i = 0; i < attrcnt; i++) {
 	    col& c = ccol[i];
 	    if (i == 0) {
-		if (op->getValue(c.aAttrName, (char*)&newkey) < 0)
+                if (op->getValue(c.aAttrName, (char*)&newkey) == NULL)
 		    return ndberror("getValue key=%d col=%d", key, i);
 	    } else {
 		if (xverbose) {
@@ -482,10 +482,10 @@ testcase(Ndb_cluster_connection&cc, int flag)
 		}
 		memset(c.buf, 'C', c.bufsiz);
 		if (useBuf) {
-		    if (op->getValue(c.aAttrName, c.buf + off) < 0)
+                    if (op->getValue(c.aAttrName, c.buf + off) == NULL)
 			return ndberror("getValue key=%d col=%d", key, i);
 		} else {
-		    if ((c.aRa = op->getValue(c.aAttrName)) == 0)
+                    if ((c.aRa = op->getValue(c.aAttrName)) == NULL)
 			return ndberror("getValue key=%d col=%d", key, i);
 		}
 	    }
