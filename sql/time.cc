@@ -303,8 +303,15 @@ static bool number_to_time_with_warn(bool neg, ulonglong nr, ulong sec_part,
   else
   {
     f_type= MYSQL_TYPE_DATETIME;
-    res= neg ? -1 : number_to_datetime(nr, sec_part, ltime, fuzzydate, &was_cut);
-    have_warnings= was_cut && (fuzzydate & TIME_NO_ZERO_IN_DATE);
+    if (neg)
+    {
+      res= -1;
+    }
+    else
+    {
+      res= number_to_datetime(nr, sec_part, ltime, fuzzydate, &was_cut);
+      have_warnings= was_cut && (fuzzydate & TIME_NO_ZERO_IN_DATE);
+    }
   }
 
   if (res < 0 || have_warnings)
