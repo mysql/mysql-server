@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-#
 # Setup semisync master
 # Usage:
 # --source include/install_semisync_slave.inc

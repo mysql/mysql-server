@@ -1972,5 +1972,112 @@ AND o.c4=7 XOR o.pk=3 ORDER BY o.pk;
 x
 DROP TABLE t1,t2,t3;
 # End of 5.6 tests
+#
+# Bug #18770217 	DIFFERENT RESULT WITH SP ON 2ND EXECUTION OF QUERY WITH STRAIGHT_JOIN IN NOT IN
+#
+CREATE TABLE t1 (
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t1 VALUES (8,'x','x');
+INSERT INTO t1 VALUES (NULL,'x','x');
+CREATE TABLE t2 (
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t2 VALUES (0,'x','x');
+CREATE TABLE t3 (
+col_int_key INT,
+col_varchar_key VARCHAR(1),
+col_varchar_nokey VARCHAR(1),
+KEY col_int_key (col_int_key),
+KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+INSERT INTO t3 VALUES (8,'g','g');
+CREATE VIEW view_d AS SELECT * FROM t2;
+EXPLAIN SELECT alias2.col_int_key
+FROM t1 AS alias1 , t2 AS alias2
+WHERE alias1.col_varchar_key NOT IN (
+SELECT sq1_alias1.col_varchar_nokey
+FROM t3 AS sq1_alias1
+JOIN ( t1 AS sq1_alias2
+STRAIGHT_JOIN view_d AS sq1_alias3 )
+WHERE (
+SELECT col_int_key
+FROM t1 AS c_sq1_alias1
+WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
+)
+)
+;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	PRIMARY	alias2	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+1	PRIMARY	alias1	NULL	index	NULL	col_varchar_key	9	NULL	2	100.00	Using where; Using index
+2	SUBQUERY	sq1_alias1	NULL	system	NULL	NULL	NULL	NULL	1	100.00	NULL
+2	SUBQUERY	sq1_alias2	NULL	index	NULL	col_int_key	5	NULL	2	100.00	Using index
+2	SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	1	100.00	Using where; Using join buffer (Block Nested Loop)
+3	DEPENDENT SUBQUERY	c_sq1_alias1	NULL	ref	col_varchar_key	col_varchar_key	4	func	2	100.00	Using where; Using index
+Warnings:
+Note	1276	Field or reference 'sq1_alias3.col_varchar_nokey' of SELECT #3 was resolved in SELECT #2
+Note	1003	/* select#1 */ select '0' AS `col_int_key` from `test`.`t1` `alias1` where (not(<in_optimizer>(`test`.`alias1`.`col_varchar_key`,`test`.`alias1`.`col_varchar_key` in ( <materialize> (/* select#2 */ select 'g' from `test`.`t1` `sq1_alias2` join `test`.`t2` where (/* select#3 */ select `test`.`c_sq1_alias1`.`col_int_key` from `test`.`t1` `c_sq1_alias1` where (`test`.`c_sq1_alias1`.`col_varchar_key` = `test`.`t2`.`col_varchar_nokey`)) having 1 ), <primary_index_lookup>(`test`.`alias1`.`col_varchar_key` in <temporary table> on <auto_key> where ((`test`.`alias1`.`col_varchar_key` = `materialized-subquery`.`col_varchar_nokey`)))))))
+SELECT alias2.col_int_key
+FROM t1 AS alias1 , t2 AS alias2
+WHERE alias1.col_varchar_key NOT IN (
+SELECT sq1_alias1.col_varchar_nokey
+FROM t3 AS sq1_alias1
+JOIN ( t1 AS sq1_alias2
+STRAIGHT_JOIN view_d AS sq1_alias3 )
+WHERE (
+SELECT col_int_key
+FROM t1 AS c_sq1_alias1
+WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
+)
+)
+;
+ERROR 21000: Subquery returns more than 1 row
+CREATE PROCEDURE stored_proc_2581 () LANGUAGE SQL SELECT alias2.col_int_key
+FROM t1 AS alias1 , t2 AS alias2
+WHERE alias1.col_varchar_key NOT IN (
+SELECT sq1_alias1.col_varchar_nokey
+FROM t3 AS sq1_alias1
+JOIN ( t1 AS sq1_alias2
+STRAIGHT_JOIN view_d AS sq1_alias3 )
+WHERE (
+SELECT col_int_key
+FROM t1 AS c_sq1_alias1
+WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
+)
+)
+;
+CALL stored_proc_2581;
+ERROR 21000: Subquery returns more than 1 row
+CALL stored_proc_2581;
+ERROR 21000: Subquery returns more than 1 row
+DROP PROCEDURE stored_proc_2581;
+PREPARE s FROM 'SELECT alias2.col_int_key
+FROM t1 AS alias1 , t2 AS alias2
+WHERE alias1.col_varchar_key NOT IN (
+SELECT sq1_alias1.col_varchar_nokey
+FROM t3 AS sq1_alias1
+JOIN ( t1 AS sq1_alias2
+STRAIGHT_JOIN view_d AS sq1_alias3 )
+WHERE (
+SELECT col_int_key
+FROM t1 AS c_sq1_alias1
+WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
+)
+)
+';
+EXECUTE s;
+ERROR 21000: Subquery returns more than 1 row
+EXECUTE s;
+ERROR 21000: Subquery returns more than 1 row
+DROP VIEW view_d;
+DROP TABLE t1,t2,t3;
 set @@optimizer_switch=@old_opt_switch;
 set optimizer_switch=default;

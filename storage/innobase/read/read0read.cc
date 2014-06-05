@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -198,9 +198,11 @@ Validates a read view list. */
 bool
 MVCC::validate() const
 {
+	ViewCheck	check;
+
 	ut_ad(mutex_own(&trx_sys->mutex));
 
-	ut_list_map(m_views, ViewCheck());
+	ut_list_map(m_views, check);
 
 	return(true);
 }

@@ -6762,8 +6762,8 @@ bool Xid_log_event::do_commit(THD *thd_arg)
                   DBUG_SUICIDE(););
   thd_arg->mdl_context.release_transactional_locks();
 
-  if (thd_arg->variables.gtid_next.type == GTID_GROUP &&
-      thd_arg->owned_gtid.sidno != 0)
+  if (!error && thd_arg->variables.gtid_next.type == GTID_GROUP &&
+      thd_arg->owned_gtid.sidno != 0 && opt_bin_log && opt_log_slave_updates)
   {
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd_arg);
@@ -12619,7 +12619,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     truncated transaction and move on.
   */
   if (thd->owned_gtid.sidno)
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
   if (spec.type == ANONYMOUS_GROUP)
   {

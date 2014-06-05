@@ -1,0 +1,7 @@
+SET GLOBAL binlog_group_commit_sync_delay=1000000;
+SET @clock_in = SYSDATE();
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
+include/assert.inc ["Assert that the statement never takes less than the delay set."]
+SET GLOBAL binlog_group_commit_sync_delay=0;
+DROP TABLE t1;

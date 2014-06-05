@@ -1,5 +1,7 @@
 --source include/have_gb18030.inc
---source include/no_valgrind_without_big.inc
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
+
 
 SET @test_character_set= 'gb18030';
 SET @test_collation= 'gb18030_chinese_ci';
