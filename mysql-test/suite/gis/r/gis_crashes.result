@@ -119,3 +119,6 @@ default_tmp_storage_engine	MyISAM
 SELECT ST_Intersects(GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),GeomFromWKB(MULTIPOINT(POINT(8,9))));
 ST_Intersects(GeomFromWKB(AsWKB(GeomFromText('MULTIPOLYGON(((4 4,9 10.0002,4 4),(5 0,2 6,5 0)))'))),GeomFromWKB(MULTIPOINT(POINT(8,9))))
 0
+SELECT astext(ST_ConvexHull(GeomFromText('POINT(10 10)')));
+astext(ST_ConvexHull(GeomFromText('POINT(10 10)')))
+POINT(10 10)
