@@ -85,8 +85,8 @@ public:
 namespace bgm= boost::geometry::model;
 namespace bgcs= boost::geometry::cs;
 
-static bool
-is_colinear(const BG_models<double, bgcs::cartesian>::Linestring &ls);
+template <typename Point_range>
+static bool is_colinear(const Point_range &ls);
 
 
 
@@ -475,8 +475,7 @@ public:
   {
     if (geotype == Geometry::wkb_point)
     {
-      DBUG_ASSERT(len == POINT_DATA_SIZE);
-      Gis_point pt(wkb, len, Geometry::Flags_t(Geometry::wkb_point, len),
+      Gis_point pt(wkb, POINT_DATA_SIZE, Geometry::Flags_t(Geometry::wkb_point, len),
                    m_mpts->get_srid());
       m_mpts->push_back(pt);
       pt_start= static_cast<const char *>(wkb);
@@ -602,8 +601,11 @@ String *Item_func_convex_hull::val_str(String *str)
 
   str->set_charset(&my_charset_bin);
   str->length(0);
+  null_value= bg_convex_hull<bgcs::cartesian>(geom, str);
+  if (!null_value && geom->get_type() == Geometry::wkb_point)
+    str->takeover(*swkb);
 
-  if ((null_value= bg_convex_hull<bgcs::cartesian>(geom, str)))
+  if (null_value)
     return NULL;
   return str;
 }
@@ -614,8 +616,7 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
 {
   typename BG_models<double, Coordsys>::Polygon hull;
   typename BG_models<double, Coordsys>::Linestring line_hull;
-
-  bool is_linear_hull= false;
+  Geometry::wkbType geotype= geom->get_type();
 
   // Release last call's result buffer.
   bg_resbuf_mgr.free_result_buffer();
@@ -626,15 +627,67 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
 
   try
   {
-    switch (geom->get_type())
+    if (geotype == Geometry::wkb_multipoint ||
+        geotype == Geometry::wkb_linestring ||
+        geotype == Geometry::wkb_multilinestring ||
+        geotype == Geometry::wkb_geometrycollection)
+    {
+      /*
+        It's likely that the multilinestring, linestring, geometry collection
+        and multipoint have all colinear points so the final hull is a
+        linear hull. If so we must get the linear hull otherwise we will get
+        an invalid polygon hull.
+       */
+      typename BG_models<double, Coordsys>::Multipoint mpts;
+      Point_accumulator pt_acc(&mpts);
+      const char *wkb_start= geom->get_cptr();
+      uint32 wkb_len= geom->get_data_size();
+      wkb_scanner(wkb_start, &wkb_len, geotype, false, &pt_acc);
+      bool isdone= true;
+
+      if (is_colinear(mpts))
+      {
+        boost::geometry::convex_hull(mpts, line_hull);
+        line_hull.set_srid(geom->get_srid());
+        null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
+      }
+      else if (geotype == Geometry::wkb_geometrycollection)
+      {
+        boost::geometry::convex_hull(mpts, hull);
+        hull.set_srid(geom->get_srid());
+        null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
+      }
+      else
+        isdone= false;
+
+      if (isdone)
+      {
+        bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
+        return false;
+      }
+    }
+
+    /*
+      From now on we don't have to consider linear hulls, it's impossible.
+
+      In theory we can use above multipoint to get convex hull for all 7 types
+      of geometries, however we'd better use BG standard logic for each type,
+      a tricky example would be: imagine an invalid polygon whose inner ring is
+      completely contains its outer ring inside, BG might return the outer ring
+      but if using the multipoint to get convexhull, we would get the
+      inner ring as result instead.
+    */
+    switch (geotype)
     {
     case Geometry::wkb_point:
       {
         DBUG_ASSERT(geom->has_geom_header_space());
         char *p= geom->get_cptr() - GEOM_HEADER_SIZE;
         write_geometry_header(p, geom->get_srid(), geom->get_geotype());
-        res_hull->set(p, GEOM_HEADER_SIZE + geom->get_nbytes(), &my_charset_bin);
-        bg_resbuf_mgr.set_result_buffer(p);
+        /*
+          In this case no need to hold buffer in bg_resbuf_mgr because the
+          buffer is taken over by our caller Item node.
+        */
         geom->set_ownmem(false);
         return false;
       }
@@ -652,13 +705,7 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
         typename BG_models<double, Coordsys>::Linestring
           geo(geom->get_data_ptr(), geom->get_data_size(),
               geom->get_flags(), geom->get_srid());
-        if (is_colinear(geo))
-        {
-          is_linear_hull= true;
-          boost::geometry::convex_hull(geo, line_hull);
-        }
-        else
-          boost::geometry::convex_hull(geo, hull);
+        boost::geometry::convex_hull(geo, hull);
       }
       break;
     case Geometry::wkb_multilinestring:
@@ -686,34 +733,16 @@ bool Item_func_convex_hull::bg_convex_hull(Geometry *geom, String *res_hull)
       }
       break;
     case Geometry::wkb_geometrycollection:
-      {
-        typename BG_models<double, Coordsys>::Multipoint mpts;
-        Point_accumulator pt_acc(&mpts);
-
-        const char *wkb_start= geom->get_cptr();
-        uint32 wkb_len= geom->get_data_size();
-        wkb_scanner(wkb_start, &wkb_len,
-                    Geometry::wkb_geometrycollection, false, &pt_acc);
-        boost::geometry::convex_hull(mpts, hull);
-      }
+      // Handled above.
+      DBUG_ASSERT(false);
       break;
     default:
       break;
     }
 
-    if (!is_linear_hull)
-    {
-      hull.set_srid(geom->get_srid());
-      null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
-    }
-    else
-    {
-      line_hull.set_srid(geom->get_srid());
-      null_value= post_fix_result(&bg_resbuf_mgr, line_hull, res_hull);
-    }
-
+    hull.set_srid(geom->get_srid());
+    null_value= post_fix_result(&bg_resbuf_mgr, hull, res_hull);
     bg_resbuf_mgr.set_result_buffer(const_cast<char *>(res_hull->ptr()));
-
   }
   CATCH_ALL("st_convexhull", null_value= true)
 
@@ -7569,8 +7598,8 @@ double Item_func_distance::bg_distance(Geometry *g1,
 
 
 // check whether all segments of a linestring are colinear.
-static bool
-is_colinear(const BG_models<double, bgcs::cartesian>::Linestring &ls)
+template <typename Point_range>
+static bool is_colinear(const Point_range &ls)
 {
   if (ls.size() < 3)
     return true;
@@ -7579,13 +7608,13 @@ is_colinear(const BG_models<double, bgcs::cartesian>::Linestring &ls)
 
   for (size_t i= 0; i < ls.size() - 2; i++)
   {
-    x1= ls[i].get<0>();
-    x2= ls[i + 1].get<0>();
-    x3= ls[i + 2].get<0>();
+    x1= ls[i].template get<0>();
+    x2= ls[i + 1].template get<0>();
+    x3= ls[i + 2].template get<0>();
 
-    y1= ls[i].get<1>();
-    y2= ls[i + 1].get<1>();
-    y3= ls[i + 2].get<1>();
+    y1= ls[i].template get<1>();
+    y2= ls[i + 1].template get<1>();
+    y3= ls[i + 2].template get<1>();
 
     X1= x2 - x1;
     X2= x3 - x2;

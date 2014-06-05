@@ -467,7 +467,7 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     DBUG_ASSERT(geotype == gtype || geotype == 0/* unknown */);
 
     if ((*wkb != Geometry::wkb_ndr && *wkb != Geometry::wkb_xdr) ||
-        gtype < Geometry::wkb_point || gtype > Geometry::wkb_last)
+        gtype < Geometry::wkb_first || gtype > Geometry::wkb_last)
       return NULL;
 
     gt= static_cast<Geometry::wkbType>(gtype);
@@ -478,7 +478,7 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
   }
   else
   {
-    DBUG_ASSERT(geotype >= Geometry::wkb_point && geotype<= Geometry::wkb_last);
+    DBUG_ASSERT(geotype >= Geometry::wkb_first && geotype<= Geometry::wkb_last);
     q= wkb;
     gt= static_cast<Geometry::wkbType>(geotype);
     handler->on_wkb_start(Geometry::wkb_ndr, gt, q, *len, false);
@@ -500,9 +500,8 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
   case Geometry::wkb_point:
     if (*len < POINT_DATA_SIZE)
       return NULL;
-    q+= 2 * POINT_DATA_SIZE;
-    *len-= 2 * POINT_DATA_SIZE;
-    DBUG_ASSERT(POINT_DATA_SIZE == 2 * SIZEOF_STORED_DOUBLE);
+    q+= POINT_DATA_SIZE;
+    *len-= POINT_DATA_SIZE;
     done= true;
     handler->on_wkb_end(q);
     break;
@@ -532,11 +531,11 @@ wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
     break;
   }
 
-  if (!done)
+  if (!done && q != NULL)
   {
     for (uint32 i= 0; i < ngeos; i++)
     {
-      q= wkb_scanner(wkb, len, comp_type, comp_hashdr, handler);
+      q= wkb_scanner(q, len, comp_type, comp_hashdr, handler);
       if (q == NULL)
         return NULL;
     }

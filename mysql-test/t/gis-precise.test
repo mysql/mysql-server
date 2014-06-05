@@ -388,4 +388,37 @@ select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Poin
 select astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
 select astext(centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
 select astext(convexhull(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
+
+
+SELECT AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
+SELECT AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
+SELECT AsText(Centroid(GeomFromText('linestring(0 0, 1 1, 2 2)')));
+SELECT AsText(Centroid(GeomFromText('multipoint(0 0, 1 1, 2 2)')));
+SELECT AsText(Centroid(GeomFromText('multilinestring((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+SELECT AsText(Centroid(GeomFromText('polygon((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+SELECT AsText(Centroid(GeomFromText('multipolygon(((0 0, 1 1, 2 2), (3 3, 4 4, 5 5)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
+SELECT AsText(Centroid(GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')));
+SELECT AsText(Centroid(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
+SELECT AsText(Centroid(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)))')));
+SELECT AsText(Centroid(GeomFromText('polygon((0 0, 1 0, 1 1, 0 1, 0 0))')));
+SELECT AsText(Centroid(GeomFromText('multipoint(0 0, 3 0, 3 3, 0 3, 0 0, 1 1, 2 1, 2 2, 1 2, 1 1)')));
+
+
+SELECT AsText(Convexhull(GeomFromText('GEOMETRYCOLLECTION(POINT(10 10),MULTIPOINT(0 0,10 10))')));
+SELECT AsText(Convexhull(GeomFromText('linestring(0 0, 1 1, 2 2)')));
+SELECT AsText(Convexhull(GeomFromText('multipoint(0 0, 1 1, 2 2)')));
+SELECT AsText(Convexhull(GeomFromText('multilinestring((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+SELECT AsText(Convexhull(GeomFromText('polygon((0 0, 1 1, 2 2), (3 3, 4 4, 5 5))')));
+SELECT AsText(Convexhull(GeomFromText('multipolygon(((0 0, 1 1, 2 2), (3 3, 4 4, 5 5)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
+SELECT AsText(Convexhull(GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')));
+SELECT AsText(Convexhull(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
+SELECT AsText(Convexhull(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)))')));
+SELECT AsText(Convexhull(GeomFromText('polygon((0 0, 1 0, 1 1, 0 1, 0 0))')));
+SELECT AsText(Convexhull(GeomFromText('multipoint(0 0, 3 0, 3 3, 0 3, 0 0, 1 1, 2 1, 2 2, 1 2, 1 1)')));
+
+--echo #
+--echo # Bug #18911154     CENTROID() RETURNING ERROR MESSAGE FOR VALID GEOMETRY-COLLECTION GEOMETRY
+--echo #
+SELECT AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION(MULTIPOINT(0 0,10 10))')));
+SELECT AsText(Centroid(GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
 --source include/gis_debug.inc
