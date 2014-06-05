@@ -119,7 +119,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     int ranVal = rand();
     int abortCount = ranVal % (records == 0 ? 100 : records); 
     bool abortTrans = false;
-    if (abort > 0){
+    if (abortPercent > 0){
       // Abort if abortCount is less then abortPercent 
       if (abortCount < abortPercent) 
 	abortTrans = true;
@@ -294,7 +294,7 @@ HugoTransactions::scanReadRecords(Ndb* pNdb,
     int ranVal = rand();
     int abortCount = ranVal % (records == 0 ? 100 : records); 
     bool abortTrans = false;
-    if (abort > 0){
+    if (abortPercent > 0){
       // Abort if abortCount is less then abortPercent 
       if (abortCount < abortPercent) 
 	abortTrans = true;
@@ -474,7 +474,7 @@ restart:
     int ranVal = rand();
     int abortCount = ranVal % (records == 0 ? 100 : records); 
     bool abortTrans = false;
-    if (abort > 0){
+    if (abortPercent > 0){
       // Abort if abortCount is less then abortPercent 
       if (abortCount < abortPercent) 
 	abortTrans = true;
