@@ -28,7 +28,7 @@ KeyOperation::~KeyOperation() {
   }
 }
 
-/* BlobHandler::prepareRead() and prepareWrite() will recurse the 
+/* BlobHandler::prepareRead() and prepareWrite() will iterate the 
    chain of BlobHandlers themselves, so we call the head only. 
 */
 inline void KeyOperation::prepareBlobReads(const NdbOperation * op) {

@@ -37,6 +37,10 @@ var Sqlstates = {
   // 23000 includes both duplicate primary key and duplicate unique key
   "23000" : "Integrity Constraint Violation",
 
+  // 0Fxxx "Locator Exception" SQLStates relate to BLOB values
+  // (which must represented in JavaScript as Node Buffers)
+  "0F001" : "Invalid BLOB value",
+
   // misc. errors
   "25000" : "Invalid Transaction State",  
   "2C000" : "Invalid character set name",  
