@@ -216,7 +216,7 @@ void test_noop()
 
 int main(int, char **)
 {
-  plan(34);
+  plan(33);
 
   MY_INIT("pfs_noop-t");
   test_noop();
