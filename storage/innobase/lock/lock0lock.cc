@@ -4745,7 +4745,8 @@ lock_print_info_all_transactions(
 	transactions will be omitted here. The information will be
 	available from INFORMATION_SCHEMA.INNODB_TRX. */
 
-	ut_list_map(trx_sys->mysql_trx_list, PrintNotStarted(file));
+	PrintNotStarted	print_not_started(file);
+	ut_list_map(trx_sys->mysql_trx_list, print_not_started);
 
 	const trx_t*	trx;
 	TrxListIterator	trx_iter;
