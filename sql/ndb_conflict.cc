@@ -1020,7 +1020,7 @@ st_ndb_slave_state::verifyNextEpoch(Uint64 next_epoch,
   DBUG_PRINT("info", ("ndb_apply_status write from upstream master."
                       "ServerId %u, Epoch %llu/%llu (%llu) "
                       "Current master server epoch %llu/%llu (%llu)"
-                      "Current master server epoch committed? %llu",
+                      "Current master server epoch committed? %u",
                       master_server_id,
                       next_epoch >> 32,
                       next_epoch & 0xffffffff,
