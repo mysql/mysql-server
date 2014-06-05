@@ -7775,6 +7775,17 @@ get_mm_leaf(RANGE_OPT_PARAM *param, COND *conf_func, Field *field,
   if (field->cmp_type() == STRING_RESULT && value->cmp_type() != STRING_RESULT)
     goto end;
   err= value->save_in_field_no_warnings(field, 1);
+  if (err == 2 && field->cmp_type() == STRING_RESULT)
+  {
+    if (type == Item_func::EQ_FUNC)
+    {
+      tree= new (alloc) SEL_ARG(field, 0, 0);
+      tree->type= SEL_ARG::IMPOSSIBLE;
+    }
+    else 
+      tree= NULL; /*  Cannot infer anything */
+    goto end;
+  }
   if (err > 0)
   {
     if (field->cmp_type() != value->result_type())

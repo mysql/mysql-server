@@ -1638,3 +1638,41 @@ UPDATE v3 SET f3=0, f4=4 WHERE f2=68 ORDER BY f1;
 SELECT * FROM v3;
 DROP TABLE t1;
 DROP VIEW v3;
+
+--echo #
+--echo # MDEV-6105: Emoji unicode character string search query makes mariadb performance down
+--echo #
+SET NAMES utf8;
+DROP TABLE IF EXISTS t1;
+CREATE TABLE t1(
+id int AUTO_INCREMENT,
+fd varchar(20),
+primary key(id),
+index ix_fd(fd)
+)engine=innodb default charset=UTF8;
+INSERT INTO t1(id, fd) VALUES (null, ''),(null, 'matt'),(null, 'pitt'),(null, 'lee'),(null, 'kim');
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+INSERT INTO t1 (fd) SELECT fd FROM t1;
+--echo # The following should show "Impossible WHERE" :
+explain
+SELECT * FROM t1 WHERE fd='😁';
+SELECT * FROM t1 WHERE fd='😁';
+
+--echo # The following must not use range access:
+explain select count(*) from t1 where fd <'😁';
+select count(*) from t1 where fd <'😁';
+select count(*) from t1 ignore index (ix_fd) where fd <'😁';
+
+drop table t1;
+set names default;
