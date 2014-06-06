@@ -135,19 +135,23 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
     op.row_record = record;
 
     v = spec->Get(HELPER_BLOBS);
-    if(! v->IsNull()) {
+    if(v->IsObject()) {
+      o = v->ToObject();
       int ncol = record->getNoOfColumns();
       for(int i = 0 ; i < ncol ; i++) {
         const NdbDictionary::Column * col = record->getColumn(i);
-        switch(col->getType()) {
-          case NdbDictionary::Column::Blob:
-          case NdbDictionary::Column::Text:
-            BlobHandler * next = op.blobHandler;
-            op.blobHandler = new BlobHandler(i, v);
-            op.blobHandler->setNext(next);
-            break;
-          default:
-            break;
+        Local<Value> blobValue = o->Get(i);
+        if(blobValue->IsObject()) {
+          switch(col->getType()) {
+            case NdbDictionary::Column::Blob:
+            case NdbDictionary::Column::Text:
+              BlobHandler * next = op.blobHandler;
+              op.blobHandler = new BlobHandler(col->getColumnNo(), v);
+              op.blobHandler->setNext(next);
+              break;
+            default:
+              break;
+          }
         }
       }    
     }
