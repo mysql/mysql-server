@@ -19,7 +19,8 @@ create table if not exists binary_test (
   id int not null PRIMARY KEY,
   bin_fix BINARY(20),
   bin_var VARBINARY(200),
-  bin_var_long VARBINARY(2000)
+  bin_var_long VARBINARY(2000),
+  bin_lob BLOB
 );
 
 delete from charset_test;
