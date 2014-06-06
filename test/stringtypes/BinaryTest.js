@@ -126,4 +126,21 @@ t4.run = function() {
   fail_openSession(this, new InsertFunction(data));
 };
 
-module.exports.tests = [t1, t2, t3, t4];
+var t5 = new harness.ConcurrentTest("t5:NonBufferInBinaryColumn");
+t5.run = function() {
+  var data;
+  data = new TestData();
+  data.bin_var_long = "Ceci n\'est pas un buffer";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      if(err) {
+        testCase.errorIfNotEqual("Expected Error", "22000", err.sqlstate);
+      } else {
+        testCase.addError("Expected error");
+      }
+      testCase.failOnError();
+    })
+  });
+}
+
+module.exports.tests = [t1, t2, t3, t4, t5];
