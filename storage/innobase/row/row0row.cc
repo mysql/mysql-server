@@ -67,8 +67,9 @@ row_build_index_entry_low(
 	mem_heap_t*		heap,	/*!< in: memory heap from which
 					the memory for the index entry
 					is allocated */
-	bool			del_purge)
-					/*!< in: from delete purge */
+	ulint			flag)	/*!< in: ROW_BUILD_NORMAL,
+					ROW_BUILD_FOR_PURGE
+                                        or ROW_BUILD_FOR_UNDO */
 {
 	dtuple_t*	entry;
 	ulint		entry_len;
@@ -129,11 +130,12 @@ row_build_index_entry_low(
 			if (dfield2->data) {
 				uchar*	dptr = NULL;
 				ulint	dlen = 0;
+				ulint	flen = 0;
 				double	tmp_mbr[SPDIMS * 2];
 				mem_heap_t*	temp_heap = NULL;
 
 				if (dfield_is_ext(dfield2)) {
-					if (del_purge) {
+					if (flag == ROW_BUILD_FOR_PURGE) {
 						byte* ptr =
 						static_cast<byte*>(
 							 dfield_get_data(
@@ -144,14 +146,31 @@ row_build_index_entry_low(
 						continue;
 					}
 
+					if (flag == ROW_BUILD_FOR_UNDO
+                                            && dict_table_get_format(index->table)
+                                                >= UNIV_FORMAT_B) {
+					        /* For build entry for undo, and
+                                                the table is Barrcuda, we need
+                                                to skip the prefix data. */
+                                                flen = BTR_EXTERN_FIELD_REF_SIZE;
+                                                ut_ad(dfield_get_len(dfield2) >=
+                                                      BTR_EXTERN_FIELD_REF_SIZE);
+                                                dptr = static_cast<byte*>(
+                                                        dfield_get_data(dfield2))
+                                                        + dfield_get_len(dfield2)
+                                                        - BTR_EXTERN_FIELD_REF_SIZE;
+					} else {
+                                                flen = dfield_get_len(dfield2);
+                                                dptr = static_cast<byte*>(
+                                                        dfield_get_data(dfield2));
+                                        }
 
 					temp_heap = mem_heap_create(1000);
 					dptr = btr_copy_externally_stored_field(
-						&dlen, static_cast<byte*>(
-						dfield_get_data(dfield2)),
+						&dlen, dptr,
 						dict_table_page_size(
 							index->table),
-						dfield_get_len(dfield2),
+						flen,
 						temp_heap);
 				} else {
 					dptr = static_cast<uchar*>(
