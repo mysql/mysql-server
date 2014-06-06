@@ -25,7 +25,8 @@
 
 class BlobHandler {
 public:
-  BlobHandler(int fieldNumber, v8::Handle<v8::Value> jsBlobs);
+  BlobHandler(int columnNumber, v8::Handle<v8::Object> jsBlobs);
+  ~BlobHandler();
   void prepareRead(const NdbOperation *);
   void prepareWrite(const NdbOperation *);  
   void setNext(BlobHandler *);
@@ -33,8 +34,8 @@ public:
 
 private:
   NdbBlob * ndbBlob;
-  v8::Handle<v8::Object> jsBlobsArray;
-  int fieldNumber;
+  v8::Persistent<v8::Object> jsBlobValue;
+  int columnNumber;
   BlobHandler * next;
 };
 
