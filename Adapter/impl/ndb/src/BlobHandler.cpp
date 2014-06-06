@@ -22,35 +22,45 @@
 #include <NdbApi.hpp>
 #include <node_buffer.h>
 
+#include "adapter_global.h"
+#include "unified_debug.h"
 #include "BlobHandler.h"
 
 
-BlobHandler::BlobHandler(int field, v8::Handle<v8::Value> jsBlobs) :
+BlobHandler::BlobHandler(int field, v8::Handle<v8::Object> blobValue) :
   ndbBlob(0),
-  fieldNumber(field),
+  columnNumber(field),
   next(0)
 {
-  jsBlobsArray = jsBlobs->ToObject();
-};
+  jsBlobValue = v8::Persistent<v8::Object>::New(blobValue);
+  DEBUG_PRINT("NEW %p", this);
+}
+
+BlobHandler::~BlobHandler() 
+{
+  jsBlobValue.Dispose();
+}
 
 void BlobHandler::prepareRead(const NdbOperation * ndbop) {
-  ndbBlob = ndbop->getBlobHandle(fieldNumber);
+  ndbBlob = ndbop->getBlobHandle(columnNumber);
   assert(ndbBlob);
 
   if(next) next->prepareRead(ndbop);
-};
+}
 
 void BlobHandler::prepareWrite(const NdbOperation * ndbop) {
-  ndbBlob = ndbop->getBlobHandle(fieldNumber);
-  assert(ndbBlob);
-  
-  v8::Handle<v8::Object> buffer = jsBlobsArray->Get(fieldNumber)->ToObject();
-  
-  char * content = node::Buffer::Data(buffer);
-  size_t length  = node::Buffer::Length(buffer);
+  ndbBlob = ndbop->getBlobHandle(columnNumber);
+  if(! ndbBlob) { 
+    DEBUG_PRINT("getBlobHandle: %s", ndbop->getNdbError().message);
+    assert(false);
+  }
+
+  char * content = node::Buffer::Data(jsBlobValue);
+  size_t length  = node::Buffer::Length(jsBlobValue);
+  DEBUG_PRINT("Prepare write for BLOB column %d, length %d", columnNumber, length);
 
   ndbBlob->setValue(content, length);
   
   if(next) next->prepareWrite(ndbop);
-};
+}
 

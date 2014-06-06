@@ -249,9 +249,8 @@ function encodeBounds(key, nfields, dbIndexHandler, buffer) {
 }
 
 function defineBlobs(nfields, metadata, values) {
-console.log("defineBlobs");
-  var blobs = [];
-  var i;
+  var i, blobs;
+  blobs = [];
   for(i = 0 ; i < nfields ; i++) {
     if(metadata[i].isLob) {
       blobs[i] = values[i];

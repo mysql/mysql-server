@@ -128,19 +128,58 @@ t4.run = function() {
 
 var t5 = new harness.ConcurrentTest("t5:NonBufferInBinaryColumn");
 t5.run = function() {
-  var data;
-  data = new TestData();
+  var data = new TestData();
   data.bin_var_long = "Ceci n\'est pas un buffer";
   fail_openSession(this, function(session, testCase) {
     session.persist(data, function(err) {
       if(err) {
         testCase.errorIfNotEqual("Expected Error", "22000", err.sqlstate);
       } else {
-        testCase.addError("Expected error");
+        testCase.appendErrorMessage("Expected error 22000 on insert");
       }
       testCase.failOnError();
-    })
+    });
   });
-}
+};
 
-module.exports.tests = [t1, t2, t3, t4, t5];
+// Insert a BLOB
+var t6 = new harness.ConcurrentTest("t6:InsertBLOB");
+t6.run = function() {
+  var data = new TestData();
+  data.bin_lob = new Buffer(20000);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      testCase.errorIfError(err);
+      testCase.failOnError();
+    });
+  });
+};
+
+// Attempt to insert a non-Buffer into a BLOB Column: 0F001
+var t7 = new harness.ConcurrentTest("t7:InsertNonBufferAsBLOB");
+t7.run = function() { 
+  var data = new TestData();
+  data.bin_lob = "aint no blob";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+     if(err) {
+        testCase.errorIfNotEqual("Expected Error", "0F001", err.sqlstate);
+      } else {
+        testCase.appendErrorMessage("Expected error 0F001 on insert");
+      }
+      testCase.failOnError();
+    });
+  });
+};
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7];
+
+
+//
+/*
+  for(i = 0 ; i < 20000 ; i++) {
+    value[i] = Math.ceil(Math.random() * 256);
+  }
+
+*/
+
