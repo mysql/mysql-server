@@ -687,9 +687,16 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
       // get a session the hard way (not using UserContext) to resolve mappings
       var sessionSlot = factory.allocateSessionSlot();
       factory.dbConnectionPool.getDBSession(userContext.session_index, function(err, dbSession) {
-        var newSession = new apiSession.Session(sessionSlot, factory, dbSession);
-        factory.sessions[sessionSlot] = newSession;
-        resolveTableMappingsOnSession(err, newSession);
+        if (err) {
+          // report error
+          userContext.appendErrorMessage(err);
+          err = new Error(userContext.errorMessages);
+          callback(err, null);          
+        } else {
+          var newSession = new apiSession.Session(sessionSlot, factory, dbSession);
+          factory.sessions[sessionSlot] = newSession;
+          resolveTableMappingsOnSession(err, newSession);
+        }
       });
     }
   };
@@ -719,6 +726,7 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
       // notify all others that the connection is now ready (or an error was signaled)
       for (i = 0; i < connection.waitingForConnection.length; ++i) {
         if(udebug.is_detail()) { udebug.log('dbConnectionPoolCreated_callback notifying...'); }
+        udebug.log('dbConnectionPoolCreated', error, dbConnectionPool);
         connection.waitingForConnection[i](error, dbConnectionPool);
       }
     } else {
@@ -726,7 +734,13 @@ var getSessionFactory = function(userContext, properties, tableMappings, callbac
       if (error) {
         callback(error, null);
       } else {
+        udebug.log('dbConnectionPoolCreated_callback', database, connection.factories);
         factory = connection.factories[database];
+        if (!factory) {
+          factory = createFactory(dbConnectionPool);
+          connection.factories[database] = factory;
+          connection.count++;
+        }
         resolveTableMappingsAndCallback();
       }
     }
