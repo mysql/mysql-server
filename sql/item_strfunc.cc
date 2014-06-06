@@ -195,16 +195,27 @@ String *Item_func_md5::val_str_ascii(String *str)
 }
 
 
+/*
+  The MD5()/SHA() functions treat their parameter as being a case sensitive.
+  Thus we set binary collation on it so different instances of MD5() will be
+  compared properly.
+*/
+static CHARSET_INFO *get_checksum_charset(const char *csname)
+{
+  CHARSET_INFO *cs= get_charset_by_csname(csname, MY_CS_BINSORT, MYF(0));
+  if (!cs)
+  {
+    // Charset has no binary collation: use my_charset_bin.
+    cs= &my_charset_bin;
+  }
+  return cs;
+}
+
+
 void Item_func_md5::fix_length_and_dec()
 {
-  /*
-    The MD5() function treats its parameter as being a case sensitive. Thus
-    we set binary collation on it so different instances of MD5() will be
-    compared properly.
-  */
-  args[0]->collation.set(
-      get_charset_by_csname(args[0]->collation.collation->csname,
-                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
+  CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
+  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   fix_length_and_charset(32, default_charset());
 }
 
@@ -239,14 +250,8 @@ String *Item_func_sha::val_str_ascii(String *str)
 
 void Item_func_sha::fix_length_and_dec()
 {
-  /*
-    The SHA() function treats its parameter as being a case sensitive. Thus
-    we set binary collation on it so different instances of MD5() will be
-    compared properly.
-  */
-  args[0]->collation.set(
-      get_charset_by_csname(args[0]->collation.collation->csname,
-                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
+  CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
+  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   // size of hex representation of hash
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
@@ -369,18 +374,9 @@ void Item_func_sha2::fix_length_and_dec()
       ER(ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
   }
 
-  /*
-    The SHA2() function treats its parameter as being a case sensitive.
-    Thus we set binary collation on it so different instances of SHA2()
-    will be compared properly.
-  */
+  CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
+  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
 
-  args[0]->collation.set(
-      get_charset_by_csname(
-        args[0]->collation.collation->csname,
-        MY_CS_BINSORT,
-        MYF(0)),
-      DERIVATION_COERCIBLE);
 #else
   push_warning_printf(current_thd,
     MYSQL_ERROR::WARN_LEVEL_WARN,
