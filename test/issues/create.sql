@@ -1,4 +1,6 @@
 use test;
+DROP TABLE if EXISTS towns;
+DROP TABLE if EXISTS a;
 
 CREATE TABLE if not exists `towns` (
   `town` varchar(50) NOT NULL,
