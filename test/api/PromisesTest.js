@@ -500,6 +500,7 @@ var testIdleCommit = new harness.ConcurrentTest('Idle commit must fail');
 testIdleCommit.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'Idle cannot commit');
     helpers.commit().
@@ -512,6 +513,7 @@ var testIdleRollback = new harness.ConcurrentTest('Idle rollback must fail');
 testIdleRollback.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'Idle cannot rollback');
     helpers.rollback().
@@ -525,6 +527,7 @@ testActiveBegin.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
     if (err) throw err;
+    testCase.session = session;
     var helpers = createHelpers(testCase, session, '2500', 'Active cannot begin');
     var p1 = helpers.begin();
       var p2 = p1.then(helpers.begin);
@@ -539,6 +542,7 @@ var testRollbackOnlyBegin = new harness.ConcurrentTest('RollbackOnly begin must 
 testRollbackOnlyBegin.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'RollbackOnly cannot begin');
     helpers.begin().
@@ -553,6 +557,7 @@ var testRollbackOnlyCommit = new harness.ConcurrentTest('RollbackOnly commit mus
 testRollbackOnlyCommit.run = function() {
   var testCase = this;
   mynode.openSession(good_properties, null, function(err, session) {
+    testCase.session = session;
     if (err) throw err;
     var helpers = createHelpers(testCase, session, '2500', 'RollbackOnly cannot commit');
     helpers.begin().

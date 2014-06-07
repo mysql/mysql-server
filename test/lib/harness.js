@@ -117,6 +117,10 @@ Test.prototype.pass = function() {
     console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
     assert(this.failed === null);
   } else {
+    if (this.session && !this.session.isClosed()) {
+      // if session is open, close it
+      this.session.close();
+    }
     this.failed = false;
     this.result.pass(this);
   }
@@ -127,6 +131,10 @@ Test.prototype.fail = function(message) {
     console.log('Error: pass called with status already ' + (this.failed?'failed':'passed'));
     assert(this.failed === null);
   } else {
+    if (this.session && !this.session.isClosed()) {
+      // if session is open, close it
+      this.session.close();
+    }
     this.failed = true;
     if (message) {
       this.appendErrorMessage(message);
