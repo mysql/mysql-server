@@ -333,14 +333,14 @@ exports.DBSession.prototype.TransactionHandler = function(dbSession) {
     udebug.log('MySQLConnection.TransactionHandler.commit.');
     transaction_stats.commit++;
     this.dbSession.pooledConnection.query('commit', callback);
-    this.dbSession.transactionHandler = null;
+    this.autocommit = true;
   };
 
   this.rollback = function(callback) {
     udebug.log('MySQLConnection.TransactionHandler.rollback.');
     transaction_stats.rollback++;
     this.dbSession.pooledConnection.query('rollback', callback);
-    this.dbSession.transactionHandler = null;
+    this.autocommit = true;
   };
 };
 
@@ -1216,7 +1216,6 @@ function createWhereSQL(dbTableHandler, index) {
       }
     }
   }
-//  console.log('getMetadata whereSQL for', index +':', whereSQL);
   return whereSQL;
 }
 

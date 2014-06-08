@@ -491,7 +491,18 @@ function createHelpers(testCase, session, errorSqlStateMatch, errorMessageMatch)
           testCase.appendErrorMessage('err.message must be a string.');
         }
       }
-      testCase.failOnError();
+      if (session.currentTransaction().isActive()) {
+        session.currentTransaction().rollback(function(err) {
+          if (err) {
+            err.message += '\n failure occurred on rollback after test in checkReportFailure';
+            testCase.fail(err);
+          } else {
+            testCase.failOnError();
+          }
+        });
+      } else {
+        testCase.failOnError();
+      }
     }
   };
 }

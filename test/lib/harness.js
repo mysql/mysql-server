@@ -119,6 +119,9 @@ Test.prototype.pass = function() {
   } else {
     if (this.session && !this.session.isClosed()) {
       // if session is open, close it
+      if (this.session.currentTransaction().isActive()) {
+        console.log('Test.pass found active transaction');
+      }
       this.session.close();
     }
     this.failed = false;
