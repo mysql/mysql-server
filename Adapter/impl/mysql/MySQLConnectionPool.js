@@ -77,6 +77,14 @@ function getDriverProperties(props) {
     driver.sql_mode = 'STRICT_ALL_TABLES';
   }
 
+  // connection pool maximum size
+  if (typeof props.mysql_pool_size !== 'undefined') {
+    driver.connectionLimit = props.mysql_pool_size;
+    if (props.mysql_pool_queue_size !== 'undefined') {
+      driver.queueLimit = props.mysql_pool_queue_size;
+    }
+  }
+  
   // allow multiple statements in one query (used to set character set)
   driver.multipleStatements = true;
   return driver;
@@ -141,13 +149,11 @@ DatabaseTypeConverterDateTime.prototype.fromDB =  function fromDB(dbDateTime) {
 
 
 
-/* Constructor saves properties but doesn't actually do anything with them.
+/* Constructor saves properties but doesn't actually do anything with them until connect is called.
 */
 exports.DBConnectionPool = function(props) {
   this.driverproperties = getDriverProperties(props);
   udebug.log('MySQLConnectionPool constructor with driverproperties: ' + util.inspect(this.driverproperties));
-  // connections not being used at the moment
-  this.pooledConnections = [];
   // connections that are being used (wrapped by DBSession)
   this.openConnections = [];
   this.is_connected = false;
@@ -159,6 +165,7 @@ exports.DBConnectionPool = function(props) {
   this.domainTypeConverterMap = {};
   this.domainTypeConverterMap.TIMESTAMP = new DomainTypeConverterDateTime();
   this.domainTypeConverterMap.DATETIME = new DomainTypeConverterDateTime();
+  this.pooling = props.mysql_pool_size ? true:false ;
   stats.created++;
 };
 
@@ -194,9 +201,10 @@ exports.DBConnectionPool.prototype.getDomainTypeConverter = function(typeName) {
  */
 exports.DBConnectionPool.prototype.getConnection = function(callback) {
   var connectionPool = this;
-  var connection, error;
+  var connection, error, pool;
 
   function getConnectionOnConnection(err, c) {
+    udebug.log('getConnectionOnConnection');
     if (err) {
       stats.connections.failed++;
       // create a new Error with a message and this stack
@@ -208,16 +216,27 @@ exports.DBConnectionPool.prototype.getConnection = function(callback) {
       callback(error);      
     } else {
       stats.connections.successful++;
-      callback(null, c);
+      if (connectionPool.pooling) {
+        callback(null, c);
+      } else {
+        callback(null, connection);
+      }
     }
   }
 
   // getConnection starts here
-  if (connectionPool.is_connected) {
+  if (connectionPool.pooling) {
+    // get a connection from the felix pool
+    udebug.log('getConnection using connection pooling: true');
+    connectionPool.pool.getConnection(getConnectionOnConnection);
+  } else if (connectionPool.is_connected || connectionPool.is_connecting) {
+    // create a new connection
+    udebug.log('getConnection using connection pooling: false');
     connection = mysql.createConnection(connectionPool.driverproperties);
     connection.connect(getConnectionOnConnection);
   } else {
-    callback(new Error('GetConnection called before connect.'));
+    // error
+    callback(new Error('getConnection called before connect.'));
   }
 };
 
@@ -226,21 +245,24 @@ exports.DBConnectionPool.prototype.getConnection = function(callback) {
  */
 exports.DBConnectionPool.prototype.releaseConnection = function(connection) {
   var connectionPool = this;
-  connection.end();
+  if (connectionPool.pooling) {
+    udebug.log('releaseConnection using connection pooling: true');
+    connection.release();
+  } else {
+    udebug.log('releaseConnection using connection pooling: false');
+    connection.end();
+  }
 };
 
-exports.DBConnectionPool.prototype.connect = function(user_callback) {
-  var callback = user_callback;
+/** Connect to the database. Verify connection properties.
+ * @param user_callback (err, connectionPool)
+ */
+exports.DBConnectionPool.prototype.connect = function(callback) {
   var connectionPool = this;
-  var pooledConnection;
   var error;
-  
-  if (this.is_connected) {
-    udebug.log('MySQLConnectionPool.connect is already connected');
-    callback(null, this);
-  } else {
-    pooledConnection = mysql.createConnection(this.driverproperties);
-    pooledConnection.connect(function(err) {
+
+  function connectOnConnection(err, connection) {
+    connectionPool.is_connecting = false;
     if (err) {
       stats.connections.failed++;
       // create a new Error with a message and this stack
@@ -252,30 +274,35 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
       callback(error);
     } else {
       stats.connections.successful++;
-      connectionPool.pooledConnections[0] = pooledConnection;
       connectionPool.is_connected = true;
+      connectionPool.releaseConnection(connection);
       callback(null, connectionPool);
     }
-  });
+  }
+
+  // connect begins here
+  if (connectionPool.is_connected) {
+    udebug.log('MySQLConnectionPool.connect is already connected');
+    callback(null, connectionPool);
+  } else {
+    connectionPool.is_connecting = true;
+    if (connectionPool.pooling) {
+      connectionPool.pool = mysql.createPool(connectionPool.driverproperties);
+    }
+    // verify that the connection properties work by getting a connection
+    connectionPool.getConnection(connectOnConnection);
   }
 };
 
 exports.DBConnectionPool.prototype.close = function(user_callback) {
+  var connectionPool = this;
   udebug.log('close');
   var i;
-  for (i = 0; i < this.pooledConnections.length; ++i) {
-    var pooledConnection = this.pooledConnections[i];
-    udebug.log('close ending pooled connection', i);
-    if (pooledConnection && pooledConnection._connectCalled) {
-      pooledConnection.end();
-    }
-  }
-  this.pooledConnections = [];
   for (i = 0; i < this.openConnections.length; ++i) {
     var openConnection = this.openConnections[i];
     udebug.log('close ending open connection', i);
     if (openConnection && openConnection._connectCalled) {
-      openConnection.end();
+      connectionPool.releaseConnection(openConnection);
     }
   }
   this.openConnections = [];
@@ -302,8 +329,6 @@ var countOpenConnections = function(connectionPool) {
 };
 
 exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
-  // get a connection from the pool
-  var pooledConnection = null;
   var connectionPool = this;
   var newDBSession = null;
   var charset = connectionPool.driverproperties.charset;
@@ -321,21 +346,7 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   function charsetComplete(err) {
     callback(err, newDBSession);
   }
-  if (this.pooledConnections.length > 0) {
-    udebug.log_detail('MySQLConnectionPool.getDBSession before found a pooledConnection for index ' + index + ' in connectionPool; ', 
-        ' pooledConnections:', connectionPool.pooledConnections.length,
-        ' openConnections: ', countOpenConnections(connectionPool));
-    // pop a connection from the pool
-    pooledConnection = connectionPool.pooledConnections.pop();
-    newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
-    connectionPool.openConnections[index] = pooledConnection;
-    udebug.log_detail('MySQLConnectionPool.getDBSession after found a pooledConnection for index ' + index + ' in connectionPool; ', 
-        ' pooledConnections:', connectionPool.pooledConnections.length,
-        ' openConnections: ', countOpenConnections(connectionPool));
-    callback(null, newDBSession);
-  } else {
-    // create a new pooled connection
-    var connected_callback = function(err) {
+    var connected_callback = function(err, pooledConnection) {
       if (err) {
         callback(err);
         return;
@@ -343,15 +354,12 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
       newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
       connectionPool.openConnections[index] = pooledConnection;
       udebug.log_detail('MySQLConnectionPool.getDBSession created a new pooledConnection for index ' + index + ' ; ', 
-          ' pooledConnections:', connectionPool.pooledConnections.length,
           ' openConnections: ', countOpenConnections(connectionPool));
       // set character set server variables      
       pooledConnection.query(charsetQuery + sqlModeQuery, charsetComplete);
     };
     // create a new connection
-    pooledConnection = mysql.createConnection(this.driverproperties);
-    pooledConnection.connect(connected_callback);
-  }
+    connectionPool.getConnection(connected_callback);
 };
 
 /** Close the connection being used by the dbSession.
@@ -362,9 +370,8 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
 exports.DBConnectionPool.prototype.closeConnection = function(dbSession, callback) {
   var connectionPool = this;
   if (dbSession.pooledConnection) {
-    dbSession.pooledConnection.end(function(err) {
-      udebug.log('close dbSession', dbSession);
-    });
+    connectionPool.releaseConnection(dbSession.pooledConnection);
+    dbSession.pooledConnection = null;
   }
   connectionPool.openConnections[dbSession.index] = null;
   if (typeof(callback) === 'function') {

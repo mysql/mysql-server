@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -65,7 +65,8 @@ var MysqlDefaultConnectionProperties = {
   "mysql_socket"   : null,
   "debug"          : true,
   "mysql_trace"    : false,
-  "mysql_debug"    : false
+  "mysql_debug"    : false,
+  "mysql_pool_size": 10
 };
 
 
