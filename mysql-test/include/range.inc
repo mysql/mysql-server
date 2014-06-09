@@ -2077,3 +2077,34 @@ CREATE TABLE t1(n DECIMAL(39,19) NOT NULL, KEY(n)) engine=innodb;
 INSERT INTO t1 SET n=0;
 SELECT 1 FROM t1 WHERE n NOT IN(NULL, NULL);
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#18759597 MISSING ROWS ON WHERE .. 
+--echo #              IN QUERY WITH VARIABLES AND CONCAT
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(2),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('n'),('xm');
+
+SET @var1 = 't', @var2 = 'him',
+    @var3 = 'n', @var4 = 'n',
+    @var5 = 'n', @var6 = 'g',
+    @var7 = 'b', @var8 = 'o',
+    @var9 = 'm', @var10 = 'xm', @var11 = 'u'
+;
+
+SELECT col_varchar_key AS field1
+FROM t1
+WHERE ( col_varchar_key, col_varchar_key ) IN (
+  ('m', @var1  ),
+  ('n', @var3  ),
+  ('a', @var5  ),
+  ('l', @var7  ),
+  (CONCAT('x', @var9 ), @var10 )
+);
+
+DROP TABLE t1;

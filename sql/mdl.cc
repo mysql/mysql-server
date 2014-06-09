@@ -26,6 +26,8 @@
 #include <mysql/psi/mysql_stage.h>
 #include "sql_class.h"
 #include <my_murmur3.h>
+#include <algorithm>
+#include <functional>
 
 static PSI_memory_key key_memory_MDL_context_acquire_locks;
 
@@ -3135,12 +3137,16 @@ MDL_context::acquire_lock(MDL_request *mdl_request, ulong lock_wait_timeout)
 }
 
 
-extern "C" int mdl_request_ptr_cmp(const void* ptr1, const void* ptr2)
+class MDL_request_cmp :
+  public std::binary_function<const MDL_request*, const MDL_request*, bool>
 {
-  MDL_request *req1= *(MDL_request**)ptr1;
-  MDL_request *req2= *(MDL_request**)ptr2;
-  return req1->key.cmp(&req2->key);
-}
+public:
+  bool operator()(const MDL_request *req1, const MDL_request *req2)
+  {
+    return req1->key.cmp(&req2->key) < 0;
+  }
+};
+
 
 
 /**
@@ -3167,32 +3173,33 @@ bool MDL_context::acquire_locks(MDL_request_list *mdl_requests,
                                 ulong lock_wait_timeout)
 {
   MDL_request_list::Iterator it(*mdl_requests);
-  MDL_request **sort_buf, **p_req;
+  MDL_request **p_req;
   MDL_savepoint mdl_svp= mdl_savepoint();
-  ssize_t req_count= static_cast<ssize_t>(mdl_requests->elements());
+  const size_t req_count= mdl_requests->elements();
 
   if (req_count == 0)
     return FALSE;
 
   /* Sort requests according to MDL_key. */
-  if (! (sort_buf= (MDL_request **)my_malloc(key_memory_MDL_context_acquire_locks,
-                                             req_count *
-                                             sizeof(MDL_request*),
-                                             MYF(MY_WME))))
+  Prealloced_array<MDL_request*, 16>
+    sort_buf(key_memory_MDL_context_acquire_locks);
+  if (sort_buf.reserve(req_count))
     return TRUE;
 
-  for (p_req= sort_buf; p_req < sort_buf + req_count; p_req++)
-    *p_req= it++;
+  for (size_t ii=0; ii < req_count; ++ii)
+  {
+    sort_buf.push_back(it++);
+  }
 
-  my_qsort(sort_buf, req_count, sizeof(MDL_request*),
-           mdl_request_ptr_cmp);
+  std::sort(sort_buf.begin(), sort_buf.end(), MDL_request_cmp());
 
-  for (p_req= sort_buf; p_req < sort_buf + req_count; p_req++)
+  size_t num_acquired= 0;
+  for (p_req= sort_buf.begin(); p_req != sort_buf.end(); p_req++)
   {
     if (acquire_lock(*p_req, lock_wait_timeout))
       goto err;
+    ++num_acquired;
   }
-  my_free(sort_buf);
   return FALSE;
 
 err:
@@ -3203,12 +3210,11 @@ err:
   */
   rollback_to_savepoint(mdl_svp);
   /* Reset lock requests back to its initial state. */
-  for (req_count= p_req - sort_buf, p_req= sort_buf;
-       p_req < sort_buf + req_count; p_req++)
+  for (p_req= sort_buf.begin();
+       p_req != sort_buf.begin() + num_acquired; p_req++)
   {
     (*p_req)->ticket= NULL;
   }
-  my_free(sort_buf);
   return TRUE;
 }
 

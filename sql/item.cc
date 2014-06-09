@@ -360,9 +360,13 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
+    /*
+      The conversion may fail in strict mode. Do not return a NULL pointer,
+      as the result may be used in subsequent arithmetic operations.
+     */
     my_decimal_set_zero(decimal_value);
     null_value= 1;                               // set NULL, stop processing
-    return 0;
+    return decimal_value;
   }
   return date2my_decimal(&ltime, decimal_value);
 }
@@ -4834,7 +4838,7 @@ void mark_select_range_as_dependent(THD *thd,
     {
       Item::Type type= found_item->type();
       prev_subselect_item->used_tables_cache|=
-        found_item->used_tables();
+        found_item->resolved_used_tables();// not needed but logical
       dependent= ((type == Item::REF_ITEM || type == Item::FIELD_ITEM) ?
                   (Item_ident*) found_item :
                   0);
@@ -5255,7 +5259,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         {
           Item::Type ref_type= (*reference)->type();
           prev_subselect_item->used_tables_cache|=
-            (*reference)->used_tables();
+            (*reference)->resolved_used_tables();
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           mark_as_dependent(thd, last_checked_context->select_lex,

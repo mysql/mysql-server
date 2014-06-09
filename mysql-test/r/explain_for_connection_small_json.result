@@ -114,7 +114,7 @@ Diff: EXPLAIN NORMAL vs OTHER
 -        "query_block": {
 -          "select_id": 2,
 -          "cost_info": {
--            "query_cost": "5.00"
+-            "query_cost": "6.50"
 -          },
 -          "grouping_operation": {
 -            "using_filesort": false,
@@ -129,15 +129,15 @@ Diff: EXPLAIN NORMAL vs OTHER
 -                "a"
 -              ],
 -              "key_length": "5",
--              "rows_examined_per_scan": 8,
--              "rows_produced_per_join": 8,
+-              "rows_examined_per_scan": 11,
+-              "rows_produced_per_join": 11,
 -              "filtered": 100,
 -              "using_index_for_group_by": true,
 -              "cost_info": {
--                "read_cost": "3.40",
--                "eval_cost": "1.60",
--                "prefix_cost": "5.00",
--                "data_read_per_join": "128"
+-                "read_cost": "4.30",
+-                "eval_cost": "2.20",
+-                "prefix_cost": "6.50",
+-                "data_read_per_join": "176"
 -              },
 -              "used_columns": [
 -                "a",
