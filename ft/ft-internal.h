@@ -1224,6 +1224,7 @@ toku_ft_bn_apply_msg_once(
     BASEMENTNODE bn,
     const FT_MSG msg,
     uint32_t idx,
+    uint32_t le_keylen,
     LEAFENTRY le,
     txn_gc_info *gc_info,
     uint64_t *workdonep,

@@ -232,7 +232,8 @@ void *toku_mempool_malloc(struct mempool *mp, size_t size, int alignment) {
 void toku_mempool_mfree(struct mempool *mp, void *vp, size_t size) {
     if (vp) { paranoid_invariant(toku_mempool_inrange(mp, vp, size)); }
     mp->frag_size += size;
-    paranoid_invariant(mp->frag_size <= mp->size);
+    invariant(mp->frag_size <= mp->free_offset);
+    invariant(mp->frag_size <= mp->size);
 }
 
 

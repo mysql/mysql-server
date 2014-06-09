@@ -218,7 +218,7 @@ insert_random_message_to_bn(
     *keylenp = keydbt->size;
     *keyp = toku_xmemdup(keydbt->data, keydbt->size);
     int64_t numbytes;
-    toku_le_apply_msg(&msg, NULL, NULL, 0, &non_mvcc_gc_info, save, &numbytes);
+    toku_le_apply_msg(&msg, NULL, NULL, 0, keydbt->size, &non_mvcc_gc_info, save, &numbytes);
     toku_ft_bn_apply_msg(t->ft->compare_fun, t->ft->update_fun, NULL, blb, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb->max_msn_applied.msn) {
         blb->max_msn_applied = msn;
@@ -268,7 +268,7 @@ insert_same_message_to_bns(
     *keylenp = keydbt->size;
     *keyp = toku_xmemdup(keydbt->data, keydbt->size);
     int64_t numbytes;
-    toku_le_apply_msg(&msg, NULL, NULL, 0, &non_mvcc_gc_info, save, &numbytes);
+    toku_le_apply_msg(&msg, NULL, NULL, 0, keydbt->size, &non_mvcc_gc_info, save, &numbytes);
     toku_ft_bn_apply_msg(t->ft->compare_fun, t->ft->update_fun, NULL, blb1, &msg, &non_mvcc_gc_info, NULL, NULL);
     if (msn.msn > blb1->max_msn_applied.msn) {
         blb1->max_msn_applied = msn;
