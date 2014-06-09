@@ -2016,33 +2016,31 @@ fil_check_first_page(
 	return("inconsistent data in space header");
 }
 
-/** Read the flushed lsn, arch no, space_id and tablespace flag fields from
-a the first page of a data file at database startup.  Only the first datafile
-in a tablespace contains a valid FSP_HEADER section and thus a valid space_id
-and tablespace flags.
-@param[in]	data_file	Open data file
-@param[in]	first_file	TRUE if min and max parameters below already
-contain sensible data. If FALSE, space_id and flags are not returned.
-@param[in]	flags		Tablespace flags
-@param[in]	space_id	Tablespace ID
-@param[in]	min_arch_log_no	Min of archived log numbers in data files
-@param[in]	max_arch_log_no	Max of archived log numbers in data files
-@param[in]	min_flushed_lsn	Min of flushed lsn values in data files
-@param[in]	max_flushed_lsn	Max of flushed lsn values in data files
-@return NULL on success, or pointer to an error message string */
+/*******************************************************************//**
+Reads the flushed lsn, arch no, and tablespace flag fields from a data
+file at database startup.
+@retval NULL on success, or if innodb_force_recovery is set
+@return pointer to an error message string */
 UNIV_INTERN
 const char*
 fil_read_first_page(
-	os_file_t	data_file,
-	bool		first_file,
-	ulint*		flags,
-	ulint*		space_id,
+/*================*/
+	os_file_t	data_file,		/*!< in: open data file */
+	ibool		one_read_already,	/*!< in: TRUE if min and max
+						parameters below already
+						contain sensible data */
+	ulint*		flags,			/*!< out: tablespace flags */
+	ulint*		space_id,		/*!< out: tablespace ID */
 #ifdef UNIV_LOG_ARCHIVE
-	ulint*		min_arch_log_no,
-	ulint*		max_arch_log_no,
+	ulint*		min_arch_log_no,	/*!< out: min of archived
+						log numbers in data files */
+	ulint*		max_arch_log_no,	/*!< out: max of archived
+						log numbers in data files */
 #endif /* UNIV_LOG_ARCHIVE */
-	lsn_t*		min_flushed_lsn,
-	lsn_t*		max_flushed_lsn)
+	lsn_t*		min_flushed_lsn,	/*!< out: min of flushed
+						lsn values in data files */
+	lsn_t*		max_flushed_lsn)	/*!< out: max of flushed
+						lsn values in data files */
 {
 	byte*		buf;
 	byte*		page;
@@ -2057,14 +2055,13 @@ fil_read_first_page(
 
 	os_file_read(data_file, page, 0, UNIV_PAGE_SIZE);
 
-	/* The FSP_HEADER is only valid for the first file in a tablespace,
-	on page 0.  So flags and space_id are not available and there is no
-	need to validate the first page if this is not the first file. */
-	if (first_file) {
-		*flags = fsp_header_get_flags(page);
+	*flags = fsp_header_get_flags(page);
 
-		*space_id = fsp_header_get_space_id(page);
+	*space_id = fsp_header_get_space_id(page);
 
+	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
+
+	if (!one_read_already) {
 		check_msg = fil_check_first_page(page);
 	}
 
@@ -2074,9 +2071,7 @@ fil_read_first_page(
 		return(check_msg);
 	}
 
-	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
-
-	if (first_file) {
+	if (!one_read_already) {
 		*min_flushed_lsn = flushed_lsn;
 		*max_flushed_lsn = flushed_lsn;
 #ifdef UNIV_LOG_ARCHIVE
@@ -3736,7 +3731,7 @@ fil_open_single_table_tablespace(
 	/* Read the first page of the datadir tablespace, if found. */
 	if (def.success) {
 		def.check_msg = fil_read_first_page(
-			def.file, true, &def.flags, &def.id,
+			def.file, FALSE, &def.flags, &def.id,
 #ifdef UNIV_LOG_ARCHIVE
 			&space_arch_log_no, &space_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
@@ -3761,7 +3756,7 @@ fil_open_single_table_tablespace(
 	/* Read the first page of the remote tablespace */
 	if (remote.success) {
 		remote.check_msg = fil_read_first_page(
-			remote.file, true, &remote.flags, &remote.id,
+			remote.file, FALSE, &remote.flags, &remote.id,
 #ifdef UNIV_LOG_ARCHIVE
 			&remote.arch_log_no, &remote.arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
@@ -3787,7 +3782,7 @@ fil_open_single_table_tablespace(
 	/* Read the first page of the datadir tablespace, if found. */
 	if (dict.success) {
 		dict.check_msg = fil_read_first_page(
-			dict.file, true, &dict.flags, &dict.id,
+			dict.file, FALSE, &dict.flags, &dict.id,
 #ifdef UNIV_LOG_ARCHIVE
 			&dict.arch_log_no, &dict.arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
@@ -4191,7 +4186,7 @@ fil_validate_single_table_tablespace(
 check_first_page:
 	fsp->success = TRUE;
 	if (const char* check_msg = fil_read_first_page(
-		    fsp->file, true, &fsp->flags, &fsp->id,
+		    fsp->file, FALSE, &fsp->flags, &fsp->id,
 #ifdef UNIV_LOG_ARCHIVE
 		    &fsp->arch_log_no, &fsp->arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
