@@ -256,6 +256,7 @@ static void get_space_for_le(
     uint32_t idx,
     void* keyp,
     uint32_t keylen,
+    uint32_t old_keylen,
     uint32_t old_le_size,
     size_t size,
     LEAFENTRY* new_le_space,
@@ -268,7 +269,7 @@ static void get_space_for_le(
     else {
         // this means we are overwriting something
         if (old_le_size > 0) {
-            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_le_size, size, new_le_space, maybe_free);
+            data_buffer->get_space_for_overwrite(idx, keyp, keylen, old_keylen, old_le_size, size, new_le_space, maybe_free);
         }
         // this means we are inserting something new
         else {
@@ -496,6 +497,7 @@ toku_le_apply_msg(FT_MSG   msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
+                  uint32_t old_keylen, // length of the any key in data_buffer
                   txn_gc_info *gc_info,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p) {  // change in total size of key and val, not including any overhead
@@ -552,6 +554,7 @@ toku_le_apply_msg(FT_MSG   msg,
         idx,
         ft_msg_get_key(msg), // contract of this function is caller has this set, always
         keylen, // contract of this function is caller has this set, always
+        old_keylen,
         oldmemsize,
         new_leafentry_p,
         &maybe_free
@@ -655,6 +658,7 @@ toku_le_garbage_collect(LEAFENTRY old_leaf_entry,
         idx,
         keyp,
         keylen,
+        keylen, // old_keylen, same because the key isn't going to change for gc
         old_mem_size,
         new_leaf_entry,
         &maybe_free
@@ -974,6 +978,7 @@ le_pack(ULE ule, // data to be packed into new leafentry
         uint32_t idx,
         void* keyp,
         uint32_t keylen,
+        uint32_t old_keylen,
         uint32_t old_le_size,
         LEAFENTRY * const new_leafentry_p, // this is what this function creates
         void **const maybe_free
@@ -996,7 +1001,8 @@ le_pack(ULE ule, // data to be packed into new leafentry
             }
         }
         if (data_buffer && old_le_size > 0) {
-            data_buffer->delete_leafentry(idx, keylen, old_le_size);
+            // must pass old_keylen and old_le_size, since that's what is actually stored in data_buffer
+            data_buffer->delete_leafentry(idx, old_keylen, old_le_size);
         }
         *new_leafentry_p = NULL;
         rval = 0;
@@ -1005,7 +1011,7 @@ le_pack(ULE ule, // data to be packed into new leafentry
 found_insert:
     memsize = le_memsize_from_ule(ule);
     LEAFENTRY new_leafentry;
-    get_space_for_le(data_buffer, idx, keyp, keylen, old_le_size, memsize, &new_leafentry, maybe_free);
+    get_space_for_le(data_buffer, idx, keyp, keylen, old_keylen, old_le_size, memsize, &new_leafentry, maybe_free);
 
     //p always points to first unused byte after leafentry we are packing
     uint8_t *p;
@@ -2465,6 +2471,7 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry,
                    nullptr,
                    0, //only matters if we are passing in a bn_data
                    nullptr, //only matters if we are passing in a bn_data
+                   0, //only matters if we are passing in a bn_data
                    0, //only matters if we are passing in a bn_data
                    0, //only matters if we are passing in a bn_data
                    new_leafentry_p,

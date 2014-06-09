@@ -304,7 +304,8 @@ public:
     // Allocates space in the mempool to store a new leafentry.
     // This may require reorganizing the mempool and updating the dmt.
     __attribute__((__nonnull__))
-    void get_space_for_overwrite(uint32_t idx, const void* keyp, uint32_t keylen, uint32_t old_size, uint32_t new_size, LEAFENTRY* new_le_space, void **const maybe_free);
+    void get_space_for_overwrite(uint32_t idx, const void* keyp, uint32_t keylen, uint32_t old_keylen, uint32_t old_size,
+                                 uint32_t new_size, LEAFENTRY* new_le_space, void **const maybe_free);
 
     // Allocates space in the mempool to store a new leafentry
     // and inserts a new key into the dmt
