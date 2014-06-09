@@ -129,348 +129,6 @@ enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
 // happen into the rightmost leaf node due to promotion.
 enum { FT_SEQINSERT_SCORE_THRESHOLD = 100 };
 
-//
-// Field in ftnode_fetch_extra that tells the 
-// partial fetch callback what piece of the node
-// is needed by the ydb
-//
-enum ftnode_fetch_type {
-    ftnode_fetch_none=1, // no partitions needed.  
-    ftnode_fetch_subset, // some subset of partitions needed
-    ftnode_fetch_prefetch, // this is part of a prefetch call
-    ftnode_fetch_all, // every partition is needed
-    ftnode_fetch_keymatch, // one child is needed if it holds both keys
-};
-
-enum split_mode {
-    SPLIT_EVENLY,
-    SPLIT_LEFT_HEAVY,
-    SPLIT_RIGHT_HEAVY
-};
-
-enum reactivity {
-    RE_STABLE,
-    RE_FUSIBLE,
-    RE_FISSIBLE
-};
-
-static bool is_valid_ftnode_fetch_type(enum ftnode_fetch_type type) UU();
-static bool is_valid_ftnode_fetch_type(enum ftnode_fetch_type type) {
-    switch (type) {
-        case ftnode_fetch_none:
-        case ftnode_fetch_subset:
-        case ftnode_fetch_prefetch:
-        case ftnode_fetch_all:
-        case ftnode_fetch_keymatch:
-            return true;
-        default:
-            return false;
-    }
-}
-
-//
-// An extra parameter passed to cachetable functions 
-// That is used in all types of fetch callbacks.
-// The contents help the partial fetch and fetch
-// callbacks retrieve the pieces of a node necessary
-// for the ensuing operation (flush, query, ...)
-//
-struct ftnode_fetch_extra {
-    enum ftnode_fetch_type type;
-    // needed for reading a node off disk
-    FT h;
-    // used in the case where type == ftnode_fetch_subset
-    // parameters needed to find out which child needs to be decompressed (so it can be read)
-    ft_search *search;
-    DBT range_lock_left_key, range_lock_right_key;
-    bool left_is_neg_infty, right_is_pos_infty;
-    // states if we should try to aggressively fetch basement nodes 
-    // that are not specifically needed for current query, 
-    // but may be needed for other cursor operations user is doing
-    // For example, if we have not disabled prefetching,
-    // and the user is doing a dictionary wide scan, then
-    // even though a query may only want one basement node,
-    // we fetch all basement nodes in a leaf node.
-    bool disable_prefetching;
-    // this value will be set during the fetch_callback call by toku_ftnode_fetch_callback or toku_ftnode_pf_req_callback
-    // thi callbacks need to evaluate this anyway, so we cache it here so the search code does not reevaluate it
-    int child_to_read;
-    // when we read internal nodes, we want to read all the data off disk in one I/O
-    // then we'll treat it as normal and only decompress the needed partitions etc.
-
-    bool read_all_partitions;
-    // Accounting: How many bytes were read, and how much time did we spend doing I/O?
-    uint64_t bytes_read;
-    tokutime_t io_time;
-    tokutime_t decompress_time;
-    tokutime_t deserialize_time;
-};
-typedef struct ftnode_fetch_extra *FTNODE_FETCH_EXTRA;
-
-struct toku_msg_buffer_key_msn_heaviside_extra {
-    DESCRIPTOR desc;
-    ft_compare_func cmp;
-    message_buffer *msg_buffer;
-    const DBT *key;
-    MSN msn;
-};
-
-// comparison function for inserting messages into a
-// ftnode_nonleaf_childinfo's message_tree
-int
-toku_msg_buffer_key_msn_heaviside(const int32_t &v, const struct toku_msg_buffer_key_msn_heaviside_extra &extra);
-
-struct toku_msg_buffer_key_msn_cmp_extra {
-    DESCRIPTOR desc;
-    ft_compare_func cmp;
-    message_buffer *msg_buffer;
-};
-
-// same thing for qsort_r
-int
-toku_msg_buffer_key_msn_cmp(const struct toku_msg_buffer_key_msn_cmp_extra &extrap, const int &a, const int &b);
-
-typedef toku::omt<int32_t> off_omt_t;
-typedef toku::omt<int32_t, int32_t, true> marked_off_omt_t;
-
-// data of an available partition of a nonleaf ftnode
-struct ftnode_nonleaf_childinfo {
-    message_buffer msg_buffer;
-    off_omt_t broadcast_list;
-    marked_off_omt_t fresh_message_tree;
-    off_omt_t stale_message_tree;
-    uint64_t flow[2];  // current and last checkpoint
-};
-
-unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
-int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
-long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
-long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
-void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
-void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
-void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
-bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
-bool toku_ft_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);
-
-enum reactivity get_nonleaf_reactivity(FTNODE node, unsigned int fanout);
-enum reactivity get_node_reactivity(FT ft, FTNODE node);
-uint32_t get_leaf_num_entries(FTNODE node);
-
-// data of an available partition of a leaf ftnode
-struct ftnode_leaf_basement_node {
-    bn_data data_buffer;
-    unsigned int seqinsert;         // number of sequential inserts to this leaf 
-    MSN max_msn_applied;            // max message sequence number applied
-    bool stale_ancestor_messages_applied;
-    STAT64INFO_S stat64_delta;      // change in stat64 counters since basement was last written to disk
-};
-
-enum   pt_state {  // declare this to be packed so that when used below it will only take 1 byte.
-    PT_INVALID = 0,
-    PT_ON_DISK = 1,
-    PT_COMPRESSED = 2,
-    PT_AVAIL = 3};
-
-enum  ftnode_child_tag {
-    BCT_INVALID = 0,
-    BCT_NULL,
-    BCT_SUBBLOCK,
-    BCT_LEAF,
-    BCT_NONLEAF
-};
-    
-typedef struct  ftnode_child_pointer {
-    union {
-	struct sub_block *subblock;
-	struct ftnode_nonleaf_childinfo *nonleaf;
-	struct ftnode_leaf_basement_node *leaf;
-    } u;
-    enum ftnode_child_tag tag;
-} FTNODE_CHILD_POINTER;
-
-
-struct ftnode_disk_data {
-    //
-    // stores the offset to the beginning of the partition on disk from the ftnode, and the length, needed to read a partition off of disk
-    // the value is only meaningful if the node is clean. If the node is dirty, then the value is meaningless
-    //  The START is the distance from the end of the compressed node_info data, to the beginning of the compressed partition
-    //  The SIZE is the size of the compressed partition.
-    // Rationale:  We cannot store the size from the beginning of the node since we don't know how big the header will be.
-    //  However, later when we are doing aligned writes, we won't be able to store the size from the end since we want things to align.
-    uint32_t start;
-    uint32_t size;
-};
-#define BP_START(node_dd,i) ((node_dd)[i].start)
-#define BP_SIZE(node_dd,i) ((node_dd)[i].size)
-
-
-// a ftnode partition, associated with a child of a node
-struct ftnode_partition {
-    // the following three variables are used for nonleaf nodes
-    // for leaf nodes, they are meaningless
-    BLOCKNUM     blocknum; // blocknum of child 
-
-    // How many bytes worth of work was performed by messages in each buffer.
-    uint64_t     workdone;
-
-    //
-    // pointer to the partition. Depending on the state, they may be different things
-    // if state == PT_INVALID, then the node was just initialized and ptr == NULL
-    // if state == PT_ON_DISK, then ptr == NULL
-    // if state == PT_COMPRESSED, then ptr points to a struct sub_block*
-    // if state == PT_AVAIL, then ptr is:
-    //         a struct ftnode_nonleaf_childinfo for internal nodes, 
-    //         a struct ftnode_leaf_basement_node for leaf nodes
-    //
-    struct ftnode_child_pointer ptr;
-    //
-    // at any time, the partitions may be in one of the following three states (stored in pt_state):
-    //   PT_INVALID - means that the partition was just initialized
-    //   PT_ON_DISK - means that the partition is not in memory and needs to be read from disk. To use, must read off disk and decompress
-    //   PT_COMPRESSED - means that the partition is compressed in memory. To use, must decompress
-    //   PT_AVAIL - means the partition is decompressed and in memory
-    //
-    enum pt_state state; // make this an enum to make debugging easier.  
-
-    // clock count used to for pe_callback to determine if a node should be evicted or not
-    // for now, saturating the count at 1
-    uint8_t clock_count;
-};
-
-struct ftnode {
-    MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
-    unsigned int flags;
-    BLOCKNUM thisnodename;   // Which block number is this node?
-    int    layout_version; // What version of the data structure?
-    int    layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
-    int    layout_version_read_from_disk;  // transient, not serialized to disk, (useful for debugging)
-    uint32_t build_id;       // build_id (svn rev number) of software that wrote this node to disk
-    int    height; /* height is always >= 0.  0 for leaf, >0 for nonleaf. */
-    int    dirty;
-    uint32_t fullhash;
-    int n_children; //for internal nodes, if n_children==fanout+1 then the tree needs to be rebalanced.
-                    // for leaf nodes, represents number of basement nodes
-    unsigned int    totalchildkeylens;
-    DBT *childkeys;   /* Pivot keys.  Child 0's keys are <= childkeys[0].  Child 1's keys are <= childkeys[1].
-                                                                        Child 1's keys are > childkeys[0]. */
-
-    // What's the oldest referenced xid that this node knows about? The real oldest
-    // referenced xid might be younger, but this is our best estimate. We use it
-    // as a heuristic to transition provisional mvcc entries from provisional to
-    // committed (from implicity committed to really committed).
-    //
-    // A better heuristic would be the oldest live txnid, but we use this since it
-    // still works well most of the time, and its readily available on the inject
-    // code path.
-    TXNID oldest_referenced_xid_known;
-
-    // array of size n_children, consisting of ftnode partitions
-    // each one is associated with a child
-    // for internal nodes, the ith partition corresponds to the ith message buffer
-    // for leaf nodes, the ith partition corresponds to the ith basement node
-    struct ftnode_partition *bp;
-    PAIR ct_pair;
-};
-
-// ftnode partition macros
-// BP stands for ftnode_partition
-#define BP_BLOCKNUM(node,i) ((node)->bp[i].blocknum)
-#define BP_STATE(node,i) ((node)->bp[i].state)
-#define BP_WORKDONE(node, i)((node)->bp[i].workdone)
-
-//
-// macros for managing a node's clock
-// Should be managed by ft-ops.c, NOT by serialize/deserialize
-//
-
-//
-// BP_TOUCH_CLOCK uses a compare and swap because multiple threads
-// that have a read lock on an internal node may try to touch the clock
-// simultaneously
-//
-#define BP_TOUCH_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
-#define BP_SWEEP_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
-#define BP_SHOULD_EVICT(node, i) ((node)->bp[i].clock_count == 0)
-// not crazy about having these two here, one is for the case where we create new
-// nodes, such as in splits and creating new roots, and the other is for when
-// we are deserializing a node and not all bp's are touched
-#define BP_INIT_TOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 1)
-#define BP_INIT_UNTOUCHED_CLOCK(node, i) ((node)->bp[i].clock_count = 0)
-
-// internal node macros
-static inline void set_BNULL(FTNODE node, int i) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    node->bp[i].ptr.tag = BCT_NULL;
-}
-static inline bool is_BNULL (FTNODE node, int i) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    return node->bp[i].ptr.tag == BCT_NULL;
-}
-static inline NONLEAF_CHILDINFO BNC(FTNODE node, int i) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    FTNODE_CHILD_POINTER p = node->bp[i].ptr;
-    paranoid_invariant(p.tag==BCT_NONLEAF);
-    return p.u.nonleaf;
-}
-static inline void set_BNC(FTNODE node, int i, NONLEAF_CHILDINFO nl) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
-    p->tag = BCT_NONLEAF;
-    p->u.nonleaf = nl;
-}
-
-static inline BASEMENTNODE BLB(FTNODE node, int i) {
-    paranoid_invariant(i >= 0);
-    // The optimizer really doesn't like it when we compare
-    // i to n_children as signed integers. So we assert that
-    // n_children is in fact positive before doing a comparison
-    // on the values forcibly cast to unsigned ints.
-    paranoid_invariant(node->n_children > 0);
-    paranoid_invariant((unsigned) i < (unsigned) node->n_children);
-    FTNODE_CHILD_POINTER p = node->bp[i].ptr;
-    paranoid_invariant(p.tag==BCT_LEAF);
-    return p.u.leaf;
-}
-static inline void set_BLB(FTNODE node, int i, BASEMENTNODE bn) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
-    p->tag = BCT_LEAF;
-    p->u.leaf = bn;
-}
-
-static inline SUB_BLOCK BSB(FTNODE node, int i) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    FTNODE_CHILD_POINTER p = node->bp[i].ptr;
-    paranoid_invariant(p.tag==BCT_SUBBLOCK);
-    return p.u.subblock;
-}
-static inline void set_BSB(FTNODE node, int i, SUB_BLOCK sb) {
-    paranoid_invariant(i >= 0);
-    paranoid_invariant(i < node->n_children);
-    FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;
-    p->tag = BCT_SUBBLOCK;
-    p->u.subblock = sb;
-}
-
-// ftnode leaf basementnode macros, 
-#define BLB_MAX_MSN_APPLIED(node,i) (BLB(node,i)->max_msn_applied)
-#define BLB_MAX_DSN_APPLIED(node,i) (BLB(node,i)->max_dsn_applied)
-#define BLB_DATA(node,i) (&(BLB(node,i)->data_buffer))
-#define BLB_NBYTESINDATA(node,i) (BLB_DATA(node,i)->get_disk_size())
-#define BLB_SEQINSERT(node,i) (BLB(node,i)->seqinsert)
-
-/* pivot flags  (must fit in 8 bits) */
-enum {
-    FT_PIVOT_TRUNC = 4,
-    FT_PIVOT_FRONT_COMPRESS = 8,
-};
-
 uint32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum);
 
 // The ft_header is not managed by the cachetable.  Instead, it hangs off the cachefile as userdata.
@@ -638,18 +296,25 @@ struct ft_handle {
     struct ft_options options;
 };
 
+// TODO: Move to cachetable header
 PAIR_ATTR make_ftnode_pair_attr(FTNODE node);
 PAIR_ATTR make_invalid_pair_attr(void);
+// Cachetable callbacks for ftnodes.
+void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
+void toku_ftnode_checkpoint_complete_callback(void *value_data);
+void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
+int toku_ftnode_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
+void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
+int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *extraargs,
+                            void (*finalize)(PAIR_ATTR new_attr, void *extra), void *finalize_extra);
+bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
+int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
+int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
 
 /* serialization code */
-void
-toku_create_compressed_partition_from_available(
-    FTNODE node,
-    int childnum,
-    enum toku_compression_method compression_method,
-    SUB_BLOCK sb
-    );
-void rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize);
+void toku_create_compressed_partition_from_available(FTNODE node, int childnum,
+                                                     enum toku_compression_method compression_method,
+                                                     SUB_BLOCK sb);
 int toku_serialize_ftnode_to_memory (FTNODE node,
                                       FTNODE_DISK_DATA* ndd,
                                       unsigned int basementnodesize,
@@ -727,19 +392,6 @@ void toku_serialize_ft_to_wbuf (
 int toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
 void toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
 void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
-BASEMENTNODE toku_create_empty_bn(void);
-BASEMENTNODE toku_create_empty_bn_no_buffer(void); // create a basement node with a null buffer.
-NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo);
-BASEMENTNODE toku_clone_bn(BASEMENTNODE orig_bn);
-NONLEAF_CHILDINFO toku_create_empty_nl(void);
-// FIXME needs toku prefix
-void destroy_basement_node (BASEMENTNODE bn);
-// FIXME needs toku prefix
-void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl);
-void toku_destroy_ftnode_internals(FTNODE node);
-void toku_ftnode_free (FTNODE *node);
-bool is_entire_node_in_memory(FTNODE node);
-void toku_assert_entire_node_in_memory(FTNODE node);
 
 // append a child node to a parent node
 void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey);
@@ -760,31 +412,10 @@ void toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe);
 void toku_ft_status_update_flush_reason(FTNODE node, uint64_t uncompressed_bytes_flushed, uint64_t bytes_written, tokutime_t write_time, bool for_checkpoint);
 void toku_ft_status_update_serialize_times(FTNODE node, tokutime_t serialize_time, tokutime_t compress_time);
 void toku_ft_status_update_deserialize_times(FTNODE node, tokutime_t deserialize_time, tokutime_t decompress_time);
-
-void toku_ftnode_clone_callback(void* value_data, void** cloned_value_data, long* clone_size, PAIR_ATTR* new_attr, bool for_checkpoint, void* write_extraargs);
-void toku_ftnode_checkpoint_complete_callback(void *value_data);
-void toku_ftnode_flush_callback (CACHEFILE cachefile, int fd, BLOCKNUM nodename, void *ftnode_v, void** UU(disk_data), void *extraargs, PAIR_ATTR size, PAIR_ATTR* new_size, bool write_me, bool keep_me, bool for_checkpoint, bool is_clone);
-int toku_ftnode_fetch_callback (CACHEFILE cachefile, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int*dirty, void*extraargs);
-void toku_ftnode_pe_est_callback(void* ftnode_pv, void* disk_data, long* bytes_freed_estimate, enum partial_eviction_cost *cost, void* write_extraargs);
-int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *extraargs,
-                            void (*finalize)(PAIR_ATTR new_attr, void *extra), void *finalize_extra);
-bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
-int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
-int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
-void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
-BASEMENTNODE toku_detach_bn(FTNODE node, int childnum);
-
-static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
-    CACHETABLE_WRITE_CALLBACK wc;
-    wc.flush_callback = toku_ftnode_flush_callback;
-    wc.pe_est_callback = toku_ftnode_pe_est_callback;
-    wc.pe_callback = toku_ftnode_pe_callback;
-    wc.cleaner_callback = toku_ftnode_cleaner_callback;
-    wc.clone_callback = toku_ftnode_clone_callback;
-    wc.checkpoint_complete_callback = toku_ftnode_checkpoint_complete_callback;
-    wc.write_extraargs = h;
-    return wc;
-}
+void toku_ft_status_note_msn_discard(void);
+void toku_ft_status_note_update(bool broadcast);
+void toku_ft_status_note_msg_bytes_out(size_t buffsize);
+void toku_ft_status_note_ftnode(int height, bool created); // created = false means destroyed
 
 //
 // Helper function to fill a ftnode_fetch_extra with data
@@ -792,22 +423,7 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT h) {
 // necessary. Used in cases where the entire node
 // is required, such as for flushes.
 //
-static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) {
-    bfe->type = ftnode_fetch_all;
-    bfe->h = h;
-    bfe->search = NULL;
-    toku_init_dbt(&bfe->range_lock_left_key);
-    toku_init_dbt(&bfe->range_lock_right_key);
-    bfe->left_is_neg_infty = false;
-    bfe->right_is_pos_infty = false;
-    bfe->child_to_read = -1;
-    bfe->disable_prefetching = false;
-    bfe->read_all_partitions = false;
-    bfe->bytes_read = 0;
-    bfe->io_time = 0;
-    bfe->deserialize_time = 0;
-    bfe->decompress_time = 0;
-}
+void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT ft);
 
 //
 // Helper function to fill a ftnode_fetch_extra with data
@@ -816,79 +432,19 @@ static inline void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT h) 
 // is known in advance, e.g. for keysrange when the left and right key
 // are in the same basement node.
 //
-static inline void fill_bfe_for_keymatch(
-    struct ftnode_fetch_extra *bfe,
-    FT h,
-    const DBT *left,
-    const DBT *right,
-    bool disable_prefetching,
-    bool read_all_partitions
-    )
-{
-    paranoid_invariant(h->h->type == FT_CURRENT);
-    bfe->type = ftnode_fetch_keymatch;
-    bfe->h = h;
-    bfe->search = nullptr;
-    toku_init_dbt(&bfe->range_lock_left_key);
-    toku_init_dbt(&bfe->range_lock_right_key);
-    if (left) {
-        toku_copyref_dbt(&bfe->range_lock_left_key, *left);
-    }
-
-    if (right) {
-        toku_copyref_dbt(&bfe->range_lock_right_key, *right);
-    }
-    bfe->left_is_neg_infty = left == nullptr;
-    bfe->right_is_pos_infty = right == nullptr;
-    bfe->child_to_read = -1;
-    bfe->disable_prefetching = disable_prefetching;
-    bfe->read_all_partitions = read_all_partitions;
-    bfe->bytes_read = 0;
-    bfe->io_time = 0;
-    bfe->deserialize_time = 0;
-    bfe->decompress_time = 0;
-}
-
+void fill_bfe_for_keymatch(struct ftnode_fetch_extra *bfe, FT ft,
+                           const DBT *left, const DBT *right,
+                           bool disable_prefetching, bool read_all_partitions);
 //
 // Helper function to fill a ftnode_fetch_extra with data
 // that will tell the fetch callback that some subset of the node
 // necessary. Used in cases where some of the node is required
 // such as for a point query.
 //
-static inline void fill_bfe_for_subset_read(
-    struct ftnode_fetch_extra *bfe,
-    FT h,
-    ft_search *search,
-    const DBT *left,
-    const DBT *right,
-    bool left_is_neg_infty,
-    bool right_is_pos_infty,
-    bool disable_prefetching,
-    bool read_all_partitions
-    )
-{
-    paranoid_invariant(h->h->type == FT_CURRENT);
-    bfe->type = ftnode_fetch_subset;
-    bfe->h = h;
-    bfe->search = search;
-    toku_init_dbt(&bfe->range_lock_left_key);
-    toku_init_dbt(&bfe->range_lock_right_key);
-    if (left) {
-        toku_copyref_dbt(&bfe->range_lock_left_key, *left);
-    }
-    if (right) {
-        toku_copyref_dbt(&bfe->range_lock_right_key, *right);
-    }
-    bfe->left_is_neg_infty = left_is_neg_infty;
-    bfe->right_is_pos_infty = right_is_pos_infty;
-    bfe->child_to_read = -1;
-    bfe->disable_prefetching = disable_prefetching;
-    bfe->read_all_partitions = read_all_partitions;
-    bfe->bytes_read = 0;
-    bfe->io_time = 0;
-    bfe->deserialize_time = 0;
-    bfe->decompress_time = 0;
-}
+void fill_bfe_for_subset_read(struct ftnode_fetch_extra *bfe, FT ft, ft_search *search,
+                              const DBT *left, const DBT *right,
+                              bool left_is_neg_infty, bool right_is_pos_infty,
+                              bool disable_prefetching, bool read_all_partitions);
 
 //
 // Helper function to fill a ftnode_fetch_extra with data
@@ -896,41 +452,11 @@ static inline void fill_bfe_for_subset_read(
 // necessary, only the pivots and/or subtree estimates.
 // Currently used for stat64.
 //
-static inline void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT h) {
-    paranoid_invariant(h->h->type == FT_CURRENT);
-    bfe->type = ftnode_fetch_none;
-    bfe->h = h;
-    bfe->search = NULL;
-    toku_init_dbt(&bfe->range_lock_left_key);
-    toku_init_dbt(&bfe->range_lock_right_key);
-    bfe->left_is_neg_infty = false;
-    bfe->right_is_pos_infty = false;
-    bfe->child_to_read = -1;
-    bfe->disable_prefetching = false;
-    bfe->read_all_partitions = false;
-    bfe->bytes_read = 0;
-    bfe->io_time = 0;
-    bfe->deserialize_time = 0;
-    bfe->decompress_time = 0;
-}
+void fill_bfe_for_min_read(struct ftnode_fetch_extra *bfe, FT ft);
 
-static inline void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe) {
-    paranoid_invariant(bfe->type == ftnode_fetch_prefetch);
-    toku_destroy_dbt(&bfe->range_lock_left_key);
-    toku_destroy_dbt(&bfe->range_lock_right_key);
-}
+void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe, FT ft, struct ft_cursor *cursor);
 
-// this is in a strange place because it needs the cursor struct to be defined
-void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe,
-                           FT h,
-                           struct ft_cursor *c);
-
-struct ancestors {
-    FTNODE   node;     // This is the root node if next is NULL.
-    int       childnum; // which buffer holds messages destined to the node whose ancestors this list represents.
-    struct ancestors *next;     // Parent of this node (so next->node.(next->childnum) refers to this node).
-};
-typedef struct ancestors *ANCESTORS;
+void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe);
 
 struct pivot_bounds {
     const DBT * const lower_bound_exclusive;
@@ -938,21 +464,9 @@ struct pivot_bounds {
 };
 typedef struct pivot_bounds const * const PIVOT_BOUNDS;
 
-__attribute__((nonnull))
-void toku_move_ftnode_messages_to_stale(FT ft, FTNODE node);
-void toku_apply_ancestors_messages_to_node (FT_HANDLE t, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool* msgs_applied, int child_to_read);
-__attribute__((nonnull))
-bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, MSN *const max_msn_in_path, int child_to_read);
-__attribute__((nonnull))
-void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read);
-
-int
-toku_ft_search_which_child(
-    DESCRIPTOR desc,
-    ft_compare_func cmp,
-    FTNODE node,
-    ft_search *search
-    );
+const DBT *prepivotkey (FTNODE node, int childnum, const DBT * const lower_bound_exclusive);
+const DBT *postpivotkey (FTNODE node, int childnum, const DBT * const upper_bound_inclusive);
+struct pivot_bounds next_pivot_keys (FTNODE node, int childnum, struct pivot_bounds const * const old_pb);
 
 bool
 toku_bfe_wants_child_available (struct ftnode_fetch_extra* bfe, int childnum);
@@ -966,29 +480,6 @@ toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
 // allocate and initialize a ftnode
 // put the ftnode into the cache table
 void toku_create_new_ftnode (FT_HANDLE t, FTNODE *result, int height, int n_children);
-
-// Effect: Fill in N as an empty ftnode.
-void toku_initialize_empty_ftnode (FTNODE n, BLOCKNUM nodename, int height, int num_children, 
-                                    int layout_version, unsigned int flags);
-
-int toku_ftnode_which_child(FTNODE node, const DBT *k,
-                            DESCRIPTOR desc, ft_compare_func cmp)
-    __attribute__((__warn_unused_result__));
-
-/**
- * Finds the next child for HOT to flush to, given that everything up to
- * and including k has been flattened.
- *
- * If k falls between pivots in node, then we return the childnum where k
- * lies.
- *
- * If k is equal to some pivot, then we return the next (to the right)
- * childnum.
- */
-int toku_ftnode_hot_next_child(FTNODE node,
-                               const DBT *k,
-                               DESCRIPTOR desc,
-                               ft_compare_func cmp);
 
 /* Stuff for testing */
 // toku_testsetup_initialize() must be called before any other test_setup_xxx() functions are called.
@@ -1174,57 +665,6 @@ typedef struct {
 
 void toku_ft_get_status(FT_STATUS);
 
-void
-toku_ft_bn_apply_msg_once(
-    BASEMENTNODE bn,
-    const FT_MSG msg,
-    uint32_t idx,
-    uint32_t le_keylen,
-    LEAFENTRY le,
-    txn_gc_info *gc_info,
-    uint64_t *workdonep,
-    STAT64INFO stats_to_update
-    );
-
-void
-toku_ft_bn_apply_msg(
-    ft_compare_func compare_fun,
-    ft_update_func update_fun,
-    DESCRIPTOR desc,
-    BASEMENTNODE bn,
-    FT_MSG msg,
-    txn_gc_info *gc_info,
-    uint64_t *workdone,
-    STAT64INFO stats_to_update
-    );
-
-void
-toku_ft_leaf_apply_msg(
-    ft_compare_func compare_fun,
-    ft_update_func update_fun,
-    DESCRIPTOR desc,
-    FTNODE node,
-    int target_childnum,
-    FT_MSG msg,
-    txn_gc_info *gc_info,
-    uint64_t *workdone,
-    STAT64INFO stats_to_update
-    );
-
-void
-toku_ft_node_put_msg(
-    ft_compare_func compare_fun,
-    ft_update_func update_fun,
-    DESCRIPTOR desc,
-    FTNODE node,
-    int target_childnum,
-    FT_MSG msg,
-    bool is_fresh,
-    txn_gc_info *gc_info,
-    size_t flow_deltas[],
-    STAT64INFO stats_to_update
-    );
-
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
 int toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h) __attribute__((nonnull));
@@ -1245,6 +685,5 @@ typedef int (*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN val
 
 typedef bool (*FT_CHECK_INTERRUPT_CALLBACK)(void *extra);
 
-struct ft_search;
 struct ft_cursor;
 int toku_ft_search(FT_HANDLE ft_handle, ft_search *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, struct ft_cursor *ftcursor, bool can_bulk_fetch);

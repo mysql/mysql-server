@@ -89,17 +89,18 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft-internal.h"
-#include "log-internal.h"
-#include <compress.h>
-#include <portability/toku_atomic.h>
-#include <util/sort.h>
-#include <util/threadpool.h>
-#include "ft.h"
-#include <util/status.h>
-#include <util/scoped_malloc.h>
 #include "ft/cachetable.h"
+#include "ft/compress.h"
+#include "ft/ft.h"
+#include "ft/ft-internal.h"
+#include "ft/node.h"
+#include "ft/log-internal.h"
 #include "ft/rollback.h"
+#include "portability/toku_atomic.h"
+#include "util/sort.h"
+#include "util/threadpool.h"
+#include "util/status.h"
+#include "util/scoped_malloc.h"
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 
@@ -532,7 +533,7 @@ toku_serialize_ftnode_size (FTNODE node) {
     // As of now, this seems to be called if and only if the entire node is supposed
     // to be in memory, so we will assert it.
     //
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     result += serialize_node_header_size(node);
     result += serialize_ftnode_info_size(node);
     for (int i = 0; i < node->n_children; i++) {
@@ -540,208 +541,6 @@ toku_serialize_ftnode_size (FTNODE node) {
     }
     return result;
 }
-
-struct array_info {
-    uint32_t offset;
-    LEAFENTRY* le_array;
-    uint32_t* key_sizes_array;
-    const void** key_ptr_array;
-};
-
-static int
-array_item(const void* key, const uint32_t keylen, const LEAFENTRY &le, const uint32_t idx, struct array_info *const ai) {
-    ai->le_array[idx+ai->offset] = le;
-    ai->key_sizes_array[idx+ai->offset] = keylen;
-    ai->key_ptr_array[idx+ai->offset] = key;
-    return 0;
-}
-
-// There must still be at least one child
-// Requires that all messages in buffers above have been applied.
-// Because all messages above have been applied, setting msn of all new basements 
-// to max msn of existing basements is correct.  (There cannot be any messages in
-// buffers above that still need to be applied.)
-void
-rebalance_ftnode_leaf(FTNODE node, unsigned int basementnodesize)
-{
-    assert(node->height == 0);
-    assert(node->dirty);
-
-    uint32_t num_orig_basements = node->n_children;
-    // Count number of leaf entries in this leaf (num_le).
-    uint32_t num_le = 0;
-    for (uint32_t i = 0; i < num_orig_basements; i++) {
-        num_le += BLB_DATA(node, i)->num_klpairs();
-    }
-
-    uint32_t num_alloc = num_le ? num_le : 1;  // simplify logic below by always having at least one entry per array
-
-    // Create an array of OMTVALUE's that store all the pointers to all the data.
-    // Each element in leafpointers is a pointer to a leaf.
-    toku::scoped_malloc leafpointers_buf(sizeof(LEAFENTRY) * num_alloc);
-    LEAFENTRY *leafpointers = reinterpret_cast<LEAFENTRY *>(leafpointers_buf.get());
-    leafpointers[0] = NULL;
-
-    toku::scoped_malloc key_pointers_buf(sizeof(void *) * num_alloc);
-    const void **key_pointers = reinterpret_cast<const void **>(key_pointers_buf.get());
-    key_pointers[0] = NULL;
-
-    toku::scoped_malloc key_sizes_buf(sizeof(uint32_t) * num_alloc);
-    uint32_t *key_sizes = reinterpret_cast<uint32_t *>(key_sizes_buf.get());
-
-    // Capture pointers to old mempools' buffers (so they can be destroyed)
-    toku::scoped_malloc old_bns_buf(sizeof(BASEMENTNODE) * num_orig_basements);
-    BASEMENTNODE *old_bns = reinterpret_cast<BASEMENTNODE *>(old_bns_buf.get());
-    old_bns[0] = NULL;
-
-    uint32_t curr_le = 0;
-    for (uint32_t i = 0; i < num_orig_basements; i++) {
-        bn_data* bd = BLB_DATA(node, i);
-        struct array_info ai {.offset = curr_le, .le_array = leafpointers, .key_sizes_array = key_sizes, .key_ptr_array = key_pointers };
-        bd->iterate<array_info, array_item>(&ai);
-        curr_le += bd->num_klpairs();
-    }
-
-    // Create an array that will store indexes of new pivots.
-    // Each element in new_pivots is the index of a pivot key.
-    // (Allocating num_le of them is overkill, but num_le is an upper bound.)
-    toku::scoped_malloc new_pivots_buf(sizeof(uint32_t) * num_alloc);
-    uint32_t *new_pivots = reinterpret_cast<uint32_t *>(new_pivots_buf.get());
-    new_pivots[0] = 0;
-
-    // Each element in le_sizes is the size of the leafentry pointed to by leafpointers.
-    toku::scoped_malloc le_sizes_buf(sizeof(size_t) * num_alloc);
-    size_t *le_sizes = reinterpret_cast<size_t *>(le_sizes_buf.get());
-    le_sizes[0] = 0;
-
-    // Create an array that will store the size of each basement.
-    // This is the sum of the leaf sizes of all the leaves in that basement.
-    // We don't know how many basements there will be, so we use num_le as the upper bound.
-
-    // Sum of all le sizes in a single basement
-    toku::scoped_calloc bn_le_sizes_buf(sizeof(size_t) * num_alloc);
-    size_t *bn_le_sizes = reinterpret_cast<size_t *>(bn_le_sizes_buf.get());
-
-    // Sum of all key sizes in a single basement
-    toku::scoped_calloc bn_key_sizes_buf(sizeof(size_t) * num_alloc);
-    size_t *bn_key_sizes = reinterpret_cast<size_t *>(bn_key_sizes_buf.get());
-
-    // TODO 4050: All these arrays should be combined into a single array of some bn_info struct (pivot, msize, num_les).
-    // Each entry is the number of leafentries in this basement.  (Again, num_le is overkill upper baound.)
-    toku::scoped_malloc num_les_this_bn_buf(sizeof(uint32_t) * num_alloc);
-    uint32_t *num_les_this_bn = reinterpret_cast<uint32_t *>(num_les_this_bn_buf.get());
-    num_les_this_bn[0] = 0;
-    
-    // Figure out the new pivots.  
-    // We need the index of each pivot, and for each basement we need
-    // the number of leaves and the sum of the sizes of the leaves (memory requirement for basement).
-    uint32_t curr_pivot = 0;
-    uint32_t num_le_in_curr_bn = 0;
-    uint32_t bn_size_so_far = 0;
-    for (uint32_t i = 0; i < num_le; i++) {
-        uint32_t curr_le_size = leafentry_disksize((LEAFENTRY) leafpointers[i]); 
-        le_sizes[i] = curr_le_size;
-        if ((bn_size_so_far + curr_le_size + sizeof(uint32_t) + key_sizes[i] > basementnodesize) && (num_le_in_curr_bn != 0)) {
-            // cap off the current basement node to end with the element before i
-            new_pivots[curr_pivot] = i-1;
-            curr_pivot++;
-            num_le_in_curr_bn = 0;
-            bn_size_so_far = 0;
-        }
-        num_le_in_curr_bn++;
-        num_les_this_bn[curr_pivot] = num_le_in_curr_bn;
-        bn_le_sizes[curr_pivot] += curr_le_size;
-        bn_key_sizes[curr_pivot] += sizeof(uint32_t) + key_sizes[i];  // uint32_t le_offset
-        bn_size_so_far += curr_le_size + sizeof(uint32_t) + key_sizes[i];
-    }
-    // curr_pivot is now the total number of pivot keys in the leaf node
-    int num_pivots   = curr_pivot;
-    int num_children = num_pivots + 1;
-
-    // now we need to fill in the new basement nodes and pivots
-
-    // TODO: (Zardosht) this is an ugly thing right now
-    // Need to figure out how to properly deal with seqinsert.
-    // I am not happy with how this is being
-    // handled with basement nodes
-    uint32_t tmp_seqinsert = BLB_SEQINSERT(node, num_orig_basements - 1);
-
-    // choose the max msn applied to any basement as the max msn applied to all new basements
-    MSN max_msn = ZERO_MSN;
-    for (uint32_t i = 0; i < num_orig_basements; i++) {
-        MSN curr_msn = BLB_MAX_MSN_APPLIED(node,i);
-        max_msn = (curr_msn.msn > max_msn.msn) ? curr_msn : max_msn;
-    }
-    // remove the basement node in the node, we've saved a copy
-    for (uint32_t i = 0; i < num_orig_basements; i++) {
-        // save a reference to the old basement nodes
-        // we will need them to ensure that the memory
-        // stays intact
-        old_bns[i] = toku_detach_bn(node, i);
-    }
-    // Now destroy the old basements, but do not destroy leaves
-    toku_destroy_ftnode_internals(node);
-
-    // now reallocate pieces and start filling them in
-    invariant(num_children > 0);
-    node->totalchildkeylens = 0;
-
-    XCALLOC_N(num_pivots, node->childkeys);        // allocate pointers to pivot structs
-    node->n_children = num_children;
-    XCALLOC_N(num_children, node->bp);             // allocate pointers to basements (bp)
-    for (int i = 0; i < num_children; i++) {
-        set_BLB(node, i, toku_create_empty_bn());  // allocate empty basements and set bp pointers
-    }
-
-    // now we start to fill in the data
-
-    // first the pivots
-    for (int i = 0; i < num_pivots; i++) {
-        uint32_t keylen = key_sizes[new_pivots[i]];
-        const void *key = key_pointers[new_pivots[i]];
-        toku_memdup_dbt(&node->childkeys[i], key, keylen);
-        node->totalchildkeylens += keylen;
-    }
-
-    uint32_t baseindex_this_bn = 0;
-    // now the basement nodes
-    for (int i = 0; i < num_children; i++) {
-        // put back seqinsert
-        BLB_SEQINSERT(node, i) = tmp_seqinsert;
-
-        // create start (inclusive) and end (exclusive) boundaries for data of basement node
-        uint32_t curr_start = (i==0) ? 0 : new_pivots[i-1]+1;               // index of first leaf in basement
-        uint32_t curr_end = (i==num_pivots) ? num_le : new_pivots[i]+1;     // index of first leaf in next basement
-        uint32_t num_in_bn = curr_end - curr_start;                         // number of leaves in this basement
-
-        // create indexes for new basement
-        invariant(baseindex_this_bn == curr_start);
-        uint32_t num_les_to_copy = num_les_this_bn[i];
-        invariant(num_les_to_copy == num_in_bn); 
-
-        bn_data* bd = BLB_DATA(node, i);
-        bd->set_contents_as_clone_of_sorted_array(
-            num_les_to_copy,
-            &key_pointers[baseindex_this_bn],
-            &key_sizes[baseindex_this_bn],
-            &leafpointers[baseindex_this_bn],
-            &le_sizes[baseindex_this_bn],
-            bn_key_sizes[i],  // Total key sizes
-            bn_le_sizes[i]  // total le sizes
-            );
-
-        BP_STATE(node,i) = PT_AVAIL;
-        BP_TOUCH_CLOCK(node,i);
-        BLB_MAX_MSN_APPLIED(node,i) = max_msn;
-        baseindex_this_bn += num_les_to_copy;  // set to index of next bn
-    }
-    node->max_msn_applied_to_node_on_disk = max_msn;
-
-    // destroy buffers of old mempools
-    for (uint32_t i = 0; i < num_orig_basements; i++) {
-        destroy_basement_node(old_bns[i]);
-    }
-}  // end of rebalance_ftnode_leaf()
 
 struct serialize_times {
     tokutime_t serialize_time;
@@ -907,10 +706,10 @@ int toku_serialize_ftnode_to_memory(FTNODE node,
 //   The resulting buffer is guaranteed to be 512-byte aligned and the total length is a multiple of 512 (so we pad with zeros at the end if needed).
 //   512-byte padding is for O_DIRECT to work.
 {
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
 
     if (do_rebalancing && node->height == 0) {
-        rebalance_ftnode_leaf(node, basementnodesize);
+        toku_ftnode_leaf_rebalance(node, basementnodesize);
     }
     const int npartitions = node->n_children;
 

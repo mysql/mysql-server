@@ -245,7 +245,7 @@ doit (void) {
     // what we say and flushes the child we pick
     FTNODE node = NULL;
     toku_pin_node_with_min_bfe(&node, node_internal, t);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->n_children == 2);
     assert(!node->dirty);
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) > 0);
@@ -268,7 +268,7 @@ doit (void) {
     assert(num_flushes_called == 1);
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->dirty);
     assert(node->n_children == 2);
     // child 0 should have empty buffer because it flushed
@@ -287,7 +287,7 @@ doit (void) {
     
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(node->dirty);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->n_children == 2);
     // both buffers should be empty now
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
@@ -305,7 +305,7 @@ doit (void) {
 
     toku_pin_node_with_min_bfe(&node, node_internal, t);
     assert(node->dirty); // nothing was flushed, but since we were trying to flush to a leaf, both become dirty
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     assert(node->n_children == 2);
     // both buffers should be empty now
     assert(toku_bnc_n_entries(node->bp[0].ptr.u.nonleaf) == 0);
@@ -326,7 +326,7 @@ doit (void) {
     // use a for loop so to get us down both paths
     for (int i = 0; i < 2; i++) {
         toku_pin_node_with_min_bfe(&node, node_root, t);
-        toku_assert_entire_node_in_memory(node); // entire root is in memory
+        toku_ftnode_assert_fully_in_memory(node); // entire root is in memory
         curr_child_to_flush = i;
         num_flushes_called = 0;
         toku_ft_flush_some_child(t->ft, node, &fa);
@@ -376,7 +376,7 @@ doit (void) {
 
     //now let's do the same test as above
     toku_pin_node_with_min_bfe(&node, node_root, t);
-    toku_assert_entire_node_in_memory(node); // entire root is in memory
+    toku_ftnode_assert_fully_in_memory(node); // entire root is in memory
     curr_child_to_flush = 0;
     num_flushes_called = 0;
     toku_ft_flush_some_child(t->ft, node, &fa);

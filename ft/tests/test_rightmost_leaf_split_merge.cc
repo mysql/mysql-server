@@ -180,7 +180,7 @@ static void test_split_merge(void) {
     toku_pin_ftnode(ft, rightmost_blocknum_before_merge,
                    toku_cachetable_hash(ft->cf, rightmost_blocknum_before_merge),
                    &bfe, PL_WRITE_EXPENSIVE, &rightmost_leaf, true);
-    invariant(get_node_reactivity(ft, rightmost_leaf) == RE_FUSIBLE);
+    invariant(toku_ftnode_get_reactivity(ft, rightmost_leaf) == RE_FUSIBLE);
     toku_unpin_ftnode(ft, rightmost_leaf);
 
     // - merge the rightmost child now that it's fusible

@@ -89,15 +89,16 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <ft-internal.h>
-#include <ft-flusher.h>
-#include <ft-flusher-internal.h>
-#include <ft-cachetable-wrappers.h>
-#include <ft.h>
-#include <toku_assert.h>
-#include <portability/toku_atomic.h>
-#include <util/status.h>
-#include <util/context.h>
+#include "ft/ft.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-internal.h"
+#include "ft/ft-flusher.h"
+#include "ft/ft-flusher-internal.h"
+#include "ft/node.h"
+#include "portability/toku_assert.h"
+#include "portability/toku_atomic.h"
+#include "util/status.h"
+#include "util/context.h"
 
 /* Status is intended for display to humans to help understand system behavior.
  * It does not need to be perfectly thread-safe.
@@ -307,7 +308,7 @@ static bool
 recurse_if_child_is_gorged(FTNODE child, void* extra)
 {
     struct flush_status_update_extra *fste = (flush_status_update_extra *)extra;
-    return toku_ft_nonleaf_is_gorged(child, fste->nodesize);
+    return toku_ftnode_nonleaf_is_gorged(child, fste->nodesize);
 }
 
 int
@@ -497,7 +498,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             struct ftnode_fetch_extra bfe;
             fill_bfe_for_full_read(&bfe, h);
             toku_pin_ftnode(h, root, fullhash, &bfe, PL_WRITE_EXPENSIVE, &root_node, true);
-            toku_assert_entire_node_in_memory(root_node);
+            toku_ftnode_assert_fully_in_memory(root_node);
         }
 
         (void) toku_sync_fetch_and_add(&STATUS_VALUE(FT_FLUSHER_CLEANER_NUM_LEAF_MERGES_STARTED), 1);
@@ -545,13 +546,12 @@ ct_flusher_advice_init(struct flusher_advice *fa, struct flush_status_update_ext
 // a leaf node that is not entirely in memory. If so, then
 // we cannot be sure if the node is reactive.
 //
-static bool may_node_be_reactive(FT ft, FTNODE node)
+static bool ft_ftnode_may_be_reactive(FT ft, FTNODE node)
 {
     if (node->height == 0) {
         return true;
-    }
-    else {
-        return (get_nonleaf_reactivity(node, ft->h->fanout) != RE_STABLE);
+    } else {
+        return toku_ftnode_get_nonleaf_reactivity(node, ft->h->fanout) != RE_STABLE;
     }
 }
 
@@ -576,9 +576,9 @@ handle_split_of_child(
     paranoid_invariant(node->height>0);
     paranoid_invariant(0 <= childnum);
     paranoid_invariant(childnum < node->n_children);
-    toku_assert_entire_node_in_memory(node);
-    toku_assert_entire_node_in_memory(childa);
-    toku_assert_entire_node_in_memory(childb);
+    toku_ftnode_assert_fully_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(childa);
+    toku_ftnode_assert_fully_in_memory(childb);
     NONLEAF_CHILDINFO old_bnc = BNC(node, childnum);
     paranoid_invariant(toku_bnc_nbytesinbuf(old_bnc)==0);
     int cnum;
@@ -653,9 +653,9 @@ handle_split_of_child(
                  )
 
     /* Keep pushing to the children, but not if the children would require a pushdown */
-    toku_assert_entire_node_in_memory(node);
-    toku_assert_entire_node_in_memory(childa);
-    toku_assert_entire_node_in_memory(childb);
+    toku_ftnode_assert_fully_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(childa);
+    toku_ftnode_assert_fully_in_memory(childb);
 
     VERIFY_NODE(t, node);
     VERIFY_NODE(t, childa);
@@ -680,7 +680,7 @@ ftleaf_disk_size(FTNODE node)
 // Effect: get the disk size of a leafentry
 {
     paranoid_invariant(node->height == 0);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     uint64_t retval = 0;
     for (int i = 0; i < node->n_children; i++) {
         retval += BLB_DATA(node, i)->get_disk_size();
@@ -771,8 +771,8 @@ move_leafentries(
 
 static void ftnode_finalize_split(FTNODE node, FTNODE B, MSN max_msn_applied_to_node) {
 // Effect: Finalizes a split by updating some bits and dirtying both nodes
-    toku_assert_entire_node_in_memory(node);
-    toku_assert_entire_node_in_memory(B);
+    toku_ftnode_assert_fully_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(B);
     verify_all_in_mempool(node);
     verify_all_in_mempool(B);
 
@@ -851,7 +851,7 @@ ftleaf_split(
 
 
     paranoid_invariant(node->height==0);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     verify_all_in_mempool(node);
     MSN max_msn_applied_to_node = node->max_msn_applied_to_node_on_disk;
 
@@ -996,7 +996,7 @@ ft_nonleaf_split(
 {
     //VERIFY_NODE(t,node);
     STATUS_VALUE(FT_FLUSHER_SPLIT_NONLEAF)++;
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     int old_n_children = node->n_children;
     int n_children_in_a = old_n_children/2;
     int n_children_in_b = old_n_children-n_children_in_a;
@@ -1112,7 +1112,7 @@ ft_split_child(
 }
 
 static void bring_node_fully_into_memory(FTNODE node, FT ft) {
-    if (!is_entire_node_in_memory(node)) {
+    if (!toku_ftnode_fully_in_memory(node)) {
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, ft);
         toku_cachetable_pf_pinned_pair(
@@ -1136,12 +1136,12 @@ flush_this_child(
 // Effect: Push everything in the CHILDNUMth buffer of node down into the child.
 {
     update_flush_status(child, 0);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     if (fa->should_destroy_basement_nodes(fa)) {
         maybe_destroy_child_blbs(node, child, h);
     }
     bring_node_fully_into_memory(child, h);
-    toku_assert_entire_node_in_memory(child);
+    toku_ftnode_assert_fully_in_memory(child);
     paranoid_invariant(node->height>0);
     paranoid_invariant(child->thisnodename.b!=0);
     // VERIFY_NODE does not work off client thread as of now
@@ -1163,8 +1163,8 @@ static void
 merge_leaf_nodes(FTNODE a, FTNODE b)
 {
     STATUS_VALUE(FT_FLUSHER_MERGE_LEAF)++;
-    toku_assert_entire_node_in_memory(a);
-    toku_assert_entire_node_in_memory(b);
+    toku_ftnode_assert_fully_in_memory(a);
+    toku_ftnode_assert_fully_in_memory(b);
     paranoid_invariant(a->height == 0);
     paranoid_invariant(b->height == 0);
     paranoid_invariant(a->n_children > 0);
@@ -1268,7 +1268,7 @@ maybe_merge_pinned_leaf_nodes(
 {
     unsigned int sizea = toku_serialize_ftnode_size(a);
     unsigned int sizeb = toku_serialize_ftnode_size(b);
-    uint32_t num_leafentries = get_leaf_num_entries(a) + get_leaf_num_entries(b);
+    uint32_t num_leafentries = toku_ftnode_leaf_num_entries(a) + toku_ftnode_leaf_num_entries(b);
     if (num_leafentries > 1 && (sizea + sizeb)*4 > (nodesize*3)) {
         // the combined size is more than 3/4 of a node, so don't merge them.
         *did_merge = false;
@@ -1301,8 +1301,8 @@ maybe_merge_pinned_nonleaf_nodes(
     bool *did_rebalance,
     DBT *splitk)
 {
-    toku_assert_entire_node_in_memory(a);
-    toku_assert_entire_node_in_memory(b);
+    toku_ftnode_assert_fully_in_memory(a);
+    toku_ftnode_assert_fully_in_memory(b);
     paranoid_invariant(parent_splitk->data);
     int old_n_children = a->n_children;
     int new_n_children = old_n_children + b->n_children;
@@ -1366,9 +1366,9 @@ maybe_merge_pinned_nodes(
 {
     MSN msn_max;
     paranoid_invariant(a->height == b->height);
-    toku_assert_entire_node_in_memory(parent);
-    toku_assert_entire_node_in_memory(a);
-    toku_assert_entire_node_in_memory(b);
+    toku_ftnode_assert_fully_in_memory(parent);
+    toku_ftnode_assert_fully_in_memory(a);
+    toku_ftnode_assert_fully_in_memory(b);
     parent->dirty = 1;   // just to make sure
     {
         MSN msna = a->max_msn_applied_to_node_on_disk;
@@ -1413,7 +1413,7 @@ ft_merge_child(
     // this function should not be called
     // if the child is not mergable
     paranoid_invariant(node->n_children > 1);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
 
     int childnuma,childnumb;
     if (childnum_to_merge > 0) {
@@ -1577,7 +1577,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     int dirtied = 0;
     NONLEAF_CHILDINFO bnc = NULL;
     paranoid_invariant(parent->height>0);
-    toku_assert_entire_node_in_memory(parent);
+    toku_ftnode_assert_fully_in_memory(parent);
     TXNID parent_oldest_referenced_xid_known = parent->oldest_referenced_xid_known;
 
     // pick the child we want to flush to
@@ -1608,7 +1608,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // Let's do a quick check to see if the child may be reactive
     // If the child cannot be reactive, then we can safely unlock
     // the parent before finishing reading in the entire child node.
-    bool may_child_be_reactive = may_node_be_reactive(ft, child);
+    bool may_child_be_reactive = ft_ftnode_may_be_reactive(ft, child);
 
     paranoid_invariant(child->thisnodename.b!=0);
 
@@ -1649,7 +1649,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // we wont be splitting/merging child
     // and we have already replaced the bnc
     // for the root with a fresh one
-    enum reactivity child_re = get_node_reactivity(ft, child);
+    enum reactivity child_re = toku_ftnode_get_reactivity(ft, child);
     if (parent && child_re == RE_STABLE) {
         toku_unpin_ftnode(ft, parent);
         parent = NULL;
@@ -1679,7 +1679,7 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     // let's get the reactivity of the child again,
     // it is possible that the flush got rid of some values
     // and now the parent is no longer reactive
-    child_re = get_node_reactivity(ft, child);
+    child_re = toku_ftnode_get_reactivity(ft, child);
     // if the parent has been unpinned above, then
     // this is our only option, even if the child is not stable
     // if the child is not stable, we'll handle it the next
@@ -1721,6 +1721,79 @@ void toku_ft_flush_some_child(FT ft, FTNODE parent, struct flusher_advice *fa)
     }
     else {
         abort();
+    }
+}
+
+void toku_bnc_flush_to_child(FT ft, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known) {
+    paranoid_invariant(bnc);
+
+    TOKULOGGER logger = toku_cachefile_logger(ft->cf);
+    TXN_MANAGER txn_manager = logger != nullptr ? toku_logger_get_txn_manager(logger) : nullptr;
+    TXNID oldest_referenced_xid_for_simple_gc = TXNID_NONE;
+
+    txn_manager_state txn_state_for_gc(txn_manager);
+    bool do_garbage_collection = child->height == 0 && txn_manager != nullptr;
+    if (do_garbage_collection) {
+        txn_state_for_gc.init();
+        oldest_referenced_xid_for_simple_gc = toku_txn_manager_get_oldest_referenced_xid_estimate(txn_manager);
+    }
+    txn_gc_info gc_info(&txn_state_for_gc,
+                        oldest_referenced_xid_for_simple_gc,                    
+                        child->oldest_referenced_xid_known,
+                        true);
+    struct flush_msg_fn {
+        FT ft;
+        FTNODE child;
+        NONLEAF_CHILDINFO bnc;
+        txn_gc_info *gc_info;
+
+        STAT64INFO_S stats_delta;
+        size_t remaining_memsize = bnc->msg_buffer.buffer_size_in_use();
+
+        flush_msg_fn(FT t, FTNODE n, NONLEAF_CHILDINFO nl, txn_gc_info *g) :
+            ft(t), child(n), bnc(nl), gc_info(g), remaining_memsize(bnc->msg_buffer.buffer_size_in_use()) {
+            stats_delta = { 0, 0 };
+        }
+        int operator()(FT_MSG msg, bool is_fresh) {
+            size_t flow_deltas[] = { 0, 0 };
+            size_t memsize_in_buffer = message_buffer::msg_memsize_in_buffer(msg);
+            if (remaining_memsize <= bnc->flow[0]) {
+                // this message is in the current checkpoint's worth of
+                // the end of the message buffer
+                flow_deltas[0] = memsize_in_buffer;
+            } else if (remaining_memsize <= bnc->flow[0] + bnc->flow[1]) {
+                // this message is in the last checkpoint's worth of the
+                // end of the message buffer
+                flow_deltas[1] = memsize_in_buffer;
+            }
+            toku_ftnode_put_msg(
+                ft->compare_fun,
+                ft->update_fun,
+                &ft->cmp_descriptor,
+                child,
+                -1,
+                msg,
+                is_fresh,
+                gc_info,
+                flow_deltas,
+                &stats_delta
+                );
+            remaining_memsize -= memsize_in_buffer;
+            return 0;
+        }
+    } flush_fn(ft, child, bnc, &gc_info);
+    bnc->msg_buffer.iterate(flush_fn);
+
+    child->oldest_referenced_xid_known = parent_oldest_referenced_xid_known;
+
+    invariant(flush_fn.remaining_memsize == 0);
+    if (flush_fn.stats_delta.numbytes || flush_fn.stats_delta.numrows) {
+        toku_ft_update_stats(&ft->in_memory_stats, flush_fn.stats_delta);
+    }
+    if (do_garbage_collection) {
+        size_t buffsize = bnc->msg_buffer.buffer_size_in_use();
+        // may be misleading if there's a broadcast message in there
+        toku_ft_status_note_msg_bytes_out(buffsize);
     }
 }
 
@@ -1912,7 +1985,7 @@ static void flush_node_fun(void *fe_v)
         // If so, call toku_ft_flush_some_child on the node (because this flush intends to
         // pass a meaningful oldest referenced xid for simple garbage collection), and it is the
         // responsibility of the flush to unlock the node. otherwise, we unlock it here.
-        if (fe->node->height > 0 && toku_ft_nonleaf_is_gorged(fe->node, fe->h->h->nodesize)) {
+        if (fe->node->height > 0 && toku_ftnode_nonleaf_is_gorged(fe->node, fe->h->h->nodesize)) {
             toku_ft_flush_some_child(fe->h, fe->node, &fa);
         }
         else {
@@ -1984,7 +2057,7 @@ void toku_ft_flush_node_on_background_thread(FT h, FTNODE parent)
         //
         // successfully locked child
         //
-        bool may_child_be_reactive = may_node_be_reactive(h, child);
+        bool may_child_be_reactive = ft_ftnode_may_be_reactive(h, child);
         if (!may_child_be_reactive) {
             // We're going to unpin the parent, so before we do, we must
             // check to see if we need to blow away the basement nodes to

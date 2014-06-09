@@ -95,6 +95,7 @@ PATENT RIGHTS GRANT:
 #include "ft.h"
 #include "fttypes.h"
 #include "ft-internal.h"
+#include "ft/node.h"
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>

@@ -96,6 +96,7 @@ PATENT RIGHTS GRANT:
 
 #include "fttypes.h"
 #include "ft-internal.h"
+#include "node.h"
 #include "ft_layout_version.h"
 #include "block_table.h"
 #include "rbuf.h"

@@ -100,6 +100,7 @@ PATENT RIGHTS GRANT:
 #include "ft-cachetable-wrappers.h"
 #include "ft-internal.h"
 #include "ft.h"
+#include "node.h"
 
 static int 
 compare_pairs (FT_HANDLE ft_handle, const DBT *a, const DBT *b) {
@@ -399,7 +400,7 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
     BLOCKNUM blocknum = node->thisnodename;
 
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     this_msn = node->max_msn_applied_to_node_on_disk;
 
     if (height >= 0) {
@@ -501,7 +502,7 @@ toku_verify_ftnode (FT_HANDLE ft_handle,
     MSN   this_msn;
 
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
-    toku_assert_entire_node_in_memory(node);
+    toku_ftnode_assert_fully_in_memory(node);
     this_msn = node->max_msn_applied_to_node_on_disk;
 
     int result = 0;

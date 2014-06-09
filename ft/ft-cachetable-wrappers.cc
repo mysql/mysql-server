@@ -89,12 +89,13 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <ft-cachetable-wrappers.h>
+#include "ft/fttypes.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-flusher.h"
+#include "ft/ft-internal.h"
+#include "ft/ft.h"
+#include "ft/node.h"
 
-#include <fttypes.h>
-#include <ft-flusher.h>
-#include <ft-internal.h>
-#include <ft.h>
 #include <util/context.h>
 
 static void

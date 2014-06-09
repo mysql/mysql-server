@@ -89,14 +89,15 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <ft-flusher.h>
-#include <ft-flusher-internal.h>
-#include <ft-cachetable-wrappers.h>
-#include <ft-internal.h>
-#include <ft.h>
-#include <portability/toku_atomic.h>
-#include <util/status.h>
-#include <util/context.h>
+#include "ft/ft.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-flusher.h"
+#include "ft/ft-flusher-internal.h"
+#include "ft/ft-internal.h"
+#include "ft/node.h"
+#include "portability/toku_atomic.h"
+#include "util/context.h"
+#include "util/status.h"
 
 // Member Descirption:
 // 1. highest_pivot_key - this is the key that corresponds to the 
@@ -339,7 +340,7 @@ toku_ft_hot_optimize(FT_HANDLE ft_handle, DBT* left, DBT* right,
                             PL_WRITE_EXPENSIVE, 
                             &root,
                             true);
-            toku_assert_entire_node_in_memory(root);
+            toku_ftnode_assert_fully_in_memory(root);
         }
 
         // Prepare HOT diagnostics.
