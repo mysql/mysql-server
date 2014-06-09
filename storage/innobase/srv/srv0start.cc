@@ -996,7 +996,7 @@ skip_size_check:
 			bool retry = true;
 check_first_page:
 			check_msg = fil_read_first_page(
-				files[i], !one_opened, &flags, &space,
+				files[i], one_opened, &flags, &space,
 #ifdef UNIV_LOG_ARCHIVE
 				min_arch_log_no, max_arch_log_no,
 #endif /* UNIV_LOG_ARCHIVE */
