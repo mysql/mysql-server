@@ -979,8 +979,6 @@ srv_init(void)
 	trx_i_s_cache_init(trx_i_s_cache);
 
 	ut_crc32_init();
-
-	dict_mem_init();
 }
 
 /*********************************************************************//**
