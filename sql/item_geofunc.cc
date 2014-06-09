@@ -563,6 +563,8 @@ bool Item_func_centroid::bg_centroid(Geometry *geom, String *ptwkb)
         uint32 wkb_len= geom->get_data_size();
         wkb_scanner(wkb_start, &wkb_len,
                     Geometry::wkb_geometrycollection, false, &pt_acc);
+        if (mpts.size() == 0)
+          return (null_value= true);
         boost::geometry::centroid(mpts, respt);
       }
       break;
@@ -7221,6 +7223,8 @@ double Item_func_distance::val_real()
       }
     }
 
+    if (min_distance == DBL_MAX)
+      min_distance= 0;
     distance= min_distance;
     isdone= true;
   }
