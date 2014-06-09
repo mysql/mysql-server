@@ -1,0 +1,23 @@
+# WL#7742: test case that checks that the option
+#          binlog_group_commit_sync_delay introduces a
+#          delay in the group commit
+
+--source include/have_binlog_format_mixed.inc
+
+--let $delay=1000000
+--let $delay_as_secs= `SELECT $delay / 1000000.0`
+
+--let $bgcd_saved=`SELECT @@GLOBAL.binlog_group_commit_sync_delay`
+--eval SET GLOBAL binlog_group_commit_sync_delay=$delay
+
+SET @clock_in = SYSDATE();
+CREATE TABLE t1 (c1 INT) Engine=InnoDB;
+SET @elapsed = TIMESTAMPDIFF(MICROSECOND, @clock_in, SYSDATE());
+
+--let $assert_text="Assert that the statement never takes less than the delay set."
+--let $assert_cond= [SELECT @elapsed >= @@GLOBAL.binlog_group_commit_sync_delay]
+--source include/assert.inc
+
+--eval SET GLOBAL binlog_group_commit_sync_delay=$bgcd_saved
+
+DROP TABLE t1;

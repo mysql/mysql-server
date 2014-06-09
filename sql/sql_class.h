@@ -1259,7 +1259,8 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_SCHEDULER= 8,
   SYSTEM_THREAD_EVENT_WORKER= 16,
   SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64
+  SYSTEM_THREAD_SLAVE_WORKER= 64,
+  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128
 };
 
 inline char const *
@@ -1276,6 +1277,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -2256,6 +2258,11 @@ public:
     Stores the result of the FOUND_ROWS() function.
   */
   ulonglong  limit_found_rows;
+  /*
+    Indicate if the gtid_executed table is being operated
+    in current transaction.
+  */
+  bool  is_operating_gtid_table;
 
 private:
   /**
