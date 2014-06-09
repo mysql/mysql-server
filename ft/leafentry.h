@@ -246,6 +246,7 @@ toku_le_apply_msg(FT_MSG   msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
+                  uint32_t old_keylen,
                   txn_gc_info *gc_info,
                   LEAFENTRY *new_leafentry_p,
                   int64_t * numbytes_delta_p);
