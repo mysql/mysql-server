@@ -1039,9 +1039,17 @@ row_undo_mod_upd_exist_sec(
 		the secondary index record if we updated its fields
 		but alphabetically they stayed the same, e.g.,
 		'abc' -> 'aBc'. */
-		entry = row_build_index_entry(node->undo_row,
-					      node->undo_ext,
-					      index, heap);
+		if (dict_index_is_spatial(index)) {
+			entry = row_build_index_entry_low(node->undo_row,
+							  node->undo_ext,
+							  index, heap,
+							  ROW_BUILD_FOR_UNDO);
+		} else {
+			entry = row_build_index_entry(node->undo_row,
+						      node->undo_ext,
+						      index, heap);
+		}
+
 		ut_a(entry);
 
 		err = row_undo_mod_del_unmark_sec_and_undo_update(
