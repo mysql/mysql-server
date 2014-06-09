@@ -7075,9 +7075,11 @@ double Item_func_area::bg_area(Geometry *geom, bool *isdone)
     Given a polygon whose rings' points are in counter-clockwise order,
     boost geometry computes an area of negative value. Also, the inner ring
     has to be clockwise.
+
+    We now always make polygon rings CCW --- outer ring CCW and inner rings CW,
+    thus if we get a negative value, it's because the inner ring is larger than
+    the outer ring, and we should keep it negative.
    */
-  if (res < 0)
-    res= -res;
 
   return res;
 }
