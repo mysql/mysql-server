@@ -441,6 +441,7 @@ void bn_data::get_space_for_overwrite(
     uint32_t idx,
     const void* keyp UU(),
     uint32_t keylen UU(),
+    uint32_t old_keylen,
     uint32_t old_le_size,
     uint32_t new_size,
     LEAFENTRY* new_le_space,
@@ -455,8 +456,8 @@ void bn_data::get_space_for_overwrite(
     int r = m_buffer.fetch(idx, &klpair_len, &klp);
     invariant_zero(r);
     paranoid_invariant(klp!=nullptr);
-    // Key never changes.
-    paranoid_invariant(keylen_from_klpair_len(klpair_len) == keylen);
+    // Old key length should be consistent with what is stored in the DMT
+    invariant(keylen_from_klpair_len(klpair_len) == old_keylen);
 
     size_t new_le_offset = toku_mempool_get_offset_from_pointer_and_base(&this->m_buffer_mempool, new_le);
     paranoid_invariant(new_le_offset <= UINT32_MAX - new_size);  // Not using > 4GB

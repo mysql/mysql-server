@@ -123,6 +123,7 @@ le_overwrite(bn_data* bn, uint32_t idx, const  char *key, int keysize, const cha
         idx, 
         key,
         keysize,
+        keysize, // old_keylen
         size_needed, // old_le_size
         size_needed,
         &r,

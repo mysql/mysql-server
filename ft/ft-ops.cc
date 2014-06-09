@@ -1740,6 +1740,7 @@ toku_ft_bn_apply_msg_once (
     BASEMENTNODE bn,
     const FT_MSG msg,
     uint32_t idx,
+    uint32_t le_keylen,
     LEAFENTRY le,
     txn_gc_info *gc_info,
     uint64_t *workdone,
@@ -1767,6 +1768,7 @@ toku_ft_bn_apply_msg_once (
         le,
         &bn->data_buffer,
         idx,
+        le_keylen,
         gc_info, 
         &new_le, 
         &numbytes_delta
@@ -1816,6 +1818,7 @@ struct setval_extra_s {
     XIDS xids;
     const DBT *key;
     uint32_t idx;
+    uint32_t le_keylen;
     LEAFENTRY le;
     txn_gc_info *gc_info;
     uint64_t * workdone;  // set by toku_ft_bn_apply_msg_once()
@@ -1849,7 +1852,7 @@ static void setval_fun (const DBT *new_val, void *svextra_v) {
             msg.u.id.val = &val;
         }
         toku_ft_bn_apply_msg_once(svextra->bn, &msg,
-                                  svextra->idx, svextra->le,
+                                  svextra->idx, svextra->le_keylen, svextra->le,
                                   svextra->gc_info,
                                   svextra->workdone, svextra->stats_to_update);
         svextra->setval_r = 0;
@@ -1909,7 +1912,7 @@ static int do_update(ft_update_func update_fun, DESCRIPTOR desc, BASEMENTNODE bn
     le_for_update = le;
 
     struct setval_extra_s setval_extra = {setval_tag, false, 0, bn, msg->msn, msg->xids,
-                                          keyp, idx, le_for_update, gc_info,
+                                          keyp, idx, keylen, le_for_update, gc_info,
                                           workdone, stats_to_update};
     // call handlerton's ft->update_fun(), which passes setval_extra to setval_fun()
     FAKE_DB(db, desc);
@@ -1980,7 +1983,7 @@ toku_ft_bn_apply_msg (
         } else {
             assert_zero(r);
         }
-        toku_ft_bn_apply_msg_once(bn, msg, idx, storeddata, gc_info, workdone, stats_to_update);
+        toku_ft_bn_apply_msg_once(bn, msg, idx, keylen, storeddata, gc_info, workdone, stats_to_update);
 
         // if the insertion point is within a window of the right edge of
         // the leaf then it is sequential
@@ -2012,7 +2015,7 @@ toku_ft_bn_apply_msg (
             );
         if (r == DB_NOTFOUND) break;
         assert_zero(r);
-        toku_ft_bn_apply_msg_once(bn, msg, idx, storeddata, gc_info, workdone, stats_to_update);
+        toku_ft_bn_apply_msg_once(bn, msg, idx, keylen, storeddata, gc_info, workdone, stats_to_update);
 
         break;
     }
@@ -2034,7 +2037,7 @@ toku_ft_bn_apply_msg (
             msg->u.id.key = &curr_keydbt;
             int deleted = 0;
             if (!le_is_clean(storeddata)) { //If already clean, nothing to do.
-                toku_ft_bn_apply_msg_once(bn, msg, idx, storeddata, gc_info, workdone, stats_to_update);
+                toku_ft_bn_apply_msg_once(bn, msg, idx, curr_keylen, storeddata, gc_info, workdone, stats_to_update);
                 // at this point, we cannot trust msg->u.id.key to be valid.
                 uint32_t new_dmt_size = bn->data_buffer.num_klpairs();
                 if (new_dmt_size != num_klpairs) {
@@ -2067,7 +2070,7 @@ toku_ft_bn_apply_msg (
             msg->u.id.key = &curr_keydbt;
             int deleted = 0;
             if (le_has_xids(storeddata, msg->xids)) {
-                toku_ft_bn_apply_msg_once(bn, msg, idx, storeddata, gc_info, workdone, stats_to_update);
+                toku_ft_bn_apply_msg_once(bn, msg, idx, curr_keylen, storeddata, gc_info, workdone, stats_to_update);
                 uint32_t new_dmt_size = bn->data_buffer.num_klpairs();
                 if (new_dmt_size != num_klpairs) {
                     paranoid_invariant(new_dmt_size + 1 == num_klpairs);
