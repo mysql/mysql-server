@@ -2238,8 +2238,9 @@ err_exit:
 	case TRX_DICT_OP_INDEX:
 		/* If the transaction was previously flagged as
 		TRX_DICT_OP_INDEX, we should be creating auxiliary
-		tables for full-text indexes. */
-		ut_ad(strstr(table->name, "/FTS_") != NULL);
+		tables for full-text indexes or temp tables. */
+		ut_ad(strstr(table->name, "/FTS_") != NULL
+		      || strstr(table->name, TEMP_FILE_PREFIX_INNODB) != NULL);
 	}
 
 	node = tab_create_graph_create(table, heap, commit);
