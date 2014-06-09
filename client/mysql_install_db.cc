@@ -796,6 +796,50 @@ private:
 
 };
 
+struct Delimiter_parser
+{
+  Delimiter_parser() : m_delimiter(";") {}
+  ~Delimiter_parser() {}
+
+ bool operator()(std::string &line);
+private:
+  string m_agg;
+  string m_delimiter;
+};
+
+bool Delimiter_parser::operator()(std::string &line)
+{
+  if (line.empty() || line.size() == m_delimiter.size())
+    return false;
+  const string delimiter_tok("delimiter ");
+
+  string::size_type pos= line.find(delimiter_tok);
+  string::size_type curr_del_pos= line.find(m_delimiter);
+
+  if (pos != string::npos && curr_del_pos != string::npos)
+  {
+    /* replace old delimiter with new */
+    m_delimiter= line.substr(pos+delimiter_tok.size(), curr_del_pos - (pos+delimiter_tok.size()));
+    line.clear();
+    return false;
+  }
+
+  if (curr_del_pos != string::npos)
+  {
+    line.erase(curr_del_pos, m_delimiter.length());
+    line.append(";\n");
+    line= m_agg.append(line);
+    m_agg.clear();
+  }
+  else
+  {
+    m_agg.append(line.append(" "));
+    line.clear();
+    return false;
+  }
+  return true; /* line has delimiter */
+}
+
 struct Comment_extractor
 {
   Comment_extractor() : m_in_comment(false) {}
@@ -948,13 +992,16 @@ public:
         string default_se_command("SET default_storage_engine=INNODB;\n");
         int n= write(fh, default_se_command.c_str(), default_se_command.length());
         Comment_extractor strip_comments;
+        Delimiter_parser check_delimiters;
         while (!getline(fin, sql_command).eof() && errno != EPIPE &&
              n != 0)
         {
           bool is_comment= strip_comments(sql_command);
           if (!is_comment)
           {
-            sql_command.append("\n");
+            bool has_delimiter= check_delimiters(sql_command);
+            if (!has_delimiter)
+              continue;
             n= write(fh, sql_command.c_str(), sql_command.length());
           }
         }
