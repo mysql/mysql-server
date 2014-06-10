@@ -138,7 +138,8 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
   this.isValid                = true;
   this.autoIncFieldName       = null;
   this.autoIncColumnNumber    = null;
-  
+  this.numberOfLobColumns     = 0;
+   
   /* New Arrays */
   this.columnNumberToFieldMap = [];  
   this.fieldNumberToColumnMap = [];
@@ -226,7 +227,10 @@ function DBTableHandler(dbtable, tablemapping, ctor) {
     if(c.isAutoincrement) { 
       this.autoIncColumnNumber = i;
       this.autoIncFieldName = f.fieldName;
-    }      
+    }
+    if(c.isLob) {
+      this.numberOfLobColumns++;
+    }    
     this.resolvedMapping.fields[i] = {};
     if(f) {
       f.fieldNumber = i;

@@ -35,6 +35,7 @@ Handle<Value> getOperationError(const Arguments &);
 Handle<Value> tryImmediateStartTransaction(const Arguments &);
 Handle<Value> execute(const Arguments &);
 Handle<Value> executeAsynch(const Arguments &);
+Handle<Value> readBlobResults(const Arguments &);
 Handle<Value> DBOperationSet_freeImpl(const Arguments &);
 
 class DBOperationSetEnvelopeClass : public Envelope {
@@ -45,7 +46,8 @@ public:
     DEFINE_JS_FUNCTION(Envelope::stencil, "getOperationError", getOperationError);
     DEFINE_JS_FUNCTION(Envelope::stencil, "execute", execute);
     DEFINE_JS_FUNCTION(Envelope::stencil, "executeAsynch", executeAsynch);
-    DEFINE_JS_FUNCTION(Envelope::stencil, "free", DBOperationSet_freeImpl); 
+    DEFINE_JS_FUNCTION(Envelope::stencil, "readBlobResults", readBlobResults);
+    DEFINE_JS_FUNCTION(Envelope::stencil, "free", DBOperationSet_freeImpl);
   }
 };
 
@@ -152,6 +154,24 @@ Handle<Value> executeAsynch(const Arguments &args) {
   MCALL mcall(& DBOperationSet::executeAsynch, args);
   mcall.run();
   return scope.Close(mcall.jsReturnVal());
+}
+
+
+Handle<Value> readBlobResults(const Arguments &args) {
+  DEBUG_MARKER(UDEB_DEBUG);
+  HandleScope scope;
+  DBOperationSet * set = unwrapPointer<DBOperationSet *>(args.Holder());
+  int n = args[0]->Int32Value();
+  if(set->getKeyOperation(n)->isBlobReadOperation()) {
+    Handle<Object> results = Array::New();
+    BlobReadHandler * blobHandler = static_cast<BlobReadHandler *>(set->getBlobHandler(n));
+    while(blobHandler) {
+      results->Set(blobHandler->getFieldNumber(), blobHandler->getResultBuffer());
+      blobHandler = static_cast<BlobReadHandler *>(blobHandler->getNext());
+    }
+    return scope.Close(results);
+  }
+  return Undefined();
 }
 
 

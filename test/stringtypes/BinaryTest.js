@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014 , Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -32,19 +32,19 @@ function TestData() {
 function BufferVerifier(testCase, field, expectedValue) {
   this.run = function onRead(err, rowRead) {
     var buffer, len, i;
-    var mismatch = false;
     testCase.errorIfError(err);
     testCase.errorIfNull(rowRead);
+    len = expectedValue.length;
     try {  
       buffer = rowRead[field];
-      len = expectedValue.length;
       testCase.errorIfNotEqual("length", len, buffer.length);
-      for(i = 0; i < len ; i++) {
-        if(buffer[i] !== expectedValue[i]) {
-          mismatch = i;
+      if(len == buffer.length) {
+        for(i = 0; i < len ; i++) {
+          testCase.errorIfNotEqual("mismatch at position " + i, 
+                                  expectedValue[i], buffer[i]);
+          if(expectedValue[i] !== buffer[i]) break;
         }
       }
-      testCase.errorIfNotEqual("mismatch at position " + mismatch, false, mismatch);
     }
     catch(e) {
       testCase.appendErrorMessage(e);
@@ -126,4 +126,64 @@ t4.run = function() {
   fail_openSession(this, new InsertFunction(data));
 };
 
-module.exports.tests = [t1, t2, t3, t4];
+var t5 = new harness.ConcurrentTest("t5:NonBufferInBinaryColumn");
+t5.run = function() {
+  var data = new TestData();
+  data.bin_var_long = "Ceci n\'est pas un buffer";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      if(err) {
+        testCase.errorIfNotEqual("Expected Error", "22000", err.sqlstate);
+      } else {
+        testCase.appendErrorMessage("Expected error 22000 on insert");
+      }
+      testCase.failOnError();
+    });
+  });
+};
+
+// Insert a BLOB
+var t6 = new harness.ConcurrentTest("t6:InsertBLOB");
+t6.run = function() {
+  var data = new TestData();
+  data.bin_lob = new Buffer(20000);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      testCase.errorIfError(err);
+      testCase.failOnError();
+    });
+  });
+};
+
+// Attempt to insert a non-Buffer into a BLOB Column: 0F001
+var t7 = new harness.ConcurrentTest("t7:InsertNonBufferAsBLOB");
+t7.run = function() { 
+  var data = new TestData();
+  data.bin_lob = "aint no blob";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+     if(err) {
+        testCase.errorIfNotEqual("Expected Error", "0F001", err.sqlstate);
+      } else {
+        testCase.appendErrorMessage("Expected error 0F001 on insert");
+      }
+      testCase.failOnError();
+    });
+  });
+};
+
+// Insert and Read a blob
+var t8 = new harness.ConcurrentTest("t8:WriteAndReadBlob");
+t8.run = function() {
+  var data, value, i;
+  data = new TestData();
+  value = new Buffer(20000);
+  for(i = 0 ; i < 20000 ; i++) {
+    value[i] = Math.ceil(Math.random() * 256);
+  }
+  data.bin_lob = value;
+  this.verifier = new BufferVerifier(this, "bin_lob", value);
+  fail_openSession(this, new InsertFunction(data));
+};
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];

@@ -110,6 +110,12 @@ int DBTransactionContext::execute(DBOperationSet *operations,
     startTransaction(operations->getKeyOperation(0));
   }
   operations->prepare(ndbTransaction);
+
+  if(operations->hasBlobReadOperations()) {
+    ndbTransaction->execute(NdbTransaction::NoCommit);
+    DEBUG_PRINT("BLOB EXECUTE DONE");
+  }
+
   rval = ndbTransaction->execute(execType, abortOption, force);
   DEBUG_PRINT("EXECUTE sync : %s %d operation%s %s => return: %d error: %d",
               modes[execType], 

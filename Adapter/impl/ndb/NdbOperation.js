@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -78,6 +78,7 @@ var sqlStateMessages = {
   "22007" : "Invalid datetime",
   "23000" : "Column cannot be null",
   "HY000" : "Incorrect numeric value",
+  "0F001" : "Invalid BLOB value",
   "WCTOR" : 
       "A Domain Object Constructor has overwritten persistent properties "+
       "that were read from the database.  The Domain Object Constructor "+
@@ -162,6 +163,7 @@ var DBOperation = function(opcode, tx, indexHandler, tableHandler) {
   this.buffers      = { 'row' : null, 'key' : null  };
   this.columnMask   = [];
   this.scan         = {};
+  this.blobs        = null;
 
   op_stats[opcodes[opcode]]++;
 };
@@ -181,7 +183,7 @@ function releaseKeyBuffer(op) {
    encodeFieldsInBuffer() returns a DBOperationError
 */
 function encodeFieldsInBuffer(fields, nfields, metadata, 
-                              ndbRecord, buffer, definedColumnList) {
+                              record, buffer, definedColumnList) {
   var i, column, value, encoderError, error;
   error = null;
 
@@ -203,14 +205,14 @@ function encodeFieldsInBuffer(fields, nfields, metadata,
     if(typeof value !== 'undefined') {
       definedColumnList.push(column.columnNumber);
       if(value === null) {
-        if(column.isNullable) {  ndbRecord.setNull(i, buffer);        } 
+        if(column.isNullable) {  record.setNull(i, buffer);        } 
         else                  {  encoderError = "23000"; addError();  }
-      }
+      } 
       else {
         if(column.typeConverter && column.typeConverter.ndb) {
           value = column.typeConverter.ndb.toDB(value);
         }
-        encoderError = ndbRecord.encoderWrite(i, buffer, value);
+        encoderError = record.encoderWrite(i, buffer, value);
         if(encoderError) { addError(); }
       }
     }
@@ -246,6 +248,16 @@ function encodeBounds(key, nfields, dbIndexHandler, buffer) {
   return buffer;
 }
 
+function defineBlobs(nfields, metadata, values) {
+  var i, blobs;
+  blobs = [];
+  for(i = 0 ; i < nfields ; i++) {
+    if(metadata[i].isLob) {
+      blobs[i] = values[i];
+    }
+  }
+  return blobs;
+}
 
 function allocateRowBuffer(op) {
   assert(op.buffers.row === null);
@@ -258,12 +270,20 @@ function releaseRowBuffer(op) {
 
 function encodeRowBuffer(op) {
   udebug.log("encodeRowBuffer");
-  return encodeFieldsInBuffer(op.tableHandler.getFields(op.values),
-                              op.tableHandler.getMappedFieldCount(),
-                              op.tableHandler.getColumnMetadata(),
+  var valuesArray = op.tableHandler.getFields(op.values);
+  var nfields = op.tableHandler.getMappedFieldCount();
+  var columnMetadata = op.tableHandler.getColumnMetadata();
+
+  if(op.tableHandler.numberOfLobColumns) {
+    op.blobs = defineBlobs(nfields, columnMetadata, valuesArray);
+  }
+
+  return encodeFieldsInBuffer(valuesArray,
+                              nfields,
+                              columnMetadata,
                               op.tableHandler.dbTable.record,
                               op.buffers.row,
-                              op.columnMask);
+                              op.columnMask);                    
 }
 
 function HelperSpec() {
@@ -280,7 +300,8 @@ HelperSpec.prototype.clear = function() {
   this[6] = null;  // value_obj
   this[7] = null;  // opcode
   this[8] = null;  // is_value_obj
-  this[9] = null;  // is_valid
+  this[9] = null;  // blobs
+  this[10] = null; // is_valid
 };
 
 var helperSpec = new HelperSpec();
@@ -409,10 +430,13 @@ DBOperation.prototype.buildOpHelper = function(helper) {
       helper[OpHelper.row_buffer]  = this.buffers.row;
       helper[OpHelper.column_mask] = this.columnMask;
 
-      /* Read gets a lock mode; 
+      /* Read gets a lock mode, and possibly a blobs array.
          writes get the data encoded into the row buffer. */
       if(code === 1) {
         helper[OpHelper.lock_mode]  = constants.LockModes[this.lockMode];
+        if(this.tableHandler.numberOfLobColumns) {
+          this.blobs = [];
+        }
       }
       else { 
         this.encoderError = encodeRowBuffer(this);
@@ -422,6 +446,7 @@ DBOperation.prototype.buildOpHelper = function(helper) {
 
   helper[OpHelper.opcode]       = code;
   helper[OpHelper.is_value_obj] = isVOwrite;
+  helper[OpHelper.blobs]        = this.blobs;
   helper[OpHelper.is_valid]     = this.encoderError ? false : true;
 };
 
@@ -514,9 +539,10 @@ function readResultRow(op) {
   
   for(i = 0 ; i < nfields ; i++) {
     if(record.isNull(i, op.buffers.row)) {
-      value = col[i].defaultValue;
-    }
-    else {
+      value = null;
+    } else if(col[i].isLob) {
+      value = op.blobs[i];
+    } else {
       value = record.encoderRead(i, op.buffers.row);
       if(col[i].typeConverter && col[i].typeConverter.ndb) {
         value = col[i].typeConverter.ndb.fromDB(value);
@@ -702,8 +728,11 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
     }
 
     if(op.result.success && op.opcode === opcodes.OP_READ) {
-      // readResultRow(op);
-      buildValueObject(op);
+      if(op.tableHandler.numberOfLobColumns) {
+        readResultRow(op);    // Objects with BLOBs get plain JS Objects
+      } else {
+        buildValueObject(op); // Objects without BLOBS get ValueObjects
+      }
     } 
   }
   if(udebug.is_detail()) udebug.log("buildOperationResult finished:", op.result);
@@ -725,6 +754,7 @@ function completeExecutedOps(dbTxHandler, execMode, operations) {
     if(! op.isScanOperation()) {
       op_err = operations.pendingOperationSet.getOperationError(n);
       releaseKeyBuffer(op);
+      op.blobs = operations.pendingOperationSet.readBlobResults(n);
       buildOperationResult(dbTxHandler, op, op_err, execMode);
       releaseRowBuffer(op);
     }
