@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -42,6 +42,7 @@ void DBOperationSet::prepare(NdbTransaction *ndbtx) {
       if(! op) errors[i] = & ndbtx->getNdbError();
       DEBUG_PRINT("prepare %s [%s]", keyOperations[i].opcode_str,
                   op ? "ok" : errors[i]->message);
+      if(keyOperations[i].isBlobReadOperation()) doesReadBlobs = true;
     }
     else {
       errors[i] = 0;
@@ -49,4 +50,12 @@ void DBOperationSet::prepare(NdbTransaction *ndbtx) {
     }
   }
 }
+
+bool DBOperationSet::tryImmediateStartTransaction() {
+  if(doesReadBlobs) {
+    return false;
+  }
+  return txContext->tryImmediateStartTransaction(& keyOperations[0]);
+}
+
 

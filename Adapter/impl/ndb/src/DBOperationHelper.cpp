@@ -30,6 +30,7 @@
 #include "js_wrapper_macros.h"
 #include "NdbRecordObject.h"
 #include "DBTransactionContext.h"
+#include "BlobHandler.h"
 
 enum {
   HELPER_ROW_BUFFER = 0,
@@ -41,6 +42,7 @@ enum {
   HELPER_VALUE_OBJECT,
   HELPER_OPCODE,
   HELPER_IS_VO,
+  HELPER_BLOBS,
   HELPER_IS_VALID
 };
 
@@ -112,6 +114,39 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
 }
 
 
+void createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                           KeyOperation & op) {
+  int ncol = rowRecord->getNoOfColumns();
+  for(int i = 0 ; i < ncol ; i++) {
+    const NdbDictionary::Column * col = rowRecord->getColumn(i);
+    if((col->getType() ==  NdbDictionary::Column::Blob) ||
+       (col->getType() ==  NdbDictionary::Column::Text)) {
+      BlobHandler * next = op.blobHandler;
+      op.blobHandler = new BlobReadHandler(i, col->getColumnNo());
+      op.blobHandler->setNext(next);
+    }
+  }
+}
+
+
+void createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                            KeyOperation & op) {
+  int ncol = rowRecord->getNoOfColumns();
+  for(int i = 0 ; i < ncol ; i++) {
+    if(blobsArray->Get(i)->IsObject()) {
+      Local<Object> blobValue = blobsArray->Get(i)->ToObject();
+      assert(node::Buffer::HasInstance(blobValue));
+      const NdbDictionary::Column * col = rowRecord->getColumn(i);
+      assert( (col->getType() ==  NdbDictionary::Column::Blob) ||
+              (col->getType() ==  NdbDictionary::Column::Text));
+      BlobHandler * next = op.blobHandler;
+      op.blobHandler = new BlobWriteHandler(i, col->getColumnNo(), blobValue);
+      op.blobHandler->setNext(next);
+    }
+  }
+}
+
+
 void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
 
@@ -129,7 +164,17 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
   v = spec->Get(HELPER_ROW_RECORD);
   if(! v->IsNull()) {
     o = v->ToObject();
-    op.row_record = unwrapPointer<const Record *>(o);
+    const Record * record = unwrapPointer<const Record *>(o);
+    op.row_record = record;
+
+    v = spec->Get(HELPER_BLOBS);
+    if(v->IsObject()) {
+      if(op.opcode == 1) {
+        createBlobReadHandles(v->ToObject(), record, op);
+      } else {
+        createBlobWriteHandles(v->ToObject(), record, op);
+      }
+    }
   }
   
   v = spec->Get(HELPER_LOCK_MODE);
@@ -146,7 +191,7 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
       op.useColumn(colId->Int32Value());
     }
   }
-  
+
   DEBUG_PRINT("Non-VO opcode: %d mask: %u", op.opcode, op.u.maskvalue);
 }
 
@@ -196,6 +241,7 @@ void DBOperationHelper_initOnLoad(Handle<Object> target) {
   DEFINE_JS_INT(OpHelper, "value_obj",    HELPER_VALUE_OBJECT);
   DEFINE_JS_INT(OpHelper, "opcode",       HELPER_OPCODE);
   DEFINE_JS_INT(OpHelper, "is_value_obj", HELPER_IS_VO);
+  DEFINE_JS_INT(OpHelper, "blobs",        HELPER_BLOBS);
   DEFINE_JS_INT(OpHelper, "is_valid",     HELPER_IS_VALID);
 
   Persistent<Object> LockModes = Persistent<Object>(Object::New());

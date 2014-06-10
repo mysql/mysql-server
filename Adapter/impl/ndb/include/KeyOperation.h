@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -24,6 +24,7 @@
 #include <string.h>
 #include "Record.h"
 #include "node.h"
+#include "BlobHandler.h"
 
 class KeyOperation {
 public: 
@@ -41,20 +42,23 @@ public:
   NdbOperation::OperationOptions *options;
   int opcode;
   const char * opcode_str;
+  BlobHandler * blobHandler;
   
-  // Constructor
+  // Constructor and Destructor
   KeyOperation();
+  ~KeyOperation();
   
   // Select columns
   void useSelectedColumns();
   void useAllColumns();
   void useColumn(int id);
   void setRowMask(uint32_t);
-  
-  /* NdbTransaction method wrappers */
-  // startTransaction
-  NdbTransaction *startTransaction(Ndb *) const;
 
+  // Prepare operation
+  bool isBlobReadOperation();
+  const NdbOperation *prepare(NdbTransaction *);
+
+private:  
   // read
   const NdbOperation *readTuple(NdbTransaction *);
 
@@ -65,19 +69,21 @@ public:
   const NdbOperation *writeTuple(NdbTransaction *);
   const NdbOperation *insertTuple(NdbTransaction *);
   const NdbOperation *updateTuple(NdbTransaction *);
-
-  // generic
-  const NdbOperation *prepare(NdbTransaction *);
- };
+};
   
 
 /* ================= Inline methods ================= */
 
 inline KeyOperation::KeyOperation(): 
   row_buffer(0), key_buffer(0), row_record(0), key_record(0),
-  read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0), opcode(0)
+  read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0), opcode(0),
+  opcode_str(0), blobHandler(0)
 {
   u.maskvalue = 0;
+}
+
+inline bool KeyOperation::isBlobReadOperation() {
+  return (blobHandler && (opcode == 1));
 }
  
 /* Select columns for reading */
@@ -96,56 +102,4 @@ inline void KeyOperation::useColumn(int col_id) {
 inline void KeyOperation::setRowMask(const uint32_t newMaskValue) {
   u.maskvalue = newMaskValue;
 }
-/* NdbTransaction method wrappers */
-
-inline const NdbOperation * 
-  KeyOperation::readTuple(NdbTransaction *tx) {
-    return tx->readTuple(key_record->getNdbRecord(), key_buffer,
-                         row_record->getNdbRecord(), row_buffer, lmode, read_mask_ptr);
-}
-
-inline const NdbOperation * KeyOperation::deleteTuple(NdbTransaction *tx) {
-    return tx->deleteTuple(key_record->getNdbRecord(), key_buffer,
-                           row_record->getNdbRecord(), 0, 0, options);
-}                         
-
-inline const NdbOperation * KeyOperation::writeTuple(NdbTransaction *tx) { 
-  return tx->writeTuple(key_record->getNdbRecord(), key_buffer,
-                        row_record->getNdbRecord(), row_buffer, u.row_mask);
-}
-
-inline const NdbOperation * KeyOperation::insertTuple(NdbTransaction *tx) { 
-    return tx->insertTuple(row_record->getNdbRecord(), row_buffer,
-                           u.row_mask, options);
-}
-
-inline const NdbOperation * KeyOperation::updateTuple(NdbTransaction *tx) { 
-    return tx->updateTuple(key_record->getNdbRecord(), key_buffer,
-                           row_record->getNdbRecord(), row_buffer,
-                           u.row_mask, options);
-}
-
-inline const NdbOperation * KeyOperation::prepare(NdbTransaction *tx) {
-  switch(opcode) {
-    case 1:  // OP_READ:
-      opcode_str = "read  ";
-      return readTuple(tx);
-    case 2:  // OP_INSERT:
-      opcode_str = "insert";
-      return insertTuple(tx);
-    case 4:  // OP_UPDATE:
-      opcode_str = "update";
-      return updateTuple(tx);
-    case 8:  // OP_WRITE:
-      opcode_str = "write ";
-      return writeTuple(tx);
-    case 16: // OP_DELETE:
-      opcode_str = "delete";
-      return deleteTuple(tx);
-    default:
-      opcode_str = "-XXX-";
-      return NULL;
-  }
-}
-
 #endif
