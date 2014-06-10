@@ -240,13 +240,17 @@ DROP TABLE t1, t2;
 # characters in the XID previosuly. Now there is another column
 # in the result set which is a Hex Encoded String of the XID.
 #
+# Check that XIDs which are not normally printable are displayed
+# in readable format when CONVERT XID clause is used.
 xa start 0xABCDEF1234567890, 0x01, 0x02 ;
 xa end 0xABCDEF1234567890, 0x01, 0x02 ;
 xa prepare 0xABCDEF1234567890, 0x01, 0x02 ;
-xa recover;
+xa recover convert xid;
 formatID	gtrid_length	bqual_length	data
 2	8	1	0xABCDEF123456789001
 xa rollback 0xABCDEF1234567890, 0x01, 0x02 ;
+# Check that XID which has only printable characters are displayed
+# correctly without using of CONVERT XID clause
 xa start 0x4142434445, 0x46, 0x02 ;
 xa end 0x4142434445, 0x46, 0x02 ;
 xa prepare 0x4142434445, 0x46, 0x02 ;
@@ -339,3 +343,10 @@ XA PREPARE 'xid1';
 XA ROLLBACK 'xid2';
 ERROR XAE04: XAER_NOTA: Unknown XID
 XA ROLLBACK 'xid1';
+#
+# Bug#18107853 - XA LIST GETS CORRUPT, CRASH AND/OR HANG AND/OR ASSERTION
+#
+# Check that the server reports an error in case of too long input value of
+# format ID overflows the type of unsigned long
+XA START '1', 0x01, 18446744073709551615;
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '18446744073709551615' at line 1

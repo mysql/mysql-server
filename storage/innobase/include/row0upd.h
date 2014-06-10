@@ -225,7 +225,7 @@ the equal ordering fields. NOTE: we compare the fields as binary strings!
 @return own: update vector of differing fields, excluding roll ptr and
 trx id */
 
-const upd_t*
+upd_t*
 row_upd_build_difference_binary(
 /*============================*/
 	dict_index_t*	index,	/*!< in: clustered index */
@@ -363,6 +363,25 @@ row_upd_changes_some_index_ord_field_binary(
 	const dict_table_t*	table,	/*!< in: table */
 	const upd_t*		update);/*!< in: update vector for the row */
 /***********************************************************//**
+Stores to the heap the row on which the node->pcur is positioned. */
+
+void
+row_upd_store_row(
+/*==============*/
+	upd_node_t*	node);	/*!< in: row update node */
+/***********************************************************//**
+Updates the affected index records of a row. When the control is transferred
+to this node, we assume that we have a persistent cursor which was on a
+record, and the position of the cursor is stored in the cursor.
+@return DB_SUCCESS if operation successfully completed, else error
+code or DB_LOCK_WAIT */
+
+dberr_t
+row_upd(
+/*====*/
+	upd_node_t*	node,	/*!< in: row update node */
+	que_thr_t*	thr);	/*!< in: query thread */
+/***********************************************************//**
 Updates a row in a table. This is a high-level function used
 in SQL execution graphs.
 @return query thread to run next or NULL */
@@ -432,10 +451,45 @@ struct upd_field_t{
 
 /* Update vector structure */
 struct upd_t{
+	mem_heap_t*	heap;		/*!< heap from which memory allocated */
 	ulint		info_bits;	/*!< new value of info bits to record;
 					default is 0 */
 	ulint		n_fields;	/*!< number of update fields */
 	upd_field_t*	fields;		/*!< array of update fields */
+
+	/** Append an update field to the end of array
+	@param[in]	field	an update field */
+	void append(const upd_field_t& field)
+	{
+		fields[n_fields++] = field;
+	}
+
+	/** Determine if the given field_no is modified.
+	@return true if modified, false otherwise.  */
+	bool is_modified(const ulint field_no) const
+	{
+		for (ulint i = 0; i < n_fields; ++i) {
+			if (field_no == fields[i].field_no) {
+				return(true);
+			}
+		}
+		return(false);
+	}
+
+#ifdef UNIV_DEBUG
+        bool validate() const
+        {
+                for (ulint i = 0; i < n_fields; ++i) {
+                        dfield_t* field = &fields[i].new_val;
+                        if (dfield_is_ext(field)) {
+				ut_ad(dfield_get_len(field)
+				      >= BTR_EXTERN_FIELD_REF_SIZE);
+                        }
+                }
+                return(true);
+        }
+#endif // UNIV_DEBUG
+
 };
 
 #ifndef UNIV_HOTBACKUP

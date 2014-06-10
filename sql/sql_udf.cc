@@ -346,7 +346,7 @@ void free_udf(udf_func *udf)
 
 /* This is only called if using_udf_functions != 0 */
 
-udf_func *find_udf(const char *name,uint length,bool mark_used)
+udf_func *find_udf(const char *name, size_t length,bool mark_used)
 {
   udf_func *udf=0;
   DBUG_ENTER("find_udf");
@@ -361,7 +361,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
     mysql_rwlock_rdlock(&THR_LOCK_udf);  /* Called during parsing */
 
   if ((udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) name,
-                                      length ? length : (uint) strlen(name))))
+                                      length ? length : strlen(name))))
   {
     if (!udf->dlhandle)
       udf=0;					// Could not be opened

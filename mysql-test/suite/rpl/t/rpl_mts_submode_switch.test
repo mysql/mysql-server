@@ -1,7 +1,3 @@
-#
-# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
 # The motive of this test case is to test the
 # mts submode switch between master parallel to dbname and vice-versa
 
@@ -10,6 +6,8 @@
 -- source include/master-slave.inc
 -- source include/have_myisam.inc
 call mtr.add_suppression("Statement is unsafe because it uses a system function that may return a different value on the slave");
+-- sync_slave_with_master
+-- connection master
 -- let $saved_debug=`SELECT @@global.DEBUG`
 SET GLOBAL DEBUG ='+d,set_commit_parent_100';
 -- connection slave

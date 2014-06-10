@@ -3,7 +3,7 @@
 #       own purposes. But the replication feature itself is stopped.
 #
 
-
+--source include/no_valgrind_without_big.inc
 --source include/have_innodb_16k.inc
 --source suite/federated/include/federated.inc
 connection default;

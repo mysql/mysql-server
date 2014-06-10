@@ -3387,6 +3387,17 @@ void do_remove_file(struct st_command *command)
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
   error= my_delete(ds_filename.str, MYF(0)) != 0;
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error= my_delete(ds_filename.str, MYF(0)) != 0;
+  }
   handle_command_error(command, error);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
@@ -3511,6 +3522,18 @@ void do_copy_file(struct st_command *command)
   /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
                   MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error= (my_copy(ds_from_file.str, ds_to_file.str,
+                    MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+  }
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -3547,6 +3570,18 @@ void do_move_file(struct st_command *command)
   DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_rename(ds_from_file.str, ds_to_file.str,
                     MYF(0)) != 0);
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error= (my_rename(ds_from_file.str, ds_to_file.str,
+                      MYF(0)) != 0);
+  }
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -4787,46 +4822,80 @@ int query_get_string(MYSQL* mysql, const char* query,
 }
 
 
-static int my_kill(int pid, int sig)
+/**
+  Check if process is active.
+
+  @param pid  Process id.
+
+  @return true if process is active, false otherwise.
+*/
+static bool is_process_active(int pid)
 {
 #ifdef _WIN32
+  DWORD exit_code;
   HANDLE proc;
-  if ((proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid)) == NULL)
-    return -1;
-  if (sig == 0)
-  {
-    CloseHandle(proc);
-    return 0;
-  }
-  (void)TerminateProcess(proc, 201);
+  proc= OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+  if (proc == NULL)
+    return false;  /* Process could not be found. */
+
+  if (!GetExitCodeProcess(proc, &exit_code))
+    exit_code= 0;
+
   CloseHandle(proc);
-  return 1;
+  if (exit_code != STILL_ACTIVE)
+    return false;  /* Error or process has terminated. */
+
+  return true;
 #else
-  return kill(pid, sig);
+  return (kill(pid, 0) == 0);
 #endif
 }
 
+/**
+  kill process.
+
+  @param pid  Process id.
+
+  @return true if process is terminated, false otherwise.
+*/
+static bool kill_process(int pid)
+{
+  bool killed= true;
+#ifdef _WIN32
+  HANDLE proc;
+  proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+  if (proc == NULL)
+    return true;  /* Process could not be found. */
+
+  if (!TerminateProcess(proc, 201))
+    killed= false;
+
+  CloseHandle(proc);
+#else
+  killed= (kill(pid, 9) == 0);
+#endif
+  return killed;
+}
 
 
-/*
-  Shutdown the server of current connection and
-  make sure it goes away within <timeout> seconds
+/**
+  Shutdown or kill the server.
+  If timeout is set to 0 the server is killed/terminated
+  immediately. Otherwise the shutdown command is first sent
+  and then it waits for the server to terminate within
+  <timeout> seconds. If it has not terminated before <timeout>
+  seconds the command will fail.
 
-  NOTE! Currently only works with local server
+  @note Currently only works with local server
 
-  SYNOPSIS
-  do_shutdown_server()
-  command  called command
-
-  DESCRIPTION
-  shutdown_server [<timeout>]
-
+  @param commmand  Optionally including a timeout else the
+  default of 60 seconds is used.
 */
 
 void do_shutdown_server(struct st_command *command)
 {
   long timeout=60;
-  int pid;
+  int pid, error= 0;
   DYNAMIC_STRING ds_pidfile_name;
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
@@ -4875,28 +4944,48 @@ void do_shutdown_server(struct st_command *command)
   }
   DBUG_PRINT("info", ("Got pid %d", pid));
 
-  /* Tell server to shutdown if timeout > 0*/
-  if (timeout && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
-    die("mysql_shutdown failed");
-
-  /* Check that server dies */
-  while(timeout--){
-    if (my_kill(pid, 0) < 0){
-      DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
-      DBUG_VOID_RETURN;
+  if (timeout)
+  {
+    /* Tell server to shutdown if timeout > 0. */
+    if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    {
+      error= -1;   /* Failed to issue shutdown command. */
+      goto end;
     }
-    DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
-    my_sleep(1000000L);
+
+    /* Check that server dies */
+    do
+    {
+      if (!is_process_active(pid))
+      {
+        DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
+        DBUG_VOID_RETURN;
+      }
+      if (timeout)
+      {
+        DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
+        my_sleep(1000000L);
+      }
+    } while(timeout-- > 0);
+    error= -2;
+  }
+  else
+  {
+    /* Kill the server */
+    DBUG_PRINT("info", ("Killing server, pid: %d", pid));
+    /*
+      kill_process can fail (bad privileges, non existing process on *nix etc),
+      so also check if the process is active before setting error.
+    */
+    if (!kill_process(pid) && is_process_active(pid))
+      error= -3;
   }
 
-  /* Kill the server */
-  DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-  (void)my_kill(pid, 9);
-
+end:
+  if (error)
+    handle_command_error(command, error);
   DBUG_VOID_RETURN;
-
 }
-
 
 
 uint get_errcode_from_name(char *error_name, char *error_end)
@@ -6632,18 +6721,23 @@ static struct my_option my_long_options[] =
   {"database", 'D', "Database to use.", &opt_db, &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
-  {"debug", '#', "This is a non-debug version. Catch this and exit",
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", &opt_include,

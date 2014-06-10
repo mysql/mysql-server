@@ -22,6 +22,8 @@
 #include "thr_malloc.h"                         /* sql_calloc */
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
 #include "my_regex.h"
+#include "mem_root_array.h"
+#include "template_utils.h"
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
@@ -1032,26 +1034,45 @@ public:
 class in_vector :public Sql_alloc
 {
 public:
-  char *base;
-  uint size;
-  qsort2_cmp compare;
-  const CHARSET_INFO *collation;
-  uint count;
-  uint used_count;
-  in_vector() {}
-  in_vector(uint elements,uint element_length,qsort2_cmp cmp_func, 
-  	    const CHARSET_INFO *cmp_coll)
-    :base((char*) sql_calloc(elements*element_length)),
-     size(element_length), compare(cmp_func), collation(cmp_coll),
-     count(elements), used_count(elements) {}
+  const uint count;  ///< Original size of the vector
+  uint used_count;   ///< The actual size of the vector (NULL may be ignored)
+
+  /**
+    See Item_func_in::fix_length_and_dec for why we need both
+    count and used_count.
+   */
+  explicit in_vector(uint elements)
+    : count(elements), used_count(elements)
+  {}
+
   virtual ~in_vector() {}
   virtual void set(uint pos,Item *item)=0;
   virtual uchar *get_value(Item *item)=0;
-  virtual void sort()
-  {
-    my_qsort2(base,used_count,size,compare,collation);
-  }
-  bool find(Item *item);
+
+  /**
+    Shrinks the IN-list array, to fit actual usage.
+   */
+  virtual void shrink_array(size_t n) = 0;
+
+  /**
+    Sorts the IN-list array, so we can do efficient lookup with binary_search.
+   */
+  virtual void sort() = 0;
+
+  /**
+    Calls (the virtual) get_value, i.e. item->val_int() or item->val_str() etc.
+    and then calls find_value() if the value is non-null.
+    @param  item to evaluate, and lookup in the IN-list.
+    @return true if item was found.
+   */
+  bool find_item(Item *item);
+
+  /**
+    Does a binary_search in the 'base' array for the input 'value'
+    @param  value to lookup in the IN-list.
+    @return true if value was found.
+   */
+  virtual bool find_value(const void *value) const = 0;
   
   /* 
     Create an instance of Item_{type} (e.g. Item_decimal) constant object
@@ -1074,10 +1095,8 @@ public:
   virtual void value_to_item(uint pos, Item *item) { }
   
   /* Compare values number pos1 and pos2 for equality */
-  bool compare_elems(uint pos1, uint pos2)
-  {
-    return MY_TEST(compare(collation, base + pos1*size, base + pos2*size));
-  }
+  virtual bool compare_elems(uint pos1, uint pos2) const = 0;
+
   virtual Item_result result_type()= 0;
 };
 
@@ -1085,8 +1104,16 @@ class in_string :public in_vector
 {
   char buff[STRING_BUFFER_USUAL_SIZE];
   String tmp;
+  // DTOR is not trivial, but we manage memory ourselves.
+  Mem_root_array<String, true> base_objects;
+  // String objects are not sortable, sort pointers instead.
+  Mem_root_array<String*, true> base_pointers;
+
+  qsort2_cmp compare;
+  const CHARSET_INFO *collation;
 public:
-  in_string(uint elements,qsort2_cmp cmp_func, const CHARSET_INFO *cs);
+  in_string(THD *thd,
+            uint elements, qsort2_cmp cmp_func, const CHARSET_INFO *cs);
   ~in_string();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
@@ -1096,28 +1123,39 @@ public:
   }
   void value_to_item(uint pos, Item *item)
   {    
-    String *str=((String*) base)+pos;
+    String *str= base_pointers[pos];
     Item_string *to= (Item_string*)item;
     to->str_value= *str;
   }
   Item_result result_type() { return STRING_RESULT; }
+
+  virtual void shrink_array(size_t n) { base_pointers.resize(n); }
+
+  virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 class in_longlong :public in_vector
 {
+public:
+  struct packed_longlong 
+  {
+    longlong val;
+    longlong unsigned_flag;
+  };
 protected:
   /*
     Here we declare a temporary variable (tmp) of the same type as the
     elements of this vector. tmp is used in finding if a given value is in 
     the list. 
   */
-  struct packed_longlong 
-  {
-    longlong val;
-    longlong unsigned_flag;  // Use longlong, not bool, to preserve alignment
-  } tmp;
+  packed_longlong tmp;
+
+  Mem_root_array<packed_longlong, true> base;
+
 public:
-  in_longlong(uint elements);
+  in_longlong(THD *thd, uint elements);
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
   
@@ -1131,21 +1169,26 @@ public:
   }
   void value_to_item(uint pos, Item *item)
   {
-    ((Item_int*) item)->value= ((packed_longlong*) base)[pos].val;
+    ((Item_int*) item)->value= base[pos].val;
     ((Item_int*) item)->unsigned_flag= (my_bool)
-      ((packed_longlong*) base)[pos].unsigned_flag;
+      base[pos].unsigned_flag;
   }
   Item_result result_type() { return INT_RESULT; }
 
-  friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
+  virtual void shrink_array(size_t n) { base.resize(n); }
+
+  virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 
 class in_datetime_as_longlong :public in_longlong
 {
 public:
-  in_datetime_as_longlong(uint elements)
-    :in_longlong(elements) {};
+  in_datetime_as_longlong(THD *thd, uint elements)
+    : in_longlong(thd, elements)
+  {};
   Item *create_item()
   {
     return new Item_temporal(MYSQL_TYPE_DATETIME, 0LL);
@@ -1158,8 +1201,9 @@ public:
 class in_time_as_longlong :public in_longlong
 {
 public:
-  in_time_as_longlong(uint elements)
-    :in_longlong(elements) {};
+  in_time_as_longlong(THD *thd, uint elements)
+    : in_longlong(thd, elements)
+  {};
   Item *create_item()
   {
     return new Item_temporal(MYSQL_TYPE_TIME, 0LL);
@@ -1184,12 +1228,13 @@ public:
   /* Cache for the left item. */
   Item *lval_cache;
 
-  in_datetime(Item *warn_item_arg, uint elements)
-    :in_longlong(elements), thd(current_thd), warn_item(warn_item_arg),
-     lval_cache(0) {};
+  in_datetime(THD *thd_arg, Item *warn_item_arg, uint elements)
+    : in_longlong(thd_arg, elements), thd(thd_arg), warn_item(warn_item_arg),
+      lval_cache(0)
+  {};
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
-  friend int cmp_longlong(void *cmp_arg, packed_longlong *a,packed_longlong *b);
+
   Item* create_item()
   { 
     return new Item_temporal(MYSQL_TYPE_DATETIME, (longlong) 0);
@@ -1200,8 +1245,9 @@ public:
 class in_double :public in_vector
 {
   double tmp;
+  Mem_root_array<double, true> base;
 public:
-  in_double(uint elements);
+  in_double(THD *thd, uint elements);
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
   Item *create_item()
@@ -1210,17 +1256,24 @@ public:
   }
   void value_to_item(uint pos, Item *item)
   {
-    ((Item_float*)item)->value= ((double*) base)[pos];
+    ((Item_float*)item)->value= base[pos];
   }
   Item_result result_type() { return REAL_RESULT; }
+
+  virtual void shrink_array(size_t n) { base.resize(n); }
+
+  virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 
 class in_decimal :public in_vector
 {
   my_decimal val;
+  Mem_root_array<my_decimal, true> base;
 public:
-  in_decimal(uint elements);
+  in_decimal(THD *thd, uint elements);
   void set(uint pos, Item *item);
   uchar *get_value(Item *item);
   Item *create_item()
@@ -1229,14 +1282,17 @@ public:
   }
   void value_to_item(uint pos, Item *item)
   {
-    my_decimal *dec= ((my_decimal *)base) + pos;
+    my_decimal *dec= &base[pos];
     Item_decimal *item_dec= (Item_decimal*)item;
     item_dec->set_decimal_value(dec);
   }
   Item_result result_type() { return DECIMAL_RESULT; }
 
-  // Our own, type-aware sort, rather than my_qsort2.
+  virtual void shrink_array(size_t n) { base.resize(n); }
+
   virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 
@@ -1247,8 +1303,7 @@ public:
 class cmp_item :public Sql_alloc
 {
 public:
-  const CHARSET_INFO *cmp_charset;
-  cmp_item() { cmp_charset= &my_charset_bin; }
+  cmp_item() {}
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   /**
@@ -1257,7 +1312,7 @@ public:
   */
   virtual int cmp(Item *item)= 0;
   // for optimized IN with row
-  virtual int compare(cmp_item *item)= 0;
+  virtual int compare(const cmp_item *item) const= 0;
   static cmp_item* get_comparator(Item_result type, const CHARSET_INFO *cs);
   virtual cmp_item *make_same()= 0;
   virtual void store_value_by_template(cmp_item *tmpl, Item *item)
@@ -1276,42 +1331,39 @@ protected:
 
 class cmp_item_string : public cmp_item_scalar
 {
-protected:
+private:
   String *value_res;
-public:
-  cmp_item_string () {}
-  cmp_item_string (const CHARSET_INFO *cs) { cmp_charset= cs; }
-  void set_charset(const CHARSET_INFO *cs) { cmp_charset= cs; }
-  friend class cmp_item_sort_string;
-  friend class cmp_item_sort_string_in_static;
-};
-
-class cmp_item_sort_string :public cmp_item_string
-{
-protected:
   char value_buff[STRING_BUFFER_USUAL_SIZE];
   String value;
+  const CHARSET_INFO *cmp_charset;
 public:
-  cmp_item_sort_string():
-    cmp_item_string() {}
-  cmp_item_sort_string(const CHARSET_INFO *cs):
-    cmp_item_string(cs),
-    value(value_buff, sizeof(value_buff), cs) {}
-  void store_value(Item *item)
+  cmp_item_string (const CHARSET_INFO *cs)
+    : value(value_buff, sizeof(value_buff), cs), cmp_charset(cs)
+  {}
+
+  virtual int compare(const cmp_item *ci) const
+  {
+    const cmp_item_string *l_cmp= down_cast<const cmp_item_string*>(ci);
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
+  }
+
+  virtual void store_value(Item *item)
   {
     String *res= item->val_str(&value);
     if(res && (res != &value))
     {
-      // 'res' may point in item's temporary internal data, so make a copy
+      // 'res' may point in item's transient internal data, so make a copy
       value.copy(*res);
     }
     value_res= &value;
     set_null_value(item->null_value);
   }
-  int cmp(Item *arg)
+
+  virtual int cmp(Item *arg)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String tmp(buff, sizeof(buff), cmp_charset), *res= arg->val_str(&tmp);
+    String tmp(buff, sizeof(buff), cmp_charset);
+    String *res= arg->val_str(&tmp);
     if (m_null_value || arg->null_value)
       return UNKNOWN;
     if (value_res && res)
@@ -1321,18 +1373,9 @@ public:
     else
       return TRUE;
   }
-  int compare(cmp_item *ci)
-  {
-    cmp_item_string *l_cmp= (cmp_item_string *) ci;
-    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
-  } 
-  cmp_item *make_same();
-  void set_charset(const CHARSET_INFO *cs)
-  {
-    cmp_charset= cs;
-    value.set_quick(value_buff, sizeof(value_buff), cs);
-  }
+  virtual cmp_item *make_same();
 };
+
 
 class cmp_item_int : public cmp_item_scalar
 {
@@ -1349,9 +1392,9 @@ public:
     const bool rc= value != arg->val_int();
     return (m_null_value || arg->null_value) ? UNKNOWN : rc;
   }
-  int compare(cmp_item *ci)
+  int compare(const cmp_item *ci) const
   {
-    cmp_item_int *l_cmp= (cmp_item_int *)ci;
+    const cmp_item_int *l_cmp= down_cast<const cmp_item_int*>(ci);
     return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
@@ -1377,7 +1420,7 @@ public:
     :thd(current_thd), warn_item(warn_item_arg), lval_cache(0) {}
   void store_value(Item *item);
   int cmp(Item *arg);
-  int compare(cmp_item *ci);
+  int compare(const cmp_item *ci) const;
   cmp_item *make_same();
 };
 
@@ -1396,9 +1439,9 @@ public:
     const bool rc= value != arg->val_real();
     return (m_null_value || arg->null_value) ? UNKNOWN : rc;
   }
-  int compare(cmp_item *ci)
+  int compare(const cmp_item *ci) const
   {
-    cmp_item_real *l_cmp= (cmp_item_real *) ci;
+    const cmp_item_real *l_cmp= down_cast<const cmp_item_real*>(ci);
     return (value < l_cmp->value)? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
@@ -1412,43 +1455,8 @@ public:
   cmp_item_decimal() {}                       /* Remove gcc warning */
   void store_value(Item *item);
   int cmp(Item *arg);
-  int compare(cmp_item *c);
+  int compare(const cmp_item *c) const;
   cmp_item *make_same();
-};
-
-
-/* 
-   cmp_item for optimized IN with row (right part string, which never
-   be changed)
-*/
-
-class cmp_item_sort_string_in_static :public cmp_item_string
-{
- protected:
-  String value;
-public:
-  cmp_item_sort_string_in_static(const CHARSET_INFO *cs):
-    cmp_item_string(cs) {}
-  void store_value(Item *item)
-  {
-    value_res= item->val_str(&value);
-    set_null_value(item->null_value);
-  }
-  int cmp(Item *item)
-  {
-    // Should never be called
-    DBUG_ASSERT(false);
-    return TRUE;
-  }
-  int compare(cmp_item *ci)
-  {
-    cmp_item_string *l_cmp= (cmp_item_string *) ci;
-    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
-  }
-  cmp_item *make_same()
-  {
-    return new cmp_item_sort_string_in_static(cmp_charset);
-  }
 };
 
 
@@ -1642,7 +1650,7 @@ public:
   void store_value(Item *item);
   void alloc_comparators(Item *item);
   int cmp(Item *arg);
-  int compare(cmp_item *arg);
+  int compare(const cmp_item *arg) const;
   cmp_item *make_same();
   void store_value_by_template(cmp_item *tmpl, Item *);
   friend void Item_func_in::fix_length_and_dec();
@@ -1652,13 +1660,23 @@ public:
 class in_row :public in_vector
 {
   cmp_item_row tmp;
+  // DTOR is not trivial, but we manage memory ourselves.
+  Mem_root_array<cmp_item_row, true> base_objects;
+  // Sort pointers, rather than objects.
+  Mem_root_array<cmp_item_row*, true> base_pointers;
 public:
-  in_row(uint elements, Item *);
+  in_row(THD *thd, uint elements, Item *);
   ~in_row();
   void set(uint pos,Item *item);
   uchar *get_value(Item *item);
   friend void Item_func_in::fix_length_and_dec();
   Item_result result_type() { return ROW_RESULT; }
+
+  virtual void shrink_array(size_t n) { base_pointers.resize(n); }
+
+  virtual void sort();
+  virtual bool find_value(const void *value) const;
+  virtual bool compare_elems(uint pos1, uint pos2) const;
 };
 
 /* Functions used by where clause */

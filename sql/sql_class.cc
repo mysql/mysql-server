@@ -826,7 +826,7 @@ char *thd_security_context(THD *thd, char *buffer, size_t length,
 bool Drop_table_error_handler::handle_condition(THD *thd,
                                                 uint sql_errno,
                                                 const char* sqlstate,
-                                                Sql_condition::enum_severity_level level,
+                                                Sql_condition::enum_severity_level *level,
                                                 const char* msg,
                                                 Sql_condition ** cond_hdl)
 {
@@ -892,6 +892,7 @@ THD::THD(bool enable_plugins)
    m_transaction_psi(NULL),
    m_idle_psi(NULL),
    m_server_idle(false),
+   user_var_events(key_memory_user_var_entry),
    next_to_commit(NULL),
    is_fatal_error(0),
    transaction_rollback_request(0),
@@ -903,6 +904,10 @@ THD::THD(bool enable_plugins)
    derived_tables_processing(FALSE),
    sp_runtime_ctx(NULL),
    m_parser_state(NULL),
+#ifndef EMBEDDED_LIBRARY
+   // No need to instrument, highly unlikely to have that many plugins.
+   audit_class_plugins(PSI_NOT_INSTRUMENTED),
+#endif
 #if defined(ENABLED_DEBUG_SYNC)
    debug_sync_control(0),
 #endif /* defined(ENABLED_DEBUG_SYNC) */
@@ -912,8 +917,6 @@ THD::THD(bool enable_plugins)
    m_parser_da(false),
    m_stmt_da(&main_da)
 {
-  ulong tmp;
-  reset_first_successful_insert_id();
   mdl_context.init(this);
   /*
     Pass nominal parameters to init_alloc_root only to ensure that
@@ -939,16 +942,12 @@ THD::THD(bool enable_plugins)
   cuted_fields= 0L;
   m_sent_row_count= 0L;
   limit_found_rows= 0;
+  is_operating_gtid_table= false;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld
   lex->thd= NULL;
   lex->set_current_select(0);
-  user_time.tv_sec= 0;
-  user_time.tv_usec= 0;
-  start_time.tv_sec= 0;
-  start_time.tv_usec= 0;
-  start_utime= 0L;
   utime_after_lock= 0L;
   current_linfo =  0;
   slave_thread = 0;
@@ -975,7 +974,7 @@ THD::THD(bool enable_plugins)
   client_capabilities= 0;                       // minimalistic client
   ull=0;
   system_thread= NON_SYSTEM_THREAD;
-  cleanup_done= abort_on_warning= 0;
+  cleanup_done= 0;
   m_release_resources_done= false;
   peer_port= 0;					// For SHOW PROCESSLIST
   get_transaction()->m_flags.enabled= true;
@@ -1009,21 +1008,12 @@ THD::THD(bool enable_plugins)
   sp_proc_cache= NULL;
   sp_func_cache= NULL;
 
-  /* For user vars replication*/
-  if (opt_bin_log)
-    my_init_dynamic_array(&user_var_events,
-			  sizeof(BINLOG_USER_VAR_EVENT *), 16, 16);
-  else
-    memset(&user_var_events, 0, sizeof(user_var_events));
-
   /* Protocol */
   protocol= &protocol_text;			// Default protocol
   protocol_text.init(this);
   protocol_binary.init(this);
 
   tablespace_op=FALSE;
-  tmp= sql_rnd_with_mutex();
-  randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
   substitute_null_with_insert_id = FALSE;
   thr_lock_info_init(&lock_info); /* safety: will be reset after start */
 
@@ -1058,7 +1048,7 @@ void THD::push_internal_handler(Internal_error_handler *handler)
 
 bool THD::handle_condition(uint sql_errno,
                            const char* sqlstate,
-                           Sql_condition::enum_severity_level level,
+                           Sql_condition::enum_severity_level *level,
                            const char* msg,
                            Sql_condition ** cond_hdl)
 {
@@ -1222,17 +1212,6 @@ Sql_condition* THD::raise_condition(uint sql_errno,
   if (sqlstate == NULL)
    sqlstate= mysql_errno_to_sqlstate(sql_errno);
 
-  if ((level == Sql_condition::SL_WARNING) &&
-      really_abort_on_warning())
-  {
-    /*
-      FIXME:
-      push_warning and strict SQL_MODE case.
-    */
-    level= Sql_condition::SL_ERROR;
-    killed= THD::KILL_BAD_DATA;
-  }
-
   switch (level)
   {
   case Sql_condition::SL_NOTE:
@@ -1245,34 +1224,17 @@ Sql_condition* THD::raise_condition(uint sql_errno,
     DBUG_ASSERT(FALSE);
   }
 
-  if (handle_condition(sql_errno, sqlstate, level, msg, &cond))
+  if (handle_condition(sql_errno, sqlstate, &level, msg, &cond))
     DBUG_RETURN(cond);
 
   if (level == Sql_condition::SL_ERROR)
   {
     is_slave_error=  1; // needed to catch query errors during replication
 
-    /*
-      thd->lex->current_select() == 0 if lex structure is not inited
-      (not query command (COM_QUERY))
-    */
-    if (lex->current_select() &&
-        lex->current_select()->no_error && !is_fatal_error)
+    if (!da->is_error())
     {
-      DBUG_PRINT("error",
-                 ("Error converted to warning: current_select: no_error %d  "
-                  "fatal_error: %d",
-                  (lex->current_select() ?
-                   lex->current_select()->no_error : 0),
-                  (int) is_fatal_error));
-    }
-    else
-    {
-      if (!da->is_error())
-      {
-        set_row_count_func(-1);
-        da->set_error_status(sql_errno, msg, sqlstate);
-      }
+      set_row_count_func(-1);
+      da->set_error_status(sql_errno, msg, sqlstate);
     }
   }
 
@@ -1357,6 +1319,23 @@ void THD::init(void)
   */
   variables.pseudo_thread_id= thread_id;
   mysql_mutex_unlock(&LOCK_global_system_variables);
+
+  /*
+    NOTE: reset_connection command will reset the THD to its default state.
+    All system variables whose scope is SESSION ONLY should be set to their
+    default values here.
+  */
+  reset_first_successful_insert_id();
+  user_time.tv_sec= user_time.tv_usec= 0;
+  start_time.tv_sec= start_time.tv_usec= 0;
+  set_time();
+  auto_inc_intervals_forced.empty();
+  {
+    ulong tmp;
+    tmp= sql_rnd_with_mutex();
+    randominit(&rand, tmp + (ulong) &rand, tmp + (ulong) ::global_query_id);
+  }
+
   server_status= SERVER_STATUS_AUTOCOMMIT;
   if (variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)
     server_status|= SERVER_STATUS_NO_BACKSLASH_ESCAPES;
@@ -1458,6 +1437,12 @@ void THD::cleanup_connection(void)
   sp_cache_clear(&sp_func_cache);
 
   clear_error();
+  // clear the warnings
+  get_stmt_da()->reset_condition_info(this);
+  // clear profiling information
+#if defined(ENABLED_PROFILING)
+  profiling.cleanup();
+#endif
 
 #ifndef DBUG_OFF
     /* DEBUG code only (begin) */
@@ -1526,10 +1511,7 @@ void THD::cleanup(void)
   /* All metadata locks must have been released by now. */
   DBUG_ASSERT(!mdl_context.has_locks());
 
-  delete_dynamic(&user_var_events);
   my_hash_free(&user_vars);
-  if (gtid_mode > 0)
-    variables.gtid_next.set_automatic();
   close_temporary_tables(this);
   sp_cache_clear(&sp_proc_cache);
   sp_cache_clear(&sp_func_cache);
@@ -1603,8 +1585,7 @@ void THD::release_resources()
   mdl_context.destroy();
   ha_close_connection(this);
   mysql_audit_release(this);
-  if (m_enable_plugins)
-    plugin_thdvar_cleanup(this);
+  plugin_thdvar_cleanup(this, m_enable_plugins);
 
 #ifdef HAVE_MY_TIMER
   DBUG_ASSERT(timer == NULL);
@@ -1854,6 +1835,13 @@ void THD::awake(THD::killed_state state_to_set)
     */
     if (mysys_var->current_cond && mysys_var->current_mutex)
     {
+      DBUG_EXECUTE_IF("before_dump_thread_acquires_current_mutex",
+                      {
+                      const char act[]=
+                      "now signal dump_thread_signal wait_for go_dump_thread";
+                      DBUG_ASSERT(!debug_sync_set_action(current_thd,
+                                                         STRING_WITH_LEN(act)));
+                      };);
       mysql_mutex_lock(mysys_var->current_mutex);
       mysql_cond_broadcast(mysys_var->current_cond);
       mysql_mutex_unlock(mysys_var->current_mutex);
@@ -1897,11 +1885,10 @@ void THD::disconnect()
 }
 
 
-bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
+void THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
                              bool needs_thr_lock_abort)
 {
   THD *in_use= ctx_in_use->get_thd();
-  bool signalled= FALSE;
 
   if (needs_thr_lock_abort)
   {
@@ -1918,11 +1905,10 @@ bool THD::notify_shared_lock(MDL_context_owner *ctx_in_use,
         (e.g. see partitioning code).
       */
       if (!thd_table->needs_reopen())
-        signalled|= mysql_lock_abort_for_thread(this, thd_table);
+        mysql_lock_abort_for_thread(this, thd_table);
     }
     mysql_mutex_unlock(&in_use->LOCK_thd_data);
   }
-  return signalled;
 }
 
 
@@ -2066,9 +2052,9 @@ void THD::cleanup_after_query()
   table_map_for_update= 0;
   m_binlog_invoker= FALSE;
   /* reset replication info structure */
-  if (lex && lex->mi.repl_ignore_server_ids.buffer) 
+  if (lex)
   {
-    delete_dynamic(&lex->mi.repl_ignore_server_ids);
+    lex->mi.repl_ignore_server_ids.clear();
   }
 #ifndef EMBEDDED_LIBRARY
   if (rli_slave)
@@ -4593,16 +4579,6 @@ void THD::mark_transaction_to_rollback(bool all)
 
   transaction_rollback_request= all;
 
-  /*
-    Aborted transactions can not be IGNOREd.
-    Switch off the IGNORE flag for the current
-    SELECT_LEX. This should allow my_error()
-    to report the error and abort the execution
-    flow, even in presence
-    of IGNORE clause.
-  */
-  if (lex->current_select())
-    lex->current_select()->no_error= false;
 }
 
 

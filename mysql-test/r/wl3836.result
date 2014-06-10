@@ -1,0 +1,75 @@
+#
+# WL#3836:  Method to bring servers off line
+#
+SET @global_saved_tmp =  @@global.offline_mode;
+CREATE DATABASE wl3836;
+USE wl3836;
+# Should report 1
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
+COUNT(USER)
+1
+CREATE USER 'user1'@'localhost';
+CREATE USER 'user2'@'localhost';
+GRANT ALL ON wl3836.* TO 'user1'@'localhost', 'user2'@'localhost';
+SET GLOBAL offline_mode=ON;
+ERROR 42000: Access denied; you need (at least one of) the SUPER privilege(s) for this operation
+CREATE TABLE t1 (id INT PRIMARY KEY AUTO_INCREMENT) ENGINE=MYISAM;
+CREATE TABLE t2 (id INT UNSIGNED NOT NULL);
+INSERT INTO t1 VALUES
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0),
+(0),(0),(0),(0),(0),(0),(0),(0), (0),(0),(0),(0),(0),(0),(0),(0);
+INSERT t1 SELECT 0 FROM t1 AS a1, t1 AS a2 LIMIT 4032;
+INSERT INTO t2 SELECT id FROM t1;
+SELECT id FROM t1 WHERE id IN
+(SELECT DISTINCT a.id FROM t2 a, t2 b, t2 c, t2 d
+GROUP BY ACOS(1/a.id), b.id, c.id, d.id
+HAVING a.id BETWEEN 10 AND 20);
+# Should report 3
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
+COUNT(USER)
+3
+SET GLOBAL offline_mode = ON;
+# Should report 1
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
+COUNT(USER)
+1
+# Root user should be allowed to connect
+# Should report 2
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST WHERE DB LIKE 'wl3836';
+COUNT(USER)
+2
+SET GLOBAL offline_mode=OFF;
+DROP DATABASE wl3836;
+DROP USER 'user1'@'localhost';
+DROP USER 'user2'@'localhost';
+# Test for replication slave threads
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+# Should report 7 root processes
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+COUNT(USER)
+7
+SET GLOBAL offline_mode=ON;
+# Should report 7 root processes
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+COUNT(USER)
+7
+SET @slave_saved_tmp = @@global.offline_mode;
+# Should report 6 root processes
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+COUNT(USER)
+6
+SET GLOBAL offline_mode=ON;
+# Should report 6 root processes
+SELECT COUNT(USER) FROM INFORMATION_SCHEMA.PROCESSLIST;
+COUNT(USER)
+6
+SET GLOBAL offline_mode = @slave_saved_tmp;
+include/rpl_end.inc
+# Restoring the original values.
+SET @@global.offline_mode = @global_saved_tmp;

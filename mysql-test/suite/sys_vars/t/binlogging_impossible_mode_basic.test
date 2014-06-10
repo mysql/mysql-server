@@ -1,0 +1,69 @@
+################## mysql-test\t\binlogging_impossible_mode_basic.test #########
+#                                                                             #
+# Variable Name: binlogging_impossible_mode                                   #
+# Scope: Global                                                               #
+# Data Type: enumeration                                                      #
+#                                                                             #
+#                                                                             #
+# Creation Date: 2014-04-21                                                   #
+# Author : Sujatha Sivakumar                                                  #
+#                                                                             #
+#                                                                             #
+# Description:Test Cases of Dynamic System Variable binlogging_impossible_mode#
+#             that checks the behavior of this variable in the following ways #
+#              * Value Check                                                  #
+#              * Scope Check                                                  #
+###############################################################################
+
+
+SELECT @@GLOBAL.binlogging_impossible_mode;
+--echo IGNORE_ERROR Expected
+
+--error ER_INCORRECT_GLOBAL_LOCAL_VAR
+SELECT @@SESSION.binlogging_impossible_mode;
+
+SET @start_value= @@global.binlogging_impossible_mode;
+####################################################################
+#   Displaying default value                                       #
+####################################################################
+SHOW GLOBAL VARIABLES LIKE 'binlogging_impossible_mode';
+
+####################################################################
+#   Check if Value can set                                         #
+####################################################################
+SET @@GLOBAL.binlogging_impossible_mode=IGNORE_ERROR;
+SELECT @@GLOBAL.binlogging_impossible_mode;
+--echo IGNORE_ERROR Expected
+
+SET @@GLOBAL.binlogging_impossible_mode=ABORT_SERVER;
+SELECT @@GLOBAL.binlogging_impossible_mode;
+--echo ABORT_SERVER Expected
+
+#################################################################
+# Check if the value in GLOBAL Table matches value in variable  #
+#################################################################
+
+SELECT @@GLOBAL.binlogging_impossible_mode = VARIABLE_VALUE
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlogging_impossible_mode';
+--echo 1 Expected
+
+SELECT COUNT(@@GLOBAL.binlogging_impossible_mode);
+--echo 1 Expected
+
+SELECT COUNT(VARIABLE_VALUE)
+FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
+WHERE VARIABLE_NAME='binlogging_impossible_mode';
+--echo 1 Expected
+
+
+################################################################################
+#   Check if binlogging_impossible_mode can be accessed with @@ sign           #
+################################################################################
+
+SELECT COUNT(@@binlogging_impossible_mode);
+--echo 1 Expected
+SELECT COUNT(@@GLOBAL.binlogging_impossible_mode);
+--echo 1 Expected
+
+SET @@global.binlogging_impossible_mode= @start_value;

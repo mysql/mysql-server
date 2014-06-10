@@ -1450,7 +1450,8 @@ row_log_table_apply_insert_low(
 	entry = row_build_index_entry(row, NULL, index, heap);
 
 	error = row_ins_clust_index_entry_low(
-		flags, BTR_MODIFY_TREE, index, index->n_uniq, entry, 0, thr);
+		flags, BTR_MODIFY_TREE, index, index->n_uniq,
+		entry, 0, thr, false);
 
 	switch (error) {
 	case DB_SUCCESS:
@@ -1474,7 +1475,8 @@ row_log_table_apply_insert_low(
 		entry = row_build_index_entry(row, NULL, index, heap);
 		error = row_ins_sec_index_entry_low(
 			flags, BTR_MODIFY_TREE,
-			index, offsets_heap, heap, entry, trx_id, thr);
+			index, offsets_heap, heap, entry, trx_id, thr,
+			false);
 	} while (error == DB_SUCCESS);
 
 	return(error);
@@ -1967,7 +1969,7 @@ func_exit_committed:
 
 	dtuple_t*	entry	= row_build_index_entry(
 		row, NULL, index, heap);
-	const upd_t*	update	= row_upd_build_difference_binary(
+	upd_t*		update	= row_upd_build_difference_binary(
 		index, entry, btr_pcur_get_rec(&pcur), cur_offsets,
 		false, NULL, heap);
 
@@ -2045,9 +2047,8 @@ func_exit_committed:
 	if (big_rec) {
 		if (error == DB_SUCCESS) {
 			error = btr_store_big_rec_extern_fields(
-				index, btr_pcur_get_block(&pcur),
-				btr_pcur_get_rec(&pcur), cur_offsets,
-				big_rec, &mtr, BTR_STORE_UPDATE);
+				&pcur, update, cur_offsets, big_rec, &mtr,
+				BTR_STORE_UPDATE);
 		}
 
 		dtuple_big_rec_free(big_rec);
@@ -2100,7 +2101,7 @@ func_exit_committed:
 			BTR_CREATE_FLAG | BTR_NO_LOCKING_FLAG
 			| BTR_NO_UNDO_LOG_FLAG | BTR_KEEP_SYS_FLAG,
 			BTR_MODIFY_TREE, index, offsets_heap, heap,
-			entry, trx_id, thr);
+			entry, trx_id, thr, false);
 
 		mtr_start(&mtr);
 		mtr.set_named_space(index->space);

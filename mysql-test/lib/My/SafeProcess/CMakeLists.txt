@@ -1,4 +1,4 @@
-# Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 # 
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,7 +29,7 @@ IF(CMAKE_SYSTEM_NAME MATCHES "SunOS")
     STRING(REPLACE " -library=stlport4" "" CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS})
     STRING(REPLACE " -library=stlport4" "" CMAKE_CXX_FLAGS_DEBUG ${CMAKE_CXX_FLAGS_DEBUG})
     STRING(REPLACE " -library=stlport4" "" CMAKE_CXX_FLAGS_RELWITHDEBINFO ${CMAKE_CXX_FLAGS_RELWITHDEBINFO})
-    STRING(REGEX REPLACE " -R[^ ]+" "" CMAKE_CXX_LINK_FLAGS ${CMAKE_CXX_LINK_FLAGS})
+    STRING(REGEX REPLACE " -R[^ ]+" "" CMAKE_CXX_LINK_FLAGS "${CMAKE_CXX_LINK_FLAGS}")
   ENDIF()
 ENDIF()
 

@@ -3368,7 +3368,16 @@ page_zip_validate_low(
 					       page_get_space_id(page),
 					       page_get_page_no(page),
 					       (ulong) page[offset]));
-				valid = sloppy;
+				/* We don't check for spatial index, since
+				the "minimum record" could be deleted when
+				doing rtr_update_mbr_field.
+				GIS_FIXME: need to validate why
+				rtr_update_mbr_field.() could affect this */
+				if (index && dict_index_is_spatial(index)) {
+					valid = true;
+				} else {
+					valid = sloppy;
+				}
 				goto func_exit;
 			}
 		}
@@ -4726,8 +4735,10 @@ page_zip_copy_recs(
 	dict_index_t*		index,		/*!< in: index of the B-tree */
 	mtr_t*			mtr)		/*!< in: mini-transaction */
 {
-	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX));
-	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX));
+	ut_ad(mtr_memo_contains_page(mtr, page, MTR_MEMO_PAGE_X_FIX)
+	      || dict_table_is_intrinsic(index->table));
+	ut_ad(mtr_memo_contains_page(mtr, src, MTR_MEMO_PAGE_X_FIX)
+	      || dict_table_is_intrinsic(index->table));
 	ut_ad(!dict_index_is_ibuf(index));
 #ifdef UNIV_ZIP_DEBUG
 	/* The B-tree operations that call this function may set
