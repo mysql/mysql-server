@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014 Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -539,9 +539,10 @@ function readResultRow(op) {
   
   for(i = 0 ; i < nfields ; i++) {
     if(record.isNull(i, op.buffers.row)) {
-      value = col[i].defaultValue;
-    }
-    else {
+      value = null;
+    } else if(col[i].isLob) {
+      value = op.blobs[i];
+    } else {
       value = record.encoderRead(i, op.buffers.row);
       if(col[i].typeConverter && col[i].typeConverter.ndb) {
         value = col[i].typeConverter.ndb.fromDB(value);
@@ -727,8 +728,11 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
     }
 
     if(op.result.success && op.opcode === opcodes.OP_READ) {
-      // readResultRow(op);
-      buildValueObject(op);
+      if(op.tableHandler.numberOfLobColumns) {
+        readResultRow(op);    // Objects with BLOBs get plain JS Objects
+      } else {
+        buildValueObject(op); // Objects without BLOBS get ValueObjects
+      }
     } 
   }
   if(udebug.is_detail()) udebug.log("buildOperationResult finished:", op.result);
@@ -750,6 +754,7 @@ function completeExecutedOps(dbTxHandler, execMode, operations) {
     if(! op.isScanOperation()) {
       op_err = operations.pendingOperationSet.getOperationError(n);
       releaseKeyBuffer(op);
+      op.blobs = operations.pendingOperationSet.readBlobResults(n);
       buildOperationResult(dbTxHandler, op, op_err, execMode);
       releaseRowBuffer(op);
     }

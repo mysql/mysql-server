@@ -23,31 +23,72 @@
 #ifndef NODEJS_ADAPTER_NDB_BLOBHANDLER_H
 #define NODEJS_ADAPTER_NDB_BLOBHANDLER_H
 
-class BlobHandler {
+class BlobHandler { 
 public:
-  BlobHandler(int columnNumber, v8::Handle<v8::Object> jsBlobs);
-  ~BlobHandler();
-  void prepareRead(const NdbOperation *);
-  void prepareWrite(const NdbOperation *);  
-  void setNext(BlobHandler *);
+  BlobHandler(int columnId, int fieldNumber);
   BlobHandler * getNext();
+  void setNext(BlobHandler *);
+  int getFieldNumber();
+
+  virtual ~BlobHandler() {};
+  virtual void prepare(const NdbOperation *) = 0;
+  
+protected:
+  NdbBlob * ndbBlob;
+  BlobHandler * next;
+  uint64_t length;
+  int columnId;
+  int fieldNumber;
+};
+
+
+// BlobReadHandler
+class BlobReadHandler : public BlobHandler {
+public:
+  BlobReadHandler(int columnId, int fieldNumber);
+  ~BlobReadHandler();
+  void prepare(const NdbOperation *);
+  int runActiveHook(NdbBlob *);
+  v8::Handle<v8::Value> getResultBuffer();
 
 private:
-  NdbBlob * ndbBlob;
+  char * data;
+};  
+
+
+// BlobWriteHandler
+class BlobWriteHandler : public BlobHandler {
+public:
+  BlobWriteHandler(int colId, int fieldNo, v8::Handle<v8::Object> jsBlobs);
+  ~BlobWriteHandler();
+  void prepare(const NdbOperation *);
+
+private:
   v8::Persistent<v8::Object> jsBlobValue;
-  int columnNumber;
-  BlobHandler * next;
 };
 
 
+// BlobHandler inline methods
 inline void BlobHandler::setNext(BlobHandler *that) {
   next = that;
-};
+}
 
 inline BlobHandler * BlobHandler::getNext() {
   return next;
-};
+}
+
+inline int BlobHandler::getFieldNumber() {
+  return fieldNumber;
+}
+
+
+// BlobReadHandler inline methods
+inline BlobReadHandler::BlobReadHandler(int colId, int fieldNo) : 
+  BlobHandler(colId, fieldNo), data(0)
+{ }
+
+inline BlobReadHandler::~BlobReadHandler() 
+{ }
+
 
 #endif
-
-

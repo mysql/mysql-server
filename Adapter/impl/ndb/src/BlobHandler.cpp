@@ -27,40 +27,95 @@
 #include "BlobHandler.h"
 
 
-BlobHandler::BlobHandler(int field, v8::Handle<v8::Object> blobValue) :
+// BlobHandler constructor
+BlobHandler::BlobHandler(int colId, int fieldNo) :
   ndbBlob(0),
-  columnNumber(field),
-  next(0)
-{
-  jsBlobValue = v8::Persistent<v8::Object>::New(blobValue);
+  next(0),
+  length(0),
+  columnId(colId), 
+  fieldNumber(fieldNo)
+{ 
   DEBUG_PRINT("NEW %p", this);
 }
 
-BlobHandler::~BlobHandler() 
-{
-  jsBlobValue.Dispose();
+
+// Helper functions for BlobReadHandler
+int blobHandlerActiveHook(NdbBlob * ndbBlob, void * handler) {
+  BlobReadHandler * blobHandler = static_cast<BlobReadHandler *>(handler);
+  return blobHandler->runActiveHook(ndbBlob);
 }
 
-void BlobHandler::prepareRead(const NdbOperation * ndbop) {
-  ndbBlob = ndbop->getBlobHandle(columnNumber);
+void freeBufferContentsFromJs(char *data, void *hint) {
+  free(data);
+}
+
+
+// BlobReadHandler methods 
+void BlobReadHandler::prepare(const NdbOperation * ndbop) {
+  ndbBlob = ndbop->getBlobHandle(columnId);
   assert(ndbBlob);
+  ndbBlob->setActiveHook(blobHandlerActiveHook, this);
 
-  if(next) next->prepareRead(ndbop);
+  if(next) next->prepare(ndbop);
 }
 
-void BlobHandler::prepareWrite(const NdbOperation * ndbop) {
-  ndbBlob = ndbop->getBlobHandle(columnNumber);
+int BlobReadHandler::runActiveHook(NdbBlob *b) {
+  assert(b == ndbBlob);
+  uint64_t pos = 0;
+  b->getPos(pos);
+  DEBUG_PRINT("Blob state %d, pos %ld", b->getState(), pos);
+  int dummy = 0;
+  if(! ndbBlob->getNull(dummy)) {
+    ndbBlob->getLength(length);
+    uint32_t nBytes = length;
+    data = (char *) malloc(length);
+    if(data) {
+      ndbBlob->readData(data, nBytes);
+    } else {
+      return -1;
+    }
+  }
+  return 0;
+}
+
+v8::Handle<v8::Value> BlobReadHandler::getResultBuffer() {
+  v8::HandleScope scope;
+  if(data) {
+    node::Buffer * buffer;
+    buffer = node::Buffer::New((char *) data, length, freeBufferContentsFromJs, 0);
+    return scope.Close(buffer->handle_);
+  }
+  return v8::Null();
+}
+
+
+// BlobWriteHandler methods
+
+BlobWriteHandler::BlobWriteHandler(int colId, int fieldNo,
+                                   v8::Handle<v8::Object> blobValue) :
+  BlobHandler(colId, fieldNo)
+{
+  jsBlobValue = v8::Persistent<v8::Object>::New(blobValue);
+}
+
+void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
+  ndbBlob = ndbop->getBlobHandle(columnId);
   if(! ndbBlob) { 
     DEBUG_PRINT("getBlobHandle: %s", ndbop->getNdbError().message);
     assert(false);
   }
 
+  length = node::Buffer::Length(jsBlobValue);
   char * content = node::Buffer::Data(jsBlobValue);
-  size_t length  = node::Buffer::Length(jsBlobValue);
-  DEBUG_PRINT("Prepare write for BLOB column %d, length %d", columnNumber, length);
+  DEBUG_PRINT("Prepare write for BLOB column %d, length %d", columnId, length);
 
   ndbBlob->setValue(content, length);
   
-  if(next) next->prepareWrite(ndbop);
+  if(next) next->prepare(ndbop);
+}
+
+BlobWriteHandler::~BlobWriteHandler() 
+{
+  jsBlobValue.Dispose();
 }
 

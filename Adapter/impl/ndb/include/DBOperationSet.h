@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2013, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -23,6 +23,7 @@
 
 #include "KeyOperation.h"
 #include "DBTransactionContext.h"
+#include "BlobHandler.h"
 
 class DBOperationSet {
 friend class DBTransactionContext;
@@ -39,12 +40,15 @@ public:
   void prepare(NdbTransaction *);
   const NdbError & getNdbError();
   void registerClosedTransaction();
+  BlobHandler * getBlobHandler(int);
+  bool hasBlobReadOperations();
 
 private:
   KeyOperation * keyOperations;
   const NdbOperation ** const ops;
   const NdbError ** const errors;
   int size;
+  bool doesReadBlobs;
   DBTransactionContext *txContext;
 };
 
@@ -53,6 +57,7 @@ inline DBOperationSet::DBOperationSet(DBTransactionContext * ctx, int _sz) :
   ops(new const NdbOperation *[_sz]),
   errors(new const NdbError *[_sz]),
   size(_sz),
+  doesReadBlobs(false),
   txContext(ctx)                        {};
 
 inline void DBOperationSet::setError(int n, const NdbError & err) {
@@ -80,10 +85,6 @@ inline int DBOperationSet::executeAsynch(int execType, int abortOption, int forc
   return txContext->executeAsynch(this, execType, abortOption, forceSend, callback);
 }
 
-inline bool DBOperationSet::tryImmediateStartTransaction() {
-  return txContext->tryImmediateStartTransaction(& keyOperations[0]);
-}
-
 inline const NdbError & DBOperationSet::getNdbError() {
   return txContext->getNdbError();
 }
@@ -92,7 +93,12 @@ inline void DBOperationSet::registerClosedTransaction() {
   txContext->registerClose();
 }
 
+inline BlobHandler * DBOperationSet::getBlobHandler(int n) {
+  return keyOperations[n].blobHandler;
+}
 
-  
+inline bool DBOperationSet::hasBlobReadOperations() {
+  return doesReadBlobs;
+}
 
 #endif

@@ -114,6 +114,39 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
 }
 
 
+void createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                           KeyOperation & op) {
+  int ncol = rowRecord->getNoOfColumns();
+  for(int i = 0 ; i < ncol ; i++) {
+    const NdbDictionary::Column * col = rowRecord->getColumn(i);
+    if((col->getType() ==  NdbDictionary::Column::Blob) ||
+       (col->getType() ==  NdbDictionary::Column::Text)) {
+      BlobHandler * next = op.blobHandler;
+      op.blobHandler = new BlobReadHandler(i, col->getColumnNo());
+      op.blobHandler->setNext(next);
+    }
+  }
+}
+
+
+void createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                            KeyOperation & op) {
+  int ncol = rowRecord->getNoOfColumns();
+  for(int i = 0 ; i < ncol ; i++) {
+    if(blobsArray->Get(i)->IsObject()) {
+      Local<Object> blobValue = blobsArray->Get(i)->ToObject();
+      assert(node::Buffer::HasInstance(blobValue));
+      const NdbDictionary::Column * col = rowRecord->getColumn(i);
+      assert( (col->getType() ==  NdbDictionary::Column::Blob) ||
+              (col->getType() ==  NdbDictionary::Column::Text));
+      BlobHandler * next = op.blobHandler;
+      op.blobHandler = new BlobWriteHandler(i, col->getColumnNo(), blobValue);
+      op.blobHandler->setNext(next);
+    }
+  }
+}
+
+
 void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
   HandleScope scope;
 
@@ -136,26 +169,11 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
 
     v = spec->Get(HELPER_BLOBS);
     if(v->IsObject()) {
-      o = v->ToObject();
-      int ncol = record->getNoOfColumns();
-      for(int i = 0 ; i < ncol ; i++) {
-        if(o->Get(i)->IsObject()) {
-          const NdbDictionary::Column * col = record->getColumn(i);
-          Local<Object> blobValue = o->Get(i)->ToObject();
-          assert(node::Buffer::HasInstance(blobValue));
-          switch(col->getType()) {
-            case NdbDictionary::Column::Blob:
-            case NdbDictionary::Column::Text:
-              DEBUG_PRINT("NEW BLOBHANDLER");
-              BlobHandler * next = op.blobHandler;
-              op.blobHandler = new BlobHandler(col->getColumnNo(), blobValue);
-              op.blobHandler->setNext(next);
-              break;
-            default:
-              break;
-          }
-        }
-      }    
+      if(op.opcode == 1) {
+        createBlobReadHandles(v->ToObject(), record, op);
+      } else {
+        createBlobWriteHandles(v->ToObject(), record, op);
+      }
     }
   }
   

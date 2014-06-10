@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -55,6 +55,7 @@ public:
   void setRowMask(uint32_t);
 
   // Prepare operation
+  bool isBlobReadOperation();
   const NdbOperation *prepare(NdbTransaction *);
 
 private:  
@@ -68,10 +69,7 @@ private:
   const NdbOperation *writeTuple(NdbTransaction *);
   const NdbOperation *insertTuple(NdbTransaction *);
   const NdbOperation *updateTuple(NdbTransaction *);
-
-  void prepareBlobReads(const NdbOperation *);
-  void prepareBlobWrites(const NdbOperation *);
- };
+};
   
 
 /* ================= Inline methods ================= */
@@ -84,6 +82,9 @@ inline KeyOperation::KeyOperation():
   u.maskvalue = 0;
 }
 
+inline bool KeyOperation::isBlobReadOperation() {
+  return (blobHandler && (opcode == 1));
+}
  
 /* Select columns for reading */
 inline void KeyOperation::useSelectedColumns() {
