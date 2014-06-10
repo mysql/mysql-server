@@ -969,7 +969,7 @@ static int tokudb_discover3(handlerton *hton, THD* thd, const char *db, const ch
     HA_METADATA_KEY curr_key = hatoku_frm_data;
     DBT key = {};
     DBT value = {};
-    bool do_commit;
+    bool do_commit = false;
 
 #if 100000 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 100099
     tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
