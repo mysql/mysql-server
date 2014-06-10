@@ -20,48 +20,45 @@
 
 #include "KeyOperation.h"
 
+
+// Call the right destructor for a chain of blob handlers,
+// where B is either BlobReadHandler or BlobWriteHandler
+template <typename B> void deleteBlobChain(BlobHandler *b) {
+  do {
+    B * blobHandler = static_cast<B *>(b);
+    b = blobHandler->getNext();
+    delete blobHandler;
+  } while(b);
+}
+
 KeyOperation::~KeyOperation() {
-  while(blobHandler) {
-    BlobHandler *b = blobHandler;
-    blobHandler = b->getNext();
-    delete b;
-  }
-}
-
-/* BlobHandler::prepareRead() and prepareWrite() will iterate the 
-   chain of BlobHandlers themselves, so we call the head only. 
-*/
-inline void KeyOperation::prepareBlobReads(const NdbOperation * op) {
   if(blobHandler) {
-    blobHandler->prepareRead(op);
+    if(opcode == 1) {
+      deleteBlobChain<BlobReadHandler>(blobHandler);
+    } else {
+      deleteBlobChain<BlobWriteHandler>(blobHandler);
+    }
   }
 }
 
-inline void KeyOperation::prepareBlobWrites(const NdbOperation *op) {
-  if(blobHandler) {
-    blobHandler->prepareWrite(op);
-  }
-}
-
-const NdbOperation * 
-  KeyOperation::readTuple(NdbTransaction *tx) {
-    const NdbOperation *op;
-    op = tx->readTuple(key_record->getNdbRecord(), key_buffer,
-                       row_record->getNdbRecord(), row_buffer, lmode, read_mask_ptr);
-    prepareBlobReads(op);
-    return op;                       
+const NdbOperation * KeyOperation::readTuple(NdbTransaction *tx) {
+  const NdbOperation *op;
+  op = tx->readTuple(key_record->getNdbRecord(), key_buffer,
+                     row_record->getNdbRecord(), row_buffer, lmode, read_mask_ptr);
+  if(blobHandler) blobHandler->prepare(op);
+  return op;                       
 }
 
 const NdbOperation * KeyOperation::deleteTuple(NdbTransaction *tx) {
-    return tx->deleteTuple(key_record->getNdbRecord(), key_buffer,
-                           row_record->getNdbRecord(), 0, 0, options);
+  return tx->deleteTuple(key_record->getNdbRecord(), key_buffer,
+                         row_record->getNdbRecord(), 0, 0, options);
 }                         
 
 const NdbOperation * KeyOperation::writeTuple(NdbTransaction *tx) { 
   const NdbOperation *op;
   op = tx->writeTuple(key_record->getNdbRecord(), key_buffer,
                       row_record->getNdbRecord(), row_buffer, u.row_mask);
-  prepareBlobWrites(op);
+  if(blobHandler) blobHandler->prepare(op);
   return op;
 }
 
@@ -69,7 +66,7 @@ const NdbOperation * KeyOperation::insertTuple(NdbTransaction *tx) {
   const NdbOperation *op;
   op = tx->insertTuple(row_record->getNdbRecord(), row_buffer,
                        u.row_mask, options);
-  prepareBlobWrites(op);
+  if(blobHandler) blobHandler->prepare(op);
   return op;
 }
 
@@ -78,7 +75,7 @@ const NdbOperation * KeyOperation::updateTuple(NdbTransaction *tx) {
   op = tx->updateTuple(key_record->getNdbRecord(), key_buffer,
                        row_record->getNdbRecord(), row_buffer,
                        u.row_mask, options);
-  prepareBlobWrites(op);
+  if(blobHandler) blobHandler->prepare(op);
   return op;
 }
 

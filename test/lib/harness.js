@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -173,7 +173,6 @@ Test.prototype.run = function() {
 
 function getType(obj) {
   var type = typeof(obj);
-  console.log(util.inspect(obj));
   if (type === 'object') return obj.constructor.name;
   return type;
 }
