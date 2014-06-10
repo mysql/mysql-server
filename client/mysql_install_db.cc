@@ -596,13 +596,11 @@ void add_standard_search_paths(vector<Path > *spaths)
   spaths->push_back(Path("/usr/bin"));
   spaths->push_back(Path("/usr/local/bin"));
   spaths->push_back(Path("/opt/mysql/bin"));
-#ifdef DEFAULT_MYSQL_HOME
-  spaths->push_back(Path(DEFAULT_MYSQL_HOME));
-  spaths->push_back(Path(DEFAULT_MYSQL_HOME).append("/bin"));
+#ifdef INSTALL_SBINDIR
+  spaths->push_back(Path(INSTALL_SBINDIR));
 #endif
-#ifdef DEFAULT_BASEDIR
-  spaths->push_back(Path(DEFAULT_BASEDIR));
-  spaths->push_back(Path(DEFAULT_BASEDIR).append("/bin"));
+#ifdef INSTALL_BINDIR
+  spaths->push_back(Path(INSTALL_BINDIR));
 #endif
 
 }
