@@ -7225,6 +7225,9 @@ ER_STD_UNKNOWN_EXCEPTION
 ER_GIS_DATA_WRONG_ENDIANESS
   eng "Geometry byte string must be little endian."
 
+ER_CHANGE_MASTER_PASSWORD_LENGTH
+  eng "The password provided for the replication user exceeds the maximum length of 32 characters"
+
 #
 #  End of 5.7 error messages.
 #

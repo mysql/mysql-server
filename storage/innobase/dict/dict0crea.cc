@@ -942,6 +942,7 @@ dict_drop_index_tree(
 	btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
 	/* printf("Dropping index tree in space %lu root page %lu\n", space,
 	root_page_no); */
+	mtr->set_named_space(space);
 	btr_free_root(root_page_id, page_size, mtr);
 
 	if (is_drop) {
@@ -964,14 +965,9 @@ dict_drop_index_tree_in_mem(
 	const dict_index_t*	index,		/*!< in: index */
 	ulint			page_no)	/*!< in: index page-no */
 {
-	mtr_t		mtr;
-
 	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(index->table));
-
-	mtr_start(&mtr);
-
-	dict_disable_redo_if_temporary(index->table, &mtr);
+	ut_ad(dict_table_is_temporary(index->table));
 
 	ulint			root_page_no = page_no;
 	ulint			space = index->space;
@@ -983,21 +979,23 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
+		mtr_t	mtr;
+
+		mtr.start();
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
 		const page_id_t	root_page_id(space, root_page_no);
 
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 		btr_free_but_not_root(
-			root_page_id, page_size,
-			(dict_table_is_temporary(index->table)
-			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
+			root_page_id, page_size, MTR_LOG_NO_REDO);
 
 		/* Then we free the root page. */
 		btr_free_root(root_page_id, page_size, &mtr);
-	}
 
-	mtr_commit(&mtr);
+		mtr.commit();
+	}
 }
 
 /*******************************************************************//**
@@ -1107,6 +1105,7 @@ dict_truncate_index_tree_in_mem(
 
 	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(index->table));
+	ut_ad(dict_table_is_temporary(index->table));
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
@@ -1152,9 +1151,7 @@ dict_truncate_index_tree_in_mem(
 		const page_id_t	root_page_id(space, root_page_no);
 
 		btr_free_but_not_root(
-			root_page_id, page_size,
-			(dict_table_is_temporary(index->table)
-			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
+			root_page_id, page_size, MTR_LOG_NO_REDO);
 
 		/* Then we free the root page in the same mini-transaction where
 		we create the b-tree and write its new root page number to the
@@ -1162,7 +1159,6 @@ dict_truncate_index_tree_in_mem(
 		mini-transaction marks the B-tree totally truncated */
 
 		btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
-
 		btr_free_root(root_page_id, page_size, &mtr);
 	}
 
