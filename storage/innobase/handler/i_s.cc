@@ -2913,7 +2913,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_default_stopword =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_stopword_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3085,7 +3085,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_deleted =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3172,7 +3172,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_being_deleted =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_doc_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3466,7 +3466,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_index_cache =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_index_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -3905,7 +3905,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_index_table =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_index_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
@@ -4103,7 +4103,7 @@ UNIV_INTERN struct st_mysql_plugin	i_s_innodb_ft_config =
 
 	/* pointer to type-specific plugin descriptor */
 	/* void* */
-	STRUCT_FLD(info, &i_s_fts_config_fields_info),
+	STRUCT_FLD(info, &i_s_info),
 
 	/* plugin name */
 	/* const char* */
