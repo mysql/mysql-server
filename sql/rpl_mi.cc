@@ -209,19 +209,6 @@ void Master_info::init_master_log_pos()
   master_log_name[0]= 0;
   master_log_pos= BIN_LOG_HEADER_SIZE;             // skip magic number
 
-  /* Intentionally init ssl_verify_server_cert to 0, no option available  */
-  ssl_verify_server_cert= 0;
-  /* 
-    always request heartbeat unless master_heartbeat_period is set
-    explicitly zero.  Here is the default value for heartbeat period
-    if CHANGE MASTER did not specify it.  (no data loss in conversion
-    as hb period has a max)
-  */
-  heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
-                               (slave_net_timeout/2.0));
-  DBUG_ASSERT(heartbeat_period > (float) 0.001
-              || heartbeat_period == 0);
-
   DBUG_VOID_RETURN;
 }
 

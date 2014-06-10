@@ -26,6 +26,7 @@
 #include "sql_class.h"                   /* THD */
 #include<vector>
 #include "rpl_mts_submode.h"
+#include "prealloced_array.h"
 
 struct RPL_TABLE_LIST;
 class Master_info;
@@ -631,7 +632,7 @@ public:
      The first row of the least occupied Worker is queried at assigning 
      a new partition. Is updated at checkpoint commit to the main RLI.
   */
-  DYNAMIC_ARRAY least_occupied_workers;
+  Prealloced_array<ulong, 16> least_occupied_workers;
   time_t mts_last_online_stat;
   /* end of MTS statistics */
 

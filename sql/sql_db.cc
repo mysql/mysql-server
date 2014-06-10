@@ -156,8 +156,12 @@ bool my_dboptions_cache_init(void)
   if (!dboptions_init)
   {
     dboptions_init= 1;
+    /*
+      For lower_case_table_names=0 we should use case sensitive search
+      (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
+    */
     error= my_hash_init(&dboptions, lower_case_table_names ?
-                        &my_charset_bin : system_charset_info,
+                        system_charset_info : &my_charset_bin,
                         32, 0, 0, (my_hash_get_key) dboptions_get_key,
                         free_dbopt,0);
   }
@@ -189,8 +193,12 @@ void my_dbopt_cleanup(void)
 {
   mysql_rwlock_wrlock(&LOCK_dboptions);
   my_hash_free(&dboptions);
+  /*
+    For lower_case_table_names=0 we should use case sensitive search
+    (my_charset_bin), for 1 and 2 - case insensitive (system_charset_info).
+  */
   my_hash_init(&dboptions, lower_case_table_names ? 
-               &my_charset_bin : system_charset_info,
+               system_charset_info : &my_charset_bin,
                32, 0, 0, (my_hash_get_key) dboptions_get_key,
                free_dbopt,0);
   mysql_rwlock_unlock(&LOCK_dboptions);
