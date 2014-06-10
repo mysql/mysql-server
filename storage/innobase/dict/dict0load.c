@@ -1759,6 +1759,8 @@ dict_load_table(
 	const char*	err_msg;
 	mtr_t		mtr;
 
+	DBUG_ENTER("dict_load_table");
+
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	heap = mem_heap_create(32000);
@@ -1792,7 +1794,7 @@ err_exit:
 		mtr_commit(&mtr);
 		mem_heap_free(heap);
 
-		return(NULL);
+		DBUG_RETURN(NULL);
 	}
 
 	field = rec_get_nth_field_old(rec, 0, &len);
@@ -1954,8 +1956,8 @@ err_exit:
 #endif /* 0 */
 func_exit:
 	mem_heap_free(heap);
-
-	return(table);
+	ut_ad(table == NULL || dict_table_check_foreign_keys(table));
+	DBUG_RETURN(table);
 }
 
 /***********************************************************************//**
@@ -2180,6 +2182,8 @@ dict_load_foreign(
 	dict_table_t*	for_table;
 	dict_table_t*	ref_table;
 
+	DBUG_ENTER("dict_load_foreign");
+
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	heap2 = mem_heap_create(1000);
@@ -2212,7 +2216,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	field = rec_get_nth_field_old(rec, 0, &len);
@@ -2228,7 +2232,7 @@ dict_load_foreign(
 		mtr_commit(&mtr);
 		mem_heap_free(heap2);
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	/* Read the table names and the number of columns associated
@@ -2325,7 +2329,7 @@ dict_load_foreign(
 	a new foreign key constraint but loading one from the data
 	dictionary. */
 
-	return(dict_foreign_add_to_cache(foreign, check_charsets, ignore_err));
+	DBUG_RETURN(dict_foreign_add_to_cache(foreign, check_charsets, ignore_err));
 }
 
 /***********************************************************************//**
@@ -2360,6 +2364,8 @@ dict_load_foreigns(
 	ulint		err;
 	mtr_t		mtr;
 
+	DBUG_ENTER("dict_load_foreigns");
+
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	sys_foreign = dict_table_get_low("SYS_FOREIGN", DICT_ERR_IGNORE_NONE);
@@ -2371,7 +2377,7 @@ dict_load_foreigns(
 			"InnoDB: Error: no foreign key system tables"
 			" in the database\n");
 
-		return(DB_ERROR);
+		DBUG_RETURN(DB_ERROR);
 	}
 
 	ut_a(!dict_table_is_comp(sys_foreign));
@@ -2451,7 +2457,7 @@ loop:
 	if (err != DB_SUCCESS) {
 		btr_pcur_close(&pcur);
 
-		return(err);
+		DBUG_RETURN(err);
 	}
 
 	mtr_start(&mtr);
@@ -2480,5 +2486,74 @@ load_next_index:
 		goto start_load;
 	}
 
-	return(DB_SUCCESS);
+	DBUG_RETURN(DB_SUCCESS);
+}
+
+/********************************************************************//**
+Check if dict_table_t::foreign_rbt and dict_table::foreign_list
+contain the same set of foreign key objects; and check if
+dict_table_t::referenced_rbt and dict_table::referenced_list contain
+the same set of foreign key objects.
+@return	TRUE if correct, FALSE otherwise. */
+ibool
+dict_table_check_foreign_keys(
+/*==========================*/
+	const dict_table_t* table)	/* in: table object to check */
+{
+	dict_foreign_t*		foreign;
+	const ib_rbt_node_t*	node;
+
+	ut_ad(mutex_own(&(dict_sys->mutex)));
+
+	if (table->foreign_rbt == NULL) {
+
+		if (UT_LIST_GET_LEN(table->foreign_list) > 0) {
+			return(FALSE);
+		}
+
+	} else {
+
+		if (UT_LIST_GET_LEN(table->foreign_list)
+		    != rbt_size(table->foreign_rbt)) {
+			return(FALSE);
+		}
+
+		foreign = UT_LIST_GET_FIRST(table->foreign_list);
+
+		while (foreign != NULL) {
+
+			node = rbt_lookup(table->foreign_rbt, foreign->id);
+			if (node == NULL) {
+				return(FALSE);
+			}
+			foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+		}
+	}
+
+	if (table->referenced_rbt == NULL ) {
+
+		if (UT_LIST_GET_LEN(table->referenced_list) > 0) {
+			return(FALSE);
+		}
+
+	} else {
+
+		if (UT_LIST_GET_LEN(table->referenced_list)
+		    != rbt_size(table->referenced_rbt)) {
+			return(FALSE);
+		}
+
+		foreign = UT_LIST_GET_FIRST(table->referenced_list);
+
+		while (foreign != NULL) {
+
+			node = rbt_lookup(table->referenced_rbt, foreign->id);
+			if (node == NULL) {
+				return(FALSE);
+			}
+			foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+		}
+	}
+
+	return(TRUE);
 }

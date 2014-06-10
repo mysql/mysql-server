@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -26,6 +26,7 @@ Created 1/8/1996 Heikki Tuuri
 #include <my_sys.h>
 
 #include "dict0dict.h"
+#include "ut0rbt.h"
 
 #ifdef UNIV_NONINL
 #include "dict0dict.ic"
@@ -191,6 +192,7 @@ UNIV_INTERN FILE*	dict_foreign_err_file		= NULL;
 /* mutex protecting the foreign and unique error buffers */
 UNIV_INTERN mutex_t	dict_foreign_err_mutex;
 #endif /* !UNIV_HOTBACKUP */
+
 /******************************************************************//**
 Makes all characters in a NUL-terminated UTF-8 string lower case. */
 UNIV_INTERN
@@ -1103,6 +1105,10 @@ dict_table_rename_in_cache(
 
 		UT_LIST_INIT(table->referenced_list);
 
+		if (table->referenced_rbt != NULL) {
+			rbt_clear(table->referenced_rbt);
+		}
+
 		return(TRUE);
 	}
 
@@ -1113,6 +1119,10 @@ dict_table_rename_in_cache(
 	foreign = UT_LIST_GET_FIRST(table->foreign_list);
 
 	while (foreign != NULL) {
+
+		/* The id will be changed.  So remove old one */
+		rbt_delete(foreign->foreign_table->foreign_rbt, foreign->id);
+
 		if (ut_strlen(foreign->foreign_table_name)
 		    < ut_strlen(table->name)) {
 			/* Allocate a longer name buffer;
@@ -1259,6 +1269,9 @@ dict_table_rename_in_cache(
 
 			mem_free(old_id);
 		}
+
+		rbt_insert(foreign->foreign_table->foreign_rbt,
+			   foreign->id, &foreign);
 
 		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
 	}
@@ -2480,22 +2493,40 @@ dict_foreign_remove_from_cache(
 /*===========================*/
 	dict_foreign_t*	foreign)	/*!< in, own: foreign constraint */
 {
+	DBUG_ENTER("dict_foreign_remove_from_cache");
+
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 	ut_a(foreign);
 
 	if (foreign->referenced_table) {
+		ib_rbt_t*	rbt;
+
 		UT_LIST_REMOVE(referenced_list,
 			       foreign->referenced_table->referenced_list,
 			       foreign);
+
+		rbt = foreign->referenced_table->referenced_rbt;
+		if (rbt != NULL) {
+			rbt_delete(rbt, foreign->id);
+		}
 	}
 
 	if (foreign->foreign_table) {
+		ib_rbt_t*	rbt;
+
 		UT_LIST_REMOVE(foreign_list,
 			       foreign->foreign_table->foreign_list,
 			       foreign);
+		rbt = foreign->foreign_table->foreign_rbt;
+
+		if (rbt != NULL) {
+			rbt_delete(rbt, foreign->id);
+		}
 	}
 
 	dict_foreign_free(foreign);
+
+	DBUG_VOID_RETURN;
 }
 
 /**********************************************************************//**
@@ -2509,33 +2540,36 @@ dict_foreign_find(
 	dict_table_t*	table,	/*!< in: table object */
 	const char*	id)	/*!< in: foreign constraint id */
 {
-	dict_foreign_t*	foreign;
+	const ib_rbt_node_t*	node;
+
+	DBUG_ENTER("dict_foreign_find");
 
 	ut_ad(mutex_own(&(dict_sys->mutex)));
+	ut_ad(dict_table_check_foreign_keys(table));
 
-	foreign = UT_LIST_GET_FIRST(table->foreign_list);
-
-	while (foreign) {
-		if (ut_strcmp(id, foreign->id) == 0) {
-
-			return(foreign);
+	if (table->foreign_rbt != NULL) {
+		ut_a(UT_LIST_GET_LEN(table->foreign_list)
+		     == rbt_size(table->foreign_rbt));
+		node = rbt_lookup(table->foreign_rbt, id);
+		if (node != NULL) {
+			DBUG_RETURN(*(dict_foreign_t**) node->value);
 		}
-
-		foreign = UT_LIST_GET_NEXT(foreign_list, foreign);
+	} else {
+		ut_a(UT_LIST_GET_LEN(table->foreign_list) == 0);
 	}
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
-	while (foreign) {
-		if (ut_strcmp(id, foreign->id) == 0) {
-
-			return(foreign);
+	if (table->referenced_rbt != NULL) {
+		ut_a(UT_LIST_GET_LEN(table->referenced_list)
+		     == rbt_size(table->referenced_rbt));
+		node = rbt_lookup(table->referenced_rbt, id);
+		if (node != NULL) {
+			DBUG_RETURN(*(dict_foreign_t**) node->value);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
+	} else {
+		ut_a(UT_LIST_GET_LEN(table->referenced_list) == 0);
 	}
 
-	return(NULL);
+	DBUG_RETURN(NULL);
 }
 
 /*********************************************************************//**
@@ -2773,6 +2807,8 @@ dict_foreign_add_to_cache(
 	ibool		added_to_referenced_list= FALSE;
 	FILE*		ef			= dict_foreign_err_file;
 
+	DBUG_ENTER("dict_foreign_add_to_cache");
+
 	ut_ad(mutex_own(&(dict_sys->mutex)));
 
 	for_table = dict_table_check_if_in_cache_low(
@@ -2782,7 +2818,14 @@ dict_foreign_add_to_cache(
 		foreign->referenced_table_name_lookup);
 	ut_a(for_table || ref_table);
 
+	if (ref_table != NULL && ref_table->referenced_rbt == NULL) {
+		dict_table_init_referenced_rbt(ref_table);
+	}
+
 	if (for_table) {
+		if (for_table->foreign_rbt == NULL) {
+			dict_table_init_foreign_rbt(for_table);
+		}
 		for_in_cache = dict_foreign_find(for_table, foreign->id);
 	}
 
@@ -2819,18 +2862,22 @@ dict_foreign_add_to_cache(
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
 		for_in_cache->referenced_table = ref_table;
 		for_in_cache->referenced_index = index;
+
 		UT_LIST_ADD_LAST(referenced_list,
-				 ref_table->referenced_list,
-				 for_in_cache);
+				 ref_table->referenced_list, for_in_cache);
 		added_to_referenced_list = TRUE;
+
+		rbt_insert(ref_table->referenced_rbt,
+			   for_in_cache->id, &for_in_cache);
 	}
 
 	if (for_in_cache->foreign_table == NULL && for_table) {
+
 		index = dict_foreign_find_index(
 			for_table,
 			for_in_cache->foreign_col_names,
@@ -2859,22 +2906,28 @@ dict_foreign_add_to_cache(
 						referenced_list,
 						ref_table->referenced_list,
 						for_in_cache);
+					rbt_delete(ref_table->referenced_rbt,
+						   for_in_cache->id);
 				}
 
 				mem_heap_free(foreign->heap);
 			}
 
-			return(DB_CANNOT_ADD_CONSTRAINT);
+			DBUG_RETURN(DB_CANNOT_ADD_CONSTRAINT);
 		}
 
 		for_in_cache->foreign_table = for_table;
 		for_in_cache->foreign_index = index;
+
 		UT_LIST_ADD_LAST(foreign_list,
 				 for_table->foreign_list,
 				 for_in_cache);
+
+		rbt_insert(for_table->foreign_rbt, for_in_cache->id,
+			   &for_in_cache);
 	}
 
-	return(DB_SUCCESS);
+	DBUG_RETURN(DB_SUCCESS);
 }
 
 #endif /* !UNIV_HOTBACKUP */
