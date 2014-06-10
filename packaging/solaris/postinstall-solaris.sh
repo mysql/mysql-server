@@ -82,6 +82,7 @@ if [ -n "$INSTALL" ] ; then
     scripts/mysql_install_db \
 	  --rpm \
 	  --user=mysql \
+	  --skip-random-passwords \
 	  --basedir="$mybasedir" \
 	  --datadir=$mydatadir
   )

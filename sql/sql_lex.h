@@ -29,6 +29,8 @@
 #include "sql_alter.h"                // Alter_info
 #include "sql_servers.h"
 #include "trigger_def.h"              // enum_trigger_action_time_type
+#include "xa.h"                       // XID, xa_option_words
+#include "prealloced_array.h"
 
 /* YACC and LEX Definitions */
 
@@ -224,6 +226,15 @@ typedef Mem_root_array<ORDER*, true> Group_list_ptrs;
 */
 typedef struct st_lex_master_info
 {
+  /*
+    The array of IGNORE_SERVER_IDS has a preallocation, and is not expected
+    to grow to any significant size, so no instrumentation.
+  */
+  st_lex_master_info()
+    : repl_ignore_server_ids(PSI_NOT_INSTRUMENTED)
+  {
+    initialize();
+  }
   char *host, *user, *password, *log_file_name, *bind_addr;
   uint port, connect_retry;
   float heartbeat_period;
@@ -245,9 +256,16 @@ typedef struct st_lex_master_info
   char *ssl_crl, *ssl_crlpath;
   char *relay_log_name;
   ulong relay_log_pos;
-  DYNAMIC_ARRAY repl_ignore_server_ids;
-  ulong server_ids_buffer[2];
+  Prealloced_array<ulong, 2, true> repl_ignore_server_ids;
+
+  /// Initializes everything to zero/NULL/empty.
+  void initialize();
+  /// Sets all fields to their "unspecified" value.
   void set_unspecified();
+private:
+  // Not copyable or assignable.
+  st_lex_master_info(const st_lex_master_info&);
+  st_lex_master_info &operator=(const st_lex_master_info&);
 } LEX_MASTER_INFO;
 
 typedef struct st_lex_reset_slave
@@ -682,7 +700,6 @@ public:
   uint8 uncacheable;
   enum sub_select_type linkage;
   bool no_table_names_allowed; ///< used for global order by
-  bool no_error;           ///< suppress error message (convert it to warnings)
   Name_resolution_context context;
   /**
     Two fields used by semi-join transformations to know when semi-join is
@@ -1377,6 +1394,8 @@ union YYSTYPE {
   class PT_select *select;
   class Item_param *param_marker;
   class PTI_text_literal *text_literal;
+  XID *xid;
+  enum xa_option_words xa_option_type;
 };
 
 #endif
@@ -1448,9 +1467,6 @@ struct st_trg_chistics
 };
 
 extern sys_var *trg_new_row_fake_var;
-
-enum xa_option_words {XA_NONE, XA_JOIN, XA_RESUME, XA_ONE_PHASE,
-                      XA_SUSPEND, XA_FOR_MIGRATE};
 
 extern const LEX_STRING null_lex_str;
 
@@ -2626,12 +2642,12 @@ public:
   Item *default_value, *on_update_value;
   LEX_STRING comment, ident;
   LEX_USER *grant_user;
-  XID *xid;
   THD *thd;
 
   /* maintain a list of used plugins for this LEX */
-  DYNAMIC_ARRAY plugins;
-  plugin_ref plugins_static_buffer[INITIAL_LEX_PLUGIN_LIST_SIZE];
+  typedef Prealloced_array<plugin_ref,
+    INITIAL_LEX_PLUGIN_LIST_SIZE, true> Plugins_array;
+  Plugins_array plugins;
 
   const CHARSET_INFO *charset;
   /* store original leaf_tables for INSERT SELECT and PS/SP */
@@ -2733,7 +2749,6 @@ public:
   enum SSL_type ssl_type;			/* defined in violite.h */
   enum enum_duplicates duplicates;
   enum enum_tx_isolation tx_isolation;
-  enum xa_option_words xa_opt;
   enum enum_var_type option_type;
   enum enum_view_create_mode create_view_mode;
   enum enum_drop_mode drop_mode;
@@ -2764,7 +2779,12 @@ public:
 
   enum enum_yes_no_unknown tx_chain, tx_release;
   bool safe_to_cache_query;
-  bool subqueries, ignore;
+  bool subqueries;
+private:
+  bool ignore;
+public:
+  bool is_ignore() const { return ignore; }
+  void set_ignore(bool ignore_param) { ignore= ignore_param; }
   st_parsing_options parsing_options;
   Alter_info alter_info;
   /*
@@ -2913,8 +2933,7 @@ public:
   virtual ~LEX()
   {
     destroy_query_tables_list();
-    plugin_unlock_list(NULL, (plugin_ref *)plugins.buffer, plugins.elements);
-    delete_dynamic(&plugins);
+    plugin_unlock_list(NULL, plugins.begin(), plugins.size());
     unit= NULL;                     // Created in mem_root - no destructor
     select_lex= NULL;
     m_current_select= NULL;

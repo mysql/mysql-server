@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -26,6 +26,8 @@
 #ifdef MYSQL_SERVER
 #include <mysqld.h>
 #endif
+#include <list>
+using std::list;
 /**
   Report an error from code that can be linked into either the server
   or mysqlbinlog.  There is no common error reporting mechanism, so we
@@ -735,6 +737,27 @@ private:
 
 
 /**
+  Holds information about a GTID interval: the sidno, the first gno
+  and the last gno of this interval.
+*/
+struct Gtid_interval
+{
+  /* SIDNO of this Gtid interval. */
+  rpl_sidno sidno;
+  /* The first GNO of this Gtid interval. */
+  rpl_gno gno_start;
+  /* The last GNO of this Gtid interval. */
+  rpl_gno gno_end;
+  void set(rpl_sidno sid_no, rpl_gno start, rpl_gno end)
+  {
+    sidno= sid_no;
+    gno_start= start;
+    gno_end= end;
+  }
+};
+
+
+/**
   Holds information about a GTID: the sidno and the gno.
 
   This is a POD. It has to be a POD because it is part of
@@ -754,6 +777,8 @@ struct Gtid
   void set(rpl_sidno sno, rpl_gno gtidno) { sidno= sno; gno= gtidno; }
   // check if both components are zero or not.
   bool empty() const { return (sidno == 0) && (gno == 0); }
+  bool is_null() const
+  { return sidno == 0; }
   /**
     The maximal length of the textual representation of a SID, not
     including the terminating '\0'.
@@ -1155,7 +1180,12 @@ public:
     @retval Length of the generated string, or -1 on out of memory.
   */
   int to_string(char **buf, const String_format *string_format= NULL) const;
+  /**
+    Gets all gtid intervals from this Gtid_set.
 
+    @param[out] gtid_intervals Store all gtid intervals from this Gtid_set.
+  */
+  void get_gtid_intervals(list<Gtid_interval> *gtid_intervals) const;
   /**
     The default String_format: the format understood by
     add_gtid_text(const char *).
@@ -2079,8 +2109,10 @@ public:
     : sid_lock(_sid_lock),
     sid_map(_sid_map),
     sid_locks(sid_lock),
-    logged_gtids(sid_map, sid_lock),
     lost_gtids(sid_map, sid_lock),
+    executed_gtids(sid_map, sid_lock),
+    gtids_only_in_table(sid_map, sid_lock),
+    previous_gtids_logged(sid_map, sid_lock),
     owned_gtids(sid_lock) {}
   /**
     Add @@GLOBAL.SERVER_UUID to this binlog's Sid_map.
@@ -2096,13 +2128,18 @@ public:
   */
   int init();
   /**
-    Reset the state after RESET MASTER: remove all logged and lost
-    groups, but keep owned groups as they are.
+    Reset the state and persistor after RESET MASTER: remove all logged
+    and lost groups, but keep owned groups as they are.
 
     The caller must hold the write lock on sid_lock before calling
     this function.
+
+    @param  thd Thread requesting to reset the persistor
+
+    @retval 0  Success
+    @retval -1 Error
   */
-  void clear();
+  int clear(THD *thd);
   /**
     Returns true if the given GTID is logged.
 
@@ -2111,10 +2148,10 @@ public:
     @retval true The group is logged in the binary log.
     @retval false The group is not logged in the binary log.
   */
-  bool is_logged(const Gtid &gtid) const
+  bool is_executed(const Gtid &gtid) const
   {
-    DBUG_ENTER("Gtid_state::is_logged");
-    bool ret= logged_gtids.contains_gtid(gtid);
+    DBUG_ENTER("Gtid_state::is_executed");
+    bool ret= executed_gtids.contains_gtid(gtid);
     DBUG_RETURN(ret);
   }
   /**
@@ -2143,7 +2180,7 @@ public:
     This will:
      - release ownership of all GTIDs owned by the THD;
      - add all GTIDs in the Group_cache to
-       logged_gtids;
+       executed_gtids;
      - send a broadcast on the condition variable for every sidno for
        which we released ownership.
 
@@ -2225,8 +2262,9 @@ public:
   void broadcast_sidnos(const Gtid_set *set);
 #endif // ifdef HAVE_GTID_NEXT_LIST
   /**
-    Ensure that owned_gtids, logged_gtids, lost_gtids, and sid_locks
-    have room for at least as many SIDNOs as sid_map.
+    Ensure that owned_gtids, executed_gtids, lost_gtids, gtids_only_in_table,
+    previous_gtids_logged and sid_locks have room for at least as many SIDNOs
+    as sid_map.
 
     This function must only be called in one place:
     Sid_map::add_sid().
@@ -2241,7 +2279,7 @@ public:
   enum_return_status ensure_sidno();
   /**
     Adds the given Gtid_set that contains the groups in the given
-    string to lost_gtids and logged_gtids, since lost_gtids must
+    string to lost_gtids and executed_gtids, since lost_gtids must
     be a subset of executed_gtids.
     Requires that the write lock on sid_locks is held.
 
@@ -2251,9 +2289,28 @@ public:
    */
   enum_return_status add_lost_gtids(const char *text);
   /// Return a pointer to the Gtid_set that contains the logged groups.
-  const Gtid_set *get_logged_gtids() const { return &logged_gtids; }
-  /// Return a pointer to the Gtid_set that contains the logged groups.
   const Gtid_set *get_lost_gtids() const { return &lost_gtids; }
+  /*
+    Return a pointer to the Gtid_set that contains the stored groups
+    in gtid_executed table.
+  */
+  const Gtid_set *get_executed_gtids() const { return &executed_gtids; }
+  /*
+    Return a pointer to the Gtid_set that contains the stored groups
+    only in gtid_executed table, not in binlog files.
+  */
+  const Gtid_set *get_gtids_only_in_table() const
+  {
+    return &gtids_only_in_table;
+  }
+  /*
+    Return a pointer to the Gtid_set that contains the previous stored
+    groups in the last binlog file.
+  */
+  const Gtid_set *get_previous_gtids_logged() const
+  {
+    return &previous_gtids_logged;
+  }
   /// Return a pointer to the Owned_gtids that contains the owned groups.
   const Owned_gtids *get_owned_gtids() const { return &owned_gtids; }
   /// Return the server's SID's SIDNO
@@ -2267,19 +2324,23 @@ public:
   size_t get_max_string_length() const
   {
     return owned_gtids.get_max_string_length() +
-      logged_gtids.get_string_length() +
+      executed_gtids.get_string_length() +
       lost_gtids.get_string_length() +
-      100;
+      gtids_only_in_table.get_string_length() +
+      previous_gtids_logged.get_string_length() +
+      150;
   }
   /// Debug only: Generate a string in the given buffer and return the length.
   int to_string(char *buf) const
   {
     char *p= buf;
-    p+= sprintf(p, "Logged GTIDs:\n");
-    p+= logged_gtids.to_string(p);
+    p+= sprintf(p, "Executed GTIDs:\n");
+    p+= executed_gtids.to_string(p);
     p+= sprintf(p, "\nOwned GTIDs:\n");
     p+= owned_gtids.to_string(p);
     p+= sprintf(p, "\nLost GTIDs:\n");
+    p+= lost_gtids.to_string(p);
+    p+= sprintf(p, "\nGTIDs only_in_table:\n");
     p+= lost_gtids.to_string(p);
     return (int)(p - buf);
   }
@@ -2312,6 +2373,70 @@ public:
     my_free(str);
 #endif
   }
+  /**
+    Save gtid owned by the thd into executed_gtids variable
+    and gtid_executed table.
+
+    @param thd Session to commit
+    @retval
+        0    OK
+    @retval
+        -1   Error
+  */
+  int save(THD *thd);
+  /**
+    Insert the gtid set into table.
+
+    @param gtid_set  contains a set of gtid, which holds
+                     the sidno and the gno.
+
+    @retval
+      0    OK
+    @retval
+      -1   Error
+  */
+  int save(Gtid_set *gtid_set);
+  /**
+    Save the set of gtids logged in the last binlog into gtid_executed table.
+
+    @param on_rotation  true if it is on binlog rotation.
+
+    @retval
+      0    OK
+    @retval
+      -1   Error
+  */
+  int save_gtids_of_last_binlog_into_table(bool on_rotation);
+  /**
+    Fetch gtids from gtid_executed table and store them into
+    gtid_executed set.
+
+    @param[out]  gtid_set store gtids fetched from the gtid_executed table.
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int fetch_gtids(Gtid_set *gtid_set);
+  /**
+    Compress the gtid_executed table, read each row by the PK(sid, gno_start)
+    in increasing order, compress the first consecutive gtids range
+    (delete consecutive gtids from the second consecutive gtid, then
+    update the first gtid) within a single transaction.
+
+    @param  thd Thread requesting to compress the table
+
+    @retval
+      0    OK
+    @retval
+      1    The table was not found.
+    @retval
+      -1   Error
+  */
+  int compress(THD *thd);
 private:
 #ifdef HAVE_GTID_NEXT_LIST
   /// Lock all SIDNOs owned by the given THD.
@@ -2337,13 +2462,23 @@ private:
   mutable Sid_map *sid_map;
   /// Contains one mutex/cond pair for every SIDNO.
   Mutex_cond_array sid_locks;
-  /// The set of GTIDs that have been executed and logged (and possibly purged).
-  Gtid_set logged_gtids;
   /**
     The set of GTIDs that existed in some previously purged binary log.
-    This is always a subset of logged_gtids.
+    This is always a subset of executed_gtids.
   */
   Gtid_set lost_gtids;
+  /*
+    The set of GTIDs that has been executed and
+    stored into gtid_executed table.
+  */
+  Gtid_set executed_gtids;
+  /*
+    The set of GTIDs that exists only in gtid_executed table, not in
+    binlog files.
+  */
+  Gtid_set gtids_only_in_table;
+  /* The previous GTIDs in the last binlog. */
+  Gtid_set previous_gtids_logged;
   /// The set of GTIDs that are owned by some thread.
   Owned_gtids owned_gtids;
   /// The SIDNO for this server.
@@ -2876,12 +3011,6 @@ enum_gtid_statement_status gtid_pre_statement_checks(THD *thd);
   @param thd THD object for the session.
 */
 void gtid_post_statement_checks(THD *thd);
-
-/**
-  When a transaction is rolled back, this function releases ownership
-  of any GTIDs that the transaction owns.
-*/
-int gtid_rollback(THD *thd);
 
 int gtid_acquire_ownership_single(THD *thd);
 #ifdef HAVE_GTID_NEXT_LIST

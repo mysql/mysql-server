@@ -189,7 +189,8 @@ srv_file_check_mode(
 
 	memset(&stat, 0x0, sizeof(stat));
 
-	dberr_t		err = os_file_get_status(name, &stat, true);
+	dberr_t		err = os_file_get_status(
+		name, &stat, true, srv_read_only_mode);
 
 	if (err == DB_FAIL) {
 
@@ -312,7 +313,7 @@ create_log_file(
 	*file = os_file_create(
 		innodb_log_file_key, name,
 		OS_FILE_CREATE|OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-		OS_LOG_FILE, &ret);
+		OS_LOG_FILE, srv_read_only_mode, &ret);
 
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot create %s", name);
@@ -508,7 +509,7 @@ open_log_file(
 
 	*file = os_file_create(innodb_log_file_key, name,
 			       OS_FILE_OPEN, OS_FILE_AIO,
-			       OS_LOG_FILE, &ret);
+			       OS_LOG_FILE, srv_read_only_mode, &ret);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "Unable to open '%s'", name);
 		return(DB_ERROR);
@@ -541,7 +542,7 @@ srv_undo_tablespace_create(
 		innodb_data_file_key,
 		name,
 		srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
-		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+		OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
 	if (srv_read_only_mode && ret) {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -614,6 +615,7 @@ srv_undo_tablespace_open(
 		| OS_FILE_ON_ERROR_SILENT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
+		srv_read_only_mode,
 		&ret);
 
 	/* If the file open was successful then load the tablespace. */
@@ -693,6 +695,7 @@ srv_check_undo_redo_logs_exists()
 			| OS_FILE_ON_ERROR_SILENT,
 			OS_FILE_NORMAL,
 			OS_DATA_FILE,
+			srv_read_only_mode,
 			&ret);
 
 		if (ret) {
@@ -723,6 +726,7 @@ srv_check_undo_redo_logs_exists()
 			| OS_FILE_ON_ERROR_SILENT,
 			OS_FILE_NORMAL,
 			OS_LOG_FILE,
+			srv_read_only_mode,
 			&ret);
 
 		if (ret) {
@@ -968,16 +972,13 @@ srv_open_tmp_tablespace(
 /*====================*/
 	SysTablespace*	tmp_space)	/*!< in/out: SysTablespace */
 {
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
 	ulint	sum_of_new_sizes;
 
 	/* Will try to remove if there is existing file left-over by last
 	unclean shutdown */
 	tmp_space->set_sanity_check_status(true);
 	tmp_space->delete_files();
+	tmp_space->set_ignore_read_only(true);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Creating shared tablespace for temporary tables");
@@ -1187,6 +1188,10 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
+
+		/* There is no write except to intrinsic table and so turn-off
+		doublewrite mechanism completely. */
+		srv_use_doublewrite_buf = FALSE;
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -1238,18 +1243,14 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 #if defined(COMPILER_HINTS_ENABLED)
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compiler hints enabled.");
+	ib_logf(IB_LOG_LEVEL_INFO, "Compiler hints enabled.");
 #endif /* defined(COMPILER_HINTS_ENABLED) */
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" IB_ATOMICS_STARTUP_MSG "");
+	ib_logf(IB_LOG_LEVEL_INFO, IB_ATOMICS_STARTUP_MSG);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" MUTEX_TYPE"");
+	ib_logf(IB_LOG_LEVEL_INFO, MUTEX_TYPE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compressed tables use zlib " ZLIB_VERSION
+	ib_logf(IB_LOG_LEVEL_INFO, "Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
 #endif /* UNIV_ZIP_DEBUG */
@@ -1257,7 +1258,6 @@ innobase_start_or_create_for_mysql(void)
 #ifdef UNIV_ZIP_COPY
 	ib_logf(IB_LOG_LEVEL_INFO, "and extra copying");
 #endif /* UNIV_ZIP_COPY */
-
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1498,16 +1498,14 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Now overwrite the value on srv_n_file_io_threads */
 	srv_n_file_io_threads = srv_n_read_io_threads;
+	srv_n_file_io_threads += srv_n_write_io_threads;
 
 	if (!srv_read_only_mode) {
 		/* Add the log and ibuf IO threads. */
 		srv_n_file_io_threads += 2;
-		srv_n_file_io_threads += srv_n_write_io_threads;
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Disabling background IO write threads.");
-
-		srv_n_write_io_threads = 0;
+			"Disabling background log and ibuf IO write threads.");
 	}
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
@@ -1706,7 +1704,8 @@ innobase_start_or_create_for_mysql(void)
 				"ib_logfile%u", i);
 
 			err = os_file_get_status(
-				logfilename, &stat_info, false);
+				logfilename, &stat_info, false,
+				srv_read_only_mode);
 
 			if (err == DB_NOT_FOUND) {
 				if (i == 0) {
@@ -2060,7 +2059,11 @@ files_checked:
 
 			RECOVERY_CRASH(1);
 
-			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			log_mutex_enter();
+
+			fil_names_clear(log_sys->lsn, false);
+
+			min_flushed_lsn = max_flushed_lsn = log_sys->lsn;
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Resizing redo log from %u*%u to %u*%u pages"
@@ -2072,7 +2075,9 @@ files_checked:
 				max_flushed_lsn);
 
 			/* Flush the old log files. */
-			log_buffer_flush_to_disk();
+			log_mutex_exit();
+
+			log_write_up_to(max_flushed_lsn, true);
 
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
@@ -2191,11 +2196,6 @@ files_checked:
 		srv_undo_logs = ULONG_UNDEFINED;
 	}
 
-	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
-	if (!srv_force_recovery && !srv_read_only_mode) {
-		buf_flush_sync_all_buf_pools();
-	}
-
 	if (!srv_read_only_mode) {
 		/* Create the thread which watches the timeouts
 		for lock waits */
@@ -2268,16 +2268,16 @@ files_checked:
 		purge_sys->state = PURGE_STATE_DISABLED;
 	}
 
-	if (!srv_read_only_mode) {
-		buf_flush_page_cleaner_init();
+	/* Even in read-only mode there could be flush job generated by
+	intrinsic table operations. */
+	buf_flush_page_cleaner_init();
 
-		os_thread_create(buf_flush_page_cleaner_coordinator,
+	os_thread_create(buf_flush_page_cleaner_coordinator,
+			 NULL, NULL);
+
+	for (i = 1; i < srv_n_page_cleaners; ++i) {
+		os_thread_create(buf_flush_page_cleaner_worker,
 				 NULL, NULL);
-
-		for (i = 1; i < srv_n_page_cleaners; ++i) {
-			os_thread_create(buf_flush_page_cleaner_worker,
-					 NULL, NULL);
-		}
 	}
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();

@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -89,13 +89,11 @@ class Mock_COPY_INFO: public COPY_INFO
 public:
   Mock_COPY_INFO(operation_type optype,
                  List<Item> *inserted_columns,
-                 enum_duplicates duplicate_handling,
-                 bool ignore_errors)
+                 enum_duplicates duplicate_handling)
     : COPY_INFO(optype,
                 inserted_columns,
                 true, // manage_defaults
-                duplicate_handling,
-                ignore_errors)
+                duplicate_handling)
   {}
 
   // Import protected member functions, so we can test them.
@@ -113,12 +111,12 @@ public:
   Mock_COPY_INFO_insert() :
     COPY_INFO(COPY_INFO::INSERT_OPERATION, static_cast<List<Item>*>(NULL),
               true, // manage_defaults
-              DUP_UPDATE, false)
+              DUP_UPDATE)
   {}
   Mock_COPY_INFO_insert(List<Item> *fields) :
     COPY_INFO(COPY_INFO::INSERT_OPERATION, fields,
               true, // manage_defaults
-              DUP_UPDATE, false)
+              DUP_UPDATE)
   {}
   // Import protected member functions, so we can test them.
   using COPY_INFO::get_function_default_columns;
@@ -152,8 +150,7 @@ TEST_F(CopyInfoTest, constructors)
   COPY_INFO insert(COPY_INFO::INSERT_OPERATION,
                    &inserted_columns,
                    true, // manage_defaults
-                   DUP_UPDATE,
-                   true);
+                   DUP_UPDATE);
 
   EXPECT_EQ(0U, insert.stats.records);
   EXPECT_EQ(0U, insert.stats.deleted);
@@ -186,15 +183,13 @@ TEST_F(CopyInfoTest, insertAccessors)
   COPY_INFO insert(COPY_INFO::INSERT_OPERATION,
                    &inserted_columns,
                    true, // manage_defaults
-                   DUP_REPLACE,
-                   true);
+                   DUP_REPLACE);
 
   EXPECT_EQ(COPY_INFO::INSERT_OPERATION, insert.get_operation_type());
   EXPECT_EQ(&inserted_columns, insert.get_changed_columns());
   EXPECT_EQ(static_cast<List<Item>*>(NULL), insert.get_changed_columns2());
   EXPECT_TRUE(insert.get_manage_defaults());
   EXPECT_EQ(DUP_REPLACE, insert.get_duplicate_handling());
-  EXPECT_TRUE(insert.get_ignore_errors());
 }
 
 
@@ -212,7 +207,6 @@ TEST_F(CopyInfoTest, loadDataAccessors)
                       &inserted_columns2,
                       true, // manage_defaults
                       DUP_UPDATE,
-                      true, // ignore_duplicates
                       123);
 
   EXPECT_EQ(COPY_INFO::INSERT_OPERATION, load_data.get_operation_type());
@@ -220,7 +214,6 @@ TEST_F(CopyInfoTest, loadDataAccessors)
   EXPECT_EQ(&inserted_columns2, load_data.get_changed_columns2());
   EXPECT_TRUE(load_data.get_manage_defaults());
   EXPECT_EQ(DUP_UPDATE, load_data.get_duplicate_handling());
-  EXPECT_TRUE(load_data.get_ignore_errors());
 }
 
 
@@ -239,7 +232,6 @@ TEST_F(CopyInfoTest, updateAccessors)
   EXPECT_EQ(static_cast<List<Item>*>(NULL), update.get_changed_columns2());
   EXPECT_TRUE(update.get_manage_defaults());
   EXPECT_EQ(DUP_ERROR, update.get_duplicate_handling());
-  EXPECT_FALSE(update.get_ignore_errors());
 }
 
 
@@ -329,8 +321,7 @@ TEST_F(CopyInfoTest, setFunctionDefaults)
 
   Mock_COPY_INFO insert(COPY_INFO::INSERT_OPERATION,
                         &assigned_columns,
-                        DUP_ERROR,
-                        true);
+                        DUP_ERROR);
 
   ASSERT_FALSE(insert.get_function_default_columns(&table)) << "Out of memory";
 

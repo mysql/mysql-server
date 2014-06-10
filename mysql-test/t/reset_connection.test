@@ -132,6 +132,21 @@ SHOW SESSION VARIABLES like 'last_insert_id';
 SHOW SESSION VARIABLES like 'last_insert_id';
 DROP TABLE t2;
 
+# test for @@insert_id
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SET INSERT_ID=12;
+INSERT INTO t2 VALUES (NULL);
+SELECT * FROM t2;
+DROP TABLE t2;
+CREATE TABLE t2(a int not null auto_increment, key(a));
+SET INSERT_ID=12;
+--reset_connection
+--echo resetconnection
+# it should reset the insert_id session variable
+INSERT INTO t2 VALUES (NULL);
+# must project 1
+SELECT * FROM t2;
+DROP TABLE t2;
 
 DROP TABLE IF EXISTS t1;
 DROP DATABASE wl6797;
@@ -147,6 +162,54 @@ ALTER USER user_wl6797@localhost PASSWORD EXPIRE;
 --exec echo "connect(con1, localhost, user_wl6797, , test); --reset_connection " | $MYSQL_TEST 2>&1
 connection default;
 DROP USER user_wl6797@localhost;
+
+--echo
+--echo Bug #18329348 RESETCONNECTION DOESN'T CLEAR TIMESTAMP
+--echo Bug #18329560 RESETCONNECTION DOESN'T CLEAR RAND SEED
+--echo Bug #18328396 RESETCONNECTION DOESN'T CLEAR WARNINGS
+--echo Bug #18329452 RESETCONNECTION DOESN'T CLEAR PROFILING
+--echo
+
+SET TIMESTAMP=200;
+SELECT @@TIMESTAMP;
+--echo resetconnection
+--reset_connection
+# after reset timestamp will be set to current timestamp
+# must report 0 as the condition evaluates to false
+SELECT @@TIMESTAMP=200;
+
+CREATE DATABASE T18329560;
+USE T18329560;
+CREATE TABLE T(a DOUBLE);
+SET SESSION RAND_SEED1=1;
+SET SESSION RAND_SEED2=1;
+INSERT INTO T VALUES(rand());
+SET SESSION RAND_SEED1=1;
+SET SESSION RAND_SEED2=1;
+--echo resetconnection
+--reset_connection
+# now rand() should give different result and hence expect 0
+SELECT IF(a=rand(),'1','0') FROM T;
+DROP TABLE T;
+DROP DATABASE T18329560;
+
+SET SESSION SORT_BUFFER_SIZE= 1;
+SHOW WARNINGS;
+--echo resetconnection
+--reset_connection
+SHOW WARNINGS;
+
+SET PROFILING=1;
+SELECT 1;
+--replace_column 2 #
+SHOW PROFILES;
+--echo resetconnection
+--reset_connection
+# below statement should not get profiled and existing profiling
+# information should have been freed
+SELECT 2;
+--replace_column 2 #
+SHOW PROFILES;
 
 --echo
 --echo End of tests

@@ -58,6 +58,7 @@
 #include "debug_sync.h"
 #include "rpl_mts_submode.h"
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
+#include "rpl_slave_commit_order_manager.h"
 
 using std::min;
 using std::max;
@@ -219,6 +220,9 @@ static int terminate_slave_thread(THD *thd,
 static bool check_io_slave_killed(THD *thd, Master_info *mi, const char *info);
 int slave_worker_exec_job(Slave_worker * w, Relay_log_info *rli);
 static int mts_event_coord_cmp(LOG_POS_COORD *id1, LOG_POS_COORD *id2);
+
+static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli);
+
 /*
   Function to set the slave's max_allowed_packet based on the value
   of slave_max_allowed_packet.
@@ -1652,6 +1656,12 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   MYSQL_ROW master_row= NULL;
   int ret= 0;
 
+  DBUG_EXECUTE_IF("dbug.return_null_MASTER_UUID",
+                  {
+                    mi->master_uuid[0]= 0;
+                    return 0;
+                  };);
+
   DBUG_EXECUTE_IF("dbug.before_get_MASTER_UUID",
                   {
                     const char act[]= "now wait_for signal.get_master_uuid";
@@ -1715,6 +1725,7 @@ static int get_master_uuid(MYSQL *mysql, Master_info *mi)
   }
   else if (!master_row && master_res)
   {
+    mi->master_uuid[0]= 0;
     mi->report(WARNING_LEVEL, ER_UNKNOWN_SYSTEM_VARIABLE,
                "Unknown system variable 'SERVER_UUID' on master. "
                "A probable cause is that the variable is not supported on the "
@@ -2578,7 +2589,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
   if (mi != NULL)
   { 
     global_sid_lock->wrlock();
-    const Gtid_set* sql_gtid_set= gtid_state->get_logged_gtids();
+    const Gtid_set* sql_gtid_set= gtid_state->get_executed_gtids();
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
     if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
         (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
@@ -3028,8 +3039,23 @@ static int init_slave_thread(THD* thd, SLAVE_THD_TYPE thd_type)
   thd->enable_slow_log= opt_log_slow_slave_statements;
   set_slave_thread_options(thd);
   thd->client_capabilities = CLIENT_LOCAL_FILES;
+
+  /*
+    Replication threads are:
+    - background threads in the server, not user sessions,
+    - yet still assigned a PROCESSLIST_ID,
+      for historical reasons (displayed in SHOW PROCESSLIST).
+  */
   thd->variables.pseudo_thread_id= thd_manager->get_inc_thread_id();
   thd->thread_id= thd->variables.pseudo_thread_id;
+
+#ifdef HAVE_PSI_INTERFACE
+  /*
+    Populate the PROCESSLIST_ID in the instrumentation.
+  */
+  struct PSI_thread *psi= PSI_THREAD_CALL(get_thread)();
+  PSI_THREAD_CALL(set_thread_id)(psi, thd->thread_id);
+#endif /* HAVE_PSI_INTERFACE */
 
   DBUG_EXECUTE_IF("simulate_io_slave_error_on_init",
                   simulate_error|= (1 << SLAVE_THD_IO););
@@ -3153,7 +3179,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       executed_gtid_set
     */
     if (!last_retrieved_gtid->empty() &&
-        !gtid_state->get_logged_gtids()->contains_gtid(*last_retrieved_gtid))
+        !gtid_state->get_executed_gtids()->contains_gtid(*last_retrieved_gtid))
     {
       if (retrieved_set->_remove_gtid(*last_retrieved_gtid) != RETURN_STATUS_OK)
       {
@@ -3162,8 +3188,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       }
     }
 
-    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
-        gtid_executed.add_gtid_set(gtid_state->get_logged_gtids()) !=
+    if (gtid_executed.add_gtid_set(retrieved_set) != RETURN_STATUS_OK ||
+        gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
@@ -3395,14 +3421,6 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   DBUG_RETURN(0);
 }
 
-/**
-   a sort_dynamic function on ulong type
-   returns as specified by @c qsort_cmp
-*/
-int ulong_cmp(ulong *id1, ulong *id2)
-{
-  return *id1 < *id2? -1 : (*id1 > *id2? 1 : 0);
-}
 
 /**
   Applies the given event and advances the relay log position.
@@ -4689,6 +4707,7 @@ pthread_handler_t handle_slave_worker(void *arg)
     sql_print_error("Failed during slave worker initialization");
     goto err;
   }
+  thd->rli_slave= w;
   thd->init_for_queries(w);
   thd_manager->add_thd(thd);
   thd_added= true;
@@ -5187,9 +5206,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   {
     Slave_worker *w_i;
     get_dynamic(&rli->workers, (uchar *) &w_i, i);
-    set_dynamic(&rli->least_occupied_workers, (uchar*) &w_i->jobs.len, w_i->id);
+    rli->least_occupied_workers[w_i->id]= w_i->jobs.len;
   };
-  sort_dynamic(&rli->least_occupied_workers, (qsort_cmp) ulong_cmp);
+  std::sort(rli->least_occupied_workers.begin(),
+            rli->least_occupied_workers.end());
 
   if (need_data_lock)
     mysql_mutex_lock(&rli->data_lock);
@@ -5296,8 +5316,10 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
   mysql_mutex_unlock(&w->jobs_lock);
   // Least occupied inited with zero
-  insert_dynamic(&rli->least_occupied_workers, (uchar*) &w->jobs.len);
-
+  {
+    ulong jobs_len= w->jobs.len;
+    rli->least_occupied_workers.push_back(jobs_len);
+  }
 err:
   if (error && w)
   {
@@ -5351,7 +5373,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
   my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
-  my_init_dynamic_array(&rli->least_occupied_workers, sizeof(ulong), n, 0); 
+  rli->least_occupied_workers.resize(n); 
 
   /* 
      GAQ  queue holds seqno:s of scheduled groups. C polls workers in 
@@ -5562,7 +5584,7 @@ end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
-  delete_dynamic(&rli->least_occupied_workers);    // least occupied
+  rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
   for (uint i= 0; i < rli->curr_group_da.elements; i++)
@@ -5600,6 +5622,7 @@ pthread_handler_t handle_slave_sql(void *arg)
   const char *errmsg;
   bool mts_inited= false;
   Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  Commit_order_manager *commit_order_mngr= NULL;
 
   // needs to call my_thread_init(), otherwise we get a coredump in DBUG_ stuff
   my_thread_init();
@@ -5637,6 +5660,13 @@ pthread_handler_t handle_slave_sql(void *arg)
    rli->current_mts_submode= new Mts_submode_logical_clock();
  else
    rli->current_mts_submode= new Mts_submode_database();
+
+
+  if (opt_slave_preserve_commit_order && rli->opt_slave_parallel_workers > 0 &&
+      opt_bin_log && opt_log_slave_updates)
+    commit_order_mngr= new Commit_order_manager(rli->opt_slave_parallel_workers);
+
+  rli->set_commit_order_manager(commit_order_mngr);
 
   mysql_mutex_unlock(&rli->info_thd_lock);
 
@@ -5983,6 +6013,12 @@ llstr(rli->get_group_master_log_pos(), llbuff));
   THD_CHECK_SENTRY(thd);
   mysql_mutex_lock(&rli->info_thd_lock);
   rli->info_thd= NULL;
+  if (commit_order_mngr)
+  {
+    delete commit_order_mngr;
+    rli->set_commit_order_manager(NULL);
+  }
+
   mysql_mutex_unlock(&rli->info_thd_lock);
   set_thd_in_use_temporary_tables(rli);  // (re)set info_thd in use for saved temp tables
 
@@ -6961,7 +6997,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #endif
   ulong client_flag= CLIENT_REMEMBER_OPTIONS;
   if (opt_slave_compressed_protocol)
-    client_flag=CLIENT_COMPRESS;                /* We will use compression */
+    client_flag|= CLIENT_COMPRESS;              /* We will use compression */
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
@@ -7881,6 +7917,8 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 {
   int slave_errno= 0;
   int thread_mask;
+  bool error_reported= false;
+
   DBUG_ENTER("start_slave");
 
   if (check_access(thd, SUPER_ACL, any_db, NULL, NULL, 0, 0))
@@ -8071,6 +8109,12 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
                               "In the event of a transient failure, the slave will "
                               "not retry the transaction and will stop.");
         }
+        if (!slave_errno)
+        {
+          slave_errno= check_slave_sql_config_conflict(thd, mi->rli);
+          if (slave_errno)
+            error_reported= true;
+        }
       }
       else if (thd->lex->mi.pos || thd->lex->mi.relay_log_pos || thd->lex->mi.gtid)
         push_warning(thd, Sql_condition::SL_NOTE, ER_UNTIL_COND_IGNORED,
@@ -8104,7 +8148,7 @@ int start_slave(THD* thd , Master_info* mi,  bool net_report)
 
   if (slave_errno)
   {
-    if (net_report)
+    if (net_report && !error_reported)
       my_message(slave_errno, ER(slave_errno), MYF(0));
     DBUG_RETURN(1);
   }
@@ -8473,8 +8517,30 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     mi->connect_retry = lex_mi->connect_retry;
   if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
+
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
+  else if (lex_mi->host || lex_mi->port)
+  {
+    /*
+      If the user specified host or port or both without heartbeat_period,
+      we use default value for heartbeat_period. By default, We want to always
+      have heartbeat enabled when we switch master unless
+      master_heartbeat_period is explicitly set to zero (heartbeat disabled).
+
+      Here is the default value for heartbeat period if CHANGE MASTER did not
+      specify it.  (no data loss in conversion as hb period has a max)
+    */
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
+    DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
+                || mi->heartbeat_period == 0);
+
+    // counter is cleared if master is CHANGED.
+    mi->received_heartbeats= 0;
+    // clear timestamp of last heartbeat as well.
+    mi->last_heartbeat= 0;
+  }
 
   /*
     reset the last time server_id list if the current CHANGE MASTER
@@ -8482,10 +8548,9 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
     reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
-  for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
+  for (size_t i= 0; i < lex_mi->repl_ignore_server_ids.size(); i++)
   {
-    ulong s_id;
-    get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
+    ulong s_id= lex_mi->repl_ignore_server_ids[i];
     if (s_id == ::server_id && replicate_same_server_id)
     {
       my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
@@ -9008,6 +9073,38 @@ err:
   unlock_slave_threads(mi);
   DBUG_RETURN(true);
 }
+
+/**
+  Check if there is any slave SQL config conflict.
+
+  @param[in] thd The THD object of current session.
+  @param[in] rli The slave's rli object.
+
+  @return 0 is returned if there is no conflict, otherwise 1 is returned.
+ */
+static int check_slave_sql_config_conflict(THD *thd, const Relay_log_info *rli)
+{
+  if (opt_slave_preserve_commit_order && opt_mts_slave_parallel_workers > 0)
+  {
+    if (mts_parallel_option == MTS_PARALLEL_TYPE_DB_NAME)
+    {
+      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
+               "when slave_parallel_type is DATABASE");
+      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+    }
+
+    if ((!opt_bin_log || !opt_log_slave_updates) &&
+        mts_parallel_option == MTS_PARALLEL_TYPE_LOGICAL_CLOCK)
+    {
+      my_error(ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER, MYF(0),
+               "unless the binlog and log_slave update options are "
+               "both enabled");
+      return ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER;
+    }
+  }
+  return 0;
+}
+
 /**
   @} (end of group Replication)
 */

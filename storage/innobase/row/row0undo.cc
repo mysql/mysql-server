@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1997, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1997, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -308,7 +308,7 @@ row_undo(
 
 	if (node->state == UNDO_NODE_INSERT) {
 
-		err = row_undo_ins(node);
+		err = row_undo_ins(node, thr);
 
 		node->state = UNDO_NODE_FETCH_NEXT;
 	} else {
