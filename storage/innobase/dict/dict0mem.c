@@ -66,6 +66,7 @@ dict_mem_table_create(
 {
 	dict_table_t*	table;
 	mem_heap_t*	heap;
+	DBUG_ENTER("dict_mem_table_create");
 
 	ut_ad(name);
 	ut_a(!(flags & (~0 << DICT_TF2_BITS)));
@@ -98,8 +99,11 @@ dict_mem_table_create(
 	table->n_waiting_or_granted_auto_inc_locks = 0;
 #endif /* !UNIV_HOTBACKUP */
 
+	table->foreign_rbt = NULL;
+	table->referenced_rbt = NULL;
+
 	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
-	return(table);
+	DBUG_RETURN(table);
 }
 
 /****************************************************************//**
@@ -117,6 +121,15 @@ dict_mem_table_free(
 #ifndef UNIV_HOTBACKUP
 	mutex_free(&(table->autoinc_mutex));
 #endif /* UNIV_HOTBACKUP */
+
+	if (table->foreign_rbt != NULL) {
+		rbt_free(table->foreign_rbt);
+	}
+
+	if (table->referenced_rbt != NULL) {
+		rbt_free(table->referenced_rbt);
+	}
+
 	ut_free(table->name);
 	mem_heap_free(table->heap);
 }
