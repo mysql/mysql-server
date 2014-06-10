@@ -4798,6 +4798,12 @@ public:
   */
   static user_var_entry *create(const Name_string &name, const CHARSET_INFO *cs)
   {
+    if (check_column_name(name.ptr()))
+    {
+      my_error(ER_TOO_LONG_IDENT, MYF(0), name.ptr());
+      return NULL;
+    }
+
     user_var_entry *entry;
     size_t size= ALIGN_SIZE(sizeof(user_var_entry)) +
                  (name.length() + 1) + extra_size;
