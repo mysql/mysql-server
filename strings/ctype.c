@@ -822,7 +822,7 @@ my_parse_charset_xml(MY_CHARSET_LOADER *loader, const char *buf, size_t len)
   Check repertoire: detect pure ascii strings
 */
 uint
-my_string_repertoire(const CHARSET_INFO *cs, const char *str, ulong length)
+my_string_repertoire(const CHARSET_INFO *cs, const char *str, size_t length)
 {
   const char *strend= str + length;
   if (cs->mbminlen == 1)
@@ -951,10 +951,10 @@ my_charset_is_ascii_compatible(const CHARSET_INFO *cs)
   @return Number of bytes copied to 'to' string
 */
 
-static uint32
-my_convert_internal(char *to, uint32 to_length,
+static size_t
+my_convert_internal(char *to, size_t to_length,
                     const CHARSET_INFO *to_cs,
-                    const char *from, uint32 from_length,
+                    const char *from, size_t from_length,
                     const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;
@@ -1022,12 +1022,12 @@ outp:
   @return Number of bytes copied to 'to' string
 */
 
-uint32
-my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
-           const char *from, uint32 from_length,
+size_t
+my_convert(char *to, size_t to_length, const CHARSET_INFO *to_cs,
+           const char *from, size_t from_length,
            const CHARSET_INFO *from_cs, uint *errors)
 {
-  uint32 length, length2;
+  size_t length, length2;
   /*
     If any of the character sets is not ASCII compatible,
     immediately switch to slow mb_wc->wc_mb method.
@@ -1063,7 +1063,7 @@ my_convert(char *to, uint32 to_length, const CHARSET_INFO *to_cs,
     }
     if (*((unsigned char*) from) > 0x7F) /* A non-ASCII character */
     {
-      uint32 copied_length= length2 - length;
+      size_t copied_length= length2 - length;
       to_length-= copied_length;
       from_length-= copied_length;
       return copied_length + my_convert_internal(to, to_length, to_cs,

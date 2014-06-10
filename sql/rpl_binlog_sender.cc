@@ -30,7 +30,6 @@ const uint32 Binlog_sender::PACKET_MAX_SIZE= UINT_MAX32;
 const ushort Binlog_sender::PACKET_SHRINK_COUNTER_THRESHOLD= 100;
 const float Binlog_sender::PACKET_GROW_FACTOR= 2.0;
 const float Binlog_sender::PACKET_SHRINK_FACTOR= 0.5;
-const uint32 Binlog_sender::HOOK_NO_FLAG= 0;
 
 void Binlog_sender::init()
 {
@@ -56,7 +55,7 @@ void Binlog_sender::init()
                         m_start_file, m_start_pos);
 
   if (RUN_HOOK(binlog_transmit, transmit_start,
-               (thd, HOOK_NO_FLAG, m_start_file, m_start_pos,
+               (thd, m_flag, m_start_file, m_start_pos,
                 &m_observe_transmission)))
   {
     set_unknow_error("Failed to run hook 'transmit_start'");
@@ -85,8 +84,41 @@ void Binlog_sender::init()
     DBUG_VOID_RETURN;
 
   init_checksum_alg();
-  /* mysqlbinlog's server_id is 0 */
-  m_wait_new_events= (thd->server_id != 0);
+  /*
+    There are two ways to tell the server to not block:
+
+    - Set the BINLOG_DUMP_NON_BLOCK flag.
+      This is official, documented, not used by any mysql
+      client, but used by some external users.
+
+    - Set server_id=0.
+      This is unofficial, undocumented, and used by
+      mysqlbinlog -R since the beginning of time.
+
+    When mysqlbinlog --stop-never is used, it sets a 'fake'
+    server_id that defaults to 1 but can be set to anything
+    else using stop-never-slave-server-id. This has the
+    drawback that if the server_id conflicts with any other
+    running slave, or with any other instance of mysqlbinlog
+    --stop-never, then that other instance will be killed.  It
+    is also an unnecessary burden on the user to have to
+    specify a server_id different from all other server_ids
+    just to avoid conflicts.
+
+    As of MySQL 5.6.20 and 5.7.5, mysqlbinlog redundantly sets
+    the BINLOG_DUMP_NONBLOCK flag when one or both of the
+    following holds:
+    - the --stop-never option is *not* specified
+
+    In a far future, this means we can remove the unofficial
+    functionality that server_id=0 implies nonblocking
+    behavior. That will allow mysqlbinlog to use server_id=0
+    always. That has the advantage that mysqlbinlog
+    --stop-never cannot cause any running dump threads to be
+    killed.
+  */
+  m_wait_new_events= !((thd->server_id == 0) ||
+                       ((m_flag & BINLOG_DUMP_NON_BLOCK) != 0));
   /* Binary event can be vary large. So set it to max allowed packet. */
   thd->variables.max_allowed_packet= MAX_MAX_ALLOWED_PACKET;
 
@@ -105,7 +137,7 @@ void Binlog_sender::cleanup()
 
   THD *thd= m_thd;
 
-  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, HOOK_NO_FLAG));
+  (void) RUN_HOOK(binlog_transmit, transmit_stop, (thd, m_flag));
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->current_linfo= NULL;
@@ -868,7 +900,7 @@ inline int Binlog_sender::before_send_hook(const char *log_file,
 {
   if (m_observe_transmission &&
       RUN_HOOK(binlog_transmit, before_send_event,
-               (m_thd, HOOK_NO_FLAG, &m_packet, log_file, log_pos)))
+               (m_thd, m_flag, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("run 'before_send_event' hook failed");
     return 1;
@@ -881,7 +913,7 @@ inline int Binlog_sender::after_send_hook(const char *log_file,
 {
   if (m_observe_transmission &&
       RUN_HOOK(binlog_transmit, after_send_event,
-               (m_thd, HOOK_NO_FLAG, &m_packet, log_file, log_pos)))
+               (m_thd, m_flag, &m_packet, log_file, log_pos)))
   {
     set_unknow_error("Failed to run hook 'after_send_event'");
     return 1;

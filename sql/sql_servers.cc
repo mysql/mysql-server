@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -376,6 +376,38 @@ static bool close_cached_connection_tables(THD *thd,
   for (idx= 0; idx < table_def_cache.records; idx++)
   {
     TABLE_SHARE *share= (TABLE_SHARE *) my_hash_element(&table_def_cache, idx);
+
+    /*
+      Skip table shares being opened to avoid comparison reading into
+      uninitialized memory further below.
+
+      Thus, in theory, there is a risk that shares are left in the
+      cache that should really be closed (matching the submitted
+      connection string), and this risk is already present since
+      LOCK_open is unlocked before calling this function. However,
+      this function is called as the final step of DROP/ALTER SERVER,
+      so its goal is to flush all tables which were open before
+      DROP/ALTER SERVER started. Thus, if a share gets opened after
+      this function is called, the information about the server has
+      already been updated, so the new table will use the new
+      definition of the server.
+
+      It might have been an issue, however if one thread started
+      opening a federated table, read the old server definition into a
+      share, and then a switch to another thread doing ALTER SERVER
+      happened right before setting m_open_in_progress to false for
+      the share. Because in this case ALTER SERVER would not flush
+      the share opened by the first thread as it should have been. But
+      luckily, server definitions affected by * SERVER statements are
+      not read into TABLE_SHARE structures, but are read when we
+      create the TABLE object in ha_federated::open().
+
+      This means that ignoring shares that are in the process of being
+      opened is safe, because such shares don't have TABLE objects
+      associated with them yet.
+    */
+    if (share->m_open_in_progress)
+      continue;
 
     /* Ignore if table is not open or does not have a connect_string */
     if (!share->connect_string.length || !share->ref_count)

@@ -122,10 +122,10 @@ protected:
     mdl_destroy();
   }
 
-  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort)
   {
-    return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
   }
 
   // A utility member for testing single lock requests.
@@ -165,7 +165,7 @@ public:
     m_release_locks(release_locks),
     m_lock_blocked(lock_blocked),
     m_lock_released(lock_released),
-    m_ignore_notify(false)
+    m_enable_release_on_notify(false)
   {
     m_mdl_context.init(this);
   }
@@ -176,19 +176,15 @@ public:
   }
 
   virtual void run();
-  void ignore_notify() { m_ignore_notify= true; }
+  void enable_release_on_notify() { m_enable_release_on_notify= true; }
 
-  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort)
   {
     if (in_use)
-      return in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
-
-    if (m_ignore_notify)
-      return false;
-    if (m_release_locks)
+      in_use->notify_shared_lock(NULL, needs_thr_lock_abort);
+    else if (m_enable_release_on_notify && m_release_locks)
       m_release_locks->notify();
-    return true;
   }
 
   virtual void enter_cond(mysql_cond_t *cond,
@@ -224,7 +220,7 @@ private:
   Notification  *m_release_locks;
   Notification  *m_lock_blocked;
   Notification  *m_lock_released;
-  bool           m_ignore_notify;
+  bool           m_enable_release_on_notify;
   MDL_context    m_mdl_context;
 };
 
@@ -247,7 +243,8 @@ void MDL_thread::run()
 
   EXPECT_FALSE(m_mdl_context.acquire_locks(&request_list, long_timeout));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, m_table_name, m_mdl_type));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, m_table_name,
+                                          m_mdl_type));
 
   // Tell the main thread that we have grabbed our locks.
   if (m_lock_grabbed)
@@ -309,7 +306,8 @@ void MDLTest::test_one_simple_shared_lock(enum_mdl_type lock_type)
   EXPECT_NE(m_null_ticket, m_request.ticket);
   EXPECT_TRUE(m_mdl_context.has_locks());
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, lock_type));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          lock_type));
 
   MDL_request request_2;
   MDL_REQUEST_INIT_BY_KEY(&request_2, &m_request.key, lock_type, MDL_TRANSACTION);
@@ -377,9 +375,11 @@ TEST_F(MDLTest, OneExclusive)
   EXPECT_NE(m_null_ticket, m_global_request.ticket);
   EXPECT_TRUE(m_mdl_context.has_locks());
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, lock_type));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          lock_type));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE));
+              owns_equal_or_stronger_lock(MDL_key::GLOBAL, "", "",
+                                          MDL_INTENTION_EXCLUSIVE));
   EXPECT_TRUE(m_request.ticket->is_upgradable_or_exclusive());
 
   m_mdl_context.release_transactional_locks();
@@ -406,20 +406,25 @@ TEST_F(MDLTest, TwoShared)
   ASSERT_NE(m_null_ticket, request_2.ticket);
 
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name2, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name2,
+                                          MDL_SHARED));
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name3, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name3,
+                                           MDL_SHARED));
 
   m_mdl_context.release_lock(m_request.ticket);
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED));
   EXPECT_TRUE(m_mdl_context.has_locks());
 
   m_mdl_context.release_lock(request_2.ticket);
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name2, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name2,
+                                           MDL_SHARED));
   EXPECT_FALSE(m_mdl_context.has_locks());
 }
 
@@ -444,9 +449,11 @@ TEST_F(MDLTest, SharedLocksBetweenContexts)
   EXPECT_FALSE(mdl_context2.try_acquire_lock(&request_2));
 
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED));
   EXPECT_TRUE(mdl_context2.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED));
 
   m_mdl_context.release_transactional_locks();
   mdl_context2.release_transactional_locks();
@@ -507,29 +514,39 @@ TEST_F(MDLTest, SavePoint)
   EXPECT_FALSE(m_mdl_context.try_acquire_lock(&request_4));
 
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name2, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name2,
+                                          MDL_SHARED));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name3, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name3,
+                                          MDL_SHARED));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name4, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name4,
+                                          MDL_SHARED));
 
   m_mdl_context.rollback_to_savepoint(savepoint);
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name2, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name2,
+                                          MDL_SHARED));
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name3, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name3,
+                                           MDL_SHARED));
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name4, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name4,
+                                           MDL_SHARED));
 
   m_mdl_context.release_transactional_locks();
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED));
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE, db_name, table_name2, MDL_SHARED));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name2,
+                                           MDL_SHARED));
 }
 
 
@@ -551,7 +568,8 @@ TEST_F(MDLTest, ConcurrentShared)
 
   EXPECT_FALSE(m_mdl_context.acquire_lock(&m_request, long_timeout));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE, db_name, table_name1, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED));
 
   release_locks.notify();
   mdl_thread.join();
@@ -572,7 +590,6 @@ TEST_F(MDLTest, ConcurrentSharedExclusive)
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
                         NULL, NULL);
-  mdl_thread.ignore_notify();
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
@@ -586,8 +603,8 @@ TEST_F(MDLTest, ConcurrentSharedExclusive)
   // We should *not* be able to grab the lock here.
   EXPECT_TRUE(m_mdl_context.acquire_locks(&m_request_list, zero_timeout));
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE,
-                             db_name, table_name1, MDL_EXCLUSIVE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_EXCLUSIVE));
 
   release_locks.notify();
   mdl_thread.join();
@@ -650,24 +667,25 @@ TEST_F(MDLTest, ConcurrentUpgrade)
 
   EXPECT_FALSE(m_mdl_context.acquire_locks(&m_request_list, long_timeout));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE,
-                            db_name, table_name1, MDL_SHARED_UPGRADABLE));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_SHARED_UPGRADABLE));
   EXPECT_FALSE(m_mdl_context.
-               is_lock_owner(MDL_key::TABLE,
-                             db_name, table_name1, MDL_EXCLUSIVE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_EXCLUSIVE));
 
   Notification lock_grabbed;
   Notification release_locks;
   MDL_thread mdl_thread(table_name1, MDL_SHARED, &lock_grabbed, &release_locks,
                         NULL, NULL);
+  mdl_thread.enable_release_on_notify();
   mdl_thread.start();
   lock_grabbed.wait_for_notification();
 
   EXPECT_FALSE(m_mdl_context.
                upgrade_shared_lock(m_request.ticket, MDL_EXCLUSIVE, long_timeout));
   EXPECT_TRUE(m_mdl_context.
-              is_lock_owner(MDL_key::TABLE,
-                            db_name, table_name1, MDL_EXCLUSIVE));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                          MDL_EXCLUSIVE));
 
   mdl_thread.join();
   m_mdl_context.release_transactional_locks();
@@ -814,12 +832,12 @@ TEST_F(MDLTest, HogLockTest1)
 
   /* THREAD 2: Is Lock granted to me? */
   EXPECT_FALSE((mdl_thread2.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_SHARED_READ));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED_READ));
   /* THREAD 3: Is Lock granted to me? */
   EXPECT_FALSE((mdl_thread3.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_SHARED_WRITE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED_WRITE));
   /*
     THREAD 5: Lock is granted to THREAD 5 as priority is higher.
     Lock Wait Queue: SR<--SW
@@ -1146,8 +1164,8 @@ TEST_F(MDLTest, LockPriorityTest)
 
   /* THREAD 4: Verify whether lock is granted or not*/
   EXPECT_FALSE((mdl_thread4.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_SHARED_WRITE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED_WRITE));
 
   /*CLEANUP*/
   thd_release_locks[THD7_SNW].notify();
@@ -1305,8 +1323,8 @@ TEST_F(MDLTest, HogLockTest3)
     THREAD 7: high priority SNRW lock is still waiting.
   */
   EXPECT_FALSE((mdl_thread7.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_SHARED_NO_READ_WRITE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED_NO_READ_WRITE));
 
   /* CLEAN UP */
   thd_release_locks[THD2_S].notify();
@@ -1453,8 +1471,8 @@ TEST_F(MDLTest, HogLockTest4)
 
   /* THREAD5: Lock is not granted */
   EXPECT_FALSE((mdl_thread5.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_SHARED_READ));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED_READ));
   
   /* CLEAN UP */
   thd_release_locks[THD4_SNRW].notify();
@@ -1591,8 +1609,8 @@ TEST_F(MDLTest, HogLockTest5)
     THREAD6: Lock is not granted
   */
   EXPECT_FALSE((mdl_thread6.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_SHARED_NO_READ_WRITE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_SHARED_NO_READ_WRITE));
 
   thd_lock_grabbed[THD4_SW].wait_for_notification();
   thd_release_locks[THD4_SW].notify();
@@ -1603,6 +1621,8 @@ TEST_F(MDLTest, HogLockTest5)
   thd_lock_released[THD5_SU].wait_for_notification();
 
   /* CLEANUP */
+  thd_release_locks[THD3_SR].notify();
+  thd_lock_released[THD3_SR].wait_for_notification();
   thd_lock_grabbed[THD6_SNRW].wait_for_notification();
   thd_release_locks[THD6_SNRW].notify();
   thd_lock_released[THD6_SNRW].wait_for_notification();
@@ -1644,7 +1664,6 @@ TEST_F(MDLTest, ConcurrentSharedExclusiveShared)
                          &second_shared_blocked, NULL);
 
   /* Start thread which will acquire S lock. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   first_shared_grabbed.wait_for_notification();
 
@@ -1703,7 +1722,6 @@ TEST_F(MDLTest, ConcurrentExclusiveExclusive)
                          NULL, &second_exclusive_blocked, NULL);
 
   /* Start thread which will acquire X lock. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   first_exclusive_grabbed.wait_for_notification();
 
@@ -1744,11 +1762,9 @@ TEST_F(MDLTest, ConcurrentSharedSharedExclusive)
                          NULL, &exclusive_blocked, NULL);
 
   /* Start two threads which will acquire S locks. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   first_shared_grabbed.wait_for_notification();
 
-  mdl_thread2.ignore_notify();
   mdl_thread2.start();
   second_shared_grabbed.wait_for_notification();
 
@@ -1764,8 +1780,8 @@ TEST_F(MDLTest, ConcurrentSharedSharedExclusive)
     is waiting.
   */
   EXPECT_FALSE((mdl_thread3.get_mdl_context()).
-               is_lock_owner(MDL_key::TABLE, db_name, table_name1,
-                             MDL_EXCLUSIVE));
+               owns_equal_or_stronger_lock(MDL_key::TABLE, db_name, table_name1,
+                                           MDL_EXCLUSIVE));
 
   /* Release the second S lock to unblock request for X lock. */
   second_shared_release.notify();
@@ -1948,6 +1964,7 @@ TEST_F(MDLTest, NotifyScenarios)
                          NULL, NULL, NULL);
 
   /* Acquire S lock which will be granted using "fast path". */
+  mdl_thread1.enable_release_on_notify();
   mdl_thread1.start();
   first_shared_grabbed.wait_for_notification();
 
@@ -1988,6 +2005,7 @@ TEST_F(MDLTest, NotifyScenarios)
     as requiring lock abort.
   */
   mdl_thread3.get_mdl_context().set_needs_thr_lock_abort(true);
+  mdl_thread3.enable_release_on_notify();
   /* Acquire S lock which will be granted using "fast path". */
   mdl_thread3.start();
   second_shared_grabbed.wait_for_notification();
@@ -2270,12 +2288,10 @@ TEST_F(MDLTest, RescheduleSharedNoWrite)
 
 
   /* Start thread which will acquire S lock. */
-  mdl_thread1.ignore_notify();
   mdl_thread1.start();
   shared_grabbed.wait_for_notification();
 
   /* Start thread which will acquire SW lock. */
-  mdl_thread2.ignore_notify();
   mdl_thread2.start();
   first_shared_write_grabbed.wait_for_notification();
 

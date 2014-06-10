@@ -196,7 +196,7 @@ bool select_union::send_data(List<Item> &values)
     unit->offset_limit_cnt--;
     return 0;
   }
-  fill_record(thd, table->field, values, 1, NULL, NULL);
+  fill_record(thd, table->field, values, NULL, NULL);
   if (thd->is_error())
     return 1;
 
@@ -365,7 +365,7 @@ bool select_union_direct::send_data(List<Item> &items)
     return false;
   }
 
-  fill_record(thd, table->field, items, true, NULL, NULL);
+  fill_record(thd, table->field, items, NULL, NULL);
   if (thd->is_error())
     return true; /* purecov: inspected */
 
@@ -882,7 +882,6 @@ bool st_select_lex_unit::exec()
 {
   SELECT_LEX *lex_select_save= thd->lex->current_select();
   ulonglong add_rows=0;
-  ha_rows examined_rows= 0;
   DBUG_ENTER("st_select_lex_unit::exec");
   DBUG_ASSERT((is_union() || fake_select_lex) && optimized);
 
@@ -953,7 +952,6 @@ bool st_select_lex_unit::exec()
                                     0);
         if (!saved_error)
         {
-	  examined_rows+= thd->get_examined_row_count();
           if (union_result->flush())
           {
             thd->lex->set_current_select(lex_select_save); /* purecov: inspected */
@@ -1007,7 +1005,6 @@ bool st_select_lex_unit::exec()
     fake_select_lex->table_list.empty();
     thd->limit_found_rows = (ulonglong)table->file->stats.records + add_rows;
   }
-  thd->inc_examined_row_count(examined_rows);
 
   thd->lex->set_current_select(lex_select_save);
   DBUG_RETURN(saved_error);

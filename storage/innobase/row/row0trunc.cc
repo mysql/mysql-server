@@ -339,7 +339,7 @@ public:
 		os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
-			OS_LOG_FILE, &ret);
+			OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
 			return(DB_IO_ERROR);
 		}
@@ -409,7 +409,8 @@ public:
 		bool	ret;
 		os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
-			OS_FILE_OPEN, OS_FILE_READ_WRITE, &ret);
+			OS_FILE_OPEN, OS_FILE_READ_WRITE,
+			srv_read_only_mode, &ret);
 		DBUG_EXECUTE_IF("ib_err_trunc_writing_magic_number",
 				os_file_close(handle);
 				ret = false;);
@@ -584,7 +585,7 @@ TruncateLogParser::parse(
 	bool		ret;
 	os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
-		OS_FILE_OPEN, OS_FILE_READ_ONLY, &ret);
+		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Error opening truncate log file: %s",

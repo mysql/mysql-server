@@ -61,6 +61,7 @@ def	mysql	PRIMARY	mysql	columns_priv
 def	mysql	PRIMARY	mysql	db
 def	mysql	PRIMARY	mysql	event
 def	mysql	PRIMARY	mysql	func
+def	mysql	PRIMARY	mysql	gtid_executed
 def	mysql	PRIMARY	mysql	help_category
 def	mysql	name	mysql	help_category
 def	mysql	PRIMARY	mysql	help_keyword

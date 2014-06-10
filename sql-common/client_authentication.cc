@@ -208,7 +208,7 @@ int sha256_password_auth_client(MYSQL_PLUGIN_VIO *vio, MYSQL *mysql)
   else
   {
     /* Password is a 0-terminated byte array ('\0' character included) */
-    unsigned int passwd_len= strlen(mysql->passwd) + 1;
+    unsigned int passwd_len= static_cast<unsigned int>(strlen(mysql->passwd) + 1);
     if (!connection_is_secure)
     {
 #if !defined(HAVE_YASSL)

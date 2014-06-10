@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License
@@ -436,10 +436,9 @@ static void mysql_rewrite_change_master(THD *thd, String *rlb)
   {
     bool first= TRUE;
     rlb->append(STRING_WITH_LEN(" IGNORE_SERVER_IDS = ( "));
-    for (uint i= 0; i < lex->mi.repl_ignore_server_ids.elements; i++)
+    for (size_t i= 0; i < lex->mi.repl_ignore_server_ids.size(); i++)
     {
-      ulong s_id;
-      get_dynamic(&lex->mi.repl_ignore_server_ids, (uchar*) &s_id, i);
+      ulong s_id= lex->mi.repl_ignore_server_ids[i];
       if (first)
         first= FALSE;
       else

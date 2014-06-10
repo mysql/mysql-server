@@ -26,6 +26,7 @@ Created 03/11/2014 Shaohua Wang
 #include "btr0bulk.h"
 #include "btr0btr.h"
 #include "btr0cur.h"
+#include "btr0pcur.h"
 #include "ibuf0ibuf.h"
 
 /** Innodb B-tree index fill factor for bulk load. */
@@ -526,11 +527,33 @@ the blob data is logged first, then the record is logged in bulk mode.
 dberr_t
 PageBulk::storeExt(
 	const big_rec_t*	big_rec,
-	const ulint*		offsets)
+	ulint*			offsets)
 {
-	return(btr_store_big_rec_extern_fields(
-		m_index, m_block, m_cur_rec,
-		offsets, big_rec, m_mtr, BTR_STORE_INSERT_BULK));
+	/* Note: not all fileds are initialized in btr_pcur. */
+	btr_pcur_t	btr_pcur;
+	btr_pcur.pos_state = BTR_PCUR_IS_POSITIONED;
+	btr_pcur.latch_mode = BTR_MODIFY_LEAF;
+	btr_pcur.btr_cur.index = m_index;
+
+	page_cur_t*	page_cur = &btr_pcur.btr_cur.page_cur;
+	page_cur->index = m_index;
+	page_cur->rec = m_cur_rec;
+	page_cur->offsets = offsets;
+	page_cur->block = m_block;
+
+	dberr_t	err = btr_store_big_rec_extern_fields(
+		&btr_pcur, NULL, offsets, big_rec, m_mtr,
+		BTR_STORE_INSERT_BULK);
+
+	ut_ad(page_offset(m_cur_rec) == page_offset(page_cur->rec));
+
+	/* Reset m_block and m_cur_rec from page cursor, because
+	block may be changed during blob insert. */
+	m_block = page_cur->block;
+	m_cur_rec = page_cur->rec;
+	m_page = buf_block_get_frame(m_block);
+
+	return(err);
 }
 
 /** Release block by commiting mtr
@@ -581,6 +604,8 @@ PageBulk::latch()
 #ifdef UNIV_DEBUG
 	page_header_set_ptr(m_page, NULL, PAGE_HEAP_TOP,
 			    m_page + UNIV_PAGE_SIZE - 1);
+
+	ut_ad(m_cur_rec > m_page && m_cur_rec < m_heap_top);
 #endif /* UNIV_DEBUG */
 }
 
@@ -741,7 +766,7 @@ BtrBulk::insert(
 	if (page_bulk->needExt(tuple, rec_size)) {
 		/* The record is so big that we have to store some fields
 		externally on separate database pages */
-		big_rec = dtuple_convert_big_rec(m_index, tuple, &n_ext);
+		big_rec = dtuple_convert_big_rec(m_index, 0, tuple, &n_ext);
 
 		if (UNIV_UNLIKELY(big_rec == NULL)) {
 			return(DB_TOO_BIG_RECORD);
@@ -801,8 +826,22 @@ BtrBulk::insert(
 
 		ut_ad(dict_index_is_clust(m_index));
 		ut_ad(page_bulk->getLevel() == 0);
+		ut_ad(page_bulk == m_page_bulks->at(0));
+
+		/* Release */
+		for (ulint level = 1; level <= m_root_level; level++) {
+			PageBulk*    page_bulk = m_page_bulks->at(level);
+
+			page_bulk->release();
+		}
 
 		err = page_bulk->storeExt(big_rec, offsets);
+
+		/* Latch */
+		for (ulint level = 1; level <= m_root_level; level++) {
+			PageBulk*    page_bulk = m_page_bulks->at(level);
+			page_bulk->latch();
+		}
 
 		dtuple_convert_back_big_rec(m_index, tuple, big_rec);
 

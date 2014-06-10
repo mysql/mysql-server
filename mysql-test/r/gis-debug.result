@@ -424,25 +424,13 @@ ST_CONTAINS(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)'))
 0
-Warnings:
-Warning	1105	[0] op_backdifference[2]
-Warning	1105	[1] op_union[2]
-Warning	1105	[2] op_shape[0]shape_polygon
-Warning	1105	[3] op_shape[1]shape_polygon
-Warning	1105	[4] op_shape[2]shape_point
 SELECT AsText(ST_UNION(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)')));
 AsText(ST_UNION(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)')))
-GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)),POLYGON((6 6,6 11,11 11,11 6,6 6)),POINT(5 10))
-Warnings:
-Warning	1105	[0] op_union[2]
-Warning	1105	[1] op_union[2]
-Warning	1105	[2] op_shape[0]shape_polygon
-Warning	1105	[3] op_shape[1]shape_polygon
-Warning	1105	[4] op_shape[2]shape_point
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((6 6,11 6,11 11,6 11,6 6))),POINT(5 10))
 DROP PROCEDURE p1;
 #
 # Bug #13833019 ASSERTION `T1->RESULT_RANGE' FAILED IN GCALC_OPERATION_REDUCER::END_COUPLE
