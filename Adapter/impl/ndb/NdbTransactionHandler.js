@@ -425,8 +425,7 @@ DBTransactionHandler.prototype.commit = function commit(userCallback) {
     executeNoOperations(this, COMMIT, userCallback);
   } else {
     udebug.log("commit STUB COMMIT (no DBTransactionContext)");
-    execId = getExecIdForOperationList(this, []);
-    onExecute(this, COMMIT, null, execId, userCallback);
+    userCallback(null, this);
   }
 };
 
@@ -447,8 +446,7 @@ DBTransactionHandler.prototype.rollback = function rollback(userCallback) {
     executeNoOperations(this, ROLLBACK, userCallback);
   } else {
     udebug.log("rollback STUB ROLLBACK (no DBTransactionContext)");
-    execId = getExecIdForOperationList(this, []);
-    onExecute(this, ROLLBACK, null, execId, userCallback);
+    userCallback(null, this);
   }
 };
 
