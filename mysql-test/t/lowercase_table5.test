@@ -2,6 +2,11 @@
 # Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
 #
 
+# 
+# Get deafult engine value
+#
+--let $DEFAULT_ENGINE = `SELECT @@global.default_storage_engine`
+
 #
 # Test of force of lower-case-table-names=0 on
 # a case sensitive file system.
@@ -20,12 +25,14 @@ CREATE DATABASE Foo COLLATE utf8_unicode_ci;
 USE FoO;
 CREATE TABLE t1(a INT);
 --echo # t1 should inherit ascii_bin
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 
 USE Foo;
 CREATE TABLE t1(a INT); 
 --echo # t1 should inherit utf8_unicode_ci
+--replace_result $DEFAULT_ENGINE ENGINE
 SHOW CREATE TABLE t1;
 DROP TABLE t1;
 

@@ -3675,9 +3675,7 @@ fts_query_prepare_result(
 	bool			result_is_null = false;
 
 	if (result == NULL) {
-		result = static_cast<fts_result_t*>(ut_malloc(sizeof(*result)));
-
-		memset(result, 0x0, sizeof(*result));
+		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
 
 		result->rankings_by_id = rbt_create(
 			sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3781,8 +3779,7 @@ fts_query_get_result(
 		result = fts_query_prepare_result(query, result);
 	} else {
 		/* Create an empty result instance. */
-		result = static_cast<fts_result_t*>(ut_malloc(sizeof(*result)));
-		memset(result, 0, sizeof(*result));
+		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
 	}
 
 	return(result);
@@ -4185,8 +4182,7 @@ fts_query(
 	} else {
 		/* still return an empty result set */
 		*result = static_cast<fts_result_t*>(
-			ut_malloc(sizeof(**result)));
-		memset(*result, 0, sizeof(**result));
+			ut_zalloc(sizeof(**result)));
 	}
 
 	ut_free(lc_query_str);
