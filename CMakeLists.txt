@@ -58,6 +58,7 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/common/src/common_v8_values.cpp
   Adapter/impl/ndb/src/AsyncNdbContext_wrapper.cpp
   Adapter/impl/ndb/src/AsyncNdbContext.cpp
+  Adapter/impl/ndb/src/BlobHandler.cpp
   Adapter/impl/ndb/src/ColumnHandler.cpp
   Adapter/impl/ndb/src/ColumnProxy.cpp
   Adapter/impl/ndb/src/DBDictionaryImpl.cpp
@@ -70,6 +71,7 @@ set(ADAPTER_SOURCE_FILES
   Adapter/impl/ndb/src/DBTransactionContext.cpp
   Adapter/impl/ndb/src/EncoderCharset.cpp
   Adapter/impl/ndb/src/IndexBoundHelper.cpp
+  Adapter/impl/ndb/src/KeyOperation.cpp  
   Adapter/impl/ndb/src/Ndb_cluster_connection_wrapper.cpp
   Adapter/impl/ndb/src/Ndb_init_wrapper.cpp
   Adapter/impl/ndb/src/Ndb_util_wrapper.cpp
