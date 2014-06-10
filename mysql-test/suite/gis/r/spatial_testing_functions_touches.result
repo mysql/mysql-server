@@ -1,0 +1,2669 @@
+#Turn on the geometry data print.
+SET SESSION debug="+d,row_print_geometry_data";
+#Confirming the storage engine
+SHOW VARIABLES LIKE '%engine%';
+Variable_name	Value
+default_storage_engine	MyISAM
+default_tmp_storage_engine	MyISAM
+#Creating the spatial Geometry object
+USE test;
+DROP TABLE IF EXISTS gis_geometrycollection;
+CREATE TABLE gis_geometrycollection  (fid INTEGER NOT NULL PRIMARY KEY, g GEOMETRYCOLLECTION);
+SET @star_elem_vertical= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center= 'POINT(15 10)';
+SET @star_top= 'POINT(15 25)';
+SET @star_bottom_left= 'POINT(5 0)';
+SET @star_bottom_right= 'POINT(25 0)';
+SET @star_bottom_points= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_collection_multilinestr='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),MULTILINESTRING((25 0,0 15,15 30,0 5)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_1= 'POLYGON((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_1= 'POLYGON((25 0,0 15,30 15,22 10,25 0))';
+SET @star_center_1= 'POINT(15 10)';
+SET @star_top_1= 'POINT(15 25)';
+SET @star_bottom_left_1= 'POINT(5 0)';
+SET @star_bottom_right_1= 'POINT(25 0)';
+SET @star_bottom_points_1= 'MULTIPOINT(5 0,25 0)';
+SET @star_all_points_1= 'MULTIPOINT(5 0,25 0,15 10,15 25)';
+SET @star_line_horizontal_1= 'LINESTRING(10 15,20 15)';
+SET @star_line_vertical_1= 'LINESTRING(15 5,15 25)';
+SET @star_top_to_center_1= 'LINESTRING(15 25,15 10)';
+SET @star_lines_near_horizontal_1= 'MULTILINESTRING((25 0,0 15,15 30,0 5))';
+SET @star_lines_near_vertical_1= 'MULTILINESTRING((0 5,15 25,0 25))';
+SET @star_1= 'POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0))';
+SET @star_elem_vertical_val_1= '((5 0,15 25,25 0,15 5,5 0))';
+SET @star_elem_horizontal_val_1= '((25 0,0 15,30 15,22 10,25 0))';
+SET @star_of_elems_1='MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0)))';
+SET @star_collection_elems_1='GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))';
+SET @star_elem_vertical_2= 'POLYGON((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_2= 'POLYGON((35 0,10 15,40 15,32 10,35 0))';
+SET @star_center_2= 'POINT(25 10)';
+SET @star_top_2= 'POINT(25 25)';
+SET @star_bottom_left_2= 'POINT(15 0)';
+SET @star_bottom_right_2= 'POINT(35 0)';
+SET @star_bottom_points_2= 'MULTIPOINT(15 0,35 0)';
+SET @star_all_points_2= 'MULTIPOINT(15 0,35 0,35 10,25 25)';
+SET @star_line_horizontal_2= 'LINESTRING(20 15,30 15)';
+SET @star_line_vertical_2= 'LINESTRING(25 5,25 25)';
+SET @star_top_to_center_2= 'LINESTRING(25 25,25 10)';
+SET @star_lines_near_horizontal_2= 'MULTILINESTRING((35 0,10 15,25 30,10 5))';
+SET @star_lines_near_vertical_2= 'MULTILINESTRING((10 5,25 25,10 25))';
+SET @star_2= 'POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0))';
+SET @star_elem_vertical_val_2= '((15 0,25 25,35 0,25 5,15 0))';
+SET @star_elem_horizontal_val_2= '((35 0,10 15,40 15,32 10,35 0))';
+SET @star_of_elems_2='MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0)))';
+SET @star_collection_elems_2='GEOMETRYCOLLECTION(MULTIPOLYGON(((15 0,25 25,35 0,25 5,15 0)),((35 0,10 15,40 15,32 10,35 0))),POLYGON((15 0,17 10,10 15,20 15,25 25,30 15,40 15,32 10,35 0,25 5,15 0)),LINESTRING(25 25,25 10),MULTIPOINT(15 0,35 0),POINT(25 25))';
+SET @star_elem_vertical_3= 'POLYGON((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_3= 'POLYGON((85 0,60 15,90 15,82 10,85 0))';
+SET @star_center_3= 'POINT(75 10)';
+SET @star_top_3= 'POINT(75 25)';
+SET @star_bottom_left_3= 'POINT(65 0)';
+SET @star_bottom_right_3= 'POINT(85 0)';
+SET @star_bottom_points_3= 'MULTIPOINT(65 0,85 0)';
+SET @star_all_points_3= 'MULTIPOINT(65 0,85 0,75 10,75 25)';
+SET @star_line_horizontal_3= 'LINESTRING(70 15,80 15)';
+SET @star_line_vertical_3= 'LINESTRING(75 5,75 25)';
+SET @star_top_to_center_3= 'LINESTRING(75 25,75 10)';
+SET @star_lines_near_horizontal_3= 'MULTILINESTRING((85 0,60 15,85 30,60 5))';
+SET @star_lines_near_vertical_3= 'MULTILINESTRING((60 5,75 25,60 25))';
+SET @star_3= 'POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0))';
+SET @star_elem_vertical_val_3= '((65 0,75 25,85 0,75 5,65 0))';
+SET @star_elem_horizontal_val_3= '((85 0,60 15,90 15,82 10,85 0))';
+SET @star_of_elems_3='MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0)))';
+SET @star_collection_elems_3='GEOMETRYCOLLECTION(MULTIPOLYGON(((65 0,75 25,85 0,75 5,65 0)),((85 0,60 15,90 15,82 10,85 0))),POLYGON((65 0,67 10,60 15,70 15,75 25,80 15,90 15,82 10,85 0,75 5,65 0)),LINESTRING(75 25,75 10),MULTIPOINT(65 0,85 0),POINT(75 25))';
+#INSERT base star
+INSERT INTO gis_geometrycollection VALUES
+(100,GeomFromText(@star)),
+(101,GeomFromText(@star_elem_vertical)),
+(102,GeomFromText(@star_elem_horizontal)),
+(103,GeomFromText(@star_of_elems)),
+(104,GeomFromText(@star_top)),
+(105,GeomFromText(@star_center)),
+(106,GeomFromText(@star_bottom_left)),
+(107,GeomFromText(@star_bottom_right)),
+(108,GeomFromText(@star_bottom_points)),
+(109,GeomFromText(@star_all_points)),
+(110,GeomFromText(@star_line_horizontal)),
+(111,GeomFromText(@star_line_vertical)),
+(112,GeomFromText(@star_top_to_center)),
+(113,GeomFromText(@star_lines_near_horizontal)),
+(114,GeomFromText(@star_lines_near_vertical)),
+(115,GeomFromText(@star_collection_elems));
+#INSERT identical (to base) star
+INSERT INTO gis_geometrycollection VALUES
+(200,GeomFromText(@star_1)),
+(201,GeomFromText(@star_elem_vertical_1)),
+(202,GeomFromText(@star_elem_horizontal_1)),
+(203,GeomFromText(@star_of_elems_1)),
+(204,GeomFromText(@star_top_1)),
+(205,GeomFromText(@star_center_1)),
+(206,GeomFromText(@star_bottom_left_1)),
+(207,GeomFromText(@star_bottom_right_1)),
+(208,GeomFromText(@star_bottom_points_1)),
+(209,GeomFromText(@star_all_points_1)),
+(210,GeomFromText(@star_line_horizontal_1)),
+(211,GeomFromText(@star_line_vertical_1)),
+(212,GeomFromText(@star_top_to_center_1)),
+(213,GeomFromText(@star_lines_near_horizontal_1)),
+(214,GeomFromText(@star_lines_near_vertical_1)),
+(215,GeomFromText(@star_collection_elems_1));
+#INSERT overlapping star
+INSERT INTO gis_geometrycollection VALUES
+(300,GeomFromText(@star_2)),
+(301,GeomFromText(@star_elem_vertical_2)),
+(302,GeomFromText(@star_elem_horizontal_2)),
+(303,GeomFromText(@star_of_elems_2)),
+(304,GeomFromText(@star_top_2)),
+(305,GeomFromText(@star_center_2)),
+(306,GeomFromText(@star_bottom_left_2)),
+(307,GeomFromText(@star_bottom_right_2)),
+(308,GeomFromText(@star_bottom_points_2)),
+(309,GeomFromText(@star_all_points_2)),
+(310,GeomFromText(@star_line_horizontal_2)),
+(311,GeomFromText(@star_line_vertical_2)),
+(312,GeomFromText(@star_top_to_center_2)),
+(313,GeomFromText(@star_lines_near_horizontal_2)),
+(314,GeomFromText(@star_lines_near_vertical_2)),
+(315,GeomFromText(@star_collection_elems_2));
+#INSERT seperate star
+INSERT INTO gis_geometrycollection VALUES
+(400,GeomFromText(@star_3)),
+(401,GeomFromText(@star_elem_vertical_3)),
+(402,GeomFromText(@star_elem_horizontal_3)),
+(403,GeomFromText(@star_of_elems_3)),
+(404,GeomFromText(@star_top_3)),
+(405,GeomFromText(@star_center_3)),
+(406,GeomFromText(@star_bottom_left_3)),
+(407,GeomFromText(@star_bottom_right_3)),
+(408,GeomFromText(@star_bottom_points_3)),
+(409,GeomFromText(@star_all_points_3)),
+(410,GeomFromText(@star_line_horizontal_3)),
+(411,GeomFromText(@star_line_vertical_3)),
+(412,GeomFromText(@star_top_to_center_3)),
+(413,GeomFromText(@star_lines_near_horizontal_3)),
+(414,GeomFromText(@star_lines_near_vertical_3)),
+(415,GeomFromText(@star_collection_elems_3));
+DROP TABLE IF EXISTS gis_geometrycollection_2;
+CREATE TABLE gis_geometrycollection_2 SELECT fid as fid2,g as g2 FROM gis_geometrycollection;
+#Checking the integrity of the above create/insert statements 
+#64 rows. 
+SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
+count(astext(g) != 'NULL')
+64
+#64 rows. 
+SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
+count(astext(g2) != 'NULL')
+64
+#=======================================================================================
+# MBRTouches(g1,g2)
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT MBRTouches(GeomFromText(@star_center),GeomFromText(@star_center));
+MBRTouches(GeomFromText(@star_center),GeomFromText(@star_center))
+0
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_center));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_center))
+0
+SELECT MBRTouches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+MBRTouches(g,GeomFromText(@star_center))
+0
+#point,multipoint
+SELECT MBRTouches(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+MBRTouches(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+0
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
+0
+SELECT MBRTouches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+MBRTouches(g,GeomFromText(@star_bottom_points))
+0
+#point,linestring
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+1
+#point,multilinestring
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+1
+#point,polygon
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star))
+1
+SELECT MBRTouches(GeomFromText(@star_center),GeomFromText(@star));
+MBRTouches(GeomFromText(@star_center),GeomFromText(@star))
+0
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
+0
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+MBRTouches(g,GeomFromText(@star))
+1
+#point,multipolygon
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_of_elems))
+1
+SELECT MBRTouches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+MBRTouches(g,GeomFromText(@star_of_elems))
+1
+#point,geometrycollection
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_top));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_top))
+0
+SELECT MBRTouches(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+MBRTouches(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+0
+SELECT MBRTouches(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+MBRTouches(g,GeomFromText(@star_bottom_left))
+0
+#multipoint,multipoint
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+0
+SELECT MBRTouches(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+MBRTouches(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+0
+SELECT MBRTouches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+MBRTouches(g,GeomFromText(@star_all_points))
+0
+SELECT MBRTouches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+MBRTouches(g,GeomFromText(@star_all_points))
+0
+#multipoint,linestring
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+0
+#multipoint,multilinestring
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+MBRTouches(g,GeomFromText(@star_lines_near_horizontal))
+1
+#multipoint,polygon
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRTouches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+MBRTouches(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRTouches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+MBRTouches(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRTouches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+MBRTouches(g,GeomFromText(@star_elem_horizontal))
+0
+#multipoint,multipolygon
+SELECT MBRTouches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+MBRTouches(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+MBRTouches(g,GeomFromText(@star_of_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+MBRTouches(g,GeomFromText(@star_of_elems))
+0
+#multipoint,geometrycollection
+SELECT MBRTouches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT MBRTouches(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+MBRTouches(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+1
+SELECT MBRTouches(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+MBRTouches(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+MBRTouches(g,g2)
+0
+#linestring,multipoint
+SELECT MBRTouches(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+MBRTouches(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT MBRTouches(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+MBRTouches(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+1
+SELECT MBRTouches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+MBRTouches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT MBRTouches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+MBRTouches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT MBRTouches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+MBRTouches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+#linestring,linestring
+SELECT MBRTouches(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+MBRTouches(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+MBRTouches(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+0
+#linestring,multilinestring
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+0
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+MBRTouches(g,GeomFromText(@star_lines_near_horizontal))
+0
+#linestring,polygon
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT MBRTouches(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+MBRTouches(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+1
+#linestring,multipolygon
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+0
+SELECT MBRTouches(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+MBRTouches(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+#linestring,geometrycollection
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))'));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOIN
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+0
+SELECT MBRTouches(g,GeomFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))')) FROM gis_geometrycollection WHERE fid=110;
+MBRTouches(g,GeomFromText('GEOMETRYCOLLECTION(MULTIPOLYGON(((5 0,15 25,25 0,15 5,5 0)),((25 0,0 15,30 15,22 10,25 0))),POLYGON((5 0,7 10,0 15,10 15,15 25,20 15,30 15,22 10,25 0,15 5,5 0)),LINESTRING(15 25,15 10),MULTIPOINT(5 0,25 0),POINT(15 25))'))
+1
+SELECT MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+0
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+0
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText(@star_top))
+1
+#multilinestring,multipoint
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+0
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+1
+SELECT MBRTouches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText(@star_bottom_points))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+MBRTouches(g,g2)
+0
+#multilinestring,linestring
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+0
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+0
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+0
+SELECT MBRTouches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText(@star_line_vertical))
+1
+#multilinestring,multilinestring
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+0
+SELECT MBRTouches(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+#multilinestring,polygon
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
+0
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+1
+#multilinestring,multipolygon
+SELECT MBRTouches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText(@star_of_elems))
+1
+#multilinestring,geometrycollection
+SELECT MBRTouches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+1
+SELECT MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_bottom_left));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_bottom_left))
+1
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText(@star_top))
+1
+SELECT MBRTouches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+MBRTouches(g,GeomFromText(@star_center))
+0
+SELECT MBRTouches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+MBRTouches(g,GeomFromText(@star_center))
+0
+SELECT MBRTouches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_center))
+0
+#polygon,multipoint
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_all_points));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_all_points))
+1
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText(@star_all_points))
+1
+SELECT MBRTouches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+MBRTouches(g,GeomFromText(@star_all_points))
+0
+SELECT MBRTouches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_all_points))
+0
+#polygon,linestring
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_line_vertical));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_line_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT MBRTouches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText(@star_line_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+MBRTouches(g,GeomFromText(@star_line_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_line_vertical))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+MBRTouches(g,g2)
+1
+#polygon,multilinestring
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+0
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+0
+#polygon,polygon
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+0
+SELECT MBRTouches(g,GeomFromText('POLYGON((25 0,25 5,30 0,25 0))')) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT MBRTouches(g,GeomFromText('POLYGON((25 15,25 20,30 15,25 15))')) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText('POLYGON((25 15,25 20,30 15,25 15))'))
+1
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+#polygon,multipolygon
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(g,GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))')) FROM gis_geometrycollection WHERE fid=100;
+MBRTouches(g,GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+MBRTouches(g,GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_of_elems))
+0
+#polygon,geometrycollection
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+MBRTouches(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+0
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+1
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_top))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_top))
+0
+#multipolygon,multipoint
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+1
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_bottom_points))
+1
+SELECT MBRTouches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_bottom_points))
+0
+#multipolygon,linestring
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+0
+#multipolygon,multilinestring
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+0
+#multipolygon,polygon
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+#multipolygon,multipolygon
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+MBRTouches(g,GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_of_elems))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRTouches(g,g2)
+0
+#multipolygon,geometrycollection
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+MBRTouches(g,g2)
+0
+SELECT MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr))
+0
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+1
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_top))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_top))
+0
+#geometrycollection,multipoint
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+1
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_bottom_points))
+1
+SELECT MBRTouches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_bottom_points))
+0
+#geometrycollection,linestring
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+1
+SELECT MBRTouches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_top_to_center))
+0
+#geometrycollection,multilinestring
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT MBRTouches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_lines_near_vertical))
+0
+#geometrycollection,polygon
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT MBRTouches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_elem_vertical))
+0
+#geometrycollection,multipolygon
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+MBRTouches(g,g2)
+0
+#geometrycollection,geometrycollection
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+MBRTouches(g,GeomFromText(@star_collection_elems))
+0
+SELECT MBRTouches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+MBRTouches(g,g2)
+0
+SELECT MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+MBRTouches(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+0
+#=======================================================================================
+# ST_Touches(g1,g2)
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT ST_Touches(GeomFromText(@star_center),GeomFromText(@star_center));
+ST_Touches(GeomFromText(@star_center),GeomFromText(@star_center))
+0
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_center));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_center))
+0
+SELECT ST_Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+ST_Touches(g,GeomFromText(@star_center))
+0
+#point,multipoint
+SELECT ST_Touches(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+ST_Touches(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+0
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
+0
+SELECT ST_Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+ST_Touches(g,GeomFromText(@star_bottom_points))
+0
+#point,linestring
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+1
+#point,multilinestring
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+#point,polygon
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star))
+1
+SELECT ST_Touches(GeomFromText(@star_center),GeomFromText(@star));
+ST_Touches(GeomFromText(@star_center),GeomFromText(@star))
+0
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
+0
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+ST_Touches(g,GeomFromText(@star))
+1
+#point,multipolygon
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_of_elems))
+1
+SELECT ST_Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_Touches(g,GeomFromText(@star_of_elems))
+1
+#point,geometrycollection
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_top));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_top))
+0
+SELECT ST_Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+ST_Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+0
+SELECT ST_Touches(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+ST_Touches(g,GeomFromText(@star_bottom_left))
+0
+#multipoint,multipoint
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+0
+SELECT ST_Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+ST_Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+0
+SELECT ST_Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+ST_Touches(g,GeomFromText(@star_all_points))
+0
+SELECT ST_Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+ST_Touches(g,GeomFromText(@star_all_points))
+0
+#multipoint,linestring
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+0
+#multipoint,multilinestring
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_Touches(g,GeomFromText(@star_lines_near_horizontal))
+1
+#multipoint,polygon
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Touches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+ST_Touches(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Touches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+ST_Touches(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Touches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+ST_Touches(g,GeomFromText(@star_elem_horizontal))
+0
+#multipoint,multipolygon
+SELECT ST_Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_Touches(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+ST_Touches(g,GeomFromText(@star_of_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+ST_Touches(g,GeomFromText(@star_of_elems))
+0
+#multipoint,geometrycollection
+SELECT ST_Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT ST_Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+ST_Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+1
+SELECT ST_Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+ST_Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+ST_Touches(g,g2)
+0
+#linestring,multipoint
+SELECT ST_Touches(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+ST_Touches(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT ST_Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+ST_Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+1
+SELECT ST_Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+ST_Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT ST_Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+ST_Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT ST_Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+ST_Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+#linestring,linestring
+SELECT ST_Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+ST_Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+ST_Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+0
+#linestring,multilinestring
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+0
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+ST_Touches(g,GeomFromText(@star_lines_near_horizontal))
+0
+#linestring,polygon
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT ST_Touches(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+ST_Touches(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+1
+#linestring,multipolygon
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+0
+SELECT ST_Touches(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+ST_Touches(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+#linestring,geometrycollection
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+0
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+0
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText(@star_top))
+1
+#multilinestring,multipoint
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+0
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+1
+SELECT ST_Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText(@star_bottom_points))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+ST_Touches(g,g2)
+0
+#multilinestring,linestring
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+0
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+0
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+0
+SELECT ST_Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText(@star_line_vertical))
+1
+#multilinestring,multilinestring
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+0
+SELECT ST_Touches(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+#multilinestring,polygon
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
+0
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+1
+#multilinestring,multipolygon
+SELECT ST_Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText(@star_of_elems))
+1
+#multilinestring,geometrycollection
+SELECT ST_Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_bottom_left));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_bottom_left))
+1
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText(@star_top))
+1
+SELECT ST_Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+ST_Touches(g,GeomFromText(@star_center))
+0
+SELECT ST_Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+ST_Touches(g,GeomFromText(@star_center))
+0
+SELECT ST_Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_center))
+0
+#polygon,multipoint
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_all_points));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_all_points))
+1
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText(@star_all_points))
+1
+SELECT ST_Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+ST_Touches(g,GeomFromText(@star_all_points))
+0
+SELECT ST_Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_all_points))
+0
+#polygon,linestring
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_line_vertical));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_line_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT ST_Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText(@star_line_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_Touches(g,GeomFromText(@star_line_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_line_vertical))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+ST_Touches(g,g2)
+1
+#polygon,multilinestring
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+#polygon,polygon
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+0
+SELECT ST_Touches(g,GeomFromText('POLYGON((25 0,25 5,30 0,25 0))')) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT ST_Touches(g,GeomFromText('POLYGON((25 15,25 20,30 15,25 15))')) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText('POLYGON((25 15,25 20,30 15,25 15))'))
+1
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+#polygon,multipolygon
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(g,GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))')) FROM gis_geometrycollection WHERE fid=100;
+ST_Touches(g,GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+ST_Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_of_elems))
+0
+#polygon,geometrycollection
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+ST_Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+0
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+1
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_top))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_top))
+0
+#multipolygon,multipoint
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+1
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_bottom_points))
+1
+SELECT ST_Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_bottom_points))
+0
+#multipolygon,linestring
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+0
+#multipolygon,multilinestring
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+#multipolygon,polygon
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+#multipolygon,multipolygon
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+ST_Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Touches(g,g2)
+0
+#multipolygon,geometrycollection
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+ST_Touches(g,g2)
+0
+SELECT ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr))
+0
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+1
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_top))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_top))
+0
+#geometrycollection,multipoint
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+1
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_bottom_points))
+1
+SELECT ST_Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_bottom_points))
+0
+#geometrycollection,linestring
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT ST_Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_top_to_center))
+0
+#geometrycollection,multilinestring
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT ST_Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+#geometrycollection,polygon
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT ST_Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_elem_vertical))
+0
+#geometrycollection,multipolygon
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+ST_Touches(g,g2)
+0
+#geometrycollection,geometrycollection
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+ST_Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT ST_Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+ST_Touches(g,g2)
+0
+SELECT ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+ST_Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+0
+#=======================================================================================
+# Touches(g1,g2)
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#point,point
+SELECT Touches(GeomFromText(@star_center),GeomFromText(@star_center));
+Touches(GeomFromText(@star_center),GeomFromText(@star_center))
+0
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_center));
+Touches(GeomFromText(@star_top),GeomFromText(@star_center))
+0
+SELECT Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=105;
+Touches(g,GeomFromText(@star_center))
+0
+#point,multipoint
+SELECT Touches(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points));
+Touches(GeomFromText(@star_bottom_left),GeomFromText(@star_bottom_points))
+0
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_bottom_points));
+Touches(GeomFromText(@star_top),GeomFromText(@star_bottom_points))
+0
+SELECT Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=106;
+Touches(g,GeomFromText(@star_bottom_points))
+0
+#point,linestring
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_top_to_center));
+Touches(GeomFromText(@star_top),GeomFromText(@star_top_to_center))
+1
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_line_horizontal));
+Touches(GeomFromText(@star_top),GeomFromText(@star_line_horizontal))
+0
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=104;
+Touches(g,GeomFromText(@star_top_to_center))
+1
+#point,multilinestring
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical));
+Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal));
+Touches(GeomFromText(@star_top),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=104;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+#point,polygon
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star));
+Touches(GeomFromText(@star_top),GeomFromText(@star))
+1
+SELECT Touches(GeomFromText(@star_center),GeomFromText(@star));
+Touches(GeomFromText(@star_center),GeomFromText(@star))
+0
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal));
+Touches(GeomFromText(@star_top),GeomFromText(@star_elem_horizontal))
+0
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText(@star_top),GeomFromText(@star_elem_vertical))
+1
+SELECT Touches(g,GeomFromText(@star)) FROM gis_geometrycollection WHERE fid=104;
+Touches(g,GeomFromText(@star))
+1
+#point,multipolygon
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_of_elems));
+Touches(GeomFromText(@star_top),GeomFromText(@star_of_elems))
+1
+SELECT Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems));
+Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_of_elems))
+0
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=104;
+Touches(g,GeomFromText(@star_of_elems))
+1
+#point,geometrycollection
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_collection_elems));
+Touches(GeomFromText(@star_top),GeomFromText(@star_collection_elems))
+1
+SELECT Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems));
+Touches(GeomFromText('POINT(-0.01 0)'),GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=104;
+Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star_top),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multipoint,point
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_top));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_top))
+0
+SELECT Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_center));
+Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_center))
+0
+SELECT Touches(g,GeomFromText(@star_bottom_left)) FROM gis_geometrycollection WHERE fid=108;
+Touches(g,GeomFromText(@star_bottom_left))
+0
+#multipoint,multipoint
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_bottom_points))
+0
+SELECT Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points));
+Touches(GeomFromText(@star_bottom_points),GeomFromText(@star_all_points))
+0
+SELECT Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=208;
+Touches(g,GeomFromText(@star_all_points))
+0
+SELECT Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=308;
+Touches(g,GeomFromText(@star_all_points))
+0
+#multipoint,linestring
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_top_to_center))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=109;
+Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=209;
+Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=309;
+Touches(g,GeomFromText(@star_top_to_center))
+0
+#multipoint,multilinestring
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Touches(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+Touches(g,GeomFromText(@star_lines_near_horizontal))
+1
+#multipoint,polygon
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_vertical))
+1
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_elem_horizontal))
+1
+SELECT Touches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=109;
+Touches(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT Touches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=209;
+Touches(g,GeomFromText(@star_elem_horizontal))
+1
+SELECT Touches(g,GeomFromText(@star_elem_horizontal)) FROM gis_geometrycollection WHERE fid=309;
+Touches(g,GeomFromText(@star_elem_horizontal))
+0
+#multipoint,multipolygon
+SELECT Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems));
+Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_of_elems))
+0
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_of_elems));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_of_elems))
+1
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=109;
+Touches(g,GeomFromText(@star_of_elems))
+1
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=209;
+Touches(g,GeomFromText(@star_of_elems))
+1
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=309;
+Touches(g,GeomFromText(@star_of_elems))
+0
+#multipoint,geometrycollection
+SELECT Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems));
+Touches(GeomFromText('MULTIPOINT(0 0,0 30,30 25)'),GeomFromText(@star_collection_elems))
+0
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_elems))
+1
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=109;
+Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=209;
+Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=309;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star_all_points),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#linestring,point
+SELECT Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_center));
+Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_center))
+1
+SELECT Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left));
+Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_bottom_left))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=110 and fid2=105;
+Touches(g,g2)
+0
+#linestring,multipoint
+SELECT Touches(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'));
+Touches(GeomFromText(@star_line_vertical),GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points));
+Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_all_points))
+1
+SELECT Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=111;
+Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+1
+SELECT Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=311;
+Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+SELECT Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)')) FROM gis_geometrycollection WHERE fid=411;
+Touches(g,GeomFromText('MULTIPOINT(15 10,15 25)'))
+0
+#linestring,linestring
+SELECT Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center));
+Touches(GeomFromText(@star_line_vertical),GeomFromText(@star_top_to_center))
+1
+SELECT Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical));
+Touches(GeomFromText(@star_top_to_center),GeomFromText(@star_line_vertical))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=111;
+Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=311;
+Touches(g,GeomFromText(@star_top_to_center))
+0
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=411;
+Touches(g,GeomFromText(@star_top_to_center))
+0
+#linestring,multilinestring
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_horizontal))
+0
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_lines_near_vertical))
+0
+SELECT Touches(g,GeomFromText(@star_lines_near_horizontal)) FROM gis_geometrycollection WHERE fid=110;
+Touches(g,GeomFromText(@star_lines_near_horizontal))
+0
+#linestring,polygon
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText('POLYGON((11 15,19 15,19 10))'))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_2))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT Touches(g,GeomFromText('POLYGON((11 15,19 15,11 15))')) FROM gis_geometrycollection WHERE fid=110;
+Touches(g,GeomFromText('POLYGON((11 15,19 15,11 15))'))
+1
+#linestring,multipolygon
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_2))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_of_elems_3))
+0
+SELECT Touches(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))')) FROM gis_geometrycollection WHERE fid=110;
+Touches(g,GeomFromText('MULTIPOLYGON(((11 15,19 15,11 15)),((25 0,0 15,25 0)))'))
+1
+#linestring,geometrycollection
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_2))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_elems_3))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=110;
+Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star_line_horizontal),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#multilinestring,point
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_top))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center))
+0
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_2))
+0
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_center_3))
+0
+SELECT Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText(@star_top))
+1
+#multilinestring,multipoint
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_bottom_points))
+0
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_all_points))
+1
+SELECT Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText(@star_bottom_points))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=114 and fid2=108;
+Touches(g,g2)
+0
+#multilinestring,linestring
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_vertical))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal))
+0
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_2))
+0
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_line_horizontal_3))
+0
+SELECT Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText(@star_line_vertical))
+1
+#multilinestring,multilinestring
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal_3))
+0
+SELECT Touches(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))
+1
+#multilinestring,polygon
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_2))
+0
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_horizontal_3))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText(@star_elem_vertical))
+1
+#multilinestring,multipolygon
+SELECT Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_elem_vertical))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems))
+1
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText(@star_of_elems))
+1
+#multilinestring,geometrycollection
+SELECT Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+Touches(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
+1
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
+Touches(g,GeomFromText(@star_collection_elems))
+1
+SELECT Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+1
+#-------------------------------------------------------------------------------------------
+#polygon,point
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_bottom_left));
+Touches(GeomFromText(@star),GeomFromText(@star_bottom_left))
+1
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText('POINT(0 0)'))
+0
+SELECT Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText(@star_top))
+1
+SELECT Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=200;
+Touches(g,GeomFromText(@star_center))
+0
+SELECT Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=300;
+Touches(g,GeomFromText(@star_center))
+0
+SELECT Touches(g,GeomFromText(@star_center)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_center))
+0
+#polygon,multipoint
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_all_points));
+Touches(GeomFromText(@star),GeomFromText(@star_all_points))
+1
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText('MULTIPOINT(0 0,30 25)'))
+0
+SELECT Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText(@star_all_points))
+1
+SELECT Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=300;
+Touches(g,GeomFromText(@star_all_points))
+0
+SELECT Touches(g,GeomFromText(@star_all_points)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_all_points))
+0
+#polygon,linestring
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_line_vertical));
+Touches(GeomFromText(@star),GeomFromText(@star_line_vertical))
+1
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_line_horizontal))
+1
+SELECT Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText(@star_line_vertical))
+1
+SELECT Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=300;
+Touches(g,GeomFromText(@star_line_vertical))
+1
+SELECT Touches(g,GeomFromText(@star_line_vertical)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_line_vertical))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=100 and fid2=111;
+Touches(g,g2)
+1
+#polygon,multilinestring
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_lines_near_vertical));
+Touches(GeomFromText(@star),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_lines_near_horizontal))
+1
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=300;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+#polygon,polygon
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText(@star),GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star))
+0
+SELECT Touches(g,GeomFromText('POLYGON((25 0,25 5,30 0,25 0))')) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT Touches(g,GeomFromText('POLYGON((25 15,25 20,30 15,25 15))')) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText('POLYGON((25 15,25 20,30 15,25 15))'))
+1
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+#polygon,multipolygon
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_of_elems));
+Touches(GeomFromText(@star),GeomFromText(@star_of_elems))
+0
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_of_elems))
+0
+SELECT Touches(g,GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))')) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=300;
+Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_of_elems))
+0
+#polygon,geometrycollection
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_collection_elems));
+Touches(GeomFromText(@star),GeomFromText(@star_collection_elems))
+0
+SELECT Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems));
+Touches(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=100;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=300;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=400;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(GeomFromText(@star),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star),GeomFromText(@star_collection_multilinestr))
+0
+#-------------------------------------------------------------------------------------------
+#multipolygon,point
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top));
+Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top))
+1
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_top))
+1
+SELECT Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_top))
+0
+#multipolygon,multipoint
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points));
+Touches(GeomFromText(@star_of_elems),GeomFromText(@star_bottom_points))
+1
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_bottom_points))
+1
+SELECT Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_bottom_points))
+0
+#multipolygon,linestring
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center));
+Touches(GeomFromText(@star_of_elems),GeomFromText(@star_top_to_center))
+1
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_top_to_center))
+0
+#multipolygon,multilinestring
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical));
+Touches(GeomFromText(@star_of_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+#multipolygon,polygon
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText(@star_of_elems),GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=303;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+#multipolygon,multipolygon
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+Touches(GeomFromText(@star_of_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=303;
+Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT Touches(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_of_elems))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Touches(g,g2)
+0
+#multipolygon,geometrycollection
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=103;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=303;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=403;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=115;
+Touches(g,g2)
+0
+SELECT Touches(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr))
+0
+#-------------------------------------------------------------------------------------------
+#geometrycollection,point
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
+Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top))
+1
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)'))
+0
+SELECT Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_top))
+1
+SELECT Touches(g,GeomFromText(@star_top)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_top))
+0
+#geometrycollection,multipoint
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points));
+Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points))
+1
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)'))
+0
+SELECT Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_bottom_points))
+1
+SELECT Touches(g,GeomFromText(@star_bottom_points)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_bottom_points))
+0
+#geometrycollection,linestring
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center));
+Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center))
+1
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)'))
+0
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_top_to_center))
+1
+SELECT Touches(g,GeomFromText(@star_top_to_center)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_top_to_center))
+0
+#geometrycollection,multilinestring
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
+Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+1
+SELECT Touches(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_lines_near_vertical))
+0
+#geometrycollection,polygon
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical));
+Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((25 0,25 5,30 0,25 0))'))
+1
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))'))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=315;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+SELECT Touches(g,GeomFromText(@star_elem_vertical)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_elem_vertical))
+0
+#geometrycollection,multipolygon
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((25 0,25 5,30 0,25 0)),((25 15,25 20,30 15,25 15)))'))
+1
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'));
+Touches(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0),(5 0,15 25,25 0,15 5,5 0)))'))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+Touches(g,g2)
+0
+#geometrycollection,geometrycollection
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=115;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=315;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=415;
+Touches(g,GeomFromText(@star_collection_elems))
+0
+SELECT Touches(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=115 and fid2=115;
+Touches(g,g2)
+0
+SELECT Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+Touches(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+0
+#=======================================================================================
+# Testing Toches() with 2 geometries of same SRID
+#=======================================================================================
+#-------------------------------------------------------------------------------------------
+#MBRToches(g1,g2)
+SELECT MBRTouches(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+MBRTouches(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT MBRTouches(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+MBRTouches(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+0
+SELECT MBRTouches(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+MBRTouches(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+0
+SELECT MBRTouches(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+MBRTouches(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+0
+SELECT MBRTouches(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+MBRTouches(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT MBRTouches(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+MBRTouches(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT MBRTouches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+MBRTouches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT MBRTouches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+MBRTouches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT MBRTouches(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+MBRTouches(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
+#-------------------------------------------------------------------------------------------
+#ST_Toches(g1,g2)
+SELECT ST_Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+ST_Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT ST_Touches(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+ST_Touches(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+0
+SELECT ST_Touches(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+ST_Touches(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+0
+SELECT ST_Touches(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+ST_Touches(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+0
+SELECT ST_Touches(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+ST_Touches(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT ST_Touches(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+ST_Touches(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT ST_Touches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+ST_Touches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT ST_Touches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+ST_Touches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT ST_Touches(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+ST_Touches(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
+#-------------------------------------------------------------------------------------------
+#Toches(g1,g2)
+SELECT Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT Touches(GeomFromText(@star_top,100),GeomFromText(@star_center,100));
+Touches(GeomFromText(@star_top,100),GeomFromText(@star_center,100))
+0
+SELECT Touches(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000));
+Touches(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000))
+0
+SELECT Touches(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456));
+Touches(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
+0
+SELECT Touches(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
+Touches(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT Touches(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+Touches(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT Touches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+Touches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT Touches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+Touches(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT Touches(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+Touches(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
+#=======================================================================================
+# Invalid function calls
+#=======================================================================================
+SELECT Touches(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT Touches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT Touches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
+Touches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
+0
+SELECT Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT Touches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+Touches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT Touches(NULL,GeomFromText(@star_top));
+Touches(NULL,GeomFromText(@star_top))
+NULL
+SELECT Touches(GeomFromText(@star_of_elems),NULL);
+Touches(GeomFromText(@star_of_elems),NULL)
+NULL
+SELECT Touches(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Touches(g,NULL)
+NULL
+SELECT Touches(NULL,NULL);
+Touches(NULL,NULL)
+NULL
+SELECT Touches(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Touches(fid,NULL)
+NULL
+SELECT Touches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Touches(fid,GeomFromText(@star_top))
+NULL
+SELECT Touches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+Touches(GeomFromText(@star_of_elems),fid)
+NULL
+SELECT Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT Touches(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT Touches(GeomFromText(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT Touches(,GeomFromText(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
+SELECT ST_Touches(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT ST_Touches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT ST_Touches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
+ST_Touches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
+0
+SELECT ST_Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+ST_Touches(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT ST_Touches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+ST_Touches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT ST_Touches(NULL,GeomFromText(@star_top));
+ST_Touches(NULL,GeomFromText(@star_top))
+NULL
+SELECT ST_Touches(GeomFromText(@star_of_elems),NULL);
+ST_Touches(GeomFromText(@star_of_elems),NULL)
+NULL
+SELECT ST_Touches(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Touches(g,NULL)
+NULL
+SELECT ST_Touches(NULL,NULL);
+ST_Touches(NULL,NULL)
+NULL
+SELECT ST_Touches(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Touches(fid,NULL)
+NULL
+SELECT ST_Touches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Touches(fid,GeomFromText(@star_top))
+NULL
+SELECT ST_Touches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+ST_Touches(GeomFromText(@star_of_elems),fid)
+NULL
+SELECT ST_Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT ST_Touches(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT ST_Touches(GeomFromText(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT ST_Touches(,GeomFromText(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
+SELECT MBRTouches(GeomFromText(@star_top),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 0 and 4326, which should have been identical.
+SELECT MBRTouches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,4326));
+ERROR HY000: Binary geometry function st_touches given two geometries of different srids: 1048576 and 4326, which should have been identical.
+SELECT MBRTouches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576));
+MBRTouches(GeomFromText(@star_top,1048576),GeomFromText(@star_center,1048576))
+0
+SELECT MBRTouches(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
+MBRTouches(GeomFromText(@star_top,0),GeomFromText(@star_center,0))
+0
+SELECT MBRTouches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+MBRTouches(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT MBRTouches(NULL,GeomFromText(@star_top));
+MBRTouches(NULL,GeomFromText(@star_top))
+NULL
+SELECT MBRTouches(GeomFromText(@star_of_elems),NULL);
+MBRTouches(GeomFromText(@star_of_elems),NULL)
+NULL
+SELECT MBRTouches(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRTouches(g,NULL)
+NULL
+SELECT MBRTouches(NULL,NULL);
+MBRTouches(NULL,NULL)
+NULL
+SELECT MBRTouches(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRTouches(fid,NULL)
+NULL
+SELECT MBRTouches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRTouches(fid,GeomFromText(@star_top))
+NULL
+SELECT MBRTouches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
+WHERE fid=103 and fid2=103;
+MBRTouches(GeomFromText(@star_of_elems),fid)
+NULL
+SELECT MBRTouches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT MBRTouches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT MBRTouches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
+SELECT MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
+MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
+NULL
+SELECT MBRTouches(,);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT MBRTouches(GeomFromText(@star_of_elems),);
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
+SELECT MBRTouches(,GeomFromText(@star_top));
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'GeomFromText(@star_top))' at line 1
+#clean up
+DROP TABLE IF EXISTS gis_geometrycollection;
+DROP TABLE IF EXISTS gis_geometrycollection_2;

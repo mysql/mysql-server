@@ -47,6 +47,13 @@ mtr_t::memo_push(void* object, mtr_memo_type_t type)
 
 		m_impl.m_made_dirty = is_block_dirtied(
 			reinterpret_cast<const buf_block_t*>(object));
+	} else if (type == MTR_MEMO_BUF_FIX && !m_impl.m_made_dirty) {
+
+		if (reinterpret_cast<const buf_block_t*>(
+			object)->made_dirty_with_no_latch) {
+
+			m_impl.m_made_dirty = true;
+		}
 	}
 
 	mtr_memo_slot_t*	slot;

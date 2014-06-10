@@ -29,6 +29,7 @@ Created 2013-7-26 by Kevin Lewis
 #include "univ.i"
 #include "fsp0file.h"
 #include "fsp0fsp.h"
+#include "fsp0types.h"
 #include <vector>
 
 /** Data structure that contains the information about shared tablespaces.
@@ -49,7 +50,8 @@ public:
 		m_path(),
 		m_flags(),
 		m_min_flushed_lsn(LSN_MAX),
-		m_max_flushed_lsn(0)
+		m_max_flushed_lsn(0),
+		m_ignore_read_only(false)
 	{
 		/* No op */
 	}
@@ -169,6 +171,13 @@ public:
 		return(m_max_flushed_lsn);
 	}
 
+	/** Set Ignore Read Only Status for tablespace.
+	@param[in]      read_only_status        read only status indicator */
+	void set_ignore_read_only(bool read_only_status)
+	{
+		m_ignore_read_only = read_only_status;
+	}
+
 	/** Free the memory allocated by the Tablespace object */
 	void shutdown();
 
@@ -197,6 +206,9 @@ public:
 		return &(m_files.front());
 	}
 
+	/** Check if undo tablespace.
+	@return true if undo tablespace */
+	static bool is_undo_tablespace(ulint id);
 private:
 	/**
 	@param filename	Name to lookup in the data files.
@@ -215,7 +227,7 @@ private:
 	/** Tablespace ID */
 	ulint		m_space_id;
 
-	/** Path where tablespace files will reside, not including a filename. */
+	/** Path where tablespace files will reside, not including a filename.*/
 	char*		m_path;
 
 	/** Tablespace flags */
@@ -226,6 +238,10 @@ private:
 
 	/** Maximum of flushed LSN values in data files */
 	lsn_t		m_max_flushed_lsn;
+
+protected:
+	/** Ignore server read only configuration for this tablespace. */
+	bool            m_ignore_read_only;
 };
 
 #endif /* fsp0space_h */

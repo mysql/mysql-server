@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2011, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2011, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -85,9 +85,10 @@ those defined in mysql file ft_global.h */
 #define FTS_BOOL	1
 #define FTS_SORTED	2
 #define FTS_EXPAND	4
-#define FTS_PROXIMITY	8
-#define FTS_PHRASE	16
-#define FTS_OPT_RANKING	32
+#define FTS_NO_RANKING	8
+#define FTS_PROXIMITY	16
+#define FTS_PHRASE	32
+#define FTS_OPT_RANKING	64
 
 #define FTS_INDEX_TABLE_IND_NAME	"FTS_INDEX_TABLE_IND"
 

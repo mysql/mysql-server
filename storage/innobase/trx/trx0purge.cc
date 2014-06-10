@@ -1383,7 +1383,7 @@ trx_purge_stop(void)
 /*================*/
 {
 	purge_state_t	state;
-	ib_int64_t	sig_count = os_event_reset(purge_sys->event);
+	int64_t		sig_count = os_event_reset(purge_sys->event);
 
 	ut_a(srv_n_purge_threads > 0);
 

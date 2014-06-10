@@ -1971,5 +1971,8 @@ AND o.c4=7 XOR o.pk=3 ORDER BY o.pk;
 x
 DROP TABLE t1,t2,t3;
 # End of 5.6 tests
+#
+# Bug #18770217 	DIFFERENT RESULT WITH SP ON 2ND EXECUTION OF QUERY WITH STRAIGHT_JOIN IN NOT IN
+#
 set @@optimizer_switch=@old_opt_switch;
 set optimizer_switch=default;

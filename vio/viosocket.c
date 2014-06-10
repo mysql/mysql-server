@@ -473,9 +473,9 @@ my_socket vio_fd(Vio* vio)
   @param dst_length [out] actual length of the normalized IP address.
 */
 static void vio_get_normalized_ip(const struct sockaddr *src,
-                                  int src_length,
+                                  size_t src_length,
                                   struct sockaddr *dst,
-                                  int *dst_length)
+                                  size_t *dst_length)
 {
   switch (src->sa_family) {
   case AF_INET:
@@ -555,7 +555,7 @@ my_bool vio_get_normalized_ip_string(const struct sockaddr *addr,
 {
   struct sockaddr_storage norm_addr_storage;
   struct sockaddr *norm_addr= (struct sockaddr *) &norm_addr_storage;
-  int norm_addr_length;
+  size_t norm_addr_length;
   int err_code;
 
   vio_get_normalized_ip(addr, addr_length, norm_addr, &norm_addr_length);
@@ -842,7 +842,7 @@ int vio_io_wait(Vio *vio, enum enum_vio_io_event event, int timeout)
   MYSQL_START_SOCKET_WAIT(locker, &state, vio->mysql_socket, PSI_SOCKET_SELECT, 0);
 
   /* The first argument is ignored on Windows. */
-  ret= select(fd + 1, &readfds, &writefds, &exceptfds, 
+  ret= select((int)(fd + 1), &readfds, &writefds, &exceptfds, 
               (timeout >= 0) ? &tm : NULL);
 
   MYSQL_END_SOCKET_WAIT(locker, 0);

@@ -40,6 +40,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "mach0data.h"
 #include "dict0dict.h"
 #include "fts0priv.h"
+#include "ut0crc32.h"
 
 #ifndef UNIV_HOTBACKUP
 # include "lock0lock.h"
@@ -49,6 +50,10 @@ Created 1/8/1996 Heikki Tuuri
 
 #define	DICT_HEAP_SIZE		100	/*!< initial memory heap size when
 					creating a table or index object */
+
+/** An interger randomly initialized at startup used to make a temporary
+table name as unuique as possible. */
+static ib_uint32_t	dict_temp_file_num;
 
 /**********************************************************************//**
 Creates a table memory object.
@@ -84,19 +89,20 @@ dict_mem_table_create(
 
 	table->heap = heap;
 
+	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+
 	table->flags = (unsigned int) flags;
 	table->flags2 = (unsigned int) flags2;
 	table->name = static_cast<char*>(ut_malloc(strlen(name) + 1));
 	memcpy(table->name, name, strlen(name) + 1);
 	table->space = (unsigned int) space;
-	table->n_cols = (unsigned int) (n_cols + DATA_N_SYS_COLS);
+	table->n_cols = (unsigned int) (n_cols +
+			dict_table_get_n_sys_cols(table));
 
 	table->cols = static_cast<dict_col_t*>(
 		mem_heap_alloc(heap,
-			       (n_cols + DATA_N_SYS_COLS)
-			       * sizeof(dict_col_t)));
-
-	ut_d(table->magic_n = DICT_TABLE_MAGIC_N);
+			       (n_cols + dict_table_get_n_sys_cols(table))
+				* sizeof(dict_col_t)));
 
 	/* true means that the stats latch will be enabled -
 	dict_table_stats_lock() will not be noop. */
@@ -466,6 +472,17 @@ dict_mem_index_create(
 
 	mutex_create("zip_pad_mutex", &index->zip_pad.mutex);
 
+	if (type & DICT_SPATIAL) {
+		mutex_create("rtr_ssn_mutex", &index->rtr_ssn.mutex);
+		index->rtr_track = static_cast<rtr_info_track_t*>(
+					mem_heap_alloc(
+						heap,
+						sizeof(*index->rtr_track)));
+		mutex_create("rtr_active_mutex",
+			     &index->rtr_track->rtr_active_mutex);
+		index->rtr_track->rtr_active = new(std::nothrow) rtr_info_active();
+	}
+
 	return(index);
 }
 
@@ -597,40 +614,77 @@ dict_mem_index_free(
 
 	mutex_destroy(&index->zip_pad.mutex);
 
+	if (dict_index_is_spatial(index)) {
+		rtr_info_active::iterator	it;
+		rtr_info_t*			rtr_info;
+
+		for (it = index->rtr_track->rtr_active->begin();
+		     it != index->rtr_track->rtr_active->end(); ++it) {
+			rtr_info = *it;
+
+			rtr_info->index = NULL;
+		}
+
+		mutex_destroy(&index->rtr_ssn.mutex);
+		mutex_destroy(&index->rtr_track->rtr_active_mutex);
+		delete index->rtr_track->rtr_active;
+	}
+
 	mem_heap_free(index->heap);
 }
 
-/*******************************************************************//**
-Create a temporary tablename like "#sql-ibnnnn-mmmm" where
-  nnnn = the table ID
-  mmmm = the current LSN
-Both of these numbers are 64 bit integers and can use up to 20 digits.
-Note that both numbers are needed to achieve a unique name since it is
-possible for two threads to call this while the LSN is the same.
-But these two threads will not be working on the same table.
+/** Create a temporary tablename like "#sql-ibtid-inc where
+  tid = the Table ID
+  inc = a randomly initialized number that is incremented for each file
+The table ID is a 64 bit integer, can use up to 20 digits, and is
+initialized at bootstrap. The second number is 32 bits, can use up to 10
+digits, and is initialized at startup to a randomly distributed number.
+It is hoped that the combination of these two numbers will provide a
+reasonably unique temporary file name.
+@param[in]	heap	A memory heap
+@param[in]	dbtab	Table name in the form database/table name
+@param[in]	id	Table id
 @return A unique temporary tablename suitable for InnoDB use */
 
 char*
 dict_mem_create_temporary_tablename(
-/*================================*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	const char*	dbtab,	/*!< in: database/table name */
-	table_id_t	id)	/*!< in: InnoDB table id */
+	mem_heap_t*	heap,
+	const char*	dbtab,
+	table_id_t	id)
 {
+	size_t		size;
+	char*		name;
 	const char*	dbend   = strchr(dbtab, '/');
 	ut_ad(dbend);
 	size_t		dblen   = dbend - dbtab + 1;
-	size_t		size =
-		dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 20);
 
-	lsn_t		cur_lsn;
-	while (!log_peek_lsn(&cur_lsn)) {}
+	/* Increment a randomly initialized  number for each temp file. */
+	os_atomic_increment_uint32(&dict_temp_file_num, 1);
 
-	char*	name = static_cast<char*>(mem_heap_alloc(heap, size));
+	size = dblen + (sizeof(TEMP_FILE_PREFIX) + 3 + 20 + 1 + 10);
+	name = static_cast<char*>(mem_heap_alloc(heap, size));
 	memcpy(name, dbtab, dblen);
 	ut_snprintf(name + dblen, size - dblen,
-		    TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT64PF,
-		    id, cur_lsn);
+		    TEMP_FILE_PREFIX_INNODB UINT64PF "-" UINT32PF,
+		    id, dict_temp_file_num);
 
 	return(name);
+}
+
+/** Initialize dict memory variables */
+
+void
+dict_mem_init(void)
+{
+	/* Initialize a randomly distributed temporary file number */
+	ib_uint32_t now = static_cast<ib_uint32_t>(ut_time());
+
+	const byte* buf = reinterpret_cast<const byte*>(&now);
+	ut_ad(ut_crc32 != NULL);
+
+	dict_temp_file_num = ut_crc32(buf, sizeof(now));
+
+	DBUG_PRINT("dict_mem_init",
+		   ("Starting Temporary file number is " UINT32PF,
+		   dict_temp_file_num));
 }
