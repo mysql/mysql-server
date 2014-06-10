@@ -28,6 +28,7 @@
 */
 
 #include "opt_explain_format.h"
+#include "sql_select.h"
 
 class Cost_model_server;
 
@@ -137,12 +138,6 @@ public:
       - on each fetch iteration we add num_rows to fetch to fetch_limit
   */
   ha_rows  fetch_limit;
-
-  /**
-     Minimum number of matches that is needed to use JT_FT access.
-     @see optimize_fts_limit_query
-  */
-  ha_rows  min_ft_matches;
 
   /**
     This is the result of join optimization.
@@ -461,7 +456,6 @@ public:
     send_records= 0;
     found_records= 0;
     fetch_limit= HA_POS_ERROR;
-    min_ft_matches= HA_POS_ERROR;
     examined_rows= 0;
     thd= thd_arg;
     sum_funcs= sum_funcs2= 0;
@@ -614,6 +608,7 @@ public:
   bool generate_derived_keys();
   void drop_unused_derived_keys();
   bool get_best_combination();
+  bool attach_join_conditions(JOIN_TAB *tab);
   bool update_equalities_for_sjm();
   bool add_sorting_to_table(JOIN_TAB *tab, ORDER_with_src *order);
   bool decide_subquery_strategy();
@@ -642,6 +637,11 @@ public:
     DBUG_ASSERT(thd != NULL);
     return thd->cost_model();
   }
+
+  /**
+    Check if FTS index only access is possible
+  */
+  bool fts_index_access(JOIN_TAB *tab);
 
 private:
   bool executed;                          ///< Set by exec(), reset by reset()
@@ -687,24 +687,11 @@ private:
   */
   void optimize_distinct();
 
-  /** 
-      Optimize FTS queries where JT_FT access has been selected.
-
-      The following optimization is may be applied:
-      1. Skip filesort if FTS result is ordered
-      2. Skip accessing table rows if FTS result contains necessary information
-      Also verifize that LIMIT optimization was sound.
-
-      @note Optimizations are restricted to single table queries, and the table
-            engine needs to support the extended FTS API.
-   */
-  void optimize_fts_query();
-
-
   /**
-     Optimize FTS queries with ORDER BY/LIMIT, but no WHERE clause.
-   */
-  void optimize_fts_limit_query();
+    Function sets FT hints, initializes FT handlers and
+    checks if FT index can be used as covered.
+  */
+  void optimize_fts_query();
 
   /**
      Replace all Item_field objects with the given field name with the

@@ -1787,6 +1787,8 @@ a	b
 drop table t1;
 create table if not exists t1 (a int unique, b int)
 ignore select 1 as a, 1 as b union select 1 as a, 2 as b;
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'a'
 select * from t1;
 a	b
 1	1

@@ -59,8 +59,10 @@
 #include "sql_tmp_table.h" // Tmp tables
 #include "sql_optimizer.h" // JOIN
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mutex_lock.h"
 
 #include <algorithm>
+#include <functional>
 using std::max;
 using std::min;
 
@@ -793,7 +795,7 @@ public:
   }
 
   bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char *message, Sql_condition ** /* cond_hdl */)
   {
     /*
@@ -2147,6 +2149,12 @@ public:
                              inspect_sctx->get_host()->length() ?
                              inspect_sctx->get_host()->ptr() : "");
 
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db;
@@ -2315,6 +2323,12 @@ public:
                              strlen(inspect_sctx->host_or_ip),
                              system_charset_info);
 
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db;
@@ -2390,35 +2404,46 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
   Status functions
 *****************************************************************************/
 
-static DYNAMIC_ARRAY all_status_vars;
+// TODO: allocator based on my_malloc.
+typedef std::vector<st_mysql_show_var> Status_var_array;
+static Status_var_array all_status_vars(0);
+
 static bool status_vars_inited= 0;
 
-C_MODE_START
-static int show_var_cmp(const void *var1, const void *var2)
+static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 {
-  return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
+  return strcmp(var1->name, var2->name);
 }
-C_MODE_END
+
+class Show_var_cmp :
+  public std::binary_function<const st_mysql_show_var &,
+                              const st_mysql_show_var &, bool>
+{
+public:
+  bool operator()(const st_mysql_show_var &var1,
+                  const st_mysql_show_var &var2)
+  {
+    return show_var_cmp(&var1, &var2) < 0;
+  }
+};
+
+
+static inline bool is_show_undef(const st_mysql_show_var &var)
+{
+  return var.type == SHOW_UNDEF;
+}
 
 /*
-  deletes all the SHOW_UNDEF elements from the array and calls
-  delete_dynamic() if it's completely empty.
+  Deletes all the SHOW_UNDEF elements from the array.
+  Shrinks array capacity to zero if it is completely empty.
 */
-static void shrink_var_array(DYNAMIC_ARRAY *array)
+static void shrink_var_array(Status_var_array *array)
 {
-  uint a,b;
-  SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
-
-  for (a= b= 0; b < array->elements; b++)
-    if (all[b].type != SHOW_UNDEF)
-      all[a++]= all[b];
-  if (a)
-  {
-    memset(all+a, 0, sizeof(SHOW_VAR)); // writing NULL-element to the end
-    array->elements= a;
-  }
-  else // array is completely empty - delete it
-    delete_dynamic(array);
+  // remove_if maintains order for the elements that are *not* removed.
+  array->erase(std::remove_if(array->begin(), array->end(), is_show_undef),
+               array->end());
+  if (array->empty())
+    Status_var_array().swap(*array);
 }
 
 /*
@@ -2436,31 +2461,29 @@ static void shrink_var_array(DYNAMIC_ARRAY *array)
 
     As a special optimization, if add_status_vars() is called before
     init_status_vars(), it assumes "startup mode" - neither concurrent access
-    to the array nor SHOW STATUS are possible (thus it skips locks and qsort)
+    to the array nor SHOW STATUS are possible (thus it skips locks and sort)
 
     The last entry of the all_status_vars[] should always be {0,0,SHOW_UNDEF}
 */
 int add_status_vars(SHOW_VAR *list)
 {
-  int res= 0;
-  if (status_vars_inited)
-    mysql_mutex_lock(&LOCK_status);
-  if (!all_status_vars.buffer && // array is not allocated yet - do it now
-      my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
-  {
-    res= 1;
-    goto err;
+  Mutex_lock lock(status_vars_inited ? &LOCK_status : NULL);
+
+  try {
+    while (list->name)
+      all_status_vars.push_back(*list++);
   }
-  while (list->name)
-    res|= insert_dynamic(&all_status_vars, list++);
-  res|= insert_dynamic(&all_status_vars, list); // appending NULL-element
-  all_status_vars.elements--; // but next insert_dynamic should overwite it
+  catch (std::bad_alloc)
+  {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(Status_var_array::value_type)));
+    return 1;
+  }
+
   if (status_vars_inited)
-    sort_dynamic(&all_status_vars, show_var_cmp);
-err:
-  if (status_vars_inited)
-    mysql_mutex_unlock(&LOCK_status);
-  return res;
+    std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
+
+  return 0;
 }
 
 /*
@@ -2474,19 +2497,19 @@ err:
 void init_status_vars()
 {
   status_vars_inited=1;
-  sort_dynamic(&all_status_vars, show_var_cmp);
+  std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
 }
 
 void reset_status_vars()
 {
-  SHOW_VAR *ptr= (SHOW_VAR*) all_status_vars.buffer;
-  SHOW_VAR *last= ptr + all_status_vars.elements;
+  Status_var_array::iterator ptr= all_status_vars.begin();
+  Status_var_array::iterator last= all_status_vars.end();
   for (; ptr < last; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG || ptr->type == SHOW_SIGNED_LONG)
       *(ulong*) ptr->value= 0;
-  }  
+  }
 }
 
 /*
@@ -2500,7 +2523,47 @@ void reset_status_vars()
 */
 void free_status_vars()
 {
-  delete_dynamic(&all_status_vars);
+  Status_var_array().swap(all_status_vars);
+}
+
+/**
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       list       list of SHOW_VAR objects in which function should
+                              search
+  @param[in]       name       name of the status variable
+  @param[in]       var_type   Variable type
+  @param[in/out]   value      buffer in which value of the status variable
+                              needs to be filled in
+  @param[in/out]   length     filled with buffer length
+
+  @return          status
+    @retval        FALSE      if variable is not found in the list
+    @retval        TRUE       if variable is found in the list
+*/
+
+bool get_status_var(THD *thd, SHOW_VAR *list, const char * name,
+                    char * const value, enum_var_type var_type, size_t *length)
+{
+  for (; list->name; list++)
+  {
+    int res= strcmp(list->name, name);
+    if (res == 0)
+    {
+      /*
+        if var->type is SHOW_FUNC, call the function.
+        Repeat as necessary, if new var is again SHOW_FUNC
+       */
+      SHOW_VAR tmp;
+      for (; list->type == SHOW_FUNC; list= &tmp)
+        ((mysql_show_var_func)(list->value))(thd, &tmp, value);
+
+      get_one_variable(thd, list, var_type, list->type, NULL, NULL, value, length);
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 /*
@@ -2522,15 +2585,14 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int a= 0, b= all_status_vars.elements, c= (a+b)/2;
+    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
       int res= 0;
-      for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
+      for (a= 0, b= all_status_vars.size(); b-a > 1; c= (a+b)/2)
       {
-        res= show_var_cmp(list, all+c);
+        res= show_var_cmp(list, &all_status_vars[c]);
         if (res < 0)
           b= c;
         else if (res > 0)
@@ -2539,22 +2601,21 @@ void remove_status_vars(SHOW_VAR *list)
           break;
       }
       if (res == 0)
-        all[c].type= SHOW_UNDEF;
+        all_status_vars[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
     mysql_mutex_unlock(&LOCK_status);
   }
   else
   {
-    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     uint i;
     for (; list->name; list++)
     {
-      for (i= 0; i < all_status_vars.elements; i++)
+      for (i= 0; i < all_status_vars.size(); i++)
       {
-        if (show_var_cmp(list, all+i))
+        if (show_var_cmp(list, &all_status_vars[i]))
           continue;
-        all[i].type= SHOW_UNDEF;
+        all_status_vars[i].type= SHOW_UNDEF;
         break;
       }
     }
@@ -4104,7 +4165,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -6807,10 +6868,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
+  // Push an empty tail element
+  all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
-                         (SHOW_VAR *)all_status_vars.buffer,
+                         &all_status_vars[0],
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
+  all_status_vars.pop_back(); // Pop the empty element.
+
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);

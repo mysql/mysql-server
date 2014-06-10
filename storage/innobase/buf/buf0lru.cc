@@ -2447,7 +2447,7 @@ buf_LRU_old_ratio_update_instance(
 			buf_pool->LRU_old_ratio = ratio;
 
 			if (UT_LIST_GET_LEN(buf_pool->LRU)
-			   >= BUF_LRU_OLD_MIN_LEN) {
+			    >= BUF_LRU_OLD_MIN_LEN) {
 
 				buf_LRU_old_adjust_len(buf_pool);
 			}
@@ -2571,7 +2571,7 @@ buf_LRU_validate_instance(
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList());
+	CheckInLRUList::validate(buf_pool);
 
 	old_len = 0;
 
@@ -2613,7 +2613,7 @@ buf_LRU_validate_instance(
 
 	ut_a(buf_pool->LRU_old_len == old_len);
 
-	UT_LIST_VALIDATE(buf_pool->free, CheckInFreeList());
+	CheckInFreeList::validate(buf_pool);
 
 	for (buf_page_t* bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
@@ -2622,7 +2622,7 @@ buf_LRU_validate_instance(
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
-	UT_LIST_VALIDATE(buf_pool->unzip_LRU, CheckUnzipLRUAndLRUList());
+	CheckUnzipLRUAndLRUList::validate(buf_pool);
 
 	for (buf_block_t* block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
 	     block != NULL;

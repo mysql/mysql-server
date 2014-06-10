@@ -1,0 +1,112 @@
+#
+# WL#7682: Optimize InnoDB temporary tables.
+#
+
+--source include/have_innodb.inc
+--source include/no_valgrind_without_big.inc
+--source include/not_embedded.inc
+
+################################################################################
+#
+# Workload will run following scenarios
+# 1. Create/Drop sequence.
+# 2. Basic DML operation on intrinsic table.
+# 3. Run different types of queries on intrinsic table.
+# 4. Multiple key DML
+# 5. Large column (blob/text) column DML
+#
+# Test scenario that disables auto-extension of temporary tablespace.
+#
+################################################################################
+
+#-----------------------------------------------------------------------------
+#
+# create test bed.
+#
+let $innodb_int = `select@@innodb_create_intrinsic`;
+
+call mtr.add_suppression("InnoDB: Tablespace innodb_temporary_tablespace ran out of space. Please add another file or use \'autoextend\' for the last file in setting innodb_temp_data_file_path");
+call mtr.add_suppression("The table \'t1\' is full");
+
+#-----------------------------------------------------------------------------
+#
+# Workload in non-read-only mode.
+#
+set session innodb_create_intrinsic = 1;
+--source suite/innodb/include/innodb_wl7682_workload.inc
+
+#-----------------------------------------------------------------------------
+#
+# Workload in read-only mode.
+#
+--echo "Restarting in read only mode"
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb-read-only " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+#
+#
+set session innodb_create_intrinsic = 1;
+--source suite/innodb/include/innodb_wl7682_workload.inc
+#
+#
+--echo "Restarting Server with temp-tablespace auto-extension turned off"
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart: --innodb_temp_data_file_path=ibtmp1:12M" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+#-----------------------------------------------------------------------------
+#
+# Test scenario that disables auto-extension of temporary tablespace.
+#
+set session innodb_create_intrinsic = 1;
+use test;
+create temporary table t1
+        (keyc int, c1 varchar(1024), c2 varchar(1024),
+         primary key(keyc)) engine = innodb;
+delimiter |;
+CREATE PROCEDURE populate_t1()
+BEGIN
+        DECLARE i INT DEFAULT 1;
+        while (i <= 2000) DO
+                insert into t1 values (i, repeat('a', 1000), repeat('b', 1000));
+                SET i = i + 1;
+        END WHILE;
+END|
+delimiter ;|
+#
+--error ER_RECORD_FILE_FULL
+call populate_t1();
+#
+let $regexp=/[0-9][0-9]+/NUMBER/;
+--replace_regex $regexp
+select count(*) from t1;
+drop procedure populate_t1;
+drop table t1;
+#
+#
+--echo "Restarting Server in normal mode"
+--exec echo "wait" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--shutdown_server 60
+--source include/wait_until_disconnected.inc
+--enable_reconnect
+--exec echo "restart " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+--disable_reconnect
+
+#-----------------------------------------------------------------------------
+#
+# remove test bed.
+#
+eval set session innodb_create_intrinsic = $innodb_int;
+

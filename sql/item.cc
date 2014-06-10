@@ -360,9 +360,13 @@ my_decimal *Item::val_decimal_from_date(my_decimal *decimal_value)
   MYSQL_TIME ltime;
   if (get_date(&ltime, TIME_FUZZY_DATE))
   {
+    /*
+      The conversion may fail in strict mode. Do not return a NULL pointer,
+      as the result may be used in subsequent arithmetic operations.
+     */
     my_decimal_set_zero(decimal_value);
     null_value= 1;                               // set NULL, stop processing
-    return 0;
+    return decimal_value;
   }
   return date2my_decimal(&ltime, decimal_value);
 }
@@ -2580,8 +2584,7 @@ bool Item_field::itemize(Parse_context *pc, Item **res)
   if (super::itemize(pc, res))
     return true;
   SELECT_LEX * const select= pc->select;
-  if (select->parsing_place != CTX_HAVING &&
-      select->parsing_place != CTX_SELECT_LIST)
+  if (select->parsing_place != CTX_HAVING)
     select->select_n_where_fields++;
 
   if (select->parsing_place == CTX_SELECT_LIST &&
@@ -4835,7 +4838,7 @@ void mark_select_range_as_dependent(THD *thd,
     {
       Item::Type type= found_item->type();
       prev_subselect_item->used_tables_cache|=
-        found_item->used_tables();
+        found_item->resolved_used_tables();// not needed but logical
       dependent= ((type == Item::REF_ITEM || type == Item::FIELD_ITEM) ?
                   (Item_ident*) found_item :
                   0);
@@ -4967,7 +4970,7 @@ static Item** find_field_in_group_list(Item *find_item, ORDER *group_list)
   statements and therefore not included in optimized builds.
 */
 #ifndef DBUG_OFF
-static bool is_fixed_or_outer_ref(Item *ref)
+bool is_fixed_or_outer_ref(Item *ref)
 {
   /*
     The requirements are that the Item pointer
@@ -5256,7 +5259,7 @@ Item_field::fix_outer_field(THD *thd, Field **from_field, Item **reference)
         {
           Item::Type ref_type= (*reference)->type();
           prev_subselect_item->used_tables_cache|=
-            (*reference)->used_tables();
+            (*reference)->resolved_used_tables();
           prev_subselect_item->const_item_cache&=
             (*reference)->const_item();
           mark_as_dependent(thd, last_checked_context->select_lex,
@@ -5508,18 +5511,25 @@ bool Item_field::fix_fields(THD *thd, Item **reference)
               the Item_field instance in place.
             */
 
-            Field *new_field= (*((Item_field**)res))->field;
+            Item_field *const item_field= (Item_field *)(*res);
+            Field      *const new_field= item_field->field;
 
             if (new_field == NULL)
             {
               /* The column to which we link isn't valid. */
-              my_error(ER_BAD_FIELD_ERROR, MYF(0), (*res)->item_name.ptr(),
-                       current_thd->where);
-              return(1);
+              my_error(ER_BAD_FIELD_ERROR, MYF(0), item_field->item_name.ptr(),
+                       thd->where);
+              return true;
             }
 
             set_field(new_field);
-            return 0;
+
+            // The found column may be an outer reference
+            if (item_field->depended_from)
+              mark_as_dependent(thd, item_field->depended_from,
+                                context->select_lex, this, this);
+
+            return false;
           }
           else
           {
@@ -6730,9 +6740,9 @@ Item_hex_string::Item_hex_string(const POS &pos, const LEX_STRING &literal)
 }
 
 
-LEX_STRING Item_hex_string::make_hex_str(const char *str, uint str_length)
+LEX_STRING Item_hex_string::make_hex_str(const char *str, size_t str_length)
 {
-  uint32 max_length=(str_length+1)/2;
+  size_t max_length=(str_length+1)/2;
   LEX_STRING ret= {(char *)"", 0};
   char *ptr=(char*) sql_alloc(max_length+1);
   if (!ptr)

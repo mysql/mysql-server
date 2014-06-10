@@ -1273,7 +1273,7 @@ insert into t1 values (1,0), (2,0), (3,0);
 insert into t2 values (1,1), (2,1), (3,1), (2,2);
 update ignore t1 set b=(select b from t2 where t1.a=t2.a);
 Warnings:
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 select * from t1;
 a	b
 1	1
@@ -5190,22 +5190,22 @@ INSERT INTO t2 VALUES (1,1),(2,2);
 CREATE TABLE t3 LIKE t1;
 # should have 1 impossible where and 2 dependent subqueries
 EXPLAIN
-SELECT 1 FROM t1
+SELECT COUNT(*) FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
-ORDER BY count(*);
+ORDER BY COUNT(*);
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	PRIMARY	t1	NULL	index	NULL	a	5	NULL	2	100.00	Using index
 2	DEPENDENT SUBQUERY	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 3	DEPENDENT SUBQUERY	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
 Warnings:
 Note	1276	Field or reference 'test.t2.b' of SELECT #3 was resolved in SELECT #2
-Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` where (1 = (/* select#3 */ select min(`test`.`t2`.`b`) from `test`.`t3`))))) order by count(0)
+Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` where (not(exists(/* select#2 */ select 1 from `test`.`t2` where (1 = (/* select#3 */ select min(`test`.`t2`.`b`) from `test`.`t3`))))) order by count(0)
 # should not crash the next statement
-SELECT 1 FROM t1
+SELECT COUNT(*) FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
-ORDER BY count(*);
-1
-1
+ORDER BY COUNT(*);
+COUNT(*)
+2
 # should not crash: the crash is caused by the previous statement
 SELECT 1;
 1
@@ -5949,7 +5949,8 @@ ERROR 42000: You have an error in your SQL syntax; check the manual that corresp
 DROP TABLE t1, t2;
 CREATE TABLE t1 (a ENUM('rainbow'));
 INSERT INTO t1 VALUES (),(),(),(),();
-SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+SELECT 1
+FROM t1 GROUP BY (SELECT COUNT(*) FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
 1
 1
 DROP TABLE t1;
@@ -5958,8 +5959,7 @@ INSERT INTO t1 SET a = 'aaaa';
 INSERT INTO t1 SET a = 'aaaa';
 SELECT 1 FROM t1 GROUP BY
 (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
-1
-1
+ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 DROP TABLE t1;
 #
 # Bug #49512 : subquery with aggregate function crash 
@@ -7665,5 +7665,18 @@ f1	sum
 DROP TABLE t1;
 # End of test for Bug#18014565
 set @@optimizer_switch=@old_opt_switch;
+#
+# Bug #18486607 ASSERTION FAILED:
+# IN_SUBQ_PRED->LEFT_EXPR->FIXED IN CONVERT_SUBQUERY_TO_SEMIJOIN 
+#
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+SELECT (SELECT 1 FROM t2
+WHERE a IN (SELECT 1 FROM t2)
+) AS scalar
+FROM t1
+GROUP BY a;
+scalar
+DROP TABLE t1,t2;
 set optimizer_switch=default;
 set optimizer_switch=default;

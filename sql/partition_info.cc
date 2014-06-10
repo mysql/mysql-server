@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -460,12 +460,12 @@ bool partition_info::set_used_partition(List<Item> &fields,
 
   if (fields.elements || !values.elements)
   {
-    if (fill_record(thd, fields, values, false, &full_part_field_set, NULL))
+    if (fill_record(thd, fields, values, &full_part_field_set, NULL))
       goto err;
   }
   else
   {
-    if (fill_record(thd, table->field, values, false, &full_part_field_set,
+    if (fill_record(thd, table->field, values, &full_part_field_set,
                     NULL))
       goto err;
   }

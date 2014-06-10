@@ -1,4 +1,4 @@
-/* Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "probes_mysql.h"
 #include "sql_parse.h"                        // mysql_execute_command
 #include "sql_tmp_table.h"                   // tmp tables
+#include "debug_sync.h"
 
 /****************************************************************************
   Declarations.
@@ -47,7 +48,7 @@ public:
   int send_result_set_metadata(THD *thd, List<Item> &send_result_set_metadata);
   virtual bool is_open() const { return table != 0; }
   virtual int open(JOIN *join __attribute__((unused)));
-  virtual void fetch(ulong num_rows);
+  virtual bool fetch(ulong num_rows);
   virtual void close();
   virtual ~Materialized_cursor();
 };
@@ -119,6 +120,7 @@ bool mysql_open_cursor(THD *thd, select_result *result,
   thd->m_statement_psi= NULL;
   bool rc= mysql_execute_command(thd);
   thd->m_digest= parent_digest;
+  DEBUG_SYNC(thd, "after_table_close");
   thd->m_statement_psi= parent_locker;
   MYSQL_QUERY_EXEC_DONE(rc);
 
@@ -319,7 +321,7 @@ int Materialized_cursor::open(JOIN *join __attribute__((unused)))
     SERVER_STATUS_LAST_ROW_SENT along with the last row.
 */
 
-void Materialized_cursor::fetch(ulong num_rows)
+bool Materialized_cursor::fetch(ulong num_rows)
 {
   THD *thd= table->in_use;
 
@@ -332,10 +334,11 @@ void Materialized_cursor::fetch(ulong num_rows)
     /* Send data only if the read was successful. */
     /*
       If network write failed (i.e. due to a closed socked),
-      the error has already been set. Just return.
+      the error has already been set. Return true if the error
+      is set.
     */
     if (result->send_data(item_list))
-      return;
+      return true;
   }
 
   switch (res) {
@@ -351,8 +354,10 @@ void Materialized_cursor::fetch(ulong num_rows)
   default:
     table->file->print_error(res, MYF(0));
     close();
-    break;
+    return true;
   }
+
+  return false;
 }
 
 
@@ -417,6 +422,14 @@ bool Select_materialize::send_result_set_metadata(List<Item> &list, uint flags)
     materialized_cursor= 0;
     return TRUE;
   }
+
+  /*
+    close_thread_tables() will be called in mysql_execute_command() which
+    will close all tables except the cursor temporary table. Hence set the
+    orig_table in the field definition to NULL.
+  */
+  for (Field **fld= this->table->field; *fld; fld++)
+     (*fld)->orig_table= NULL;
 
   return FALSE;
 }

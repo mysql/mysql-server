@@ -17,6 +17,6 @@
 #include "my_config.h"
 #include <gtest/gtest.h>
 
-#include "../../sql/sql_string.h"
+#include "../../include/sql_string.h"
 
 #include "string-tests.cc"

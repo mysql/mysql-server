@@ -1,7 +1,7 @@
 #ifndef ERRMSG_INCLUDED
 #define ERRMSG_INCLUDED
 
-/* Copyright (c) 2000, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -32,7 +32,9 @@ extern const char *client_errors[];	/* Error messages */
 #define CR_MIN_ERROR		2000	/* For easier client code */
 #define CR_MAX_ERROR		2999
 #if !defined(ER)
-#define ER(X) client_errors[(X)-CR_MIN_ERROR]
+#define ER(X) (((X) >= CR_ERROR_FIRST && (X) <= CR_ERROR_LAST)? \
+               client_errors[(X)-CR_ERROR_FIRST]: client_errors[CR_UNKNOWN_ERROR])
+
 #endif
 #define CLIENT_ERRMAP		2	/* Errormap used by my_error() */
 

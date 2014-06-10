@@ -98,7 +98,7 @@ public:
 	@param[in]	big_rec		external recrod
 	@param[in]	offsets		record offsets
 	@return	error code */
-	dberr_t storeExt(const big_rec_t* big_rec, const ulint* offsets);
+	dberr_t storeExt(const big_rec_t* big_rec, ulint* offsets);
 
 	/** Get node pointer
 	@return node pointer */
@@ -219,7 +219,7 @@ private:
 #ifdef UNIV_DEBUG
 	/** Total data in the page */
 	ulint		m_total_data;
-#endif
+#endif /* UNIV_DEBUG */
 };
 
 typedef std::vector<PageBulk*>	page_bulk_vector;

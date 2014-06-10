@@ -832,6 +832,7 @@ DROP TABLE t0, t1, t2;
 --echo #
 --echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
 --echo #
+--error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
 
 --echo #
@@ -881,16 +882,20 @@ DROP TABLE g1;
 --echo #
 
 --echo # should not crash
+--error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT ASTEXT(0x0100000000030000000100000000000010);
 
 --echo #should not crash
+--error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT ENVELOPE(0x0100000000030000000100000000000010);
 
 --echo #should not crash
+--error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT
   GEOMETRYN(0x0100000000070000000100000001030000000200000000000000ffff0000, 1);
 
 --echo #should not crash
+--error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT
   GEOMETRYN(0x0100000000070000000100000001030000000200000000000000ffffff0f, 1);
 
@@ -1322,10 +1327,16 @@ WHERE fid = 120;
 
 --echo # Conformance Item T37 
 # TODO: ST_PolyFromText() alias
-SELECT ST_Equals(boundary, 
-PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1)) 
-FROM named_places 
-WHERE name = 'Goose Island'; 
+SELECT ST_Equals(boundary,
+PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+FROM named_places
+WHERE name = 'Goose Island';
+
+--error ER_GIS_DIFFERENT_SRIDS
+SELECT ST_Equals(boundary,
+PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1))
+FROM named_places
+WHERE name = 'Goose Island';
 
 --echo # Conformance Item T38 
 SELECT ST_Disjoint(centerlines, boundary) 
