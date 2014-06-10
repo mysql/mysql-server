@@ -1992,6 +1992,11 @@ master_def:
         | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
+            if (strlen($3.str) > 32)
+            {
+              my_error(ER_CHANGE_MASTER_PASSWORD_LENGTH, MYF(0));
+              MYSQL_YYABORT;
+            }
             Lex->contains_plaintext_password= true;
           }
         | MASTER_PORT_SYM EQ ulong_num

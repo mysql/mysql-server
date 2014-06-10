@@ -23,6 +23,7 @@
 #include "item_func.h"             /* Item_int_func, Item_bool_func */
 #include "my_regex.h"
 #include "mem_root_array.h"
+#include "template_utils.h"
 
 extern Item_result item_cmp_type(Item_result a,Item_result b);
 class Item_bool_func2;
@@ -1302,8 +1303,7 @@ public:
 class cmp_item :public Sql_alloc
 {
 public:
-  const CHARSET_INFO *cmp_charset;
-  cmp_item() { cmp_charset= &my_charset_bin; }
+  cmp_item() {}
   virtual ~cmp_item() {}
   virtual void store_value(Item *item)= 0;
   /**
@@ -1331,42 +1331,39 @@ protected:
 
 class cmp_item_string : public cmp_item_scalar
 {
-protected:
+private:
   String *value_res;
-public:
-  cmp_item_string () {}
-  cmp_item_string (const CHARSET_INFO *cs) { cmp_charset= cs; }
-  void set_charset(const CHARSET_INFO *cs) { cmp_charset= cs; }
-  friend class cmp_item_sort_string;
-  friend class cmp_item_sort_string_in_static;
-};
-
-class cmp_item_sort_string :public cmp_item_string
-{
-protected:
   char value_buff[STRING_BUFFER_USUAL_SIZE];
   String value;
+  const CHARSET_INFO *cmp_charset;
 public:
-  cmp_item_sort_string():
-    cmp_item_string() {}
-  cmp_item_sort_string(const CHARSET_INFO *cs):
-    cmp_item_string(cs),
-    value(value_buff, sizeof(value_buff), cs) {}
-  void store_value(Item *item)
+  cmp_item_string (const CHARSET_INFO *cs)
+    : value(value_buff, sizeof(value_buff), cs), cmp_charset(cs)
+  {}
+
+  virtual int compare(const cmp_item *ci) const
+  {
+    const cmp_item_string *l_cmp= down_cast<const cmp_item_string*>(ci);
+    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
+  }
+
+  virtual void store_value(Item *item)
   {
     String *res= item->val_str(&value);
     if(res && (res != &value))
     {
-      // 'res' may point in item's temporary internal data, so make a copy
+      // 'res' may point in item's transient internal data, so make a copy
       value.copy(*res);
     }
     value_res= &value;
     set_null_value(item->null_value);
   }
-  int cmp(Item *arg)
+
+  virtual int cmp(Item *arg)
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
-    String tmp(buff, sizeof(buff), cmp_charset), *res= arg->val_str(&tmp);
+    String tmp(buff, sizeof(buff), cmp_charset);
+    String *res= arg->val_str(&tmp);
     if (m_null_value || arg->null_value)
       return UNKNOWN;
     if (value_res && res)
@@ -1376,18 +1373,9 @@ public:
     else
       return TRUE;
   }
-  int compare(const cmp_item *ci) const
-  {
-    cmp_item_string *l_cmp= (cmp_item_string *) ci;
-    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
-  } 
-  cmp_item *make_same();
-  void set_charset(const CHARSET_INFO *cs)
-  {
-    cmp_charset= cs;
-    value.set_quick(value_buff, sizeof(value_buff), cs);
-  }
+  virtual cmp_item *make_same();
 };
+
 
 class cmp_item_int : public cmp_item_scalar
 {
@@ -1406,7 +1394,7 @@ public:
   }
   int compare(const cmp_item *ci) const
   {
-    cmp_item_int *l_cmp= (cmp_item_int *)ci;
+    const cmp_item_int *l_cmp= down_cast<const cmp_item_int*>(ci);
     return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
@@ -1453,7 +1441,7 @@ public:
   }
   int compare(const cmp_item *ci) const
   {
-    cmp_item_real *l_cmp= (cmp_item_real *) ci;
+    const cmp_item_real *l_cmp= down_cast<const cmp_item_real*>(ci);
     return (value < l_cmp->value)? -1 : ((value == l_cmp->value) ? 0 : 1);
   }
   cmp_item *make_same();
@@ -1469,41 +1457,6 @@ public:
   int cmp(Item *arg);
   int compare(const cmp_item *c) const;
   cmp_item *make_same();
-};
-
-
-/* 
-   cmp_item for optimized IN with row (right part string, which never
-   be changed)
-*/
-
-class cmp_item_sort_string_in_static :public cmp_item_string
-{
- protected:
-  String value;
-public:
-  cmp_item_sort_string_in_static(const CHARSET_INFO *cs):
-    cmp_item_string(cs) {}
-  void store_value(Item *item)
-  {
-    value_res= item->val_str(&value);
-    set_null_value(item->null_value);
-  }
-  int cmp(Item *item)
-  {
-    // Should never be called
-    DBUG_ASSERT(false);
-    return TRUE;
-  }
-  int compare(const cmp_item *ci) const
-  {
-    cmp_item_string *l_cmp= (cmp_item_string *) ci;
-    return sortcmp(value_res, l_cmp->value_res, cmp_charset);
-  }
-  cmp_item *make_same()
-  {
-    return new cmp_item_sort_string_in_static(cmp_charset);
-  }
 };
 
 
