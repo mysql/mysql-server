@@ -506,6 +506,9 @@ BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH, or BUF_GET_IF_IN_POOL_OR_WATCH
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in]	mtr		mini-transaction
+@param[in]	dirty_with_no_latch
+				mark page as dirty even if page
+				is being pinned without any latch
 @return pointer to the block or NULL */
 buf_block_t*
 buf_page_get_gen(
@@ -516,7 +519,8 @@ buf_page_get_gen(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
-	mtr_t*			mtr);
+	mtr_t*			mtr,
+	bool			dirty_with_no_latch = false);
 
 /** Initializes a page to the buffer buf_pool. The page is usually not read
 from a file even if it cannot be found in the buffer buf_pool. This is one
@@ -734,6 +738,7 @@ buf_page_is_zeroes(
 the LSN
 @param[in]	read_buf	database page
 @param[in]	page_size	page size
+@param[in]	skip_checksum	if true, skip checksum
 @param[in]	page_no		page number of given read_buf
 @param[in]	strict_check	true if strict-check option is enabled
 @param[in]	is_log_enabled	true if log option is enabled
@@ -743,7 +748,8 @@ ibool
 buf_page_is_corrupted(
 	bool			check_lsn,
 	const byte*		read_buf,
-	const page_size_t&	page_size
+	const page_size_t&	page_size,
+	bool			skip_checksum
 #ifdef UNIV_INNOCHECKSUM
 	,uintmax_t		page_no,
 	bool			strict_check,
@@ -1225,7 +1231,7 @@ buf_page_init_for_read(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	ibool			unzip,
-	ib_int64_t		tablespace_version);
+	int64_t			tablespace_version);
 
 /********************************************************************//**
 Completes an asynchronous read or write request of a file page to or from
@@ -1743,6 +1749,12 @@ struct buf_block_t{
 					complete, though: there may
 					have been hash collisions,
 					record deletions, etc. */
+	bool		made_dirty_with_no_latch;
+					/*!< ture if block has been made dirty
+					without acquiring X/SX latch as the
+					block belongs to temporary tablespace
+					and block is always accessed by a
+					single thread. */
 	/* @} */
 # ifdef UNIV_SYNC_DEBUG
 	/** @name Debug fields */
@@ -2303,6 +2315,12 @@ struct	CheckInLRUList {
 	{
 		ut_a(elem->in_LRU_list);
 	}
+
+	static void validate(const buf_pool_t* buf_pool)
+	{
+		CheckInLRUList	check;
+		ut_list_validate(buf_pool->LRU, check);
+	}
 };
 
 /** Functor to validate the LRU list. */
@@ -2311,6 +2329,12 @@ struct	CheckInFreeList {
 	{
 		ut_a(elem->in_free_list);
 	}
+
+	static void validate(const buf_pool_t* buf_pool)
+	{
+		CheckInFreeList	check;
+		ut_list_validate(buf_pool->free, check);
+	}
 };
 
 struct	CheckUnzipLRUAndLRUList {
@@ -2318,6 +2342,12 @@ struct	CheckUnzipLRUAndLRUList {
 	{
                 ut_a(elem->page.in_LRU_list);
                 ut_a(elem->in_unzip_LRU_list);
+	}
+
+	static void validate(const buf_pool_t* buf_pool)
+	{
+		CheckUnzipLRUAndLRUList	check;
+		ut_list_validate(buf_pool->unzip_LRU, check);
 	}
 };
 #endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */

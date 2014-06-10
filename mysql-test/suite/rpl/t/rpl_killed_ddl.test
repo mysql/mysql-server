@@ -31,6 +31,8 @@
 #  - BUG#25705
 #  - BUG#44171
 
+# This test takes long time, so only run it with the --big-test mtr-flag.
+source include/big_test.inc;
 source include/have_debug.inc;
 source include/master-slave.inc;
 

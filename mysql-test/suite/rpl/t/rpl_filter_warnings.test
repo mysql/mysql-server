@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
 ###############################################################################
 # Bug#17986385:LOG-WARNINGS=2 UNUSABLE ON SLAVE WITH FILTERS
 #

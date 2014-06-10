@@ -1,0 +1,54 @@
+# ==== Purpose ====
+#
+# When mysqlbinlog connects to a running server it uses the client command
+# COM_BINLOG_DUMP, and this command has a flag called BINLOG_DUMP_NON_BLOCK
+# which instructs the server to stop sending when it reaches the end of the
+# binary log.
+#
+#
+# There are two ways provided by the server to set the non-blocking behavior.
+# 1) Setting the connection-server-id=0. (this is the default value of
+#    connection-server-id)
+# 2) Setting BINLOG_DUMP_NON_BLOCK flag
+#  --To test this, we set connection-server-id to some value other then zero
+#    and not calling stop-never option in mysqlbinlog
+#
+# ==== Bug and Worklog references ====
+#
+# BUG##18000079 - binlog_dump_non_block disappeared in mysql 5.6
+# - Created the test to verify the bugfix.
+#
+# ==== Implementation ====
+
+--source include/not_gtid_enabled.inc
+# connection-server-id is a debug option. That's why we need include/have_debug.inc
+--source include/have_debug.inc
+
+# As it is enough to test with one binlog format.
+--source include/have_binlog_format_statement.inc
+
+CREATE TABLE t1 (a INT);
+RESET MASTER;
+
+--source extra/binlog_tests/binlog_mysqlbinlog_fill.inc
+
+# Verify Non blocking behaviour with connection-server-id=0
+--echo
+--echo ==== Remote with to-last-log stop-never connection-server-id=0 ====
+--let $extra_options= --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $file_1
+--let $options= --to-last-log --stop-never --connection-server-id=0
+--source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
+
+# Verify Non blocking behaviour for BINLOG_DUMP_NON_BLOCK by setting
+# connection-server-id=1 and not setting --stop-never
+--echo
+--echo ==== Remote with connection-server-id= (value other than 0) ====
+--let $extra_options= --read-from-remote-server --user=root --host=127.0.0.1 --port=$MASTER_MYPORT $file_1
+--let $options= --to-last-log  --connection-server-id=1
+--source extra/binlog_tests/mysqlbinlog_start_stop_2.inc
+
+--echo
+--echo ==== clean up ====
+DROP TABLE t1;
+
+

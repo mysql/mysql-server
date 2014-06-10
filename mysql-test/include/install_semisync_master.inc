@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
-#
 # Setup semisync master
 # Usage:
 # [--let $semisync_master_enabled = [ON|OFF]]
@@ -13,7 +10,6 @@
 --source include/begin_include_file.inc
 
 --source include/not_embedded.inc
---source include/not_gtid_enabled.inc
 --source include/have_semisync_plugin.inc
 
 --disable_query_log

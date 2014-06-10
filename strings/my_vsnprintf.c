@@ -320,7 +320,8 @@ static char *process_args(const CHARSET_INFO *cs, char *to, char *end,
 {
   ARGS_INFO args_arr[MAX_ARGS];
   PRINT_INFO print_arr[MAX_PRINT_INFO];
-  uint idx= 0, arg_count= arg_index;
+  uint idx= 0;
+  size_t arg_count= arg_index;
 
 start:
   /* Here we are at the beginning of positional argument, right after $ */

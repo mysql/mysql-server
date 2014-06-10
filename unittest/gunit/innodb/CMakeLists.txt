@@ -1,4 +1,4 @@
-# Copyright (c) 2013 Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -39,6 +39,8 @@ IF (MERGE_UNITTESTS)
   INCLUDE_DIRECTORIES(${CMAKE_CURRENT_SOURCE_DIR})
 
   FILE(WRITE ${MERGE_INNODB_TESTS} "// Merging InnoDB unit tests\n")
+  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"my_config.h\"\n")
+  FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"univ.i\"\n")
 
   FOREACH(test ${TESTS})
     FILE(APPEND ${MERGE_INNODB_TESTS} "#include \"${test}-t.cc\"\n")

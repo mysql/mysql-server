@@ -31,7 +31,7 @@ TEST(RecPerKeyTest, RecPerKeyAPI)
 {
   const uint key_parts= 3;
 
-  Fake_KEY key(key_parts);
+  Fake_KEY key(key_parts, false);
 
   /*
     Test that the rec_per_key values are default/unknown.
@@ -74,7 +74,7 @@ TEST(RecPerKeyTest, RecPerKey)
 {
   const uint key_parts= 3;
 
-  Fake_KEY key(key_parts);
+  Fake_KEY key(key_parts, false);
 
   // Set values directly in the integer based rec_per_key array
   key.rec_per_key[0]= 0;                        // default/unknown value

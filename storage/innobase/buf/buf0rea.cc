@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -119,7 +119,7 @@ buf_read_page_low(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	ibool			unzip,
-	ib_int64_t		tablespace_version)
+	int64_t			tablespace_version)
 {
 	buf_page_t*	bpage;
 	ulint		wake_later;
@@ -250,7 +250,7 @@ buf_read_ahead_random(
 	ibool			inside_ibuf)
 {
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
-	ib_int64_t	tablespace_version;
+	int64_t		tablespace_version;
 	ulint		recent_blocks	= 0;
 	ulint		ibuf_mode;
 	ulint		count;
@@ -401,7 +401,7 @@ buf_read_page(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size)
 {
-	ib_int64_t	tablespace_version;
+	int64_t		tablespace_version;
 	ulint		count;
 	dberr_t		err;
 
@@ -440,7 +440,7 @@ buf_read_page_background(
 	const page_size_t&	page_size,
 	bool			sync)
 {
-	ib_int64_t	tablespace_version;
+	int64_t		tablespace_version;
 	ulint		count;
 	dberr_t		err;
 
@@ -496,7 +496,7 @@ buf_read_ahead_linear(
 	ibool			inside_ibuf)
 {
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
-	ib_int64_t	tablespace_version;
+	int64_t		tablespace_version;
 	buf_page_t*	bpage;
 	buf_frame_t*	frame;
 	buf_page_t*	pred_bpage	= NULL;
@@ -759,7 +759,7 @@ buf_read_ibuf_merge_pages(
 					to get read in, before this
 					function returns */
 	const ulint*	space_ids,	/*!< in: array of space ids */
-	const ib_int64_t* space_versions,/*!< in: the spaces must have
+	const int64_t*	space_versions,	/*!< in: the spaces must have
 					this version number
 					(timestamp), otherwise we
 					discard the read; we use this
@@ -838,7 +838,7 @@ buf_read_recv_pages(
 	const ulint*	page_nos,
 	ulint		n_stored)
 {
-	ib_int64_t		tablespace_version;
+	int64_t			tablespace_version;
 	ulint			count;
 	dberr_t			err;
 	ulint			i;

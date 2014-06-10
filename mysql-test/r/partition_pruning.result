@@ -5097,3 +5097,149 @@ Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` between 10 and <cache>((10 + 33)))
 drop table t0, t1;
+#
+# Bug#71095: Wrong results with PARTITION BY LIST COLUMNS()
+#
+CREATE TABLE t1
+(c1 int,
+c2 int,
+c3 int,
+c4 int,
+PRIMARY KEY (c1,c2))
+PARTITION BY LIST COLUMNS (c2)
+(PARTITION p1 VALUES IN (1,2),
+PARTITION p2 VALUES IN (3,4));
+INSERT INTO t1 VALUES (1, 1, 1, 1), (2, 3, 1, 1);
+INSERT INTO t1 VALUES (1, 2, 1, 1), (2, 4, 1, 1);
+SELECT * FROM t1 WHERE c1 = 1 AND c2 < 1;
+c1	c2	c3	c4
+SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 1;
+c1	c2	c3	c4
+1	1	1	1
+SELECT * FROM t1 WHERE c1 = 1 AND c2 = 1;
+c1	c2	c3	c4
+1	1	1	1
+SELECT * FROM t1 WHERE c1 = 1 AND c2 >= 1;
+c1	c2	c3	c4
+1	1	1	1
+1	2	1	1
+SELECT * FROM t1 WHERE c1 = 1 AND c2 > 1;
+c1	c2	c3	c4
+1	2	1	1
+SELECT * FROM t1 WHERE c1 = 1 AND c2 < 3;
+c1	c2	c3	c4
+1	1	1	1
+1	2	1	1
+SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 3;
+c1	c2	c3	c4
+1	1	1	1
+1	2	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 3;
+c1	c2	c3	c4
+2	3	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 = 3;
+c1	c2	c3	c4
+2	3	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 3;
+c1	c2	c3	c4
+2	3	1	1
+2	4	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 > 3;
+c1	c2	c3	c4
+2	4	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 < 4;
+c1	c2	c3	c4
+2	3	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 4;
+c1	c2	c3	c4
+2	3	1	1
+2	4	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 = 4;
+c1	c2	c3	c4
+2	4	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
+c1	c2	c3	c4
+2	4	1	1
+SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
+c1	c2	c3	c4
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 < 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `c1`,NULL AS `c2`,NULL AS `c3`,NULL AS `c4` from `test`.`t1` where ((NULL < 1) and multiple equal(1, NULL))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	8	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 1) and (`test`.`t1`.`c2` <= 1))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 = 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '1' AS `c1`,'1' AS `c2`,'1' AS `c3`,'1' AS `c4` from `test`.`t1` where 1
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 >= 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1,p2	range	PRIMARY	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 1) and (`test`.`t1`.`c2` >= 1))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 > 1;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1,p2	range	PRIMARY	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 1) and (`test`.`t1`.`c2` > 1))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 < 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1	range	PRIMARY	PRIMARY	8	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 1) and (`test`.`t1`.`c2` < 3))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 1 AND c2 <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1,p2	range	PRIMARY	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 1) and (`test`.`t1`.`c2` <= 3))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1,p2	range	PRIMARY	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 2) and (`test`.`t1`.`c2` <= 3))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 = 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p2	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `c1`,'3' AS `c2`,'1' AS `c3`,'1' AS `c4` from `test`.`t1` where 1
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p2	range	PRIMARY	PRIMARY	8	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 2) and (`test`.`t1`.`c2` >= 3))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 3;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p2	range	PRIMARY	PRIMARY	8	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 2) and (`test`.`t1`.`c2` > 3))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 < 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1,p2	range	PRIMARY	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 2) and (`test`.`t1`.`c2` < 4))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 <= 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p1,p2	range	PRIMARY	PRIMARY	8	NULL	2	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 2) and (`test`.`t1`.`c2` <= 4))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 = 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p2	const	PRIMARY	PRIMARY	8	const,const	1	100.00	NULL
+Warnings:
+Note	1003	/* select#1 */ select '2' AS `c1`,'4' AS `c2`,'1' AS `c3`,'1' AS `c4` from `test`.`t1` where 1
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 >= 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	t1	p2	range	PRIMARY	PRIMARY	8	NULL	1	100.00	Using index condition
+Warnings:
+Note	1003	/* select#1 */ select `test`.`t1`.`c1` AS `c1`,`test`.`t1`.`c2` AS `c2`,`test`.`t1`.`c3` AS `c3`,`test`.`t1`.`c4` AS `c4` from `test`.`t1` where ((`test`.`t1`.`c1` = 2) and (`test`.`t1`.`c2` >= 4))
+EXPLAIN SELECT * FROM t1 WHERE c1 = 2 AND c2 > 4;
+id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
+1	SIMPLE	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	NULL	no matching row in const table
+Warnings:
+Note	1003	/* select#1 */ select NULL AS `c1`,NULL AS `c2`,NULL AS `c3`,NULL AS `c4` from `test`.`t1` where ((NULL > 4) and multiple equal(2, NULL))
+DROP TABLE t1;

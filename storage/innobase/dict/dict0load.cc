@@ -1886,7 +1886,8 @@ dict_load_indexes(
 		/* We check for unsupported types first, so that the
 		subsequent checks are relevant for the supported types. */
 		if (index->type & ~(DICT_CLUSTERED | DICT_UNIQUE
-				    | DICT_CORRUPT | DICT_FTS)) {
+				    | DICT_CORRUPT | DICT_FTS
+				    | DICT_SPATIAL)) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Unknown type %lu of index %s of table %s",
 				(ulong) index->type, index->name, table->name);

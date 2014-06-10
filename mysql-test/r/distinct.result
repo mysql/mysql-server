@@ -216,12 +216,12 @@ select distinct 1 from t1,t3 where t1.a=t3.a;
 show status like 'Handler_read%';
 Variable_name	Value
 Handler_read_first	1
-Handler_read_key	1
+Handler_read_key	4
 Handler_read_last	0
-Handler_read_next	0
+Handler_read_next	208
 Handler_read_prev	0
 Handler_read_rnd	0
-Handler_read_rnd_next	2
+Handler_read_rnd_next	1
 explain SELECT distinct t1.a from t1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	index	PRIMARY	PRIMARY	4	NULL	4	100.00	Using index
@@ -244,7 +244,7 @@ Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t1`.`a` AS `a` from `test`.`t1` order by `test`.`t1`.`a` desc limit 1
 explain SELECT distinct a from t3 order by a desc limit 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t3	NULL	index	a	a	5	NULL	40	25.00	Using index
+1	SIMPLE	t3	NULL	index	a	a	5	NULL	19	110.53	Using index
 Warnings:
 Note	1003	/* select#1 */ select distinct `test`.`t3`.`a` AS `a` from `test`.`t3` order by `test`.`t3`.`a` desc limit 2
 explain SELECT distinct a,b from t3 order by a+1;
