@@ -81,7 +81,7 @@ rec_per_key_t guess_rec_per_key(const TABLE *const table, const KEY *const key,
   rec_per_key_t rec_per_key;
 
   // rec_per_key estimate for first key part (1% of records)
-  const rec_per_key_t rec_per_key_first= table_rows * 0.01;
+  const rec_per_key_t rec_per_key_first= table_rows * 0.01f;
     
   if (rec_per_key_first < rec_per_key_all)
   {

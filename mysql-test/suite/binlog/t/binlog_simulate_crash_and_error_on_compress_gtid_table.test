@@ -19,6 +19,7 @@
 #              gtid_executed table.
 #
 
+--source include/not_valgrind.inc
 --source include/have_log_bin.inc
 --source include/have_debug.inc
 --source include/have_debug_sync.inc

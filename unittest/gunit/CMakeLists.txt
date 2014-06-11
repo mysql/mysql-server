@@ -232,6 +232,7 @@ SET(TESTS
   bounds_checked_array
   bitmap
   byteorder
+  calloc
   cost_estimate
   dbug
   decimal
