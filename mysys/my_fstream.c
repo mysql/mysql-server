@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -104,6 +104,7 @@ size_t my_fwrite(FILE *stream, const uchar *Buffer, size_t Count, myf MyFlags)
   DBUG_ENTER("my_fwrite");
   DBUG_PRINT("my",("stream: 0x%lx  Buffer: 0x%lx  Count: %u  MyFlags: %d",
 		   (long) stream, (long) Buffer, (uint) Count, MyFlags));
+  DBUG_EXECUTE_IF("simulate_fwrite_error",  DBUG_RETURN(-1););
 
 #if !defined(NO_BACKGROUND) && defined(USE_MY_STREAM)
   errors=0;
