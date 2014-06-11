@@ -6218,7 +6218,7 @@ fil_get_space_names(
 			char*	name;
 
 			len = ::strlen(space->name);
-			name = UT_NEW_ARRAY(char, len + 1);
+			name = UT_NEW_ARRAY_NOKEY(char, len + 1);
 
 			if (name == 0) {
 				/* Caller to free elements allocated so far. */

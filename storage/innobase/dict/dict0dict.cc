@@ -283,7 +283,7 @@ dict_table_stats_latch_alloc(
 {
 	dict_table_t*	table = static_cast<dict_table_t*>(table_void);
 
-	table->stats_latch = UT_NEW(rw_lock_t);
+	table->stats_latch = UT_NEW_NOKEY(rw_lock_t());
 
 	ut_a(table->stats_latch != NULL);
 
