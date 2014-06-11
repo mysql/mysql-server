@@ -100,6 +100,10 @@ trx_init(
 
 	trx->no = TRX_ID_MAX;
 
+	trx->abort = false;
+
+	trx->kill_trx = NULL;
+
 	trx->state = TRX_STATE_NOT_STARTED;
 
 	trx->is_recovered = false;

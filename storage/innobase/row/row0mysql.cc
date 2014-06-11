@@ -728,6 +728,17 @@ handle_new_error:
 		/* MySQL will roll back the latest SQL statement */
 		break;
 	case DB_LOCK_WAIT:
+
+		if (thr_get_trx(thr)->kill_trx != NULL) {
+			extern void thd_kill(THD* thd);
+
+			thd_kill(thr_get_trx(thr)->kill_trx->mysql_thd);
+
+			trx_rollback_for_mysql(thr_get_trx(thr)->kill_trx);
+
+			thr_get_trx(thr)->kill_trx = NULL;
+		}
+
 		lock_wait_suspend_thread(thr);
 
 		if (trx->error_state != DB_SUCCESS) {

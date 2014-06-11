@@ -4037,14 +4037,12 @@ innobase_kill_connection(
 	handlerton*    hton,   /*!< in:  innobase handlerton */
 	THD*    thd)    /*!< in: handle to the MySQL thread being killed */
 {
-	trx_t*  trx;
-
 	DBUG_ENTER("innobase_kill_connection");
 	DBUG_ASSERT(hton == innodb_hton_ptr);
 
-	trx = thd_to_trx(thd);
+	trx_t*	trx = thd_to_trx(thd);
 
-	if (trx) {
+	if (trx != NULL) {
 		/* Cancel a pending lock request if there are any */
 		lock_trx_handle_wait(trx);
 	}

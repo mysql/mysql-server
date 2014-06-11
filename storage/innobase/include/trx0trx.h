@@ -951,6 +951,11 @@ struct trx_t{
 					protected by trx_sys->mutex when
 					trx->in_rw_trx_list holds */
 
+	bool		abort;		/*!< if this flag is set then
+					this transaction must abort when
+					it can */
+	trx_t*		kill_trx;	/*!< Transaction to kill */
+
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
 					current operation, or an empty
