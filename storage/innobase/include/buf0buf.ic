@@ -778,8 +778,8 @@ buf_page_alloc_descriptor(void)
 {
 	buf_page_t*	bpage;
 
-	bpage = (buf_page_t*) ut_malloc(sizeof *bpage);
-	ut_d(memset(bpage, 0, sizeof *bpage));
+	bpage = (buf_page_t*) ut_zalloc(sizeof *bpage);
+	ut_ad(bpage);
 	UNIV_MEM_ALLOC(bpage, sizeof *bpage);
 
 	return(bpage);

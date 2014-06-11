@@ -1728,7 +1728,7 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-        ut_d(UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList()));
+        ut_d(CheckInLRUList::validate(buf_pool));
 
 	/* relocate buf_pool->page_hash */
 	ulint	fold = bpage->id.fold();
