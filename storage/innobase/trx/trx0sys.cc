@@ -459,7 +459,7 @@ trx_sys_init_at_db_start(void)
 	/* We create the min binary heap here and pass ownership to
 	purge when we init the purge sub-system. Purge is responsible
 	for freeing the binary heap. */
-	purge_queue = new(std::nothrow) purge_pq_t();
+	purge_queue = UT_NEW_NOKEY(purge_pq_t());
 	ut_a(purge_queue != NULL);
 
 	mtr_start(&mtr);
@@ -550,7 +550,8 @@ trx_sys_create(void)
 
 	trx_sys->mvcc = new(std::nothrow) MVCC(1024);
 
-	new(&trx_sys->rw_trx_ids) trx_ids_t();
+	new(&trx_sys->rw_trx_ids) trx_ids_t(ut_allocator<trx_id_t>(
+			mem_key_trx_sys_t_rw_trx_ids));
 
 	new(&trx_sys->rw_trx_set) TrxIdSet();
 }

@@ -36,6 +36,7 @@ Created 2012-08-21 Sunny Bains
 #include "sync0sync.h"
 
 #include "srv0start.h"
+#include "ut0new.h"
 
 #include "ha_prototypes.h"
 
@@ -443,9 +444,10 @@ SyncDebug::thread_latches(bool add) UNIV_NOTHROW
 	} else {
 		typedef ThreadMap::value_type value_type;
 
-		Latches*	latches = new(std::nothrow) Latches();
+		Latches*	latches = UT_NEW(Latches(),
+						 mem_key_sync_debug_latches);
 
-		ut_a(latches != 0);
+		ut_a(latches != NULL);
 
 		latches->reserve(32);
 
@@ -831,7 +833,7 @@ SyncDebug::unlock(const latch_t* latch)
 
 				mutex_exit(&m_mutex);
 
-				delete latches;
+				UT_DELETE(latches);
 			}
 
 			return;
@@ -1232,8 +1234,8 @@ sync_check_init()
 
 	sync_check_initialised = true;
 
-	ut_a(SrvLatches == 0);
-	SrvLatches = new(std::nothrow) LatchMap();
+	ut_a(SrvLatches == NULL);
+	SrvLatches = UT_NEW_NOKEY(LatchMap());
 	ut_ad(SrvLatches != NULL);
 
 	sync_latch_meta_init();
@@ -1265,8 +1267,9 @@ sync_check_close()
 
 	sync_check_initialised = false;
 
-	delete SrvLatches;
-	SrvLatches = 0;
+	UT_DELETE(SrvLatches);
+
+	SrvLatches = NULL;
 
 #ifdef UNIV_SYNC_DEBUG
 	mutex_free(&rw_lock_debug_mutex);

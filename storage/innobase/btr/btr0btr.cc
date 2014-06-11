@@ -2454,8 +2454,9 @@ func_start:
 insert_empty:
 		ut_ad(!split_rec);
 		ut_ad(!insert_left);
-		buf = UT_NEW_ARRAY(byte, rec_get_converted_size(cursor->index,
-								tuple, n_ext));
+		buf = UT_NEW_ARRAY_NOKEY(
+			byte,
+			rec_get_converted_size(cursor->index, tuple, n_ext));
 
 		first_rec = rec_convert_dtuple_to_rec(buf, cursor->index,
 						      tuple, n_ext);
