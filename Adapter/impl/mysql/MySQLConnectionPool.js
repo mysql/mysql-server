@@ -217,6 +217,8 @@ exports.DBConnectionPool.prototype.getConnection = function(callback) {
     } else {
       stats.connections.successful++;
       if (connectionPool.pooling) {
+        // some older versions of node-mysql do not have release()
+        if(typeof c.release !== 'function') { c.release = c.end; }
         callback(null, c);
       } else {
         callback(null, connection);
