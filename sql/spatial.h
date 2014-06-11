@@ -1444,6 +1444,12 @@ public:
     if (m_ptr == NULL)
     {
       m_ptr= gis_wkb_fixed_alloc(SIZEOF_STORED_DOUBLE * GEOM_DIM);
+      if (m_ptr == NULL)
+      {
+        set_ownmem(false);
+        set_nbytes(0);
+        return;
+      }
       set_ownmem(true);
       set_nbytes(SIZEOF_STORED_DOUBLE * GEOM_DIM);
     }
@@ -2372,6 +2378,13 @@ public:
     const_cast<self &>(v).reassemble();
     set_flags(v.get_flags());
     m_ptr= gis_wkb_alloc(get_nbytes());
+    if (m_ptr == NULL)
+    {
+      m_geo_vect= NULL;
+      set_ownmem(false);
+      set_nbytes(0);
+      return;
+    }
     memcpy(m_ptr, v.get_ptr(), get_nbytes());
     parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
     set_ownmem(true);
@@ -2464,6 +2477,16 @@ public:
     {
       gis_wkb_free(m_ptr);
       m_ptr= gis_wkb_alloc(rhs.get_nbytes() + 32/* some extra space. */);
+      if (m_ptr == NULL)
+      {
+        /*
+          This object in this case is valid although it doesn't have any data.
+         */
+        set_nbytes(0);
+        set_ownmem(false);
+        return *this;
+      }
+
       // Fill extra space with pattern defined by
       // Gis_wkb_vector<>::get_nbytes_free().
       char *cp= get_cptr();
@@ -2714,6 +2737,13 @@ public:
       nalloc= cap + ((needed * 2 > 256) ? needed * 2 : 256);
       void *ptr= get_ptr();
       m_ptr= gis_wkb_realloc(m_ptr, nalloc);
+      if (m_ptr == NULL)
+      {
+        set_nbytes(0);
+        set_ownmem(0);
+        clear_wkb_data();
+        return;
+      }
 
       // Set unused space to -1, and last unused byte to 0.
       // Function get_nbytes_free relies on this format.
@@ -2869,6 +2899,13 @@ public:
         nalloc= cap + 32 * (left + needed);
         ptr= get_cptr();
         m_ptr= gis_wkb_realloc(m_ptr, nalloc);
+        if (m_ptr == NULL)
+        {
+          set_nbytes(0);
+          set_ownmem(0);
+          clear_wkb_data();
+          return;
+        }
         ptr2= get_cptr();
         memset((ptr2 + cap), 0xff, nalloc - cap);
         ptr2[nalloc - 1]= '\0';
@@ -3117,8 +3154,18 @@ public:
     // If all are out of line, m_ptr is 0 and no room for ring count, otherwise
     // the space for ring count is already counted above.
     totlen+= (nbytes ? nbytes : (is_inns ? 0 : sizeof(uint32)));
+
+    size_t len= 0, total_len= 0, last_i= 0, numgeoms= 0;
     char *ptr= static_cast<char *>(gis_wkb_alloc(totlen)), *q;
-    size_t len= 0, total_len= 0, last_i= 0;
+
+    if (ptr == NULL)
+    {
+      clear_wkb_data();
+      m_ptr= NULL;
+      set_nbytes(0);
+      set_ownmem(false);
+      goto exit;
+    }
 
     // The header(object count) is already copied.
     q= ptr;
@@ -3185,7 +3232,7 @@ public:
                 uint4korr(ptr) + static_cast<uint32>(segsz));
     }
 
-    size_t numgeoms= m_geo_vect->size();
+    numgeoms= m_geo_vect->size();
     clear_wkb_data();
     set_ptr(ptr, totlen);
     // An inner ring isn't parsed in set_ptr, has to parse separately since
@@ -3193,7 +3240,7 @@ public:
     if (is_inns)
       parse_wkb_data(this, get_cptr(), numgeoms);
     set_ownmem(true);
-
+exit:
     for (plgn_data_itr= plgn_data.begin();
         plgn_data_itr != plgn_data.end(); ++plgn_data_itr)
       gis_wkb_free(plgn_data_itr->second.first);

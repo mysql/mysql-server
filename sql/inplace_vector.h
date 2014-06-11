@@ -25,6 +25,30 @@
 #include "my_sys.h"
 #include "mysql/psi/psi_memory.h"
 
+/**
+  Implement exception safety for memory allocated by my_malloc, will call
+  my_free to release the memory when the object is destroyed.
+ */
+class My_malloc_releaser
+{
+  void *m_ptr;
+public:
+  explicit My_malloc_releaser(void *p= NULL) :m_ptr(p) {}
+  ~My_malloc_releaser() { my_free(m_ptr); }
+  void reset(void *p)
+  {
+    my_free(m_ptr);
+    m_ptr= p;
+  }
+
+  void *release()
+  {
+    void *p= m_ptr;
+    m_ptr= NULL;
+    return p;
+  }
+};
+
 
 /**
   Utility container class to store elements stably and scalably.
@@ -104,8 +128,9 @@ private:
       m_outof_mem= true;
       return;
     }
-
+    My_malloc_releaser mmr(p);
     m_obj_arrays.push_back(static_cast<objtype *>(p));
+    mmr.release();
   }
 
   Inplace_vector(const Inplace_vector &);
