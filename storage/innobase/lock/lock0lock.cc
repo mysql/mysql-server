@@ -1757,6 +1757,11 @@ RecLock::enqueue(const lock_t* wait_for)
 			lock_add(lock);
 		}
 
+		wait_for->trx->abort = true;
+
+		ut_ad(m_trx->kill_trx == NULL);
+		m_trx->kill_trx = wait_for->trx;
+
 	} else {
 		/* Ensure that the wait flag is not set. */
 		lock = create(m_trx, true);
@@ -6539,6 +6544,7 @@ lock_trx_handle_wait(
 	}
 
 	lock_mutex_exit();
+
 	trx_mutex_exit(trx);
 
 	return(err);
