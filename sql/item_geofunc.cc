@@ -178,20 +178,19 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  String *wkb;
-  Geometry_buffer buffer;
+  String *wkb= NULL;
   uint32 srid= 0;
 
   if (arg_count == 2)
   {
     srid= static_cast<uint32>(args[1]->val_int());
     if ((null_value= args[1]->null_value))
-      return 0;
+      return NULL;
   }
 
   wkb= args[0]->val_str(&tmp_value);
   if ((null_value= args[0]->null_value))
-    return 0;
+    return NULL;
 
   /*
     GeometryFromWKB(wkb [,srid]) understands both WKB (without SRID) and
@@ -223,7 +222,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
       e.g. to a SP variable value. So we need to copy to "str".
     */
     if ((null_value= str->copy(*wkb)))
-      return 0;
+      return NULL;
     str->write_at_position(0, srid);
     return str;
   }
@@ -232,15 +231,17 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   if (str->reserve(GEOM_HEADER_SIZE, 512))
   {
     null_value= true;                           /* purecov: inspected */
-    return 0;                                   /* purecov: inspected */
+    return NULL;                                   /* purecov: inspected */
   }
   str->length(0);
   str->q_append(srid);
+
+  Geometry_buffer buffer;
   if ((null_value= (args[0]->null_value ||
                     !Geometry::create_from_wkb(&buffer, wkb->ptr(),
                                                wkb->length(), str,
                                                false/* Don't init stream. */))))
-    return 0;
+    return NULL;
   return str;
 }
 
@@ -1510,15 +1511,9 @@ BG_geometry_collection::as_geometry_collection(String *geodata) const
        i != m_geos.end(); ++i)
   {
     if (gc == NULL)
-    {
       gc= new Gis_geometry_collection(*i, geodata);
-      if (gc == NULL)
-        return NULL;
-    }
     else
-    {
       gc->append_geometry(*i, geodata);
-    }
   }
 
   return gc;
@@ -1550,7 +1545,7 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo)
     for (uint32 i= 1; i <= ngeom; i++)
     {
       String *pres= m_geosdata.append_object();
-      if (pres->reserve(GEOM_HEADER_SIZE, 512))
+      if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE, 512))
         return true;
 
       pres->q_append(geo->get_srid());
@@ -1558,6 +1553,8 @@ bool BG_geometry_collection::store_geometry(const Geometry *geo)
         return true;
 
       Geometry_buffer *pgeobuf= m_geobufs.append_object();
+      if (pgeobuf == NULL)
+        return true;
       Geometry *geo2= Geometry::construct(pgeobuf, pres->ptr(),
                                           pres->length());
       if (geo2 == NULL)
@@ -1593,40 +1590,20 @@ Geometry *BG_geometry_collection::store(const Geometry *geo)
 
   DBUG_ASSERT(geo->get_type() != Geometry::wkb_geometrycollection);
   pres= m_geosdata.append_object();
-  pres->reserve(GEOM_HEADER_SIZE + geosize);
+  if (pres == NULL || pres->reserve(GEOM_HEADER_SIZE + geosize))
+    return NULL;
   write_geometry_header(pres, geo->get_srid(), geo->get_type());
   pres->q_append(geo->get_cptr(), geosize);
 
   pgeobuf= m_geobufs.append_object();
+  if (pgeobuf == NULL)
+    return NULL;
   geo2= Geometry::construct(pgeobuf, pres->ptr(), pres->length());
 
   if (geo2 != NULL && geo2->get_type() != Geometry::wkb_geometrycollection)
     m_geos.push_back(geo2);
+
   return geo2;
-}
-
-/**
-  Append a range of elements into a specified container.
-
-  @tparam Container container type
-  @tparam Iterator iterator type
-  @param cont the container to append elements into.
-  @param begin the starting position of the range to append into the container.
-  @param end the end (not inclusive) of the range to append into the container.
- */
-template <typename Container, typename Iterator>
-size_t append_range(Container *cont,
-                    const Iterator &begin, const Iterator &end)
-{
-  size_t n= 0;
-
-  for (Iterator i= begin; i != end; ++i)
-  {
-    cont->push_back(*i);
-    n++;
-  }
-
-  return n;
 }
 
 
@@ -4020,8 +3997,7 @@ public:
     endpos= std::set_intersection(ptset1.begin(), ptset1.end(),
                                   ptset2.begin(), ptset2.end(),
                                   respts.begin(), bgpt_lt());
-    append_range(mpts, respts.begin(), endpos);
-
+    std::copy(respts.begin(), endpos, std::back_inserter(*mpts));
     if (mpts->size() > 0)
     {
       null_value= m_ifso->assign_result(mpts, result);
@@ -4173,7 +4149,7 @@ public:
       tmp2= new Multipoint;
       tmp2->set_srid(g1->get_srid());
       guard2.reset(tmp2);
-      append_range(tmp2, ptset.begin(), ptset.end());
+      std::copy(ptset.begin(), ptset.end(), std::back_inserter(*tmp2));
     }
 
     retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
@@ -4265,7 +4241,7 @@ public:
       tmp2= new Multipoint;
       tmp2->set_srid(g1->get_srid());
       guard2.reset(tmp2);
-      append_range(tmp2, ptset.begin(), ptset.end());
+      std::copy(ptset.begin(), ptset.end(), std::back_inserter(*tmp2));
     }
 
     retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
@@ -4328,7 +4304,7 @@ public:
       ptset.insert(mpts2.begin(), mpts2.end());
     }
 
-    append_range(mpts, ptset.begin(), ptset.end());
+    std::copy(ptset.begin(), ptset.end(), std::back_inserter(*mpts));
     if (mpts->size() > 0)
     {
       retgeo= mpts;
@@ -4405,7 +4381,7 @@ public:
 
     ptset.insert(mpts1.begin(), mpts1.end());
     ptset.insert(mpts2.begin(), mpts2.end());
-    append_range(mpts, ptset.begin(), ptset.end());
+    std::copy(ptset.begin(), ptset.end(), std::back_inserter(*mpts));
 
     if (mpts->size() > 0)
     {
@@ -4589,7 +4565,7 @@ public:
 
     if (ptset.empty() == false)
     {
-      append_range(mpts, ptset.begin(), ptset.end());
+      std::copy(ptset.begin(), ptset.end(), std::back_inserter(*mpts));
       null_value= m_ifso->assign_result(mpts, result);
       retgeo= mpts;
       guard.release();
@@ -5821,6 +5797,7 @@ private:
   // Forbid use, to eliminate a warning: oldval may be used uninitialized.
   Var_resetter();
   Var_resetter(const Var_resetter &o);
+  Var_resetter &operator=(const Var_resetter&);
 public:
   Var_resetter(Valtype *v, Valtype oldval) : valref(v)
   {
@@ -6191,7 +6168,8 @@ geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
          j != bggc2.get_geometries().end(); ++j)
     {
       wkbres= wkbstrs.append_object();
-
+      if (wkbres == NULL)
+        return NULL;
       opdone= false;
       Geometry *g0= bg_geo_set_op<Coord_type, Coordsys>(g11, *j, wkbres,
                                                         &opdone);
@@ -6203,7 +6181,7 @@ geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
           guard0.release();
         if (!(g11 != NULL && g11 != g0 && g11 != *i && g11 != *j))
           guard11.release();
-        return 0;
+        return NULL;
       }
 
       if (g0 != NULL && !is_empty_geocollection(*wkbres))

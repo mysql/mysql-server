@@ -994,7 +994,15 @@ Gis_point::Gis_point(const self &pt) :Geometry(pt)
     nbytes= SIZEOF_STORED_DOUBLE * GEOM_DIM;
     set_nbytes(nbytes);
   }
+
   m_ptr= gis_wkb_fixed_alloc(nbytes);
+  if (m_ptr == NULL)
+  {
+    set_nbytes(0);
+    set_ownmem(0);
+    return;
+  }
+
   if (pt.get_nbytes() > 0)
     memcpy(m_ptr, pt.get_ptr(), pt.get_nbytes());
   else
@@ -1039,6 +1047,12 @@ Gis_point &Gis_point::operator=(const Gis_point &rhs)
     set_nbytes(SIZEOF_STORED_DOUBLE * GEOM_DIM);
     set_ownmem(true);
     m_ptr= gis_wkb_fixed_alloc(get_nbytes());
+    if (m_ptr == NULL)
+    {
+      set_nbytes(0);
+      set_ownmem(0);
+      return *this;
+    }
   }
 
   /*
@@ -2270,6 +2284,12 @@ void *get_packed_ptr(const Geometry *geo0, size_t *pnbytes)
   size_t vallen= sizeof(uint32) + out_ring->get_nbytes() +
     (inn_rings ? inn_rings->get_nbytes() : 0);
   void *src_val= gis_wkb_alloc(vallen);
+  if (src_val == NULL)
+  {
+    nbytes= 0;
+    return NULL;
+  }
+
   memcpy(static_cast<char *>(src_val) + sizeof(uint32),
          out_ring->get_ptr(), out_ring->get_nbytes());
 
