@@ -2320,8 +2320,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             error("Could not create log file '%s'", log_file_name);
             DBUG_RETURN(ERROR_STOP);
           }
-          my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
-                    BIN_LOG_HEADER_SIZE, MYF(0));
+          DBUG_EXECUTE_IF("simulate_result_file_write_error_for_FD_event",
+                          DBUG_SET("+d,simulate_fwrite_error"););
+          if (my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
+                        BIN_LOG_HEADER_SIZE, MYF(MY_NABP)))
+          {
+            error("Could not write into log file '%s'", log_file_name);
+            DBUG_RETURN(ERROR_STOP);
+          }
           /*
             Need to handle these events correctly in raw mode too 
             or this could get messy
@@ -2344,7 +2350,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
       if (raw_mode)
       {
-        my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(0));
+        DBUG_EXECUTE_IF("simulate_result_file_write_error",
+                        DBUG_SET("+d,simulate_fwrite_error"););
+        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        {
+          error("Could not write into log file '%s'", log_file_name);
+          retval= ERROR_STOP;
+        }
         if (ev)
         {
           ev->temp_buf=0;
