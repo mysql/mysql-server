@@ -58,6 +58,8 @@ char *opt_euid= 0;
 char *opt_basedir= 0;
 char *opt_datadir= 0;
 char *opt_adminlogin= 0;
+char *opt_loginpath= 0;
+char default_loginpath[]= "client";
 char *opt_sqlfile= 0;
 char default_adminuser[]= "root";
 char *opt_adminuser= 0;
@@ -99,8 +101,15 @@ static struct my_option my_connection_options[]=
     &opt_basedir, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"datadir", 0, "The path to the MySQL data directory.", &opt_datadir,
     0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
-  {"login-path", 0, "Use the MySQL password store to set the default password."
-  " This option takes precedence over admin-user, admin-host options.",
+  {"login-path", 0, "Set the credential category to use with the MySQL password"
+  " store when setting default credentials. This option takes precedence over "
+  "admin-user, admin-host options.",
+    &opt_loginpath, 0, 0, GET_STR_ALLOC, REQUIRED_ARG,
+    (longlong)&default_loginpath, 0, 0, 0, 0, 0},
+   {"login-file", 0, "Use the MySQL password store at the specified location "
+  " to set the default password. This option takes precedence over admin-user, "
+  "admin-host options. Use the login-path option to change the default "
+  "credential category (default is 'client').",
     &opt_adminlogin, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"extra-sql-file", 'f', "Optional SQL file to execute during bootstrap",
     &opt_sqlfile, 0, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
@@ -729,11 +738,13 @@ bool assert_valid_language_directory(const string &opt_langpath,
    @retval ERR_SYNTAX Error while parsing
 */
 int get_admin_credentials(const string &opt_adminlogin,
+                          const string &login_path,
                           string *adminuser,
                           string *adminhost,
                           string *password)
 {
   Path path;
+  int ret= ERR_OTHER;
   if (!path.qpath(opt_adminlogin) || !path.exists())
     return ERR_FILE;
 
@@ -743,8 +754,9 @@ int get_admin_credentials(const string &opt_adminlogin,
     return ERR_ENCRYPTION;
 
   map<string, string > options;
-  if (parse_cnf_file(sout, &options, "client") != ALL_OK)
-     return ERR_SYNTAX;
+
+  if ((ret= parse_cnf_file(sout, &options, login_path)) != ALL_OK)
+    return ret;
 
   for( map<string, string >::iterator it= options.begin();
        it != options.end(); ++it)
@@ -1184,15 +1196,23 @@ int main(int argc,char *argv[])
   {
     info << "Reading the login config file "
          << opt_adminlogin
-         << " for default account credentials."
+         << " for default account credentials using login-path = "
+         << opt_loginpath
          << endl;
     int ret= get_admin_credentials(create_string(opt_adminlogin),
+                                   create_string(opt_loginpath),
                                    &adminuser,
                                    &adminhost,
                                    &password);
     switch(ret)
     {
       case ALL_OK: expire_password= false;
+        if (password.length() == 0 && !opt_insecure)
+        {
+          error << "Password is specified as empty! You need to use the "
+                   "--insecure option" << endl;
+          return 1;
+        }
       break;
       case ERR_FILE:
         error << "Can't read the login config file: "
@@ -1202,11 +1222,18 @@ int main(int argc,char *argv[])
         error << "Failed to decrypt the login config file: "
               << opt_adminlogin << endl;
         return 1;
+      case ERR_NO_SUCH_CATEGORY:
+        error << "Failed to locate login-path '"
+              << opt_loginpath << "' "
+              << "in the login config file '"
+              << opt_adminlogin << "' " << endl;
+        return 1;
       case ERR_SYNTAX:
       default:
         error << "Failed to parse the login config file: "
               << opt_adminlogin << endl;
         return 1;
+        
     }
   }
 
