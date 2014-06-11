@@ -43,6 +43,8 @@ Created 2011/04/18 Sunny Bains
 #include "srv0srv.h"
 #include "sync0mutex.h"
 #include "trx0trx.h"
+#include "row0mysql.h"
+#include "dict0dict.h"
 
 /** Number of times a thread is allowed to enter InnoDB within the same
 SQL query after it has once got the ticket. */
@@ -495,14 +497,15 @@ retry:
 
 /*********************************************************************//**
 Puts an OS thread to wait if there are too many concurrent threads
-(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue. */
+(>= srv_thread_concurrency) inside InnoDB. The threads wait in a FIFO queue.
+@param[in,out]	prebuilt	row prebuilt handler */
 
 void
 srv_conc_enter_innodb(
-/*==================*/
-	trx_t*	trx)	/*!< in: transaction object associated with the
-			thread */
+	row_prebuilt_t*	prebuilt)
 {
+	trx_t*	trx	= prebuilt->trx;
+
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 

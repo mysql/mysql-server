@@ -356,7 +356,7 @@ SELECT AsText(ST_Difference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),G
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)));
 SELECT AsText(ST_Difference(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,geometrycollection
-SELECT AsText(ST_Difference(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_vertical)));
+SELECT AsText(ST_Difference(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)));
 SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_horizontal),GeomFromText(@star_collection_multilinestr)));
@@ -383,6 +383,7 @@ SELECT AsText(ST_Difference(g,GeomFromText(@star_lines_near_vertical))) FROM gis
 --echo #polygon,polygon
 SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_elem_vertical)));
 SELECT AsText(ST_Difference(GeomFromText(@star_elem_vertical),GeomFromText(@star)));
+SELECT AsText(ST_Difference(GeomFromText('POLYGON((0 0, 1 0, 0 1, 0 0))'),GeomFromText('POLYGON((0 0, 0 1, 1 1, 1 0, 0 0))')));
 SELECT AsText(ST_Difference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=100;
 --echo #polygon,multipolygon
 SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_of_elems)));
@@ -455,7 +456,7 @@ SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('L
 SELECT AsText(ST_Difference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multilinestring
 SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)')));
+SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
 SELECT AsText(ST_Difference(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,polygon
 SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical)));
@@ -481,7 +482,8 @@ SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_ge
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT AsText(ST_Difference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=215;
-SELECT AsText(ST_Difference(GeomFromText(@star_of_multilinestr),GeomFromText(@star_collection_elems)));
+--error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+SELECT AsText(ST_Difference(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems)));
 
 --echo #=======================================================================================
 --echo # Testing ST_Difference() with 2 geometries of same SRID
@@ -492,6 +494,10 @@ SELECT AsText(ST_Difference(GeomFromText(@star_top,100),GeomFromText(@star_cente
 SELECT AsText(ST_Difference(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000)));
 SELECT AsText(ST_Difference(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456)));
 SELECT AsText(ST_Difference(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
+SELECT AsText(ST_Difference(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)));
+SELECT AsText(ST_Difference(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+SELECT AsText(ST_Difference(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)));
+SELECT AsText(ST_Difference(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)));
 
 --echo #=======================================================================================
 --echo # Invalid function calls

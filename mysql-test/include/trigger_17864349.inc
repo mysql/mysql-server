@@ -1,7 +1,3 @@
-#
-# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
-#
-
 # $column1_type_name must be set.
 # $column2_type_name must be set.
 # $column2_value must be set.
