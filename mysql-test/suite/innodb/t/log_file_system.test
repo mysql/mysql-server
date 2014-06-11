@@ -115,7 +115,7 @@ let SEARCH_PATTERN= \[ERROR\] InnoDB: Redo log refers to system tablespace file 
 
 --echo # Recovery and shutdown with innodb-force-recovery (ignore unknown file)
 --error 2
---exec $old_mysqld --innodb-force-recovery=1 --innodb-nonexistent-option
+--exec $old_mysqld --innodb-force-recovery=1 --innodb-fast-shutdown=0 --innodb-nonexistent-option
 let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/search_pattern_in_file.inc
 --remove_file $SEARCH_FILE
@@ -131,5 +131,18 @@ let SEARCH_PATTERN= \[ERROR\] unknown option '--innodb-nonexistent-option';
 --source include/wait_until_connected_again.inc
 --disable_reconnect
 
+--echo # No log should be generated while persistent tablespaces are idle
+CREATE TEMPORARY TABLE t (a SERIAL) ENGINE=InnoDB;
+
+SELECT count FROM information_schema.innodb_metrics
+WHERE name='log_write_requests';
+
 SELECT * FROM t1;
+
+SELECT count FROM information_schema.innodb_metrics
+WHERE name='log_write_requests';
+
 DROP TABLE t1;
+
+SELECT count>0 FROM information_schema.innodb_metrics
+WHERE name='log_write_requests';
