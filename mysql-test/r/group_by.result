@@ -2315,14 +2315,14 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t1(
 col1 int, 
-UNIQUE INDEX idx (col1)
+INDEX idx (col1)
 );
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 EXPLAIN SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 FROM t1 GROUP BY field1, field2;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	7	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`col1` AS `field1`,`test`.`t1`.`col1` AS `field2` from `test`.`t1` group by `field1`
 FLUSH STATUS;

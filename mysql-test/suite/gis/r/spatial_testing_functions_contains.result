@@ -444,18 +444,18 @@ SELECT MBRContains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection W
 MBRContains(g,GeomFromText(@star_of_elems))
 0
 #multilinestring,geometrycollection
-SELECT MBRContains(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems));
-MBRContains(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems))
-NULL
+SELECT MBRContains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+MBRContains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+0
 SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
 MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
 0
 SELECT MBRContains(g,GeomFromText(@star_collection_elems)) FROM gis_geometrycollection WHERE fid=114;
 MBRContains(g,GeomFromText(@star_collection_elems))
 0
-SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_multilinestr));
-MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_multilinestr))
-NULL
+SELECT MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr));
+MBRContains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_multilinestr))
+0
 #-------------------------------------------------------------------------------------------
 #polygon,point
 SELECT MBRContains(GeomFromText(@star),GeomFromText(@star_center));
@@ -658,9 +658,9 @@ MBRContains(g,GeomFromText(@star_top_to_center))
 SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
 MBRContains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
 1
-SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
-MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'))
-NULL
+SELECT MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+MBRContains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
 SELECT MBRContains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 MBRContains(g,GeomFromText(@star_lines_near_vertical))
 1
@@ -983,9 +983,9 @@ SELECT ST_Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection W
 ST_Contains(g,GeomFromText(@star_of_elems))
 0
 #multilinestring,geometrycollection
-SELECT ST_Contains(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems));
-ST_Contains(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems))
-NULL
+SELECT ST_Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+ST_Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+0
 SELECT ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
 ST_Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
 0
@@ -1155,9 +1155,9 @@ SELECT ST_Contains(g,g2) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=103;
 ST_Contains(g,g2)
 1
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_of_multilinestr));
-ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_of_multilinestr))
-NULL
+SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr));
+ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_multilinestr))
+0
 #-------------------------------------------------------------------------------------------
 #geometrycollection,point
 SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_top));
@@ -1193,9 +1193,9 @@ ST_Contains(g,GeomFromText(@star_top_to_center))
 SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
 ST_Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
 0
-SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
-ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'))
-NULL
+SELECT ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+ST_Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
 SELECT ST_Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 ST_Contains(g,GeomFromText(@star_lines_near_vertical))
 0
@@ -1518,9 +1518,9 @@ SELECT Contains(g,GeomFromText(@star_of_elems)) FROM gis_geometrycollection WHER
 Contains(g,GeomFromText(@star_of_elems))
 0
 #multilinestring,geometrycollection
-SELECT Contains(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems));
-Contains(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems))
-NULL
+SELECT Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems));
+Contains(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems))
+0
 SELECT Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems));
 Contains(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems))
 0
@@ -1731,9 +1731,9 @@ Contains(g,GeomFromText(@star_top_to_center))
 SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical));
 Contains(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical))
 1
-SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'));
-Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)'))
-NULL
+SELECT Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'));
+Contains(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))'))
+0
 SELECT Contains(g,GeomFromText(@star_lines_near_vertical)) FROM gis_geometrycollection WHERE fid=115;
 Contains(g,GeomFromText(@star_lines_near_vertical))
 1
@@ -1798,6 +1798,18 @@ MBRContains(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
 SELECT MBRContains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
 MBRContains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
 0
+SELECT MBRContains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+MBRContains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT MBRContains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+MBRContains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT MBRContains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+MBRContains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT MBRContains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+MBRContains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
 #-------------------------------------------------------------------------------------------
 #ST_Contains(g1,g2)
 SELECT ST_Contains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -1815,6 +1827,18 @@ ST_Contains(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
 SELECT ST_Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
 ST_Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
 0
+SELECT ST_Contains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+ST_Contains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT ST_Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+ST_Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT ST_Contains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+ST_Contains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT ST_Contains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+ST_Contains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
+0
 #-------------------------------------------------------------------------------------------
 #Contains(g1,g2)
 SELECT Contains(GeomFromText(@star_top,0),GeomFromText(@star_center,0));
@@ -1831,6 +1855,18 @@ Contains(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456))
 0
 SELECT Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575));
 Contains(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575))
+0
+SELECT Contains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295));
+Contains(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295))
+0
+SELECT Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1));
+Contains(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1))
+0
+SELECT Contains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024));
+Contains(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024))
+0
+SELECT Contains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000));
+Contains(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000))
 0
 #=======================================================================================
 # Invalid function calls

@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
-#
 
 --echo ===> Testing  size=$size
 SET GLOBAL innodb_file_per_table=on;

@@ -356,7 +356,7 @@ SELECT AsText(ST_Union(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFr
 SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_of_elems)));
 SELECT AsText(ST_Union(g,GeomFromText(@star_of_elems))) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,geometrycollection
-SELECT AsText(ST_Union(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_vertical)));
+SELECT AsText(ST_Union(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
 SELECT AsText(ST_Union(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)));
 SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=114;
 SELECT AsText(ST_Union(GeomFromText(@star_lines_near_horizontal),GeomFromText(@star_collection_multilinestr)));
@@ -436,46 +436,39 @@ SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection
 SELECT AsText(ST_Union(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
 --echo #-------------------------------------------------------------------------------------------
 --echo #geometrycollection,point
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_top)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)')));
-SELECT AsText(ST_Difference(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_top)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('POINT(30 30)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multipoint
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)')));
-SELECT AsText(ST_Difference(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_bottom_points)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOINT(30 30,0 35)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_bottom_points))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,linestring
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)')));
-SELECT AsText(ST_Difference(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_top_to_center)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('LINESTRING(30 30,0 35)')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_top_to_center))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multilinestring
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)')));
-SELECT AsText(ST_Difference(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,polygon
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
-SELECT AsText(ST_Difference(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_elem_vertical)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('POLYGON((0 0,15 25,35 0,0 0))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_elem_vertical))) FROM gis_geometrycollection WHERE fid=115;
 --echo #geometrycollection,multipolygon
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems)));
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_of_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText('MULTIPOLYGON(((0 0,15 25,35 0,0 0)),((5 0,15 25,25 0,15 5,5 0)))')));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=215;
 --echo #geometrycollection,geometrycollectionn
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems)));
-SELECT AsText(ST_Difference(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3)));
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Difference(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_elems),GeomFromText(@star_collection_elems_3)));
+SELECT AsText(ST_Union(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=115;
+SELECT AsText(ST_Union(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=215;
-SELECT AsText(ST_Difference(GeomFromText(@star_of_multilinestr),GeomFromText(@star_collection_elems)));
+SELECT AsText(ST_Union(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems)));
 
 --echo #=======================================================================================
 --echo # Testing ST_Union() with 2 geometries of same SRID
@@ -486,6 +479,10 @@ SELECT AsText(ST_Union(GeomFromText(@star_top,100),GeomFromText(@star_center,100
 SELECT AsText(ST_Union(GeomFromText(@star_top,20000),GeomFromText(@star_center,20000)));
 SELECT AsText(ST_Union(GeomFromText(@star_top,123456),GeomFromText(@star_center,123456)));
 SELECT AsText(ST_Union(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)));
+SELECT AsText(ST_Union(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)));
 
 --echo #=======================================================================================
 --echo # Invalid function calls
