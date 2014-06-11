@@ -28,6 +28,7 @@
 #define ERR_ENCRYPTION 2  // Encryption related error
 #define ERR_SYNTAX 3 // Syntax and parsing related error
 #define ERR_OTHER 4 // Unspecified error
+#define ERR_NO_SUCH_CATEGORY 5 // The specified category isn't present
 #define ALL_OK 0 // Reporting success and good fortune
 
 /**
