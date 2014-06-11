@@ -544,8 +544,13 @@ pointer must be passed to UT_DELETE() when no longer needed.
 @return pointer to the created object or NULL */
 #define UT_NEW(expr, key) \
 	({ \
-		char*	_p = ut_allocator<char>(key).allocate( \
-			sizeof expr, NULL, __FILE__, __LINE__, IB_FUNC); \
+		char*	_p; \
+	 	try { \
+	 		_p = ut_allocator<char>(key).allocate( \
+				sizeof expr, NULL, __FILE__, __LINE__, IB_FUNC); \
+	 	} catch (...) { \
+	 		_p = NULL; \
+	 	} \
 	 /* ut_allocator::construct() can't be used for classes with disabled
 	 copy constructors, thus we use placement new here directly. */ \
 	 	_p != NULL ? (new(_p) expr) : NULL; \
