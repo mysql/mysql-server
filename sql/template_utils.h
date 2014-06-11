@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -11,7 +11,7 @@
 
    You should have received a copy of the GNU General Public License
    along with this program; if not, write to the Free Software
-   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02111-1301  USA */
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 #ifndef TEMPLATE_UTILS_INCLUDED
 #define TEMPLATE_UTILS_INCLUDED
@@ -66,6 +66,17 @@ template<typename T>
 inline const T pointer_cast(const void *p)
 {
   return static_cast<const T>(p);
+}
+
+/**
+  Casts from one pointer type to another in a type hierarchy.
+  In debug mode, we verify the cast is indeed legal.
+ */
+template<typename Target, typename Source>
+inline Target down_cast(Source arg)
+{
+  DBUG_ASSERT(NULL != dynamic_cast<Target>(arg));
+  return static_cast<Target>(arg);
 }
 
 #endif  // TEMPLATE_UTILS_INCLUDED

@@ -1867,26 +1867,30 @@ bool close_temporary_tables(THD *thd)
              strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
-        String *s_query;
         /* Separate transactional from non-transactional temp tables */
         if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
         {
           found_trans_table= true;
-          s_query= &s_query_trans;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_trans.append(',');
         }
         else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
         {
           found_non_trans_table= true;
-          s_query= &s_query_non_trans;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_non_trans.append(',');
         }
 
-        /*
-          We are going to add ` around the table names and possible more
-          due to special characters
-        */
-        append_identifier(thd, s_query, table->s->table_name.str,
-                          strlen(table->s->table_name.str));
-        s_query->append(',');
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -4475,6 +4479,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (table_list->table->s->table_category == TABLE_CATEGORY_GTID) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
       !(is_update_query(prelocking_ctx->sql_command) ||
         (routine_modifies_data && table_list->prelocking_placeholder) ||

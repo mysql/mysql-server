@@ -1419,4 +1419,91 @@ DROP TABLE t1,t2,t3;
 
 --echo # End of 5.6 tests
 
+--echo #
+--echo # Bug #18770217 	DIFFERENT RESULT WITH SP ON 2ND EXECUTION OF QUERY WITH STRAIGHT_JOIN IN NOT IN
+--echo #
+
+# If IN->EXISTS is used, the WHERE clause of the EXISTS subquery looks
+# like:
+# alias1.col_varchar_key=sq1_alias1.col_varchar_nokey AND (scalar subquery)
+# and because the equality is false for all rows, the scalar subquery
+# is not evaluted - produces no ER_SUBQUERY_NO_1_ROW.
+
+if (`select locate('materialization=on', @@optimizer_switch) > 0`) 
+{
+
+CREATE TABLE t1 (
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t1 VALUES (8,'x','x');
+INSERT INTO t1 VALUES (NULL,'x','x');
+
+CREATE TABLE t2 (
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t2 VALUES (0,'x','x');
+
+CREATE TABLE t3 (
+  col_int_key INT,
+  col_varchar_key VARCHAR(1),
+  col_varchar_nokey VARCHAR(1),
+  KEY col_int_key (col_int_key),
+  KEY col_varchar_key (col_varchar_key,col_int_key)
+);
+
+INSERT INTO t3 VALUES (8,'g','g');
+
+CREATE VIEW view_d AS SELECT * FROM t2;
+
+let $query=
+SELECT alias2.col_int_key
+FROM t1 AS alias1 , t2 AS alias2
+WHERE alias1.col_varchar_key NOT IN (
+  SELECT sq1_alias1.col_varchar_nokey
+  FROM t3 AS sq1_alias1
+    JOIN ( t1 AS sq1_alias2
+      STRAIGHT_JOIN view_d AS sq1_alias3 )
+  WHERE (
+    SELECT col_int_key
+    FROM t1 AS c_sq1_alias1
+    WHERE c_sq1_alias1.col_varchar_key = sq1_alias3.col_varchar_nokey
+  )
+)
+;
+
+# Show materialization is used
+eval EXPLAIN $query;
+
+--error ER_SUBQUERY_NO_1_ROW
+eval $query;
+
+eval CREATE PROCEDURE stored_proc_2581 () LANGUAGE SQL $query;
+
+--error ER_SUBQUERY_NO_1_ROW
+CALL stored_proc_2581;
+--error ER_SUBQUERY_NO_1_ROW
+CALL stored_proc_2581;
+DROP PROCEDURE stored_proc_2581;
+
+eval PREPARE s FROM '$query';
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE s;
+--error ER_SUBQUERY_NO_1_ROW
+EXECUTE s;
+
+DROP VIEW view_d;
+DROP TABLE t1,t2,t3;
+
+}
+
 set @@optimizer_switch=@old_opt_switch;

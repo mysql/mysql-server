@@ -470,9 +470,9 @@ SELECT AsText(ST_Intersection(g,GeomFromText(@star_of_elems))) FROM gis_geometry
 AsText(ST_Intersection(g,GeomFromText(@star_of_elems)))
 MULTILINESTRING((5.172413793103448 11.896551724137932,7.5 15))
 #multilinestring,geometrycollection
-SELECT AsText(ST_Intersection(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems)));
-AsText(ST_Intersection(GeomFromText('MULTILINESTRING(0 25,25 0,25 30)'),GeomFromText(@star_collection_elems)))
-NULL
+SELECT AsText(ST_Intersection(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)));
+AsText(ST_Intersection(GeomFromText('MULTILINESTRING((0 25,25 0,25 30))'),GeomFromText(@star_collection_elems)))
+MULTILINESTRING((25 0,10 15),(25 11.875,25 15))
 SELECT AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)));
 AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_collection_elems)))
 LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
@@ -679,8 +679,8 @@ LINESTRING(15 10,15 25)
 SELECT AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)));
 AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText(@star_lines_near_vertical)))
 LINESTRING(4.883720930232558 11.511627906976745,7.5 15)
-SELECT AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)')));
-AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING(0 30,30 30,0 35)')))
+SELECT AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')));
+AsText(ST_Intersection(GeomFromText(@star_collection_elems),GeomFromText('MULTILINESTRING((0 30,30 30,0 35))')))
 NULL
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_lines_near_vertical))) FROM gis_geometrycollection WHERE fid=115;
 AsText(ST_Intersection(g,GeomFromText(@star_lines_near_vertical)))
@@ -717,9 +717,8 @@ ERROR HY000: Geometry overlay calculation error: geometry data is invalid in fun
 SELECT AsText(ST_Intersection(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=215;
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT AsText(ST_Intersection(GeomFromText(@star_of_multilinestr),GeomFromText(@star_collection_elems)));
-AsText(ST_Intersection(GeomFromText(@star_of_multilinestr),GeomFromText(@star_collection_elems)))
-NULL
+SELECT AsText(ST_Intersection(GeomFromText(@star_collection_multilinestr),GeomFromText(@star_collection_elems)));
+ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 #=======================================================================================
 # Testing ST_Intersection() with 2 geometries of same SRID
 #=======================================================================================
@@ -737,6 +736,18 @@ AsText(ST_Intersection(GeomFromText(@star_top,123456),GeomFromText(@star_center,
 GEOMETRYCOLLECTION()
 SELECT AsText(ST_Intersection(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)));
 AsText(ST_Intersection(GeomFromText(@star_top,1048575),GeomFromText(@star_center,1048575)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Intersection(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)));
+AsText(ST_Intersection(GeomFromText(@star_top,4294967295),GeomFromText(@star_center,4294967295)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Intersection(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)));
+AsText(ST_Intersection(GeomFromText(@star_top,-1),GeomFromText(@star_center,-1)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Intersection(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)));
+AsText(ST_Intersection(GeomFromText(@star_top,-1024),GeomFromText(@star_center,-1024)))
+GEOMETRYCOLLECTION()
+SELECT AsText(ST_Intersection(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)));
+AsText(ST_Intersection(GeomFromText(@star_top,4294967295000),GeomFromText(@star_center,4294967295000)))
 GEOMETRYCOLLECTION()
 #=======================================================================================
 # Invalid function calls

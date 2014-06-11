@@ -195,6 +195,7 @@ AS OK FROM INFORMATION_SCHEMA.OPTIMIZER_TRACE;
 let query=
 SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' AND i2 = 17) OR ( c1 = 'F')
 GROUP BY c1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;
@@ -202,6 +203,7 @@ eval $show_method;
 let query=
 SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR ( c1 = 'F' AND i2 = 17))
 GROUP BY c1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;
@@ -209,6 +211,7 @@ eval $show_method;
 let query=
 SELECT c1, max(i2) FROM t1 WHERE (c1 = 'C' OR c1 = 'F' ) AND ( i2 = 17 )
 GROUP BY c1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;
@@ -217,6 +220,7 @@ let query=
 SELECT c1, max(i2) FROM t1 
 WHERE ((c1 = 'C' AND (i2 = 40 OR i2 = 30)) OR ( c1 = 'F' AND (i2 = 40 )))
 GROUP BY c1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;
@@ -225,6 +229,7 @@ let query=
 SELECT c1, i1, max(i2) FROM t2
 WHERE (c1 = 'C' OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 )
 GROUP BY c1,i1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;
@@ -233,6 +238,7 @@ let query=
 SELECT c1, i1, max(i2) FROM t2 
 WHERE (((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35)) AND ( i2 = 17 ))
 GROUP BY c1,i1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;
@@ -241,6 +247,7 @@ let query=
 SELECT c1, i1, max(i2) FROM t2 
 WHERE ((c1 = 'C' AND i1 < 40) OR ( c1 = 'F' AND i1 < 35) OR ( i2 = 17 ))
 GROUP BY c1,i1;
+--replace_column 10 ROWS
 eval EXPLAIN $query;
 eval $query;
 eval $show_method;

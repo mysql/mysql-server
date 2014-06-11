@@ -905,8 +905,7 @@ rtr_create_rtr_info(
 	index = index ? index : cursor->index;
 	ut_ad(index);
 
-	rtr_info = static_cast<rtr_info_t*>(ut_malloc(sizeof(*rtr_info)));
-	memset(rtr_info, 0, sizeof(*rtr_info));
+	rtr_info = static_cast<rtr_info_t*>(ut_zalloc(sizeof(*rtr_info)));
 
 	rtr_info->allocated = true;
 	rtr_info->cursor = cursor;

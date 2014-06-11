@@ -184,6 +184,10 @@ Select GeometryType(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 
 --echo POLYGON expected
 Select GeometryType(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
 --echo POLYGON expected
+Select GeometryType(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo POLYGON expected
+Select GeometryType(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))'));
+--echo MULTIPOLYGON expected
 Select GeometryType(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 --echo MULTIPOLYGON expected
 Select GeometryType(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
@@ -361,6 +365,10 @@ Select SRID(PolyFromText('POLYGON((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0), (1 0, 10 
 --echo 0 expected
 Select SRID(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 0), Point(10, 0), Point(1, -1), Point(10, -1), Point(1, -2), Point(10, -2), Point(5, 1), Point(1, -5), Point(1, 0))))));
 --echo 0 expected
+Select SRID(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo 0 expected
+Select SRID(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))'));
+--echo 0 expected
 Select SRID(MultiPolygonFromText('MULTIPOLYGON(((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0),(1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)),((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)))'));
 --echo 0 expected
 Select SRID(MPolyFromText('MULTIPOLYGON(((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0),(1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)),((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)))'));
@@ -520,6 +528,10 @@ Select Dimension(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1),
 --echo 2 expected
 Select Dimension(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
 --echo 2 expected
+Select Dimension(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo 2 expected
+Select Dimension(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))'));
+--echo 2 expected
 Select Dimension(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 --echo 2 expected
 Select Dimension(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
@@ -667,6 +679,10 @@ Select AsText(Envelope(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 
 Select AsText(Envelope(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))')));
 --echo POLYGON((1 -2,10 -2,10 2,1 2,1 -2)) expected
 Select AsText(Envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
+Select AsText(Envelope(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')));
+--echo POLYGON((10 10,20 10,20 20,10 20,10 10)) expected
+Select AsText(Envelope(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))')));
+--echo POLYGON((0 0,20 0,20 20,0 20,0 0)) expected
 --echo POLYGON((1 -2,10 -2,10 2,1 2,1 -2)) expected
 Select AsText(Envelope(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')));
 --echo POLYGON((1 -2,10 -2,10 2,1 2,1 -2)) expected
@@ -818,6 +834,10 @@ Select IsSimple(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), 
 --echo 0 expected
 Select IsSimple(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
 --echo 0 expected
+Select IsSimple(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo 1  expected
+Select IsSimple(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))'));
+--echo 1 expected
 Select IsSimple(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 --echo 0 expected
 Select IsSimple(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
@@ -973,6 +993,10 @@ Select IsEmpty(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2,
 Select IsEmpty(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 1 1), (10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1,10 -1))'));
 --echo 0 expected
 Select IsEmpty(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1))))));
+--echo 0 expected
+Select IsEmpty(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo 0 expected
+Select IsEmpty(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))'));
 --echo 0 expected
 Select IsEmpty(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1),(10 0, 1 -1, 10 -1, 7 2, 7 -2, 10 0)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))'));
 --echo 0 expected
@@ -1144,6 +1168,10 @@ Select Area(PolyFromText('POLYGON((1 1, 2 -1, 3 1, 5 2, 3 3, 2 5, 1 3, -1 2, 1 1
 --echo 6 expected
 Select Area(PolyFromWKB(AsWKB(Polygon(LineString(Point(3, 3), Point(2, 5), Point(1, 3), Point(-1, 2), Point(1, 1), Point(3, 3))))));
 --echo 6 expected
+Select Area(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo 100 expected
+Select Area(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))'));
+--echo 100 expected
 Select Area(MultiPolygonFromText('MULTIPOLYGON(((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0),(1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)),((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)))'));
 --echo 9 expected
 Select Area(MPolyFromText('MULTIPOLYGON(((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0),(1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)),((1 0, 10 0, 1 -1, 10 -1, 1 -2, 1 0)))'));
@@ -1277,6 +1305,8 @@ Select AsText(ExteriorRing(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10
 --echo LINESTRING(1 1,10 1,1 0,10 0,1 -1,10 -1,-9 -2,1 1) expected
 Select AsText(ExteriorRing(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(0, -2),  Point(1, 1)))))));
 --echo LINESTRING(1 1,10 1,1 0,10 0,0 -2,1 1) expected
+Select AsText(ExteriorRing(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')));
+--echo LINESTRING(10 10,20 10,20 20,10 20,10 10) expected
 
 --echo #WKB data, little-endian format
 Select AsText(ExteriorRing(PolyFromWKB(0x010300000001000000050000000000000000000000000000000000000000000000000000000000000000001440000000000000144000000000000014400000000000001440000000000000000000000000000000000000000000000000)));
@@ -1392,6 +1422,8 @@ Select AsText(InteriorRingN(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1
 Select AsText(InteriorRingN(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, -9 -2, 1 1), (1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, -9 -2, 1 1))'), 1));
 --echo LINESTRING(1 1,10 1,1 0,10 0,1 -1,10 -1,-9 -2,1 1) expected
 Select AsText(InteriorRingN(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(0, -2),  Point(1, 1))))), 1));
+--echo NULL expected
+Select AsText(InteriorRingN(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'),10));
 --echo NULL expected
 
 --echo #WKB data, little-endian format
@@ -1532,6 +1564,8 @@ select count(NumInteriorRings(g)) FROM gis_polygon;
 --echo #Checking the NumInteriorRings of some random Polygon.
 Select NumInteriorRings(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, -9 -2, 1 1))'));
 --echo 0 expected
+Select NumInteriorRings(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))'));
+--echo 0 expected
 Select NumInteriorRings(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, -9 -2, 1 1), (1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, -9 -2, 1 1))'));
 --echo 1 expected
 Select NumInteriorRings(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(0, -2),  Point(1, 1))))));
@@ -1652,6 +1686,10 @@ Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1,
 --echo POINT(0 0) expected
 Select AsText(Centroid(PolyFromWKB(AsWKB(Polygon(LineString(Point(1, 1), Point(10, 1), Point(1, 0), Point(10, 0), Point(4, 2), Point(4, -2), Point(1, 1)))))));
 --echo POINT(5 0.3333333333333333) expected
+select AsText(Centroid(PolygonFromText('POLYGON((10 10,20 10,20 20,10 20))')));
+--echo POINT(15 15) expected
+select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((10 10,20 10,20 20,10 20),(14 14,14 16,16 16,16 14)),((0 0,0 2,2 2,2 0,0 0)))')));
+--echo POINT(14.44 14.44) expected
 Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')));
 --echo POINT(4 -0.25) expected
 Select AsText(Centroid(MPolyFromText('MULTIPOLYGON(((1 1, 10 1, 1 0, 10 0, 1 1)),((7 -2, 4 2, 4 -2, 1 1, 7 -2)))')));

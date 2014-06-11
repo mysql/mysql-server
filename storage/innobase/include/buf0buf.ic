@@ -778,8 +778,8 @@ buf_page_alloc_descriptor(void)
 {
 	buf_page_t*	bpage;
 
-	bpage = (buf_page_t*) ut_malloc(sizeof *bpage);
-	ut_d(memset(bpage, 0, sizeof *bpage));
+	bpage = (buf_page_t*) ut_zalloc(sizeof *bpage);
+	ut_ad(bpage);
 	UNIV_MEM_ALLOC(bpage, sizeof *bpage);
 
 	return(bpage);
@@ -947,7 +947,7 @@ buf_block_buf_fix_inc_func(
 	Debug latch is not of much help if access to block is single
 	threaded. */
 	if (!fsp_is_system_temporary(block->page.id.space())) {
-		ibool	ret;
+		ibool   ret;
 		ret = rw_lock_s_lock_nowait(&block->debug_latch, file, line);
 		ut_a(ret);
 	}
@@ -1276,7 +1276,8 @@ buf_page_release_latch(
 	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
 {
-	ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
+	ut_ad(rw_latch == RW_NO_LATCH
+	      || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
 	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
 
 #ifdef UNIV_SYNC_DEBUG
