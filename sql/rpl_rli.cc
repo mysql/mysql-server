@@ -101,6 +101,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
+   least_occupied_workers(PSI_NOT_INSTRUMENTED),
    current_mts_submode(0),
    reported_unsafe_warning(false), rli_description_event(NULL),
    commit_order_mngr(NULL),
