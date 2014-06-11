@@ -920,7 +920,7 @@ function ReadProjectionOperation(dbSession, dbTableHandler, projection, where, k
     op.operationCompleteCallback = operationCompleteCallback;
     // we have to format the query string ourselves because the variant of connection.query
     // with no callback does not allow formatting parameters
-    var formattedSQL = mysql.format(this.selectSQL, this.keys);
+    var formattedSQL = connection.format(this.selectSQL, this.keys);
     query = connection.query(
         {sql: formattedSQL,
           typeCast: driverTypeConverter
@@ -980,7 +980,7 @@ function ScanProjectionOperation(dbSession, dbTableHandler, sql, parameters, pro
   
   this.execute = function(connection, operationCompleteCallback) {
     op.operationCompleteCallback = operationCompleteCallback;
-    var formattedSQL = mysql.format(this.sql, this.keys);
+    var formattedSQL = connection.format(this.sql, this.keys);
     query = connection.query(
         {sql: formattedSQL, 
           typeCast: driverTypeConverter
