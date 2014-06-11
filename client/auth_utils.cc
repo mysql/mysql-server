@@ -46,7 +46,7 @@ int parse_cnf_file(istream &sin, map<string, string > *options,
     if (row == token_header)
       break;
     else if (sin.eof())
-      return ERR_SYNTAX;
+      return ERR_NO_SUCH_CATEGORY;
   }
 
   while (!getline(sin, option_name, '=').eof())
