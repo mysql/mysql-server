@@ -824,8 +824,11 @@ trx_purge_initiate_truncate(
 				"ib_undo_trunc_before_ddl_log_start");
 			DBUG_SUICIDE(););
 
-	dberr_t	err = undo_trunc->undo_logger.init(
-		undo_trunc->get_undo_mark_for_trunc());
+#ifdef UNIV_DEBUG
+	dberr_t	err =
+#endif /* UNIV_DEBUG */
+		undo_trunc->undo_logger.init(
+			undo_trunc->get_undo_mark_for_trunc());
 	ut_ad(err == DB_SUCCESS);
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_truncate",
