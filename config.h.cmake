@@ -310,14 +310,14 @@
 #cmakedefine HAVE_ASAN
 #cmakedefine ENABLED_LOCAL_INFILE 1
 #cmakedefine OPTIMIZER_TRACE 1
-#cmakedefine DEFAULT_MYSQL_HOME "@default_prefix@/@DEFAULT_MYSQL_HOME@"
-#cmakedefine SHAREDIR "@default_prefix@/@SHAREDIR@"
-#cmakedefine DEFAULT_BASEDIR "@default_prefix@/@DEFAULT_BASEDIR@"
-#cmakedefine MYSQL_DATADIR "@default_prefix@/@MYSQL_DATADIR@"
-#cmakedefine DEFAULT_CHARSET_HOME "@default_prefix@/@DEFAULT_CHARSET_HOME@"
-#cmakedefine PLUGINDIR "@default_prefix@/@PLUGINDIR@"
-#cmakedefine DEFAULT_SYSCONFDIR "@default_prefix@/@DEFAULT_SYSCONFDIR@"
-#cmakedefine DEFAULT_TMPDIR "@default_prefix@/@DEFAULT_TMPDIR@"
+#cmakedefine DEFAULT_MYSQL_HOME "@DEFAULT_MYSQL_HOME@"
+#cmakedefine SHAREDIR "@SHAREDIR@"
+#cmakedefine DEFAULT_BASEDIR "@DEFAULT_BASEDIR@"
+#cmakedefine MYSQL_DATADIR "@MYSQL_DATADIR@"
+#cmakedefine DEFAULT_CHARSET_HOME "@DEFAULT_CHARSET_HOME@"
+#cmakedefine PLUGINDIR "@PLUGINDIR@"
+#cmakedefine DEFAULT_SYSCONFDIR "@DEFAULT_SYSCONFDIR@"
+#cmakedefine DEFAULT_TMPDIR @DEFAULT_TMPDIR@
 #cmakedefine INSTALL_SBINDIR "@default_prefix@/@INSTALL_SBINDIR@"
 #cmakedefine INSTALL_BINDIR "@default_prefix@/@INSTALL_BINDIR@"
 #cmakedefine INSTALL_MYSQLSHAREDIR "@default_prefix@/@INSTALL_MYSQLSHAREDIR@"
