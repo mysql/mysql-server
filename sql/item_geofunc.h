@@ -801,6 +801,25 @@ class Item_func_distance: public Item_real_func
 
   template <typename Coordsys>
   double bg_distance(Geometry *g1, Geometry *g2, bool *isdone);
+  template <typename Coordsys>
+  double distance_point_geometry(Geometry *g1, Geometry *g2,
+                                 bool *isdone);
+  template <typename Coordsys>
+  double distance_multipoint_geometry(Geometry *g1, Geometry *g2,
+                                      bool *isdone);
+  template <typename Coordsys>
+  double distance_linestring_geometry(Geometry *g1, Geometry *g2,
+                                      bool *isdone);
+  template <typename Coordsys>
+  double distance_multilinestring_geometry(Geometry *g1,
+                                           Geometry *g2,
+                                           bool *isdone);
+  template <typename Coordsys>
+  double distance_polygon_geometry(Geometry *g1, Geometry *g2,
+                                   bool *isdone);
+  template <typename Coordsys>
+  double distance_multipolygon_geometry(Geometry *g1, Geometry *g2,
+                                        bool *isdone);
 
 public:
   Item_func_distance(const POS &pos, Item *a, Item *b)
