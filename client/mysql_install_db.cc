@@ -709,6 +709,9 @@ bool assert_valid_language_directory(const string &opt_langpath,
     }
     search_paths.push_back(Path("/usr/share/mysql/english"));
     search_paths.push_back(Path("/opt/mysql/share/english"));
+#ifdef INSTALL_MYSQLSHAREDIR
+    search_paths.push_back(Path(INSTALL_MYSQLSHAREDIR).append("/english"));
+#endif
     found_subdir= true;
   }
 
