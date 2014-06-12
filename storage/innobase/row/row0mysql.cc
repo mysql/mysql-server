@@ -1875,7 +1875,6 @@ private:
 
 
 typedef	std::vector<btr_pcur_t>	cursors_t;
-typedef	std::vector<bool>	index_update_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
