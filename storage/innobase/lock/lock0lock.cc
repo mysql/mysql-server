@@ -1550,7 +1550,17 @@ dberr_t
 RecLock::deadlock_check(lock_t* lock)
 {
 	ut_ad(lock_mutex_own());
-	ut_ad(!trx_mutex_own(m_trx));
+	ut_ad(lock->trx == m_trx);
+	ut_ad(trx_mutex_own(m_trx));
+
+	/* This is safe, because DeadlockChecker::check_and_resolve()
+	is invoked when a lock wait is enqueued for the currently
+	running transaction. Because trx is a running transaction
+	(it is not currently suspended because of a lock wait),
+	its state can only be changed by this thread, which is
+	currently associated with the transaction. */
+
+	trx_mutex_exit(m_trx);
 
 	const trx_t*	victim_trx;
 
@@ -1784,15 +1794,6 @@ RecLock::enqueue(const lock_t* wait_for)
 	}
 
 	ut_ad(lock_get_wait(lock));
-
-	/* This is safe, because DeadlockChecker::check_and_resolve()
-	is invoked when a lock wait is enqueued for the currently
-	running transaction. Because trx is a running transaction
-	(it is not currently suspended because of a lock wait),
-	its state can only be changed by this thread, which is
-	currently associated with the transaction. */
-
-	trx_mutex_exit(m_trx);
 
 	dberr_t	err = deadlock_check(lock);
 
@@ -7214,8 +7215,9 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 		victim_trx = checker.search();
 
 		/* Search too deep, we rollback the joining transaction only
-		if it is possible to rollback. Otherwise we rollback the transaction
-		that is holding the lock that the joining transaction wants. */
+		if it is possible to rollback. Otherwise we rollback the
+		transaction that is holding the lock that the joining
+		transaction wants. */
 		if (checker.is_too_deep()) {
 
 			ut_ad(trx == checker.m_start);
