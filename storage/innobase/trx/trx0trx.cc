@@ -202,6 +202,8 @@ struct TrxFactory {
 
 		new(&trx->lock.table_pool) lock_pool_t();
 
+		new(&trx->lock.table_locks) lock_pool_t();
+
 		lock_trx_alloc_locks(trx);
 	}
 
@@ -287,7 +289,7 @@ struct TrxFactory {
 
 		ut_ad(trx->autoinc_locks == NULL);
 
-		ut_ad(trx->lock.table_locks == NULL);
+		ut_ad(trx->lock.table_locks.empty());
 
 		return(true);
 	}
@@ -399,8 +401,6 @@ trx_create_low()
 
 	alloc = ib_heap_allocator_create(heap);
 
-	trx->lock.table_locks = ib_vector_create(alloc, sizeof(void**), 32);
-
 	/* Should have been either just initialized or .clear()ed by
 	trx_free(). */
 	ut_a(trx->mod_tables.size() == 0);
@@ -425,13 +425,6 @@ trx_free(trx_t*& trx)
 		/* We allocated a dedicated heap for the vector. */
 		ib_vector_free(trx->autoinc_locks);
 		trx->autoinc_locks = NULL;
-	}
-
-	if (trx->lock.table_locks != NULL) {
-		ut_ad(ib_vector_is_empty(trx->lock.table_locks));
-		/* We allocated a dedicated heap for the vector. */
-		ib_vector_free(trx->lock.table_locks);
-		trx->lock.table_locks = NULL;
 	}
 
 	trx->mod_tables.clear();
@@ -575,7 +568,7 @@ trx_free_prepared(
 	/* Note: This vector is not guaranteed to be empty because the
 	transaction was never committed and therefore lock_trx_release()
 	was not called. */
-	ib_vector_reset(trx->lock.table_locks);
+	trx->lock.table_locks.clear();
 
 	trx_free(trx);
 }
@@ -1223,7 +1216,7 @@ trx_start_low(
 	trx->no = TRX_ID_MAX;
 
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	ut_a(ib_vector_is_empty(trx->lock.table_locks));
+	ut_a(trx->lock.table_locks.empty());
 
 	/* If this transaction came from trx_allocate_for_mysql(),
 	trx->in_mysql_trx_list would hold. In that case, the trx->state
