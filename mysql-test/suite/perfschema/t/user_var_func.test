@@ -1,0 +1,12 @@
+
+set @v1="Hello";
+set @v2="World";
+set @v3=65;
+set @v4=NULL;
+
+select @v1, @v2, @v3, @v4, @v_unknown;
+
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.user_variables_by_thread
+  order by VARIABLE_NAME;
+

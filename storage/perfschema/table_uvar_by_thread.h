@@ -38,6 +38,9 @@ struct User_variable
 {
   PFS_variable_name_row m_name;
   PFS_variable_value_row m_value;
+
+  void clear()
+  { m_value.clear(); }
 };
 
 class User_variables
@@ -52,6 +55,14 @@ public:
   {
     m_pfs= NULL;
     m_thread_internal_id= 0;
+
+    int i;
+    int begin= 0;
+    int end= m_vector.size();
+    for (i= begin; i<end; i++)
+    {
+      m_vector[i].clear();
+    }
     m_vector.clear();
   }
 
@@ -148,7 +159,7 @@ protected:
 
 public:
   ~table_uvar_by_thread()
-  {}
+  { m_THD_cache.reset(); }
 
 protected:
   int materialize(PFS_thread *thread);

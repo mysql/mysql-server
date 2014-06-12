@@ -47,18 +47,20 @@ public:
 
 void User_variables::materialize(PFS_thread *pfs, THD *thd)
 {
+  reset();
+
   m_pfs= pfs;
   m_thread_internal_id= pfs->m_thread_internal_id;
-  m_vector.clear();
   m_vector.reserve(thd->user_vars.records);
 
-  User_variable pfs_uvar;
   user_var_entry *sql_uvar;
 
   uint index= 0;
 
   do
   {
+    User_variable pfs_uvar;
+
     sql_uvar= reinterpret_cast<user_var_entry*> (my_hash_element(& thd->user_vars, index));
     if (sql_uvar != NULL)
     {
@@ -69,9 +71,19 @@ void User_variables::materialize(PFS_thread *pfs, THD *thd)
       pfs_uvar.m_name.make_row(name, name_length);
 
       /* Copy VARIABLE_VALUE */
-      const char *value= sql_uvar->ptr();
-      size_t value_length= sql_uvar->length();
-      pfs_uvar.m_value.make_row(value, value_length);
+      my_bool null_value;
+      String *str_value;
+      String str_buffer;
+      uint decimals= 0;
+      str_value= sql_uvar->val_str(& null_value, & str_buffer, decimals);
+      if (str_value != NULL)
+      {
+        pfs_uvar.m_value.make_row(str_value->ptr(), str_value->length());
+      }
+      else
+      {
+        pfs_uvar.m_value.make_row(NULL, 0);
+      }
 
       m_vector.push_back(pfs_uvar);
     }
@@ -178,8 +190,16 @@ table_uvar_by_thread::rnd_pos(const void *pos)
   DBUG_ASSERT(m_pos.m_index_1 < thread_max);
 
   thread= &thread_array[m_pos.m_index_1];
-  if (! thread->m_lock.is_populated())
-    return HA_ERR_RECORD_DELETED;
+
+  if (materialize(thread) == 0)
+  {
+    const User_variable *uvar= m_THD_cache.get(m_pos.m_index_2);
+    if (uvar != NULL)
+    {
+      make_row(thread, uvar);
+      return 0;
+    }
+  }
 
   return HA_ERR_RECORD_DELETED;
 }
@@ -239,7 +259,8 @@ int table_uvar_by_thread
     return HA_ERR_RECORD_DELETED;
 
   /* Set the null bits */
-  DBUG_ASSERT(table->s->null_bytes == 0);
+  DBUG_ASSERT(table->s->null_bytes == 1);
+  buf[0]= 0;
 
   DBUG_ASSERT(m_row.m_variable_name != NULL);
   DBUG_ASSERT(m_row.m_variable_value != NULL);
@@ -259,9 +280,16 @@ int table_uvar_by_thread
                                m_row.m_variable_name->m_length);
         break;
       case 2: /* VARIABLE_VALUE */
-        set_field_blob(f,
-                       m_row.m_variable_value->get_value(),
-                       m_row.m_variable_value->get_value_length());
+        if (m_row.m_variable_value->get_value_length() > 0)
+        {
+          set_field_blob(f,
+                         m_row.m_variable_value->get_value(),
+                         m_row.m_variable_value->get_value_length());
+        }
+        else
+        {
+          f->set_null();
+        }
         break;
       default:
         DBUG_ASSERT(false);
