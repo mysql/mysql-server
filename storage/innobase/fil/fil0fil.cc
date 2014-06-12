@@ -2017,8 +2017,8 @@ fil_check_first_page(
 }
 
 /*******************************************************************//**
-Reads the flushed lsn, arch no, and tablespace flag fields from a data
-file at database startup.
+Reads the flushed lsn, arch no, space_id and tablespace flag fields from
+the first page of a data file at database startup.
 @retval NULL on success, or if innodb_force_recovery is set
 @return pointer to an error message string */
 UNIV_INTERN
@@ -2055,15 +2055,18 @@ fil_read_first_page(
 
 	os_file_read(data_file, page, 0, UNIV_PAGE_SIZE);
 
-	*flags = fsp_header_get_flags(page);
-
-	*space_id = fsp_header_get_space_id(page);
-
-	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
-
+	/* The FSP_HEADER on page 0 is only valid for the first file
+	in a tablespace.  So if this is not the first datafile, leave
+	*flags and *space_id as they were read from the first file and
+	do not validate the first page. */
 	if (!one_read_already) {
+		*flags = fsp_header_get_flags(page);
+		*space_id = fsp_header_get_space_id(page);
+
 		check_msg = fil_check_first_page(page);
 	}
+
+	flushed_lsn = mach_read_from_8(page + FIL_PAGE_FILE_FLUSH_LSN);
 
 	ut_free(buf);
 
