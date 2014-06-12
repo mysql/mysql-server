@@ -2301,10 +2301,6 @@ buf_LRU_block_remove_hashed(
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
-		if (buf_pool->flush_rbt == NULL) {
-			bpage->id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
-		}
-
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:
 		1) Some other thread buffer fixing this page
@@ -2379,6 +2375,9 @@ buf_LRU_block_free_hashed_page(
 #endif
 
 	buf_page_mutex_enter(block);
+	if (buf_pool->flush_rbt == NULL) {
+		block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
+	}
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	buf_LRU_block_free_non_file_page(block);
