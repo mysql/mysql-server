@@ -3505,7 +3505,7 @@ fts_query_prepare_result(
 			if (fts_bsearch(array, 0, static_cast<int>(size),
 					doc_freq->doc_id) >= 0) {
 				/* one less matching doc count */
-				word_freq->doc_count--;
+				--word_freq->doc_count;
 				continue;
 			}
 
@@ -3523,14 +3523,15 @@ fts_query_prepare_result(
 			}
 		}
 
-		/* Calculate IDF only after exclude those deleted items */
+		/* Calculate IDF only after we exclude the deleted items */
 		fts_query_calculate_idf(query);
 
 		node = rbt_first(query->word_freqs);
 		word_freq = rbt_value(fts_word_freq_t, node);
 
+		/* Calculate the ranking for each doc */
 		for (node = rbt_first(result->rankings_by_id);
-		     node;
+		     node != NULL;
 		     node = rbt_next(result->rankings_by_id, node)) {
 
 			fts_ranking_t*  ranking;
