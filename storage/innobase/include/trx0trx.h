@@ -756,7 +756,7 @@ struct trx_lock_t {
 					and lock_sys->mutex; removals are
 					protected by lock_sys->mutex */
 
-	ib_vector_t*	table_locks;	/*!< All table locks requested by this
+	lock_pool_t	table_locks;	/*!< All table locks requested by this
 					transaction, including AUTOINC locks */
 
 	bool		cancel;		/*!< true if the transaction is being

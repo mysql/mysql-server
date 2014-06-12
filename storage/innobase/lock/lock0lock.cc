@@ -3507,7 +3507,7 @@ lock_table_create(
 		lock_set_lock_and_trx_wait(lock, trx);
 	}
 
-	ib_vector_push(lock->trx->lock.table_locks, &lock);
+	lock->trx->lock.table_locks.push_back(lock);
 
 	MONITOR_INC(MONITOR_TABLELOCK_CREATED);
 	MONITOR_INC(MONITOR_NUM_TABLELOCK);
@@ -4148,7 +4148,6 @@ lock_trx_table_locks_remove(
 /*========================*/
 	const lock_t*	lock_to_remove)		/*!< in: lock to remove */
 {
-	lint		i;
 	trx_t*		trx = lock_to_remove->trx;
 
 	ut_ad(lock_mutex_own());
@@ -4160,11 +4159,13 @@ lock_trx_table_locks_remove(
 		ut_ad(trx_mutex_own(trx));
 	}
 
-	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
-		const lock_t*	lock;
+	typedef typename lock_pool_t::reverse_iterator iterator;
 
-		lock = *static_cast<lock_t**>(
-			ib_vector_get(trx->lock.table_locks, i));
+	iterator	end = trx->lock.table_locks.rend();
+
+	for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
+
+		const lock_t*	lock = *it;
 
 		if (lock == NULL) {
 			continue;
@@ -4175,8 +4176,8 @@ lock_trx_table_locks_remove(
 		ut_a(lock->un_member.tab_lock.table != NULL);
 
 		if (lock == lock_to_remove) {
-			void*	null_var = NULL;
-			ib_vector_set(trx->lock.table_locks, i, &null_var);
+
+			*it = NULL;
 
 			if (!trx->lock.cancel) {
 				trx_mutex_exit(trx);
@@ -5016,31 +5017,35 @@ lock_print_info_all_transactions(
 #ifdef UNIV_DEBUG
 /*********************************************************************//**
 Find the the lock in the trx_t::trx_lock_t::table_locks vector.
-@return TRUE if found */
+@return true if found */
 static
-ibool
+bool
 lock_trx_table_locks_find(
 /*======================*/
 	trx_t*		trx,		/*!< in: trx to validate */
 	const lock_t*	find_lock)	/*!< in: lock to find */
 {
-	lint		i;
-	ibool		found = FALSE;
+	bool		found = false;
 
 	trx_mutex_enter(trx);
 
-	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
-		const lock_t*	lock;
+	typedef typename lock_pool_t::const_reverse_iterator iterator;
 
-		lock = *static_cast<const lock_t**>(
-			ib_vector_get(trx->lock.table_locks, i));
+	iterator	end = trx->lock.table_locks.rend();
+
+	for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
+
+		const lock_t*	lock = *it;
 
 		if (lock == NULL) {
+
 			continue;
+
 		} else if (lock == find_lock) {
+
 			/* Can't be duplicates. */
 			ut_a(!found);
-			found = TRUE;
+			found = true;
 		}
 
 		ut_a(trx == lock->trx);
@@ -6519,11 +6524,11 @@ lock_trx_release_locks(
 	efficiency reasons. We simply reset it because we would have
 	released all the locks anyway. */
 
-	ib_vector_reset(trx->lock.table_locks);
+	trx->lock.table_locks.clear();
 
 	ut_a(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_a(ib_vector_is_empty(trx->autoinc_locks));
-	ut_a(ib_vector_is_empty(trx->lock.table_locks));
+	ut_a(trx->lock.table_locks.empty());
 
 	mem_heap_empty(trx->lock.lock_heap);
 }
@@ -6707,18 +6712,20 @@ lock_trx_has_sys_table_locks(
 /*=========================*/
 	const trx_t*	trx)	/*!< in: transaction to check */
 {
-	lint		i;
 	const lock_t*	strongest_lock = 0;
 	lock_mode	strongest = LOCK_NONE;
 
 	lock_mutex_enter();
 
-	/* Find a valid mode. Note: ib_vector_size() can be 0. */
-	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
-		const lock_t*	lock;
+	typedef typename lock_pool_t::const_reverse_iterator iterator;
 
-		lock = *static_cast<const lock_t**>(
-			ib_vector_get(trx->lock.table_locks, i));
+	iterator	end = trx->lock.table_locks.rend();
+	iterator	it = trx->lock.table_locks.rbegin();
+
+	/* Find a valid mode. Note: ib_vector_size() can be 0. */
+
+	for (/* No op */; it != end; ++it) {
+		const lock_t*	lock = *it;
 
 		if (lock != NULL
 		    && dict_is_sys_table(lock->un_member.tab_lock.table->id)) {
@@ -6735,11 +6742,8 @@ lock_trx_has_sys_table_locks(
 		return(NULL);
 	}
 
-	for (/* No op */; i >= 0; --i) {
-		const lock_t*	lock;
-
-		lock = *static_cast<const lock_t**>(
-			ib_vector_get(trx->lock.table_locks, i));
+	for (/* No op */; it != end; ++it) {
+		const lock_t*	lock = *it;
 
 		if (lock == NULL) {
 			continue;
