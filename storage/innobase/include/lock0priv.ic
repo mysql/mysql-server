@@ -384,35 +384,34 @@ lock_table_has(
 /*===========*/
 	const trx_t*		trx,	/*!< in: transaction */
 	const dict_table_t*	table,	/*!< in: table */
-	enum lock_mode		mode)	/*!< in: lock mode */
+	lock_mode		in_mode)/*!< in: lock mode */
 {
-	lint	i;
-
-	if (ib_vector_is_empty(trx->lock.table_locks)) {
+	if (trx->lock.table_locks.empty()) {
 		return(NULL);
 	}
 
+	typedef typename lock_pool_t::const_reverse_iterator iterator;
+
+	iterator	end = trx->lock.table_locks.rend();
+
 	/* Look for stronger locks the same trx already has on the table */
 
-	for (i = ib_vector_size(trx->lock.table_locks) - 1; i >= 0; --i) {
-		const lock_t*	lock;
-		enum lock_mode	lock_mode;
+	for (iterator it = trx->lock.table_locks.rbegin(); it != end; ++it) {
 
-		lock = *static_cast<const lock_t**>(
-			ib_vector_get(trx->lock.table_locks, i));
+		const lock_t*	lock = *it;
 
 		if (lock == NULL) {
 			continue;
 		}
 
-		lock_mode = lock_get_mode(lock);
+		lock_mode	mode = lock_get_mode(lock);
 
 		ut_ad(trx == lock->trx);
 		ut_ad(lock_get_type_low(lock) & LOCK_TABLE);
 		ut_ad(lock->un_member.tab_lock.table != NULL);
 
 		if (table == lock->un_member.tab_lock.table
-		    && lock_mode_stronger_or_eq(lock_mode, mode)) {
+		    && lock_mode_stronger_or_eq(mode, in_mode)) {
 
 			ut_ad(!lock_get_wait(lock));
 
