@@ -464,7 +464,7 @@ String *Item_func_centroid::val_str(String *str)
 class Point_accumulator : public WKB_scanner_event_handler
 {
   Gis_multi_point *m_mpts;
-  const char *pt_start;
+  const void *pt_start;
 public:
   Point_accumulator(Gis_multi_point *mpts) : m_mpts(mpts), pt_start(NULL)
   {
@@ -479,14 +479,14 @@ public:
       Gis_point pt(wkb, POINT_DATA_SIZE, Geometry::Flags_t(Geometry::wkb_point, len),
                    m_mpts->get_srid());
       m_mpts->push_back(pt);
-      pt_start= static_cast<const char *>(wkb);
+      pt_start= wkb;
     }
   }
 
 
   virtual void on_wkb_end(const void *wkb)
   {
-    DBUG_ASSERT(pt_start + POINT_DATA_SIZE == wkb);
+    DBUG_ASSERT(static_cast<const char *>(pt_start) + POINT_DATA_SIZE == wkb);
   }
 };
 
@@ -7353,6 +7353,259 @@ mem_error:
   DBUG_RETURN(0);
 }
 
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_point_geometry(Geometry *g1, Geometry *g2, bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  typename BG_models<double, Coordsys>::Point
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    {
+      typename BG_models<double, Coordsys>::Point
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, Coordsys>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_linestring:
+    {
+      typename BG_models<double, Coordsys>::Linestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    {
+      typename BG_models<double, Coordsys>::Multilinestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_polygon:
+    {
+      typename BG_models<double, Coordsys>::Polygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    {
+      typename BG_models<double, Coordsys>::Multipolygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  *isdone= true;
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_multipoint_geometry(Geometry *g1, Geometry *g2,
+                             bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  typename BG_models<double, Coordsys>::Multipoint
+    bg1(g1->get_data_ptr(), g1->get_data_size(),
+        g1->get_flags(), g1->get_srid());
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      typename BG_models<double, Coordsys>::Multipoint
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_linestring:
+    {
+      typename BG_models<double, Coordsys>::Linestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    {
+      typename BG_models<double, Coordsys>::Multilinestring
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_polygon:
+    {
+      typename BG_models<double, Coordsys>::Polygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    {
+      typename BG_models<double, Coordsys>::Multipolygon
+        bg2(g2->get_data_ptr(), g2->get_data_size(),
+            g2->get_flags(), g2->get_srid());
+      res= boost::geometry::distance(bg1, bg2);
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  *isdone= true;
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_linestring_geometry(Geometry *g1, Geometry *g2,
+                             bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_multilinestring_geometry(Geometry *g1, Geometry *g2,
+                                  bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_linestring:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_polygon_geometry(Geometry *g1, Geometry *g2, bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
+template <typename Coordsys>
+double Item_func_distance::
+distance_multipolygon_geometry(Geometry *g1, Geometry *g2,
+                               bool *isdone)
+{
+  double res= 0;
+  *isdone= false;
+
+  switch (g2->get_type())
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+    res= bg_distance<Coordsys>(g2, g1, isdone);
+    break;
+  case Geometry::wkb_multipolygon:
+    // Not supported yet by BG, call BG function when supported.
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return res;
+}
+
+
 template <typename Coordsys>
 double Item_func_distance::bg_distance(Geometry *g1,
                                        Geometry *g2, bool *isdone)
@@ -7374,201 +7627,22 @@ double Item_func_distance::bg_distance(Geometry *g1,
     switch (g1->get_type())
     {
     case Geometry::wkb_point:
-      {
-        typename BG_models<double, Coordsys>::Point
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-
-        switch (g2->get_type())
-        {
-        case Geometry::wkb_point:
-          {
-            typename BG_models<double, Coordsys>::Point
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_multipoint:
-          {
-            typename BG_models<double, Coordsys>::Multipoint
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_linestring:
-          {
-            typename BG_models<double, Coordsys>::Linestring
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_multilinestring:
-          {
-            typename BG_models<double, Coordsys>::Multilinestring
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_polygon:
-          {
-            typename BG_models<double, Coordsys>::Polygon
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_multipolygon:
-          {
-            typename BG_models<double, Coordsys>::Multipolygon
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        default:
-          DBUG_ASSERT(false);
-          break;
-        }
-
-        if (!null_value)
-          *isdone= true;
-      }
+      res= distance_point_geometry<Coordsys>(g1, g2, isdone);
       break;
     case Geometry::wkb_multipoint:
-      {
-        typename BG_models<double, Coordsys>::Multipoint
-          bg1(g1->get_data_ptr(), g1->get_data_size(),
-              g1->get_flags(), g1->get_srid());
-
-        switch (g2->get_type())
-        {
-        case Geometry::wkb_point:
-          res= bg_distance<Coordsys>(g2, g1, isdone);
-          break;
-        case Geometry::wkb_multipoint:
-          {
-            typename BG_models<double, Coordsys>::Multipoint
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_linestring:
-          {
-            typename BG_models<double, Coordsys>::Linestring
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_multilinestring:
-          {
-            typename BG_models<double, Coordsys>::Multilinestring
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_polygon:
-          {
-            typename BG_models<double, Coordsys>::Polygon
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        case Geometry::wkb_multipolygon:
-          {
-            typename BG_models<double, Coordsys>::Multipolygon
-              bg2(g2->get_data_ptr(), g2->get_data_size(),
-                  g2->get_flags(), g2->get_srid());
-            res= boost::geometry::distance(bg1, bg2);
-          }
-          break;
-        default:
-          DBUG_ASSERT(false);
-          break;
-        }
-
-        if (!null_value)
-          *isdone= true;
-      }
+      res= distance_multipoint_geometry<Coordsys>(g1, g2, isdone);
       break;
     case Geometry::wkb_linestring:
-      switch (g2->get_type())
-      {
-      case Geometry::wkb_point:
-      case Geometry::wkb_multipoint:
-        res= bg_distance<Coordsys>(g2, g1, isdone);
-        break;
-      case Geometry::wkb_linestring:
-      case Geometry::wkb_multilinestring:
-      case Geometry::wkb_polygon:
-      case Geometry::wkb_multipolygon:
-        // Not supported yet by BG, call BG function when supported.
-        break;
-      default:
-        DBUG_ASSERT(false);
-        break;
-      }
+      res= distance_linestring_geometry<Coordsys>(g1, g2, isdone);
       break;
     case Geometry::wkb_multilinestring:
-      switch (g2->get_type())
-      {
-      case Geometry::wkb_point:
-      case Geometry::wkb_multipoint:
-      case Geometry::wkb_linestring:
-        res= bg_distance<Coordsys>(g2, g1, isdone);
-        break;
-      case Geometry::wkb_multilinestring:
-      case Geometry::wkb_polygon:
-      case Geometry::wkb_multipolygon:
-        // Not supported yet by BG, call BG function when supported.
-        break;
-      default:
-        DBUG_ASSERT(false);
-        break;
-      }
+      res= distance_multilinestring_geometry<Coordsys>(g1, g2, isdone);
       break;
     case Geometry::wkb_polygon:
-      switch (g2->get_type())
-      {
-      case Geometry::wkb_point:
-      case Geometry::wkb_multipoint:
-      case Geometry::wkb_linestring:
-      case Geometry::wkb_multilinestring:
-        res= bg_distance<Coordsys>(g2, g1, isdone);
-        break;
-      case Geometry::wkb_polygon:
-      case Geometry::wkb_multipolygon:
-        // Not supported yet by BG, call BG function when supported.
-        break;
-      default:
-        DBUG_ASSERT(false);
-        break;
-      }
+      res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
       break;
     case Geometry::wkb_multipolygon:
-      switch (g2->get_type())
-      {
-      case Geometry::wkb_point:
-      case Geometry::wkb_multipoint:
-      case Geometry::wkb_linestring:
-      case Geometry::wkb_multilinestring:
-      case Geometry::wkb_polygon:
-        res= bg_distance<Coordsys>(g2, g1, isdone);
-        break;
-      case Geometry::wkb_multipolygon:
-        // Not supported yet by BG, call BG function when supported.
-        break;
-      default:
-        DBUG_ASSERT(false);
-        break;
-      }
+      res= distance_polygon_geometry<Coordsys>(g1, g2, isdone);
       break;
     default:
       DBUG_ASSERT(false);
