@@ -55,7 +55,7 @@ void Path::trim()
   std::string::iterator it= m_path.end();
   --it;
 
-  while((*it) == PATH_SEPARATOR_C)
+  while((*it) == PATH_SEPARATOR_C && m_path.length() > 1)
   {
     m_path.erase(it--);
   }
@@ -68,7 +68,8 @@ void Path::parent_directory(Path *out)
   {
     out->path("");
   }
-  out->path(m_path.substr(0, idx));
+  else
+    out->path(m_path.substr(0, idx));
 }
 
 Path &Path::up()
@@ -78,7 +79,8 @@ Path &Path::up()
   {
     m_path.clear();
   }
-  m_path.assign(m_path.substr(0, idx));
+  else
+    m_path.assign(m_path.substr(0, idx));
   return *this;
 }
 
@@ -159,7 +161,7 @@ bool Path::exists()
     MY_STAT s;
     std::string qpath(m_path);
     qpath.append(PATH_SEPARATOR).append(m_filename);
-    if (my_stat(qpath.c_str(), &s, MYF(0)) == NULL)
+    if (stat(qpath.c_str(), &s) != 0)
       return false;
     if (!S_ISREG(s.st_mode))
       return false;
