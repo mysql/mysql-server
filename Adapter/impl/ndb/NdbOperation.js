@@ -248,12 +248,40 @@ function encodeBounds(key, nfields, dbIndexHandler, buffer) {
   return buffer;
 }
 
+function bufferForText(column, value) {
+  var buffer = null;
+  var charset = column.charsetName;
+
+  if(typeof value === 'string') {
+    if(charset.substr(0, 4) == "utf8") {
+      buffer = new Buffer(value, "utf8");
+    } if(charset == 'ascii') {
+      buffer = new Buffer(value, "ascii");
+    }
+  }
+  return buffer;
+}
+
+function textFromBuffer(column, buffer) { 
+  var value = null;
+  var charset = column.charsetName;
+  if(buffer) {
+    if(charset.substr(0, 4) == "utf8") {
+      value = buffer.toString("utf8");
+    } else if (charset == 'ascii') {
+      value = buffer.toString("ascii");
+    }
+  }
+  return value;
+}
+
 function defineBlobs(nfields, metadata, values) {
-  var i, blobs;
+  var i, blobs, col;
   blobs = [];
   for(i = 0 ; i < nfields ; i++) {
-    if(metadata[i].isLob) {
-      blobs[i] = values[i];
+    col = metadata[i];
+    if(col.isLob) {
+      blobs[i] = col.isBinary ? values[i] : bufferForText(col, values[i]) ;
     }
   }
   return blobs;
@@ -538,10 +566,10 @@ function readResultRow(op) {
   var resultRow       = dbt.newResultObject();
   
   for(i = 0 ; i < nfields ; i++) {
-    if(record.isNull(i, op.buffers.row)) {
+    if(col[i].isLob) {
+      value = col[i].isBinary ? op.blobs[i] : textFromBuffer(col[i], op.blobs[i]);
+    } else if(record.isNull(i, op.buffers.row)) {
       value = null;
-    } else if(col[i].isLob) {
-      value = op.blobs[i];
     } else {
       value = record.encoderRead(i, op.buffers.row);
       if(col[i].typeConverter && col[i].typeConverter.ndb) {
