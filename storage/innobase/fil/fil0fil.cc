@@ -2999,7 +2999,7 @@ fil_truncate_tablespace(
 	ibuf_delete_for_discarded_space(space_id);
 
 	/* Step-3: Truncate the tablespace and accordingly update
-	the fil_space_t handler that is used to access this tablespace. */ 
+	the fil_space_t handler that is used to access this tablespace. */
 	mutex_enter(&fil_system->mutex);
 	fil_space_t*	space = fil_space_get_by_id(space_id);
 
@@ -3018,7 +3018,7 @@ fil_truncate_tablespace(
 		success = os_file_set_size(
 				node->name, node->handle,
 				size_in_pages * UNIV_PAGE_SIZE);
-		if (success) {  
+		if (success) {
 			space->stop_new_ops = false;
 			space->is_being_truncated = false;
 		}
