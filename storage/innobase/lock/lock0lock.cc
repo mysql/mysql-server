@@ -4159,7 +4159,7 @@ lock_trx_table_locks_remove(
 		ut_ad(trx_mutex_own(trx));
 	}
 
-	typedef typename lock_pool_t::reverse_iterator iterator;
+	typedef lock_pool_t::reverse_iterator iterator;
 
 	iterator	end = trx->lock.table_locks.rend();
 
@@ -5029,7 +5029,7 @@ lock_trx_table_locks_find(
 
 	trx_mutex_enter(trx);
 
-	typedef typename lock_pool_t::const_reverse_iterator iterator;
+	typedef lock_pool_t::const_reverse_iterator iterator;
 
 	iterator	end = trx->lock.table_locks.rend();
 
@@ -6717,7 +6717,7 @@ lock_trx_has_sys_table_locks(
 
 	lock_mutex_enter();
 
-	typedef typename lock_pool_t::const_reverse_iterator iterator;
+	typedef lock_pool_t::const_reverse_iterator iterator;
 
 	iterator	end = trx->lock.table_locks.rend();
 	iterator	it = trx->lock.table_locks.rbegin();
