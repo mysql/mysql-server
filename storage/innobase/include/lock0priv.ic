@@ -390,7 +390,7 @@ lock_table_has(
 		return(NULL);
 	}
 
-	typedef typename lock_pool_t::const_reverse_iterator iterator;
+	typedef lock_pool_t::const_reverse_iterator iterator;
 
 	iterator	end = trx->lock.table_locks.rend();
 
