@@ -20,7 +20,6 @@ INCLUDE(CheckSymbolExists)
 
 # Something that needs to be set on legacy reasons
 SET(TARGET_OS_LINUX 1)
-SET(HAVE_NPTL 1)
 SET(_GNU_SOURCE 1)
 
 # Fix CMake (< 2.8) flags. -rdynamic exports too many symbols.
