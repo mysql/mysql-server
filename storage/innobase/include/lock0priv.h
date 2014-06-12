@@ -397,9 +397,9 @@ enum lock_rec_req_status {
 
 /**
 Record lock ID */
-struct RecLockID {
+struct RecID {
 
-	RecLockID(ib_uint32_t space, ib_uint32_t page_no, ib_uint32_t heap_no)
+	RecID(ib_uint32_t space, ib_uint32_t page_no, ib_uint32_t heap_no)
 		:
 		m_space(space),
 		m_page_no(page_no),
@@ -409,7 +409,7 @@ struct RecLockID {
 		/* No op */
 	}
 
-	RecLockID(const buf_block_t* block, ib_uint32_t heap_no)
+	RecID(const buf_block_t* block, ib_uint32_t heap_no)
 		:
 		m_space(block->page.id.space()),
 		m_page_no(block->page.id.page_no()),
@@ -449,23 +449,23 @@ class RecLock {
 public:
 
 	/**
-	@param[in,out] thr	Transaction query thread requesting the record lock
+	@param[in,out] thr	Transaction query thread requesting the record
+				lock
 	@param[in] index	Index on which record lock requested
-	@param[in] rec_lock_id	Record lock tuple {space, page_no, heap_no}
+	@param[in] rec_id	Record lock tuple {space, page_no, heap_no}
 	@param[in] mode		The lock mode */
 	RecLock(que_thr_t*	thr,
 		dict_index_t*	index,
-		const RecLockID&rec_lock_id,
+		const RecID&	rec_id,
 		ulint		mode)
 		:
 		m_thr(thr),
 		m_trx(thr_get_trx(thr)),
 		m_mode(mode),
 		m_index(index),
-		m_rec_lock_id(rec_lock_id),
-		m_prdt()
+		m_rec_id(rec_id)
 	{
-		ut_ad(is_predicate_lock());
+		ut_ad(is_predicate_lock(m_mode));
 
 		init(NULL);
 	}
@@ -490,8 +490,7 @@ public:
 		m_trx(thr_get_trx(thr)),
 		m_mode(mode),
 		m_index(index),
-		m_rec_lock_id(block, heap_no),
-		m_prdt()
+		m_rec_id(block, heap_no)
 	{
 		btr_assert_not_corrupted(block, index);
 
@@ -500,20 +499,19 @@ public:
 
 	/**
 	@param[in] index	Index on which record lock requested
-	@param[in] rec_lock_id	Record lock tuple {space, page_no, heap_no}
+	@param[in] rec_id	Record lock tuple {space, page_no, heap_no}
 	@param[in] mode		The lock mode */
 	RecLock(dict_index_t*	index,
-		const RecLockID&rec_lock_id,
+		const RecID&	rec_id,
 		ulint		mode)
 		:
 		m_thr(),
 		m_trx(),
 		m_mode(mode),
 		m_index(index),
-		m_rec_lock_id(rec_lock_id),
-		m_prdt()
+		m_rec_id(rec_id)
 	{
-		ut_ad(is_predicate_lock());
+		ut_ad(is_predicate_lock(m_mode));
 
 		init(NULL);
 	}
@@ -533,8 +531,7 @@ public:
 		m_trx(),
 		m_mode(mode),
 		m_index(index),
-		m_rec_lock_id(block, heap_no),
-		m_prdt()
+		m_rec_id(block, heap_no)
 	{
 		btr_assert_not_corrupted(block, index);
 
@@ -563,6 +560,21 @@ public:
 	@return new lock instance */
 	lock_t* create(trx_t* trx, bool owns_trx_mutex);
 
+	/**
+	Create the lock instance
+	@param[in, out] trx	The transaction requesting the lock
+	@param[in, out] index	Index on which record lock is required
+	@param[in] mode		The lock mode desired
+	@param[in] rec_id	The record id
+	@param[in] size		Size of the lock + bitmap requested
+	@return a record lock instance */
+	static lock_t* lock_alloc(
+		trx_t*		trx,
+		dict_index_t*	index,
+		ulint		mode,
+		const RecID&	rec_id,
+		ulint		size);
+
 private:
 	/**
 	Enqueue a lock wait for a high priority transaction, jump the record
@@ -579,11 +591,6 @@ private:
 	{
 		return(m_size);
 	}
-
-	/**
-	Initialise the lock instance
-	@param[in, out] lock	Setup the lock instance */
-	void lock_init(lock_t* lock) const;
 
 	/**
 	@param[in,out] lock	Newly created record lock
@@ -650,83 +657,75 @@ private:
 		      || !dict_index_is_online_ddl(m_index));
 		ut_ad(m_thr == NULL || m_trx == thr_get_trx(m_thr));
 
+		m_size = is_predicate_lock(m_mode)
+			  ? lock_size(m_mode) : lock_size(page);
+
 		/** If rec is the supremum record, then we reset the
 		gap and LOCK_REC_NOT_GAP bits, as all locks on the
 		supremum are automatically of the gap type */
 
-		if (m_rec_lock_id.m_heap_no == PAGE_HEAP_NO_SUPREMUM) {
+		if (m_rec_id.m_heap_no == PAGE_HEAP_NO_SUPREMUM) {
 			ut_ad(!(m_mode & LOCK_REC_NOT_GAP));
 
 			m_mode &= ~(LOCK_GAP | LOCK_REC_NOT_GAP);
 		}
+	}
 
-		m_size = get_size(page);
+	/**
+	Calculate the record lock physical size required.
+	@param[in] mode For predicate locks the lock mode
+	@return the size of the lock data structure required in bytes */
+	static size_t lock_size(ulint mode)
+	{
+		ut_ad(is_predicate_lock(mode));
+
+		/* The lock is always on PAGE_HEAP_NO_INFIMUM(0),
+		so we only need 1 bit (which is rounded up to 1
+		byte) for lock bit setting */
+
+		size_t	n_bytes;
+
+		if (mode & LOCK_PREDICATE) {
+			ulint	tmp = UNIV_WORD_SIZE - 1;
+
+			/* We will attach the predicate structure
+			after lock. Make sure the memory is
+			aligned on 8 bytes, the mem_heap_alloc
+			will align it with MEM_SPACE_NEEDED
+			anyway. */
+
+			n_bytes = (1 + sizeof(lock_prdt_t) + tmp) & ~tmp;
+
+			/* This should hold now */
+
+			ut_ad(n_bytes == sizeof(lock_prdt_t) + UNIV_WORD_SIZE);
+
+		} else {
+			n_bytes = 1;
+		}
+		
+		return(n_bytes);
 	}
 
 	/**
 	Calculate the record lock physical size required.
 	@param[in] page		For non-predicate locks the buffer page
 	@return the size of the lock data structure required in bytes */
-	size_t get_size(const page_t* page) const
+	static size_t lock_size(const page_t* page)
 	{
-		size_t	n_bytes;
+		ulint	n_recs = page_dir_get_n_heap(page);
 
-		if (!is_predicate_lock()) {
+		/* Make lock bitmap bigger by a safety margin */
 
-			ulint	n_bits;
-			ulint	n_recs = page_dir_get_n_heap(page);
-
-			/* Make lock bitmap bigger by a safety margin */
-			n_bits = n_recs + LOCK_PAGE_BITMAP_MARGIN;
-
-			n_bytes = 1 + n_bits / 8;
-
-		} else {
-			ut_ad(m_rec_lock_id.m_heap_no == PRDT_HEAPNO);
-
-			/* The lock is always on PAGE_HEAP_NO_INFIMUM(0),
-			so we only need 1 bit (which is rounded up to 1
-			byte) for lock bit setting */
-
-			if (m_mode & LOCK_PREDICATE) {
-				ulint	tmp = UNIV_WORD_SIZE - 1;
-
-				/* We will attach the predicate structure
-				after lock. Make sure the memory is
-				aligned on 8 bytes, the mem_heap_alloc
-				will align it with MEM_SPACE_NEEDED
-				anyway. */
-
-				n_bytes = (1 + sizeof(lock_prdt_t) + tmp)
-					& ~tmp;
-
-				/* This should hold now */
-
-				ut_ad(n_bytes == sizeof(lock_prdt_t)
-				      + UNIV_WORD_SIZE);
-
-			} else {
-				n_bytes = 1;
-			}
-		}
-
-		return(n_bytes);
+		return(1 + ((n_recs + LOCK_PAGE_BITMAP_MARGIN) / 8));
 	}
 
 	/**
 	@return true if the requested lock mode is for a predicate lock */
-	bool is_predicate_lock() const
+	static bool is_predicate_lock(ulint mode)
 	{
-		return(m_mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
+		return(mode & (LOCK_PREDICATE | LOCK_PRDT_PAGE));
 	}
-
-	/**
-	Create the lock instance.
-	@param[in, out] trx	The transaction requesting the lock
-	@param[in, out] index	Index on which record lock is required
-	@param[in] size		Size of the lock + bitmap requested
-	@return a record lock instance */
-	static lock_t* lock_alloc(trx_t* trx, dict_index_t* index, size_t size);
 
 private:
 	/** The query thread of the transaction */
@@ -750,11 +749,7 @@ private:
 
 	/**
 	The record lock tuple {space, page_no, heap_no} */
-	RecLockID		m_rec_lock_id;
-
-	/**
-	Predicate for the r-tree row lock, NULL for non-predicate locks */
-	lock_prdt_t*		m_prdt;
+	RecID			m_rec_id;
 };
 
 #ifdef UNIV_DEBUG
