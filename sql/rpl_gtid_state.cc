@@ -23,6 +23,7 @@
 #include "rpl_gtid_persist.h"
 #include "log.h"
 #include "binlog.h"
+#include "rpl_context.h"
 
 
 int Gtid_state::clear(THD *thd)
@@ -167,7 +168,13 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
       if (g.sidno != prev_sidno)
         sid_locks.lock(g.sidno);
       if (ret == RETURN_STATUS_OK)
+      {
         ret= executed_gtids._add_gtid(g);
+        if (ret == RETURN_STATUS_OK)
+          if ((thd->rpl_thd_ctx.session_gtids_ctx().
+            notify_after_transaction_replicated(thd)))
+            ret= RETURN_STATUS_UNREPORTED_ERROR;
+      }
       git.next();
       g= git.get();
     }
@@ -179,6 +186,10 @@ enum_return_status Gtid_state::update_on_flush(THD *thd)
   {
     lock_sidno(thd->owned_gtid.sidno);
     ret= executed_gtids._add_gtid(thd->owned_gtid);
+    if (ret == RETURN_STATUS_OK)
+       if ((thd->rpl_thd_ctx.session_gtids_ctx().
+         notify_after_transaction_replicated(thd)))
+         ret= RETURN_STATUS_UNREPORTED_ERROR;
   }
 
   /*
