@@ -789,7 +789,7 @@ public:
 
 inline int getUtf8BufferSizeForColumn(int columnSizeInBytes,
                                       const EncoderCharset * csinfo) {
-  int columnSizeInCharacters = columnSizeInBytes / csinfo->maxlen;
+  int columnSizeInCharacters = columnSizeInBytes / csinfo->minlen;
   int utf8MaxChar = csinfo->maxlen < 3 ? csinfo->maxlen + 1 : 4;
   return (columnSizeInCharacters * utf8MaxChar);  
 }                            
