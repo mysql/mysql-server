@@ -28,6 +28,7 @@
 #include "js_wrapper_macros.h"
 #include "NdbWrappers.h"
 #include "DBSessionImpl.h"
+#include "EncoderCharset.h"
 
 using namespace v8;
 
@@ -665,10 +666,10 @@ Handle<Object> GetTableCall::buildDBColumn(const NdbDictionary::Column *col) {
              ReadOnly);
     
     if(is_char) {
-      obj->Set(String::NewSymbol("charsetNumber"),
-               Number::New(col->getCharsetNumber()),
+      const EncoderCharset * csinfo = getEncoderCharsetForColumn(col);
+      obj->Set(String::NewSymbol("charsetName"),
+               String::New(csinfo->name),
                ReadOnly);
-      // todo: charsetName
     }
   }
     
