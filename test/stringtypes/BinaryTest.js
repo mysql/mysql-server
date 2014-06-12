@@ -20,6 +20,10 @@
 
 "use strict";
 
+var ValueVerifier = require("./lib.js").ValueVerifier;
+var ErrorVerifier = require("./lib.js").ErrorVerifier;
+var BufferVerifier = require("./lib.js").BufferVerifier;
+
 // Domain Object Constructor
 var test_id = 1;
 
@@ -28,31 +32,6 @@ function TestData() {
     this.id = test_id++;
   }
 }
-
-function BufferVerifier(testCase, field, expectedValue) {
-  this.run = function onRead(err, rowRead) {
-    var buffer, len, i;
-    testCase.errorIfError(err);
-    testCase.errorIfNull(rowRead);
-    len = expectedValue.length;
-    try {  
-      buffer = rowRead[field];
-      testCase.errorIfNotEqual("length", len, buffer.length);
-      if(len == buffer.length) {
-        for(i = 0; i < len ; i++) {
-          testCase.errorIfNotEqual("mismatch at position " + i, 
-                                  expectedValue[i], buffer[i]);
-          if(expectedValue[i] !== buffer[i]) break;
-        }
-      }
-    }
-    catch(e) {
-      testCase.appendErrorMessage(e);
-    }
-    testCase.failOnError();
-  };
-}
-
 
 function ReadFunction(testCase, session) { 
   return function onPersist(err) {

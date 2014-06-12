@@ -1,0 +1,111 @@
+/*
+ Copyright (c) 2014, Oracle and/or its affiliates. All rights
+ reserved.
+ 
+ This program is free software; you can redistribute it and/or
+ modify it under the terms of the GNU General Public License
+ as published by the Free Software Foundation; version 2 of
+ the License.
+ 
+ This program is distributed in the hope that it will be useful,
+ but WITHOUT ANY WARRANTY; without even the implied warranty of
+ MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ GNU General Public License for more details.
+ 
+ You should have received a copy of the GNU General Public License
+ along with this program; if not, write to the Free Software
+ Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
+ 02110-1301  USA
+ */
+
+"use strict";
+
+// Domain Object Constructors
+var test_id = 1;
+
+var ValueVerifier = require("./lib.js").ValueVerifier;
+var ErrorVerifier = require("./lib.js").ErrorVerifier;
+var BufferVerifier = require("./lib.js").BufferVerifier;
+
+
+function TextBlobData() {           // id, blob_col, text_col
+  if(this.id === undefined) { this.id = test_id++; }
+}
+
+function TextCharsetData() {        // id, ascii_text, latin1_txt, utf16_text
+  if(this.id === undefined) { this.id = test_id++; }
+}
+
+new mynode.TableMapping("test.text_blob_test").applyToClass(TextBlobData);
+new mynode.TableMapping("test.text_charset_test").applyToClass(TextCharsetData);
+
+
+// Insert and Read a blob
+var t1 = new harness.ConcurrentTest("t1:WriteAndReadBlob");
+t1.run = function() {
+  var data, value, i, verifier;
+  data = new TextBlobData();
+  value = new Buffer(20000);
+  for(i = 0 ; i < 20000 ; i++) {
+    value[i] = Math.ceil(Math.random() * 256);
+  }
+  data.blob_col = value;
+  verifier = new BufferVerifier(this, "blob_col", value);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      t1.errorIfError(err);
+      session.find(TextBlobData, data.id, verifier.run);
+    });
+  });
+};
+
+var t2 = new harness.ConcurrentTest("t2:WriteAndReadText");
+t2.run = function() {
+  var data, verifier;
+  data = new TextBlobData();
+  data.text_col = "String.";
+  verifier = new ValueVerifier(this, "text_col", data.text_col);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      t2.errorIfError(err);
+      session.find(TextBlobData, data.id, verifier.run);
+    });
+  });
+};
+
+/* Write & Read both TEXT and BLOB columns of a single record */
+var t3 = new harness.ConcurrentTest("t3:TextAndBlob");
+t3.run = function() { 
+  var data = new TextBlobData();
+  data.blob_col = new Buffer([1,2,3,4,5,6,7,8,9,10,90,89,88,87,86,85,84]);
+  data.text_col = "// {{ ?? }} \\";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      session.find(TextBlobData, data.id, function(err, obj) {
+        testCase.errorIfError(err);
+        testCase.errorIfNotEqual("BLOB value", data.blob_col, obj.blob_col);
+        testCase.errorIfNotEqual("TEXT value", data.text_col, obj.text_col);
+        testCase.failOnError();
+      });
+    });
+  });
+};
+
+
+var t4 = new harness.ConcurrentTest("t4:AsciiText");
+t4.run = function() {
+  var i, data, verifier;
+  data = new TextCharsetData();
+  data.ascii_text = "";
+  for(i = 1 ; i < 127 ; i++) { data.ascii_text += String.fromCharCode(i); } 
+  verifier = new ValueVerifier(this, "ascii_text", data.ascii_text);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      testCase.errorIfError(err);
+      session.find(TextCharsetData, data.id, verifier.run);
+    });
+  });
+};
+
+
+module.exports.tests = [ t1 , t2 , t3 , t4 ];

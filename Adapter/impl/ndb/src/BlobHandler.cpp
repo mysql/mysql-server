@@ -35,7 +35,6 @@ BlobHandler::BlobHandler(int colId, int fieldNo) :
   columnId(colId), 
   fieldNumber(fieldNo)
 { 
-  DEBUG_PRINT("NEW %p", this);
 }
 
 
@@ -61,16 +60,16 @@ void BlobReadHandler::prepare(const NdbOperation * ndbop) {
 
 int BlobReadHandler::runActiveHook(NdbBlob *b) {
   assert(b == ndbBlob);
-  uint64_t pos = 0;
-  b->getPos(pos);
-  DEBUG_PRINT("Blob state %d, pos %ld", b->getState(), pos);
-  int dummy = 0;
-  if(! ndbBlob->getNull(dummy)) {
+  int isNull;
+  ndbBlob->getNull(isNull);
+  if(! isNull) {
     ndbBlob->getLength(length);
     uint32_t nBytes = length;
     data = (char *) malloc(length);
     if(data) {
-      ndbBlob->readData(data, nBytes);
+      int rv = ndbBlob->readData(data, nBytes);
+      DEBUG_PRINT("BLOB read: column %d, length %d, read %d/%d", 
+                  columnId, length, rv, nBytes);
     } else {
       return -1;
     }
