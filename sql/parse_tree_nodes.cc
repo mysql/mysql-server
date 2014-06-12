@@ -107,6 +107,7 @@ bool PT_order::contextualize(Parse_context *pc)
     }
   }
 
+  bool context_is_pushed= false;
   if (pc->select->parsing_place == CTX_NONE)
   {
     if (unit->is_union() && !braces)
@@ -119,6 +120,7 @@ bool PT_order::contextualize(Parse_context *pc)
       */
       pc->select= unit->fake_select_lex;
       lex->push_context(&pc->select->context);
+      context_is_pushed= true;
     }
     /*
       To preserve correct markup for the case 
@@ -130,6 +132,9 @@ bool PT_order::contextualize(Parse_context *pc)
 
   if (order_list->contextualize(pc))
     return true;
+
+  if (context_is_pushed)
+    lex->pop_context();
 
   pc->select->order_list= order_list->value;
 
