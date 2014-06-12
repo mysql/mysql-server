@@ -2762,8 +2762,7 @@ int init_common_variables()
       mysql_init_variables())
     return 1;
 
-  if (ignore_db_dirs_init())
-    return 1;
+  ignore_db_dirs_init();
 
   {
     struct tm tm_tmp;
