@@ -626,12 +626,9 @@ struct PFS_variable_name_row
   uint m_length;
 };
 
-class PFS_variable_value_row
+struct PFS_variable_value_row
 {
 public:
-  PFS_variable_value_row();
-  ~PFS_variable_value_row();
-
   void make_row(const char* val, size_t length);
 
   const char *get_value() const
@@ -640,10 +637,11 @@ public:
   size_t get_value_length() const
   { return m_value_length; }
 
+  void clear();
+
 private:
   char *m_value;
   size_t m_value_length;
-  size_t m_allocated_length;
 };
 
 /** @} */

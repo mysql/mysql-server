@@ -7228,6 +7228,9 @@ ER_GIS_DATA_WRONG_ENDIANESS
 ER_CHANGE_MASTER_PASSWORD_LENGTH
   eng "The password provided for the replication user exceeds the maximum length of 32 characters"
 
+ER_ILLEGAL_USER_VAR 42000 S1009
+  eng "User variable name '%-.100s' is illegal"
+
 #
 #  End of 5.7 error messages.
 #
