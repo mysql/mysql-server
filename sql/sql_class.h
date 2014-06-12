@@ -4794,7 +4794,7 @@ public:
   {
     if (check_column_name(name.ptr()))
     {
-      my_error(ER_TOO_LONG_IDENT, MYF(0), name.ptr());
+      my_error(ER_ILLEGAL_USER_VAR, MYF(0), name.ptr());
       return NULL;
     }
 
