@@ -573,6 +573,15 @@ Check if the transaction is being referenced. */
 #define trx_is_referenced(t)	((t)->n_ref > 0)
 
 /**
+@param[in] requestor	Transaction requesting the lock
+@param[in] holder	Transaction holding the lock
+@return the transaction that will be rolled back, null don't care */
+
+UNIV_INLINE
+const trx_t*
+trx_arbitrate(const trx_t* requestor, const trx_t* holder);
+
+/**
 @param[in] trx		Transaction to check
 @return true if the transaction can rollback */
 UNIV_INLINE

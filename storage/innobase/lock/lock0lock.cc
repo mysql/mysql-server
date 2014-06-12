@@ -1777,7 +1777,9 @@ RecLock::add_to_waitq(const lock_t* wait_for)
 	wait for other running transactions. However, try and jump the
 	queue and rollback waiting transactions ahead in the queue. */
 
-	if (trx_can_rollback(m_trx)) {
+	const trx_t*	victim_trx = trx_arbitrate(m_trx, wait_for->trx);
+
+	if (victim_trx == NULL || victim_trx == m_trx) {
 
 		/* Ensure that the wait flag is not set. */
 		lock = create(m_trx, true);
@@ -7015,13 +7017,11 @@ DeadlockChecker::select_victim() const
 	ut_ad(m_start->lock.wait_lock != 0);
 	ut_ad(m_wait_lock->trx != m_start);
 
-	if (!trx_can_rollback(m_start)) {
+	const trx_t*	victim = trx_arbitrate(m_start, m_wait_lock->trx);
 
-		return(m_wait_lock->trx);
+	if (victim != NULL) {
 
-	} else if (!trx_can_rollback(m_wait_lock->trx)) {
-
-		return(m_start);
+		return(victim);
 
 	} else if (trx_weight_ge(m_wait_lock->trx, m_start)) {
 
@@ -7099,13 +7099,17 @@ DeadlockChecker::search()
 
 		} else if (is_too_deep()) {
 
+			const trx_t*	victim_trx;
+
 			/* Search too deep to continue. */
 
 			m_too_deep = true;
 
-			/* Select the joining transaction as the victim
-			if it can be rolled back */
-			if (trx_can_rollback(m_start)) {
+			/* Select the transaction to rollback */
+
+			victim_trx = trx_arbitrate(m_start, m_wait_lock->trx);
+
+			if (victim_trx == NULL || victim_trx == m_start) {
 
 				return(m_start);
 			}
@@ -7221,10 +7225,11 @@ DeadlockChecker::check_and_resolve(const lock_t* lock, const trx_t* trx)
 
 			ut_ad(trx == checker.m_start);
 
-			if (trx_can_rollback(trx)) {
+			victim_trx = trx_arbitrate(
+				trx, checker.m_wait_lock->trx);
+
+			if (victim_trx == NULL) {
 				victim_trx = trx;
-			} else {
-				victim_trx = checker.m_wait_lock->trx;
 			}
 
 			rollback_print(victim_trx, lock);

@@ -126,9 +126,9 @@ bool trans_begin(THD *thd, uint flags)
   }
 
   if (flags & MYSQL_START_TRANS_OPT_HIGH_PRIORITY) {
-    thd->tx_no_rollback= true;
+    thd->tx_priority= true;
   } else {
-    thd->tx_no_rollback= false;
+    thd->tx_priority= false;
   }
 
   thd->variables.option_bits|= OPTION_BEGIN;
