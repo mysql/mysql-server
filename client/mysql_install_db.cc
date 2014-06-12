@@ -248,7 +248,7 @@ string escape_string(string str)
   string esc("'\"\\");
   for(string::iterator it= esc.begin(); it != esc.end(); ++it)
   {
-    string::size_type idx;
+    string::size_type idx= 0;
     while ((idx= str.find(*it, idx)) != string::npos)
     {
       str.insert(idx, 1, '\\');
