@@ -13,7 +13,7 @@
 
 ################################################################################
 # Test-case will test following scenarios.
-# 
+#
 # 1. Perform DML action using multiple clients and multiple undo tablespace.
 #
 ################################################################################
@@ -39,7 +39,7 @@ create table t2
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc)) engine = innodb;
 #
-delimiter |; 
+delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
         DECLARE i INT DEFAULT 1;
@@ -50,7 +50,7 @@ BEGIN
 END |
 delimiter ;|
 #
-delimiter |; 
+delimiter |;
 CREATE PROCEDURE populate_t2()
 BEGIN
         DECLARE i INT DEFAULT 1;

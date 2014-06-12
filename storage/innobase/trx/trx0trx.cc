@@ -1044,7 +1044,7 @@ get_next_redo_rseg(
 			   && n_tablespaces > 0
 			   && trx_sys->rseg_array[slot] != NULL
 			   && trx_sys->rseg_array[slot]->space
-			   	!= srv_sys_space.space_id()) {
+			      != srv_sys_space.space_id()) {
 			/** If undo-tablespace is configured, skip
 			rseg from system-tablespace and try to use
 			undo-tablespace rseg unless it is not possible

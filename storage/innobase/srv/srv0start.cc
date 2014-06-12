@@ -981,7 +981,7 @@ srv_undo_tablespaces_init(
 			for (ulint i = 0; i < TRX_SYS_N_RSEGS; i++) {
 
 				ulint	space_id = trx_sysf_rseg_get_space(
-						sys_header, i, &mtr); 
+						sys_header, i, &mtr);
 
 				if (space_id == *it) {
 					trx_rseg_header_create(

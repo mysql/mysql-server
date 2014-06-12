@@ -22,7 +22,7 @@
 
 ################################################################################
 # Test-case will test following scenarios.
-# 
+#
 # 1. Different Crash Scenario.
 #    a. before log-checkpoint.
 #    b. after checkpoint before ddl log.
@@ -40,7 +40,7 @@ let MYSQL_DATA_DIR_ENV = `select @@datadir`;
 let $MYSQL_DATA_DIR = `select @@datadir`;
 let SEARCH_FILE = $MYSQLTEST_VARDIR/log/mysqld.1.err;
 #
-delimiter |; 
+delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
         DECLARE i INT DEFAULT 1;
