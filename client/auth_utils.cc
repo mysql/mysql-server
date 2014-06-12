@@ -66,6 +66,8 @@ int parse_cnf_file(istream &sin, map<string, string > *options,
   }
 }
 
+#define MAX_CIPHER_LEN 4096
+
 int decrypt_login_cnf_file(istream &fin, ostream &sout)
 {
   try {
@@ -75,20 +77,23 @@ int decrypt_login_cnf_file(istream &fin, ostream &sout)
   while(true)
   {
     uint32_t len;
+    char cipher[MAX_CIPHER_LEN+1];
     fin.read((char*)&len,4);
     if (len == 0 || fin.eof())
       break;
-    char *cipher= new char[len];
+    if (len > MAX_CIPHER_LEN)
+      return ERR_ENCRYPTION;
     fin.read(cipher, len);
-    char plain[1024];
+    char plain[MAX_CIPHER_LEN+1];
     int aes_length;
     aes_length= my_aes_decrypt((const unsigned char *) cipher, len,
                                (unsigned char *) plain,
                                (const unsigned char *) rkey,
                                20, my_aes_128_ecb, NULL);
+    if (aes_length > MAX_CIPHER_LEN)
+      return ERR_ENCRYPTION;
     plain[aes_length]= 0;
     sout << plain;
-
   }
   return ALL_OK;
 
