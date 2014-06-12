@@ -122,11 +122,9 @@ lock_rec_get_first_on_page_addr(
 	ulint		space,		/*!< in: space */
 	ulint		page_no)	/*!< in: page number */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 
-	for (lock = static_cast<lock_t*>(
+	for (lock_t* lock = static_cast<lock_t*>(
 			HASH_GET_FIRST(lock_hash,
 				       lock_rec_hash(space, page_no)));
 	     lock != NULL;
@@ -135,11 +133,11 @@ lock_rec_get_first_on_page_addr(
 		if (lock->un_member.rec_lock.space == space
 		    && lock->un_member.rec_lock.page_no == page_no) {
 
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 
 /*********************************************************************//**
@@ -154,7 +152,6 @@ lock_rec_get_first_on_page(
 	const buf_block_t*	block)		/*!< in: buffer block */
 {
 	ulint	hash;
-	lock_t*	lock;
 	ulint	space	= block->page.id.space();
 	ulint	page_no	= block->page.id.page_no();
 
@@ -162,7 +159,7 @@ lock_rec_get_first_on_page(
 
 	hash = buf_block_get_lock_hash_val(block);
 
-	for (lock = static_cast<lock_t*>(
+	for (lock_t* lock = static_cast<lock_t*>(
 			HASH_GET_FIRST(lock_hash, hash));
 	     lock != NULL;
 	     lock = static_cast<lock_t*>(HASH_GET_NEXT(hash, lock))) {
@@ -170,11 +167,11 @@ lock_rec_get_first_on_page(
 		if ((lock->un_member.rec_lock.space == space)
 		    && (lock->un_member.rec_lock.page_no == page_no)) {
 
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 
 /*********************************************************************//**
@@ -221,18 +218,16 @@ lock_rec_get_first(
 	const buf_block_t*	block,	/*!< in: block containing the record */
 	ulint			heap_no)/*!< in: heap number of the record */
 {
-	lock_t*	lock;
-
 	ut_ad(lock_mutex_own());
 
-	for (lock = lock_rec_get_first_on_page(hash, block); lock;
+	for (lock_t* lock = lock_rec_get_first_on_page(hash, block); lock;
 	     lock = lock_rec_get_next_on_page(lock)) {
 		if (lock_rec_get_nth_bit(lock, heap_no)) {
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
 
 /*********************************************************************//**
@@ -269,32 +264,25 @@ lock_rec_get_next_on_page_const(
 /*============================*/
 	const lock_t*	lock)	/*!< in: a record lock */
 {
-	ulint	space;
-	ulint	page_no;
-
 	ut_ad(lock_mutex_own());
 	ut_ad(lock_get_type_low(lock) == LOCK_REC);
 
-	space = lock->un_member.rec_lock.space;
-	page_no = lock->un_member.rec_lock.page_no;
+	ulint	space = lock->un_member.rec_lock.space;
+	ulint	page_no = lock->un_member.rec_lock.page_no;
 
-	for (;;) {
-		lock = static_cast<const lock_t*>(HASH_GET_NEXT(hash, lock));
+	while ((lock = static_cast<const lock_t*>(HASH_GET_NEXT(hash, lock)))
+	       != NULL) {
 
-		if (!lock) {
+		if (lock->un_member.rec_lock.space == space
+		    && lock->un_member.rec_lock.page_no == page_no) {
 
-			break;
-		}
-
-		if ((lock->un_member.rec_lock.space == space)
-		    && (lock->un_member.rec_lock.page_no == page_no)) {
-
-			break;
+			return(lock);
 		}
 	}
 
-	return(lock);
+	return(NULL);
 }
+
 /*********************************************************************//**
 Gets the mode of a lock.
 @return mode */
