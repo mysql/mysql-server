@@ -2460,7 +2460,7 @@ public:
   /*
     Transaction cannot be rolled back must be given priority.
   */
-  bool		    tx_no_rollback;
+  bool		    tx_priority;
   enum_check_fields count_cuted_fields;
 
   // For user variables replication

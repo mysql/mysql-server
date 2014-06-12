@@ -712,9 +712,18 @@ int thd_tx_is_read_only(const THD *thd)
 }
 
 extern "C"
-int thd_tx_no_rollback(const THD *thd)
+int thd_tx_priority(const THD* thd)
 {
- return (int) thd->tx_no_rollback;
+  return (int) thd->tx_priority;
+}
+
+extern "C"
+THD* thd_tx_arbitrate(THD *requestor, THD* holder)
+{
+ return(thd_tx_priority(requestor) == thd_tx_priority(holder)
+	? NULL
+	: ((thd_tx_priority(requestor)
+	    > thd_tx_priority(holder)) ? holder : requestor));
 }
 
 extern "C"
@@ -1354,7 +1363,7 @@ void THD::init(void)
                         TL_WRITE_CONCURRENT_INSERT);
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
-  tx_no_rollback= false;
+  tx_priority= false;
   update_charset();
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();

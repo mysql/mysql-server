@@ -1132,17 +1132,35 @@ thd_trx_is_read_only(
 
 /**
 Check if the transaction can be rolled back
-@param[in] thd		Session
-@return true if the transaction can be rolled back */
+@param[in] requestor	Session requesting the lock
+@param[in] holder	Session that holds the lock
+@return the session that will be rolled back, null don't care */
 
-bool
-thd_trx_can_rollback(THD* thd)
+THD*
+thd_trx_arbitrate(THD* requestor, THD* holder)
 {
 	/* Non-user (thd==0) transactions by default can rollback, in
 	practice DDL transactions should never rollback but that's because
 	they should never wait on table/record locks either */
 
-	return(thd == 0 || !thd_tx_no_rollback(thd));
+	ut_a(holder != NULL);
+	ut_a(holder != requestor);
+
+	THD*	victim = thd_tx_arbitrate(requestor, holder);
+
+	ut_a(victim == NULL || victim == requestor || victim == holder);
+
+	return(victim);
+}
+
+/**
+@param[in] thd		Session to check
+@return the priority */
+
+int
+thd_trx_priority(THD* thd)
+{
+	return(thd == NULL ? 0 : thd_tx_priority(thd));
 }
 
 /******************************************************************//**
