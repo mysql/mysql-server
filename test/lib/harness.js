@@ -336,8 +336,7 @@ Suite.prototype.addTestsFromFile = function(f, onlyTests) {
       this.addTest(f, t);
     }
     else { 
-      udebug.log_detail(t);
-      throw "Module " + f + " does not export a Test.";
+      console.log("Warning: " + f + " does not export a Test.");
     }
   }
 };
