@@ -545,7 +545,7 @@ lock_prdt_insert_check_and_lock(
 
 		trx_mutex_enter(trx);
 
-		err = rec_lock.enqueue(wait_for);
+		err = rec_lock.add_to_waitq(wait_for);
 
 		lock_prdt_set_prdt(lock, prdt);
 
@@ -891,7 +891,7 @@ lock_prdt_lock(
 						thr, index, block, PRDT_HEAPNO,
 						prdt_mode, prdt);
 
-					err = rec_lock.enqueue(wait_for);
+					err = rec_lock.add_to_waitq(wait_for);
 
 				} else {
 
