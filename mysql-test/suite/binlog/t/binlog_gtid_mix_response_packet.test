@@ -1,0 +1,13 @@
+#
+# WL#6972: Collect GTIDs to include in the protocol's OK packet
+#
+--source include/have_log_bin.inc
+--source include/have_binlog_format_mixed.inc
+--source include/have_gtid.inc
+
+# need debug build to be able to set a deterministic server uuid
+--source include/have_debug.inc
+
+# the actual test
+--let $has_gtids=1
+--source suite/binlog/include/binlog_gtid_mix_response_packet.inc

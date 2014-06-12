@@ -1,0 +1,1 @@
+--log-slave-updates --enforce-gtid-consistency --gtid-mode=ON --debug=+d,server_uuid_deterministic
