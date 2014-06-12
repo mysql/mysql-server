@@ -48,7 +48,7 @@ while($i)
   }
   if ($i == 1)
   {
-    --let $_option= OFF 
+    --let $_option= OFF
   }
 
   --eval SET SESSION SESSION_TRACK_GTIDS=$_option

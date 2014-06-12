@@ -33,7 +33,7 @@ class Session_gtids_ctx
 public:
   /**
    This is an interface to be implemented by classes that want to listen
-   to changes to this context. This can be used, for instance, by the 
+   to changes to this context. This can be used, for instance, by the
    session tracker gtids to become aware of ctx modifications.
    */
   class Ctx_change_listener
@@ -58,10 +58,10 @@ private:
     Set holding the transaction identifiers of the gtids
     to reply back on the response packet.
 
-    Lifecycle: Emptied after the reply is sent back to the application. Remains 
+    Lifecycle: Emptied after the reply is sent back to the application. Remains
     empty until:
     - a RW transaction commits and a GTID is written to the binary log.
-    - a RO transaction is issued, the consistency level is set to "Check 
+    - a RO transaction is issued, the consistency level is set to "Check
       Potential Writes" and the transaction is committed.
   */
   Gtid_set* m_gtid_set;
@@ -79,7 +79,7 @@ protected:
 
   /*
      Auxiliar function to determine if GTID collection should take place
-     when it is invoked. It takes into consideration the gtid_mode and 
+     when it is invoked. It takes into consideration the gtid_mode and
      the current session context.
 
      @param thd the thread context.

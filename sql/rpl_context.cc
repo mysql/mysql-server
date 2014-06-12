@@ -58,7 +58,7 @@ bool Session_gtids_ctx::notify_after_transaction_commit(THD* thd)
   if (thd->variables.session_track_gtids == ALL_GTIDS)
   {
     /*
-     If one is configured to read all writes, we always collect 
+     If one is configured to read all writes, we always collect
      the GTID_EXECUTED.
 
      TODO: in the future optimize to collect deltas instead maybe.
@@ -134,7 +134,7 @@ void Session_gtids_ctx::unregister_ctx_change_listener(
 
   if (m_sid_map)
     delete m_sid_map;
-  
+
   this->listener= NULL;
   m_gtid_set= NULL;
   m_sid_map= NULL;

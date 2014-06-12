@@ -213,7 +213,7 @@ static const unsigned int EXTRA_ALLOC= 1024;
   encoding specification code, the actual encoding procedure or both at the
   same time.
 
-  New encoders can extend this interface/abstract class or extend 
+  New encoders can extend this interface/abstract class or extend
   other encoders in the hierarchy.
 */
 class Session_gtids_ctx_encoder
@@ -246,7 +246,7 @@ public:
     if (!state->is_empty())
     {
       /*
-        No need to use net_length_size in the following two fields. 
+        No need to use net_length_size in the following two fields.
         These are constants in this class and will both be encoded using
         only 1 byte.
       */
@@ -289,7 +289,7 @@ public:
 private:
   // not implemented
   Session_gtids_ctx_encoder_string(const Session_gtids_ctx_encoder_string& rsc);
-  Session_gtids_ctx_encoder_string& operator=(const Session_gtids_ctx_encoder_string& rsc);  
+  Session_gtids_ctx_encoder_string& operator=(const Session_gtids_ctx_encoder_string& rsc);
 };
 
 /**
@@ -317,7 +317,7 @@ public:
     if (this->encoder)
       delete encoder;
   }
-  
+
   bool enable(THD *thd)
   { return update(thd); }
   bool check(THD *thd, set_var *var)
@@ -325,7 +325,7 @@ public:
   bool update(THD *thd);
   bool store(THD *thd, String &buf);
   void mark_as_changed(LEX_CSTRING *tracked_item_name);
-  
+
   // implementation of the Session_gtids_ctx::Ctx_change_listener
   void notify_session_gtids_ctx_change()
   {
@@ -970,7 +970,7 @@ void Session_tracker::init(const CHARSET_INFO *char_set)
     new (std::nothrow) Session_state_change_tracker;
   m_trackers[SESSION_GTIDS_TRACKER]=
     new (std::nothrow) Session_gtids_tracker;
-  
+
 }
 
 /**
@@ -1144,7 +1144,7 @@ bool Session_gtids_tracker::update(THD *thd)
        This means that if we ever make the server encode deltas instead,
        or compressed GTIDS we want to change the encoder instance below.
 
-       Right now, by default we instantiate the encoder that has 
+       Right now, by default we instantiate the encoder that has.
       */
       encoder= new Session_gtids_ctx_encoder_string();
     }

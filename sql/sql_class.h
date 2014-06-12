@@ -3363,7 +3363,7 @@ public:
   /*
    Replication related context.
 
-   @todo: move more parts of replication related fields in THD to inside this 
+   @todo: move more parts of replication related fields in THD to inside this
           class.
   */
   Rpl_thd_context rpl_thd_ctx;
