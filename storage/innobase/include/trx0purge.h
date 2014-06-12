@@ -183,18 +183,27 @@ public:
 			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
 			OS_FILE_NORMAL, OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
+			delete[] log_file_name;
 			return(DB_IO_ERROR);
 		}
 
-		byte	buffer[sizeof(undo_trunc_logger_t::s_magic)];
-		memset(buffer, 0x0, sizeof(buffer));
+		ulint	sz = UNIV_PAGE_SIZE;
+		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		if (buf == 0) {
+			os_file_close(handle);
+			delete[] log_file_name;
+			return(DB_OUT_OF_MEMORY);
+		}
 
-                os_file_write(
-                        log_file_name, handle, buffer, 0, sizeof(buffer));
+		byte*	log_buf = static_cast<byte*>(
+			ut_align(buf, UNIV_PAGE_SIZE));
+
+		os_file_write(log_file_name, handle, log_buf, 0, sz);
 
 		os_file_flush(handle);
 		os_file_close(handle);
 
+		ut_free(buf);
 		delete[] log_file_name;
 
 		return(DB_SUCCESS);
@@ -230,15 +239,26 @@ public:
 			return;
 		}
 
-		byte	buffer[sizeof(undo_trunc_logger_t::s_magic)];
-		mach_write_to_4(buffer, undo_trunc_logger_t::s_magic);
+		ulint	sz = UNIV_PAGE_SIZE;
+		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+		if (buf == 0) {
+			os_file_close(handle);
+			os_file_delete(innodb_log_file_key, log_file_name);
+			delete[] log_file_name;
+			return;
+		}
 
-                os_file_write(
-                        log_file_name, handle, buffer, 0, sizeof(buffer));
+		byte*	log_buf = static_cast<byte*>(
+			ut_align(buf, UNIV_PAGE_SIZE));
+
+		mach_write_to_4(log_buf, undo_trunc_logger_t::s_magic);
+
+		os_file_write(log_file_name, handle, log_buf, 0, sz);
 
 		os_file_flush(handle);
 		os_file_close(handle);
 
+		ut_free(buf);
 		os_file_delete(innodb_log_file_key, log_file_name);
 		delete[] log_file_name;
 	}
@@ -281,11 +301,23 @@ public:
 				return(false);
 			}
 
-			byte	buffer[sizeof(undo_trunc_logger_t::s_magic)];
-			os_file_read(handle, buffer, 0, sizeof(buffer));
+			ulint	sz = UNIV_PAGE_SIZE;
+			void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
+			if (buf == 0) {
+				os_file_close(handle);
+				os_file_delete(innodb_log_file_key,
+					       log_file_name);
+				delete[] log_file_name;
+				return(false);
+			}
+
+			byte*	log_buf = static_cast<byte*>(
+				ut_align(buf, UNIV_PAGE_SIZE));
+			os_file_read(handle, log_buf, 0, sz);
 			os_file_close(handle);
 
-			ulint	magic_no = mach_read_from_4(buffer);
+			ulint	magic_no = mach_read_from_4(log_buf);
+			ut_free(buf);
 			if (magic_no == undo_trunc_logger_t::s_magic) {
 				/* Found magic number. */
 				os_file_delete(innodb_log_file_key,
