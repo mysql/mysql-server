@@ -2369,15 +2369,15 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/*!< in: block, must contain a file page and
 				be in a state where it can be freed */
 {
-#ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-#endif
 
 	buf_page_mutex_enter(block);
+
 	if (buf_pool->flush_rbt == NULL) {
 		block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
 	}
+
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	buf_LRU_block_free_non_file_page(block);
