@@ -1759,7 +1759,7 @@ queue is itself waiting roll it back, also do a deadlock check and resolve.
 	as a victim, and we got the lock immediately: no need to
 	wait then */
 dberr_t
-RecLock::enqueue(const lock_t* wait_for)
+RecLock::add_to_waitq(const lock_t* wait_for)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(m_trx == thr_get_trx(m_thr));
@@ -2047,7 +2047,7 @@ lock_rec_lock_slow(
 
 			RecLock	rec_lock(thr, index, block, heap_no, mode);
 
-			err = rec_lock.enqueue(wait_for);
+			err = rec_lock.add_to_waitq(wait_for);
 
 		} else if (!impl) {
 
@@ -5568,7 +5568,7 @@ lock_rec_insert_check_and_lock(
 
 		trx_mutex_enter(trx);
 
-		err = rec_lock.enqueue(wait_for);
+		err = rec_lock.add_to_waitq(wait_for);
 
 		trx_mutex_exit(trx);
 
