@@ -1661,12 +1661,93 @@ RecLock::set_wait_state(lock_t* lock)
 }
 
 /**
+Enqueue a lock wait for a high priority transaction, jump the record lock
+wait queue and if the transaction at the head of the queue is itself waiting
+roll it back.
+@param[in, out] wait_for	The lock that the the joining transaction is
+				waiting for
+@return NULL if the lock was granted */
+lock_t*
+RecLock::enqueue_priority(const lock_t* wait_for)
+{
+	/* Create the explicit lock instance and initialise it. */
+
+	lock_t*	lock = lock_alloc(m_trx, m_index, m_size);
+
+	/* Setup the lock attributes */
+	lock_init(lock);
+
+	trx_mutex_enter(wait_for->trx);
+
+	/* Only if the blocking transaction is itself waiting.
+	We can't rollback a running transaction, too messy. */
+
+	if (wait_for->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
+
+		/* Move the lock being requested to the head of
+		the wait queue so that if the transaction that
+		we are waiting for is rolled back we get dibs
+		on the row. */
+
+		jump_queue(lock, wait_for);
+
+		/* Prepare the transaction for a wait and
+		possible grant when we rollback the transaction
+		that is blocking our lock. */
+
+		set_wait_state(lock);
+
+		lock_set_lock_and_trx_wait(lock, m_trx);
+
+		trx_mutex_exit(m_trx);
+
+		/* Rollback the transaction that is blocking us */
+
+		rollback_blocking_trx(wait_for->trx->lock.wait_lock);
+
+		trx_mutex_exit(wait_for->trx);
+
+		/* It is now possible that trx has been granted
+		the lock */
+
+		if (!lock_get_wait(lock)) {
+#ifdef UNIV_DEBUG
+			const	trx_t*	wait_trx = wait_for->trx;
+
+			ut_ad(wait_trx->lock.wait_lock == wait_for);
+			ut_ad(m_trx->lock.wait_lock == NULL);
+#endif /* UNIV_DEBUG */
+			return(NULL);
+		} else {
+
+			/* We weren't granted our lock but it can
+			be granted once the wait_for transaction
+			releases all its locks during rollback */
+
+			trx_mutex_enter(m_trx);
+		}
+
+	} else {
+
+		trx_mutex_exit(wait_for->trx);
+
+		lock_add(lock);
+	}
+
+	wait_for->trx->abort = true;
+
+	ut_ad(m_trx->kill_trx == NULL);
+	m_trx->kill_trx = wait_for->trx;
+
+	return(lock);
+}
+
+/**
 Enqueue a lock wait for normal transaction. If it is a high priority transaction
 then jump the record lock wait queue and if the transaction at the head of the
 queue is itself waiting roll it back, also do a deadlock check and resolve.
 @param[in, out] wait_for	The lock that the the joining transaction is
 				waiting for
-@param[in] owns_trx_mutex	true if caller owns the trx_t::mutex
 @return DB_LOCK_WAIT, DB_DEADLOCK, or DB_QUE_THR_SUSPENDED, or
 	DB_SUCCESS_LOCKED_REC; DB_SUCCESS_LOCKED_REC means that
 	there was a deadlock, but another transaction was chosen
@@ -1691,80 +1772,15 @@ RecLock::enqueue(const lock_t* wait_for)
 	wait for other running transactions. However, try and jump the
 	queue and rollback waiting transactions ahead in the queue. */
 
-	if (!trx_can_rollback(m_trx)) {
+	if (trx_can_rollback(m_trx)) {
 
-		/* Create the explicit lock instance and initialise it. */
-
-		lock = lock_alloc(m_trx, m_index, m_size);
-
-		/* Setup the lock attributes */
-		lock_init(lock);
-
-		trx_mutex_enter(wait_for->trx);
-
-		/* Only if the blocking transaction is itself waiting.
-		We can't rollback a running transaction, too messy. */
-
-		if (wait_for->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
-
-			/* Move the lock being requested to the head of
-			the wait queue so that if the transaction that
-			we are waiting for is rolled back we get dibs
-			on the row. */
-
-			jump_queue(lock, wait_for);
-
-			/* Prepare the transaction for a wait and
-			possible grant when we rollback the transaction
-			that is blocking our lock. */
-
-			set_wait_state(lock);
-
-			lock_set_lock_and_trx_wait(lock, m_trx);
-
-			trx_mutex_exit(m_trx);
-
-			/* Rollback the transaction that is blocking us */
-
-			rollback_blocking_trx(wait_for->trx->lock.wait_lock);
-
-			trx_mutex_exit(wait_for->trx);
-
-			/* It is now possible that trx has been granted
-			the lock */
-
-			if (!lock_get_wait(lock)) {
-#ifdef UNIV_DEBUG
-				const	trx_t*	wait_trx = wait_for->trx;
-
-				ut_ad(wait_trx->lock.wait_lock == wait_for);
-				ut_ad(m_trx->lock.wait_lock == NULL);
-#endif /* UNIV_DEBUG */
-				return(DB_SUCCESS);
-			} else {
-
-				/* We weren't granted our lock but it can
-				be granted once the wait_for transaction
-				releases all its locks during rollback */
-
-				trx_mutex_enter(m_trx);
-			}
-
-		} else {
-
-			trx_mutex_exit(wait_for->trx);
-
-			lock_add(lock);
-		}
-
-		wait_for->trx->abort = true;
-
-		ut_ad(m_trx->kill_trx == NULL);
-		m_trx->kill_trx = wait_for->trx;
-
-	} else {
 		/* Ensure that the wait flag is not set. */
 		lock = create(m_trx, true);
+
+	} else if ((lock = enqueue_priority(wait_for)) == NULL) {
+
+		/* Lock was granted */
+		return(DB_SUCCESS);
 	}
 
 	ut_ad(lock_get_wait(lock));

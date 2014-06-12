@@ -471,7 +471,8 @@ public:
 	}
 
 	/**
-	@param[in,out] thr	Transaction query thread requesting the record lock
+	@param[in,out] thr	Transaction query thread requesting the record
+				lock
 	@param[in] index	Index on which record lock requested
 	@param[in] block	Buffer page containing record
 	@param[in] heap_no	Heap number withing block
@@ -563,6 +564,15 @@ public:
 	lock_t* create(trx_t* trx, bool owns_trx_mutex);
 
 private:
+	/**
+	Enqueue a lock wait for a high priority transaction, jump the record
+	lock wait queue and if the transaction at the head of the queue is
+	itself waiting roll it back.
+	@param[in, out] wait_for	The lock that the the joining
+					transaction is waiting for
+	@return NULL if the lock was granted */
+	lock_t* enqueue_priority(const lock_t* wait_for);
+
 	/*
 	@return the record lock size in bytes */
 	size_t lock_size() const
