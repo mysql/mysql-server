@@ -975,8 +975,8 @@ lock_place_prdt_page_lock(
 	}
 
 	if (lock == NULL) {
-		RecLockID	rec_lock_id(space, page_no, PRDT_HEAPNO);
-		RecLock		rec_lock(index, rec_lock_id, mode);
+		RecID	rec_id(space, page_no, PRDT_HEAPNO);
+		RecLock	rec_lock(index, rec_id, mode);
 
 		rec_lock.create(trx, false);
 
