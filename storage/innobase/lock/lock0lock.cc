@@ -1350,53 +1350,25 @@ RecLock::prepare() const
 		ut_ad(0);
 	}
 
-	ut_ad(m_index->table->n_ref_count > 0 || !m_index->table->can_be_evicted);
-}
-
-/**
-Initialise the lock instance
-@param[in, out] lock	Setup the lock instance */
-void
-RecLock::lock_init(lock_t* lock) const
-{
-	ut_ad(lock_mutex_own());
-
-	lock->type_mode = LOCK_REC;
-	lock->type_mode |= (m_mode & ~LOCK_TYPE_MASK);
-
-	lock->un_member.rec_lock.space = m_rec_lock_id.m_space;
-	lock->un_member.rec_lock.page_no = m_rec_lock_id.m_page_no;
-
-	if (is_predicate_lock()) {
-		/* Predicate lock always on INFIMUM (0) */
-		lock->un_member.rec_lock.n_bits = 8;
-	} else {
-		lock->un_member.rec_lock.n_bits = m_size * 8;
-	}
-
-	/* Reset to zero the bitmap which resides immediately
-	after the lock struct */
-
-	lock_rec_bitmap_reset(lock);
-
-	/* Set the bit corresponding to rec */
-
-	lock_rec_set_nth_bit(lock, m_rec_lock_id.m_heap_no);
-
-	/* Update the predicate for the lock */
-	if (m_mode & LOCK_PREDICATE) {
-		lock_prdt_set_prdt(lock, m_prdt);
-	}
+	ut_ad(m_index->table->n_ref_count > 0
+	      || !m_index->table->can_be_evicted);
 }
 
 /**
 Create the lock instance
 @param[in, out] trx	The transaction requesting the lock
 @param[in, out] index	Index on which record lock is required
+@param[in] mode		The lock mode desired
+@param[in] rec_id	The record id
 @param[in] size		Size of the lock + bitmap requested
 @return a record lock instance */
 lock_t*
-RecLock::lock_alloc(trx_t* trx, dict_index_t* index, ulint size)
+RecLock::lock_alloc(
+	trx_t*		trx,
+	dict_index_t*	index,
+	ulint		mode,
+	const RecID&	rec_id,
+	ulint		size)
 {
 	ut_ad(lock_mutex_own());
 
@@ -1419,9 +1391,37 @@ RecLock::lock_alloc(trx_t* trx, dict_index_t* index, ulint size)
 
 	lock->index = index;
 
-	++index->table->n_rec_locks;
+	/* Setup the lock attributes */
+
+	lock->type_mode = LOCK_REC | (mode & ~LOCK_TYPE_MASK);
+
+	lock_rec_t&	rec_lock = lock->un_member.rec_lock;
+
+	/* Predicate lock always on INFIMUM (0) */
+
+	if (is_predicate_lock(mode)) {
+
+		rec_lock.n_bits = 8;
+
+		memset(&lock[1], 0x0, 1);
+
+	} else {
+
+		rec_lock.n_bits = 8 * size;
+
+		memset(&lock[1], 0x0, size);
+	}
+
+	rec_lock.space = rec_id.m_space;
+
+	rec_lock.page_no = rec_id.m_page_no;
+
+	/* Set the bit corresponding to rec */
+
+	lock_rec_set_nth_bit(lock, rec_id.m_heap_no);
 
 	MONITOR_INC(MONITOR_NUM_RECLOCK);
+
 	MONITOR_INC(MONITOR_RECLOCK_CREATED);
 
 	return(lock);
@@ -1436,7 +1436,9 @@ RecLock::lock_add(lock_t* lock)
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
 
-	ulint	key = m_rec_lock_id.fold();
+	++lock->index->table->n_rec_locks;
+
+	ulint	key = m_rec_id.fold();
 
 	HASH_INSERT(lock_t, hash, lock_hash_get(m_mode), key, lock);
 
@@ -1460,11 +1462,7 @@ RecLock::create(trx_t* trx, bool owns_trx_mutex)
 
 	/* Create the explicit lock instance and initialise it. */
 
-	lock_t*	lock = lock_alloc(trx, m_index, m_size);
-
-	/* Setup the lock attributes */
-
-	lock_init(lock);
+	lock_t*	lock = lock_alloc(trx, m_index, m_mode, m_rec_id, m_size);
 
 	/* Ensure that another transaction doesn't access the trx
 	lock state and lock data structures while we are adding the
@@ -1501,7 +1499,7 @@ RecLock::check_deadlock_result(const trx_t* victim_trx, lock_t* lock)
 
 		lock_reset_lock_and_trx_wait(lock);
 
-		lock_rec_reset_nth_bit(lock, m_rec_lock_id.m_heap_no);
+		lock_rec_reset_nth_bit(lock, m_rec_id.m_heap_no);
 
 		return(DB_DEADLOCK);
 
@@ -1612,7 +1610,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(wait_for->trx != m_trx);
 	ut_ad(!trx_can_rollback(m_trx));
-	ut_ad(m_rec_lock_id.m_heap_no != ULINT32_UNDEFINED);
+	ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
 
 	/* We need to change the hash bucket list pointers only. */
 	lock_t*	head = const_cast<lock_t*>(wait_for);
@@ -1630,9 +1628,9 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
  		ut_ad(trx_can_rollback(elem->trx));
 
 		 if ((elem->type_mode & LOCK_WAIT)
-		     && rec_lock.space == m_rec_lock_id.m_space
-		     && rec_lock.page_no == m_rec_lock_id.m_page_no
-		     && lock_rec_get_nth_bit(elem, m_rec_lock_id.m_heap_no)) {
+		     && rec_lock.space == m_rec_id.m_space
+		     && rec_lock.page_no == m_rec_id.m_page_no
+		     && lock_rec_get_nth_bit(elem, m_rec_id.m_heap_no)) {
 
 			head = elem;
 		}
@@ -1682,10 +1680,7 @@ RecLock::enqueue_priority(const lock_t* wait_for)
 {
 	/* Create the explicit lock instance and initialise it. */
 
-	lock_t*	lock = lock_alloc(m_trx, m_index, m_size);
-
-	/* Setup the lock attributes */
-	lock_init(lock);
+	lock_t*	lock = lock_alloc(m_trx, m_index, m_mode, m_rec_id, m_size);
 
 	trx_mutex_enter(wait_for->trx);
 
