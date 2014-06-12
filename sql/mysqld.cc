@@ -345,10 +345,6 @@ static PSI_rwlock_key key_rwlock_openssl;
 #endif
 #endif /* HAVE_PSI_INTERFACE */
 
-#ifdef HAVE_NPTL
-volatile sig_atomic_t ld_assume_kernel_is_set= 0;
-#endif
-
 /**
   Statement instrumentation key for replication.
 */
@@ -3065,8 +3061,7 @@ void my_init_signals(void)
 #ifdef SIGTSTP
   sigaddset(&set,SIGTSTP);
 #endif
-  if (thd_lib_detected != THD_LIB_LT)
-    sigaddset(&set,THR_SERVER_ALARM);
+  sigaddset(&set,THR_SERVER_ALARM);
   if (test_flags & TEST_SIGINT)
   {
     my_sigset(thr_kill_signal, end_thread_signal);
@@ -3138,7 +3133,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   */
   init_thr_alarm(thread_scheduler->max_threads +
      global_system_variables.max_insert_delayed_threads + 10);
-  if (thd_lib_detected != THD_LIB_LT && (test_flags & TEST_SIGINT))
+  if (test_flags & TEST_SIGINT)
   {
     (void) sigemptyset(&set);     // Setup up SIGINT for debug
     (void) sigaddset(&set,SIGINT);    // For debugging
@@ -5204,9 +5199,7 @@ int mysqld_main(int argc, char **argv)
     to be able to read defaults files and parse options.
   */
   my_progname= argv[0];
-#ifdef HAVE_NPTL
-  ld_assume_kernel_is_set= (getenv("LD_ASSUME_KERNEL") != 0);
-#endif
+
 #ifndef _WIN32
   // For windows, my_init() is called from the win specific mysqld_main
   if (my_init())                 // init my_sys library & pthreads
@@ -5316,7 +5309,7 @@ int mysqld_main(int argc, char **argv)
 
   /* Set signal used to kill MySQL */
 #if defined(SIGUSR2)
-  thr_kill_signal= thd_lib_detected == THD_LIB_LT ? SIGINT : SIGUSR2;
+  thr_kill_signal= SIGUSR2;
 #else
   thr_kill_signal= SIGINT;
 #endif
