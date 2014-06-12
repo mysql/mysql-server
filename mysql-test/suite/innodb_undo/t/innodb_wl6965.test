@@ -13,9 +13,9 @@
 
 ################################################################################
 # Test-case will test following scenarios.
-# 
+#
 # 1. Perform enough DML action so that undo tablespace size grows beyond
-#    set threshold and then wait and see if it is being truncated. 
+#    set threshold and then wait and see if it is being truncated.
 #
 ################################################################################
 
@@ -29,7 +29,7 @@ let $MYSQL_DATA_DIR = `select @@datadir`;
 #-----------------------------------------------------------------------------
 #
 # 1. Perform enough DML action so that undo tablespace size grows beyond
-#    set threshold and then wait and see if it is being truncated. 
+#    set threshold and then wait and see if it is being truncated.
 #
 --echo "List the size of undo tablespace"
 perl;
@@ -39,14 +39,14 @@ perl;
 	print OUTPUT "let \$size= $filesize;\n";
 	close (OUTPUT);
 EOF
---source $MYSQL_DATA_DIR/wl6965.output 
+--source $MYSQL_DATA_DIR/wl6965.output
 --echo $size;
 #
 use test;
 create table t1
         (keyc int, c1 char(100), c2 char(100),
          primary key(keyc)) engine = innodb;
-delimiter |; 
+delimiter |;
 CREATE PROCEDURE populate_t1()
 BEGIN
         DECLARE i INT DEFAULT 1;
@@ -70,7 +70,7 @@ perl;
 	print OUTPUT "let \$size= $filesize;\n";
 	close (OUTPUT);
 EOF
---source $MYSQL_DATA_DIR/wl6965.output 
+--source $MYSQL_DATA_DIR/wl6965.output
 --echo $size;
 #
 commit;
@@ -86,7 +86,7 @@ perl;
 	print OUTPUT "let \$size= $filesize;\n";
 	close (OUTPUT);
 EOF
---source $MYSQL_DATA_DIR/wl6965.output 
+--source $MYSQL_DATA_DIR/wl6965.output
 --echo $size;
 --remove_file $MYSQL_DATA_DIR/wl6965.output
 

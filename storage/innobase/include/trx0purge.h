@@ -205,7 +205,7 @@ public:
 	If we are going to remove it from disk then why write magic number ?
 	This is to safeguard from unlink (file-system) anomalies that will keep
 	the link to the file even after unlink action is successfull and
-	ref-count = 0. 
+	ref-count = 0.
 	@param[in]	space_id	id of the undo tablespace to truncate.*/
 	void done(
 		ulint	space_id)
@@ -308,7 +308,7 @@ private:
 		ulint	space_id,
 		char*&	log_file_name)
 	{
-		ulint log_file_name_sz = 
+		ulint log_file_name_sz =
 			strlen(srv_log_group_home_dir) + 22 + 1 /* NUL */
 			+ strlen(undo_trunc_logger_t::s_log_prefix)
 			+ strlen(undo_trunc_logger_t::s_log_ext);
@@ -394,7 +394,7 @@ public:
 		return m_undo_for_trunc;
 	}
 
-	/** Add rseg to truncate vector. 
+	/** Add rseg to truncate vector.
 	@param[in,out]	rseg	rseg for truncate */
 	void add_rseg_to_trunc(
 		trx_rseg_t*	rseg)
@@ -430,7 +430,7 @@ public:
 	ulint scan_start()
 	{
 		return(m_scan_start);
-	}	
+	}
 
 	/** Check if the tablespace needs fix-up (based on presence of DDL
 	truncate log)
@@ -457,7 +457,7 @@ public:
 	}
 
 	/** Is tablespace marked for truncate.
-	@param[in]	space_id	space id to check	
+	@param[in]	space_id	space id to check
 	@return true if marked for truncate, else false. */
 	static bool is_tablespace_truncated(
 		ulint	space_id)
@@ -476,7 +476,7 @@ public:
 	typedef std::vector<ulint>	undo_spaces_t;
 	static undo_spaces_t		s_spaces_to_truncate;
 
-private:	
+private:
 	/** UNDO tablespace is mark for truncate. */
 	ulint			m_undo_for_trunc;
 

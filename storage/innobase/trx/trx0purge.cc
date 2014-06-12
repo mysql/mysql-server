@@ -673,7 +673,7 @@ trx_purge_mark_undo_for_truncate(
 	for (ulint i = 1; i <= srv_undo_tablespaces_open; i++) {
 
 		if (fil_space_get_size(space_id)
-		    > (srv_max_undo_log_size / UNIV_PAGE_SIZE_DEF)) { 
+		    > (srv_max_undo_log_size / UNIV_PAGE_SIZE_DEF)) {
 			/* Tablespace qualifies for truncate. */
 			undo_trunc->mark_for_trunc(space_id);
 			undo_trunc_t::add_space_to_trunc_list(space_id);
@@ -818,7 +818,7 @@ trx_purge_initiate_truncate(
 	undo tablespace might not stand valid as tablespace has been
 	truncated. */
 	log_make_checkpoint_at(LSN_MAX, TRUE);
-	
+
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"ib_undo_trunc_before_ddl_log_start");
@@ -844,7 +844,7 @@ trx_purge_initiate_truncate(
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Failed to truncate UNDO tablespace with"
 			" space identifier " ULINTPF "",
-			undo_trunc->get_undo_mark_for_trunc()); 
+			undo_trunc->get_undo_mark_for_trunc());
 		return;
 	}
 

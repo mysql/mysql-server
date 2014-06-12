@@ -2089,7 +2089,7 @@ trx_undo_free_prepared(
 	}
 }
 
-/** Truncate UNDO tablespace, reinitialize header and rseg. 
+/** Truncate UNDO tablespace, reinitialize header and rseg.
 @param[in]	undo_trunc	UNDO tablespace handler
 @return true if success else false. */
 
