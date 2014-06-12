@@ -42,6 +42,9 @@ TEST_F(Auth_util, parse_cnf_file)
        << "[client]" << endl
        << "user= thek" << endl
        << "host=localhost " << endl
+       << "[another_client]" << endl
+       << "user= foo" << endl
+       << "host= 10.0.0.1" << endl
        << endl;
   fout.close();
   ifstream fin;
