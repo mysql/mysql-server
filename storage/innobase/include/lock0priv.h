@@ -551,7 +551,7 @@ public:
 		there was a deadlock, but another transaction was chosen
 		as a victim, and we got the lock immediately: no need to
 		wait then */
-	dberr_t enqueue(const lock_t* wait_for);
+	dberr_t add_to_waitq(const lock_t* wait_for);
 
 	/**
 	Create a lock for a transaction that.
