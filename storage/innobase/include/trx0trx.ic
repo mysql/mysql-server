@@ -330,12 +330,42 @@ trx_get_read_view(
 }
 
 /**
+@param[in] requestor	Transaction requesting the lock
+@param[in] holder	Transaction holding the lock
+@return the transaction that will be rolled back, null don't care */
+UNIV_INLINE
+const trx_t*
+trx_arbitrate(const trx_t* requestor, const trx_t* holder)
+{
+	if (requestor->mysql_thd == NULL) {
+
+	       return(requestor);
+
+	} else if (holder->mysql_thd == NULL) {
+
+		return(holder);
+	}
+
+	const THD*	victim = thd_trx_arbitrate(
+		requestor->mysql_thd, holder->mysql_thd);
+
+	if (victim != NULL) {
+		return(victim == requestor->mysql_thd ? requestor : holder);
+	}
+
+	return(NULL);
+}
+
+/**
 @param[in] trx		Transaction to check
 @return true if the transaction can rollback */
 UNIV_INLINE
 bool
 trx_can_rollback(const trx_t* trx)
 {
-	return(thd_trx_can_rollback(trx->mysql_thd));
-}
+	if (trx->mysql_thd == NULL) {
+		return(true);
+	}
 
+	return(thd_trx_priority(trx->mysql_thd) == 0);
+}
