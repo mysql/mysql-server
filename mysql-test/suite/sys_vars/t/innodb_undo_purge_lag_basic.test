@@ -141,7 +141,7 @@ SELECT @@global.innodb_undo_purge_lag;
 SET @@global.innodb_undo_purge_lag = FALSE;
 SELECT @@global.innodb_undo_purge_lag;
 
-############################## 
+##############################
 #   Restore initial value    #
 ##############################
 
