@@ -547,6 +547,7 @@ struct PFS_transaction_stat
 /** Single table io statistic. */
 struct PFS_table_io_stat
 {
+  pfs_lock m_lock;
   bool m_has_data;
   /** FETCH statistics */
   PFS_single_stat m_fetch;
@@ -573,7 +574,7 @@ struct PFS_table_io_stat
 
   inline void aggregate(const PFS_table_io_stat *stat)
   {
-    if (stat->m_has_data)
+    if (stat && stat->m_has_data)
     {
       m_has_data= true;
       m_fetch.aggregate(&stat->m_fetch);
@@ -616,6 +617,8 @@ enum PFS_TL_LOCK_TYPE
 
 #define COUNT_PFS_TL_LOCK_TYPE 10
 
+extern PFS_table_io_stat* get_index_stat(PFS_table_io_stat** stat);
+
 /** Statistics for table locks. */
 struct PFS_table_lock_stat
 {
@@ -656,7 +659,9 @@ struct PFS_table_stat
     Each index stat is in [0, MAX_INDEXES-1],
     stats when using no index are in [MAX_INDEXES].
   */
-  PFS_table_io_stat m_index_stat[MAX_INDEXES + 1];
+  PFS_table_io_stat* m_index_stat[MAX_INDEXES + 1];
+  /* This is place where stats are stored when no index is used. */
+  PFS_table_io_stat m_no_index_stat;
 
   /**
     Statistics, per lock type.
@@ -666,10 +671,11 @@ struct PFS_table_stat
   /** Reset table io statistic. */
   inline void reset_io(void)
   {
-    PFS_table_io_stat *stat= & m_index_stat[0];
-    PFS_table_io_stat *stat_last= & m_index_stat[MAX_INDEXES + 1];
+    PFS_table_io_stat **stat= & m_index_stat[0];
+    PFS_table_io_stat **stat_last= & m_index_stat[MAX_INDEXES + 1];
     for ( ; stat < stat_last ; stat++)
-      stat->reset();
+      if(*stat)
+        (*stat)->reset();
   }
 
   /** Reset table lock statistic. */
@@ -687,7 +693,9 @@ struct PFS_table_stat
 
   inline void fast_reset_io(void)
   {
-    memcpy(& m_index_stat, & g_reset_template.m_index_stat, sizeof(m_index_stat));
+    /* TODO: Mayank: This will reset the array of pointers. Not good, need to see. */
+    //memcpy(m_index_stat, & g_reset_template.m_index_stat, sizeof(m_index_stat));
+    reset_io();
   }
 
   inline void fast_reset_lock(void)
@@ -702,29 +710,36 @@ struct PFS_table_stat
        is used to identify available placeholder in stat_array. Need to see.
     */
     //memcpy(this, & g_reset_template, sizeof(*this));
-    memcpy(& m_index_stat, & g_reset_template.m_index_stat, sizeof(m_index_stat));
+
     memcpy(& m_lock_stat, & g_reset_template.m_lock_stat, sizeof(m_lock_stat));
+    /* Set m_index_stat[MAX_INDEXES] pointer to m_no_index_stat here. */
+    m_index_stat[MAX_INDEXES]= &m_no_index_stat;
+    reset_io();
   }
 
   inline void aggregate_io(const PFS_table_stat *stat, uint key_count)
   {
-    PFS_table_io_stat *to_stat;
-    PFS_table_io_stat *to_stat_last;
-    const PFS_table_io_stat *from_stat;
+    PFS_table_io_stat **to_stat;
+    PFS_table_io_stat **to_stat_last;
+    const PFS_table_io_stat **from_stat;
 
     DBUG_ASSERT(key_count <= MAX_INDEXES);
 
     /* Aggregate stats for each index, if any */
     to_stat= & m_index_stat[0];
     to_stat_last= to_stat + key_count;
-    from_stat= & stat->m_index_stat[0];
+    from_stat= (const PFS_table_io_stat**)& stat->m_index_stat[0];
     for ( ; to_stat < to_stat_last ; from_stat++, to_stat++)
-      to_stat->aggregate(from_stat);
+    {
+      // get_index_stat() returns NULL or valid location in index_stat_array.
+      if (get_index_stat(to_stat))
+        (*to_stat)->aggregate(*from_stat);
+    }
 
     /* Aggregate stats for the table */
     to_stat= & m_index_stat[MAX_INDEXES];
-    from_stat= & stat->m_index_stat[MAX_INDEXES];
-    to_stat->aggregate(from_stat);
+    from_stat= (const PFS_table_io_stat**)& stat->m_index_stat[MAX_INDEXES];
+    (*to_stat)->aggregate(*from_stat);
   }
 
   inline void aggregate_lock(const PFS_table_stat *stat)
@@ -740,8 +755,8 @@ struct PFS_table_stat
 
   inline void sum_io(PFS_single_stat *result, uint key_count)
   {
-    PFS_table_io_stat *stat;
-    PFS_table_io_stat *stat_last;
+    PFS_table_io_stat **stat;
+    PFS_table_io_stat **stat_last;
 
     DBUG_ASSERT(key_count <= MAX_INDEXES);
 
@@ -749,10 +764,11 @@ struct PFS_table_stat
     stat= & m_index_stat[0];
     stat_last= stat + key_count;
     for ( ; stat < stat_last ; stat++)
-      stat->sum(result);
+      if(*stat)
+        (*stat)->sum(result);
 
     /* Sum stats for the table */
-    m_index_stat[MAX_INDEXES].sum(result);
+    m_index_stat[MAX_INDEXES]->sum(result);
   }
 
   inline void sum_lock(PFS_single_stat *result)

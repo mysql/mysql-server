@@ -26,6 +26,7 @@ performance_schema_max_cond_instances	612
 performance_schema_max_file_classes	50
 performance_schema_max_file_handles	32768
 performance_schema_max_file_instances	1556
+performance_schema_max_index_stat	1000
 performance_schema_max_memory_classes	250
 performance_schema_max_metadata_locks	10000
 performance_schema_max_mutex_classes	200
@@ -127,9 +128,9 @@ performance_schema	events_waits_summary_by_thread_by_event_name.memory	1376256
 performance_schema	(pfs_table_share).size	12992
 performance_schema	(pfs_table_share).count	445
 performance_schema	(pfs_table_share).memory	5781440
-performance_schema	(pfs_table).size	9280
+performance_schema	(pfs_table).size	1088
 performance_schema	(pfs_table).count	112
-performance_schema	(pfs_table).memory	1039360
+performance_schema	(pfs_table).memory	121856
 performance_schema	setup_actors.size	256
 performance_schema	setup_actors.count	100
 performance_schema	setup_actors.memory	25600
@@ -281,20 +282,23 @@ performance_schema	events_transactions_summary_by_user_by_event_name.memory	440
 performance_schema	events_transactions_summary_by_host_by_event_name.size	88
 performance_schema	events_transactions_summary_by_host_by_event_name.count	20
 performance_schema	events_transactions_summary_by_host_by_event_name.memory	1760
-performance_schema	(pfs_table_stat).size	9168
+performance_schema	(pfs_table_stat).size	984
 performance_schema	(pfs_table_stat).count	1000
-performance_schema	(pfs_table_stat).memory	9168000
-performance_schema	performance_schema.memory	74746536
+performance_schema	(pfs_table_stat).memory	984000
+performance_schema	(pfs_index_stat).size	136
+performance_schema	(pfs_index_stat).count	1000
+performance_schema	(pfs_index_stat).memory	136000
+performance_schema	performance_schema.memory	65781032
 select * from performance_schema.memory_summary_global_by_event_name
 where event_name='memory/performance_schema/internal_buffers';
 EVENT_NAME	memory/performance_schema/internal_buffers
-COUNT_ALLOC	61
+COUNT_ALLOC	62
 COUNT_FREE	0
-SUM_NUMBER_OF_BYTES_ALLOC	74746536
+SUM_NUMBER_OF_BYTES_ALLOC	65781032
 SUM_NUMBER_OF_BYTES_FREE	0
-LOW_COUNT_USED	61
-CURRENT_COUNT_USED	61
-HIGH_COUNT_USED	61
-LOW_NUMBER_OF_BYTES_USED	74746536
-CURRENT_NUMBER_OF_BYTES_USED	74746536
-HIGH_NUMBER_OF_BYTES_USED	74746536
+LOW_COUNT_USED	62
+CURRENT_COUNT_USED	62
+HIGH_COUNT_USED	62
+LOW_NUMBER_OF_BYTES_USED	65781032
+CURRENT_NUMBER_OF_BYTES_USED	65781032
+HIGH_NUMBER_OF_BYTES_USED	65781032

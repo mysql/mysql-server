@@ -1699,11 +1699,24 @@ bool pfs_show_status(handlerton *hton, THD *thd,
       size= table_stat_max * sizeof(PFS_table_stat);
       total_memory+= size;
       break;
+    case 204: 
+      name= "(pfs_index_stat).size";
+      size= sizeof(PFS_table_io_stat);
+      break;
+    case 205:
+      name= "(pfs_index_stat).count";
+      size= index_stat_max;
+      break;
+    case 206:
+      name= "(pfs_index_stat).memory";
+      size= index_stat_max * sizeof(PFS_table_io_stat);
+      total_memory+= size;
+      break;
     /*
       This case must be last,
       for aggregation in total_memory.
     */
-    case 204:
+    case 207:
       name= "performance_schema.memory";
       size= total_memory;
       /* This will fail if something is not advertised here */
