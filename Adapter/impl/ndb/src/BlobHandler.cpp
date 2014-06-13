@@ -95,6 +95,8 @@ BlobWriteHandler::BlobWriteHandler(int colId, int fieldNo,
   BlobHandler(colId, fieldNo)
 {
   jsBlobValue = v8::Persistent<v8::Object>::New(blobValue);
+  length = jsBlobValue->GetIndexedPropertiesExternalArrayDataLength();
+  content = (char *) jsBlobValue->GetIndexedPropertiesExternalArrayData();
 }
 
 void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
@@ -104,12 +106,8 @@ void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
     assert(false);
   }
 
-  length = node::Buffer::Length(jsBlobValue);
-  char * content = node::Buffer::Data(jsBlobValue);
   DEBUG_PRINT("Prepare write for BLOB column %d, length %d", columnId, length);
-
   ndbBlob->setValue(content, length);
-  
   if(next) next->prepare(ndbop);
 }
 
