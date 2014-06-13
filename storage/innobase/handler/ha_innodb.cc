@@ -11746,9 +11746,13 @@ ha_innobase::get_foreign_key_list(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= prebuilt->table->foreign_set.begin();
+	     it != prebuilt->table->foreign_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
@@ -11784,9 +11788,13 @@ ha_innobase::get_parent_foreign_key_list(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= prebuilt->table->referenced_set.begin();
+	     it != prebuilt->table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
@@ -11819,8 +11827,8 @@ ha_innobase::can_switch_engines(void)
 			"determining if there are foreign key constraints";
 	row_mysql_freeze_data_dictionary(prebuilt->trx);
 
-	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
-			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	can_switch = prebuilt->table->referenced_set.empty()
+		&& prebuilt->table->foreign_set.empty();
 
 	row_mysql_unfreeze_data_dictionary(prebuilt->trx);
 	prebuilt->trx->op_info = "";
