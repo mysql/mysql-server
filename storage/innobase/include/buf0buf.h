@@ -2315,6 +2315,12 @@ struct	CheckInLRUList {
 	{
 		ut_a(elem->in_LRU_list);
 	}
+
+	static void validate(const buf_pool_t* buf_pool)
+	{
+		CheckInLRUList	check;
+		ut_list_validate(buf_pool->LRU, check);
+	}
 };
 
 /** Functor to validate the LRU list. */
@@ -2323,6 +2329,12 @@ struct	CheckInFreeList {
 	{
 		ut_a(elem->in_free_list);
 	}
+
+	static void validate(const buf_pool_t* buf_pool)
+	{
+		CheckInFreeList	check;
+		ut_list_validate(buf_pool->free, check);
+	}
 };
 
 struct	CheckUnzipLRUAndLRUList {
@@ -2330,6 +2342,12 @@ struct	CheckUnzipLRUAndLRUList {
 	{
                 ut_a(elem->page.in_LRU_list);
                 ut_a(elem->in_unzip_LRU_list);
+	}
+
+	static void validate(const buf_pool_t* buf_pool)
+	{
+		CheckUnzipLRUAndLRUList	check;
+		ut_list_validate(buf_pool->unzip_LRU, check);
 	}
 };
 #endif /* UNIV_DEBUG || defined UNIV_BUF_DEBUG */

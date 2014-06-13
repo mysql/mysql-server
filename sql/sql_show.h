@@ -218,7 +218,7 @@ const char* get_one_variable(THD *thd, SHOW_VAR *variable,
 int get_quote_char_for_identifier(THD *thd, const char *name, size_t length);
 
 /* Handle the ignored database directories list for SHOW/I_S. */
-bool ignore_db_dirs_init();
+void ignore_db_dirs_init();
 void ignore_db_dirs_free();
 void ignore_db_dirs_reset();
 bool ignore_db_dirs_process_additions();

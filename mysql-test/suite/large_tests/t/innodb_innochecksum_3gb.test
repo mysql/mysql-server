@@ -1,6 +1,4 @@
 #****************************************************************
-# Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
-#
 # WL6045: Improve Innochecksum
 # Check Innochecksum with ibd file size 3GB
 # When server --default_storage_engine=InnoDB & tab2.ibd (CRC32)
