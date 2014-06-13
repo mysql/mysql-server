@@ -3013,8 +3013,7 @@ fil_truncate_tablespace(
 
 	space->size = node->size = size_in_pages;
 
-	bool success = os_file_truncate(
-		node->name, node->handle, UNIV_PAGE_SIZE);
+	bool success = os_file_truncate(node->name, node->handle, 0);
 	if (success) {
 		success = os_file_set_size(
 				node->name, node->handle,
