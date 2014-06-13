@@ -698,7 +698,9 @@ SELECT ST_Distance(GeomFromText(@star_of_elems),NULL);
 SELECT ST_Distance(NULL,NULL);
 SELECT ST_Distance(g,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 SELECT ST_Distance(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT ST_Distance(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
 SELECT ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 SELECT ST_Distance(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));

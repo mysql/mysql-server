@@ -340,12 +340,7 @@ public:
 #endif
   } m_flags;
 
-  Transaction_ctx()
-  {
-    memset(this, 0, sizeof(*this));
-    init_sql_alloc(key_memory_thd_transactions, &m_mem_root,
-                   ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
-  }
+  Transaction_ctx();
 
   void cleanup()
   {

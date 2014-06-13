@@ -1351,11 +1351,9 @@ SELECT ST_Distance(fid,NULL) FROM gis_geometrycollection,gis_geometrycollection_
 ST_Distance(fid,NULL)
 NULL
 SELECT ST_Distance(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-ST_Distance(fid,GeomFromText(@star_top))
-NULL
+ERROR HY000: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2 WHERE fid=103 and fid2=103;
-ST_Distance(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR HY000: Invalid GIS data provided to function st_distance.
 SELECT ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ST_Distance(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
 NULL
