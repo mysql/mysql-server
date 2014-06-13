@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -133,7 +133,7 @@ gsl_unlock_ext(Ndb *ndb, NdbTransaction *trans,
 */
 static int gsl_is_locked_or_queued= 0;
 static int gsl_no_locking_allowed= 0;
-static pthread_mutex_t gsl_mutex;
+static native_mutex_t gsl_mutex;
 
 /*
   Indicates if ndb_global_schema_lock module is active/initialized, normally
@@ -218,7 +218,7 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
     - increase global lock count
   */
   Thd_proc_info_guard proc_info(thd);
-  pthread_mutex_lock(&gsl_mutex);
+  native_mutex_lock(&gsl_mutex);
   /* increase global lock count */
   gsl_is_locked_or_queued++;
   if (no_lock_queue)
@@ -226,7 +226,7 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
     if (gsl_is_locked_or_queued != 1)
     {
       /* Other thread has lock and this thread may not enter lock queue */
-      pthread_mutex_unlock(&gsl_mutex);
+      native_mutex_unlock(&gsl_mutex);
       thd_ndb->global_schema_lock_error= -1;
       DBUG_PRINT("exit", ("aborting as lock exists"));
       DBUG_RETURN(-1);
@@ -240,17 +240,17 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
     {
       proc_info.set("Waiting for allowed to take ndbcluster global schema lock");
       /* Wait until locking is allowed */
-      pthread_mutex_unlock(&gsl_mutex);
+      native_mutex_unlock(&gsl_mutex);
       do_retry_sleep(50);
       if (thd_killed(thd))
       {
         thd_ndb->global_schema_lock_error= -1;
         DBUG_RETURN(-1);
       }
-      pthread_mutex_lock(&gsl_mutex);
+      native_mutex_lock(&gsl_mutex);
     }
   }
-  pthread_mutex_unlock(&gsl_mutex);
+  native_mutex_unlock(&gsl_mutex);
 
   /*
     Take the lock
@@ -262,10 +262,10 @@ ndbcluster_global_schema_lock(THD *thd, bool no_lock_queue,
 
   if (no_lock_queue)
   {
-    pthread_mutex_lock(&gsl_mutex);
+    native_mutex_lock(&gsl_mutex);
     /* Mark that other thread may be take lock */
     gsl_no_locking_allowed= 0;
-    pthread_mutex_unlock(&gsl_mutex);
+    native_mutex_unlock(&gsl_mutex);
   }
 
   if (thd_ndb->global_schema_lock_trans)
@@ -327,9 +327,9 @@ ndbcluster_global_schema_unlock(THD *thd)
   /*
     Decrease global lock count
   */
-  pthread_mutex_lock(&gsl_mutex);
+  native_mutex_lock(&gsl_mutex);
   gsl_is_locked_or_queued--;
-  pthread_mutex_unlock(&gsl_mutex);
+  native_mutex_unlock(&gsl_mutex);
 
   if (trans)
   {
@@ -379,7 +379,7 @@ void ndbcluster_global_schema_lock_init(handlerton *hton)
   assert(gsl_is_locked_or_queued == 0);
   assert(gsl_no_locking_allowed == 0);
   gsl_initialized= true;
-  pthread_mutex_init(&gsl_mutex, MY_MUTEX_INIT_FAST);
+  native_mutex_init(&gsl_mutex, MY_MUTEX_INIT_FAST);
 
 #ifndef NDB_WITHOUT_GLOBAL_SCHEMA_LOCK
   hton->global_schema_func= ndbcluster_global_schema_func;
@@ -393,7 +393,7 @@ void ndbcluster_global_schema_lock_deinit(void)
   assert(gsl_is_locked_or_queued == 0);
   assert(gsl_no_locking_allowed == 0);
   gsl_initialized= false;
-  pthread_mutex_destroy(&gsl_mutex);
+  native_mutex_destroy(&gsl_mutex);
 }
 
 
