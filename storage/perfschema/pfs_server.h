@@ -129,6 +129,11 @@ struct PFS_global_param
   */
   long m_table_stat_sizing;
   /**
+    Maximum number of stastics collected for tables indexes.
+    @sa table_index_lost.
+  */
+  long m_index_stat_sizing;
+  /**
     Maximum number of instrumented file classes.
     @sa file_class_lost.
   */

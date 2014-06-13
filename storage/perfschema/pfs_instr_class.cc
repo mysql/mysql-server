@@ -112,6 +112,12 @@ ulong table_stat_max= 0;
 ulong table_stat_lost= 0;
 /** boolean value to indicate if stat array is full. @sa table_stat_full */
 ulong table_stat_full= false;
+/** Size of the index stat array. @sa index_stat_array */
+ulong index_stat_max= 0;
+/** Number of index stat lost. @sa index_stat_array */
+ulong index_stat_lost= 0;
+/** boolean value to indicate if stat array is full. @sa index_stat_full */
+ulong index_stat_full= false;
 /** Size of the socket class array. @sa socket_class_array */
 ulong socket_class_max= 0;
 /** Number of socket class lost. @sa socket_class_array */
@@ -157,6 +163,13 @@ PFS_table_share *table_share_array= NULL;
   @sa table_stat_lost
 */
 PFS_table_stat *table_stat_array= NULL;
+
+/**
+  Index statistics instance array.
+  @sa index_stat_max
+  @sa index_stat_lost
+*/
+PFS_table_io_stat *index_stat_array= NULL;
 
 PFS_ALIGNED PFS_single_stat global_idle_stat;
 PFS_ALIGNED PFS_table_io_stat global_table_io_stat;
@@ -609,6 +622,94 @@ void cleanup_table_stat(void)
   table_stat_max= 0;
 }
 
+/**
+  Initialize the index stat buffer.
+  @param index_stat_sizing           max number of index statistics
+  @return 0 on success
+*/
+int init_index_stat(uint index_stat_sizing)
+{
+  int result= 0;
+  index_stat_max= index_stat_sizing;
+  table_stat_lost= 0;
+
+  if (index_stat_max > 0)
+  {
+    index_stat_array= PFS_MALLOC_ARRAY(index_stat_max, PFS_table_io_stat,
+                                       MYF(MY_ZEROFILL));
+    if (unlikely(index_stat_array == NULL))
+      result= 1;
+  }
+  else
+    index_stat_array= NULL;
+
+  return result;
+}
+
+PFS_table_io_stat*
+get_index_stat(PFS_table_io_stat **stat)
+{
+  if(*stat)
+    return *stat;
+
+  if (index_stat_array == NULL || index_stat_max == 0)
+  {
+    index_stat_lost++;
+    return NULL;
+  }
+ 
+  PFS_table_io_stat *pfs= NULL;
+  static uint PFS_ALIGNED index_stat_monotonic_index= 0;
+  ulong index= 0;
+  ulong attempts= 0;
+  pfs_dirty_state dirty_state;
+
+  if(index_stat_full)
+  {
+    index_stat_lost++;
+    return NULL;
+  }
+
+  /* Create a new record in index stat array. */
+  while (++attempts <= index_stat_max)
+  {
+    index= PFS_atomic::add_u32(& index_stat_monotonic_index, 1) % index_stat_max;
+    pfs= index_stat_array + index;
+
+    if (pfs->m_lock.is_free())
+    {
+      if (pfs->m_lock.free_to_dirty(& dirty_state))
+      {
+        /* TODO : mayank, Reset the stats. */
+
+        /* Use this stat buffer. */
+        pfs->m_lock.dirty_to_allocated(& dirty_state);
+        *stat = pfs;
+        return pfs;
+      }
+    }
+  }
+  index_stat_lost++;
+  index_stat_full= true;
+  return NULL;
+}
+
+void release_index_stat(PFS_table_io_stat *pfs)
+{
+  if(!pfs->m_lock.is_populated())
+    printf("HERE\n");
+  pfs->m_lock.allocated_to_free();
+  table_stat_full= false;
+  return;
+}
+
+/** Cleanup the table stat buffers. */
+void cleanup_index_stat(void)
+{
+  pfs_free(index_stat_array);
+  index_stat_array= NULL;
+  index_stat_max= 0;
+}
 /**
   Initialize the file class buffer.
   @param file_class_sizing            max number of file class
@@ -1617,8 +1718,8 @@ search:
 void PFS_table_share::aggregate_io(void)
 {
   uint safe_key_count= sanitize_index_count(m_key_count);
-  PFS_table_io_stat *from_stat;
-  PFS_table_io_stat *from_stat_last;
+  PFS_table_io_stat **from_stat;
+  PFS_table_io_stat **from_stat_last;
   PFS_table_io_stat sum_io;
 
   if(m_table_stat == NULL)
@@ -1628,10 +1729,10 @@ void PFS_table_share::aggregate_io(void)
   from_stat= & m_table_stat->m_index_stat[0];
   from_stat_last= from_stat + safe_key_count;
   for ( ; from_stat < from_stat_last ; from_stat++)
-    sum_io.aggregate(from_stat);
+    sum_io.aggregate(*from_stat);
 
   /* Aggregate stats for the table */
-  sum_io.aggregate(& m_table_stat->m_index_stat[MAX_INDEXES]);
+  sum_io.aggregate(m_table_stat->m_index_stat[MAX_INDEXES]);
 
   /* Add this table stats to the global sink. */
   global_table_io_stat.aggregate(& sum_io);

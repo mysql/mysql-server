@@ -441,6 +441,10 @@ int init_table_stat(uint table_stat_sizing);
 void cleanup_table_stat();
 PFS_table_stat* get_table_stat(PFS_table_share* share);
 void release_table_stat(PFS_table_stat table_stat);
+int init_index_stat(uint index_stat_sizing);
+void cleanup_index_stat();
+PFS_table_io_stat* get_index_stat(PFS_table_io_stat** stat);
+void release_index_stat(PFS_table_io_stat index_stat);
 int init_table_share_hash();
 void cleanup_table_share_hash();
 int init_file_class(uint file_class_sizing);
@@ -544,6 +548,8 @@ extern ulong table_share_max;
 extern ulong table_share_lost;
 extern ulong table_stat_max;
 extern ulong table_stat_lost;
+extern ulong index_stat_max;
+extern ulong index_stat_lost;
 
 /* Exposing the data directly, for iterators. */
 
@@ -553,6 +559,7 @@ extern PFS_cond_class *cond_class_array;
 extern PFS_file_class *file_class_array;
 extern PFS_table_share *table_share_array;
 extern PFS_table_stat *table_stat_array;
+extern PFS_table_io_stat *index_stat_array;
 
 void reset_events_waits_by_class();
 void reset_file_class_io();
