@@ -65,6 +65,7 @@ public:
 
 private:
   v8::Persistent<v8::Object> jsBlobValue;
+  char * content;
 };
 
 
