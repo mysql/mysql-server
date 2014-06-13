@@ -496,28 +496,32 @@ struct que_fork_t{
 #define QUE_NODE_CALL		31
 #define QUE_NODE_EXIT		32
 
-/* Query thread states */
-#define QUE_THR_RUNNING		1
-#define QUE_THR_PROCEDURE_WAIT	2
-#define	QUE_THR_COMPLETED	3	/* in selects this means that the
-					thread is at the end of its result set
-					(or start, in case of a scroll cursor);
-					in other statements, this means the
-					thread has done its task */
-#define QUE_THR_COMMAND_WAIT	4
-#define QUE_THR_LOCK_WAIT	5
-#define QUE_THR_SUSPENDED	7
-#define QUE_THR_ERROR		8
+/** Query thread states */
+enum que_thr_state_t {
+	QUE_THR_RUNNING,
+	QUE_THR_PROCEDURE_WAIT,
+	/** in selects this means that the thread is at the end of its
+	result set (or start, in case of a scroll cursor); in other
+	statements, this means the thread has done its task */
+	QUE_THR_COMPLETED,
+	QUE_THR_COMMAND_WAIT,
+	QUE_THR_LOCK_WAIT,
+	QUE_THR_SUSPENDED,
+	QUE_THR_ERROR
+};
 
-/* Query thread lock states */
-#define QUE_THR_LOCK_NOLOCK	0
-#define QUE_THR_LOCK_ROW	1
-#define QUE_THR_LOCK_TABLE	2
-
-/* From where the cursor position is counted */
-#define QUE_CUR_NOT_DEFINED	1
-#define QUE_CUR_START		2
-#define	QUE_CUR_END		3
+/** Query thread lock states */
+enum que_thr_lock_t {
+	QUE_THR_LOCK_NOLOCK,
+	QUE_THR_LOCK_ROW,
+	QUE_THR_LOCK_TABLE
+};
+/** From where the cursor position is counted */
+enum que_cur_t {
+	QUE_CUR_NOT_DEFINED,
+	QUE_CUR_START,
+	QUE_CUR_END
+};
 
 #ifndef UNIV_NONINL
 #include "que0que.ic"
