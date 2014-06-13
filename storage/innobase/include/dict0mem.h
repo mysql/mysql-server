@@ -48,6 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "buf0buf.h"
 #include "gis0type.h"
 #include "os0once.h"
+#include <set>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -852,13 +853,50 @@ struct dict_foreign_t{
 					does not generate new indexes
 					implicitly */
 	dict_index_t*	referenced_index;/*!< referenced index */
-	UT_LIST_NODE_T(dict_foreign_t)
-			foreign_list;	/*!< list node for foreign keys of the
-					table */
-	UT_LIST_NODE_T(dict_foreign_t)
-			referenced_list;/*!< list node for referenced
-					keys of the table */
 };
+
+/** Compare two dict_foreign_t objects using their ids. Used in the ordering
+of dict_table_t::foreign_set and dict_table_t::referenced_set.  It returns
+true if the first argument is considered to go before the second in the
+strict weak ordering it defines, and false otherwise. */
+struct dict_foreign_compare {
+
+	bool operator()(
+		const dict_foreign_t*	lhs,
+		const dict_foreign_t*	rhs) const
+	{
+		return(ut_strcmp(lhs->id, rhs->id) < 0);
+	}
+};
+
+/** A function object to find a foreign key with the given index as the
+referenced index. Return the foreign key with matching criteria or NULL */
+struct dict_foreign_with_index {
+
+	dict_foreign_with_index(const dict_index_t*	index)
+	: m_index(index)
+	{}
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		return(foreign->referenced_index == m_index);
+	}
+
+	const dict_index_t*	m_index;
+};
+
+/* A function object to check if the foreign constraint is between different
+tables.  Returns true if foreign key constraint is between different tables,
+false otherwise. */
+struct dict_foreign_different_tables {
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		return(foreign->foreign_table != foreign->referenced_table);
+	}
+};
+
+typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
 
 /** The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
@@ -1017,6 +1055,13 @@ struct dict_table_t {
 	loading the definition or CREATE TABLE, or ALTER TABLE (prepare,
 	commit, and rollback phases). */
 	trx_id_t				def_trx_id;
+
+	/*!< set of foreign key constraints in the table; these refer to
+	columns in other tables */
+	dict_foreign_set			foreign_set;
+
+	/*!< set of foreign key constraints which refer to this table */
+	dict_foreign_set			referenced_set;
 
 #ifdef UNIV_DEBUG
 	/** This field is used to specify in simulations tables which are so

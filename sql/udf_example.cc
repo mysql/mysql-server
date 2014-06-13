@@ -137,7 +137,7 @@
 #ifdef HAVE_DLOPEN
 
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-static pthread_mutex_t LOCK_hostname;
+static native_mutex_t LOCK_hostname;
 #endif
 
 /* These must be right or mysqld will not find the symbol! */
@@ -719,7 +719,7 @@ my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   initid->max_length=11;
   initid->maybe_null=1;
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
+  (void) native_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
 #endif
   return 0;
 }
@@ -727,7 +727,7 @@ my_bool lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 void lookup_deinit(UDF_INIT *initid __attribute__((unused)))
 {
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-  (void) pthread_mutex_destroy(&LOCK_hostname);
+  (void) native_mutex_destroy(&LOCK_hostname);
 #endif
 }
 
@@ -762,14 +762,14 @@ char *lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
     return 0;
   }
 #else
-  pthread_mutex_lock(&LOCK_hostname);
+  native_mutex_lock(&LOCK_hostname);
   if (!(hostent= gethostbyname((char*) name_buff)))
   {
-    pthread_mutex_unlock(&LOCK_hostname);
+    native_mutex_unlock(&LOCK_hostname);
     *null_value= 1;
     return 0;
   }
-  pthread_mutex_unlock(&LOCK_hostname);
+  native_mutex_unlock(&LOCK_hostname);
 #endif
   memcpy(&in, *hostent->h_addr_list, sizeof(in.s_addr));
   *res_length= (ulong) (my_stpcpy(result, inet_ntoa(in)) - result);
@@ -799,7 +799,7 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
   initid->max_length=32;
   initid->maybe_null=1;
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-  (void) pthread_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
+  (void) native_mutex_init(&LOCK_hostname,MY_MUTEX_INIT_SLOW);
 #endif
   return 0;
 }
@@ -807,7 +807,7 @@ my_bool reverse_lookup_init(UDF_INIT *initid, UDF_ARGS *args, char *message)
 void reverse_lookup_deinit(UDF_INIT *initid __attribute__((unused)))
 {
 #if !defined(HAVE_GETHOSTBYADDR_R) || !defined(HAVE_SOLARIS_STYLE_GETHOST)
-  (void) pthread_mutex_destroy(&LOCK_hostname);
+  (void) native_mutex_destroy(&LOCK_hostname);
 #endif
 }
 
@@ -866,14 +866,14 @@ char *reverse_lookup(UDF_INIT *initid __attribute__((unused)), UDF_ARGS *args,
     return 0;
   }
 #else
-  pthread_mutex_lock(&LOCK_hostname);
+  native_mutex_lock(&LOCK_hostname);
   if (!(hp= gethostbyaddr((char*) &taddr, sizeof(taddr), AF_INET)))
   {
-    pthread_mutex_unlock(&LOCK_hostname);
+    native_mutex_unlock(&LOCK_hostname);
     *null_value= 1;
     return 0;
   }
-  pthread_mutex_unlock(&LOCK_hostname);
+  native_mutex_unlock(&LOCK_hostname);
 #endif
   *res_length=(ulong) (my_stpcpy(result,hp->h_name) - result);
   return result;
