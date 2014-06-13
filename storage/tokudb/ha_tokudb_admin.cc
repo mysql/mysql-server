@@ -210,11 +210,10 @@ static int hot_poll_fun(void *extra, float progress) {
     return 0;
 }
 
-volatile int ha_tokudb_optimize_wait;
-
 // flatten all DB's in this table, to do so, peform hot optimize on each db
 int ha_tokudb::do_optimize(THD *thd) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
+    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     int error;
     uint curr_num_DBs = table->s->keys + tokudb_test(hidden_primary_key);
 
@@ -247,23 +246,21 @@ int ha_tokudb::do_optimize(THD *thd) {
     error = 0;
 
 cleanup:
-    while (ha_tokudb_optimize_wait) sleep(1);
 #ifdef HA_TOKUDB_HAS_THD_PROGRESS
     thd_progress_end(thd);
 #endif
+    thd_proc_info(thd, orig_proc_info);
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
 int ha_tokudb::optimize(THD *thd, HA_CHECK_OPT *check_opt) {
     TOKUDB_HANDLER_DBUG_ENTER("%s", share->table_name);
-    const char *orig_proc_info = tokudb_thd_get_proc_info(thd);
     int error;
 #if TOKU_OPTIMIZE_WITH_RECREATE
     error = HA_ADMIN_TRY_ALTER;
 #else
     error = do_optimize(thd);
 #endif
-    thd_proc_info(thd, orig_proc_info);
     TOKUDB_HANDLER_DBUG_RETURN(error);
 }
 
