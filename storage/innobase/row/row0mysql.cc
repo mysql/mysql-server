@@ -3176,7 +3176,6 @@ row_truncate_table_for_mysql(
 	dict_table_t*	table,	/*!< in: table handle */
 	trx_t*		trx)	/*!< in: transaction handle */
 {
-	dict_foreign_t*	foreign;
 	dberr_t		err;
 	mem_heap_t*	heap;
 	byte*		buf;
@@ -3268,24 +3267,17 @@ row_truncate_table_for_mysql(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	bool	found = false;
-	for (dict_foreign_set::iterator it = table->referenced_set.begin();
-	     it != table->referenced_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		if (foreign->foreign_table != table) {
-			found = true;
-			break;
-		}
-	}
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
 	if (!srv_read_only_mode
-	    && found
+	    && it != table->referenced_set.end()
 	    && trx->check_foreigns) {
 
-		FILE*	ef	= dict_foreign_err_file;
+		FILE*		ef	= dict_foreign_err_file;
+		dict_foreign_t*	foreign	= *it;
 
 		/* We only allow truncating a referenced table if
 		FOREIGN_KEY_CHECKS is set to 0 */
