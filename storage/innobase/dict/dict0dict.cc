@@ -4832,7 +4832,6 @@ dict_foreign_parse_drop_constraints(
 	const char***	constraints_to_drop)	/*!< out: id's of the
 						constraints to drop */
 {
-	dict_foreign_t*		foreign;
 	ibool			success;
 	char*			str;
 	size_t			len;
@@ -4898,25 +4897,10 @@ loop:
 	(*constraints_to_drop)[*n] = id;
 	(*n)++;
 
-	/* Look for the given constraint id */
-
-	for (dict_foreign_set::iterator it = table->foreign_set.begin();
-	     it != table->foreign_set.end();
-	     ++it) {
-
-		foreign = *it;
-
-		if (0 == innobase_strcasecmp(foreign->id, id)
-		    || (strchr(foreign->id, '/')
-			&& 0 == innobase_strcasecmp(
-				id,
-				dict_remove_db_name(foreign->id)))) {
-			/* Found */
-			break;
-		}
-	}
-
-	if (foreign == NULL) {
+	if (std::find_if(table->foreign_set.begin(),
+			 table->foreign_set.end(),
+			 dict_foreign_matches_id(id))
+	    == table->foreign_set.end()) {
 
 		if (!srv_read_only_mode) {
 			FILE*	ef = dict_foreign_err_file;
@@ -6215,7 +6199,7 @@ dict_table_schema_check(
 			" to other tables, but it must have %lu.",
 			ut_format_name(req_schema->table_name,
 				       TRUE, buf, sizeof(buf)),
-			table->foreign_set.size(),
+			static_cast<ulint>(table->foreign_set.size()),
 			req_schema->n_foreign);
 		return(DB_ERROR);
 	}
@@ -6225,7 +6209,7 @@ dict_table_schema_check(
 			errstr, errstr_sz,
 			"There are " ULINTPF " foreign key(s) pointing to %s, "
 			"but there must be %lu.",
-			table->referenced_set.size(),
+			static_cast<ulint>(table->referenced_set.size()),
 			ut_format_name(req_schema->table_name,
 				       TRUE, buf, sizeof(buf)),
 			req_schema->n_referenced);
