@@ -48,6 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "buf0buf.h"
 #include "gis0type.h"
 #include "os0once.h"
+#include <set>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -396,22 +397,29 @@ dict_mem_referenced_table_name_lookup_set(
 	dict_foreign_t*	foreign,	/*!< in/out: foreign struct */
 	ibool		do_alloc);	/*!< in: is an alloc needed */
 
-/*******************************************************************//**
-Create a temporary tablename like "#sql-ibnnnn-mmmm" where
-  nnnn = the table ID
-  mmmm = the current LSN
-Both of these numbers are 64 bit integers and can use up to 20 digits.
-Note that both numbers are needed to achieve a unique name since it is
-possible for two threads to call this while the LSN is the same.
-But these two threads will not be working on the same table.
+/** Create a temporary tablename like "#sql-ibtid-inc where
+  tid = the Table ID
+  inc = a randomly initialized number that is incremented for each file
+The table ID is a 64 bit integer, can use up to 20 digits, and is
+initialized at bootstrap. The second number is 32 bits, can use up to 10
+digits, and is initialized at startup to a randomly distributed number.
+It is hoped that the combination of these two numbers will provide a
+reasonably unique temporary file name.
+@param[in]	heap	A memory heap
+@param[in]	dbtab	Table name in the form database/table name
+@param[in]	id	Table id
 @return A unique temporary tablename suitable for InnoDB use */
-__attribute__((nonnull, warn_unused_result))
+
 char*
 dict_mem_create_temporary_tablename(
-/*================================*/
-	mem_heap_t*	heap,	/*!< in: memory heap */
-	const char*	dbtab,	/*!< in: database/table name */
-	table_id_t	id);	/*!< in: InnoDB table id */
+	mem_heap_t*	heap,
+	const char*	dbtab,
+	table_id_t	id);
+
+/** Initialize dict memory variables */
+
+void
+dict_mem_init(void);
 
 /** Data structure for a column in a table */
 struct dict_col_t{
@@ -845,13 +853,76 @@ struct dict_foreign_t{
 					does not generate new indexes
 					implicitly */
 	dict_index_t*	referenced_index;/*!< referenced index */
-	UT_LIST_NODE_T(dict_foreign_t)
-			foreign_list;	/*!< list node for foreign keys of the
-					table */
-	UT_LIST_NODE_T(dict_foreign_t)
-			referenced_list;/*!< list node for referenced
-					keys of the table */
 };
+
+/** Compare two dict_foreign_t objects using their ids. Used in the ordering
+of dict_table_t::foreign_set and dict_table_t::referenced_set.  It returns
+true if the first argument is considered to go before the second in the
+strict weak ordering it defines, and false otherwise. */
+struct dict_foreign_compare {
+
+	bool operator()(
+		const dict_foreign_t*	lhs,
+		const dict_foreign_t*	rhs) const
+	{
+		return(ut_strcmp(lhs->id, rhs->id) < 0);
+	}
+};
+
+/** A function object to find a foreign key with the given index as the
+referenced index. Return the foreign key with matching criteria or NULL */
+struct dict_foreign_with_index {
+
+	dict_foreign_with_index(const dict_index_t*	index)
+	: m_index(index)
+	{}
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		return(foreign->referenced_index == m_index);
+	}
+
+	const dict_index_t*	m_index;
+};
+
+/* A function object to check if the foreign constraint is between different
+tables.  Returns true if foreign key constraint is between different tables,
+false otherwise. */
+struct dict_foreign_different_tables {
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		return(foreign->foreign_table != foreign->referenced_table);
+	}
+};
+
+/** A function object to check if the foreign key constraint has the same
+name as given.  If the full name of the foreign key constraint doesn't match,
+then, check if removing the database name from the foreign key constraint
+matches. Return true if it matches, false otherwise. */
+struct dict_foreign_matches_id {
+
+	dict_foreign_matches_id(const char* id)
+		: m_id(id)
+	{}
+
+	bool operator()(const dict_foreign_t*	foreign) const
+	{
+		if (0 == innobase_strcasecmp(foreign->id, m_id)) {
+			return(true);
+		}
+		if (const char* pos = strchr(foreign->id, '/')) {
+			if (0 == innobase_strcasecmp(m_id, pos + 1)) {
+				return(true);
+			}
+		}
+		return(false);
+	}
+
+	const char*	m_id;
+};
+
+typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
 
 /** The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
@@ -1010,6 +1081,13 @@ struct dict_table_t {
 	loading the definition or CREATE TABLE, or ALTER TABLE (prepare,
 	commit, and rollback phases). */
 	trx_id_t				def_trx_id;
+
+	/*!< set of foreign key constraints in the table; these refer to
+	columns in other tables */
+	dict_foreign_set			foreign_set;
+
+	/*!< set of foreign key constraints which refer to this table */
+	dict_foreign_set			referenced_set;
 
 #ifdef UNIV_DEBUG
 	/** This field is used to specify in simulations tables which are so

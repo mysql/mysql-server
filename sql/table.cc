@@ -66,6 +66,10 @@ LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 /* WORKER_INFO name */
 LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 
+/* GTID_EXECUTED name */
+LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -297,6 +301,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                       WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == GTID_EXECUTED_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                       GTID_EXECUTED_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_GTID;
+
   }
 
   return TABLE_CATEGORY_USER;
@@ -2384,7 +2395,8 @@ partititon_err:
   }
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
-      (share->table_category == TABLE_CATEGORY_RPL_INFO))
+      (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (share->table_category == TABLE_CATEGORY_GTID))
   {
     outparam->no_replicate= TRUE;
   }
@@ -5743,6 +5755,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
+
+  // optim_join_cond() may point to freed memory of previous execution.
+  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*

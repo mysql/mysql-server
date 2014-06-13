@@ -1728,7 +1728,7 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-        ut_d(UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList()));
+        ut_d(CheckInLRUList::validate(buf_pool));
 
 	/* relocate buf_pool->page_hash */
 	ulint	fold = bpage->id.fold();
@@ -3193,9 +3193,16 @@ got_block:
 	ut_ad(fix_block->page.buf_fix_count > 0);
 
 #ifdef UNIV_SYNC_DEBUG
-	ibool	ret;
-	ret = rw_lock_s_lock_nowait(&fix_block->debug_latch, file, line);
-	ut_a(ret);
+	/* We have already buffer fixed the page, and we are committed to
+	returning this page to the caller. Register for debugging.
+	Avoid debug latching if page/block belongs to system temporary
+	tablespace (Not much needed for table with single threaded access.). */
+	if (!fsp_is_system_temporary(page_id.space())) {
+		ibool   ret;
+		ret = rw_lock_s_lock_nowait(
+			&fix_block->debug_latch, file, line);
+		ut_a(ret);
+	}
 #endif /* UNIV_SYNC_DEBUG */
 
 #if defined UNIV_DEBUG_FILE_ACCESSES || defined UNIV_DEBUG
