@@ -37,6 +37,7 @@ typedef enum NDB_THREAD_PRIO_ENUM {
 typedef enum NDB_THREAD_TLS_ENUM {
   NDB_THREAD_TLS_JAM,           /* Jam buffer pointer. */
   NDB_THREAD_TLS_THREAD,        /* Thread self pointer. */
+  NDB_THREAD_TLS_SELF,          /* Thread self pointer of type NdbThread*. */
   NDB_THREAD_TLS_MAX
 } NDB_THREAD_TLS;
 
@@ -114,6 +115,30 @@ int NdbThread_SetConcurrencyLevel(int level);
  *   return -1, if not supported on platform
  */
 int NdbThread_GetTid(struct NdbThread*);
+
+/**
+ * Get name of thread
+ */
+const char* NdbThread_GetName(struct NdbThread*);
+
+/**
+ * Get current thread
+ * If create is non zero and no NdbThread is associated
+ * a new NdbThread is allocated and associated with
+ * current thread.
+ */
+struct NdbThread* NdbThread_GetCurrentThread(int create);
+
+/**
+ * Get current cpu id for current thread.
+ * Note this is volatile information.
+ * On which cpu code before and after call
+ * to this function is executed are unspecified.
+ *
+ *   should only be used for printing etc...
+ *   return -1, if not supported on platform
+ */
+int NdbThread_GetCurrentCPU();
 
 /**
  * Yield to normal time-share prio and back to real-time prio for

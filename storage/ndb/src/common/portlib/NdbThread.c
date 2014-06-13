@@ -95,15 +95,19 @@ struct NdbThread
   psetid_t orig_proc_set;
   /* Original processor locked to */
   processorid_t orig_processor_id;
+#else
+  STATIC_CONST(tid = -1);
 #endif
   const struct processor_set_handler *cpu_set_key;
-  char thread_name[16];
+  char thread_name[32];
   NDB_THREAD_FUNC * func;
   void * object;
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   struct ndb_mutex_thr_state m_mutex_thr_state;
 #endif
 };
+
+static struct NdbThread* NdbThread_CreateSelf(const char * name);
 
 #ifdef NDB_SHM_TRANSPORTER
 void NdbThread_set_shm_sigmask(my_bool block)
@@ -142,13 +146,49 @@ settid(struct NdbThread * thr)
 #endif
 }
 
+static
+void
+setself(struct NdbThread* thr)
+{
+  struct NdbThread* self = NdbThread_GetTlsKey(NDB_THREAD_TLS_SELF);
+  if (self == NULL)
+  {
+    NdbThread_SetTlsKey(NDB_THREAD_TLS_SELF, thr);
+  }
+  else
+  {
+    assert(self == thr);
+  }
+}
+
 int
 NdbThread_GetTid(struct NdbThread* thr)
 {
-#if defined HAVE_LINUX_SCHEDULING
   return (int)thr->tid;
-#elif defined HAVE_SOLARIS_AFFINITY
-  return (int)thr->tid;
+}
+
+const char*
+NdbThread_GetName(struct NdbThread* thr)
+{
+  return thr->thread_name;
+}
+
+struct NdbThread*
+NdbThread_GetCurrentThread(int create)
+{
+  struct NdbThread* thr = (struct NdbThread*) NdbThread_GetTlsKey(NDB_THREAD_TLS_SELF);
+  if (thr == NULL && create)
+  {
+    thr = NdbThread_CreateSelf(NULL);
+  }
+  return thr;
+}
+
+int
+NdbThread_GetCurrentCPU()
+{
+#ifdef HAVE_LINUX_SCHEDULING
+  return sched_getcpu();
 #else
   return -1;
 #endif
@@ -180,6 +220,7 @@ ndb_thread_wrapper(void* _ss){
       void *ret;
       struct NdbThread * ss = (struct NdbThread *)_ss;
       settid(ss);
+      setself(ss);
 
 #ifdef _WIN32
       /*
@@ -210,33 +251,27 @@ ndb_thread_wrapper(void* _ss){
 static struct NdbThread* g_main_thread = 0;
 
 struct NdbThread*
-NdbThread_CreateObject(const char * name)
+NdbThread_CreateSelf(const char * name)
 {
   struct NdbThread* tmpThread;
-  DBUG_ENTER("NdbThread_Create");
+  DBUG_ENTER("NdbThread_CreateSelf");
 
-  if (g_main_thread != 0)
-  {
-    settid(g_main_thread);
-    if (name)
-    {
-      strnmov(g_main_thread->thread_name, name, sizeof(tmpThread->thread_name));
-    }
-    DBUG_RETURN(g_main_thread);
-  }
+  assert((name == NULL) || strlen(name) < sizeof(tmpThread->thread_name));
 
   tmpThread = (struct NdbThread*)NdbMem_Allocate(sizeof(struct NdbThread));
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
   bzero(tmpThread, sizeof(* tmpThread));
+
+  // Possibly truncated name copied below, will be NUL-terminated due to bzero above
   if (name)
   {
-    strnmov(tmpThread->thread_name, name, sizeof(tmpThread->thread_name));
+    strncpy(tmpThread->thread_name, name, sizeof(tmpThread->thread_name) - 1);
   }
   else
   {
-    strnmov(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name));
+    strncpy(tmpThread->thread_name, "main", sizeof(tmpThread->thread_name) - 1);
   }
 
 #ifdef HAVE_PTHREAD_SELF
@@ -245,14 +280,36 @@ NdbThread_CreateObject(const char * name)
   tmpThread->thread = getpid();
 #endif
   settid(tmpThread);
+  setself(tmpThread);
   tmpThread->inited = 1;
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   ndb_mutex_thread_init(&tmpThread->m_mutex_thr_state);
 #endif
 
-  g_main_thread = tmpThread;
   DBUG_RETURN(tmpThread);
+}
+
+struct NdbThread*
+NdbThread_CreateObject(const char * name)
+{
+  DBUG_ENTER("NdbThread_CreateObject");
+
+  if (g_main_thread != 0)
+  {
+    settid(g_main_thread);
+    setself(g_main_thread);
+    if (name)
+    {
+      assert(strlen(name) < sizeof(g_main_thread->thread_name));
+      strncpy(g_main_thread->thread_name, name, sizeof(g_main_thread->thread_name) - 1);
+      g_main_thread->thread_name[sizeof(g_main_thread->thread_name) - 1] = '\0';
+    }
+    DBUG_RETURN(g_main_thread);
+  }
+
+  g_main_thread = NdbThread_CreateSelf(name != NULL ? name : "main");
+  DBUG_RETURN(g_main_thread);
 }
 
 struct NdbThread*
@@ -284,9 +341,11 @@ NdbThread_Create(NDB_THREAD_FUNC *p_thread_func,
   if (tmpThread == NULL)
     DBUG_RETURN(NULL);
 
+  assert(strlen(p_thread_name) < sizeof(tmpThread->thread_name));
   DBUG_PRINT("info",("thread_name: %s", p_thread_name));
 
-  strnmov(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name));
+  strncpy(tmpThread->thread_name,p_thread_name,sizeof(tmpThread->thread_name) - 1);
+  tmpThread->thread_name[sizeof(tmpThread->thread_name) - 1] = '\0';
 
   pthread_attr_init(&thread_attr);
 #ifdef PTHREAD_STACK_MIN
@@ -887,6 +946,7 @@ NdbThread_Init()
   g_ndb_thread_condition = NdbCondition_Create();
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_JAM]), NULL);
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_THREAD]), NULL);
+  pthread_key_create(&(tls_keys[NDB_THREAD_TLS_SELF]), NULL);
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
   pthread_key_create(&(tls_keys[NDB_THREAD_TLS_MAX]), NULL);
 #endif

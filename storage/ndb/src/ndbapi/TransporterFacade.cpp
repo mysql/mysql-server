@@ -531,9 +531,16 @@ void TransporterFacade::threadMainSend(void)
 
   m_socket_server.startServer();
 
+  unsigned ms = 0;
   while(!theStopReceive) {
     NdbSleep_MilliSleep(sendThreadWaitMillisec);
     NdbMutex_Lock(theMutexPtr);
+    ms += sendThreadWaitMillisec;
+    if (ms > 1000 * dumpTCPTransportersIntervalSeconds)
+    {
+      ms = 0;
+      theTransporterRegistry->dumpTCPTransporters(__func__);
+    }
     if (sendPerformedLastInterval == 0) {
       theTransporterRegistry->performSend();
     }
@@ -570,9 +577,16 @@ void TransporterFacade::threadMainReceive(void)
 #ifdef NDB_SHM_TRANSPORTER
   NdbThread_set_shm_sigmask(TRUE);
 #endif
+  unsigned ms = 0;
   while(!theStopReceive)
   {
     theClusterMgr->lock();
+    ms += 100;
+    if (ms > 1000 * dumpTCPTransportersIntervalSeconds)
+    {
+      ms = 0;
+      theTransporterRegistry->dumpTCPTransporters(__func__);
+    }
     theTransporterRegistry->update_connections();
     theClusterMgr->unlock();
     NdbSleep_MilliSleep(100);

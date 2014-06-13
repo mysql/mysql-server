@@ -39,6 +39,7 @@ extern int g_ndb_shm_signum;
 
 #include "NdbOut.hpp"
 #include <NdbSleep.h>
+#include <NdbThread.h>
 #include <NdbTick.h>
 #include <InputStream.hpp>
 #include <OutputStream.hpp>
@@ -47,6 +48,7 @@ extern int g_ndb_shm_signum;
 #include <mgmapi_internal.h>
 #include <mgmapi/mgmapi_debug.h>
 
+#include <NdbPatch.h>
 #include <EventLogger.hpp>
 extern EventLogger * g_eventLogger;
 
@@ -139,13 +141,42 @@ TransporterReceiveData::epoll_add(TCP_Transporter *t)
     bool add = true;
     struct epoll_event event_poll;
     bzero(&event_poll, sizeof(event_poll));
+#ifdef NDB_PATCH
+    NDB_SOCKET_TYPE dirty_sock_fd = t->getSocket();
+#else
     NDB_SOCKET_TYPE sock_fd = t->getSocket();
+#endif
     int node_id = t->getRemoteNodeId();
     int op = EPOLL_CTL_ADD;
     int ret_val, error;
 
+#ifdef NDB_PATCH
+    // lock_transporter/unlock_transporter are there to get
+    // a read barrier between t->Transporter::m_connected and
+    // t->TCP_Transporter::theSocket
+    // Do not really need the lock.
+    NDB_SOCKET_TYPE sock_fd;
+    if (!NDB_PATCH_FEATURE(1))
+    {
+      sock_fd = dirty_sock_fd;
+    }
+    else
+    {
+      t->get_callback_obj()->read_memory_barrier();
+      sock_fd = t->getSocket();
+      if (!my_socket_equal(dirty_sock_fd, sock_fd))
+      { // Read barrier made a difference, log it!
+        NDB_PATCH_INFO("Node %u: Read barrier hade effect: node %u theSocket " MY_SOCKET_FORMAT " -> " MY_SOCKET_FORMAT,
+          t->getLocalNodeId(), node_id, MY_SOCKET_FORMAT_VALUE(dirty_sock_fd), MY_SOCKET_FORMAT_VALUE(sock_fd));
+      }
+    }
+#endif
+
     if (!my_socket_valid(sock_fd))
+    {
+      errno = EBADF;
       return FALSE;
+    }
 
     event_poll.data.u32 = t->getRemoteNodeId();
     event_poll.events = EPOLLIN;
@@ -594,7 +625,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   {
     msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
                __LINE__, nodeId,
-               getPerformStateString(performStates[nodeId]),
+               getPerformStateString(nodeId),
                performStates[nodeId]);
 
     DBUG_PRINT("error", ("Transporter for node id %d in wrong state",
@@ -621,7 +652,7 @@ TransporterRegistry::connect_server(NDB_SOCKET_TYPE sockfd,
   {
     msg.assfmt("line: %u : Incorrect state for node %u state: %s (%u)",
                __LINE__, nodeId,
-               getPerformStateString(performStates[nodeId]),
+               getPerformStateString(nodeId),
                performStates[nodeId]);
     // Connection suceeded, but not connecting anymore, return
     // false to close the connection
@@ -1604,6 +1635,98 @@ TransporterRegistry::consume_extra_sockets()
   callbackObj->reportWakeup();
 }
 
+#include <arpa/inet.h>
+#include <netinet/in.h>
+void
+TransporterRegistry::dumpTCPTransporters(const char func[])
+{
+#ifdef NDB_PATCH
+  // No logging enabled, do nothing
+  if (!NDB_PATCH_FEATURE(0))
+    return;
+
+#ifdef NDB_TCP_TRANSPORTER
+  for (int i = 0; i < nTCPTransporters; i++)
+  {
+    int id = i;
+    TCP_Transporter *t = theTCPTransporters[id];
+    if (t != NULL)
+    {
+      // Inlined socket address to text, in future there will be functions
+      // in portlib (Bug #17766129 ELIMINATE USE OF THREAD UNSAFE INET_NTOA)
+      char sock[INET6_ADDRSTRLEN + 1 + 5 + 1]="-:-";
+      char peer[INET6_ADDRSTRLEN + 1 + 5 + 1]="-:-";
+      int fd = MY_SOCKET_FORMAT_VALUE(t->getSocket()); // Only works for non-windows
+      union {
+        struct sockaddr cast;
+        struct sockaddr_in ipv4;
+        struct sockaddr_in6 ipv6;
+      } addr;
+      socklen_t addrlen;
+
+      addrlen = sizeof(addr);
+      if (getsockname(fd, &addr.cast, &addrlen) != -1)
+      {
+        char* s;
+        switch (addrlen)
+        {
+          case INET_ADDRSTRLEN:
+            inet_ntop(AF_INET, &addr.ipv4.sin_addr, sock, addrlen);
+            s = sock + strlen(sock);
+            snprintf(s, 6, ":%u", ntohs(addr.ipv4.sin_port));
+          break;
+          case INET6_ADDRSTRLEN:
+            inet_ntop(AF_INET6, &addr.ipv6.sin6_addr, sock, addrlen);
+            s = sock + strlen(sock);
+            snprintf(s, 6, ":%u", ntohs(addr.ipv6.sin6_port));
+          break;
+        }
+      }
+      else (void) strerror_r(errno, sock, sizeof(sock));
+
+      addrlen = sizeof(addr);
+      if (getpeername(fd, &addr.cast, &addrlen) != -1)
+      {
+        char* s;
+        switch (addrlen)
+        {
+          case INET_ADDRSTRLEN:
+            inet_ntop(AF_INET, &addr.ipv4.sin_addr, peer, addrlen);
+            s = peer + strlen(peer);
+            snprintf(s, 6, ":%u", ntohs(addr.ipv4.sin_port));
+          break;
+          case INET6_ADDRSTRLEN:
+            inet_ntop(AF_INET6, &addr.ipv6.sin6_addr, peer, addrlen);
+            s = peer + strlen(peer);
+            snprintf(s, 6, ":%u", ntohs(addr.ipv6.sin6_port));
+          break;
+        }
+      }
+      else (void) strerror_r(errno, peer, sizeof(peer));
+
+      Uint32 remoteNodeId = t->getRemoteNodeId();
+      NDB_PATCH_INFO("Node %u: %s: transporter#%u: "
+        "localNodeId %u: remoteNodeId %u: "
+        "state %u %s: connected %u: "
+        "pending %u: "
+        "socket %s -> %s",
+        localNodeId, func, id,
+        t->getLocalNodeId(), remoteNodeId,
+        getPerformState(remoteNodeId), getPerformStateString(remoteNodeId), t->isConnected(),
+        t->hasPendingConnection(),
+        sock, peer);
+    }
+    else
+    {
+      NDB_PATCH_INFO("%s: Node %u: transporter#%u: (null)",
+        func, localNodeId,
+        id);
+    }
+  }
+#endif
+#endif
+}
+
 void
 TransporterRegistry::performSend()
 {
@@ -1778,11 +1901,18 @@ TransporterRegistry::do_connect(NodeId node_id)
   case DISCONNECTED:
     break;
   case CONNECTED:
+    NDB_PATCH_INFO("Node %u: Connecting node %u was in state %s!",
+      localNodeId, node_id,
+      getPerformStateString(node_id));
     return;
   case CONNECTING:
     return;
   case DISCONNECTING:
     break;
+  default:
+    NDB_PATCH_INFO("Node %u: Connecting node %u was in bad state %u!",
+      localNodeId, node_id, curr_state);
+    abort();
   }
   DBUG_ENTER("TransporterRegistry::do_connect");
   DBUG_PRINT("info",("performStates[%d]=CONNECTING",node_id));
@@ -1793,6 +1923,9 @@ TransporterRegistry::do_connect(NodeId node_id)
    */
   callbackObj->reset_send_buffer(node_id);
 
+  NDB_PATCH_INFO("Node %u: Connecting node %u was in state %s",
+    localNodeId, node_id,
+    getPerformStateString(node_id));
   curr_state= CONNECTING;
   DBUG_VOID_RETURN;
 }
@@ -1809,6 +1942,8 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
   PerformState &curr_state = performStates[node_id];
   switch(curr_state){
   case DISCONNECTED:
+    NDB_PATCH_INFO("Node %u: Disconnect node %u was already disconnected (errnum %u)!",
+      localNodeId, node_id, errnum);
     return;
   case CONNECTED:
     break;
@@ -1819,6 +1954,9 @@ TransporterRegistry::do_disconnect(NodeId node_id, int errnum)
   }
   DBUG_ENTER("TransporterRegistry::do_disconnect");
   DBUG_PRINT("info",("performStates[%d]=DISCONNECTING",node_id));
+  NDB_PATCH_INFO("Node %u: Disconnecting node %u was in state %s (errnum %u)",
+    localNodeId, node_id,
+    getPerformStateString(node_id), errnum);
   curr_state= DISCONNECTING;
   m_disconnect_errnum[node_id] = errnum;
   DBUG_VOID_RETURN;
@@ -1845,6 +1983,9 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
 
   if (recvdata.epoll_add((TCP_Transporter*)theTransporters[node_id]))
   {
+    NDB_PATCH_INFO("Node %u: Connected node %u was in state %s",
+      localNodeId, node_id,
+      getPerformStateString(node_id));
     performStates[node_id] = CONNECTED;
     recvdata.reportConnect(node_id);
     DBUG_VOID_RETURN;
@@ -1854,6 +1995,9 @@ TransporterRegistry::report_connect(TransporterReceiveHandle& recvdata,
    * Failed to add to epoll_set...
    *   disconnect it (this is really really bad)
    */
+  NDB_PATCH_INFO("Node %u: Disconnecting node %u during connect (errno %d %s)!",
+    localNodeId, node_id,
+    errno, strerror(errno));
   performStates[node_id] = DISCONNECTING;
   DBUG_VOID_RETURN;
 }
@@ -1880,6 +2024,8 @@ TransporterRegistry::report_disconnect(TransporterReceiveHandle& recvdata,
   }
 #endif
 
+  NDB_PATCH_INFO("Node %u: Disconnected node %u with errnum %d",
+    localNodeId, node_id, errnum);
   performStates[node_id] = DISCONNECTED;
   recvdata.m_recv_transporters.clear(node_id);
   recvdata.m_has_data_transporters.clear(node_id);
@@ -1986,6 +2132,12 @@ TransporterRegistry::start_clients_thread()
             DBUG_PRINT("info", ("connecting to node %d using port %d",
                                 nodeId, t->get_s_port()));
             connected= t->connect_client();
+            if (connected)
+            {
+              NDB_PATCH_INFO("Node %u: Connected node %u left in state %s using port %d",
+                localNodeId, nodeId,
+                getPerformStateString(nodeId), t->get_s_port());
+            }
           }
 
 	  /**
@@ -2026,7 +2178,21 @@ TransporterRegistry::start_clients_thread()
 		 * has not received a new port yet. Keep the old.
 		 */
 		if (server_port)
+                {
+                  if (persist_mgm_count == 0) /* only log this condition about every 5th second, 50 * 100ms */
+                  {
+                    NDB_PATCH_INFO("Node %u: Connecting node %u left in state %s got server port %d",
+                      localNodeId, nodeId,
+                      getPerformStateString(nodeId), t->get_s_port());
+                  }
 		  t->set_s_port(server_port);
+                }
+                else if (persist_mgm_count == 0) /* only log this condition about every 5th second, 50 * 100ms */
+                {
+                  NDB_PATCH_INFO("Node %u: Connecting node %u left in state %s no server port yet (%d)",
+                    localNodeId, nodeId,
+                    getPerformStateString(nodeId), t->get_s_port());
+                }
 	      }
 	      else if(ndb_mgm_is_connected(m_mgm_handle))
 	      {
@@ -2035,6 +2201,8 @@ TransporterRegistry::start_clients_thread()
                 g_eventLogger->info("Failed to get dynamic port, res: %d",
                                     res);
 		ndb_mgm_disconnect(m_mgm_handle);
+                NDB_PATCH_INFO("Node %u: Connecting node %u failed to get dynamic port, res %d, disconnecting from mgm!",
+                  localNodeId, nodeId, res);
 	      }
 	      else
 	      {
@@ -2048,6 +2216,13 @@ TransporterRegistry::start_clients_thread()
                    ndb_mgm_get_latest_error_msg(m_mgm_handle),
                    ndb_mgm_get_latest_error_line(m_mgm_handle)
                    );
+                NDB_PATCH_INFO("Node %u: Connecting node %u failed mgm disconnected early! "
+                   " %d %s %s line: %d",
+                  localNodeId, nodeId,
+                  ndb_mgm_get_latest_error(m_mgm_handle),
+                  ndb_mgm_get_latest_error_desc(m_mgm_handle),
+                  ndb_mgm_get_latest_error_msg(m_mgm_handle),
+                  ndb_mgm_get_latest_error_line(m_mgm_handle));
 	      }
 	    }
 	    /** else
@@ -2063,12 +2238,23 @@ TransporterRegistry::start_clients_thread()
 	break;
       case DISCONNECTING:
 	if(t->isConnected())
+        {
+          if (persist_mgm_count == 0) /* only log this condition about every 5th second, 50 * 100ms */
+          {
+            NDB_PATCH_INFO("Node %u: Disconnecting node %u left in state %s is connected according to transporter, disconnects!",
+              localNodeId, nodeId,
+              getPerformStateString(nodeId));
+          }
 	  t->doDisconnect();
+        }
 	break;
       case DISCONNECTED:
       {
         if (t->isConnected())
         {
+          NDB_PATCH_INFO("Node %u: Disconnected node %u left in state %s is connected according to transporter!",
+            localNodeId, nodeId,
+            getPerformStateString(nodeId));
           g_eventLogger->warning("Found connection to %u in state DISCONNECTED "
                                  " while being connected, disconnecting!",
                                  t->getRemoteNodeId());
@@ -2079,6 +2265,12 @@ TransporterRegistry::start_clients_thread()
           /**
            * We need to send data so that client doesn't give up...
            */
+          if (persist_mgm_count == 0) /* only log this condition about every 5th second, 50 * 100ms */
+          {
+            NDB_PATCH_INFO("Node %u: Disconnected node %u left in state %s with pending connection",
+              localNodeId, nodeId,
+              getPerformStateString(nodeId));
+          }
           connect_server_check_pending(t);
         }
         break;
@@ -2299,6 +2491,9 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   bool res = t->connect_client(connect_ndb_mgmd(h));
   if (res == true)
   {
+    NDB_PATCH_INFO("Node %u: Connecting node %u was in state %s",
+      localNodeId, mgm_nodeid,
+      getPerformStateString(mgm_nodeid));
     performStates[mgm_nodeid] = TransporterRegistry::CONNECTING;
   }
   DBUG_RETURN(res);

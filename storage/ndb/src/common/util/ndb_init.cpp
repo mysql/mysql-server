@@ -18,6 +18,7 @@
 #include <ndb_global.h>
 #include <my_sys.h>
 #include <NdbMutex.h>
+#include <NdbPatch.h> // Keep this even in official code
 
 class EventLogger *g_eventLogger = NULL;
 
@@ -48,7 +49,13 @@ ndb_init_internal()
   if (!g_ndb_connection_mutex)
     g_ndb_connection_mutex = NdbMutex_Create();
   if (!g_eventLogger)
+  {
     g_eventLogger = create_event_logger();
+    if (g_eventLogger != NULL)
+    {
+      NDB_PATCH_INIT(); // Keep this even in official code
+    }
+  }
   if ((g_ndb_connection_mutex == NULL) || (g_eventLogger == NULL))
   {
     {

@@ -32,6 +32,7 @@
 #include <kernel_types.h> 
 #include "TransporterDefinitions.hpp" 
 #include "TransporterRegistry.hpp"
+#include "NdbPatch.h"
  
 /**
  * The TransporterReceiveCallback class encapsulates
@@ -145,6 +146,10 @@ public:
    */
   virtual void lock_transporter(NodeId node) { }
   virtual void unlock_transporter(NodeId node) { }
+#ifdef NDB_PATCH
+  virtual void read_memory_barrier() { if (NDB_PATCH_FEATURE(1)) asm volatile("lfence":::"memory"); }
+  virtual void write_memory_barrier() { if (NDB_PATCH_FEATURE(2)) asm volatile("sfence":::"memory"); }
+#endif
 
   /**
    * ToDo: In current patch, these are not used, instead we use default

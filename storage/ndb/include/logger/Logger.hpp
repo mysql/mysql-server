@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -26,6 +26,7 @@
 
 class LogHandler;
 class LogHandlerList;
+extern "C" void NdbPatch__info(const char*, ...);
 
 /**
  * Logger should be used whenver you need to log a message like
@@ -172,7 +173,7 @@ public:
    *
    * @return true if successful.
    */
-  bool createFileHandler(char* filename);
+  bool createFileHandler(const char* filename);
 
   /**
    * Remove the default file handler.
@@ -304,6 +305,7 @@ protected:
 
   NdbMutex *m_mutex;
 
+  friend void ::NdbPatch__info(const char*, ...);
   void log(LoggerLevel logLevel, const char* msg, va_list ap) const;
 
 private:

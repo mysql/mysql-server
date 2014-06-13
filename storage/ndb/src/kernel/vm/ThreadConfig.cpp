@@ -152,8 +152,14 @@ void ThreadConfig::ipControlLoop(NdbThread* pThis)
 
   start_ticks = NdbTick_getCurrentTicks();
   yield_ticks = statistics_start_ticks = end_ticks = start_ticks;
+  NDB_TICKS next_dump = start_ticks;
   while (1)
   {
+    if (NdbTick_Compare(start_ticks, next_dump) > 0)
+    {
+      globalTransporterRegistry.dumpTCPTransporters(__func__);
+      next_dump = NdbTick_AddMilliseconds(start_ticks, 1000 * dumpTCPTransportersIntervalSeconds);
+    }
     timeOutMillis = 0;
 //--------------------------------------------------------------------
 // We send all messages buffered during execution of job buffers

@@ -219,7 +219,10 @@ private:
    */
   void disconnectAll();
 
+
 public:
+#define dumpTCPTransportersIntervalSeconds 10
+  void dumpTCPTransporters(const char func[]);
 
   /**
    * Stops the server, disconnects all the transporter 

@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2010, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -23,6 +23,7 @@ ADD_CONVENIENCE_LIBRARY(ndbtrace
             DebuggerNames.cpp
             BlockNames.cpp
             EventLogger.cpp
+            NdbPatch.cpp
             ${NDB_SOURCE_DIR}/src/kernel/error/ndbd_exit_codes.c
 )
 

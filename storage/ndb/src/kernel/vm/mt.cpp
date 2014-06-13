@@ -4099,8 +4099,14 @@ mt_receiver_thread_main(void *thr_arg)
   NDB_TICKS now = NdbTick_getCurrentTicks();
   selfptr->m_ticks = yield_ticks = now;
 
+  NDB_TICKS next_dump = now;
   while (globalData.theRestartFlag != perform_stop)
   {
+    if (NdbTick_Compare(now, next_dump) > 0)
+    {
+      globalTransporterRegistry.dumpTCPTransporters(__func__);
+      next_dump = NdbTick_AddMilliseconds(now, 1000 * dumpTCPTransportersIntervalSeconds);
+    }
     if (cnt == 0)
     {
       watchDogCounter = 5;

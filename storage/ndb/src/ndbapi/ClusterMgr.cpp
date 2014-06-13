@@ -28,7 +28,7 @@
 #include <NdbSleep.h>
 #include <NdbOut.hpp>
 #include <NdbTick.h>
-
+#include <NdbPatch.h>
 
 #include <signaldata/NodeFailRep.hpp>
 #include <signaldata/NFCompleteRep.hpp>
@@ -306,9 +306,16 @@ ClusterMgr::startup()
   theFacade.doConnect(nodeId);
   unlock();
 
+  unsigned ms = 0;
   for (Uint32 i = 0; i<3000; i++)
   {
     lock();
+    ms += 20;
+    if (ms > 1000 * dumpTCPTransportersIntervalSeconds)
+    {
+      ms = 0;
+      theFacade.theTransporterRegistry->dumpTCPTransporters(__func__);
+    }
     theFacade.theTransporterRegistry->update_connections();
     unlock();
     if (theNode.is_connected())
@@ -408,6 +415,7 @@ ClusterMgr::threadMain()
       }
       
       if (!theNode.compatible){
+        NDB_PATCH_INFO("Node %u: Node %u is not compatible!", theFacade.ownId(), nodeId);
 	continue;
       }
       

@@ -26,6 +26,7 @@
 #include "DictCache.hpp"
 #include <BlockNumbers.h>
 #include <mgmapi.h>
+#include <NdbPatch.h>
 
 class ClusterMgr;
 class ArbitMgr;
@@ -131,6 +132,15 @@ public:
   
   void lock_mutex();
   void unlock_mutex();
+
+#ifdef NDB_PATCH
+  // Needed to have a write memory barrier
+  // Transporter::m_connected and TCP_Transporter::theSocket
+  // during connect and disconnect.
+  // Do not really need the mutex.
+  void lock_transporter(NodeId node) { write_memory_barrier(); }
+  void unlock_transporter(NodeId node) { write_memory_barrier(); }
+#endif
 
   // Improving the API performance
   void forceSend(Uint32 block_number);
