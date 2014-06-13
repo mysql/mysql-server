@@ -2192,9 +2192,9 @@ check_trx_exists(
 		trx = innobase_trx_allocate(thd);
 	} else {
 		ut_a(trx->magic_n == TRX_MAGIC_N);
-	}
 
-	innobase_trx_init(thd, trx);
+		innobase_trx_init(thd, trx);
+	}
 
 	return(trx);
 }
