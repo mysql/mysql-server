@@ -3382,6 +3382,7 @@ cleanup:
         }
     }
     trx->stmt_progress.using_loader = false;
+    thd_proc_info(thd, 0);
     TOKUDB_HANDLER_DBUG_RETURN(error ? error : loader_error);
 }
 
