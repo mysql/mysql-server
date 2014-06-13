@@ -154,7 +154,11 @@ void *my_raw_malloc(size_t size, myf my_flags)
   if (!size)
     size=1;
 
-  point= malloc(size);
+  if (my_flags & MY_ZEROFILL)
+    point= calloc(size, 1);
+  else
+    point= malloc(size);
+
   DBUG_EXECUTE_IF("simulate_out_of_memory",
                   {
                     free(point);
@@ -179,8 +183,7 @@ void *my_raw_malloc(size_t size, myf my_flags)
     if (my_flags & MY_FAE)
       exit(1);
   }
-  else if (my_flags & MY_ZEROFILL)
-    memset(point, 0, size);
+
   DBUG_PRINT("exit",("ptr: %p", point));
   DBUG_RETURN(point);
 }

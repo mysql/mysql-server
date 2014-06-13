@@ -622,8 +622,8 @@ os_event_create(
 }
 
 /**
-Sets an event semaphore to the signaled state: lets waiting threads
-proceed. */
+Check if the event is set.
+@return true if set */
 
 bool
 os_event_is_set(

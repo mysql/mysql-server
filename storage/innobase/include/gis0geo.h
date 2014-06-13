@@ -23,8 +23,8 @@ The r-tree define from MyISAM
 #ifndef _gis0geo_h
 #define _gis0geo_h
 
-#include "string.h"
 #include "my_global.h"
+#include "string.h"
 
 #define SPTYPE HA_KEYTYPE_DOUBLE
 #define SPLEN  8

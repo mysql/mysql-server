@@ -69,6 +69,11 @@ row_get_rec_roll_ptr(
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 	__attribute__((nonnull, warn_unused_result));
+
+/* Flags for row build type. */
+#define ROW_BUILD_NORMAL	0	/*!< build row for insert. */
+#define ROW_BUILD_FOR_PURGE	1	/*!< build row for purge. */
+#define ROW_BUILD_FOR_UNDO	2	/*!< build row for undo. */
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
@@ -87,8 +92,9 @@ row_build_index_entry_low(
 	mem_heap_t*		heap,	/*!< in: memory heap from which
 					the memory for the index entry
 					is allocated */
-	bool			del_purge)
-					/*!< in: if it is from delete purge */
+	ulint			flag)	/*!< in: ROW_BUILD_NORMAL,
+					ROW_BUILD_FOR_PURGE
+                                        or ROW_BUILD_FOR_UNDO */
 	__attribute__((warn_unused_result, nonnull(1,3,4)));
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds

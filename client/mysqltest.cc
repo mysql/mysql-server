@@ -325,10 +325,10 @@ struct st_connection
   const char *cur_query;
   size_t cur_query_len;
   int command, result;
-  pthread_mutex_t query_mutex;
-  pthread_cond_t query_cond;
-  pthread_mutex_t result_mutex;
-  pthread_cond_t result_cond;
+  native_mutex_t query_mutex;
+  native_cond_t query_cond;
+  native_mutex_t result_mutex;
+  native_cond_t result_cond;
   int query_done;
   my_bool has_thread;
 #endif /*EMBEDDED_LIBRARY*/
@@ -852,10 +852,10 @@ pthread_handler_t connection_thread(void *arg)
   {
     if (!cn->command)
     {
-      pthread_mutex_lock(&cn->query_mutex);
+      native_mutex_lock(&cn->query_mutex);
       while (!cn->command)
-        pthread_cond_wait(&cn->query_cond, &cn->query_mutex);
-      pthread_mutex_unlock(&cn->query_mutex);
+        native_cond_wait(&cn->query_cond, &cn->query_mutex);
+      native_mutex_unlock(&cn->query_mutex);
     }
     switch (cn->command)
     {
@@ -872,10 +872,10 @@ pthread_handler_t connection_thread(void *arg)
         DBUG_ASSERT(0);
     }
     cn->command= 0;
-    pthread_mutex_lock(&cn->result_mutex);
+    native_mutex_lock(&cn->result_mutex);
     cn->query_done= 1;
-    pthread_cond_signal(&cn->result_cond);
-    pthread_mutex_unlock(&cn->result_mutex);
+    native_cond_signal(&cn->result_cond);
+    native_mutex_unlock(&cn->result_mutex);
   }
 
 end_thread:
@@ -890,10 +890,10 @@ static void wait_query_thread_done(struct st_connection *con)
   DBUG_ASSERT(con->has_thread);
   if (!con->query_done)
   {
-    pthread_mutex_lock(&con->result_mutex);
+    native_mutex_lock(&con->result_mutex);
     while (!con->query_done)
-      pthread_cond_wait(&con->result_cond, &con->result_mutex);
-    pthread_mutex_unlock(&con->result_mutex);
+      native_cond_wait(&con->result_cond, &con->result_mutex);
+    native_mutex_unlock(&con->result_mutex);
   }
 }
 
@@ -903,9 +903,9 @@ static void signal_connection_thd(struct st_connection *cn, int command)
   DBUG_ASSERT(cn->has_thread);
   cn->query_done= 0;
   cn->command= command;
-  pthread_mutex_lock(&cn->query_mutex);
-  pthread_cond_signal(&cn->query_cond);
-  pthread_mutex_unlock(&cn->query_mutex);
+  native_mutex_lock(&cn->query_mutex);
+  native_cond_signal(&cn->query_cond);
+  native_mutex_unlock(&cn->query_mutex);
 }
 
 
@@ -945,10 +945,10 @@ static void emb_close_connection(struct st_connection *cn)
   signal_connection_thd(cn, EMB_END_CONNECTION);
   pthread_join(cn->tid, NULL);
   cn->has_thread= FALSE;
-  pthread_mutex_destroy(&cn->query_mutex);
-  pthread_cond_destroy(&cn->query_cond);
-  pthread_mutex_destroy(&cn->result_mutex);
-  pthread_cond_destroy(&cn->result_cond);
+  native_mutex_destroy(&cn->query_mutex);
+  native_cond_destroy(&cn->query_cond);
+  native_mutex_destroy(&cn->result_mutex);
+  native_cond_destroy(&cn->result_cond);
 }
 
 
@@ -956,10 +956,10 @@ static void init_connection_thd(struct st_connection *cn)
 {
   cn->query_done= 1;
   cn->command= 0;
-  if (pthread_mutex_init(&cn->query_mutex, NULL) ||
-      pthread_cond_init(&cn->query_cond, NULL) ||
-      pthread_mutex_init(&cn->result_mutex, NULL) ||
-      pthread_cond_init(&cn->result_cond, NULL) ||
+  if (native_mutex_init(&cn->query_mutex, NULL) ||
+      native_cond_init(&cn->query_cond, NULL) ||
+      native_mutex_init(&cn->result_mutex, NULL) ||
+      native_cond_init(&cn->result_cond, NULL) ||
       pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
   cn->has_thread=TRUE;
