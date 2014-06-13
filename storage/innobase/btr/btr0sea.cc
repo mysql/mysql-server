@@ -543,6 +543,7 @@ btr_search_update_hash_ref(
 		return;
 	}
 
+	ut_ad(block->page.id.space() == index->space);
 	ut_a(index == cursor->index);
 	ut_a(!dict_index_is_ibuf(index));
 
@@ -1064,6 +1065,7 @@ retry:
 		return;
 	}
 
+	ut_ad(block->page.id.space() == index->space);
 	ut_a(!dict_index_is_ibuf(index));
 #ifdef UNIV_DEBUG
 	switch (dict_index_get_online_status(index)) {
@@ -1280,6 +1282,7 @@ btr_search_build_page_hash_index(
 
 	rec_offs_init(offsets_);
 	ut_ad(index);
+	ut_ad(block->page.id.space() == index->space);
 	ut_a(!dict_index_is_ibuf(index));
 
 #ifdef UNIV_SYNC_DEBUG
@@ -1542,6 +1545,7 @@ btr_search_update_hash_on_delete(
 		return;
 	}
 
+	ut_ad(block->page.id.space() == index->space);
 	ut_a(index == cursor->index);
 	ut_a(block->curr_n_fields > 0);
 	ut_a(!dict_index_is_ibuf(index));
@@ -1686,6 +1690,7 @@ btr_search_update_hash_on_insert(
 		return;
 	}
 
+	ut_ad(block->page.id.space() == index->space);
 	btr_search_check_free_space_in_heap();
 
 	table = btr_search_sys->hash_index;
@@ -1896,6 +1901,7 @@ btr_search_validate(void)
 			}
 
 			ut_a(!dict_index_is_ibuf(block->index));
+			ut_ad(block->page.id.space() == block->index->space);
 
 			page_index_id = btr_page_get_index_id(block->frame);
 
@@ -1904,11 +1910,12 @@ btr_search_validate(void)
 						  block->curr_n_fields,
 						  &heap);
 
-			if (!block->index || node->fold
-			    != rec_fold(node->data,
-					offsets,
-					block->curr_n_fields,
-					page_index_id)) {
+			const ulint	fold = rec_fold(
+				node->data, offsets,
+				block->curr_n_fields,
+				page_index_id);
+
+			if (node->fold != fold) {
 				const page_t*	page = block->frame;
 
 				ok = FALSE;
@@ -1917,16 +1924,12 @@ btr_search_validate(void)
 					"Error in an adaptive hash"
 					" index pointer to page %lu,"
 					" ptr mem address %p, index id"
-					" " IB_ID_FMT ", node fold %lu,"
-					" rec fold %lu",
+					" " IB_ID_FMT ", node fold "
+					ULINTPF "," " rec fold " ULINTPF,
 					(ulong) page_get_page_no(page),
 					node->data,
 					page_index_id,
-					(ulong) node->fold,
-					(ulong) rec_fold(node->data,
-							 offsets,
-							 block->curr_n_fields,
-							 page_index_id));
+					node->fold, fold);
 
 				fputs("InnoDB: Record ", stderr);
 				rec_print_new(stderr, node->data, offsets);
