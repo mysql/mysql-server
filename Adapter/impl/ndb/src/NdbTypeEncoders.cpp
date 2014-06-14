@@ -190,8 +190,43 @@ Handle<Value> encoderWrite(const Arguments & args) {
 }
 
 
+/* String Encoder Statistics */
+struct encoder_stats_t {
+  unsigned read_strings_externalized; // JS Strings that reference ASCII or UTF16LE buffers
+  unsigned read_strings_created; // JS Strings created from UTF-8 representation
+  unsigned read_strings_recoded; // Reads recoded from MySQL Charset to UTF-8
+  unsigned direct_writes;  // ASCII/UTF16LE/UTF8 written directly to DB buffer
+  unsigned recode_writes;  // Writes recoded from UTF8 to MySQL Charset
+} stats;
+
+
 /* Exports to JavaScript 
 */
+Handle<Value> GET_read_strings_externalized(Local<String>, const AccessorInfo &) {
+  HandleScope scope;
+  return scope.Close(Number::New(stats.read_strings_externalized));
+}
+
+Handle<Value> GET_read_strings_created(Local<String>, const AccessorInfo &) {
+  HandleScope scope;
+  return scope.Close(Number::New(stats.read_strings_created));
+}
+
+Handle<Value> GET_read_strings_recoded(Local<String>, const AccessorInfo &) {
+  HandleScope scope;
+  return scope.Close(Number::New(stats.read_strings_recoded));
+}
+
+Handle<Value> GET_direct_writes(Local<String>, const AccessorInfo &) {
+  HandleScope scope;
+  return scope.Close(Number::New(stats.direct_writes));
+}
+
+Handle<Value> GET_recode_writes(Local<String>, const AccessorInfo &) {
+  HandleScope scope;
+  return scope.Close(Number::New(stats.recode_writes));
+}
+
 void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   HandleScope scope;
   DEFINE_JS_FUNCTION(target, "encoderRead", encoderRead);
@@ -212,6 +247,15 @@ void NdbTypeEncoders_initOnLoad(Handle<Object> target) {
   K_22007_InvalidDatetime = Persistent<String>::New(String::NewSymbol("22007"));
   K_0F001_Bad_BLOB = Persistent<String>::New(String::NewSymbol("0F001"));
   K_HY000 = Persistent<String>::New(String::NewSymbol("HY000"));
+
+  Persistent<Object> s = Persistent<Object>(Object::New());
+  target->Set(Persistent<String>(String::NewSymbol("encoder_stats")), s);
+  DEFINE_JS_ACCESSOR(s, "read_strings_externalized", 
+                     GET_read_strings_externalized);
+  DEFINE_JS_ACCESSOR(s, "read_strings_created", GET_read_strings_created);
+  DEFINE_JS_ACCESSOR(s, "read_strings_recoded", GET_read_strings_recoded);
+  DEFINE_JS_ACCESSOR(s, "direct_writes", GET_direct_writes);
+  DEFINE_JS_ACCESSOR(s, "recode_writes", GET_recode_writes);
 }
 
 
@@ -746,15 +790,6 @@ Handle<Value> varbinaryWriter(const NdbDictionary::Column * col,
  * (D.1) is skipped because Cluster < 7.3 does not have UTF16LE and because
  * it requires some new interfaces from ColumnProxy to TypeEncoder 
  */
-
-// TODO: make these stats visible from JavaScript
-struct encoder_stats_t {
-  unsigned read_strings_externalized;
-  unsigned read_strings_created;
-  unsigned read_strings_recoded;
-  unsigned direct_writes;
-  unsigned recode_writes;
-} stats;
 
 inline bool stringIsAscii(const unsigned char *str, size_t len) {
   for(unsigned int i = 0 ; i < len ; i++) 
@@ -1442,4 +1477,3 @@ Handle<Value> BlobWriter(const NdbDictionary::Column *, Handle<Value> value,
                         char *, size_t) {
   return node::Buffer::HasInstance(value) ? writerOK : K_0F001_Bad_BLOB;  
 }
-

@@ -54,6 +54,7 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
 
 stats_module.register(op_stats, "spi","ndb","DBOperation","created");
 stats_module.register(index_stats, "spi","ndb","key_access");
+stats_module.register(adapter.impl.encoder_stats, "spi","ndb","encoder");
 
 var storeNativeConstructorInMapping;
 
