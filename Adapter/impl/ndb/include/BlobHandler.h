@@ -47,7 +47,6 @@ protected:
 class BlobReadHandler : public BlobHandler {
 public:
   BlobReadHandler(int columnId, int fieldNumber);
-  ~BlobReadHandler();
   void prepare(const NdbOperation *);
   int runActiveHook(NdbBlob *);
   v8::Handle<v8::Value> getResultBuffer();
@@ -58,7 +57,6 @@ public:
 class BlobWriteHandler : public BlobHandler {
 public:
   BlobWriteHandler(int colId, int fieldNo, v8::Handle<v8::Object> jsBlob);
-  ~BlobWriteHandler();
   void prepare(const NdbOperation *);
 };
 
@@ -81,13 +79,5 @@ inline int BlobHandler::getFieldNumber() {
 inline BlobReadHandler::BlobReadHandler(int colId, int fieldNo) : 
   BlobHandler(colId, fieldNo)
 { }
-
-inline BlobReadHandler::~BlobReadHandler() 
-{ }
-
-// BlobWriteHandler inline methods
-inline BlobWriteHandler::~BlobWriteHandler() 
-{ }
-
 
 #endif
