@@ -36,6 +36,7 @@ public:
 protected:
   NdbBlob * ndbBlob;
   BlobHandler * next;
+  char * content;
   uint64_t length;
   int columnId;
   int fieldNumber;
@@ -50,22 +51,15 @@ public:
   void prepare(const NdbOperation *);
   int runActiveHook(NdbBlob *);
   v8::Handle<v8::Value> getResultBuffer();
-
-private:
-  char * data;
 };  
 
 
 // BlobWriteHandler
 class BlobWriteHandler : public BlobHandler {
 public:
-  BlobWriteHandler(int colId, int fieldNo, v8::Handle<v8::Object> jsBlobs);
+  BlobWriteHandler(int colId, int fieldNo, v8::Handle<v8::Object> jsBlob);
   ~BlobWriteHandler();
   void prepare(const NdbOperation *);
-
-private:
-  v8::Persistent<v8::Object> jsBlobValue;
-  char * content;
 };
 
 
@@ -85,10 +79,14 @@ inline int BlobHandler::getFieldNumber() {
 
 // BlobReadHandler inline methods
 inline BlobReadHandler::BlobReadHandler(int colId, int fieldNo) : 
-  BlobHandler(colId, fieldNo), data(0)
+  BlobHandler(colId, fieldNo)
 { }
 
 inline BlobReadHandler::~BlobReadHandler() 
+{ }
+
+// BlobWriteHandler inline methods
+inline BlobWriteHandler::~BlobWriteHandler() 
 { }
 
 

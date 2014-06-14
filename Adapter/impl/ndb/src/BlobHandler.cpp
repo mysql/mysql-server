@@ -31,6 +31,7 @@
 BlobHandler::BlobHandler(int colId, int fieldNo) :
   ndbBlob(0),
   next(0),
+  content(0),
   length(0),
   columnId(colId), 
   fieldNumber(fieldNo)
@@ -44,7 +45,7 @@ int blobHandlerActiveHook(NdbBlob * ndbBlob, void * handler) {
   return blobHandler->runActiveHook(ndbBlob);
 }
 
-void freeBufferContentsFromJs(char *data, void *hint) {
+void freeBufferContentsFromJs(char *data, void *) {
   free(data);
 }
 
@@ -65,9 +66,9 @@ int BlobReadHandler::runActiveHook(NdbBlob *b) {
   if(! isNull) {
     ndbBlob->getLength(length);
     uint32_t nBytes = length;
-    data = (char *) malloc(length);
-    if(data) {
-      int rv = ndbBlob->readData(data, nBytes);
+    content = (char *) malloc(length);
+    if(content) {
+      int rv = ndbBlob->readData(content, nBytes);
       DEBUG_PRINT("BLOB read: column %d, length %d, read %d/%d", 
                   columnId, length, rv, nBytes);
     } else {
@@ -79,9 +80,9 @@ int BlobReadHandler::runActiveHook(NdbBlob *b) {
 
 v8::Handle<v8::Value> BlobReadHandler::getResultBuffer() {
   v8::HandleScope scope;
-  if(data) {
+  if(content) {
     node::Buffer * buffer;
-    buffer = node::Buffer::New((char *) data, length, freeBufferContentsFromJs, 0);
+    buffer = node::Buffer::New(content, length, freeBufferContentsFromJs, 0);
     return scope.Close(buffer->handle_);
   }
   return v8::Null();
@@ -94,9 +95,8 @@ BlobWriteHandler::BlobWriteHandler(int colId, int fieldNo,
                                    v8::Handle<v8::Object> blobValue) :
   BlobHandler(colId, fieldNo)
 {
-  jsBlobValue = v8::Persistent<v8::Object>::New(blobValue);
-  length = jsBlobValue->GetIndexedPropertiesExternalArrayDataLength();
-  content = (char *) jsBlobValue->GetIndexedPropertiesExternalArrayData();
+  length = node::Buffer::Length(blobValue);
+  content = node::Buffer::Data(blobValue);
 }
 
 void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
@@ -109,10 +109,5 @@ void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
   DEBUG_PRINT("Prepare write for BLOB column %d, length %d", columnId, length);
   ndbBlob->setValue(content, length);
   if(next) next->prepare(ndbop);
-}
-
-BlobWriteHandler::~BlobWriteHandler() 
-{
-  jsBlobValue.Dispose();
 }
 
