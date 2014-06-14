@@ -48,6 +48,7 @@ Created 1/8/1996 Heikki Tuuri
 #include "fts0fts.h"
 #include "os0once.h"
 #include <set>
+#include <algorithm>
 
 /* Forward declaration. */
 struct ib_rbt_t;
@@ -788,6 +789,37 @@ struct dict_foreign_matches_id {
 
 typedef std::set<dict_foreign_t*, dict_foreign_compare> dict_foreign_set;
 
+/*********************************************************************//**
+Frees a foreign key struct. */
+inline
+void
+dict_foreign_free(
+/*==============*/
+	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
+{
+	mem_heap_free(foreign->heap);
+}
+
+/** The destructor will free all the foreign key constraints in the set
+by calling dict_foreign_free() on each of the foreign key constraints.
+This is used to free the allocated memory when a local set goes out
+of scope. */
+struct dict_foreign_set_free {
+
+	dict_foreign_set_free(const dict_foreign_set&	foreign_set)
+		: m_foreign_set(foreign_set)
+	{}
+
+	~dict_foreign_set_free()
+	{
+		std::for_each(m_foreign_set.begin(),
+			      m_foreign_set.end(),
+			      dict_foreign_free);
+	}
+
+	const dict_foreign_set&	m_foreign_set;
+};
+
 /** The flags for ON_UPDATE and ON_DELETE can be ORed; the default is that
 a foreign key constraint is enforced, therefore RESTRICT just means no flag */
 /* @{ */
@@ -807,6 +839,8 @@ the table, DML from memcached will be blocked. */
 /** Data structure for a database table.  Most fields will be
 initialized to 0, NULL or FALSE in dict_mem_table_create(). */
 struct dict_table_t{
+
+
 	table_id_t	id;	/*!< id of the table */
 	mem_heap_t*	heap;	/*!< memory heap */
 	char*		name;	/*!< table name */
@@ -1107,6 +1141,19 @@ struct dict_table_t{
 /** Value of dict_table_t::magic_n */
 # define DICT_TABLE_MAGIC_N	76333786
 #endif /* UNIV_DEBUG */
+};
+
+/** A function object to add the foreign key constraint to the referenced set
+of the referenced table, if it exists in the dictionary cache. */
+struct dict_foreign_add_to_referenced_table {
+	void operator()(dict_foreign_t*	foreign) const
+	{
+		if (dict_table_t* table = foreign->referenced_table) {
+			std::pair<dict_foreign_set::iterator, bool>	ret
+				= table->referenced_set.insert(foreign);
+			ut_a(ret.second);
+		}
+	}
 };
 
 #ifndef UNIV_NONINL
