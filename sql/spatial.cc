@@ -3933,6 +3933,12 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms)
         ent.set_nbytes(nbytes);
         ent.set_owner(geom);
         geom->shallow_push(&ent);
+        /*
+          The inner rings object isn't adopted by others in shallow_push,
+          so we must delete it here before donating.
+         */
+        if (ent.inner_rings())
+          delete ent.inner_rings();
         // The object 'ent' doesn't have any data of its own.
         ent.donate_data();
         bo= plgn_step.get_current_byte_order();
