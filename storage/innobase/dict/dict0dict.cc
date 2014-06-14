@@ -3218,17 +3218,6 @@ dict_table_get_foreign_constraint(
 	return(NULL);
 }
 
-/*********************************************************************//**
-Frees a foreign key struct. */
-UNIV_INTERN
-void
-dict_foreign_free(
-/*==============*/
-	dict_foreign_t*	foreign)	/*!< in, own: foreign key struct */
-{
-	mem_heap_free(foreign->heap);
-}
-
 /**********************************************************************//**
 Removes a foreign constraint struct from the dictionary cache. */
 UNIV_INTERN
@@ -4189,6 +4178,7 @@ dict_create_foreign_constraints_low(
 	const char*	column_names[500];
 	const char*	referenced_table_name;
 	dict_foreign_set	local_fk_set;
+	dict_foreign_set_free	local_fk_set_free(local_fk_set);
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(mutex_own(&(dict_sys->mutex)));
@@ -4314,17 +4304,10 @@ loop:
 
 			table->foreign_set.insert(local_fk_set.begin(),
 						  local_fk_set.end());
-
-			for (dict_foreign_set::iterator it
-				= local_fk_set.begin();
-			     it != local_fk_set.end();
-			     ++it) {
-
-				dict_table_t*	ref = (*it)->referenced_table;
-				if (ref != NULL) {
-					ref->referenced_set.insert(*it);
-				}
-			}
+			std::for_each(local_fk_set.begin(),
+				      local_fk_set.end(),
+				      dict_foreign_add_to_referenced_table());
+			local_fk_set.clear();
 		}
 		return(error);
 	}
@@ -4457,6 +4440,21 @@ col_loop1:
 		strcpy(foreign->id + db_len + 1, constraint_name);
 	}
 
+	if (foreign->id == NULL) {
+		error = dict_create_add_foreign_id(&number,
+						   table->name, foreign);
+		if (error != DB_SUCCESS) {
+			dict_foreign_free(foreign);
+			return(error);
+		}
+	}
+
+	std::pair<dict_foreign_set::iterator, bool>	ret
+		= local_fk_set.insert(foreign);
+
+	ut_a(ret.second);	/* second is true if the insertion
+				took place */
+
 	foreign->foreign_table = table;
 	foreign->foreign_table_name = mem_heap_strdup(
 		foreign->heap, table->name);
@@ -4482,8 +4480,6 @@ col_loop1:
 	checking of foreign key constraints! */
 
 	if (!success || (!referenced_table && trx->check_foreigns)) {
-		dict_foreign_free(foreign);
-
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
 		fprintf(ef, "%s:\nCannot resolve table name close to:\n"
@@ -4497,7 +4493,6 @@ col_loop1:
 	ptr = dict_accept(cs, ptr, "(", &success);
 
 	if (!success) {
-		dict_foreign_free(foreign);
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -4512,7 +4507,6 @@ col_loop2:
 	i++;
 
 	if (!success) {
-		dict_foreign_free(foreign);
 
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
@@ -4533,7 +4527,6 @@ col_loop2:
 	ptr = dict_accept(cs, ptr, ")", &success);
 
 	if (!success || foreign->n_fields != i) {
-		dict_foreign_free(foreign);
 
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
@@ -4559,7 +4552,6 @@ scan_on_conditions:
 		ptr = dict_accept(cs, ptr, "UPDATE", &success);
 
 		if (!success) {
-			dict_foreign_free(foreign);
 
 			dict_foreign_report_syntax_err(
 				name, start_of_latest_foreign, ptr);
@@ -4597,7 +4589,6 @@ scan_on_conditions:
 		ptr = dict_accept(cs, ptr, "ACTION", &success);
 
 		if (!success) {
-			dict_foreign_free(foreign);
 			dict_foreign_report_syntax_err(
 				name, start_of_latest_foreign, ptr);
 
@@ -4616,7 +4607,6 @@ scan_on_conditions:
 	ptr = dict_accept(cs, ptr, "SET", &success);
 
 	if (!success) {
-		dict_foreign_free(foreign);
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -4625,7 +4615,6 @@ scan_on_conditions:
 	ptr = dict_accept(cs, ptr, "NULL", &success);
 
 	if (!success) {
-		dict_foreign_free(foreign);
 		dict_foreign_report_syntax_err(name, start_of_latest_foreign,
 					       ptr);
 		return(DB_CANNOT_ADD_CONSTRAINT);
@@ -4637,8 +4626,6 @@ scan_on_conditions:
 
 			/* It is not sensible to define SET NULL
 			if the column is not allowed to be NULL! */
-
-			dict_foreign_free(foreign);
 
 			mutex_enter(&dict_foreign_err_mutex);
 			dict_foreign_error_report_low(ef, name);
@@ -4665,8 +4652,6 @@ try_find_index:
 	if (n_on_deletes > 1 || n_on_updates > 1) {
 		/* It is an error to define more than 1 action */
 
-		dict_foreign_free(foreign);
-
 		mutex_enter(&dict_foreign_err_mutex);
 		dict_foreign_error_report_low(ef, name);
 		fprintf(ef, "%s:\n"
@@ -4688,7 +4673,6 @@ try_find_index:
 						foreign->foreign_index,
 						TRUE, FALSE);
 		if (!index) {
-			dict_foreign_free(foreign);
 			mutex_enter(&dict_foreign_err_mutex);
 			dict_foreign_error_report_low(ef, name);
 			fprintf(ef, "%s:\n"
@@ -4732,21 +4716,6 @@ try_find_index:
 			= mem_heap_strdup(foreign->heap, column_names[i]);
 	}
 
-	/* We found an ok constraint definition: add to the set */
-
-	if (foreign->id == NULL) {
-		error = dict_create_add_foreign_id(&number,
-						   table->name, foreign);
-		if (error != DB_SUCCESS) {
-			return(error);
-		}
-	}
-
-	std::pair<dict_foreign_set::iterator, bool>	ret
-		= local_fk_set.insert(foreign);
-
-	ut_a(ret.second);	/* second is true if the insertion
-				took place */
 	goto loop;
 }
 /**************************************************************************
