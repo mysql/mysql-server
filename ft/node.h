@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 struct ftnode {
     MSN      max_msn_applied_to_node_on_disk; // max_msn_applied that will be written to disk
     unsigned int flags;
-    BLOCKNUM thisnodename;   // Which block number is this node?
+    BLOCKNUM blocknum;   // Which block number is this node?
     int    layout_version; // What version of the data structure?
     int    layout_version_original;	// different (<) from layout_version if upgraded from a previous version (useful for debugging)
     int    layout_version_read_from_disk;  // transient, not serialized to disk, (useful for debugging)
@@ -240,7 +240,7 @@ BASEMENTNODE toku_detach_bn(FTNODE node, int childnum);
 void toku_ftnode_update_disk_stats(FTNODE ftnode, FT ft, bool for_checkpoint);
 void toku_ftnode_clone_partitions(FTNODE node, FTNODE cloned_node);
 
-void toku_initialize_empty_ftnode(FTNODE node, BLOCKNUM nodename, int height, int num_children, 
+void toku_initialize_empty_ftnode(FTNODE node, BLOCKNUM blocknum, int height, int num_children, 
                                   int layout_version, unsigned int flags);
 
 int toku_ftnode_which_child(FTNODE node, const DBT *k,

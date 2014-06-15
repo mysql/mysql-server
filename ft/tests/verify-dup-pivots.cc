@@ -199,7 +199,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
 
     // discard the old root block
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(ft->ft, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(ft->ft, newroot->blocknum);
 
     // unpin the new root
     toku_unpin_ftnode(ft->ft, newroot);

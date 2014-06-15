@@ -134,7 +134,7 @@ int toku_testsetup_leaf(FT_HANDLE ft_handle, BLOCKNUM *blocknum, int n_children,
         node->totalchildkeylens += keylens[i];
     }
 
-    *blocknum = node->thisnodename;
+    *blocknum = node->blocknum;
     toku_unpin_ftnode(ft_handle->ft, node);
     return 0;
 }
@@ -153,7 +153,7 @@ int toku_testsetup_nonleaf (FT_HANDLE ft_handle, int height, BLOCKNUM *blocknum,
         toku_memdup_dbt(&node->childkeys[i], keys[i], keylens[i]);
         node->totalchildkeylens += keylens[i];
     }
-    *blocknum = node->thisnodename;
+    *blocknum = node->blocknum;
     toku_unpin_ftnode(ft_handle->ft, node);
     return 0;
 }

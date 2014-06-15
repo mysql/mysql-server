@@ -397,7 +397,7 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
 {
     int result=0;
     MSN   this_msn;
-    BLOCKNUM blocknum = node->thisnodename;
+    BLOCKNUM blocknum = node->blocknum;
 
     //printf("%s:%d pin %p\n", __FILE__, __LINE__, node_v);
     toku_ftnode_assert_fully_in_memory(node);
@@ -440,7 +440,7 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
             int r = bnc->msg_buffer.iterate(verify_msg);
             if (r != 0) { result = r; goto done; }
 
-            struct verify_message_tree_extra extra = { .msg_buffer = &bnc->msg_buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure, .messages_have_been_moved = messages_have_been_moved };
+            struct verify_message_tree_extra extra = { .msg_buffer = &bnc->msg_buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->blocknum, .keep_going_on_failure = keep_going_on_failure, .messages_have_been_moved = messages_have_been_moved };
             r = bnc->fresh_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
             extra.is_fresh = false;

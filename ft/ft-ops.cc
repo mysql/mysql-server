@@ -713,7 +713,7 @@ void toku_ftnode_clone_callback(
     cloned_node->oldest_referenced_xid_known = node->oldest_referenced_xid_known;
     cloned_node->max_msn_applied_to_node_on_disk = node->max_msn_applied_to_node_on_disk;
     cloned_node->flags = node->flags;
-    cloned_node->thisnodename = node->thisnodename;
+    cloned_node->blocknum = node->blocknum;
     cloned_node->layout_version = node->layout_version;
     cloned_node->layout_version_original = node->layout_version_original;
     cloned_node->layout_version_read_from_disk = node->layout_version_read_from_disk;
@@ -756,7 +756,7 @@ void toku_ftnode_clone_callback(
 void toku_ftnode_flush_callback(
     CACHEFILE UU(cachefile),
     int fd,
-    BLOCKNUM nodename,
+    BLOCKNUM blocknum,
     void *ftnode_v,
     void** disk_data,
     void *extraargs,
@@ -771,7 +771,7 @@ void toku_ftnode_flush_callback(
     FT h = (FT) extraargs;
     FTNODE ftnode = (FTNODE) ftnode_v;
     FTNODE_DISK_DATA* ndd = (FTNODE_DISK_DATA*)disk_data;
-    assert(ftnode->thisnodename.b==nodename.b);
+    assert(ftnode->blocknum.b == blocknum.b);
     int height = ftnode->height;
     if (write_me) {
         toku_ftnode_assert_fully_in_memory(ftnode);
@@ -784,7 +784,7 @@ void toku_ftnode_flush_callback(
                 toku_ftnode_update_disk_stats(ftnode, h, for_checkpoint);
             }
         }
-        int r = toku_serialize_ftnode_to(fd, ftnode->thisnodename, ftnode, ndd, !is_clone, h, for_checkpoint);
+        int r = toku_serialize_ftnode_to(fd, ftnode->blocknum, ftnode, ndd, !is_clone, h, for_checkpoint);
         assert_zero(r);
         ftnode->layout_version_read_from_disk = FT_LAYOUT_VERSION;
     }
@@ -835,7 +835,7 @@ toku_ft_status_update_pivot_fetch_reason(struct ftnode_fetch_extra *bfe)
     }
 }
 
-int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash,
+int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), PAIR p, int fd, BLOCKNUM blocknum, uint32_t fullhash,
                                  void **ftnode_pv,  void** disk_data, PAIR_ATTR *sizep, int *dirtyp, void *extraargs) {
     assert(extraargs);
     assert(*ftnode_pv == NULL);
@@ -845,7 +845,7 @@ int toku_ftnode_fetch_callback (CACHEFILE UU(cachefile), PAIR p, int fd, BLOCKNU
     // deserialize the node, must pass the bfe in because we cannot
     // evaluate what piece of the the node is necessary until we get it at
     // least partially into memory
-    int r = toku_deserialize_ftnode_from(fd, nodename, fullhash, node, ndd, bfe);
+    int r = toku_deserialize_ftnode_from(fd, blocknum, fullhash, node, ndd, bfe);
     if (r != 0) {
         if (r == TOKUDB_BAD_CHECKSUM) {
             fprintf(stderr,
@@ -1497,7 +1497,7 @@ ft_init_new_root(FT ft, FTNODE oldroot, FTNODE *newrootp)
 {
     FTNODE newroot;
 
-    BLOCKNUM old_blocknum = oldroot->thisnodename;
+    BLOCKNUM old_blocknum = oldroot->blocknum;
     uint32_t old_fullhash = oldroot->fullhash;
     
     int new_height = oldroot->height+1;
@@ -1637,7 +1637,7 @@ static void inject_message_in_locked_node(
     // verify that msn of latest message was captured in root node
     paranoid_invariant(msg->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
 
-    if (node->thisnodename.b == ft->rightmost_blocknum.b) {
+    if (node->blocknum.b == ft->rightmost_blocknum.b) {
         if (ft->seqinsert_score < FT_SEQINSERT_SCORE_THRESHOLD) {
             // we promoted to the rightmost leaf node and the seqinsert score has not yet saturated.
             toku_sync_fetch_and_add(&ft->seqinsert_score, 1);
@@ -1684,7 +1684,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
     case RE_FISSIBLE:
         {
             // We only have a read lock on the parent.  We need to drop both locks, and get write locks.
-            BLOCKNUM parent_blocknum = parent->thisnodename;
+            BLOCKNUM parent_blocknum = parent->blocknum;
             uint32_t parent_fullhash = toku_cachetable_hash(ft->cf, parent_blocknum);
             int parent_height = parent->height;
             int parent_n_children = parent->n_children;
@@ -1738,7 +1738,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
             }
 
             int parent_height = parent->height;
-            BLOCKNUM parent_blocknum = parent->thisnodename;
+            BLOCKNUM parent_blocknum = parent->blocknum;
             uint32_t parent_fullhash = toku_cachetable_hash(ft->cf, parent_blocknum);
             toku_unpin_ftnode_read_only(ft, child);
             toku_unpin_ftnode_read_only(ft, parent);
@@ -1876,8 +1876,8 @@ static void push_something_in_subtree(
         // because promotion would not chose to inject directly into this leaf
         // otherwise. We explicitly skip the root node because then we don't have
         // to worry about changing the rightmost blocknum when the root splits.
-        if (subtree_root->height == 0 && loc == RIGHT_EXTREME && subtree_root->thisnodename.b != ft->h->root_blocknum.b) {
-            ft_set_or_verify_rightmost_blocknum(ft, subtree_root->thisnodename);
+        if (subtree_root->height == 0 && loc == RIGHT_EXTREME && subtree_root->blocknum.b != ft->h->root_blocknum.b) {
+            ft_set_or_verify_rightmost_blocknum(ft, subtree_root->blocknum);
         }
         inject_message_in_locked_node(ft, subtree_root, target_childnum, msg, flow_deltas, gc_info);
     } else {
@@ -1967,7 +1967,7 @@ static void push_something_in_subtree(
             paranoid_invariant_notnull(child);
 
             if (!just_did_split_or_merge) {
-                BLOCKNUM subtree_root_blocknum = subtree_root->thisnodename;
+                BLOCKNUM subtree_root_blocknum = subtree_root->blocknum;
                 uint32_t subtree_root_fullhash = toku_cachetable_hash(ft->cf, subtree_root_blocknum);
                 const bool did_split_or_merge = process_maybe_reactive_child(ft, subtree_root, child, childnum, loc);
                 if (did_split_or_merge) {
@@ -2003,7 +2003,7 @@ static void push_something_in_subtree(
         {
             // Right now we have a read lock on subtree_root, but we want
             // to inject into it so we get a write lock instead.
-            BLOCKNUM subtree_root_blocknum = subtree_root->thisnodename;
+            BLOCKNUM subtree_root_blocknum = subtree_root->blocknum;
             uint32_t subtree_root_fullhash = toku_cachetable_hash(ft->cf, subtree_root_blocknum);
             toku_unpin_ftnode_read_only(ft, subtree_root);
             switch (depth) {
@@ -2318,7 +2318,7 @@ static int ft_maybe_insert_into_rightmost_leaf(FT ft, DBT *key, DBT *val, XIDS m
 
     // The rightmost blocknum never chances once it is initialized to something
     // other than null. Verify that the pinned node has the correct blocknum.
-    invariant(rightmost_leaf->thisnodename.b == rightmost_blocknum.b);
+    invariant(rightmost_leaf->blocknum.b == rightmost_blocknum.b);
 
     // If the rightmost leaf is reactive, bail out out and let the normal promotion pass
     // take care of it. This also ensures that if any of our ancestors are reactive,
@@ -3460,9 +3460,9 @@ ft_search_node (
     );
 
 static int
-ftnode_fetch_callback_and_free_bfe(CACHEFILE cf, PAIR p, int fd, BLOCKNUM nodename, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int *dirtyp, void *extraargs)
+ftnode_fetch_callback_and_free_bfe(CACHEFILE cf, PAIR p, int fd, BLOCKNUM blocknum, uint32_t fullhash, void **ftnode_pv, void** UU(disk_data), PAIR_ATTR *sizep, int *dirtyp, void *extraargs)
 {
-    int r = toku_ftnode_fetch_callback(cf, p, fd, nodename, fullhash, ftnode_pv, disk_data, sizep, dirtyp, extraargs);
+    int r = toku_ftnode_fetch_callback(cf, p, fd, blocknum, fullhash, ftnode_pv, disk_data, sizep, dirtyp, extraargs);
     struct ftnode_fetch_extra *CAST_FROM_VOIDP(ffe, extraargs);
     destroy_bfe_for_prefetch(ffe);
     toku_free(ffe);

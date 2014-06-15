@@ -225,7 +225,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
     FTNODE newroot = make_tree(ft, height, fanout, nperleaf, &seq, &minkey, &maxkey);
 
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(ft->ft, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(ft->ft, newroot->blocknum);
 
     // Create bad tree (don't do following):
     // newroot->max_msn_applied_to_node = last_dummymsn(); // capture msn of last message injected into tree

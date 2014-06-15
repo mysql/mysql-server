@@ -97,13 +97,13 @@ PATENT RIGHTS GRANT:
 
 // Effect: Fill in N as an empty ftnode.
 // TODO: Rename toku_ftnode_create
-void toku_initialize_empty_ftnode(FTNODE n, BLOCKNUM nodename, int height, int num_children, int layout_version, unsigned int flags) {
+void toku_initialize_empty_ftnode(FTNODE n, BLOCKNUM blocknum, int height, int num_children, int layout_version, unsigned int flags) {
     paranoid_invariant(layout_version != 0);
     paranoid_invariant(height >= 0);
 
     n->max_msn_applied_to_node_on_disk = ZERO_MSN;    // correct value for root node, harmless for others
     n->flags = flags;
-    n->thisnodename = nodename;
+    n->blocknum = blocknum;
     n->layout_version               = layout_version;
     n->layout_version_original = layout_version;
     n->layout_version_read_from_disk = layout_version;
@@ -1126,7 +1126,7 @@ long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc) {
 
 static void
 init_childinfo(FTNODE node, int childnum, FTNODE child) {
-    BP_BLOCKNUM(node,childnum) = child->thisnodename;
+    BP_BLOCKNUM(node,childnum) = child->blocknum;
     BP_STATE(node,childnum) = PT_AVAIL;
     BP_WORKDONE(node, childnum)   = 0;
     set_BNC(node, childnum, toku_create_empty_nl());

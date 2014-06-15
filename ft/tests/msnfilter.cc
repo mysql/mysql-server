@@ -213,7 +213,7 @@ test_msnfilter(int do_verify) {
     FTNODE newroot = make_node(ft, 0);
 
     // set the new root to point to the new tree
-    toku_ft_set_new_root_blocknum(ft->ft, newroot->thisnodename);
+    toku_ft_set_new_root_blocknum(ft->ft, newroot->blocknum);
 
     // KLUDGE: Unpin the new root so toku_ft_lookup() can pin it.  (Pin lock is no longer a recursive
     //         mutex.)  Just leaving it unpinned for this test program works  because it is the only 

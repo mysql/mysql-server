@@ -1360,7 +1360,7 @@ setup_partitions_using_bfe(FTNODE node,
     //
     // setup memory needed for the node
     //
-    //printf("node height %d, blocknum %" PRId64 ", type %d lc %d rc %d\n", node->height, node->thisnodename.b, bfe->type, lc, rc);
+    //printf("node height %d, blocknum %" PRId64 ", type %d lc %d rc %d\n", node->height, node->blocknum.b, bfe->type, lc, rc);
     for (int i = 0; i < node->n_children; i++) {
         BP_INIT_UNTOUCHED_CLOCK(node,i);
         if (data_in_memory) {
@@ -1496,7 +1496,7 @@ static FTNODE alloc_ftnode_for_deserialize(uint32_t fullhash, BLOCKNUM blocknum)
 // Effect: Allocate an FTNODE and fill in the values that are not read from
     FTNODE XMALLOC(node);
     node->fullhash = fullhash;
-    node->thisnodename = blocknum;
+    node->blocknum = blocknum;
     node->dirty = 0;
     node->bp = nullptr;
     node->oldest_referenced_xid_known = TXNID_NONE;
@@ -2346,7 +2346,7 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     DISKOFF node_offset, total_node_disk_size;
     toku_translate_blocknum_to_offset_size(
         bfe->h->blocktable, 
-        node->thisnodename, 
+        node->blocknum, 
         &node_offset, 
         &total_node_disk_size
         );
