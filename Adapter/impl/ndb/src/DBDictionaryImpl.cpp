@@ -765,37 +765,15 @@ Handle<Value> getIntColumnUnsigned(const NdbDictionary::Column *col) {
   }
 }
 
-Handle<Value> createJsBuffer(node::Buffer *b, int len) {
-  HandleScope scope;
-  Local<Object> global = v8::Context::GetCurrent()->Global();
-  Local<Function> bufferConstructor = 
-    Local<Function>::Cast(global->Get(String::New("Buffer")));
-  Handle<Value> args[3];
-  args[0] = b->handle_;
-  args[1] = Integer::New(len);
-  args[2] = Integer::New(0);
-  
-  Local<Object> jsBuffer = bufferConstructor->NewInstance(3, args);
-
-  return scope.Close(jsBuffer);
-}
-
-
-/* TODO: Probably we don't need the default value itself in JavaScript;
-   merely a flag indicating that the column has a non-null default value
-*/
 Handle<Value> getDefaultValue(const NdbDictionary::Column *col) {
   HandleScope scope;
-  Handle<Value> v;
+  Handle<Value> v = v8::Null();
   unsigned int defaultLen = 0;
   
   const void* dictDefaultBuff = col->getDefaultValue(& defaultLen);
   if(defaultLen) {
     node::Buffer *buf = node::Buffer::New((char *) dictDefaultBuff, defaultLen);
-    v = createJsBuffer(buf, defaultLen);
-  }
-  else {
-    v = v8::Null();
+    v = buf->handle_;
   }
   return scope.Close(v);
 }
