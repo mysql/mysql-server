@@ -618,7 +618,7 @@ int remove_txn (const FT &h, const uint32_t UU(idx), TOKUTXN const UU(txn))
     return 0;
 }
 
-// for every BRT in txn, remove it.
+// for every ft in txn, remove it.
 static void note_txn_closing (TOKUTXN txn) {
     txn->open_fts.iterate<struct tokutxn, remove_txn>(txn);
 }

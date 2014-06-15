@@ -110,7 +110,7 @@ void toku_ft_grab_reflock(FT ft);
 void toku_ft_release_reflock(FT ft);
 
 void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn);
-void toku_ft_free (FT h);
+void toku_ft_free (FT ft);
 
 int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_h, CACHEFILE cf, LSN max_acceptable_lsn, FT *header);
 void toku_ft_note_ft_handle_open(FT ft, FT_HANDLE live);
@@ -122,7 +122,7 @@ bool toku_ft_has_one_reference_unlocked(FT ft);
 // will have to read in the ft in a new cachefile and new FT object.
 void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn);
 
-FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h);
+FT_HANDLE toku_ft_get_only_existing_ft_handle(FT ft);
 
 void toku_ft_note_hot_begin(FT_HANDLE ft_h);
 void toku_ft_note_hot_complete(FT_HANDLE ft_h, bool success, MSN msn_at_start_of_hot);
@@ -141,18 +141,18 @@ toku_ft_init(
 
 int toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) __attribute__ ((warn_unused_result));
 int toku_dictionary_redirect (const char *dst_fname_in_env, FT_HANDLE old_ft, TOKUTXN txn);
-void toku_reset_root_xid_that_created(FT h, TXNID new_root_xid_that_created);
+void toku_reset_root_xid_that_created(FT ft, TXNID new_root_xid_that_created);
 // Reset the root_xid_that_created field to the given value.
 // This redefines which xid created the dictionary.
 
-void toku_ft_add_txn_ref(FT h);
-void toku_ft_remove_txn_ref(FT h);
+void toku_ft_add_txn_ref(FT ft);
+void toku_ft_remove_txn_ref(FT ft);
 
-void toku_calculate_root_offset_pointer ( FT h, CACHEKEY* root_key, uint32_t *roothash);
-void toku_ft_set_new_root_blocknum(FT h, CACHEKEY new_root_key);
-LSN toku_ft_checkpoint_lsn(FT h)  __attribute__ ((warn_unused_result));
-void toku_ft_stat64 (FT h, struct ftstat64_s *s);
-void toku_ft_get_fractal_tree_info64 (FT h, struct ftinfo64 *s);
+void toku_calculate_root_offset_pointer (FT ft, CACHEKEY* root_key, uint32_t *roothash);
+void toku_ft_set_new_root_blocknum(FT ft, CACHEKEY new_root_key);
+LSN toku_ft_checkpoint_lsn(FT ft)  __attribute__ ((warn_unused_result));
+void toku_ft_stat64 (FT ft, struct ftstat64_s *s);
+void toku_ft_get_fractal_tree_info64 (FT ft, struct ftinfo64 *s);
 int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,int64_t,int64_t,int64_t,void*), void *iter_extra);
 
 // unconditionally set the descriptor for an open FT. can't do this when

@@ -337,11 +337,11 @@ void toku_ftnode_clone_partitions(FTNODE node, FTNODE cloned_node) {
     }
 }
 
-void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h) {
+void toku_evict_bn_from_memory(FTNODE node, int childnum, FT ft) {
     // free the basement node
     assert(!node->dirty);
     BASEMENTNODE bn = BLB(node, childnum);
-    toku_ft_decrease_stats(&h->in_memory_stats, bn->stat64_delta);
+    toku_ft_decrease_stats(&ft->in_memory_stats, bn->stat64_delta);
     destroy_basement_node(bn);
     set_BNULL(node, childnum);
     BP_STATE(node, childnum) = PT_ON_DISK;

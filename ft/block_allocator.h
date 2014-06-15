@@ -145,7 +145,7 @@ void block_allocator_alloc_block_at (BLOCK_ALLOCATOR ba, uint64_t size, uint64_t
 // Effect: Allocate a block of the specified size at a particular offset.
 //  Aborts if anything goes wrong.
 //  The performance of this function may be as bad as Theta(N), where N is the number of blocks currently in use.
-// Usage note: To allocate several blocks (e.g., when opening a BRT),  use block_allocator_alloc_blocks_at().
+// Usage note: To allocate several blocks (e.g., when opening a FT),  use block_allocator_alloc_blocks_at().
 // Requires: The resulting block may not overlap any other allocated block.
 //  And the offset must be a multiple of the block alignment.
 // Parameters:

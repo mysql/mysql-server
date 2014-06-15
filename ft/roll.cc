@@ -220,9 +220,9 @@ done:
     return 0;
 }
 
-int find_ft_from_filenum (const FT &h, const FILENUM &filenum);
-int find_ft_from_filenum (const FT &h, const FILENUM &filenum) {
-    FILENUM thisfnum = toku_cachefile_filenum(h->cf);
+int find_ft_from_filenum (const FT &ft, const FILENUM &filenum);
+int find_ft_from_filenum (const FT &ft, const FILENUM &filenum) {
+    FILENUM thisfnum = toku_cachefile_filenum(ft->cf);
     if (thisfnum.fileid<filenum.fileid) return -1;
     if (thisfnum.fileid>filenum.fileid) return +1;
     return 0;
@@ -236,9 +236,8 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                          bool reset_root_xid_that_created) {
     int r = 0;
     //printf("%s:%d committing insert %s %s\n", __FILE__, __LINE__, key.data, data.data);
-    FT h;
-    h = NULL;
-    r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &h, NULL);
+    FT ft = nullptr;
+    r = txn->open_fts.find_zero<FILENUM, find_ft_from_filenum>(filenum, &ft, NULL);
     if (r == DB_NOTFOUND) {
         assert(txn->for_recovery);
         r = 0;
@@ -247,7 +246,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     assert(r==0);
 
     if (oplsn.lsn != 0) {  // if we are executing the recovery algorithm
-        LSN treelsn = toku_ft_checkpoint_lsn(h);  
+        LSN treelsn = toku_ft_checkpoint_lsn(ft);  
         if (oplsn.lsn <= treelsn.lsn) {  // if operation was already applied to tree ...
             r = 0;                       // ... do not apply it again.
             goto done;
@@ -275,10 +274,10 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,
                             !txn->for_recovery);
-        toku_ft_root_put_msg(h, &ftmsg, &gc_info);
+        toku_ft_root_put_msg(ft, &ftmsg, &gc_info);
         if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
-            toku_reset_root_xid_that_created(h, new_root_xid_that_created);
+            toku_reset_root_xid_that_created(ft, new_root_xid_that_created);
         }
     }
 done:
@@ -579,15 +578,15 @@ toku_rollback_dictionary_redirect (FILENUM old_filenum,
         CACHEFILE new_cf = NULL;
         r = toku_cachefile_of_filenum(txn->logger->ct, new_filenum, &new_cf);
         assert(r == 0);
-        FT CAST_FROM_VOIDP(new_h, toku_cachefile_get_userdata(new_cf));
+        FT CAST_FROM_VOIDP(new_ft, toku_cachefile_get_userdata(new_cf));
 
         CACHEFILE old_cf = NULL;
         r = toku_cachefile_of_filenum(txn->logger->ct, old_filenum, &old_cf);
         assert(r == 0);
-        FT CAST_FROM_VOIDP(old_h, toku_cachefile_get_userdata(old_cf));
+        FT CAST_FROM_VOIDP(old_ft, toku_cachefile_get_userdata(old_cf));
 
         //Redirect back from new to old.
-        r = toku_dictionary_redirect_abort(old_h, new_h, txn);
+        r = toku_dictionary_redirect_abort(old_ft, new_ft, txn);
         assert(r==0);
     }
     return r;

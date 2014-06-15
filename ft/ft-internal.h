@@ -324,11 +324,11 @@ int toku_serialize_ftnode_to_memory (FTNODE node,
                               /*out*/ size_t *n_bytes_to_write,
                               /*out*/ size_t *n_uncompressed_bytes,
                               /*out*/ char  **bytes_to_write);
-int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint);
+int toku_serialize_ftnode_to(int fd, BLOCKNUM, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT ft, bool for_checkpoint);
 int toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
-                                    FT h, bool for_checkpoint);
+                                    FT ft, bool for_checkpoint);
 void toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized);
-int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT h);
+int toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft);
 int toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, int fd, struct ftnode_fetch_extra* bfe);
 int toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fetch_extra *bfe);
 int toku_deserialize_ftnode_from (int fd, BLOCKNUM off, uint32_t /*fullhash*/, FTNODE *ftnode, FTNODE_DISK_DATA* ndd, struct ftnode_fetch_extra* bfe);
@@ -353,7 +353,7 @@ deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);
 void read_block_from_fd_into_rbuf(
     int fd, 
     BLOCKNUM blocknum,
-    FT h,
+    FT ft,
     struct rbuf *rb
     );
 
@@ -492,7 +492,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_h, BLOCKNUM, const char *key, in
 int toku_testsetup_insert_to_nonleaf (FT_HANDLE ft_h, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
-void toku_ft_root_put_msg(FT h, FT_MSG msg, txn_gc_info *gc_info);
+void toku_ft_root_put_msg(FT ft, FT_MSG msg, txn_gc_info *gc_info);
 
 void
 toku_get_node_for_verify(
@@ -667,8 +667,8 @@ void toku_ft_get_status(FT_STATUS);
 
 void toku_flusher_thread_set_callback(void (*callback_f)(int, void*), void* extra);
 
-int toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h) __attribute__((nonnull));
-int toku_upgrade_msn_from_root_to_header(int fd, FT h) __attribute__((nonnull));
+int toku_upgrade_subtree_estimates_to_stat64info(int fd, FT ft) __attribute__((nonnull));
+int toku_upgrade_msn_from_root_to_header(int fd, FT ft) __attribute__((nonnull));
 
 // A callback function is invoked with the key, and the data.
 // The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.

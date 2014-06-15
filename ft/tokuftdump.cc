@@ -224,17 +224,17 @@ static int print_le(const void* key, const uint32_t keylen, const LEAFENTRY &le,
     return 0;
 }
 
-static void dump_node(int fd, BLOCKNUM blocknum, FT h) {
+static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
     FTNODE n;
     struct ftnode_fetch_extra bfe;
     FTNODE_DISK_DATA ndd = NULL;
-    fill_bfe_for_full_read(&bfe, h);
+    fill_bfe_for_full_read(&bfe, ft);
     int r = toku_deserialize_ftnode_from (fd, blocknum, 0 /*pass zero for hash, it doesn't matter*/, &n, &ndd, &bfe);
     assert_zero(r);
     assert(n!=0);
     printf("ftnode\n");
     DISKOFF disksize, diskoffset;
-    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &diskoffset, &disksize);
+    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &diskoffset, &disksize);
     printf(" diskoffset  =%" PRId64 "\n", diskoffset);
     printf(" disksize    =%" PRId64 "\n", disksize);
     printf(" serialize_size =%u\n", toku_serialize_ftnode_size(n));
@@ -331,14 +331,14 @@ ok:
     toku_free(ndd);
 }
 
-static void dump_block_translation(FT h, uint64_t offset) {
-    toku_blocknum_dump_translation(h->blocktable, make_blocknum(offset));
+static void dump_block_translation(FT ft, uint64_t offset) {
+    toku_blocknum_dump_translation(ft->blocktable, make_blocknum(offset));
 }
 
-static void dump_fragmentation(int UU(f), FT h, int tsv) {
+static void dump_fragmentation(int UU(f), FT ft, int tsv) {
     int64_t used_space;
     int64_t total_space;
-    toku_blocktable_internal_fragmentation(h->blocktable, &total_space, &used_space);
+    toku_blocktable_internal_fragmentation(ft->blocktable, &total_space, &used_space);
     int64_t fragsizes = total_space - used_space;
 
     if (tsv) {
@@ -354,7 +354,7 @@ static void dump_fragmentation(int UU(f), FT h, int tsv) {
 
 typedef struct {
     int fd;
-    FT h;
+    FT ft;
     uint64_t blocksizes;
     uint64_t leafsizes;
     uint64_t leafblocks;
@@ -365,7 +365,7 @@ static int nodesizes_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void 
     FTNODE n;
     FTNODE_DISK_DATA ndd = NULL;
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_full_read(&bfe, info->h);
+    fill_bfe_for_full_read(&bfe, info->ft);
     int r = toku_deserialize_ftnode_from(info->fd, b, 0 /*pass zero for hash, it doesn't matter*/, &n, &ndd, &bfe);
     if (r==0) {
         info->blocksizes += size;
@@ -379,12 +379,12 @@ static int nodesizes_helper(BLOCKNUM b, int64_t size, int64_t UU(address), void 
     return 0;
 }
 
-static void dump_nodesizes(int fd, FT h) {
+static void dump_nodesizes(int fd, FT ft) {
     frag_help_extra info;
     memset(&info, 0, sizeof(info));
     info.fd = fd;
-    info.h = h;
-    toku_blocktable_iterate(h->blocktable, TRANSLATION_CHECKPOINTED,
+    info.ft = ft;
+    toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
                             nodesizes_helper, &info, true, true);
     printf("leafblocks\t%" PRIu64 "\n", info.leafblocks);
     printf("blocksizes\t%" PRIu64 "\n", info.blocksizes);
@@ -402,12 +402,12 @@ static void dump_garbage_stats(int fd, FT ft) {
 
 typedef struct __dump_node_extra {
     int fd;
-    FT h;
+    FT ft;
 } dump_node_extra;
 
 static int dump_node_wrapper(BLOCKNUM b, int64_t UU(size), int64_t UU(address), void *extra) {
     dump_node_extra *CAST_FROM_VOIDP(info, extra);
-    dump_node(info->fd, b, info->h);
+    dump_node(info->fd, b, info->ft);
     return 0;
 }
 
@@ -472,9 +472,9 @@ static void verify_block(unsigned char *cp, uint64_t file_offset, uint64_t size)
         printf("offset %u expected %" PRIu64 "\n", offset, size);
 }
 
-static void dump_block(int fd, BLOCKNUM blocknum, FT h) {
+static void dump_block(int fd, BLOCKNUM blocknum, FT ft) {
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
+    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
     printf("%" PRId64 " at %" PRId64 " size %" PRId64 "\n", blocknum.b, offset, size);
 
     unsigned char *CAST_FROM_VOIDP(vp, toku_malloc(size));
@@ -698,7 +698,7 @@ int main (int argc, const char *const argv[]) {
             
             struct __dump_node_extra info;
             info.fd = fd;
-            info.h = ft;
+            info.ft = ft;
             toku_blocktable_iterate(ft->blocktable, TRANSLATION_CHECKPOINTED,
                                     dump_node_wrapper, &info, true, true);
         }

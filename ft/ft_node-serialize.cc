@@ -819,7 +819,7 @@ int toku_serialize_ftnode_to_memory(FTNODE node,
 }
 
 int
-toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT h, bool for_checkpoint) {
+toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DATA* ndd, bool do_rebalancing, FT ft, bool for_checkpoint) {
 
     size_t n_to_write;
     size_t n_uncompressed_bytes;
@@ -841,8 +841,8 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
     int r = toku_serialize_ftnode_to_memory(
         node,
         ndd,
-        h->h->basementnodesize,
-        h->h->compression_method,
+        ft->h->basementnodesize,
+        ft->h->compression_method,
         do_rebalancing,
         false, // in_parallel
         &n_to_write,
@@ -857,8 +857,8 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
     invariant(blocknum.b>=0);
     DISKOFF offset;
 
-    toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
-                                  h, fd, for_checkpoint); //dirties h
+    toku_blocknum_realloc_on_disk(ft->blocktable, blocknum, n_to_write, &offset,
+                                  ft, fd, for_checkpoint); //dirties h
 
     tokutime_t t0 = toku_time_now();
     toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
@@ -1105,13 +1105,13 @@ void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
 void read_block_from_fd_into_rbuf(
     int fd, 
     BLOCKNUM blocknum,
-    FT h,
+    FT ft,
     struct rbuf *rb
     ) 
 {
     // get the file offset and block size for the block
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
+    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
     DISKOFF size_aligned = roundup_to_multiple(512, size);
     uint8_t *XMALLOC_N_ALIGNED(512, size_aligned, raw_block);
     rbuf_init(rb, raw_block, size);
@@ -1305,8 +1305,8 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
         // we find out what basement node the query cares about
         // and check if it is available
         bfe->child_to_read = toku_ft_search_which_child(
-            &bfe->h->cmp_descriptor,
-            bfe->h->compare_fun,
+            &bfe->ft->cmp_descriptor,
+            bfe->ft->compare_fun,
             node,
             bfe->search
             );
@@ -1316,7 +1316,7 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        paranoid_invariant(bfe->h->compare_fun);
+        paranoid_invariant(bfe->ft->compare_fun);
         if (node->height == 0) {
             int left_child = toku_bfe_leftmost_child_wanted(bfe, node);
             int right_child = toku_bfe_rightmost_child_wanted(bfe, node);
@@ -1772,7 +1772,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         int nfresh = 0;
         int nbroadcast_offsets = 0;
 
-        if (bfe->h->compare_fun) {
+        if (bfe->ft->compare_fun) {
             XMALLOC_N(n_in_this_buffer, fresh_offsets);
             // We skip 'stale' offsets for upgraded nodes.
             XMALLOC_N(n_in_this_buffer, broadcast_offsets);
@@ -1782,7 +1782,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         // of messages in the buffer.
         MSN lowest;
         uint64_t amount = n_in_this_buffer;
-        lowest.msn = toku_sync_sub_and_fetch(&bfe->h->h->highest_unused_msn_for_upgrade.msn, amount);
+        lowest.msn = toku_sync_sub_and_fetch(&bfe->ft->h->highest_unused_msn_for_upgrade.msn, amount);
         if (highest_msn.msn == 0) {
             highest_msn.msn = lowest.msn + n_in_this_buffer;
         }
@@ -1800,7 +1800,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
 
             // <CER> can we factor this out?
             int32_t *dest;
-            if (bfe->h->compare_fun) {
+            if (bfe->ft->compare_fun) {
                 if (ft_msg_type_applies_once(type)) {
                     dest = &fresh_offsets[nfresh];
                     nfresh++;
@@ -1827,9 +1827,9 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             xids_destroy(&xids);
         }
 
-        if (bfe->h->compare_fun) {
-            struct toku_msg_buffer_key_msn_cmp_extra extra = { .desc = &bfe->h->cmp_descriptor,
-                                                               .cmp = bfe->h->compare_fun,
+        if (bfe->ft->compare_fun) {
+            struct toku_msg_buffer_key_msn_cmp_extra extra = { .desc = &bfe->ft->cmp_descriptor,
+                                                               .cmp = bfe->ft->compare_fun,
                                                                .msg_buffer = &bnc->msg_buffer };
             typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
             r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
@@ -1859,7 +1859,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
                     actual_xsum);
             fprintf(stderr,
                     "Checksum failure while reading node in file %s.\n",
-                    toku_cachefile_fname_in_env(bfe->h->cf));
+                    toku_cachefile_fname_in_env(bfe->ft->cf));
             fflush(stderr);
             return toku_db_badformat();
         }
@@ -1915,7 +1915,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     // setting up the single partition and updating the bfe.
     update_bfe_using_ftnode(node, bfe);
     struct ftnode_fetch_extra temp_bfe;
-    fill_bfe_for_full_read(&temp_bfe, bfe->h);
+    fill_bfe_for_full_read(&temp_bfe, bfe->ft);
     setup_partitions_using_bfe(node, &temp_bfe, true);
 
     // 11. Deserialize the partition maps, though they are not used in the
@@ -1980,7 +1980,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 
     // Whatever this is must be less than the MSNs of every message above
     // it, so it's ok to take it here.
-    bn->max_msn_applied = bfe->h->h->highest_unused_msn_for_upgrade;
+    bn->max_msn_applied = bfe->ft->h->highest_unused_msn_for_upgrade;
     bn->stale_ancestor_messages_applied = false;
     node->max_msn_applied_to_node_on_disk = bn->max_msn_applied;
 
@@ -1996,7 +1996,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
                     actual_xsum);
             fprintf(stderr,
                     "Checksum failure while reading node in file %s.\n",
-                    toku_cachefile_fname_in_env(bfe->h->cf));
+                    toku_cachefile_fname_in_env(bfe->ft->cf));
             fflush(stderr);
             return toku_db_badformat();
         }
@@ -2014,7 +2014,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
 static int
 read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
                                             DISKOFF offset, DISKOFF size,
-                                            FT h,
+                                            FT ft,
                                             struct rbuf *rb,
                                             /* out */ int *layout_version_p);
 
@@ -2037,7 +2037,7 @@ deserialize_and_upgrade_ftnode(FTNODE node,
     // we read the different sub-sections.
     // get the file offset and block size for the block
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(bfe->h->blocktable,
+    toku_translate_blocknum_to_offset_size(bfe->ft->blocktable,
                                            blocknum,
                                            &offset,
                                            &size);
@@ -2046,7 +2046,7 @@ deserialize_and_upgrade_ftnode(FTNODE node,
                                                     blocknum,
                                                     offset,
                                                     size,
-                                                    bfe->h,
+                                                    bfe->ft,
                                                     &rb,
                                                     &version);
     if (r != 0) {
@@ -2259,7 +2259,7 @@ deserialize_ftnode_from_rbuf(
                 //  case where we read and decompress the partition
                 tokutime_t partition_decompress_time;
                 r = decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i,
-                        &bfe->h->cmp_descriptor, bfe->h->compare_fun, &partition_decompress_time);
+                        &bfe->ft->cmp_descriptor, bfe->ft->compare_fun, &partition_decompress_time);
                 decompress_time += partition_decompress_time;
                 if (r != 0) {
                     goto cleanup;
@@ -2319,7 +2319,7 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     // get the file offset and block size for the block
     DISKOFF node_offset, total_node_disk_size;
     toku_translate_blocknum_to_offset_size(
-        bfe->h->blocktable, 
+        bfe->ft->blocktable, 
         node->blocknum, 
         &node_offset, 
         &total_node_disk_size
@@ -2365,7 +2365,7 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     // deserialize
     tokutime_t t2 = toku_time_now();
 
-    r = deserialize_ftnode_partition(&curr_sb, node, childnum, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+    r = deserialize_ftnode_partition(&curr_sb, node, childnum, &bfe->ft->cmp_descriptor, bfe->ft->compare_fun);
 
     tokutime_t t3 = toku_time_now();
 
@@ -2409,7 +2409,7 @@ toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fet
 
     tokutime_t t1 = toku_time_now();
 
-    r = deserialize_ftnode_partition(curr_sb, node, childnum, &bfe->h->cmp_descriptor, bfe->h->compare_fun);
+    r = deserialize_ftnode_partition(curr_sb, node, childnum, &bfe->ft->cmp_descriptor, bfe->ft->compare_fun);
 
     tokutime_t t2 = toku_time_now();
 
@@ -2436,7 +2436,7 @@ deserialize_ftnode_from_fd(int fd,
     struct rbuf rb = RBUF_INITIALIZER;
 
     tokutime_t t0 = toku_time_now();
-    read_block_from_fd_into_rbuf(fd, blocknum, bfe->h, &rb); 
+    read_block_from_fd_into_rbuf(fd, blocknum, bfe->ft, &rb); 
     tokutime_t t1 = toku_time_now();
 
     // Decompress and deserialize the ftnode. Time statistics
@@ -2469,7 +2469,7 @@ toku_deserialize_ftnode_from (int fd,
     // each function below takes the appropriate io/decompression/deserialize statistics
 
     if (!bfe->read_all_partitions) {
-        read_ftnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->h, &rb, bfe);
+        read_ftnode_header_from_fd_into_rbuf_if_small_enough(fd, blocknum, bfe->ft, &rb, bfe);
         r = deserialize_ftnode_header_from_rbuf_if_small_enough(ftnode, ndd, blocknum, fullhash, bfe, &rb, fd);
     } else {
         // force us to do it the old way
@@ -2618,7 +2618,7 @@ toku_serialize_rollback_log_to_memory_uncompressed(ROLLBACK_LOG_NODE log, SERIAL
 
 int
 toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBACK_LOG_NODE serialized_log, bool is_serialized,
-                                FT h, bool for_checkpoint) {
+                                FT ft, bool for_checkpoint) {
     size_t n_to_write;
     char *compressed_buf;
     struct serialized_rollback_log_node serialized_local;
@@ -2635,13 +2635,13 @@ toku_serialize_rollback_log_to (int fd, ROLLBACK_LOG_NODE log, SERIALIZED_ROLLBA
     //Compress and malloc buffer to write
     serialize_uncompressed_block_to_memory(serialized_log->data,
             serialized_log->n_sub_blocks, serialized_log->sub_block,
-            h->h->compression_method, &n_to_write, &compressed_buf);
+            ft->h->compression_method, &n_to_write, &compressed_buf);
 
     {
         lazy_assert(blocknum.b>=0);
         DISKOFF offset;
-        toku_blocknum_realloc_on_disk(h->blocktable, blocknum, n_to_write, &offset,
-                                      h, fd, for_checkpoint); //dirties h
+        toku_blocknum_realloc_on_disk(ft->blocktable, blocknum, n_to_write, &offset,
+                                      ft, fd, for_checkpoint); //dirties h
         toku_os_full_pwrite(fd, compressed_buf, n_to_write, offset);
     }
     toku_free(compressed_buf);
@@ -2844,7 +2844,7 @@ decompress_from_raw_block_into_rbuf_versioned(uint32_t version, uint8_t *raw_blo
 static int
 read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
                                             DISKOFF offset, DISKOFF size,
-                                            FT h,
+                                            FT ft,
                                             struct rbuf *rb,
                                   /* out */ int *layout_version_p) {
     int r = 0;
@@ -2883,7 +2883,7 @@ read_and_decompress_block_from_fd_into_rbuf(int fd, BLOCKNUM blocknum,
         if (r == TOKUDB_BAD_CHECKSUM) {
             fprintf(stderr,
                     "Checksum failure while reading raw block in file %s.\n",
-                    toku_cachefile_fname_in_env(h->cf));
+                    toku_cachefile_fname_in_env(ft->cf));
             abort();
         } else {
             r = toku_db_badformat();
@@ -2905,14 +2905,14 @@ cleanup:
 
 // Read rollback log node from file into struct.  Perform version upgrade if necessary.
 int
-toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT h) {
+toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE *logp, FT ft) {
     int layout_version = 0;
     int r;
     struct rbuf rb = {.buf = NULL, .size = 0, .ndone = 0};
 
     // get the file offset and block size for the block
     DISKOFF offset, size;
-    toku_translate_blocknum_to_offset_size(h->blocktable, blocknum, &offset, &size);
+    toku_translate_blocknum_to_offset_size(ft->blocktable, blocknum, &offset, &size);
     // if the size is 0, then the blocknum is unused
     if (size == 0) {
         // blocknum is unused, just create an empty one and get out
@@ -2924,7 +2924,7 @@ toku_deserialize_rollback_log_from (int fd, BLOCKNUM blocknum, ROLLBACK_LOG_NODE
         goto cleanup;
     }
 
-    r = read_and_decompress_block_from_fd_into_rbuf(fd, blocknum, offset, size, h, &rb, &layout_version);
+    r = read_and_decompress_block_from_fd_into_rbuf(fd, blocknum, offset, size, ft, &rb, &layout_version);
     if (r!=0) goto cleanup;
 
     {
@@ -2943,19 +2943,19 @@ cleanup:
 }
 
 int
-toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h)
+toku_upgrade_subtree_estimates_to_stat64info(int fd, FT ft)
 {
     int r = 0;
     // 15 was the last version with subtree estimates
-    invariant(h->layout_version_read_from_disk <= FT_LAYOUT_VERSION_15);
+    invariant(ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION_15);
 
     FTNODE unused_node = NULL;
     FTNODE_DISK_DATA unused_ndd = NULL;
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, h);
-    r = deserialize_ftnode_from_fd(fd, h->h->root_blocknum, 0, &unused_node, &unused_ndd,
-                                   &bfe, &h->h->on_disk_stats);
-    h->in_memory_stats = h->h->on_disk_stats;
+    fill_bfe_for_min_read(&bfe, ft);
+    r = deserialize_ftnode_from_fd(fd, ft->h->root_blocknum, 0, &unused_node, &unused_ndd,
+                                   &bfe, &ft->h->on_disk_stats);
+    ft->in_memory_stats = ft->h->on_disk_stats;
 
     if (unused_node) {
         toku_ftnode_free(&unused_node);
@@ -2967,22 +2967,22 @@ toku_upgrade_subtree_estimates_to_stat64info(int fd, FT h)
 }
 
 int
-toku_upgrade_msn_from_root_to_header(int fd, FT h)
+toku_upgrade_msn_from_root_to_header(int fd, FT ft)
 {
     int r;
     // 21 was the first version with max_msn_in_ft in the header
-    invariant(h->layout_version_read_from_disk <= FT_LAYOUT_VERSION_20);
+    invariant(ft->layout_version_read_from_disk <= FT_LAYOUT_VERSION_20);
 
     FTNODE node;
     FTNODE_DISK_DATA ndd;
     struct ftnode_fetch_extra bfe;
-    fill_bfe_for_min_read(&bfe, h);
-    r = deserialize_ftnode_from_fd(fd, h->h->root_blocknum, 0, &node, &ndd, &bfe, nullptr);
+    fill_bfe_for_min_read(&bfe, ft);
+    r = deserialize_ftnode_from_fd(fd, ft->h->root_blocknum, 0, &node, &ndd, &bfe, nullptr);
     if (r != 0) {
         goto exit;
     }
 
-    h->h->max_msn_in_ft = node->max_msn_applied_to_node_on_disk;
+    ft->h->max_msn_in_ft = node->max_msn_applied_to_node_on_disk;
     toku_ftnode_free(&node);
     toku_free(ndd);
  exit:

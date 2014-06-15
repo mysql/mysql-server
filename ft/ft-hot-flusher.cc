@@ -169,7 +169,7 @@ hot_set_start_key(struct hot_flusher_extra *flusher, const DBT* start)
 }
 
 static int
-hot_just_pick_child(FT h,
+hot_just_pick_child(FT ft,
                     FTNODE parent,
                     struct hot_flusher_extra *flusher)
 {
@@ -186,8 +186,8 @@ hot_just_pick_child(FT h,
         // Find the pivot boundary.
         childnum = toku_ftnode_hot_next_child(parent,
                                                &flusher->highest_pivot_key,
-                                               &h->cmp_descriptor,
-                                               h->compare_fun);
+                                               &ft->cmp_descriptor,
+                                               ft->compare_fun);
     }
 
     return childnum;
@@ -209,12 +209,12 @@ hot_update_flusher_keys(FTNODE parent,
 // Picks which child toku_ft_flush_some_child will use for flushing and
 // recursion.
 static int
-hot_pick_child(FT h,
+hot_pick_child(FT ft,
                FTNODE parent,
                void *extra)
 {
     struct hot_flusher_extra *flusher = (struct hot_flusher_extra *) extra;
-    int childnum = hot_just_pick_child(h, parent, flusher);
+    int childnum = hot_just_pick_child(ft, parent, flusher);
 
     // Now we determine the percentage of the tree flushed so far.
 
@@ -244,14 +244,14 @@ hot_update_status(FTNODE UU(child),
 // one to flush into.  This gives it a chance to do that, and update the
 // keys it maintains.
 static int
-hot_pick_child_after_split(FT h,
+hot_pick_child_after_split(FT ft,
                            FTNODE parent,
                            int childnuma,
                            int childnumb,
                            void *extra)
 {
     struct hot_flusher_extra *flusher = (struct hot_flusher_extra *) extra;
-    int childnum = hot_just_pick_child(h, parent, flusher);
+    int childnum = hot_just_pick_child(ft, parent, flusher);
     assert(childnum == childnuma || childnum == childnumb);
     hot_update_flusher_keys(parent, childnum, flusher);
     if (parent->height == 1) {

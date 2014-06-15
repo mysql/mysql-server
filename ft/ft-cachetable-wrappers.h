@@ -103,7 +103,7 @@ PATENT RIGHTS GRANT:
  */
 void
 cachetable_put_empty_node_with_dep_nodes(
-    FT h,
+    FT ft,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     BLOCKNUM* name, //output
@@ -118,7 +118,7 @@ cachetable_put_empty_node_with_dep_nodes(
  */
 void
 create_new_ftnode_with_dep_nodes(
-    FT h,
+    FT ft,
     FTNODE *result,
     int height,
     int n_children,
@@ -156,7 +156,7 @@ toku_pin_ftnode_for_query(
 
 // Pins an ftnode without dependent pairs
 void toku_pin_ftnode(
-    FT h,
+    FT ft,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
@@ -168,7 +168,7 @@ void toku_pin_ftnode(
 // Pins an ftnode with dependent pairs
 // Unlike toku_pin_ftnode_for_query, this function blocks until the node is pinned.
 void toku_pin_ftnode_with_dep_nodes(
-    FT h,
+    FT ft,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
@@ -188,7 +188,7 @@ int toku_maybe_pin_ftnode_clean(FT ft, BLOCKNUM blocknum, uint32_t fullhash, pai
 /**
  * Effect: Unpin an ftnode.
  */
-void toku_unpin_ftnode(FT h, FTNODE node);
+void toku_unpin_ftnode(FT ft, FTNODE node);
 void toku_unpin_ftnode_read_only(FT ft, FTNODE node);
 
 // Effect: Swaps pair values of two pinned nodes

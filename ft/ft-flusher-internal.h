@@ -115,7 +115,7 @@ typedef struct flusher_advice FLUSHER_ADVICE;
  * Cleaner thread merging leaf nodes: follow down to a key
  * Hot optimize table: follow down to the right of a key
  */
-typedef int (*FA_PICK_CHILD)(FT h, FTNODE parent, void* extra);
+typedef int (*FA_PICK_CHILD)(FT ft, FTNODE parent, void* extra);
 
 /**
  * Decide whether to call `toku_ft_flush_some_child` on the child if it is
@@ -139,7 +139,7 @@ typedef bool (*FA_SHOULD_RECURSIVELY_FLUSH)(FTNODE child, void* extra);
  * Hot optimize table: just do the merge
  */
 typedef void (*FA_MAYBE_MERGE_CHILD)(struct flusher_advice *fa,
-                              FT h,
+                              FT ft,
                               FTNODE parent,
                               int childnum,
                               FTNODE child,
@@ -172,7 +172,7 @@ typedef void (*FA_UPDATE_STATUS)(FTNODE child, int dirtied, void* extra);
  * by `ft_split_child`.  If -1 is returned, `ft_split_child` defaults to
  * the old behavior.
  */
-typedef int (*FA_PICK_CHILD_AFTER_SPLIT)(FT h,
+typedef int (*FA_PICK_CHILD_AFTER_SPLIT)(FT ft,
                                          FTNODE node,
                                          int childnuma,
                                          int childnumb,
@@ -223,14 +223,14 @@ dont_destroy_basement_nodes(void* extra);
 
 void
 default_merge_child(struct flusher_advice *fa,
-                    FT h,
+                    FT ft,
                     FTNODE parent,
                     int childnum,
                     FTNODE child,
                     void* extra);
 
 int
-default_pick_child_after_split(FT h,
+default_pick_child_after_split(FT ft,
                                FTNODE parent,
                                int childnuma,
                                int childnumb,

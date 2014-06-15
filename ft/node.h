@@ -297,7 +297,7 @@ void toku_destroy_ftnode_internals(FTNODE node);
 void toku_ftnode_free (FTNODE *node);
 bool toku_ftnode_fully_in_memory(FTNODE node);
 void toku_ftnode_assert_fully_in_memory(FTNODE node);
-void toku_evict_bn_from_memory(FTNODE node, int childnum, FT h);
+void toku_evict_bn_from_memory(FTNODE node, int childnum, FT ft);
 BASEMENTNODE toku_detach_bn(FTNODE node, int childnum);
 void toku_ftnode_update_disk_stats(FTNODE ftnode, FT ft, bool for_checkpoint);
 void toku_ftnode_clone_partitions(FTNODE node, FTNODE cloned_node);
@@ -345,7 +345,7 @@ struct ft_search;
 struct ftnode_fetch_extra {
     enum ftnode_fetch_type type;
     // needed for reading a node off disk
-    FT h;
+    FT ft;
     // used in the case where type == ftnode_fetch_subset
     // parameters needed to find out which child needs to be decompressed (so it can be read)
     ft_search *search;
@@ -406,7 +406,7 @@ long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
 void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
-void toku_bnc_flush_to_child(FT h, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
+void toku_bnc_flush_to_child(FT ft, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
 
 bool toku_ftnode_nonleaf_is_gorged(FTNODE node, uint32_t nodesize);

@@ -123,7 +123,7 @@ int toku_rollback_cleaner_callback (
     void* UU(extraargs)
     );
 
-static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(FT h) {
+static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(FT ft) {
     CACHETABLE_WRITE_CALLBACK wc;
     wc.flush_callback = toku_rollback_flush_callback;
     wc.pe_est_callback = toku_rollback_pe_est_callback;
@@ -131,6 +131,6 @@ static inline CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_rollback_log(FT 
     wc.cleaner_callback = toku_rollback_cleaner_callback;
     wc.clone_callback = toku_rollback_clone_callback;
     wc.checkpoint_complete_callback = nullptr;
-    wc.write_extraargs = h;
+    wc.write_extraargs = ft;
     return wc;
 }
