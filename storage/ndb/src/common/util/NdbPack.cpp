@@ -1395,9 +1395,10 @@ Tdata::create()
     }
     require(m_xnull[i] == (m_xoff[i] == -1));
     require(m_xnull[i] == (m_xlen[i] == 0));
-    AttributeHeader* ah = (AttributeHeader*)&poaiBuf[m_poaiSize];
-    ah->setAttributeId(i); // not used
-    ah->setByteSize(m_xlen[i]);
+    AttributeHeader ah;
+    ah.setAttributeId(i); // not used
+    ah.setByteSize(m_xlen[i]);
+    poaiBuf[m_poaiSize] = ah.m_value;
     m_poaiSize++;
     if (!m_xnull[i]) {
       memcpy(&poaiBuf[m_poaiSize], &xbuf[m_xoff[i]], m_xlen[i]);
