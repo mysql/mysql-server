@@ -95,8 +95,8 @@ PATENT RIGHTS GRANT:
 #define DONT_DEPRECATE_MALLOC
 #define DONT_DEPRECATE_WRITES
 #include "test.h"
-#include "ftloader.h"
-#include "ftloader-internal.h"
+#include "loader/loader.h"
+#include "loader/loader-internal.h"
 #include "memory.h"
 #include <portability/toku_path.h>
 

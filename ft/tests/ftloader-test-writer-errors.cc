@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #define DONT_DEPRECATE_MALLOC
 
 #include "test.h"
-#include "ftloader-internal.h"
+#include "loader/loader-internal.h"
 #include "ftloader-error-injector.h"
 #include <portability/toku_path.h>
 

@@ -102,12 +102,12 @@ PATENT RIGHTS GRANT:
 
 #include <util/x1764.h>
 
-#include "ftloader-internal.h"
+#include "loader/loader-internal.h"
 #include "ft-internal.h"
 #include "sub_block.h"
 #include "sub_block_map.h"
-#include "pqueue.h"
-#include "dbufio.h"
+#include "loader/pqueue.h"
+#include "loader/dbufio.h"
 #include "leafentry.h"
 #include "log-internal.h"
 #include "ft.h"
