@@ -483,7 +483,7 @@ serialize_ftnode_info_size(FTNODE node)
     retval += 4; // flags
     retval += 4; // height;
     retval += 8; // oldest_referenced_xid_known
-    retval += node->totalchildkeylens; // total length of pivots
+    retval += node->pivotkeys.total_size();
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
         retval += node->n_children*8; // child blocknum's
@@ -507,11 +507,8 @@ static void serialize_ftnode_info(FTNODE node,
     wbuf_nocrc_uint(&wb, node->flags);
     wbuf_nocrc_int (&wb, node->height);    
     wbuf_TXNID(&wb, node->oldest_referenced_xid_known);
+    node->pivotkeys.serialize_to_wbuf(&wb);
 
-    // pivot information
-    for (int i = 0; i < node->n_children-1; i++) {
-        wbuf_nocrc_bytes(&wb, node->childkeys[i].data, node->childkeys[i].size);
-    }
     // child blocks, only for internal nodes
     if (node->height > 0) {
         for (int i = 0; i < node->n_children; i++) {
@@ -1261,20 +1258,10 @@ deserialize_ftnode_info(
     // n_children is now in the header, nd the allocatio of the node->bp is in deserialize_ftnode_from_rbuf.
 
     // now the pivots
-    node->totalchildkeylens = 0;
     if (node->n_children > 1) {
-        XMALLOC_N(node->n_children - 1, node->childkeys);
-        for (int i=0; i < node->n_children-1; i++) {
-            bytevec childkeyptr;
-            unsigned int cklen;
-            rbuf_bytes(&rb, &childkeyptr, &cklen);
-            toku_memdup_dbt(&node->childkeys[i], childkeyptr, cklen);
-            node->totalchildkeylens += cklen;
-        }
-    }
-    else {
-        node->childkeys = NULL;
-        node->totalchildkeylens = 0;
+        node->pivotkeys.deserialize_from_rbuf(&rb, node->n_children - 1);
+    } else {
+        node->pivotkeys.create_empty();
     }
 
     // if this is an internal node, unpack the block nums, and fill in necessary fields
@@ -1725,18 +1712,8 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         }
     }
 
-    node->childkeys = NULL;
-    node->totalchildkeylens = 0;
-    // I. Allocate keys based on number of children.
-    XMALLOC_N(node->n_children - 1, node->childkeys);
-    // II. Copy keys from buffer to allocated keys in ftnode.
-    for (int i = 0; i < node->n_children - 1; ++i) {
-        bytevec childkeyptr;
-        unsigned int cklen;
-        rbuf_bytes(rb, &childkeyptr, &cklen);         // 17. child key pointers
-        toku_memdup_dbt(&node->childkeys[i], childkeyptr, cklen);
-        node->totalchildkeylens += cklen;
-    }
+    // Pivot keys
+    node->pivotkeys.deserialize_from_rbuf(rb, node->n_children - 1);
 
     // Create space for the child node buffers (a.k.a. partitions).
     XMALLOC_N(node->n_children, node->bp);
@@ -1932,10 +1909,7 @@ deserialize_and_upgrade_leaf_node(FTNODE node,
     // basement node.
     node->n_children = 1;
     XMALLOC_N(node->n_children, node->bp);
-    // This is a malloc(0), but we need to do it in order to get a pointer
-    // we can free() later.
-    XMALLOC_N(node->n_children - 1, node->childkeys);
-    node->totalchildkeylens = 0;
+    node->pivotkeys.create_empty();
 
     // Create one basement node to contain all the leaf entries by
     // setting up the single partition and updating the bfe.

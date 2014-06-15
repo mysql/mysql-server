@@ -92,8 +92,144 @@ PATENT RIGHTS GRANT:
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
 #include "ft/node.h"
+#include "ft/rbuf.h"
+#include "ft/wbuf.h"
 #include "util/scoped_malloc.h"
 #include "util/sort.h"
+
+void ftnode_pivot_keys::create_empty() {
+    _num_pivots = 0;
+    _total_size = 0;
+    _keys = nullptr;
+}
+
+void ftnode_pivot_keys::create_from_dbts(const DBT *keys, int n) {
+    _num_pivots = n;
+    _total_size = 0;
+    XMALLOC_N(_num_pivots, _keys);
+    for (int i = 0; i < _num_pivots; i++) {
+        size_t size = keys[i].size;
+        toku_memdup_dbt(&_keys[i], keys[i].data, size);
+        _total_size += size;
+    }
+}
+
+// effect: create pivot keys as a clone of an existing set of pivotkeys
+void ftnode_pivot_keys::create_from_pivot_keys(const ftnode_pivot_keys &pivotkeys) {
+    create_from_dbts(pivotkeys._keys, pivotkeys._num_pivots);
+}
+
+void ftnode_pivot_keys::destroy() {
+    if (_keys != nullptr) {
+        for (int i = 0; i < _num_pivots; i++) {
+            toku_destroy_dbt(&_keys[i]);
+        }
+        toku_free(_keys);
+    }
+    _keys = nullptr;
+    _num_pivots = 0;
+    _total_size = 0;
+}
+
+void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
+    XMALLOC_N(n, _keys);
+    _num_pivots = n;
+    _total_size = 0;
+    for (int i = 0; i < _num_pivots; i++) {
+        bytevec pivotkeyptr;
+        uint32_t size;
+        rbuf_bytes(rb, &pivotkeyptr, &size);
+        toku_memdup_dbt(&_keys[i], pivotkeyptr, size);
+        _total_size += size;
+    }
+}
+
+const DBT *ftnode_pivot_keys::get_pivot(int i) const {
+    paranoid_invariant(i < _num_pivots);
+    return &_keys[i];
+}
+
+void ftnode_pivot_keys::_add_key(const DBT *key, int i) {
+    toku_clone_dbt(&_keys[i], *key);
+    _total_size += _keys[i].size;
+}
+
+void ftnode_pivot_keys::_destroy_key(int i) {
+    invariant(_total_size >= _keys[i].size);
+    _total_size -= _keys[i].size;
+    toku_destroy_dbt(&_keys[i]);
+}
+
+void ftnode_pivot_keys::insert_at(const DBT *key, int i) {
+    invariant(i <= _num_pivots); // it's ok to insert at the end, so we check <= n
+
+    // make space for a new pivot, slide existing keys to the right
+    REALLOC_N(_num_pivots + 1, _keys);
+    memmove(&_keys[i + 1], &_keys[i], (_num_pivots - i) * sizeof(DBT));
+
+    _num_pivots++;
+    _add_key(key, i);
+}
+
+void ftnode_pivot_keys::append(const ftnode_pivot_keys &pivotkeys) {
+    REALLOC_N(_num_pivots + pivotkeys._num_pivots, _keys);
+    for (int i = 0; i < pivotkeys._num_pivots; i++) {
+        const DBT *key = &pivotkeys._keys[i];
+        toku_memdup_dbt(&_keys[_num_pivots + i], key->data, key->size);
+    }
+    _num_pivots += pivotkeys._num_pivots;
+    _total_size += pivotkeys._total_size;
+}
+
+void ftnode_pivot_keys::replace_at(const DBT *key, int i) {
+    if (i < _num_pivots) {
+        _destroy_key(i);
+        _add_key(key, i);
+    } else {
+        invariant(i == _num_pivots); // appending to the end is ok
+        insert_at(key, i);
+    }
+}
+
+void ftnode_pivot_keys::delete_at(int i) {
+    invariant(i < _num_pivots);
+    _destroy_key(i);
+
+    // slide over existing keys
+    memmove(&_keys[i], &_keys[i + 1], (_num_pivots - 1 - i) * sizeof(DBT));
+
+    // shrink down to the new size
+    _num_pivots--;
+    REALLOC_N(_num_pivots, _keys);
+}
+
+void ftnode_pivot_keys::split_at(int i, ftnode_pivot_keys *other) {
+    if (i < _num_pivots) {
+        other->create_from_dbts(&_keys[i], _num_pivots - i);
+
+        // destroy everything greater
+        for (int k = i; k < _num_pivots; k++) {
+            _destroy_key(k);
+        }
+
+        _num_pivots = i;
+        REALLOC_N(_num_pivots, _keys);
+    }
+}
+
+int ftnode_pivot_keys::num_pivots() const {
+    return _num_pivots;
+}
+
+size_t ftnode_pivot_keys::total_size() const {
+    return _total_size;
+}
+
+void ftnode_pivot_keys::serialize_to_wbuf(struct wbuf *wb) const {
+    for (int i = 0; i < _num_pivots; i++) {
+        wbuf_nocrc_bytes(wb, _keys[i].data, _keys[i].size);
+    }
+}
 
 // Effect: Fill in N as an empty ftnode.
 // TODO: Rename toku_ftnode_create
@@ -108,14 +244,12 @@ void toku_initialize_empty_ftnode(FTNODE n, BLOCKNUM blocknum, int height, int n
     n->layout_version_original = layout_version;
     n->layout_version_read_from_disk = layout_version;
     n->height = height;
-    n->totalchildkeylens = 0;
-    n->childkeys = 0;
+    n->pivotkeys.create_empty();
     n->bp = 0;
     n->n_children = num_children;
     n->oldest_referenced_xid_known = TXNID_NONE;
 
     if (num_children > 0) {
-        XMALLOC_N(num_children-1, n->childkeys);
         XMALLOC_N(num_children, n->bp);
         for (int i = 0; i < num_children; i++) {
             BP_BLOCKNUM(n,i).b=0;
@@ -140,13 +274,8 @@ void toku_initialize_empty_ftnode(FTNODE n, BLOCKNUM blocknum, int height, int n
 // this is common functionality for toku_ftnode_free and rebalance_ftnode_leaf
 // MUST NOT do anything besides free the structures that have been allocated
 void toku_destroy_ftnode_internals(FTNODE node) {
-    for (int i=0; i<node->n_children-1; i++) {
-        toku_destroy_dbt(&node->childkeys[i]);
-    }
-    toku_free(node->childkeys);
-    node->childkeys = NULL;
-
-    for (int i=0; i < node->n_children; i++) {
+    node->pivotkeys.destroy();
+    for (int i = 0; i < node->n_children; i++) {
         if (BP_STATE(node,i) == PT_AVAIL) {
             if (node->height > 0) {
                 destroy_nonleaf_childinfo(BNC(node,i));
@@ -947,9 +1076,7 @@ void toku_ftnode_leaf_rebalance(FTNODE node, unsigned int basementnodesize) {
 
     // now reallocate pieces and start filling them in
     invariant(num_children > 0);
-    node->totalchildkeylens = 0;
 
-    XCALLOC_N(num_pivots, node->childkeys);        // allocate pointers to pivot structs
     node->n_children = num_children;
     XCALLOC_N(num_children, node->bp);             // allocate pointers to basements (bp)
     for (int i = 0; i < num_children; i++) {
@@ -959,12 +1086,14 @@ void toku_ftnode_leaf_rebalance(FTNODE node, unsigned int basementnodesize) {
     // now we start to fill in the data
 
     // first the pivots
+    toku::scoped_malloc pivotkeys_buf(num_pivots * sizeof(DBT));
+    DBT *pivotkeys = reinterpret_cast<DBT *>(pivotkeys_buf.get());
     for (int i = 0; i < num_pivots; i++) {
-        uint32_t keylen = key_sizes[new_pivots[i]];
+        uint32_t size = key_sizes[new_pivots[i]];
         const void *key = key_pointers[new_pivots[i]];
-        toku_memdup_dbt(&node->childkeys[i], key, keylen);
-        node->totalchildkeylens += keylen;
+        toku_fill_dbt(&pivotkeys[i], key, size);
     }
+    node->pivotkeys.create_from_dbts(pivotkeys, num_pivots);
 
     uint32_t baseindex_this_bn = 0;
     // now the basement nodes
@@ -1124,31 +1253,18 @@ long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc) {
 // Message application
 //
 
-static void
-init_childinfo(FTNODE node, int childnum, FTNODE child) {
+// Used only by test programs: append a child node to a parent node
+void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey) {
+    int childnum = node->n_children;
+    node->n_children++;
+    REALLOC_N(node->n_children, node->bp);
     BP_BLOCKNUM(node,childnum) = child->blocknum;
     BP_STATE(node,childnum) = PT_AVAIL;
     BP_WORKDONE(node, childnum)   = 0;
     set_BNC(node, childnum, toku_create_empty_nl());
-}
-
-static void
-init_childkey(FTNODE node, int childnum, const DBT *pivotkey) {
-    toku_clone_dbt(&node->childkeys[childnum], *pivotkey);
-    node->totalchildkeylens += pivotkey->size;
-}
-
-// Used only by test programs: append a child node to a parent node
-void
-toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey) {
-    int childnum = node->n_children;
-    node->n_children++;
-    XREALLOC_N(node->n_children, node->bp);
-    init_childinfo(node, childnum, child);
-    XREALLOC_N(node->n_children-1, node->childkeys);
     if (pivotkey) {
         invariant(childnum > 0);
-        init_childkey(node, childnum-1, pivotkey);
+        node->pivotkeys.insert_at(pivotkey, childnum - 1);
     }
     node->dirty = 1;
 }
@@ -1681,7 +1797,7 @@ int toku_ftnode_which_child(FTNODE node, const DBT *k,
 
     // check the last key to optimize seq insertions
     int n = node->n_children-1;
-    int c = ft_compare_pivot(desc, cmp, k, &node->childkeys[n-1]);
+    int c = ft_compare_pivot(desc, cmp, k, node->pivotkeys.get_pivot(n - 1));
     if (c > 0) return n;
 
     // binary search the pivots
@@ -1690,7 +1806,7 @@ int toku_ftnode_which_child(FTNODE node, const DBT *k,
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        c = ft_compare_pivot(desc, cmp, k, &node->childkeys[mi]);
+        c = ft_compare_pivot(desc, cmp, k, node->pivotkeys.get_pivot(mi));
         if (c > 0) {
             lo = mi+1;
             continue;
@@ -1715,7 +1831,7 @@ toku_ftnode_hot_next_child(FTNODE node,
     int mi;
     while (low < hi) {
         mi = (low + hi) / 2;
-        int r = ft_compare_pivot(desc, cmp, k, &node->childkeys[mi]);
+        int r = ft_compare_pivot(desc, cmp, k, node->pivotkeys.get_pivot(mi));
         if (r > 0) {
             low = mi + 1;
         } else if (r < 0) {

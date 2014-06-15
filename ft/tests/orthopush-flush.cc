@@ -527,7 +527,7 @@ flush_to_internal_multiple(FT_HANDLE t) {
         set_BNC(child, i, child_bncs[i]);
         BP_STATE(child, i) = PT_AVAIL;
         if (i < 7) {
-            toku_clone_dbt(&child->childkeys[i], *childkeys[i]->u.id.key);
+            child->pivotkeys.insert_at(childkeys[i]->u.id.key, i);
         }
     }
 
@@ -717,7 +717,7 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     int num_parent_messages = i;
 
     for (i = 0; i < 7; ++i) {
-        toku_clone_dbt(&child->childkeys[i], childkeys[i]);
+        child->pivotkeys.insert_at(&childkeys[i], i);
     }
 
     if (make_leaf_up_to_date) {
@@ -942,7 +942,7 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
     int num_parent_messages = i;
 
     for (i = 0; i < 7; ++i) {
-        toku_clone_dbt(&child->childkeys[i], childkeys[i]);
+        child->pivotkeys.insert_at(&childkeys[i], i);
     }
 
     if (make_leaf_up_to_date) {
@@ -1148,8 +1148,8 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     int num_parent_messages = i;
 
     for (i = 0; i < 7; ++i) {
-        toku_clone_dbt(&child1->childkeys[i], child1keys[i]);
-        toku_clone_dbt(&child2->childkeys[i], child2keys[i]);
+        child1->pivotkeys.insert_at(&child1keys[i], i);
+        child2->pivotkeys.insert_at(&child2keys[i], i);
     }
 
     if (make_leaf_up_to_date) {

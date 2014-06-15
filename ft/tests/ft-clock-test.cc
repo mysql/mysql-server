@@ -309,7 +309,6 @@ test_serialize_nonleaf(void) {
 
     //    source_ft.fd=fd;
     sn.max_msn_applied_to_node_on_disk.msn = 0;
-    char *hello_string;
     sn.flags = 0x11223344;
     sn.blocknum.b = 20;
     sn.layout_version = FT_LAYOUT_VERSION;
@@ -318,11 +317,9 @@ test_serialize_nonleaf(void) {
     sn.n_children = 2;
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
-    hello_string = toku_strdup("hello");
     MALLOC_N(2, sn.bp);
-    MALLOC_N(1, sn.childkeys);
-    toku_fill_dbt(&sn.childkeys[0], hello_string, 6);
-    sn.totalchildkeylens = 6;
+    DBT pivotkey;
+    sn.pivotkeys.create_from_dbts(toku_fill_dbt(&pivotkey, "hello", 6), 1);
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
     BP_STATE(&sn,0) = PT_AVAIL;
@@ -384,11 +381,7 @@ test_serialize_nonleaf(void) {
     test1(fd, ft_h, &dn);
     test2(fd, ft_h, &dn);
 
-    toku_free(hello_string);
-    destroy_nonleaf_childinfo(BNC(&sn, 0));
-    destroy_nonleaf_childinfo(BNC(&sn, 1));
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
     toku_free(ndd);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
@@ -419,9 +412,8 @@ test_serialize_leaf(void) {
     sn.dirty = 1;
     sn.oldest_referenced_xid_known = TXNID_NONE;
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], "b", 2);
-    sn.totalchildkeylens = 2;
+    DBT pivotkey;
+    sn.pivotkeys.create_from_dbts(toku_fill_dbt(&pivotkey, "b", 2), 1);
     BP_STATE(&sn,0) = PT_AVAIL;
     BP_STATE(&sn,1) = PT_AVAIL;
     set_BLB(&sn, 0, toku_create_empty_bn());
@@ -468,14 +460,7 @@ test_serialize_leaf(void) {
     test1(fd, ft_h, &dn);
     test3_leaf(fd, ft_h,&dn);
 
-    for (int i = 0; i < sn.n_children-1; ++i) {
-        toku_free(sn.childkeys[i].data);
-    }
-    for (int i = 0; i < sn.n_children; i++) {
-        destroy_basement_node(BLB(&sn, i));
-    }
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);

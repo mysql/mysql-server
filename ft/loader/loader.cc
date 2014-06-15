@@ -3168,11 +3168,7 @@ static void write_nonleaf_node (FTLOADER bl, struct dbout *out, int64_t blocknum
     FTNODE XMALLOC(node);
     toku_initialize_empty_ftnode(node, make_blocknum(blocknum_of_new_node), height, n_children,
                                   FT_LAYOUT_VERSION, 0);
-    node->totalchildkeylens = 0;
-    for (int i=0; i<n_children-1; i++) {
-        toku_clone_dbt(&node->childkeys[i], pivots[i]);
-        node->totalchildkeylens += pivots[i].size;
-    }
+    node->pivotkeys.create_from_dbts(pivots, n_children - 1);
     assert(node->bp);
     for (int i=0; i<n_children; i++) {
         BP_BLOCKNUM(node,i)  = make_blocknum(subtree_info[i].block); 
@@ -3206,14 +3202,14 @@ static void write_nonleaf_node (FTLOADER bl, struct dbout *out, int64_t blocknum
 
     for (int i=0; i<n_children-1; i++) {
         toku_free(pivots[i].data);
-        toku_free(node->childkeys[i].data);
     }
     for (int i=0; i<n_children; i++) {
         destroy_nonleaf_childinfo(BNC(node,i));
     }
     toku_free(pivots);
+    // TODO: Should be using toku_destroy_ftnode_internals, which should be renamed to toku_ftnode_destroy
     toku_free(node->bp);
-    toku_free(node->childkeys);
+    node->pivotkeys.destroy();
     toku_free(node);
     toku_free(ndd);
     toku_free(subtree_info);

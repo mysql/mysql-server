@@ -384,10 +384,10 @@ test_prefetching(void) {
     uint64_t key2 = 200;
     
     MALLOC_N(sn.n_children, sn.bp);
-    MALLOC_N(sn.n_children-1, sn.childkeys);
-    toku_memdup_dbt(&sn.childkeys[0], &key1, sizeof(key1));
-    toku_memdup_dbt(&sn.childkeys[1], &key2, sizeof(key2));
-    sn.totalchildkeylens = sizeof(key1) + sizeof(key2);
+    DBT pivotkeys[2];
+    toku_fill_dbt(&pivotkeys[0], &key1, sizeof(key1));
+    toku_fill_dbt(&pivotkeys[1], &key2, sizeof(key2));
+    sn.pivotkeys.create_from_dbts(pivotkeys, 2);
     BP_BLOCKNUM(&sn, 0).b = 30;
     BP_BLOCKNUM(&sn, 1).b = 35;
     BP_BLOCKNUM(&sn, 2).b = 40;
@@ -449,13 +449,7 @@ test_prefetching(void) {
     test_prefetch_read(fd, ft, ft_h);    
     test_subset_read(fd, ft, ft_h);
 
-    toku_free(sn.childkeys[0].data);
-    toku_free(sn.childkeys[1].data);
-    destroy_nonleaf_childinfo(BNC(&sn, 0));
-    destroy_nonleaf_childinfo(BNC(&sn, 1));
-    destroy_nonleaf_childinfo(BNC(&sn, 2));
-    toku_free(sn.bp);
-    toku_free(sn.childkeys);
+    toku_destroy_ftnode_internals(&sn);
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);

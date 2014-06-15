@@ -448,7 +448,7 @@ const DBT *prepivotkey (FTNODE node, int childnum, const DBT * const lower_bound
     if (childnum==0)
         return lower_bound_exclusive;
     else {
-        return &node->childkeys[childnum-1];
+        return node->pivotkeys.get_pivot(childnum - 1);
     }
 }
 
@@ -456,7 +456,7 @@ const DBT *postpivotkey (FTNODE node, int childnum, const DBT * const upper_boun
     if (childnum+1 == node->n_children)
         return upper_bound_inclusive;
     else {
-        return &node->childkeys[childnum];
+        return node->pivotkeys.get_pivot(childnum);
     }
 }
 
@@ -512,8 +512,7 @@ ftnode_memory_size (FTNODE node)
     int n_children = node->n_children;
     retval += sizeof(*node);
     retval += (n_children)*(sizeof(node->bp[0]));
-    retval += (n_children > 0 ? n_children-1 : 0)*(sizeof(node->childkeys[0]));
-    retval += node->totalchildkeylens;
+    retval += node->pivotkeys.total_size();
 
     // now calculate the sizes of the partitions
     for (int i = 0; i < n_children; i++) {
@@ -722,14 +721,10 @@ void toku_ftnode_clone_callback(
     cloned_node->dirty = node->dirty;
     cloned_node->fullhash = node->fullhash;
     cloned_node->n_children = node->n_children;
-    cloned_node->totalchildkeylens = node->totalchildkeylens;
 
-    XMALLOC_N(node->n_children-1, cloned_node->childkeys);
     XMALLOC_N(node->n_children, cloned_node->bp);
     // clone pivots
-    for (int i = 0; i < node->n_children-1; i++) {
-        toku_clone_dbt(&cloned_node->childkeys[i], node->childkeys[i]);
-    }
+    cloned_node->pivotkeys.create_from_pivot_keys(node->pivotkeys);
     if (node->height > 0) {
         // need to move messages here so that we don't serialize stale
         // messages to the fresh tree - ft verify code complains otherwise.
@@ -3632,7 +3627,7 @@ ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search *searc
 static inline int
 search_which_child_cmp_with_bound(DB *db, ft_compare_func cmp, FTNODE node, int childnum, ft_search *search, DBT *dbt)
 {
-    return cmp(db, toku_copy_dbt(dbt, node->childkeys[childnum]), &search->pivot_bound);
+    return cmp(db, toku_copyref_dbt(dbt, *node->pivotkeys.get_pivot(childnum)), &search->pivot_bound);
 }
 
 int
@@ -3652,7 +3647,7 @@ toku_ft_search_which_child(
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        toku_copy_dbt(&pivotkey, node->childkeys[mi]);
+        toku_copyref_dbt(&pivotkey, *node->pivotkeys.get_pivot(mi));
         // search->compare is really strange, and only works well with a
         // linear search, it makes binary search a pita.
         //
@@ -3692,7 +3687,7 @@ toku_ft_search_which_child(
                 // searching right to left, same argument as just above
                 // (but we had to pass lo - 1 because the pivot between lo
                 // and the thing just less than it is at that position in
-                // the childkeys array)
+                // the pivot keys array)
                 lo--;
             }
         }
@@ -3709,7 +3704,7 @@ maybe_search_save_bound(
     int p = (search->direction == FT_SEARCH_LEFT) ? child_searched : child_searched - 1;
     if (p >= 0 && p < node->n_children-1) {
         toku_destroy_dbt(&search->pivot_bound);
-        toku_clone_dbt(&search->pivot_bound, node->childkeys[p]);
+        toku_clone_dbt(&search->pivot_bound, *node->pivotkeys.get_pivot(p));
     }
 }
 
@@ -4344,7 +4339,7 @@ static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UN
             } else {
                 *skipped += child_subtree_bytes;
                 if (*skipped >= skip_len && i < node->n_children - 1) {
-                    callback(&node->childkeys[i], *skipped, cb_extra);
+                    callback(node->pivotkeys.get_pivot(i), *skipped, cb_extra);
                     r = 0;
                 }
                 // Otherwise, r is still DB_NOTFOUND.  If this is the last
@@ -4473,7 +4468,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
         int i;
         for (i=0; i+1< node->n_children; i++) {
             fprintf(file, "%*spivotkey %d =", depth+1, "", i);
-            toku_print_BYTESTRING(file, node->childkeys[i].size, (char *) node->childkeys[i].data);
+            toku_print_BYTESTRING(file, node->pivotkeys.get_pivot(i)->size, (char *) node->pivotkeys.get_pivot(i)->data);
             fprintf(file, "\n");
         }
         for (i=0; i< node->n_children; i++) {
@@ -4515,12 +4510,12 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
             for (i=0; i<node->n_children; i++) {
                 fprintf(file, "%*schild %d\n", depth, "", i);
                 if (i>0) {
-                    char *CAST_FROM_VOIDP(key, node->childkeys[i-1].data);
-                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->childkeys[i-1].size, (unsigned)toku_dtoh32(*(int*)key));
+                    char *CAST_FROM_VOIDP(key, node->pivotkeys.get_pivot(i - 1)->data);
+                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->pivotkeys.get_pivot(i - 1)->size, (unsigned)toku_dtoh32(*(int*)key));
                 }
                 toku_dump_ftnode(file, ft_handle, BP_BLOCKNUM(node, i), depth+4,
-                                  (i==0) ? lorange : &node->childkeys[i-1],
-                                  (i==node->n_children-1) ? hirange : &node->childkeys[i]);
+                                  (i==0) ? lorange : node->pivotkeys.get_pivot(i - 1),
+                                  (i==node->n_children-1) ? hirange : node->pivotkeys.get_pivot(i));
             }
         }
     }
