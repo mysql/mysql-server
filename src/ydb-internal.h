@@ -96,9 +96,9 @@ PATENT RIGHTS GRANT:
 
 #include <ft/fttypes.h>
 #include <ft/ft-ops.h>
-#include <ft/minicron.h>
 
 #include <util/growable_array.h>
+#include <util/minicron.h>
 #include <util/omt.h>
 
 #include <locktree/locktree.h>

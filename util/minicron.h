@@ -93,7 +93,6 @@ PATENT RIGHTS GRANT:
 
 #include <toku_pthread.h>
 #include <toku_time.h>
-#include "fttypes.h"
 
 
 // Specification:

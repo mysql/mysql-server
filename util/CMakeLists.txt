@@ -4,6 +4,7 @@ set(util_srcs
   kibbutz
   memarena
   mempool
+  minicron
   partitioned_counter
   queue
   threadpool
