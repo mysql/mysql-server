@@ -146,31 +146,34 @@ test_enqueue(int n) {
     }
 
     struct checkit_fn {
-        char *thekey;
-        int thekeylen;
-        char *theval;
-        int thevallen;
         MSN startmsn;
         int verbose;
         int i;
-        checkit_fn(char *tk, int tkl, char *tv, int tvl, MSN smsn, bool v)
-            : thekey(tk), thekeylen(tkl), theval(tv), thevallen(tvl), startmsn(smsn), verbose(v), i(0) {
+        checkit_fn(MSN smsn, bool v)
+            : startmsn(smsn), verbose(v), i(0) {
         }
         int operator()(FT_MSG msg, bool UU(is_fresh)) {
+            char *thekey = nullptr;
+            int thekeylen = 0;
+            char *theval = nullptr;
+            int thevallen = 0;
+            buildkey(i);
+            buildval(i);
+
             MSN msn = msg->msn;
             enum ft_msg_type type = ft_msg_get_type(msg);
             if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
             assert(msn.msn == startmsn.msn + i);
-            buildkey(i);
-            buildval(i);
             assert((int) ft_msg_get_keylen(msg) == thekeylen); assert(memcmp(ft_msg_get_key(msg), thekey, ft_msg_get_keylen(msg)) == 0);
             assert((int) ft_msg_get_vallen(msg) == thevallen); assert(memcmp(ft_msg_get_val(msg), theval, ft_msg_get_vallen(msg)) == 0);
             assert(i % 256 == (int)type);
             assert((TXNID)i==xids_get_innermost_xid(ft_msg_get_xids(msg)));
+            toku_free(thekey);
+            toku_free(theval);
             i += 1;
             return 0;
         }
-    } checkit(thekey, thekeylen, theval, thevallen, startmsn, verbose);
+    } checkit(startmsn, verbose);
     msg_buffer.iterate(checkit);
     assert(checkit.i == n);
 
