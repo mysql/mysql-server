@@ -276,38 +276,47 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT h) {
                 printf("   buffer contains %u bytes (%d items)\n", n_bytes, n_entries);
             }
             if (do_dump_data) {
-                FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, typ, msn, xids, UU(is_fresh),
-                             {
-                                 printf("    msn=%" PRIu64 " (0x%" PRIx64 ") ", msn.msn, msn.msn);
-                                 printf("    TYPE=");
-                                 switch ((enum ft_msg_type)typ) {
-                                 case FT_NONE: printf("NONE"); goto ok;
-                                 case FT_INSERT: printf("INSERT"); goto ok;
-                                 case FT_INSERT_NO_OVERWRITE: printf("INSERT_NO_OVERWRITE"); goto ok;
-                                 case FT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
-                                 case FT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
-                                 case FT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
-                                 case FT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
-                                 case FT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
-                                 case FT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
-                                 case FT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
-                                 case FT_OPTIMIZE_FOR_UPGRADE: printf("OPTIMIZE_FOR_UPGRADE"); goto ok;
-                                 case FT_UPDATE:   printf("UPDATE"); goto ok;
-                                 case FT_UPDATE_BROADCAST_ALL: printf("UPDATE_BROADCAST_ALL"); goto ok;
-                                 }
-                                 printf("HUH?");
-                             ok:
-                                 printf(" xid=");
-                                 xids_fprintf(stdout, xids);
-                                 printf(" ");
-                                 print_item(key, keylen);
-                                 if (datalen>0) {
-                                     printf(" ");
-                                     print_item(data, datalen);
-                                 }
-                                 printf("\n");
-                             }
-                             );
+                struct dump_data_fn {
+                    int operator()(FT_MSG msg, bool UU(is_fresh)) {
+                        enum ft_msg_type type = (enum ft_msg_type) msg->type;
+                        MSN msn = msg->msn;
+                        XIDS xids = msg->xids;
+                        const void *key = ft_msg_get_key(msg);
+                        const void *data = ft_msg_get_val(msg);
+                        ITEMLEN keylen = ft_msg_get_keylen(msg);
+                        ITEMLEN datalen = ft_msg_get_vallen(msg);
+                        printf("    msn=%" PRIu64 " (0x%" PRIx64 ") ", msn.msn, msn.msn);
+                        printf("    TYPE=");
+                        switch (type) {
+                            case FT_NONE: printf("NONE"); goto ok;
+                            case FT_INSERT: printf("INSERT"); goto ok;
+                            case FT_INSERT_NO_OVERWRITE: printf("INSERT_NO_OVERWRITE"); goto ok;
+                            case FT_DELETE_ANY: printf("DELETE_ANY"); goto ok;
+                            case FT_ABORT_ANY: printf("ABORT_ANY"); goto ok;
+                            case FT_COMMIT_ANY: printf("COMMIT_ANY"); goto ok;
+                            case FT_COMMIT_BROADCAST_ALL: printf("COMMIT_BROADCAST_ALL"); goto ok;
+                            case FT_COMMIT_BROADCAST_TXN: printf("COMMIT_BROADCAST_TXN"); goto ok;
+                            case FT_ABORT_BROADCAST_TXN: printf("ABORT_BROADCAST_TXN"); goto ok;
+                            case FT_OPTIMIZE: printf("OPTIMIZE"); goto ok;
+                            case FT_OPTIMIZE_FOR_UPGRADE: printf("OPTIMIZE_FOR_UPGRADE"); goto ok;
+                            case FT_UPDATE:   printf("UPDATE"); goto ok;
+                            case FT_UPDATE_BROADCAST_ALL: printf("UPDATE_BROADCAST_ALL"); goto ok;
+                        }
+                        printf("HUH?");
+ok:
+                        printf(" xid=");
+                        xids_fprintf(stdout, xids);
+                        printf(" ");
+                        print_item(key, keylen);
+                        if (datalen>0) {
+                            printf(" ");
+                            print_item(data, datalen);
+                        }
+                        printf("\n");
+                        return 0;
+                    }
+                } dump_fn;
+                bnc->msg_buffer.iterate(dump_fn);
             }
         } else {
             printf(" n_bytes_in_buffer= %" PRIu64 "", BLB_DATA(n, i)->get_disk_size());

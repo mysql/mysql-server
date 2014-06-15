@@ -94,28 +94,19 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static void
-test_fifo_create (void) {
-    int r;
-    FIFO f;
-
-    f = 0;
-    r = toku_fifo_create(&f); 
-    assert(r == 0); assert(f != 0);
-
-    toku_fifo_free(&f);
-    assert(f == 0);
+test_create (void) {
+    message_buffer msg_buffer;
+    msg_buffer.create();
+    msg_buffer.destroy();
 }
 
 static void
-test_fifo_enq (int n) {
+test_enqueue(int n) {
     int r;
-    FIFO f;
+    message_buffer msg_buffer;
     MSN startmsn = ZERO_MSN;
 
-    f = 0;
-    r = toku_fifo_create(&f); 
-    assert(r == 0); assert(f != 0);
-
+    msg_buffer.create();
     char *thekey = 0; int thekeylen;
     char *theval = 0; int thevallen;
 
@@ -146,38 +137,56 @@ test_fifo_enq (int n) {
         if (startmsn.msn == ZERO_MSN.msn)
             startmsn = msn;
         enum ft_msg_type type = (enum ft_msg_type) i;
-        r = toku_fifo_enq(f, thekey, thekeylen, theval, thevallen, type, msn, xids, true, NULL); assert(r == 0);
+        DBT k, v;
+        FT_MSG_S msg = {
+            type, msn, xids, .u = { .id = { toku_fill_dbt(&k, thekey, thekeylen), toku_fill_dbt(&v, theval, thevallen) } }
+        };
+        msg_buffer.enqueue(&msg, true, nullptr);
         xids_destroy(&xids);
     }
 
-    int i = 0;
-    FIFO_ITERATE(f, key, keylen, val, vallen, type, msn, xids, UU(is_fresh), {
-        if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
-        assert(msn.msn == startmsn.msn + i);
-        buildkey(i);
-        buildval(i);
-        assert((int) keylen == thekeylen); assert(memcmp(key, thekey, keylen) == 0);
-        assert((int) vallen == thevallen); assert(memcmp(val, theval, vallen) == 0);
-        assert(i % 256 == (int)type);
-	assert((TXNID)i==xids_get_innermost_xid(xids));
-        i += 1;
-    });
-    assert(i == n);
+    struct checkit_fn {
+        char *thekey;
+        int thekeylen;
+        char *theval;
+        int thevallen;
+        MSN startmsn;
+        int verbose;
+        int i;
+        checkit_fn(char *tk, int tkl, char *tv, int tvl, MSN smsn, bool v)
+            : thekey(tk), thekeylen(tkl), theval(tv), thevallen(tvl), startmsn(smsn), verbose(v), i(0) {
+        }
+        int operator()(FT_MSG msg, bool UU(is_fresh)) {
+            MSN msn = msg->msn;
+            enum ft_msg_type type = ft_msg_get_type(msg);
+            if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
+            assert(msn.msn == startmsn.msn + i);
+            buildkey(i);
+            buildval(i);
+            assert((int) ft_msg_get_keylen(msg) == thekeylen); assert(memcmp(ft_msg_get_key(msg), thekey, ft_msg_get_keylen(msg)) == 0);
+            assert((int) ft_msg_get_vallen(msg) == thevallen); assert(memcmp(ft_msg_get_val(msg), theval, ft_msg_get_vallen(msg)) == 0);
+            assert(i % 256 == (int)type);
+            assert((TXNID)i==xids_get_innermost_xid(ft_msg_get_xids(msg)));
+            i += 1;
+            return 0;
+        }
+    } checkit(thekey, thekeylen, theval, thevallen, startmsn, verbose);
+    msg_buffer.iterate(checkit);
+    assert(checkit.i == n);
 
     if (thekey) toku_free(thekey);
     if (theval) toku_free(theval);
 
-    toku_fifo_free(&f);
-    assert(f == 0);
+    msg_buffer.destroy();
 }
 
 int
 test_main(int argc, const char *argv[]) {
     default_parse_args(argc, argv);
     initialize_dummymsn();
-    test_fifo_create();
-    test_fifo_enq(4);
-    test_fifo_enq(512);
+    test_create();
+    test_enqueue(4);
+    test_enqueue(512);
     
     return 0;
 }

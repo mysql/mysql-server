@@ -198,9 +198,6 @@ void block_allocator_print (BLOCK_ALLOCATOR ba);
 uint64_t block_allocator_allocated_limit (BLOCK_ALLOCATOR ba);
 // Effect: Return the unallocated block address of "infinite" size.
 //  That is, return the smallest address that is above all the allocated blocks.
-// Rationale: When writing the root FIFO we don't know how big the block is.
-//  So we start at the "infinite" block, write the fifo, and then
-//  allocate_block_at of the correct size and offset to account for the root FIFO.
 
 int block_allocator_get_nth_block_in_layout_order (BLOCK_ALLOCATOR ba, uint64_t b, uint64_t *offset, uint64_t *size);
 // Effect: Consider the blocks in sorted order.  The reserved block at the beginning is number 0.  The next one is number 1 and so forth.

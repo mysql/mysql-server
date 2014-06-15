@@ -168,7 +168,7 @@ Split_or_merge (node, childnum) {
     return;
   If the child needs to be merged (it's a leaf with too little stuff (less than 1/4 full) or a nonleaf with too little fanout (less than 1/4)
     fetch node, the child  and a sibling of the child into main memory.
-    move all messages from the node to the two children (so that the FIFOs are empty)
+    move all messages from the node to the two children (so that the message buffers are empty)
     If the two siblings together fit into one node then
       merge the two siblings.
       fixup the node to point at one child
@@ -491,7 +491,7 @@ get_node_reactivity(FT ft, FTNODE node) {
 unsigned int
 toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc)
 {
-    return toku_fifo_buffer_size_in_use(bnc->buffer);
+    return bnc->msg_buffer.buffer_size_in_use();
 }
 
 // return true if the size of the buffers plus the amount of work done is large enough.   (But return false if there is nothing to be flushed (the buffers empty)).
@@ -538,7 +538,7 @@ uint32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum) {
 int
 toku_bnc_n_entries(NONLEAF_CHILDINFO bnc)
 {
-    return toku_fifo_n_entries(bnc->buffer);
+    return bnc->msg_buffer.num_entries();
 }
 
 static const DBT *prepivotkey (FTNODE node, int childnum, const DBT * const lower_bound_exclusive) {
@@ -567,7 +567,7 @@ long
 toku_bnc_memory_size(NONLEAF_CHILDINFO bnc)
 {
     return (sizeof(*bnc) +
-            toku_fifo_memory_footprint(bnc->buffer) +
+            bnc->msg_buffer.memory_footprint() +
             bnc->fresh_message_tree.memory_size() +
             bnc->stale_message_tree.memory_size() +
             bnc->broadcast_list.memory_size());
@@ -579,7 +579,7 @@ long
 toku_bnc_memory_used(NONLEAF_CHILDINFO bnc)
 {
     return (sizeof(*bnc) +
-            toku_fifo_memory_size_in_use(bnc->buffer) +
+            bnc->msg_buffer.memory_size_in_use() +
             bnc->fresh_message_tree.memory_size() +
             bnc->stale_message_tree.memory_size() +
             bnc->broadcast_list.memory_size());
@@ -2162,46 +2162,43 @@ key_msn_cmp(const DBT *a, const DBT *b, const MSN amsn, const MSN bmsn,
 }
 
 int
-toku_fifo_entry_key_msn_heaviside(const int32_t &offset, const struct toku_fifo_entry_key_msn_heaviside_extra &extra)
+toku_msg_buffer_key_msn_heaviside(const int32_t &offset, const struct toku_msg_buffer_key_msn_heaviside_extra &extra)
 {
-    const struct fifo_entry *query = toku_fifo_get_entry(extra.fifo, offset);
-    DBT qdbt;
-    const DBT *query_key = fill_dbt_for_fifo_entry(&qdbt, query);
-    const DBT *target_key = extra.key;
-    return key_msn_cmp(query_key, target_key, query->msn, extra.msn,
+    MSN query_msn;
+    DBT query_key;
+    extra.msg_buffer->get_message_key_msn(offset, &query_key, &query_msn);
+    return key_msn_cmp(&query_key, extra.key, query_msn, extra.msn,
                        extra.desc, extra.cmp);
 }
 
 int
-toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extra, const int32_t &ao, const int32_t &bo)
+toku_msg_buffer_key_msn_cmp(const struct toku_msg_buffer_key_msn_cmp_extra &extra, const int32_t &ao, const int32_t &bo)
 {
-    const struct fifo_entry *a = toku_fifo_get_entry(extra.fifo, ao);
-    const struct fifo_entry *b = toku_fifo_get_entry(extra.fifo, bo);
-    DBT adbt, bdbt;
-    const DBT *akey = fill_dbt_for_fifo_entry(&adbt, a);
-    const DBT *bkey = fill_dbt_for_fifo_entry(&bdbt, b);
-    return key_msn_cmp(akey, bkey, a->msn, b->msn,
+    MSN amsn, bmsn;
+    DBT akey, bkey;
+    extra.msg_buffer->get_message_key_msn(ao, &akey, &amsn);
+    extra.msg_buffer->get_message_key_msn(bo, &bkey, &bmsn);
+    return key_msn_cmp(&akey, &bkey, amsn, bmsn,
                        extra.desc, extra.cmp);
 }
 
-void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp)
 // Effect: Enqueue the message represented by the parameters into the
 //   bnc's buffer, and put it in either the fresh or stale message tree,
 //   or the broadcast list.
-//
-// This is only exported for tests.
-{
+static void bnc_insert_msg(NONLEAF_CHILDINFO bnc, FT_MSG msg, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp) {
+    int r = 0;
     int32_t offset;
-    int r = toku_fifo_enq(bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh, &offset);
-    assert_zero(r);
+    bnc->msg_buffer.enqueue(msg, is_fresh, &offset);
+    enum ft_msg_type type = ft_msg_get_type(msg);
     if (ft_msg_type_applies_once(type)) {
-        DBT keydbt;
-        struct toku_fifo_entry_key_msn_heaviside_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer, .key = toku_fill_dbt(&keydbt, key, keylen), .msn = msn };
+        DBT key;
+        toku_fill_dbt(&key, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
+        struct toku_msg_buffer_key_msn_heaviside_extra extra = { .desc = desc, .cmp = cmp, .msg_buffer = &bnc->msg_buffer, .key = &key, .msn = msg->msn };
         if (is_fresh) {
-            r = bnc->fresh_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, extra, nullptr);
+            r = bnc->fresh_message_tree.insert<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(offset, extra, nullptr);
             assert_zero(r);
         } else {
-            r = bnc->stale_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, extra, nullptr);
+            r = bnc->stale_message_tree.insert<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(offset, extra, nullptr);
             assert_zero(r);
         }
     } else {
@@ -2212,12 +2209,30 @@ void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen,
     }
 }
 
+// This is only exported for tests.
+void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp)
+{
+    DBT k, v;
+    FT_MSG_S msg = {
+        type, msn, xids, .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, data, datalen) } }
+    };
+    bnc_insert_msg(bnc, &msg, is_fresh, desc, cmp);
+}
+
 // append a msg to a nonleaf node's child buffer
-// should be static, but used by test programs
-void toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val) {
+static void ft_append_msg_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node,
+                                          int childnum, FT_MSG msg, bool is_fresh) {
     paranoid_invariant(BP_STATE(node,childnum) == PT_AVAIL);
-    toku_bnc_insert_msg(BNC(node, childnum), key->data, key->size, val->data, val->size, type, msn, xids, is_fresh, desc, compare_fun);
+    bnc_insert_msg(BNC(node, childnum), msg, is_fresh, desc, compare_fun);
     node->dirty = 1;
+}
+
+// This is only exported for tests.
+void toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val) {
+    FT_MSG_S msg = {
+        type, msn, xids, .u = { .id = { key, val } }
+    };
+    ft_append_msg_to_child_buffer(compare_fun, desc, node, childnum, &msg, is_fresh);
 }
 
 static void ft_nonleaf_msg_once_to_child(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int target_childnum, FT_MSG msg, bool is_fresh, size_t flow_deltas[])
@@ -2227,7 +2242,7 @@ static void ft_nonleaf_msg_once_to_child(ft_compare_func compare_fun, DESCRIPTOR
     unsigned int childnum = (target_childnum >= 0
                              ? target_childnum
                              : toku_ftnode_which_child(node, msg->u.id.key, desc, compare_fun));
-    toku_ft_append_to_child_buffer(compare_fun, desc, node, childnum, msg->type, msg->msn, msg->xids, is_fresh, msg->u.id.key, msg->u.id.val);
+    ft_append_msg_to_child_buffer(compare_fun, desc, node, childnum, msg, is_fresh);
     NONLEAF_CHILDINFO bnc = BNC(node, childnum);
     bnc->flow[0] += flow_deltas[0];
     bnc->flow[1] += flow_deltas[1];
@@ -2514,8 +2529,6 @@ void toku_bnc_flush_to_child(
     )
 {
     paranoid_invariant(bnc);
-    STAT64INFO_S stats_delta = {0,0};
-    size_t remaining_memsize = toku_fifo_buffer_size_in_use(bnc->buffer);
 
     TOKULOGGER logger = toku_cachefile_logger(ft->cf);
     TXN_MANAGER txn_manager = logger != nullptr ? toku_logger_get_txn_manager(logger) : nullptr;
@@ -2531,21 +2544,30 @@ void toku_bnc_flush_to_child(
                         oldest_referenced_xid_for_simple_gc,                    
                         child->oldest_referenced_xid_known,
                         true);
-    FIFO_ITERATE(
-        bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
-        ({
-            DBT hk,hv;
-            FT_MSG_S ftmsg = { type, msn, xids, .u = { .id = { toku_fill_dbt(&hk, key, keylen),
-                                                               toku_fill_dbt(&hv, val, vallen) } } };
+    struct flush_msg_fn {
+        FT ft;
+        FTNODE child;
+        NONLEAF_CHILDINFO bnc;
+        txn_gc_info *gc_info;
+
+        STAT64INFO_S stats_delta;
+        size_t remaining_memsize = bnc->msg_buffer.buffer_size_in_use();
+
+        flush_msg_fn(FT t, FTNODE n, NONLEAF_CHILDINFO nl, txn_gc_info *g) :
+            ft(t), child(n), bnc(nl), gc_info(g), remaining_memsize(bnc->msg_buffer.buffer_size_in_use()) {
+            stats_delta = { 0, 0 };
+        }
+        int operator()(FT_MSG msg, bool is_fresh) {
             size_t flow_deltas[] = { 0, 0 };
+            size_t memsize_in_buffer = message_buffer::msg_memsize_in_buffer(msg);
             if (remaining_memsize <= bnc->flow[0]) {
                 // this message is in the current checkpoint's worth of
-                // the end of the fifo
-                flow_deltas[0] = FIFO_CURRENT_ENTRY_MEMSIZE;
+                // the end of the message buffer
+                flow_deltas[0] = memsize_in_buffer;
             } else if (remaining_memsize <= bnc->flow[0] + bnc->flow[1]) {
                 // this message is in the last checkpoint's worth of the
-                // end of the fifo
-                flow_deltas[1] = FIFO_CURRENT_ENTRY_MEMSIZE;
+                // end of the message buffer
+                flow_deltas[1] = memsize_in_buffer;
             }
             toku_ft_node_put_msg(
                 ft->compare_fun,
@@ -2553,22 +2575,26 @@ void toku_bnc_flush_to_child(
                 &ft->cmp_descriptor,
                 child,
                 -1,
-                &ftmsg,
+                msg,
                 is_fresh,
-                &gc_info,
+                gc_info,
                 flow_deltas,
                 &stats_delta
                 );
-            remaining_memsize -= FIFO_CURRENT_ENTRY_MEMSIZE;
-        }));
+            remaining_memsize -= memsize_in_buffer;
+            return 0;
+        }
+    } flush_fn(ft, child, bnc, &gc_info);
+    bnc->msg_buffer.iterate(flush_fn);
+
     child->oldest_referenced_xid_known = parent_oldest_referenced_xid_known;
 
-    invariant(remaining_memsize == 0);
-    if (stats_delta.numbytes || stats_delta.numrows) {
-        toku_ft_update_stats(&ft->in_memory_stats, stats_delta);
+    invariant(flush_fn.remaining_memsize == 0);
+    if (flush_fn.stats_delta.numbytes || flush_fn.stats_delta.numrows) {
+        toku_ft_update_stats(&ft->in_memory_stats, flush_fn.stats_delta);
     }
     if (do_garbage_collection) {
-        size_t buffsize = toku_fifo_buffer_size_in_use(bnc->buffer);
+        size_t buffsize = bnc->msg_buffer.buffer_size_in_use();
         STATUS_INC(FT_MSG_BYTES_OUT, buffsize);
         // may be misleading if there's a broadcast message in there
         STATUS_INC(FT_MSG_BYTES_CURR, -buffsize);
@@ -2597,7 +2623,7 @@ toku_ft_node_put_msg (
 // Effect: Push message into the subtree rooted at NODE.
 //   If NODE is a leaf, then
 //   put message into leaf, applying it to the leafentries
-//   If NODE is a nonleaf, then push the message into the FIFO(s) of the relevent child(ren).
+//   If NODE is a nonleaf, then push the message into the message buffer(s) of the relevent child(ren).
 //   The node may become overfull.  That's not our problem.
 {
     toku_assert_entire_node_in_memory(node);
@@ -3192,7 +3218,7 @@ void toku_ft_root_put_msg(
     struct ftnode_fetch_extra bfe;
     fill_bfe_for_full_read(&bfe, ft);
 
-    size_t flow_deltas[] = { toku_ft_msg_memsize_in_fifo(msg), 0 };
+    size_t flow_deltas[] = { message_buffer::msg_memsize_in_buffer(msg), 0 };
 
     pair_lock_type lock_type;
     lock_type = PL_READ; // try first for a read lock
@@ -4656,13 +4682,13 @@ is_le_val_del(LEAFENTRY le, FT_CURSOR ftcursor) {
     return rval;
 }
 
-struct store_fifo_offset_extra {
+struct store_msg_buffer_offset_extra {
     int32_t *offsets;
     int i;
 };
 
-int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra) __attribute__((nonnull(3)));
-int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct store_fifo_offset_extra *const extra)
+int store_msg_buffer_offset(const int32_t &offset, const uint32_t UU(idx), struct store_msg_buffer_offset_extra *const extra) __attribute__((nonnull(3)));
+int store_msg_buffer_offset(const int32_t &offset, const uint32_t UU(idx), struct store_msg_buffer_offset_extra *const extra)
 {
     extra->offsets[extra->i] = offset;
     extra->i++;
@@ -4670,55 +4696,46 @@ int store_fifo_offset(const int32_t &offset, const uint32_t UU(idx), struct stor
 }
 
 /**
- * Given pointers to offsets within a FIFO where we can find messages,
+ * Given pointers to offsets within a message buffer where we can find messages,
  * figure out the MSN of each message, and compare those MSNs.  Returns 1,
  * 0, or -1 if a is larger than, equal to, or smaller than b.
  */
-int fifo_offset_msn_cmp(FIFO &fifo, const int32_t &ao, const int32_t &bo);
-int fifo_offset_msn_cmp(FIFO &fifo, const int32_t &ao, const int32_t &bo)
+int msg_buffer_offset_msn_cmp(message_buffer &msg_buffer, const int32_t &ao, const int32_t &bo);
+int msg_buffer_offset_msn_cmp(message_buffer &msg_buffer, const int32_t &ao, const int32_t &bo)
 {
-    const struct fifo_entry *a = toku_fifo_get_entry(fifo, ao);
-    const struct fifo_entry *b = toku_fifo_get_entry(fifo, bo);
-    if (a->msn.msn > b->msn.msn) {
+    MSN amsn, bmsn;
+    msg_buffer.get_message_key_msn(ao, nullptr, &amsn);
+    msg_buffer.get_message_key_msn(bo, nullptr, &bmsn);
+    if (amsn.msn > bmsn.msn) {
         return +1;
     }
-    if (a->msn.msn < b->msn.msn) {
+    if (amsn.msn < bmsn.msn) {
         return -1;
     }
     return 0;
 }
 
 /**
- * Given a fifo_entry, either decompose it into its parameters and call
- * toku_ft_bn_apply_msg, or discard it, based on its MSN and the MSN of the
- * basement node.
+ * Given a message buffer and and offset, apply the message with toku_ft_bn_apply_msg, or discard it,
+ * based on its MSN and the MSN of the basement node.
  */
 static void
-do_bn_apply_msg(FT_HANDLE t, BASEMENTNODE bn, struct fifo_entry *entry, txn_gc_info *gc_info, uint64_t *workdone, STAT64INFO stats_to_update)
-{
+do_bn_apply_msg(FT_HANDLE ft_handle, BASEMENTNODE bn, message_buffer *msg_buffer, int32_t offset,
+                txn_gc_info *gc_info, uint64_t *workdone, STAT64INFO stats_to_update) {
+    DBT k, v;
+    FT_MSG_S msg = msg_buffer->get_message(offset, &k, &v);
+
     // The messages are being iterated over in (key,msn) order or just in
     // msn order, so all the messages for one key, from one buffer, are in
     // ascending msn order.  So it's ok that we don't update the basement
     // node's msn until the end.
-    if (entry->msn.msn > bn->max_msn_applied.msn) {
-        ITEMLEN keylen = entry->keylen;
-        ITEMLEN vallen = entry->vallen;
-        enum ft_msg_type type = (enum ft_msg_type) entry->type;
-        MSN msn = entry->msn;
-        const XIDS xids = (XIDS) &entry->xids_s;
-        bytevec key = xids_get_end_of_array(xids);
-        bytevec val = (uint8_t*)key + entry->keylen;
-
-        DBT hk;
-        toku_fill_dbt(&hk, key, keylen);
-        DBT hv;
-        FT_MSG_S ftmsg = { type, msn, xids, .u = { .id = { &hk, toku_fill_dbt(&hv, val, vallen) } } };
+    if (msg.msn.msn > bn->max_msn_applied.msn) {
         toku_ft_bn_apply_msg(
-            t->ft->compare_fun,
-            t->ft->update_fun,
-            &t->ft->cmp_descriptor,
+            ft_handle->ft->compare_fun,
+            ft_handle->ft->update_fun,
+            &ft_handle->ft->cmp_descriptor,
             bn,
-            &ftmsg,
+            &msg,
             gc_info,
             workdone,
             stats_to_update
@@ -4726,12 +4743,14 @@ do_bn_apply_msg(FT_HANDLE t, BASEMENTNODE bn, struct fifo_entry *entry, txn_gc_i
     } else {
         STATUS_INC(FT_MSN_DISCARDS, 1);
     }
-    // We must always mark entry as stale since it has been marked
+
+    // We must always mark message as stale since it has been marked
     // (using omt::iterate_and_mark_range)
     // It is possible to call do_bn_apply_msg even when it won't apply the message because
     // the node containing it could have been evicted and brought back in.
-    entry->is_fresh = false;
+    msg_buffer->set_freshness(offset, false);
 }
+
 
 struct iterate_do_bn_apply_msg_extra {
     FT_HANDLE t;
@@ -4745,8 +4764,7 @@ struct iterate_do_bn_apply_msg_extra {
 int iterate_do_bn_apply_msg(const int32_t &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_msg_extra *const e) __attribute__((nonnull(3)));
 int iterate_do_bn_apply_msg(const int32_t &offset, const uint32_t UU(idx), struct iterate_do_bn_apply_msg_extra *const e)
 {
-    struct fifo_entry *entry = toku_fifo_get_entry(e->bnc->buffer, offset);
-    do_bn_apply_msg(e->t, e->bn, entry, e->gc_info, e->workdone, e->stats_to_update);
+    do_bn_apply_msg(e->t, e->bn, &e->bnc->msg_buffer, offset, e->gc_info, e->workdone, e->stats_to_update);
     return 0;
 }
 
@@ -4770,8 +4788,8 @@ static void
 find_bounds_within_message_tree(
     DESCRIPTOR desc,       /// used for cmp
     ft_compare_func cmp,  /// used to compare keys
-    const find_bounds_omt_t &message_tree,      /// tree holding FIFO offsets, in which we want to look for indices
-    FIFO buffer,           /// buffer in which messages are found
+    const find_bounds_omt_t &message_tree,      /// tree holding message buffer offsets, in which we want to look for indices
+    message_buffer *msg_buffer,           /// message buffer in which messages are found
     struct pivot_bounds const * const bounds,  /// key bounds within the basement node we're applying messages to
     uint32_t *lbi,        /// (output) "lower bound inclusive" (index into message_tree)
     uint32_t *ube         /// (output) "upper bound exclusive" (index into message_tree)
@@ -4785,15 +4803,15 @@ find_bounds_within_message_tree(
         // message (with any msn) with the key lower_bound_exclusive.
         // This will be a message we want to try applying, so it is the
         // "lower bound inclusive" within the message_tree.
-        struct toku_fifo_entry_key_msn_heaviside_extra lbi_extra;
+        struct toku_msg_buffer_key_msn_heaviside_extra lbi_extra;
         ZERO_STRUCT(lbi_extra);
         lbi_extra.desc = desc;
         lbi_extra.cmp = cmp;
-        lbi_extra.fifo = buffer;
+        lbi_extra.msg_buffer = msg_buffer;
         lbi_extra.key = bounds->lower_bound_exclusive;
         lbi_extra.msn = MAX_MSN;
         int32_t found_lb;
-        r = message_tree.template find<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(lbi_extra, +1, &found_lb, lbi);
+        r = message_tree.template find<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(lbi_extra, +1, &found_lb, lbi);
         if (r == DB_NOTFOUND) {
             // There is no relevant data (the lower bound is bigger than
             // any message in this tree), so we have no range and we're
@@ -4809,7 +4827,7 @@ find_bounds_within_message_tree(
             const DBT *ubi = bounds->upper_bound_inclusive;
             const int32_t offset = found_lb;
             DBT found_lbidbt;
-            fill_dbt_for_fifo_entry(&found_lbidbt, toku_fifo_get_entry(buffer, offset));
+            msg_buffer->get_message_key_msn(offset, &found_lbidbt, nullptr);
             FAKE_DB(db, desc);
             int c = cmp(&db, &found_lbidbt, ubi);
             // These DBTs really are both inclusive bounds, so we need
@@ -4833,14 +4851,14 @@ find_bounds_within_message_tree(
         // the first thing bigger than the upper_bound_inclusive key.
         // This is therefore the smallest thing we don't want to apply,
         // and omt::iterate_on_range will not examine it.
-        struct toku_fifo_entry_key_msn_heaviside_extra ube_extra;
+        struct toku_msg_buffer_key_msn_heaviside_extra ube_extra;
         ZERO_STRUCT(ube_extra);
         ube_extra.desc = desc;
         ube_extra.cmp = cmp;
-        ube_extra.fifo = buffer;
+        ube_extra.msg_buffer = msg_buffer;
         ube_extra.key = bounds->upper_bound_inclusive;
         ube_extra.msn = MAX_MSN;
-        r = message_tree.template find<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(ube_extra, +1, nullptr, ube);
+        r = message_tree.template find<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(ube_extra, +1, nullptr, ube);
         if (r == DB_NOTFOUND) {
             // Couldn't find anything in the buffer bigger than our key,
             // so we need to look at everything up to the end of
@@ -4882,13 +4900,13 @@ bnc_apply_messages_to_basement_node(
 
     uint32_t stale_lbi, stale_ube;
     if (!bn->stale_ancestor_messages_applied) {
-        find_bounds_within_message_tree(&t->ft->cmp_descriptor, t->ft->compare_fun, bnc->stale_message_tree, bnc->buffer, bounds, &stale_lbi, &stale_ube);
+        find_bounds_within_message_tree(&t->ft->cmp_descriptor, t->ft->compare_fun, bnc->stale_message_tree, &bnc->msg_buffer, bounds, &stale_lbi, &stale_ube);
     } else {
         stale_lbi = 0;
         stale_ube = 0;
     }
     uint32_t fresh_lbi, fresh_ube;
-    find_bounds_within_message_tree(&t->ft->cmp_descriptor, t->ft->compare_fun, bnc->fresh_message_tree, bnc->buffer, bounds, &fresh_lbi, &fresh_ube);
+    find_bounds_within_message_tree(&t->ft->cmp_descriptor, t->ft->compare_fun, bnc->fresh_message_tree, &bnc->msg_buffer, bounds, &fresh_lbi, &fresh_ube);
 
     // We now know where all the messages we must apply are, so one of the
     // following 4 cases will do the application, depending on which of
@@ -4905,30 +4923,29 @@ bnc_apply_messages_to_basement_node(
         const int buffer_size = ((stale_ube - stale_lbi) + (fresh_ube - fresh_lbi) + bnc->broadcast_list.size());
         toku::scoped_malloc offsets_buf(buffer_size * sizeof(int32_t));
         int32_t *offsets = reinterpret_cast<int32_t *>(offsets_buf.get());
-        struct store_fifo_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
+        struct store_msg_buffer_offset_extra sfo_extra = { .offsets = offsets, .i = 0 };
 
         // Populate offsets array with offsets to stale messages
-        r = bnc->stale_message_tree.iterate_on_range<struct store_fifo_offset_extra, store_fifo_offset>(stale_lbi, stale_ube, &sfo_extra);
+        r = bnc->stale_message_tree.iterate_on_range<struct store_msg_buffer_offset_extra, store_msg_buffer_offset>(stale_lbi, stale_ube, &sfo_extra);
         assert_zero(r);
 
         // Then store fresh offsets, and mark them to be moved to stale later.
-        r = bnc->fresh_message_tree.iterate_and_mark_range<struct store_fifo_offset_extra, store_fifo_offset>(fresh_lbi, fresh_ube, &sfo_extra);
+        r = bnc->fresh_message_tree.iterate_and_mark_range<struct store_msg_buffer_offset_extra, store_msg_buffer_offset>(fresh_lbi, fresh_ube, &sfo_extra);
         assert_zero(r);
 
         // Store offsets of all broadcast messages.
-        r = bnc->broadcast_list.iterate<struct store_fifo_offset_extra, store_fifo_offset>(&sfo_extra);
+        r = bnc->broadcast_list.iterate<struct store_msg_buffer_offset_extra, store_msg_buffer_offset>(&sfo_extra);
         assert_zero(r);
         invariant(sfo_extra.i == buffer_size);
 
         // Sort by MSN.
-        r = toku::sort<int32_t, FIFO, fifo_offset_msn_cmp>::mergesort_r(offsets, buffer_size, bnc->buffer);
+        r = toku::sort<int32_t, message_buffer, msg_buffer_offset_msn_cmp>::mergesort_r(offsets, buffer_size, bnc->msg_buffer);
         assert_zero(r);
 
         // Apply the messages in MSN order.
         for (int i = 0; i < buffer_size; ++i) {
             *msgs_applied = true;
-            struct fifo_entry *entry = toku_fifo_get_entry(bnc->buffer, offsets[i]);
-            do_bn_apply_msg(t, bn, entry, gc_info, &workdone_this_ancestor, &stats_delta);
+            do_bn_apply_msg(t, bn, &bnc->msg_buffer, offsets[i], gc_info, &workdone_this_ancestor, &stats_delta);
         }
     } else if (stale_lbi == stale_ube) {
         // No stale messages to apply, we just apply fresh messages, and mark them to be moved to stale later.
@@ -5084,7 +5101,7 @@ static bool bn_needs_ancestors_messages(
                 find_bounds_within_message_tree(&ft->cmp_descriptor,
                                                 ft->compare_fun,
                                                 bnc->stale_message_tree,
-                                                bnc->buffer,
+                                                &bnc->msg_buffer,
                                                 &curr_bounds,
                                                 &stale_lbi,
                                                 &stale_ube);
@@ -5097,7 +5114,7 @@ static bool bn_needs_ancestors_messages(
             find_bounds_within_message_tree(&ft->cmp_descriptor,
                                             ft->compare_fun,
                                             bnc->fresh_message_tree,
-                                            bnc->buffer,
+                                            &bnc->msg_buffer,
                                             &curr_bounds,
                                             &fresh_lbi,
                                             &fresh_ube);
@@ -5208,11 +5225,11 @@ struct copy_to_stale_extra {
 int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra) __attribute__((nonnull(3)));
 int copy_to_stale(const int32_t &offset, const uint32_t UU(idx), struct copy_to_stale_extra *const extra)
 {
-    struct fifo_entry *entry = toku_fifo_get_entry(extra->bnc->buffer, offset);
-    DBT keydbt;
-    DBT *key = fill_dbt_for_fifo_entry(&keydbt, entry);
-    struct toku_fifo_entry_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft->cmp_descriptor, .cmp = extra->ft->compare_fun, .fifo = extra->bnc->buffer, .key = key, .msn = entry->msn };
-    int r = extra->bnc->stale_message_tree.insert<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(offset, heaviside_extra, nullptr);
+    MSN msn;
+    DBT key;
+    extra->bnc->msg_buffer.get_message_key_msn(offset, &key, &msn);
+    struct toku_msg_buffer_key_msn_heaviside_extra heaviside_extra = { .desc = &extra->ft->cmp_descriptor, .cmp = extra->ft->compare_fun, .msg_buffer = &extra->bnc->msg_buffer, .key = &key, .msn = msn };
+    int r = extra->bnc->stale_message_tree.insert<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(offset, heaviside_extra, nullptr);
     invariant_zero(r);
     return 0;
 }
@@ -6786,13 +6803,20 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
             if (node->height > 0) {
                 NONLEAF_CHILDINFO bnc = BNC(node, i);
                 fprintf(file, "%*schild %d buffered (%d entries):", depth+1, "", i, toku_bnc_n_entries(bnc));
-                FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, type, msn, xids, UU(is_fresh),
-                             {
-                                 data=data; datalen=datalen; keylen=keylen;
-                                 fprintf(file, "%*s xid=%" PRIu64 " %u (type=%d) msn=0x%" PRIu64 "\n", depth+2, "", xids_get_innermost_xid(xids), (unsigned)toku_dtoh32(*(int*)key), type, msn.msn);
-                                 //assert(strlen((char*)key)+1==keylen);
-                                 //assert(strlen((char*)data)+1==datalen);
-                             });
+                struct print_msg_fn {
+                    FILE *file;
+                    int depth;
+                    print_msg_fn(FILE *f, int d) : file(f), depth(d) { }
+                    int operator()(FT_MSG msg, bool UU(is_fresh)) {
+                        fprintf(file, "%*s xid=%" PRIu64 " %u (type=%d) msn=0x%" PRIu64 "\n",
+                                      depth+2, "",
+                                      xids_get_innermost_xid(ft_msg_get_xids(msg)),
+                                      (unsigned)toku_dtoh32(*(int*)ft_msg_get_key(msg)),
+                                      ft_msg_get_type(msg), msg->msn.msn);
+                        return 0;
+                    }
+                } print_fn(file, depth);
+                bnc->msg_buffer.iterate(print_fn);
             }
             else {
                 int size = BLB_DATA(node, i)->num_klpairs();

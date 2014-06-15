@@ -1160,13 +1160,13 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     assert(BP_BLOCKNUM(dn,0).b==30);
     assert(BP_BLOCKNUM(dn,1).b==35);
 
-    FIFO src_fifo_1 = BNC(&sn, 0)->buffer;
-    FIFO src_fifo_2 = BNC(&sn, 1)->buffer;
-    FIFO dest_fifo_1 = BNC(dn, 0)->buffer;
-    FIFO dest_fifo_2 = BNC(dn, 1)->buffer;
+    message_buffer *src_msg_buffer1 = &BNC(&sn, 0)->msg_buffer;
+    message_buffer *src_msg_buffer2 = &BNC(&sn, 1)->msg_buffer;
+    message_buffer *dest_msg_buffer1 = &BNC(dn, 0)->msg_buffer;
+    message_buffer *dest_msg_buffer2 = &BNC(dn, 1)->msg_buffer;
 
-    assert(toku_are_fifos_same(src_fifo_1, dest_fifo_1));
-    assert(toku_are_fifos_same(src_fifo_2, dest_fifo_2));
+    assert(src_msg_buffer1->equals(dest_msg_buffer1));
+    assert(src_msg_buffer2->equals(dest_msg_buffer2));
 
     toku_ftnode_free(&dn);
 

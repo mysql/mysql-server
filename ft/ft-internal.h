@@ -106,7 +106,6 @@ PATENT RIGHTS GRANT:
 #include "ft_layout_version.h"
 #include "block_allocator.h"
 #include "cachetable.h"
-#include "fifo.h"
 #include "ft-ops.h"
 #include "toku_list.h"
 #include <util/omt.h>
@@ -118,6 +117,7 @@ PATENT RIGHTS GRANT:
 #include "ft/bndata.h"
 #include "ft/rollback.h"
 #include "ft/ft-search.h"
+#include "ft/msg_buffer.h"
 
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
 enum { FT_MSG_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
@@ -207,10 +207,10 @@ struct ftnode_fetch_extra {
 };
 typedef struct ftnode_fetch_extra *FTNODE_FETCH_EXTRA;
 
-struct toku_fifo_entry_key_msn_heaviside_extra {
+struct toku_msg_buffer_key_msn_heaviside_extra {
     DESCRIPTOR desc;
     ft_compare_func cmp;
-    FIFO fifo;
+    message_buffer *msg_buffer;
     const DBT *key;
     MSN msn;
 };
@@ -218,24 +218,24 @@ struct toku_fifo_entry_key_msn_heaviside_extra {
 // comparison function for inserting messages into a
 // ftnode_nonleaf_childinfo's message_tree
 int
-toku_fifo_entry_key_msn_heaviside(const int32_t &v, const struct toku_fifo_entry_key_msn_heaviside_extra &extra);
+toku_msg_buffer_key_msn_heaviside(const int32_t &v, const struct toku_msg_buffer_key_msn_heaviside_extra &extra);
 
-struct toku_fifo_entry_key_msn_cmp_extra {
+struct toku_msg_buffer_key_msn_cmp_extra {
     DESCRIPTOR desc;
     ft_compare_func cmp;
-    FIFO fifo;
+    message_buffer *msg_buffer;
 };
 
 // same thing for qsort_r
 int
-toku_fifo_entry_key_msn_cmp(const struct toku_fifo_entry_key_msn_cmp_extra &extrap, const int &a, const int &b);
+toku_msg_buffer_key_msn_cmp(const struct toku_msg_buffer_key_msn_cmp_extra &extrap, const int &a, const int &b);
 
 typedef toku::omt<int32_t> off_omt_t;
 typedef toku::omt<int32_t, int32_t, true> marked_off_omt_t;
 
 // data of an available partition of a nonleaf ftnode
 struct ftnode_nonleaf_childinfo {
-    FIFO buffer;
+    message_buffer msg_buffer;
     off_omt_t broadcast_list;
     marked_off_omt_t fresh_message_tree;
     off_omt_t stale_message_tree;
@@ -945,9 +945,6 @@ __attribute__((nonnull))
 bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancestors, struct pivot_bounds const * const bounds, MSN *const max_msn_in_path, int child_to_read);
 __attribute__((nonnull))
 void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read);
-
-__attribute__((const,nonnull))
-size_t toku_ft_msg_memsize_in_fifo(FT_MSG msg);
 
 int
 toku_ft_search_which_child(
