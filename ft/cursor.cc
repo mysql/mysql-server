@@ -94,7 +94,9 @@ PATENT RIGHTS GRANT:
 #include "ft/ybt.h"
 
 int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN ttxn,
-                          bool is_snapshot_read, bool disable_prefetching) {
+                          bool is_snapshot_read,
+                          bool disable_prefetching,
+                          bool is_temporary) {
     if (is_snapshot_read) {
         invariant(ttxn != NULL);
         int accepted = toku_txn_reads_txnid(ft_handle->ft->h->root_xid_that_created, ttxn);
@@ -106,9 +108,10 @@ int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN ttxn,
 
     memset(cursor, 0, sizeof(*cursor));
     cursor->ft_handle = ft_handle;
-    cursor->is_snapshot_read = is_snapshot_read;
     cursor->ttxn = ttxn;
+    cursor->is_snapshot_read = is_snapshot_read;
     cursor->disable_prefetching = disable_prefetching;
+    cursor->is_temporary = is_temporary;
     return 0;
 }
 
@@ -123,7 +126,7 @@ void toku_ft_cursor_destroy(FT_CURSOR cursor) {
 int toku_ft_cursor(FT_HANDLE ft_handle, FT_CURSOR *cursorptr, TOKUTXN ttxn,
                    bool is_snapshot_read, bool disable_prefetching) {
     FT_CURSOR XCALLOC(cursor);
-    int r = toku_ft_cursor_create(ft_handle, cursor, ttxn, is_snapshot_read, disable_prefetching);
+    int r = toku_ft_cursor_create(ft_handle, cursor, ttxn, is_snapshot_read, disable_prefetching, false);
     if (r == 0) {
         *cursorptr = cursor;
     } else {
@@ -146,10 +149,6 @@ void toku_ft_cursor_remove_restriction(FT_CURSOR cursor) {
 void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR cursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra) {
     cursor->interrupt_cb = cb;
     cursor->interrupt_cb_extra = extra;
-}
-
-void toku_ft_cursor_set_temporary(FT_CURSOR cursor) {
-    cursor->is_temporary = true;
 }
 
 void toku_ft_cursor_set_leaf_mode(FT_CURSOR cursor) {

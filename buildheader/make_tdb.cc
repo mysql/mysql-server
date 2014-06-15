@@ -612,6 +612,7 @@ static void print_dbc_struct (void) {
 	"int (*c_set_bounds)(DBC*, const DBT*, const DBT*, bool pre_acquire, int out_of_range_error)",
         "void (*c_set_check_interrupt_callback)(DBC*, bool (*)(void*), void *)",
 	"void (*c_remove_restriction)(DBC*)",
+        "char _internal[512]",
 	NULL};
     sort_and_dump_fields("dbc", false, extra);
 }

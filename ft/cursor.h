@@ -175,7 +175,10 @@ static inline void ft_search_finish(ft_search *search) {
 }
 
 
-int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN txn, bool, bool);
+int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN txn,
+                          bool is_snapshot_read,
+                          bool disable_prefetching,
+                          bool is_temporary);
 
 void toku_ft_cursor_destroy(FT_CURSOR cursor);
 
@@ -188,9 +191,6 @@ bool toku_ft_cursor_prefetching(FT_CURSOR cursor);
 bool toku_ft_cursor_not_set(FT_CURSOR cursor);
 
 void toku_ft_cursor_set_leaf_mode(FT_CURSOR cursor);
-
-// Sets a boolean on the ft cursor that prevents uncessary copying of the cursor duing a one query.
-void toku_ft_cursor_set_temporary(FT_CURSOR cursor);
 
 void toku_ft_cursor_remove_restriction(FT_CURSOR cursor);
 
