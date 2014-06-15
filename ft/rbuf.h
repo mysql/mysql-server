@@ -92,13 +92,14 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <toku_portability.h>
-#include "toku_assert.h"
-#include "fttypes.h"
-#include "memory.h"
-#include <toku_htonl.h>
+#include <string.h>
 
-#include <util/memarena.h>
+#include "ft/fttypes.h"
+#include "portability/memory.h"
+#include "portability/toku_assert.h"
+#include "portability/toku_htonl.h"
+#include "portability/toku_portability.h"
+#include "util/memarena.h"
 
 struct rbuf {
     unsigned char *buf;
@@ -122,11 +123,11 @@ static inline unsigned char rbuf_char (struct rbuf *r) {
     return r->buf[r->ndone++];
 }
 
-static inline void rbuf_ma_uint8_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), uint8_t *num) {
+static inline void rbuf_ma_uint8_t (struct rbuf *r, memarena *ma __attribute__((__unused__)), uint8_t *num) {
     *num = rbuf_char(r);
 }
 
-static inline void rbuf_ma_bool (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), bool *b) {
+static inline void rbuf_ma_bool (struct rbuf *r, memarena *ma __attribute__((__unused__)), bool *b) {
     uint8_t n = rbuf_char(r);
     *b = (n!=0);
 }
@@ -199,15 +200,15 @@ static inline BLOCKNUM rbuf_blocknum (struct rbuf *r) {
     BLOCKNUM result = make_blocknum(rbuf_longlong(r));
     return result;
 }
-static inline void rbuf_ma_BLOCKNUM (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), BLOCKNUM *blocknum) {
+static inline void rbuf_ma_BLOCKNUM (struct rbuf *r, memarena *ma __attribute__((__unused__)), BLOCKNUM *blocknum) {
     *blocknum = rbuf_blocknum(r);
 }
 
-static inline void rbuf_ma_uint32_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), uint32_t *num) {
+static inline void rbuf_ma_uint32_t (struct rbuf *r, memarena *ma __attribute__((__unused__)), uint32_t *num) {
     *num = rbuf_int(r);
 }
 
-static inline void rbuf_ma_uint64_t (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), uint64_t *num) {
+static inline void rbuf_ma_uint64_t (struct rbuf *r, memarena *ma __attribute__((__unused__)), uint64_t *num) {
     *num = rbuf_ulonglong(r);
 }
 
@@ -221,18 +222,18 @@ static inline void rbuf_TXNID_PAIR (struct rbuf *r, TXNID_PAIR *txnid) {
     txnid->child_id64 = rbuf_ulonglong(r);
 }
 
-static inline void rbuf_ma_TXNID (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), TXNID *txnid) {
+static inline void rbuf_ma_TXNID (struct rbuf *r, memarena *ma __attribute__((__unused__)), TXNID *txnid) {
     rbuf_TXNID(r, txnid);
 }
 
-static inline void rbuf_ma_TXNID_PAIR (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), TXNID_PAIR *txnid) {
+static inline void rbuf_ma_TXNID_PAIR (struct rbuf *r, memarena *ma __attribute__((__unused__)), TXNID_PAIR *txnid) {
     rbuf_TXNID_PAIR(r, txnid);
 }
 
 static inline void rbuf_FILENUM (struct rbuf *r, FILENUM *filenum) {
     filenum->fileid = rbuf_int(r);
 }
-static inline void rbuf_ma_FILENUM (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUM *filenum) {
+static inline void rbuf_ma_FILENUM (struct rbuf *r, memarena *ma __attribute__((__unused__)), FILENUM *filenum) {
     rbuf_FILENUM(r, filenum);
 }
 
@@ -248,9 +249,9 @@ static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
 }
 
 // 2954
-static inline void rbuf_ma_FILENUMS (struct rbuf *r, MEMARENA ma __attribute__((__unused__)), FILENUMS *filenums) {
+static inline void rbuf_ma_FILENUMS (struct rbuf *r, memarena *ma __attribute__((__unused__)), FILENUMS *filenums) {
     rbuf_ma_uint32_t(r, ma, &(filenums->num));
-    filenums->filenums = (FILENUM *) toku_memarena_malloc(ma, filenums->num * sizeof(FILENUM) );
+    filenums->filenums = (FILENUM *) ma->malloc_from_arena(filenums->num * sizeof(FILENUM));
     assert(filenums->filenums != NULL);
     for (uint32_t i=0; i < filenums->num; i++) {
         rbuf_ma_FILENUM(r, ma, &(filenums->filenums[i]));
@@ -267,11 +268,12 @@ static inline void rbuf_BYTESTRING (struct rbuf *r, BYTESTRING *bs) {
     r->ndone = newndone;
 }
 
-static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, MEMARENA ma, BYTESTRING *bs) {
+static inline void rbuf_ma_BYTESTRING  (struct rbuf *r, memarena *ma, BYTESTRING *bs) {
     bs->len  = rbuf_int(r);
     uint32_t newndone = r->ndone + bs->len;
     assert(newndone <= r->size);
-    bs->data = (char *) toku_memarena_memdup(ma, &r->buf[r->ndone], (size_t)bs->len);
+    bs->data = (char *) ma->malloc_from_arena(bs->len);
     assert(bs->data);
+    memcpy(bs->data, &r->buf[r->ndone], bs->len);
     r->ndone = newndone;
 }

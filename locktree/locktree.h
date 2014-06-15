@@ -137,7 +137,6 @@ namespace toku {
     class locktree;
     class locktree_manager;
     class lock_request;
-    class memory_tracker;
     class concurrent_tree;
 
     typedef int  (*lt_create_cb)(locktree *lt, void *extra);
@@ -246,7 +245,6 @@ namespace toku {
         // tracks the current number of locks and lock memory
         uint64_t m_max_lock_memory;
         uint64_t m_current_lock_memory;
-        memory_tracker *m_mem_tracker;
 
         struct lt_counters m_lt_counters;
 

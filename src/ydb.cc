@@ -2463,7 +2463,7 @@ struct iter_txn_row_locks_callback_extra {
         const int r = lt_map->fetch(which_lt, &ranges);
         invariant_zero(r);
         current_db = locked_get_db_by_dict_id(env, ranges.lt->get_dict_id());
-        iter.create(ranges.buffer);
+        iter = toku::range_buffer::iterator(ranges.buffer);
     }
 
     DB_ENV *env;

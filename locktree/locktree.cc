@@ -258,18 +258,18 @@ void locktree::sto_append(const DBT *left_key, const DBT *right_key) {
     keyrange range;
     range.create(left_key, right_key);
 
-    buffer_mem = m_sto_buffer.get_num_bytes();
+    buffer_mem = m_sto_buffer.total_memory_size();
     m_sto_buffer.append(left_key, right_key);
-    delta = m_sto_buffer.get_num_bytes() - buffer_mem;
+    delta = m_sto_buffer.total_memory_size() - buffer_mem;
     if (m_mgr != nullptr) {
         m_mgr->note_mem_used(delta);
     }
 }
 
 void locktree::sto_end(void) {
-    uint64_t num_bytes = m_sto_buffer.get_num_bytes();
+    uint64_t mem_size = m_sto_buffer.total_memory_size();
     if (m_mgr != nullptr) {
-        m_mgr->note_mem_released(num_bytes);
+        m_mgr->note_mem_released(mem_size);
     }
     m_sto_buffer.destroy();
     m_sto_buffer.create();
@@ -302,9 +302,8 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
     sto_rangetree.create(m_cmp);
 
     // insert all of the ranges from the single txnid buffer into a new rangtree
-    range_buffer::iterator iter;
+    range_buffer::iterator iter(&m_sto_buffer);
     range_buffer::iterator::record rec;
-    iter.create(&m_sto_buffer);
     while (iter.current(&rec)) {
         sto_lkr.prepare(&sto_rangetree);
         int r = acquire_lock_consolidated(&sto_lkr,
@@ -575,9 +574,8 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges) {
     // locks are already released, otherwise we need to do it here.
     bool released = sto_try_release(txnid);
     if (!released) {
-        range_buffer::iterator iter;
+        range_buffer::iterator iter(ranges);
         range_buffer::iterator::record rec;
-        iter.create(ranges);
         while (iter.current(&rec)) {
             const DBT *left_key = rec.get_left_key();
             const DBT *right_key = rec.get_right_key();
@@ -647,10 +645,10 @@ struct txnid_range_buffer {
     TXNID txnid;
     range_buffer buffer;
 
-    static int find_by_txnid(const struct txnid_range_buffer &other_buffer, const TXNID &txnid) {
-        if (txnid < other_buffer.txnid) {
+    static int find_by_txnid(struct txnid_range_buffer *const &other_buffer, const TXNID &txnid) {
+        if (txnid < other_buffer->txnid) {
             return -1;
-        } else if (other_buffer.txnid == txnid) {
+        } else if (other_buffer->txnid == txnid) {
             return 0;
         } else {
             return 1;
@@ -666,7 +664,7 @@ struct txnid_range_buffer {
 // has locks in a random/alternating order, then this does
 // not work so well.
 void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_escalate_callback_extra) {
-    omt<struct txnid_range_buffer, struct txnid_range_buffer *> range_buffers;
+    omt<struct txnid_range_buffer *, struct txnid_range_buffer *> range_buffers;
     range_buffers.create();
 
     // prepare and acquire a locked keyrange on the entire locktree
@@ -716,7 +714,6 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
             // Try to find a range buffer for the current txnid. Create one if it doesn't exist.
             // Then, append the new escalated range to the buffer.
             uint32_t idx;
-            struct txnid_range_buffer new_range_buffer;
             struct txnid_range_buffer *existing_range_buffer;
             int r = range_buffers.find_zero<TXNID, txnid_range_buffer::find_by_txnid>(
                     current_txnid,
@@ -724,9 +721,10 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
                     &idx
                     );
             if (r == DB_NOTFOUND) {
-                new_range_buffer.txnid = current_txnid;
-                new_range_buffer.buffer.create();
-                new_range_buffer.buffer.append(escalated_left_key, escalated_right_key);
+                struct txnid_range_buffer *XMALLOC(new_range_buffer);
+                new_range_buffer->txnid = current_txnid;
+                new_range_buffer->buffer.create();
+                new_range_buffer->buffer.append(escalated_left_key, escalated_right_key);
                 range_buffers.insert_at(new_range_buffer, idx);
             } else {
                 invariant_zero(r);
@@ -754,9 +752,8 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
         invariant_zero(r);
 
         const TXNID current_txnid = current_range_buffer->txnid;
-        range_buffer::iterator iter;
+        range_buffer::iterator iter(&current_range_buffer->buffer);
         range_buffer::iterator::record rec;
-        iter.create(&current_range_buffer->buffer);
         while (iter.current(&rec)) {
             keyrange range;
             range.create(rec.get_left_key(), rec.get_right_key());
@@ -770,6 +767,15 @@ void locktree::escalate(lt_escalate_cb after_escalate_callback, void *after_esca
             after_escalate_callback(current_txnid, this, current_range_buffer->buffer, after_escalate_callback_extra);
         }
         current_range_buffer->buffer.destroy();
+    }
+
+    while (range_buffers.size() > 0) {
+        struct txnid_range_buffer *buffer;
+        int r = range_buffers.fetch(0, &buffer);
+        invariant_zero(r);
+        r = range_buffers.delete_at(0);
+        invariant_zero(r);
+        toku_free(buffer);
     }
     range_buffers.destroy();
 
