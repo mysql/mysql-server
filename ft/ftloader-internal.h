@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include "fttypes.h"
 #include "ftloader.h"
-#include "queue.h"
+#include "util/queue.h"
 #include <toku_pthread.h>
 #include "dbufio.h"
 

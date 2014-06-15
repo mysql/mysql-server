@@ -215,20 +215,20 @@ static void test_write_dbfile (char *tf_template, int n, char *output_name, TXNI
     ft_loader_fi_close_all(&bl.file_infos);
 
     QUEUE q;
-    r = queue_create(&q, 0xFFFFFFFF); // infinite queue.
+    r = toku_queue_create(&q, 0xFFFFFFFF); // infinite queue.
     assert(r==0);
     r = merge_files(&fs, &bl, 0, dest_db, compare_ints, 0, q); CKERR(r);
     assert(fs.n_temp_files==0);
 
     QUEUE q2;
-    r = queue_create(&q2, 0xFFFFFFFF); // infinite queue.
+    r = toku_queue_create(&q2, 0xFFFFFFFF); // infinite queue.
     assert(r==0);
 
     size_t num_found = 0;
     size_t found_size_est = 0;
     while (1) {
 	void *v;
-	r = queue_deq(q, &v, NULL, NULL);
+	r = toku_queue_deq(q, &v, NULL, NULL);
 	if (r==EOF) break;
 	struct rowset *rs = (struct rowset *)v;
 	if (verbose) printf("v=%p\n", v);
@@ -243,16 +243,16 @@ static void test_write_dbfile (char *tf_template, int n, char *output_name, TXNI
 
 	num_found += rs->n_rows;
 
-	r = queue_enq(q2, v, 0, NULL);
+	r = toku_queue_enq(q2, v, 0, NULL);
 	assert(r==0);
     }
     assert((int)num_found == n);
     assert(found_size_est == size_est);
  
-    r = queue_eof(q2);
+    r = toku_queue_eof(q2);
     assert(r==0);
 
-    r = queue_destroy(q);
+    r = toku_queue_destroy(q);
     assert(r==0);
 
     DESCRIPTOR_S desc;
@@ -265,7 +265,7 @@ static void test_write_dbfile (char *tf_template, int n, char *output_name, TXNI
     r = toku_loader_write_ft_from_q_in_C(&bl, &desc, fd, 1000, q2, size_est, 0, 0, 0, TOKU_DEFAULT_COMPRESSION_METHOD, 16);
     assert(r==0);
 
-    r = queue_destroy(q2);
+    r = toku_queue_destroy(q2);
     assert_zero(r);
    
     destroy_merge_fileset(&fs);

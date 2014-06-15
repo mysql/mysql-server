@@ -54,7 +54,6 @@ set(FT_SOURCES
   log_upgrade
   minicron
   pqueue
-  queue
   quicklz
   recover
   rollback

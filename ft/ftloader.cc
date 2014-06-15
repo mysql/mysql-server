@@ -423,7 +423,7 @@ void toku_ft_loader_internal_destroy (FTLOADER bl, bool is_error) {
 
     destroy_rowset(&bl->primary_rowset);
     if (bl->primary_rowset_queue) {
-        queue_destroy(bl->primary_rowset_queue);
+        toku_queue_destroy(bl->primary_rowset_queue);
         bl->primary_rowset_queue = nullptr;
     }
 
@@ -629,7 +629,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
         int r = init_rowset(&bl->primary_rowset, memory_per_rowset_during_extract(bl)); 
         if (r!=0) { toku_ft_loader_internal_destroy(bl, true); return r; }
     }
-    {   int r = queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); 
+    {   int r = toku_queue_create(&bl->primary_rowset_queue, EXTRACTOR_QUEUE_DEPTH); 
         if (r!=0) { toku_ft_loader_internal_destroy(bl, true); return r; }
     }
     {
@@ -1138,7 +1138,7 @@ static void* extractor_thread (void *blv) {
     while (1) {
         void *item;
         {
-            int rq = queue_deq(bl->primary_rowset_queue, &item, NULL, NULL);
+            int rq = toku_queue_deq(bl->primary_rowset_queue, &item, NULL, NULL);
             if (rq==EOF) break;
             invariant(rq==0); // other errors are arbitrarily bad.
         }
@@ -1169,7 +1169,7 @@ static void enqueue_for_extraction (FTLOADER bl) {
     struct rowset *XMALLOC(enqueue_me);
     *enqueue_me = bl->primary_rowset;
     zero_rowset(&bl->primary_rowset);
-    int r = queue_enq(bl->primary_rowset_queue, (void*)enqueue_me, 1, NULL);
+    int r = toku_queue_enq(bl->primary_rowset_queue, (void*)enqueue_me, 1, NULL);
     resource_assert_zero(r); 
 }
 
@@ -1206,7 +1206,7 @@ finish_extractor (FTLOADER bl) {
     }
     //printf("%s:%d please finish extraction\n", __FILE__, __LINE__);
     {
-        int r = queue_eof(bl->primary_rowset_queue);
+        int r = toku_queue_eof(bl->primary_rowset_queue);
         invariant(r==0);
     }
     //printf("%s:%d joining\n", __FILE__, __LINE__);
@@ -1218,7 +1218,7 @@ finish_extractor (FTLOADER bl) {
         bl->extractor_live = false;
     }
     {
-        int r = queue_destroy(bl->primary_rowset_queue);
+        int r = toku_queue_destroy(bl->primary_rowset_queue);
         invariant(r==0);
         bl->primary_rowset_queue = nullptr;
     }
@@ -1882,7 +1882,7 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
         if (to_q) {
             if (row_wont_fit(output_rowset, keys[mini].size + vals[mini].size)) {
                 {
-                    int r = queue_enq(q, (void*)output_rowset, 1, NULL);
+                    int r = toku_queue_enq(q, (void*)output_rowset, 1, NULL);
                     if (r!=0) {
                         result = r;
                         break;
@@ -1958,7 +1958,7 @@ int toku_merge_some_files_using_dbufio (const bool to_q, FIDX dest_data, QUEUE q
     }
 
     if (result==0 && to_q) {
-        int r = queue_enq(q, (void*)output_rowset, 1, NULL);
+        int r = toku_queue_enq(q, (void*)output_rowset, 1, NULL);
         if (r!=0) 
             result = r;
         else 
@@ -2149,7 +2149,7 @@ int merge_files (struct merge_fileset *fs,
     if (result) ft_loader_set_panic(bl, result, true, which_db, nullptr, nullptr);
 
     {
-        int r = queue_eof(output_q);
+        int r = toku_queue_eof(output_q);
         if (r!=0 && result==0) result = r;
     }
     // It's conceivable that the progress_allocation could be nonzero (for example if bl->N==0)
@@ -2371,7 +2371,7 @@ static int write_header (struct dbout *out, long long translation_location_on_di
 static void drain_writer_q(QUEUE q) {
     void *item;
     while (1) {
-        int r = queue_deq(q, &item, NULL, NULL);
+        int r = toku_queue_deq(q, &item, NULL, NULL);
         if (r == EOF)
             break;
         invariant(r == 0);
@@ -2501,7 +2501,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
     while (result == 0) {
         void *item;
         {
-            int rr = queue_deq(q, &item, NULL, NULL);
+            int rr = toku_queue_deq(q, &item, NULL, NULL);
             if (rr == EOF) break;
             if (rr != 0) {
                 ft_loader_set_panic(bl, rr, true, which_db, nullptr, nullptr);
@@ -2723,7 +2723,7 @@ static int loader_do_i (FTLOADER bl,
     struct rowset *rows = &(bl->rows[which_db]);
     invariant(rows->data==NULL); // the rows should be all cleaned up already
 
-    int r = queue_create(&bl->fractal_queues[which_db], FRACTAL_WRITER_QUEUE_DEPTH);
+    int r = toku_queue_create(&bl->fractal_queues[which_db], FRACTAL_WRITER_QUEUE_DEPTH);
     if (r) goto error;
 
     {
@@ -2767,7 +2767,7 @@ static int loader_do_i (FTLOADER bl,
 
             r = toku_pthread_create(bl->fractal_threads+which_db, NULL, fractal_thread, (void*)&fta);
             if (r) {
-                int r2 __attribute__((__unused__)) = queue_destroy(bl->fractal_queues[which_db]);            
+                int r2 __attribute__((__unused__)) = toku_queue_destroy(bl->fractal_queues[which_db]);            
                 // ignore r2, since we already have an error
                 bl->fractal_queues[which_db] = nullptr;
                 goto error;
@@ -2788,7 +2788,7 @@ static int loader_do_i (FTLOADER bl,
                 if (r == 0) r = fta.errno_result;
             }
         } else {
-            queue_eof(bl->fractal_queues[which_db]);
+            toku_queue_eof(bl->fractal_queues[which_db]);
             r = toku_loader_write_ft_from_q(bl, descriptor, fd, progress_allocation, 
                                             bl->fractal_queues[which_db], bl->extracted_datasizes[which_db], which_db, 
                                             target_nodesize, target_basementnodesize, target_compression_method, target_fanout);
@@ -2797,7 +2797,7 @@ static int loader_do_i (FTLOADER bl,
 
  error: // this is the cleanup code.  Even if r==0 (no error) we fall through to here.
     if (bl->fractal_queues[which_db]) {
-        int r2 = queue_destroy(bl->fractal_queues[which_db]);
+        int r2 = toku_queue_destroy(bl->fractal_queues[which_db]);
         invariant(r2==0);
         bl->fractal_queues[which_db] = nullptr;
     }

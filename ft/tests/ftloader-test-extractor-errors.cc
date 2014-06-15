@@ -201,7 +201,7 @@ static void test_extractor(int nrows, int nrowsets, bool expect_fail, const char
 
     // feed rowsets to the extractor
     for (int i = 0; i < nrowsets; i++) {
-        r = queue_enq(loader->primary_rowset_queue, rowset[i], 1, NULL);
+        r = toku_queue_enq(loader->primary_rowset_queue, rowset[i], 1, NULL);
         assert(r == 0);
     }
 

@@ -5,6 +5,7 @@ set(util_srcs
   memarena
   mempool
   partitioned_counter
+  queue
   threadpool
   scoped_malloc
   x1764
