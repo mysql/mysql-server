@@ -118,7 +118,9 @@ private:
 
         // make sure memory was allocated ok by
         // writing to buf and reading it back
-        memset(ma._current_chunk.buf, magic, size);
+        if (size > 0) {
+            memset(ma._current_chunk.buf, magic, size);
+        }
         for (size_t i = 0; i < size; i++) {
             const char *buf = reinterpret_cast<char *>(ma._current_chunk.buf);
             invariant(buf[i] == magic);
@@ -134,7 +136,9 @@ private:
 
         // make sure memory was allocated ok by
         // writing to buf and reading it back
-        memset(ma._current_chunk.buf, magic, size);
+        if (size > 0) {
+            memset(ma._current_chunk.buf, magic, size);
+        }
         for (size_t i = 0; i < size; i++) {
             const char *c = reinterpret_cast<char *>(ma._current_chunk.buf);
             invariant(c[i] == magic);
