@@ -119,12 +119,14 @@ PATENT RIGHTS GRANT:
 
 const ITEMLEN len_ignore = 0xFFFFFFFF;
 
+static const prepared_txn_callback_t NULL_prepared_txn_callback         __attribute__((__unused__)) = NULL;
+static const keep_cachetable_callback_t  NULL_keep_cachetable_callback  __attribute__((__unused__)) = NULL;
+static const TOKULOGGER NULL_logger                                     __attribute__((__unused__)) = NULL;
 
 // dummymsn needed to simulate msn because test messages are injected at a lower level than toku_ft_root_put_msg()
 #define MIN_DUMMYMSN ((MSN) {(uint64_t)1<<62})
 static MSN dummymsn;      
 static int dummymsn_initialized = 0;
-
 
 static void
 initialize_dummymsn(void) {

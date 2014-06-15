@@ -136,8 +136,4 @@ int toku_recover_lock (const char *lock_dir, int *lockfd);
 
 int toku_recover_unlock(int lockfd);
 
-static const prepared_txn_callback_t NULL_prepared_txn_callback         __attribute__((__unused__)) = NULL;
-static const keep_cachetable_callback_t  NULL_keep_cachetable_callback  __attribute__((__unused__)) = NULL;
-
-
 #endif // TOKURECOVER_H

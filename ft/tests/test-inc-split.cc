@@ -137,7 +137,7 @@ doit (int ksize __attribute__((__unused__))) {
     int i;
     int r;
     
-    toku_cachetable_create(&ct, 16*1024, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 16*1024, ZERO_LSN, nullptr);
     unlink(fname);
     r = toku_open_ft_handle(fname, 1, &t, NODESIZE, NODESIZE, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);
     assert(r==0);

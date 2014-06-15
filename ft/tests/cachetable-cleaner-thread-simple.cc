@@ -119,7 +119,7 @@ run_test (void) {
     const int test_limit = 1000;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     toku_set_cleaner_period(ct, 1);
     my_cleaner_callback_called = false;
 

@@ -118,7 +118,7 @@ static inline void test_mutex_unlock(void) {
 static void
 test_cachetable_create(void) {
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     toku_cachetable_close(&ct);
 }
 
@@ -172,7 +172,7 @@ static void test_nested_pin (void) {
     void *vv,*vv2;
     const char *fname = TOKU_TEST_FILENAME;
     if (verbose) printf("creating cachetable\n");
-    toku_cachetable_create(&t, 1, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, 1, ZERO_LSN, nullptr);
     toku_os_recursive_delete(fname);
     r = toku_cachetable_openf(&f, t, fname, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);
     assert(r==0);
@@ -257,7 +257,7 @@ static void test_multi_filehandles (void) {
     unlink(fname1);
     unlink(fname2);
 
-    toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, 4, ZERO_LSN, nullptr);
     r = toku_cachetable_openf(&f1, t, fname1, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
     r = link(fname1, fname2);                                     assert(r==0);
     r = toku_cachetable_openf(&f2, t, fname2, O_RDWR|O_CREAT, S_IRWXU|S_IRWXG|S_IRWXO);   assert(r==0);
@@ -325,7 +325,7 @@ static void test_dirty(void) {
     int dirty; long long pinned; long entry_size;
     int r;
 
-    toku_cachetable_create(&t, 4, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, 4, ZERO_LSN, nullptr);
 
     const char *fname = TOKU_TEST_FILENAME;
     toku_os_recursive_delete(fname);
@@ -455,7 +455,7 @@ static void test_size_resize(void) {
     int n = 3;
     long size = 1;
 
-    toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, n*size, ZERO_LSN, nullptr);
 
     const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);
@@ -509,7 +509,7 @@ static void test_size_flush(void) {
 
     const int n = 8;
     long long size = 1*1024*1024;
-    toku_cachetable_create(&t, n*size, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&t, n*size, ZERO_LSN, nullptr);
 
     const char *fname = TOKU_TEST_FILENAME;
     unlink(fname);

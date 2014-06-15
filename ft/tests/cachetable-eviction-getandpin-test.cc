@@ -123,7 +123,7 @@ static void cachetable_predef_fetch_maybegetandpin_test (void) {
     const int test_limit = 12;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     evictor_test_helpers::disable_ev_thread(&ct->ev);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);

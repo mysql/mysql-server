@@ -106,7 +106,7 @@ static void test5 (void) {
     MALLOC_N(limit,values);
     for (i=0; i<limit; i++) values[i]=-1;
     unlink(fname);
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
     for (i=0; i<limit/2; i++) {
 	char key[100],val[100];

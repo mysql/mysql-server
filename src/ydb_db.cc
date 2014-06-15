@@ -474,7 +474,7 @@ toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t fla
     int r = toku_ft_handle_open(ft_handle, iname_in_env,
                       is_db_create, is_db_excl,
                       db->dbenv->i->cachetable,
-                      txn ? db_txn_struct_i(txn)->tokutxn : NULL_TXN);
+                      txn ? db_txn_struct_i(txn)->tokutxn : nullptr);
     if (r != 0) {
         goto error_cleanup;
     }

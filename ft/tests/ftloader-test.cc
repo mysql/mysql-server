@@ -336,7 +336,7 @@ static void verify_dbfile(int n, int sorted_keys[], const char *sorted_vals[], c
     int r;
 
     CACHETABLE ct;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     TOKUTXN const null_txn = NULL;
     FT_HANDLE t = NULL;

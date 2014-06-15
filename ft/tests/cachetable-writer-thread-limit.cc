@@ -125,7 +125,7 @@ cachetable_test (void) {
     test_limit = 6;
     int r;
     CACHETABLE ct;
-    toku_cachetable_create(&ct, test_limit, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, test_limit, ZERO_LSN, nullptr);
     const char *fname1 = TOKU_TEST_FILENAME;
     unlink(fname1);
     CACHEFILE f1;

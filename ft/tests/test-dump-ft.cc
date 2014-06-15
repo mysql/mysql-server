@@ -106,7 +106,7 @@ test_main(int argc, const char *argv[]) {
     FILE *f = fopen("test-dump-ft.out", "w");
     unlink(n);
     assert(f);
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(n, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun); assert(r==0);
     int i;
     for (i=0; i<10000; i++) {

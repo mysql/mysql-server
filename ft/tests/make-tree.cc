@@ -209,7 +209,7 @@ test_make_tree(int height, int fanout, int nperleaf, int do_verify) {
 
     // create a cachetable
     CACHETABLE ct = NULL;
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
 
     // create the ft
     TOKUTXN null_txn = NULL;

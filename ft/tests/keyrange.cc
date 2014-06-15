@@ -111,7 +111,7 @@ static void close_ft_and_ct (void) {
 static void open_ft_and_ct (bool unlink_old) {
     int r;
     if (unlink_old) unlink(fname);
-    toku_cachetable_create(&ct, 0, ZERO_LSN, NULL_LOGGER);
+    toku_cachetable_create(&ct, 0, ZERO_LSN, nullptr);
     r = toku_open_ft_handle(fname, 1, &t, 1<<12, 1<<9, TOKU_DEFAULT_COMPRESSION_METHOD, ct, null_txn, toku_builtin_compare_fun);   assert(r==0);
 }
 
