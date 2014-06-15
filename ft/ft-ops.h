@@ -232,7 +232,7 @@ void toku_ft_maybe_delete (FT_HANDLE ft_h, DBT *k, TOKUTXN txn, bool oplsn_valid
 TXNID toku_ft_get_oldest_referenced_xid_estimate(FT_HANDLE ft_h);
 TXN_MANAGER toku_ft_get_txn_manager(FT_HANDLE ft_h);
 
-class txn_gc_info;
+struct txn_gc_info;
 void toku_ft_send_insert(FT_HANDLE ft_h, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info);
 void toku_ft_send_delete(FT_HANDLE ft_h, DBT *key, XIDS xids, txn_gc_info *gc_info);
 void toku_ft_send_commit_any(FT_HANDLE ft_h, DBT *key, XIDS xids, txn_gc_info *gc_info);
