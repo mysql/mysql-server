@@ -94,8 +94,10 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include <limits.h>
 
+#include <ft/cachetable.h>
 #include <ft/fttypes.h>
-#include <ft/ft-ops.h>
+#include <ft/logger.h>
+#include <ft/txn.h>
 
 #include <util/growable_array.h>
 #include <util/minicron.h>

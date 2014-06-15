@@ -98,23 +98,8 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include "cachetable.h"
 #include "log.h"
-#include "ft-search.h"
 #include "compress.h"
 #include "ft_msg.h"
-#include "ft/cursor.h"
-
-// A callback function is invoked with the key, and the data.
-// The pointers (to the bytevecs) must not be modified.  The data must be copied out before the callback function returns.
-// Note: In the thread-safe version, the ftnode remains locked while the callback function runs.  So return soon, and don't call the ft code from the callback function.
-// If the callback function returns a nonzero value (an error code), then that error code is returned from the get function itself.
-// The cursor object will have been updated (so that if result==0 the current value is the value being passed)
-//  (If r!=0 then the cursor won't have been updated.)
-// If r!=0, it's up to the callback function to return that value of r.
-// A 'key' bytevec of NULL means that element is not found (effectively infinity or
-// -infinity depending on direction)
-// When lock_only is false, the callback does optional lock tree locking and then processes the key and val.
-// When lock_only is true, the callback only does optional lock tree locking.
-typedef int(*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
 
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 
@@ -208,8 +193,6 @@ toku_ft_handle_open_with_dict_id(
     DICTIONARY_ID use_dictionary_id
     )  __attribute__ ((warn_unused_result));
 
-int toku_ft_lookup (FT_HANDLE ft_h, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-
 // Effect: Insert a key and data pair into an ft
 void toku_ft_insert (FT_HANDLE ft_h, DBT *k, DBT *v, TOKUTXN txn);
 
@@ -261,36 +244,6 @@ int toku_dump_ft (FILE *,FT_HANDLE ft_h)  __attribute__ ((warn_unused_result));
 extern int toku_ft_debug_mode;
 int toku_verify_ft (FT_HANDLE ft_h)  __attribute__ ((warn_unused_result));
 int toku_verify_ft_with_progress (FT_HANDLE ft_h, int (*progress_callback)(void *extra, float progress), void *extra, int verbose, int keep_going)  __attribute__ ((warn_unused_result));
-
-int toku_ft_cursor (FT_HANDLE, FT_CURSOR*, TOKUTXN, bool, bool)  __attribute__ ((warn_unused_result));
-void toku_ft_cursor_set_leaf_mode(FT_CURSOR);
-// Sets a boolean on the ft cursor that prevents uncessary copying of
-// the cursor duing a one query.
-void toku_ft_cursor_set_temporary(FT_CURSOR);
-void toku_ft_cursor_remove_restriction(FT_CURSOR);
-void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR ftcursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra);
-int toku_ft_cursor_is_leaf_mode(FT_CURSOR);
-void toku_ft_cursor_set_range_lock(FT_CURSOR, const DBT *, const DBT *, bool, bool, int);
-
-// get is deprecated in favor of the individual functions below
-int toku_ft_cursor_get (FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags)  __attribute__ ((warn_unused_result));
-
-int toku_ft_cursor_first(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_last(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_next(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_prev(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_current(FT_CURSOR cursor, int op, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_set(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_set_range(FT_CURSOR cursor, DBT *key, DBT *key_bound, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_set_range_reverse(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_get_both_range(FT_CURSOR cursor, DBT *key, DBT *val, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-int toku_ft_cursor_get_both_range_reverse(FT_CURSOR cursor, DBT *key, DBT *val, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
-
-int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN)  __attribute__ ((warn_unused_result));
-void toku_ft_cursor_close (FT_CURSOR curs);
-bool toku_ft_cursor_uninitialized(FT_CURSOR c)  __attribute__ ((warn_unused_result));
-
-void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
 
 DICTIONARY_ID toku_ft_get_dictionary_id(FT_HANDLE);
 

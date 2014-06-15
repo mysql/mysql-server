@@ -90,7 +90,7 @@ PATENT RIGHTS GRANT:
 
 #include "test.h"
 
-
+#include "ft/cursor.h"
 
 enum ftnode_verify_type {
     read_all=1,
@@ -224,13 +224,13 @@ test2(int fd, FT ft_h, FTNODE *dn) {
     memset(&dummy_db, 0, sizeof(dummy_db));
     memset(&left, 0, sizeof(left));
     memset(&right, 0, sizeof(right));
-    ft_search_t search_t;
+    ft_search search;
     
     ft_h->compare_fun = string_key_cmp;
     fill_bfe_for_subset_read(
         &bfe_subset,
         ft_h,
-        ft_search_init(&search_t, search_cmp, FT_SEARCH_LEFT, nullptr, nullptr, nullptr),
+        ft_search_init(&search, search_cmp, FT_SEARCH_LEFT, nullptr, nullptr, nullptr),
         &left,
         &right,
         true,

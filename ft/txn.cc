@@ -786,6 +786,21 @@ void toku_txn_set_client_id(TOKUTXN txn, uint64_t client_id) {
     txn->client_id = client_id;
 }
 
+int toku_txn_reads_txnid(TXNID txnid, TOKUTXN txn) {
+    int r = 0;
+    TXNID oldest_live_in_snapshot = toku_get_oldest_in_live_root_txn_list(txn);
+    if (oldest_live_in_snapshot == TXNID_NONE && txnid < txn->snapshot_txnid64) {
+        r = TOKUDB_ACCEPT;
+    } else if (txnid < oldest_live_in_snapshot || txnid == txn->txnid.parent_id64) {
+        r = TOKUDB_ACCEPT;
+    } else if (txnid > txn->snapshot_txnid64 || toku_is_txn_in_live_root_txn_list(*txn->live_root_txn_list, txnid)) {
+        r = 0;
+    } else {
+        r = TOKUDB_ACCEPT;
+    }
+    return r;
+}
+
 #include <toku_race_tools.h>
 void __attribute__((__constructor__)) toku_txn_status_helgrind_ignore(void);
 void toku_txn_status_helgrind_ignore(void) {

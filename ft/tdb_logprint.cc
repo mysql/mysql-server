@@ -91,7 +91,8 @@ PATENT RIGHTS GRANT:
 
 /* Dump the log from stdin to stdout. */
 
-#include <ft/log_header.h>
+#include "ft/log_header.h"
+#include "ft/logger.h"
 
 static void newmain (int count) {
     int i;

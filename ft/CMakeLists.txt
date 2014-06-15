@@ -30,6 +30,7 @@ set(FT_SOURCES
   cachetable
   checkpoint
   compress
+  cursor
   ft
   ft-cachetable-wrappers
   ft-flusher

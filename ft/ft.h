@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include <db.h>
 #include "cachetable.h"
 #include "log.h"
-#include "ft-search.h"
 #include "ft-ops.h"
 #include "compress.h"
 
