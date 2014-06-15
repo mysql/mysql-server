@@ -100,38 +100,36 @@ test_create (void) {
     msg_buffer.destroy();
 }
 
+static char *buildkey(size_t len) {
+    char *XMALLOC_N(len, k);
+    memset(k, 0, len);
+    return k;
+}
+
+static char *buildval(size_t len) {
+    char *XMALLOC_N(len, v);
+    memset(v, ~len, len);
+    return v;
+}
+
 static void
 test_enqueue(int n) {
-    int r;
-    message_buffer msg_buffer;
     MSN startmsn = ZERO_MSN;
 
+    message_buffer msg_buffer;
     msg_buffer.create();
-    char *thekey = 0; int thekeylen;
-    char *theval = 0; int thevallen;
-
-    // this was a function but icc cant handle it    
-#define buildkey(len) { \
-        thekeylen = len+1; \
-        XREALLOC_N(thekeylen, thekey); \
-        memset(thekey, len, thekeylen); \
-    }
-
-#define buildval(len) { \
-        thevallen = len+2; \
-        XREALLOC_N(thevallen, theval); \
-        memset(theval, ~len, thevallen); \
-    }
 
     for (int i=0; i<n; i++) {
-        buildkey(i);
-        buildval(i);
+        int thekeylen = i + 1;
+        int thevallen = i + 2;
+        char *thekey = buildkey(thekeylen);
+        char *theval = buildval(thevallen);
         XIDS xids;
-        if (i==0)
+        if (i == 0) {
             xids = xids_get_root_xids();
-        else {
-            r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
-            assert(r==0);
+        } else {
+            int r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
+            assert_zero(r);
         }
         MSN msn = next_dummymsn();
         if (startmsn.msn == ZERO_MSN.msn)
@@ -143,6 +141,8 @@ test_enqueue(int n) {
         };
         msg_buffer.enqueue(&msg, true, nullptr);
         xids_destroy(&xids);
+        toku_free(thekey);
+        toku_free(theval);
     }
 
     struct checkit_fn {
@@ -153,12 +153,10 @@ test_enqueue(int n) {
             : startmsn(smsn), verbose(v), i(0) {
         }
         int operator()(FT_MSG msg, bool UU(is_fresh)) {
-            char *thekey = nullptr;
-            int thekeylen = 0;
-            char *theval = nullptr;
-            int thevallen = 0;
-            buildkey(i);
-            buildval(i);
+            int thekeylen = i + 1;
+            int thevallen = i + 2;
+            char *thekey = buildkey(thekeylen);
+            char *theval = buildval(thevallen);
 
             MSN msn = msg->msn;
             enum ft_msg_type type = ft_msg_get_type(msg);
@@ -168,17 +166,14 @@ test_enqueue(int n) {
             assert((int) ft_msg_get_vallen(msg) == thevallen); assert(memcmp(ft_msg_get_val(msg), theval, ft_msg_get_vallen(msg)) == 0);
             assert(i % 256 == (int)type);
             assert((TXNID)i==xids_get_innermost_xid(ft_msg_get_xids(msg)));
+            i += 1;
             toku_free(thekey);
             toku_free(theval);
-            i += 1;
             return 0;
         }
     } checkit(startmsn, verbose);
     msg_buffer.iterate(checkit);
     assert(checkit.i == n);
-
-    if (thekey) toku_free(thekey);
-    if (theval) toku_free(theval);
 
     msg_buffer.destroy();
 }
