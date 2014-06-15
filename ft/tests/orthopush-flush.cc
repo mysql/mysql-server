@@ -406,29 +406,29 @@ flush_to_internal(FT_HANDLE t) {
             MSN msn = msg->msn;
             enum ft_msg_type type = ft_msg_get_type(msg);
             XIDS xids = ft_msg_get_xids(msg);
-            for (int i = 0; i < num_parent_messages; ++i) {
-                if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
-                        msn.msn == parent_messages[i]->msn.msn) {
-                    assert(parent_messages_present[i] == 0);
+            for (int k = 0; k < num_parent_messages; ++k) {
+                if (dummy_cmp(NULL, &keydbt, parent_messages[k]->u.id.key) == 0 &&
+                        msn.msn == parent_messages[k]->msn.msn) {
+                    assert(parent_messages_present[k] == 0);
                     assert(found == 0);
-                    assert(dummy_cmp(NULL, &valdbt, parent_messages[i]->u.id.val) == 0);
-                    assert(type == parent_messages[i]->type);
-                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[i]->xids));
-                    assert(parent_messages_is_fresh[i] == is_fresh);
-                    parent_messages_present[i]++;
+                    assert(dummy_cmp(NULL, &valdbt, parent_messages[k]->u.id.val) == 0);
+                    assert(type == parent_messages[k]->type);
+                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[k]->xids));
+                    assert(parent_messages_is_fresh[k] == is_fresh);
+                    parent_messages_present[k]++;
                     found++;
                 }
             }
-            for (int i = 0; i < num_child_messages; ++i) {
-                if (dummy_cmp(NULL, &keydbt, child_messages[i]->u.id.key) == 0 &&
-                        msn.msn == child_messages[i]->msn.msn) {
-                    assert(child_messages_present[i] == 0);
+            for (int k = 0; k < num_child_messages; ++k) {
+                if (dummy_cmp(NULL, &keydbt, child_messages[k]->u.id.key) == 0 &&
+                        msn.msn == child_messages[k]->msn.msn) {
+                    assert(child_messages_present[k] == 0);
                     assert(found == 0);
-                    assert(dummy_cmp(NULL, &valdbt, child_messages[i]->u.id.val) == 0);
-                    assert(type == child_messages[i]->type);
-                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[i]->xids));
-                    assert(child_messages_is_fresh[i] == is_fresh);
-                    child_messages_present[i]++;
+                    assert(dummy_cmp(NULL, &valdbt, child_messages[k]->u.id.val) == 0);
+                    assert(type == child_messages[k]->type);
+                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[k]->xids));
+                    assert(child_messages_is_fresh[k] == is_fresh);
+                    child_messages_present[k]++;
                     found++;
                 }
             }
