@@ -2,7 +2,8 @@
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
 /* The purpose of this file is to provide access to the ft_msg,
- * which is the ephemeral version of the fifo_msg.
+ * which is the ephemeral version of the messages that lives in
+ * a message buffer.
  */
 
 #ifndef FT_MSG_H

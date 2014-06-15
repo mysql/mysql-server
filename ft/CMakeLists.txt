@@ -30,7 +30,6 @@ set(FT_SOURCES
   cachetable
   checkpoint
   compress
-  fifo
   ft
   ft-cachetable-wrappers
   ft-flusher
@@ -52,6 +51,7 @@ set(FT_SOURCES
   logfilemgr
   logger
   log_upgrade
+  msg_buffer
   quicklz
   recover
   rollback

@@ -384,41 +384,60 @@ flush_to_internal(FT_HANDLE t) {
     memset(parent_messages_present, 0, sizeof parent_messages_present);
     memset(child_messages_present, 0, sizeof child_messages_present);
 
-    FIFO_ITERATE(child_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
-                 {
-                     DBT keydbt;
-                     DBT valdbt;
-                     toku_fill_dbt(&keydbt, key, keylen);
-                     toku_fill_dbt(&valdbt, val, vallen);
-                     int found = 0;
-                     for (i = 0; i < num_parent_messages; ++i) {
-                         if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
-                             msn.msn == parent_messages[i]->msn.msn) {
-                             assert(parent_messages_present[i] == 0);
-                             assert(found == 0);
-                             assert(dummy_cmp(NULL, &valdbt, parent_messages[i]->u.id.val) == 0);
-                             assert(type == parent_messages[i]->type);
-                             assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[i]->xids));
-                             assert(parent_messages_is_fresh[i] == is_fresh);
-                             parent_messages_present[i]++;
-                             found++;
-                         }
-                     }
-                     for (i = 0; i < num_child_messages; ++i) {
-                         if (dummy_cmp(NULL, &keydbt, child_messages[i]->u.id.key) == 0 &&
-                             msn.msn == child_messages[i]->msn.msn) {
-                             assert(child_messages_present[i] == 0);
-                             assert(found == 0);
-                             assert(dummy_cmp(NULL, &valdbt, child_messages[i]->u.id.val) == 0);
-                             assert(type == child_messages[i]->type);
-                             assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[i]->xids));
-                             assert(child_messages_is_fresh[i] == is_fresh);
-                             child_messages_present[i]++;
-                             found++;
-                         }
-                     }
-                     assert(found == 1);
-                 });
+    struct checkit_fn {
+        int num_parent_messages;
+        FT_MSG *parent_messages;
+        int *parent_messages_present;
+        bool *parent_messages_is_fresh;
+        int num_child_messages;
+        FT_MSG *child_messages;
+        int *child_messages_present;
+        bool *child_messages_is_fresh;
+        checkit_fn(int np, FT_MSG *pm, int *npp, bool *pmf, int nc, FT_MSG *cm, int *ncp, bool *cmf) :
+            num_parent_messages(np), parent_messages(pm), parent_messages_present(npp), parent_messages_is_fresh(pmf),
+            num_child_messages(nc), child_messages(cm), child_messages_present(ncp), child_messages_is_fresh(cmf) {
+        }
+        int operator()(FT_MSG msg, bool is_fresh) {
+            DBT keydbt;
+            DBT valdbt;
+            toku_fill_dbt(&keydbt, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
+            toku_fill_dbt(&valdbt, ft_msg_get_val(msg), ft_msg_get_vallen(msg));
+            int found = 0;
+            MSN msn = msg->msn;
+            enum ft_msg_type type = ft_msg_get_type(msg);
+            XIDS xids = ft_msg_get_xids(msg);
+            for (int i = 0; i < num_parent_messages; ++i) {
+                if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
+                        msn.msn == parent_messages[i]->msn.msn) {
+                    assert(parent_messages_present[i] == 0);
+                    assert(found == 0);
+                    assert(dummy_cmp(NULL, &valdbt, parent_messages[i]->u.id.val) == 0);
+                    assert(type == parent_messages[i]->type);
+                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[i]->xids));
+                    assert(parent_messages_is_fresh[i] == is_fresh);
+                    parent_messages_present[i]++;
+                    found++;
+                }
+            }
+            for (int i = 0; i < num_child_messages; ++i) {
+                if (dummy_cmp(NULL, &keydbt, child_messages[i]->u.id.key) == 0 &&
+                        msn.msn == child_messages[i]->msn.msn) {
+                    assert(child_messages_present[i] == 0);
+                    assert(found == 0);
+                    assert(dummy_cmp(NULL, &valdbt, child_messages[i]->u.id.val) == 0);
+                    assert(type == child_messages[i]->type);
+                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[i]->xids));
+                    assert(child_messages_is_fresh[i] == is_fresh);
+                    child_messages_present[i]++;
+                    found++;
+                }
+            }
+            assert(found == 1);
+            return 0;
+        }
+    } checkit(num_parent_messages, parent_messages, parent_messages_present, parent_messages_is_fresh,
+              num_child_messages, child_messages, child_messages_present, child_messages_is_fresh);
+    child_bnc->msg_buffer.iterate(checkit);
 
     for (i = 0; i < num_parent_messages; ++i) {
         assert(parent_messages_present[i] == 1);
@@ -525,41 +544,60 @@ flush_to_internal_multiple(FT_HANDLE t) {
     memset(child_messages_present, 0, sizeof child_messages_present);
 
     for (int j = 0; j < 8; ++j) {
-        FIFO_ITERATE(child_bncs[j]->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
-                     {
-                         DBT keydbt;
-                         DBT valdbt;
-                         toku_fill_dbt(&keydbt, key, keylen);
-                         toku_fill_dbt(&valdbt, val, vallen);
-                         int found = 0;
-                         for (i = 0; i < num_parent_messages; ++i) {
-                             if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
-                                 msn.msn == parent_messages[i]->msn.msn) {
-                                 assert(parent_messages_present[i] == 0);
-                                 assert(found == 0);
-                                 assert(dummy_cmp(NULL, &valdbt, parent_messages[i]->u.id.val) == 0);
-                                 assert(type == parent_messages[i]->type);
-                                 assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[i]->xids));
-                                 assert(parent_messages_is_fresh[i] == is_fresh);
-                                 parent_messages_present[i]++;
-                                 found++;
-                             }
-                         }
-                         for (i = 0; i < num_child_messages; ++i) {
-                             if (dummy_cmp(NULL, &keydbt, child_messages[i]->u.id.key) == 0 &&
-                                 msn.msn == child_messages[i]->msn.msn) {
-                                 assert(child_messages_present[i] == 0);
-                                 assert(found == 0);
-                                 assert(dummy_cmp(NULL, &valdbt, child_messages[i]->u.id.val) == 0);
-                                 assert(type == child_messages[i]->type);
-                                 assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[i]->xids));
-                                 assert(child_messages_is_fresh[i] == is_fresh);
-                                 child_messages_present[i]++;
-                                 found++;
-                             }
-                         }
-                         assert(found == 1);
-                     });
+        struct checkit_fn {
+            int num_parent_messages;
+            FT_MSG *parent_messages;
+            int *parent_messages_present;
+            bool *parent_messages_is_fresh;
+            int num_child_messages;
+            FT_MSG *child_messages;
+            int *child_messages_present;
+            bool *child_messages_is_fresh;
+            checkit_fn(int np, FT_MSG *pm, int *npp, bool *pmf, int nc, FT_MSG *cm, int *ncp, bool *cmf) :
+                num_parent_messages(np), parent_messages(pm), parent_messages_present(npp), parent_messages_is_fresh(pmf),
+                num_child_messages(nc), child_messages(cm), child_messages_present(ncp), child_messages_is_fresh(cmf) {
+            }
+            int operator()(FT_MSG msg, bool is_fresh) {
+                DBT keydbt;
+                DBT valdbt;
+                toku_fill_dbt(&keydbt, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
+                toku_fill_dbt(&valdbt, ft_msg_get_val(msg), ft_msg_get_vallen(msg));
+                int found = 0;
+                MSN msn = msg->msn;
+                enum ft_msg_type type = ft_msg_get_type(msg);
+                XIDS xids = ft_msg_get_xids(msg);
+                for (int i = 0; i < num_parent_messages; ++i) {
+                    if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
+                            msn.msn == parent_messages[i]->msn.msn) {
+                        assert(parent_messages_present[i] == 0);
+                        assert(found == 0);
+                        assert(dummy_cmp(NULL, &valdbt, parent_messages[i]->u.id.val) == 0);
+                        assert(type == parent_messages[i]->type);
+                        assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[i]->xids));
+                        assert(parent_messages_is_fresh[i] == is_fresh);
+                        parent_messages_present[i]++;
+                        found++;
+                    }
+                }
+                for (int i = 0; i < num_child_messages; ++i) {
+                    if (dummy_cmp(NULL, &keydbt, child_messages[i]->u.id.key) == 0 &&
+                            msn.msn == child_messages[i]->msn.msn) {
+                        assert(child_messages_present[i] == 0);
+                        assert(found == 0);
+                        assert(dummy_cmp(NULL, &valdbt, child_messages[i]->u.id.val) == 0);
+                        assert(type == child_messages[i]->type);
+                        assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[i]->xids));
+                        assert(child_messages_is_fresh[i] == is_fresh);
+                        child_messages_present[i]++;
+                        found++;
+                    }
+                }
+                assert(found == 1);
+                return 0;
+            }
+        } checkit(num_parent_messages, parent_messages, parent_messages_present, parent_messages_is_fresh,
+                  num_child_messages, child_messages, child_messages_present, child_messages_is_fresh);
+        child_bncs[j]->msg_buffer.iterate(checkit);
     }
 
     for (i = 0; i < num_parent_messages; ++i) {
@@ -721,11 +759,13 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         bool msgs_applied;
         toku_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied, -1);
 
-        FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
-                     {
-                         key = key; keylen = keylen; val = val; vallen = vallen; type = type; msn = msn; xids = xids;
-                         assert(!is_fresh);
-                     });
+        struct checkit_fn {
+            int operator()(FT_MSG UU(msg), bool is_fresh) {
+                 assert(!is_fresh);
+                return 0;
+            }
+        } checkit;
+        parent_bnc->msg_buffer.iterate(checkit);
         invariant(parent_bnc->fresh_message_tree.size() + parent_bnc->stale_message_tree.size()
                   == (uint32_t) num_parent_messages);
 
@@ -947,23 +987,33 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
     bool msgs_applied;
     toku_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied, -1);
 
-    FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
-                 {
-                     val = val; vallen = vallen; type = type; msn = msn; xids = xids;
-                     DBT keydbt;
-                     toku_fill_dbt(&keydbt, key, keylen);
-                     if (dummy_cmp(NULL, &keydbt, &childkeys[7]) > 0) {
-                         for (i = 0; i < num_parent_messages; ++i) {
-                             if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
-                                 msn.msn == parent_messages[i]->msn.msn) {
-                                 assert(is_fresh == parent_messages_is_fresh[i]);
-                                 break;
-                             }
-                         }
-                     } else {
-                         assert(!is_fresh);
-                     }
-                 });
+    struct checkit_fn {
+        DBT *childkeys;
+        int num_parent_messages;
+        FT_MSG *parent_messages;
+        bool *parent_messages_is_fresh;
+        checkit_fn(DBT *ck, int np, FT_MSG *pm, bool *pmf) :
+            childkeys(ck), num_parent_messages(np), parent_messages(pm), parent_messages_is_fresh(pmf) {
+        }
+        int operator()(FT_MSG msg, bool is_fresh) {
+            DBT keydbt;
+            toku_fill_dbt(&keydbt, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
+            MSN msn = msg->msn;
+            if (dummy_cmp(NULL, &keydbt, &childkeys[7]) > 0) {
+                for (int i = 0; i < num_parent_messages; ++i) {
+                    if (dummy_cmp(NULL, &keydbt, parent_messages[i]->u.id.key) == 0 &&
+                            msn.msn == parent_messages[i]->msn.msn) {
+                        assert(is_fresh == parent_messages_is_fresh[i]);
+                        break;
+                    }
+                }
+            } else {
+                assert(!is_fresh);
+            }
+            return 0;
+        }
+    } checkit(childkeys, num_parent_messages, parent_messages, parent_messages_is_fresh);
+    parent_bnc->msg_buffer.iterate(checkit);
 
     toku_ftnode_free(&parentnode);
 
@@ -1134,11 +1184,13 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     bool msgs_applied;
     toku_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds, &msgs_applied, -1);
 
-    FIFO_ITERATE(parent_bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh,
-                 {
-                     key = key; keylen = keylen; val = val; vallen = vallen; type = type; msn = msn; xids = xids;
-                     assert(!is_fresh);
-                 });
+    struct checkit_fn {
+        int operator()(FT_MSG UU(msg), bool is_fresh) {
+            assert(!is_fresh);
+            return 0;
+        }
+    } checkit;
+    parent_bnc->msg_buffer.iterate(checkit);
     invariant(parent_bnc->fresh_message_tree.size() + parent_bnc->stale_message_tree.size()
               == (uint32_t) num_parent_messages);
 

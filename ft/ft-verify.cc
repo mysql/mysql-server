@@ -120,6 +120,7 @@ static int
 verify_msg_in_child_buffer(FT_HANDLE ft_handle, enum ft_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot)
     __attribute__((warn_unused_result));
 
+UU()
 static int
 verify_msg_in_child_buffer(FT_HANDLE ft_handle, enum ft_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot) {
     int result = 0;
@@ -169,7 +170,7 @@ get_ith_key_dbt (BASEMENTNODE bn, int i) {
 struct count_msgs_extra {
     int count;
     MSN msn;
-    FIFO fifo;
+    message_buffer *msg_buffer;
 };
 
 // template-only function, but must be extern
@@ -177,15 +178,16 @@ int count_msgs(const int32_t &offset, const uint32_t UU(idx), struct count_msgs_
     __attribute__((nonnull(3)));
 int count_msgs(const int32_t &offset, const uint32_t UU(idx), struct count_msgs_extra *const e)
 {
-    const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
-    if (entry->msn.msn == e->msn.msn) {
+    MSN msn;
+    e->msg_buffer->get_message_key_msn(offset, nullptr, &msn);
+    if (msn.msn == e->msn.msn) {
         e->count++;
     }
     return 0;
 }
 
 struct verify_message_tree_extra {
-    FIFO fifo;
+    message_buffer *msg_buffer;
     bool broadcast;
     bool is_fresh;
     int i;
@@ -202,20 +204,22 @@ int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct ve
     BLOCKNUM blocknum = e->blocknum;
     int keep_going_on_failure = e->keep_going_on_failure;
     int result = 0;
-    const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
+    DBT k, v;
+    FT_MSG_S msg = e->msg_buffer->get_message(offset, &k, &v);
+    bool is_fresh = e->msg_buffer->get_freshness(offset);
     if (e->broadcast) {
-        VERIFY_ASSERTION(ft_msg_type_applies_all((enum ft_msg_type) entry->type) || ft_msg_type_does_nothing((enum ft_msg_type) entry->type),
+        VERIFY_ASSERTION(ft_msg_type_applies_all((enum ft_msg_type) msg.type) || ft_msg_type_does_nothing((enum ft_msg_type) msg.type),
                          e->i, "message found in broadcast list that is not a broadcast");
     } else {
-        VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) entry->type),
+        VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) msg.type),
                          e->i, "message found in fresh or stale message tree that does not apply once");
         if (e->is_fresh) {
             if (e->messages_have_been_moved) {
-                VERIFY_ASSERTION(entry->is_fresh,
+                VERIFY_ASSERTION(is_fresh,
                                  e->i, "message found in fresh message tree that is not fresh");
             }
         } else {
-            VERIFY_ASSERTION(!entry->is_fresh,
+            VERIFY_ASSERTION(!is_fresh,
                              e->i, "message found in stale message tree that is fresh");
         }
     }
@@ -235,15 +239,15 @@ int verify_marked_messages(const int32_t &offset, const uint32_t UU(idx), struct
     BLOCKNUM blocknum = e->blocknum;
     int keep_going_on_failure = e->keep_going_on_failure;
     int result = 0;
-    const struct fifo_entry *entry = toku_fifo_get_entry(e->fifo, offset);
-    VERIFY_ASSERTION(!entry->is_fresh, e->i, "marked message found in the fresh message tree that is fresh");
+    bool is_fresh = e->msg_buffer->get_freshness(offset);
+    VERIFY_ASSERTION(!is_fresh, e->i, "marked message found in the fresh message tree that is fresh");
  done:
     return result;
 }
 
 template<typename verify_omt_t>
 static int
-verify_sorted_by_key_msn(FT_HANDLE ft_handle, FIFO fifo, const verify_omt_t &mt) {
+verify_sorted_by_key_msn(FT_HANDLE ft_handle, message_buffer *msg_buffer, const verify_omt_t &mt) {
     int result = 0;
     size_t last_offset = 0;
     for (uint32_t i = 0; i < mt.size(); i++) {
@@ -251,12 +255,12 @@ verify_sorted_by_key_msn(FT_HANDLE ft_handle, FIFO fifo, const verify_omt_t &mt)
         int r = mt.fetch(i, &offset);
         assert_zero(r);
         if (i > 0) {
-            struct toku_fifo_entry_key_msn_cmp_extra extra;
+            struct toku_msg_buffer_key_msn_cmp_extra extra;
             ZERO_STRUCT(extra);
             extra.desc = &ft_handle->ft->cmp_descriptor;
             extra.cmp = ft_handle->ft->compare_fun;
-            extra.fifo = fifo;
-            if (toku_fifo_entry_key_msn_cmp(extra, last_offset, offset) >= 0) {
+            extra.msg_buffer = msg_buffer;
+            if (toku_msg_buffer_key_msn_cmp(extra, last_offset, offset) >= 0) {
                 result = TOKUDB_NEEDS_REPAIR;
                 break;
             }
@@ -268,15 +272,15 @@ verify_sorted_by_key_msn(FT_HANDLE ft_handle, FIFO fifo, const verify_omt_t &mt)
 
 template<typename count_omt_t>
 static int
-count_eq_key_msn(FT_HANDLE ft_handle, FIFO fifo, const count_omt_t &mt, const DBT *key, MSN msn) {
-    struct toku_fifo_entry_key_msn_heaviside_extra extra;
+count_eq_key_msn(FT_HANDLE ft_handle, message_buffer *msg_buffer, const count_omt_t &mt, const DBT *key, MSN msn) {
+    struct toku_msg_buffer_key_msn_heaviside_extra extra;
     ZERO_STRUCT(extra);
     extra.desc = &ft_handle->ft->cmp_descriptor;
     extra.cmp = ft_handle->ft->compare_fun;
-    extra.fifo = fifo;
+    extra.msg_buffer = msg_buffer;
     extra.key = key;
     extra.msn = msn;
-    int r = mt.template find_zero<struct toku_fifo_entry_key_msn_heaviside_extra, toku_fifo_entry_key_msn_heaviside>(extra, nullptr, nullptr);
+    int r = mt.template find_zero<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(extra, nullptr, nullptr);
     int count;
     if (r == 0) {
         count = 1;
@@ -307,6 +311,80 @@ toku_get_node_for_verify(
         false
         );
 }
+
+struct verify_msg_fn {
+    FT_HANDLE ft_handle;
+    NONLEAF_CHILDINFO bnc;
+    const DBT *curr_less_pivot;
+    const DBT *curr_geq_pivot;
+    BLOCKNUM blocknum;
+    MSN this_msn;
+    int verbose;
+    int keep_going_on_failure;
+    bool messages_have_been_moved;
+
+    MSN last_msn;
+    int msg_i;
+    int result = 0; // needed by VERIFY_ASSERTION
+
+    verify_msg_fn(FT_HANDLE handle, NONLEAF_CHILDINFO nl, const DBT *less, const DBT *geq,
+                  BLOCKNUM b, MSN tmsn, int v, int k, bool m) :
+        ft_handle(handle), bnc(nl), curr_less_pivot(less), curr_geq_pivot(geq),
+        blocknum(b), this_msn(tmsn), verbose(v), keep_going_on_failure(k), messages_have_been_moved(m), last_msn(ZERO_MSN), msg_i(0) {
+    }
+
+    int operator()(FT_MSG msg, bool is_fresh) {
+        enum ft_msg_type type = (enum ft_msg_type) msg->type;
+        MSN msn = msg->msn;
+        XIDS xid = msg->xids;
+        const void *key = ft_msg_get_key(msg);
+        const void *data = ft_msg_get_val(msg);
+        ITEMLEN keylen = ft_msg_get_keylen(msg);
+        ITEMLEN datalen = ft_msg_get_vallen(msg);
+
+        int r = verify_msg_in_child_buffer(ft_handle, type, msn, key, keylen, data, datalen, xid,
+                                           curr_less_pivot,
+                                           curr_geq_pivot);
+        VERIFY_ASSERTION(r == 0, msg_i, "A message in the buffer is out of place");
+        VERIFY_ASSERTION((msn.msn > last_msn.msn), msg_i, "msn per msg must be monotonically increasing toward newer messages in buffer");
+        VERIFY_ASSERTION((msn.msn <= this_msn.msn), msg_i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
+        if (ft_msg_type_applies_once(type)) {
+            int count;
+            DBT keydbt;
+            toku_fill_dbt(&keydbt, key, keylen);
+            int total_count = 0;
+            count = count_eq_key_msn(ft_handle, &bnc->msg_buffer, bnc->fresh_message_tree, toku_fill_dbt(&keydbt, key, keylen), msn);
+            total_count += count;
+            if (is_fresh) {
+                VERIFY_ASSERTION(count == 1, msg_i, "a fresh message was not found in the fresh message tree");
+            } else if (messages_have_been_moved) {
+                VERIFY_ASSERTION(count == 0, msg_i, "a stale message was found in the fresh message tree");
+            }
+            VERIFY_ASSERTION(count <= 1, msg_i, "a message was found multiple times in the fresh message tree");
+            count = count_eq_key_msn(ft_handle, &bnc->msg_buffer, bnc->stale_message_tree, &keydbt, msn);
+
+            total_count += count;
+            if (is_fresh) {
+                VERIFY_ASSERTION(count == 0, msg_i, "a fresh message was found in the stale message tree");
+            } else if (messages_have_been_moved) {
+                VERIFY_ASSERTION(count == 1, msg_i, "a stale message was not found in the stale message tree");
+            }
+            VERIFY_ASSERTION(count <= 1, msg_i, "a message was found multiple times in the stale message tree");
+
+            VERIFY_ASSERTION(total_count <= 1, msg_i, "a message was found in both message trees (or more than once in a single tree)");
+            VERIFY_ASSERTION(total_count >= 1, msg_i, "a message was not found in either message tree");
+        } else {
+            VERIFY_ASSERTION(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type), msg_i, "a message was found that does not apply either to all or to only one key");
+            struct count_msgs_extra extra = { .count = 0, .msn = msn, .msg_buffer = &bnc->msg_buffer };
+            bnc->broadcast_list.iterate<struct count_msgs_extra, count_msgs>(&extra);
+            VERIFY_ASSERTION(extra.count == 1, msg_i, "a broadcast message was not found in the broadcast list");
+        }
+        last_msn = msn;
+        msg_i++;
+done:
+        return result;
+    }
+};
 
 static int
 toku_verify_ftnode_internal(FT_HANDLE ft_handle,
@@ -351,55 +429,18 @@ toku_verify_ftnode_internal(FT_HANDLE ft_handle,
         const DBT *curr_less_pivot = (i==0) ? lesser_pivot : &node->childkeys[i-1];
         const DBT *curr_geq_pivot = (i==node->n_children-1) ? greatereq_pivot : &node->childkeys[i];
         if (node->height > 0) {
-            MSN last_msn = ZERO_MSN;
-            // Verify that messages in the buffers are in the right place.
             NONLEAF_CHILDINFO bnc = BNC(node, i);
-            VERIFY_ASSERTION(verify_sorted_by_key_msn(ft_handle, bnc->buffer, bnc->fresh_message_tree) == 0, i, "fresh_message_tree");
-            VERIFY_ASSERTION(verify_sorted_by_key_msn(ft_handle, bnc->buffer, bnc->stale_message_tree) == 0, i, "stale_message_tree");
-            FIFO_ITERATE(bnc->buffer, key, keylen, data, datalen, itype, msn, xid, is_fresh,
-                         ({
-                             enum ft_msg_type type = (enum ft_msg_type) itype;
-                             int r = verify_msg_in_child_buffer(ft_handle, type, msn, key, keylen, data, datalen, xid,
-                                                                curr_less_pivot,
-                                                                curr_geq_pivot);
-                             VERIFY_ASSERTION(r==0, i, "A message in the buffer is out of place");
-                             VERIFY_ASSERTION((msn.msn > last_msn.msn), i, "msn per msg must be monotonically increasing toward newer messages in buffer");
-                             VERIFY_ASSERTION((msn.msn <= this_msn.msn), i, "all messages must have msn within limit of this node's max_msn_applied_to_node_in_memory");
-                             if (ft_msg_type_applies_once(type)) {
-                                 int count;
-                                 DBT keydbt;
-                                 toku_fill_dbt(&keydbt, key, keylen);
-                                 int total_count = 0;
-                                 count = count_eq_key_msn(ft_handle, bnc->buffer, bnc->fresh_message_tree, toku_fill_dbt(&keydbt, key, keylen), msn);
-                                 total_count += count;
-                                 if (is_fresh) {
-                                     VERIFY_ASSERTION(count == 1, i, "a fresh message was not found in the fresh message tree");
-                                 } else if (messages_have_been_moved) {
-                                     VERIFY_ASSERTION(count == 0, i, "a stale message was found in the fresh message tree");
-                                 }
-                                 VERIFY_ASSERTION(count <= 1, i, "a message was found multiple times in the fresh message tree");
-                                 count = count_eq_key_msn(ft_handle, bnc->buffer, bnc->stale_message_tree, &keydbt, msn);
+            // Verify that messages in the buffers are in the right place.
+            VERIFY_ASSERTION(verify_sorted_by_key_msn(ft_handle, &bnc->msg_buffer, bnc->fresh_message_tree) == 0, i, "fresh_message_tree");
+            VERIFY_ASSERTION(verify_sorted_by_key_msn(ft_handle, &bnc->msg_buffer, bnc->stale_message_tree) == 0, i, "stale_message_tree");
 
-                                 total_count += count;
-                                 if (is_fresh) {
-                                     VERIFY_ASSERTION(count == 0, i, "a fresh message was found in the stale message tree");
-                                 } else if (messages_have_been_moved) {
-                                     VERIFY_ASSERTION(count == 1, i, "a stale message was not found in the stale message tree");
-                                 }
-                                 VERIFY_ASSERTION(count <= 1, i, "a message was found multiple times in the stale message tree");
+            verify_msg_fn verify_msg(ft_handle, bnc, curr_less_pivot, curr_geq_pivot,
+                                     blocknum, this_msn, verbose, keep_going_on_failure, messages_have_been_moved);
+            int r = bnc->msg_buffer.iterate(verify_msg);
+            if (r != 0) { result = r; goto done; }
 
-                                 VERIFY_ASSERTION(total_count <= 1, i, "a message was found in both message trees (or more than once in a single tree)");
-                                 VERIFY_ASSERTION(total_count >= 1, i, "a message was not found in either message tree");
-                             } else {
-                                 VERIFY_ASSERTION(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type), i, "a message was found that does not apply either to all or to only one key");
-                                 struct count_msgs_extra extra = { .count = 0, .msn = msn, .fifo = bnc->buffer };
-                                 bnc->broadcast_list.iterate<struct count_msgs_extra, count_msgs>(&extra);
-                                 VERIFY_ASSERTION(extra.count == 1, i, "a broadcast message was not found in the broadcast list");
-                             }
-                             last_msn = msn;
-                         }));
-            struct verify_message_tree_extra extra = { .fifo = bnc->buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure, .messages_have_been_moved = messages_have_been_moved };
-            int r = bnc->fresh_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
+            struct verify_message_tree_extra extra = { .msg_buffer = &bnc->msg_buffer, .broadcast = false, .is_fresh = true, .i = i, .verbose = verbose, .blocknum = node->thisnodename, .keep_going_on_failure = keep_going_on_failure, .messages_have_been_moved = messages_have_been_moved };
+            r = bnc->fresh_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);
             if (r != 0) { result = r; goto done; }
             extra.is_fresh = false;
             r = bnc->stale_message_tree.iterate<struct verify_message_tree_extra, verify_message_tree>(&extra);

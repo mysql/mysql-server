@@ -187,7 +187,7 @@ ft_log_fassociate_during_checkpoint (CACHEFILE cf, void *header_v) {
 }
 
 // Maps to cf->begin_checkpoint_userdata
-// Create checkpoint-in-progress versions of header and translation (btt) (and fifo for now...).
+// Create checkpoint-in-progress versions of header and translation (btt)
 // Has access to fd (it is protected).
 //
 // Not reentrant for a single FT (see ft_checkpoint)

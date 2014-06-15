@@ -310,26 +310,26 @@ serialize_ftnode_partition_size (FTNODE node, int i)
 }
 
 #define FTNODE_PARTITION_DMT_LEAVES 0xaa
-#define FTNODE_PARTITION_FIFO_MSG 0xbb
+#define FTNODE_PARTITION_MSG_BUFFER 0xbb
 
 UU() static int
-assert_fresh(const int32_t &offset, const uint32_t UU(idx), struct fifo *const f) {
-    struct fifo_entry *entry = toku_fifo_get_entry(f, offset);
-    assert(entry->is_fresh);
+assert_fresh(const int32_t &offset, const uint32_t UU(idx), message_buffer *const msg_buffer) {
+    bool is_fresh = msg_buffer->get_freshness(offset);
+    assert(is_fresh);
     return 0;
 }
 
 UU() static int
-assert_stale(const int32_t &offset, const uint32_t UU(idx), struct fifo *const f) {
-    struct fifo_entry *entry = toku_fifo_get_entry(f, offset);
-    assert(!entry->is_fresh);
+assert_stale(const int32_t &offset, const uint32_t UU(idx), message_buffer *const msg_buffer) {
+    bool is_fresh = msg_buffer->get_freshness(offset);
+    assert(!is_fresh);
     return 0;
 }
 
 static void bnc_verify_message_trees(NONLEAF_CHILDINFO UU(bnc)) {
 #ifdef TOKU_DEBUG_PARANOID
-    bnc->fresh_message_tree.iterate<struct fifo, assert_fresh>(bnc->buffer);
-    bnc->stale_message_tree.iterate<struct fifo, assert_stale>(bnc->buffer);
+    bnc->fresh_message_tree.iterate<message_buffer, assert_fresh>(&bnc->msg_buffer);
+    bnc->stale_message_tree.iterate<message_buffer, assert_stale>(&bnc->msg_buffer);
 #endif
 }
 
@@ -342,21 +342,27 @@ wbuf_write_offset(const int32_t &offset, const uint32_t UU(idx), struct wbuf *co
 static void
 serialize_child_buffer(NONLEAF_CHILDINFO bnc, struct wbuf *wb)
 {
-    unsigned char ch = FTNODE_PARTITION_FIFO_MSG;
+    unsigned char ch = FTNODE_PARTITION_MSG_BUFFER;
     wbuf_nocrc_char(wb, ch);
-    // serialize the FIFO, first the number of entries, then the elements
+
+    // serialize the message buffer, first the number of entries, then the elements
     wbuf_nocrc_int(wb, toku_bnc_n_entries(bnc));
-    FIFO_ITERATE(
-        bnc->buffer, key, keylen, data, datalen, type, msn, xids, is_fresh,
-        {
+    struct msg_serialize_fn {
+        struct wbuf *wb;
+        msg_serialize_fn(struct wbuf *w) : wb(w) { }
+        int operator()(FT_MSG msg, bool is_fresh) {
+            enum ft_msg_type type = (enum ft_msg_type) msg->type;
             paranoid_invariant((int) type >= 0 && (int) type < 256);
             wbuf_nocrc_char(wb, (unsigned char) type);
             wbuf_nocrc_char(wb, (unsigned char) is_fresh);
-            wbuf_MSN(wb, msn);
-            wbuf_nocrc_xids(wb, xids);
-            wbuf_nocrc_bytes(wb, key, keylen);
-            wbuf_nocrc_bytes(wb, data, datalen);
-        });
+            wbuf_MSN(wb, msg->msn);
+            wbuf_nocrc_xids(wb, ft_msg_get_xids(msg));
+            wbuf_nocrc_bytes(wb, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
+            wbuf_nocrc_bytes(wb, ft_msg_get_val(msg), ft_msg_get_vallen(msg));
+            return 0;
+        }
+    } serialize_fn(wb);
+    bnc->msg_buffer.iterate(serialize_fn);
 
     bnc_verify_message_trees(bnc);
 
@@ -1084,7 +1090,7 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         XMALLOC_N(n_in_this_buffer, fresh_offsets);
         XMALLOC_N(n_in_this_buffer, broadcast_offsets);
     }
-    toku_fifo_resize(bnc->buffer, rbuf->size + 64);
+    bnc->msg_buffer.resize(rbuf->size + 64);
     for (int i = 0; i < n_in_this_buffer; i++) {
         bytevec key; ITEMLEN keylen;
         bytevec val; ITEMLEN vallen;
@@ -1116,19 +1122,24 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         } else {
             dest = NULL;
         }
-        r = toku_fifo_enq(bnc->buffer, key, keylen, val, vallen, type, msn, xids, is_fresh, dest); /* Copies the data into the fifo */
-        lazy_assert_zero(r);
+        // TODO: Function to parse stuff out of an rbuf into an FT_MSG
+        DBT k, v;
+        FT_MSG_S msg = {
+            type, msn, xids,
+            .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen) } }
+        };
+        bnc->msg_buffer.enqueue(&msg, is_fresh, dest);
         xids_destroy(&xids);
     }
     invariant(rbuf->ndone == rbuf->size);
 
     if (cmp) {
-        struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = desc, .cmp = cmp, .fifo = bnc->buffer };
-        r = toku::sort<int32_t, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
+        struct toku_msg_buffer_key_msn_cmp_extra extra = { .desc = desc, .cmp = cmp, .msg_buffer = &bnc->msg_buffer };
+        r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
         assert_zero(r);
         bnc->fresh_message_tree.destroy();
         bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-        r = toku::sort<int32_t, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
+        r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
         assert_zero(r);
         bnc->stale_message_tree.destroy();
         bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
@@ -1137,9 +1148,9 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
     }
 }
 
-// effect: deserialize a single message from rbuf and enque the result into the given fifo
+// effect: deserialize a single message from rbuf and enqueue the result into the given message buffer
 static void
-fifo_deserialize_msg_from_rbuf(FIFO fifo, struct rbuf *rbuf) {
+msg_buffer_deserialize_msg_from_rbuf(message_buffer *msg_buffer, struct rbuf *rbuf) {
     bytevec key, val;
     ITEMLEN keylen, vallen;
     enum ft_msg_type type = (enum ft_msg_type) rbuf_char(rbuf);
@@ -1149,8 +1160,13 @@ fifo_deserialize_msg_from_rbuf(FIFO fifo, struct rbuf *rbuf) {
     xids_create_from_buffer(rbuf, &xids);
     rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
     rbuf_bytes(rbuf, &val, &vallen);
-    int r = toku_fifo_enq(fifo, key, keylen, val, vallen, type, msn, xids, is_fresh, nullptr);
-    lazy_assert_zero(r);
+    // TODO: Function to parse stuff out of an rbuf into an FT_MSG
+    DBT k, v;
+    FT_MSG_S msg = {
+        type, msn, xids,
+        .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen) } }
+    };
+    msg_buffer->enqueue(&msg, is_fresh, nullptr);
     xids_destroy(&xids);
 }
 
@@ -1162,9 +1178,9 @@ deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf) {
     int32_t *XMALLOC_N(n_in_this_buffer, fresh_offsets);
     int32_t *XMALLOC_N(n_in_this_buffer, broadcast_offsets);
 
-    toku_fifo_resize(bnc->buffer, rbuf->size + 64);
+    bnc->msg_buffer.resize(rbuf->size + 64);
     for (int i = 0; i < n_in_this_buffer; i++) {
-        fifo_deserialize_msg_from_rbuf(bnc->buffer, rbuf);
+        msg_buffer_deserialize_msg_from_rbuf(&bnc->msg_buffer, rbuf);
     }
 
     // read in each message tree (fresh, stale, broadcast)
@@ -1253,7 +1269,7 @@ BASEMENTNODE toku_create_empty_bn_no_buffer(void) {
 
 NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     NONLEAF_CHILDINFO XMALLOC(cn);
-    int r = toku_fifo_create(&cn->buffer); assert_zero(r);
+    cn->msg_buffer.create();
     cn->fresh_message_tree.create_no_array();
     cn->stale_message_tree.create_no_array();
     cn->broadcast_list.create_no_array();
@@ -1261,10 +1277,10 @@ NONLEAF_CHILDINFO toku_create_empty_nl(void) {
     return cn;
 }
 
-// must clone the OMTs, since we serialize them along with the FIFO
+// must clone the OMTs, since we serialize them along with the message buffer
 NONLEAF_CHILDINFO toku_clone_nl(NONLEAF_CHILDINFO orig_childinfo) {
     NONLEAF_CHILDINFO XMALLOC(cn);
-    toku_fifo_clone(orig_childinfo->buffer, &cn->buffer);
+    cn->msg_buffer.clone(&orig_childinfo->msg_buffer);
     cn->fresh_message_tree.create_no_array();
     cn->fresh_message_tree.clone(orig_childinfo->fresh_message_tree);
     cn->stale_message_tree.create_no_array();
@@ -1283,7 +1299,7 @@ void destroy_basement_node (BASEMENTNODE bn)
 
 void destroy_nonleaf_childinfo (NONLEAF_CHILDINFO nl)
 {
-    toku_fifo_free(&nl->buffer);
+    nl->msg_buffer.destroy();
     nl->fresh_message_tree.destroy();
     nl->stale_message_tree.destroy();
     nl->broadcast_list.destroy();
@@ -1615,7 +1631,7 @@ deserialize_ftnode_partition(
     ch = rbuf_char(&rb);
 
     if (node->height > 0) {
-        assert(ch == FTNODE_PARTITION_FIFO_MSG);
+        assert(ch == FTNODE_PARTITION_MSG_BUFFER);
         NONLEAF_CHILDINFO bnc = BNC(node, childnum);
         if (node->layout_version_read_from_disk <= FT_LAYOUT_VERSION_26) {
             // Layout version <= 26 did not serialize sorted message trees to disk.
@@ -1827,7 +1843,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     paranoid_invariant(is_valid_ftnode_fetch_type(bfe->type));
 
     // setup the memory of the partitions
-    // for partitions being decompressed, create either FIFO or basement node
+    // for partitions being decompressed, create either message buffer or basement node
     // for partitions staying compressed, create sub_block
     setup_ftnode_partitions(node, bfe, false);
 
@@ -1995,7 +2011,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             highest_msn.msn = lowest.msn + n_in_this_buffer;
         }
 
-        // Create the FIFO entires from the deserialized buffer.
+        // Create the message buffers from the deserialized buffer.
         for (int j = 0; j < n_in_this_buffer; ++j) {
             bytevec key; ITEMLEN keylen;
             bytevec val; ITEMLEN vallen;
@@ -2025,25 +2041,21 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             // Increment our MSN, the last message should have the
             // newest/highest MSN.  See above for a full explanation.
             lowest.msn++;
-            r = toku_fifo_enq(bnc->buffer,
-                              key,
-                              keylen,
-                              val,
-                              vallen,
-                              type,
-                              lowest,
-                              xids,
-                              true,
-                              dest);
-            lazy_assert_zero(r);
+            // TODO: Function to parse stuff out of an rbuf into an FT_MSG
+            DBT k, v;
+            FT_MSG_S msg = {
+                type, lowest, xids,
+                .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen) } }
+            };
+            bnc->msg_buffer.enqueue(&msg, true, dest);
             xids_destroy(&xids);
         }
 
         if (bfe->h->compare_fun) {
-            struct toku_fifo_entry_key_msn_cmp_extra extra = { .desc = &bfe->h->cmp_descriptor,
+            struct toku_msg_buffer_key_msn_cmp_extra extra = { .desc = &bfe->h->cmp_descriptor,
                                                                .cmp = bfe->h->compare_fun,
-                                                               .fifo = bnc->buffer };
-            typedef toku::sort<int32_t, const struct toku_fifo_entry_key_msn_cmp_extra, toku_fifo_entry_key_msn_cmp> key_msn_sort;
+                                                               .msg_buffer = &bnc->msg_buffer };
+            typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
             r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
             assert_zero(r);
             bnc->fresh_message_tree.destroy();
@@ -2053,7 +2065,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         }
     }
 
-    // Assign the highest msn from our upgrade message FIFO queues.
+    // Assign the highest msn from our upgrade message buffers
     node->max_msn_applied_to_node_on_disk = highest_msn;
     // Since we assigned MSNs to this node's messages, we need to dirty it.
     node->dirty = 1;
@@ -2433,7 +2445,7 @@ deserialize_ftnode_from_rbuf(
     paranoid_invariant(is_valid_ftnode_fetch_type(bfe->type));
 
     // setup the memory of the partitions
-    // for partitions being decompressed, create either FIFO or basement node
+    // for partitions being decompressed, create either message buffer or basement node
     // for partitions staying compressed, create sub_block
     setup_ftnode_partitions(node, bfe, true);
 

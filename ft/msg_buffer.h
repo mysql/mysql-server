@@ -1,8 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef FIFO_H
-#define FIFO_H
-#ident "$Id$"
+
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -32,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuDB, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -88,77 +86,76 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#pragma once
 
 #include "ft/fttypes.h"
 #include "ft/xids-internal.h"
 #include "ft/xids.h"
 #include "ft/ft_msg.h"
+#include "ft/ybt.h"
 
-// If the fifo_entry is unpacked, the compiler aligns the xids array and we waste a lot of space
-struct __attribute__((__packed__)) fifo_entry {
-    unsigned int keylen;
-    unsigned int vallen;
-    unsigned char type;
-    bool          is_fresh;
-    MSN           msn;
-    XIDS_S        xids_s;
+class message_buffer {
+public:
+    void create();
+
+    void clone(message_buffer *dst);
+
+    void destroy();
+
+    void resize(size_t new_size);
+
+    void enqueue(FT_MSG msg, bool is_fresh, int32_t *offset);
+
+    void set_freshness(int32_t offset, bool is_fresh);
+
+    bool get_freshness(int32_t offset) const;
+
+    FT_MSG_S get_message(int32_t offset, DBT *keydbt, DBT *valdbt) const;
+
+    void get_message_key_msn(int32_t offset, DBT *key, MSN *msn) const;
+
+    int num_entries() const;
+
+    size_t buffer_size_in_use() const;
+
+    size_t memory_size_in_use() const;
+
+    size_t memory_footprint() const;
+
+    template <typename F>
+    int iterate(F &fn) const {
+        for (int32_t offset = 0; offset < _memory_used; ) {
+            DBT k, v;
+            FT_MSG_S msg = get_message(offset, &k, &v);
+            bool is_fresh = get_freshness(offset);
+            int r = fn(&msg, is_fresh);
+            if (r != 0) {
+                return r;
+            }
+            offset += msg_memsize_in_buffer(&msg);
+        }
+        return 0;
+    }
+
+    bool equals(message_buffer *other) const;
+
+    static size_t msg_memsize_in_buffer(FT_MSG msg);
+
+private:
+    // If this isn't packged, the compiler aligns the xids array and we waste a lot of space
+    struct __attribute__((__packed__)) buffer_entry {
+        unsigned int  keylen;
+        unsigned int  vallen;
+        unsigned char type;
+        bool          is_fresh;
+        MSN           msn;
+        XIDS_S        xids_s;
+    };
+
+    struct buffer_entry *get_buffer_entry(int32_t offset) const;
+
+    int   _num_entries;
+    char *_memory;       // An array of bytes into which buffer entries are embedded.
+    int   _memory_size;  // How big is _memory
+    int   _memory_used;  // How many bytes are in use?
 };
-
-typedef struct fifo *FIFO;
-
-int toku_fifo_create(FIFO *);
-
-void toku_fifo_resize(FIFO fifo, size_t new_size);
-
-void toku_fifo_free(FIFO *);
-
-int toku_fifo_n_entries(FIFO);
-
-int toku_fifo_enq (FIFO, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, int32_t *dest);
-
-unsigned int toku_fifo_buffer_size_in_use (FIFO fifo);
-unsigned long toku_fifo_memory_size_in_use(FIFO fifo);  // return how much memory in the fifo holds useful data
-
-unsigned long toku_fifo_memory_footprint(FIFO fifo);  // return how much memory the fifo occupies
-
-void toku_fifo_iterate(FIFO, void(*f)(bytevec key,ITEMLEN keylen,bytevec data,ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, void*), void*);
-
-#define FIFO_ITERATE(fifo,keyvar,keylenvar,datavar,datalenvar,typevar,msnvar,xidsvar,is_freshvar,body) ({ \
-  for (int fifo_iterate_off = toku_fifo_iterate_internal_start(fifo);                                     \
-       toku_fifo_iterate_internal_has_more(fifo, fifo_iterate_off);                                       \
-       fifo_iterate_off = toku_fifo_iterate_internal_next(fifo, fifo_iterate_off)) {                      \
-      struct fifo_entry *e = toku_fifo_iterate_internal_get_entry(fifo, fifo_iterate_off);                \
-      ITEMLEN keylenvar = e->keylen;                                                                      \
-      ITEMLEN datalenvar = e->vallen;                                                                     \
-      enum ft_msg_type typevar = (enum ft_msg_type) e->type;                                              \
-      MSN     msnvar  = e->msn;                                                                           \
-      XIDS    xidsvar = &e->xids_s;                                                                       \
-      bytevec keyvar  = xids_get_end_of_array(xidsvar);                                                   \
-      bytevec datavar = (const uint8_t*)keyvar + e->keylen;                                               \
-      bool is_freshvar = e->is_fresh;                                                                     \
-      body;                                                                                               \
-  } })
-
-#define FIFO_CURRENT_ENTRY_MEMSIZE toku_fifo_internal_entry_memsize(e)
-
-// Internal functions for the iterator.
-int toku_fifo_iterate_internal_start(FIFO fifo);
-int toku_fifo_iterate_internal_has_more(FIFO fifo, int off);
-int toku_fifo_iterate_internal_next(FIFO fifo, int off);
-struct fifo_entry * toku_fifo_iterate_internal_get_entry(FIFO fifo, int off);
-size_t toku_fifo_internal_entry_memsize(struct fifo_entry *e) __attribute__((const,nonnull));
-size_t toku_ft_msg_memsize_in_fifo(FT_MSG msg) __attribute__((const,nonnull));
-
-DBT *fill_dbt_for_fifo_entry(DBT *dbt, const struct fifo_entry *entry);
-struct fifo_entry *toku_fifo_get_entry(FIFO fifo, int off);
-
-void toku_fifo_clone(FIFO orig_fifo, FIFO* cloned_fifo);
-
-bool toku_are_fifos_same(FIFO fifo1, FIFO fifo2);
-
-
-
-
-#endif
