@@ -1,8 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
-#ifndef YDB_LOAD_H
-#define YDB_LOAD_H
 
 /*
 COPYING CONDITIONS NOTICE:
@@ -89,7 +87,7 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2010-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
 /*  ydb functions used by loader
  */
@@ -113,5 +111,3 @@ int locked_load_inames(DB_ENV * env,
                        char * new_inames_in_env[/*N*/], /* out */
                        LSN *load_lsn,
                        bool mark_as_loader);
-
-#endif

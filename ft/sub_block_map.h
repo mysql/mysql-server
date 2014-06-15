@@ -1,7 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-#ifndef _TOKU_SUB_BLOCK_MAP_H
-#define _TOKU_SUB_BLOCK_MAP_H
 
 #ident "$Id$"
 /*
@@ -89,6 +87,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -123,5 +123,3 @@ sub_block_map_deserialize(struct sub_block_map *sbmap, struct rbuf *rbuf) {
     sbmap->offset = rbuf_int(rbuf);
     sbmap->size = rbuf_int(rbuf);
 }
-
-#endif

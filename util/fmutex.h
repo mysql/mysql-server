@@ -1,5 +1,4 @@
-#ifndef FMUTEX_H
-#define FMUTEX_H
+#pragma once
 
 // fair mutex
 struct fmutex {
@@ -105,5 +104,3 @@ int fmutex_users(struct fmutex *fm) const {
 int fmutex_blocked_users(struct fmutex *fm) const {
     return fm->num_want_mutex;
 }
-
-#endif // FMUTEX_H

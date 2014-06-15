@@ -86,8 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include "cachetable-internal.h"
 

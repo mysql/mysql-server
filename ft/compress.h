@@ -86,12 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef TOKU_COMPRESS_H
-#define TOKU_COMPRESS_H
-
 
 #include <zlib.h>
 #include <db.h>
@@ -131,5 +129,3 @@ void toku_decompress (Bytef       *dest,   uLongf destLen,
 //  This function can decompress data compressed with either zlib or quicklz compression methods (calling toku_compress(), which puts an appropriate header on so we know which it is.)
 // Requires: destLen is equal to the actual decompressed size of the data.
 // Requires: The source must have been properly compressed.
-
-#endif

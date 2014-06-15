@@ -86,12 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2009-2013 Tokutek Inc.  All rights reserved."
 #ident "$Id$"
-
-#ifndef CHECKPOINT_TEST_H
-#define CHECKPOINT_TEST_H
-
 
 DB_ENV *env;
 
@@ -537,6 +535,3 @@ snapshot(DICTIONARY d, int do_checkpoint) {
         db_startup(d, NULL);
     }
 }
-
-
-#endif

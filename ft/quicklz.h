@@ -86,10 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#ifndef QLZ_HEADER
-#define QLZ_HEADER
 
 // Fast data compression library
 // Copyright (C) 2006-2011 Lasse Mikkel Reinhold
@@ -228,6 +228,3 @@ int qlz_get_setting(int setting);
 #if defined (__cplusplus)
 }
 #endif
-
-#endif
-

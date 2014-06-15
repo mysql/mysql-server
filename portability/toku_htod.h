@@ -86,8 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 /* Purpose of this file is to provide definitions of 
  * Host to Disk byte transposition functions, an abstraction of
@@ -105,9 +106,6 @@ PATENT RIGHTS GRANT:
  * NOTE: THIS FILE DOES NOT CURRENTLY SUPPORT A BIG-ENDIAN
  *       HOST AND A LITTLE-ENDIAN DISK.
  */
-
-#ifndef _TOKU_HTOD_H
-#define _TOKU_HTOD_H
 
 #include <portability/toku_config.h>
 
@@ -166,8 +164,3 @@ toku_htod32(uint32_t i) {
 #else
 #error Not supported
 #endif
-
-
-
-#endif
-

@@ -1,8 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
-#if !defined(TOKUDB_COMMON_FUNCS_H)
-#define TOKUDB_COMMON_FUNCS_H
 
 /*
 COPYING CONDITIONS NOTICE:
@@ -88,6 +86,8 @@ PATENT RIGHTS GRANT:
   CHALLENGE, then Tokutek may terminate any rights granted to you
   under this License.
 */
+
+#pragma once
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
@@ -333,5 +333,3 @@ main(int argc, char *const argv[]) {
     r = test_main(argc, argv);
     return r;
 }
-
-#endif /* #if !defined(TOKUDB_COMMON_H) */

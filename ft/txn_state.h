@@ -86,10 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-#if !defined(TOKUTXN_STATE_H)
-#define TOKUTXN_STATE_H
 
 // this is a separate file so that the hotindexing tests can see the txn states
 
@@ -101,5 +101,3 @@ enum tokutxn_state {
     TOKUTXN_RETIRED,      // txn no longer exists
 };
 typedef enum tokutxn_state TOKUTXN_STATE;
-
-#endif

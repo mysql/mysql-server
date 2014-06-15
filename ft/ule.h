@@ -6,9 +6,6 @@
  * requirements of the nested transaction logic belongs here.
  */
 
-#ifndef TOKU_ULE_H
-#define TOKU_ULE_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -95,6 +92,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -130,5 +129,3 @@ TXNID uxr_get_txnid(UXRHANDLE uxr);
 
 //1 does much slower debugging
 #define GARBAGE_COLLECTION_DEBUG 0
-
-#endif  // TOKU_ULE_H

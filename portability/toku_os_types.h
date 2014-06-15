@@ -86,10 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
-#if !defined(TOKU_OS_TYPES_H)
-#define TOKU_OS_TYPES_H
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <stdbool.h>
 #include <sys/types.h>
@@ -127,6 +126,4 @@ typedef struct stat toku_struct_stat;
 
 #if !defined(O_BINARY)
 #define O_BINARY 0
-#endif
-
 #endif

@@ -86,10 +86,9 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#pragma once
 
-#ifndef TOKU_TIME_H
-#define TOKU_TIME_H
+#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include "toku_config.h"
 
@@ -161,5 +160,3 @@ static inline uint64_t toku_current_time_microsec(void) {
     gettimeofday(&t, NULL);
     return t.tv_sec * (1UL * 1000 * 1000) + t.tv_usec;
 }
-
-#endif

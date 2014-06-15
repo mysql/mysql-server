@@ -1,8 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 #ident "$Id$"
-#ifndef MEMORY_H
-#define MEMORY_H
 
 /*
 COPYING CONDITIONS NOTICE:
@@ -89,11 +87,12 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
 #include <stdlib.h>
 #include <toku_portability.h>
-
 
 /* Tokutek memory allocation functions and macros.
  * These are functions for malloc and free */
@@ -225,5 +224,3 @@ typedef struct memory_status {
 void toku_memory_get_status(LOCAL_MEMORY_STATUS s);
 
 size_t toku_memory_footprint(void * p, size_t touched);
-
-#endif

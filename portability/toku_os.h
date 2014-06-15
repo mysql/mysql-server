@@ -86,11 +86,10 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#ifndef TOKU_OS_H
-#define TOKU_OS_H
 
 #include <dirent.h>
 #include <sys/time.h>
@@ -179,5 +178,3 @@ int toku_fstat(int fd, toku_struct_stat *statbuf) __attribute__((__visibility__(
 
 // Portable linux 'dup2'
 int toku_dup2(int fd, int fd2) __attribute__((__visibility__("default")));
-
-#endif /* TOKU_OS_H */

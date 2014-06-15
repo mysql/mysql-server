@@ -5,9 +5,6 @@
  * ule mechanisms that do not belong in the public interface.
  */
 
-#ifndef TOKU_ULE_INTERNAL_H
-#define TOKU_ULE_INTERNAL_H
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -94,6 +91,8 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -157,7 +156,3 @@ le_pack(ULE ule, // data to be packed into new leafentry
 
 size_t le_memsize_from_ule (ULE ule);
 void ule_cleanup(ULE ule);
-
-
-#endif  // TOKU_ULE_H
-
