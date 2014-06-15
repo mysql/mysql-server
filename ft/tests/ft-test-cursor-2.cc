@@ -106,7 +106,7 @@ save_data (ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN vallen, bytevec val, voi
 
 
 // Verify that different cursors return different data items when a DBT is initialized to all zeros (no flags)
-// Note: The BRT test used to implement DBTs with per-cursor allocated space, but there isn't any such thing any more
+// Note: The ft test used to implement DBTs with per-cursor allocated space, but there isn't any such thing any more
 // so this test is a little bit obsolete.
 static void test_multiple_ft_cursor_dbts(int n) {
     if (verbose) printf("test_multiple_ft_cursors:%d\n", n);

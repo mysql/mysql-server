@@ -163,7 +163,7 @@ enum split_mode {
 // Given pinned node and pinned child, split child into two
 // and update node with information about its new child.
 void toku_ft_split_child(
-    FT h,
+    FT ft,
     FTNODE node,
     int childnum,
     FTNODE child,
@@ -189,7 +189,7 @@ void toku_ft_merge_child(
 // TODO: Rename toku_ft_leaf_split
 void
 ftleaf_split(
-    FT h,
+    FT ft,
     FTNODE node,
     FTNODE *nodea,
     FTNODE *nodeb,
@@ -212,7 +212,7 @@ ftleaf_split(
 void
 // TODO: Rename toku_ft_nonleaf_split
 ft_nonleaf_split(
-    FT h,
+    FT ft,
     FTNODE node,
     FTNODE *nodea,
     FTNODE *nodeb,

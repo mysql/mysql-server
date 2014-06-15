@@ -185,7 +185,7 @@ verify_basement_node_msns(FTNODE node, MSN expected)
 }
 
 //
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256
 // Actual node size before split: 2048
 // Actual basement node size before split: 256
@@ -237,7 +237,7 @@ test_split_on_boundary(void)
 }
 
 //
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256 (except the last)
 // Actual node size before split: 4095
 // Actual basement node size before split: 256 (except the last, of size 2K)
@@ -302,7 +302,7 @@ test_split_with_everything_on_the_left(void)
 
 
 //
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256 (except the last)
 // Actual node size before split: 4095
 // Actual basement node size before split: 256 (except the last, of size 2K)
@@ -487,7 +487,7 @@ test_split_at_end(void)
     toku_destroy_ftnode_internals(&sn);
 }
 
-// Maximum node size according to the BRT: 1024 (expected node size after split)
+// Maximum node size according to the FT: 1024 (expected node size after split)
 // Maximum basement node size: 256
 // Actual node size before split: 2048
 // Actual basement node size before split: 256

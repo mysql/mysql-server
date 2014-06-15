@@ -184,7 +184,7 @@ void toku_ft_handle_close_recovery(FT_HANDLE ft_handle, LSN oplsn);
 
 int
 toku_ft_handle_open_with_dict_id(
-    FT_HANDLE t, 
+    FT_HANDLE ft_h, 
     const char *fname_in_env, 
     int is_create, 
     int only_create, 

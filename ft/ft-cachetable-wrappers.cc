@@ -104,16 +104,16 @@ ftnode_get_key_and_fullhash(
     uint32_t* fullhash,
     void* extra)
 {
-    FT h = (FT) extra;
+    FT ft = (FT) extra;
     BLOCKNUM name;
-    toku_allocate_blocknum(h->blocktable, &name, h);
+    toku_allocate_blocknum(ft->blocktable, &name, ft);
     *cachekey = name;
-    *fullhash = toku_cachetable_hash(h->cf, name);
+    *fullhash = toku_cachetable_hash(ft->cf, name);
 }
 
 void
 cachetable_put_empty_node_with_dep_nodes(
-    FT h,
+    FT ft,
     uint32_t num_dependent_nodes,
     FTNODE* dependent_nodes,
     BLOCKNUM* name, //output
@@ -129,12 +129,12 @@ cachetable_put_empty_node_with_dep_nodes(
     }
 
     toku_cachetable_put_with_dep_pairs(
-        h->cf,
+        ft->cf,
         ftnode_get_key_and_fullhash,
         new_node,
         make_pair_attr(sizeof(FTNODE)),
-        get_write_callbacks_for_node(h),
-        h,
+        get_write_callbacks_for_node(ft),
+        ft,
         num_dependent_nodes,
         dependent_pairs,
         dependent_dirty_bits,
@@ -319,7 +319,7 @@ exit:
 
 void
 toku_pin_ftnode_with_dep_nodes(
-    FT h,
+    FT ft,
     BLOCKNUM blocknum,
     uint32_t fullhash,
     FTNODE_FETCH_EXTRA bfe,
@@ -338,12 +338,12 @@ toku_pin_ftnode_with_dep_nodes(
     }
 
     int r = toku_cachetable_get_and_pin_with_dep_pairs(
-        h->cf,
+        ft->cf,
         blocknum,
         fullhash,
         &node_v,
         NULL,
-        get_write_callbacks_for_node(h),
+        get_write_callbacks_for_node(ft),
         toku_ftnode_fetch_callback,
         toku_ftnode_pf_req_callback,
         toku_ftnode_pf_callback,
@@ -356,7 +356,7 @@ toku_pin_ftnode_with_dep_nodes(
     invariant_zero(r);
     FTNODE node = (FTNODE) node_v;
     if (lock_type != PL_READ && node->height > 0 && move_messages) {
-        toku_move_ftnode_messages_to_stale(h, node);
+        toku_move_ftnode_messages_to_stale(ft, node);
     }
     *node_p = node;
 }

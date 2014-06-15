@@ -3,7 +3,6 @@ cmake_policy(SET CMP0012 NEW)
 ## these tests shouldn't run with valgrind
 list(APPEND CTEST_CUSTOM_MEMCHECK_IGNORE
   ft/bnc-insert-benchmark
-  ft/brt-serialize-benchmark
   ft/ft_loader-test-extractor-1
   ft/ft_loader-test-extractor-2
   ft/ft_loader-test-extractor-3

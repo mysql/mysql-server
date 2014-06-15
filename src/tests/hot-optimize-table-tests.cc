@@ -103,7 +103,7 @@ const int envflags = DB_INIT_MPOOL |
 DB_ENV* env;
 unsigned int leaf_hits;
 
-// Custom Update Function for our test BRT.
+// Custom Update Function for our test FT.
 static int
 update_func(DB* UU(db),
             const DBT* key,
@@ -266,7 +266,7 @@ test_main(int argc, char * const argv[])
     default_parse_args(argc, argv);
     hot_test_setup();
 
-    // Create and Open the Database/BRT
+    // Create and Open the Database/FT
     DB *db = NULL;
     const unsigned int BIG = 4000000;
     const unsigned int SMALL = 10;

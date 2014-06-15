@@ -642,7 +642,7 @@ int toku_ft_loader_internal_init (/* out */ FTLOADER *blp,
     return 0;
 }
 
-int toku_ft_loader_open (/* out */ FTLOADER *blp,
+int toku_ft_loader_open (FTLOADER *blp, /* out */
                           CACHETABLE cachetable,
                           generate_row_for_put_func g,
                           DB *src_db,
@@ -656,9 +656,9 @@ int toku_ft_loader_open (/* out */ FTLOADER *blp,
                           uint64_t reserve_memory_size,
                           bool compress_intermediates,
                           bool allow_puts) {
-// Effect: called by DB_ENV->create_loader to create a brt loader.
+// Effect: called by DB_ENV->create_loader to create an ft loader.
 // Arguments:
-//   blp                  Return the brt loader here.
+//   blp                  Return a ft loader ("bulk loader") here.
 //   g                    The function for generating a row
 //   src_db               The source database.  Needed by g.  May be NULL if that's ok with g.
 //   N                    The number of dbs to create.
@@ -2220,16 +2220,16 @@ struct dbout {
     int64_t n_translations_limit;
     struct translation *translation;
     toku_mutex_t mutex;
-    FT h;
+    FT ft;
 };
 
-static inline void dbout_init(struct dbout *out, FT h) {
+static inline void dbout_init(struct dbout *out, FT ft) {
     out->fd = -1;
     out->current_off = 0;
     out->n_translations = out->n_translations_limit = 0;
     out->translation = NULL;
     toku_mutex_init(&out->mutex, NULL);
-    out->h = h;
+    out->ft = ft;
 }
 
 static inline void dbout_destroy(struct dbout *out) {
@@ -2615,7 +2615,7 @@ static int toku_loader_write_ft_from_q (FTLOADER bl,
 
     {
         invariant(sts.n_subtrees==1);
-        out.h->h->root_blocknum = make_blocknum(sts.subtrees[0].block);
+        out.ft->h->root_blocknum = make_blocknum(sts.subtrees[0].block);
         toku_free(sts.subtrees); sts.subtrees = NULL;
 
         // write the descriptor
@@ -3037,7 +3037,7 @@ static int write_translation_table (struct dbout *out, long long *off_of_transla
 static int
 write_header (struct dbout *out, long long translation_location_on_disk, long long translation_size_on_disk) {
     int result = 0;
-    size_t size = toku_serialize_ft_size(out->h->h);
+    size_t size = toku_serialize_ft_size(out->ft->h);
     size_t alloced_size = roundup_to_multiple(512, size);
     struct wbuf wbuf;
     char *MALLOC_N_ALIGNED(512, alloced_size, buf);
@@ -3045,8 +3045,8 @@ write_header (struct dbout *out, long long translation_location_on_disk, long lo
         result = get_error_errno();
     } else {
         wbuf_init(&wbuf, buf, size);
-        out->h->h->on_disk_stats = out->h->in_memory_stats;
-        toku_serialize_ft_to_wbuf(&wbuf, out->h->h, translation_location_on_disk, translation_size_on_disk);
+        out->ft->h->on_disk_stats = out->ft->in_memory_stats;
+        toku_serialize_ft_to_wbuf(&wbuf, out->ft->h, translation_location_on_disk, translation_size_on_disk);
         for (size_t i=size; i<alloced_size; i++) buf[i]=0; // initialize all those unused spots to zero
         if (wbuf.ndone != size)
             result = EINVAL;

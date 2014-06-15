@@ -109,8 +109,8 @@ void toku_blocktable_create_new(BLOCK_TABLE *btp);
 int toku_blocktable_create_from_buffer(int fd, BLOCK_TABLE *btp, DISKOFF location_on_disk, DISKOFF size_on_disk, unsigned char *translation_buffer);
 void toku_blocktable_destroy(BLOCK_TABLE *btp);
 
-void toku_ft_lock(FT h);
-void toku_ft_unlock(FT h);
+void toku_ft_lock(FT ft);
+void toku_ft_unlock(FT ft);
 
 void toku_block_translation_note_start_checkpoint_unlocked(BLOCK_TABLE bt);
 void toku_block_translation_note_end_checkpoint(BLOCK_TABLE bt, int fd);
@@ -118,15 +118,15 @@ void toku_block_translation_note_skipped_checkpoint(BLOCK_TABLE bt);
 void toku_maybe_truncate_file_on_open(BLOCK_TABLE bt, int fd);
 
 //Blocknums
-void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, FT h);
-void toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, FT h);
-void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, FT h, bool for_checkpoint);
+void toku_allocate_blocknum(BLOCK_TABLE bt, BLOCKNUM *res, FT ft);
+void toku_allocate_blocknum_unlocked(BLOCK_TABLE bt, BLOCKNUM *res, FT ft);
+void toku_free_blocknum(BLOCK_TABLE bt, BLOCKNUM *b, FT ft, bool for_checkpoint);
 void toku_verify_blocknum_allocated(BLOCK_TABLE bt, BLOCKNUM b);
 void toku_block_verify_no_data_blocks_except_root(BLOCK_TABLE bt, BLOCKNUM root);
 void toku_free_unused_blocknums(BLOCK_TABLE bt, BLOCKNUM root);
 void toku_block_verify_no_free_blocknums(BLOCK_TABLE bt);
-void toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT h, int fd);
-void toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT h);
+void toku_realloc_descriptor_on_disk(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT ft, int fd);
+void toku_realloc_descriptor_on_disk_unlocked(BLOCK_TABLE bt, DISKOFF size, DISKOFF *offset, FT ft);
 void toku_get_descriptor_offset_size(BLOCK_TABLE bt, DISKOFF *offset, DISKOFF *size);
 
 //Blocks and Blocknums

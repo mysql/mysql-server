@@ -472,19 +472,19 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN 
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
 {
     {
-        FT h;
-        if ((h = (FT) toku_cachefile_get_userdata(cf))!=0) {
-            *header = h;
-            assert(ft_handle->options.update_fun == h->update_fun);
-            assert(ft_handle->options.compare_fun == h->compare_fun);
+        FT ft;
+        if ((ft = (FT) toku_cachefile_get_userdata(cf))!=0) {
+            *header = ft;
+            assert(ft_handle->options.update_fun == ft->update_fun);
+            assert(ft_handle->options.compare_fun == ft->compare_fun);
             return 0;
         }
     }
-    FT h = nullptr;
+    FT ft = nullptr;
     int r;
     {
         int fd = toku_cachefile_get_fd(cf);
-        r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &h);
+        r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &ft);
         if (r == TOKUDB_BAD_CHECKSUM) {
             fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
             assert(false);  // make absolutely sure we crash before doing anything else
@@ -492,12 +492,12 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN 
     }
     if (r!=0) return r;
     // GCC 4.8 seems to get confused by the gotos in the deserialize code and think h is maybe uninitialized.
-    invariant_notnull(h);
-    h->cf = cf;
-    h->compare_fun = ft_handle->options.compare_fun;
-    h->update_fun = ft_handle->options.update_fun;
+    invariant_notnull(ft);
+    ft->cf = cf;
+    ft->compare_fun = ft_handle->options.compare_fun;
+    ft->update_fun = ft_handle->options.update_fun;
     toku_cachefile_set_userdata(cf,
-                                (void*)h,
+                                reinterpret_cast<void *>(ft),
                                 ft_log_fassociate_during_checkpoint,
                                 ft_close,
                                 ft_free,
@@ -506,7 +506,7 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN 
                                 ft_end_checkpoint,
                                 ft_note_pin_by_checkpoint,
                                 ft_note_unpin_by_checkpoint);
-    *header = h;
+    *header = ft;
     return 0;
 }
 
@@ -548,12 +548,12 @@ void toku_ft_evict_from_memory(FT ft, bool oplsn_valid, LSN oplsn) {
 }
 
 // Verifies there exists exactly one ft handle and returns it.
-FT_HANDLE toku_ft_get_only_existing_ft_handle(FT h) {
+FT_HANDLE toku_ft_get_only_existing_ft_handle(FT ft) {
     FT_HANDLE ft_handle_ret = NULL;
-    toku_ft_grab_reflock(h);
-    assert(toku_list_num_elements_est(&h->live_ft_handles) == 1);
-    ft_handle_ret = toku_list_struct(toku_list_head(&h->live_ft_handles), struct ft_handle, live_ft_handle_link);
-    toku_ft_release_reflock(h);
+    toku_ft_grab_reflock(ft);
+    assert(toku_list_num_elements_est(&ft->live_ft_handles) == 1);
+    ft_handle_ret = toku_list_struct(toku_list_head(&ft->live_ft_handles), struct ft_handle, live_ft_handle_link);
+    toku_ft_release_reflock(ft);
     return ft_handle_ret;
 }
 
@@ -628,27 +628,27 @@ toku_ft_init(FT ft,
 
 // Open an ft for use by redirect.  The new ft must have the same dict_id as the old_ft passed in.  (FILENUM is assigned by the ft_handle_open() function.)
 static int
-ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTXN txn, FT old_h) {
-    FT_HANDLE t;
-    assert(old_h->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
-    toku_ft_handle_create(&t);
-    toku_ft_set_bt_compare(t, old_h->compare_fun);
-    toku_ft_set_update(t, old_h->update_fun);
-    toku_ft_handle_set_nodesize(t, old_h->h->nodesize);
-    toku_ft_handle_set_basementnodesize(t, old_h->h->basementnodesize);
-    toku_ft_handle_set_compression_method(t, old_h->h->compression_method);
-    toku_ft_handle_set_fanout(t, old_h->h->fanout);
-    CACHETABLE ct = toku_cachefile_get_cachetable(old_h->cf);
-    int r = toku_ft_handle_open_with_dict_id(t, fname_in_env, 0, 0, ct, txn, old_h->dict_id);
+ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTXN txn, FT old_ft) {
+    FT_HANDLE ft_handle;
+    assert(old_ft->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
+    toku_ft_handle_create(&ft_handle);
+    toku_ft_set_bt_compare(ft_handle, old_ft->compare_fun);
+    toku_ft_set_update(ft_handle, old_ft->update_fun);
+    toku_ft_handle_set_nodesize(ft_handle, old_ft->h->nodesize);
+    toku_ft_handle_set_basementnodesize(ft_handle, old_ft->h->basementnodesize);
+    toku_ft_handle_set_compression_method(ft_handle, old_ft->h->compression_method);
+    toku_ft_handle_set_fanout(ft_handle, old_ft->h->fanout);
+    CACHETABLE ct = toku_cachefile_get_cachetable(old_ft->cf);
+    int r = toku_ft_handle_open_with_dict_id(ft_handle, fname_in_env, 0, 0, ct, txn, old_ft->dict_id);
     if (r != 0) {
         goto cleanup;
     }
-    assert(t->ft->dict_id.dictid == old_h->dict_id.dictid);
-    *new_ftp = t;
+    assert(ft_handle->ft->dict_id.dictid == old_ft->dict_id.dictid);
+    *new_ftp = ft_handle;
 
  cleanup:
     if (r != 0) {
-        toku_ft_handle_close(t);
+        toku_ft_handle_close(ft_handle);
     }
     return r;
 }
@@ -656,81 +656,81 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
 // This function performs most of the work to redirect a dictionary to different file.
 // It is called for redirect and to abort a redirect.  (This function is almost its own inverse.)
 static int
-dictionary_redirect_internal(const char *dst_fname_in_env, FT src_h, TOKUTXN txn, FT *dst_hp) {
+dictionary_redirect_internal(const char *dst_fname_in_env, FT src_ft, TOKUTXN txn, FT *dst_ftp) {
     int r;
 
-    FILENUM src_filenum = toku_cachefile_filenum(src_h->cf);
+    FILENUM src_filenum = toku_cachefile_filenum(src_ft->cf);
     FILENUM dst_filenum = FILENUM_NONE;
 
-    FT dst_h = NULL;
+    FT dst_ft = NULL;
     struct toku_list *list;
     // open a dummy ft based off of 
     // dst_fname_in_env to get the header
     // then we will change all the ft's to have
-    // their headers point to dst_h instead of src_h
+    // their headers point to dst_ft instead of src_ft
     FT_HANDLE tmp_dst_ft = NULL;
-    r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_h);
+    r = ft_handle_open_for_redirect(&tmp_dst_ft, dst_fname_in_env, txn, src_ft);
     if (r != 0) {
         goto cleanup;
     }
-    dst_h = tmp_dst_ft->ft;
+    dst_ft = tmp_dst_ft->ft;
 
     // some sanity checks on dst_filenum
-    dst_filenum = toku_cachefile_filenum(dst_h->cf);
+    dst_filenum = toku_cachefile_filenum(dst_ft->cf);
     assert(dst_filenum.fileid!=FILENUM_NONE.fileid);
     assert(dst_filenum.fileid!=src_filenum.fileid); //Cannot be same file.
 
-    // for each live ft_handle, ft_handle->ft is currently src_h
+    // for each live ft_handle, ft_handle->ft is currently src_ft
     // we want to change it to dummy_dst
-    toku_ft_grab_reflock(src_h);
-    while (!toku_list_empty(&src_h->live_ft_handles)) {
-        list = src_h->live_ft_handles.next;
+    toku_ft_grab_reflock(src_ft);
+    while (!toku_list_empty(&src_ft->live_ft_handles)) {
+        list = src_ft->live_ft_handles.next;
         FT_HANDLE src_handle = NULL;
         src_handle = toku_list_struct(list, struct ft_handle, live_ft_handle_link);
 
         toku_list_remove(&src_handle->live_ft_handle_link);
 
-        toku_ft_note_ft_handle_open(dst_h, src_handle);
+        toku_ft_note_ft_handle_open(dst_ft, src_handle);
         if (src_handle->redirect_callback) {
             src_handle->redirect_callback(src_handle, src_handle->redirect_callback_extra);
         }
     }
-    assert(dst_h);
-    // making sure that we are not leaking src_h
-    assert(toku_ft_needed_unlocked(src_h));
-    toku_ft_release_reflock(src_h);
+    assert(dst_ft);
+    // making sure that we are not leaking src_ft
+    assert(toku_ft_needed_unlocked(src_ft));
+    toku_ft_release_reflock(src_ft);
 
     toku_ft_handle_close(tmp_dst_ft);
 
-    *dst_hp = dst_h;
+    *dst_ftp = dst_ft;
 cleanup:
     return r;
 }
 
 
 
-//This is the 'abort redirect' function.  The redirect of old_h to new_h was done
-//and now must be undone, so here we redirect new_h back to old_h.
+//This is the 'abort redirect' function.  The redirect of old_ft to new_ft was done
+//and now must be undone, so here we redirect new_ft back to old_ft.
 int
-toku_dictionary_redirect_abort(FT old_h, FT new_h, TOKUTXN txn) {
-    char *old_fname_in_env = toku_cachefile_fname_in_env(old_h->cf);
+toku_dictionary_redirect_abort(FT old_ft, FT new_ft, TOKUTXN txn) {
+    char *old_fname_in_env = toku_cachefile_fname_in_env(old_ft->cf);
     int r;
     {
-        FILENUM old_filenum = toku_cachefile_filenum(old_h->cf);
-        FILENUM new_filenum = toku_cachefile_filenum(new_h->cf);
+        FILENUM old_filenum = toku_cachefile_filenum(old_ft->cf);
+        FILENUM new_filenum = toku_cachefile_filenum(new_ft->cf);
         assert(old_filenum.fileid!=new_filenum.fileid); //Cannot be same file.
 
         //No living fts in old header.
-        toku_ft_grab_reflock(old_h);
-        assert(toku_list_empty(&old_h->live_ft_handles));
-        toku_ft_release_reflock(old_h);
+        toku_ft_grab_reflock(old_ft);
+        assert(toku_list_empty(&old_ft->live_ft_handles));
+        toku_ft_release_reflock(old_ft);
     }
 
-    FT dst_h;
-    // redirect back from new_h to old_h
-    r = dictionary_redirect_internal(old_fname_in_env, new_h, txn, &dst_h);
+    FT dst_ft;
+    // redirect back from new_ft to old_ft
+    r = dictionary_redirect_internal(old_fname_in_env, new_ft, txn, &dst_ft);
     if (r == 0) {
-        assert(dst_h == old_h);
+        assert(dst_ft == old_ft);
     }
     return r;
 }
