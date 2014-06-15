@@ -133,6 +133,7 @@ int toku_testsetup_leaf(FT_HANDLE ft_handle, BLOCKNUM *blocknum, int n_children,
         toku_memdup_dbt(&pivotkeys[i], keys[i], keylens[i]);
     }
     node->pivotkeys.create_from_dbts(pivotkeys, n_children - 1);
+    toku_free(pivotkeys);
 
     *blocknum = node->blocknum;
     toku_unpin_ftnode(ft_handle->ft, node);
