@@ -174,9 +174,12 @@ static inline void ft_search_finish(ft_search *search) {
     toku_destroy_dbt(&search->pivot_bound);
 }
 
-int toku_ft_lookup (FT_HANDLE ft_h, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 
-int toku_ft_cursor(FT_HANDLE ft_handle, FT_CURSOR*, TOKUTXN, bool, bool) __attribute__ ((warn_unused_result));
+int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN txn, bool, bool);
+
+void toku_ft_cursor_destroy(FT_CURSOR cursor);
+
+int toku_ft_lookup(FT_HANDLE ft_h, DBT *k, FT_GET_CALLBACK_FUNCTION getf, void *getf_v)  __attribute__ ((warn_unused_result));
 
 void toku_ft_cursor_set_prefetching(FT_CURSOR cursor);
 
@@ -213,8 +216,6 @@ int toku_ft_cursor_set_range(FT_CURSOR cursor, DBT *key, DBT *key_bound, FT_GET_
 
 int toku_ft_cursor_set_range_reverse(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v) __attribute__ ((warn_unused_result));
 
-void toku_ft_cursor_close(FT_CURSOR cursor);
-
 bool toku_ft_cursor_uninitialized(FT_CURSOR cursor) __attribute__ ((warn_unused_result));
 
 void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
@@ -225,10 +226,12 @@ int toku_ft_cursor_shortcut(FT_CURSOR cursor, int direction, uint32_t index, bn_
                             FT_GET_CALLBACK_FUNCTION getf, void *getf_v,
                             uint32_t *keylen, void **key, uint32_t *vallen, void **val);
 
-// deprecated
-int toku_ft_cursor_get(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags);
-int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN txn);
-
 // used by get_key_after_bytes
 int toku_ft_cursor_compare_one(const ft_search &search, const DBT *x);
 int toku_ft_cursor_compare_set_range(const ft_search &search, const DBT *x);
+
+// deprecated, should only be used by tests, and eventually removed
+int toku_ft_cursor(FT_HANDLE ft_handle, FT_CURSOR *ftcursor_p, TOKUTXN txn, bool, bool) __attribute__ ((warn_unused_result));
+void toku_ft_cursor_close(FT_CURSOR cursor);
+int toku_ft_cursor_get(FT_CURSOR cursor, DBT *key, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, int get_flags);
+int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN txn);

@@ -91,61 +91,73 @@ PATENT RIGHTS GRANT:
 #include "ft/cursor.h"
 #include "ft/leafentry.h"
 #include "ft/txn.h"
+#include "ft/ybt.h"
 
-int toku_ft_cursor(FT_HANDLE ft_handle, FT_CURSOR *cursorptr, TOKUTXN ttxn,
-                   bool is_snapshot_read, bool disable_prefetching) {
+int toku_ft_cursor_create(FT_HANDLE ft_handle, FT_CURSOR cursor, TOKUTXN ttxn,
+                          bool is_snapshot_read, bool disable_prefetching) {
     if (is_snapshot_read) {
         invariant(ttxn != NULL);
         int accepted = toku_txn_reads_txnid(ft_handle->ft->h->root_xid_that_created, ttxn);
-        if (accepted!=TOKUDB_ACCEPT) {
-            invariant(accepted==0);
+        if (accepted != TOKUDB_ACCEPT) {
+            invariant(accepted == 0);
             return TOKUDB_MVCC_DICTIONARY_TOO_NEW;
         }
     }
-    FT_CURSOR XCALLOC(cursor);
+
+    memset(cursor, 0, sizeof(*cursor));
     cursor->ft_handle = ft_handle;
-    cursor->prefetching = false;
-    toku_init_dbt(&cursor->range_lock_left_key);
-    toku_init_dbt(&cursor->range_lock_right_key);
-    cursor->left_is_neg_infty = false;
-    cursor->right_is_pos_infty = false;
     cursor->is_snapshot_read = is_snapshot_read;
-    cursor->is_leaf_mode = false;
     cursor->ttxn = ttxn;
     cursor->disable_prefetching = disable_prefetching;
-    cursor->is_temporary = false;
-    *cursorptr = cursor;
     return 0;
 }
 
-void toku_ft_cursor_close(FT_CURSOR cursor) {
+void toku_ft_cursor_destroy(FT_CURSOR cursor) {
     toku_destroy_dbt(&cursor->key);
     toku_destroy_dbt(&cursor->val);
     toku_destroy_dbt(&cursor->range_lock_left_key);
     toku_destroy_dbt(&cursor->range_lock_right_key);
+}
+
+// deprecated, should only be used by tests
+int toku_ft_cursor(FT_HANDLE ft_handle, FT_CURSOR *cursorptr, TOKUTXN ttxn,
+                   bool is_snapshot_read, bool disable_prefetching) {
+    FT_CURSOR XCALLOC(cursor);
+    int r = toku_ft_cursor_create(ft_handle, cursor, ttxn, is_snapshot_read, disable_prefetching);
+    if (r == 0) {
+        *cursorptr = cursor;
+    } else {
+        toku_free(cursor);
+    }
+    return r;
+}
+
+// deprecated, should only be used by tests
+void toku_ft_cursor_close(FT_CURSOR cursor) {
+    toku_ft_cursor_destroy(cursor);
     toku_free(cursor);
 }
 
-void toku_ft_cursor_remove_restriction(FT_CURSOR ftcursor) {
-    ftcursor->out_of_range_error = 0;
-    ftcursor->direction = 0;
+void toku_ft_cursor_remove_restriction(FT_CURSOR cursor) {
+    cursor->out_of_range_error = 0;
+    cursor->direction = 0;
 }
 
-void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR ftcursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra) {
-    ftcursor->interrupt_cb = cb;
-    ftcursor->interrupt_cb_extra = extra;
+void toku_ft_cursor_set_check_interrupt_cb(FT_CURSOR cursor, FT_CHECK_INTERRUPT_CALLBACK cb, void *extra) {
+    cursor->interrupt_cb = cb;
+    cursor->interrupt_cb_extra = extra;
 }
 
-void toku_ft_cursor_set_temporary(FT_CURSOR ftcursor) {
-    ftcursor->is_temporary = true;
+void toku_ft_cursor_set_temporary(FT_CURSOR cursor) {
+    cursor->is_temporary = true;
 }
 
-void toku_ft_cursor_set_leaf_mode(FT_CURSOR ftcursor) {
-    ftcursor->is_leaf_mode = true;
+void toku_ft_cursor_set_leaf_mode(FT_CURSOR cursor) {
+    cursor->is_leaf_mode = true;
 }
 
-int toku_ft_cursor_is_leaf_mode(FT_CURSOR ftcursor) {
-    return ftcursor->is_leaf_mode;
+int toku_ft_cursor_is_leaf_mode(FT_CURSOR cursor) {
+    return cursor->is_leaf_mode;
 }
 
 // TODO: Rename / cleanup - this has nothing to do with locking
