@@ -172,7 +172,7 @@ int toku_fifo_enq(FIFO fifo, const void *key, unsigned int keylen, const void *d
         toku_fifo_resize(fifo, next_2);
     }
     struct fifo_entry *entry = (struct fifo_entry *)(fifo->memory + fifo->memory_used);
-    fifo_entry_set_msg_type(entry, type);
+    entry->type = (unsigned char) type;
     entry->msn = msn;
     xids_cpy(&entry->xids_s, xids);
     entry->is_fresh = is_fresh;

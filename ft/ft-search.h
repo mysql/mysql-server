@@ -92,6 +92,7 @@ PATENT RIGHTS GRANT:
 #ifndef FT_SEARCH_H
 #define FT_SEARCH_H
 
+#include "ft/ybt.h"
 
 enum ft_search_direction_e {
     FT_SEARCH_LEFT = 1,  /* search left -> right, finds min xy as defined by the compare function */

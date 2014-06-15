@@ -388,7 +388,7 @@ toku_txn_update_xids_in_txn(TOKUTXN txn, TXNID xid)
 
 //Used on recovery to recover a transaction.
 int
-toku_txn_load_txninfo (TOKUTXN txn, TXNINFO info) {
+toku_txn_load_txninfo (TOKUTXN txn, struct txninfo *info) {
     txn->roll_info.rollentry_raw_count = info->rollentry_raw_count;
     uint32_t i;
     for (i = 0; i < info->num_fts; i++) {

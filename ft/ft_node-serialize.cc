@@ -98,6 +98,8 @@ PATENT RIGHTS GRANT:
 #include "ft.h"
 #include <util/status.h>
 #include <util/scoped_malloc.h>
+#include "ft/cachetable.h"
+#include "ft/rollback.h"
 
 static FT_UPGRADE_STATUS_S ft_upgrade_status;
 

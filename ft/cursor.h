@@ -1,14 +1,6 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
 
-/* The purpose of this file is to provide access to the ft_msg,
- * which is the ephemeral version of the fifo_msg.
- */
-
-#ifndef FT_MSG_H
-#define FT_MSG_H
-
-#ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -38,7 +30,7 @@ COPYING CONDITIONS NOTICE:
 COPYRIGHT NOTICE:
 
   TokuDB, Tokutek Fractal Tree Indexing Library.
-  Copyright (C) 2007-2013 Tokutek, Inc.
+  Copyright (C) 2014 Tokutek, Inc.
 
 DISCLAIMER:
 
@@ -94,121 +86,27 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#pragma once
 
-/* tree command types */
-enum ft_msg_type {
-    FT_NONE = 0,
-    FT_INSERT = 1,
-    FT_DELETE_ANY = 2,  // Delete any matching key.  This used to be called FT_DELETE.
-    //FT_DELETE_BOTH = 3,
-    FT_ABORT_ANY = 4,   // Abort any commands on any matching key.
-    //FT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
-    FT_COMMIT_ANY  = 6,
-    //FT_COMMIT_BOTH = 7,
-    FT_COMMIT_BROADCAST_ALL = 8, // Broadcast to all leafentries, (commit all transactions).
-    FT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
-    FT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).
-    FT_INSERT_NO_OVERWRITE = 11,
-    FT_OPTIMIZE = 12,             // Broadcast
-    FT_OPTIMIZE_FOR_UPGRADE = 13, // same as FT_OPTIMIZE, but record version number in leafnode
-    FT_UPDATE = 14,
-    FT_UPDATE_BROADCAST_ALL = 15
+#include <db.h>
+
+typedef bool(*FT_CHECK_INTERRUPT_CALLBACK)(void* extra);
+
+/* an ft cursor is represented as a kv pair in a tree */
+struct ft_cursor {
+    FT_HANDLE ft_handle;
+    DBT key, val;             // The key-value pair that the cursor currently points to
+    DBT range_lock_left_key, range_lock_right_key;
+    bool prefetching;
+    bool left_is_neg_infty, right_is_pos_infty;
+    bool is_snapshot_read; // true if query is read_committed, false otherwise
+    bool is_leaf_mode;
+    bool disable_prefetching;
+    bool is_temporary;
+    int out_of_range_error;
+    int direction;
+    TOKUTXN ttxn;
+    FT_CHECK_INTERRUPT_CALLBACK interrupt_cb;
+    void *interrupt_cb_extra;
 };
-
-static inline bool
-ft_msg_type_applies_once(enum ft_msg_type type)
-{
-    bool ret_val;
-    switch (type) {
-    case FT_INSERT_NO_OVERWRITE:
-    case FT_INSERT:
-    case FT_DELETE_ANY:
-    case FT_ABORT_ANY:
-    case FT_COMMIT_ANY:
-    case FT_UPDATE:
-        ret_val = true;
-        break;
-    case FT_COMMIT_BROADCAST_ALL:
-    case FT_COMMIT_BROADCAST_TXN:
-    case FT_ABORT_BROADCAST_TXN:
-    case FT_OPTIMIZE:
-    case FT_OPTIMIZE_FOR_UPGRADE:
-    case FT_UPDATE_BROADCAST_ALL:
-    case FT_NONE:
-        ret_val = false;
-        break;
-    default:
-        assert(false);
-    }
-    return ret_val;
-}
-
-static inline bool
-ft_msg_type_applies_all(enum ft_msg_type type)
-{
-    bool ret_val;
-    switch (type) {
-    case FT_NONE:
-    case FT_INSERT_NO_OVERWRITE:
-    case FT_INSERT:
-    case FT_DELETE_ANY:
-    case FT_ABORT_ANY:
-    case FT_COMMIT_ANY:
-    case FT_UPDATE:
-        ret_val = false;
-        break;
-    case FT_COMMIT_BROADCAST_ALL:
-    case FT_COMMIT_BROADCAST_TXN:
-    case FT_ABORT_BROADCAST_TXN:
-    case FT_OPTIMIZE:
-    case FT_OPTIMIZE_FOR_UPGRADE:
-    case FT_UPDATE_BROADCAST_ALL:
-        ret_val = true;
-        break;
-    default:
-        assert(false);
-    }
-    return ret_val;
-}
-
-static inline bool
-ft_msg_type_does_nothing(enum ft_msg_type type)
-{
-    return (type == FT_NONE);
-}
-
-typedef struct xids_t *XIDS;
-
-/* tree commands */
-struct ft_msg {
-    enum ft_msg_type type;
-    MSN          msn;          // message sequence number
-    XIDS         xids;
-    union {
-        /* insert or delete */
-        struct ft_msg_insert_delete {
-            const DBT *key;   // for insert, delete, upsertdel
-            const DBT *val;   // for insert, delete, (and it is the "extra" for upsertdel, upsertdel_broadcast_all)
-        } id;
-    } u;
-};
-
-// Message sent into the ft to implement insert, delete, update, etc
-typedef struct ft_msg FT_MSG_S;
-typedef struct ft_msg *FT_MSG;
-
-uint32_t ft_msg_get_keylen(FT_MSG ft_msg);
-
-uint32_t ft_msg_get_vallen(FT_MSG ft_msg);
-
-XIDS ft_msg_get_xids(FT_MSG ft_msg);
-
-void *ft_msg_get_key(FT_MSG ft_msg);
-
-void *ft_msg_get_val(FT_MSG ft_msg);
-
-enum ft_msg_type ft_msg_get_type(FT_MSG ft_msg);
-
-#endif
+typedef struct ft_cursor *FT_CURSOR;
