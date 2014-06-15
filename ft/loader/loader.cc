@@ -111,6 +111,7 @@ PATENT RIGHTS GRANT:
 #include "leafentry.h"
 #include "log-internal.h"
 #include "ft.h"
+#include "node.h"
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void ft_loader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {

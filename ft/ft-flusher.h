@@ -151,11 +151,14 @@ toku_flusher_thread_set_callback(
  * Puts a workitem on the flusher thread queue, scheduling the node to be
  * flushed by toku_ft_flush_some_child.
  */
-void
-toku_ft_flush_node_on_background_thread(
-    FT ft,
-    FTNODE parent
-    );
+void toku_ft_flush_node_on_background_thread(FT ft, FTNODE parent);
+
+enum split_mode {
+    SPLIT_EVENLY,
+    SPLIT_LEFT_HEAVY,
+    SPLIT_RIGHT_HEAVY
+};
+
 
 // Given pinned node and pinned child, split child into two
 // and update node with information about its new child.
@@ -166,6 +169,7 @@ void toku_ft_split_child(
     FTNODE child,
     enum split_mode split_mode
     );
+
 // Given pinned node, merge childnum with a neighbor and update node with
 // information about the change
 void toku_ft_merge_child(
@@ -217,8 +221,6 @@ ft_nonleaf_split(
     FTNODE* dependent_nodes
     );
 
-
-
 /************************************************************************
  * HOT optimize, should perhaps be factored out to its own header file  *
  ************************************************************************
@@ -249,5 +251,5 @@ void toku_ft_hot_get_status(FT_HOT_STATUS);
  */
 int
 toku_ft_hot_optimize(FT_HANDLE ft_h, DBT* left, DBT* right,
-                      int (*progress_callback)(void *extra, float progress),
-                      void *progress_extra, uint64_t* loops_run);
+                     int (*progress_callback)(void *extra, float progress),
+                     void *progress_extra, uint64_t* loops_run);

@@ -93,6 +93,7 @@ PATENT RIGHTS GRANT:
 #include "ft-flusher.h"
 #include "ft-internal.h"
 #include "ft.h"
+#include "node.h"
 #include "fttypes.h"
 #include "ule.h"
 
@@ -222,7 +223,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, const
 
     static size_t zero_flow_deltas[] = { 0, 0 };
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
-    toku_ft_node_put_msg (
+    toku_ftnode_put_msg(
         ft_handle->ft->compare_fun,
         ft_handle->ft->update_fun,
         &ft_handle->ft->cmp_descriptor,

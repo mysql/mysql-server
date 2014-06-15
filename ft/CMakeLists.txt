@@ -53,6 +53,7 @@ set(FT_SOURCES
   logger
   log_upgrade
   msg_buffer
+  node
   quicklz
   recover
   rollback

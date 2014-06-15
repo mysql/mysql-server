@@ -129,23 +129,19 @@ struct message_buffer::buffer_entry *message_buffer::get_buffer_entry(int32_t of
 }
 
 void message_buffer::enqueue(FT_MSG msg, bool is_fresh, int32_t *offset) {
-    ITEMLEN keylen = ft_msg_get_keylen(msg);
-    ITEMLEN datalen = ft_msg_get_vallen(msg);
-    XIDS xids = ft_msg_get_xids(msg);
-    int need_space_here = sizeof(struct buffer_entry)
-                          + keylen + datalen
-                          + xids_get_size(xids)
-                          - sizeof(XIDS_S); //Prevent double counting
+    int need_space_here = msg_memsize_in_buffer(msg);
     int need_space_total = _memory_used + need_space_here;
     if (_memory == nullptr || need_space_total > _memory_size) {
         // resize the buffer to the next power of 2 greater than the needed space
         int next_2 = next_power_of_two(need_space_total);
         resize(next_2);
     }
+    ITEMLEN keylen = ft_msg_get_keylen(msg);
+    ITEMLEN datalen = ft_msg_get_vallen(msg);
     struct buffer_entry *entry = get_buffer_entry(_memory_used);
     entry->type = (unsigned char) ft_msg_get_type(msg);
     entry->msn = msg->msn;
-    xids_cpy(&entry->xids_s, xids);
+    xids_cpy(&entry->xids_s, ft_msg_get_xids(msg));
     entry->is_fresh = is_fresh;
     unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
     entry->keylen = keylen;
@@ -217,8 +213,8 @@ bool message_buffer::equals(message_buffer *other) const {
 }
 
 size_t message_buffer::msg_memsize_in_buffer(FT_MSG msg) {
-    return sizeof(struct buffer_entry)
-        + msg->u.id.key->size + msg->u.id.val->size
-        + xids_get_size(msg->xids)
-        - sizeof(XIDS_S);
+    const uint32_t keylen = ft_msg_get_keylen(msg);
+    const uint32_t datalen = ft_msg_get_vallen(msg);
+    const size_t xidslen = xids_get_size(msg->xids);
+    return sizeof(struct buffer_entry) + keylen + datalen + xidslen - sizeof(XIDS_S);
 }

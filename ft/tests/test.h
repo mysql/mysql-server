@@ -102,6 +102,7 @@ PATENT RIGHTS GRANT:
 #include <portability/toku_path.h>
 
 #include "ft.h"
+#include "node.h"
 #include "block_table.h"
 #include "log-internal.h"
 #include "logger.h"
