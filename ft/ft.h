@@ -220,4 +220,8 @@ struct toku_product_name_strings_struct {
 
 extern struct toku_product_name_strings_struct toku_product_name_strings;
 extern int tokudb_num_envs;
+
+int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
+int toku_builtin_compare_fun (DB *, const DBT *, const DBT*) __attribute__((__visibility__("default")));
+
 #endif
