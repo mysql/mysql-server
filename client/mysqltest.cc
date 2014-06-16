@@ -957,9 +957,9 @@ static void init_connection_thd(struct st_connection *cn)
   cn->query_done= 1;
   cn->command= 0;
   if (native_mutex_init(&cn->query_mutex, NULL) ||
-      native_cond_init(&cn->query_cond, NULL) ||
+      native_cond_init(&cn->query_cond) ||
       native_mutex_init(&cn->result_mutex, NULL) ||
-      native_cond_init(&cn->result_cond, NULL) ||
+      native_cond_init(&cn->result_cond) ||
       pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
   cn->has_thread=TRUE;
