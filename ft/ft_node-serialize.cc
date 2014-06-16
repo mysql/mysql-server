@@ -873,19 +873,16 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
 }
 
 static void
-deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
-                             DESCRIPTOR desc, ft_compare_func cmp) {
+deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf, const toku::comparator &cmp) {
     int r;
     int n_in_this_buffer = rbuf_int(rbuf);
     int32_t *fresh_offsets = NULL, *stale_offsets = NULL;
     int32_t *broadcast_offsets = NULL;
     int nfresh = 0, nstale = 0;
     int nbroadcast_offsets = 0;
-    if (cmp) {
-        XMALLOC_N(n_in_this_buffer, stale_offsets);
-        XMALLOC_N(n_in_this_buffer, fresh_offsets);
-        XMALLOC_N(n_in_this_buffer, broadcast_offsets);
-    }
+    XMALLOC_N(n_in_this_buffer, stale_offsets);
+    XMALLOC_N(n_in_this_buffer, fresh_offsets);
+    XMALLOC_N(n_in_this_buffer, broadcast_offsets);
     bnc->msg_buffer.resize(rbuf->size + 64);
     for (int i = 0; i < n_in_this_buffer; i++) {
         bytevec key; ITEMLEN keylen;
@@ -900,23 +897,19 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
         rbuf_bytes(rbuf, &key, &keylen); /* Returns a pointer into the rbuf. */
         rbuf_bytes(rbuf, &val, &vallen);
         int32_t *dest;
-        if (cmp) {
-            if (ft_msg_type_applies_once(type)) {
-                if (is_fresh) {
-                    dest = &fresh_offsets[nfresh];
-                    nfresh++;
-                } else {
-                    dest = &stale_offsets[nstale];
-                    nstale++;
-                }
-            } else if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {
-                dest = &broadcast_offsets[nbroadcast_offsets];
-                nbroadcast_offsets++;
+        if (ft_msg_type_applies_once(type)) {
+            if (is_fresh) {
+                dest = &fresh_offsets[nfresh];
+                nfresh++;
             } else {
-                abort();
+                dest = &stale_offsets[nstale];
+                nstale++;
             }
+        } else if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {
+            dest = &broadcast_offsets[nbroadcast_offsets];
+            nbroadcast_offsets++;
         } else {
-            dest = NULL;
+            abort();
         }
         // TODO: Function to parse stuff out of an rbuf into an FT_MSG
         DBT k, v;
@@ -929,19 +922,17 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf,
     }
     invariant(rbuf->ndone == rbuf->size);
 
-    if (cmp) {
-        struct toku_msg_buffer_key_msn_cmp_extra extra = { .desc = desc, .cmp = cmp, .msg_buffer = &bnc->msg_buffer };
-        r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
-        assert_zero(r);
-        bnc->fresh_message_tree.destroy();
-        bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-        r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
-        assert_zero(r);
-        bnc->stale_message_tree.destroy();
-        bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
-        bnc->broadcast_list.destroy();
-        bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
-    }
+    struct toku_msg_buffer_key_msn_cmp_extra extra = { .cmp = cmp, .msg_buffer = &bnc->msg_buffer };
+    r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
+    assert_zero(r);
+    bnc->fresh_message_tree.destroy();
+    bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
+    r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
+    assert_zero(r);
+    bnc->stale_message_tree.destroy();
+    bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
+    bnc->broadcast_list.destroy();
+    bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
 }
 
 // effect: deserialize a single message from rbuf and enqueue the result into the given message buffer
@@ -1305,8 +1296,7 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
         // we find out what basement node the query cares about
         // and check if it is available
         bfe->child_to_read = toku_ft_search_which_child(
-            &bfe->ft->cmp_descriptor,
-            bfe->ft->compare_fun,
+            bfe->ft->cmp,
             node,
             bfe->search
             );
@@ -1316,7 +1306,6 @@ update_bfe_using_ftnode(FTNODE node, struct ftnode_fetch_extra *bfe)
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        paranoid_invariant(bfe->ft->compare_fun);
         if (node->height == 0) {
             int left_child = toku_bfe_leftmost_child_wanted(bfe, node);
             int right_child = toku_bfe_rightmost_child_wanted(bfe, node);
@@ -1398,8 +1387,7 @@ deserialize_ftnode_partition(
     struct sub_block *sb,
     FTNODE node,
     int childnum,      // which partition to deserialize
-    DESCRIPTOR desc,
-    ft_compare_func cmp
+    const toku::comparator &cmp
     )
 {
     int r = 0;
@@ -1421,7 +1409,7 @@ deserialize_ftnode_partition(
         NONLEAF_CHILDINFO bnc = BNC(node, childnum);
         if (node->layout_version_read_from_disk <= FT_LAYOUT_VERSION_26) {
             // Layout version <= 26 did not serialize sorted message trees to disk.
-            deserialize_child_buffer_v26(bnc, &rb, desc, cmp);
+            deserialize_child_buffer_v26(bnc, &rb, cmp);
         } else {
             deserialize_child_buffer(bnc, &rb);
         }
@@ -1444,7 +1432,7 @@ exit:
 
 static int
 decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_sb, FTNODE node, int child,
-        DESCRIPTOR desc, ft_compare_func cmp, tokutime_t *decompress_time)
+                                 const toku::comparator &cmp, tokutime_t *decompress_time)
 {
     int r = 0;
     tokutime_t t0 = toku_time_now();
@@ -1452,7 +1440,7 @@ decompress_and_deserialize_worker(struct rbuf curr_rbuf, struct sub_block curr_s
     tokutime_t t1 = toku_time_now();
     if (r == 0) {
         // at this point, sb->uncompressed_ptr stores the serialized node partition
-        r = deserialize_ftnode_partition(&curr_sb, node, child, desc, cmp);
+        r = deserialize_ftnode_partition(&curr_sb, node, child, cmp);
     }
     *decompress_time = t1 - t0;
 
@@ -1772,11 +1760,9 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         int nfresh = 0;
         int nbroadcast_offsets = 0;
 
-        if (bfe->ft->compare_fun) {
-            XMALLOC_N(n_in_this_buffer, fresh_offsets);
-            // We skip 'stale' offsets for upgraded nodes.
-            XMALLOC_N(n_in_this_buffer, broadcast_offsets);
-        }
+        // We skip 'stale' offsets for upgraded nodes.
+        XMALLOC_N(n_in_this_buffer, fresh_offsets);
+        XMALLOC_N(n_in_this_buffer, broadcast_offsets);
 
         // Atomically decrement the header's MSN count by the number
         // of messages in the buffer.
@@ -1800,18 +1786,14 @@ deserialize_and_upgrade_internal_node(FTNODE node,
 
             // <CER> can we factor this out?
             int32_t *dest;
-            if (bfe->ft->compare_fun) {
-                if (ft_msg_type_applies_once(type)) {
-                    dest = &fresh_offsets[nfresh];
-                    nfresh++;
-                } else if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {
-                    dest = &broadcast_offsets[nbroadcast_offsets];
-                    nbroadcast_offsets++;
-                } else {
-                    abort();
-                }
+            if (ft_msg_type_applies_once(type)) {
+                dest = &fresh_offsets[nfresh];
+                nfresh++;
+            } else if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {
+                dest = &broadcast_offsets[nbroadcast_offsets];
+                nbroadcast_offsets++;
             } else {
-                dest = NULL;
+                abort();
             }
 
             // Increment our MSN, the last message should have the
@@ -1827,18 +1809,15 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             xids_destroy(&xids);
         }
 
-        if (bfe->ft->compare_fun) {
-            struct toku_msg_buffer_key_msn_cmp_extra extra = { .desc = &bfe->ft->cmp_descriptor,
-                                                               .cmp = bfe->ft->compare_fun,
-                                                               .msg_buffer = &bnc->msg_buffer };
-            typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
-            r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
-            assert_zero(r);
-            bnc->fresh_message_tree.destroy();
-            bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-            bnc->broadcast_list.destroy();
-            bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
-        }
+        struct toku_msg_buffer_key_msn_cmp_extra extra = { .cmp = bfe->ft->cmp,
+                                                           .msg_buffer = &bnc->msg_buffer };
+        typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
+        r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
+        assert_zero(r);
+        bnc->fresh_message_tree.destroy();
+        bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
+        bnc->broadcast_list.destroy();
+        bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast_offsets, n_in_this_buffer);
     }
 
     // Assign the highest msn from our upgrade message buffers
@@ -2259,7 +2238,7 @@ deserialize_ftnode_from_rbuf(
                 //  case where we read and decompress the partition
                 tokutime_t partition_decompress_time;
                 r = decompress_and_deserialize_worker(curr_rbuf, curr_sb, node, i,
-                        &bfe->ft->cmp_descriptor, bfe->ft->compare_fun, &partition_decompress_time);
+                                                      bfe->ft->cmp, &partition_decompress_time);
                 decompress_time += partition_decompress_time;
                 if (r != 0) {
                     goto cleanup;
@@ -2365,7 +2344,7 @@ toku_deserialize_bp_from_disk(FTNODE node, FTNODE_DISK_DATA ndd, int childnum, i
     // deserialize
     tokutime_t t2 = toku_time_now();
 
-    r = deserialize_ftnode_partition(&curr_sb, node, childnum, &bfe->ft->cmp_descriptor, bfe->ft->compare_fun);
+    r = deserialize_ftnode_partition(&curr_sb, node, childnum, bfe->ft->cmp);
 
     tokutime_t t3 = toku_time_now();
 
@@ -2409,7 +2388,7 @@ toku_deserialize_bp_from_compressed(FTNODE node, int childnum, struct ftnode_fet
 
     tokutime_t t1 = toku_time_now();
 
-    r = deserialize_ftnode_partition(curr_sb, node, childnum, &bfe->ft->cmp_descriptor, bfe->ft->compare_fun);
+    r = deserialize_ftnode_partition(curr_sb, node, childnum, bfe->ft->cmp);
 
     tokutime_t t2 = toku_time_now();
 

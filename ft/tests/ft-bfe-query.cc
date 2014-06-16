@@ -103,7 +103,6 @@ int64_key_cmp (DB *db UU(), const DBT *a, const DBT *b) {
 static void
 test_prefetch_read(int fd, FT_HANDLE UU(ft), FT ft_h) {
     int r;
-    ft_h->compare_fun = int64_key_cmp;    
     FT_CURSOR XMALLOC(cursor);
     FTNODE dn = NULL;
     PAIR_ATTR attr;
@@ -250,7 +249,6 @@ test_prefetch_read(int fd, FT_HANDLE UU(ft), FT ft_h) {
 static void
 test_subset_read(int fd, FT_HANDLE UU(ft), FT ft_h) {
     int r;
-    ft_h->compare_fun = int64_key_cmp;    
     FT_CURSOR XMALLOC(cursor);
     FTNODE dn = NULL;
     FTNODE_DISK_DATA ndd = NULL;
@@ -422,6 +420,7 @@ test_prefetching(void) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
+    ft_h->cmp.create(int64_key_cmp, nullptr);
     ft->ft = ft_h;
     toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
@@ -453,6 +452,7 @@ test_prefetching(void) {
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
+    ft_h->cmp.destroy();
     toku_free(ft_h->h);
     toku_free(ft_h);
     toku_free(ft);

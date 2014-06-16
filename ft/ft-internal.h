@@ -111,9 +111,9 @@ PATENT RIGHTS GRANT:
 #include "leafentry.h"
 #include "block_table.h"
 #include "compress.h"
-#include <util/mempool.h>
 #include <util/omt.h>
 #include "ft/bndata.h"
+#include "ft/comparator.h"
 #include "ft/rollback.h"
 #include "ft/msg_buffer.h"
 
@@ -213,15 +213,18 @@ struct ft {
     CACHEFILE cf;
     // unique id for dictionary
     DICTIONARY_ID dict_id;
-    ft_compare_func compare_fun;
-    ft_update_func update_fun;
 
     // protected by locktree
     DESCRIPTOR_S descriptor;
-    // protected by locktree and user. User 
-    // makes sure this is only changed
-    // when no activity on tree
+
+    // protected by locktree and user.
+    // User makes sure this is only changed when no activity on tree
     DESCRIPTOR_S cmp_descriptor;
+    // contains a pointer to cmp_descriptor (above) - their lifetimes are bound
+    toku::comparator cmp;
+
+    // the update function always utilizes the cmp_descriptor, not the regular one
+    ft_update_func update_fun;
 
     // These are not read-only:
 
@@ -272,7 +275,7 @@ typedef struct ft *FT;
 // descriptor. We don't bother setting any other fields because
 // the comparison function doesn't need it, and we would like to
 // reduce the CPU work done per comparison.
-#define FAKE_DB(db, desc) struct __toku_db db; do { db.cmp_descriptor = desc; } while (0)
+#define FAKE_DB(db, desc) struct __toku_db db; do { db.cmp_descriptor = const_cast<DESCRIPTOR>(desc); } while (0)
 
 struct ft_options {
     unsigned int nodesize;
@@ -390,14 +393,14 @@ void toku_serialize_ft_to_wbuf (
     DISKOFF translation_size_on_disk
     );
 int toku_deserialize_ft_from (int fd, LSN max_acceptable_lsn, FT *ft);
-void toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset);
-void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc);
+void toku_serialize_descriptor_contents_to_fd(int fd, DESCRIPTOR desc, DISKOFF offset);
+void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, DESCRIPTOR desc);
 
 // append a child node to a parent node
 void toku_ft_nonleaf_append_child(FTNODE node, FTNODE child, const DBT *pivotkey);
 
 // append a message to a nonleaf node child buffer
-void toku_ft_append_to_child_buffer(ft_compare_func compare_fun, DESCRIPTOR desc, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
+void toku_ft_append_to_child_buffer(const toku::comparator &cmp, FTNODE node, int childnum, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const DBT *key, const DBT *val);
 
 STAT64INFO_S toku_get_and_clear_basement_stats(FTNODE leafnode);
 

@@ -123,7 +123,7 @@ public:
     // - node may be unlocked if no other thread has visibility
 
     // effect: create the root node
-    void create_root(comparator *cmp);
+    void create_root(const comparator *cmp);
 
     // effect: destroys the root node
     void destroy_root(void);
@@ -210,7 +210,7 @@ private:
     child_ptr m_right_child;
 
     // comparator for ranges
-    comparator *m_cmp;
+    const comparator *m_cmp;
 
     // marked for the root node. the root node is never free()'d
     // when removed, but instead marked as empty.
@@ -220,7 +220,7 @@ private:
     bool m_is_empty;
 
     // effect: initializes an empty node with the given comparator
-    void init(comparator *cmp);
+    void init(const comparator *cmp);
 
     // requires: *parent is initialized to something meaningful.
     // requires: subtree is non-empty
@@ -267,7 +267,7 @@ private:
     treenode *maybe_rebalance(void);
 
     // returns: allocated treenode populated with a copy of the range and txnid
-    static treenode *alloc(comparator *cmp, const keyrange &range, TXNID txnid);
+    static treenode *alloc(const comparator *cmp, const keyrange &range, TXNID txnid);
 
     // requires: node is a locked root node, or an unlocked non-root node
     static void free(treenode *node);

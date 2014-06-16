@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include <toku_assert.h>
 
-void concurrent_tree::create(comparator *cmp) {
+void concurrent_tree::create(const comparator *cmp) {
     // start with an empty root node. we do this instead of
     // setting m_root to null so there's always a root to lock
     m_root.create_root(cmp);

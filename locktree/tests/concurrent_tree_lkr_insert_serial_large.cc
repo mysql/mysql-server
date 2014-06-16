@@ -136,6 +136,7 @@ void concurrent_tree_unit_test::test_lkr_insert_serial_large(void) {
 
     lkr.release();
     tree.destroy();
+    cmp.destroy();
 }
 
 } /* namespace toku */

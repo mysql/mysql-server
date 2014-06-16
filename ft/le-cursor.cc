@@ -101,10 +101,6 @@ PATENT RIGHTS GRANT:
 // A LE_CURSOR is good for scanning a FT from beginning to end. Useful for hot indexing.
 
 struct le_cursor {
-    // TODO: remove DBs from the ft layer comparison function 
-    // so this is never necessary
-    // use a fake db for comparisons. 
-    struct __toku_db fake_db;
     FT_CURSOR ft_cursor;
     bool neg_infinity; // true when the le cursor is positioned at -infinity (initial setting)
     bool pos_infinity; // true when the le cursor is positioned at +infinity (when _next returns DB_NOTFOUND)
@@ -124,8 +120,6 @@ toku_le_cursor_create(LE_CURSOR *le_cursor_result, FT_HANDLE ft_handle, TOKUTXN 
             toku_ft_cursor_set_leaf_mode(le_cursor->ft_cursor);
             le_cursor->neg_infinity = false;
             le_cursor->pos_infinity = true;
-            // zero out the fake DB. this is a rare operation so it's not too slow.
-            memset(&le_cursor->fake_db, 0, sizeof(le_cursor->fake_db));
         }
     }
 
@@ -170,13 +164,9 @@ toku_le_cursor_is_key_greater_or_equal(LE_CURSOR le_cursor, const DBT *key) {
     } else if (le_cursor->pos_infinity) {
         result = false;     // all keys are less than +infinity
     } else {
-        // get the comparison function and descriptor from the cursor's ft
-        FT_HANDLE ft_handle = le_cursor->ft_cursor->ft_handle;
-        ft_compare_func keycompare = toku_ft_get_bt_compare(ft_handle);
-        le_cursor->fake_db.cmp_descriptor = toku_ft_get_cmp_descriptor(ft_handle);
+        FT ft = le_cursor->ft_cursor->ft_handle->ft;
         // get the current position from the cursor and compare it to the given key.
-        DBT *cursor_key = &le_cursor->ft_cursor->key;
-        int r = keycompare(&le_cursor->fake_db, cursor_key, key);
+        int r = ft->cmp(&le_cursor->ft_cursor->key, key);
         if (r <= 0) {
             result = true;  // key is right of the cursor key
         } else {

@@ -112,14 +112,16 @@ static void test_desc(void) {
     // create with d1, make sure it gets used
     cmp.create(magic_compare, &d1);
     expected_desc = &d1;
-    c = cmp.compare(&dbt_a, &dbt_b);
+    c = cmp(&dbt_a, &dbt_b);
     invariant(c == MAGIC);
 
     // set desc to d2, make sure it gets used
     cmp.set_descriptor(&d2);
     expected_desc = &d2;
-    c = cmp.compare(&dbt_a, &dbt_b);
+    c = cmp(&dbt_a, &dbt_b);
     invariant(c == MAGIC);
+
+    cmp.destroy();
 }
 
 static int dont_compare_me_bro(DB *db, const DBT *a, const DBT *b) {
@@ -137,20 +139,22 @@ static void test_infinity(void) {
     // should never be called and thus the dbt never actually read.
     DBT arbitrary_dbt;
 
-    c = cmp.compare(&arbitrary_dbt, toku_dbt_positive_infinity());
+    c = cmp(&arbitrary_dbt, toku_dbt_positive_infinity());
     invariant(c < 0);
-    c = cmp.compare(toku_dbt_negative_infinity(), &arbitrary_dbt);
+    c = cmp(toku_dbt_negative_infinity(), &arbitrary_dbt);
     invariant(c < 0);
 
-    c = cmp.compare(toku_dbt_positive_infinity(), &arbitrary_dbt);
+    c = cmp(toku_dbt_positive_infinity(), &arbitrary_dbt);
     invariant(c > 0);
-    c = cmp.compare(&arbitrary_dbt, toku_dbt_negative_infinity());
+    c = cmp(&arbitrary_dbt, toku_dbt_negative_infinity());
     invariant(c > 0);
 
-    c = cmp.compare(toku_dbt_negative_infinity(), toku_dbt_negative_infinity());
+    c = cmp(toku_dbt_negative_infinity(), toku_dbt_negative_infinity());
     invariant(c == 0);
-    c = cmp.compare(toku_dbt_positive_infinity(), toku_dbt_positive_infinity());
+    c = cmp(toku_dbt_positive_infinity(), toku_dbt_positive_infinity());
     invariant(c == 0);
+
+    cmp.destroy();
 }
 
 int main(void) {

@@ -159,11 +159,11 @@ int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,i
 // any operation has already occurred on the ft.
 // see toku_ft_change_descriptor(), which is the transactional version
 // used by the ydb layer. it better describes the client contract.
-void toku_ft_update_descriptor(FT ft, DESCRIPTOR d);
+void toku_ft_update_descriptor(FT ft, DESCRIPTOR desc);
 // use this version if the FT is not fully user-opened with a valid cachefile.
 // this is a clean hack to get deserialization code to update a descriptor
 // while the FT and cf are in the process of opening, for upgrade purposes
-void toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR d, int fd);
+void toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR desc, int fd);
 void toku_ft_update_cmp_descriptor(FT ft);
 
 // get the descriptor for a ft. safe to read as long as clients honor the

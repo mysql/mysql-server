@@ -195,9 +195,9 @@ test_serialize_leaf(int valsize, int nelts, double entropy, int ser_runs, int de
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
+    ft_h->cmp.create(long_key_cmp, nullptr);
     ft->ft = ft_h;
     
-    ft_h->compare_fun = long_key_cmp;
     toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
@@ -279,6 +279,7 @@ test_serialize_leaf(int valsize, int nelts, double entropy, int ser_runs, int de
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
+    ft_h->cmp.destroy();
     toku_free(ft_h->h);
     toku_free(ft_h);
     toku_free(ft);
@@ -317,6 +318,8 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     XIDS xids_123;
     r = xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
+    toku::comparator cmp;
+    cmp.create(long_key_cmp, nullptr);
     int nperchild = nelts / 8;
     for (int ck = 0; ck < sn.n_children; ++ck) {
         long k;
@@ -332,7 +335,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
             }
             memset(&buf[c], 0, valsize - c);
 
-            toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, FT_NONE, next_dummymsn(), xids_123, true, NULL, long_key_cmp);
+            toku_bnc_insert_msg(bnc, &k, sizeof k, buf, valsize, FT_NONE, next_dummymsn(), xids_123, true, cmp);
         }
         if (ck < 7) {
             DBT pivotkey;
@@ -343,6 +346,7 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     //Cleanup:
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);
+    cmp.destroy();
 
     FT_HANDLE XMALLOC(ft);
     FT XCALLOC(ft_h);
@@ -354,9 +358,9 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
+    ft_h->cmp.create(long_key_cmp, nullptr);
     ft->ft = ft_h;
     
-    ft_h->compare_fun = long_key_cmp;
     toku_blocktable_create_new(&ft_h->blocktable);
     { int r_truncate = ftruncate(fd, 0); CKERR(r_truncate); }
     //Want to use block #20
@@ -411,10 +415,12 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
     toku_free(ft_h->h);
+    ft_h->cmp.destroy();
     toku_free(ft_h);
     toku_free(ft);
     toku_free(ndd);
     toku_free(ndd2);
+    cmp.destroy();
 
     r = close(fd); assert(r != -1);
 }

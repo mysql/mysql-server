@@ -117,7 +117,7 @@ public:
     // effect: extends the keyrange by choosing the leftmost and rightmost
     //         endpoints from this range and the given range.
     //         replaced keys in this range are freed, new keys are copied.
-    void extend(comparator *cmp, const keyrange &range);
+    void extend(const comparator &cmp, const keyrange &range);
 
     // returns: the amount of memory this keyrange takes. does not account
     //          for point optimizations or malloc overhead.
@@ -143,10 +143,10 @@ public:
     //          EQUALS       if given range has the same left and right endpoints
     //          OVERLAPS     if at least one of the given range's endpoints falls
     //                       between this range's endpoints
-    comparison compare(comparator *cmp, const keyrange &range) const;
+    comparison compare(const comparator &cmp, const keyrange &range) const;
 
     // returns: true if the range and the given range are equal or overlapping
-    bool overlaps(comparator *cmp, const keyrange &range) const;
+    bool overlaps(const comparator &cmp, const keyrange &range) const;
 
     // returns: a keyrange representing -inf, +inf
     static keyrange get_infinite_range(void);

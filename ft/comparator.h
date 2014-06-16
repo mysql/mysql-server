@@ -95,36 +95,51 @@ PATENT RIGHTS GRANT:
 
 #include <ft/ybt.h>
 #include <ft/fttypes.h>
+#include <portability/memory.h>
 
 namespace toku {
 
-// a comparator object encapsulates the data necessary for 
-// comparing two keys in a fractal tree. it further understands
-// that points may be positive or negative infinity.
+    // a comparator object encapsulates the data necessary for 
+    // comparing two keys in a fractal tree. it further understands
+    // that points may be positive or negative infinity.
 
-class comparator {
-public:
-    void set_descriptor(DESCRIPTOR desc) {
-        m_fake_db.cmp_descriptor = desc;
-    }
-
-    void create(ft_compare_func cmp, DESCRIPTOR desc) {
-        m_cmp = cmp;
-        memset(&m_fake_db, 0, sizeof(m_fake_db));
-        m_fake_db.cmp_descriptor = desc;
-    }
-
-    int compare(const DBT *a, const DBT *b) {
-        if (toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b)) {
-            return toku_dbt_infinite_compare(a, b);
-        } else {
-            return m_cmp(&m_fake_db, a, b);
+    class comparator {
+    public:
+        void create(ft_compare_func cmp, DESCRIPTOR desc) {
+            _cmp = cmp;
+            XCALLOC(_fake_db);
+            _fake_db->cmp_descriptor = desc;
         }
-    }
 
-private:
-    struct __toku_db m_fake_db;
-    ft_compare_func m_cmp;
-};
+        void destroy() {
+            toku_free(_fake_db);
+        }
+
+        const DESCRIPTOR_S *get_descriptor() const {
+            return _fake_db->cmp_descriptor;
+        }
+
+        ft_compare_func get_compare_func() const {
+            return _cmp;
+        }
+
+        void set_descriptor(DESCRIPTOR desc) {
+            _fake_db->cmp_descriptor = desc;
+        }
+
+        int operator()(const DBT *a, const DBT *b) const {
+            // TODO: add an unlikely() compiler note for this branch
+            if (toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b)) {
+                return toku_dbt_infinite_compare(a, b);
+            } else {
+                // yikes, const sadness here
+                return _cmp(const_cast<DB *>(_fake_db), a, b);
+            }
+        }
+
+    private:
+        DB *_fake_db;
+        ft_compare_func _cmp;
+    };
 
 } /* namespace toku */

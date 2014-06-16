@@ -406,13 +406,8 @@ ctm_pick_child(FT ft,
     int childnum;
     if (parent->height == 1 && ctme->is_last_child) {
         childnum = parent->n_children - 1;
-    }
-    else {
-        childnum = toku_ftnode_which_child(
-            parent,
-            &ctme->target_key,
-            &ft->cmp_descriptor,
-            ft->compare_fun);
+    } else {
+        childnum = toku_ftnode_which_child(parent, &ctme->target_key, ft->cmp);
     }
     return childnum;
 }
@@ -1703,9 +1698,8 @@ void toku_bnc_flush_to_child(FT ft, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID p
                 flow_deltas[1] = memsize_in_buffer;
             }
             toku_ftnode_put_msg(
-                ft->compare_fun,
+                ft->cmp,
                 ft->update_fun,
-                &ft->cmp_descriptor,
                 child,
                 -1,
                 msg,

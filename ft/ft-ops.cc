@@ -600,7 +600,7 @@ toku_bfe_leftmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
     } else if (bfe->range_lock_left_key.data == nullptr) {
         return -1;
     } else {
-        return toku_ftnode_which_child(node, &bfe->range_lock_left_key, &bfe->ft->cmp_descriptor, bfe->ft->compare_fun);
+        return toku_ftnode_which_child(node, &bfe->range_lock_left_key, bfe->ft->cmp);
     }
 }
 
@@ -613,7 +613,7 @@ toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node)
     } else if (bfe->range_lock_right_key.data == nullptr) {
         return -1;
     } else {
-        return toku_ftnode_which_child(node, &bfe->range_lock_right_key, &bfe->ft->cmp_descriptor, bfe->ft->compare_fun);
+        return toku_ftnode_which_child(node, &bfe->range_lock_right_key, bfe->ft->cmp);
     }
 }
 
@@ -625,7 +625,7 @@ ft_cursor_rightmost_child_wanted(FT_CURSOR cursor, FT_HANDLE ft_handle, FTNODE n
     } else if (cursor->range_lock_right_key.data == nullptr) {
         return -1;
     } else {
-        return toku_ftnode_which_child(node, &cursor->range_lock_right_key, &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun);
+        return toku_ftnode_which_child(node, &cursor->range_lock_right_key, ft_handle->ft->cmp);
     }
 }
 
@@ -1125,11 +1125,9 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        paranoid_invariant(bfe->ft->compare_fun);
         paranoid_invariant(bfe->search);
         bfe->child_to_read = toku_ft_search_which_child(
-            &bfe->ft->cmp_descriptor,
-            bfe->ft->compare_fun,
+            bfe->ft->cmp,
             node,
             bfe->search
             );
@@ -1154,7 +1152,6 @@ bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs) {
         // we can possibly require is a single basement node
         // we find out what basement node the query cares about
         // and check if it is available
-        paranoid_invariant(bfe->ft->compare_fun);
         if (node->height == 0) {
             int left_child = toku_bfe_leftmost_child_wanted(bfe, node);
             int right_child = toku_bfe_rightmost_child_wanted(bfe, node);
@@ -1358,9 +1355,7 @@ int toku_ftnode_pf_callback(void* ftnode_pv, void* disk_data, void* read_extraar
 }
 
 int toku_msg_leafval_heaviside(DBT const &kdbt, const struct toku_msg_leafval_heaviside_extra &be) {
-    FAKE_DB(db, be.desc);
-    DBT const *const key = be.key;
-    return be.compare_fun(&db, &kdbt, key);
+    return be.cmp(&kdbt, be.key);
 }
 
 void fill_bfe_for_full_read(struct ftnode_fetch_extra *bfe, FT ft) {
@@ -1597,9 +1592,8 @@ static void inject_message_in_locked_node(
     paranoid_invariant(msg->msn.msn > node->max_msn_applied_to_node_on_disk.msn);
     STAT64INFO_S stats_delta = {0,0};
     toku_ftnode_put_msg(
-        ft->compare_fun,
+        ft->cmp,
         ft->update_fun,
-        &ft->cmp_descriptor,
         node,
         childnum,
         msg,
@@ -1884,7 +1878,7 @@ static void push_something_in_subtree(
         paranoid_invariant(ft_msg_type_applies_once(msg->type));
 
         childnum = (target_childnum >= 0 ? target_childnum
-                    : toku_ftnode_which_child(subtree_root, msg->u.id.key, &ft->cmp_descriptor, ft->compare_fun));
+                    : toku_ftnode_which_child(subtree_root, msg->u.id.key, ft->cmp));
         bnc = BNC(subtree_root, childnum);
 
         if (toku_bnc_n_entries(bnc) > 0) {
@@ -2131,7 +2125,7 @@ void toku_ft_root_put_msg(
     } else {
         // The root's height 1.  We may be eligible for promotion here.
         // On the extremes, we want to promote, in the middle, we don't.
-        int childnum = toku_ftnode_which_child(node, msg->u.id.key, &ft->cmp_descriptor, ft->compare_fun);
+        int childnum = toku_ftnode_which_child(node, msg->u.id.key, ft->cmp);
         if (childnum == 0 || childnum == node->n_children - 1) {
             // On the extremes, promote.  We know which childnum we're going to, so pass that down too.
             push_something_in_subtree(ft, node, childnum, msg, flow_deltas, gc_info, 0, LEFT_EXTREME | RIGHT_EXTREME, false);
@@ -2144,11 +2138,11 @@ void toku_ft_root_put_msg(
     }
 }
 
+// TODO: Remove me, I'm boring.
 static int ft_compare_keys(FT ft, const DBT *a, const DBT *b)
 // Effect: Compare two keys using the given fractal tree's comparator/descriptor
 {
-    FAKE_DB(db, &ft->cmp_descriptor);
-    return ft->compare_fun(&db, a, b);
+    return ft->cmp(a, b);
 }
 
 static LEAFENTRY bn_get_le_and_key(BASEMENTNODE bn, int idx, DBT *key)
@@ -2241,9 +2235,9 @@ static int ft_leaf_get_relative_key_pos(FT ft, FTNODE leaf, const DBT *key, bool
             if (nondeleted_key_found != nullptr) {
                 // The caller wants to know if a nondeleted key can be found.
                 LEAFENTRY target_le;
-                int childnum = toku_ftnode_which_child(leaf, key, &ft->cmp_descriptor, ft->compare_fun);
+                int childnum = toku_ftnode_which_child(leaf, key, ft->cmp);
                 BASEMENTNODE bn = BLB(leaf, childnum);
-                struct toku_msg_leafval_heaviside_extra extra = { ft->compare_fun, &ft->cmp_descriptor, key };
+                struct toku_msg_leafval_heaviside_extra extra(ft->cmp, key);
                 int r = bn->data_buffer.find_zero<decltype(extra), toku_msg_leafval_heaviside>(
                     extra,
                     &target_le,
@@ -2943,7 +2937,7 @@ toku_ft_handle_inherit_options(FT_HANDLE t, FT ft) {
         .compression_method = ft->h->compression_method,
         .fanout = ft->h->fanout,
         .flags = ft->h->flags,
-        .compare_fun = ft->compare_fun,
+        .compare_fun = ft->cmp.get_compare_func(),
         .update_fun = ft->update_fun
     };
     t->options = options;
@@ -3309,10 +3303,9 @@ static bool search_continue(ft_search *search, void *key, uint32_t key_len) {
     bool result = true;
     if (search->direction == FT_SEARCH_LEFT && search->k_bound) {
         FT_HANDLE CAST_FROM_VOIDP(ft_handle, search->context);
-        FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
         DBT this_key = { .data = key, .size = key_len };
         // search continues if this key <= key bound
-        result = (ft_handle->ft->compare_fun(&db, &this_key, search->k_bound) <= 0);
+        result = (ft_handle->ft->cmp(&this_key, search->k_bound) <= 0);
     }
     return result;
 }
@@ -3624,19 +3617,13 @@ ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search *searc
 }
 
 static inline int
-search_which_child_cmp_with_bound(DB *db, ft_compare_func cmp, FTNODE node, int childnum, ft_search *search, DBT *dbt)
-{
-    return cmp(db, toku_copyref_dbt(dbt, *node->pivotkeys.get_pivot(childnum)), &search->pivot_bound);
+search_which_child_cmp_with_bound(const toku::comparator &cmp, FTNODE node, int childnum,
+                                  ft_search *search, DBT *dbt) {
+    return cmp(toku_copyref_dbt(dbt, *node->pivotkeys.get_pivot(childnum)), &search->pivot_bound);
 }
 
 int
-toku_ft_search_which_child(
-    DESCRIPTOR desc,
-    ft_compare_func cmp,
-    FTNODE node,
-    ft_search *search
-    )
-{
+toku_ft_search_which_child(const toku::comparator &cmp, FTNODE node, ft_search *search) {
     if (node->n_children <= 1) return 0;
 
     DBT pivotkey;
@@ -3671,10 +3658,9 @@ toku_ft_search_which_child(
     // ready to return something, if the pivot is bounded, we have to move
     // over a bit to get away from what we've already searched
     if (search->pivot_bound.data != nullptr) {
-        FAKE_DB(db, desc);
         if (search->direction == FT_SEARCH_LEFT) {
             while (lo < node->n_children - 1 &&
-                   search_which_child_cmp_with_bound(&db, cmp, node, lo, search, &pivotkey) <= 0) {
+                   search_which_child_cmp_with_bound(cmp, node, lo, search, &pivotkey) <= 0) {
                 // searching left to right, if the comparison says the
                 // current pivot (lo) is left of or equal to our bound,
                 // don't search that child again
@@ -3682,7 +3668,7 @@ toku_ft_search_which_child(
             }
         } else {
             while (lo > 0 &&
-                   search_which_child_cmp_with_bound(&db, cmp, node, lo - 1, search, &pivotkey) >= 0) {
+                   search_which_child_cmp_with_bound(cmp, node, lo - 1, search, &pivotkey) >= 0) {
                 // searching right to left, same argument as just above
                 // (but we had to pass lo - 1 because the pivot between lo
                 // and the thing just less than it is at that position in
@@ -3716,8 +3702,7 @@ static bool search_try_again(FTNODE node, int child_to_search, ft_search *search
             // if there is a search bound and the bound is within the search pivot then continue the search
             if (search->k_bound) {
                 FT_HANDLE CAST_FROM_VOIDP(ft_handle, search->context);
-                FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
-                try_again = (ft_handle->ft->compare_fun(&db, search->k_bound, &search->pivot_bound) > 0);
+                try_again = (ft_handle->ft->cmp(search->k_bound, &search->pivot_bound) > 0);
             }
         }
     } else if (search->direction == FT_SEARCH_RIGHT) {
@@ -3990,17 +3975,14 @@ int toku_ft_cursor_delete(FT_CURSOR cursor, int flags, TOKUTXN txn) {
 
 /* ********************* keyrange ************************ */
 
-
 struct keyrange_compare_s {
     FT ft;
     const DBT *key;
 };
 
-static int
-keyrange_compare (DBT const &kdbt, const struct keyrange_compare_s &s) {
-    // TODO: maybe put a const fake_db in the header
-    FAKE_DB(db, &s.ft->cmp_descriptor);
-    return s.ft->compare_fun(&db, &kdbt, s.key);
+// TODO: Remove me, I'm boring
+static int keyrange_compare(DBT const &kdbt, const struct keyrange_compare_s &s) {
+    return s.ft->cmp(&kdbt, s.key);
 }
 
 static void
@@ -4070,10 +4052,10 @@ toku_ft_keysrange_internal (FT_HANDLE ft_handle, FTNODE node,
 {
     int r = 0;
     // if KEY is NULL then use the leftmost key.
-    int left_child_number = key_left ? toku_ftnode_which_child (node, key_left, &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun) : 0;
+    int left_child_number = key_left ? toku_ftnode_which_child (node, key_left, ft_handle->ft->cmp) : 0;
     int right_child_number = node->n_children;  // Sentinel that does not equal left_child_number.
     if (may_find_right) {
-        right_child_number = key_right ? toku_ftnode_which_child (node, key_right, &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun) : node->n_children - 1;
+        right_child_number = key_right ? toku_ftnode_which_child (node, key_right, ft_handle->ft->cmp) : node->n_children - 1;
     }
 
     uint64_t rows_per_child = estimated_num_rows / node->n_children;
@@ -4322,7 +4304,7 @@ static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLO
 
 static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
     int r;
-    int childnum = toku_ft_search_which_child(&ft->cmp_descriptor, ft->compare_fun, node, search);
+    int childnum = toku_ft_search_which_child(ft->cmp, node, search);
     const uint64_t child_subtree_bytes = subtree_bytes / node->n_children;
     if (node->height == 0) {
         r = DB_NOTFOUND;
@@ -4752,8 +4734,7 @@ int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2le
     return 0;
 }
 
-int
-toku_builtin_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
+int toku_builtin_compare_fun (DB *db __attribute__((__unused__)), const DBT *a, const DBT*b) {
     return toku_keycompare(a->data, a->size, b->data, b->size);
 }
 

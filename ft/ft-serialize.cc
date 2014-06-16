@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 
 // not version-sensitive because we only serialize a descriptor using the current layout_version
 uint32_t
-toku_serialize_descriptor_size(const DESCRIPTOR desc) {
+toku_serialize_descriptor_size(DESCRIPTOR desc) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
     uint32_t size = 4; // four bytes for size of descriptor
     size += desc->dbt.size;
@@ -103,7 +103,7 @@ toku_serialize_descriptor_size(const DESCRIPTOR desc) {
 }
 
 static uint32_t
-deserialize_descriptor_size(const DESCRIPTOR desc, int layout_version) {
+deserialize_descriptor_size(DESCRIPTOR desc, int layout_version) {
     //Checksum NOT included in this.  Checksum only exists in header's version.
     uint32_t size = 4; // four bytes for size of descriptor
     if (layout_version == FT_LAYOUT_VERSION_13)
@@ -112,8 +112,7 @@ deserialize_descriptor_size(const DESCRIPTOR desc, int layout_version) {
     return size;
 }
 
-void
-toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR desc) {
+void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, DESCRIPTOR desc) {
     wbuf_bytes(wb, desc->dbt.data, desc->dbt.size);
 }
 
@@ -121,7 +120,7 @@ toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, const DESCRIPTOR des
 //descriptor.
 //Descriptors are NOT written during the header checkpoint process.
 void
-toku_serialize_descriptor_contents_to_fd(int fd, const DESCRIPTOR desc, DISKOFF offset) {
+toku_serialize_descriptor_contents_to_fd(int fd, DESCRIPTOR desc, DISKOFF offset) {
     // make the checksum
     int64_t size = toku_serialize_descriptor_size(desc)+4; //4 for checksum
     int64_t size_aligned = roundup_to_multiple(512, size);
@@ -437,7 +436,8 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     if (r != 0) {
         goto exit;
     }
-    // copy descriptor to cmp_descriptor for #4541
+    // initialize for svn #4541
+    // TODO: use real dbt function
     ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
     ft->cmp_descriptor.dbt.data = toku_xmemdup(ft->descriptor.dbt.data, ft->descriptor.dbt.size);
     // Version 13 descriptors had an extra 4 bytes that we don't read

@@ -184,10 +184,7 @@ hot_just_pick_child(FT ft,
         childnum = 0;
     } else {
         // Find the pivot boundary.
-        childnum = toku_ftnode_hot_next_child(parent,
-                                               &flusher->highest_pivot_key,
-                                               &ft->cmp_descriptor,
-                                               ft->compare_fun);
+        childnum = toku_ftnode_hot_next_child(parent, &flusher->highest_pivot_key, ft->cmp);
     }
 
     return childnum;
@@ -386,8 +383,7 @@ toku_ft_hot_optimize(FT_HANDLE ft_handle, DBT* left, DBT* right,
         else if (right) {
             // if we have flushed past the bounds set for us,
             // set rightmost_leaf_seen so we exit
-            FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
-            int cmp = ft_handle->ft->compare_fun(&db, &flusher.max_current_key, right);
+            int cmp = ft_handle->ft->cmp(&flusher.max_current_key, right);
             if (cmp > 0) {
                 flusher.rightmost_leaf_seen = 1;
             }

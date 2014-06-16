@@ -129,13 +129,13 @@ void keyrange::create_copy(const keyrange &range) {
 // extend this keyrange by choosing the leftmost and rightmost
 // endpoints between this range and the given. replaced keys
 // in this range are freed and inherited keys are copied.
-void keyrange::extend(comparator *cmp, const keyrange &range) {
+void keyrange::extend(const comparator &cmp, const keyrange &range) {
     const DBT *range_left = range.get_left_key();
     const DBT *range_right = range.get_right_key();
-    if (cmp->compare(range_left, get_left_key()) < 0) {
+    if (cmp(range_left, get_left_key()) < 0) {
         replace_left_key(range_left);
     }
-    if (cmp->compare(range_right, get_right_key()) > 0) {
+    if (cmp(range_right, get_right_key()) > 0) {
         replace_right_key(range_right);
     }
 }
@@ -152,20 +152,20 @@ uint64_t keyrange::get_memory_size(void) const {
 }
 
 // compare ranges.
-keyrange::comparison keyrange::compare(comparator *cmp, const keyrange &range) const {
-    if (cmp->compare(get_right_key(), range.get_left_key()) < 0) {
+keyrange::comparison keyrange::compare(const comparator &cmp, const keyrange &range) const {
+    if (cmp(get_right_key(), range.get_left_key()) < 0) {
         return comparison::LESS_THAN;
-    } else if (cmp->compare(get_left_key(), range.get_right_key()) > 0) {
+    } else if (cmp(get_left_key(), range.get_right_key()) > 0) {
         return comparison::GREATER_THAN;
-    } else if (cmp->compare(get_left_key(), range.get_left_key()) == 0 &&
-            cmp->compare(get_right_key(), range.get_right_key()) == 0) {
+    } else if (cmp(get_left_key(), range.get_left_key()) == 0 &&
+            cmp(get_right_key(), range.get_right_key()) == 0) {
         return comparison::EQUALS;
     } else {
         return comparison::OVERLAPS;
     }
 }
 
-bool keyrange::overlaps(comparator *cmp, const keyrange &range) const {
+bool keyrange::overlaps(const comparator &cmp, const keyrange &range) const {
     // equality is a stronger form of overlapping.
     // so two ranges "overlap" if they're either equal or just overlapping.
     comparison c = compare(cmp, range);

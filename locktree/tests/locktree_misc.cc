@@ -128,11 +128,11 @@ void locktree_unit_test::test_misc(void) {
     // descriptor when we set the locktree's descriptor
     lt.set_descriptor(&d1);
     expected_descriptor = &d1;
-    r = lt.m_cmp->compare(&dbt_a, &dbt_b);
+    r = lt.m_cmp(&dbt_a, &dbt_b);
     invariant(r == expected_comparison_magic);
     lt.set_descriptor(&d2);
     expected_descriptor = &d2;
-    r = lt.m_cmp->compare(&dbt_a, &dbt_b);
+    r = lt.m_cmp(&dbt_a, &dbt_b);
     invariant(r == expected_comparison_magic);
 
     lt.release_reference();
