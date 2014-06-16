@@ -99,7 +99,6 @@ PATENT RIGHTS GRANT:
 static const char *fname = TOKU_TEST_FILENAME;
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 static int const nodesize = 1<<12, basementnodesize = 1<<9;
 static const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 static int const count = 1000;

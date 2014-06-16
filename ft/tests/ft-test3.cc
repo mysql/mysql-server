@@ -97,7 +97,6 @@ static const char *fname = TOKU_TEST_FILENAME;
 static const enum toku_compression_method compression_method = TOKU_DEFAULT_COMPRESSION_METHOD;
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static void test3 (int nodesize, int basementnodesize, int count) {
     FT_HANDLE t;

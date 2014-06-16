@@ -101,7 +101,6 @@ PATENT RIGHTS GRANT:
 CACHETABLE ct;
 FT_HANDLE t;
 
-static DB * const null_db = 0;
 static TOKUTXN const null_txn = 0;
 
 volatile bool done = false;

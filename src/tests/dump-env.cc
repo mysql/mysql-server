@@ -95,7 +95,6 @@ static DB_ENV *env;
 static DB *db;
 DB_TXN *txn;
 
-const int num_insert = 25000;
 
 static void
 setup (void) {

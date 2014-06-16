@@ -100,7 +100,6 @@ PATENT RIGHTS GRANT:
 #include "checkpoint.h"
 
 static TOKUTXN const null_txn = NULL;
-static DB * const null_db = NULL;
 
 static int
 noop_getf(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *extra, bool UU(lock_only))
