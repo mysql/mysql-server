@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3283,9 +3283,11 @@ NdbBlob::setErrorCode(int anErrorCode, bool invalidFlag)
   if (invalidFlag)
     setState(Invalid);
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   if (NdbEnv_GetEnv("NDB_BLOB_ABORT_ON_ERROR", (char*)0, 0)) {
     abort();
   }
+#endif
 #endif
   DBUG_VOID_RETURN;
 }

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -210,11 +210,13 @@ Dbtux::execTUX_ADD_ATTRREQ(Signal* signal)
       unsigned bytes = keySpec.get_nullmask_len(false);
       unsigned maxAttrs = indexPtr.p->m_numAttrs;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
       {
         const char* p = NdbEnv_GetEnv("MAX_TTREE_PREF_ATTRS", (char*)0, 0);
         if (p != 0 && p[0] != 0 && maxAttrs > (unsigned)atoi(p))
           maxAttrs = atoi(p);
       }
+#endif
 #endif
       while (attrs < maxAttrs) {
         const KeyType& keyType = keySpec.get_type(attrs);

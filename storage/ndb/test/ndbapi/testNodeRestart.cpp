@@ -2833,8 +2833,12 @@ runBug34216(NDBT_Context* ctx, NDBT_Step* step)
     return NDBT_FAILED;
   }
 
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   const char * off = NdbEnv_GetEnv("NDB_ERR_OFFSET", buf, sizeof(buf));
+#else
+  const char * off = NULL;
+#endif
   int offset = off ? atoi(off) : 0;
 
   while(i<loops && result != NDBT_FAILED && !ctx->isTestStopped())
@@ -3120,11 +3124,13 @@ runMNF(NDBT_Context* ctx, NDBT_Step* step)
         return NDBT_FAILED;
     
     int type = loops;
+#ifdef NDB_USE_GET_ENV
     char buf[100];
     if (NdbEnv_GetEnv("MNF", buf, sizeof(buf)))
     {
       type = atoi(buf);
     }
+#endif
     if (cmf)
     {
       type = type % 7;

@@ -15882,6 +15882,7 @@ void Dbdih::initRestartInfo(Signal* signal)
 
   Uint32 startGci = 1;
 #ifndef DBUG_OFF
+#ifdef NDB_USE_GET_ENV
   {
     char envBuf[256];
     const char* v = NdbEnv_GetEnv("NDB_START_GCI",
@@ -15895,6 +15896,7 @@ void Dbdih::initRestartInfo(Signal* signal)
                startGci);
     }
   }
+#endif
 #endif
 
   m_micro_gcp.m_old_gci = Uint64(startGci) << 32;

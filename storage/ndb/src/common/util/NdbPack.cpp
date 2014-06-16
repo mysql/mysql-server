@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -40,9 +40,11 @@ NdbPack::Error::set_error(int code, int line) const
   m_error_code = code;
   m_error_line = line;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   const char* p = NdbEnv_GetEnv("NDB_PACK_ABORT_ON_ERROR", (char*)0, 0);
   if (p != 0 && strchr("1Y", p[0]) != 0)
     require(false);
+#endif
 #endif
 }
 
