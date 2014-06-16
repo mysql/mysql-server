@@ -387,7 +387,8 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
 
     toku_list_init(&ft->live_ft_handles);
 
-    ft->cmp.create(options->compare_fun, &ft->descriptor);
+    // intuitively, the comparator points to the FT's cmp descriptor
+    ft->cmp.create(options->compare_fun, &ft->cmp_descriptor);
     ft->update_fun = options->update_fun;
 
     if (ft->cf != NULL) {

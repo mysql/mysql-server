@@ -1125,12 +1125,12 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
 
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
+    ft_h->cmp.destroy();
     toku_free(ft_h->h);
     toku_free(ft_h);
     toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
-    cmp.destroy();
 
     r = close(fd); assert(r != -1);
 }
