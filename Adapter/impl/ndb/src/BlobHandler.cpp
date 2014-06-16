@@ -102,7 +102,8 @@ BlobWriteHandler::BlobWriteHandler(int colId, int fieldNo,
 void BlobWriteHandler::prepare(const NdbOperation * ndbop) {
   ndbBlob = ndbop->getBlobHandle(columnId);
   if(! ndbBlob) { 
-    DEBUG_PRINT("getBlobHandle: %s", ndbop->getNdbError().message);
+    DEBUG_PRINT("getBlobHandle %d: [%d] %s", columnId, 
+                ndbop->getNdbError().code, ndbop->getNdbError().message);
     assert(false);
   }
 
