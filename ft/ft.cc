@@ -120,10 +120,8 @@ ft_destroy(FT ft) {
     assert(ft->h->type == FT_CURRENT);
     toku_blocktable_destroy(&ft->blocktable);
     ft->cmp.destroy();
-    // TODO: use real dbt function
-    if (ft->descriptor.dbt.data) toku_free(ft->descriptor.dbt.data);
-    // TODO: use real dbt function
-    if (ft->cmp_descriptor.dbt.data) toku_free(ft->cmp_descriptor.dbt.data);
+    toku_destroy_dbt(&ft->descriptor.dbt);
+    toku_destroy_dbt(&ft->cmp_descriptor.dbt);
     toku_ft_destroy_reflock(ft);
     toku_free(ft->h);
 }
@@ -913,26 +911,14 @@ toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR desc, int fd) {
     toku_serialize_descriptor_contents_to_fd(fd, desc, offset);
 
     // cleanup the old descriptor and set the in-memory descriptor to the new one
-    // TODO: use real dbt function
-    if (ft->descriptor.dbt.data) {
-        toku_free(ft->descriptor.dbt.data);
-    }
-    // TODO: use real dbt function
-    ft->descriptor.dbt.size = desc->dbt.size;
-    ft->descriptor.dbt.data = toku_memdup(desc->dbt.data, desc->dbt.size);
+    toku_destroy_dbt(&ft->descriptor.dbt);
+    toku_clone_dbt(&ft->descriptor.dbt, desc->dbt);
 }
 
 void toku_ft_update_cmp_descriptor(FT ft) {
-    // TODO: use real dbt function
-    if (ft->cmp_descriptor.dbt.data != NULL) {
-        toku_free(ft->cmp_descriptor.dbt.data);
-    }
-    // TODO: use real dbt function
-    ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
-    ft->cmp_descriptor.dbt.data = toku_xmemdup(
-        ft->descriptor.dbt.data, 
-        ft->descriptor.dbt.size
-        );
+    // cleanup the old cmp descriptor and clone it as the in-memory descriptor
+    toku_destroy_dbt(&ft->cmp_descriptor.dbt);
+    toku_clone_dbt(&ft->cmp_descriptor.dbt, ft->descriptor.dbt);
 }
 
 DESCRIPTOR toku_ft_get_descriptor(FT_HANDLE ft_handle) {

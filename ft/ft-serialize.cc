@@ -153,15 +153,7 @@ deserialize_descriptor_from_rbuf(struct rbuf *rb, DESCRIPTOR desc, int layout_ve
     uint32_t size;
     bytevec data;
     rbuf_bytes(rb, &data, &size);
-    bytevec data_copy = data;
-    if (size > 0) {
-        data_copy = toku_memdup(data, size); //Cannot keep the reference from rbuf. Must copy.
-        lazy_assert(data_copy);
-    } else {
-        lazy_assert(size==0);
-        data_copy = NULL;
-    }
-    toku_fill_dbt(&desc->dbt, data_copy, size);
+    toku_memdup_dbt(&desc->dbt, data, size);
 }
 
 static int
@@ -194,12 +186,10 @@ deserialize_descriptor_from(int fd, BLOCK_TABLE bt, DESCRIPTOR desc, int layout_
                     goto exit;
                 }
             }
-            {
-                struct rbuf rb = {.buf = dbuf, .size = (unsigned int) size, .ndone = 0};
-                //Not temporary; must have a toku_memdup'd copy.
-                deserialize_descriptor_from_rbuf(&rb, desc, layout_version);
-            }
-            lazy_assert(deserialize_descriptor_size(desc, layout_version)+4 == size);
+
+            struct rbuf rb = { .buf = dbuf, .size = (unsigned int) size, .ndone = 0 };
+            deserialize_descriptor_from_rbuf(&rb, desc, layout_version);
+            lazy_assert(deserialize_descriptor_size(desc, layout_version) + 4 == size);
             toku_free(dbuf);
         }
     }
@@ -436,10 +426,10 @@ int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ftp, uint32_t version)
     if (r != 0) {
         goto exit;
     }
+
     // initialize for svn #4541
-    // TODO: use real dbt function
-    ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
-    ft->cmp_descriptor.dbt.data = toku_xmemdup(ft->descriptor.dbt.data, ft->descriptor.dbt.size);
+    toku_clone_dbt(&ft->cmp_descriptor.dbt, ft->descriptor.dbt);
+
     // Version 13 descriptors had an extra 4 bytes that we don't read
     // anymore.  Since the header is going to think it's the current
     // version if it gets written out, we need to write the descriptor in
