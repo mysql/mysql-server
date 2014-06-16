@@ -79,7 +79,6 @@ Replication_thread_api::initialize_repositories(char* relay_log_name,
   //MTS is disable for now
   mi->rli->opt_slave_parallel_workers= 0;
   mi->rli->replicate_same_server_id= true;
-  mi->rli= rli;
 
   mysql_mutex_unlock(&mi->rli->data_lock);
   mysql_mutex_unlock(&mi->data_lock);
@@ -295,10 +294,8 @@ Replication_thread_api::wait_for_gtid_execution(longlong timeout)
     DBUG_RETURN(REPLICATION_THREAD_WAIT_NO_INFO_ERROR);
 
   const Gtid_set* wait_gtid_set= rli->get_gtid_set();
-  mysql_mutex_t data_lock = rli->data_lock;
-  mysql_cond_t data_cond = rli->data_cond;
 
-  mysql_mutex_lock(&data_lock);
+  mysql_mutex_lock(&rli->data_lock);
 
   int error=0;
 
@@ -351,10 +348,10 @@ Replication_thread_api::wait_for_gtid_execution(longlong timeout)
         even if its condition is always immediately signaled (case of a loaded
         master).
       */
-      error= mysql_cond_timedwait(&data_cond, &data_lock, &abstime);
+      error= mysql_cond_timedwait(&rli->data_cond, &rli->data_lock, &abstime);
     }
     else
-      mysql_cond_wait(&data_cond, &data_lock);
+      mysql_cond_wait(&rli->data_cond, &rli->data_lock);
     DBUG_PRINT("info",("Got signal of master update or timed out"));
     if (error == ETIMEDOUT || error == ETIME)
     {
@@ -364,7 +361,7 @@ Replication_thread_api::wait_for_gtid_execution(longlong timeout)
     error=0;
   }
 
-  mysql_mutex_unlock(&data_lock);
+  mysql_mutex_unlock(&rli->data_lock);
 
   DBUG_RETURN(error);
 }

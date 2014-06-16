@@ -94,7 +94,7 @@ SET DEBUG_SYNC= "now SIGNAL signal.recovery_continue";
 --echo # Node should be marked as online
 
 #reset the node id variable as it was pointing server 2
---let $gcs_node_id=0
+--let $gcs_node_id=
 --let $gcs_node_state= ONLINE
 --source include/rpl_gcs_wait_for_node_state.inc
 

@@ -48,7 +48,7 @@ if (!$rpl_debug)
 }
 
 --let $_node_id= query_get_value(SELECT @@SERVER_UUID, @@SERVER_UUID, 1)
-if ($gcs_node_id)
+if ($gcs_node_id != "")
 {
   --let $_node_id= $gcs_node_id
 }
