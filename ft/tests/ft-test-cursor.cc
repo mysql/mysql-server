@@ -94,7 +94,6 @@ PATENT RIGHTS GRANT:
 static const char *fname = TOKU_TEST_FILENAME;
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static int test_cursor_debug = 0;
 

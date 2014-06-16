@@ -97,7 +97,6 @@ PATENT RIGHTS GRANT:
 #include <unistd.h>
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static int
 get_next_callback(ITEMLEN keylen, bytevec key, ITEMLEN vallen UU(), bytevec val UU(), void *extra, bool lock_only) {

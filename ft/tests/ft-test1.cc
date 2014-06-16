@@ -92,7 +92,6 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 static void test1 (void) {
     FT_HANDLE t;

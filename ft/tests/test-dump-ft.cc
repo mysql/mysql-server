@@ -94,7 +94,6 @@ PATENT RIGHTS GRANT:
 #include "test.h"
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 int
 test_main(int argc, const char *argv[]) {

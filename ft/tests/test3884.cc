@@ -111,7 +111,6 @@ static const int vallen = 64 - sizeof(long) - (sizeof(((LEAFENTRY)NULL)->type)  
 #define dummy_msn_3884 ((MSN) { (uint64_t) 3884 * MIN_MSN.msn })
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 static const char *fname = TOKU_TEST_FILENAME;
 
 static void

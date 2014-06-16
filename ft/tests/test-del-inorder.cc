@@ -95,7 +95,6 @@ PATENT RIGHTS GRANT:
 
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 enum { NODESIZE = 1024, KSIZE=NODESIZE-100, TOKU_PSIZE=20 };
 

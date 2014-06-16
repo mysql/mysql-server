@@ -105,7 +105,6 @@ const char LOGDIR[100] = "./dir.test_logcursor";
 const int FSYNC = 1;
 const int NO_FSYNC = 0;
 
-const int envflags = DB_INIT_MPOOL|DB_CREATE|DB_THREAD |DB_INIT_LOCK|DB_INIT_LOG|DB_INIT_TXN;
 const char *namea="a.db";
 const char *nameb="b.db";
 const char *a="a";

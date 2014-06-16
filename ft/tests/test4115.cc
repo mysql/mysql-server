@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include <unistd.h>
 
 static TOKUTXN const null_txn = 0;
-static DB * const null_db = 0;
 
 const char *fname = TOKU_TEST_FILENAME;
 CACHETABLE ct;
