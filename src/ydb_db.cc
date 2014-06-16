@@ -565,11 +565,12 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
     HANDLE_DB_ILLEGAL_WORKING_PARENT_TXN(db, txn);
     int r = 0;
     TOKUTXN ttxn = txn ? db_txn_struct_i(txn)->tokutxn : NULL;
-    DBT old_descriptor;
     bool is_db_hot_index  = ((flags & DB_IS_HOT_INDEX) != 0);
     bool update_cmp_descriptor = ((flags & DB_UPDATE_CMP_DESCRIPTOR) != 0);
 
-    toku_init_dbt(&old_descriptor);
+    DBT old_descriptor_dbt;
+    toku_init_dbt(&old_descriptor_dbt);
+
     if (!db_opened(db) || !descriptor || (descriptor->size>0 && !descriptor->data)){
         r = EINVAL;
         goto cleanup;
@@ -582,23 +583,12 @@ toku_db_change_descriptor(DB *db, DB_TXN* txn, const DBT* descriptor, uint32_t f
         if (r != 0) { goto cleanup; }    
     }
 
-    // TODO: use toku_clone_dbt(&old-descriptor, db->descriptor);
-    old_descriptor.size = db->descriptor->dbt.size;
-    old_descriptor.data = toku_memdup(db->descriptor->dbt.data, db->descriptor->dbt.size);
-
-    toku_ft_change_descriptor(
-        db->i->ft_handle, 
-        &old_descriptor, 
-        descriptor, 
-        true, 
-        ttxn, 
-        update_cmp_descriptor
-        );
+    toku_clone_dbt(&old_descriptor_dbt, db->descriptor->dbt);
+    toku_ft_change_descriptor(db->i->ft_handle, &old_descriptor_dbt, descriptor, 
+                              true, ttxn, update_cmp_descriptor);
 
 cleanup:
-    if (old_descriptor.data) {
-        toku_free(old_descriptor.data);
-    }
+    toku_destroy_dbt(&old_descriptor_dbt);
     return r;
 }
 
