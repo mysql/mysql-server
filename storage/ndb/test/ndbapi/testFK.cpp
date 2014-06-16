@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014 Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1293,14 +1293,16 @@ runTransError(NDBT_Context* ctx, NDBT_Step* step)
   ctx->setProperty("LongSignalMemorySnapshot", Uint32(1));
   int mode = ctx->getProperty("TransMode", Uint32(0));
 
-  char errbuf[256];
   for (int i = 0; terrorCodes[i] != 0; i++)
   {
+#ifdef NDB_USE_GET_ENV
+    char errbuf[256];
     if (NdbEnv_GetEnv("NDB_ERR_CODE", errbuf, sizeof(errbuf)) != 0 &&
         atoi(errbuf) != terrorCodes[i])
     {
       continue;
     }
+#endif
     printf("testing errcode: %d\n", terrorCodes[i]);
     runLongSignalMemorySnapshotStart(ctx, step);
     runTransSnapshot(ctx, step);

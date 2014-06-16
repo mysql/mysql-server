@@ -222,11 +222,13 @@ NdbColumnImpl::init(Type t)
     m_arrayType = NDB_ARRAYTYPE_MEDIUM_VAR;
     m_blobVersion = NDB_BLOB_V2;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
     if (NdbEnv_GetEnv("NDB_DEFAULT_BLOB_V1", (char *)0, 0)) {
       m_length = 4;
       m_arrayType = NDB_ARRAYTYPE_FIXED;
       m_blobVersion = NDB_BLOB_V1;
     }
+#endif
 #endif
     break;
   case Time:
@@ -287,8 +289,10 @@ NdbColumnImpl::init(Type t)
   m_dynamic = false;
   m_indexSourced= false;
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   if(NdbEnv_GetEnv("NDB_DEFAULT_DISK", (char *)0, 0))
     m_storageType = NDB_STORAGETYPE_DISK;
+#endif
 #endif
 }
 

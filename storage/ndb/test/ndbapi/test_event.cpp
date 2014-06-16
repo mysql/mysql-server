@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -3404,6 +3404,7 @@ runBug30780(NDBT_Context* ctx, NDBT_Step* step)
       return NDBT_FAILED;
 
     int c = i % cases;
+#ifdef NDB_USE_GET_ENV
     {
       char buf[100];
       const char * off = NdbEnv_GetEnv("NDB_ERR", buf, sizeof(buf));
@@ -3412,6 +3413,7 @@ runBug30780(NDBT_Context* ctx, NDBT_Step* step)
         c = atoi(off);
       }
     }
+#endif
     switch(c){
     case 0:
       ndbout_c("stopping %u", master);
