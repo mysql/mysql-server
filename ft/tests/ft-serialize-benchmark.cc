@@ -420,7 +420,6 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
     toku_free(ft);
     toku_free(ndd);
     toku_free(ndd2);
-    cmp.destroy();
 
     r = close(fd); assert(r != -1);
 }
