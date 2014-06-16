@@ -199,6 +199,7 @@ void Master_info::clear_in_memory_info(bool all)
     ssl_capath[0]= 0; ssl_cert[0]= 0; ssl_cipher[0]= 0; ssl_key[0]= 0;
     ssl_crl[0]= 0; ssl_crlpath[0]= 0; master_uuid[0]= 0;
     start_plugin_auth[0]= 0; start_plugin_dir[0]= 0; start_user[0]= 0;
+    reset_dynamic(&(ignore_server_ids->dynamic_ids));
   }
 }
 
