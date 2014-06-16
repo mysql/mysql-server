@@ -874,7 +874,6 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
 
 static void
 deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf, const toku::comparator &cmp) {
-    int r;
     int n_in_this_buffer = rbuf_int(rbuf);
     int32_t *fresh_offsets = nullptr, *stale_offsets = nullptr;
     int32_t *broadcast_offsets = nullptr;
@@ -937,12 +936,10 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf, const tok
 
     if (sort_buffers) {
         struct toku_msg_buffer_key_msn_cmp_extra extra(cmp, &bnc->msg_buffer);
-        r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
-        assert_zero(r);
+        toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
         bnc->fresh_message_tree.destroy();
         bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-        r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
-        assert_zero(r);
+        toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
         bnc->stale_message_tree.destroy();
         bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
         bnc->broadcast_list.destroy();
@@ -1688,10 +1685,9 @@ deserialize_and_upgrade_internal_node(FTNODE node,
                                       struct ftnode_fetch_extra* bfe,
                                       STAT64INFO info)
 {
-    int r = 0;
     int version = node->layout_version_read_from_disk;
 
-    if(version == FT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
+    if (version == FT_LAST_LAYOUT_VERSION_WITH_FINGERPRINT) {
         (void) rbuf_int(rb);                          // 10. fingerprint
     }
 
@@ -1837,8 +1833,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         if (sort_buffers) {
             struct toku_msg_buffer_key_msn_cmp_extra extra(bfe->ft->cmp, &bnc->msg_buffer);
             typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
-            r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
-            assert_zero(r);
+            key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
             bnc->fresh_message_tree.destroy();
             bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
             bnc->broadcast_list.destroy();
@@ -1870,7 +1865,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
         }
     }
 
-    return r;
+    return 0;
 }
 
 // This function takes a deserialized version 13 or 14 buffer and

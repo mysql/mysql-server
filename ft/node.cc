@@ -601,8 +601,7 @@ bnc_apply_messages_to_basement_node(
         invariant(sfo_extra.i == buffer_size);
 
         // Sort by MSN.
-        r = toku::sort<int32_t, message_buffer, msg_buffer_offset_msn_cmp>::mergesort_r(offsets, buffer_size, bnc->msg_buffer);
-        assert_zero(r);
+        toku::sort<int32_t, message_buffer, msg_buffer_offset_msn_cmp>::mergesort_r(offsets, buffer_size, bnc->msg_buffer);
 
         // Apply the messages in MSN order.
         for (int i = 0; i < buffer_size; ++i) {
