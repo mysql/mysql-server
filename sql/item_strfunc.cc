@@ -339,6 +339,7 @@ void Item_func_sha2::fix_length_and_dec()
     break;
 #endif
   default:
+    fix_length_and_charset(SHA256_DIGEST_LENGTH * 2, default_charset());
     push_warning_printf(current_thd,
       Sql_condition::SL_WARNING,
       ER_WRONG_PARAMETERS_TO_NATIVE_FCT,

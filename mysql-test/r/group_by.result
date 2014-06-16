@@ -2315,14 +2315,14 @@ DROP TABLE t1,t2;
 #
 CREATE TABLE t1(
 col1 int, 
-UNIQUE INDEX idx (col1)
+INDEX idx (col1)
 );
 INSERT INTO t1 VALUES (1),(2),(3),(4),(5),(6),(7),(8),(9),(10),
 (11),(12),(13),(14),(15),(16),(17),(18),(19),(20);
 EXPLAIN SELECT SQL_BIG_RESULT col1 AS field1, col1 AS field2
 FROM t1 GROUP BY field1, field2;;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	7	100.00	Using index for group-by
+1	SIMPLE	t1	NULL	range	idx	idx	5	NULL	11	100.00	Using index for group-by
 Warnings:
 Note	1003	/* select#1 */ select sql_big_result `test`.`t1`.`col1` AS `field1`,`test`.`t1`.`col1` AS `field2` from `test`.`t1` group by `field1`
 FLUSH STATUS;
@@ -2994,3 +2994,14 @@ ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies t
 (SELECT COUNT(*) FROM t1 ORDER BY a) ORDER BY COUNT(*);
 ERROR HY000: Expression #1 of ORDER BY contains aggregate function and applies to the result of a non-aggregated query
 DROP TABLE t1;
+# 
+# Bug#18487060: ASSERTION FAILED: !TABLE || (!TABLE->READ_SET || 
+#               BITMAP_IS_SET(TABLE->READ_SET,
+# 
+CREATE TABLE r(c BLOB) ENGINE=INNODB;
+INSERT INTO r VALUES('');
+SELECT 1 FROM r GROUP BY MAKE_SET(1,c) WITH ROLLUP;
+1
+1
+1
+DROP TABLE r;

@@ -6357,7 +6357,7 @@ public:
   {
     mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
 
-    /* Kill only if non super thread and non slave thread*/
+    /* Kill only if non super thread and non slave thread */
     if (!(thd_to_kill->security_ctx->master_access & SUPER_ACL)
 	&& thd_to_kill->killed != THD::KILL_CONNECTION
 	&& !thd_to_kill->slave_thread)

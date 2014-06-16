@@ -8420,8 +8420,7 @@ Field_geom::store_internal(const char *from, size_t length,
   // Check given WKB
   if (from == Geometry::bad_geometry_data.ptr() ||
       length < SRID_SIZE + WKB_HEADER_SIZE + SIZEOF_STORED_DOUBLE * 2 ||
-      (wkb_type= uint4korr(from + SRID_SIZE + 1)) < (uint32) Geometry::wkb_point ||
-       wkb_type > (uint32) Geometry::wkb_last)
+      !Geometry::is_valid_geotype(wkb_type= uint4korr(from + SRID_SIZE + 1)))
   {
     memset(ptr, 0, Field_blob::pack_length());  
     my_message(ER_CANT_CREATE_GEOMETRY_OBJECT,

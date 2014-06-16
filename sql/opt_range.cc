@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
- * reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -122,6 +121,7 @@
 #include "filesort.h"         // filesort_free_buffers
 #include "sql_optimizer.h"    // is_indexed_agg_distinct,field_time_cmp_date
 #include "opt_costmodel.h"
+#include "opt_statistics.h"   // guess_rec_per_key
 #include "uniques.h"
 
 using std::min;
@@ -12783,8 +12783,6 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   uint num_blocks;
   uint keys_per_block;
   uint keys_per_group;
-  uint keys_per_subgroup; /* Average number of keys in sub-groups */
-                          /* formed by a key infix. */
   double p_overlap; /* Probability that a sub-group overlaps two blocks. */
   double quick_prefix_selectivity;
   double io_blocks;       // Number of blocks to read from table
@@ -12798,9 +12796,12 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
 
   /* Compute the number of keys in a group. */
   keys_per_group= index_info->rec_per_key[group_key_parts - 1];
-  if (keys_per_group == 0) /* If there is no statistics try to guess */
-    /* each group contains 10% of all records */
-    keys_per_group= (uint)(table_records / 10) + 1;
+  if (keys_per_group == 0)
+  {
+    /* If there is no statistics try to guess */
+    keys_per_group=
+      static_cast<uint>(guess_rec_per_key(table, index_info, group_key_parts));
+  }
   num_groups= (uint)(table_records / keys_per_group) + 1;
 
   /* Apply the selectivity of the quick select for group prefixes. */
@@ -12813,11 +12814,21 @@ void cost_group_min_max(TABLE* table, KEY *index_info, uint used_key_parts,
   }
 
   if (used_key_parts > group_key_parts)
-  { /*
+  {
+    // Average number of keys in sub-groups formed by a key infix
+    uint keys_per_subgroup= index_info->rec_per_key[used_key_parts - 1];
+    if (keys_per_subgroup == 0)
+    {
+      // If no index statistics then we use a guessed records per key value.
+      keys_per_subgroup=
+        static_cast<uint>(guess_rec_per_key(table, index_info, used_key_parts));
+      set_if_smaller(keys_per_subgroup, keys_per_group);
+    }
+
+    /*
       Compute the probability that two ends of a subgroup are inside
       different blocks.
     */
-    keys_per_subgroup= index_info->rec_per_key[used_key_parts - 1];
     if (keys_per_subgroup >= keys_per_block) /* If a subgroup is bigger than */
       p_overlap= 1.0;       /* a block, it will overlap at least two blocks. */
     else

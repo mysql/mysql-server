@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
@@ -22,6 +23,8 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -107,6 +110,7 @@ SET(SQL_SHARED_SOURCES
   opt_explain_traditional.cc
   opt_explain_json.cc
   opt_range.cc
+  opt_statistics.cc
   opt_sum.cc 
   opt_trace.cc
   opt_trace2server.cc
@@ -247,6 +251,15 @@ IF(WIN32)
               conn_handler/named_pipe_connection.cc
               conn_handler/shared_memory_connection.cc
       )
+ENDIF()
+
+# Boost Geometry source has unused local typedefs.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET_SOURCE_FILES_PROPERTIES(
+    item_geofunc.cc
+    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)

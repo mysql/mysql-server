@@ -1750,13 +1750,11 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             /*
-              Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is freed
-              in THD::cleanup_after_query. So it is guaranteed to be
-              uninitialized before here.
-              Its allocation is deferred till the option is parsed below.
+              Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is cleared
+              in THD::cleanup_after_query. So it is guaranteed to be empty here.
             */
+            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
-            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.elements == 0);
           }
           master_defs
           {}
@@ -2119,15 +2117,7 @@ ignore_server_id_list:
 ignore_server_id:
           ulong_num
           {
-            if (Lex->mi.repl_ignore_server_ids.elements == 0)
-            {
-              my_init_dynamic_array2(&Lex->mi.repl_ignore_server_ids,
-                                     sizeof(::server_id),
-                                     Lex->mi.server_ids_buffer,
-                                     array_elements(Lex->mi.server_ids_buffer),
-                                     16);
-            }
-            insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
+            Lex->mi.repl_ignore_server_ids.push_back($1);
           }
 
 master_file_def:

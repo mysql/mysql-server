@@ -19,6 +19,7 @@
 #include "mysqld.h"                             /* opt_relay_logname */
 #include "log_event.h"
 #include "log.h"
+#include "my_atomic.h"
 
 class Relay_log_info;
 class Master_info;
@@ -50,7 +51,7 @@ public:
     friend class Stage_manager;
   public:
     Mutex_queue()
-      : m_first(NULL), m_last(&m_first)
+      : m_first(NULL), m_last(&m_first), m_size(0)
     {
     }
 
@@ -82,6 +83,11 @@ public:
 
     std::pair<bool,THD*> pop_front();
 
+    inline int32 get_size()
+    {
+      return my_atomic_load32(&m_size);
+    }
+
   private:
     void lock() { mysql_mutex_lock(&m_lock); }
     void unlock() { mysql_mutex_unlock(&m_lock); }
@@ -99,6 +105,9 @@ public:
        the last thread that is enqueued.
     */
     THD **m_last;
+
+    /** size of the queue */
+    int32 m_size;
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
@@ -214,6 +223,21 @@ public:
     DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
     return m_queue[stage].fetch_and_empty();
   }
+
+  /**
+    Introduces a wait operation on the executing thread.  The
+    waiting is done until the timeout elapses or count is
+    reached (whichever comes first).
+
+    If count == 0, then the session will wait until the timeout
+    elapses. If timeout == 0, then there is no waiting.
+
+    @param usec     the number of microseconds to wait.
+    @param count    wait for as many as count to join the queue the
+                    session is waiting on
+    @param stage    which stage queue size to compare count against.
+   */
+  time_t wait_count_or_timeout(ulong count, time_t usec, StageID stage);
 
   void signal_done(THD *queue) {
     mysql_mutex_lock(&m_lock_done);

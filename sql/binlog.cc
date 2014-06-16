@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1451,6 +1451,7 @@ Stage_manager::Mutex_queue::append(THD *first)
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
+  int32 count= 1;
   bool empty= (m_first == NULL);
   *m_last= first;
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
@@ -1461,8 +1462,14 @@ Stage_manager::Mutex_queue::append(THD *first)
     moderately short. If they are not, we need to track the end of
     the queue as well.
   */
+
   while (first->next_to_commit)
+  {
+    count++;
     first= first->next_to_commit;
+  }
+  my_atomic_add32(&m_size, count);
+
   m_last= &first->next_to_commit;
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                         (ulonglong) m_first, (ulonglong) &m_first,
@@ -1494,6 +1501,8 @@ Stage_manager::Mutex_queue::pop_front()
     more= false;
     m_last = &m_first;
   }
+  DBUG_ASSERT(my_atomic_load32(&m_size) > 0);
+  my_atomic_add32(&m_size, -1);
   DBUG_ASSERT(m_first || m_last == &m_first);
   unlock();
   DBUG_PRINT("return", ("result: 0x%llx, more: %s",
@@ -1526,6 +1535,11 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   */
   if (stage_mutex)
     mysql_mutex_unlock(stage_mutex);
+
+#ifndef DBUG_OFF
+  if (stage == Stage_manager::SYNC_STAGE)
+    DEBUG_SYNC(thd, "bgc_after_enrolling_for_sync_stage");
+#endif
 
   /*
     If the queue was not empty, we're a follower and wait for the
@@ -1568,8 +1582,36 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
                        (ulonglong) m_last));
   DBUG_ASSERT(m_first || m_last == &m_first);
   DBUG_PRINT("return", ("result: 0x%llx", (ulonglong) result));
+  DBUG_ASSERT(my_atomic_load32(&m_size) >= 0);
+  my_atomic_store32(&m_size, 0);
   unlock();
   DBUG_RETURN(result);
+}
+
+time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID stage)
+{
+  time_t to_wait=
+    DBUG_EVALUATE_IF("bgc_set_infinite_delay", LONG_MAX, usec);
+  /*
+    For testing purposes while waiting for inifinity
+    to arrive, we keep checking the queue size at regular,
+    small intervals. Otherwise, waiting 0.1 * infinite
+    is too long.
+   */
+  time_t delta=
+    DBUG_EVALUATE_IF("bgc_set_infinite_delay", 100000,
+                     static_cast<time_t>(to_wait * 0.1));
+
+  while (to_wait > 0 && (count == 0 || static_cast<ulong>(m_queue[stage].get_size()) < count))
+  {
+#ifndef DBUG_OFF
+    if (current_thd)
+      DEBUG_SYNC(current_thd, "bgc_wait_count_or_timeout");
+#endif
+    my_sleep(delta);
+    to_wait -= delta;
+  }
+  return to_wait;
 }
 
 #ifndef DBUG_OFF
@@ -7490,6 +7532,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
                        YESNO(thd->get_transaction()->m_flags.pending),
                        thd->commit_error, thd->thread_id));
 
+  DEBUG_SYNC(thd, "bgc_before_flush_stage");
+
   /*
     Stage #1: flushing transactions to binary log
 
@@ -7558,6 +7602,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
+  DEBUG_SYNC(thd, "bgc_after_flush_stage_before_sync_stage");
+
   /*
     Stage #2: Syncing binary log file to disk
   */
@@ -7568,6 +7614,12 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
                           thd->thread_id, thd->commit_error));
     DBUG_RETURN(finish_commit(thd));
   }
+
+  /* Shall introduce a delay. */
+  stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
+                                      opt_binlog_group_commit_sync_delay,
+                                      Stage_manager::SYNC_STAGE);
+
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   if (flush_error == 0 && total_bytes > 0)
   {
@@ -7585,6 +7637,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
     update_binlog_end_pos(tmp_thd->get_trans_pos());
   }
+
+  DEBUG_SYNC(thd, "bgc_after_sync_stage_before_commit_stage");
 
   /*
     Stage #3: Commit all transactions in order.

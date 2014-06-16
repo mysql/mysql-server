@@ -259,8 +259,6 @@ inline void setup_fpu()
 
 }
 
-#define MYSQL_KILL_SIGNAL SIGTERM
-
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
@@ -502,6 +500,8 @@ ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
 ulong binlog_stmt_cache_size=0;
 int32 opt_binlog_max_flush_queue_time= 0;
+ulong opt_binlog_group_commit_sync_delay= 0;
+ulong opt_binlog_group_commit_sync_no_delay_count= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
@@ -1177,27 +1177,6 @@ static void close_connections(void)
   uint dump_thread_count= 0;
   uint dump_thread_kill_retries= 8;
 
-#if !defined(_WIN32)
-  /*
-    Kill the socket listener.
-    The main thread will then set socket_listener_active= false,
-    and wait for us to finish all the cleanup below.
-   */
-  mysql_mutex_lock(&LOCK_socket_listener_active);
-  while (socket_listener_active)
-  {
-    DBUG_PRINT("info",("Killing socket listener"));
-    if (pthread_kill(main_thread_id, SIGUSR1))
-    {
-      DBUG_ASSERT(false);
-      break;
-    }
-    mysql_cond_wait(&COND_socket_listener_active,
-                    &LOCK_socket_listener_active);
-  }
-  mysql_mutex_unlock(&LOCK_socket_listener_active);
-#endif /* _WIN32 */
-
   // Clean up connection acceptors
   if (mysqld_socket_acceptor != NULL)
   {
@@ -1298,7 +1277,7 @@ void kill_mysql(void)
     */
   }
 #else
-  if (pthread_kill(signal_thread_id, MYSQL_KILL_SIGNAL))
+  if (pthread_kill(signal_thread_id, SIGTERM))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
@@ -1333,7 +1312,7 @@ extern "C" void unireg_abort(int exit_code)
 #ifndef _WIN32
   if (signal_thread_id != 0)
   {
-    pthread_kill(signal_thread_id, MYSQL_KILL_SIGNAL);
+    pthread_kill(signal_thread_id, SIGTERM);
     pthread_join(signal_thread_id, NULL);
   }
   signal_thread_id= 0;
@@ -2069,7 +2048,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 }
 
 
-void my_init_signals(void)
+void my_init_signals()
 {
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
@@ -2096,109 +2075,98 @@ void my_init_signals(void)
 
 #else // !_WIN32
 
-#ifndef SA_RESETHAND
-#define SA_RESETHAND 0
-#endif
-#ifndef SA_NODEFER
-#define SA_NODEFER 0
-#endif
-
-extern "C" void print_signal_warning(int sig)
-{
-  sql_print_warning("Got signal %d from thread %ld", sig, my_thread_id());
-  if (sig == SIGALRM)
-    alarm(2);         /* reschedule alarm */
+extern "C" {
+static void empty_signal_handler(int sig __attribute__((unused)))
+{ }
 }
 
 
-void my_init_signals(void)
+void my_init_signals()
 {
-  sigset_t set;
-  struct sigaction sa;
   DBUG_ENTER("my_init_signals");
-
-  {
-    struct sigaction l_s;
-    sigset_t l_set;
-    sigemptyset(&l_set);
-    l_s.sa_handler= print_signal_warning; // Should never be called!
-    l_s.sa_mask= l_set;
-    l_s.sa_flags= 0;
-    sigaction(SIGALRM, &l_s, NULL);
-  }
+  struct sigaction sa;
+  (void) sigemptyset(&sa.sa_mask);
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
-    sa.sa_flags = SA_RESETHAND | SA_NODEFER;
-    sigemptyset(&sa.sa_mask);
-    sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
-
 #ifdef HAVE_STACKTRACE
     my_init_stacktrace();
 #endif
-    sa.sa_handler=handle_fatal_signal;
-    sigaction(SIGSEGV, &sa, NULL);
-    sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGBUS, &sa, NULL);
-    sigaction(SIGILL, &sa, NULL);
-    sigaction(SIGFPE, &sa, NULL);
+
+    if (test_flags & TEST_CORE_ON_SIGNAL)
+    {
+      // Change limits so that we will get a core file.
+      struct rlimit rl;
+      rl.rlim_cur= rl.rlim_max= RLIM_INFINITY;
+      if (setrlimit(RLIMIT_CORE, &rl))
+        sql_print_warning("setrlimit could not change the size of core files to"
+                          " 'infinity';  We may not be able to generate a"
+                          " core file on signals");
+    }
+
+    /*
+      SA_RESETHAND resets handler action to default when entering handler.
+      SA_NODEFER allows receiving the same signal during handler.
+      E.g. SIGABRT during our signal handler will dump core (default action).
+    */
+    sa.sa_flags= SA_RESETHAND | SA_NODEFER;
+    sa.sa_handler= handle_fatal_signal;
+    // Treat all these as fatal and handle them.
+    (void) sigaction(SIGSEGV, &sa, NULL);
+    (void) sigaction(SIGABRT, &sa, NULL);
+    (void) sigaction(SIGBUS, &sa, NULL);
+    (void) sigaction(SIGILL, &sa, NULL);
+    (void) sigaction(SIGFPE, &sa, NULL);
   }
 
-#ifdef HAVE_GETRLIMIT
-  if (test_flags & TEST_CORE_ON_SIGNAL)
-  {
-    /* Change limits so that we will get a core file */
-    struct rlimit rl;
-    rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_CORE, &rl))
-      sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
-  }
-#endif
+  // Ignore SIGPIPE and SIGALRM
+  sa.sa_flags= 0;
+  sa.sa_handler= SIG_IGN;
+  (void) sigaction(SIGPIPE, &sa, NULL);
+  (void) sigaction(SIGALRM, &sa, NULL);
+
+  // SIGUSR1 is used to interrupt the socket listener.
+  sa.sa_handler= empty_signal_handler;
+  (void) sigaction(SIGUSR1, &sa, NULL);
+
+  // Fix signals if ignored by parents (can happen on Mac OS X).
+  sa.sa_handler= SIG_DFL;
+  (void) sigaction(SIGTERM, &sa, NULL);
+  (void) sigaction(SIGHUP, &sa, NULL);
+
+  sigset_t set;
   (void) sigemptyset(&set);
-  {
-    struct sigaction l_s;
-    sigset_t l_set;
-    sigemptyset(&l_set);
-    l_s.sa_handler= SIG_IGN;
-    l_s.sa_mask= l_set;
-    l_s.sa_flags= 0;
-    sigaction(SIGPIPE, &l_s, NULL);
-  }
-  sigaddset(&set,SIGPIPE);
-  sigaddset(&set,SIGQUIT);
-  sigaddset(&set,SIGHUP);
-  sigaddset(&set,SIGTERM);
-
-  /* Fix signals if blocked by parents (can happen on Mac OS X) */
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  sa.sa_handler = print_signal_warning;
-  sigaction(SIGTERM, &sa, NULL);
-  sa.sa_flags = 0;
-  sa.sa_handler = print_signal_warning;
-  sigaction(SIGHUP, &sa, NULL);
-  sigaddset(&set,SIGTSTP);
-  sigaddset(&set,SIGALRM);
+  /*
+    Block SIGQUIT, SIGHUP and SIGTERM.
+    The signal handler thread does sigwait() on these.
+  */
+  (void) sigaddset(&set, SIGQUIT);
+  (void) sigaddset(&set, SIGHUP);
+  (void) sigaddset(&set, SIGTERM);
+  (void) sigaddset(&set, SIGTSTP);
+  /*
+    Block SIGINT unless debugging to prevent Ctrl+C from causing
+    unclean shutdown of the server.
+  */
   if (!(test_flags & TEST_SIGINT))
-    sigaddset(&set,SIGINT);
-  pthread_sigmask(SIG_SETMASK,&set,NULL);
+    (void) sigaddset(&set, SIGINT);
+  pthread_sigmask(SIG_SETMASK, &set, NULL);
   DBUG_VOID_RETURN;
 }
 
 
-static void start_signal_handler(void)
+static void start_signal_handler()
 {
   int error;
   pthread_attr_t thr_attr;
   DBUG_ENTER("start_signal_handler");
 
   (void) pthread_attr_init(&thr_attr);
-  pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
+  (void) pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
 
   size_t guardize= 0;
-  pthread_attr_getguardsize(&thr_attr, &guardize);
-
+  (void) pthread_attr_getguardsize(&thr_attr, &guardize);
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
@@ -2206,22 +2174,21 @@ static void start_signal_handler(void)
   */
   guardize= my_thread_stack_size;
 #endif
+  (void) pthread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
 
   /*
-    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can call
-    close_connections() successfully.
+    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can interrupt
+    the socket listener successfully.
   */
   main_thread_id= pthread_self();
 
-  pthread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
   mysql_mutex_lock(&LOCK_start_signal_handler);
-
   if ((error=
        mysql_thread_create(key_thread_signal_hand,
                            &signal_thread_id, &thr_attr, signal_hand, 0)))
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
-                    error,errno);
+                    error, errno);
     exit(1);
   }
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
@@ -2232,52 +2199,20 @@ static void start_signal_handler(void)
 }
 
 
-extern "C" {
-static void empty_signal_handler(int sig __attribute__((unused)))
-{ }
-}
-
-
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
 pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 {
+  my_thread_init();
+
   sigset_t set;
-  int sig;
-  my_thread_init();       // Init new thread
+  (void) sigemptyset(&set);
+  (void) sigaddset(&set, SIGTERM);
+  (void) sigaddset(&set, SIGQUIT);
+  (void) sigaddset(&set, SIGHUP);
 
   /*
-    Setup alarm handler
-  */
-  {
-    struct sigaction l_s;
-    sigset_t l_set;
-    sigemptyset(&l_set);
-    l_s.sa_handler= empty_signal_handler;
-    l_s.sa_mask= l_set;
-    l_s.sa_flags= 0;
-    sigaction(SIGUSR1, &l_s, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGALRM);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-  }
-
-  if (test_flags & TEST_SIGINT)
-  {
-    (void) sigemptyset(&set);     // Setup up SIGINT for debug
-    (void) sigaddset(&set,SIGINT);    // For debugging
-    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
-  }
-  (void) sigemptyset(&set);     // Setup up SIGINT for debug
-  (void) sigaddset(&set,SIGALRM);  // For alarms
-  (void) sigaddset(&set,SIGQUIT);
-  (void) sigaddset(&set,SIGHUP);
-  (void) sigaddset(&set,SIGTERM);
-  (void) sigaddset(&set,SIGTSTP);
-
-  /*
-    signal to start_signal_handler that we are ready
+    Signal to start_signal_handler that we are ready.
     This works by waiting for start_signal_handler to free mutex,
     after which we signal it that we are ready.
   */
@@ -2286,11 +2221,10 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_start_signal_handler);
 
   /*
-    Waiting until mysqld_server_started == true
-    to ensure that all server components has been successfully
-    initialized. This step is mandatory since signal processing
-    could be done safely only when all server components
-    has been initialized.
+    Waiting until mysqld_server_started == true to ensure that all server
+    components have been successfully initialized. This step is mandatory
+    since signal processing can be done safely only when all server components
+    have been initialized.
   */
   mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
@@ -2299,34 +2233,52 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 
   for (;;)
   {
-    int error;          // Used when debugging
-    while ((error= sigwait(&set,&sig)) == EINTR)
+    int sig;
+    while (sigwait(&set, &sig) == EINTR)
     {}
     if (cleanup_done)
     {
       my_thread_end();
       pthread_exit(0);        // Safety
-      return 0;               // Avoid compiler warnings
+      return NULL;            // Avoid compiler warnings
     }
     switch (sig) {
     case SIGTERM:
     case SIGQUIT:
-    case SIGKILL:
-      /* switch to the file log message processing */
+      // Switch to the file log message processing.
       query_logger.set_handlers((log_output_options != LOG_NONE) ?
                                 LOG_FILE : LOG_NONE);
-      DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
+      DBUG_PRINT("info", ("Got signal: %d  abort_loop: %d", sig, abort_loop));
       if (!abort_loop)
       {
-        abort_loop=1;       // mark abort for threads
+        abort_loop= true;       // Mark abort for threads.
 #ifdef HAVE_PSI_THREAD_INTERFACE
-        /* Delete the instrumentation for the signal thread */
+        // Delete the instrumentation for the signal thread.
         PSI_THREAD_CALL(delete_current_thread)();
 #endif
+        /*
+          Kill the socket listener.
+          The main thread will then set socket_listener_active= false,
+          and wait for us to finish all the cleanup below.
+        */
+        mysql_mutex_lock(&LOCK_socket_listener_active);
+        while (socket_listener_active)
+        {
+          DBUG_PRINT("info",("Killing socket listener"));
+          if (pthread_kill(main_thread_id, SIGUSR1))
+          {
+            DBUG_ASSERT(false);
+            break;
+          }
+          mysql_cond_wait(&COND_socket_listener_active,
+                          &LOCK_socket_listener_active);
+        }
+        mysql_mutex_unlock(&LOCK_socket_listener_active);
+
         close_connections();
         my_thread_end();
         pthread_exit(0);
-        return 0;  // Avoid compiler warnings
+        return NULL;  // Avoid compiler warnings
       }
       break;
     case SIGHUP:
@@ -2334,12 +2286,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       {
         int not_used;
         mysql_print_status();   // Print some debug info
-        reload_acl_and_cache((THD*) 0,
+        reload_acl_and_cache(NULL,
                              (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-                              REFRESH_GRANT |
-                              REFRESH_THREADS | REFRESH_HOSTS),
-                             (TABLE_LIST*) 0, &not_used); // Flush logs
-        /* reenable query logs after the options were reloaded */
+                              REFRESH_GRANT | REFRESH_THREADS | REFRESH_HOSTS),
+                             NULL, &not_used); // Flush logs
+        // Reenable query logs after the options were reloaded.
         query_logger.set_handlers(log_output_options);
       }
       break;
@@ -2347,7 +2298,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       break;          /* purecov: tested */
     }
   }
-  return(0);          /* purecov: deadcode */
+  return NULL;        /* purecov: deadcode */
 }
 
 #endif // !_WIN32
@@ -4221,7 +4172,7 @@ pthread_handler_t handle_shutdown(void *arg)
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
   {
     sql_print_information(ER_DEFAULT(ER_NORMAL_SHUTDOWN), my_progname);
-    abort_loop= 1;
+    abort_loop= true;
     close_connections();
     my_thread_end();
     pthread_exit(0);
@@ -4637,9 +4588,9 @@ int mysqld_main(int argc, char **argv)
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
-    abort_loop=1;
+    abort_loop= true;
 
-    (void) pthread_kill(signal_thread_id, MYSQL_KILL_SIGNAL);
+    (void) pthread_kill(signal_thread_id, SIGTERM);
 
     delete_pid_file(MYF(MY_WME));
 
@@ -4767,7 +4718,7 @@ int mysqld_main(int argc, char **argv)
   setup_conn_event_handler_threads();
 #else
   mysql_mutex_lock(&LOCK_socket_listener_active);
-  // Make it possible for close_connections() to kill the listener.
+  // Make it possible for the signal handler to kill the listener.
   socket_listener_active= true;
   mysql_mutex_unlock(&LOCK_socket_listener_active);
   (void) mysqld_socket_acceptor->connection_event_loop();
@@ -4777,7 +4728,7 @@ int mysqld_main(int argc, char **argv)
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
-  // Notify close_connections() that we have stopped listening for connections.
+  // Notify the signal handler that we have stopped listening for connections.
   socket_listener_active= false;
   mysql_cond_broadcast(&COND_socket_listener_active);
   mysql_mutex_unlock(&LOCK_socket_listener_active);
@@ -6546,7 +6497,7 @@ static int mysql_init_variables(void)
   slave_open_temp_tables= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
-  abort_loop= 0;
+  abort_loop= false;
   grant_option= 0;
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
@@ -8293,6 +8244,7 @@ PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_Gcalc_dyn_list_block;
 PSI_memory_key key_memory_Gis_read_stream_err_msg;
+PSI_memory_key key_memory_Geometry_objects_data;
 PSI_memory_key key_memory_KEY_CACHE;
 PSI_memory_key key_memory_MYSQL_LOCK;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
@@ -8434,6 +8386,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_errmsgs, "errmsgs", 0},
   { &key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0},
   { &key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0},
+  { &key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0},
   { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
   { &key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0},
   { &key_memory_NET_buff, "NET::buff", 0},
