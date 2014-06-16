@@ -185,7 +185,8 @@ struct fil_space_t {
 				page because it actually was for the
 				previous incarnation of the space */
 	lsn_t		max_lsn;
-				/*!< LSN of the most recent fil_names_dirty().
+				/*!< LSN of the most recent
+				fil_names_dirty_and_write.
 				Reset to 0 by fil_names_clear().
 				Protected by log_sys->mutex and
 				sometimes by fil_system->mutex:
@@ -6538,7 +6539,7 @@ fil_names_dirty_and_write(
 	return(was_clean);
 }
 
-/** Check if any persistent tablespaces have been modified.
+/** Check if a persistent tablespace has been modified.
 @param[in,out]	space	tablespace
 @return whether this is the first dirtying since fil_names_clear() */
 
@@ -6612,8 +6613,8 @@ fil_names_clear(
 			UT_LIST_REMOVE(fil_system->named_spaces, space);
 		}
 
-		/* max_lsn is the last LSN where fil_names_dirty() was
-		called. If we kept track of "min_lsn" (the first LSN
+		/* max_lsn is the last LSN where fil_names_dirty_and_write()
+		was called. If we kept track of "min_lsn" (the first LSN
 		where max_lsn turned nonzero), we could avoid the
 		fil_names_write() call if min_lsn > lsn. */
 

@@ -1142,7 +1142,7 @@ fil_spaces_lookup(
 	ulint		undo_space_id,
 	bool		find_system);
 
-/** Check if any persistent tablespaces have been modified.
+/** Check if a persistent tablespaces has been modified.
 @param[in,out]	space	tablespace
 @return whether this is the first dirtying since fil_names_clear() */
 
