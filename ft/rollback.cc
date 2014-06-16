@@ -91,25 +91,21 @@ PATENT RIGHTS GRANT:
 
 #include <toku_stdint.h>
 
-#include "ft.h"
-#include "log-internal.h"
-#include "rollback-ct-callbacks.h"
+#include "ft/block_table.h"
+#include "ft/ft.h"
+#include "ft/log-internal.h"
+#include "ft/rollback-ct-callbacks.h"
 
 static void rollback_unpin_remove_callback(CACHEKEY* cachekey, bool for_checkpoint, void* extra) {
-    FT CAST_FROM_VOIDP(h, extra);
-    toku_free_blocknum(
-        h->blocktable,
-        cachekey,
-        h,
-        for_checkpoint
-        );
+    FT CAST_FROM_VOIDP(ft, extra);
+    toku_free_blocknum(ft->blocktable, cachekey, ft, for_checkpoint);
 }
 
 void toku_rollback_log_unpin_and_remove(TOKUTXN txn, ROLLBACK_LOG_NODE log) {
     int r;
     CACHEFILE cf = txn->logger->rollback_cachefile;
-    FT CAST_FROM_VOIDP(h, toku_cachefile_get_userdata(cf));
-    r = toku_cachetable_unpin_and_remove (cf, log->ct_pair, rollback_unpin_remove_callback, h);
+    FT CAST_FROM_VOIDP(ft, toku_cachefile_get_userdata(cf));
+    r = toku_cachetable_unpin_and_remove (cf, log->ct_pair, rollback_unpin_remove_callback, ft);
     assert(r == 0);
 }
 

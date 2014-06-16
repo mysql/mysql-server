@@ -200,21 +200,22 @@ basement nodes, bulk fetch,  and partial fetch:
 
 */
 
-#include "checkpoint.h"
-#include "cursor.h"
-#include "ft.h"
-#include "ft-cachetable-wrappers.h"
-#include "ft-flusher.h"
-#include "ft-internal.h"
-#include "node.h"
-#include "ft_layout_version.h"
-#include "log-internal.h"
-#include "sub_block.h"
-#include "txn_manager.h"
-#include "leafentry.h"
-#include "xids.h"
-#include "ft_msg.h"
-#include "ule.h"
+#include "ft/block_table.h"
+#include "ft/checkpoint.h"
+#include "ft/cursor.h"
+#include "ft/ft.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-flusher.h"
+#include "ft/ft-internal.h"
+#include "ft/ft_layout_version.h"
+#include "ft/ft_msg.h"
+#include "ft/leafentry.h"
+#include "ft/log-internal.h"
+#include "ft/node.h"
+#include "ft/sub_block.h"
+#include "ft/txn_manager.h"
+#include "ft/ule.h"
+#include "ft/xids.h"
 
 #include <toku_race_tools.h>
 

@@ -91,17 +91,19 @@ PATENT RIGHTS GRANT:
 
 // Dump a fractal tree file
 
-#include "cachetable.h"
-#include "ft.h"
-#include "fttypes.h"
-#include "ft-internal.h"
-#include "ft/node.h"
 #include <ctype.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <inttypes.h>
 #include <limits.h>
+
+#include "ft/block_table.h"
+#include "ft/cachetable.h"
+#include "ft/ft.h"
+#include "ft/fttypes.h"
+#include "ft/ft-internal.h"
+#include "ft/node.h"
 
 static int do_dump_data = 1;
 static int do_interactive = 0;

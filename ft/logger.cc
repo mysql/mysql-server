@@ -94,12 +94,13 @@ PATENT RIGHTS GRANT:
 #include <limits.h>
 #include <unistd.h>
 
-#include "ft.h"
-#include "log-internal.h"
-#include "txn_manager.h"
-#include "rollback_log_node_cache.h"
+#include "ft/block_table.h"
+#include "ft/ft.h"
+#include "ft/log-internal.h"
+#include "ft/txn_manager.h"
+#include "ft/rollback_log_node_cache.h"
 
-#include <util/status.h>
+#include "util/status.h"
 
 static const int log_format_version=TOKU_LOG_VERSION;
 

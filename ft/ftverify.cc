@@ -200,7 +200,7 @@ deserialize_headers(int fd, struct ft **h1p, struct ft **h2p)
         }
     }
     {
-        toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
+        toku_off_t header_1_off = block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE;
         r1 = deserialize_ft_from_fd_into_rbuf(
             fd,
             header_1_off,
