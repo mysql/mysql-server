@@ -918,11 +918,13 @@ NdbTransaction*
 Ndb::startTransactionLocal(Uint32 aPriority, Uint32 nodeId, Uint32 instance)
 {
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   char buf[255];
   const char* val = NdbEnv_GetEnv("NDB_TRANSACTION_NODE_ID", buf, 255);
   if(val != 0){
     nodeId = atoi(val);
   }
+#endif
 #endif
 
   DBUG_ENTER("Ndb::startTransactionLocal");

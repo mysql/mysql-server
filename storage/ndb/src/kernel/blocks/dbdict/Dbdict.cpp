@@ -2989,9 +2989,13 @@ void Dbdict::execREAD_CONFIG_REQ(Signal* signal)
     while (objs.releaseFirst());
   }
 
+  bool use_get_env = false;
+#ifdef NDB_USE_GET_ENV
+  use_get_env = true;
+#endif
   unsigned trace = 0;
   char buf[100];
-  if (NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
+  if (use_get_env && NdbEnv_GetEnv("DICT_TRACE", buf, sizeof(buf)))
   {
     jam();
     g_trace = (unsigned)atoi(buf);

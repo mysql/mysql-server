@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -406,8 +406,12 @@ Configuration::setupConfiguration(){
       m_thr_config.setLockIoThreadsToCPU(maintCPU);
   }
 
+#ifdef NDB_USE_GET_ENV
   const char * thrconfigstring = NdbEnv_GetEnv("NDB_MT_THREAD_CONFIG",
                                                (char*)0, 0);
+#else
+  const char * thrconfigstring = NULL;
+#endif
   if (thrconfigstring ||
       iter.get(CFG_DB_MT_THREAD_CONFIG, &thrconfigstring) == 0)
   {
@@ -428,13 +432,14 @@ Configuration::setupConfiguration(){
 
     Uint32 classic = 0;
     iter.get(CFG_NDBMT_CLASSIC, &classic);
+#ifdef NDB_USE_GET_ENV
     const char* p = NdbEnv_GetEnv("NDB_MT_LQH", (char*)0, 0);
     if (p != 0)
     {
       if (strstr(p, "NOPLEASE") != 0)
         classic = 1;
     }
-
+#endif
     Uint32 lqhthreads = 0;
     iter.get(CFG_NDBMT_LQH_THREADS, &lqhthreads);
 
@@ -505,6 +510,7 @@ Configuration::setupConfiguration(){
     iter.get(CFG_NDBMT_LQH_WORKERS, &workers);
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
     // testing
     {
       const char* p;
@@ -512,6 +518,7 @@ Configuration::setupConfiguration(){
       if (p != 0)
         workers = atoi(p);
     }
+#endif
 #endif
 
 

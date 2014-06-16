@@ -2198,13 +2198,14 @@ int runFailAddFragment(NDBT_Context* ctx, NDBT_Step* step){
   tab.setFragmentType(NdbDictionary::Object::FragAllLarge);
 
   int errNo = 0;
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
   {
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-
+#endif
   const NdbDictionary::Table* origTab= ctx->getTab();
   HugoCalculator calc(*origTab);
 
@@ -7286,6 +7287,7 @@ static int st_random_seed = -1;
 int
 runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
 {
+#ifdef NDB_USE_GET_ENV
   { const char* env = NdbEnv_GetEnv("NDB_TEST_DBUG", 0, 0);
     if (env != 0 && env[0] != 0) // e.g. d:t:L:F:o,ndb_test.log
       DBUG_PUSH(env);
@@ -7304,7 +7306,7 @@ runSchemaTrans(NDBT_Context* ctx, NDBT_Step* step)
     if (env != 0)
       st_random_seed = atoi(env);
   }
-
+#endif
   if (st_test_case != 0 && strcmp(st_test_case, "?") == 0) {
     int i;
     ndbout << "case func+arg desc" << endl;
@@ -7368,13 +7370,14 @@ runFailCreateHashmap(NDBT_Context* ctx, NDBT_Step* step)
   NdbDictionary::Dictionary* pDic = pNdb->getDictionary();
 
   int errNo = 0;
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
   {
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-  
+#endif 
   const int loops = ctx->getNumLoops();
   int result = NDBT_OK;
 
@@ -7483,13 +7486,14 @@ runFailAddPartition(NDBT_Context* ctx, NDBT_Step* step)
   int nodeId = restarter.getMasterNodeId();
 
   int errNo = 0;
+#ifdef NDB_USE_GET_ENV
   char buf[100];
   if (NdbEnv_GetEnv("ERRNO", buf, sizeof(buf)))
   {
     errNo = atoi(buf);
     ndbout_c("Using errno: %u", errNo);
   }
-
+#endif
   // ordered index on first few columns
   NdbDictionary::Index idx("X");
   idx.setTable(tab.getName());
@@ -9336,11 +9340,13 @@ runWL946(NDBT_Context* ctx, NDBT_Step* step)
   const int records = ctx->getNumRecords();
   bool keep_table = false; // keep table and data
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("KEEP_TABLE_WL946", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
       keep_table = true;
   }
+#endif
 #endif
   int result = NDBT_OK;
 
@@ -10624,27 +10630,33 @@ fk_env_options(Fkdef& d)
 {
   // random seed
   int seed = (int)getpid();
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("RANDOM_SEED", (char*)0, 0);
     if (p != 0)
       seed = atoi(p);
   }
+#endif
   myRandom48Init(seed);
   g_err << "random seed: " << seed << endl;
   // create no FKs at all
   d.nokeys = false;
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("FK_NOKEYS", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
       d.nokeys = true;
   }
+#endif
   // do not drop objects at end
   d.nodrop = false;
+#ifdef NDB_USE_GET_ENV
   {
     const char* p = NdbEnv_GetEnv("FK_NODROP", (char*)0, 0);
     if (p != 0 && strchr("1Y", p[0]) != 0)
       d.nodrop = true;
   }
+#endif
 }
 
 int
