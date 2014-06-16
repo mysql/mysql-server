@@ -922,7 +922,7 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf, const tok
     }
     invariant(rbuf->ndone == rbuf->size);
 
-    struct toku_msg_buffer_key_msn_cmp_extra extra = { .cmp = cmp, .msg_buffer = &bnc->msg_buffer };
+    struct toku_msg_buffer_key_msn_cmp_extra extra(cmp, &bnc->msg_buffer);
     r = toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
     assert_zero(r);
     bnc->fresh_message_tree.destroy();
@@ -1809,8 +1809,7 @@ deserialize_and_upgrade_internal_node(FTNODE node,
             xids_destroy(&xids);
         }
 
-        struct toku_msg_buffer_key_msn_cmp_extra extra = { .cmp = bfe->ft->cmp,
-                                                           .msg_buffer = &bnc->msg_buffer };
+        struct toku_msg_buffer_key_msn_cmp_extra extra(bfe->ft->cmp, &bnc->msg_buffer);
         typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
         r = key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
         assert_zero(r);
