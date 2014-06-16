@@ -42,6 +42,8 @@ var adapter       = require(path.join(build_dir, "ndb_adapter.node")).ndb,
     prepareFilterSpec = require("./NdbScanFilter.js").prepareFilterSpec,
     getIndexBounds = require("../common/IndexBounds.js").getIndexBounds,
     markQuery     = require("../common/IndexBounds.js").markQuery,
+    bufferForText = adapter.impl.bufferForText,
+    textFromBuffer = adapter.impl.textFromBuffer,
     COMMIT        = adapter.ndbapi.Commit,
     NOCOMMIT      = adapter.ndbapi.NoCommit,
     ROLLBACK      = adapter.ndbapi.Rollback,
@@ -247,33 +249,6 @@ function encodeBounds(key, nfields, dbIndexHandler, buffer) {
   encodeFieldsInBuffer(key, nfields, dbIndexHandler.getColumnMetadata(), 
                        dbIndexHandler.dbIndex.record, buffer, []);
   return buffer;
-}
-
-function bufferForText(column, value) {
-  var buffer = null;
-  var charset = column.charsetName;
-
-  if(typeof value === 'string') {
-    if(charset.substr(0, 4) == "utf8") {
-      buffer = new Buffer(value, "utf8");
-    } if(charset == 'ascii') {
-      buffer = new Buffer(value, "ascii");
-    }
-  }
-  return buffer;
-}
-
-function textFromBuffer(column, buffer) { 
-  var value = null;
-  var charset = column.charsetName;
-  if(buffer) {
-    if(charset.substr(0, 4) == "utf8") {
-      value = buffer.toString("utf8");
-    } else if (charset == 'ascii') {
-      value = buffer.toString("ascii");
-    }
-  }
-  return value;
 }
 
 function defineBlobs(nfields, metadata, values) {
