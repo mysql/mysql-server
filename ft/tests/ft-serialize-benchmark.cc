@@ -374,10 +374,10 @@ test_serialize_nonleaf(int valsize, int nelts, double entropy, int ser_runs, int
         DISKOFF offset;
         DISKOFF size;
         toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
-        assert(offset==block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
-        assert(offset == block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(offset == (DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
 

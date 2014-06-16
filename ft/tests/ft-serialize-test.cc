@@ -315,10 +315,10 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
         DISKOFF offset;
         DISKOFF size;
         toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
-        assert(offset==block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(offset==(DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
-        assert(offset == block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(offset == (DISKOFF)block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA src_ndd = NULL;
