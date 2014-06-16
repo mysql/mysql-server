@@ -2693,7 +2693,7 @@ int mi_repair_parallel(MI_CHECK *param, MI_INFO *info,
   /* Initialize pthread structures before goto err. */
   mysql_mutex_init(mi_key_mutex_MI_SORT_INFO_mutex,
                    &sort_info.mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(mi_key_cond_MI_SORT_INFO_cond, &sort_info.cond, 0);
+  mysql_cond_init(mi_key_cond_MI_SORT_INFO_cond, &sort_info.cond);
   mysql_mutex_init(mi_key_mutex_MI_CHECK_print_msg,
                    &param->print_msg_mutex, MY_MUTEX_INIT_FAST);
   param->need_print_msg_lock= 1;

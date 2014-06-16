@@ -4192,7 +4192,7 @@ public:
   {
     key= (uchar*) my_memdup(key_memory_User_level_lock_key,
                             key_arg, length, MYF(0));
-    mysql_cond_init(key_user_level_lock_cond, &cond, NULL);
+    mysql_cond_init(key_user_level_lock_cond, &cond);
     if (key)
     {
       if (my_hash_insert(&hash_user_locks,(uchar*) this))
@@ -4868,7 +4868,7 @@ longlong Item_func_sleep::val_int()
 
   timed_cond.set_timeout((ulonglong) (timeout * 1000000000.0));
 
-  mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
+  mysql_cond_init(key_item_func_sleep_cond, &cond);
   mysql_mutex_lock(&LOCK_user_locks);
 
   THD_STAGE_INFO(thd, stage_user_sleep);
