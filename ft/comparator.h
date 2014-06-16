@@ -127,6 +127,10 @@ namespace toku {
             _fake_db->cmp_descriptor = desc;
         }
 
+        bool valid() const {
+            return _cmp != nullptr;
+        }
+
         int operator()(const DBT *a, const DBT *b) const {
             // TODO: add an unlikely() compiler note for this branch
             if (toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b)) {
