@@ -213,8 +213,7 @@ static int ft_cursor_search(FT_CURSOR cursor, ft_search *search,
 }
 
 static inline int compare_k_x(FT_HANDLE ft_handle, const DBT *k, const DBT *x) {
-    FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
-    return ft_handle->ft->compare_fun(&db, k, x);
+    return ft_handle->ft->cmp(k, x);
 }
 
 int toku_ft_cursor_compare_one(const ft_search &UU(search), const DBT *UU(x)) {
@@ -290,11 +289,10 @@ int toku_ft_cursor_last(FT_CURSOR cursor, FT_GET_CALLBACK_FUNCTION getf, void *g
 int toku_ft_cursor_check_restricted_range(FT_CURSOR c, bytevec key, ITEMLEN keylen) {
     if (c->out_of_range_error) {
         FT ft = c->ft_handle->ft;
-        FAKE_DB(db, &ft->cmp_descriptor);
         DBT found_key;
         toku_fill_dbt(&found_key, key, keylen);
-        if ((!c->left_is_neg_infty && c->direction <= 0 && ft->compare_fun(&db, &found_key, &c->range_lock_left_key) < 0) ||
-            (!c->right_is_pos_infty && c->direction >= 0 && ft->compare_fun(&db, &found_key, &c->range_lock_right_key) > 0)) {
+        if ((!c->left_is_neg_infty && c->direction <= 0 && ft->cmp(&found_key, &c->range_lock_left_key) < 0) ||
+            (!c->right_is_pos_infty && c->direction >= 0 && ft->cmp(&found_key, &c->range_lock_right_key) > 0)) {
             invariant(c->out_of_range_error);
             return c->out_of_range_error;
         }

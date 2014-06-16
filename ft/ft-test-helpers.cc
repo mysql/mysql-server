@@ -225,9 +225,8 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, const
     static size_t zero_flow_deltas[] = { 0, 0 };
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
     toku_ftnode_put_msg(
-        ft_handle->ft->compare_fun,
+        ft_handle->ft->cmp,
         ft_handle->ft->update_fun,
-        &ft_handle->ft->cmp_descriptor,
         node,
         -1,
         &msg,
@@ -293,13 +292,14 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, en
     assert(node->height>0);
 
     DBT k;
-    int childnum = toku_ftnode_which_child(node,
-                                            toku_fill_dbt(&k, key, keylen),
-                                            &ft_handle->ft->cmp_descriptor, ft_handle->ft->compare_fun);
+    int childnum = toku_ftnode_which_child(node, toku_fill_dbt(&k, key, keylen), ft_handle->ft->cmp);
 
     XIDS xids_0 = xids_get_root_xids();
     MSN msn = next_dummymsn();
-    toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, msgtype, msn, xids_0, true, NULL, testhelper_string_key_cmp);
+    toku::comparator cmp;
+    cmp.create(testhelper_string_key_cmp, nullptr);
+    toku_bnc_insert_msg(BNC(node, childnum), key, keylen, val, vallen, msgtype, msn, xids_0, true, cmp);
+    cmp.destroy();
     // Hack to get the test working. The problem is that this test
     // is directly queueing something in a FIFO instead of 
     // using ft APIs.

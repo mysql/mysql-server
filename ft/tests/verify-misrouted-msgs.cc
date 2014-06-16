@@ -144,7 +144,7 @@ insert_into_child_buffer(FT_HANDLE ft, FTNODE node, int childnum, int minkey, in
         DBT thekey; toku_fill_dbt(&thekey, &key, sizeof key);
         DBT theval; toku_fill_dbt(&theval, &val, sizeof val);
 	MSN msn = next_dummymsn();
-        toku_ft_append_to_child_buffer(ft->ft->compare_fun, NULL, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
+        toku_ft_append_to_child_buffer(ft->ft->cmp, node, childnum, FT_INSERT, msn, xids_get_root_xids(), true, &thekey, &theval);
     }
 }
 

@@ -147,7 +147,6 @@ static void
 test1(int fd, FT ft_h, FTNODE *dn) {
     int r;
     struct ftnode_fetch_extra bfe_all;
-    ft_h->compare_fun = string_key_cmp;
     fill_bfe_for_full_read(&bfe_all, ft_h);
     FTNODE_DISK_DATA ndd = NULL;
     r = toku_deserialize_ftnode_from(fd, make_blocknum(20), 0/*pass zero for hash*/, dn, &ndd, &bfe_all);
@@ -226,7 +225,6 @@ test2(int fd, FT ft_h, FTNODE *dn) {
     memset(&right, 0, sizeof(right));
     ft_search search;
     
-    ft_h->compare_fun = string_key_cmp;
     fill_bfe_for_subset_read(
         &bfe_subset,
         ft_h,
@@ -279,7 +277,6 @@ test3_leaf(int fd, FT ft_h, FTNODE *dn) {
     memset(&left, 0, sizeof(left));
     memset(&right, 0, sizeof(right));
     
-    ft_h->compare_fun = string_key_cmp;
     fill_bfe_for_min_read(
         &bfe_min,
         ft_h
@@ -335,13 +332,18 @@ test_serialize_nonleaf(void) {
     r = xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
-    toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, FT_NONE, next_dummymsn(), xids_0, true, NULL, string_key_cmp);
-    toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, FT_NONE, next_dummymsn(), xids_123, false, NULL, string_key_cmp);
-    toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, FT_NONE, next_dummymsn(), xids_234, true, NULL, string_key_cmp);
+    toku::comparator cmp;
+    cmp.create(string_key_cmp, nullptr);
+
+    toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, FT_NONE, next_dummymsn(), xids_0, true, cmp);
+    toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, FT_NONE, next_dummymsn(), xids_123, false, cmp);
+    toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, FT_NONE, next_dummymsn(), xids_234, true, cmp);
+
     //Cleanup:
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);
     xids_destroy(&xids_234);
+    cmp.destroy();
 
     FT_HANDLE XMALLOC(ft);
     FT XCALLOC(ft_h);
@@ -353,6 +355,7 @@ test_serialize_nonleaf(void) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
+    ft_h->cmp.create(string_key_cmp, nullptr);
     ft->ft = ft_h;
     
     toku_blocktable_create_new(&ft_h->blocktable);
@@ -387,6 +390,7 @@ test_serialize_nonleaf(void) {
     toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
     toku_free(ft_h->h);
+    ft_h->cmp.destroy();
     toku_free(ft_h);
     toku_free(ft);
 

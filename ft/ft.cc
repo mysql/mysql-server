@@ -119,7 +119,10 @@ ft_destroy(FT ft) {
     //cannot destroy since it is still in use by CURRENT
     assert(ft->h->type == FT_CURRENT);
     toku_blocktable_destroy(&ft->blocktable);
+    ft->cmp.destroy();
+    // TODO: use real dbt function
     if (ft->descriptor.dbt.data) toku_free(ft->descriptor.dbt.data);
+    // TODO: use real dbt function
     if (ft->cmp_descriptor.dbt.data) toku_free(ft->cmp_descriptor.dbt.data);
     toku_ft_destroy_reflock(ft);
     toku_free(ft->h);
@@ -384,7 +387,7 @@ static void ft_init(FT ft, FT_OPTIONS options, CACHEFILE cf) {
 
     toku_list_init(&ft->live_ft_handles);
 
-    ft->compare_fun = options->compare_fun;
+    ft->cmp.create(options->compare_fun, &ft->descriptor);
     ft->update_fun = options->update_fun;
 
     if (ft->cf != NULL) {
@@ -449,9 +452,6 @@ void toku_ft_create(FT *ftp, FT_OPTIONS options, CACHEFILE cf, TOKUTXN txn) {
     invariant(ftp);
 
     FT XCALLOC(ft);
-    memset(&ft->descriptor, 0, sizeof(ft->descriptor));
-    memset(&ft->cmp_descriptor, 0, sizeof(ft->cmp_descriptor));
-
     ft->h = ft_header_create(options, make_blocknum(0), (txn ? txn->txnid.parent_id64: TXNID_NONE));
 
     toku_ft_init_reflock(ft);
@@ -471,31 +471,27 @@ int toku_read_ft_and_store_in_cachefile (FT_HANDLE ft_handle, CACHEFILE cf, LSN 
 // If the cachefile has not been initialized, then don't modify anything.
 // max_acceptable_lsn is the latest acceptable checkpointed version of the file.
 {
-    {
-        FT ft;
-        if ((ft = (FT) toku_cachefile_get_userdata(cf))!=0) {
-            *header = ft;
-            assert(ft_handle->options.update_fun == ft->update_fun);
-            assert(ft_handle->options.compare_fun == ft->compare_fun);
-            return 0;
-        }
-    }
     FT ft = nullptr;
-    int r;
-    {
-        int fd = toku_cachefile_get_fd(cf);
-        r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &ft);
-        if (r == TOKUDB_BAD_CHECKSUM) {
-            fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
-            assert(false);  // make absolutely sure we crash before doing anything else
-        }
+    if ((ft = (FT) toku_cachefile_get_userdata(cf)) != nullptr) {
+        *header = ft;
+        assert(ft_handle->options.update_fun == ft->update_fun);
+        return 0;
     }
-    if (r!=0) return r;
-    // GCC 4.8 seems to get confused by the gotos in the deserialize code and think h is maybe uninitialized.
+
+    int fd = toku_cachefile_get_fd(cf);
+    int r = toku_deserialize_ft_from(fd, max_acceptable_lsn, &ft);
+    if (r == TOKUDB_BAD_CHECKSUM) {
+        fprintf(stderr, "Checksum failure while reading header in file %s.\n", toku_cachefile_fname_in_env(cf));
+        assert(false);  // make absolutely sure we crash before doing anything else
+    } else if (r != 0) {
+        return r;
+    }
+
     invariant_notnull(ft);
-    ft->cf = cf;
-    ft->compare_fun = ft_handle->options.compare_fun;
+    // intuitively, the comparator points to the FT's cmp descriptor
+    ft->cmp.create(ft_handle->options.compare_fun, &ft->cmp_descriptor);
     ft->update_fun = ft_handle->options.update_fun;
+    ft->cf = cf;
     toku_cachefile_set_userdata(cf,
                                 reinterpret_cast<void *>(ft),
                                 ft_log_fassociate_during_checkpoint,
@@ -632,7 +628,7 @@ ft_handle_open_for_redirect(FT_HANDLE *new_ftp, const char *fname_in_env, TOKUTX
     FT_HANDLE ft_handle;
     assert(old_ft->dict_id.dictid != DICTIONARY_ID_NONE.dictid);
     toku_ft_handle_create(&ft_handle);
-    toku_ft_set_bt_compare(ft_handle, old_ft->compare_fun);
+    toku_ft_set_bt_compare(ft_handle, old_ft->cmp.get_compare_func());
     toku_ft_set_update(ft_handle, old_ft->update_fun);
     toku_ft_handle_set_nodesize(ft_handle, old_ft->h->nodesize);
     toku_ft_handle_set_basementnodesize(ft_handle, old_ft->h->basementnodesize);
@@ -890,7 +886,7 @@ int toku_ft_iterate_fractal_tree_block_map(FT ft, int (*iter)(uint64_t,int64_t,i
 }
 
 void 
-toku_ft_update_descriptor(FT ft, DESCRIPTOR d) 
+toku_ft_update_descriptor(FT ft, DESCRIPTOR desc) 
 // Effect: Changes the descriptor in a tree (log the change, make sure it makes it to disk eventually).
 // requires: the ft is fully user-opened with a valid cachefile.
 //           descriptor updates cannot happen in parallel for an FT 
@@ -898,7 +894,7 @@ toku_ft_update_descriptor(FT ft, DESCRIPTOR d)
 {
     assert(ft->cf);
     int fd = toku_cachefile_get_fd(ft->cf);
-    toku_ft_update_descriptor_with_fd(ft, d, fd);
+    toku_ft_update_descriptor_with_fd(ft, desc, fd);
 }
 
 // upadate the descriptor for an ft and serialize it using
@@ -907,27 +903,30 @@ toku_ft_update_descriptor(FT ft, DESCRIPTOR d)
 // update a descriptor before the ft is fully opened and has
 // a valid cachefile.
 void
-toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR d, int fd) {
+toku_ft_update_descriptor_with_fd(FT ft, DESCRIPTOR desc, int fd) {
     // the checksum is four bytes, so that's where the magic number comes from
     // make space for the new descriptor and write it out to disk
     DISKOFF offset, size;
-    size = toku_serialize_descriptor_size(d) + 4;
+    size = toku_serialize_descriptor_size(desc) + 4;
     toku_realloc_descriptor_on_disk(ft->blocktable, size, &offset, ft, fd);
-    toku_serialize_descriptor_contents_to_fd(fd, d, offset);
+    toku_serialize_descriptor_contents_to_fd(fd, desc, offset);
 
     // cleanup the old descriptor and set the in-memory descriptor to the new one
+    // TODO: use real dbt function
     if (ft->descriptor.dbt.data) {
         toku_free(ft->descriptor.dbt.data);
     }
-    ft->descriptor.dbt.size = d->dbt.size;
-    ft->descriptor.dbt.data = toku_memdup(d->dbt.data, d->dbt.size);
+    // TODO: use real dbt function
+    ft->descriptor.dbt.size = desc->dbt.size;
+    ft->descriptor.dbt.data = toku_memdup(desc->dbt.data, desc->dbt.size);
 }
 
-void 
-toku_ft_update_cmp_descriptor(FT ft) {
+void toku_ft_update_cmp_descriptor(FT ft) {
+    // TODO: use real dbt function
     if (ft->cmp_descriptor.dbt.data != NULL) {
         toku_free(ft->cmp_descriptor.dbt.data);
     }
+    // TODO: use real dbt function
     ft->cmp_descriptor.dbt.size = ft->descriptor.dbt.size;
     ft->cmp_descriptor.dbt.data = toku_xmemdup(
         ft->descriptor.dbt.data, 
@@ -935,13 +934,11 @@ toku_ft_update_cmp_descriptor(FT ft) {
         );
 }
 
-DESCRIPTOR
-toku_ft_get_descriptor(FT_HANDLE ft_handle) {
+DESCRIPTOR toku_ft_get_descriptor(FT_HANDLE ft_handle) {
     return &ft_handle->ft->descriptor;
 }
 
-DESCRIPTOR
-toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle) {
+DESCRIPTOR toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle) {
     return &ft_handle->ft->cmp_descriptor;
 }
 

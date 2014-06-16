@@ -164,7 +164,6 @@ string_key_cmp(DB *UU(e), const DBT *a, const DBT *b)
 static void
 setup_dn(enum ftnode_verify_type bft, int fd, FT ft_h, FTNODE *dn, FTNODE_DISK_DATA* ndd) {
     int r;
-    ft_h->compare_fun = string_key_cmp;
     if (bft == read_all) {
         struct ftnode_fetch_extra bfe;
         fill_bfe_for_full_read(&bfe, ft_h);
@@ -1050,13 +1049,18 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     r = xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
-    toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, FT_NONE, next_dummymsn(), xids_0, true, NULL, string_key_cmp);
-    toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, FT_NONE, next_dummymsn(), xids_123, false, NULL, string_key_cmp);
-    toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, FT_NONE, next_dummymsn(), xids_234, true, NULL, string_key_cmp);
+    toku::comparator cmp;
+    cmp.create(string_key_cmp, nullptr);
+
+    toku_bnc_insert_msg(BNC(&sn, 0), "a", 2, "aval", 5, FT_NONE, next_dummymsn(), xids_0, true, cmp);
+    toku_bnc_insert_msg(BNC(&sn, 0), "b", 2, "bval", 5, FT_NONE, next_dummymsn(), xids_123, false, cmp);
+    toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, FT_NONE, next_dummymsn(), xids_234, true, cmp);
+
     //Cleanup:
     xids_destroy(&xids_0);
     xids_destroy(&xids_123);
     xids_destroy(&xids_234);
+    cmp.destroy();
 
     FT_HANDLE XMALLOC(ft);
     FT XCALLOC(ft_h);
@@ -1068,6 +1072,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
                  128*1024,
                  TOKU_DEFAULT_COMPRESSION_METHOD,
                  16);
+    ft_h->cmp.create(string_key_cmp, nullptr);
     ft->ft = ft_h;
     
     toku_blocktable_create_new(&ft_h->blocktable);
@@ -1125,6 +1130,7 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     toku_free(ft);
     toku_free(src_ndd);
     toku_free(dest_ndd);
+    cmp.destroy();
 
     r = close(fd); assert(r != -1);
 }

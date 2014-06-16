@@ -110,7 +110,7 @@ int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int node
 //   ANY operations. to update the cmp descriptor after any operations have already happened, all handles 
 //   and transactions must close and reopen before the change, then you can update the cmp descriptor
 void toku_ft_change_descriptor(FT_HANDLE t, const DBT* old_descriptor, const DBT* new_descriptor, bool do_log, TOKUTXN txn, bool update_cmp_descriptor);
-uint32_t toku_serialize_descriptor_size(const DESCRIPTOR desc);
+uint32_t toku_serialize_descriptor_size(DESCRIPTOR desc);
 
 void toku_ft_handle_create(FT_HANDLE *ft);
 void toku_ft_set_flags(FT_HANDLE, unsigned int flags);

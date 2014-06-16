@@ -173,7 +173,7 @@ public:
     };
 
     // effect: initialize the tree to an empty state
-    void create(comparator *cmp);
+    void create(const comparator *cmp);
 
     // effect: destroy the tree.
     // requires: tree is empty

@@ -323,8 +323,7 @@ namespace toku {
     // - Destroy the manager.
     class locktree {
     public:
-        // effect: Creates a locktree that uses the given memory tracker
-        //         to report memory usage and honor memory constraints.
+        // effect: Creates a locktree
         void create(locktree_manager *mgr, DICTIONARY_ID dict_id,
                     DESCRIPTOR desc, ft_compare_func cmp);
 
@@ -399,7 +398,7 @@ namespace toku {
         // is valid for as long as the locktree. this is currently
         // implemented by opening an ft_handle for this locktree and
         // storing it as userdata below.
-        comparator *m_cmp;
+        comparator m_cmp;
 
         concurrent_tree *m_rangetree;
 

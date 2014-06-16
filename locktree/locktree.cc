@@ -121,14 +121,12 @@ void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id,
     m_mgr = mgr;
     m_dict_id = dict_id;
 
-    // the only reason m_cmp is malloc'd here is to prevent gdb from printing
-    // out an entire DB struct every time you inspect a locktree.
-    XCALLOC(m_cmp);
-    m_cmp->create(cmp, desc);
+    m_cmp.create(cmp, desc);
     m_reference_count = 1;
     m_userdata = nullptr;
+
     XCALLOC(m_rangetree);
-    m_rangetree->create(m_cmp);
+    m_rangetree->create(&m_cmp);
 
     m_sto_txnid = TXNID_NONE;
     m_sto_buffer.create();
@@ -155,11 +153,10 @@ void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id,
 
 void locktree::destroy(void) {
     invariant(m_reference_count == 0);
+    m_cmp.destroy();
     m_rangetree->destroy();
-    toku_free(m_cmp);
     toku_free(m_rangetree);
     m_sto_buffer.destroy();
-
     m_lock_request_info.pending_lock_requests.destroy();
 }
 
@@ -299,7 +296,7 @@ void locktree::sto_migrate_buffer_ranges_to_tree(void *prepared_lkr) {
 
     concurrent_tree sto_rangetree;
     concurrent_tree::locked_keyrange sto_lkr;
-    sto_rangetree.create(m_cmp);
+    sto_rangetree.create(&m_cmp);
 
     // insert all of the ranges from the single txnid buffer into a new rangtree
     range_buffer::iterator iter(&m_sto_buffer);
@@ -438,7 +435,7 @@ int locktree::try_acquire_lock(bool is_write_request,
                                txnid_set *conflicts, bool big_txn) {
     // All ranges in the locktree must have left endpoints <= right endpoints.
     // Range comparisons rely on this fact, so we make a paranoid invariant here.
-    paranoid_invariant(m_cmp->compare(left_key, right_key) <= 0);
+    paranoid_invariant(m_cmp(left_key, right_key) <= 0);
     int r = m_mgr == nullptr ? 0 :
             m_mgr->check_current_lock_constraints(big_txn);
     if (r == 0) {
@@ -581,7 +578,7 @@ void locktree::release_locks(TXNID txnid, const range_buffer *ranges) {
             const DBT *right_key = rec.get_right_key();
             // All ranges in the locktree must have left endpoints <= right endpoints.
             // Range comparisons rely on this fact, so we make a paranoid invariant here.
-            paranoid_invariant(m_cmp->compare(left_key, right_key) <= 0);
+            paranoid_invariant(m_cmp(left_key, right_key) <= 0);
             remove_overlapping_locks_for_txnid(txnid, left_key, right_key);
             iter.next();
         }
@@ -795,7 +792,7 @@ struct lt_lock_request_info *locktree::get_lock_request_info(void) {
 }
 
 void locktree::set_descriptor(DESCRIPTOR desc) {
-    m_cmp->set_descriptor(desc);
+    m_cmp.set_descriptor(desc);
 }
 
 locktree_manager *locktree::get_manager(void) const {

@@ -104,17 +104,13 @@ PATENT RIGHTS GRANT:
 
 static int 
 compare_pairs (FT_HANDLE ft_handle, const DBT *a, const DBT *b) {
-    FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
-    int cmp = ft_handle->ft->compare_fun(&db, a, b);
-    return cmp;
+    return ft_handle->ft->cmp(a, b);
 }
 
 static int 
 compare_pair_to_key (FT_HANDLE ft_handle, const DBT *a, bytevec key, ITEMLEN keylen) {
     DBT y;
-    FAKE_DB(db, &ft_handle->ft->cmp_descriptor);
-    int cmp = ft_handle->ft->compare_fun(&db, a, toku_fill_dbt(&y, key, keylen));
-    return cmp;
+    return ft_handle->ft->cmp(a, toku_fill_dbt(&y, key, keylen));
 }
 
 static int
@@ -256,11 +252,7 @@ verify_sorted_by_key_msn(FT_HANDLE ft_handle, message_buffer *msg_buffer, const 
         int r = mt.fetch(i, &offset);
         assert_zero(r);
         if (i > 0) {
-            struct toku_msg_buffer_key_msn_cmp_extra extra;
-            ZERO_STRUCT(extra);
-            extra.desc = &ft_handle->ft->cmp_descriptor;
-            extra.cmp = ft_handle->ft->compare_fun;
-            extra.msg_buffer = msg_buffer;
+            struct toku_msg_buffer_key_msn_cmp_extra extra(ft_handle->ft->cmp, msg_buffer);
             if (toku_msg_buffer_key_msn_cmp(extra, last_offset, offset) >= 0) {
                 result = TOKUDB_NEEDS_REPAIR;
                 break;
@@ -274,13 +266,7 @@ verify_sorted_by_key_msn(FT_HANDLE ft_handle, message_buffer *msg_buffer, const 
 template<typename count_omt_t>
 static int
 count_eq_key_msn(FT_HANDLE ft_handle, message_buffer *msg_buffer, const count_omt_t &mt, const DBT *key, MSN msn) {
-    struct toku_msg_buffer_key_msn_heaviside_extra extra;
-    ZERO_STRUCT(extra);
-    extra.desc = &ft_handle->ft->cmp_descriptor;
-    extra.cmp = ft_handle->ft->compare_fun;
-    extra.msg_buffer = msg_buffer;
-    extra.key = key;
-    extra.msn = msn;
+    struct toku_msg_buffer_key_msn_heaviside_extra extra(ft_handle->ft->cmp, msg_buffer, key, msn);
     int r = mt.template find_zero<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(extra, nullptr, nullptr);
     int count;
     if (r == 0) {

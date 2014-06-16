@@ -88,6 +88,7 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
+#include "ft/comparator.h"
 #include "ft/cachetable.h"
 #include "ft/bndata.h"
 #include "ft/fttypes.h"
@@ -305,7 +306,7 @@ void toku_ftnode_clone_partitions(FTNODE node, FTNODE cloned_node);
 void toku_initialize_empty_ftnode(FTNODE node, BLOCKNUM blocknum, int height, int num_children, 
                                   int layout_version, unsigned int flags);
 
-int toku_ftnode_which_child(FTNODE node, const DBT *k, DESCRIPTOR desc, ft_compare_func cmp);
+int toku_ftnode_which_child(FTNODE node, const DBT *k, const toku::comparator &cmp);
 
 //
 // Field in ftnode_fetch_extra that tells the 
@@ -378,25 +379,31 @@ typedef struct ftnode_fetch_extra *FTNODE_FETCH_EXTRA;
 // TODO: put the heaviside functions into their respective 'struct .*extra;' namespaces
 //
 struct toku_msg_buffer_key_msn_heaviside_extra {
-    DESCRIPTOR desc;
-    ft_compare_func cmp;
+    const toku::comparator &cmp;
     message_buffer *msg_buffer;
     const DBT *key;
     MSN msn;
+    toku_msg_buffer_key_msn_heaviside_extra(const toku::comparator &c, message_buffer *mb, const DBT *k, MSN m) :
+        cmp(c), msg_buffer(mb), key(k), msn(m) {
+    }
 };
 int toku_msg_buffer_key_msn_heaviside(const int32_t &v, const struct toku_msg_buffer_key_msn_heaviside_extra &extra);
 
 struct toku_msg_buffer_key_msn_cmp_extra {
-    DESCRIPTOR desc;
-    ft_compare_func cmp;
+    const toku::comparator &cmp;
     message_buffer *msg_buffer;
+    toku_msg_buffer_key_msn_cmp_extra(const toku::comparator &c, message_buffer *mb) :
+        cmp(c), msg_buffer(mb) {
+    }
 };
 int toku_msg_buffer_key_msn_cmp(const struct toku_msg_buffer_key_msn_cmp_extra &extrap, const int &a, const int &b);
 
 struct toku_msg_leafval_heaviside_extra {
-    ft_compare_func compare_fun;
-    DESCRIPTOR desc;
-    DBT const * const key;
+    const toku::comparator &cmp;
+    DBT const *const key;
+    toku_msg_leafval_heaviside_extra(const toku::comparator &c, const DBT *k) :
+        cmp(c), key(k) {
+    }
 };
 int toku_msg_leafval_heaviside(DBT const &kdbt, const struct toku_msg_leafval_heaviside_extra &be);
 
@@ -404,7 +411,7 @@ unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
 int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
-void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, DESCRIPTOR desc, ft_compare_func cmp);
+void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const toku::comparator &cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
 void toku_bnc_flush_to_child(FT ft, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
@@ -435,11 +442,10 @@ enum reactivity toku_ftnode_get_leaf_reactivity(FTNODE node, uint32_t nodesize);
  * If k is equal to some pivot, then we return the next (to the right)
  * childnum.
  */
-int toku_ftnode_hot_next_child(FTNODE node, const DBT *k,
-                               DESCRIPTOR desc, ft_compare_func cmp);
+int toku_ftnode_hot_next_child(FTNODE node, const DBT *k, const toku::comparator &cmp);
 
-void toku_ftnode_put_msg(ft_compare_func compare_fun, ft_update_func update_fun,
-                         DESCRIPTOR desc, FTNODE node, int target_childnum,
+void toku_ftnode_put_msg(const toku::comparator &cmp, ft_update_func update_fun,
+                         FTNODE node, int target_childnum,
                          FT_MSG msg, bool is_fresh, txn_gc_info *gc_info,
                          size_t flow_deltas[], STAT64INFO stats_to_update);
 
@@ -447,12 +453,12 @@ void toku_ft_bn_apply_msg_once(BASEMENTNODE bn, const FT_MSG msg, uint32_t idx,
                                uint32_t le_keylen, LEAFENTRY le, txn_gc_info *gc_info,
                                uint64_t *workdonep, STAT64INFO stats_to_update);
 
-void toku_ft_bn_apply_msg(ft_compare_func compare_fun, ft_update_func update_fun,
-                          DESCRIPTOR desc, BASEMENTNODE bn, FT_MSG msg, txn_gc_info *gc_info,
+void toku_ft_bn_apply_msg(const toku::comparator &cmp, ft_update_func update_fun,
+                          BASEMENTNODE bn, FT_MSG msg, txn_gc_info *gc_info,
                           uint64_t *workdone, STAT64INFO stats_to_update);
 
-void toku_ft_leaf_apply_msg(ft_compare_func compare_fun, ft_update_func update_fun,
-                            DESCRIPTOR desc, FTNODE node, int target_childnum,
+void toku_ft_leaf_apply_msg(const toku::comparator &cmp, ft_update_func update_fun,
+                            FTNODE node, int target_childnum,
                             FT_MSG msg, txn_gc_info *gc_info,
                             uint64_t *workdone, STAT64INFO stats_to_update);
 
@@ -487,7 +493,7 @@ bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancesto
 void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read);
 
 struct ft_search;
-int toku_ft_search_which_child(DESCRIPTOR desc, ft_compare_func cmp, FTNODE node, ft_search *search);
+int toku_ft_search_which_child(const toku::comparator &cmp, FTNODE node, ft_search *search);
 
 //
 // internal node inline functions
