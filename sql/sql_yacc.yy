@@ -1283,7 +1283,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <NONE>
         create change do drop insert replace insert2
-        insert_values update delete truncate rename
+        insert_values delete truncate rename
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
         slave master_def master_defs master_file_def slave_until_opts
@@ -1310,7 +1310,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
-        single_multi table_wild_list table_wild_one opt_wild
+        table_wild_list table_wild_one opt_wild
         opt_and charset
         help
         opt_extended_describe
@@ -9164,11 +9164,11 @@ simple_expr:
           }
         | BINARY simple_expr %prec NEG
           {
-            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, &my_charset_bin);
+            $$= create_func_cast(YYTHD, @2, $2, ITEM_CAST_CHAR, &my_charset_bin);
           }
         | CAST_SYM '(' expr AS cast_type ')'
           {
-            $$= create_func_cast(YYTHD, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -9176,7 +9176,7 @@ simple_expr:
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
-            $$= create_func_cast(YYTHD, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5);
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
