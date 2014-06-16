@@ -89,9 +89,10 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "compress.h"
-#include "ft.h"
-#include "ft-internal.h"
+#include "ft/block_table.h"
+#include "ft/compress.h"
+#include "ft/ft.h"
+#include "ft/ft-internal.h"
 
 // not version-sensitive because we only serialize a descriptor using the current layout_version
 uint32_t
@@ -509,7 +510,7 @@ serialize_ft_min_size (uint32_t version) {
         abort();
     }
 
-    lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
+    lazy_assert(size <= block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
 
@@ -586,7 +587,7 @@ int deserialize_ft_from_fd_into_rbuf(int fd,
     //If too big, it is corrupt.  We would probably notice during checksum
     //but may have to do a multi-gigabyte malloc+read to find out.
     //If its too small reading rbuf would crash, so verify.
-    if (size > BLOCK_ALLOCATOR_HEADER_RESERVE || size < min_header_size) {
+    if (size > block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE || size < min_header_size) {
         r = TOKUDB_DICTIONARY_NO_HEADER;
         goto exit;
     }
@@ -675,7 +676,7 @@ toku_deserialize_ft_from(int fd,
         h0_acceptable = true;
     }
 
-    toku_off_t header_1_off = BLOCK_ALLOCATOR_HEADER_RESERVE;
+    toku_off_t header_1_off = block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE;
     r1 = deserialize_ft_from_fd_into_rbuf(fd, header_1_off, &rb_1, &checkpoint_count_1, &checkpoint_lsn_1, &version_1);
     if (r1 == 0 && checkpoint_lsn_1.lsn <= max_acceptable_lsn.lsn) {
         h1_acceptable = true;
@@ -754,7 +755,7 @@ exit:
 size_t toku_serialize_ft_size (FT_HEADER h) {
     size_t size = serialize_ft_min_size(h->layout_version);
     //There is no dynamic data.
-    lazy_assert(size <= BLOCK_ALLOCATOR_HEADER_RESERVE);
+    lazy_assert(size <= block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE);
     return size;
 }
 
@@ -816,7 +817,7 @@ void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFIL
     struct wbuf w_main;
     size_t size_main       = toku_serialize_ft_size(h);
     size_t size_main_aligned = roundup_to_multiple(512, size_main);
-    assert(size_main_aligned<BLOCK_ALLOCATOR_HEADER_RESERVE);
+    assert(size_main_aligned<block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE);
     char *XMALLOC_N_ALIGNED(512, size_main_aligned, mainbuf);
     for (size_t i=size_main; i<size_main_aligned; i++) mainbuf[i]=0; // initialize the end of the buffer with zeros
     wbuf_init(&w_main, mainbuf, size_main);
@@ -844,7 +845,7 @@ void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFIL
     //Alternate writing header to two locations:
     //   Beginning (0) or BLOCK_ALLOCATOR_HEADER_RESERVE
     toku_off_t main_offset;
-    main_offset = (h->checkpoint_count & 0x1) ? 0 : BLOCK_ALLOCATOR_HEADER_RESERVE;
+    main_offset = (h->checkpoint_count & 0x1) ? 0 : block_allocator::BLOCK_ALLOCATOR_HEADER_RESERVE;
     toku_os_full_pwrite(fd, w_main.buf, size_main_aligned, main_offset);
     toku_free(w_main.buf);
     toku_free(w_translation.buf);

@@ -109,7 +109,6 @@ PATENT RIGHTS GRANT:
 #include "toku_list.h"
 #include <util/omt.h>
 #include "leafentry.h"
-#include "block_table.h"
 #include "compress.h"
 #include <util/omt.h>
 #include "ft/bndata.h"
@@ -117,6 +116,7 @@ PATENT RIGHTS GRANT:
 #include "ft/rollback.h"
 #include "ft/msg_buffer.h"
 
+struct block_table;
 struct ft_search;
 
 enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
@@ -229,7 +229,7 @@ struct ft {
     // These are not read-only:
 
     // protected by blocktable lock
-    BLOCK_TABLE blocktable;
+    struct block_table *blocktable;
 
     // protected by atomic builtins
     STAT64INFO_S in_memory_stats;
@@ -385,7 +385,7 @@ unsigned int toku_serialize_ftnode_size(FTNODE node); /* How much space will it 
 void toku_verify_or_set_counts(FTNODE);
 
 size_t toku_serialize_ft_size (FT_HEADER h);
-void toku_serialize_ft_to (int fd, FT_HEADER h, BLOCK_TABLE blocktable, CACHEFILE cf);
+void toku_serialize_ft_to (int fd, FT_HEADER h, struct block_table *blocktable, CACHEFILE cf);
 void toku_serialize_ft_to_wbuf (
     struct wbuf *wbuf, 
     FT_HEADER h, 

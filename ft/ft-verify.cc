@@ -97,10 +97,11 @@ PATENT RIGHTS GRANT:
  *   For each nonleaf node:  All the messages have keys that are between the associated pivot keys ( left_pivot_key < message <= right_pivot_key)
  */
 
-#include "ft-cachetable-wrappers.h"
-#include "ft-internal.h"
-#include "ft.h"
-#include "node.h"
+#include "ft/block_table.h"
+#include "ft/ft.h"
+#include "ft/ft-cachetable-wrappers.h"
+#include "ft/ft-internal.h"
+#include "ft/node.h"
 
 static int 
 compare_pairs (FT_HANDLE ft_handle, const DBT *a, const DBT *b) {

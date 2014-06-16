@@ -89,6 +89,7 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+#include "ft/block_table.h"
 #include "ft/ft.h"
 #include "ft/ft-cachetable-wrappers.h"
 #include "ft/ft-internal.h"
@@ -107,10 +108,10 @@ toku_reset_root_xid_that_created(FT ft, TXNID new_root_xid_that_created) {
 
     // hold lock around setting and clearing of dirty bit
     // (see cooperative use of dirty bit in ft_begin_checkpoint())
-    toku_ft_lock (ft);
+    toku_ft_lock(ft);
     ft->h->root_xid_that_created = new_root_xid_that_created;
     ft->h->dirty = 1;
-    toku_ft_unlock (ft);
+    toku_ft_unlock(ft);
 }
 
 static void

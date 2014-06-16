@@ -100,18 +100,19 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <fcntl.h>
 
-#include <util/x1764.h>
+#include "ft/block_table.h"
+#include "ft/ft.h"
+#include "ft/ft-internal.h"
+#include "ft/leafentry.h"
+#include "ft/loader/loader-internal.h"
+#include "ft/loader/pqueue.h"
+#include "ft/loader/dbufio.h"
+#include "ft/log-internal.h"
+#include "ft/node.h"
+#include "ft/sub_block.h"
+#include "ft/sub_block_map.h"
 
-#include "loader/loader-internal.h"
-#include "ft-internal.h"
-#include "sub_block.h"
-#include "sub_block_map.h"
-#include "loader/pqueue.h"
-#include "loader/dbufio.h"
-#include "leafentry.h"
-#include "log-internal.h"
-#include "ft.h"
-#include "node.h"
+#include "util/x1764.h"
 
 static size_t (*os_fwrite_fun)(const void *,size_t,size_t,FILE*)=NULL;
 void ft_loader_set_os_fwrite (size_t (*fwrite_fun)(const void*,size_t,size_t,FILE*)) {

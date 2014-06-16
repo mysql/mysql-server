@@ -435,10 +435,10 @@ test_prefetching(void) {
         DISKOFF offset;
         DISKOFF size;
         toku_blocknum_realloc_on_disk(ft_h->blocktable, b, 100, &offset, ft_h, fd, false);
-        assert(offset==BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(offset==block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
 
         toku_translate_blocknum_to_offset_size(ft_h->blocktable, b, &offset, &size);
-        assert(offset == BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+        assert(offset == block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
         assert(size   == 100);
     }
     FTNODE_DISK_DATA ndd = NULL;
@@ -450,7 +450,7 @@ test_prefetching(void) {
 
     toku_destroy_ftnode_internals(&sn);
 
-    toku_block_free(ft_h->blocktable, BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
+    toku_block_free(ft_h->blocktable, block_allocator::BLOCK_ALLOCATOR_TOTAL_HEADER_RESERVE);
     toku_blocktable_destroy(&ft_h->blocktable);
     ft_h->cmp.destroy();
     toku_free(ft_h->h);

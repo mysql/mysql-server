@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 int verbose = 0;
 
 static void
-print_array (uint64_t n, const struct block_allocator_blockpair a[/*n*/]) {
+print_array (uint64_t n, const struct block_allocator::blockpair a[/*n*/]) {
     printf("{");
     for (uint64_t i=0; i<n; i++) printf(" %016lx", (long)a[i].offset);
     printf("}\n");
@@ -103,20 +103,20 @@ print_array (uint64_t n, const struct block_allocator_blockpair a[/*n*/]) {
 
 static int
 compare_blockpairs (const void *av, const void *bv) {
-    const struct block_allocator_blockpair *CAST_FROM_VOIDP(a, av);
-    const struct block_allocator_blockpair *CAST_FROM_VOIDP(b, bv);
+    const struct block_allocator::blockpair *CAST_FROM_VOIDP(a, av);
+    const struct block_allocator::blockpair *CAST_FROM_VOIDP(b, bv);
     if (a->offset < b->offset) return -1;
     if (a->offset > b->offset) return +1;
     return 0;
 }
 
 static void
-test_merge (uint64_t an, const struct block_allocator_blockpair a[/*an*/],
-	    uint64_t bn, const struct block_allocator_blockpair b[/*bn*/]) {
+test_merge (uint64_t an, const struct block_allocator::blockpair a[/*an*/],
+	    uint64_t bn, const struct block_allocator::blockpair b[/*bn*/]) {
     if (verbose>1) { printf("a:"); print_array(an, a); }
     if (verbose>1) { printf("b:"); print_array(bn, b); }
-    struct block_allocator_blockpair *MALLOC_N(an+bn, q);
-    struct block_allocator_blockpair *MALLOC_N(an+bn, m);
+    struct block_allocator::blockpair *MALLOC_N(an+bn, q);
+    struct block_allocator::blockpair *MALLOC_N(an+bn, m);
     if (q==0 || m==0) {
 	fprintf(stderr, "malloc failed, continuing\n");
 	goto malloc_failed;
@@ -131,7 +131,7 @@ test_merge (uint64_t an, const struct block_allocator_blockpair a[/*an*/],
     qsort(q, an+bn, sizeof(*q), compare_blockpairs);
     if (verbose>1) { printf("q:"); print_array(an+bn, q); }
     if (verbose) printf("merge\n");
-    block_allocator_merge_blockpairs_into(an, m, bn, b);
+    block_allocator::merge_blockpairs_into(an, m, bn, b);
     if (verbose) printf("compare\n");
     if (verbose>1) { printf("m:"); print_array(an+bn, m); }
     for (uint64_t i=0; i<an+bn; i++) {
@@ -163,8 +163,8 @@ compute_b (uint64_t i, int mode) {
 static void
 test_merge_n_m (uint64_t n, uint64_t m, int mode)
 {
-    struct block_allocator_blockpair *MALLOC_N(n, na);
-    struct block_allocator_blockpair *MALLOC_N(m, ma);
+    struct block_allocator::blockpair *MALLOC_N(n, na);
+    struct block_allocator::blockpair *MALLOC_N(m, ma);
     if (na==0 || ma==0) {
 	fprintf(stderr, "malloc failed, continuing\n");
 	goto malloc_failed;
@@ -197,8 +197,8 @@ test_big_merge (void) {
 
 	uint64_t an = twoG;
 	uint64_t bn = 1;
-	struct block_allocator_blockpair *MALLOC_N(an+bn, a);
-        struct block_allocator_blockpair *MALLOC_N(bn,    b);
+	struct block_allocator::blockpair *MALLOC_N(an+bn, a);
+        struct block_allocator::blockpair *MALLOC_N(bn,    b);
         if (a == nullptr) {
             fprintf(stderr, "%s:%u malloc failed, continuing\n", __FUNCTION__, __LINE__);
             goto malloc_failed;
@@ -211,7 +211,7 @@ test_big_merge (void) {
         assert(b);
         for (uint64_t i=0; i<an; i++) a[i].offset=i+1;
         b[0].offset = 0;
-        block_allocator_merge_blockpairs_into(an, a, bn, b);
+        block_allocator::merge_blockpairs_into(an, a, bn, b);
         for (uint64_t i=0; i<an+bn; i++) assert(a[i].offset == i);
     malloc_failed:
         toku_free(a);
