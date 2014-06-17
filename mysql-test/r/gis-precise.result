@@ -753,6 +753,49 @@ ST_Distance(ST_GeomFromText('GEOMETRYCOLLECTION()'),ST_GeomFromText('POINT(10 10
 SELECT ST_Distance(ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('GEOMETRYCOLLECTION()'));
 ST_Distance(ST_GeomFromText('POINT(10 10)'),ST_GeomFromText('GEOMETRYCOLLECTION()'))
 0
+Select Area(PolygonFromText('POLYGON((0 0, 30 30, 30 0, 0 5, 0 0, 30 5, 30 0, 0 10, 0 0, 30 10, 30 0, 0 0))')) as Result;
+Result
+450
+Select Area(PolygonFromText('POLYGON((1 1, 10 1, 1 0, 10 0, 1 -1, 10 -1, 7 2, 7 -2, 4 2, 4 -2, 1 1))')) as Result;
+Result
+0
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (-1 -1, -10 -1, -10 -15, -1 -15, -1 -1))'))) as Result;
+Result
+POINT(36.3 62.3)
+Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 10 1, 10 20, 1 20, 1 1),(-1 -1, -10 -1, -10 -15, -1 -15, -1 -1)))'))) as Result;
+Result
+POINT(36.3 62.3)
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (5 5))'))) as Result;
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (1 1))'))) as Result;
+ERROR HY000: Incorrect arguments to A polygon's ring must have at least 3 distinct points.
+Select AsText(Centroid(PolyFromText('POLYGON((1 1, 10 1, 10 20, 1 20, 1 1), (5 5, 6 5, 6 6, 5 6, 5 5))'))) as Result;
+Result
+POINT(5.5 10.529411764705882)
+Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0, 1 0))'))) as Result;
+Result
+NULL
+Select AsText(Centroid(PolyFromText('POLYGON((1 0, 2 0, 3 0, 4 0, 5 0, 1 0), (2 0, 3 0, 2 0))'))) as Result;
+Result
+NULL
+Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 2 1, 2 3, 1 3, 1 1),(1 1, 2 1, 2 3, 1 3, 1 1)),((1 1, 2 1, 2 3, 1 3, 1 1)))'))) as Result;
+Result
+POINT(1.5 2)
+Select AsText(Centroid(MultiPolygonFromText('MULTIPOLYGON(((1 1, 2 1, 2 3, 1 3, 1 1),(1 1, 2 1, 2 3, 1 3, 1 1)),((20 20, 30 20, 30 40, 20 40, 20 20)))'))) as Result;
+Result
+POINT(25 30)
+select astext(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0'),Point('-0', '0'), Point('0', '-0'))))) as result;
+result
+MULTIPOINT(0 0,-0 0,0 -0)
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0', '0'),Point('-0', '0'), Point('0', '-0')))))) as result;
+result
+POLYGON((0 0,0 0,0 0,0 0,0 0))
+select astext(MPointFromWKB(AsWKB(MultiPoint(Point('0', '-0'),Point('-0', '0'), Point('0', '0'))))) as result;
+result
+MULTIPOINT(0 -0,-0 0,0 0)
+select Astext(Envelope(MPointFromWKB(AsWKB(MultiPoint(Point('0', '-0'),Point('-0', '0'), Point('0', '0')))))) as result;
+result
+POLYGON((0 0,0 0,0 0,0 0,0 0))
 DROP TABLE IF EXISTS p1;
 CREATE PROCEDURE p1(dist DOUBLE, geom TEXT)
 BEGIN
