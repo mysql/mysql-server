@@ -5063,14 +5063,14 @@ st_known_type(const NdbDictionary::Dictionary::List::Element& element)
 }
 
 static int
-st_find_object(NdbDictionary::Dictionary::List& list,
+st_find_object(const NdbDictionary::Dictionary::List& list,
                NdbDictionary::Object::Type type, int id)
 {
   int n;
   for (n = 0; n < (int)list.count; n++) {
     const NdbDictionary::Dictionary::List::Element& element =
       list.elements[n];
-    if (element.type == type && element.id == id)
+    if (element.type == type && (int)element.id == id)
       return n;
   }
   return -1;
