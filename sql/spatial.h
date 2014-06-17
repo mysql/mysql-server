@@ -130,6 +130,11 @@ struct MBR
     double x, y;
     float8get(&x, px);
     float8get(&y, py);
+    if (x == -0)
+      x= 0;
+    if (y == -0)
+      y= 0;
+
     add_xy(x,y);
   }
   void add_mbr(const MBR *mbr)
