@@ -356,7 +356,6 @@ que_fork_start_command(
 
 			break;
 
-		case QUE_THR_ERROR:
 		case QUE_THR_RUNNING:
 		case QUE_THR_LOCK_WAIT:
 		case QUE_THR_PROCEDURE_WAIT:

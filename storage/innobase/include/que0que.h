@@ -103,6 +103,18 @@ que_graph_free(
 			to this graph: if not, then use
 			que_graph_free_recursive and free the heap
 			afterwards! */
+/**
+@param[in,out] thr	Query thread entering InnoDB */
+void
+que_thr_enter(
+	que_thr_t*	thr);
+
+/**
+@param[in,out] thr	Query thread exiting InnoDB */
+void
+que_thr_exit(
+	que_thr_t*	thr);
+
 /**********************************************************************//**
 Stops a query thread if graph or trx is in a state requiring it. The
 conditions are tested in the order (1) graph, (2) trx. The lock_sys_t::mutex
@@ -352,8 +364,7 @@ enum que_thr_state_t {
 	QUE_THR_COMPLETED,
 	QUE_THR_COMMAND_WAIT,
 	QUE_THR_LOCK_WAIT,
-	QUE_THR_SUSPENDED,
-	QUE_THR_ERROR
+	QUE_THR_SUSPENDED
 };
 
 /** Query thread lock states */
