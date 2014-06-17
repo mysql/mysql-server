@@ -673,7 +673,7 @@ trx_purge_mark_undo_for_truncate(
 	for (ulint i = 1; i <= srv_undo_tablespaces_open; i++) {
 
 		if (fil_space_get_size(space_id)
-		    > (srv_max_undo_log_size / UNIV_PAGE_SIZE_DEF)) {
+		    > (srv_max_undo_log_size / srv_page_size)) {
 			/* Tablespace qualifies for truncate. */
 			undo_trunc->mark_for_trunc(space_id);
 			undo_trunc_t::add_space_to_trunc_list(space_id);
