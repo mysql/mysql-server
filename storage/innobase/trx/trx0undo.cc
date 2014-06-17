@@ -2145,6 +2145,8 @@ trx_undo_truncate_tablespace(
 			rseg_header + TRX_RSEG_HISTORY_SIZE, MLOG_4BYTES, &mtr)
 			+ 1;
 
+		ut_ad(rseg->curr_size == 1);
+
 		rseg->skip_allocation = false;
 		rseg->pages_marked_freed = 0;
 		rseg->last_page_no = FIL_NULL;
