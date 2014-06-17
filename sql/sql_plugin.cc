@@ -1612,7 +1612,7 @@ int plugin_init(int *argc, char **argv, int flags)
       if (plugin_initialize(&tmp_root, plugin_ptr, argc, argv, !is_myisam &&
                             (flags & PLUGIN_INIT_SKIP_INITIALIZATION)))
       {
-        if (mandatory)
+        if (plugin_ptr->load_option == PLUGIN_FORCE)
           goto err_unlock;
         plugin_ptr->state= PLUGIN_IS_DISABLED;
       }

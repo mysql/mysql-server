@@ -8,3 +8,6 @@ PLUGIN_TYPE	STORAGE ENGINE
 PLUGIN_LIBRARY	NULL
 PLUGIN_LIBRARY_VERSION	NULL
 LOAD_OPTION	ON
+#
+# MDEV-6351 - --plugin=force has no effect for built-in plugins
+#
