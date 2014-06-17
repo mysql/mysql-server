@@ -778,7 +778,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     char buff[20];
-    snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
+    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
     type.length= buff;
     type.dec= NULL;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
@@ -794,7 +794,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     char buff[20];
-    snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
+    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
     type.length= buff;
     type.dec= buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
