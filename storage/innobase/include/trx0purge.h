@@ -393,7 +393,8 @@ public:
 		undo_logger(),
 		m_undo_for_trunc(ULINT_UNDEFINED),
 		m_rseg_for_trunc(),
-		m_scan_start(1)
+		m_scan_start(1),
+		m_purge_lag()
 	{
 		/* Do Nothing. */
 	}
@@ -500,6 +501,18 @@ public:
 			s_spaces_to_truncate.end() ? false : true);
 	}
 
+	/** Cache Purge Lag.
+	@param[in]	purge_lag	original server purge lag */
+	void set_purge_lag(ulint purge_lag)
+	{
+		m_purge_lag = purge_lag;
+	}
+
+	/** Get purge lag.
+	@return cached purge lag. */
+	ulint get_purge_lag()
+	{ return(m_purge_lag); }
+
 public:
 	/** DDL logger to protect truncate action against server crash. */
 	undo_trunc_logger_t		undo_logger;
@@ -518,6 +531,9 @@ private:
 	/** Start scanning for UNDO tablespace from this space_id.
 	This is to avoid bias selection of one tablespace always. */
 	ulint			m_scan_start;
+
+	/** Purge Lag. */
+	ulint			m_purge_lag;
 };
 
 /** The control structure used in the purge operation */
