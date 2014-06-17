@@ -4331,6 +4331,7 @@ struct ST_Obj {
   char dbname[ST_MAX_NAME_SIZE];
   char name[ST_MAX_NAME_SIZE];
   int id;
+  enum { Skip = 0xFFFF }; // mark ignored objects in List
   bool create; // true/false = create/drop prepared or committed
   bool commit;
   bool exists() const { // visible to trans
@@ -5058,31 +5059,102 @@ st_set_create_tab(ST_Con& c, ST_Tab& tab, bool create)
 static bool
 st_known_type(const NdbDictionary::Dictionary::List::Element& element)
 {
-  // Brute force workaround for Bug#18759252:
-  //
-  // 'AUTOTEST REGRESSION CAUSED BY NEW SYSTEM TABLES ADDED BY INDEX STATISTICS'
-  // Remove this hacky patch when the above bug has been fixed.
-  if (strcmp(element.name, "ndb_index_stat_sample_x1") == 0 ||
-      strcmp(element.name, "NDB$INDEX_6_CUSTOM") == 0)
-    return false;
+  return element.id != ST_Obj::Skip;
+}
 
-  switch (element.type) {
-  case NdbDictionary::Object::UserTable:
-    assert(element.database != 0);
-    if (strcmp(element.database, "mysql") == 0)
-      break;
-    if (strncmp(element.name, "NDB$BLOB", 8) == 0)
-      break;
-    return true;
-  case NdbDictionary::Object::UniqueHashIndex:
-  case NdbDictionary::Object::OrderedIndex:
-  case NdbDictionary::Object::HashIndexTrigger:
-  case NdbDictionary::Object::IndexTrigger:
-    return true;
-  default:
-    break;
+static int
+st_find_object(NdbDictionary::Dictionary::List& list,
+               NdbDictionary::Object::Type type, int id)
+{
+  int n;
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == type && element.id == id)
+      return n;
   }
-  return false;
+  return -1;
+}
+
+// filter out irrelevant by whatever means (we need listObjects2)
+static int
+st_list_objects(ST_Con& c, NdbDictionary::Dictionary::List& list)
+{
+  g_info << "st_list_objects" << endl;
+  int keep[256];
+  memset(keep, 0, sizeof(keep));
+  chk2(c.dic->listObjects(list) == 0, c.dic->getNdbError());
+  int n;
+  // tables
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == NdbDictionary::Object::UserTable) {
+      int i;
+      for (i = 0; i < c.tabcount; i++) {
+        const ST_Tab& tab = c.tab(i);
+        if (strcmp(element.name, tab.name) == 0)
+          keep[n]++;
+      }
+    }
+    require(keep[n] <= 1);
+  }
+  // indexes
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == NdbDictionary::Object::UniqueHashIndex ||
+        element.type == NdbDictionary::Object::OrderedIndex) {
+      int i, j;
+      for (i = 0; i < c.tabcount; i++) {
+        const ST_Tab& tab = c.tab(i);
+        for (j = 0; j < tab.indcount; j++) {
+          const ST_Ind& ind = tab.ind(j);
+          if (strcmp(element.name, ind.name) == 0)
+            keep[n]++;
+        }
+      }
+    }
+    require(keep[n] <= 1);
+  }
+  // triggers
+  for (n = 0; n < (int)list.count; n++) {
+    const NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    if (element.type == NdbDictionary::Object::HashIndexTrigger) {
+      int id, n2;
+      chk2(sscanf(element.name, "NDB$INDEX_%d_UI", &id) == 1,
+           element.name);
+      n2 = st_find_object(list, NdbDictionary::Object::UniqueHashIndex, id);
+      chk2(n2 >= 0, element.name);
+      if (keep[n2])
+        keep[n]++;
+    }
+    if (element.type == NdbDictionary::Object::IndexTrigger) {
+      int id, n2;
+      chk2(sscanf(element.name, "NDB$INDEX_%d_CUSTOM", &id) == 1,
+           element.name);
+      n2 = st_find_object(list, NdbDictionary::Object::OrderedIndex, id);
+      chk2(n2 >= 0, element.name);
+      if (keep[n2])
+        keep[n]++;
+    }
+    require(keep[n] <= 1);
+  }
+  // mark ignored
+  for (n = 0; n < (int)list.count; n++) {
+    NdbDictionary::Dictionary::List::Element& element =
+      list.elements[n];
+    g_info << "id=" << element.id << " type=" << element.type
+           << " name=" << element.name << " keep=" << keep[n] << endl;
+    if (!keep[n]) {
+      require(element.id != ST_Obj::Skip);
+      element.id = ST_Obj::Skip;
+    }
+  }
+  return 0;
+err:
+  return -1;
 }
 
 static bool
@@ -5179,7 +5251,7 @@ static int
 st_verify_list(ST_Con& c)
 {
   NdbDictionary::Dictionary::List list;
-  chk2(c.dic->listObjects(list) == 0, c.dic->getNdbError());
+  chk1(st_list_objects(c, list) == 0);
   int i, j, k, n;
   // us vs list
   for (i = 0; i < c.tabcount; i++) {
@@ -5233,7 +5305,7 @@ st_wait_idle(ST_Con& c)
   int milli_sleep = 1000;
   while (count++ < max_count) {
     NdbDictionary::Dictionary::List list;
-    chk2(c.dic->listObjects(list) == 0, c.dic->getNdbError());
+    chk1(st_list_objects(c, list) == 0);
     bool ok = true;
     int n;
     for (n = 0; n < (int)list.count; n++) {
