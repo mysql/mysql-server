@@ -1171,7 +1171,7 @@ check_consistent_binlog_pos(char *binlog_pos_file, char *binlog_pos_offset)
 
   if (mysql_query_with_error_report(mysql, &res,
                                     "SHOW STATUS LIKE 'binlog_snapshot_%'"))
-    return 1;
+    return 0;
 
   found= 0;
   while ((row= mysql_fetch_row(res)))
