@@ -937,7 +937,14 @@ trx_purge_rseg_get_next_history_log(
 
 	mutex_enter(&(rseg->mutex));
 
-	ut_a(rseg->last_page_no != FIL_NULL);
+	if (rseg->last_page_no == FIL_NULL) {
+		/* if rseg is added to history list but we have truncated
+		the undo logs then rseg will not have any record to mark
+		for purge.
+		NOTE: rseg doesn't have valid data else UNDO tablespace
+		would have not qualified for purge. */
+		return;
+	}
 
 	purge_sys->iter.trx_no = rseg->last_trx_no + 1;
 	purge_sys->iter.undo_no = 0;
