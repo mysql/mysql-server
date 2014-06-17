@@ -305,3 +305,15 @@ que_graph_is_select(
 
 	return(FALSE);
 }
+
+/**
+@param[in,out] thr	Query thread entering InnoDB */
+void
+que_thr_enter(
+	que_thr_t*	thr);
+
+/**
+@param[in,out] thr	Query thread exiting InnoDB */
+void
+que_thr_exit(
+	que_thr_t*	thr);
