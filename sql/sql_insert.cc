@@ -400,8 +400,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            update_fields, update_values, duplic, &unused_conds,
                            false,
                            (fields.elements || !value_count ||
-                            table_list->view != 0),
-                           !thd->lex->is_ignore() && thd->is_strict_mode()))
+                           table_list->view != 0)))
     goto exit_without_my_ok;
 
   insert_table= insert_table_ref->table;
@@ -649,7 +648,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       {
         DBUG_ASSERT(thd->is_error());
         /*
-          TODO: set thd->abort_on_warning if values_list.elements == 1
+          TODO: Convert warnings to errors if values_list.elements == 1
           and check that all items return warning in case of problem with
           storing field.
         */
@@ -1053,8 +1052,6 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @param select_insert         TRUE if INSERT ... SELECT statement
   @param check_fields          TRUE if need to check that all INSERT fields are
                                given values.
-  @param abort_on_warning      whether to report if some INSERT field is not
-                               assigned as error (TRUE) or as warning (FALSE).
 
   @todo (in far future)
     In cases of:
@@ -1075,7 +1072,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
                           Item **where, bool select_insert,
-                          bool check_fields, bool abort_on_warning)
+                          bool check_fields)
 {
   DBUG_ENTER("mysql_prepare_insert");
 
@@ -1759,7 +1756,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            &insert_table_ref, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           select_lex->where_cond_ref(), true, false, false))
+                           select_lex->where_cond_ref(), true, false))
     DBUG_RETURN(TRUE);
 
   /*

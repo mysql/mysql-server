@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,7 +103,7 @@ NdbCondition_Init(struct NdbCondition* ndb_cond)
     result = pthread_cond_init(&ndb_cond->cond, NULL);
   }
 #else
-  result = native_cond_init(&ndb_cond->cond, NULL);
+  result = native_cond_init(&ndb_cond->cond);
 #endif
   assert(result==0);
   return result;
