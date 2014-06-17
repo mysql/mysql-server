@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ private:
   bool do_set_info(const int pos, const int value);
   bool do_set_info(const int pos, const ulong value);
   bool do_set_info(const int pos, const float value);
-  bool do_set_info(const int pos, const Dynamic_ids *value);
+  bool do_set_info(const int pos, const Server_ids *value);
   bool do_get_info(const int pos, char *value, const size_t size,
                    const char *default_value);
   bool do_get_info(const int pos, uchar *value, const size_t size,
@@ -63,8 +63,8 @@ private:
                    const ulong default_value);
   bool do_get_info(const int pos, float *value,
                    const float default_value);
-  bool do_get_info(const int pos, Dynamic_ids *value,
-                   const Dynamic_ids *default_value);
+  bool do_get_info(const int pos, Server_ids *value,
+                   const Server_ids *default_value);
   char* do_get_description_info();
   bool do_is_transactional();
   bool do_update_is_transactional();

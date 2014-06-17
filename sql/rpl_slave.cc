@@ -60,6 +60,8 @@
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "rpl_slave_commit_order_manager.h"
 
+#include <algorithm>
+
 using std::min;
 using std::max;
 
@@ -2003,7 +2005,7 @@ maybe it is a *VERY OLD MASTER*.");
     mysql_free_result(master_res);
     master_res= NULL;
   }
-  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.elements > 0)
+  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.size() > 0)
   {
     errmsg= "Slave configured with server id filtering could not detect the master server id.";
     err_code= ER_SLAVE_FATAL_ERROR;
@@ -2882,11 +2884,11 @@ bool show_slave_status(THD* thd, Master_info* mi)
       char buff[FN_REFLEN];
       ulong i, cur_len;
       for (i= 0, buff[0]= 0, cur_len= 0;
-           i < mi->ignore_server_ids->dynamic_ids.elements; i++)
+           i < mi->ignore_server_ids->dynamic_ids.size(); i++)
       {
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
-        get_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id, i);
+        s_id= mi->ignore_server_ids->dynamic_ids[i];
         slen= sprintf(sbuff, (i == 0 ? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
@@ -6845,7 +6847,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         If the master is on the ignore list, execution of
         format description log events and rotate events is necessary.
       */
-      (mi->ignore_server_ids->dynamic_ids.elements > 0 &&
+      (mi->ignore_server_ids->dynamic_ids.size() > 0 &&
        mi->shall_ignore_server_id(s_id) &&
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
@@ -8547,7 +8549,7 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     is mentioning IGNORE_SERVER_IDS= (...)
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-    reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
+    mi->ignore_server_ids->dynamic_ids.clear();
   for (size_t i= 0; i < lex_mi->repl_ignore_server_ids.size(); i++)
   {
     ulong s_id= lex_mi->repl_ignore_server_ids[i];
@@ -8559,16 +8561,10 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     }
     else
     {
-      if (bsearch((const ulong *) &s_id,
-                  mi->ignore_server_ids->dynamic_ids.buffer,
-                  mi->ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
-                  (int (*) (const void*, const void*))
-                  change_master_server_id_cmp) == NULL)
-        insert_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id);
+      // Keep the array sorted, ignore duplicates.
+      mi->ignore_server_ids->dynamic_ids.insert_unique(s_id);
     }
   }
-  sort_dynamic(&(mi->ignore_server_ids->dynamic_ids),
-               (qsort_cmp) change_master_server_id_cmp);
 
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);
