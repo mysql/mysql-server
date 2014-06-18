@@ -618,6 +618,7 @@ loop:
 		if (rseg->skip_allocation) {
 			mutex_enter(&(rseg->mutex));
 			rseg->pages_marked_freed += seg_size;
+			ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
 #ifdef HAVE_ATOMIC_BUILTINS
 			os_atomic_decrement_ulint(
 				&trx_sys->rseg_history_len, n_removed_logs);
@@ -626,7 +627,6 @@ loop:
 			trx_sys->rseg_history_len -= n_removed_logs;
 			trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
-			rseg->curr_size -= seg_size;
 			mutex_exit(&(rseg->mutex));
 		} else {
 			trx_purge_free_segment(
@@ -951,19 +951,12 @@ trx_purge_rseg_get_next_history_log(
 
 	mutex_enter(&(rseg->mutex));
 
+	ut_ad(rseg->last_page_no != FIL_NULL);
+
 	purge_sys->iter.trx_no = rseg->last_trx_no + 1;
 	purge_sys->iter.undo_no = 0;
 	purge_sys->iter.undo_rseg_space = ULINT_UNDEFINED;
 	purge_sys->next_stored = FALSE;
-
-	if (rseg->last_page_no == FIL_NULL) {
-		/* if rseg is added to history list but we have truncated
-		the undo logs then rseg will not have any record to mark
-		for purge.
-		NOTE: rseg doesn't have valid data else UNDO tablespace
-		would have not qualified for purge. */
-		return;
-	}
 
 	mtr_start(&mtr);
 
