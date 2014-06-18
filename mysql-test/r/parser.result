@@ -1098,3 +1098,13 @@ ERROR 42000: Too-big precision 66 specified for ''''. Maximum is 65.
 SELECT CONVERT(CONVERT('',DECIMAL(65,0)), DECIMAL(66,0));
 ERROR 42000: Too-big precision 66 specified for 'CONVERT('',DECIMAL(65,0))'. Maximum is 65.
 #
+# Bug #18759387: PROBLEM IN ITEM_FUNC_XOR::NEG_TRANSFORMER
+#
+SELECT 1<
+!(1 XOR TO_BASE64()));
+ERROR 42000: Incorrect parameter count in the call to native function 'TO_BASE64'
+SELECT  !('' XOR LENGTH());
+ERROR 42000: Incorrect parameter count in the call to native function 'LENGTH'
+SELECT  !((UNHEX() IS NULL));
+ERROR 42000: Incorrect parameter count in the call to native function 'UNHEX'
+#
