@@ -1526,7 +1526,7 @@ MDL_wait::MDL_wait()
   :m_wait_status(EMPTY)
 {
   mysql_mutex_init(key_MDL_wait_LOCK_wait_status, &m_LOCK_wait_status, NULL);
-  mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status, NULL);
+  mysql_cond_init(key_MDL_wait_COND_wait_status, &m_COND_wait_status);
 }
 
 

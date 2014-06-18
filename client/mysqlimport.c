@@ -634,7 +634,7 @@ int main(int argc, char **argv)
                                 PTHREAD_CREATE_DETACHED);
 
     native_mutex_init(&counter_mutex, NULL);
-    native_cond_init(&count_threshold, NULL);
+    native_cond_init(&count_threshold);
 
     for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {

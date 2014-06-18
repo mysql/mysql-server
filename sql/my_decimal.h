@@ -238,8 +238,9 @@ inline uint my_decimal_length_to_precision(uint length, uint scale,
 {
   /* Precision can't be negative thus ignore unsigned_flag when length is 0. */
   DBUG_ASSERT(length || !scale);
-  return (uint) (length - (scale>0 ? 1:0) -
+  uint retval= (uint) (length - (scale>0 ? 1:0) -
                  (unsigned_flag || !length ? 0:1));
+  return retval;
 }
 
 inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
@@ -251,8 +252,9 @@ inline uint32 my_decimal_precision_to_length_no_truncation(uint precision,
     unsigned_flag is ignored in this case.
   */
   DBUG_ASSERT(precision || !scale);
-  return (uint32)(precision + (scale > 0 ? 1 : 0) +
+  uint32 retval= (uint32)(precision + (scale > 0 ? 1 : 0) +
                   (unsigned_flag || !precision ? 0 : 1));
+  return retval;
 }
 
 inline uint32 my_decimal_precision_to_length(uint precision, uint8 scale,

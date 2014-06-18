@@ -371,9 +371,9 @@ int main(int argc, char **argv)
   }
 
   native_mutex_init(&counter_mutex, NULL);
-  native_cond_init(&count_threshold, NULL);
+  native_cond_init(&count_threshold);
   native_mutex_init(&sleeper_mutex, NULL);
-  native_cond_init(&sleep_threshold, NULL);
+  native_cond_init(&sleep_threshold);
 
   /* Main iterations loop */
   eptr= engine_options;
