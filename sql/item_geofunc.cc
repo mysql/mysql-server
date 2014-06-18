@@ -683,8 +683,7 @@ String *Item_func_spatial_collection::val_str(String *str)
       const uint data_offset= 4/*SRID*/ + 1;
       if (res->length() < data_offset + sizeof(uint32))
         goto err;
-      const char *data= res->ptr() + data_offset, *firstpt= NULL;
-      char *p_npts= NULL;
+      const char *data= res->ptr() + data_offset;
 
       /*
 	In the case of named collection we must check that items
@@ -715,6 +714,8 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 	const char *org_data= data;
+        const char *firstpt= NULL;
+        char *p_npts= NULL;
 
 	if (len < 4)
 	  goto err;
@@ -6772,10 +6773,16 @@ double Item_func_distance::val_real()
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
 
-  if ((null_value= (args[0]->null_value || args[1]->null_value ||
-          !(g1= Geometry::construct(&buffer1, res1)) ||
-          !(g2= Geometry::construct(&buffer2, res2)))))
-    goto mem_error;
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+    DBUG_RETURN(0.0);
+
+  if (!(g1= Geometry::construct(&buffer1, res1)) ||
+      !(g2= Geometry::construct(&buffer2, res2)))
+  {
+    // If construction fails, we assume invalid input data.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(0.0);
+  }
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
@@ -6914,8 +6921,7 @@ exit:
   scan_it.reset();
   DBUG_RETURN(distance);
 mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
+  DBUG_RETURN(0.0);
 }
 
 

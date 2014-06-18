@@ -6997,7 +6997,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #endif
   ulong client_flag= CLIENT_REMEMBER_OPTIONS;
   if (opt_slave_compressed_protocol)
-    client_flag=CLIENT_COMPRESS;                /* We will use compression */
+    client_flag|= CLIENT_COMPRESS;              /* We will use compression */
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
@@ -8517,8 +8517,30 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     mi->connect_retry = lex_mi->connect_retry;
   if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
+
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
+  else if (lex_mi->host || lex_mi->port)
+  {
+    /*
+      If the user specified host or port or both without heartbeat_period,
+      we use default value for heartbeat_period. By default, We want to always
+      have heartbeat enabled when we switch master unless
+      master_heartbeat_period is explicitly set to zero (heartbeat disabled).
+
+      Here is the default value for heartbeat period if CHANGE MASTER did not
+      specify it.  (no data loss in conversion as hb period has a max)
+    */
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
+    DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
+                || mi->heartbeat_period == 0);
+
+    // counter is cleared if master is CHANGED.
+    mi->received_heartbeats= 0;
+    // clear timestamp of last heartbeat as well.
+    mi->last_heartbeat= 0;
+  }
 
   /*
     reset the last time server_id list if the current CHANGE MASTER
