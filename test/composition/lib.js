@@ -283,12 +283,12 @@ function verifyProjection(tc, p, e, a) {
         testCase.appendErrorMessage('\n' + testCase.name +
               ' VerifyProjection failure for ' + domainObjectName +
               '\nexpected: ' + util.inspect(expected) + '\nactual: ' + actual);
-        return;
+        continue;
       }
       // check for null and undefined 
-      if (typeof expectedRelationship === 'undefined' && typeof actualRelationship === 'undefined' ||
-          expectedRelationship === null && actualRelationship === null) {
-        return;
+      if (typeof expected === 'undefined' && typeof actual === 'undefined' ||
+          expected === null && actual === null) {
+        continue;
       }
       // verify the fields first
       projection.fields.forEach(function(fieldName) {
