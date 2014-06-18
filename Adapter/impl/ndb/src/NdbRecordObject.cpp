@@ -57,8 +57,9 @@ NdbRecordObject::NdbRecordObject(const Record *_record,
       Handle<Value> b = blobBufferArray->ToObject()->Get(i);
       if(b->IsObject()) {
         nblobs++;
-        assert(node::Buffer::HasInstance(b));
-        proxy[i].setBlobBuffer(b);
+        Handle<Object> buf = b->ToObject();
+        assert(node::Buffer::HasInstance(buf));
+        proxy[i].setBlobBuffer(buf);
         record->setNotNull(i, buffer);
       } else if(b->IsNull()) {
         record->setNull(i, buffer);
