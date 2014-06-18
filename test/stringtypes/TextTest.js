@@ -91,7 +91,6 @@ t3.run = function() {
   });
 };
 
-
 var t4 = new harness.ConcurrentTest("t4:AsciiText");
 t4.run = function() {
   var i, data, verifier;
@@ -107,5 +106,56 @@ t4.run = function() {
   });
 };
 
+var t5 = new harness.ConcurrentTest("t5:Utf16Text");
+t5.run = function() {
+  var i, data, verifier;
+  data = new TextCharsetData();
+  data.utf16_text = "  Send a ☃ to college!  ";
+  verifier = new ValueVerifier(this, "utf16_text", data.utf16_text);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      testCase.errorIfError(err);
+      session.find(TextCharsetData, data.id, verifier.run);
+    });
+  });
+};  
 
-module.exports.tests = [ t1 , t2 , t3 , t4 ];
+var t6 = new harness.ConcurrentTest("t6:Latin1Text");
+t6.run = function() {
+  var i, data, verifier;
+  data = new TextCharsetData();
+  data.latin1_text = "gøød b¥te-stream éncØding of multi-byte Çhâracter sets.";
+  verifier = new ValueVerifier(this, "latin1_text", data.latin1_text);
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      testCase.errorIfError(err);
+      session.find(TextCharsetData, data.id, verifier.run);
+    });
+  });
+};  
+
+var t7 = new harness.ConcurrentTest("t7:AsciiAndUtf16Test");
+t7.run = function() {
+  var data = new TextCharsetData();
+  data.ascii_text = "  #$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLM  ";
+  data.latin1_text = null;
+  data.utf16_text = "  Send a ☃ to college!  ";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      session.find(TextCharsetData, data.id, function(err, obj) {
+        testCase.errorIfError(err);
+        testCase.errorIfNotEqual("ASCII value", data.ascii_text, obj.ascii_text);
+        testCase.errorIfNotNull("Latin1 value should be null", obj.latin1_text);
+        testCase.errorIfNotEqual("UTF16 value", data.utf16_text, obj.utf16_text);
+        testCase.failOnError();
+      });
+    });
+  });
+};
+
+// TODO:
+// Read / Modify / Update of text column
+// Read / Modify / Update object but not text column
+
+
+module.exports.tests = [ t1 , t2 , t3 , t4 , t5 , t6 , t7 ];
