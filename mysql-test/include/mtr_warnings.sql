@@ -217,13 +217,6 @@ INSERT INTO global_suppressions VALUES
  ("Slave I/O: The slave I/O thread stops because a fatal error is encountered when it tried to SET @master_binlog_checksum on master.*"),
  ("Slave I/O: Get master BINLOG_CHECKSUM failed with error.*"),
  ("Slave I/O: Notifying master by SET @master_binlog_checksum= @@global.binlog_checksum failed with error.*"),
- /*
-   BUG#42147 - Concurrent DML and LOCK TABLE ... READ for InnoDB 
-   table cause warnings in errlog
-   Note: This is a temporary suppression until Bug#42147 can be 
-   fixed properly. See bug page for more information.
-  */
- ("Found lock of type 6 that is write and read locked"),
 
  /*
    Warning message is printed out whenever a slave is started with
