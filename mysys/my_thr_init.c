@@ -33,10 +33,10 @@ mysql_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_fast_mutexattr;
+native_mutexattr_t my_fast_mutexattr;
 #endif
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_errorcheck_mutexattr;
+native_mutexattr_t my_errorcheck_mutexattr;
 #endif
 #ifdef _MSC_VER
 static void install_sigabrt_handler();

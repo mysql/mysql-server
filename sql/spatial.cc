@@ -1394,7 +1394,7 @@ Gis_polygon::~Gis_polygon()
   try
   {
 #endif
-    if (!is_bg_adapter())
+    if (!is_bg_adapter() && !get_ownmem())
       return;
 
     if (m_ptr)
@@ -1521,6 +1521,7 @@ void Gis_polygon::to_wkb_unparsed()
   m_inn_rings= NULL;
   polygon_is_wkb_form(true);
   set_bg_adapter(false);
+  set_ownmem(true);
 }
 
 
@@ -1767,12 +1768,12 @@ bool Gis_polygon::init_from_wkt(Gis_read_stream *trs, String *wkb)
   uint32 n_linear_rings= 0;
   uint32 lr_pos= wkb->length();
   int closed;
-  bool is_first= true;
 
   if (wkb->reserve(4, 512))
     return true;
   wkb->length(wkb->length()+4);			// Reserve space for points
 
+  bool is_first= true;
   for (;;)
   {
     Gis_line_string ls(false);
@@ -1852,7 +1853,6 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
 {
   uint32 n_linear_rings;
   const char *wkb_orig= wkb;
-  bool is_first= true;
 
   if (len < 4)
     return 0;
@@ -1864,6 +1864,7 @@ uint Gis_polygon::init_from_wkb(const char *wkb, uint len, wkbByteOrder bo,
   len-= 4;
   res->q_append(n_linear_rings);
 
+  bool is_first= true;
   while (n_linear_rings--)
   {
     Gis_line_string ls(false);

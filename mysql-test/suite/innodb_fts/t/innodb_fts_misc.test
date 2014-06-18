@@ -1330,6 +1330,36 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
 
 DROP TABLE t1;
 
+# Test single term ranking
+CREATE TABLE articles (
+       id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+       title VARCHAR(200),
+       body TEXT,
+       FULLTEXT (title,body)
+  ) ENGINE=InnoDB;
+
+# Repeatedly insert/delete records, the ranking should be the same for
+# each of them
+INSERT INTO articles (title,body) VALUES 
+('myfulltext database', 'my test fulltext database');
+
+SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
+MODE) AS score FROM articles ORDER BY score DESC;
+DELETE from articles WHERE title like "myfulltext database";
+
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+
+SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
+MODE) AS score FROM articles ORDER BY score DESC;
+DELETE from articles WHERE title like "myfulltext database";
+
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+
+SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
+MODE) AS score FROM articles ORDER BY score DESC;
+
+DROP TABLE articles;
+
 # Test for BUG 18277305 - FTS: FAILING ASSERTION: PTR[1] == '\"'
 # IN FTS_AST_CREATE_NODE_TEXT
 CREATE TABLE t1(
