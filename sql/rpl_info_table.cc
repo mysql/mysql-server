@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -581,9 +581,9 @@ bool Rpl_info_table::do_set_info(const int pos, const float value)
                                             &my_charset_bin));
 }
 
-bool Rpl_info_table::do_set_info(const int pos, const Dynamic_ids *value)
+bool Rpl_info_table::do_set_info(const int pos, const Server_ids *value)
 {
-  if (const_cast<Dynamic_ids *>(value)->pack_dynamic_ids(&field_values->value[pos]))
+  if (const_cast<Server_ids*>(value)->pack_dynamic_ids(&field_values->value[pos]))
     return TRUE;
 
   return FALSE;
@@ -664,8 +664,8 @@ bool Rpl_info_table::do_get_info(const int pos, float *value,
   return TRUE;
 }
 
-bool Rpl_info_table::do_get_info(const int pos, Dynamic_ids *value,
-                                 const Dynamic_ids *default_value __attribute__((unused)))
+bool Rpl_info_table::do_get_info(const int pos, Server_ids *value,
+                                 const Server_ids *default_value __attribute__((unused)))
 {
   if (value->unpack_dynamic_ids(field_values->value[pos].c_ptr_safe()))
     return TRUE;

@@ -1446,7 +1446,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
   printf("Main thread: %s\n",my_thread_name());
 
-  if ((error= mysql_cond_init(0, &COND_thread_count, NULL)))
+  if ((error= mysql_cond_init(0, &COND_thread_count)))
   {
     my_message_stderr(0, "Got error %d from mysql_cond_init", errno);
     exit(1);
