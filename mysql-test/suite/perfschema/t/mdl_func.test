@@ -343,6 +343,31 @@ execute dump_waits_current;
 execute dump_waits_history_long;
 --horizontal_results
 
+
+TRUNCATE TABLE performance_schema.events_waits_history_long;
+TRUNCATE TABLE performance_schema.events_waits_history;
+TRUNCATE TABLE performance_schema.events_waits_current;
+--connection con1
+
+BEGIN;
+
+# MDL lock is granted immediately, no wait
+UPDATE LOW_PRIORITY t1 SET a=8;
+
+--connection default
+
+echo "---- Marker 12 ----";
+
+--vertical_results
+execute dump_metadata_locks;
+execute dump_table_handles;
+execute dump_waits_current;
+execute dump_waits_history_long;
+--horizontal_results
+
+--connection con1
+COMMIT;
+
 # Cleanup
 
 --disconnect con1
