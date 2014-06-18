@@ -51,7 +51,8 @@ Smart ALTER TABLE
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
 	= Alter_inplace_info::ADD_INDEX
-	| Alter_inplace_info::ADD_UNIQUE_INDEX;
+	| Alter_inplace_info::ADD_UNIQUE_INDEX
+	| Alter_inplace_info::ADD_SPATIAL_INDEX;
 
 /** Operations for rebuilding a table in place */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
@@ -187,24 +188,6 @@ innobase_fulltext_exist(
 	return(false);
 }
 
-/** Determine if spatial indexes exist in a given table.
-@param table MySQL table
-@return whether spatial indexes exist on the table */
-static
-bool
-innobase_spatial_exist(
-/*===================*/
-	const	TABLE*	table)
-{
-	for (uint i = 0; i < table->s->keys; i++) {
-		if (table->key_info[i].flags & HA_SPATIAL) {
-			return(true);
-		}
-	}
-
-	return(false);
-}
-
 /*******************************************************************//**
 Determine if ALTER TABLE needs to rebuild the table.
 @param ha_alter_info the DDL operation
@@ -286,15 +269,6 @@ ha_innobase::check_if_supported_inplace_alter(
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
 	}
 
-	if ((ha_alter_info->handler_flags
-	     & Alter_inplace_info::ADD_SPATIAL_INDEX)
-	    || ((ha_alter_info->handler_flags
-		 & Alter_inplace_info::ADD_PK_INDEX
-		 || innobase_need_rebuild(ha_alter_info))
-		&& innobase_spatial_exist(altered_table))) {
-		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
-	}
-
 	/* Only support online add foreign key constraint when
 	check_foreigns is turned off */
 	if ((ha_alter_info->handler_flags
@@ -361,6 +335,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	     new_key < ha_alter_info->key_info_buffer
 		     + ha_alter_info->key_count;
 	     new_key++) {
+
 		for (KEY_PART_INFO* key_part = new_key->key_part;
 		     key_part < new_key->key_part + new_key->user_defined_key_parts;
 		     key_part++) {
@@ -431,6 +406,11 @@ ha_innobase::check_if_supported_inplace_alter(
 		    <= table->s->fields);
 	DBUG_ASSERT(!prebuilt->table->fts || prebuilt->table->fts->doc_col
 		    < dict_table_get_n_user_cols(prebuilt->table));
+
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
+		online = false;
+	}
 
 	if (prebuilt->table->fts
 	    && innobase_fulltext_exist(altered_table)) {
@@ -1528,6 +1508,7 @@ innobase_create_index_def(
 		DBUG_ASSERT(!(key->flags & HA_FULLTEXT));
 		index->ind_type |= DICT_CLUSTERED;
 	} else if (key->flags & HA_FULLTEXT) {
+		DBUG_ASSERT(!(key->flags & HA_SPATIAL));
 		DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
 			      & ~(HA_FULLTEXT
 				  | HA_PACK_KEY
@@ -1559,15 +1540,24 @@ innobase_create_index_def(
 				index->parser = &fts_default_parser;);
 			ut_ad(index->parser);
 		}
+	} else if (key->flags & HA_SPATIAL) {
+		DBUG_ASSERT(!(key->flags & HA_NOSAME));
+		index->ind_type |= DICT_SPATIAL;
+		ut_ad(n_fields == 1);
+		index->fields[0].col_no = key->key_part[0].fieldnr;
+		index->fields[0].prefix_len = 0;
 	}
 
 	if (!new_clustered) {
 		altered_table = NULL;
 	}
 
-	for (i = 0; i < n_fields; i++) {
-		innobase_create_index_field_def(
-			altered_table, &key->key_part[i], &index->fields[i]);
+	if (!(key->flags & HA_SPATIAL)) {
+		for (i = 0; i < n_fields; i++) {
+			innobase_create_index_field_def(
+				altered_table, &key->key_part[i],
+				&index->fields[i]);
+		}
 	}
 
 	DBUG_VOID_RETURN;
