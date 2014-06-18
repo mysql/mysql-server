@@ -12208,7 +12208,7 @@ static int ndbcluster_init(void *p)
   ndb_index_stat_thread.init();
 
   native_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
-  native_cond_init(&COND_ndb_setup_complete, NULL);
+  native_cond_init(&COND_ndb_setup_complete);
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
@@ -15428,8 +15428,8 @@ Ndb_util_thread::Ndb_util_thread()
   : running(-1)
 {
   native_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
-  native_cond_init(&COND, NULL);
-  native_cond_init(&COND_ready, NULL);
+  native_cond_init(&COND);
+  native_cond_init(&COND_ready);
 }
 
 Ndb_util_thread::~Ndb_util_thread()
