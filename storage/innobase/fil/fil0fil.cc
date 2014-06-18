@@ -332,6 +332,13 @@ struct fil_system_t {
 initialized. */
 static fil_system_t*	fil_system	= NULL;
 
+/** Last element index in fil_sys_lookup[]. This must not be smaller
+than the number of predefined tablespaces. */
+static const ulint	FIL_SYS_LOOKUP_SPACES	= TRX_SYS_N_RSEGS;
+/** Lookup array of the system tablespace and the undo tablespaces,
+and possibly some user tablespaces. */
+static fil_space_t*	fil_sys_lookup[FIL_SYS_LOOKUP_SPACES + 1];
+
 #ifdef UNIV_HOTBACKUP
 static ulint	srv_data_read;
 static ulint	srv_data_written;
@@ -1229,6 +1236,11 @@ fil_space_free_low(
 	ut_ad(mutex_own(&fil_system->mutex));
 
 	fil_space_t*	space = fil_space_get_by_id(id);
+	ut_ad(id > FIL_SYS_LOOKUP_SPACES || fil_sys_lookup[id] == space);
+
+	if (id <= FIL_SYS_LOOKUP_SPACES) {
+		fil_sys_lookup[id] = NULL;
+	}
 
 	if (space == NULL) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -1302,6 +1314,8 @@ fil_space_free(
 	ulint		id,
 	bool		x_latched)
 {
+	ut_ad(id != TRX_SYS_SPACE);
+
 	mutex_enter(&fil_system->mutex);
 	const bool freed = fil_space_free_low(id, x_latched);
 	mutex_exit(&fil_system->mutex);
@@ -1397,6 +1411,11 @@ fil_space_create(
 		    ut_fold_string(name), space);
 
 	UT_LIST_ADD_LAST(fil_system->space_list, space);
+
+	if (id <= FIL_SYS_LOOKUP_SPACES) {
+		ut_ad(fil_sys_lookup[id] == NULL);
+		fil_sys_lookup[id] = space;
+	}
 
 	if (id < SRV_LOG_SPACE_FIRST_ID && id > fil_system->max_assigned_id) {
 
@@ -5971,7 +5990,8 @@ fil_close(void)
 	mutex_free(&fil_system->mutex);
 
 	::ut_free(fil_system);
-
+	ut_d(for(ulint i = 0; i <= FIL_SYS_LOOKUP_SPACES; i++)
+		     ut_ad(fil_sys_lookup[i] == NULL));
 	fil_system = NULL;
 }
 
@@ -6473,16 +6493,59 @@ fil_spaces_lookup(
 	ulint		undo_space_id,
 	bool		find_system)
 {
-	mutex_enter(&fil_system->mutex);
+	ut_ad(!mutex_own(&fil_system->mutex));
+	/* Look up the tablespaces in fil_sys_lookup[] if possible.
+	Note: as we are not holding fil_system->mutex,
+	a race condition with fil_space_free() must be
+	prevented by the logic documented and tested in
+	fil_space_validate_for_mtr_commit(). */
 
-	spaces->user = user_space_id == TRX_SYS_SPACE
-		? NULL : fil_space_lookup(user_space_id);
-	spaces->undo = undo_space_id == TRX_SYS_SPACE
-		? NULL : fil_space_lookup(undo_space_id);
-	spaces->sys = !find_system
-		? NULL : fil_space_lookup(TRX_SYS_SPACE);
+	if (user_space_id == TRX_SYS_SPACE) {
+		spaces->user = NULL;
+	} else if (user_space_id <= FIL_SYS_LOOKUP_SPACES) {
+		spaces->user = fil_sys_lookup[user_space_id];
+		ut_d(fil_space_validate_for_mtr_commit(spaces->user));
+	} else {
+		mutex_enter(&fil_system->mutex);
+		spaces->user = fil_space_lookup(user_space_id);
+		mutex_exit(&fil_system->mutex);
+	}
 
-	mutex_exit(&fil_system->mutex);
+	ut_ad(undo_space_id <= FIL_SYS_LOOKUP_SPACES);
+#if TRX_SYS_SPACE != 0
+# error "TRX_SYS_SPACE != 0"
+#endif
+	if (undo_space_id == TRX_SYS_SPACE) {
+		spaces->undo = NULL;
+	} else {
+		spaces->undo = fil_sys_lookup[undo_space_id];
+		ut_d(fil_space_validate_for_mtr_commit(spaces->undo));
+		/* Undo tablespaces are never dropped. */
+		ut_ad(!spaces->undo->stop_new_ops);
+	}
+
+	if (!find_system) {
+		spaces->sys = NULL;
+	} else {
+		spaces->sys = fil_sys_lookup[TRX_SYS_SPACE];
+		ut_d(fil_space_validate_for_mtr_commit(spaces->sys));
+		/* The system tablespace is never dropped. */
+		ut_ad(!spaces->sys->stop_new_ops);
+	}
+
+	ut_d(do {
+			mutex_enter(&fil_system->mutex);
+			ut_ad(spaces->user
+			      == (user_space_id == TRX_SYS_SPACE
+				  ? NULL : fil_space_lookup(user_space_id)));
+			ut_ad(spaces->undo
+			      == (undo_space_id == TRX_SYS_SPACE
+				  ? NULL : fil_space_lookup(undo_space_id)));
+			ut_ad(spaces->sys
+			      == (find_system
+				  ? fil_space_lookup(TRX_SYS_SPACE) : NULL));
+			mutex_exit(&fil_system->mutex);
+		} while (0));
 }
 
 /** Write a MLOG_FILE_NAME record for a persistent tablespace.
