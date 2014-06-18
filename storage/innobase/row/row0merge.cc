@@ -1911,13 +1911,6 @@ func_exit:
 	mem_heap_free(row_heap);
 	ut_free(nonnull);
 
-	if (spatial_dtuple_info) {
-		for (ulint i = 0; i < num_spatial; i++) {
-			delete spatial_dtuple_info[i];
-		}
-		ut_free(spatial_dtuple_info);
-	}
-
 all_done:
 #ifdef FTS_INTERNAL_DIAG_PRINT
 	DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Scan Table\n");
@@ -1996,6 +1989,17 @@ wait_again:
 	ut_free(merge_buf);
 
 	btr_pcur_close(&pcur);
+
+	if (spatial_dtuple_info) {
+		for (ulint i = 0; i < num_spatial; i++) {
+			delete spatial_dtuple_info[i];
+		}
+		ut_free(spatial_dtuple_info);
+
+		if (spatial_heap) {
+			mem_heap_free(spatial_heap);
+		}
+	}
 
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
