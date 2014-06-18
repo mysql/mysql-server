@@ -62,7 +62,6 @@ insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
 insert into t1 select * from t1;
-insert into t1 select * from t1;
 check table t1;
 
 select count(*) from t1;
@@ -71,6 +70,16 @@ set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where Within(t1.c2, @g1);
 
 set @g1 = GeomFromText('Polygon((10 10,10 800,800 800,800 10,10 10))');
+select count(*) from t1 where Within(t1.c2, @g1);
+
+drop index c2 on t1;
+
+/* Test create index with algorithm=inplace */
+create spatial index idx2 on t1(c2);
+
+show create table t1;
+
+set @g1 = GeomFromText('Polygon((0 0,0 100,100 100,100 0,0 0))');
 select count(*) from t1 where Within(t1.c2, @g1);
 
 # Clean up.

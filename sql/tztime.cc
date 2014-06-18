@@ -223,6 +223,9 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
         ttisstdcnt +                            /* ttisstds */
         ttisgmtcnt)                             /* ttisgmts */
       return 1;
+#ifdef ABBR_ARE_USED
+    uint abbrs_buf_len= sp->charcnt+1;
+#endif
 
     if (!(tzinfo_buf= (char *)alloc_root(storage,
                                          ALIGN_SIZE(sp->timecnt *
@@ -231,7 +234,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
                                          ALIGN_SIZE(sp->typecnt *
                                                     sizeof(TRAN_TYPE_INFO)) +
 #ifdef ABBR_ARE_USED
-                                         ALIGN_SIZE(sp->charcnt) +
+                                         ALIGN_SIZE(abbrs_buf_len) +
 #endif
                                          sp->leapcnt * sizeof(LS_INFO))))
       return 1;
@@ -244,7 +247,7 @@ tz_load(const char *name, TIME_ZONE_INFO *sp, MEM_ROOT *storage)
     tzinfo_buf+= ALIGN_SIZE(sp->typecnt * sizeof(TRAN_TYPE_INFO));
 #ifdef ABBR_ARE_USED
     sp->chars= tzinfo_buf;
-    tzinfo_buf+= ALIGN_SIZE(sp->charcnt);
+    tzinfo_buf+= ALIGN_SIZE(abbrs_buf_len);
 #endif
     sp->lsis= (LS_INFO *)tzinfo_buf;
 
