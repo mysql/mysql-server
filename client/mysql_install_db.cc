@@ -1351,7 +1351,8 @@ int main(int argc,char *argv[])
   else
     opt_euid= 0;
   vector<string> command_line;
-  if (opt_defaults == FALSE && opt_defaults_file == NULL)
+  if (opt_defaults == FALSE && opt_defaults_file == NULL &&
+      opt_def_extra_file == NULL)
     command_line.push_back(string("--no-defaults"));
   if (opt_defaults_file != NULL)
     command_line.push_back(string("--defaults-file=")
