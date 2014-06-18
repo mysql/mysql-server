@@ -45,7 +45,7 @@ DBTransactionContext::DBTransactionContext(DBSessionImpl *impl) :
 }
 
 DBTransactionContext::~DBTransactionContext() {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   jsWrapper.Dispose();
 }
 

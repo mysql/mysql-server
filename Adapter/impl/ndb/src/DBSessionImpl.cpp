@@ -133,7 +133,7 @@ DBSessionImpl::DBSessionImpl(Ndb_cluster_connection *conn,
 
 
 DBSessionImpl::~DBSessionImpl() {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   delete ndb;
 }
 

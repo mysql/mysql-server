@@ -272,7 +272,7 @@ DBConnectionPool.prototype.close = function(userCallback) {
 
   function onNdbClose() {
     nclose--;
-    udebug.log("nclose", nclose);
+    udebug.log_detail("nclose", nclose);
     if(nclose === 0) {
       releaseNdbConnection(properties.ndb_connectstring,
                            properties.linger_on_close_msec,
