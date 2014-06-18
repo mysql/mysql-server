@@ -108,7 +108,7 @@ Handle<Value> freeTransactions(const Arguments & args) {
 }
 
 Handle<Value> DBSessionImplDestructor(const Arguments &args) {
-  DEBUG_MARKER(UDEB_DEBUG);
+  DEBUG_MARKER(UDEB_DETAIL);
   typedef NativeDestructorCall<DBSessionImpl> DCALL;
   DCALL * dcall = new DCALL(args);
   dcall->runAsync();
