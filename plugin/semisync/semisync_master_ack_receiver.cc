@@ -45,7 +45,7 @@ Ack_receiver::Ack_receiver()
   m_status= ST_DOWN;
   mysql_mutex_init(key_ss_mutex_Ack_receiver_mutex, &m_mutex,
                    MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_ss_cond_Ack_receiver_cond, &m_cond, NULL);
+  mysql_cond_init(key_ss_cond_Ack_receiver_cond, &m_cond);
   m_pid= 0;
 
   function_exit(kWho);

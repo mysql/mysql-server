@@ -1934,7 +1934,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->next=pg+1;
     pg->waiters=0;
     pg->state=PS_POOL;
-    mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
+    mysql_cond_init(key_PAGE_cond, &pg->cond);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
     pg->start= (my_xid *)(data + i*tc_log_page_size);
     pg->end= pg->start + pg->size;
@@ -1955,8 +1955,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=5;
 
   mysql_mutex_init(key_LOCK_tc, &LOCK_tc, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_active, &COND_active, 0);
-  mysql_cond_init(key_COND_pool, &COND_pool, 0);
+  mysql_cond_init(key_COND_active, &COND_active);
+  mysql_cond_init(key_COND_pool, &COND_pool);
 
   inited=6;
 

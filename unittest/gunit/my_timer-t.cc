@@ -52,7 +52,7 @@ static void test_timer_create(test_timer_t *test)
 {
   memset(test, 0, sizeof(test_timer_t));
   native_mutex_init(&test->mutex, NULL);
-  native_cond_init(&test->cond, NULL);
+  native_cond_init(&test->cond);
   EXPECT_EQ(my_timer_create(&test->timer), 0);
   test->timer.notify_function= timer_notify_function;
 }
@@ -268,7 +268,7 @@ TEST(Mysys, TestMultipleTimers)
 TEST(Mysys, TestTimerPerThread)
 {
   mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond, NULL);
+  mysql_cond_init(0, &cond);
   pthread_attr_init(&thr_attr);
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
 

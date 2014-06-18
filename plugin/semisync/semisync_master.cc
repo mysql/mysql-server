@@ -409,7 +409,7 @@ int ReplSemiSyncMaster::initObject()
   mysql_mutex_init(key_ss_mutex_LOCK_binlog_,
                    &LOCK_binlog_, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_ss_cond_COND_binlog_send_,
-                  &COND_binlog_send_, NULL);
+                  &COND_binlog_send_);
 
   /*
     rpl_semi_sync_master_wait_for_slave_count may be set through mysqld option.
