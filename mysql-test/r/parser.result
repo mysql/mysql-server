@@ -1075,3 +1075,26 @@ ROW(t1.b, a) = ROW( ROW(1, t2.c) = ROW(1, d), c) = a
 FROM t1
 )` from `test`.`t2` group by NULL
 DROP TABLE t1, t2;
+#
+# Bug#18498344: SELECT WITH ALIAS NOT WORKING IN 5.7
+#
+CREATE TABLE t1 (
+a INT
+);
+INSERT INTO t1 VALUES ( 2 );
+# Should succeed
+SELECT *
+FROM ( SELECT a FROM t1 UNION SELECT 1 ORDER BY a ) AS a1
+WHERE a1.a = 1 OR a1.a = 2;
+a
+1
+2
+DROP TABLE t1;
+#
+# Bug #18484088: PROBLEMS IN CREATE_FUNC_CAST ON QUERY ERRORS...
+#
+DO(CONVERT(CONVERT('',DECIMAL(66,0)), DECIMAL(66,0))), CAST(CONVERT(1,DECIMAL(65,31)) AS DATE);
+ERROR 42000: Too-big precision 66 specified for ''''. Maximum is 65.
+SELECT CONVERT(CONVERT('',DECIMAL(65,0)), DECIMAL(66,0));
+ERROR 42000: Too-big precision 66 specified for 'CONVERT('',DECIMAL(65,0))'. Maximum is 65.
+#

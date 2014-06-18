@@ -17,6 +17,8 @@
 --source include/no_valgrind_without_big.inc
 --source include/have_innodb.inc
 
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
 
 let MYSQLD_DATADIR =`SELECT @@datadir`;
 let $innodb_file_per_table = `SELECT @@innodb_file_per_table`;

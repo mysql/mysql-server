@@ -943,6 +943,7 @@ dict_drop_index_tree(
 	btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
 	/* printf("Dropping index tree in space %lu root page %lu\n", space,
 	root_page_no); */
+	mtr->set_named_space(space);
 	btr_free_root(root_page_id, page_size, mtr);
 
 	if (is_drop) {
@@ -965,14 +966,9 @@ dict_drop_index_tree_in_mem(
 	const dict_index_t*	index,		/*!< in: index */
 	ulint			page_no)	/*!< in: index page-no */
 {
-	mtr_t		mtr;
-
 	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(index->table));
-
-	mtr_start(&mtr);
-
-	dict_disable_redo_if_temporary(index->table, &mtr);
+	ut_ad(dict_table_is_temporary(index->table));
 
 	ulint			root_page_no = page_no;
 	ulint			space = index->space;
@@ -984,21 +980,23 @@ dict_drop_index_tree_in_mem(
 	tablespace and the .ibd file is missing do nothing,
 	else free the all the pages */
 	if (root_page_no != FIL_NULL && found) {
+		mtr_t	mtr;
+
+		mtr.start();
+		mtr.set_log_mode(MTR_LOG_NO_REDO);
 
 		const page_id_t	root_page_id(space, root_page_no);
 
 		/* We free all the pages but the root page first; this operation
 		may span several mini-transactions */
 		btr_free_but_not_root(
-			root_page_id, page_size,
-			(dict_table_is_temporary(index->table)
-			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
+			root_page_id, page_size, MTR_LOG_NO_REDO);
 
 		/* Then we free the root page. */
 		btr_free_root(root_page_id, page_size, &mtr);
-	}
 
-	mtr_commit(&mtr);
+		mtr.commit();
+	}
 }
 
 /*******************************************************************//**
@@ -1109,6 +1107,7 @@ dict_truncate_index_tree_in_mem(
 
 	ut_ad(mutex_own(&dict_sys->mutex)
 	      || dict_table_is_intrinsic(index->table));
+	ut_ad(dict_table_is_temporary(index->table));
 
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);
@@ -1154,9 +1153,7 @@ dict_truncate_index_tree_in_mem(
 		const page_id_t	root_page_id(space, root_page_no);
 
 		btr_free_but_not_root(
-			root_page_id, page_size,
-			(dict_table_is_temporary(index->table)
-			 ? MTR_LOG_NO_REDO : mtr_get_log_mode(&mtr)));
+			root_page_id, page_size, MTR_LOG_NO_REDO);
 
 		/* Then we free the root page in the same mini-transaction where
 		we create the b-tree and write its new root page number to the
@@ -1164,7 +1161,6 @@ dict_truncate_index_tree_in_mem(
 		mini-transaction marks the B-tree totally truncated */
 
 		btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, &mtr);
-
 		btr_free_root(root_page_id, page_size, &mtr);
 	}
 
@@ -1884,26 +1880,24 @@ dict_create_add_foreign_to_dictionary(
 	DBUG_RETURN(error);
 }
 
-/********************************************************************//**
-Adds foreign key definitions to data dictionary tables in the database.
+/** Adds the given set of foreign key objects to the dictionary tables
+in the database. This function does not modify the dictionary cache. The
+caller must ensure that all foreign key objects contain a valid constraint
+name in foreign->id.
+@param[in]	local_fk_set	set of foreign key objects, to be added to
+the dictionary tables
+@param[in]	table		table to which the foreign key objects in
+local_fk_set belong to
+@param[in,out]	trx		transaction
 @return error code or DB_SUCCESS */
-
 dberr_t
 dict_create_add_foreigns_to_dictionary(
 /*===================================*/
-	ulint		start_id,/*!< in: if we are actually doing ALTER TABLE
-				ADD CONSTRAINT, we want to generate constraint
-				numbers which are bigger than in the table so
-				far; we number the constraints from
-				start_id + 1 up; start_id should be set to 0 if
-				we are creating a new table, or if the table
-				so far has no constraints for which the name
-				was generated here */
-	dict_table_t*	table,	/*!< in: table */
-	trx_t*		trx)	/*!< in: transaction */
+	const dict_foreign_set&	local_fk_set,
+	const dict_table_t*	table,
+	trx_t*			trx)
 {
 	dict_foreign_t*	foreign;
-	ulint		number	= start_id + 1;
 	dberr_t		error;
 
 	ut_ad(mutex_own(&(dict_sys->mutex))
@@ -1921,17 +1915,12 @@ dict_create_add_foreigns_to_dictionary(
 		return(DB_ERROR);
 	}
 
-	for (foreign = UT_LIST_GET_FIRST(table->foreign_list);
-	     foreign;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::const_iterator it = local_fk_set.begin();
+	     it != local_fk_set.end();
+	     ++it) {
 
-		error = dict_create_add_foreign_id(&number, table->name,
-						   foreign);
-
-		if (error != DB_SUCCESS) {
-
-			return(error);
-		}
+		foreign = *it;
+		ut_ad(foreign->id != NULL);
 
 		error = dict_create_add_foreign_to_dictionary(table->name,
 							      foreign, trx);

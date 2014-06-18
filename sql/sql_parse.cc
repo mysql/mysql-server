@@ -1983,27 +1983,80 @@ bool sp_process_definer(THD *thd)
 static bool lock_tables_open_and_lock_tables(THD *thd, TABLE_LIST *tables)
 {
   Lock_tables_prelocking_strategy lock_tables_prelocking_strategy;
+  MDL_deadlock_and_lock_abort_error_handler deadlock_handler;
+  MDL_savepoint mdl_savepoint= thd->mdl_context.mdl_savepoint();
   uint counter;
   TABLE_LIST *table;
 
   thd->in_lock_tables= 1;
 
+retry:
+
   if (open_tables(thd, &tables, &counter, 0, &lock_tables_prelocking_strategy))
     goto err;
 
-  /*
-    We allow to change temporary tables even if they were locked for read
-    by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
-    TABLES time and by the statement which is later executed under LOCK TABLES
-    we ensure that for temporary tables we always request a write lock (such
-    discrepancy can cause problems for the storage engine).
-    We don't set TABLE_LIST::lock_type in this case as this might result in
-    extra warnings from THD::decide_logging_format() even though binary logging
-    is totally irrelevant for LOCK TABLES.
-  */
+  deadlock_handler.init();
+  thd->push_internal_handler(&deadlock_handler);
+
   for (table= tables; table; table= table->next_global)
-    if (!table->placeholder() && table->table->s->tmp_table)
-      table->table->reginfo.lock_type= TL_WRITE;
+  {
+    if (!table->placeholder())
+    {
+      if (table->table->s->tmp_table)
+      {
+        /*
+          We allow to change temporary tables even if they were locked for read
+          by LOCK TABLES. To avoid a discrepancy between lock acquired at LOCK
+          TABLES time and by the statement which is later executed under LOCK
+          TABLES we ensure that for temporary tables we always request a write
+          lock (such discrepancy can cause problems for the storage engine).
+          We don't set TABLE_LIST::lock_type in this case as this might result
+          in extra warnings from THD::decide_logging_format() even though
+          binary logging is totally irrelevant for LOCK TABLES.
+        */
+        table->table->reginfo.lock_type= TL_WRITE;
+      }
+      else if (table->lock_type == TL_READ &&
+               ! table->prelocking_placeholder &&
+               table->table->file->ha_table_flags() & HA_NO_READ_LOCAL_LOCK)
+      {
+        /*
+          In case when LOCK TABLE ... READ LOCAL was issued for table with
+          storage engine which doesn't support READ LOCAL option and doesn't
+          use THR_LOCK locks we need to upgrade weak SR metadata lock acquired
+          in open_tables() to stronger SRO metadata lock.
+          This is not needed for tables used through stored routines or
+          triggers as we always acquire SRO (or even stronger SNRW) metadata
+          lock for them.
+        */
+        bool result= thd->mdl_context.upgrade_shared_lock(
+                                        table->table->mdl_ticket,
+                                        MDL_SHARED_READ_ONLY,
+                                        thd->variables.lock_wait_timeout);
+
+        if (deadlock_handler.need_reopen())
+        {
+          /*
+            Deadlock occurred during upgrade of metadata lock.
+            Let us restart acquring and opening tables for LOCK TABLES.
+          */
+          thd->pop_internal_handler();
+          close_tables_for_reopen(thd, &tables, mdl_savepoint);
+          if (open_temporary_tables(thd, tables))
+            goto err;
+          goto retry;
+        }
+
+        if (result)
+        {
+          thd->pop_internal_handler();
+          goto err;
+        }
+      }
+    }
+  }
+
+  thd->pop_internal_handler();
 
   if (lock_tables(thd, tables, counter, 0) ||
       thd->locked_tables_list.init_locked_tables(thd))
@@ -2716,7 +2769,7 @@ case SQLCOM_PREPARE:
         TODO: Check if the order of the output of the select statement is
         deterministic. Waiting for BUG#42415
       */
-      if(lex->ignore)
+      if(lex->is_ignore())
         lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_CREATE_IGNORE_SELECT);
       
       if(lex->duplicates == DUP_REPLACE)
@@ -2825,14 +2878,26 @@ case SQLCOM_PREPARE:
                                        &alter_info,
                                        select_lex->item_list,
                                        lex->duplicates,
-                                       lex->ignore,
                                        select_tables)))
         {
+          /* Push ignore / strict error handler */
+          Ignore_error_handler ignore_handler;
+          Strict_error_handler strict_handler;
+          if (thd->lex->is_ignore())
+            thd->push_internal_handler(&ignore_handler);
+          else if (thd->is_strict_mode())
+            thd->push_internal_handler(&strict_handler);
+
           /*
             CREATE from SELECT give its SELECT_LEX for SELECT,
             and item_list belong to SELECT
           */
           res= handle_select(thd, result, 0);
+
+          /* Pop ignore / strict error handler */
+          if (thd->lex->is_ignore() || thd->is_strict_mode())
+            thd->pop_internal_handler();
+
           delete result;
         }
 
@@ -2841,6 +2906,10 @@ case SQLCOM_PREPARE:
     }
     else
     {
+      Strict_error_handler strict_handler;
+      /* Push Strict_error_handler */
+      if (!thd->lex->is_ignore() && thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
       /* regular create */
       if (create_info.options & HA_LEX_CREATE_TABLE_LIKE)
       {
@@ -2854,6 +2923,9 @@ case SQLCOM_PREPARE:
         res= mysql_create_table(thd, create_table,
                                 &create_info, &alter_info);
       }
+      /* Pop Strict_error_handler */
+      if (!thd->lex->is_ignore() && thd->is_strict_mode())
+        thd->pop_internal_handler();
       if (!res)
       {
         /* in case of create temp tables if @@session_track_state_change is
@@ -2902,9 +2974,16 @@ end_with_restore_list:
     create_info.row_type= ROW_TYPE_NOT_USED;
     create_info.default_table_charset= thd->variables.collation_database;
 
+    /* Push Strict_error_handler */
+    Strict_error_handler strict_handler;
+    if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
     DBUG_ASSERT(!select_lex->order_list.elements);
     res= mysql_alter_table(thd, first_table->db, first_table->table_name,
                            &create_info, first_table, &alter_info);
+    /* Pop Strict_error_handler */
+    if (thd->is_strict_mode())
+      thd->pop_internal_handler();
     break;
   }
 #ifdef HAVE_REPLICATION
@@ -3079,7 +3158,7 @@ end_with_restore_list:
       TODO: Check if the order of the output of the select statement is
       deterministic. Waiting for BUG#42415
     */
-    if (lex->ignore)
+    if (lex->is_ignore())
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_UPDATE_IGNORE);
 
     DBUG_ASSERT(select_lex->offset_limit == 0);
@@ -3091,11 +3170,23 @@ end_with_restore_list:
     {
       if (!all_tables->multitable_view)
       {
+        /* Push ignore / strict error handler */
+        Ignore_error_handler ignore_handler;
+        Strict_error_handler strict_handler;
+        if (thd->lex->is_ignore())
+          thd->push_internal_handler(&ignore_handler);
+        else if (thd->is_strict_mode())
+          thd->push_internal_handler(&strict_handler);
+
         res= mysql_update(thd, select_lex->item_list,
                           lex->value_list,
                           unit->select_limit_cnt,
-                          lex->duplicates, lex->ignore,
+                          lex->duplicates,
                           &found, &updated);
+
+        /* Pop ignore / strict error handler */
+        if (thd->lex->is_ignore() || thd->is_strict_mode())
+          thd->pop_internal_handler();
       }
       else
       {
@@ -3169,6 +3260,14 @@ end_with_restore_list:
     }  /* unlikely */
 #endif
     {
+      /* Push ignore / strict error handler */
+      Ignore_error_handler ignore_handler;
+      Strict_error_handler strict_handler;
+      if (thd->lex->is_ignore())
+        thd->push_internal_handler(&ignore_handler);
+      else if (thd->is_strict_mode())
+        thd->push_internal_handler(&strict_handler);
+
       multi_update *result_obj;
       MYSQL_MULTI_UPDATE_START(const_cast<char*>(thd->query().str));
       res= mysql_multi_update(thd,
@@ -3176,9 +3275,13 @@ end_with_restore_list:
                               &lex->value_list,
                               select_lex->options,
                               lex->duplicates,
-                              lex->ignore,
                               select_lex,
                               &result_obj);
+
+      /* Pop ignore / strict error handler */
+      if (thd->lex->is_ignore() || thd->is_strict_mode())
+        thd->pop_internal_handler();
+
       if (result_obj)
       {
         MYSQL_MULTI_UPDATE_DONE(res, result_obj->num_found(),
@@ -3241,11 +3344,24 @@ end_with_restore_list:
     if ((res= insert_precheck(thd, all_tables)))
       break;
 
+    /* Push ignore / strict error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
     MYSQL_INSERT_START(const_cast<char*>(thd->query().str));
     res= mysql_insert(thd, all_tables, lex->field_list, lex->many_values,
 		      lex->update_list, lex->value_list,
-                      lex->duplicates, lex->ignore);
+                      lex->duplicates);
     MYSQL_INSERT_DONE(res, (ulong) thd->get_row_count_func());
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
     /*
       If we have inserted into a VIEW, and the base table has
       AUTO_INCREMENT column, but this column is not accessible through
@@ -3286,7 +3402,7 @@ end_with_restore_list:
         lex->duplicates == DUP_UPDATE)
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_SELECT_UPDATE);
 
-    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->ignore)
+    if (lex->sql_command == SQLCOM_INSERT_SELECT && lex->is_ignore())
       lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_INSERT_IGNORE_SELECT);
 
     if (lex->sql_command == SQLCOM_REPLACE_SELECT)
@@ -3312,13 +3428,26 @@ end_with_restore_list:
                                                  &lex->field_list,
                                                  &lex->update_list,
                                                  &lex->value_list,
-                                                 lex->duplicates,
-                                                 lex->ignore)))
+                                                 lex->duplicates)))
       {
         if (lex->describe)
           res= explain_query(thd, thd->lex->unit, sel_result);
         else
+        {
+          /* Push ignore / strict error handler */
+          Ignore_error_handler ignore_handler;
+          Strict_error_handler strict_handler;
+          if (thd->lex->is_ignore())
+            thd->push_internal_handler(&ignore_handler);
+          else if (thd->is_strict_mode())
+            thd->push_internal_handler(&strict_handler);
+
           res= handle_select(thd, sel_result, OPTION_SETUP_TABLES_DONE);
+
+          /* Pop ignore / strict error handler */
+          if (thd->lex->is_ignore() || thd->is_strict_mode())
+            thd->pop_internal_handler();
+        }
         delete sel_result;
       }
       /* revert changes for SP */
@@ -3345,9 +3474,22 @@ end_with_restore_list:
     DBUG_ASSERT(select_lex->offset_limit == 0);
     unit->set_limit(select_lex);
 
+    /* Push ignore / strict error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
     MYSQL_DELETE_START(const_cast<char*>(thd->query().str));
     res = mysql_delete(thd, unit->select_limit_cnt, select_lex->options);
     MYSQL_DELETE_DONE(res, (ulong) thd->get_row_count_func());
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
     break;
   }
   case SQLCOM_DELETE_MULTI:
@@ -3387,12 +3529,26 @@ end_with_restore_list:
         DBUG_ASSERT(select_lex->having_cond() == NULL &&
                     !select_lex->order_list.elements &&
                     !select_lex->group_list.elements);
+
+        /* Push ignore / strict error handler */
+        Ignore_error_handler ignore_handler;
+        Strict_error_handler strict_handler;
+        if (thd->lex->is_ignore())
+          thd->push_internal_handler(&ignore_handler);
+        else if (thd->is_strict_mode())
+          thd->push_internal_handler(&strict_handler);
+
         res= mysql_select(thd,
                           select_lex->item_list,
                           (select_lex->options | thd->variables.option_bits |
                           SELECT_NO_JOIN_CACHE | SELECT_NO_UNLOCK |
                           OPTION_SETUP_TABLES_DONE) & ~OPTION_BUFFER_RESULT,
                           del_result, select_lex);
+
+        /* Pop ignore / strict error handler */
+        if (thd->lex->is_ignore() || thd->is_strict_mode())
+          thd->pop_internal_handler();
+
         res|= thd->is_error();
         if (res)
           del_result->abort_result_set();
@@ -3477,9 +3633,22 @@ end_with_restore_list:
     if (check_one_table_access(thd, privilege, all_tables))
       goto error;
 
+    /* Push strict / ignore error handler */
+    Ignore_error_handler ignore_handler;
+    Strict_error_handler strict_handler;
+    if (thd->lex->is_ignore())
+      thd->push_internal_handler(&ignore_handler);
+    else if (thd->is_strict_mode())
+      thd->push_internal_handler(&strict_handler);
+
     res= mysql_load(thd, lex->exchange, first_table, lex->field_list,
                     lex->update_list, lex->value_list, lex->duplicates,
-                    lex->ignore, (bool) lex->local_file);
+                    (bool) lex->local_file);
+
+    /* Pop ignore / strict error handler */
+    if (thd->lex->is_ignore() || thd->is_strict_mode())
+      thd->pop_internal_handler();
+
     break;
   }
 
@@ -4301,7 +4470,7 @@ end_with_restore_list:
 	select_limit= thd->variables.select_limit;
 	thd->variables.select_limit= HA_POS_ERROR;
 
-        /* 
+        /*
           We never write CALL statements into binlog:
            - If the mode is non-prelocked, each statement will be logged
              separately.
@@ -5231,26 +5400,41 @@ void mysql_parse(THD *thd, Parser_state *parser_state)
                thd->lex->sql_command == SQLCOM_CREATE_TABLE ||
                thd->lex->sql_command == SQLCOM_DROP_TABLE))
           {
-            /*
-              This ensures that an empty transaction is logged if
-              needed. It is executed at the end of an implicitly or
-              explicitly committing statement, or after CREATE
-              TEMPORARY TABLE or DROP TEMPORARY TABLE.
+            if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
+            {
+              /*
+                Save gtid into table for a DDL statement if binlog is
+                disabled, or binlog is enabled and log_slave_updates is
+                disabled with slave SQL thread or slave worker thread.
+              */
+              if ((error= gtid_state->save(thd)))
+                gtid_state->update_on_rollback(thd);
+              else
+                gtid_state->update_on_commit(thd);
+            }
+            else
+            {
+              /*
+                This ensures that an empty transaction is logged if
+                needed. It is executed at the end of an implicitly or
+                explicitly committing statement, or after CREATE
+                TEMPORARY TABLE or DROP TEMPORARY TABLE.
 
-              CREATE/DROP TEMPORARY do not count as implicitly
-              committing according to stmt_causes_implicit_commit(),
-              but are written to the binary log as DDL (not between
-              BEGIN/COMMIT). Thus we need special cases for these
-              statements in the condition above. Hence the clauses for
-              for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE above.
+                CREATE/DROP TEMPORARY do not count as implicitly
+                committing according to stmt_causes_implicit_commit(),
+                but are written to the binary log as DDL (not between
+                BEGIN/COMMIT). Thus we need special cases for these
+                statements in the condition above. Hence the clauses for
+                for SQLCOM_CREATE_TABLE and SQLCOM_DROP_TABLE above.
 
-              Thus, for base tables, SQLCOM_[CREATE|DROP]_TABLE match
-              both the stmt_causes_implicit_commit clause and the
-              thd->lex->sql_command == SQLCOM_* clause; for temporary
-              tables they match only thd->lex->sql_command ==
-              SQLCOM_*.
-            */
-            error= gtid_empty_group_log_and_cleanup(thd);
+                Thus, for base tables, SQLCOM_[CREATE|DROP]_TABLE match
+                both the stmt_causes_implicit_commit clause and the
+                thd->lex->sql_command == SQLCOM_* clause; for temporary
+                tables they match only thd->lex->sql_command ==
+                SQLCOM_*.
+              */
+              error= gtid_empty_group_log_and_cleanup(thd);
+            }
           }
           MYSQL_QUERY_EXEC_DONE(error);
 	}
@@ -5883,11 +6067,13 @@ TABLE_LIST *st_select_lex::convert_right_join()
     If lock is a write lock, then tables->updating is set 1
     This is to get tables_ok to know that the table is updated by the
     query
+    Set type of metadata lock to request according to lock_type.
 */
 
 void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
 {
   bool for_update= lock_type >= TL_READ_NO_INSERT;
+  enum_mdl_type mdl_type= mdl_type_for_dml(lock_type);
   DBUG_ENTER("set_lock_for_tables");
   DBUG_PRINT("enter", ("lock_type: %d  for_update: %d", lock_type,
 		       for_update));
@@ -5897,8 +6083,7 @@ void st_select_lex::set_lock_for_tables(thr_lock_type lock_type)
   {
     tables->lock_type= lock_type;
     tables->updating=  for_update;
-    tables->mdl_request.set_type((lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ);
+    tables->mdl_request.set_type(mdl_type);
   }
   DBUG_VOID_RETURN;
 }
@@ -6163,6 +6348,53 @@ void sql_kill(THD *thd, ulong id, bool only_kill_query)
     my_error(error, MYF(0), id);
 }
 
+/**
+  This class implements callback function used by killall_non_super_threads
+  to kill all threads that do not have the SUPER privilege
+*/
+
+class Kill_non_super_conn : public Do_THD_Impl
+{
+private:
+  /* THD of connected client. */
+  THD *m_client_thd;
+
+public:
+  Kill_non_super_conn(THD *thd) :
+	    m_client_thd(thd)
+  {
+    DBUG_ASSERT(m_client_thd->security_ctx->master_access & SUPER_ACL);
+  }
+
+  virtual void operator()(THD *thd_to_kill)
+  {
+    mysql_mutex_lock(&thd_to_kill->LOCK_thd_data);
+
+    /* Kill only if non super thread and non slave thread */
+    if (!(thd_to_kill->security_ctx->master_access & SUPER_ACL)
+	&& thd_to_kill->killed != THD::KILL_CONNECTION
+	&& !thd_to_kill->slave_thread)
+      thd_to_kill->awake(THD::KILL_CONNECTION);
+
+    mysql_mutex_unlock(&thd_to_kill->LOCK_thd_data);
+  }
+};
+
+/*
+  kills all the threads that do not have the
+  SUPER privilege.
+
+  SYNOPSIS
+    killall_non_super_threads()
+    thd                 Thread class
+*/
+
+void killall_non_super_threads(THD *thd)
+{
+  Kill_non_super_conn kill_non_super_conn(thd);
+  Global_THD_manager *thd_manager= Global_THD_manager::get_instance();
+  thd_manager->do_for_all_thd(&kill_non_super_conn);
+}
 
 /** If pointer is not a null pointer, append filename to it. */
 
@@ -6349,7 +6581,7 @@ bool multi_delete_set_locks_and_link_aux_tables(LEX *lex)
     walk->lock_type= target_tbl->lock_type;
     /* We can assume that tables to be deleted from are locked for write. */
     DBUG_ASSERT(walk->lock_type >= TL_WRITE_ALLOW_WRITE);
-    walk->mdl_request.set_type(MDL_SHARED_WRITE);
+    walk->mdl_request.set_type(mdl_type_for_dml(walk->lock_type));
     target_tbl->correspondent_table= walk;	// Remember corresponding table
   }
   DBUG_RETURN(FALSE);

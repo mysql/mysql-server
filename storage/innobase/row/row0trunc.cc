@@ -1503,16 +1503,16 @@ row_truncate_foreign_key_checks(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	dict_foreign_t*	foreign;
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
-	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
-	     foreign != 0 && foreign->foreign_table == table;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	if (!srv_read_only_mode
+	    && it != table->referenced_set.end()
+	    && trx->check_foreigns) {
 
-		/* Do nothing. */
-	}
-
-	if (!srv_read_only_mode && foreign != NULL && trx->check_foreigns) {
+		dict_foreign_t*	foreign = *it;
 
 		FILE*	ef = dict_foreign_err_file;
 

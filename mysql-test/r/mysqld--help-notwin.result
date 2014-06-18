@@ -68,6 +68,16 @@ The following options may be given as the first argument:
  binlog-format is MIXED, the format switches to row-based
  and back implicitly per each query accessing an
  NDBCLUSTER table
+ --binlog-group-commit-sync-delay=# 
+ The number of microseconds the server waits for the
+ binary log group commit sync queue to fill before
+ continuing. Default: 0. Min: 0. Max: 1000000.
+ --binlog-group-commit-sync-no-delay-count=# 
+ If there are this many transactions in the commit sync
+ queue and the server is waiting for more transactions to
+ be enqueued (as set using
+ --binlog-group-commit-sync-delay), the commit procedure
+ resumes.
  --binlog-ignore-db=name 
  Tells the master that updates to the given database
  should not be logged to the binary log.
@@ -203,6 +213,12 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
+ --executed-gtids-compression-period[=#] 
+ When binlog is disabled, a background thread wakes up to
+ compress the gtid_executed table every
+ executed_gtids_compression_period transactions, as a
+ special case, if variable is 0, the thread never wakes up
+ to compress the gtid_executed table.
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
@@ -483,6 +499,7 @@ The following options may be given as the first argument:
  Number of seconds to wait for a block to be written to a
  connection before aborting the write
  -n, --new           Use very new possible "unsafe" functions
+ --offline-mode      Make the server into offline mode
  --old               Use compatible behavior
  --old-alter-table   Use old, non-optimized alter table
  --old-passwords=#   Determine which hash algorithm to use when generating
@@ -1061,6 +1078,8 @@ binlog-cache-size 32768
 binlog-checksum CRC32
 binlog-direct-non-transactional-updates FALSE
 binlog-format STATEMENT
+binlog-group-commit-sync-delay 0
+binlog-group-commit-sync-no-delay-count 0
 binlog-max-flush-queue-time 0
 binlog-order-commits TRUE
 binlog-row-event-max-size 8192
@@ -1099,6 +1118,7 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
+executed-gtids-compression-period 1000
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
 external-locking FALSE
@@ -1198,6 +1218,7 @@ net-read-timeout 30
 net-retry-count 10
 net-write-timeout 60
 new FALSE
+offline-mode FALSE
 old FALSE
 old-alter-table FALSE
 old-passwords 0

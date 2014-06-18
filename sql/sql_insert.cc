@@ -263,8 +263,6 @@ static bool check_valid_table_refs(const TABLE_LIST *view, List<Item> &values,
 
   @Note table->record[0] should be be populated with default values
         before calling this function.
-  @Note THD->abort_on_warning flag should be set to report an error
-        or a warning if default value is incorrect.
 
   @param thd              thread context
   @param table            table to which values are inserted.
@@ -334,36 +332,6 @@ void prepare_triggers_for_insert_stmt(TABLE *table)
   table->mark_columns_needed_for_insert();
 }
 
-
-/**
-   Wrapper for invocation of function check_that_all_fields_are_given_value.
-
-   @param[in] thd               Thread handler
-   @param[in] table             Table to insert into
-   @param[in] table_list        Table list
-   @param[in] abort_on_warning  Whether to report an error or a warning
-                                if some INSERT field is not assigned.
-
-  @return Operation status.
-    @retval false   Success
-    @retval true    Failure
- */
-static bool safely_check_that_all_fields_are_given_values(
-  THD* thd, TABLE* table,
-  TABLE_LIST* table_list,
-  bool abort_on_warning)
-{
-  bool saved_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning= abort_on_warning;
-
-  bool res= check_that_all_fields_are_given_values(thd, table, table_list);
-
-  thd->abort_on_warning= saved_abort_on_warning;
-
-  return res;
-}
-
-
 /**
   INSERT statement implementation
 
@@ -377,8 +345,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   List<List_item> &values_list,
                   List<Item> &update_fields,
                   List<Item> &update_values,
-                  enum_duplicates duplic,
-		  bool ignore)
+                  enum_duplicates duplic)
 {
   int error, res;
   bool err= true;
@@ -403,8 +370,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields,
                  manage_defaults,
-                 duplic,
-                 ignore);
+                 duplic);
   COPY_INFO update(COPY_INFO::UPDATE_OPERATION, &update_fields, &update_values);
   Name_resolution_context *context;
   Name_resolution_context_state ctx_state;
@@ -434,8 +400,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                            update_fields, update_values, duplic, &unused_conds,
                            false,
                            (fields.elements || !value_count ||
-                            table_list->view != 0),
-                           !ignore && thd->is_strict_mode()))
+                           table_list->view != 0)))
     goto exit_without_my_ok;
 
   insert_table= insert_table_ref->table;
@@ -601,7 +566,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     to NULL.
   */
   thd->count_cuted_fields= ((values_list.elements == 1 &&
-                             !ignore) ?
+                             !thd->lex->is_ignore()) ?
                             CHECK_FIELD_ERROR_FOR_NULL :
                             CHECK_FIELD_WARN);
   thd->cuted_fields = 0L;
@@ -638,7 +603,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     values_list.elements, and - if nothing else - to initialize
     the code to make the call of end_bulk_insert() below safe.
   */
-  if (duplic != DUP_ERROR || ignore)
+  if (duplic != DUP_ERROR || thd->lex->is_ignore())
     insert_table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   /**
      This is a simple check for the case when the table has a trigger
@@ -649,8 +614,6 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
   */
   if (thd->locked_tables_mode <= LTM_LOCK_TABLES)
     insert_table->file->ha_start_bulk_insert(values_list.elements);
-
-  thd->abort_on_warning= (!ignore && thd->is_strict_mode());
 
   prepare_triggers_for_insert_stmt(insert_table);
 
@@ -678,14 +641,14 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         error= 1;
         break;
       }
-      if (fill_record_n_invoke_before_triggers(thd, fields, *values, 0,
+      if (fill_record_n_invoke_before_triggers(thd, fields, *values,
                                                insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
       {
         DBUG_ASSERT(thd->is_error());
         /*
-          TODO: set thd->abort_on_warning if values_list.elements == 1
+          TODO: Convert warnings to errors if values_list.elements == 1
           and check that all items return warning in case of problem with
           storing field.
         */
@@ -693,9 +656,8 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         break;
       }
 
-      res= safely_check_that_all_fields_are_given_values(
-                                           thd, insert_table, table_list,
-                                           !ignore && thd->is_strict_mode());
+      res= check_that_all_fields_are_given_values(thd, insert_table,
+                                                  table_list);
       if (res)
       {
         DBUG_ASSERT(thd->is_error());
@@ -726,8 +688,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
         }
       }
       if (fill_record_n_invoke_before_triggers(thd, insert_table->field,
-                                               *values, 0,
-                                               insert_table,
+                                               *values, insert_table,
                                                TRG_EVENT_INSERT,
                                                insert_table->s->fields))
       {
@@ -737,11 +698,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       }
     }
 
-    if ((res= table_list->view_check_option(thd,
-					    (values_list.elements == 1 ?
-					     0 :
-					     ignore))) ==
-        VIEW_CHECK_SKIP)
+    if ((res= table_list->view_check_option(thd)) == VIEW_CHECK_SKIP)
       continue;
     else if (res == VIEW_CHECK_ERROR)
     {
@@ -785,7 +742,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
       error= 1;
       /* purecov: end */
     }
-    if (duplic != DUP_ERROR || ignore)
+    if (duplic != DUP_ERROR || thd->lex->is_ignore())
       insert_table->file->extra(HA_EXTRA_NO_IGNORE_DUP_KEY);
 
     transactional_table= insert_table->file->has_transactions();
@@ -873,7 +830,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
        !insert_table->triggers->has_delete_triggers()))
     insert_table->file->extra(HA_EXTRA_WRITE_CANNOT_REPLACE);
 
-  if (error)
+  if (thd->is_error())
     goto exit_without_my_ok;
 
   if (values_list.elements == 1 && (!(thd->variables.option_bits & OPTION_WARNINGS) ||
@@ -889,7 +846,7 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
     char buff[160];
     ha_rows updated=((thd->client_capabilities & CLIENT_FOUND_ROWS) ?
                      info.stats.touched : info.stats.updated);
-    if (ignore)
+    if (thd->lex->is_ignore())
       my_snprintf(buff, sizeof(buff),
                   ER(ER_INSERT_INFO), (long) info.stats.records,
                   (long) (info.stats.records - info.stats.copied),
@@ -901,13 +858,11 @@ bool mysql_insert(THD *thd,TABLE_LIST *table_list,
                   (long) thd->get_stmt_da()->current_statement_cond_count());
     my_ok(thd, info.stats.copied + info.stats.deleted + updated, id, buff);
   }
-  thd->abort_on_warning= 0;
   DBUG_RETURN(FALSE);
 
 exit_without_my_ok:
   if (!joins_freed)
     free_underlaid_joins(thd, thd->lex->select_lex);
-  thd->abort_on_warning= 0;
   DBUG_RETURN(err);
 }
 
@@ -1097,8 +1052,6 @@ static void prepare_for_positional_update(TABLE *table, TABLE_LIST *tables)
   @param select_insert         TRUE if INSERT ... SELECT statement
   @param check_fields          TRUE if need to check that all INSERT fields are
                                given values.
-  @param abort_on_warning      whether to report if some INSERT field is not
-                               assigned as error (TRUE) or as warning (FALSE).
 
   @todo (in far future)
     In cases of:
@@ -1119,7 +1072,7 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           List<Item> &update_fields, List<Item> &update_values,
                           enum_duplicates duplic,
                           Item **where, bool select_insert,
-                          bool check_fields, bool abort_on_warning)
+                          bool check_fields)
 {
   DBUG_ENTER("mysql_prepare_insert");
 
@@ -1380,7 +1333,6 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   info->set_function_defaults(table);
 
   const enum_duplicates duplicate_handling= info->get_duplicate_handling();
-  const bool ignore_errors= info->get_ignore_errors();
 
   if (duplicate_handling == DUP_REPLACE || duplicate_handling == DUP_UPDATE)
   {
@@ -1411,9 +1363,15 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
           key error. In this we ignore error if ignore flag is set, otherwise
           report error as usual. We will not do any duplicate key processing.
         */
-        if (ignore_errors)
-          goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
-        goto err;
+         info->last_errno= error;
+         table->file->print_error(error, MYF(0));
+         /*
+           If IGNORE option is used, handler errors will be downgraded
+           to warnings and don't have to stop the iteration.
+         */
+         if (thd->is_error())
+           goto before_trg_err;
+         goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
       }
       if ((int) (key_nr = table->file->get_dup_key(error)) < 0)
       {
@@ -1505,7 +1463,6 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
         if (fill_record_n_invoke_before_triggers(thd,
                                                  *update->get_changed_columns(),
                                                  *update->update_values,
-                                                 ignore_errors,
                                                  table, TRG_EVENT_UPDATE, 0))
           goto before_trg_err;
 
@@ -1546,7 +1503,7 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
             table->pos_in_table_list->belong_to_view;
           if (inserted_view != NULL)
           {
-            res= inserted_view->view_check_option(thd, ignore_errors);
+            res= inserted_view->view_check_option(thd);
             if (res == VIEW_CHECK_SKIP)
               goto ok_or_after_trg_err;
             if (res == VIEW_CHECK_ERROR)
@@ -1564,12 +1521,18 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
                                                 table->record[0])) &&
               error != HA_ERR_RECORD_IS_THE_SAME)
           {
-            if (ignore_errors &&
-                table->file->is_ignorable_error(error))
-            {
-              goto ok_or_after_trg_err;
-            }
-            goto err;
+             info->last_errno= error;
+             myf error_flags= MYF(0);
+             if (table->file->is_fatal_error(error))
+               error_flags|= ME_FATALERROR;
+             table->file->print_error(error, error_flags);
+             /*
+               If IGNORE option is used, handler errors will be downgraded
+               to warnings and don't  have to stop the iteration.
+             */
+             if (thd->is_error())
+               goto before_trg_err;
+             goto ok_or_after_trg_err; /* Ignoring a not fatal error, return 0 */
           }
 
           if (error != HA_ERR_RECORD_IS_THE_SAME)
@@ -1673,9 +1636,17 @@ int write_record(THD *thd, TABLE *table, COPY_INFO *info, COPY_INFO *update)
   else if ((error=table->file->ha_write_row(table->record[0])))
   {
     DEBUG_SYNC(thd, "write_row_noreplace");
-    if (!ignore_errors ||
-        !table->file->is_ignorable_error(error))
-      goto err;
+    info->last_errno= error;
+    myf error_flags= MYF(0);
+    if (table->file->is_fatal_error(error))
+      error_flags|= ME_FATALERROR;
+    table->file->print_error(error, error_flags);
+    /*
+      If IGNORE option is used, handler errors will be downgraded
+      to warnings and don't  have to stop the iteration.
+    */
+    if (thd->is_error())
+      goto before_trg_err;
     table->file->restore_auto_increment(prev_insert_id);
     goto ok_or_after_trg_err;
   }
@@ -1700,7 +1671,6 @@ err:
     myf error_flags= MYF(0);                      /**< Flag for fatal errors */
     info->last_errno= error;
     DBUG_ASSERT(thd->lex->current_select() != NULL);
-    thd->lex->current_select()->no_error= 0;        // Give error
     if (table->file->is_fatal_error(error))
       error_flags|= ME_FATALERROR;
 
@@ -1749,7 +1719,7 @@ int check_that_all_fields_are_given_values(THD *thd, TABLE *entry,
       err= 1;
     }
   }
-  return thd->abort_on_warning ? err : 0;
+  return (!thd->lex->is_ignore() && thd->is_strict_mode()) ? err : 0;
 }
 
 
@@ -1786,7 +1756,7 @@ bool mysql_insert_select_prepare(THD *thd)
                            &insert_table_ref, lex->field_list, 0,
                            lex->update_list, lex->value_list,
                            lex->duplicates,
-                           select_lex->where_cond_ref(), true, false, false))
+                           select_lex->where_cond_ref(), true, false))
     DBUG_RETURN(TRUE);
 
   /*
@@ -1818,7 +1788,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   TABLE_LIST *insert_table_ref;
   SELECT_LEX *const lex_current_select_save= lex->current_select();
   const enum_duplicates duplicate_handling= info.get_duplicate_handling();
-  const bool ignore_errors= info.get_ignore_errors();
 
   unit= u;
 
@@ -1829,8 +1798,6 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
   */
   lex->set_current_select(lex->select_lex);
 
-  /* Errors during check_insert_fields() should not be ignored. */
-  lex->current_select()->no_error= FALSE;
   res= check_insert_fields(thd, table_list, *fields, values.elements, true,
                            !insert_into_view, &insert_table_ref);
   if (!res)
@@ -1937,14 +1904,13 @@ select_insert::prepare(List<Item> &values, SELECT_LEX_UNIT *u)
 #endif
 
   thd->cuted_fields=0;
-  if (ignore_errors || duplicate_handling != DUP_ERROR)
+  if (thd->lex->is_ignore() || duplicate_handling != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if (duplicate_handling == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
     table->file->extra(HA_EXTRA_WRITE_CAN_REPLACE);
   if (duplicate_handling == DUP_UPDATE)
     table->file->extra(HA_EXTRA_INSERT_WITH_UPDATE);
-  thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
   res= (table_list->prepare_where(thd, 0, TRUE) ||
         table_list->prepare_check_option(thd));
 
@@ -2010,7 +1976,6 @@ select_insert::~select_insert()
     table->file->ha_reset();
   }
   thd->count_cuted_fields= CHECK_FIELD_IGNORE;
-  thd->abort_on_warning= 0;
   DBUG_VOID_RETURN;
 }
 
@@ -2036,7 +2001,7 @@ bool select_insert::send_data(List<Item> &values)
   }
   if (table_list)                               // Not CREATE ... SELECT
   {
-    switch (table_list->view_check_option(thd, info.get_ignore_errors())) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       DBUG_RETURN(0);
     case VIEW_CHECK_ERROR:
@@ -2086,17 +2051,16 @@ bool select_insert::send_data(List<Item> &values)
 
 void select_insert::store_values(List<Item> &values)
 {
-  const bool ignore_err= true;
   if (fields->elements)
   {
     restore_record(table, s->default_values);
     if (!validate_default_values_of_unset_fields(thd, table))
-      fill_record_n_invoke_before_triggers(thd, *fields, values, ignore_err,
+      fill_record_n_invoke_before_triggers(thd, *fields, values,
                                            table, TRG_EVENT_INSERT,
                                            table->s->fields);
   }
   else
-    fill_record_n_invoke_before_triggers(thd, table->field, values, ignore_err,
+    fill_record_n_invoke_before_triggers(thd, table->field, values,
                                          table, TRG_EVENT_INSERT,
                                          table->s->fields);
 
@@ -2191,7 +2155,7 @@ bool select_insert::send_eof()
     DBUG_RETURN(true);
 
   char buff[160];
-  if (info.get_ignore_errors())
+  if (thd->lex->is_ignore())
     my_snprintf(buff, sizeof(buff),
                 ER(ER_INSERT_INFO), (long) info.stats.records,
                 (long) (info.stats.records - info.stats.copied),
@@ -2638,9 +2602,8 @@ select_create::prepare2()
   thd->cuted_fields=0;
 
   const enum_duplicates duplicate_handling= info.get_duplicate_handling();
-  const bool ignore_errors= info.get_ignore_errors();
 
-  if (ignore_errors || duplicate_handling != DUP_ERROR)
+  if (thd->lex->is_ignore() || duplicate_handling != DUP_ERROR)
     table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
   if (duplicate_handling == DUP_REPLACE &&
       (!table->triggers || !table->triggers->has_delete_triggers()))
@@ -2652,7 +2615,6 @@ select_create::prepare2()
     table->file->ha_start_bulk_insert((ha_rows) 0);
     bulk_insert_started= true;
   }
-  thd->abort_on_warning= (!ignore_errors && thd->is_strict_mode());
 
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
   thd->count_cuted_fields= CHECK_FIELD_WARN;
@@ -2718,8 +2680,7 @@ select_create::binlog_show_create_table(TABLE **tables, uint count)
 
 void select_create::store_values(List<Item> &values)
 {
-  const bool ignore_err= true;
-  fill_record_n_invoke_before_triggers(thd, field, values, ignore_err,
+  fill_record_n_invoke_before_triggers(thd, field, values,
                                        table, TRG_EVENT_INSERT,
                                        table->s->fields);
 }

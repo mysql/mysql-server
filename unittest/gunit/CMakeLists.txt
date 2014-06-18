@@ -232,12 +232,14 @@ SET(TESTS
   bounds_checked_array
   bitmap
   byteorder
+  calloc
   cost_estimate
   dbug
   decimal
   dynarray
   filesort_buffer
   filesort_compare
+  inplace_vector
   like_range
   mdl
   my_bitmap
@@ -263,6 +265,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  stl_alloc
   strings_skip_trailing
   strtoll
   thread_utils
@@ -281,6 +284,7 @@ SET(SERVER_TESTS
   explain_filename
   field
   get_diagnostics
+  gis_algos
   handler
   insert_delayed
   item
@@ -293,6 +297,7 @@ SET(SERVER_TESTS
   make_sortkey
   mdl_sync
   my_decimal
+  opt_guessrecperkey
   opt_range
   opt_ref
   opt_trace

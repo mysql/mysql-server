@@ -1189,34 +1189,34 @@ public:
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;
+
+    /* NULLs can't be used as a default storage engine */
     if (!(res=var->value->val_str(&str)))
-      var->save_result.plugin= NULL;
+      return true;
+
+    const LEX_STRING pname= { const_cast<char*>(res->ptr()), res->length() };
+    plugin_ref plugin;
+
+    // special code for storage engines (e.g. to handle historical aliases)
+    if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
+      plugin= ha_resolve_by_name(thd, &pname, FALSE);
     else
     {
-      const LEX_STRING pname= { const_cast<char*>(res->ptr()), res->length() };
-      plugin_ref plugin;
-
-      // special code for storage engines (e.g. to handle historical aliases)
-      if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-        plugin= ha_resolve_by_name(thd, &pname, FALSE);
-      else
-      {
-        LEX_CSTRING pname_cstr= {pname.str, pname.length};
-        plugin= my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
-      }
-
-      if (!plugin)
-      {
-        // historically different error code
-        if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-        {
-          ErrConvString err(res);
-          my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), err.ptr());
-        }
-        return true;
-      }
-      var->save_result.plugin= plugin;
+      LEX_CSTRING pname_cstr= { pname.str, pname.length };
+      plugin= my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
     }
+
+    if (!plugin)
+    {
+      // historically different error code
+      if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
+      {
+        ErrConvString err(res);
+        my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), err.ptr());
+      }
+      return true;
+    }
+    var->save_result.plugin= plugin;
     return false;
   }
   void do_update(plugin_ref *valptr, plugin_ref newval)
@@ -2138,7 +2138,7 @@ public:
   {
     DBUG_ENTER("Sys_var_gtid_executed::global_value_ptr");
     global_sid_lock->wrlock();
-    const Gtid_set *gs= gtid_state->get_logged_gtids();
+    const Gtid_set *gs= gtid_state->get_executed_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));
@@ -2207,10 +2207,10 @@ public:
     int rotate_res= 0;
 
     global_sid_lock->wrlock();
-    char *previous_gtid_logged= gtid_state->get_logged_gtids()->to_string();
+    char *previous_gtid_executed= gtid_state->get_executed_gtids()->to_string();
     char *previous_gtid_lost= gtid_state->get_lost_gtids()->to_string();
     enum_return_status ret= gtid_state->add_lost_gtids(var->save_result.string_value.str);
-    char *current_gtid_logged= gtid_state->get_logged_gtids()->to_string();
+    char *current_gtid_executed= gtid_state->get_executed_gtids()->to_string();
     char *current_gtid_lost= gtid_state->get_lost_gtids()->to_string();
     global_sid_lock->unlock();
     if (RETURN_STATUS_OK != ret)
@@ -2223,7 +2223,7 @@ public:
     sql_print_information(ER(ER_GTID_PURGED_WAS_CHANGED),
                           previous_gtid_lost, current_gtid_lost);
     sql_print_information(ER(ER_GTID_EXECUTED_WAS_CHANGED),
-                          previous_gtid_logged, current_gtid_logged);
+                          previous_gtid_executed, current_gtid_executed);
 
     // Rotate logs to have Previous_gtid_event on last binlog.
     rotate_res= mysql_bin_log.rotate_and_purge(true);
@@ -2234,9 +2234,9 @@ public:
     }
 
 end:
-    my_free(previous_gtid_logged);
+    my_free(previous_gtid_executed);
     my_free(previous_gtid_lost);
-    my_free(current_gtid_logged);
+    my_free(current_gtid_executed);
     my_free(current_gtid_lost);
     DBUG_RETURN(error);
 #else
@@ -2277,8 +2277,19 @@ end:
   uchar *global_value_ptr(THD *thd, LEX_STRING *base)
   {
     DBUG_ENTER("Sys_var_gtid_purged::global_value_ptr");
+    const Gtid_set *gs;
     global_sid_lock->wrlock();
-    const Gtid_set *gs= gtid_state->get_lost_gtids();
+    if (opt_bin_log)
+      gs= gtid_state->get_lost_gtids();
+    else
+      /*
+        When binlog is off, report @@GLOBAL.GTID_PURGED from
+        executed_gtids, since @@GLOBAL.GTID_PURGED and
+        @@GLOBAL.GTID_EXECUTED are always same, so we did not
+        save gtid into lost_gtids for every transaction for
+        improving performance.
+      */
+      gs= gtid_state->get_executed_gtids();
     char *buf= (char *)thd->alloc(gs->get_string_length() + 1);
     if (buf == NULL)
       my_error(ER_OUT_OF_RESOURCES, MYF(0));

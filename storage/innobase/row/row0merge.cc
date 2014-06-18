@@ -49,30 +49,204 @@ Completed by Sunny Bains and Marko Makela
 /* Whether to disable file system cache */
 char	srv_disable_sort_file_cache;
 
+/** Class that caches index row tuples made from a single cluster
+index page scan, and then insert into corresponding index tree */
+class index_tuple_info_t {
+public:
+	/** constructor
+	@param[in]	heap	memory heap
+	@param[in]	index	index to be created */
+	index_tuple_info_t(
+		mem_heap_t*	heap,
+		dict_index_t*	index) UNIV_NOTHROW
+	{
+		m_heap = heap;
+		m_index = index;
+		m_dtuple_vec = new(std::nothrow)idx_tuple_vec();
+	}
+
+	/** destructor */
+	~index_tuple_info_t()
+	{
+		delete m_dtuple_vec;
+	}
+
+	/** Get the index object
+	@return the index object */
+	dict_index_t*   get_index() UNIV_NOTHROW
+	{
+		return(m_index);
+	}
+
+	/** Caches an index row into index tuple vector
+	@param[in]	row	table row */
+	void add(
+		const dtuple_t*		row) UNIV_NOTHROW
+	{
+		dtuple_t*	dtuple;
+
+		dtuple = row_build_index_entry(row, NULL, m_index, m_heap);
+
+		ut_ad(dtuple);
+
+		m_dtuple_vec->push_back(dtuple);
+	}
+
+	/** Insert spatial index rows cached in vector into spatial index
+	@param[in,out]	trx		transaction
+	@param[in,out]	row_heap	memory heap
+	@param[in]	pcur		cluster index scanning cursor
+	@param[in,out]	scan_mtr	mini-transaction for pcur
+	@param[out]	mtr_committed	whether scan_mtr got committed
+	@return DB_SUCCESS if successful, else error number */
+	dberr_t insert(
+		trx_t*			trx,
+		mem_heap_t*		row_heap,
+		btr_pcur_t*		pcur,
+		mtr_t*			scan_mtr,
+		bool*			mtr_committed)
+	{
+		big_rec_t*      big_rec;
+		rec_t*          rec;
+		btr_cur_t       ins_cur;
+		mtr_t           mtr;
+		rtr_info_t      rtr_info;
+		ulint*		ins_offsets = NULL;
+		dberr_t		error = DB_SUCCESS;
+		dtuple_t*	dtuple;
+		ulint		count = 0;
+		const ulint	flag = BTR_NO_UNDO_LOG_FLAG
+				       | BTR_NO_LOCKING_FLAG
+				       | BTR_KEEP_SYS_FLAG | BTR_CREATE_FLAG;
+
+		*mtr_committed = false;
+
+		ut_ad(dict_index_is_spatial(m_index));
+
+		for (idx_tuple_vec::iterator it = m_dtuple_vec->begin();
+		     it != m_dtuple_vec->end();
+		     ++it) {
+			dtuple = *it;
+			ut_ad(dtuple);
+
+			if (log_sys->check_flush_or_checkpoint) {
+				if (!(*mtr_committed)) {
+					btr_pcur_move_to_prev_on_page(pcur);
+					btr_pcur_store_position(pcur, scan_mtr);
+					mtr_commit(scan_mtr);
+					*mtr_committed = true;
+				}
+
+				log_free_check();
+			}
+
+			mtr.start();
+			mtr.set_named_space(m_index->space);
+
+			ins_cur.index = m_index;
+			rtr_init_rtr_info(&rtr_info, false, &ins_cur, m_index,
+					  false);
+			rtr_info_update_btr(&ins_cur, &rtr_info);
+
+			btr_cur_search_to_nth_level(m_index, 0, dtuple,
+						    PAGE_CUR_RTREE_INSERT,
+						    BTR_MODIFY_LEAF, &ins_cur,
+						    0, __FILE__, __LINE__,
+						    &mtr);
+
+			/* It need to update MBR in parent entry,
+			so change search mode to BTR_MODIFY_TREE */
+			if (rtr_info.mbr_adj) {
+				mtr_commit(&mtr);
+				rtr_clean_rtr_info(&rtr_info, true);
+				rtr_init_rtr_info(&rtr_info, false, &ins_cur,
+						  m_index, false);
+				rtr_info_update_btr(&ins_cur, &rtr_info);
+				mtr_start(&mtr);
+				mtr.set_named_space(m_index->space);
+				btr_cur_search_to_nth_level(
+					m_index, 0, dtuple,
+					PAGE_CUR_RTREE_INSERT,
+					BTR_MODIFY_TREE, &ins_cur, 0,
+					__FILE__, __LINE__, &mtr);
+			}
+
+			error = btr_cur_optimistic_insert(
+				flag, &ins_cur, &ins_offsets, &row_heap,
+				dtuple, &rec, &big_rec, 0, NULL, &mtr);
+
+			if (error == DB_FAIL) {
+				ut_ad(!big_rec);
+				mtr.commit();
+				mtr.start();
+				mtr.set_named_space(m_index->space);
+
+				rtr_clean_rtr_info(&rtr_info, true);
+				rtr_init_rtr_info(&rtr_info, false,
+						  &ins_cur, m_index, false);
+
+				rtr_info_update_btr(&ins_cur, &rtr_info);
+				btr_cur_search_to_nth_level(
+					m_index, 0, dtuple,
+					PAGE_CUR_RTREE_INSERT,
+					BTR_MODIFY_TREE,
+					&ins_cur, 0,
+					__FILE__, __LINE__, &mtr);
+
+
+				error = btr_cur_pessimistic_insert(
+						flag, &ins_cur, &ins_offsets,
+						&row_heap, dtuple, &rec,
+						&big_rec, 0, NULL, &mtr);
+			}
+
+			DBUG_EXECUTE_IF(
+				"row_merge_ins_spatial_fail",
+				error = DB_FAIL;
+			);
+
+			if (error == DB_SUCCESS) {
+				if (rtr_info.mbr_adj) {
+					error = rtr_ins_enlarge_mbr(
+							&ins_cur, NULL, &mtr);
+				}
+
+				if (error == DB_SUCCESS) {
+					page_update_max_trx_id(
+						btr_cur_get_block(&ins_cur),
+						btr_cur_get_page_zip(&ins_cur),
+						trx->id, &mtr);
+				}
+			}
+
+			mtr_commit(&mtr);
+
+			rtr_clean_rtr_info(&rtr_info, true);
+			count++;
+		}
+
+		m_dtuple_vec->clear();
+
+		return(error);
+	}
+
+private:
+	/** Cache index rows made from a cluster index scan. Usually
+	for rows on single cluster index page */
+	typedef std::vector<dtuple_t*>	idx_tuple_vec;
+
+	/** vector used to cache index rows made from cluster index scan */
+	idx_tuple_vec*		m_dtuple_vec;
+
+	/** the index being built */
+	dict_index_t*		m_index;
+
+	/** memory heap for creating index tuples */
+	mem_heap_t*		m_heap;
+};
+
 /* Maximum pending doc memory limit in bytes for a fts tokenization thread */
 #define FTS_PENDING_DOC_MEMORY_LIMIT	1000000
-
-#define TEMP_FILE_WRITE_FAIL		DB_TEMP_FILE_WRITE_FAILURE
-
-/** Insert sorted data tuples to the index.
-@param[in]	trx_id		transaction identifier
-@param[in]	index		index to be inserted
-@param[in]	old_table	old table
-@param[in]	fd		file descriptor
-@param[in,out]	block		file buffer
-@param[in]	row_buf		row_buf	sorted data tuples,
-or NULL to read from fd
-@return DB_SUCCESS or error number */
-static	__attribute__((warn_unused_result))
-dberr_t
-row_merge_insert_index_tuples(
-	trx_id_t		trx_id,
-	dict_index_t*		index,
-	const dict_table_t*	old_table,
-	int			fd,
-	row_merge_block_t*	block,
-	const row_merge_buf_t*	row_buf);
-
 
 /******************************************************//**
 Encode an index record. */
@@ -250,6 +424,9 @@ row_merge_buf_add(
 	the 'fts_sort_idx', and real FTS index is stored in
 	fts_index */
 	index = (buf->index->type & DICT_FTS) ? fts_index : buf->index;
+
+	/* create spatial index should not come here */
+	ut_ad(!dict_index_is_spatial(index));
 
 	n_fields = dict_index_get_n_fields(index);
 
@@ -632,6 +809,8 @@ row_merge_buf_sort(
 	row_merge_dup_t*	dup)	/*!< in/out: reporter of duplicates
 					(NULL if non-unique index) */
 {
+	ut_ad(!dict_index_is_spatial(buf->index));
+
 	row_merge_tuple_sort(dict_index_get_n_unique(buf->index),
 			     dict_index_get_n_fields(buf->index),
 			     dup,
@@ -1098,43 +1277,6 @@ row_merge_write_eof(
 	DBUG_RETURN(&block[0]);
 }
 
-/** Create a merge file.
-@param[in,out]	file	merge file structure
-@param[in]	nrec	number of records in the file
-@return TRUE if sucess, false if not */
-static __attribute__((warn_unused_result))
-bool
-row_merge_file_creation(
-	merge_file_t*	file,
-	ulint		nrec) {
-	if (file->fd == -1) {
-		if (row_merge_file_create(file) < 0) {
-			return(false);
-		}
-		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
-		file->n_rec = nrec;
-	}
-	return(true);
-
-}
-
-/** Create a temporary merge file
-@param[in,out] tmpfd	temporary file handle
-@return TRUE if success, false if not */
-static __attribute__((warn_unused_result))
-bool
-row_tmp_file_creation(
-	int*	tmpfd) {
-	if (*tmpfd == -1) {
-		*tmpfd = row_merge_file_create_low();
-		if (*tmpfd < 0) {
-			return(false);
-		}
-		MONITOR_ATOMIC_INC(MONITOR_ALTER_TABLE_SORT_FILES);
-	}
-	return(true);
-
-}
 /********************************************************************//**
 Reads clustered index of the table and create temporary files
 containing the index entries for the indexes to be built.
@@ -1175,11 +1317,7 @@ row_merge_read_clustered_index(
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
 	ib_sequence_t&		sequence,/*!< in/out: autoinc sequence */
-	row_merge_block_t*	block,	/*!< in/out: file buffer */
-	bool			skip_pk_sort,/*!< in: whether the new
-						PRIMARY KEY will follow
-						existing order */
-	int*			tmpfd)	/*!<in/out: temporary file handle */
+	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
 	dict_index_t*		clust_index;	/* Clustered index */
 	mem_heap_t*		row_heap;	/* Heap memory to create
@@ -1199,6 +1337,9 @@ row_merge_read_clustered_index(
 	os_event_t		fts_parallel_sort_event = NULL;
 	ibool			fts_pll_sort = FALSE;
 	int64_t			sig_count = 0;
+	index_tuple_info_t**	spatial_dtuple_info = NULL;
+	mem_heap_t*		spatial_heap = NULL;
+	ulint			num_spatial = 0;
 	DBUG_ENTER("row_merge_read_clustered_index");
 
 	ut_ad((old_table == new_table) == !col_map);
@@ -1243,8 +1384,31 @@ row_merge_read_clustered_index(
 			fts_parallel_sort_event =
 				 psort_info[0].psort_common->sort_event;
 		} else {
+			if (dict_index_is_spatial(index[i])) {
+				num_spatial++;
+			}
 			merge_buf[i] = row_merge_buf_create(index[i]);
 		}
+	}
+
+	if (num_spatial > 0) {
+		ulint	count = 0;
+
+		spatial_heap = mem_heap_create(100);
+
+		spatial_dtuple_info = static_cast<index_tuple_info_t**>(
+			ut_malloc(num_spatial * sizeof(*spatial_dtuple_info)));
+
+		for (ulint i = 0; i < n_index; i++) {
+			if (dict_index_is_spatial(index[i])) {
+				spatial_dtuple_info[count]
+					= new(std::nothrow)index_tuple_info_t(
+						spatial_heap, index[i]);
+				count++;
+			}
+		}
+
+		ut_ad(count == num_spatial);
 	}
 
 	mtr_start(&mtr);
@@ -1318,6 +1482,7 @@ row_merge_read_clustered_index(
 					goto func_exit;
 				}
 			}
+
 #ifdef DBUG_OFF
 # define dbug_run_purge	false
 #else /* DBUG_OFF */
@@ -1326,6 +1491,26 @@ row_merge_read_clustered_index(
 			DBUG_EXECUTE_IF(
 				"ib_purge_on_create_index_page_switch",
 				dbug_run_purge = true;);
+
+			if (spatial_dtuple_info) {
+				bool	mtr_committed = false;
+
+				for (ulint j = 0; j < num_spatial; j++) {
+					err = spatial_dtuple_info[j]->insert(
+						trx, row_heap,
+						&pcur, &mtr, &mtr_committed);
+
+					if (err != DB_SUCCESS) {
+						goto func_exit;
+					}
+				}
+
+				mem_heap_empty(spatial_heap);
+
+				if (mtr_committed) {
+					goto scan_next;
+				}
+			}
 
 			if (dbug_run_purge
 			    || rw_lock_get_waiters(
@@ -1364,7 +1549,7 @@ row_merge_read_clustered_index(
 
 				/* Give the waiters a chance to proceed. */
 				os_thread_yield();
-
+scan_next:
 				mtr_start(&mtr);
 				/* Restore position on the record, or its
 				predecessor if the record was purged
@@ -1566,10 +1751,28 @@ write_buffers:
 		/* Build all entries for all the indexes to be created
 		in a single scan of the clustered index. */
 
+		ulint	s_idx_cnt = 0;
+
 		for (ulint i = 0; i < n_index; i++) {
 			row_merge_buf_t*	buf	= merge_buf[i];
 			merge_file_t*		file	= &files[i];
 			ulint			rows_added = 0;
+
+			if (dict_index_is_spatial(buf->index)) {
+
+				if (!row) {
+					continue;
+				}
+
+				ut_ad(spatial_dtuple_info[s_idx_cnt]->get_index()
+				      == buf->index);
+
+				spatial_dtuple_info[s_idx_cnt]->add(row);
+
+				s_idx_cnt++;
+
+				continue;
+			}
 
 			if (UNIV_LIKELY
 			    (row && (rows_added = row_merge_buf_add(
@@ -1580,15 +1783,16 @@ write_buffers:
 				a single row can generate more
 				records for tokenized word */
 				file->n_rec += rows_added;
-
 				if (doc_id > max_doc_id) {
 					max_doc_id = doc_id;
 				}
 
 				if (buf->index->type & DICT_FTS) {
 					/* Check if error occurs in child thread */
-					for (ulint j = 0; j < fts_sort_pll_degree; j++) {
-						if (psort_info[j].error != DB_SUCCESS) {
+					for (ulint j = 0;
+					     j < fts_sort_pll_degree; j++) {
+						if (psort_info[j].error
+							!= DB_SUCCESS) {
 							err = psort_info[j].error;
 							trx->error_key_num = i;
 							break;
@@ -1617,49 +1821,10 @@ write_buffers:
 			ut_ad(buf->n_tuples || row == NULL);
 
 			/* We have enough data tuples to form a block.
-			Sort them and write to disk if temp file is used
-			or insert into index if temp file is not used. */
-			bool skip_sort = skip_pk_sort
-				&& dict_index_is_clust(buf->index);
+			Sort them and write to disk. */
+
 			if (buf->n_tuples) {
-				if (skip_sort) {
-					/* Temporary File is not used.
-					so insert sorted block to the index */
-					if (row != NULL) {
-						/* Scanning of index is not
-						complete. so we are storing
-						cursor position to start
-						scanning later */
-						btr_pcur_store_position(
-							&pcur, &mtr);
-						mtr_commit(&mtr);
-					}
-					row_merge_dup_t dup = {
-						buf->index, table, col_map, 0};
-
-					row_merge_buf_sort(buf, &dup);
-
-					if (dup.n_dup) {
-						err = DB_DUPLICATE_KEY;
-						trx->error_key_num
-							= key_numbers[i];
-						goto all_done;
-					}
-
-					err = row_merge_insert_index_tuples(
-						trx->id, index[i], old_table,
-						0, NULL, buf);
-
-					if (row != NULL) {
-						/* Restore the cursor postion
-						to start scanning in the same
-						position */
-						mtr_start(&mtr);
-						btr_pcur_restore_position(
-							BTR_SEARCH_LEAF, &pcur,
-							&mtr);
-					}
-				} else if (dict_index_is_unique(buf->index)) {
+				if (dict_index_is_unique(buf->index)) {
 					row_merge_dup_t	dup = {
 						buf->index, table, col_map, 0};
 
@@ -1699,55 +1864,16 @@ write_buffers:
 					dict_index_get_lock(buf->index));
 			}
 
-			/* Secondary index and clustered index which is
-			not in sorted order can use the temporary file.
-			Fulltext index should not use the temporary file. */
-			if (!skip_sort && !(buf->index->type & DICT_FTS)) {
-				/* In case we can have all rows in sort buffer,
-				we can insert directly into the index with out
-				temporary file */
-				if (row == NULL && file->fd == -1) {
-					/* Added dbug_sync point to
-					avoid mtr test case failure */
-					DBUG_EXECUTE_IF(
-						"row_merge_write_failure",
-						err = TEMP_FILE_WRITE_FAIL;
-						trx->error_key_num = i;
-						goto all_done;);
+			row_merge_buf_write(buf, file, block);
 
-					DBUG_EXECUTE_IF(
-					"innobase_tmpfile_creation_failure",
-						err = DB_OUT_OF_MEMORY;
-						goto all_done;);
-
-					err = row_merge_insert_index_tuples(
-						trx->id, index[i], old_table,
-						0, NULL, buf);
-				} else {
-					if (!row_merge_file_creation(
-						file, buf->n_tuples)) {
-						err = DB_OUT_OF_MEMORY;
-						goto func_exit;
-					}
-					ut_ad(file->n_rec > 0);
-
-					if (!row_tmp_file_creation(tmpfd)) {
-						err = DB_OUT_OF_MEMORY;
-						goto func_exit;
-					}
-					row_merge_buf_write(buf, file, block);
-
-					if (!row_merge_write(
-					            file->fd, file->offset++,
-						    block)) {
-						err = TEMP_FILE_WRITE_FAIL;
-						trx->error_key_num = i;
-						break;
-					}
-					UNIV_MEM_INVALID(
-						&block[0], srv_sort_buf_size);
-				}
+			if (!row_merge_write(file->fd, file->offset++,
+					     block)) {
+				err = DB_TEMP_FILE_WRITE_FAILURE;
+				trx->error_key_num = i;
+				break;
 			}
+
+			UNIV_MEM_INVALID(&block[0], srv_sort_buf_size);
 			merge_buf[i] = row_merge_buf_empty(buf);
 
 			if (UNIV_LIKELY(row != NULL)) {
@@ -1764,9 +1890,8 @@ write_buffers:
 					room for at least one record. */
 					ut_error;
 				}
-				if (file->fd != -1) {
-					file->n_rec += rows_added;
-				}
+
+				file->n_rec += rows_added;
 			}
 		}
 
@@ -1864,6 +1989,17 @@ wait_again:
 	ut_free(merge_buf);
 
 	btr_pcur_close(&pcur);
+
+	if (spatial_dtuple_info) {
+		for (ulint i = 0; i < num_spatial; i++) {
+			delete spatial_dtuple_info[i];
+		}
+		ut_free(spatial_dtuple_info);
+
+		if (spatial_heap) {
+			mem_heap_free(spatial_heap);
+		}
+	}
 
 	/* Update the next Doc ID we used. Table should be locked, so
 	no concurrent DML */
@@ -2281,14 +2417,12 @@ row_merge_copy_blobs(
 	dtuple_t*		tuple,
 	mem_heap_t*		heap)
 {
-	ut_ad(mrec == NULL || rec_offs_any_extern(offsets));
+	ut_ad(rec_offs_any_extern(offsets));
 
 	for (ulint i = 0; i < dtuple_get_n_fields(tuple); i++) {
 		ulint		len;
 		const void*	data;
 		dfield_t*	field = dtuple_get_nth_field(tuple, i);
-		ulint		field_len;
-		const byte*	field_data;
 
 		if (!dfield_is_ext(field)) {
 			continue;
@@ -2302,17 +2436,8 @@ row_merge_copy_blobs(
 		columns cannot possibly be freed between the time the
 		BLOB pointers are read (row_merge_read_clustered_index())
 		and dereferenced (below). */
-		if (mrec == NULL) {
-			field_data
-				= static_cast<byte*>(dfield_get_data(field));
-			field_len = dfield_get_len(field);
-		} else {
-			field_data = rec_get_nth_field(
-				mrec, offsets, i, &field_len);
-		}
-		data = btr_copy_externally_stored_field(
-			&len, field_data, page_size, field_len, heap);
-
+		data = btr_rec_copy_externally_stored_field(
+			mrec, offsets, page_size, i, &len, heap);
 		/* Because we have locked the table, any records
 		written by incomplete transactions must have been
 		rolled back already. There must not be any incomplete
@@ -2323,59 +2448,33 @@ row_merge_copy_blobs(
 	}
 }
 
-/** Converts a merge record to a typed data tuple. Note that externally
-stored fields are not copied to heap.
-@param[in]	index	index on the table
-@param[in]	mtuple	merge record
-@param[in]	heap	memory heap from which memory needed is allocated
-@return		index entry built. */
-static
-void
-row_mtuple_convert_to_dtuple(
-	dict_index_t*	index,
-	dtuple_t*	dtuple,
-	const mtuple_t* mtuple)
-{
-	ut_ad(!dict_index_is_univ(index));
-	memcpy(dtuple->fields, mtuple->fields,
-	       dtuple->n_fields * sizeof *mtuple->fields);
-}
-
-/** Insert sorted data tuples to the index.
-@param[in]	trx_id		transaction identifier
-@param[in]	index		index to be inserted
-@param[in]	old_table	old table
-@param[in]	fd		file descriptor
-@param[in,out]	block		file buffer
-@param[in]	row_buf		in case of NULL the function will read
-sorted file containing data tuples and insert to the index. If it is
-not NULL then it will read from row buffer, convert into data tuple
-and insert to index
+/********************************************************************//**
+Read sorted file containing index data tuples and insert these data
+tuples to the index
 @return DB_SUCCESS or error number */
-static	__attribute__((warn_unused_result))
+static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_merge_insert_index_tuples(
-	trx_id_t		trx_id,
-	dict_index_t*		index,
-	const dict_table_t*	old_table,
-	int			fd,
-	row_merge_block_t*	block,
-	const row_merge_buf_t*	row_buf)
+/*==========================*/
+	trx_id_t		trx_id, /*!< in: transaction identifier */
+	dict_index_t*		index,	/*!< in: index */
+	const dict_table_t*	old_table,/*!< in: old table */
+	int			fd,	/*!< in: file descriptor */
+	row_merge_block_t*	block)	/*!< in/out: file buffer */
 {
-	const byte*		b = NULL;
+	const byte*		b;
 	mem_heap_t*		heap;
 	mem_heap_t*		tuple_heap;
 	mem_heap_t*		ins_heap;
 	dberr_t			error = DB_SUCCESS;
 	ulint			foffs = 0;
 	ulint*			offsets;
-	mrec_buf_t*		buf = NULL;
-	ulint			n_rows = 0;
-	dtuple_t*		dtuple = NULL;
+	mrec_buf_t*		buf;
 	DBUG_ENTER("row_merge_insert_index_tuples");
 
 	ut_ad(!srv_read_only_mode);
 	ut_ad(!(index->type & DICT_FTS));
+	ut_ad(!dict_index_is_spatial(index));
 	ut_ad(trx_id);
 
 	tuple_heap = mem_heap_create(1000);
@@ -2391,51 +2490,23 @@ row_merge_insert_index_tuples(
 		offsets[1] = dict_index_get_n_fields(index);
 	}
 
-	if (row_buf != NULL) {
-		ut_ad(fd == 0 && block == NULL);
-		/* Added dbug_sync point to
-		avoid mtr test case failure */
-		DBUG_EXECUTE_IF("row_merge_read_failure",
-				error = DB_CORRUPTION;
-				goto err_exit;);
-		dtuple = dtuple_create(
-			heap, dict_index_get_n_fields(index));
-		dtuple_set_n_fields_cmp(
-			dtuple, dict_index_get_n_unique_in_tree(index));
+	b = block;
+
+	if (!row_merge_read(fd, foffs, block)) {
+		error = DB_CORRUPTION;
 	} else {
-		b = block;
+		buf = static_cast<mrec_buf_t*>(
+			mem_heap_alloc(heap, sizeof *buf));
 
-		if (!row_merge_read(fd, foffs, block)) {
-			error = DB_CORRUPTION;
-			goto err_exit;
-		} else {
-			buf = static_cast<mrec_buf_t*>(
-				mem_heap_alloc(heap, sizeof *buf));
-		}
-	}
+		for (;;) {
+			const mrec_t*	mrec;
+			dtuple_t*	dtuple;
+			ulint		n_ext;
+			big_rec_t*	big_rec;
+			rec_t*		rec;
+			btr_cur_t	cursor;
+			mtr_t		mtr;
 
-	for (;;) {
-		const mrec_t*	mrec;
-		ulint		n_ext;
-		big_rec_t*	big_rec;
-		rec_t*		rec;
-		btr_cur_t	cursor;
-		mtr_t		mtr;
-
-		if (row_buf != NULL) {
-			if (n_rows >= row_buf->n_tuples) {
-				break;
-			}
-			/* Convert merge tuple record from
-			row buffer to data tuple record */
-			row_mtuple_convert_to_dtuple(
-				index, dtuple, &row_buf->tuples[n_rows]);
-
-			n_ext = dtuple_get_n_ext(dtuple);
-			n_rows++;
-			/* mrec is NULL for blob copy */
-			mrec = NULL;
-		} else {
 			b = row_merge_read_rec(block, buf, b, index,
 					       fd, &foffs, &mrec, offsets);
 			if (UNIV_UNLIKELY(!b)) {
@@ -2446,10 +2517,21 @@ row_merge_insert_index_tuples(
 				break;
 			}
 
+			dict_index_t*	old_index
+				= dict_table_get_first_index(old_table);
+
+			if (dict_index_is_clust(index)
+			    && dict_index_is_online_ddl(old_index)) {
+				error = row_log_table_get_error(old_index);
+				if (error != DB_SUCCESS) {
+					break;
+				}
+			}
+
 			dtuple = row_rec_to_index_entry_low(
 				mrec, index, offsets, &n_ext, tuple_heap);
-		}
-		if (!n_ext) {
+
+			if (!n_ext) {
 				/* There are no externally stored columns. */
 			} else {
 				ut_ad(dict_index_is_clust(index));
@@ -2569,6 +2651,7 @@ row_merge_insert_index_tuples(
 			mem_heap_empty(tuple_heap);
 			mem_heap_empty(ins_heap);
 		}
+	}
 
 err_exit:
 	mem_heap_free(tuple_heap);
@@ -3553,10 +3636,8 @@ row_merge_build_indexes(
 	ulint		add_autoinc,	/*!< in: number of added
 					AUTO_INCREMENT column, or
 					ULINT_UNDEFINED if none is added */
-	ib_sequence_t&	sequence,	/*!< in: autoinc instance if
+	ib_sequence_t&	sequence)	/*!< in: autoinc instance if
 					add_autoinc != ULINT_UNDEFINED */
-	bool		skip_pk_sort)	/*!< in: whether the new PRIMARY KEY
-					will follow existing order */
 {
 	merge_file_t*		merge_files;
 	row_merge_block_t*	block;
@@ -3601,6 +3682,10 @@ row_merge_build_indexes(
 	}
 
 	for (i = 0; i < n_indexes; i++) {
+		if (row_merge_file_create(&merge_files[i]) < 0) {
+			error = DB_OUT_OF_MEMORY;
+			goto func_exit;
+		}
 
 		if (indexes[i]->type & DICT_FTS) {
 			ibool	opt_doc_id_size = FALSE;
@@ -3629,6 +3714,13 @@ row_merge_build_indexes(
 		}
 	}
 
+	tmpfd = row_merge_file_create_low();
+
+	if (tmpfd < 0) {
+		error = DB_OUT_OF_MEMORY;
+		goto func_exit;
+	}
+
 	/* Reset the MySQL row buffer that is used when reporting
 	duplicate keys. */
 	innobase_rec_reset(table);
@@ -3640,7 +3732,7 @@ row_merge_build_indexes(
 		trx, table, old_table, new_table, online, indexes,
 		fts_sort_idx, psort_info, merge_files, key_numbers,
 		n_indexes, add_cols, col_map,
-		add_autoinc, sequence, block, skip_pk_sort, &tmpfd);
+		add_autoinc, sequence, block);
 
 	if (error != DB_SUCCESS) {
 
@@ -3654,6 +3746,10 @@ row_merge_build_indexes(
 
 	for (i = 0; i < n_indexes; i++) {
 		dict_index_t*	sort_idx = indexes[i];
+
+		if (dict_index_is_spatial(sort_idx)) {
+			continue;
+		}
 
 		if (indexes[i]->type & DICT_FTS) {
 			os_event_t	fts_parallel_merge_event;
@@ -3721,8 +3817,7 @@ wait_again:
 #ifdef FTS_INTERNAL_DIAG_PRINT
 			DEBUG_FTS_SORT_PRINT("FTS_SORT: Complete Insert\n");
 #endif
-		} else if (merge_files[i].fd != -1) {
-
+		} else {
 			row_merge_dup_t	dup = {
 				sort_idx, table, col_map, 0};
 
@@ -3733,7 +3828,7 @@ wait_again:
 			if (error == DB_SUCCESS) {
 				error = row_merge_insert_index_tuples(
 					trx->id, sort_idx, old_table,
-					merge_files[i].fd, block, NULL);
+					merge_files[i].fd, block);
 			}
 		}
 

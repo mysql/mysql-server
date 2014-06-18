@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -520,7 +520,7 @@ int debug_sync_init(void)
 
     /* Initialize the global variables. */
     if ((rc= mysql_cond_init(key_debug_sync_globals_ds_cond,
-                             &debug_sync_global.ds_cond, NULL)) ||
+                             &debug_sync_global.ds_cond)) ||
         (rc= mysql_mutex_init(key_debug_sync_globals_ds_mutex,
                               &debug_sync_global.ds_mutex,
                               MY_MUTEX_INIT_FAST)))
@@ -1934,11 +1934,8 @@ static void debug_sync_execute(THD *thd, st_debug_sync_action *action)
         if (error == ETIMEDOUT || error == ETIME)
         {
           // We should not make the statement fail, even if in strict mode.
-          const bool save_abort_on_warning= thd->abort_on_warning;
-          thd->abort_on_warning= false;
           push_warning(thd, Sql_condition::SL_WARNING,
                        ER_DEBUG_SYNC_TIMEOUT, ER(ER_DEBUG_SYNC_TIMEOUT));
-          thd->abort_on_warning= save_abort_on_warning;
           DBUG_EXECUTE_IF("debug_sync_abort_on_timeout", DBUG_ABORT(););
           break;
         }

@@ -621,3 +621,37 @@ DROP USER bug12818542_dest@localhost;
 
 
 --echo End of 5.5 tests
+
+--echo #
+--echo # Bug #18057562: PROXY USERS LOCKED OUT WHEN UNDERLYING PROXIED USER
+--echo #                PASSWORD IS EXPIRED
+--echo #
+
+--echo # Restart server with disconnect_on_expired_password OFF;
+
+let $restart_file= $MYSQLTEST_VARDIR/tmp/mysqld.1.expect;
+--exec echo "wait" > $restart_file
+--shutdown_server 10
+--source include/wait_until_disconnected.inc
+--exec echo "restart:--disconnect_on_expired_password=0" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
+--enable_reconnect
+--source include/wait_until_connected_again.inc
+
+CREATE USER 'empl_external'@'localhost' IDENTIFIED WITH test_plugin_server AS 'employee';
+CREATE USER 'employee'@'localhost' IDENTIFIED BY 'passkey';
+GRANT PROXY ON 'employee'@'localhost' TO 'empl_external'@'localhost';
+
+--echo # Expiring the proxied user's password
+ALTER USER employee@localhost PASSWORD EXPIRE;
+
+--echo # Connecting with the proxied user and executing a query after the
+--echo # proxied user's password is expired
+--error 1, ER_MUST_CHANGE_PASSWORD
+--exec $MYSQL -S $MASTER_MYSOCK -u employee --password=passkey -e "SELECT current_user();SELECT user();" 2>&1
+
+--echo # Connecting with the proxy user and executing a query after the proxied
+--echo # user's password is expired. Here we are not supposed to get error.
+--exec $MYSQL -S $MASTER_MYSOCK -u empl_external $PLUGIN_AUTH_OPT --password=employee -e "SELECT current_user();SELECT user();" 2>&1
+
+#Cleanup
+DROP USER 'empl_external'@'localhost', 'employee'@'localhost';

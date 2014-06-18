@@ -1428,6 +1428,31 @@ SELECT * FROM t1 WHERE MATCH (a) AGAINST ('+"good database"' IN BOOLEAN MODE);
 id	a
 1	know mysql good database
 DROP TABLE t1;
+CREATE TABLE articles (
+id INT UNSIGNED AUTO_INCREMENT NOT NULL PRIMARY KEY,
+title VARCHAR(200),
+body TEXT,
+FULLTEXT (title,body)
+) ENGINE=InnoDB;
+INSERT INTO articles (title,body) VALUES 
+('myfulltext database', 'my test fulltext database');
+SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
+MODE) AS score FROM articles ORDER BY score DESC;
+id	title	body	score
+1	myfulltext database	my test fulltext database	0.000000003771856604828372
+DELETE from articles WHERE title like "myfulltext database";
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
+MODE) AS score FROM articles ORDER BY score DESC;
+id	title	body	score
+2	myfulltext database	my test fulltext database	0.000000003771856604828372
+DELETE from articles WHERE title like "myfulltext database";
+INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
+SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
+MODE) AS score FROM articles ORDER BY score DESC;
+id	title	body	score
+3	myfulltext database	my test fulltext database	0.000000003771856604828372
+DROP TABLE articles;
 CREATE TABLE t1(
 a TEXT CHARSET ujis COLLATE ujis_japanese_ci,
 b TEXT CHARSET utf8mb4 COLLATE utf8mb4_turkish_ci,

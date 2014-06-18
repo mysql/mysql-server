@@ -175,13 +175,11 @@ TABLE *find_temporary_table(THD *thd, const char *table_key,
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
-                                          bool ignore_errors,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
-                                          bool ignore_errors,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
@@ -194,11 +192,9 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
 bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap,
-                 MY_BITMAP *insert_into_fields_bitmap);
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap,
-                 MY_BITMAP *insert_into_fields_bitmap);
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 
 bool check_record(THD *thd, Field **ptr);
 
@@ -535,6 +531,11 @@ public:
     return m_has_protection_against_grl;
   }
 
+  bool can_back_off() const
+  {
+    return !m_has_locks;
+  }
+
 private:
   /* THD for which tables are opened. */
   THD *m_thd;
@@ -606,7 +607,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -623,5 +624,38 @@ private:
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
+
+/**
+  This internal handler implements downgrade from SL_ERROR to SL_WARNING
+  for statements which support IGNORE.
+*/
+
+class Ignore_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
+};
+
+/**
+  This internal handler implements upgrade from SL_WARNING to SL_ERROR
+  for the error codes affected by STRICT mode. Currently STRICT mode does
+  not affect SELECT statements.
+*/
+
+class Strict_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
+};
 
 #endif /* SQL_BASE_INCLUDED */

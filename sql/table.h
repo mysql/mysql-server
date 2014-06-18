@@ -452,7 +452,24 @@ enum enum_table_category
     User queries do not write directly to these tables.
     Replication tables are cached in the table cache.
   */
-  TABLE_CATEGORY_RPL_INFO=7
+  TABLE_CATEGORY_RPL_INFO=7,
+
+  /**
+    Gtid Table.
+    The table is used to store gtids.
+    The table does *not* honor:
+    - LOCK TABLE t FOR READ/WRITE
+    - FLUSH TABLES WITH READ LOCK
+    - SET GLOBAL READ_ONLY = ON
+    as there is no point in locking explicitly
+    a Gtid table.
+    An example of gtid_executed table is:
+    - mysql.gtid_executed,
+    which is updated even when there is either
+    a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
+    Gtid table is cached in the table cache.
+  */
+  TABLE_CATEGORY_GTID=8
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
@@ -1461,6 +1478,19 @@ public:
 
 
 /**
+  Derive type of metadata lock to be requested for table used by a DML
+  statement from the type of THR_LOCK lock requested for this table.
+*/
+
+inline enum enum_mdl_type mdl_type_for_dml(enum thr_lock_type lock_type)
+{
+  return lock_type >= TL_WRITE_ALLOW_WRITE ?
+         (lock_type == TL_WRITE_LOW_PRIORITY ?
+          MDL_SHARED_WRITE_LOW_PRIO : MDL_SHARED_WRITE) :
+         MDL_SHARED_READ;
+}
+
+/**
    Type of table which can be open for an element of table list.
 */
 
@@ -1548,8 +1578,7 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
-                     (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
   }
@@ -1920,7 +1949,7 @@ public:
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
-  int view_check_option(THD *thd, bool ignore_failure) const;
+  int view_check_option(THD *thd) const;
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()

@@ -3564,8 +3564,7 @@ recv_reset_log_files_for_backup(
 	*/
 	ut_a(log_dir_len + strlen(ib_logfile_basename) + 11  < sizeof(name));
 
-	buf = ut_malloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
-	memset(buf, '\0', LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
+	buf = ut_zalloc(LOG_FILE_HDR_SIZE + OS_FILE_LOG_BLOCK_SIZE);
 
 	for (i = 0; i < n_log_files; i++) {
 

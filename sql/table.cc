@@ -66,6 +66,10 @@ LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 /* WORKER_INFO name */
 LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 
+/* GTID_EXECUTED name */
+LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -297,6 +301,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                       WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == GTID_EXECUTED_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                       GTID_EXECUTED_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_GTID;
+
   }
 
   return TABLE_CATEGORY_USER;
@@ -2384,7 +2395,8 @@ partititon_err:
   }
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
-      (share->table_category == TABLE_CATEGORY_RPL_INFO))
+      (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (share->table_category == TABLE_CATEGORY_GTID))
   {
     outparam->no_replicate= TRUE;
   }
@@ -4236,33 +4248,25 @@ void TABLE_LIST::cleanup_items()
 }
 
 
-/*
+/**
   check CHECK OPTION condition
 
-  SYNOPSIS
-    TABLE_LIST::view_check_option()
-    ignore_failure ignore check option fail
-
-  RETURN
-    VIEW_CHECK_OK     OK
-    VIEW_CHECK_ERROR  FAILED
-    VIEW_CHECK_SKIP   FAILED, but continue
+  @param thd                Thread object
+ 
+  @retval VIEW_CHECK_OK     OK
+  @retval VIEW_CHECK_ERROR  FAILED
+  @retval VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
+int TABLE_LIST::view_check_option(THD *thd) const
 {
   if (check_option && check_option->val_int() == 0)
   {
     const TABLE_LIST *main_view= top_table();
-    if (ignore_failure)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
-                          main_view->view_db.str, main_view->view_name.str);
-      return(VIEW_CHECK_SKIP);
-    }
     my_error(ER_VIEW_CHECK_FAILED, MYF(0), main_view->view_db.str,
              main_view->view_name.str);
+    if (thd->lex->is_ignore())
+      return(VIEW_CHECK_SKIP);
     return(VIEW_CHECK_ERROR);
   }
   return(VIEW_CHECK_OK);
@@ -5751,6 +5755,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
+
+  // optim_join_cond() may point to freed memory of previous execution.
+  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*
@@ -5982,8 +5989,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
-                     table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(table_list->lock_type),
                      MDL_TRANSACTION);
 }
 

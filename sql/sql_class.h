@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -989,6 +988,10 @@ public:
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
   ulong db_access;                     /* Privileges for current db */
+  /*
+    This flag is set according to connecting user's context and not the
+    effective user.
+  */
   bool password_expired;               /* password expiration flag */
 
   void init();
@@ -1256,7 +1259,8 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_SCHEDULER= 8,
   SYSTEM_THREAD_EVENT_WORKER= 16,
   SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64
+  SYSTEM_THREAD_SLAVE_WORKER= 64,
+  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128
 };
 
 inline char const *
@@ -1273,6 +1277,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1322,7 +1327,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl) = 0;
 
@@ -1343,7 +1348,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -1369,11 +1374,35 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
 private:
+};
+
+
+/**
+  Internal error handler to process an error from MDL_context::upgrade_lock()
+  and mysql_lock_tables(). Used by implementations of HANDLER READ and
+  LOCK TABLES LOCAL.
+*/
+
+class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
+{
+public:
+  virtual
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition **cond_hdl);
+
+  bool need_reopen() const { return m_need_reopen; };
+  void init() { m_need_reopen= false; };
+private:
+  bool m_need_reopen;
 };
 
 
@@ -2253,6 +2282,11 @@ public:
     Stores the result of the FOUND_ROWS() function.
   */
   ulonglong  limit_found_rows;
+  /*
+    Indicate if the gtid_executed table is being operated
+    in current transaction.
+  */
+  bool  is_operating_gtid_table;
 
 private:
   /**
@@ -2613,7 +2647,6 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
-  bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
@@ -2846,11 +2879,8 @@ public:
     @param needs_thr_lock_abort Indicates that to wake up thread
                                 this call needs to abort its waiting
                                 on table-level lock.
-
-    @retval  TRUE  if the thread was woken up
-    @retval  FALSE otherwise.
    */
-  virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
+  virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
   /**
@@ -3213,14 +3243,6 @@ public:
       my_message(err, ER(err), MYF(ME_FATALERROR));
     }
   }
-  /* return TRUE if we will abort query if we make a warning now */
-  inline bool really_abort_on_warning()
-  {
-    return (abort_on_warning &&
-            (!get_transaction()->cannot_safely_rollback(
-                Transaction_ctx::STMT) ||
-             (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
-  }
   void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);
   void restore_backup_open_tables_state(Open_tables_backup *backup);
@@ -3489,7 +3511,7 @@ private:
   */
   bool handle_condition(uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -4150,8 +4172,6 @@ public:
      @param update_values    The values to be assigned in case of duplicate
                              keys. May be NULL.
      @param duplicate        The policy for handling duplicates.
-     @param ignore           How the insert operation is to handle certain
-                             errors. See COPY_INFO.
 
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
@@ -4191,8 +4211,7 @@ public:
                 List<Item> *target_or_source_columns,
                 List<Item> *update_fields,
                 List<Item> *update_values,
-                enum_duplicates duplic,
-                bool ignore)
+                enum_duplicates duplic)
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
@@ -4202,8 +4221,7 @@ public:
           target_columns,
           // manage_defaults
           (target_columns == NULL || target_columns->elements != 0),
-          duplic,
-          ignore),
+          duplic),
      update(COPY_INFO::UPDATE_OPERATION,
             update_fields,
             update_values),
@@ -4249,7 +4267,7 @@ public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
                  Alter_info *alter_info_arg,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
+		 List<Item> &select_fields,enum_duplicates duplic,
                  TABLE_LIST *select_tables_arg)
     :select_insert (NULL, // table_list_par
                     NULL, // table_par
@@ -4257,8 +4275,7 @@ public:
                     &select_fields,
                     NULL, // update_fields
                     NULL, // update_values
-                    duplic,
-                    ignore),
+                    duplic),
      create_table(table_arg),
      create_info(create_info_par),
      select_tables(select_tables_arg),
@@ -4867,7 +4884,7 @@ public:
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int do_deletes();
-  int do_table_deletes(TABLE *table, bool ignore);
+  int do_table_deletes(TABLE *table);
   bool send_eof();
   inline ha_rows num_deleted()
   {
@@ -4902,7 +4919,6 @@ class multi_update :public select_result_interceptor
   bool do_update, trans_safe;
   /* True if the update operation has made a change in a transactional table */
   bool transactional_tables;
-  bool ignore;
   /* 
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
@@ -4928,7 +4944,7 @@ class multi_update :public select_result_interceptor
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
 	       List<Item> *fields, List<Item> *values,
-	       enum_duplicates handle_duplicates, bool ignore);
+	       enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);

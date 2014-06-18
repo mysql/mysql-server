@@ -1201,3 +1201,35 @@ EXPLAIN SELECT
 FROM t2 GROUP BY a;
 
 DROP TABLE t1, t2;
+
+--echo #
+--echo # Bug#18498344: SELECT WITH ALIAS NOT WORKING IN 5.7
+--echo #
+
+CREATE TABLE t1 (
+  a INT
+);
+
+INSERT INTO t1 VALUES ( 2 );
+
+--echo # Should succeed
+SELECT *
+FROM ( SELECT a FROM t1 UNION SELECT 1 ORDER BY a ) AS a1
+WHERE a1.a = 1 OR a1.a = 2;
+
+DROP TABLE t1;
+
+--echo #
+--echo # Bug #18484088: PROBLEMS IN CREATE_FUNC_CAST ON QUERY ERRORS...
+--echo #
+
+# original bugreport:
+--error ER_TOO_BIG_PRECISION
+DO(CONVERT(CONVERT('',DECIMAL(66,0)), DECIMAL(66,0))), CAST(CONVERT(1,DECIMAL(65,31)) AS DATE);
+
+# test an error message for the complex "column" name: "CONVERT('',DECIMAL(65,0))"
+--error ER_TOO_BIG_PRECISION
+SELECT CONVERT(CONVERT('',DECIMAL(65,0)), DECIMAL(66,0));
+
+--echo #
+

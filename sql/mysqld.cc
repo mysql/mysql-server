@@ -60,6 +60,7 @@
 #include <my_dir.h>
 #include <my_bit.h>
 #include "rpl_gtid.h"
+#include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
@@ -259,8 +260,6 @@ inline void setup_fpu()
 
 }
 
-#define MYSQL_KILL_SIGNAL SIGTERM
-
 #ifdef SOLARIS
 extern "C" int gethostname(char *name, int namelen);
 #endif
@@ -431,6 +430,7 @@ my_bool lower_case_file_system= 0;
 my_bool opt_large_pages= 0;
 my_bool opt_super_large_pages= 0;
 my_bool opt_myisam_use_mmap= 0;
+my_bool offline_mode= 0;
 uint   opt_large_page_size= 0;
 volatile uint default_password_lifetime= 0;
 #if defined(ENABLED_DEBUG_SYNC)
@@ -456,6 +456,7 @@ my_bool enforce_gtid_consistency;
 ulong binlogging_impossible_mode;
 const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
+uint executed_gtids_compression_period= 0;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
 TYPELIB gtid_mode_typelib=
@@ -501,6 +502,8 @@ ulonglong  max_binlog_cache_size=0;
 ulong slave_max_allowed_packet= 0;
 ulong binlog_stmt_cache_size=0;
 int32 opt_binlog_max_flush_queue_time= 0;
+ulong opt_binlog_group_commit_sync_delay= 0;
+ulong opt_binlog_group_commit_sync_no_delay_count= 0;
 ulonglong  max_binlog_stmt_cache_size=0;
 ulong query_cache_size=0;
 ulong refresh_version;  /* Increments on each reload */
@@ -695,6 +698,7 @@ mysql_mutex_t LOCK_prepared_stmt_count;
 mysql_mutex_t LOCK_sql_slave_skip_counter;
 mysql_mutex_t LOCK_slave_net_timeout;
 mysql_mutex_t LOCK_log_throttle_qni;
+mysql_mutex_t LOCK_offline_mode;
 #ifdef HAVE_OPENSSL
 mysql_mutex_t LOCK_des_key_file;
 #endif
@@ -704,6 +708,8 @@ pthread_t signal_thread_id= 0;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+mysql_mutex_t LOCK_compress_gtid_table;
+mysql_cond_t COND_compress_gtid_table;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -771,6 +777,7 @@ Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor= NULL;
 Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
+Gtid_table_persistor *gtid_table_persistor= NULL;
 
 
 void set_remaining_args(int argc, char **argv)
@@ -1174,27 +1181,6 @@ static void close_connections(void)
   uint dump_thread_count= 0;
   uint dump_thread_kill_retries= 8;
 
-#if !defined(_WIN32)
-  /*
-    Kill the socket listener.
-    The main thread will then set socket_listener_active= false,
-    and wait for us to finish all the cleanup below.
-   */
-  mysql_mutex_lock(&LOCK_socket_listener_active);
-  while (socket_listener_active)
-  {
-    DBUG_PRINT("info",("Killing socket listener"));
-    if (pthread_kill(main_thread_id, SIGUSR1))
-    {
-      DBUG_ASSERT(false);
-      break;
-    }
-    mysql_cond_wait(&COND_socket_listener_active,
-                    &LOCK_socket_listener_active);
-  }
-  mysql_mutex_unlock(&LOCK_socket_listener_active);
-#endif /* _WIN32 */
-
   // Clean up connection acceptors
   if (mysqld_socket_acceptor != NULL)
   {
@@ -1294,7 +1280,7 @@ void kill_mysql(void)
     */
   }
 #else
-  if (pthread_kill(signal_thread_id, MYSQL_KILL_SIGNAL))
+  if (pthread_kill(signal_thread_id, SIGTERM))
   {
     DBUG_PRINT("error",("Got error %d from pthread_kill",errno)); /* purecov: inspected */
   }
@@ -1327,7 +1313,7 @@ extern "C" void unireg_abort(int exit_code)
 #ifndef _WIN32
   if (signal_thread_id != 0)
   {
-    pthread_kill(signal_thread_id, MYSQL_KILL_SIGNAL);
+    pthread_kill(signal_thread_id, SIGTERM);
     pthread_join(signal_thread_id, NULL);
   }
   signal_thread_id= 0;
@@ -1371,12 +1357,26 @@ static void mysqld_exit(int exit_code)
 */
 void gtid_server_cleanup()
 {
-  delete gtid_state;
-  delete global_sid_map;
-  delete global_sid_lock;
-  global_sid_lock= NULL;
-  global_sid_map= NULL;
-  gtid_state= NULL;
+  if (gtid_state != NULL)
+  {
+    delete gtid_state;
+    gtid_state= NULL;
+  }
+  if (global_sid_map != NULL)
+  {
+    delete global_sid_map;
+    global_sid_map= NULL;
+  }
+  if (global_sid_lock != NULL)
+  {
+    delete global_sid_lock;
+    global_sid_lock= NULL;
+  }
+  if (gtid_table_persistor != NULL)
+  {
+    delete gtid_table_persistor;
+    gtid_table_persistor= NULL;
+  }
 }
 
 /**
@@ -1390,7 +1390,8 @@ bool gtid_server_init()
   bool res=
     (!(global_sid_lock= new Checkable_rwlock) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
-     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map)));
+     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
+     !(gtid_table_persistor= new Gtid_table_persistor()));
   if (res)
   {
     gtid_server_cleanup();
@@ -1563,6 +1564,7 @@ static void clean_up_mutexes()
   mysql_mutex_destroy(&LOCK_sql_slave_skip_counter);
   mysql_mutex_destroy(&LOCK_slave_net_timeout);
   mysql_mutex_destroy(&LOCK_error_messages);
+  mysql_mutex_destroy(&LOCK_offline_mode);
   mysql_cond_destroy(&COND_manager);
 #ifdef _WIN32
   mysql_cond_destroy(&COND_handler_count);
@@ -2060,7 +2062,7 @@ LONG WINAPI my_unhandler_exception_filter(EXCEPTION_POINTERS *ex_pointers)
 }
 
 
-void my_init_signals(void)
+void my_init_signals()
 {
   if(opt_console)
     SetConsoleCtrlHandler(console_event_handler,TRUE);
@@ -2087,109 +2089,98 @@ void my_init_signals(void)
 
 #else // !_WIN32
 
-#ifndef SA_RESETHAND
-#define SA_RESETHAND 0
-#endif
-#ifndef SA_NODEFER
-#define SA_NODEFER 0
-#endif
-
-extern "C" void print_signal_warning(int sig)
-{
-  sql_print_warning("Got signal %d from thread %ld", sig, my_thread_id());
-  if (sig == SIGALRM)
-    alarm(2);         /* reschedule alarm */
+extern "C" {
+static void empty_signal_handler(int sig __attribute__((unused)))
+{ }
 }
 
 
-void my_init_signals(void)
+void my_init_signals()
 {
-  sigset_t set;
-  struct sigaction sa;
   DBUG_ENTER("my_init_signals");
-
-  {
-    struct sigaction l_s;
-    sigset_t l_set;
-    sigemptyset(&l_set);
-    l_s.sa_handler= print_signal_warning; // Should never be called!
-    l_s.sa_mask= l_set;
-    l_s.sa_flags= 0;
-    sigaction(SIGALRM, &l_s, NULL);
-  }
+  struct sigaction sa;
+  (void) sigemptyset(&sa.sa_mask);
 
   if (!(test_flags & TEST_NO_STACKTRACE) || (test_flags & TEST_CORE_ON_SIGNAL))
   {
-    sa.sa_flags = SA_RESETHAND | SA_NODEFER;
-    sigemptyset(&sa.sa_mask);
-    sigprocmask(SIG_SETMASK,&sa.sa_mask,NULL);
-
 #ifdef HAVE_STACKTRACE
     my_init_stacktrace();
 #endif
-    sa.sa_handler=handle_fatal_signal;
-    sigaction(SIGSEGV, &sa, NULL);
-    sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGBUS, &sa, NULL);
-    sigaction(SIGILL, &sa, NULL);
-    sigaction(SIGFPE, &sa, NULL);
+
+    if (test_flags & TEST_CORE_ON_SIGNAL)
+    {
+      // Change limits so that we will get a core file.
+      struct rlimit rl;
+      rl.rlim_cur= rl.rlim_max= RLIM_INFINITY;
+      if (setrlimit(RLIMIT_CORE, &rl))
+        sql_print_warning("setrlimit could not change the size of core files to"
+                          " 'infinity';  We may not be able to generate a"
+                          " core file on signals");
+    }
+
+    /*
+      SA_RESETHAND resets handler action to default when entering handler.
+      SA_NODEFER allows receiving the same signal during handler.
+      E.g. SIGABRT during our signal handler will dump core (default action).
+    */
+    sa.sa_flags= SA_RESETHAND | SA_NODEFER;
+    sa.sa_handler= handle_fatal_signal;
+    // Treat all these as fatal and handle them.
+    (void) sigaction(SIGSEGV, &sa, NULL);
+    (void) sigaction(SIGABRT, &sa, NULL);
+    (void) sigaction(SIGBUS, &sa, NULL);
+    (void) sigaction(SIGILL, &sa, NULL);
+    (void) sigaction(SIGFPE, &sa, NULL);
   }
 
-#ifdef HAVE_GETRLIMIT
-  if (test_flags & TEST_CORE_ON_SIGNAL)
-  {
-    /* Change limits so that we will get a core file */
-    struct rlimit rl;
-    rl.rlim_cur = rl.rlim_max = RLIM_INFINITY;
-    if (setrlimit(RLIMIT_CORE, &rl))
-      sql_print_warning("setrlimit could not change the size of core files to 'infinity';  We may not be able to generate a core file on signals");
-  }
-#endif
+  // Ignore SIGPIPE and SIGALRM
+  sa.sa_flags= 0;
+  sa.sa_handler= SIG_IGN;
+  (void) sigaction(SIGPIPE, &sa, NULL);
+  (void) sigaction(SIGALRM, &sa, NULL);
+
+  // SIGUSR1 is used to interrupt the socket listener.
+  sa.sa_handler= empty_signal_handler;
+  (void) sigaction(SIGUSR1, &sa, NULL);
+
+  // Fix signals if ignored by parents (can happen on Mac OS X).
+  sa.sa_handler= SIG_DFL;
+  (void) sigaction(SIGTERM, &sa, NULL);
+  (void) sigaction(SIGHUP, &sa, NULL);
+
+  sigset_t set;
   (void) sigemptyset(&set);
-  {
-    struct sigaction l_s;
-    sigset_t l_set;
-    sigemptyset(&l_set);
-    l_s.sa_handler= SIG_IGN;
-    l_s.sa_mask= l_set;
-    l_s.sa_flags= 0;
-    sigaction(SIGPIPE, &l_s, NULL);
-  }
-  sigaddset(&set,SIGPIPE);
-  sigaddset(&set,SIGQUIT);
-  sigaddset(&set,SIGHUP);
-  sigaddset(&set,SIGTERM);
-
-  /* Fix signals if blocked by parents (can happen on Mac OS X) */
-  sigemptyset(&sa.sa_mask);
-  sa.sa_flags = 0;
-  sa.sa_handler = print_signal_warning;
-  sigaction(SIGTERM, &sa, NULL);
-  sa.sa_flags = 0;
-  sa.sa_handler = print_signal_warning;
-  sigaction(SIGHUP, &sa, NULL);
-  sigaddset(&set,SIGTSTP);
-  sigaddset(&set,SIGALRM);
+  /*
+    Block SIGQUIT, SIGHUP and SIGTERM.
+    The signal handler thread does sigwait() on these.
+  */
+  (void) sigaddset(&set, SIGQUIT);
+  (void) sigaddset(&set, SIGHUP);
+  (void) sigaddset(&set, SIGTERM);
+  (void) sigaddset(&set, SIGTSTP);
+  /*
+    Block SIGINT unless debugging to prevent Ctrl+C from causing
+    unclean shutdown of the server.
+  */
   if (!(test_flags & TEST_SIGINT))
-    sigaddset(&set,SIGINT);
-  pthread_sigmask(SIG_SETMASK,&set,NULL);
+    (void) sigaddset(&set, SIGINT);
+  pthread_sigmask(SIG_SETMASK, &set, NULL);
   DBUG_VOID_RETURN;
 }
 
 
-static void start_signal_handler(void)
+static void start_signal_handler()
 {
   int error;
   pthread_attr_t thr_attr;
   DBUG_ENTER("start_signal_handler");
 
   (void) pthread_attr_init(&thr_attr);
-  pthread_attr_setscope(&thr_attr,PTHREAD_SCOPE_SYSTEM);
+  (void) pthread_attr_setscope(&thr_attr, PTHREAD_SCOPE_SYSTEM);
   (void) pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_JOINABLE);
 
   size_t guardize= 0;
-  pthread_attr_getguardsize(&thr_attr, &guardize);
-
+  (void) pthread_attr_getguardsize(&thr_attr, &guardize);
 #if defined(__ia64__) || defined(__ia64)
   /*
     Peculiar things with ia64 platforms - it seems we only have half the
@@ -2197,22 +2188,21 @@ static void start_signal_handler(void)
   */
   guardize= my_thread_stack_size;
 #endif
+  (void) pthread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
 
   /*
-    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can call
-    close_connections() successfully.
+    Set main_thread_id so that SIGTERM/SIGQUIT/SIGKILL can interrupt
+    the socket listener successfully.
   */
   main_thread_id= pthread_self();
 
-  pthread_attr_setstacksize(&thr_attr, my_thread_stack_size + guardize);
   mysql_mutex_lock(&LOCK_start_signal_handler);
-
   if ((error=
        mysql_thread_create(key_thread_signal_hand,
                            &signal_thread_id, &thr_attr, signal_hand, 0)))
   {
     sql_print_error("Can't create interrupt-thread (error %d, errno: %d)",
-                    error,errno);
+                    error, errno);
     exit(1);
   }
   mysql_cond_wait(&COND_start_signal_handler, &LOCK_start_signal_handler);
@@ -2223,52 +2213,20 @@ static void start_signal_handler(void)
 }
 
 
-extern "C" {
-static void empty_signal_handler(int sig __attribute__((unused)))
-{ }
-}
-
-
 /** This threads handles all signals and alarms. */
 /* ARGSUSED */
 pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 {
+  my_thread_init();
+
   sigset_t set;
-  int sig;
-  my_thread_init();       // Init new thread
+  (void) sigemptyset(&set);
+  (void) sigaddset(&set, SIGTERM);
+  (void) sigaddset(&set, SIGQUIT);
+  (void) sigaddset(&set, SIGHUP);
 
   /*
-    Setup alarm handler
-  */
-  {
-    struct sigaction l_s;
-    sigset_t l_set;
-    sigemptyset(&l_set);
-    l_s.sa_handler= empty_signal_handler;
-    l_s.sa_mask= l_set;
-    l_s.sa_flags= 0;
-    sigaction(SIGUSR1, &l_s, NULL);
-
-    sigemptyset(&set);
-    sigaddset(&set, SIGALRM);
-    pthread_sigmask(SIG_BLOCK, &set, NULL);
-  }
-
-  if (test_flags & TEST_SIGINT)
-  {
-    (void) sigemptyset(&set);     // Setup up SIGINT for debug
-    (void) sigaddset(&set,SIGINT);    // For debugging
-    (void) pthread_sigmask(SIG_UNBLOCK,&set,NULL);
-  }
-  (void) sigemptyset(&set);     // Setup up SIGINT for debug
-  (void) sigaddset(&set,SIGALRM);  // For alarms
-  (void) sigaddset(&set,SIGQUIT);
-  (void) sigaddset(&set,SIGHUP);
-  (void) sigaddset(&set,SIGTERM);
-  (void) sigaddset(&set,SIGTSTP);
-
-  /*
-    signal to start_signal_handler that we are ready
+    Signal to start_signal_handler that we are ready.
     This works by waiting for start_signal_handler to free mutex,
     after which we signal it that we are ready.
   */
@@ -2277,11 +2235,10 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
   mysql_mutex_unlock(&LOCK_start_signal_handler);
 
   /*
-    Waiting until mysqld_server_started == true
-    to ensure that all server components has been successfully
-    initialized. This step is mandatory since signal processing
-    could be done safely only when all server components
-    has been initialized.
+    Waiting until mysqld_server_started == true to ensure that all server
+    components have been successfully initialized. This step is mandatory
+    since signal processing can be done safely only when all server components
+    have been initialized.
   */
   mysql_mutex_lock(&LOCK_server_started);
   while (!mysqld_server_started)
@@ -2290,34 +2247,52 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
 
   for (;;)
   {
-    int error;          // Used when debugging
-    while ((error= sigwait(&set,&sig)) == EINTR)
+    int sig;
+    while (sigwait(&set, &sig) == EINTR)
     {}
     if (cleanup_done)
     {
       my_thread_end();
       pthread_exit(0);        // Safety
-      return 0;               // Avoid compiler warnings
+      return NULL;            // Avoid compiler warnings
     }
     switch (sig) {
     case SIGTERM:
     case SIGQUIT:
-    case SIGKILL:
-      /* switch to the file log message processing */
+      // Switch to the file log message processing.
       query_logger.set_handlers((log_output_options != LOG_NONE) ?
                                 LOG_FILE : LOG_NONE);
-      DBUG_PRINT("info",("Got signal: %d  abort_loop: %d",sig,abort_loop));
+      DBUG_PRINT("info", ("Got signal: %d  abort_loop: %d", sig, abort_loop));
       if (!abort_loop)
       {
-        abort_loop=1;       // mark abort for threads
+        abort_loop= true;       // Mark abort for threads.
 #ifdef HAVE_PSI_THREAD_INTERFACE
-        /* Delete the instrumentation for the signal thread */
+        // Delete the instrumentation for the signal thread.
         PSI_THREAD_CALL(delete_current_thread)();
 #endif
+        /*
+          Kill the socket listener.
+          The main thread will then set socket_listener_active= false,
+          and wait for us to finish all the cleanup below.
+        */
+        mysql_mutex_lock(&LOCK_socket_listener_active);
+        while (socket_listener_active)
+        {
+          DBUG_PRINT("info",("Killing socket listener"));
+          if (pthread_kill(main_thread_id, SIGUSR1))
+          {
+            DBUG_ASSERT(false);
+            break;
+          }
+          mysql_cond_wait(&COND_socket_listener_active,
+                          &LOCK_socket_listener_active);
+        }
+        mysql_mutex_unlock(&LOCK_socket_listener_active);
+
         close_connections();
         my_thread_end();
         pthread_exit(0);
-        return 0;  // Avoid compiler warnings
+        return NULL;  // Avoid compiler warnings
       }
       break;
     case SIGHUP:
@@ -2325,12 +2300,11 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       {
         int not_used;
         mysql_print_status();   // Print some debug info
-        reload_acl_and_cache((THD*) 0,
+        reload_acl_and_cache(NULL,
                              (REFRESH_LOG | REFRESH_TABLES | REFRESH_FAST |
-                              REFRESH_GRANT |
-                              REFRESH_THREADS | REFRESH_HOSTS),
-                             (TABLE_LIST*) 0, &not_used); // Flush logs
-        /* reenable query logs after the options were reloaded */
+                              REFRESH_GRANT | REFRESH_THREADS | REFRESH_HOSTS),
+                             NULL, &not_used); // Flush logs
+        // Reenable query logs after the options were reloaded.
         query_logger.set_handlers(log_output_options);
       }
       break;
@@ -2338,7 +2312,7 @@ pthread_handler_t signal_hand(void *arg __attribute__((unused)))
       break;          /* purecov: tested */
     }
   }
-  return(0);          /* purecov: deadcode */
+  return NULL;        /* purecov: deadcode */
 }
 
 #endif // !_WIN32
@@ -2788,8 +2762,7 @@ int init_common_variables()
       mysql_init_variables())
     return 1;
 
-  if (ignore_db_dirs_init())
-    return 1;
+  ignore_db_dirs_init();
 
   {
     struct tm tm_tmp;
@@ -3281,6 +3254,8 @@ static int init_thread_environment()
                    &LOCK_sql_rand, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_LOCK_log_throttle_qni,
                    &LOCK_log_throttle_qni, MY_MUTEX_INIT_FAST);
+  mysql_mutex_init(key_LOCK_offline_mode,
+                   &LOCK_offline_mode, MY_MUTEX_INIT_FAST);
 #ifdef HAVE_OPENSSL
   mysql_mutex_init(key_LOCK_des_key_file,
                    &LOCK_des_key_file, MY_MUTEX_INIT_FAST);
@@ -3299,25 +3274,29 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
-  mysql_cond_init(key_COND_manager, &COND_manager, NULL);
+  mysql_cond_init(key_COND_manager, &COND_manager);
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
+  mysql_cond_init(key_COND_server_started, &COND_server_started);
+  mysql_mutex_init(key_LOCK_compress_gtid_table,
+                   &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_compress_gtid_table,
+                  &COND_compress_gtid_table);
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count,
                    &LOCK_handler_count, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_handler_count, &COND_handler_count, NULL);
+  mysql_cond_init(key_COND_handler_count, &COND_handler_count);
 #else
   mysql_mutex_init(key_LOCK_socket_listener_active,
                    &LOCK_socket_listener_active, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_socket_listener_active,
-                  &COND_socket_listener_active, NULL);
+                  &COND_socket_listener_active);
   mysql_mutex_init(key_LOCK_start_signal_handler,
                    &LOCK_start_signal_handler, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_start_signal_handler,
-                  &COND_start_signal_handler, NULL);
+                  &COND_start_signal_handler);
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */
@@ -4111,11 +4090,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     "data directory and creates system tables.");
     gtid_mode= 0;
   }
-  if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
-  {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
-    unireg_abort(1);
-  }
   if (gtid_mode >= 2 && !enforce_gtid_consistency)
   {
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
@@ -4134,9 +4108,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    mysql_bin_log.set_previous_gtid_set(
-      const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
-
+    DBUG_ASSERT(!mysql_bin_log.is_relay_log);
     mysql_mutex_t *log_lock= mysql_bin_log.get_log_lock();
     mysql_mutex_lock(log_lock);
 
@@ -4206,7 +4178,7 @@ pthread_handler_t handle_shutdown(void *arg)
   if (WaitForSingleObject(hEventShutdown,INFINITE)==WAIT_OBJECT_0)
   {
     sql_print_information(ER_DEFAULT(ER_NORMAL_SHUTDOWN), my_progname);
-    abort_loop= 1;
+    abort_loop= true;
     close_connections();
     my_thread_end();
     pthread_exit(0);
@@ -4526,6 +4498,10 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
     }
 
+    Gtid_set *executed_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+    Gtid_set *lost_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
     if (opt_bin_log)
     {
       /*
@@ -4542,13 +4518,87 @@ int mysqld_main(int argc, char **argv)
       if (ret)
         unireg_abort(1);
 
-      if (mysql_bin_log.init_gtid_sets(
-            const_cast<Gtid_set *>(gtid_state->get_logged_gtids()),
-            const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
-            NULL,
-            opt_master_verify_checksum,
-            true/*true=need lock*/))
+      /*
+        Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
+        gtid_executed table and binlog files during server startup.
+      */
+      Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set unsaved_gtids_in_table(global_sid_map, global_sid_lock);
+      Gtid_set *gtids_only_in_table=
+        const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
+      Gtid_set *previous_gtids_logged=
+        const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
+
+      if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
+                                       &purged_gtids_binlog,
+                                       NULL,
+                                       opt_master_verify_checksum,
+                                       true/*true=need lock*/) ||
+          gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
+
+      global_sid_lock->wrlock();
+
+      if (!logged_gtids_binlog.is_empty() &&
+          !logged_gtids_binlog.is_subset(executed_gtids))
+      {
+        unsaved_gtids_in_table.add_gtid_set(&logged_gtids_binlog);
+        if (!executed_gtids->is_empty())
+          unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
+        /*
+          Save unsaved GTIDs into gtid_executed table, in the following
+          four cases:
+            1. the upgrade case.
+            2. the case that a slave is provisioned from a backup of
+               the master and the slave is cleaned by RESET MASTER
+               and RESET SLAVE before this.
+            3. the case that no binlog rotation happened from the
+               last RESET MASTER on the server before it crashes.
+            4. The set of GTIDs of the last binlog is not saved into the
+               gtid_executed table if server crashes, so we save it into
+               gtid_executed table and executed_gtids during recovery
+               from the crash.
+        */
+        if (gtid_state->save(&unsaved_gtids_in_table) == -1)
+        {
+          global_sid_lock->unlock();
+          unireg_abort(1);
+        }
+        executed_gtids->add_gtid_set(&unsaved_gtids_in_table);
+      }
+
+      /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
+      if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
+          RETURN_STATUS_OK ||
+          gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+      /*
+        lost_gtids = executed_gtids -
+                     (logged_gtids_binlog - purged_gtids_binlog)
+                   = gtids_only_in_table + purged_gtids_binlog;
+      */
+      DBUG_ASSERT(lost_gtids->is_empty());
+      if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
+          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+
+      /* Prepare previous_gtids_logged for next binlog */
+      if (previous_gtids_logged->add_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+
+      global_sid_lock->unlock();
 
       /*
         Write the previous set of gtids at this point because during
@@ -4561,10 +4611,10 @@ int mysqld_main(int argc, char **argv)
       if (gtid_mode > 0)
       {
         global_sid_lock->wrlock();
-        const Gtid_set *logged_gtids= gtid_state->get_logged_gtids();
-        if (gtid_mode > 1 || !logged_gtids->is_empty())
+        if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 ||
+            !logged_gtids_binlog.is_empty())
         {
-          Previous_gtids_log_event prev_gtids_ev(logged_gtids);
+          Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
           prev_gtids_ev.checksum_alg= binlog_checksum_options;
@@ -4580,6 +4630,15 @@ int mysqld_main(int argc, char **argv)
         else
           global_sid_lock->unlock();
       }
+    }
+    else if (gtid_mode > GTID_MODE_OFF)
+    {
+      /*
+        If gtid_mode is enabled and binlog is disabled, initialize
+        executed_gtids from gtid_executed table.
+      */
+      if (gtid_state->fetch_gtids(executed_gtids) == -1)
+        unireg_abort(1);
     }
   }
 
@@ -4621,9 +4680,9 @@ int mysqld_main(int argc, char **argv)
   if (mysql_rm_tmp_tables() || acl_init(opt_noacl) ||
       my_tz_init((THD *)0, default_tz_name, opt_bootstrap))
   {
-    abort_loop=1;
+    abort_loop= true;
 
-    (void) pthread_kill(signal_thread_id, MYSQL_KILL_SIGNAL);
+    (void) pthread_kill(signal_thread_id, SIGTERM);
 
     delete_pid_file(MYF(MY_WME));
 
@@ -4712,6 +4771,9 @@ int mysqld_main(int argc, char **argv)
 #endif
   start_handle_manager();
 
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+    create_compress_gtid_table_thread();
+
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
                         server_version,
@@ -4749,7 +4811,7 @@ int mysqld_main(int argc, char **argv)
   setup_conn_event_handler_threads();
 #else
   mysql_mutex_lock(&LOCK_socket_listener_active);
-  // Make it possible for close_connections() to kill the listener.
+  // Make it possible for the signal handler to kill the listener.
   socket_listener_active= true;
   mysql_mutex_unlock(&LOCK_socket_listener_active);
   (void) mysqld_socket_acceptor->connection_event_loop();
@@ -4757,9 +4819,23 @@ int mysqld_main(int argc, char **argv)
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
 
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  {
+    terminate_compress_gtid_table_thread();
+    /*
+      Save set of GTIDs of the last binlog into gtid_executed table
+      on server shutdown.
+    */
+    if (gtid_state->save_gtids_of_last_binlog_into_table(false))
+      sql_print_warning("Failed to save set of GTIDs of the last binlog "
+                        "into gtid_executed table on server shutdown, "
+                        "so we save it into gtid_executed table and "
+                        "executed_gtids during next server startup.");
+  }
+
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
-  // Notify close_connections() that we have stopped listening for connections.
+  // Notify the signal handler that we have stopped listening for connections.
   socket_listener_active= false;
   mysql_cond_broadcast(&COND_socket_listener_active);
   mysql_mutex_unlock(&LOCK_socket_listener_active);
@@ -6528,7 +6604,7 @@ static int mysql_init_variables(void)
   slave_open_temp_tables= 0;
   opt_endinfo= using_udf_functions= 0;
   opt_using_transactions= 0;
-  abort_loop= 0;
+  abort_loop= false;
   grant_option= 0;
   aborted_threads= 0;
   delayed_insert_threads= delayed_insert_writes= delayed_rows_in_use= 0;
@@ -7723,9 +7799,11 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+PSI_mutex_key key_LOCK_compress_gtid_table;
 #ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
 #endif
+PSI_mutex_key key_LOCK_offline_mode;
 
 #ifdef HAVE_REPLICATION
 PSI_mutex_key key_commit_order_manager_mutex;
@@ -7807,12 +7885,14 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+  { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
 #ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
 #ifdef HAVE_REPLICATION
-  { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0}
+  { &key_commit_order_manager_mutex, "Commit_order_manager::m_mutex", 0},
 #endif
+  { &key_LOCK_offline_mode, "LOCK_offline_mode", PSI_FLAG_GLOBAL}
 };
 
 PSI_rwlock_key key_rwlock_LOCK_grant, key_rwlock_LOCK_logger,
@@ -7868,6 +7948,7 @@ PSI_cond_key key_RELAYLOG_COND_done;
 PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
+PSI_cond_key key_COND_compress_gtid_table;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
 #endif
@@ -7909,7 +7990,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
-  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL}
+  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
+  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 #ifdef HAVE_REPLICATION
   ,
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
@@ -7917,7 +7999,8 @@ static PSI_cond_info all_server_conds[]=
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_one_connection, key_thread_signal_hand,
+  key_thread_compress_gtid_table;
 
 #ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
@@ -7938,7 +8021,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
   { &key_thread_one_connection, "one_connection", 0},
-  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL}
+  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
+  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP
@@ -8092,6 +8176,8 @@ PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slav
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
 PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
+PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 #ifdef HAVE_REPLICATION
 PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
 #endif
@@ -8193,6 +8279,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
+  & stage_compressing_gtid_table,
+  & stage_suspending,
   & stage_starting
 };
 
@@ -8270,6 +8358,7 @@ PSI_memory_key key_memory_rpl_filter;
 PSI_memory_key key_memory_errmsgs;
 PSI_memory_key key_memory_Gcalc_dyn_list_block;
 PSI_memory_key key_memory_Gis_read_stream_err_msg;
+PSI_memory_key key_memory_Geometry_objects_data;
 PSI_memory_key key_memory_KEY_CACHE;
 PSI_memory_key key_memory_MYSQL_LOCK;
 PSI_memory_key key_memory_Event_scheduler_scheduler_param;
@@ -8411,6 +8500,7 @@ static PSI_memory_info all_server_memory[]=
   { &key_memory_errmsgs, "errmsgs", 0},
   { &key_memory_Gcalc_dyn_list_block, "Gcalc_dyn_list::block", 0},
   { &key_memory_Gis_read_stream_err_msg, "Gis_read_stream::err_msg", 0},
+  { &key_memory_Geometry_objects_data, "Geometry::ptr_and_wkb_data", 0},
   { &key_memory_KEY_CACHE, "KEY_CACHE", 0},
   { &key_memory_MYSQL_LOCK, "MYSQL_LOCK", 0},
   { &key_memory_NET_buff, "NET::buff", 0},

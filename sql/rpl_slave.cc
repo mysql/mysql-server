@@ -60,6 +60,8 @@
 #include "mysqld_thd_manager.h"                 // Global_THD_manager
 #include "rpl_slave_commit_order_manager.h"
 
+#include <algorithm>
+
 using std::min;
 using std::max;
 
@@ -2003,7 +2005,7 @@ maybe it is a *VERY OLD MASTER*.");
     mysql_free_result(master_res);
     master_res= NULL;
   }
-  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.elements > 0)
+  if (mi->master_id == 0 && mi->ignore_server_ids->dynamic_ids.size() > 0)
   {
     errmsg= "Slave configured with server id filtering could not detect the master server id.";
     err_code= ER_SLAVE_FATAL_ERROR;
@@ -2589,7 +2591,7 @@ bool show_slave_status(THD* thd, Master_info* mi)
   if (mi != NULL)
   { 
     global_sid_lock->wrlock();
-    const Gtid_set* sql_gtid_set= gtid_state->get_logged_gtids();
+    const Gtid_set* sql_gtid_set= gtid_state->get_executed_gtids();
     const Gtid_set* io_gtid_set= mi->rli->get_gtid_set();
     if ((sql_gtid_set_size= sql_gtid_set->to_string(&sql_gtid_set_buffer)) < 0 ||
         (io_gtid_set_size= io_gtid_set->to_string(&io_gtid_set_buffer)) < 0)
@@ -2882,11 +2884,11 @@ bool show_slave_status(THD* thd, Master_info* mi)
       char buff[FN_REFLEN];
       ulong i, cur_len;
       for (i= 0, buff[0]= 0, cur_len= 0;
-           i < mi->ignore_server_ids->dynamic_ids.elements; i++)
+           i < mi->ignore_server_ids->dynamic_ids.size(); i++)
       {
         ulong s_id, slen;
         char sbuff[FN_REFLEN];
-        get_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id, i);
+        s_id= mi->ignore_server_ids->dynamic_ids[i];
         slen= sprintf(sbuff, (i == 0 ? "%lu" : ", %lu"), s_id);
         if (cur_len + slen + 4 > FN_REFLEN)
         {
@@ -3179,7 +3181,7 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       executed_gtid_set
     */
     if (!last_retrieved_gtid->empty() &&
-        !gtid_state->get_logged_gtids()->contains_gtid(*last_retrieved_gtid))
+        !gtid_state->get_executed_gtids()->contains_gtid(*last_retrieved_gtid))
     {
       if (retrieved_set->_remove_gtid(*last_retrieved_gtid) != RETURN_STATUS_OK)
       {
@@ -3188,8 +3190,8 @@ static int request_dump(THD *thd, MYSQL* mysql, Master_info* mi,
       }
     }
 
-    if (gtid_executed.add_gtid_set(mi->rli->get_gtid_set()) != RETURN_STATUS_OK ||
-        gtid_executed.add_gtid_set(gtid_state->get_logged_gtids()) !=
+    if (gtid_executed.add_gtid_set(retrieved_set) != RETURN_STATUS_OK ||
+        gtid_executed.add_gtid_set(gtid_state->get_executed_gtids()) !=
         RETURN_STATUS_OK)
     {
       global_sid_lock->unlock();
@@ -3421,14 +3423,6 @@ static int sql_delay_event(Log_event *ev, THD *thd, Relay_log_info *rli)
   DBUG_RETURN(0);
 }
 
-/**
-   a sort_dynamic function on ulong type
-   returns as specified by @c qsort_cmp
-*/
-int ulong_cmp(ulong *id1, ulong *id2)
-{
-  return *id1 < *id2? -1 : (*id1 > *id2? 1 : 0);
-}
 
 /**
   Applies the given event and advances the relay log position.
@@ -5214,9 +5208,10 @@ bool mts_checkpoint_routine(Relay_log_info *rli, ulonglong period,
   {
     Slave_worker *w_i;
     get_dynamic(&rli->workers, (uchar *) &w_i, i);
-    set_dynamic(&rli->least_occupied_workers, (uchar*) &w_i->jobs.len, w_i->id);
+    rli->least_occupied_workers[w_i->id]= w_i->jobs.len;
   };
-  sort_dynamic(&rli->least_occupied_workers, (qsort_cmp) ulong_cmp);
+  std::sort(rli->least_occupied_workers.begin(),
+            rli->least_occupied_workers.end());
 
   if (need_data_lock)
     mysql_mutex_lock(&rli->data_lock);
@@ -5323,8 +5318,10 @@ int slave_start_single_worker(Relay_log_info *rli, ulong i)
     mysql_cond_wait(&w->jobs_cond, &w->jobs_lock);
   mysql_mutex_unlock(&w->jobs_lock);
   // Least occupied inited with zero
-  insert_dynamic(&rli->least_occupied_workers, (uchar*) &w->jobs.len);
-
+  {
+    ulong jobs_len= w->jobs.len;
+    rli->least_occupied_workers.push_back(jobs_len);
+  }
 err:
   if (error && w)
   {
@@ -5378,7 +5375,7 @@ int slave_start_workers(Relay_log_info *rli, ulong n, bool *mts_inited)
   rli->last_assigned_worker= NULL;     // associated with curr_group_assigned
   my_init_dynamic_array(&rli->curr_group_da, sizeof(Log_event*), 8, 2);
   // Least_occupied_workers array to hold items size of Slave_jobs_queue::len
-  my_init_dynamic_array(&rli->least_occupied_workers, sizeof(ulong), n, 0); 
+  rli->least_occupied_workers.resize(n); 
 
   /* 
      GAQ  queue holds seqno:s of scheduled groups. C polls workers in 
@@ -5589,7 +5586,7 @@ end:
   rli->mts_group_status= Relay_log_info::MTS_NOT_IN_GROUP;
   destroy_hash_workers(rli);
   delete rli->gaq;
-  delete_dynamic(&rli->least_occupied_workers);    // least occupied
+  rli->least_occupied_workers.clear();
 
   // Destroy buffered events of the current group prior to exit.
   for (uint i= 0; i < rli->curr_group_da.elements; i++)
@@ -6850,7 +6847,7 @@ static int queue_event(Master_info* mi,const char* buf, ulong event_len)
         If the master is on the ignore list, execution of
         format description log events and rotate events is necessary.
       */
-      (mi->ignore_server_ids->dynamic_ids.elements > 0 &&
+      (mi->ignore_server_ids->dynamic_ids.size() > 0 &&
        mi->shall_ignore_server_id(s_id) &&
        /* everything is filtered out from non-master */
        (s_id != mi->master_id ||
@@ -7002,7 +6999,7 @@ static int connect_to_master(THD* thd, MYSQL* mysql, Master_info* mi,
 #endif
   ulong client_flag= CLIENT_REMEMBER_OPTIONS;
   if (opt_slave_compressed_protocol)
-    client_flag=CLIENT_COMPRESS;                /* We will use compression */
+    client_flag|= CLIENT_COMPRESS;              /* We will use compression */
 
   mysql_options(mysql, MYSQL_OPT_CONNECT_TIMEOUT, (char *) &slave_net_timeout);
   mysql_options(mysql, MYSQL_OPT_READ_TIMEOUT, (char *) &slave_net_timeout);
@@ -8522,19 +8519,40 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     mi->connect_retry = lex_mi->connect_retry;
   if (lex_mi->retry_count_opt !=  LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->retry_count = lex_mi->retry_count;
+
   if (lex_mi->heartbeat_opt != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->heartbeat_period = lex_mi->heartbeat_period;
+  else if (lex_mi->host || lex_mi->port)
+  {
+    /*
+      If the user specified host or port or both without heartbeat_period,
+      we use default value for heartbeat_period. By default, We want to always
+      have heartbeat enabled when we switch master unless
+      master_heartbeat_period is explicitly set to zero (heartbeat disabled).
+
+      Here is the default value for heartbeat period if CHANGE MASTER did not
+      specify it.  (no data loss in conversion as hb period has a max)
+    */
+    mi->heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
+                                     (slave_net_timeout/2.0));
+    DBUG_ASSERT(mi->heartbeat_period > (float) 0.001
+                || mi->heartbeat_period == 0);
+
+    // counter is cleared if master is CHANGED.
+    mi->received_heartbeats= 0;
+    // clear timestamp of last heartbeat as well.
+    mi->last_heartbeat= 0;
+  }
 
   /*
     reset the last time server_id list if the current CHANGE MASTER
     is mentioning IGNORE_SERVER_IDS= (...)
   */
   if (lex_mi->repl_ignore_server_ids_opt == LEX_MASTER_INFO::LEX_MI_ENABLE)
-    reset_dynamic(&(mi->ignore_server_ids->dynamic_ids));
-  for (uint i= 0; i < lex_mi->repl_ignore_server_ids.elements; i++)
+    mi->ignore_server_ids->dynamic_ids.clear();
+  for (size_t i= 0; i < lex_mi->repl_ignore_server_ids.size(); i++)
   {
-    ulong s_id;
-    get_dynamic(&lex_mi->repl_ignore_server_ids, (uchar*) &s_id, i);
+    ulong s_id= lex_mi->repl_ignore_server_ids[i];
     if (s_id == ::server_id && replicate_same_server_id)
     {
       my_error(ER_SLAVE_IGNORE_SERVER_IDS, MYF(0), static_cast<int>(s_id));
@@ -8543,16 +8561,10 @@ static bool change_receive_options(THD* thd, LEX_MASTER_INFO* lex_mi,
     }
     else
     {
-      if (bsearch((const ulong *) &s_id,
-                  mi->ignore_server_ids->dynamic_ids.buffer,
-                  mi->ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
-                  (int (*) (const void*, const void*))
-                  change_master_server_id_cmp) == NULL)
-        insert_dynamic(&(mi->ignore_server_ids->dynamic_ids), (uchar*) &s_id);
+      // Keep the array sorted, ignore duplicates.
+      mi->ignore_server_ids->dynamic_ids.insert_unique(s_id);
     }
   }
-  sort_dynamic(&(mi->ignore_server_ids->dynamic_ids),
-               (qsort_cmp) change_master_server_id_cmp);
 
   if (lex_mi->ssl != LEX_MASTER_INFO::LEX_MI_UNCHANGED)
     mi->ssl= (lex_mi->ssl == LEX_MASTER_INFO::LEX_MI_ENABLE);

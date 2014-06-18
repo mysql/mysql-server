@@ -77,7 +77,7 @@ using std::max;
 #define CLIENT_CAPABILITIES	(CLIENT_LONG_PASSWORD | CLIENT_LONG_FLAG | CLIENT_LOCAL_FILES)
 
 char server_version[SERVER_VERSION_LENGTH];
-ulong server_id = 0;
+ulong filter_server_id = 0;
 /* 
   One statement can result in a sequence of several events: Intvar_log_events,
   User_var_log_events, and Rand_log_events, followed by one
@@ -134,7 +134,8 @@ static my_bool force_if_open_opt= 1, raw_mode= 0;
 static my_bool to_last_remote_log= 0, stop_never= 0;
 static my_bool opt_verify_binlog_checksum= 1;
 static ulonglong offset = 0;
-static uint stop_never_server_id= 1;
+static int64 stop_never_slave_server_id= -1;
+static int64 connection_server_id= -1;
 static char* host = 0;
 static int port= 0;
 static uint my_end_arg;
@@ -159,7 +160,6 @@ static ulonglong start_position, stop_position;
 static char *start_datetime_str, *stop_datetime_str;
 static my_time_t start_datetime= 0, stop_datetime= MY_TIME_T_MAX;
 static ulonglong rec_count= 0;
-static ushort binlog_flags = 0; 
 static MYSQL* mysql = NULL;
 static char* dirname_for_local_load= 0;
 static uint opt_server_id_bits = 0;
@@ -890,7 +890,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
         events.
       */
       if (ev_type != ROTATE_EVENT &&
-          server_id && (server_id != ev->server_id))
+          filter_server_id && (filter_server_id != ev->server_id))
         goto end;
     }
     if (((my_time_t) (ev->when.tv_sec) >= stop_datetime)
@@ -1515,7 +1515,7 @@ static struct my_option my_long_options[] =
     &opt_secure_auth, 0, GET_BOOL, NO_ARG, 1, 0, 0, 0, 0, 0},
   {"server-id", OPT_SERVER_ID,
    "Extract only binlog entries created by the server having the given id.",
-   &server_id, &server_id, 0, GET_ULONG,
+   &filter_server_id, &filter_server_id, 0, GET_ULONG,
    REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"server-id-bits", 0,
    "Set number of significant bits in server-id",
@@ -1571,9 +1571,15 @@ static struct my_option my_long_options[] =
    &stop_never, &stop_never, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"stop-never-slave-server-id", OPT_WAIT_SERVER_ID,
-   "The slave server ID used for stop-never",
-   &stop_never_server_id, &stop_never_server_id, 0,
-   GET_UINT, REQUIRED_ARG, 65535, 1, 65535, 0, 0, 0},
+   "The slave server_id used for --read-from-remote-server --stop-never."
+   " This option cannot be used together with connection-server-id.",
+   &stop_never_slave_server_id, &stop_never_slave_server_id, 0,
+   GET_LL, REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
+  {"connection-server-id", OPT_CONNECTION_SERVER_ID,
+   "The slave server_id used for --read-from-remote-server."
+   " This option cannot be used together with stop-never-slave-server-id.",
+   &connection_server_id, &connection_server_id, 0,
+   GET_LL, REQUIRED_ARG, -1, -1, 0xFFFFFFFFLL, 0, 0, 0},
   {"stop-position", OPT_STOP_POSITION,
    "Stop reading the binlog at position N. Applies to the last binlog "
    "passed on the command line.",
@@ -2096,6 +2102,12 @@ err:
 }
 
 
+static int get_dump_flags()
+{
+  return stop_never ? 0 : BINLOG_DUMP_NON_BLOCK;
+}
+
+
 /**
   Requests binlog dump from a remote server and prints the events it
   receives.
@@ -2144,7 +2156,19 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     Fake a server ID to log continously. This will show as a
     slave on the mysql server.
   */
-  server_id= ((to_last_remote_log && stop_never) ? stop_never_server_id : 0);
+  if (to_last_remote_log && stop_never)
+  {
+    if (stop_never_slave_server_id == -1)
+      server_id= 1;
+    else
+      server_id= stop_never_slave_server_id;
+  }
+  else
+    server_id= 0;
+
+  if (connection_server_id != -1)
+    server_id= connection_server_id;
+
   size_t tlen = strlen(logname);
   if (tlen > UINT_MAX) 
   {
@@ -2173,7 +2197,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     */
     int4store(ptr_buffer, (uint32) start_position);
     ptr_buffer+= ::BINLOG_POS_OLD_INFO_SIZE;
-    int2store(ptr_buffer, binlog_flags);
+    int2store(ptr_buffer, get_dump_flags());
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
@@ -2205,7 +2229,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     }
     uchar* ptr_buffer= command_buffer;
 
-    int2store(ptr_buffer, binlog_flags);
+    int2store(ptr_buffer, get_dump_flags());
     ptr_buffer+= ::BINLOG_FLAGS_INFO_SIZE;
     int4store(ptr_buffer, server_id);
     ptr_buffer+= ::BINLOG_SERVER_ID_INFO_SIZE;
@@ -2368,8 +2392,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             error("Could not create log file '%s'", log_file_name);
             DBUG_RETURN(ERROR_STOP);
           }
-          my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
-                    BIN_LOG_HEADER_SIZE, MYF(0));
+          DBUG_EXECUTE_IF("simulate_result_file_write_error_for_FD_event",
+                          DBUG_SET("+d,simulate_fwrite_error"););
+          if (my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
+                        BIN_LOG_HEADER_SIZE, MYF(MY_NABP)))
+          {
+            error("Could not write into log file '%s'", log_file_name);
+            DBUG_RETURN(ERROR_STOP);
+          }
           /*
             Need to handle these events correctly in raw mode too 
             or this could get messy
@@ -2392,7 +2422,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
       if (raw_mode)
       {
-        my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(0));
+        DBUG_EXECUTE_IF("simulate_result_file_write_error",
+                        DBUG_SET("+d,simulate_fwrite_error"););
+        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        {
+          error("Could not write into log file '%s'", log_file_name);
+          retval= ERROR_STOP;
+        }
         if (ev)
         {
           ev->temp_buf=0;
@@ -2844,6 +2880,13 @@ static int args_post_process(void)
   }
 
   global_sid_lock->unlock();
+
+  if (connection_server_id == 0 && stop_never)
+    error("Cannot set --server-id=0 when --stop-never is specified.");
+  if (connection_server_id != -1 && stop_never_slave_server_id != -1)
+    error("Cannot set --connection-server-id= %lld and"
+          "--stop-never-slave-server-id= %lld. ", connection_server_id,
+          stop_never_slave_server_id);
 
   DBUG_RETURN(OK_CONTINUE);
 }

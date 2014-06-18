@@ -1283,7 +1283,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
 
 %type <NONE>
         create change do drop insert replace insert2
-        insert_values update delete truncate rename
+        insert_values delete truncate rename
         show describe load alter optimize keycache preload flush
         reset purge begin commit rollback savepoint release
         slave master_def master_defs master_file_def slave_until_opts
@@ -1310,7 +1310,7 @@ bool my_yyoverflow(short **a, YYSTYPE **b, YYLTYPE **c, ulong *yystacksize);
         equal optional_braces
         opt_mi_check_type opt_to mi_check_types normal_join
         table_to_table_list table_to_table opt_table_list opt_as
-        single_multi table_wild_list table_wild_one opt_wild
+        table_wild_list table_wild_one opt_wild
         opt_and charset
         help
         opt_extended_describe
@@ -1747,13 +1747,11 @@ change:
             LEX *lex = Lex;
             lex->sql_command = SQLCOM_CHANGE_MASTER;
             /*
-              Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is freed
-              in THD::cleanup_after_query. So it is guaranteed to be
-              uninitialized before here.
-              Its allocation is deferred till the option is parsed below.
+              Clear LEX_MASTER_INFO struct. repl_ignore_server_ids is cleared
+              in THD::cleanup_after_query. So it is guaranteed to be empty here.
             */
+            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.empty());
             lex->mi.set_unspecified();
-            DBUG_ASSERT(Lex->mi.repl_ignore_server_ids.elements == 0);
           }
           master_defs
           {}
@@ -1994,6 +1992,11 @@ master_def:
         | MASTER_PASSWORD_SYM EQ TEXT_STRING_sys_nonewline
           {
             Lex->mi.password = $3.str;
+            if (strlen($3.str) > 32)
+            {
+              my_error(ER_CHANGE_MASTER_PASSWORD_LENGTH, MYF(0));
+              MYSQL_YYABORT;
+            }
             Lex->contains_plaintext_password= true;
           }
         | MASTER_PORT_SYM EQ ulong_num
@@ -2116,15 +2119,7 @@ ignore_server_id_list:
 ignore_server_id:
           ulong_num
           {
-            if (Lex->mi.repl_ignore_server_ids.elements == 0)
-            {
-              my_init_dynamic_array2(&Lex->mi.repl_ignore_server_ids,
-                                     sizeof(::server_id),
-                                     Lex->mi.server_ids_buffer,
-                                     array_elements(Lex->mi.server_ids_buffer),
-                                     16);
-            }
-            insert_dynamic(&Lex->mi.repl_ignore_server_ids, (uchar*) &($1));
+            Lex->mi.repl_ignore_server_ids.push_back($1);
           }
 
 master_file_def:
@@ -8040,8 +8035,8 @@ opt_column:
         ;
 
 opt_ignore:
-          /* empty */ { Lex->ignore= 0;}
-        | IGNORE_SYM { Lex->ignore= 1;}
+          /* empty */ { Lex->set_ignore(false);}
+        | IGNORE_SYM { Lex->set_ignore(true);}
         ;
 
 opt_restrict:
@@ -9169,11 +9164,11 @@ simple_expr:
           }
         | BINARY simple_expr %prec NEG
           {
-            $$= create_func_cast(YYTHD, $2, ITEM_CAST_CHAR, &my_charset_bin);
+            $$= create_func_cast(YYTHD, @2, $2, ITEM_CAST_CHAR, &my_charset_bin);
           }
         | CAST_SYM '(' expr AS cast_type ')'
           {
-            $$= create_func_cast(YYTHD, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5);
           }
         | CASE_SYM opt_expr when_list opt_else END
           {
@@ -9181,7 +9176,7 @@ simple_expr:
           }
         | CONVERT_SYM '(' expr ',' cast_type ')'
           {
-            $$= create_func_cast(YYTHD, $3, &$5);
+            $$= create_func_cast(YYTHD, @3, $3, &$5);
           }
         | CONVERT_SYM '(' expr USING charset_name ')'
           {
@@ -11253,7 +11248,7 @@ delete:
             YYPS->m_lock_type= TL_WRITE_DEFAULT;
             YYPS->m_mdl_type= MDL_SHARED_WRITE;
 
-            lex->ignore= 0;
+            lex->set_ignore(false);
             lex->select_lex->init_order();
           }
           opt_delete_options single_multi
@@ -11371,8 +11366,12 @@ opt_delete_options:
 
 opt_delete_option:
           QUICK        { Select->options|= OPTION_QUICK; }
-        | LOW_PRIORITY { YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY; }
-        | IGNORE_SYM   { Lex->ignore= 1; }
+        | LOW_PRIORITY
+        {
+          YYPS->m_lock_type= TL_WRITE_LOW_PRIORITY;
+          YYPS->m_mdl_type= MDL_SHARED_WRITE_LOW_PRIO;
+        }
+        | IGNORE_SYM   { Lex->set_ignore(true); }
         ;
 
 truncate:
@@ -12156,7 +12155,7 @@ load:
             lex->sql_command= SQLCOM_LOAD;
             lex->local_file=  $5;
             lex->duplicates= DUP_ERROR;
-            lex->ignore= 0;
+            lex->set_ignore(false);
             if (!(lex->exchange= new sql_exchange($7.str, 0, $2)))
               MYSQL_YYABORT;
           }
@@ -12167,11 +12166,16 @@ load:
             if (lex->duplicates == DUP_REPLACE && $4 == TL_WRITE_CONCURRENT_INSERT)
               $4= TL_WRITE_DEFAULT;
             if (!Select->add_table_to_list(YYTHD, $12, NULL, TL_OPTION_UPDATING,
-                                           $4, MDL_SHARED_WRITE, NULL, $13))
+                                           $4, $4 == TL_WRITE_LOW_PRIORITY ?
+                                               MDL_SHARED_WRITE_LOW_PRIO :
+                                               MDL_SHARED_WRITE, NULL, $13))
               MYSQL_YYABORT;
             lex->field_list.empty();
             lex->update_list.empty();
             lex->value_list.empty();
+            /* We can't give an error in the middle when using LOCAL files */
+            if (lex->local_file && lex->duplicates == DUP_ERROR)
+              lex->set_ignore(true);
           }
           opt_load_data_charset
           { Lex->exchange->cs= $15; }
@@ -12203,7 +12207,7 @@ load_data_lock:
 opt_duplicate:
           /* empty */ { Lex->duplicates=DUP_ERROR; }
         | REPLACE { Lex->duplicates=DUP_REPLACE; }
-        | IGNORE_SYM { Lex->ignore= 1; }
+        | IGNORE_SYM { Lex->set_ignore(true); }
         ;
 
 opt_field_term:
@@ -13502,11 +13506,26 @@ table_lock:
           table_ident opt_table_alias lock_option
           {
             thr_lock_type lock_type= (thr_lock_type) $3;
-            bool lock_for_write= (lock_type >= TL_WRITE_ALLOW_WRITE);
+            enum_mdl_type mdl_lock_type;
+
+            if (lock_type >= TL_WRITE_ALLOW_WRITE)
+            {
+              /* LOCK TABLE ... WRITE/LOW_PRIORITY WRITE */
+              mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
+            }
+            else if (lock_type == TL_READ)
+            {
+              /* LOCK TABLE ... READ LOCAL */
+              mdl_lock_type= MDL_SHARED_READ;
+            }
+            else
+            {
+              /* LOCK TABLE ... READ */
+              mdl_lock_type= MDL_SHARED_READ_ONLY;
+            }
+
             if (!Select->add_table_to_list(YYTHD, $1, $2, 0, lock_type,
-                                           (lock_for_write ?
-                                            MDL_SHARED_NO_READ_WRITE :
-                                            MDL_SHARED_READ)))
+                                           mdl_lock_type))
               MYSQL_YYABORT;
           }
         ;

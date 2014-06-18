@@ -89,6 +89,35 @@ struct SP_TABLE
 };
 
 
+/**
+   A simple RAII wrapper around Strict_error_handler.
+*/
+class Strict_error_handler_wrapper
+{
+  THD *m_thd;
+  Strict_error_handler m_strict_handler;
+  bool m_active;
+
+public:
+  Strict_error_handler_wrapper(THD *thd, sp_head *sp_head)
+    : m_thd(thd), m_active(false)
+  {
+    if (sp_head->m_sql_mode & (MODE_STRICT_ALL_TABLES |
+                               MODE_STRICT_TRANS_TABLES))
+    {
+      m_thd->push_internal_handler(&m_strict_handler);
+      m_active= true;
+    }
+  }
+
+  ~Strict_error_handler_wrapper()
+  {
+    if (m_active)
+      m_thd->pop_internal_handler();
+  }
+};
+
+
 ///////////////////////////////////////////////////////////////////////////
 // Static function implementations.
 ///////////////////////////////////////////////////////////////////////////
@@ -521,7 +550,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   bool err_status= FALSE;
   uint ip= 0;
   sql_mode_t save_sql_mode;
-  bool save_abort_on_warning;
   Query_arena *old_arena;
   /* per-instruction arena */
   MEM_ROOT execute_mem_root;
@@ -631,8 +659,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   thd->derived_tables= 0;
   save_sql_mode= thd->variables.sql_mode;
   thd->variables.sql_mode= m_sql_mode;
-  save_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning= 0;
   /**
     When inside a substatement (a stored function or trigger
     statement), clear the metadata observer in THD, if any.
@@ -827,7 +853,6 @@ bool sp_head::execute(THD *thd, bool merge_da_on_success)
   DBUG_ASSERT(!thd->derived_tables);
   thd->derived_tables= old_derived_tables;
   thd->variables.sql_mode= save_sql_mode;
-  thd->abort_on_warning= save_abort_on_warning;
   thd->pop_reprepare_observer();
 
   thd->stmt_arena= old_arena;
@@ -963,6 +988,9 @@ bool sp_head::execute_trigger(THD *thd,
   DBUG_ENTER("sp_head::execute_trigger");
   DBUG_PRINT("info", ("trigger %s", m_name.str));
 
+  // Push Strict_error_handler if the SP was created in STRICT mode.
+  Strict_error_handler_wrapper strict_wrapper(thd, this);
+
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   Security_context *save_ctx= NULL;
   LEX_CSTRING definer_user= {m_definer_user.str, m_definer_user.length};
@@ -1085,6 +1113,9 @@ bool sp_head::execute_function(THD *thd, Item **argp, uint argcount,
 
   DBUG_ENTER("sp_head::execute_function");
   DBUG_PRINT("info", ("function %s", m_name.str));
+
+  // Push Strict_error_handler if the SP was created in STRICT mode.
+  Strict_error_handler_wrapper strict_wrapper(thd, this);
 
   // Resetting THD::where to its default value
   thd->where= THD::DEFAULT_WHERE;
@@ -1328,6 +1359,9 @@ bool sp_head::execute_procedure(THD *thd, List<Item> *args)
 
   DBUG_ENTER("sp_head::execute_procedure");
   DBUG_PRINT("info", ("procedure %s", m_name.str));
+
+  // Push Strict_error_handler if the SP was created in STRICT mode.
+  Strict_error_handler_wrapper strict_wrapper(thd, this);
 
   if (args->elements != params)
   {
@@ -2035,12 +2069,11 @@ bool sp_head::merge_table_list(THD *thd,
 }
 
 
-bool sp_head::add_used_tables_to_table_list(THD *thd,
+void sp_head::add_used_tables_to_table_list(THD *thd,
                                             TABLE_LIST ***query_tables_last_ptr,
+                                            enum_sql_command sql_command,
                                             TABLE_LIST *belong_to_view)
 {
-  bool result= false;
-
   /*
     Use persistent arena for table list allocation to be PS/SP friendly.
     Note that we also have to copy database/table names and alias to PS/SP
@@ -2062,7 +2095,7 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
                                         stab->lock_count)) ||
         !(key_buff= (char*)thd->memdup(stab->qname.str,
                                        stab->qname.length)))
-      return false;
+      return;
 
     for (uint j= 0; j < stab->lock_count; j++)
     {
@@ -2083,11 +2116,31 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
         is safe to infer the type of metadata lock from the type of
         table lock.
       */
+      enum_mdl_type mdl_lock_type;
+
+      if (sql_command == SQLCOM_LOCK_TABLES)
+      {
+        /*
+          We are building a table list for LOCK TABLES. We need to
+          acquire "strong" locks to ensure that LOCK TABLES properly
+          works for storage engines which don't use THR_LOCK locks.
+        */
+        mdl_lock_type= (table->lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                       MDL_SHARED_NO_READ_WRITE : MDL_SHARED_READ_ONLY;
+      }
+      else
+      {
+        /*
+          For other statements "normal" locks can be acquired.
+          Let us respect explicit LOW_PRIORITY clause if was used
+          in the routine.
+        */
+        mdl_lock_type= mdl_type_for_dml(table->lock_type);
+      }
+
       MDL_REQUEST_INIT(&table->mdl_request,
                        MDL_key::TABLE, table->db, table->table_name,
-                       table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                         MDL_SHARED_WRITE : MDL_SHARED_READ,
-                       MDL_TRANSACTION);
+                       mdl_lock_type, MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 
@@ -2096,11 +2149,8 @@ bool sp_head::add_used_tables_to_table_list(THD *thd,
       *query_tables_last_ptr= &table->next_global;
 
       tab_buff+= ALIGN_SIZE(sizeof(TABLE_LIST));
-      result= true;
     }
   }
-
-  return result;
 }
 
 

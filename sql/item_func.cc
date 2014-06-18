@@ -53,6 +53,7 @@
 #include "rpl_gtid.h"
 #include "parse_tree_helpers.h"
 #include "sql_optimizer.h"                      // JOIN
+#include "sql_base.h"
 
 using std::min;
 using std::max;
@@ -2080,6 +2081,13 @@ void Item_func_mod::result_precision()
 {
   decimals= max(args[0]->decimals, args[1]->decimals);
   max_length= max(args[0]->max_length, args[1]->max_length);
+  // Increase max_length if we have: signed % unsigned(precision == scale)
+  if (!args[0]->unsigned_flag && args[1]->unsigned_flag &&
+      args[0]->max_length <= args[1]->max_length &&
+      args[1]->decimals == args[1]->decimal_precision())
+  {
+    max_length+= 1;
+  }
 }
 
 
@@ -4184,7 +4192,7 @@ public:
   {
     key= (uchar*) my_memdup(key_memory_User_level_lock_key,
                             key_arg, length, MYF(0));
-    mysql_cond_init(key_user_level_lock_cond, &cond, NULL);
+    mysql_cond_init(key_user_level_lock_cond, &cond);
     if (key)
     {
       if (my_hash_insert(&hash_user_locks,(uchar*) this))
@@ -4829,14 +4837,16 @@ longlong Item_func_sleep::val_int()
     If SQL is STRICT then report error, else report warning and continue
     execution.
   */
-  bool save_abort_on_warning= thd->abort_on_warning;
-  thd->abort_on_warning= thd->is_strict_mode();
+  Strict_error_handler strict_handler;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->push_internal_handler(&strict_handler);
 
   if (args[0]->null_value || timeout < 0)
     push_warning_printf(thd, Sql_condition::SL_WARNING, ER_WRONG_ARGUMENTS,
                         ER(ER_WRONG_ARGUMENTS), "sleep.");
 
-  thd->abort_on_warning= save_abort_on_warning;
+  if (!thd->lex->is_ignore() && thd->is_strict_mode())
+    thd->pop_internal_handler();
   /*
     If conversion error occurred in the strict SQL_MODE
     then leave method.
@@ -4858,7 +4868,7 @@ longlong Item_func_sleep::val_int()
 
   timed_cond.set_timeout((ulonglong) (timeout * 1000000000.0));
 
-  mysql_cond_init(key_item_func_sleep_cond, &cond, NULL);
+  mysql_cond_init(key_item_func_sleep_cond, &cond);
   mysql_mutex_lock(&LOCK_user_locks);
 
   THD_STAGE_INFO(thd, stage_user_sleep);
@@ -5657,7 +5667,8 @@ Item_func_get_user_var::val_str(String *str)
   DBUG_ENTER("Item_func_get_user_var::val_str");
   if (!var_entry)
     DBUG_RETURN((String*) 0);			// No such variable
-  DBUG_RETURN(var_entry->val_str(&null_value, str, decimals));
+  String *res= var_entry->val_str(&null_value, str, decimals);
+  DBUG_RETURN(res);
 }
 
 
@@ -7404,14 +7415,13 @@ Item_func_sp::execute_impl(THD *thd)
     my_error(ER_BINLOG_UNSAFE_ROUTINE, MYF(0));
     goto error;
   }
-
   /*
     Disable the binlogging if this is not a SELECT statement. If this is a
     SELECT, leave binlogging on, so execute_function() code writes the
     function call into binlog.
   */
   thd->reset_sub_statement_state(&statement_state, SUB_STMT_FUNCTION);
-  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field); 
+  err_status= m_sp->execute_function(thd, args, arg_count, sp_result_field);
   thd->restore_sub_statement_state(&statement_state);
 
 error:

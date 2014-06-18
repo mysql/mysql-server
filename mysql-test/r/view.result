@@ -1296,7 +1296,8 @@ drop table t1;
 create table t1 (s1 int);
 create view v1 as select * from t1 where s1 < 5 with check option;
 insert ignore into v1 values (6);
-ERROR HY000: CHECK OPTION failed 'test.v1'
+Warnings:
+Warning	1369	CHECK OPTION failed 'test.v1'
 insert ignore into v1 values (6),(3);
 Warnings:
 Warning	1369	CHECK OPTION failed 'test.v1'
@@ -4132,17 +4133,20 @@ DROP TABLE t1, t2;
 # Bug#48315 Metadata lock is not taken for merged views that
 #           use an INFORMATION_SCHEMA table
 #
-DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
 DROP PROCEDURE IF EXISTS p1;
 # Connection default
 CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
-CREATE TABLE t1 (str VARCHAR(50));
-CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+CREATE PROCEDURE p1() SELECT COUNT(*), GET_LOCK('blocker', 100) FROM v1;
 # CALL p1() so the view is merged.
 CALL p1();
+SELECT RELEASE_LOCK('blocker');
+RELEASE_LOCK('blocker')
+1
 # Connection 3
-LOCK TABLE t1 READ;
+SELECT GET_LOCK('blocker', 100);
+GET_LOCK('blocker', 100)
+1
 # Connection default
 # Try to CALL p1() again, this time it should block for t1.
 # Sending:
@@ -4153,14 +4157,18 @@ CALL p1();
 DROP VIEW v1;
 # Connection 3
 # Now allow CALL p1() to complete
-UNLOCK TABLES;
+SELECT RELEASE_LOCK('blocker');
+RELEASE_LOCK('blocker')
+1
 # Connection default
 # Reaping: CALL p1()
+SELECT RELEASE_LOCK('blocker');
+RELEASE_LOCK('blocker')
+1
 # Connection 2
 # Reaping: DROP VIEW v1
 # Connection default
 DROP PROCEDURE p1;
-DROP TABLE t1;
 #
 # Bug#11757397 49437: CANNOT DO SHOW FIELDS FOR BIG VIEW 
 #

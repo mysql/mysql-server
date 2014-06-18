@@ -1247,18 +1247,14 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 #if defined(COMPILER_HINTS_ENABLED)
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compiler hints enabled.");
+	ib_logf(IB_LOG_LEVEL_INFO, "Compiler hints enabled.");
 #endif /* defined(COMPILER_HINTS_ENABLED) */
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" IB_ATOMICS_STARTUP_MSG "");
+	ib_logf(IB_LOG_LEVEL_INFO, IB_ATOMICS_STARTUP_MSG);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" MUTEX_TYPE"");
+	ib_logf(IB_LOG_LEVEL_INFO, MUTEX_TYPE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compressed tables use zlib " ZLIB_VERSION
+	ib_logf(IB_LOG_LEVEL_INFO, "Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
 #endif /* UNIV_ZIP_DEBUG */
@@ -1266,7 +1262,6 @@ innobase_start_or_create_for_mysql(void)
 #ifdef UNIV_ZIP_COPY
 	ib_logf(IB_LOG_LEVEL_INFO, "and extra copying");
 #endif /* UNIV_ZIP_COPY */
-
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we

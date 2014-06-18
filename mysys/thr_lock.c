@@ -1150,10 +1150,9 @@ void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock)
   This is used to abort all locks for a specific thread
 */
 
-my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
+void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
 {
   THR_LOCK_DATA *data;
-  my_bool found= FALSE;
   DBUG_ENTER("thr_abort_locks_for_thread");
 
   mysql_mutex_lock(&lock->mutex);
@@ -1164,7 +1163,6 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
       DBUG_PRINT("info",("Aborting read-wait lock"));
       data->type= TL_UNLOCK;			/* Mark killed */
       /* It's safe to signal the cond first: we're still holding the mutex. */
-      found= TRUE;
       mysql_cond_signal(data->cond);
       data->cond= 0;				/* Removed from list */
 
@@ -1180,7 +1178,6 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
     {
       DBUG_PRINT("info",("Aborting write-wait lock"));
       data->type= TL_UNLOCK;
-      found= TRUE;
       mysql_cond_signal(data->cond);
       data->cond= 0;
 
@@ -1192,7 +1189,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
   }
   wake_up_waiters(lock);
   mysql_mutex_unlock(&lock->mutex);
-  DBUG_RETURN(found);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1449,7 +1446,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
   printf("Main thread: %s\n",my_thread_name());
 
-  if ((error= mysql_cond_init(0, &COND_thread_count, NULL)))
+  if ((error= mysql_cond_init(0, &COND_thread_count)))
   {
     my_message_stderr(0, "Got error %d from mysql_cond_init", errno);
     exit(1);

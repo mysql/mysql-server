@@ -251,8 +251,8 @@ ib_open_table_by_id(
 /********************************************************************//**
 Open a table using the table name, if found then increment table ref count.
 @return table instance if found */
-
-void*
+static
+dict_table_t*
 ib_open_table_by_name(
 /*==================*/
 	const char*	name)		/*!< in: table name to lookup */
@@ -582,20 +582,6 @@ ib_trx_begin(
 	ut_a(started);
 
 	return(static_cast<ib_trx_t>(trx));
-}
-
-/*****************************************************************//**
-Get the transaction's state.
-@return transaction state */
-
-ib_trx_state_t
-ib_trx_state(
-/*=========*/
-	ib_trx_t	ib_trx)		/*!< in: trx handle */
-{
-	trx_t*		trx = (trx_t*) ib_trx;
-
-	return((ib_trx_state_t) trx->state);
 }
 
 /*****************************************************************//**
@@ -931,12 +917,10 @@ ib_cursor_open_table_using_id(
 {
 	ib_err_t	err;
 	dict_table_t*	table;
+	const ib_bool_t	locked
+		= ib_trx && ib_schema_lock_is_exclusive(ib_trx);
 
-	if (ib_trx == NULL || !ib_schema_lock_is_exclusive(ib_trx)) {
-		table = ib_open_table_by_id(table_id, FALSE);
-	} else {
-		table = ib_open_table_by_id(table_id, TRUE);
-	}
+	table = ib_open_table_by_id(table_id, locked);
 
 	if (table == NULL) {
 
@@ -945,55 +929,6 @@ ib_cursor_open_table_using_id(
 
 	err = ib_create_cursor_with_index_id(ib_crsr, table, 0,
 					     (trx_t*) ib_trx);
-
-	return(err);
-}
-
-/*****************************************************************//**
-Open an InnoDB index and return a cursor handle to it.
-@return DB_SUCCESS or err code */
-
-ib_err_t
-ib_cursor_open_index_using_id(
-/*==========================*/
-	ib_id_u64_t	index_id,	/*!< in: index id of index to open */
-	ib_trx_t	ib_trx,		/*!< in: Current transaction handle
-					can be NULL */
-	ib_crsr_t*	ib_crsr)	/*!< out: InnoDB cursor */
-{
-	ib_err_t	err;
-	dict_table_t*	table;
-	ulint		table_id = (ulint)( index_id >> 32);
-
-	if (ib_trx == NULL || !ib_schema_lock_is_exclusive(ib_trx)) {
-		table = ib_open_table_by_id(table_id, FALSE);
-	} else {
-		table = ib_open_table_by_id(table_id, TRUE);
-	}
-
-	if (table == NULL) {
-
-		return(DB_TABLE_NOT_FOUND);
-	}
-
-	/* We only return the lower 32 bits of the dulint. */
-	err = ib_create_cursor_with_index_id(
-		ib_crsr, table, index_id, (trx_t*) ib_trx);
-
-	if (ib_crsr != NULL) {
-		const ib_cursor_t*	cursor;
-
-		cursor = *(ib_cursor_t**) ib_crsr;
-
-		if (cursor->prebuilt->index == NULL) {
-			ib_err_t	crsr_err;
-
-			crsr_err = ib_cursor_close(*ib_crsr);
-			ut_a(crsr_err == DB_SUCCESS);
-
-			*ib_crsr = NULL;
-		}
-	}
 
 	return(err);
 }
@@ -1086,15 +1021,14 @@ ib_cursor_open_table(
 	ib_normalize_table_name(normalized_name, name);
 
 	if (ib_trx != NULL) {
-	       if (!ib_schema_lock_is_exclusive(ib_trx)) {
-			table = (dict_table_t*)ib_open_table_by_name(
-				normalized_name);
+		if (!ib_schema_lock_is_exclusive(ib_trx)) {
+			table = ib_open_table_by_name(normalized_name);
 		} else {
 			/* NOTE: We do not acquire MySQL metadata lock */
 			table = ib_lookup_table_by_name(normalized_name);
 		}
 	} else {
-		table = (dict_table_t*)ib_open_table_by_name(normalized_name);
+		table = ib_open_table_by_name(normalized_name);
 	}
 
 	ut_free(normalized_name);
@@ -1130,19 +1064,6 @@ ib_qry_proc_free(
 	que_graph_free_recursive(q_proc->grph.sel);
 
 	memset(q_proc, 0x0, sizeof(*q_proc));
-}
-
-/*****************************************************************//**
-set a cursor trx to NULL */
-
-void
-ib_cursor_clear_trx(
-/*================*/
-	ib_crsr_t	ib_crsr)	/*!< in/out: InnoDB cursor */
-{
-	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
-
-	cursor->prebuilt->trx = NULL;
 }
 
 /*****************************************************************//**
@@ -2017,20 +1938,6 @@ ib_cursor_first(
 	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
 
 	return(ib_cursor_position(cursor, IB_CUR_G));
-}
-
-/*****************************************************************//**
-Move cursor to the last record in the table.
-@return DB_SUCCESS or err code */
-
-ib_err_t
-ib_cursor_last(
-/*===========*/
-	ib_crsr_t	ib_crsr)	/*!< in: InnoDB cursor instance */
-{
-	ib_cursor_t*	cursor = (ib_cursor_t*) ib_crsr;
-
-	return(ib_cursor_position(cursor, IB_CUR_L));
 }
 
 /*****************************************************************//**
@@ -2932,61 +2839,6 @@ ib_tuple_get_cluster_key(
 }
 
 /*****************************************************************//**
-Copy the contents of  source tuple to destination tuple. The tuples
-must be of the same type and belong to the same table/index.
-@return DB_SUCCESS or error code */
-
-ib_err_t
-ib_tuple_copy(
-/*==========*/
-	ib_tpl_t	ib_dst_tpl,	/*!< in: destination tuple */
-	const ib_tpl_t	ib_src_tpl)	/*!< in: source tuple */
-{
-	ulint		i;
-	ulint		n_fields;
-	ib_err_t	err = DB_SUCCESS;
-	const ib_tuple_t*src_tuple = (const ib_tuple_t*) ib_src_tpl;
-	ib_tuple_t*	dst_tuple = (ib_tuple_t*) ib_dst_tpl;
-
-	/* Make sure src and dst are not the same. */
-	ut_a(src_tuple != dst_tuple);
-
-	/* Make sure they are the same type and refer to the same index. */
-	if (src_tuple->type != dst_tuple->type
-	   || src_tuple->index != dst_tuple->index) {
-
-		return(DB_DATA_MISMATCH);
-	}
-
-	n_fields = dtuple_get_n_fields(src_tuple->ptr);
-	ut_ad(n_fields == dtuple_get_n_fields(dst_tuple->ptr));
-
-	/* Do a deep copy of the data fields. */
-	for (i = 0; i < n_fields; ++i) {
-		dfield_t*	src_field;
-		dfield_t*	dst_field;
-
-		src_field = dtuple_get_nth_field(src_tuple->ptr, i);
-		dst_field = dtuple_get_nth_field(dst_tuple->ptr, i);
-
-		if (!dfield_is_null(src_field)) {
-			UNIV_MEM_ASSERT_RW(src_field->data, src_field->len);
-
-			dst_field->data = mem_heap_dup(
-				dst_tuple->heap,
-				src_field->data,
-				src_field->len);
-
-			dst_field->len = src_field->len;
-		} else {
-			dfield_set_null(dst_field);
-		}
-	}
-
-	return(err);
-}
-
-/*****************************************************************//**
 Create an InnoDB tuple used for index/table search.
 @return own: Tuple for current index */
 
@@ -3126,52 +2978,6 @@ ib_table_get_id(
 	err = ib_table_get_id_low(table_name, table_id);
 
 	dict_mutex_exit_for_mysql();
-
-	return(err);
-}
-
-/*****************************************************************//**
-Get an index id.
-@return DB_SUCCESS if found */
-
-ib_err_t
-ib_index_get_id(
-/*============*/
-	const char*	table_name,	/*!< in: find index for this table */
-	const char*	index_name,	/*!< in: index to find */
-	ib_id_u64_t*	index_id)	/*!< out: index id if found */
-{
-	dict_table_t*	table;
-	char*		normalized_name;
-	ib_err_t	err = DB_TABLE_NOT_FOUND;
-
-	*index_id = 0;
-
-	normalized_name = static_cast<char*>(
-		ut_malloc(ut_strlen(table_name) + 1));
-	ib_normalize_table_name(normalized_name, table_name);
-
-	table = ib_lookup_table_by_name(normalized_name);
-
-	ut_free(normalized_name);
-	normalized_name = NULL;
-
-	if (table != NULL) {
-		dict_index_t*	index;
-
-		index = dict_table_get_index_on_name(table, index_name);
-
-		if (index != NULL) {
-			/* We only support 32 bit table and index ids. Because
-			we need to pack the table id into the index id. */
-
-			*index_id = (table->id);
-			*index_id <<= 32;
-			*index_id |= (index->id);
-
-			err = DB_SUCCESS;
-		}
-	}
 
 	return(err);
 }
@@ -3353,126 +3159,6 @@ ib_cursor_set_cluster_access(
 	row_prebuilt_t*	prebuilt = cursor->prebuilt;
 
 	prebuilt->need_to_access_clustered = TRUE;
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_i8(
-/*==============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i8_t		val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCESS or error */
-
-ib_err_t
-ib_tuple_write_i16(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i16_t	val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCCESS or error */
-
-ib_err_t
-ib_tuple_write_i32(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i32_t	val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCCESS or error */
-
-ib_err_t
-ib_tuple_write_i64(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_i64_t	val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCCESS or error */
-
-ib_err_t
-ib_tuple_write_u8(
-/*==============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u8_t		val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCCESS or error */
-
-ib_err_t
-ib_tuple_write_u16(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tupe to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u16_t	val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCCESS or error */
-
-ib_err_t
-ib_tuple_write_u32(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u32_t	val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
-}
-
-/*****************************************************************//**
-Write an integer value to a column. Integers are stored in big-endian
-format and will need to be converted from the host format.
-@return DB_SUCCESS or error */
-
-ib_err_t
-ib_tuple_write_u64(
-/*===============*/
-	ib_tpl_t	ib_tpl,		/*!< in/out: tuple to write to */
-	int		col_no,		/*!< in: column number */
-	ib_u64_t	val)		/*!< in: value to write */
-{
-	return(ib_col_set_value(ib_tpl, col_no, &val, sizeof(val), true));
 }
 
 /*****************************************************************//**
@@ -3698,8 +3384,8 @@ ib_table_truncate(
 	}
 
 	if (trunc_err == DB_SUCCESS) {
-		ut_a(ib_trx_state(ib_trx) == static_cast<ib_trx_state_t>(
-			TRX_STATE_NOT_STARTED));
+		ut_a(static_cast<trx_t*>(ib_trx)->state
+		     == TRX_STATE_NOT_STARTED);
 
 		err = ib_trx_release(ib_trx);
 		ut_a(err == DB_SUCCESS);
@@ -3739,11 +3425,11 @@ ib_close_thd(
 Return isolation configuration set by "innodb_api_trx_level"
 @return trx isolation level*/
 
-ib_trx_state_t
+ib_trx_level_t
 ib_cfg_trx_level()
 /*==============*/
 {
-	return(static_cast<ib_trx_state_t>(ib_trx_level_setting));
+	return(static_cast<ib_trx_level_t>(ib_trx_level_setting));
 }
 
 /*****************************************************************//**

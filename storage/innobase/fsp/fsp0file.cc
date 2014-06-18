@@ -289,9 +289,11 @@ Datafile::read_first_page(bool read_only_mode)
 			return(DB_IO_ERROR);
 		}
 
-	m_flags = fsp_header_get_flags(m_first_page);
+	if (m_order == 0) {
+		m_flags = fsp_header_get_flags(m_first_page);
 
-	m_space_id = fsp_header_get_space_id(m_first_page);
+		m_space_id = fsp_header_get_space_id(m_first_page);
+	}
 
 	m_flushed_lsn = mach_read_from_8(
 		m_first_page + FIL_PAGE_FILE_FLUSH_LSN);

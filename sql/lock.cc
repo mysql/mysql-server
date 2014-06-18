@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -177,18 +177,12 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
       write we must own metadata lock of MDL_SHARED_WRITE or stronger
       type. For table to be locked for read we must own metadata lock
       of MDL_SHARED_READ or stronger type).
-      The only exception are HANDLER statements which are allowed to
-      lock table for read while having only MDL_SHARED lock on it.
     */
     DBUG_ASSERT(t->s->tmp_table ||
-                thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                 t->s->db.str, t->s->table_name.str,
-                                 t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                 MDL_SHARED_WRITE : MDL_SHARED_READ) ||
-                (t->open_by_handler &&
-                 thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                  t->s->db.str, t->s->table_name.str,
-                                  MDL_SHARED)));
+                thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                   t->s->db.str, t->s->table_name.str,
+                                   t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
+                                   MDL_SHARED_WRITE : MDL_SHARED_READ));
 
     /*
       Prevent modifications to base tables if READ_ONLY is activated.
@@ -559,30 +553,23 @@ void mysql_lock_abort(THD *thd, TABLE *table, bool upgrade_lock)
 
   @param thd	   Thread handler
   @param table	   Table that should be removed from lock queue
-
-  @retval
-    0  Table was not locked by another thread
-  @retval
-    1  Table was locked by at least one other thread
 */
 
-bool mysql_lock_abort_for_thread(THD *thd, TABLE *table)
+void mysql_lock_abort_for_thread(THD *thd, TABLE *table)
 {
   MYSQL_LOCK *locked;
-  bool result= FALSE;
   DBUG_ENTER("mysql_lock_abort_for_thread");
 
   if ((locked= get_lock_data(thd, &table, 1, GET_LOCK_UNLOCK)))
   {
     for (uint i=0; i < locked->lock_count; i++)
     {
-      if (thr_abort_locks_for_thread(locked->locks[i]->lock,
-                                     table->in_use->thread_id))
-        result= TRUE;
+      thr_abort_locks_for_thread(locked->locks[i]->lock,
+                                 table->in_use->thread_id);
     }
     my_free(locked);
   }
-  DBUG_RETURN(result);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -977,8 +964,9 @@ bool Global_read_lock::lock_global_read_lock(THD *thd)
   {
     MDL_request mdl_request;
 
-    DBUG_ASSERT(! thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
-                                                 MDL_SHARED));
+    DBUG_ASSERT(! thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                                               "", "",
+                                                               MDL_SHARED));
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::GLOBAL, "", "", MDL_SHARED, MDL_EXPLICIT);
 

@@ -20,6 +20,14 @@
   @brief
   This file defines all spatial functions
 */
+#include "my_config.h"
+
+#include <sstream>
+#include <string>
+#include <set>
+#include <vector>
+#include <algorithm>
+#include <stdexcept>
 
 #include "sql_priv.h"
 /*
@@ -37,6 +45,46 @@ Item_geometry_func::Item_geometry_func(const POS &pos, PT_item_list *list)
   :Item_str_func(pos, list)
 {}
 
+#include "spatial.h"
+#include "gis_bg_traits.h"
+#include <boost/geometry/geometry.hpp>
+#include <memory>
+
+// GCC requires typename whenever needing to access a type inside a template,
+// but MSVC forbids this.
+#ifdef HAVE_IMPLICIT_DEPENDENT_NAME_TYPING
+#define TYPENAME
+#else
+#define TYPENAME typename
+#endif
+
+
+/// A wrapper and interface for all geometry types used here. Make these
+/// types as localized as possible. It's used as a type interface.
+/// @tparam CoordinateElementType The numeric type for a coordinate value,
+///         most often it's double.
+/// @tparam CoordinateSystemType Coordinate system type, specified using
+//          those defined in boost::geometry::cs.
+template<typename CoordinateElementType, typename CoordinateSystemType>
+class BG_models
+{
+public:
+  typedef Gis_point Point;
+  // An counter-clockwise, closed Polygon type. It can hold open Polygon data,
+  // but not clockwise ones, otherwise things can go wrong, e.g. intersection.
+  typedef Gis_polygon Polygon;
+  typedef Gis_line_string Linestring;
+  typedef Gis_multi_point Multipoint;
+  typedef Gis_multi_line_string Multilinestring;
+  typedef Gis_multi_polygon Multipolygon;
+
+  typedef CoordinateElementType Coord_type;
+  typedef CoordinateSystemType Coordsys;
+};
+
+namespace bgcs= boost::geometry::cs;
+
+
 
 Field *Item_geometry_func::tmp_table_field(TABLE *t_arg)
 {
@@ -51,7 +99,7 @@ void Item_geometry_func::fix_length_and_dec()
 {
   collation.set(&my_charset_bin);
   decimals=0;
-  max_length= (uint32) 4294967295U;
+  max_length= 0xFFFFFFFFU;
   maybe_null= 1;
 }
 
@@ -69,6 +117,13 @@ bool Item_func_geometry_from_text::itemize(Parse_context *pc, Item **res)
 }
 
 
+/**
+  Parses a WKT string to produce a geometry encoded with an SRID prepending
+  its WKB bytes, namely a byte string of GEOMETRY format.
+  @param str buffer to hold result, may not be filled.
+  @return the buffer that hold the GEOMETRY byte string result, may or may
+  not be the same as 'str' parameter.
+ */
 String *Item_func_geometry_from_text::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -86,7 +141,7 @@ String *Item_func_geometry_from_text::val_str(String *str)
     srid= (uint32)args[1]->val_int();
 
   str->set_charset(&my_charset_bin);
-  if (str->reserve(SRID_SIZE, 512))
+  if (str->reserve(GEOM_HEADER_SIZE, 512))
     return 0;
   str->length(0);
   str->q_append(srid);
@@ -109,6 +164,13 @@ bool Item_func_geometry_from_wkb::itemize(Parse_context *pc, Item **res)
 }
 
 
+/**
+  Parses a WKT string to produce a geometry encoded with an SRID prepending
+  its WKB bytes, namely a byte string of GEOMETRY format.
+  @param str buffer to hold result, may not be filled.
+  @return the buffer that hold the GEOMETRY byte string result, may or may
+  not be the same as 'str' parameter.
+ */
 String *Item_func_geometry_from_wkb::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -118,7 +180,7 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
 
   if (arg_count == 2)
   {
-    srid= args[1]->val_int();
+    srid= static_cast<uint32>(args[1]->val_int());
     if ((null_value= args[1]->null_value))
       return 0;
   }
@@ -132,16 +194,24 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
     Geometry (with SRID) values in the "wkb" argument.
     In case if a Geometry type value is passed, we assume that the value
     is well-formed and can directly return it without going through
-    Geometry::create_from_wkb().
+    Geometry::create_from_wkb(), and consequently such WKB data must be
+    MySQL standard (little) endian. Note that users can pass via client
+    any WKB/Geometry byte string, including those of big endianess.
   */
   if (args[0]->field_type() == MYSQL_TYPE_GEOMETRY)
   {
+    Geometry_buffer buff;
+    if ((null_value= (Geometry::construct(&buff, wkb->ptr(),
+                                          wkb->length()) == NULL)))
+      return NULL;
+
     /*
       Check if SRID embedded into the Geometry value differs
       from the SRID value passed in the second argument.
     */
-    if (wkb->length() < 4 || srid == uint4korr(wkb->ptr()))
+    if (srid == uint4korr(wkb->ptr()))
       return wkb; // Do not differ
+
     /*
       Replace SRID to the one passed in the second argument.
       Note, we cannot replace SRID directly in wkb->ptr(),
@@ -155,16 +225,17 @@ String *Item_func_geometry_from_wkb::val_str(String *str)
   }
 
   str->set_charset(&my_charset_bin);
-  if (str->reserve(SRID_SIZE, 512))
+  if (str->reserve(GEOM_HEADER_SIZE, 512))
   {
-    null_value= TRUE;                           /* purecov: inspected */
+    null_value= true;                           /* purecov: inspected */
     return 0;                                   /* purecov: inspected */
   }
   str->length(0);
   str->q_append(srid);
-  if ((null_value= 
-        (args[0]->null_value ||
-         !Geometry::create_from_wkb(&buffer, wkb->ptr(), wkb->length(), str))))
+  if ((null_value= (args[0]->null_value ||
+                    !Geometry::create_from_wkb(&buffer, wkb->ptr(),
+                                               wkb->length(), str,
+                                               false/* Don't init stream. */))))
     return 0;
   return str;
 }
@@ -250,12 +321,12 @@ String *Item_func_envelope::val_str(String *str)
   Geometry_buffer buffer;
   Geometry *geom= NULL;
   uint32 srid;
-  
+
   if ((null_value=
        args[0]->null_value ||
        !(geom= Geometry::construct(&buffer, swkb))))
     return 0;
-  
+
   srid= uint4korr(swkb->ptr());
   str->set_charset(&my_charset_bin);
   str->length(0);
@@ -294,6 +365,101 @@ String *Item_func_centroid::val_str(String *str)
 
   return (null_value= MY_TEST(geom->centroid(str))) ? 0 : str;
 }
+
+
+#define CATCH_ALL(funcname, expr) \
+  catch (const boost::geometry::centroid_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_CENTROID_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const boost::geometry::overlay_invalid_input_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION, MYF(0),\
+             (funcname));\
+  }\
+  catch (const boost::geometry::turn_info_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const boost::geometry::detail::self_get_turn_points::self_ip_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION, MYF(0),\
+             (funcname));\
+  }\
+  catch (const boost::geometry::empty_input_exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const boost::geometry::exception &)\
+  {\
+    expr;\
+    my_error(ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
+  }\
+  catch (const std::bad_alloc &e)\
+  {\
+    expr;\
+    my_error(ER_STD_BAD_ALLOC_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::domain_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_DOMAIN_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::length_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_LENGTH_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::invalid_argument &e)\
+  {\
+    expr;\
+    my_error(ER_STD_INVALID_ARGUMENT, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::out_of_range &e)\
+  {\
+    expr;\
+    my_error(ER_STD_OUT_OF_RANGE_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::overflow_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_OVERFLOW_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::range_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_RANGE_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::underflow_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_UNDERFLOW_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::logic_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_LOGIC_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::runtime_error &e)\
+  {\
+    expr;\
+    my_error(ER_STD_RUNTIME_ERROR, MYF(0), e.what(), (funcname));\
+  }\
+  catch (const std::exception &e)\
+  {\
+    expr;\
+    my_error(ER_STD_UNKNOWN_EXCEPTION, MYF(0), e.what(), (funcname));\
+  }\
+  catch (...)\
+  {\
+    expr;\
+    my_error(ER_GIS_UNKNOWN_EXCEPTION, MYF(0), (funcname));\
+  }
 
 
 /*
@@ -435,10 +601,43 @@ String *Item_func_point::val_str(String *str)
 }
 
 
+const char *Item_func_spatial_collection::func_name() const
+{
+  const char *str= NULL;
+
+  switch (coll_type)
+  {
+  case Geometry::wkb_multipoint:
+    str= "multipoint";
+    break;
+  case Geometry::wkb_multilinestring:
+    str= "multilinestring";
+    break;
+  case Geometry::wkb_multipolygon:
+    str= "multipolygon";
+    break;
+  case Geometry::wkb_linestring:
+    str= "linestring";
+    break;
+  case Geometry::wkb_polygon:
+    str= "polygon";
+    break;
+  case Geometry::wkb_geometrycollection:
+    str= "geometrycollection";
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return str;
+}
+
+
 /**
   Concatenates various items into various collections
   with checkings for valid wkb type of items.
-  For example, MultiPoint can be a collection of Points only.
+  For example, multipoint can be a collection of points only.
   coll_type contains wkb type of target collection.
   item_type contains a valid wkb type of items.
   In the case when coll_type is wkbGeometryCollection,
@@ -491,7 +690,7 @@ String *Item_func_spatial_collection::val_str(String *str)
 	are of specific type, let's do this checking now
       */
 
-      wkb_type= (Geometry::wkbType) uint4korr(data);
+      wkb_type= get_wkb_geotype(data);
       data+= 4;
       len-= 5 + 4/*SRID*/;
       if (wkb_type != item_type)
@@ -515,16 +714,20 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 	const char *org_data= data;
+        const char *firstpt= NULL;
+        char *p_npts= NULL;
 
 	if (len < 4)
 	  goto err;
 
 	n_points= uint4korr(data);
+        p_npts= const_cast<char *>(data);
 	data+= 4;
 
         if (n_points < 2 || len < 4 + n_points * POINT_DATA_SIZE)
           goto err;
-        
+
+        firstpt= data;
 	float8get(&x1, data);
 	data+= SIZEOF_STORED_DOUBLE;
 	float8get(&y1, data);
@@ -535,8 +738,15 @@ String *Item_func_spatial_collection::val_str(String *str)
 	float8get(&x2, data);
 	float8get(&y2, data + SIZEOF_STORED_DOUBLE);
 
-	if ((x1 != x2) || (y1 != y2) ||
-	    str->append(org_data, len, 512))
+        if ((x1 != x2) || (y1 != y2))
+        {
+          n_points++;
+          int4store(p_npts, n_points);
+        }
+
+	if (str->append(org_data, len, 512) ||
+            (((x1 != x2) || (y1 != y2)) &&
+             str->append(firstpt, POINT_DATA_SIZE, 512)))
 	  goto err;
       }
       break;
@@ -555,7 +765,7 @@ String *Item_func_spatial_collection::val_str(String *str)
     goto err;
   }
 
-  null_value = 0;
+  null_value= 0;
   return str;
 
 err:
@@ -568,8 +778,8 @@ err:
   Functions for spatial relations
 */
 
-const char *Item_func_spatial_mbr_rel::func_name() const 
-{ 
+const char *Item_func_spatial_mbr_rel::func_name() const
+{
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       return "mbrcontains";
@@ -589,7 +799,7 @@ const char *Item_func_spatial_mbr_rel::func_name() const
       return "mbroverlaps";
     default:
       DBUG_ASSERT(0);  // Should never happened
-      return "mbrsp_unknown"; 
+      return "mbrsp_unknown";
   }
 }
 
@@ -610,7 +820,7 @@ longlong Item_func_spatial_mbr_rel::val_int()
 	!(g2= Geometry::construct(&buffer2, res2)) ||
 	g1->get_mbr(&mbr1) ||
 	g2->get_mbr(&mbr2))))
-   return 0;
+    return 0;
 
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
@@ -642,7 +852,7 @@ Item_func_spatial_rel::Item_func_spatial_rel(const POS &pos, Item *a,Item *b,
                                              enum Functype sp_rel) :
     Item_bool_func2(pos, a,b), collector()
 {
-  spatial_rel = sp_rel;
+  spatial_rel= sp_rel;
 }
 
 
@@ -651,8 +861,8 @@ Item_func_spatial_rel::~Item_func_spatial_rel()
 }
 
 
-const char *Item_func_spatial_rel::func_name() const 
-{ 
+const char *Item_func_spatial_rel::func_name() const
+{
   switch (spatial_rel) {
     case SP_CONTAINS_FUNC:
       return "st_contains";
@@ -672,7 +882,7 @@ const char *Item_func_spatial_rel::func_name() const
       return "st_overlaps";
     default:
       DBUG_ASSERT(0);  // Should never happened
-      return "sp_unknown"; 
+      return "sp_unknown";
   }
 }
 
@@ -786,7 +996,8 @@ calculate_distance:
       continue;
     cur_point_edge= !cur_point->is_bottom();
 
-    for (dist_point= collector->get_first(); dist_point; dist_point= dist_point->get_next())
+    for (dist_point= collector->get_first(); dist_point;
+         dist_point= dist_point->get_next())
     {
       /* We only check vertices of object 2 */
       if (dist_point->shape < obj2_si)
@@ -859,7 +1070,7 @@ int Item_func_spatial_rel::func_touches()
   {
     point_xy p1, p2, e;
     if (((Gis_point *) g1)->get_xy(&p1) ||
-        ((Gis_point *) g2)->get_xy(&p2))  
+        ((Gis_point *) g2)->get_xy(&p2))
       goto mem_error;
     e.x= p2.x - p1.x;
     e.y= p2.y - p1.y;
@@ -885,7 +1096,7 @@ int Item_func_spatial_rel::func_touches()
   scan_it.init(&collector);
 
   if (calc_distance(&distance, &collector, obj2_si, &func, &scan_it))
-   goto mem_error;
+    goto mem_error;
   if (distance > GIS_ZERO)
     goto exit;
 
@@ -962,23 +1173,232 @@ int Item_func_spatial_rel::func_equals()
 }
 
 
+/**
+   Less than comparator for points used by BG.
+ */
+struct bgpt_lt
+{
+  template <typename Point>
+  bool operator ()(const Point &p1, const Point &p2) const
+  {
+    if (p1.template get<0>() != p2.template get<0>())
+      return p1.template get<0>() < p2.template get<0>();
+    else
+      return p1.template get<1>() < p2.template get<1>();
+  }
+};
+
+
+/**
+   Equals comparator for points used by BG.
+ */
+struct bgpt_eq
+{
+  template <typename Point>
+  bool operator ()(const Point &p1, const Point &p2) const
+  {
+    return p1.template get<0>() == p2.template get<0>() &&
+      p1.template get<1>() == p2.template get<1>();
+  }
+};
+
+
+
+/**
+  Convert this into a Gis_geometry_collection object.
+  @param geodata Stores the result object's WKB data.
+  @return The Gis_geometry_collection object created from this object.
+ */
+Gis_geometry_collection *
+BG_geometry_collection::as_geometry_collection(String *geodata) const
+{
+  if (m_geos.size() == 0)
+    return NULL;
+
+  Gis_geometry_collection *gc= NULL;
+
+  for (Geometry_list::const_iterator i= m_geos.begin();
+       i != m_geos.end(); ++i)
+  {
+    if (gc == NULL)
+    {
+      gc= new Gis_geometry_collection(*i, geodata);
+      if (gc == NULL)
+        return NULL;
+    }
+    else
+    {
+      gc->append_geometry(*i, geodata);
+    }
+  }
+
+  return gc;
+}
+
+
+/**
+  Store a Geometry object into this collection. If it's a geometry collection,
+  flatten it and store its components into this collection, so that no
+  component is a geometry collection.
+  @param geo The Geometry object to put into this collection. We duplicate
+         geo's data rather than directly using it.
+  @return true if error occured, false if no error(successful).
+ */
+bool BG_geometry_collection::store_geometry(const Geometry *geo)
+{
+  if (geo->get_type() == Geometry::wkb_geometrycollection)
+  {
+    uint32 ngeom= 0;
+
+    if (geo->num_geometries(&ngeom))
+      return true;
+
+    /*
+      Get its components and store each of them separately, if a component
+      is also a collection, recursively disintegrate and store its
+      components in the same way.
+     */
+    for (uint32 i= 1; i <= ngeom; i++)
+    {
+      String *pres= m_geosdata.append_object();
+      if (pres->reserve(GEOM_HEADER_SIZE, 512))
+        return true;
+
+      pres->q_append(geo->get_srid());
+      if (geo->geometry_n(i, pres))
+        return true;
+
+      Geometry_buffer *pgeobuf= m_geobufs.append_object();
+      Geometry *geo2= Geometry::construct(pgeobuf, pres->ptr(),
+                                          pres->length());
+      if (geo2 == NULL)
+        return true;
+      else if (geo2->get_type() == Geometry::wkb_geometrycollection)
+      {
+        if (store_geometry(geo2))
+          return true;
+      }
+      else
+        m_geos.push_back(geo2);
+    }
+  }
+  else if (store(geo) == NULL)
+    return true;
+
+  return false;
+}
+
+
+/**
+  Store a geometry of GEOMETRY format into this collection.
+  @param geo a geometry object whose data of GEOMETRY format is to be duplicated
+         and stored into this collection. It's not a geometry collection.
+  @return a duplicated Geometry object created from geo.
+ */
+Geometry *BG_geometry_collection::store(const Geometry *geo)
+{
+  String *pres= NULL;
+  Geometry *geo2= NULL;
+  Geometry_buffer *pgeobuf= NULL;
+  size_t geosize= geo->get_data_size();
+
+  DBUG_ASSERT(geo->get_type() != Geometry::wkb_geometrycollection);
+  pres= m_geosdata.append_object();
+  pres->reserve(GEOM_HEADER_SIZE + geosize);
+  write_geometry_header(pres, geo->get_srid(), geo->get_type());
+  pres->q_append(geo->get_cptr(), geosize);
+
+  pgeobuf= m_geobufs.append_object();
+  geo2= Geometry::construct(pgeobuf, pres->ptr(), pres->length());
+
+  if (geo2 != NULL && geo2->get_type() != Geometry::wkb_geometrycollection)
+    m_geos.push_back(geo2);
+  return geo2;
+}
+
+/**
+  Append a range of elements into a specified container.
+
+  @tparam Container container type
+  @tparam Iterator iterator type
+  @param cont the container to append elements into.
+  @param begin the starting position of the range to append into the container.
+  @param end the end (not inclusive) of the range to append into the container.
+ */
+template <typename Container, typename Iterator>
+size_t append_range(Container *cont,
+                    const Iterator &begin, const Iterator &end)
+{
+  size_t n= 0;
+
+  for (Iterator i= begin; i != end; ++i)
+  {
+    cont->push_back(*i);
+    n++;
+  }
+
+  return n;
+}
+
+
 longlong Item_func_spatial_rel::val_int()
 {
   DBUG_ENTER("Item_func_spatial_rel::val_int");
   DBUG_ASSERT(fixed == 1);
-  String *res1;
-  String *res2;
+  String *res1= NULL;
+  String *res2= NULL;
   Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
+  Geometry *g1= NULL, *g2= NULL;
   int result= 0;
   int mask= 0;
-
-  if (spatial_rel == SP_TOUCHES_FUNC)
-    DBUG_RETURN(func_touches());
+  int tres= 0;
+  bool bgdone= false;
+  String wkt1, wkt2;
+  Gcalc_operation_transporter trn(&func, &collector);
 
   res1= args[0]->val_str(&tmp_value1);
   res2= args[1]->val_str(&tmp_value2);
-  Gcalc_operation_transporter trn(&func, &collector);
+  if ((null_value=
+       (args[0]->null_value || args[1]->null_value ||
+        !(g1= Geometry::construct(&buffer1, res1)) ||
+        !(g2= Geometry::construct(&buffer2, res2)))))
+    goto exit;
+
+  // The two geometry operands must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    null_value= true;
+    goto exit;
+  }
+
+  /*
+    Catch all exceptions to make sure no exception can be thrown out of
+    current function. Put all and any code that calls Boost.Geometry functions,
+    STL functions into this try block. Code out of the try block should never
+    throw any exception.
+  */
+  try
+  {
+    if (g1->get_type() != Geometry::wkb_geometrycollection &&
+        g2->get_type() != Geometry::wkb_geometrycollection)
+    {
+      // Must use double, otherwise may lose valid result, not only precision.
+      tres= bg_geo_relation_check<double, bgcs::cartesian>
+        (g1, g2, &bgdone, spatial_rel, &null_value);
+    }
+    else
+      tres= geocol_relation_check<double, bgcs::cartesian>(g1, g2, &bgdone);
+  }
+  CATCH_ALL(func_name(), {null_value= true; bgdone= false;})
+
+  if (bgdone && !null_value)
+    DBUG_RETURN(tres);
+
+  // Start of old GIS algorithms for geometry relationship checks.
+  if (spatial_rel == SP_TOUCHES_FUNC)
+    DBUG_RETURN(func_touches());
 
   if (func.reserve_op_buffer(1))
     DBUG_RETURN(0);
@@ -1011,13 +1431,7 @@ longlong Item_func_spatial_rel::val_int()
       DBUG_ASSERT(FALSE);
       break;
   }
-
-
-  if ((null_value=
-       (args[0]->null_value || args[1]->null_value ||
-	!(g1= Geometry::construct(&buffer1, res1)) ||
-	!(g2= Geometry::construct(&buffer2, res2)) ||
-	g1->store_shapes(&trn) || g2->store_shapes(&trn))))
+  if ((null_value= (g1->store_shapes(&trn) || g2->store_shapes(&trn))))
     goto exit;
 
 #ifndef DBUG_OFF
@@ -1031,9 +1445,9 @@ longlong Item_func_spatial_rel::val_int()
       spatial_rel == SP_WITHIN_FUNC ||
       spatial_rel == SP_CONTAINS_FUNC)
   {
-    result= (g1->get_class_info()->m_type_id == g1->get_class_info()->m_type_id) &&
-            func_equals();
-    if (spatial_rel == SP_EQUALS_FUNC || 
+    result= (g1->get_class_info()->m_type_id ==
+             g1->get_class_info()->m_type_id) && func_equals();
+    if (spatial_rel == SP_EQUALS_FUNC ||
         result) // for SP_WITHIN_FUNC and SP_CONTAINS_FUNC
       goto exit;
   }
@@ -1051,11 +1465,3864 @@ exit:
 }
 
 
-Item_func_spatial_operation::~Item_func_spatial_operation()
+/*
+  Check whether g is an empty geometry collection.
+*/
+static inline bool is_empty_geocollection(const Geometry *g)
 {
+  if (g->get_geotype() != Geometry::wkb_geometrycollection)
+    return false;
+
+  uint32 num= uint4korr(g->get_cptr());
+  return num == 0;
 }
 
 
+/**
+  Do geometry collection relation check. Boost geometry doesn't support
+  geometry collections directly, we have to treat them as a collection of basic
+  geometries and use BG features to compute.
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 the 1st geometry collection parameter.
+  @param g2 the 2nd geometry collection parameter.
+  @param[out] pbgdone Whether the operation is successfully performed by
+  Boost Geometry. Note that BG doesn't support many type combinations so far,
+  in case not, the operation is to be done by old GIS algorithm instead.
+  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+                none 0 for positive.
+ */
+template<typename Coord_type, typename Coordsys>
+int Item_func_spatial_rel::geocol_relation_check(Geometry *g1, Geometry *g2,
+                                                 bool *pbgdone)
+{
+  String gcbuf;
+  Geometry *tmpg= NULL;
+  int tres= 0;
+  *pbgdone= false;
+  const typename BG_geometry_collection::Geometry_list *gv1= NULL, *gv2= NULL;
+  BG_geometry_collection bggc1, bggc2;
+
+  bool empty1= is_empty_geocollection(g1);
+  bool empty2= is_empty_geocollection(g2);
+
+  /*
+    An empty geometry collection is an empty point set, according to OGC
+    specifications and set theory we make below conclusion.
+   */
+  if (empty1 || empty2)
+  {
+    if (spatial_rel == SP_DISJOINT_FUNC)
+      tres= 1;
+    else if (empty1 && empty2 && spatial_rel == SP_EQUALS_FUNC)
+      tres= 1;
+    *pbgdone= true;
+    return tres;
+  }
+
+  if (spatial_rel == SP_CONTAINS_FUNC)
+  {
+    tmpg= g2;
+    g2= g1;
+    g1= tmpg;
+    spatial_rel= SP_WITHIN_FUNC;
+  }
+  else if (spatial_rel == SP_OVERLAPS_FUNC ||
+           spatial_rel == SP_CROSSES_FUNC || spatial_rel == SP_TOUCHES_FUNC)
+  {
+    // Note: below algo may not work for overlap/cross because they have
+    // dimensional requirement, not sure how to apply to geo collection.
+    // Old algorithm is able to compute some of this, so don't error out yet.
+    // my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), func_name());
+    *pbgdone= false;
+    return tres;
+  }
+
+  bggc1.fill(g1);
+  bggc2.fill(g2);
+
+  gv1= &(bggc1.get_geometries());
+  gv2= &(bggc2.get_geometries());
+
+  if (gv1->size() == 0 || gv2->size() == 0)
+  {
+    null_value= true;
+    *pbgdone= true;
+    return tres;
+  }
+
+  if (spatial_rel == SP_DISJOINT_FUNC || spatial_rel == SP_INTERSECTS_FUNC)
+    tres= geocol_relcheck_intersect_disjoint<Coord_type, Coordsys>
+      (gv1, gv2, pbgdone);
+  else if (spatial_rel == SP_WITHIN_FUNC)
+    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2, pbgdone);
+  else if (spatial_rel == SP_EQUALS_FUNC)
+    tres= geocol_equals_check<Coord_type, Coordsys>(gv1, gv2, pbgdone);
+  else
+    DBUG_ASSERT(false);
+
+  /* If doing contains check, need to switch back the two operands. */
+  if (tmpg)
+  {
+    DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC);
+    spatial_rel= SP_CONTAINS_FUNC;
+    tmpg= g2;
+    g2= g1;
+    g1= tmpg;
+  }
+
+  return tres;
+}
+
+
+/**
+  Geometry collection relation checks for disjoint and intersects operations.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 the 1st geometry collection parameter.
+  @param g2 the 2nd geometry collection parameter.
+  @param[out] pbgdone Whether the operation is successfully performed by
+  Boost Geometry. Note that BG doesn't support many type combinations so far,
+  in case not, the operation is to be done by old GIS algorithm instead.
+  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+                none 0 for positive.
+ */
+template<typename Coord_type, typename Coordsys>
+int Item_func_spatial_rel::
+geocol_relcheck_intersect_disjoint(const typename BG_geometry_collection::
+                                   Geometry_list *gv1,
+                                   const typename BG_geometry_collection::
+                                   Geometry_list *gv2,
+                                   bool *pbgdone)
+{
+  int tres= 0;
+  *pbgdone= false;
+
+  DBUG_ASSERT(spatial_rel == SP_DISJOINT_FUNC ||
+              spatial_rel == SP_INTERSECTS_FUNC);
+
+  for (BG_geometry_collection::
+       Geometry_list::const_iterator i= gv1->begin();
+       i != gv1->end(); ++i)
+  {
+    for (BG_geometry_collection::
+         Geometry_list::const_iterator j= gv2->begin();
+         j != gv2->end(); ++j)
+    {
+      bool had_except= false;
+      try
+      {
+        tres= bg_geo_relation_check<Coord_type, Coordsys>
+          (*i, *j, pbgdone, spatial_rel, &null_value);
+      }
+      CATCH_ALL(func_name(),
+                {null_value= true; *pbgdone= false; had_except= true;})
+      if (had_except || !*pbgdone || null_value)
+        return tres;
+
+      /*
+        If a pair of geometry intersect or don't disjoint, the two
+        geometry collections intersect or don't disjoint, in both cases the
+        check is completed.
+       */
+      if ((spatial_rel == SP_INTERSECTS_FUNC && tres) ||
+          (spatial_rel == SP_DISJOINT_FUNC && !tres))
+      {
+        *pbgdone= true;
+        return tres;
+      }
+    }
+  }
+
+  /*
+    When we arrive here, the disjoint check must have succeeded and
+    intersects check must have failed, otherwise control would
+    have gone out of this function.
+
+    The reason we can derive the relation check result is that if
+    any two geometries from the two collections intersect, the two
+    geometry collections intersect; and disjoint is true
+    only when any(and every) combination of geometries from
+    the two collections are disjoint.
+   */
+  DBUG_ASSERT((tres && spatial_rel == SP_DISJOINT_FUNC) ||
+              (!tres && spatial_rel == SP_INTERSECTS_FUNC));
+  *pbgdone= true;
+  return tres;
+}
+
+
+/**
+  Geometry collection relation checks for within and equals(half) checks.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 the 1st geometry collection parameter.
+  @param g2 the 2nd geometry collection parameter.
+  @param[out] pbgdone Whether the operation is successfully performed by
+  Boost Geometry. Note that BG doesn't support many type combinations so far,
+  in case not, the operation is to be done by old GIS algorithm instead.
+  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+                none 0 for positive.
+ */
+template<typename Coord_type, typename Coordsys>
+int Item_func_spatial_rel::
+geocol_relcheck_within(const typename BG_geometry_collection::
+                       Geometry_list *gv1,
+                       const typename BG_geometry_collection::
+                       Geometry_list *gv2,
+                       bool *pbgdone)
+{
+  int tres= 0;
+  *pbgdone= false;
+  DBUG_ASSERT(spatial_rel == SP_WITHIN_FUNC || spatial_rel == SP_EQUALS_FUNC);
+
+  for (BG_geometry_collection::
+       Geometry_list::const_iterator i= gv1->begin();
+       i != gv1->end(); ++i)
+  {
+    bool innerOK= false;
+
+    for (BG_geometry_collection::
+         Geometry_list::const_iterator j= gv2->begin();
+         j != gv2->end(); ++j)
+    {
+      bool had_except= false;
+      try
+      {
+        tres= bg_geo_relation_check<Coord_type, Coordsys>
+          (*i, *j, pbgdone, spatial_rel, &null_value);
+      }
+      CATCH_ALL(func_name(),
+                {null_value= true; *pbgdone= false; had_except= true;})
+      if (had_except || !*pbgdone || null_value)
+        return tres;
+
+      /*
+        We've found a geometry j in gv2 so that current geometry element i
+        in gv1 is within j, or i is equal to j. This means i in gv1
+        passes the test, proceed to next geometry in gv1.
+       */
+      if ((spatial_rel == SP_WITHIN_FUNC ||
+           spatial_rel == SP_EQUALS_FUNC) && tres)
+      {
+        innerOK= true;
+        break;
+      }
+    }
+
+    /*
+      For within and equals check, if we can't find a geometry j in gv2
+      so that current geometry element i in gv1 is with j or i is equal to j,
+      gv1 is not within or equal to gv2.
+     */
+    if (!innerOK)
+    {
+      *pbgdone= true;
+      DBUG_ASSERT(tres == false);
+      return tres;
+    }
+  }
+
+  /*
+    When we arrive here, within or equals checks must have
+    succeeded, otherwise control would go out of this function.
+    The reason we can derive the relation check result is that
+    within and equals are true only when any(and every) combination of
+    geometries from the two collections are true for the relation check.
+   */
+  DBUG_ASSERT(tres);
+  *pbgdone= true;
+
+  return tres;
+}
+
+/**
+  Geometry collection equality check.
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 the 1st geometry collection parameter.
+  @param g2 the 2nd geometry collection parameter.
+  @param[out] pbgdone Whether the operation is successfully performed by
+  Boost Geometry. Note that BG doesn't support many type combinations so far,
+  in case not, the operation is to be done by old GIS algorithm instead.
+  @return whether g1 and g2 satisfy the specified relation, 0 for negative,
+                none 0 for positive.
+ */
+template<typename Coord_type, typename Coordsys>
+int Item_func_spatial_rel::
+geocol_equals_check(const typename BG_geometry_collection::Geometry_list *gv1,
+                    const typename BG_geometry_collection::Geometry_list *gv2,
+                    bool *pbgdone)
+{
+  int tres= 0, num_try= 0;
+  *pbgdone= false;
+  DBUG_ASSERT(spatial_rel == SP_EQUALS_FUNC);
+
+  do
+  {
+    tres= geocol_relcheck_within<Coord_type, Coordsys>(gv1, gv2, pbgdone);
+    if (!tres || !*pbgdone || null_value)
+      return tres;
+    /*
+      Two sets A and B are equal means A is a subset of B and B is a
+      subset of A. Thus we need to check twice, each successful check
+      means half truth. Switch gv1 and gv2 for 2nd check.
+     */
+    std::swap(gv1, gv2);
+    num_try++;
+  }
+  while (num_try < 2);
+
+  return tres;
+}
+
+
+/**
+  Wraps and dispatches type specific BG function calls according to operation
+  type and both operands' types.
+
+  We want to isolate boost header file inclusion only inside this file, so we
+  can't put this class declaration in any header file. And we want to make the
+  methods static since no state is needed here.
+
+  @tparam Geom_types Geometry types definitions.
+*/
+template<typename Geom_types>
+class BG_wrap {
+public:
+
+  typedef typename Geom_types::Point Point;
+  typedef typename Geom_types::Linestring Linestring;
+  typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Multipoint Multipoint;
+  typedef typename Geom_types::Multilinestring Multilinestring;
+  typedef typename Geom_types::Multipolygon Multipolygon;
+  typedef typename Geom_types::Coord_type Coord_type;
+  typedef typename Geom_types::Coordsys Coordsys;
+
+  // For abbrievation.
+  typedef Item_func_spatial_rel Ifsr;
+  typedef std::set<Point, bgpt_lt> Point_set;
+  typedef std::vector<Point> Point_vector;
+
+  static int point_within_geometry(Geometry *g1, Geometry *g2,
+                                   bool *pbgdone, my_bool *pnull_value);
+
+  static int multipoint_within_geometry(Geometry *g1, Geometry *g2,
+                                        bool *pbgdone, my_bool *pnull_value);
+
+  static int multipoint_equals_geometry(Geometry *g1, Geometry *g2,
+                                        bool *pbgdone, my_bool *pnull_value);
+
+  static int point_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                     bool *pbgdone, my_bool *pnull_value);
+  static int multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                          bool *pbgdone, my_bool *pnull_value);
+
+  static int linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                          bool *pbgdone, my_bool *pnull_value);
+  static int multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                               bool *pbgdone,
+                                               my_bool *pnull_value);
+  static int polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                       bool *pbgdone, my_bool *pnull_value);
+  static int multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                            bool *pbgdone,
+                                            my_bool *pnull_value);
+  static int point_intersects_geometry(Geometry *g1, Geometry *g2,
+                                       bool *pbgdone, my_bool *pnull_value);
+  static int multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
+                                            bool *pbgdone,
+                                            my_bool *pnull_value);
+  static int linestring_intersects_geometry(Geometry *g1, Geometry *g2,
+                                            bool *pbgdone,
+                                            my_bool *pnull_value);
+  static int multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
+                                                 bool *pbgdone,
+                                                 my_bool *pnull_value);
+  static int polygon_intersects_geometry(Geometry *g1, Geometry *g2,
+                                         bool *pbgdone, my_bool *pnull_value);
+  static int multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
+                                              bool *pbgdone,
+                                              my_bool *pnull_value);
+  static int multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
+                                         bool *pbgdone, my_bool *pnull_value);
+  static int multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
+                                            bool *pbgdone,
+                                            my_bool *pnull_value);
+};// bg_wrapper
+
+
+/*
+  Call a BG function with specified types of operands. We have to create
+  geo1 and geo2 because operands g1 and g2 are created without their WKB data
+  parsed, so not suitable for BG to use. geo1 will share the same copy of WKB
+  data with g1, also true for geo2.
+ */
+#define BGCALL(res, bgfunc, GeoType1, g1, GeoType2, g2, pnullval) do {  \
+  const void *pg1= g1->normalize_ring_order();                          \
+  const void *pg2= g2->normalize_ring_order();                          \
+  if (pg1 != NULL && pg2 != NULL)                                       \
+  {                                                                     \
+    GeoType1 geo1(pg1, g1->get_data_size(), g1->get_flags(),            \
+                  g1->get_srid());                                      \
+    GeoType2 geo2(pg2, g2->get_data_size(), g2->get_flags(),            \
+                  g2->get_srid());                                      \
+    res= boost::geometry::bgfunc(geo1, geo2);                           \
+  }                                                                     \
+  else                                                                  \
+    (*(pnullval))= 1;                                                   \
+} while (0)
+
+
+/**
+  Dispatcher for 'point WITHIN xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::point_within_geometry(Geometry *g1, Geometry *g2,
+                                               bool *pbgdone,
+                                               my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  if (gt2 == Geometry::wkb_polygon)
+  {
+    BGCALL(result, within, Point, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_multipolygon)
+  {
+    BGCALL(result, within, Point, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_point)
+  {
+    BGCALL(result, equals, Point, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_multipoint)
+  {
+    Multipoint mpts(g2->get_data_ptr(),
+                    g2->get_data_size(), g2->get_flags(), g2->get_srid());
+    Point pt(g1->get_data_ptr(),
+             g1->get_data_size(), g1->get_flags(), g1->get_srid());
+
+    Point_set ptset(mpts.begin(), mpts.end());
+    result= ((ptset.find(pt) != ptset.end()));
+    *pbgdone= true;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint WITHIN xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::multipoint_within_geometry(Geometry *g1, Geometry *g2,
+                                                    bool *pbgdone,
+                                                    my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+  const void *data_ptr= NULL;
+
+  *pbgdone= false;
+
+  Multipoint mpts(g1->get_data_ptr(), g1->get_data_size(),
+                  g1->get_flags(), g1->get_srid());
+  if (gt2 == Geometry::wkb_polygon)
+  {
+    data_ptr= g2->normalize_ring_order();
+    if (data_ptr == NULL)
+    {
+      *pnull_value= true;
+      return result;
+    }
+
+    Polygon plg(data_ptr, g2->get_data_size(),
+                g2->get_flags(), g2->get_srid());
+
+    for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
+    {
+      result= boost::geometry::within(*i, plg);
+      if (result == 0)
+        break;
+    }
+    *pbgdone= true;
+
+  }
+  else if (gt2 == Geometry::wkb_multipolygon)
+  {
+    data_ptr= g2->normalize_ring_order();
+    if (data_ptr == NULL)
+    {
+      *pnull_value= true;
+      return result;
+    }
+
+    Multipolygon mplg(data_ptr, g2->get_data_size(),
+                      g2->get_flags(), g2->get_srid());
+    for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end(); ++i)
+    {
+      result= boost::geometry::within(*i, mplg);
+      if (result == 0)
+        break;
+    }
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_point)
+  {
+    /* There may be duplicate Points, thus use a set to make them unique*/
+    Point_set ptset1(mpts.begin(), mpts.end());
+    Point pt(g2->get_data_ptr(),
+             g2->get_data_size(), g2->get_flags(), g2->get_srid());
+    result= ((ptset1.size() == 1) &&
+             boost::geometry::equals(*ptset1.begin(), pt));
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_multipoint)
+  {
+    /* There may be duplicate Points, thus use a set to make them unique*/
+    Point_set ptset1(mpts.begin(), mpts.end());
+    Multipoint mpts2(g2->get_data_ptr(),
+                     g2->get_data_size(), g2->get_flags(), g2->get_srid());
+    Point_set ptset2(mpts2.begin(), mpts2.end());
+    Point_vector respts;
+    TYPENAME Point_vector::iterator endpos;
+    respts.resize(std::max(ptset1.size(), ptset2.size()));
+    endpos= std::set_intersection(ptset1.begin(), ptset1.end(),
+                                  ptset2.begin(), ptset2.end(),
+                                  respts.begin(), bgpt_lt());
+    result= (ptset1.size() == static_cast<size_t>(endpos - respts.begin()));
+    *pbgdone= true;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint EQUALS xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::multipoint_equals_geometry(Geometry *g1, Geometry *g2,
+                                                    bool *pbgdone,
+                                                    my_bool *pnull_value)
+{
+  *pbgdone= false;
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    result= Ifsr::equals_check<Geom_types>(g2, g1, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      Multipoint mpts1(g1->get_data_ptr(),
+                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
+      Multipoint mpts2(g2->get_data_ptr(),
+                       g2->get_data_size(), g2->get_flags(), g2->get_srid());
+
+      Point_set ptset1(mpts1.begin(), mpts1.end());
+      Point_set ptset2(mpts2.begin(), mpts2.end());
+      result= (ptset1.size() == ptset2.size() &&
+               std::equal(ptset1.begin(), ptset1.end(),
+                          ptset2.begin(), bgpt_eq()));
+    }
+    break;
+  default:
+    result= 0;
+    break;
+  }
+  *pbgdone= true;
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint disjoint xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipoint_disjoint_geometry(Geometry *g1, Geometry *g2,
+                             bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+  const void *data_ptr= NULL;
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    result= point_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      Multipoint mpts1(g1->get_data_ptr(),
+                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
+      Multipoint mpts2(g2->get_data_ptr(),
+                       g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      Point_set ptset1(mpts1.begin(), mpts1.end());
+      Point_set ptset2(mpts2.begin(), mpts2.end());
+      Point_vector respts;
+      TYPENAME Point_vector::iterator endpos;
+      size_t ptset1sz= ptset1.size(), ptset2sz= ptset2.size();
+
+      respts.resize(ptset1sz > ptset2sz ? ptset1sz : ptset2sz);
+      endpos= std::set_intersection(ptset1.begin(), ptset1.end(),
+                                    ptset2.begin(), ptset2.end(),
+                                    respts.begin(), bgpt_lt());
+      result= (endpos == respts.begin());
+      *pbgdone= true;
+    }
+    break;
+  case Geometry::wkb_polygon:
+    {
+      Multipoint mpts1(g1->get_data_ptr(),
+                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
+      data_ptr= g2->normalize_ring_order();
+      if (data_ptr == NULL)
+      {
+        *pnull_value= true;
+        return result;
+      }
+
+      Polygon plg(data_ptr, g2->get_data_size(),
+                  g2->get_flags(), g2->get_srid());
+
+      for (TYPENAME Multipoint::iterator i= mpts1.begin();
+           i != mpts1.end(); ++i)
+      {
+        result= boost::geometry::disjoint(*i, plg);
+
+        if (!result)
+          break;
+      }
+
+      *pbgdone= true;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    {
+      Multipoint mpts1(g1->get_data_ptr(),
+                       g1->get_data_size(), g1->get_flags(), g1->get_srid());
+      data_ptr= g2->normalize_ring_order();
+      if (data_ptr == NULL)
+      {
+        *pnull_value= true;
+        return result;
+      }
+
+      Multipolygon mplg(data_ptr, g2->get_data_size(),
+                        g2->get_flags(), g2->get_srid());
+
+      for (TYPENAME Multipoint::iterator i= mpts1.begin();
+           i != mpts1.end(); ++i)
+      {
+        result= boost::geometry::disjoint(*i, mplg);
+
+        if (!result)
+          break;
+      }
+
+      *pbgdone= true;
+    }
+    break;
+  default:
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'linestring disjoint xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+linestring_disjoint_geometry(Geometry *g1, Geometry *g2,
+                             bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  *pbgdone= false;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_linestring)
+  {
+    BGCALL(result, disjoint, Linestring, g1, Linestring, g2, pnull_value);
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_multilinestring)
+  {
+    Multilinestring mls(g2->get_data_ptr(), g2->get_data_size(),
+                        g2->get_flags(), g2->get_srid());
+    Linestring ls(g1->get_data_ptr(),
+                  g1->get_data_size(), g1->get_flags(), g1->get_srid());
+
+    for (TYPENAME Multilinestring::iterator i= mls.begin();
+         i != mls.end(); ++i)
+    {
+      result= boost::geometry::disjoint(ls, *i);
+
+      if (!result)
+        break;
+    }
+    *pbgdone= true;
+
+  }
+  else
+    *pbgdone= false;
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multilinestring disjoint xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multilinestring_disjoint_geometry(Geometry *g1, Geometry *g2,
+                                  bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  *pbgdone= false;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_linestring)
+    result= BG_wrap<Geom_types>::
+      linestring_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+  else if (gt2 == Geometry::wkb_multilinestring)
+  {
+    Multilinestring mls1(g1->get_data_ptr(), g1->get_data_size(),
+                         g1->get_flags(), g1->get_srid());
+    Multilinestring mls2(g2->get_data_ptr(), g2->get_data_size(),
+                         g2->get_flags(), g2->get_srid());
+
+    for (TYPENAME Multilinestring::iterator i= mls1.begin();
+         i != mls1.end(); ++i)
+    {
+      for (TYPENAME Multilinestring::iterator j= mls2.begin();
+           j != mls2.end(); ++j)
+      {
+        result= boost::geometry::disjoint(*i, *j);
+        if (!result)
+          break;
+      }
+
+      if (!result)
+        break;
+    }
+
+    *pbgdone= true;
+  }
+  else
+    *pbgdone= false;
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'point disjoint xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+point_disjoint_geometry(Geometry *g1, Geometry *g2,
+                        bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  *pbgdone= false;
+  Geometry::wkbType gt2= g2->get_type();
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, disjoint, Point, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, disjoint, Point, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, disjoint, Point, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipoint:
+    {
+      Multipoint mpts(g2->get_data_ptr(),
+                      g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      Point pt(g1->get_data_ptr(),
+               g1->get_data_size(), g1->get_flags(), g1->get_srid());
+
+      Point_set ptset(mpts.begin(), mpts.end());
+      result= (ptset.find(pt) == ptset.end());
+      *pbgdone= true;
+    }
+    break;
+  default:
+    *pbgdone= false;
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'polygon disjoint xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+polygon_disjoint_geometry(Geometry *g1, Geometry *g2,
+                          bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, disjoint, Polygon, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipoint:
+    result= multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, disjoint, Polygon, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, disjoint, Polygon, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  default:
+    *pbgdone= false;
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipolygon disjoint xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipolygon_disjoint_geometry(Geometry *g1, Geometry *g2,
+                               bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, disjoint, Multipolygon, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipoint:
+    result= multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, disjoint, Multipolygon, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, disjoint, Multipolygon, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  default:
+    *pbgdone= false;
+    break;
+  }
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'point intersects xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+point_intersects_geometry(Geometry *g1, Geometry *g2,
+                          bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, intersects, Point, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipoint:
+    result= !point_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, intersects, Point, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, intersects, Point, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  default:
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint intersects xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipoint_intersects_geometry(Geometry *g1, Geometry *g2,
+                               bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch(gt2)
+  {
+  case Geometry::wkb_point:
+  case Geometry::wkb_multipoint:
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    result= !multipoint_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  default:
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'linestring intersects xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+linestring_intersects_geometry(Geometry *g1, Geometry *g2,
+                               bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  if (gt2 == Geometry::wkb_linestring)
+  {
+    BGCALL(result, intersects, Linestring, g1, Linestring, g2, pnull_value);
+    *pbgdone= true;
+  }
+  else if (gt2 == Geometry::wkb_multilinestring)
+  {
+    result= !linestring_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+  }
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multilinestring intersects xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multilinestring_intersects_geometry(Geometry *g1, Geometry *g2,
+                                    bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt2 == Geometry::wkb_linestring ||
+      gt2 == Geometry::wkb_multilinestring)
+    result= (!BG_wrap<Geom_types>::
+             multilinestring_disjoint_geometry(g1, g2,
+                                               pbgdone, pnull_value) ? 1 : 0);
+  else
+    *pbgdone= false;
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'polygon intersects xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+polygon_intersects_geometry(Geometry *g1, Geometry *g2,
+                            bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, intersects, Polygon, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipoint:
+    result= !multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, intersects, Polygon, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, intersects, Polygon, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  default:
+    break;
+  }
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipolygon intersects xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipolygon_intersects_geometry(Geometry *g1, Geometry *g2,
+                                 bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_point:
+    BGCALL(result, intersects, Multipolygon, g1, Point, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipoint:
+    result= !multipoint_disjoint_geometry(g2, g1, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    BGCALL(result, intersects, Multipolygon, g1, Polygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  case Geometry::wkb_multipolygon:
+    BGCALL(result, intersects, Multipolygon, g1, Multipolygon, g2, pnull_value);
+    *pbgdone= true;
+    break;
+  default:
+    break;
+  }
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint crosses xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipoint_crosses_geometry(Geometry *g1, Geometry *g2,
+                            bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  Geometry::wkbType gt2= g2->get_type();
+
+  *pbgdone= false;
+
+  switch (gt2)
+  {
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+  case Geometry::wkb_polygon:
+  case Geometry::wkb_multipolygon:
+    {
+      bool isdone= false, has_in= false, has_out= false;
+      int res= 0;
+
+      Multipoint mpts(g1->get_data_ptr(),
+                      g1->get_data_size(), g1->get_flags(), g1->get_srid());
+      /*
+        According to OGC's definition to crosses, if some Points of
+        g1 is in g2 and some are not, g1 crosses g2, otherwise not.
+       */
+      for (TYPENAME Multipoint::iterator i= mpts.begin(); i != mpts.end() &&
+           !(has_in && has_out); ++i)
+      {
+        res= point_disjoint_geometry(&(*i), g2, &isdone, pnull_value);
+
+        if (isdone && !*pnull_value)
+        {
+          if (!res)
+            has_in= true;
+          else
+            has_out= true;
+        }
+        else
+        {
+          *pbgdone= false;
+          return 0;
+        }
+      }
+
+      *pbgdone= true;
+
+      if (has_in && has_out)
+        result= 1;
+      else
+        result= 0;
+    }
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  return result;
+}
+
+
+/**
+  Dispatcher for 'multipoint crosses xxx'.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, a Point.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Geom_types>
+int BG_wrap<Geom_types>::
+multipoint_overlaps_multipoint(Geometry *g1, Geometry *g2,
+                               bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+
+  *pbgdone= false;
+
+  Multipoint mpts1(g1->get_data_ptr(),
+                   g1->get_data_size(), g1->get_flags(), g1->get_srid());
+  Multipoint mpts2(g2->get_data_ptr(),
+                   g2->get_data_size(), g2->get_flags(), g2->get_srid());
+  Point_set ptset1, ptset2;
+
+  ptset1.insert(mpts1.begin(), mpts1.end());
+  ptset2.insert(mpts2.begin(), mpts2.end());
+
+  // They overlap if they intersect and also each has some points that the other
+  // one doesn't have.
+  Point_vector respts;
+  TYPENAME Point_vector::iterator endpos;
+  size_t ptset1sz= ptset1.size(), ptset2sz= ptset2.size(), resptssz;
+
+  respts.resize(ptset1sz > ptset2sz ? ptset1sz : ptset2sz);
+  endpos= std::set_intersection(ptset1.begin(), ptset1.end(),
+                                ptset2.begin(), ptset2.end(),
+                                respts.begin(), bgpt_lt());
+  resptssz= endpos - respts.begin();
+  if (resptssz > 0 && resptssz < ptset1.size() &&
+      resptssz < ptset2.size())
+    result= 1;
+  else
+    result= 0;
+
+  *pbgdone= true;
+
+  return result;
+}
+
+
+/**
+  Do within relation check of two geometries.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::within_check(Geometry *g1, Geometry *g2,
+                                        bool *pbgdone, my_bool *pnull_value)
+{
+  Geometry::wkbType gt1;
+  int result= 0;
+
+  gt1= g1->get_type();
+
+  if (gt1 == Geometry::wkb_point)
+    result= BG_wrap<Geom_types>::point_within_geometry(g1, g2,
+                                                       pbgdone, pnull_value);
+  else if (gt1 == Geometry::wkb_multipoint)
+    result= BG_wrap<Geom_types>::
+      multipoint_within_geometry(g1, g2, pbgdone, pnull_value);
+  /*
+    Can't do above if gt1 is Linestring or Polygon, because g2 can be
+    an concave Polygon.
+    Note: need within(lstr, plgn), within(pnt, lstr), within(lstr, lstr),
+    within(plgn, plgn), (lstr, multiplgn), (lstr, multilstr),
+    (multilstr, multilstr), (multilstr, multiplgn), (multiplgn, multiplgn),
+    (plgn, multiplgn).
+
+    Note that we can't iterate geometries in multiplgn, multilstr one by one
+    and use within(lstr, plgn)(plgn, plgn) to do within computation for them
+    because it's possible for a lstr to be not in any member plgn but in the
+    multiplgn.
+   */
+  return result;
+}
+
+
+/**
+  Do equals relation check of two geometries.
+  Dispatch to specific BG functions according to operation type, and 1st or
+  both operand types.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::equals_check(Geometry *g1, Geometry *g2,
+                                        bool *pbgdone, my_bool *pnull_value)
+{
+  typedef typename Geom_types::Point Point;
+  typedef typename Geom_types::Linestring Linestring;
+  typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Multipoint Multipoint;
+  typedef typename Geom_types::Multipolygon Multipolygon;
+  typedef std::set<Point, bgpt_lt> Point_set;
+
+  *pbgdone= false;
+  int result= 0;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+
+  /*
+    Only geometries of the same base type can be equal, any other
+    combinations always result as false. This is different from all other types
+    of geometry relation checks.
+   */
+  *pbgdone= true;
+  if (gt1 == Geometry::wkb_point)
+  {
+    if (gt2 == Geometry::wkb_point)
+      BGCALL(result, equals, Point, g1, Point, g2, pnull_value);
+    else if (gt2 == Geometry::wkb_multipoint)
+    {
+      Point pt(g1->get_data_ptr(),
+               g1->get_data_size(), g1->get_flags(), g1->get_srid());
+      Multipoint mpts(g2->get_data_ptr(),
+                      g2->get_data_size(), g2->get_flags(), g2->get_srid());
+
+      Point_set ptset(mpts.begin(), mpts.end());
+
+      result= (ptset.size() == 1 &&
+               boost::geometry::equals(pt, *ptset.begin()));
+    }
+    else
+      result= 0;
+  }
+  else if (gt1 == Geometry::wkb_multipoint)
+    result= BG_wrap<Geom_types>::
+      multipoint_equals_geometry(g1, g2, pbgdone, pnull_value);
+  else if (gt1 == Geometry::wkb_linestring &&
+           gt2 == Geometry::wkb_linestring)
+    BGCALL(result, equals, Linestring, g1, Linestring, g2, pnull_value);
+  else if ((gt1 == Geometry::wkb_linestring &&
+            gt2 == Geometry::wkb_multilinestring) ||
+           (gt2 == Geometry::wkb_linestring &&
+            gt1 == Geometry::wkb_multilinestring) ||
+           (gt2 == Geometry::wkb_multilinestring &&
+            gt1 == Geometry::wkb_multilinestring))
+  {
+    *pbgdone= false;
+    /*
+      Note: can't handle this case simply like Multipoint&point above,
+      because multiple line segments can form a longer linesegment equal
+      to a single line segment.
+     */
+  }
+  else if (gt1 == Geometry::wkb_polygon && gt2 == Geometry::wkb_polygon)
+    BGCALL(result, equals, Polygon, g1, Polygon, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_polygon && gt2 ==Geometry::wkb_multipolygon)
+    BGCALL(result, equals, Polygon, g1, Multipolygon, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_multipolygon && gt2 ==Geometry::wkb_polygon)
+    BGCALL(result, equals, Multipolygon, g1, Polygon, g2, pnull_value);
+  else if (gt1 == Geometry::wkb_multipolygon &&
+           gt2 == Geometry::wkb_multipolygon)
+    BGCALL(result, equals, Multipolygon, g1, Multipolygon, g2, pnull_value);
+  else
+    result= 0;
+  return result;
+}
+
+
+/**
+  Do disjoint relation check of two geometries.
+  Dispatch to specific BG functions according to operation type, and 1st or
+  both operand types.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::disjoint_check(Geometry *g1, Geometry *g2,
+                                          bool *pbgdone, my_bool *pnull_value)
+{
+  Geometry::wkbType gt1;
+  int result= 0;
+
+  *pbgdone= false;
+  gt1= g1->get_type();
+
+  switch (gt1)
+  {
+  case Geometry::wkb_point:
+    result= BG_wrap<Geom_types>::
+      point_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= BG_wrap<Geom_types>::
+      multipoint_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    result= BG_wrap<Geom_types>::
+      linestring_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    result= BG_wrap<Geom_types>::
+      multilinestring_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    result= BG_wrap<Geom_types>::
+      polygon_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    result= BG_wrap<Geom_types>::
+      multipolygon_disjoint_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  default:
+    break;
+  }
+
+  /*
+    Note: need disjoint(point, Linestring) and disjoint(linestring, Polygon)
+   */
+  return result;
+}
+
+
+/**
+  Do interesects relation check of two geometries.
+  Dispatch to specific BG functions according to operation type, and 1st or
+  both operand types.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::intersects_check(Geometry *g1, Geometry *g2,
+                                            bool *pbgdone, my_bool *pnull_value)
+{
+  Geometry::wkbType gt1;
+  *pbgdone= false;
+  int result= 0;
+
+  gt1= g1->get_type();
+  /*
+    According to OGC SFA, intersects is identical to !disjoint, but
+    boost geometry has functions to compute intersects, so we still call
+    them.
+   */
+  switch (gt1)
+  {
+  case Geometry::wkb_point:
+    result= BG_wrap<Geom_types>::
+      point_intersects_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multipoint:
+    result= BG_wrap<Geom_types>::
+      multipoint_intersects_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+    result= BG_wrap<Geom_types>::
+      linestring_intersects_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multilinestring:
+    result= BG_wrap<Geom_types>::
+      multilinestring_intersects_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_polygon:
+    result= BG_wrap<Geom_types>::
+      polygon_intersects_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_multipolygon:
+    result= BG_wrap<Geom_types>::
+      multipolygon_intersects_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  default:
+    *pbgdone= false;
+    break;
+  }
+  /*
+    Note: need intersects(pnt, lstr), (lstr, plgn)
+   */
+  return result;
+}
+
+
+/**
+  Do overlaps relation check of two geometries.
+  Dispatch to specific BG functions according to operation type, and 1st or
+  both operand types.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::overlaps_check(Geometry *g1, Geometry *g2,
+                                          bool *pbgdone, my_bool *pnull_value)
+{
+  typedef typename Geom_types::Point Point;
+  typedef typename Geom_types::Multipoint Multipoint;
+  typedef std::set<Point, bgpt_lt> Point_set;
+  typedef std::vector<Point> Point_vector;
+
+  int result= 0;
+  *pbgdone= false;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (g1->feature_dimension() != g2->feature_dimension())
+  {
+    *pbgdone= true;
+    // OGC says this is not applicable, but PostGIS doesn't errout but
+    // returns false.
+    //null_value= true;
+    //my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), "st_overlaps");
+    return 0;
+  }
+
+  if (gt1 == Geometry::wkb_point || gt2 == Geometry::wkb_point)
+  {
+    *pbgdone= true;
+    result= 0;
+  }
+
+  if (gt1 == Geometry::wkb_multipoint && gt2 == Geometry::wkb_multipoint)
+    result= BG_wrap<Geom_types>::
+      multipoint_overlaps_multipoint(g1, g2, pbgdone, pnull_value);
+
+  /*
+    Note: Need overlaps([m]ls, [m]ls), overlaps([m]plgn, [m]plgn).
+   */
+  return result;
+}
+
+
+/**
+  Do touches relation check of two geometries.
+  Dispatch to specific BG functions according to operation type, and 1st or
+  both operand types.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::touches_check(Geometry *g1, Geometry *g2,
+                                         bool *pbgdone, my_bool *pnull_value)
+{
+  typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Multipolygon Multipolygon;
+
+  int result= 0;
+  *pbgdone= false;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+
+  if ((gt1 == Geometry::wkb_point || gt1 == Geometry::wkb_multipoint) &&
+      (gt2 == Geometry::wkb_point || gt2 == Geometry::wkb_multipoint))
+  {
+    *pbgdone= true;
+    // OGC says this is not applicable, but PostGIS doesn't errout but
+    // returns false.
+    //null_value= true;
+    //my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), "st_touches");
+    return 0;
+  }
+  /*
+    Touches is symetric, and one argument is allowed to be a Point/multipoint.
+   */
+  switch (gt1)
+  {
+  case Geometry::wkb_polygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_polygon:
+      BGCALL(result, touches, Polygon, g1, Polygon, g2, pnull_value);
+      *pbgdone= true;
+      break;
+    case Geometry::wkb_multipolygon:
+      BGCALL(result, touches, Polygon, g1, Multipolygon, g2, pnull_value);
+      *pbgdone= true;
+      break;
+    default:
+      *pbgdone= false;
+      break;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_polygon:
+      BGCALL(result, touches, Multipolygon, g1, Polygon, g2, pnull_value);
+      *pbgdone= true;
+      break;
+    case Geometry::wkb_multipolygon:
+      BGCALL(result, touches, Multipolygon, g1, Multipolygon, g2, pnull_value);
+      *pbgdone= true;
+      break;
+    default:
+      *pbgdone= false;
+      break;
+    }
+    break;
+  default:
+    *pbgdone= false;
+    break;
+  }
+  /*
+    Note: need touches(pnt, lstr), (pnt, plgn), (lstr, lstr), (lstr, plgn).
+    for multi geometry, can iterate geos in it and compute for
+    each geo separately.
+   */
+  return result;
+}
+
+
+/**
+  Do crosses relation check of two geometries.
+  Dispatch to specific BG functions according to operation type, and 1st or
+  both operand types.
+
+  @tparam Geom_types Geometry types definitions.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pbgdone Returns whether the specified relation check operation is
+        performed. For now BG doesn't support many type combinatioons
+        for each type of relation check. We have implemented some of the
+        checks for some type combinations, which are not supported by BG,
+        bgdone will also be set to true for such checks.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+*/
+template<typename Geom_types>
+int Item_func_spatial_rel::crosses_check(Geometry *g1, Geometry *g2,
+                                         bool *pbgdone, my_bool *pnull_value)
+{
+  int result= 0;
+  *pbgdone= false;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+
+  if (gt1 == Geometry::wkb_polygon || gt2 == Geometry::wkb_point ||
+      (gt1 == Geometry::wkb_multipolygon || gt2 == Geometry::wkb_multipoint))
+  {
+    *pbgdone= true;
+    // OGC says this is not applicable, but PostGIS doesn't errout but
+    // returns false.
+    //null_value= true;
+    //my_error(ER_GIS_UNSUPPORTED_ARGUMENT, MYF(0), "st_crosses");
+    return 0;
+  }
+
+  if (gt1 == Geometry::wkb_point)
+  {
+    *pbgdone= true;
+    result= 0;
+    return result;
+  }
+
+  switch (gt1)
+  {
+  case Geometry::wkb_multipoint:
+    result= BG_wrap<Geom_types>::
+      multipoint_crosses_geometry(g1, g2, pbgdone, pnull_value);
+    break;
+  case Geometry::wkb_linestring:
+  case Geometry::wkb_multilinestring:
+    break;
+  default:
+    DBUG_ASSERT(false);
+    break;
+  }
+  /*
+    Note: needs crosses([m]ls, [m]ls), crosses([m]ls, [m]plgn).
+   */
+  return result;
+}
+
+
+/**
+  Entry point to call Boost Geometry functions to check geometry relations.
+  This function is static so that it can be called without the
+  Item_func_spatial_rel object --- we do so to implement a few functionality
+  for other classes in this file, e.g. Item_func_spatial_operation::val_str.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] pisdone Returns whether the specified relation check operation is
+        performed by BG. For now BG doesn't support many type combinatioons
+        for each type of relation check. If isdone returns false, old GIS
+        algorithms will be called to do the check.
+  @param relchk_type The type of relation check.
+  @param[out] pnull_value Returns whether error occured duirng the computation.
+  @return 0 if specified relation doesn't hold for the given operands,
+                otherwise returns none 0.
+ */
+template<typename Coord_type, typename Coordsys>
+int Item_func_spatial_rel::bg_geo_relation_check(Geometry *g1, Geometry *g2,
+                                                 bool *pisdone,
+                                                 Functype relchk_type,
+                                                 my_bool *pnull_value)
+{
+  int result= 0;
+  bool bgdone= false;
+
+  typedef BG_models<Coord_type, Coordsys> Geom_types;
+
+  *pisdone= false;
+  /*
+    Dispatch calls to all specific type combinations for each relation check
+    function.
+
+    Boost.Geometry doesn't have dynamic polymorphism,
+    e.g. the above Point, Linestring, and Polygon templates don't have a common
+    base class template, so we have to dispatch by types.
+
+    The checking functions should set bgdone to true if the relation check is
+    performed, they should also set null_value to true if there is error.
+   */
+
+  switch (relchk_type) {
+  case SP_CONTAINS_FUNC:
+    result= within_check<Geom_types>(g2, g1, &bgdone, pnull_value);
+    break;
+  case SP_WITHIN_FUNC:
+    result= within_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  case SP_EQUALS_FUNC:
+    result= equals_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  case SP_DISJOINT_FUNC:
+    result= disjoint_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  case SP_INTERSECTS_FUNC:
+    result= intersects_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  case SP_OVERLAPS_FUNC:
+    result= overlaps_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  case SP_TOUCHES_FUNC:
+    result= touches_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  case SP_CROSSES_FUNC:
+    result= crosses_check<Geom_types>(g1, g2, &bgdone, pnull_value);
+    break;
+  default:
+    DBUG_ASSERT(FALSE);
+    break;
+  }
+
+  *pisdone= bgdone;
+  return result;
+}
+
+Item_func_spatial_operation::~Item_func_spatial_operation()
+{
+  if (bg_result_buf)
+    gis_wkb_raw_free(bg_result_buf);
+}
+
+using std::auto_ptr;
+
+#define BGOPCALL(GeoOutType, geom_out, bgop,                            \
+                 GeoType1, g1, GeoType2, g2, wkbres, nullval)           \
+do                                                                      \
+{                                                                       \
+  const void *pg1= g1->normalize_ring_order();                          \
+  const void *pg2= g2->normalize_ring_order();                          \
+  geom_out= NULL;                                                       \
+  if (pg1 != NULL && pg2 != NULL)                                       \
+  {                                                                     \
+    GeoType1 geo1(pg1, g1->get_data_size(), g1->get_flags(),            \
+                  g1->get_srid());                                      \
+    GeoType2 geo2(pg2, g2->get_data_size(), g2->get_flags(),            \
+                  g2->get_srid());                                      \
+    auto_ptr<GeoOutType>geout(new GeoOutType());                        \
+    geout->set_srid(g1->get_srid());                                    \
+    boost::geometry::bgop(geo1, geo2, *geout);                          \
+    (nullval)= false;                                                   \
+    if (geout->size() == 0 ||                                           \
+        (nullval= post_fix_result(*geout, wkbres)))                     \
+    {                                                                   \
+      if (nullval)                                                      \
+        return NULL;                                                    \
+    }                                                                   \
+    else                                                                \
+      geom_out= geout.release();                                        \
+  }                                                                     \
+  else                                                                  \
+  {                                                                     \
+    (nullval)= true;                                                    \
+    return NULL;                                                        \
+  }                                                                     \
+} while (0)
+
+
+/*
+  Write an empty geometry collection's wkb encoding into str, and create a
+  geometry object for this empty geometry colletion.
+ */
+Geometry *Item_func_spatial_operation::empty_result(String *str, uint32 srid)
+{
+  if ((null_value= str->reserve(GEOM_HEADER_SIZE + 4 + 16, 256)))
+    return 0;
+
+  write_geometry_header(str, srid, Geometry::wkb_geometrycollection, 0);
+  Gis_geometry_collection *gcol= new Gis_geometry_collection();
+  gcol->set_data_ptr(str->ptr() + GEOM_HEADER_SIZE, 4);
+  gcol->has_geom_header_space(true);
+  return gcol;
+}
+
+
+/**
+  Wraps and dispatches type specific BG function calls according to operation
+  type and the 1st or both operand type(s), depending on code complexity.
+
+  We want to isolate boost header file inclusion only inside this file, so we
+  can't put this class declaration in any header file. And we want to make the
+  methods static since no state is needed here.
+  @tparam Geom_types A wrapper for all geometry types.
+*/
+template<typename Geom_types>
+class BG_setop_wrapper
+{
+  // Some computation in this class may rely on functions in
+  // Item_func_spatial_operation.
+  Item_func_spatial_operation *m_ifso;
+  my_bool null_value; // Whether computation has error.
+
+  // Some computation in this class may rely on functions in
+  // Item_func_spatial_operation, after each call of its functions, copy its
+  // null_value, we don't want to miss errors.
+  void copy_ifso_state()
+  {
+    null_value= m_ifso->null_value;
+  }
+
+  /*
+    For every Geometry object write-accessed by a boost geometry function, i.e.
+    those passed as out parameter into set operation functions, call this
+    function before using the result object's data.
+
+    @return true if got error; false if no error occured.
+  */
+  template <typename BG_geotype>
+  bool post_fix_result(BG_geotype &geout, String *res)
+  {
+    DBUG_ASSERT(geout.has_geom_header_space());
+    geout.reassemble();
+    if (geout.get_ptr() == NULL)
+      return true;
+    if (res)
+    {
+      char *resptr= geout.get_cptr() - GEOM_HEADER_SIZE;
+      uint32 len= static_cast<uint32>(geout.get_nbytes());
+      m_ifso->bg_results.insert(resptr);
+      res->set(resptr, len + GEOM_HEADER_SIZE, &my_charset_bin);
+      write_geometry_header(resptr, geout.get_srid(), geout.get_geotype());
+      geout.set_ownmem(false);
+    }
+
+    return false;
+  }
+
+public:
+  typedef typename Geom_types::Point Point;
+  typedef typename Geom_types::Linestring Linestring;
+  typedef typename Geom_types::Polygon Polygon;
+  typedef typename Geom_types::Multipoint Multipoint;
+  typedef typename Geom_types::Multilinestring Multilinestring;
+  typedef typename Geom_types::Multipolygon Multipolygon;
+  typedef typename Geom_types::Coord_type Coord_type;
+  typedef typename Geom_types::Coordsys Coordsys;
+  typedef Item_func_spatial_rel Ifsr;
+  typedef Item_func_spatial_operation Ifso;
+  typedef std::set<Point, bgpt_lt> Point_set;
+  typedef std::vector<Point> Point_vector;
+
+  BG_setop_wrapper(Item_func_spatial_operation *ifso)
+  {
+    m_ifso= ifso;
+    null_value= 0;
+  }
+
+
+  my_bool get_null_value() const
+  {
+    return null_value;
+  }
+
+
+  /**
+    Do point insersection point operation.
+    @param g1 First Geometry operand, must be a Point.
+    @param g2 Second Geometry operand, must be a Point.
+    @param[out] result Holds WKB data of the result.
+    @param[out] pdone Whether the operation is performed successfully.
+    @return the result Geometry whose WKB data is in result.
+    */
+  Geometry *point_intersection_point(Geometry *g1, Geometry *g2,
+                                     String *result, bool *pdone)
+  {
+    Geometry *retgeo= NULL;
+
+    *pdone= false;
+    Point pt1(g1->get_data_ptr(),
+              g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Point pt2(g2->get_data_ptr(),
+              g2->get_data_size(), g2->get_flags(), g2->get_srid());
+
+    if (bgpt_eq()(pt1, pt2))
+    {
+      retgeo= g1;
+      null_value= retgeo->as_geometry(result, true);
+    }
+    else
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  /*
+    Do point intersection Multipoint operation.
+    The parameters and return value has identical/similar meaning as to above
+    function, which can be inferred from the function name, we won't repeat
+    here or for the rest of the functions in this class.
+  */
+  Geometry *point_intersection_multipoint(Geometry *g1, Geometry *g2,
+                                          String *result, bool *pdone)
+  {
+    Geometry *retgeo= NULL;
+
+    *pdone= false;
+    Point pt(g1->get_data_ptr(),
+             g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Multipoint mpts(g2->get_data_ptr(),
+                    g2->get_data_size(), g2->get_flags(), g2->get_srid());
+    Point_set ptset(mpts.begin(), mpts.end());
+
+    if (ptset.find(pt) != ptset.end())
+    {
+      retgeo= g1;
+      null_value= retgeo->as_geometry(result, true);
+    }
+    else
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *point_intersection_geometry(Geometry *g1, Geometry *g2,
+                                        String *result, bool *pdone)
+  {
+#if !defined(DBUG_OFF) && !defined(_lint)
+    Geometry::wkbType gt2= g2->get_type();
+#endif
+    Geometry *retgeo= NULL;
+    *pdone= false;
+    /*
+      Whether Ifsr::bg_geo_relation_check or this function is
+      completed. Only check this variable immediately after calling the two
+      functions. If !isdone, unable to proceed, simply return 0.
+
+      This is also true for other uses of this variable in other member
+      functions of this class.
+     */
+    bool isdone= false;
+
+    bool is_out= !Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+      (g1, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value);
+
+    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
+                gt2 == Geometry::wkb_polygon ||
+                gt2 == Geometry::wkb_multilinestring ||
+                gt2 == Geometry::wkb_multipolygon);
+    if (isdone && !null_value)
+    {
+      if (is_out)
+      {
+        null_value= g1->as_geometry(result, true);
+        retgeo= g1;
+      }
+      else
+      {
+        retgeo= m_ifso->empty_result(result, g1->get_srid());
+        copy_ifso_state();
+      }
+      *pdone= true;
+    }
+    return retgeo;
+  }
+
+
+  Geometry *multipoint_intersection_multipoint(Geometry *g1, Geometry *g2,
+                                               String *result, bool *pdone)
+  {
+    Geometry *retgeo= NULL;
+    Point_set ptset1, ptset2;
+    Multipoint *mpts= new Multipoint();
+    auto_ptr<Multipoint> guard(mpts);
+
+    *pdone= false;
+    mpts->set_srid(g1->get_srid());
+
+    Multipoint mpts1(g1->get_data_ptr(),
+                     g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Multipoint mpts2(g2->get_data_ptr(),
+                     g2->get_data_size(), g2->get_flags(), g2->get_srid());
+
+    ptset1.insert(mpts1.begin(), mpts1.end());
+    ptset2.insert(mpts2.begin(), mpts2.end());
+
+    Point_vector respts;
+    TYPENAME Point_vector::iterator endpos;
+    size_t ptset1sz= ptset1.size(), ptset2sz= ptset2.size();
+    respts.resize(ptset1sz > ptset2sz ? ptset1sz : ptset2sz);
+
+    endpos= std::set_intersection(ptset1.begin(), ptset1.end(),
+                                  ptset2.begin(), ptset2.end(),
+                                  respts.begin(), bgpt_lt());
+    append_range(mpts, respts.begin(), endpos);
+
+    if (mpts->size() > 0)
+    {
+      null_value= m_ifso->assign_result(mpts, result);
+      retgeo= mpts;
+      guard.release();
+    }
+    else
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipoint_intersection_geometry(Geometry *g1, Geometry *g2,
+                                             String *result, bool *pdone)
+  {
+    Geometry *retgeo= NULL;
+#if !defined(DBUG_OFF) && !defined(_lint)
+    Geometry::wkbType gt2= g2->get_type();
+#endif
+    Point_set ptset;
+    Multipoint mpts(g1->get_data_ptr(),
+                    g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Multipoint *mpts2= new Multipoint();
+    auto_ptr<Multipoint> guard(mpts2);
+    bool isdone= false;
+
+    *pdone= false;
+    mpts2->set_srid(g1->get_srid());
+
+    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
+                gt2 == Geometry::wkb_polygon ||
+                gt2 == Geometry::wkb_multilinestring ||
+                gt2 == Geometry::wkb_multipolygon);
+    ptset.insert(mpts.begin(), mpts.end());
+
+    for (TYPENAME Point_set::iterator i= ptset.begin(); i != ptset.end(); ++i)
+    {
+      Point &pt= const_cast<Point&>(*i);
+      if (!Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+          (&pt, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) &&
+          isdone && !null_value)
+      {
+        mpts2->push_back(pt);
+      }
+
+      if (null_value || !isdone)
+        return 0;
+    }
+
+    if (mpts2->size() > 0)
+    {
+      null_value= m_ifso->assign_result(mpts2, result);
+      retgeo= mpts2;
+      guard.release();
+    }
+    else
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *linestring_intersection_polygon(Geometry *g1, Geometry *g2,
+                                            String *result, bool *pdone)
+  {
+    Geometry::wkbType gt2= g2->get_type();
+    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
+    *pdone= false;
+    // It is likely for there to be discrete intersection Points.
+    if (gt2 == Geometry::wkb_multipolygon)
+    {
+      BGOPCALL(Multilinestring, tmp1, intersection,
+               Linestring, g1, Multipolygon, g2, NULL, null_value);
+      BGOPCALL(Multipoint, tmp2, intersection,
+               Linestring, g1, Multipolygon, g2, NULL, null_value);
+    }
+    else
+    {
+      BGOPCALL(Multilinestring, tmp1, intersection,
+               Linestring, g1, Polygon, g2, NULL, null_value);
+      BGOPCALL(Multipoint, tmp2, intersection,
+               Linestring, g1, Polygon, g2, NULL, null_value);
+    }
+
+    // Need merge, exclude Points that are on the result Linestring.
+    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+      (tmp1, tmp2, result);
+    copy_ifso_state();
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_intersection_multilinestring(Geometry *g1, Geometry *g2,
+                                                 String *result, bool *pdone)
+  {
+    Geometry *retgeo= NULL, *tmp1= NULL;
+    Multipoint *tmp2= NULL;
+    auto_ptr<Geometry> guard1;
+
+    *pdone= false;
+
+    BGOPCALL(Multilinestring, tmp1, intersection,
+             Polygon, g1, Multilinestring, g2, NULL, null_value);
+    guard1.reset(tmp1);
+
+    Multilinestring mlstr(g2->get_data_ptr(), g2->get_data_size(),
+                          g2->get_flags(), g2->get_srid());
+    Multipoint mpts;
+    Point_set ptset;
+
+    const void *data_ptr= g1->normalize_ring_order();
+    if (data_ptr == NULL)
+    {
+      null_value= true;
+      return NULL;
+    }
+
+    Polygon plgn(data_ptr, g1->get_data_size(),
+                 g1->get_flags(), g1->get_srid());
+
+    for (TYPENAME Multilinestring::iterator i= mlstr.begin();
+         i != mlstr.end(); ++i)
+    {
+      boost::geometry::intersection(plgn, *i, mpts);
+      if (mpts.size() > 0)
+      {
+        ptset.insert(mpts.begin(), mpts.end());
+        mpts.clear();
+      }
+    }
+
+    auto_ptr<Multipoint> guard2;
+    if (ptset.size() > 0)
+    {
+      tmp2= new Multipoint;
+      tmp2->set_srid(g1->get_srid());
+      guard2.reset(tmp2);
+      append_range(tmp2, ptset.begin(), ptset.end());
+    }
+
+    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+      (guard1.release(), guard2.release(), result);
+    copy_ifso_state();
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_intersection_polygon(Geometry *g1, Geometry *g2,
+                                         String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry::wkbType gt2= g2->get_type();
+    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
+
+    if (gt2 == Geometry::wkb_polygon)
+    {
+      BGOPCALL(Multipolygon, tmp1, intersection,
+               Polygon, g1, Polygon, g2, NULL, null_value);
+      BGOPCALL(Multipoint, tmp2, intersection,
+               Polygon, g1, Polygon, g2, NULL, null_value);
+    }
+    else
+    {
+      BGOPCALL(Multipolygon, tmp1, intersection,
+               Polygon, g1, Multipolygon, g2, NULL, null_value);
+      BGOPCALL(Multipoint, tmp2, intersection,
+               Polygon, g1, Multipolygon, g2, NULL, null_value);
+    }
+
+    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+      (tmp1, tmp2, result);
+    copy_ifso_state();
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multilinestring_intersection_multipolygon(Geometry *g1,
+                                                      Geometry *g2,
+                                                      String *result,
+                                                      bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL, *tmp1= NULL;
+    Multipoint *tmp2= NULL;
+
+    auto_ptr<Geometry> guard1;
+    BGOPCALL(Multilinestring, tmp1, intersection,
+             Multilinestring, g1, Multipolygon, g2,
+             NULL, null_value);
+    guard1.reset(tmp1);
+
+    Multilinestring mlstr(g1->get_data_ptr(), g1->get_data_size(),
+                          g1->get_flags(), g1->get_srid());
+    Multipoint mpts;
+
+    const void *data_ptr= g2->normalize_ring_order();
+    if (data_ptr == NULL)
+    {
+      null_value= true;
+      return NULL;
+    }
+
+    Multipolygon mplgn(data_ptr, g2->get_data_size(),
+                       g2->get_flags(), g2->get_srid());
+    Point_set ptset;
+
+    for (TYPENAME Multilinestring::iterator i= mlstr.begin();
+         i != mlstr.end(); ++i)
+    {
+      boost::geometry::intersection(*i, mplgn, mpts);
+      if (mpts.size() > 0)
+      {
+        ptset.insert(mpts.begin(), mpts.end());
+        mpts.clear();
+      }
+    }
+
+    auto_ptr<Multipoint> guard2;
+    if (ptset.empty() == false)
+    {
+      tmp2= new Multipoint;
+      tmp2->set_srid(g1->get_srid());
+      guard2.reset(tmp2);
+      append_range(tmp2, ptset.begin(), ptset.end());
+    }
+
+    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+      (guard1.release(), guard2.release(), result);
+    copy_ifso_state();
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipolygon_intersection_multipolygon(Geometry *g1, Geometry *g2,
+                                                   String *result,
+                                                   bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL, *tmp1= NULL, *tmp2= NULL;
+    BGOPCALL(Multipolygon, tmp1, intersection,
+             Multipolygon, g1, Multipolygon, g2, NULL, null_value);
+
+    BGOPCALL(Multipoint, tmp2, intersection,
+             Multipolygon, g1, Multipolygon, g2, NULL, null_value);
+
+    retgeo= m_ifso->combine_sub_results<Coord_type, Coordsys>
+      (tmp1, tmp2, result);
+    copy_ifso_state();
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *point_union_point(Geometry *g1, Geometry *g2,
+                              String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+    Geometry::wkbType gt2= g2->get_type();
+    Point_set ptset;// Use set to make Points unique.
+
+    Point pt1(g1->get_data_ptr(),
+              g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Multipoint *mpts= new Multipoint();
+    auto_ptr<Multipoint> guard(mpts);
+
+    mpts->set_srid(g1->get_srid());
+    ptset.insert(pt1);
+    if (gt2 == Geometry::wkb_point)
+    {
+      Point pt2(g2->get_data_ptr(),
+                g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      ptset.insert(pt2);
+    }
+    else
+    {
+      Multipoint mpts2(g2->get_data_ptr(),
+                       g2->get_data_size(), g2->get_flags(), g2->get_srid());
+      ptset.insert(mpts2.begin(), mpts2.end());
+    }
+
+    append_range(mpts, ptset.begin(), ptset.end());
+    if (mpts->size() > 0)
+    {
+      retgeo= mpts;
+      null_value= m_ifso->assign_result(mpts, result);
+      guard.release();
+    }
+    else
+    {
+      if (!null_value)
+      {
+        retgeo= m_ifso->empty_result(result, g1->get_srid());
+        copy_ifso_state();
+      }
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *point_union_geometry(Geometry *g1, Geometry *g2,
+                                 String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+#if !defined(DBUG_OFF) && !defined(_lint)
+    Geometry::wkbType gt2= g2->get_type();
+#endif
+    bool isdone= false;
+
+    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
+                gt2 == Geometry::wkb_polygon ||
+                gt2 == Geometry::wkb_multilinestring ||
+                gt2 == Geometry::wkb_multipolygon);
+    if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+        (g1, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) &&
+        isdone && !null_value)
+    {
+      Gis_geometry_collection *geocol= new Gis_geometry_collection(g2, result);
+      null_value= (geocol == NULL || geocol->append_geometry(g1, result));
+      retgeo= geocol;
+    }
+    else if (!isdone || null_value)
+    {
+      retgeo= NULL;
+      return 0;
+    }
+    else
+    {
+      retgeo= g2;
+      null_value= retgeo->as_geometry(result, true);
+    }
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipoint_union_multipoint(Geometry *g1, Geometry *g2,
+                                        String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+    Point_set ptset;
+    Multipoint *mpts= new Multipoint();
+    auto_ptr<Multipoint> guard(mpts);
+
+    mpts->set_srid(g1->get_srid());
+    Multipoint mpts1(g1->get_data_ptr(),
+                     g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Multipoint mpts2(g2->get_data_ptr(),
+                     g2->get_data_size(), g2->get_flags(), g2->get_srid());
+
+    ptset.insert(mpts1.begin(), mpts1.end());
+    ptset.insert(mpts2.begin(), mpts2.end());
+    append_range(mpts, ptset.begin(), ptset.end());
+
+    if (mpts->size() > 0)
+    {
+      retgeo= mpts;
+      null_value= m_ifso->assign_result(mpts, result);
+      guard.release();
+    }
+    else
+    {
+      if (!null_value)
+      {
+        retgeo= m_ifso->empty_result(result, g1->get_srid());
+        copy_ifso_state();
+      }
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipoint_union_geometry(Geometry *g1, Geometry *g2,
+                                      String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+#if !defined(DBUG_OFF) && !defined(_lint)
+    Geometry::wkbType gt2= g2->get_type();
+#endif
+    Point_set ptset;
+    Multipoint mpts(g1->get_data_ptr(),
+                    g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    bool isdone= false;
+
+    DBUG_ASSERT(gt2 == Geometry::wkb_linestring ||
+                gt2 == Geometry::wkb_polygon ||
+                gt2 == Geometry::wkb_multilinestring ||
+                gt2 == Geometry::wkb_multipolygon);
+    ptset.insert(mpts.begin(), mpts.end());
+
+    Gis_geometry_collection *geocol= new Gis_geometry_collection(g2, result);
+    auto_ptr<Gis_geometry_collection> guard(geocol);
+    bool added= false;
+
+    for (TYPENAME Point_set::iterator i= ptset.begin(); i != ptset.end(); ++i)
+    {
+      Point &pt= const_cast<Point&>(*i);
+      if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+          (&pt, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) &&
+          isdone)
+      {
+        if (null_value || (null_value= geocol->append_geometry(&pt, result)))
+          break;
+        added= true;
+      }
+
+      if (!isdone)
+        break;
+    }
+
+    if (null_value || !isdone)
+      return 0;
+
+    if (added)
+    {
+      // Result is already filled above.
+      retgeo= geocol;
+      guard.release();
+    }
+    else
+    {
+      retgeo= g2;
+      null_value= g2->as_geometry(result, true);
+    }
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_union_polygon(Geometry *g1, Geometry *g2,
+                                  String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, union_, Polygon, g1, Polygon, g2,
+             result, null_value);
+    if (retgeo && !null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_union_multipolygon(Geometry *g1, Geometry *g2,
+                                       String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, union_,
+             Polygon, g1, Multipolygon, g2, result, null_value);
+    if (retgeo && !null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipolygon_union_multipolygon(Geometry *g1, Geometry *g2,
+                                            String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, union_,
+             Multipolygon, g1, Multipolygon, g2, result, null_value);
+
+    if (retgeo && !null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *point_difference_geometry(Geometry *g1, Geometry *g2,
+                                      String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+    bool isdone= false;
+    bool is_out= Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+      (g1, g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value);
+
+    if (isdone && !null_value)
+    {
+      if (is_out)
+      {
+        retgeo= g1;
+        null_value= retgeo->as_geometry(result, true);
+      }
+      else
+      {
+        retgeo= m_ifso->empty_result(result, g1->get_srid());
+        copy_ifso_state();
+      }
+      if (!null_value)
+        *pdone= true;
+    }
+    return retgeo;
+  }
+
+
+  Geometry *multipoint_difference_geometry(Geometry *g1, Geometry *g2,
+                                           String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+    Multipoint *mpts= new Multipoint();
+    auto_ptr<Multipoint> guard(mpts);
+
+    mpts->set_srid(g1->get_srid());
+    Multipoint mpts1(g1->get_data_ptr(),
+                     g1->get_data_size(), g1->get_flags(), g1->get_srid());
+    Point_set ptset;
+    bool isdone= false;
+
+    for (TYPENAME Multipoint::iterator i= mpts1.begin();
+         i != mpts1.end(); ++i)
+    {
+      if (Ifsr::bg_geo_relation_check<Coord_type, Coordsys>
+          (&(*i), g2, &isdone, Ifsr::SP_DISJOINT_FUNC, &null_value) && isdone)
+      {
+        if (null_value)
+          return 0;
+        ptset.insert(*i);
+      }
+
+      if (!isdone)
+        return 0;
+    }
+
+    if (ptset.empty() == false)
+    {
+      append_range(mpts, ptset.begin(), ptset.end());
+      null_value= m_ifso->assign_result(mpts, result);
+      retgeo= mpts;
+      guard.release();
+    }
+    else
+    {
+      if (!null_value)
+      {
+        retgeo= m_ifso->empty_result(result, g1->get_srid());
+        copy_ifso_state();
+      }
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *linestring_difference_polygon(Geometry *g1, Geometry *g2,
+                                          String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multilinestring, retgeo, difference,
+             Linestring, g1, Polygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *linestring_difference_multipolygon(Geometry *g1, Geometry *g2,
+                                               String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multilinestring, retgeo, difference,
+             Linestring, g1, Multipolygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_difference_polygon(Geometry *g1, Geometry *g2,
+                                       String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, difference,
+             Polygon, g1, Polygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_difference_multipolygon(Geometry *g1, Geometry *g2,
+                                            String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, difference,
+             Polygon, g1, Multipolygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multilinestring_difference_polygon(Geometry *g1, Geometry *g2,
+                                               String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multilinestring, retgeo, difference,
+             Multilinestring, g1, Polygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multilinestring_difference_multipolygon(Geometry *g1, Geometry *g2,
+                                                    String *result,
+                                                    bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multilinestring, retgeo, difference,
+             Multilinestring, g1, Multipolygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipolygon_difference_polygon(Geometry *g1, Geometry *g2,
+                                            String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, difference,
+             Multipolygon, g1, Polygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipolygon_difference_multipolygon(Geometry *g1, Geometry *g2,
+                                                 String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, difference,
+             Multipolygon, g1, Multipolygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_symdifference_polygon(Geometry *g1, Geometry *g2,
+                                          String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, sym_difference,
+             Polygon, g1, Polygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *polygon_symdifference_multipolygon(Geometry *g1, Geometry *g2,
+                                               String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, sym_difference,
+             Polygon, g1, Multipolygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipolygon_symdifference_polygon(Geometry *g1, Geometry *g2,
+                                               String *result, bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, sym_difference,
+             Multipolygon, g1, Polygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+
+
+  Geometry *multipolygon_symdifference_multipolygon(Geometry *g1, Geometry *g2,
+                                                    String *result,
+                                                    bool *pdone)
+  {
+    *pdone= false;
+    Geometry *retgeo= NULL;
+
+    BGOPCALL(Multipolygon, retgeo, sym_difference,
+             Multipolygon, g1, Multipolygon, g2, result, null_value);
+
+    if (!retgeo && !null_value)
+    {
+      retgeo= m_ifso->empty_result(result, g1->get_srid());
+      copy_ifso_state();
+    }
+    if (!null_value)
+      *pdone= true;
+    return retgeo;
+  }
+};
+
+
+/**
+  Do intersection operation for two geometries, dispatch to specific BG
+  function wrapper calls according to set operation type, and the 1st or
+  both operand types.
+
+  @tparam Geom_types A wrapper for all geometry types.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] result Holds WKB data of the result.
+  @param[out] pdone Whether the operation is performed successfully.
+  @return The result geometry whose WKB data is held in result.
+ */
+template <typename Geom_types>
+Geometry *Item_func_spatial_operation::
+intersection_operation(Geometry *g1, Geometry *g2,
+                       String *result, bool *pdone)
+{
+  typedef typename Geom_types::Coord_type Coord_type;
+  typedef typename Geom_types::Coordsys Coordsys;
+
+  BG_setop_wrapper<Geom_types> wrap(this);
+  Geometry *retgeo= NULL;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+  *pdone= false;
+
+  switch (gt1)
+  {
+  case Geometry::wkb_point:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+      retgeo= wrap.point_intersection_point(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multipoint:
+      retgeo= wrap.point_intersection_multipoint(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.point_intersection_geometry(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+
+    break;
+  case Geometry::wkb_multipoint:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+      retgeo= wrap.point_intersection_multipoint(g2, g1, result, pdone);
+      break;
+
+    case Geometry::wkb_multipoint:
+      retgeo= wrap.multipoint_intersection_multipoint(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipoint_intersection_geometry(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_linestring:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+      /*
+        The Multilinestring call isn't supported for these combinations,
+        but such a result is quite likely, thus can't use bg for
+        this combination.
+       */
+      break;
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.linestring_intersection_polygon(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_polygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_multilinestring:
+      retgeo= wrap.polygon_intersection_multilinestring(g1, g2,
+                                                        result, pdone);
+      break;
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multipolygon:
+      // Note: for now BG's set operations don't allow returning a
+      // Multilinestring, thus this result isn't complete.
+      retgeo= wrap.polygon_intersection_polygon(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_multilinestring:
+      /*
+        The Multilinestring call isn't supported for these combinations,
+        but such a result is quite likely, thus can't use bg for
+        this combination.
+       */
+      break;
+
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multilinestring_intersection_multipolygon(g1, g2,
+                                                             result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_polygon:
+      retgeo= intersection_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipolygon_intersection_multipolygon(g1, g2,
+                                                          result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  default:
+    break;
+  }
+  null_value= wrap.get_null_value();
+  return retgeo;
+}
+
+
+/**
+  Do union operation for two geometries, dispatch to specific BG
+  function wrapper calls according to set operation type, and the 1st or
+  both operand types.
+
+  @tparam Geom_types A wrapper for all geometry types.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] result Holds WKB data of the result.
+  @param[out] pdone Whether the operation is performed successfully.
+  @return The result geometry whose WKB data is held in result.
+ */
+template <typename Geom_types>
+Geometry *Item_func_spatial_operation::
+union_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  typedef typename Geom_types::Coord_type Coord_type;
+  typedef typename Geom_types::Coordsys Coordsys;
+
+  BG_setop_wrapper<Geom_types> wrap(this);
+  Geometry *retgeo= NULL;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+  *pdone= false;
+
+  // Note that union can't produce empty point set unless given two empty
+  // point set arguments.
+  switch (gt1)
+  {
+  case Geometry::wkb_point:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+      retgeo= wrap.point_union_point(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.point_union_geometry(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+      retgeo= wrap.point_union_point(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_multipoint:
+      retgeo= wrap.multipoint_union_multipoint(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipoint_union_geometry(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_linestring:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multipolygon:
+    /*
+      boost geometry doesn't support union with either parameter being
+      Linestring or Multilinestring, and we can't do simple calculation
+      to Linestring as Points above. In following code this is denoted
+      as NOT_SUPPORTED_BY_BG.
+
+      Note: Also, current bg::union functions don't allow result being
+      Multilinestring, thus these calculation isn't possible.
+     */
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_polygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_multilinestring:
+      // NOT_SUPPORTED_BY_BG
+      break;
+    case Geometry::wkb_polygon:
+      retgeo= wrap.polygon_union_polygon(g1, g2, result, pdone);
+      // Union can't produce empty point set.
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.polygon_union_multipolygon(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+      break;
+    case Geometry::wkb_multilinestring:
+      // NOT_SUPPORTED_BY_BG
+      break;
+    case Geometry::wkb_multipolygon:
+      // NOT_SUPPORTED_BY_BG
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multilinestring:
+      retgeo= union_operation<Geom_types>(g2, g1, result, pdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipolygon_union_multipolygon(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  default:
+    break;
+  }
+  null_value= wrap.get_null_value();
+  return retgeo;
+}
+
+
+/**
+  Do difference operation for two geometries, dispatch to specific BG
+  function wrapper calls according to set operation type, and the 1st or
+  both operand types.
+
+  @tparam Geom_types A wrapper for all geometry types.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] result Holds WKB data of the result.
+  @param[out] pdone Whether the operation is performed successfully.
+  @return The result geometry whose WKB data is held in result.
+ */
+template <typename Geom_types>
+Geometry *Item_func_spatial_operation::
+difference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  BG_setop_wrapper<Geom_types> wrap(this);
+  Geometry *retgeo= NULL;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+  *pdone= false;
+
+  /*
+    Given two geometries g1 and g2, where g1.dimension < g2.dimension, then
+    g2 - g1 is equal to g2, this is always true. This is how postgis works.
+    Below implementation uses this fact.
+   */
+  switch (gt1)
+  {
+  case Geometry::wkb_point:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.point_difference_geometry(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multipoint:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_polygon:
+    case Geometry::wkb_multilinestring:
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipoint_difference_geometry(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_linestring:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+      retgeo= g1;
+      null_value= g1->as_geometry(result, true);
+      if (!null_value)
+        *pdone= true;
+      break;
+    case Geometry::wkb_linestring:
+      /*
+        The result from boost geometry is wrong for this combination.
+        NOT_SUPPORTED_BY_BG
+       */
+      break;
+    case Geometry::wkb_polygon:
+      retgeo= wrap.linestring_difference_polygon(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multilinestring:
+      /*
+        The result from boost geometry is wrong for this combination.
+        NOT_SUPPORTED_BY_BG
+       */
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.linestring_difference_multipolygon(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_polygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+      retgeo= g1;
+      null_value= g1->as_geometry(result, true);
+
+      if (!null_value)
+        *pdone= true;
+
+      break;
+    case Geometry::wkb_polygon:
+      retgeo= wrap.polygon_difference_polygon(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.polygon_difference_multipolygon(g1, g2, result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multilinestring:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+      retgeo= g1;
+      null_value= g1->as_geometry(result, true);
+
+      if (!null_value)
+        *pdone= true;
+
+      break;
+    case Geometry::wkb_linestring:
+      /*
+        The result from boost geometry is wrong for this combination.
+        NOT_SUPPORTED_BY_BG
+       */
+      break;
+    case Geometry::wkb_polygon:
+      retgeo= wrap.multilinestring_difference_polygon(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multilinestring:
+      /*
+        The result from boost geometry is wrong for this combination.
+        NOT_SUPPORTED_BY_BG
+       */
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multilinestring_difference_multipolygon(g1, g2,
+                                                           result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_point:
+    case Geometry::wkb_multipoint:
+    case Geometry::wkb_linestring:
+    case Geometry::wkb_multilinestring:
+      retgeo= g1;
+      null_value= g1->as_geometry(result, true);
+
+      if (!null_value)
+        *pdone= true;
+
+      break;
+    case Geometry::wkb_polygon:
+      retgeo= wrap.multipolygon_difference_polygon(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipolygon_difference_multipolygon(g1, g2,
+                                                        result, pdone);
+      break;
+    default:
+      break;
+    }
+    break;
+  default:
+    break;
+  }
+  null_value= wrap.get_null_value();
+  return retgeo;
+}
+
+
+/**
+  Do symdifference operation for two geometries, dispatch to specific BG
+  function wrapper calls according to set operation type, and the 1st or
+  both operand types.
+
+  @tparam Geom_types A wrapper for all geometry types.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param[out] result Holds WKB data of the result.
+  @param[out] pdone Whether the operation is performed successfully.
+  @return The result geometry whose WKB data is held in result.
+ */
+template <typename Geom_types>
+Geometry *Item_func_spatial_operation::
+symdifference_operation(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  typedef typename Geom_types::Coord_type Coord_type;
+  typedef typename Geom_types::Coordsys Coordsys;
+
+  BG_setop_wrapper<Geom_types> wrap(this);
+  Geometry *retgeo= NULL;
+  Geometry::wkbType gt1= g1->get_type();
+  Geometry::wkbType gt2= g2->get_type();
+
+  /*
+    Note: g1 sym-dif g2 <==> (g1 union g2) dif (g1 intersection g2), so
+    theoretically we can compute symdifference results for any type
+    combination using the other 3 kinds of set operations. We need to use
+    geometry collection set operations to implement symdifference of any
+    two geometry, because the return values of them may be
+    geometry-collections.
+
+    Boost geometry explicitly and correctly supports symdifference for the
+    following four type combinations.
+   */
+  bool do_geocol_setop= false;
+
+  switch (gt1)
+  {
+  case Geometry::wkb_polygon:
+
+    switch (gt2)
+    {
+    case Geometry::wkb_polygon:
+      retgeo= wrap.polygon_symdifference_polygon(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.polygon_symdifference_multipolygon(g1, g2, result, pdone);
+      break;
+    default:
+      do_geocol_setop= true;
+      break;
+    }
+    break;
+  case Geometry::wkb_multipolygon:
+    switch (gt2)
+    {
+    case Geometry::wkb_polygon:
+      retgeo= wrap.multipolygon_symdifference_polygon(g1, g2, result, pdone);
+      break;
+    case Geometry::wkb_multipolygon:
+      retgeo= wrap.multipolygon_symdifference_multipolygon(g1, g2,
+                                                           result, pdone);
+      break;
+    default:
+      do_geocol_setop= true;
+      break;
+    }
+    break;
+  default:
+    do_geocol_setop= true;
+    break;
+  }
+
+  if (do_geocol_setop)
+    retgeo= geometry_collection_set_operation<Coord_type,
+      Coordsys>(g1, g2, result, pdone);
+  else
+    null_value= wrap.get_null_value();
+  return retgeo;
+}
+
+
+/**
+  Call boost geometry set operations to compute set operation result, and
+  returns the result as a Geometry object.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First Geometry operand, not a geometry collection.
+  @param g2 Second Geometry operand, not a geometry collection.
+  @param opdone takes back whether the set operation is successfully completed,
+  failures include:
+    1. boost geometry doesn't support a type combination for a set operation.
+    2. gis computation(not mysql code) got error, null_value isn't set to true.
+    3. the relation check called isn't completed successfully, unable to proceed
+       the set operation, and null_value isn't true.
+  It is used in order to distinguish the types of errors above. And when caller
+  got an false 'opdone', it should fallback to old gis set operation.
+
+  @param[out] result buffer containing the GEOMETRY byte string of
+  the returned geometry.
+
+  @return If the set operation results in an empty point set, return a
+  geometry collection containing 0 objects. If opdone or null_value is set to
+  true, always returns 0. The returned geometry object can be used in the same
+  val_str call.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+bg_geo_set_op(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  typedef BG_models<Coord_type, Coordsys> Geom_types;
+
+  Geometry *retgeo= NULL;
+
+  if (g1->get_coordsys() != g2->get_coordsys())
+    return 0;
+
+  *pdone= false;
+
+  switch (spatial_op)
+  {
+  case Gcalc_function::op_intersection:
+    retgeo= intersection_operation<Geom_types>(g1, g2, result, pdone);
+    break;
+  case Gcalc_function::op_union:
+    retgeo= union_operation<Geom_types>(g1, g2, result, pdone);
+    break;
+  case Gcalc_function::op_difference:
+    retgeo= difference_operation<Geom_types>(g1, g2, result, pdone);
+    break;
+  case Gcalc_function::op_symdifference:
+    retgeo= symdifference_operation<Geom_types>(g1, g2, result, pdone);
+    break;
+  default:
+    // Other operations are not set operations.
+    DBUG_ASSERT(false);
+    break;
+  }
+
+  // If we got effective result, the wkb encoding is written to 'result', and
+  // the retgeo is effective Geometry object whose data Points into
+  // 'result''s data.
+  return retgeo;
+
+}
+
+
+/*
+  Here wkbres is a piece of geometry data of GEOMETRY format,
+  i.e. an SRID prefixing a WKB.
+  Check if wkbres is the data of an empty geometry collection.
+ */
+static inline bool is_empty_geocollection(const String &wkbres)
+{
+  if (wkbres.ptr() == NULL)
+    return true;
+
+  uint32 geotype= uint4korr(wkbres.ptr() + SRID_SIZE + 1);
+
+  return (geotype == static_cast<uint32>(Geometry::wkb_geometrycollection) &&
+          uint4korr(wkbres.ptr() + SRID_SIZE + WKB_HEADER_SIZE) == 0);
+}
+
+
+/**
+  Combine sub-results of set operation into a geometry collection.
+  This function eliminates points in geo2 that are within
+  geo1(polygons or linestrings). We have to do so
+  because BG set operations return results in 3 forms --- multipolygon,
+  multilinestring and multipoint, however given a type of set operation and
+  the operands, the returned 3 types of results may intersect, and we want to
+  eliminate the points already in the polygons/linestrings. And in future we
+  also need to remove the linestrings that are already in the polygons, this
+  isn't done now because there are no such set operation results to combine.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param geo1 First operand, a Multipolygon or Multilinestring object
+              computed by BG set operation.
+  @param geo2 Second operand, a Multipoint object
+              computed by BG set operation.
+  @param result Holds result geometry's WKB data in GEOMETRY format.
+  @return A geometry combined from geo1 and geo2. Either or both of
+  geo1 and geo2 can be NULL, so we may end up with a multipoint,
+  a multipolygon/multilinestring, a geometry collection, or an
+  empty geometry collection.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+combine_sub_results(Geometry *geo1, Geometry *geo2, String *result)
+{
+  typedef BG_models<Coord_type, Coordsys> Geom_types;
+  typedef typename Geom_types::Multipoint Multipoint;
+  Geometry *retgeo= NULL;
+  bool isin= false, isdone= false, added= false;
+
+  if (null_value)
+  {
+    delete geo1;
+    delete geo2;
+    return NULL;
+  }
+
+  auto_ptr<Geometry> guard1(geo1), guard2(geo2);
+
+  Gis_geometry_collection *geocol= NULL;
+  if (geo1 == NULL && geo2 == NULL)
+    retgeo= empty_result(result, Geometry::default_srid);
+  else if (geo1 != NULL && geo2 == NULL)
+  {
+    retgeo= geo1;
+    null_value= assign_result(geo1, result);
+    guard1.release();
+  }
+  else if (geo1 == NULL && geo2 != NULL)
+  {
+    retgeo= geo2;
+    null_value= assign_result(geo2, result);
+    guard2.release();
+  }
+
+  if (geo1 == NULL || geo2 == NULL)
+  {
+    if (null_value)
+      retgeo= NULL;
+    return retgeo;
+  }
+
+  DBUG_ASSERT((geo1->get_type() == Geometry::wkb_multilinestring ||
+               geo1->get_type() == Geometry::wkb_multipolygon) &&
+              geo2->get_type() == Geometry::wkb_multipoint);
+  Multipoint mpts(geo2->get_data_ptr(), geo2->get_data_size(),
+                  geo2->get_flags(), geo2->get_srid());
+  geocol= new Gis_geometry_collection(geo1, result);
+  auto_ptr<Gis_geometry_collection> guard3(geocol);
+
+  for (TYPENAME Multipoint::iterator i= mpts.begin();
+       i != mpts.end(); ++i)
+  {
+    isin= !Item_func_spatial_rel::bg_geo_relation_check<Coord_type,
+      Coordsys>(&(*i), geo1, &isdone, SP_DISJOINT_FUNC, &null_value);
+
+    // The bg_geo_relation_check can't handle pt intersects/within/disjoint ls
+    // for now(isdone == false), so we have no points in mpts. When BG's
+    // missing feature is completed, we will work correctly here.
+    if (null_value)
+      return NULL;
+
+    if (!isin)
+    {
+      geocol->append_geometry(&(*i), result);
+      added= true;
+    }
+  }
+
+  if (added)
+  {
+    retgeo= geocol;
+    guard3.release();
+  }
+  else
+  {
+    retgeo= geo1;
+    guard1.release();
+    null_value= assign_result(geo1, result);
+  }
+
+  return retgeo;
+}
+
+
+/*
+  Do set operations on geometries.
+  Writes geometry set operation result into str_value_arg in wkb format.
+ */
 String *Item_func_spatial_operation::val_str(String *str_value_arg)
 {
   DBUG_ENTER("Item_func_spatial_operation::val_str");
@@ -1063,25 +5330,153 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
   String *res1= args[0]->val_str(&tmp_value1);
   String *res2= args[1]->val_str(&tmp_value2);
   Geometry_buffer buffer1, buffer2;
-  Geometry *g1, *g2;
+  Geometry *g1= NULL, *g2= NULL, *gres= NULL;
   uint32 srid= 0;
   Gcalc_operation_transporter trn(&func, &collector);
+  bool opdone= false;
+  bool had_except1= false, had_except2= false;
+
+  // Release last call's result buffer.
+  if (bg_result_buf)
+  {
+    gis_wkb_raw_free(bg_result_buf);
+    bg_result_buf= NULL;
+  }
+
+  // Clean up the result first, since caller may give us one with non-NULL
+  // buffer, we don't need it here.
+  str_value_arg->set(NullS, 0, &my_charset_bin);
 
   if (func.reserve_op_buffer(1))
     DBUG_RETURN(0);
   func.add_operation(spatial_op, 2);
 
-  null_value= true;
-  if (args[0]->null_value || args[1]->null_value ||
+  if ((null_value= (args[0]->null_value || args[1]->null_value ||
       !(g1= Geometry::construct(&buffer1, res1)) ||
-      !(g2= Geometry::construct(&buffer2, res2)) ||
-      g1->store_shapes(&trn) || g2->store_shapes(&trn))
+      !(g2= Geometry::construct(&buffer2, res2)))))
     goto exit;
 
+  // The two geometry operand must be in the same coordinate system.
+  if (g1->get_srid() != g2->get_srid())
+  {
+    my_error(ER_GIS_DIFFERENT_SRIDS, MYF(0), func_name(),
+             g1->get_srid(), g2->get_srid());
+    null_value= true;
+    goto exit;
+  }
+
+  str_value_arg->set_charset(&my_charset_bin);
+  str_value_arg->length(0);
+
+
+  /*
+    Catch all exceptions to make sure no exception can be thrown out of
+    current function. Put all and any code that calls Boost.Geometry functions,
+    STL functions into this try block. Code out of the try block should never
+    throw any exception.
+  */
+  try
+  {
+    if (g1->get_type() != Geometry::wkb_geometrycollection &&
+        g2->get_type() != Geometry::wkb_geometrycollection)
+      gres= bg_geo_set_op<double, bgcs::cartesian>(g1, g2, str_value_arg,
+                                                   &opdone);
+    else
+      gres= geometry_collection_set_operation<double, bgcs::cartesian>
+        (g1, g2, str_value_arg, &opdone);
+
+  }
+  CATCH_ALL(func_name(), had_except1= true)
+
+  try
+  {
+    /*
+      Release intermediate geometry data buffers accumulated during execution
+      of this set operation.
+    */
+    if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
+    {
+      bg_result_buf= const_cast<char *>(str_value_arg->ptr());
+      bg_results.erase(bg_result_buf);
+    }
+
+    for (std::set<void *>::iterator itr= bg_results.begin();
+         itr != bg_results.end(); ++itr)
+      gis_wkb_raw_free(*itr);
+    bg_results.clear();
+  }
+  CATCH_ALL(func_name(), had_except2= true)
+
+  if (had_except1 || had_except2)
+  {
+    null_value= true;
+    opdone= false;
+    if (gres != NULL)
+    {
+      delete gres;
+      gres= NULL;
+    }
+    goto exit;
+  }
+
+  if (gres != NULL && opdone)
+  {
+    DBUG_ASSERT(!null_value && str_value_arg->length() > 0);
+
+    /*
+      There are 3 ways to create the result geometry object and allocate
+      memory for the result String object:
+      1. Created in BGOPCALL and allocated by BG code using gis_wkb_alloc
+         functions; The geometry result object's memory is took over by
+         str_value_arg, thus not allocated by str_value_arg.
+      2. Created as a Gis_geometry_collection object and allocated by
+         str_value_arg's String member functions.
+      3. One of g1 or g2 used as result and g1/g2's String object is used as
+         final result without duplicating their byte strings. Also, g1 and/or
+         g2 may be used as intermediate result and their byte strings are
+         assigned to intermediate String objects without giving the ownerships
+         to them, so they are always owned by tmp_value1 and/or tmp_value2.
+
+      Among above 3 ways, #1 and #2 write the byte string only once without
+      any data copying, #3 doesn't write any byte strings.
+     */
+    if (!str_value_arg->is_alloced() && gres != g1 && gres != g2)
+      DBUG_ASSERT(gres->has_geom_header_space() && gres->is_bg_adapter());
+    else
+    {
+      DBUG_ASSERT((gres->has_geom_header_space() &&
+                   gres->get_geotype() == Geometry::wkb_geometrycollection) ||
+                  (gres == g1 || gres == g2));
+      if (gres == g1)
+        str_value_arg= res1;
+      else if (gres == g2)
+        str_value_arg= res2;
+    }
+
+    goto exit;
+  }
+
+  // We caught error, don't proceed with old GIS algorithm but error out.
+  if (null_value)
+  {
+    DBUG_ASSERT(!opdone && gres == NULL);
+    goto exit;
+  }
+
+  /* Fall back to old GIS algorithm. */
+  null_value= true;
+
+  str_value_arg->set(NullS, 0U, &my_charset_bin);
+  if (str_value_arg->reserve(SRID_SIZE, 512))
+    goto exit;
+  str_value_arg->q_append(srid);
+
+  if (g1->store_shapes(&trn) || g2->store_shapes(&trn))
+    goto exit;
 #ifndef DBUG_OFF
   func.debug_print_function_buffer();
 #endif
-  
+
   collector.prepare_operation();
   if (func.alloc_states())
     goto exit;
@@ -1093,12 +5488,6 @@ String *Item_func_spatial_operation::val_str(String *str_value_arg)
     goto exit;
 
 
-  str_value_arg->set_charset(&my_charset_bin);
-  if (str_value_arg->reserve(SRID_SIZE, 512))
-    goto exit;
-  str_value_arg->length(0);
-  str_value_arg->q_append(srid);
-
   if (!Geometry::create_from_opresult(&buffer1, str_value_arg, res_receiver))
     goto exit;
 
@@ -1108,12 +5497,537 @@ exit:
   collector.reset();
   func.reset();
   res_receiver.reset();
+  if (gres != g1 && gres != g2 && gres != NULL)
+    delete gres;
   DBUG_RETURN(null_value ? NULL : str_value_arg);
 }
 
 
+/**
+  Utility class, reset specified variable 'valref' to specified 'oldval' when
+  val_resetter<valtype> instance is destroyed.
+  @tparam Valtype Variable type to reset.
+ */
+template <typename Valtype>
+class Var_resetter
+{
+private:
+  Valtype *valref;
+  Valtype oldval;
+
+  // Forbid use, to eliminate a warning: oldval may be used uninitialized.
+  Var_resetter();
+  Var_resetter(const Var_resetter &o);
+public:
+  Var_resetter(Valtype *v, Valtype oldval) : valref(v)
+  {
+    this->oldval= oldval;
+  }
+
+  ~Var_resetter() { *valref= oldval; }
+};
+
+
+/**
+  Do set operation on geometry collections.
+  BG doesn't directly support geometry collections in any function, so we
+  have to do so by computing the set operation result of all two operands'
+  components, which must be the 6 basic types of geometries, and then we
+  combine the sub-results.
+
+  This function dispatches to specific set operation types.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First geometry operand, a geometry collection.
+  @param g2 Second geometry operand, a geometry collection.
+  @param[out] result Holds WKB data of the result, which must be a
+                geometry collection.
+  @param[out] pdone Returns whether the set operation is performed for the
+  two geometry collections. We rely on some Boost Geometry functions to do
+  geometry relation checks and set operations to the components of g1 and g2,
+  and since BG now doesn't support some type combinations for each type of
+  operaton, we may not be able to perform the operation. If so, old GIS
+  algorithm is called to do so.
+  @return The set operation result, whose WKB data is stored in 'result'.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+geometry_collection_set_operation(Geometry *g1, Geometry *g2,
+                                  String *result, bool *pdone)
+{
+  Geometry *gres= NULL;
+  *pdone= false;
+
+  switch (this->spatial_op)
+  {
+  case Gcalc_function::op_intersection:
+    gres= geocol_intersection<Coord_type, Coordsys>(g1, g2, result, pdone);
+    break;
+  case Gcalc_function::op_union:
+    gres= geocol_union<Coord_type, Coordsys>(g1, g2, result, pdone);
+    break;
+  case Gcalc_function::op_difference:
+    gres= geocol_difference<Coord_type, Coordsys>(g1, g2, result, pdone);
+    break;
+  case Gcalc_function::op_symdifference:
+    gres= geocol_symdifference<Coord_type, Coordsys>(g1, g2, result, pdone);
+    break;
+  default:
+    DBUG_ASSERT(false);                              /* Only above four supported. */
+    break;
+  }
+
+  if (gres == NULL && *pdone && !null_value)
+    gres= empty_result(result, g1->get_srid());
+  return gres;
+}
+
+
+/**
+  Do intersection operation on geometry collections. We do intersection for
+  all pairs of components in g1 and g2, put the results in a geometry
+  collection. If all subresults can be computed successfully, the geometry
+  collection is our result.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First geometry operand, a geometry collection.
+  @param g2 Second geometry operand, a geometry collection.
+  @param[out] result Holds WKB data of the result, which must be a
+                geometry collection.
+  @param[out] pdone Returns whether the set operation is performed for the
+                two geometry collections.
+  @return The intersection result, whose WKB data is stored in 'result'.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+geocol_intersection(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  Geometry *gres= NULL;
+  String wkbres;
+  bool opdone= false;
+  Geometry *g0= NULL;
+  BG_geometry_collection bggc1, bggc2, bggc;
+
+  bggc1.fill(g1);
+  bggc2.fill(g2);
+  *pdone= false;
+
+  for (BG_geometry_collection::Geometry_list::iterator i=
+       bggc1.get_geometries().begin(); i != bggc1.get_geometries().end(); ++i)
+  {
+    for (BG_geometry_collection::Geometry_list::iterator
+         j= bggc2.get_geometries().begin();
+         j != bggc2.get_geometries().end(); ++j)
+    {
+      // Free before using it, wkbres may have WKB data from last execution.
+      wkbres.free();
+      opdone= false;
+      g0= bg_geo_set_op<Coord_type, Coordsys>(*i, *j, &wkbres, &opdone);
+
+      if (!opdone || null_value)
+      {
+        if (g0 != NULL && g0 != *i && g0 != *j)
+          delete g0;
+        return 0;
+      }
+
+      if (g0 && !is_empty_geocollection(wkbres))
+        bggc.fill(g0);
+      if (g0 != NULL && g0 != *i && g0 != *j)
+      {
+        delete g0;
+        g0= NULL;
+      }
+    }
+  }
+  /*
+    Note: result unify and merge
+
+    The result may have geometry elements that overlap, caused by overlap
+    geos in either or both gc1 and/or gc2. Also, there may be geometries
+    that can be merged into a larger one of the same type in the result.
+    We will need to figure out how to make such enhancements.
+   */
+  gres= bggc.as_geometry_collection(result);
+  if (!null_value)
+    *pdone= true;
+
+  return gres;
+}
+
+
+/**
+  Merge all components as appropriate so that the object contains only
+  components that don't overlap.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param ifso the Item_func_spatial_operation object, we here rely on it to
+         do union operation.
+  @param[out] pdone takes back whether the merge operation is completed.
+  @param[out] pnull_value takes back null_value set during the operation.
+ */
+template<typename Coord_type, typename Coordsys>
+void BG_geometry_collection::
+merge_components(Item_func_spatial_operation *ifso,
+                 bool *pdone, my_bool *pnull_value)
+{
+
+  while (merge_one_run<Coord_type, Coordsys>(ifso, pdone, pnull_value))
+    ;
+}
+
+
+/**
+  One run of merging components.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param ifso the Item_func_spatial_operation object, we here rely on it to
+         do union operation.
+  @param[out] pdone takes back whether the merge operation is completed.
+  @param[out] pnull_value takes back null_value set during the operation.
+ */
+template<typename Coord_type, typename Coordsys>
+bool BG_geometry_collection::merge_one_run(Item_func_spatial_operation *ifso,
+                                           bool *pdone, my_bool *pnull_value)
+{
+  Geometry *gres= NULL;
+  Geometry *gi= NULL, *gj= NULL;
+  bool isdone= false;
+  bool has_overlap= false;
+  bool opdone= false;
+  my_bool &null_value= *pnull_value;
+  size_t idx= 0, idx2= 0, ngeos= m_geos.size();
+  BG_geometry_collection &bggc= *this;
+  String wkbres;
+
+  *pdone= false;
+
+  for (Geometry_list::iterator i= m_geos.begin();
+       i != m_geos.end() && idx < ngeos; ++i, ++idx)
+  {
+    // Move i after already isolated geometries.
+    if (idx < m_num_isolated)
+      continue;
+
+    idx2= 0;
+    for (Geometry_list::iterator
+         j= m_geos.begin(); idx2 < ngeos && j != m_geos.end(); ++j, ++idx2)
+    {
+      if (idx2 < m_num_isolated + 1)
+        continue;
+
+      isdone= false;
+      opdone= false;
+
+      if (Item_func_spatial_rel::bg_geo_relation_check<Coord_type, Coordsys>
+          (*i, *j, &isdone, Item_func::SP_OVERLAPS_FUNC, &null_value) &&
+          isdone && !null_value)
+      {
+        // Free before using it, wkbres may have WKB data from last execution.
+        wkbres.free();
+        gres= ifso->bg_geo_set_op<Coord_type, Coordsys>(*i, *j,
+                                                        &wkbres, &opdone);
+
+        if (!opdone || null_value)
+        {
+          if (gres != NULL && gres != *i && gres != *j)
+            delete gres;
+          return false;
+        }
+
+        gi= *i;
+        gj= *j;
+
+        /*
+          Only std::list has the iterator validity on erase operation,
+          vector and deque don't, and vector has expensive erase cost,
+          that's why we are using std::list for m_geos.
+         */
+        m_geos.erase(i);
+        m_geos.erase(j);
+
+        // The union result is appended at end of the geometry list.
+        bggc.fill(gres);
+        if (gres != NULL && gres != gi && gres != gj)
+        {
+          delete gres;
+          gres= NULL;
+        }
+        has_overlap= true;
+
+        /*
+          When we erase i and j, the two iterations are both invalid,
+          so we have to start new iterations.
+         */
+        break;
+      }
+
+      /*
+        Proceed if !isdone to leave the two geometries as is, this is OK.
+       */
+      if (null_value)
+        return false;
+
+    }
+
+    // Isolated ones are part of all geometries.
+    DBUG_ASSERT(m_num_isolated <= idx);
+
+    /*
+      *i doesn't overlap with anyone after it, it's isolated, and
+      because of this it won't overlap with any following union result
+      which are always appended at end of the list(after current *i), and
+      thus we can skip them and start new iterations from m_num_isolated'th
+      geometry.
+     */
+    if (!has_overlap)
+      m_num_isolated++;
+    else
+      break;
+  }
+
+  *pdone= true;
+  return has_overlap;
+}
+
+
+/**
+  Do union operation on geometry collections. We do union for
+  all pairs of components in g1 and g2, whenever a union can be done, we do
+  so and put the results in a geometry collection GC and remove the two
+  components from g1 and g2 respectively. Finally no components in g1 and g2
+  overlap and GC is our result.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First geometry operand, a geometry collection.
+  @param g2 Second geometry operand, a geometry collection.
+  @param[out] result Holds WKB data of the result, which must be a
+                geometry collection.
+  @param[out] pdone Returns whether the set operation is performed for the
+                two geometry collections.
+  @return The union result, whose WKB data is stored in 'result'.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+geocol_union(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  Geometry *gres= NULL;
+  BG_geometry_collection bggc;
+
+  bggc.fill(g1);
+  bggc.fill(g2);
+  *pdone= false;
+
+  bggc.merge_components<Coord_type, Coordsys>(this, pdone, &null_value);
+  if (!null_value && *pdone)
+    gres= bggc.as_geometry_collection(result);
+
+  return gres;
+}
+
+
+/**
+  Do difference operation on geometry collections. For each component CX in g1,
+  we do CX:= CX difference CY for all components CY in g2. When at last CX isn't
+  empty, it's put into result geometry collection GC.
+  If all subresults can be computed successfully, the geometry
+  collection GC is our result.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First geometry operand, a geometry collection.
+  @param g2 Second geometry operand, a geometry collection.
+  @param[out] result Holds WKB data of the result, which must be a
+                geometry collection.
+  @param[out] pdone Returns whether the set operation is performed for the
+                two geometry collections.
+  @return The difference result, whose WKB data is stored in 'result'.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+geocol_difference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  Geometry *gres= NULL;
+  bool opdone= false;
+  String *wkbres= NULL;
+  BG_geometry_collection bggc1, bggc2, bggc;
+
+  bggc1.fill(g1);
+  bggc2.fill(g2);
+  *pdone= false;
+
+  for (BG_geometry_collection::Geometry_list::iterator
+       i= bggc1.get_geometries().begin();
+       i != bggc1.get_geometries().end(); ++i)
+  {
+    bool g11_isempty= false;
+    auto_ptr<Geometry> guard11;
+    Geometry *g11= NULL;
+    g11= *i;
+    Inplace_vector<String> wkbstrs(PSI_INSTRUMENT_ME);
+
+    for (BG_geometry_collection::Geometry_list::iterator
+         j= bggc2.get_geometries().begin();
+         j != bggc2.get_geometries().end(); ++j)
+    {
+      wkbres= wkbstrs.append_object();
+
+      opdone= false;
+      Geometry *g0= bg_geo_set_op<Coord_type, Coordsys>(g11, *j, wkbres,
+                                                        &opdone);
+      auto_ptr<Geometry> guard0(g0);
+
+      if (!opdone || null_value)
+      {
+        if (!(g0 != NULL && g0 != *i && g0 != *j))
+          guard0.release();
+        if (!(g11 != NULL && g11 != g0 && g11 != *i && g11 != *j))
+          guard11.release();
+        return 0;
+      }
+
+      if (g0 != NULL && !is_empty_geocollection(*wkbres))
+      {
+        if (g11 != NULL && g11 != *i && g11 != *j && g11 != g0)
+          delete guard11.release();
+        else
+          guard11.release();
+        guard0.release();
+        g11= g0;
+        if (g0 != NULL && g0 != *i && g0 != *j)
+          guard11.reset(g11);
+      }
+      else
+      {
+        g11_isempty= true;
+        if (!(g0 != NULL && g0 != *i && g0 != *j && g0 != g11))
+          guard0.release();
+        break;
+      }
+    }
+
+    if (!g11_isempty)
+      bggc.fill(g11);
+    if (!(g11 != NULL && g11 != *i))
+      guard11.release();
+    else
+      guard11.reset(NULL);
+  }
+
+  gres= bggc.as_geometry_collection(result);
+  if (!null_value)
+    *pdone= true;
+
+  return gres;
+}
+
+
+/**
+  Do symdifference operation on geometry collections. We do so according to
+  this formula:
+  g1 symdifference g2 <==> (g1 union g2) difference (g1 intersection g2).
+  Since we've implemented the other 3 types of set operations for geometry
+  collections, we can do so.
+
+  @tparam Coord_type The numeric type for a coordinate value, most often
+          it's double.
+  @tparam Coordsys Coordinate system type, specified using those defined in
+          boost::geometry::cs.
+  @param g1 First geometry operand, a geometry collection.
+  @param g2 Second geometry operand, a geometry collection.
+  @param[out] result Holds WKB data of the result, which must be a
+                geometry collection.
+  @param[out] pdone Returns whether the set operation is performed for the
+                two geometry collections.
+  @return The symdifference result, whose WKB data is stored in 'result'.
+ */
+template<typename Coord_type, typename Coordsys>
+Geometry *Item_func_spatial_operation::
+geocol_symdifference(Geometry *g1, Geometry *g2, String *result, bool *pdone)
+{
+  Geometry *gres= NULL;
+  String wkbres;
+  bool isdone1= false, isdone2= false, isdone3= false;
+  String union_res, dif_res, isct_res;
+  Geometry *gc_union= NULL, *gc_isct= NULL;
+
+  *pdone= false;
+  Var_resetter<Gcalc_function::op_type>
+    var_reset(&spatial_op, Gcalc_function::op_symdifference);
+
+  spatial_op= Gcalc_function::op_union;
+  gc_union= geometry_collection_set_operation<Coord_type,
+    Coordsys>(g1, g2, &union_res, &isdone1);
+  auto_ptr<Geometry> guard_union(gc_union);
+
+  if (!isdone1 || null_value)
+    return NULL;
+  DBUG_ASSERT(gc_union != NULL);
+
+  spatial_op= Gcalc_function::op_intersection;
+  gc_isct= geometry_collection_set_operation<Coord_type, Coordsys>
+    (g1, g2, &isct_res, &isdone2);
+  auto_ptr<Geometry> guard_isct(gc_isct);
+
+  if (!isdone2 || null_value)
+    return NULL;
+
+  auto_ptr<Geometry> guard_dif;
+  if (gc_isct != NULL)
+  {
+    spatial_op= Gcalc_function::op_difference;
+    gres= geometry_collection_set_operation<Coord_type, Coordsys>
+      (gc_union, gc_isct, result, &isdone3);
+    guard_dif.reset(gres);
+
+    if (!isdone3 || null_value)
+      return NULL;
+  }
+  else
+  {
+    gres= gc_union;
+    result->takeover(union_res);
+    guard_union.release();
+  }
+
+  *pdone= true;
+  guard_dif.release();
+  return gres;
+}
+
+
+bool Item_func_spatial_operation::assign_result(Geometry *geo, String *result)
+{
+  DBUG_ASSERT(geo->has_geom_header_space());
+  char *p= geo->get_cptr() - GEOM_HEADER_SIZE;
+  write_geometry_header(p, geo->get_srid(), geo->get_geotype());
+  result->set(p, GEOM_HEADER_SIZE + geo->get_nbytes(), &my_charset_bin);
+  bg_results.insert(p);
+  geo->set_ownmem(false);
+
+  return false;
+}
+
+
 const char *Item_func_spatial_operation::func_name() const
-{ 
+{
   switch (spatial_op) {
     case Gcalc_function::op_intersection:
       return "st_intersection";
@@ -1125,10 +6039,9 @@ const char *Item_func_spatial_operation::func_name() const
       return "st_symdifference";
     default:
       DBUG_ASSERT(0);  // Should never happen
-      return "sp_unknown"; 
+      return "sp_unknown";
   }
 }
-
 
 static const int SINUSES_CALCULATED= 32;
 static double n_sinus[SINUSES_CALCULATED+1]=
@@ -1193,7 +6106,7 @@ static int fill_half_circle(Gcalc_shape_transporter *trn,
 {
   double n_sin, n_cos;
   double x_n, y_n;
-  for (int n = 1; n < (SINUSES_CALCULATED * 2 - 1); n++)
+  for (int n= 1; n < (SINUSES_CALCULATED * 2 - 1); n++)
   {
     get_n_sincos(n, &n_sin, &n_cos);
     x_n= ax * n_cos - ay * n_sin;
@@ -1290,7 +6203,8 @@ int Item_func_buffer::Transporter::add_edge_buffer(Gcalc_shape_status *st,
     empty_gap2= false;
     x_n= x2 + p2_x * cos1 - p2_y * sin1;
     y_n= y2 + p2_y * cos1 + p2_x * sin1;
-    if (fill_gap(&trn, &dummy, x2, y2, -p1_x,-p1_y, p2_x,p2_y, m_d, &empty_gap1) ||
+    if (fill_gap(&trn, &dummy, x2, y2, -p1_x,-p1_y,
+                 p2_x,p2_y, m_d, &empty_gap1) ||
         trn.add_point(&dummy, x2 + p2_x, y2 + p2_y) ||
         trn.add_point(&dummy, x_n, y_n))
       return 1;
@@ -1301,7 +6215,8 @@ int Item_func_buffer::Transporter::add_edge_buffer(Gcalc_shape_status *st,
     y_n= y2 - p2_y * cos1 + p2_x * sin1;
     if (trn.add_point(&dummy, x_n, y_n) ||
         trn.add_point(&dummy, x2 - p2_x, y2 - p2_y) ||
-        fill_gap(&trn, &dummy, x2, y2, -p2_x, -p2_y, p1_x, p1_y, m_d, &empty_gap2))
+        fill_gap(&trn, &dummy, x2, y2, -p2_x, -p2_y,
+                 p1_x, p1_y, m_d, &empty_gap2))
       return 1;
     empty_gap1= false;
   }
@@ -1375,7 +6290,7 @@ int Item_func_buffer::Transporter::start_line(Gcalc_shape_status *st)
 int Item_func_buffer::Transporter::start_poly(Gcalc_shape_status *st)
 {
   st->m_nshapes= 1;
-  if (m_fn->reserve_op_buffer(2)) 
+  if (m_fn->reserve_op_buffer(2))
     return 1;
   st->m_last_shape_pos= m_fn->get_next_operation_pos();
   m_fn->add_operation(m_buffer_op, 0); // Will be set in complete_poly()
@@ -1388,7 +6303,7 @@ int Item_func_buffer::Transporter::complete_poly(Gcalc_shape_status *st)
   if (Gcalc_operation_transporter::complete_poly(st))
     return 1;
   m_fn->add_operands_to_op(st->m_last_shape_pos, st->m_nshapes);
-  return 0; 
+  return 0;
 }
 
 
@@ -1450,7 +6365,7 @@ int Item_func_buffer::Transporter::complete(Gcalc_shape_status *st)
     }
     else
     {
-      /* 
+      /*
         Add edge only the the most recent coordinate is not
         the same to the very first one.
       */
@@ -1524,7 +6439,8 @@ int Item_func_buffer::Transporter::collection_add_item(Gcalc_shape_status
   return 0;
 }
 
-
+// boost geometry doesn't support buffer for any type of geometry
+// defined by OGC for now.
 String *Item_func_buffer::val_str(String *str_value_arg)
 {
   DBUG_ENTER("Item_func_buffer::val_str");
@@ -1542,6 +6458,7 @@ String *Item_func_buffer::val_str(String *str_value_arg)
   if (args[0]->null_value || args[1]->null_value ||
       !(g= Geometry::construct(&buffer, obj)))
     goto mem_error;
+  srid= g->get_srid();
 
   /*
     If distance passed to ST_Buffer is too small, then we return the
@@ -1567,8 +6484,8 @@ String *Item_func_buffer::val_str(String *str_value_arg)
     /*
       Buffer transformation returned empty set.
       This is possible with negative buffer distance
-      if the original geometry consisted of only points and lines
-      and did not have any polygons.
+      if the original geometry consisted of only Points and lines
+      and did not have any Polygons.
     */
     str_value_arg->length(0);
     goto mem_error;
@@ -1608,7 +6525,7 @@ longlong Item_func_isempty::val_int()
   String tmp;
   String *swkb= args[0]->val_str(&tmp);
   Geometry_buffer buffer;
-  
+
   null_value= args[0]->null_value ||
               !(Geometry::construct(&buffer, swkb));
   return null_value ? 1 : 0;
@@ -1625,7 +6542,7 @@ longlong Item_func_issimple::val_int()
 
   DBUG_ENTER("Item_func_issimple::val_int");
   DBUG_ASSERT(fixed == 1);
-  
+
   if ((null_value= args[0]->null_value) ||
       !(g= Geometry::construct(&buffer, swkb)))
     DBUG_RETURN(0);
@@ -1676,7 +6593,7 @@ longlong Item_func_isclosed::val_int()
   Geometry *geom;
   int isclosed= 0;				// In case of error
 
-  null_value= (!swkb || 
+  null_value= (!swkb ||
 	       args[0]->null_value ||
 	       !(geom=
 		 Geometry::construct(&buffer, swkb)) ||
@@ -1698,7 +6615,7 @@ longlong Item_func_dimension::val_int()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  null_value= (!swkb || 
+  null_value= (!swkb ||
                args[0]->null_value ||
                !(geom= Geometry::construct(&buffer, swkb)) ||
                geom->dimension(&dim));
@@ -1714,7 +6631,7 @@ longlong Item_func_numinteriorring::val_int()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  null_value= (!swkb || 
+  null_value= (!swkb ||
 	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->num_interior_ring(&num));
   return (longlong) num;
@@ -1794,6 +6711,12 @@ double Item_func_area::val_real()
   null_value= (!swkb ||
 	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->area(&res));
+  if (!my_isfinite(res))
+  {
+    null_value= true;
+    res= 0;
+    my_error(ER_GIS_INVALID_DATA, MYF(0), "area/st_area");
+  }
   return res;
 }
 
@@ -1805,9 +6728,15 @@ double Item_func_glength::val_real()
   Geometry_buffer buffer;
   Geometry *geom;
 
-  null_value= (!swkb || 
+  null_value= (!swkb ||
 	       !(geom= Geometry::construct(&buffer, swkb)) ||
 	       geom->geom_length(&res));
+  if (!my_isfinite(res))
+  {
+    null_value= true;
+    res= 0;
+    my_error(ER_GIS_INVALID_DATA, MYF(0), "glength/st_length");
+  }
   return res;
 }
 
@@ -1816,8 +6745,8 @@ longlong Item_func_srid::val_int()
   DBUG_ASSERT(fixed == 1);
   String *swkb= args[0]->val_str(&value);
   Geometry_buffer buffer;
-  
-  null_value= (!swkb || 
+
+  null_value= (!swkb ||
 	       !Geometry::construct(&buffer, swkb));
   if (null_value)
     return 0;
@@ -1844,17 +6773,23 @@ double Item_func_distance::val_real()
   Geometry_buffer buffer1, buffer2;
   Geometry *g1, *g2;
 
-  if ((null_value= (args[0]->null_value || args[1]->null_value ||
-          !(g1= Geometry::construct(&buffer1, res1)) ||
-          !(g2= Geometry::construct(&buffer2, res2)))))
-    goto mem_error;
+  if ((null_value= (args[0]->null_value || args[1]->null_value)))
+    DBUG_RETURN(0.0);
+
+  if (!(g1= Geometry::construct(&buffer1, res1)) ||
+      !(g2= Geometry::construct(&buffer2, res2)))
+  {
+    // If construction fails, we assume invalid input data.
+    my_error(ER_GIS_INVALID_DATA, MYF(0), func_name());
+    DBUG_RETURN(0.0);
+  }
 
   if ((g1->get_class_info()->m_type_id == Geometry::wkb_point) &&
       (g2->get_class_info()->m_type_id == Geometry::wkb_point))
   {
     point_xy p1, p2;
     if (((Gis_point *) g1)->get_xy(&p1) ||
-        ((Gis_point *) g2)->get_xy(&p2))  
+        ((Gis_point *) g2)->get_xy(&p2))
       goto mem_error;
     ex= p2.x - p1.x;
     ey= p2.y - p1.y;
@@ -1938,7 +6873,8 @@ count_distance:
       continue;
     cur_point_edge= !cur_point->is_bottom();
 
-    for (dist_point= collector.get_first(); dist_point; dist_point= dist_point->get_next())
+    for (dist_point= collector.get_first(); dist_point;
+         dist_point= dist_point->get_next())
     {
       /* We only check vertices of object 2 */
       if (dist_point->shape < obj2_si)
@@ -1973,20 +6909,26 @@ count_distance:
     }
   }
 exit:
+
+  if (!my_isfinite(distance))
+  {
+    null_value= true;
+    distance= 0;
+    my_error(ER_GIS_INVALID_DATA, MYF(0), "distance/st_distance");
+  }
   collector.reset();
   func.reset();
   scan_it.reset();
   DBUG_RETURN(distance);
 mem_error:
-  null_value= 1;
-  DBUG_RETURN(0);
+  DBUG_RETURN(0.0);
 }
 
 
 #ifndef DBUG_OFF
 longlong Item_func_gis_debug::val_int()
 {
-  int val= args[0]->val_int();
+  longlong val= args[0]->val_int();
   if (!args[0]->null_value)
     current_thd->set_gis_debug(val);
   return current_thd->get_gis_debug();

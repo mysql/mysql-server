@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,7 +218,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl)
   {
@@ -1588,10 +1588,19 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {
-  if (outstream && !my_freopen(filename, "a", outstream))
-    return true;
+  int retries= 2, errors= 0;
 
-  if (errstream && !my_freopen(filename, "a", errstream))
+  do
+  {
+    errors= 0;
+    if (errstream && !my_freopen(filename, "a", errstream))
+      errors++;
+    if (outstream && !my_freopen(filename, "a", outstream))
+      errors++;
+  }
+  while (retries-- && errors);
+
+  if (errors)
     return true;
 
   /* The error stream must be unbuffered. */
@@ -1733,7 +1742,8 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
     print_buffer_to_file(level, buff, length);
 
 #ifdef _WIN32
-    print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+    if (!abort_loop) // Don't write to the eventlog during shutdown.
+      print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
   }
 
@@ -1924,7 +1934,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->next=pg+1;
     pg->waiters=0;
     pg->state=PS_POOL;
-    mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
+    mysql_cond_init(key_PAGE_cond, &pg->cond);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
     pg->start= (my_xid *)(data + i*tc_log_page_size);
     pg->end= pg->start + pg->size;
@@ -1945,8 +1955,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=5;
 
   mysql_mutex_init(key_LOCK_tc, &LOCK_tc, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_active, &COND_active, 0);
-  mysql_cond_init(key_COND_pool, &COND_pool, 0);
+  mysql_cond_init(key_COND_active, &COND_active);
+  mysql_cond_init(key_COND_pool, &COND_pool);
 
   inited=6;
 

@@ -5522,7 +5522,7 @@ ER_TOO_BIG_SCALE 42000 S1009
         eng "Too big scale %d specified for column '%-.192s'. Maximum is %lu."
         ger "Zu großer Skalierungsfaktor %d für Feld '%-.192s' angegeben. Maximum ist %lu"
 ER_TOO_BIG_PRECISION 42000 S1009
-        eng "Too big precision %d specified for column '%-.192s'. Maximum is %lu."
+        eng "Too-big precision %d specified for '%-.192s'. Maximum is %lu."
         ger "Zu große Genauigkeit %d für Feld '%-.192s' angegeben. Maximum ist %lu"
 ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.192s')."
@@ -7050,6 +7050,9 @@ ER_AES_INVALID_IV
 
 ER_PLUGIN_CANNOT_BE_UNINSTALLED
   eng "Plugin '%s' cannot be uninstalled now. %s"
+
+ER_GTID_UNSAFE_BINLOG_SPLITTABLE_STATEMENT_AND_GTID_GROUP
+  eng "Cannot execute statement because it needs to be written to the binary log as multiple statements, and this is not allowed when @@SESSION.GTID_NEXT == 'UUID:NUMBER'."
 #
 #  End of 5.6 error messages.
 #
@@ -7149,6 +7152,82 @@ ER_SLAVE_WORKER_STOPPED_PREVIOUS_THD_ERROR
 
 ER_DONT_SUPPORT_SLAVE_PRESERVE_COMMIT_ORDER
   eng "slave_preserve_commit_order is not supported %s."
+
+ER_SERVER_OFFLINE_MODE
+  eng "The server is currently in offline mode"
+
+ER_GIS_DIFFERENT_SRIDS
+  eng "Binary geometry function %s given two geometries of different srids: %u and %u, which should have been identical."
+
+ER_GIS_UNSUPPORTED_ARGUMENT
+  eng "Calling geometry function %s with unsupported types of arguments."
+
+ER_GIS_UNKNOWN_ERROR
+  eng "Unknown GIS error occured in function %s."
+
+ER_GIS_UNKNOWN_EXCEPTION
+  eng "Unknown exception caught in GIS function %s."
+
+ER_GIS_INVALID_DATA
+  eng "Invalid GIS data provided to function %s."
+
+ER_BOOST_GEOMETRY_EMPTY_INPUT_EXCEPTION
+  eng "The geometry has no data in function %s."
+
+ER_BOOST_GEOMETRY_CENTROID_EXCEPTION
+  eng "Unable to calculate centroid because geometry is empty in function %s."
+
+ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
+  eng "Geometry overlay calculation error: geometry data is invalid in function %s."
+
+ER_BOOST_GEOMETRY_TURN_INFO_EXCEPTION
+  eng "Geometry turn info calculation error: geometry data is invalid in function %s."
+
+ER_BOOST_GEOMETRY_SELF_INTERSECTION_POINT_EXCEPTION
+  eng "Analysis procedures of intersection points interrupted unexpectedly in function %s."
+
+ER_BOOST_GEOMETRY_UNKNOWN_EXCEPTION
+  eng "Unknown exception thrown in function %s."
+
+ER_STD_BAD_ALLOC_ERROR
+  eng "Memory allocation error: %-.256s in function %s."
+
+ER_STD_DOMAIN_ERROR
+  eng "Domain error: %-.256s in function %s."
+
+ER_STD_LENGTH_ERROR
+  eng "Length error: %-.256s in function %s."
+
+ER_STD_INVALID_ARGUMENT
+  eng "Invalid argument error: %-.256s in function %s."
+
+ER_STD_OUT_OF_RANGE_ERROR
+  eng "Out of range error: %-.256s in function %s."
+
+ER_STD_OVERFLOW_ERROR
+  eng "Overflow error error: %-.256s in function %s."
+
+ER_STD_RANGE_ERROR
+  eng "Range error: %-.256s in function %s."
+
+ER_STD_UNDERFLOW_ERROR
+  eng "Underflow error: %-.256s in function %s."
+
+ER_STD_LOGIC_ERROR
+  eng "Logic error: %-.256s in function %s."
+
+ER_STD_RUNTIME_ERROR
+  eng "Runtime error: %-.256s in function %s."
+
+ER_STD_UNKNOWN_EXCEPTION
+  eng "Unknown exception: %-.384s in function %s."
+
+ER_GIS_DATA_WRONG_ENDIANESS
+  eng "Geometry byte string must be little endian."
+
+ER_CHANGE_MASTER_PASSWORD_LENGTH
+  eng "The password provided for the replication user exceeds the maximum length of 32 characters"
+
 #
 #  End of 5.7 error messages.
 #

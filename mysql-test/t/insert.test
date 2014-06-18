@@ -213,6 +213,8 @@ create table t1 (id int primary key, data int);
 insert into t1 values (1, 1), (2, 2), (3, 3);
 select row_count();
 insert ignore into t1 values (1, 1);
+#insert ignore gives warnings which resets the row_count.
+#'select row_count()' will not show the row_count from above statement.
 select row_count();
 # Reports that 2 rows are affected (1 deleted + 1 inserted)
 replace into t1 values (1, 11);
@@ -464,3 +466,14 @@ SELECT * FROM default_date;
 DROP TABLE default_date;
 
 SET sql_mode=default;
+
+--echo
+--echo # Bug#11744960 : INSERT IGNORE SHOULD RETURN WARNINGS
+--echo #
+--enable_info
+CREATE TABLE t (a INT PRIMARY KEY);
+INSERT IGNORE INTO t VALUES (1);
+INSERT IGNORE INTO t VALUES (1),(1);
+DROP TABLE t;
+--disable_info
+

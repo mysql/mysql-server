@@ -424,25 +424,13 @@ ST_CONTAINS(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)'))
 0
-Warnings:
-Warning	1105	[0] op_backdifference[2]
-Warning	1105	[1] op_union[2]
-Warning	1105	[2] op_shape[0]shape_polygon
-Warning	1105	[3] op_shape[1]shape_polygon
-Warning	1105	[4] op_shape[2]shape_point
 SELECT AsText(ST_UNION(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)')));
 AsText(ST_UNION(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)')))
-GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)),POLYGON((6 6,6 11,11 11,11 6,6 6)),POINT(5 10))
-Warnings:
-Warning	1105	[0] op_union[2]
-Warning	1105	[1] op_union[2]
-Warning	1105	[2] op_shape[0]shape_polygon
-Warning	1105	[3] op_shape[1]shape_polygon
-Warning	1105	[4] op_shape[2]shape_point
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((6 6,11 6,11 11,6 11,6 6))),POINT(5 10))
 DROP PROCEDURE p1;
 #
 # Bug #13833019 ASSERTION `T1->RESULT_RANGE' FAILED IN GCALC_OPERATION_REDUCER::END_COUPLE
@@ -527,3 +515,17 @@ SRID(GEOMETRYFROMTEXT(' MULTIPOINT(8 4,5 0,7 8,6 9,3 4,7 3,5 5) '))));
 ASTEXT(ST_BUFFER(POLYGONFROMTEXT(' POLYGON((9 9,5 2,4 5,9 9))'),
 SRID(GEOMETRYFROMTEXT(' MULTIPOINT(8 4,5 0,7 8,6 9,3 4,7 3,5 5) '))))
 POLYGON((9 9,5 2,4 5,9 9))
+#
+# 18701868 CRASH IN MY_DECIMAL::SANITY_CHECK,
+#          ORDER BY CAST (INVALID GIS FUNCTION RESULT)
+#
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+a
+1
+DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+ERROR HY000: Invalid GIS data provided to function st_distance.
+UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+ERROR HY000: Invalid GIS data provided to function st_distance.
+DROP TABLE t1;

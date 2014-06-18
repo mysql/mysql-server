@@ -1203,7 +1203,6 @@ drop table t1;
 create table t1 (s1 int);
 create view v1 as select * from t1 where s1 < 5 with check option;
 #single value
--- error ER_VIEW_CHECK_FAILED
 insert ignore into v1 values (6);
 #several values
 insert ignore into v1 values (6),(3);
@@ -4088,7 +4087,6 @@ DROP TABLE t1, t2;
 --echo #
 
 --disable_warnings
-DROP TABLE IF EXISTS t1;
 DROP VIEW IF EXISTS v1;
 DROP PROCEDURE IF EXISTS p1;
 --enable_warnings
@@ -4100,15 +4098,17 @@ connect (con3, localhost, root);
 connection default;
 
 CREATE VIEW v1 AS SELECT schema_name FROM information_schema.schemata;
-CREATE TABLE t1 (str VARCHAR(50));
-CREATE PROCEDURE p1() INSERT INTO t1 SELECT * FROM v1;
+CREATE PROCEDURE p1() SELECT COUNT(*), GET_LOCK('blocker', 100) FROM v1;
 
 --echo # CALL p1() so the view is merged.
+--disable_result_log
 CALL p1();
+--enable_result_log
+SELECT RELEASE_LOCK('blocker');
 
 --echo # Connection 3
 connection con3;
-LOCK TABLE t1 READ;
+SELECT GET_LOCK('blocker', 100);
 
 --echo # Connection default
 connection default;
@@ -4120,8 +4120,8 @@ connection default;
 connection con2;
 let $wait_condition=
   SELECT COUNT(*) = 1 from information_schema.processlist
-  WHERE state = "Waiting for table level lock" AND
-        info = "INSERT INTO t1 SELECT * FROM v1";
+  WHERE state = "User lock" AND
+        info = "SELECT COUNT(*), GET_LOCK('blocker', 100) FROM v1";
 --source include/wait_condition.inc
 --echo # ... then try to drop the view. This should block.
 --echo # Sending:
@@ -4134,13 +4134,15 @@ let $wait_condition=
   WHERE state = "Waiting for table metadata lock" AND info = "DROP VIEW v1";
 --source include/wait_condition.inc
 --echo # Now allow CALL p1() to complete
-UNLOCK TABLES;
+SELECT RELEASE_LOCK('blocker');
 
 --echo # Connection default
 connection default;
 --echo # Reaping: CALL p1()
+--disable_result_log
 --reap
-
+--enable_result_log
+SELECT RELEASE_LOCK('blocker');
 --echo # Connection 2
 connection con2;
 --echo # Reaping: DROP VIEW v1
@@ -4149,7 +4151,6 @@ connection con2;
 --echo # Connection default
 connection default;
 DROP PROCEDURE p1;
-DROP TABLE t1;
 disconnect con2;
 disconnect con3;
 

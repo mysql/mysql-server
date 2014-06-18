@@ -726,12 +726,12 @@ fil_node_create(
 	node->is_raw_disk = is_raw;
 	node->size = size;
 	node->magic_n = FIL_NODE_MAGIC_N;
-
-	space->size += size;
-
 	node->space = space;
 
+	mutex_enter(&fil_system->mutex);
+	space->size += size;
 	UT_LIST_ADD_LAST(space->chain, node);
+	mutex_exit(&fil_system->mutex);
 
 	return(node->name);
 }
@@ -3953,9 +3953,11 @@ fil_open_single_table_tablespace(
 		tablespaces_found++;
 	}
 
-	/* Always look for a file at the default location. */
+	/* Always look for a file at the default location. But don't log
+	an error if the tablespace is already open in remote or dict. */
 	ut_a(df_default.filepath());
-	if (df_default.open_read_only(true) == DB_SUCCESS) {
+	const bool strict = (tablespaces_found == 0);
+	if (df_default.open_read_only(strict) == DB_SUCCESS) {
 		ut_ad(df_default.is_open());
 		tablespaces_found++;
 	}
@@ -5807,11 +5809,35 @@ fil_flush_file_spaces(
 	::ut_free(space_ids);
 }
 
-/** Functor to validate the space list. */
+/** Functor to validate the file node list of a tablespace. */
 struct	Check {
+	/** Total size of file nodes visited so far */
+	ulint	size;
+	/** Total number of open files visited so far */
+	ulint	n_open;
+
+	/** Constructor */
+	Check() : size(0), n_open(0) {}
+
+	/** Visit a file node
+	@param[in]	elem	file node to visit */
 	void	operator()(const fil_node_t* elem)
 	{
 		ut_a(elem->is_open || !elem->n_pending);
+		n_open += elem->is_open;
+		size += elem->size;
+	}
+
+	/** Validate a tablespace.
+	@param[in]	space	tablespace to validate
+	@return		number of open file nodes */
+	static ulint validate(const fil_space_t* space)
+	{
+		ut_ad(mutex_own(&fil_system->mutex));
+		Check	check;
+		ut_list_validate(space->chain, check);
+		ut_a(space->size == check.size);
+		return(check.n_open);
 	}
 };
 
@@ -5839,20 +5865,7 @@ fil_validate(void)
 		     space = static_cast<fil_space_t*>(
 				HASH_GET_NEXT(hash, space))) {
 
-			UT_LIST_VALIDATE(space->chain, Check());
-
-			for (fil_node = UT_LIST_GET_FIRST(space->chain);
-			     fil_node != 0;
-			     fil_node = UT_LIST_GET_NEXT(chain, fil_node)) {
-
-				if (fil_node->n_pending > 0) {
-					ut_a(fil_node->is_open);
-				}
-
-				if (fil_node->is_open) {
-					n_open++;
-				}
-			}
+			n_open += Check::validate(space);
 		}
 	}
 

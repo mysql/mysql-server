@@ -512,12 +512,11 @@ void lex_end(LEX *lex)
   DBUG_PRINT("enter", ("lex: 0x%lx", (long) lex));
 
   /* release used plugins */
-  if (lex->plugins.elements) /* No function call and no mutex if no plugins. */
+  if (!lex->plugins.empty()) /* No function call and no mutex if no plugins. */
   {
-    plugin_unlock_list(0, (plugin_ref*)lex->plugins.buffer, 
-                       lex->plugins.elements);
+    plugin_unlock_list(0, lex->plugins.begin(), lex->plugins.size());
   }
-  reset_dynamic(&lex->plugins);
+  lex->plugins.clear();
 
   delete lex->sphead;
   lex->sphead= NULL;
@@ -2112,7 +2111,6 @@ st_select_lex::st_select_lex
   uncacheable(0),
   linkage(UNSPECIFIED_TYPE),
   no_table_names_allowed(false),
-  no_error(false),
   context(),
   resolve_place(RESOLVE_NONE),
   resolve_nest(NULL),
@@ -2730,8 +2728,8 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
     curr->print(thd, str, query_type);          // Print table
 
     // Print join condition
-    Item *const cond= (curr->select_lex->join &&
-                       curr->select_lex->join->optimized) ?
+    Item *const cond=
+      (curr->select_lex->join && curr->optim_join_cond() != (Item*)1) ?
       curr->optim_join_cond() : curr->join_cond();
     if (cond)
     {
@@ -3043,8 +3041,8 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // Where
-  Item *const cur_where= (join && join->optimized) ?
-                         join->where_cond : m_where_cond;
+  Item *const cur_where=
+    (join && join->where_cond != (Item*)1) ? join->where_cond : m_where_cond;
 
   if (cur_where || cond_value != Item::COND_UNDEF)
   {
@@ -3074,7 +3072,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
   }
 
   // having
-  Item *const cur_having= (join && join->optimized) ?
+  Item *const cur_having= (join && join->having_for_explain != (Item*)1) ?
     join->having_for_explain : m_having_cond;
 
   if (cur_having || having_value != Item::COND_UNDEF)
@@ -3221,16 +3219,13 @@ void Query_tables_list::destroy_query_tables_list()
 */
 
 LEX::LEX()
-  :result(0), thd(NULL), option_type(OPT_DEFAULT),
+  :result(0), thd(NULL),
+   // Quite unlikely to overflow initial allocation, so no instrumentation.
+   plugins(PSI_NOT_INSTRUMENTED),
+   option_type(OPT_DEFAULT),
   is_set_password_sql(false), is_lex_started(0),
   in_update_value_clause(false)
 {
-
-  my_init_dynamic_array2(&plugins, sizeof(plugin_ref),
-                         plugins_static_buffer,
-                         INITIAL_LEX_PLUGIN_LIST_SIZE, 
-                         INITIAL_LEX_PLUGIN_LIST_SIZE);
-  memset(&mi, 0, sizeof(LEX_MASTER_INFO));
   reset_query_tables_list(TRUE);
 }
 
@@ -4422,12 +4417,29 @@ bool LEX::is_partition_management() const
 }
 
 
-/**
-  Set all fields to their "unspecified" value.
-*/
+void st_lex_master_info::initialize()
+{
+  host= user= password= log_file_name= bind_addr = NULL;
+  port= connect_retry= 0;
+  heartbeat_period= 0;
+  sql_delay= 0;
+  pos= 0;
+  server_id= retry_count= 0;
+  gtid= NULL;
+  gtid_until_condition= UNTIL_SQL_BEFORE_GTIDS;
+  until_after_gaps= false;
+  ssl= ssl_verify_server_cert= heartbeat_opt= repl_ignore_server_ids_opt= 
+    retry_count_opt= auto_position= LEX_MI_UNCHANGED;
+  ssl_key= ssl_cert= ssl_ca= ssl_capath= ssl_cipher= NULL;
+  ssl_crl= ssl_crlpath= NULL;
+  relay_log_name= NULL;
+  relay_log_pos= 0;
+  repl_ignore_server_ids.clear();
+}
+
 void st_lex_master_info::set_unspecified()
 {
-  memset(this, 0, sizeof(*this));
+  initialize();
   sql_delay= -1;
 }
 

@@ -77,6 +77,7 @@ TYPELIB bool_typelib={ array_elements(bool_values)-1, "", bool_values, 0 };
 */
 extern void close_thread_tables(THD *thd);
 
+extern void killall_non_super_threads(THD *thd);
 
 static bool update_buffer_size(THD *thd, KEY_CACHE *key_cache,
                                ptrdiff_t offset, ulonglong new_value)
@@ -717,6 +718,28 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        GLOBAL_VAR(opt_binlog_max_flush_queue_time),
        CMD_LINE(REQUIRED_ARG),
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
+       "binlog_group_commit_sync_delay",
+       "The number of microseconds the server waits for the "
+       "binary log group commit sync queue to fill before "
+       "continuing. Default: 0. Min: 0. Max: 1000000.",
+       GLOBAL_VAR(opt_binlog_group_commit_sync_delay),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 1000000 /* max 1 sec */), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
+       "binlog_group_commit_sync_no_delay_count",
+       "If there are this many transactions in the commit sync "
+       "queue and the server is waiting for more transactions "
+       "to be enqueued (as set using --binlog-group-commit-sync-delay), "
+       "the commit procedure resumes.",
+       GLOBAL_VAR(opt_binlog_group_commit_sync_no_delay_count),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 100000 /* max connections */),
+       DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
@@ -4853,6 +4876,15 @@ static Sys_var_enum Sys_gtid_mode(
 
 #endif // HAVE_REPLICATION
 
+static Sys_var_uint Sys_executed_gtids_compression_period(
+       "executed_gtids_compression_period", "When binlog is disabled, "
+       "a background thread wakes up to compress the gtid_executed table "
+       "every executed_gtids_compression_period transactions, as a "
+       "special case, if variable is 0, the thread never wakes up "
+       "to compress the gtid_executed table.",
+       GLOBAL_VAR(executed_gtids_compression_period),
+       CMD_LINE(OPT_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(1000),
+       BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_disconnect_on_expired_password(
        "disconnect_on_expired_password",
@@ -4938,3 +4970,18 @@ static Sys_var_mybool Sys_session_track_state_change(
        ON_CHECK(0),
        ON_UPDATE(update_session_track_state_change));
 
+static bool handle_offline_mode(sys_var *self, THD *thd, enum_var_type type)
+{
+  DBUG_ENTER("handle_offline_mode");
+  if (offline_mode == TRUE)
+    killall_non_super_threads(thd);
+  DBUG_RETURN(false);
+}
+
+static PolyLock_mutex PLock_offline_mode(&LOCK_offline_mode);
+static Sys_var_mybool Sys_offline_mode(
+       "offline_mode",
+       "Make the server into offline mode",
+       GLOBAL_VAR(offline_mode), CMD_LINE(OPT_ARG), DEFAULT(FALSE),
+       &PLock_offline_mode, NOT_IN_BINLOG,
+       ON_CHECK(0), ON_UPDATE(handle_offline_mode));

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -51,7 +51,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char *sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char *message,
                                 Sql_condition **cond_hdl)
   {
@@ -740,6 +740,7 @@ void Trigger::add_tables_and_routines(THD *thd,
   {
     m_sp->add_used_tables_to_table_list(thd,
                                         &prelocking_ctx->query_tables_last,
+                                        prelocking_ctx->sql_command,
                                         table_list->belong_to_view);
     sp_update_stmt_used_routines(thd, prelocking_ctx,
                                   &m_sp->m_sroutines,

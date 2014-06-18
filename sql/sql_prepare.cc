@@ -1267,7 +1267,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
 
     if (mysql_prepare_insert(thd, table_list, &insert_table_ref,
                              fields, values, update_fields, update_values,
-                             duplic, &unused_conds, FALSE, FALSE, FALSE))
+                             duplic, &unused_conds, FALSE, FALSE))
+
       goto error;
 
     value_count= values->elements;
@@ -2509,9 +2510,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       }
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
-
-      /* clear the no_error flag for INSERT/UPDATE IGNORE */
-      sl->no_error= FALSE;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();

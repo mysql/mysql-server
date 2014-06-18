@@ -855,14 +855,14 @@ public:
     @param[in,out] query_tables_last_ptr  Pointer to the next_global member of
                                           last element of the list where tables
                                           will be added (or to its root).
+    @param[in] sql_command                SQL-command for which we are adding
+                                          elements to the table list.
     @param[in] belong_to_view             Uppermost view which uses this routine,
                                           NULL if none.
-
-    @retval true  if some elements were added
-    @retval false otherwise.
   */
-  bool add_used_tables_to_table_list(THD *thd,
+  void add_used_tables_to_table_list(THD *thd,
                                      TABLE_LIST ***query_tables_last_ptr,
+                                     enum_sql_command sql_command,
                                      TABLE_LIST *belong_to_view);
 
   /**

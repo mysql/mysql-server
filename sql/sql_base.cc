@@ -63,7 +63,7 @@ bool
 No_such_table_error_handler::handle_condition(THD *,
                                               uint sql_errno,
                                               const char*,
-                                              Sql_condition::enum_severity_level,
+                                              Sql_condition::enum_severity_level*,
                                               const char*,
                                               Sql_condition ** cond_hdl)
 {
@@ -91,6 +91,131 @@ bool No_such_table_error_handler::safely_trapped_errors()
 
 
 /**
+  This handler is used for the statements which support IGNORE keyword.
+  If IGNORE is specified in the statement, this error handler converts
+  the given errors codes to warnings.
+  These errors occur for each record. With IGNORE, statements are not
+  aborted and next row is processed.
+
+*/
+bool Ignore_error_handler::handle_condition(THD *thd,
+                                            uint sql_errno,
+                                            const char *sqlstate,
+                                            Sql_condition::enum_severity_level *level,
+                                            const char *msg,
+                                            Sql_condition **cond_hdl)
+{
+  /*
+    If a statement is executed with IGNORE keyword then this handler
+    gets pushed for the statement. If there is trigger on the table
+    which contains statements without IGNORE then this handler should
+    not convert the errors within trigger to warnings.
+  */
+  if (!thd->lex->is_ignore())
+    return false;
+  /*
+    Error codes ER_DUP_ENTRY_WITH_KEY_NAME is used while calling my_error
+    to get the proper error messages depending on the use case.
+    The error code used is ER_DUP_ENTRY to call error functions.
+
+    Same case exists for ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT which uses
+    error code of ER_NO_PARTITION_FOR_GIVEN_VALUE to call error function.
+
+    There error codes are added here to force consistency if these error
+    codes are used in any other case in future.
+  */
+  switch (sql_errno)
+  {
+  case ER_SUBQUERY_NO_1_ROW:
+  case ER_ROW_IS_REFERENCED_2:
+  case ER_NO_REFERENCED_ROW_2:
+  case ER_BAD_NULL_ERROR:
+  case ER_DUP_ENTRY:
+  case ER_DUP_ENTRY_WITH_KEY_NAME:
+  case ER_DUP_KEY:
+  case ER_VIEW_CHECK_FAILED:
+  case ER_NO_PARTITION_FOR_GIVEN_VALUE:
+  case ER_NO_PARTITION_FOR_GIVEN_VALUE_SILENT:
+  case ER_ROW_DOES_NOT_MATCH_GIVEN_PARTITION_SET:
+    (*level)= Sql_condition::SL_WARNING;
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
+
+/**
+  Implementation of STRICT mode.
+  Upgrades a set of given conditions from warning to error.
+*/
+bool Strict_error_handler::handle_condition(THD *thd,
+                                            uint sql_errno,
+                                            const char *sqlstate,
+                                            Sql_condition::enum_severity_level *level,
+                                            const char *msg,
+                                            Sql_condition **cond_hdl)
+{
+  /* STRICT MODE should affect only the below statements */
+  switch (thd->lex->sql_command)
+  {
+  case SQLCOM_CREATE_TABLE:
+  case SQLCOM_DROP_INDEX:
+  case SQLCOM_INSERT:
+  case SQLCOM_REPLACE:
+  case SQLCOM_REPLACE_SELECT:
+  case SQLCOM_INSERT_SELECT:
+  case SQLCOM_UPDATE:
+  case SQLCOM_UPDATE_MULTI:
+  case SQLCOM_DELETE:
+  case SQLCOM_DELETE_MULTI:
+  case SQLCOM_ALTER_TABLE:
+  case SQLCOM_LOAD:
+  case SQLCOM_CALL:
+  case SQLCOM_END:
+  case SQLCOM_SET_OPTION:
+  case SQLCOM_SELECT:
+    break;
+  default:
+    return false;
+  }
+
+  switch (sql_errno)
+  {
+  case ER_TRUNCATED_WRONG_VALUE:
+  case ER_WRONG_VALUE_FOR_TYPE:
+  case ER_WARN_DATA_OUT_OF_RANGE:
+  case ER_DIVISION_BY_ZERO:
+  case ER_TRUNCATED_WRONG_VALUE_FOR_FIELD:
+  case WARN_DATA_TRUNCATED:
+  case ER_DATA_TOO_LONG:
+  case ER_BAD_NULL_ERROR:
+  case ER_NO_DEFAULT_FOR_FIELD:
+  case ER_TOO_LONG_KEY:
+  case ER_WRONG_ARGUMENTS:
+  case ER_NO_DEFAULT_FOR_VIEW_FIELD:
+  case ER_WARN_NULL_TO_NOTNULL:
+  case ER_CUT_VALUE_GROUP_CONCAT:
+  case ER_DATETIME_FUNCTION_OVERFLOW:
+  case ER_WARN_TOO_FEW_RECORDS:
+  case ER_INVALID_ARGUMENT_FOR_LOGARITHM:
+    if ((*level == Sql_condition::SL_WARNING) &&
+        (!thd->get_transaction()->cannot_safely_rollback(Transaction_ctx::STMT)
+         || (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)))
+    {
+      (*level)= Sql_condition::SL_ERROR;
+      thd->killed= THD::KILL_BAD_DATA;
+    }
+    break;
+  default:
+    break;
+  }
+  return false;
+}
+
+
+/**
   This internal handler is used to trap ER_NO_SUCH_TABLE and
   ER_WRONG_MRG_TABLE errors during CHECK/REPAIR TABLE for MERGE
   tables.
@@ -106,7 +231,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -136,7 +261,7 @@ bool
 Repair_mrg_table_error_handler::handle_condition(THD *,
                                                  uint sql_errno,
                                                  const char*,
-                                                 Sql_condition::enum_severity_level level,
+                                                 Sql_condition::enum_severity_level *level,
                                                  const char*,
                                                  Sql_condition ** cond_hdl)
 {
@@ -405,7 +530,7 @@ bool table_def_init(void)
   init_tdc_psi_keys();
 #endif
   mysql_mutex_init(key_LOCK_open, &LOCK_open, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_open, &COND_open, NULL);
+  mysql_cond_init(key_COND_open, &COND_open);
   oldest_unused_share= &end_of_unused_share;
   end_of_unused_share.prev= &oldest_unused_share;
 
@@ -528,10 +653,9 @@ TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
     To be able perform any operation on table we should own
     some kind of metadata lock on it.
   */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                             table_list->db,
-                                             table_list->table_name,
-                                             MDL_SHARED));
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 table_list->db, table_list->table_name,
+                                 MDL_SHARED));
 
   /*
     Read table definition from the cache. If the share is being opened,
@@ -1555,10 +1679,9 @@ void close_thread_table(THD *thd, TABLE **table_ptr)
     The metadata lock must be released after giving back
     the table to the table cache.
   */
-  DBUG_ASSERT(thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                             table->s->db.str,
-                                             table->s->table_name.str,
-                                             MDL_SHARED));
+  DBUG_ASSERT(thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 table->s->db.str, table->s->table_name.str,
+                                 MDL_SHARED));
   table->mdl_ticket= NULL;
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
@@ -1657,14 +1780,24 @@ bool close_temporary_tables(THD *thd)
   if (gtid_mode > 0)
     thd->variables.gtid_next.set_automatic();
 
+  /*
+    We must separate transactional temp tables and
+    non-transactional temp tables in two distinct DROP statements
+    to avoid the splitting if a slave server reads from this binlog.
+  */
+
   /* Better add "if exists", in case a RESET MASTER has been done */
   const char stub[]= "DROP /*!40005 TEMPORARY */ TABLE IF EXISTS ";
   uint stub_len= sizeof(stub) - 1;
-  char buf[256];
-  String s_query= String(buf, sizeof(buf), system_charset_info);
+  char buf_trans[256], buf_non_trans[256];
+  String s_query_trans= String(buf_trans, sizeof(buf_trans), system_charset_info);
+  String s_query_non_trans= String(buf_non_trans, sizeof(buf_non_trans), system_charset_info);
   bool found_user_tables= FALSE;
+  bool found_trans_table= FALSE;
+  bool found_non_trans_table= FALSE;
 
-  memcpy(buf, stub, stub_len);
+  memcpy(buf_trans, stub, stub_len);
+  memcpy(buf_non_trans, stub, stub_len);
 
   /*
     Insertion sort of temp tables by pseudo_thread_id to build ordered list
@@ -1726,20 +1859,38 @@ bool close_temporary_tables(THD *thd)
          within the sublist of common pseudo_thread_id to create single
          DROP query 
       */
-      for (s_query.length(stub_len);
+      for (s_query_trans.length(stub_len), s_query_non_trans.length(stub_len),
+           found_trans_table= false, found_non_trans_table= false;
            table && is_user_table(table) &&
              tmpkeyval(thd, table) == thd->variables.pseudo_thread_id &&
              table->s->db.length == db.length() &&
              strcmp(table->s->db.str, db.ptr()) == 0;
            table= next)
       {
-        /*
-          We are going to add ` around the table names and possible more
-          due to special characters
-        */
-        append_identifier(thd, &s_query, table->s->table_name.str,
-                          strlen(table->s->table_name.str));
-        s_query.append(',');
+        /* Separate transactional from non-transactional temp tables */
+        if (table->s->tmp_table == TRANSACTIONAL_TMP_TABLE)
+        {
+          found_trans_table= true;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_trans.append(',');
+        }
+        else if (table->s->tmp_table == NON_TRANSACTIONAL_TMP_TABLE)
+        {
+          found_non_trans_table= true;
+          /*
+            We are going to add ` around the table names and possible more
+            due to special characters
+          */
+          append_identifier(thd, &s_query_non_trans, table->s->table_name.str,
+                            strlen(table->s->table_name.str));
+          s_query_non_trans.append(',');
+        }
+
         next= table->next;
         close_temporary(table, 1, 1);
       }
@@ -1747,34 +1898,70 @@ bool close_temporary_tables(THD *thd)
       const CHARSET_INFO *cs_save= thd->variables.character_set_client;
       thd->variables.character_set_client= system_charset_info;
       thd->thread_specific_used= TRUE;
-      Query_log_event qinfo(thd, s_query.ptr(),
-                            s_query.length() - 1 /* to remove trailing ',' */,
-                            FALSE, TRUE, FALSE, 0);
-      qinfo.db= db.ptr();
-      qinfo.db_len= db.length();
-      thd->variables.character_set_client= cs_save;
 
-      thd->get_stmt_da()->set_overwrite_status(true);
-      if ((error= (mysql_bin_log.write_event(&qinfo) ||
-                   mysql_bin_log.commit(thd, true) ||
-                   error)))
+      if (found_trans_table)
       {
-        /*
-          If we're here following THD::cleanup, thence the connection
-          has been closed already. So lets print a message to the
-          error log instead of pushing yet another error into the
-          Diagnostics_area.
+        Query_log_event qinfo(thd, s_query_trans.ptr(),
+                              s_query_trans.length() - 1,
+                              FALSE, TRUE, FALSE, 0);
+        qinfo.db= db.ptr();
+        qinfo.db_len= db.length();
+        thd->variables.character_set_client= cs_save;
 
-          Also, we keep the error flag so that we propagate the error
-          up in the stack. This way, if we're the SQL thread we notice
-          that close_temporary_tables failed. (Actually, the SQL
-          thread only calls close_temporary_tables while applying old
-          Start_log_event_v3 events.)
-        */
-        sql_print_error("Failed to write the DROP statement for "
+        thd->get_stmt_da()->set_overwrite_status(true);
+        if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                     mysql_bin_log.commit(thd, true) ||
+                     error)))
+        {
+          /*
+            If we're here following THD::cleanup, thence the connection
+            has been closed already. So lets print a message to the
+            error log instead of pushing yet another error into the
+            Diagnostics_area.
+
+            Also, we keep the error flag so that we propagate the error
+            up in the stack. This way, if we're the SQL thread we notice
+            that close_temporary_tables failed. (Actually, the SQL
+            thread only calls close_temporary_tables while applying old
+            Start_log_event_v3 events.)
+          */
+          sql_print_error("Failed to write the DROP statement for "
                         "temporary tables to binary log");
+        }
+        thd->get_stmt_da()->set_overwrite_status(false);
       }
-      thd->get_stmt_da()->set_overwrite_status(false);
+
+      if (found_non_trans_table)
+      {
+        Query_log_event qinfo(thd, s_query_non_trans.ptr(),
+                              s_query_non_trans.length() - 1,
+                              FALSE, TRUE, FALSE, 0);
+        qinfo.db= db.ptr();
+        qinfo.db_len= db.length();
+        thd->variables.character_set_client= cs_save;
+
+        thd->get_stmt_da()->set_overwrite_status(true);
+        if ((error= (mysql_bin_log.write_event(&qinfo) ||
+                     mysql_bin_log.commit(thd, true) ||
+                     error)))
+        {
+          /*
+            If we're here following THD::cleanup, thence the connection
+            has been closed already. So lets print a message to the
+            error log instead of pushing yet another error into the
+            Diagnostics_area.
+
+            Also, we keep the error flag so that we propagate the error
+            up in the stack. This way, if we're the SQL thread we notice
+            that close_temporary_tables failed. (Actually, the SQL
+            thread only calls close_temporary_tables while applying old
+            Start_log_event_v3 events.)
+          */
+          sql_print_error("Failed to write the DROP statement for "
+                        "temporary tables to binary log");
+        }
+        thd->get_stmt_da()->set_overwrite_status(false);
+      }
 
       thd->variables.pseudo_thread_id= save_pseudo_thread_id;
       thd->thread_specific_used= save_thread_specific_used;
@@ -2375,8 +2562,8 @@ bool check_if_table_exists(THD *thd, TABLE_LIST *table, bool *exists)
   *exists= TRUE;
 
   DBUG_ASSERT(thd->mdl_context.
-              is_lock_owner(MDL_key::TABLE, table->db,
-                            table->table_name, MDL_SHARED));
+              owns_equal_or_stronger_lock(MDL_key::TABLE, table->db,
+                                          table->table_name, MDL_SHARED));
 
   mysql_mutex_lock(&LOCK_open);
   share= get_cached_table_share(thd, table->db, table->table_name);
@@ -2421,7 +2608,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
 
@@ -2440,7 +2627,7 @@ private:
 bool MDL_deadlock_handler::handle_condition(THD *,
                                             uint sql_errno,
                                             const char*,
-                                            Sql_condition::enum_severity_level,
+                                            Sql_condition::enum_severity_level*,
                                             const char*,
                                             Sql_condition ** cond_hdl)
 {
@@ -2472,12 +2659,17 @@ bool MDL_deadlock_handler::handle_condition(THD *,
                           state. If we failed to acquire a lock
                           due to a lock conflict, we add the
                           failed request to the open table context.
-  @param[in,out] mdl_request A request for an MDL lock.
-                          If we managed to acquire a ticket
-                          (no errors or lock conflicts occurred),
-                          contains a reference to it on
-                          return. However, is not modified if MDL
-                          lock type- modifying flags were provided.
+  @param[in,out] table_list Table list element for the table being opened.
+                            Its "mdl_request" member specifies the MDL lock
+                            to be requested. If we managed to acquire a
+                            ticket (no errors or lock conflicts occurred),
+                            TABLE_LIST::mdl_request contains a reference
+                            to it on return. However, is not modified if
+                            MDL lock type- modifying flags were provided.
+                            We also use TABLE_LIST::lock_type member to
+                            detect cases when MDL_SHARED_WRITE_LOW_PRIO
+                            lock should be acquired instead of the normal
+                            MDL_SHARED_WRITE lock.
   @param[in]    flags flags MYSQL_OPEN_FORCE_SHARED_MDL,
                           MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL or
                           MYSQL_OPEN_FAIL_ON_MDL_CONFLICT
@@ -2493,11 +2685,11 @@ bool MDL_deadlock_handler::handle_condition(THD *,
 
 static bool
 open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
-                        MDL_request *mdl_request,
-                        uint flags,
+                        TABLE_LIST *table_list, uint flags,
                         MDL_ticket **mdl_ticket)
 {
-  MDL_request mdl_request_shared;
+  MDL_request *mdl_request= &table_list->mdl_request;
+  MDL_request new_mdl_request;
 
   if (flags & (MYSQL_OPEN_FORCE_SHARED_MDL |
                MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL))
@@ -2524,12 +2716,31 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
     DBUG_ASSERT(!(flags & MYSQL_OPEN_FORCE_SHARED_MDL) ||
                 !(flags & MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL));
 
-    MDL_REQUEST_INIT_BY_KEY(&mdl_request_shared,
+    MDL_REQUEST_INIT_BY_KEY(&new_mdl_request,
                             &mdl_request->key,
                             (flags & MYSQL_OPEN_FORCE_SHARED_MDL) ?
                               MDL_SHARED : MDL_SHARED_HIGH_PRIO,
                             MDL_TRANSACTION);
-    mdl_request= &mdl_request_shared;
+    mdl_request= &new_mdl_request;
+  }
+  else if (thd->variables.low_priority_updates &&
+           mdl_request->type == MDL_SHARED_WRITE &&
+           (table_list->lock_type == TL_WRITE_DEFAULT ||
+            table_list->lock_type == TL_WRITE_CONCURRENT_DEFAULT))
+  {
+    /*
+      We are in @@low_priority_updates=1 mode and are going to acquire
+      SW metadata lock on a table which for which neither LOW_PRIORITY nor
+      HIGH_PRIORITY clauses were used explicitly.
+      To keep compatibility with THR_LOCK locks and to avoid starving out
+      concurrent LOCK TABLES READ statements, we need to acquire the low-prio
+      version of SW lock instead of a normal SW lock in this case.
+    */
+    MDL_REQUEST_INIT_BY_KEY(&new_mdl_request,
+                            &mdl_request->key,
+                            MDL_SHARED_WRITE_LOW_PRIO,
+                            MDL_TRANSACTION);
+    mdl_request= &new_mdl_request;
   }
 
   if (flags & MYSQL_OPEN_FAIL_ON_MDL_CONFLICT)
@@ -2578,12 +2789,29 @@ open_table_get_mdl_lock(THD *thd, Open_table_context *ot_ctx,
          t2 LOCK IN SHARE MODE.
          Such circular waits are currently only resolved by timeouts,
          e.g. @@innodb_lock_wait_timeout or @@lock_wait_timeout.
+
+      Note that we want to force DML deadlock weight for our context
+      when acquiring locks in this place. This is done to avoid situation
+      when LOCK TABLES statement, which acquires strong SNRW and SRO locks
+      on implicitly used tables, deadlocks with a concurrent DDL statement
+      and the DDL statement is aborted since it is chosen as a deadlock
+      victim. It is better to choose LOCK TABLES as a victim in this case
+      as a deadlock can be easily caught here and handled by back-off and retry,
+      without reporting any error to the user.
+      We still have a few weird cases, like FLUSH TABLES <table-list> WITH
+      READ LOCK, where we use "strong" metadata locks and open_tables() is
+      called with some metadata locks pre-acquired. In these cases we still
+      want to use DDL deadlock weight as back-off is not possible.
     */
     MDL_deadlock_handler mdl_deadlock_handler(ot_ctx);
 
     thd->push_internal_handler(&mdl_deadlock_handler);
+    thd->mdl_context.set_force_dml_deadlock_weight(ot_ctx->can_back_off());
+
     bool result= thd->mdl_context.acquire_lock(mdl_request,
                                                ot_ctx->get_timeout());
+
+    thd->mdl_context.set_force_dml_deadlock_weight(false);
     thd->pop_internal_handler();
 
     if (result && !ot_ctx->can_recover_from_failed_open())
@@ -2696,7 +2924,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
     Note that we allow write locks on log tables as otherwise logging
     to general/slow log would be disabled in read only transactions.
   */
-  if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+  if (table_list->mdl_request.is_write_lock_request() &&
       thd->tx_read_only &&
       !(flags & (MYSQL_LOCK_LOG_TABLE | MYSQL_OPEN_HAS_MDL_LOCK)))
   {
@@ -2778,10 +3006,10 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       TABLES breaks metadata locking protocol (potentially can lead
       to deadlocks) it should be disallowed.
     */
-    if (thd->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                       table_list->db,
-                                       table_list->table_name,
-                                       MDL_SHARED))
+    if (thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                                     table_list->db,
+                                                     table_list->table_name,
+                                                     MDL_SHARED))
     {
       char path[FN_REFLEN + 1];
       enum legacy_db_type not_used;
@@ -2844,7 +3072,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
             pre-acquiring metadata locks at the beggining of
             open_tables() call.
     */
-    if (table_list->mdl_request.type >= MDL_SHARED_WRITE &&
+    if (table_list->mdl_request.is_write_lock_request() &&
         ! (flags & (MYSQL_OPEN_IGNORE_GLOBAL_READ_LOCK |
                     MYSQL_OPEN_FORCE_SHARED_MDL |
                     MYSQL_OPEN_FORCE_SHARED_HIGH_PRIO_MDL |
@@ -2864,10 +3092,17 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       /*
         Install error handler which if possible will convert deadlock error
         into request to back-off and restart process of opening tables.
+
+        Prefer this context as a victim in a deadlock when such a deadlock
+        can be easily handled by back-off and retry.
       */
       thd->push_internal_handler(&mdl_deadlock_handler);
+      thd->mdl_context.set_force_dml_deadlock_weight(ot_ctx->can_back_off());
+
       bool result= thd->mdl_context.acquire_lock(&protection_request,
                                                  ot_ctx->get_timeout());
+
+      thd->mdl_context.set_force_dml_deadlock_weight(false);
       thd->pop_internal_handler();
 
       if (result)
@@ -2876,8 +3111,7 @@ bool open_table(THD *thd, TABLE_LIST *table_list, Open_table_context *ot_ctx)
       ot_ctx->set_has_protection_against_grl();
     }
 
-    if (open_table_get_mdl_lock(thd, ot_ctx, &table_list->mdl_request,
-                                flags, &mdl_ticket) ||
+    if (open_table_get_mdl_lock(thd, ot_ctx, table_list, flags, &mdl_ticket) ||
         mdl_ticket == NULL)
     {
       DEBUG_SYNC(thd, "before_open_table_wait_refresh");
@@ -3123,10 +3357,25 @@ share_found:
       bool wait_result;
 
       thd->push_internal_handler(&mdl_deadlock_handler);
+
+      /*
+        In case of deadlock we would like this thread to be preferred as
+        a deadlock victim when this deadlock can be nicely handled by
+        back-off and retry. We still have a few weird cases, like
+        FLUSH TABLES <table-list> WITH READ LOCK, where we use strong
+        metadata locks and open_tables() is called with some metadata
+        locks pre-acquired. In these cases we still want to use DDL
+        deadlock weight.
+      */
+      uint deadlock_weight= ot_ctx->can_back_off() ?
+                            MDL_wait_for_subgraph::DEADLOCK_WEIGHT_DML :
+                            mdl_ticket->get_deadlock_weight();
+
       wait_result= tdc_wait_for_old_version(thd, table_list->db,
                                             table_list->table_name,
                                             ot_ctx->get_timeout(),
-                                            mdl_ticket->get_deadlock_weight());
+                                            deadlock_weight);
+
       thd->pop_internal_handler();
 
       if (wait_result)
@@ -3314,8 +3563,8 @@ TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
     cases don't take a global IX lock in order to be compatible with
     global read lock.
   */
-  if (!thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
-                                      MDL_INTENTION_EXCLUSIVE))
+  if (!thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL, "", "",
+                                                    MDL_INTENTION_EXCLUSIVE))
   {
     if (!no_error)
       my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0), table_name);
@@ -4292,6 +4541,7 @@ thr_lock_type read_lock_type_for_table(THD *thd,
   if ((log_on == FALSE) || (binlog_format == BINLOG_FORMAT_ROW) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_LOG) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (table_list->table->s->table_category == TABLE_CATEGORY_GTID) ||
       (table_list->table->s->table_category == TABLE_CATEGORY_PERFORMANCE) ||
       !(is_update_query(prelocking_ctx->sql_command) ||
         (routine_modifies_data && table_list->prelocking_placeholder) ||
@@ -4781,15 +5031,16 @@ extern "C" uchar *schema_set_get_key(const uchar *record, size_t *length,
 }
 
 /**
-  Acquire upgradable (SNW, SNRW) metadata locks on tables used by
+  Acquire "strong" (SRO, SNW, SNRW) metadata locks on tables used by
   LOCK TABLES or by a DDL statement.
+
   Acquire lock "S" on table being created in CREATE TABLE statement.
 
   @note  Under LOCK TABLES, we can't take new locks, so use
          open_tables_check_upgradable_mdl() instead.
 
   @param thd               Thread context.
-  @param tables_start      Start of list of tables on which upgradable locks
+  @param tables_start      Start of list of tables on which locks
                            should be acquired.
   @param tables_end        End of list of tables.
   @param lock_wait_timeout Seconds to wait before timeout.
@@ -4809,13 +5060,14 @@ lock_table_names(THD *thd,
   TABLE_LIST *table;
   MDL_request global_request;
   Hash_set<TABLE_LIST, schema_set_get_key> schema_set;
+  bool need_global_read_lock_protection= false;
 
   DBUG_ASSERT(!thd->locked_tables_mode);
 
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if ((table->mdl_request.type < MDL_SHARED_UPGRADABLE &&
+    if ((!table->mdl_request.is_ddl_or_lock_tables_lock_request() &&
          table->open_strategy != TABLE_LIST::OPEN_FOR_CREATE) ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
@@ -4823,15 +5075,20 @@ lock_table_names(THD *thd,
       continue;
     }
 
-    /* Write lock on normal tables is not allowed in a read only transaction. */
-    if (thd->tx_read_only)
+    if (table->mdl_request.type != MDL_SHARED_READ_ONLY)
     {
-      my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
-      return true;
-    }
+      /* Write lock on normal tables is not allowed in a read only transaction. */
+      if (thd->tx_read_only)
+      {
+        my_error(ER_CANT_EXECUTE_IN_READ_ONLY_TRANSACTION, MYF(0));
+        return true;
+      }
 
-    if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) && schema_set.insert(table))
-      return TRUE;
+      if (! (flags & MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK) &&
+          schema_set.insert(table))
+        return TRUE;
+      need_global_read_lock_protection= true;
+    }
 
     mdl_requests.push_front(&table->mdl_request);
   }
@@ -4856,17 +5113,20 @@ lock_table_names(THD *thd,
       mdl_requests.push_front(schema_request);
     }
 
-    /*
-      Protect this statement against concurrent global read lock
-      by acquiring global intention exclusive lock with statement
-      duration.
-    */
-    if (thd->global_read_lock.can_acquire_protection())
-      return TRUE;
-    MDL_REQUEST_INIT(&global_request,
-                     MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
-                     MDL_STATEMENT);
-    mdl_requests.push_front(&global_request);
+    if (need_global_read_lock_protection)
+    {
+      /*
+        Protect this statement against concurrent global read lock
+        by acquiring global intention exclusive lock with statement
+        duration.
+      */
+      if (thd->global_read_lock.can_acquire_protection())
+        return TRUE;
+      MDL_REQUEST_INIT(&global_request,
+                       MDL_key::GLOBAL, "", "", MDL_INTENTION_EXCLUSIVE,
+                       MDL_STATEMENT);
+      mdl_requests.push_front(&global_request);
+    }
   }
 
   if (thd->mdl_context.acquire_locks(&mdl_requests, lock_wait_timeout))
@@ -4903,7 +5163,13 @@ open_tables_check_upgradable_mdl(THD *thd, TABLE_LIST *tables_start,
   for (table= tables_start; table && table != tables_end;
        table= table->next_global)
   {
-    if (table->mdl_request.type < MDL_SHARED_UPGRADABLE ||
+    /*
+      Check below needs to be updated if this function starts
+      called for SRO locks.
+    */
+    DBUG_ASSERT(table->mdl_request.type != MDL_SHARED_READ_ONLY);
+
+    if (!table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
         table->open_type == OT_TEMPORARY_ONLY ||
         (table->open_type == OT_TEMPORARY_OR_BASE && is_temporary_table(table)))
     {
@@ -5052,7 +5318,7 @@ restart:
       for (table= *start; table && table != thd->lex->first_not_own_table();
            table= table->next_global)
       {
-        if (table->mdl_request.type >= MDL_SHARED_UPGRADABLE ||
+        if (table->mdl_request.is_ddl_or_lock_tables_lock_request() ||
             table->open_strategy == TABLE_LIST::OPEN_FOR_CREATE)
           table->mdl_request.ticket= NULL;
       }
@@ -5301,9 +5567,10 @@ handle_routine(THD *thd, Query_tables_list *prelocking_ctx,
     *need_prelocking= TRUE;
     sp_update_stmt_used_routines(thd, prelocking_ctx, &sp->m_sroutines,
                                  rt->belong_to_view);
-    (void)sp->add_used_tables_to_table_list(thd,
-                                            &prelocking_ctx->query_tables_last,
-                                            rt->belong_to_view);
+    sp->add_used_tables_to_table_list(thd,
+                                      &prelocking_ctx->query_tables_last,
+                                      prelocking_ctx->sql_command,
+                                      rt->belong_to_view);
   }
   sp->propagate_attributes(prelocking_ctx);
   return FALSE;
@@ -5639,7 +5906,7 @@ TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type lock_type,
   table_list->required_type= FRMTYPE_TABLE;
 
   /* This function can't properly handle requests for such metadata locks. */
-  DBUG_ASSERT(table_list->mdl_request.type < MDL_SHARED_UPGRADABLE);
+  DBUG_ASSERT(!table_list->mdl_request.is_ddl_or_lock_tables_lock_request());
 
   while ((error= open_table(thd, table_list, &ot_ctx)) &&
          ot_ctx.can_recover_from_failed_open())
@@ -8830,7 +9097,6 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
   @param thd                        thread handler
   @param fields                     Item_fields list to be filled
   @param values                     values to fill with
-  @param ignore_errors              TRUE if we should ignore errors
   @param bitmap                     Bitmap over fields to fill
   @param insert_into_fields_bitmap  Bitmap for fields that is set
                                     in fill_record
@@ -8845,8 +9111,7 @@ insert_fields(THD *thd, Name_resolution_context *context, const char *db_name,
 
 bool
 fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-            bool ignore_errors, MY_BITMAP *bitmap,
-            MY_BITMAP *insert_into_fields_bitmap)
+            MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> f(fields),v(values);
   Item *value, *fld;
@@ -8889,7 +9154,7 @@ fill_record(THD * thd, List<Item> &fields, List<Item> &values,
     table= rfield->table;
     if (rfield == table->next_number_field)
       table->auto_increment_field_not_null= TRUE;
-    if ((value->save_in_field(rfield, false) < 0) && !ignore_errors)
+    if (value->save_in_field(rfield, false) < 0)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       goto err;
@@ -8911,11 +9176,10 @@ err:
 
   @param thd            Thread context.
   @param fields         Collection of fields.
-  @param ignore_errors  Flag if errors should be suppressed.
 
   @return Error status.
 */
-static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
+static bool check_record(THD *thd, List<Item> &fields)
 {
   List_iterator_fast<Item> f(fields);
   Item *fld;
@@ -8925,8 +9189,7 @@ static bool check_record(THD *thd, List<Item> &fields, bool ignore_errors)
   {
     field= fld->field_for_view_update();
     if (field &&
-        field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK &&
-        !ignore_errors)
+        field->field->check_constraints(ER_BAD_NULL_ERROR) != TYPE_OK)
     {
       my_message(ER_UNKNOWN_ERROR, ER(ER_UNKNOWN_ERROR), MYF(0));
       return true;
@@ -9024,7 +9287,6 @@ inline bool call_before_insert_triggers(THD *thd,
   @param thd           thread context
   @param fields        Item_fields list to be filled
   @param values        values to fill with
-  @param ignore_errors TRUE if we should ignore errors
   @param table         TABLE-object holding list of triggers to be invoked
   @param event         event type for triggers to be invoked
 
@@ -9040,8 +9302,7 @@ inline bool call_before_insert_triggers(THD *thd,
 
 bool
 fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
-                                     List<Item> &values, bool ignore_errors,
-                                     TABLE *table,
+                                     List<Item> &values, TABLE *table,
                                      enum enum_trigger_event_type event,
                                      int num_fields)
 {
@@ -9063,7 +9324,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
       MY_BITMAP insert_into_fields_bitmap;
       bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-      rc= fill_record(thd, fields, values, ignore_errors, NULL,
+      rc= fill_record(thd, fields, values, NULL,
                       &insert_into_fields_bitmap);
 
       if (!rc)
@@ -9074,7 +9335,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
     }
     else
     {
-      rc= fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
+      rc= fill_record(thd, fields, values, NULL, NULL) ||
           table->triggers->process_triggers(thd, event, TRG_ACTION_BEFORE, true);
     }
 
@@ -9085,8 +9346,8 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   else
   {
     return
-        fill_record(thd, fields, values, ignore_errors, NULL, NULL) ||
-        check_record(thd, fields, ignore_errors);
+        fill_record(thd, fields, values, NULL, NULL) ||
+        check_record(thd, fields);
   }
 }
 
@@ -9097,7 +9358,6 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
   @param thd                        thread handler
   @param ptr                        pointer on pointer to record
   @param values                     list of fields
-  @param ignore_errors              True if we should ignore errors
   @param bitmap                     Bitmap over fields to fill
   @param insert_into_fields_bitmap  Bitmap for fields that is set
                                     in fill_record
@@ -9112,7 +9372,7 @@ fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
 */
 
 bool
-fill_record(THD *thd, Field **ptr, List<Item> &values, bool ignore_errors,
+fill_record(THD *thd, Field **ptr, List<Item> &values,
             MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap)
 {
   List_iterator_fast<Item> v(values);
@@ -9173,7 +9433,6 @@ err:
       thd           thread context
       ptr           NULL-ended array of fields to be filled
       values        values to fill with
-      ignore_errors TRUE if we should ignore errors
       table         TABLE-object holding list of triggers to be invoked
       event         event type for triggers to be invoked
 
@@ -9194,8 +9453,7 @@ err:
 
 bool
 fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
-                                     List<Item> &values, bool ignore_errors,
-                                     TABLE *table,
+                                     List<Item> &values, TABLE *table,
                                      enum enum_trigger_event_type event,
                                      int num_fields)
 {
@@ -9211,7 +9469,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     MY_BITMAP insert_into_fields_bitmap;
     bitmap_init(&insert_into_fields_bitmap, NULL, num_fields, false);
 
-    rc= fill_record(thd, ptr, values, ignore_errors, NULL,
+    rc= fill_record(thd, ptr, values, NULL,
                     &insert_into_fields_bitmap);
 
     if (!rc)
@@ -9222,7 +9480,7 @@ fill_record_n_invoke_before_triggers(THD *thd, Field **ptr,
     table->triggers->disable_fields_temporary_nullability();
   }
   else
-    rc= fill_record(thd, ptr, values, ignore_errors, NULL, NULL);
+    rc= fill_record(thd, ptr, values, NULL, NULL);
 
   if (rc)
     return true;
@@ -9377,8 +9635,8 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
     table_cache_manager.assert_owner_all_and_tdc();
 
   DBUG_ASSERT(remove_type == TDC_RT_REMOVE_UNUSED ||
-              thd->mdl_context.is_lock_owner(MDL_key::TABLE, db, table_name,
-                                             MDL_EXCLUSIVE));
+              thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                 db, table_name, MDL_EXCLUSIVE));
 
   key_length= create_table_def_key(thd, key, db, table_name, false);
 

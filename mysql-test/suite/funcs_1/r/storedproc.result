@@ -142,7 +142,7 @@ BEGIN
 SET @v1 = f1;
 SELECT @v1;
 END//
-ERROR 42000: Too big precision 256 specified for column ''. Maximum is 65.
+ERROR 42000: Too-big precision 256 specified for ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -152,7 +152,7 @@ BEGIN
 SET @v1 = f1;
 SELECT @v1;
 END//
-ERROR 42000: Too big precision 66 specified for column ''. Maximum is 65.
+ERROR 42000: Too-big precision 66 specified for ''. Maximum is 65.
 DROP PROCEDURE IF EXISTS sp1//
 Warnings:
 Note	1305	PROCEDURE db_storedproc.sp1 does not exist
@@ -21731,7 +21731,7 @@ set @@sql_mode = 'ansi, error_for_division_by_zero';
 ERROR 42000: Variable 'sql_mode' can't be set to the value of ' error_for_division_by_zero'
 set @@sql_mode = 'ansi,error_for_division_by_zero';
 Warnings:
-Warning	1911	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
+Warning	1912	'ERROR_FOR_DIVISION_BY_ZERO' mode no longer has any effect. Use STRICT_ALL_TABLES or STRICT_TRANS_TABLES instead.
 SHOW VARIABLES LIKE 'sql_mode';
 Variable_name	Value
 sql_mode	REAL_AS_FLOAT,PIPES_AS_CONCAT,ANSI_QUOTES,IGNORE_SPACE,ANSI

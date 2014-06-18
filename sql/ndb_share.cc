@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -30,7 +30,7 @@ void
 NDB_SHARE::destroy(NDB_SHARE* share)
 {
   thr_lock_delete(&share->lock);
-  pthread_mutex_destroy(&share->mutex);
+  native_mutex_destroy(&share->mutex);
 
 #ifdef HAVE_NDB_BINLOG
   if (share->m_cfn_share && 

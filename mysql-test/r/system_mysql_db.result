@@ -5,6 +5,7 @@ db
 event
 func
 general_log
+gtid_executed
 help_category
 help_keyword
 help_relation

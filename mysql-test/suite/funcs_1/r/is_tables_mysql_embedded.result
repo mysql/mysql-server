@@ -129,6 +129,29 @@ user_comment	General log
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql
+TABLE_NAME	gtid_executed
+TABLE_TYPE	BASE TABLE
+ENGINE	InnoDB
+VERSION	10
+ROW_FORMAT	Compact
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
 TABLE_NAME	help_category
 TABLE_TYPE	BASE TABLE
 ENGINE	MyISAM
@@ -786,6 +809,29 @@ CHECKSUM	NULL
 CREATE_OPTIONS	#CO#
 TABLE_COMMENT	#TC#
 user_comment	General log
+Separator	-----------------------------------------------------
+TABLE_CATALOG	def
+TABLE_SCHEMA	mysql
+TABLE_NAME	gtid_executed
+TABLE_TYPE	BASE TABLE
+ENGINE	InnoDB
+VERSION	10
+ROW_FORMAT	Compact
+TABLE_ROWS	#TBLR#
+AVG_ROW_LENGTH	#ARL#
+DATA_LENGTH	#DL#
+MAX_DATA_LENGTH	#MDL#
+INDEX_LENGTH	#IL#
+DATA_FREE	#DF#
+AUTO_INCREMENT	NULL
+CREATE_TIME	#CRT#
+UPDATE_TIME	#UT#
+CHECK_TIME	#CT#
+TABLE_COLLATION	latin1_swedish_ci
+CHECKSUM	NULL
+CREATE_OPTIONS	#CO#
+TABLE_COMMENT	#TC#
+user_comment	
 Separator	-----------------------------------------------------
 TABLE_CATALOG	def
 TABLE_SCHEMA	mysql

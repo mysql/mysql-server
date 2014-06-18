@@ -29,6 +29,8 @@ INCLUDE_DIRECTORIES(
   ${SSL_INCLUDE_DIRS}
   ${SSL_INTERNAL_INCLUDE_DIRS}
   ${CMAKE_SOURCE_DIR}/sql/backup
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 SET(GEN_SOURCES
@@ -77,8 +79,18 @@ SET(SQL_EMBEDDED_SOURCES
   ../sql/rpl_gtid_cache.cc
   ../sql/rpl_gtid_execution.cc
   ../sql/rpl_gtid_mutex_cond_array.cc
+  ../sql/rpl_gtid_persist.cc
   ${IMPORTED_SOURCES}
 )
+
+# Boost Geometry source has unused local typedefs.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET_SOURCE_FILES_PROPERTIES(
+    ../sql/item_geofunc.cc
+    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
+ENDIF()
 
 IF(HAVE_MY_TIMER)
   SET(SQL_EMBEDDED_SOURCES ${SQL_EMBEDDED_SOURCES} ../sql/sql_timer.cc)
