@@ -177,18 +177,12 @@ lock_tables_check(THD *thd, TABLE **tables, uint count, uint flags)
       write we must own metadata lock of MDL_SHARED_WRITE or stronger
       type. For table to be locked for read we must own metadata lock
       of MDL_SHARED_READ or stronger type).
-      The only exception are HANDLER statements which are allowed to
-      lock table for read while having only MDL_SHARED lock on it.
     */
     DBUG_ASSERT(t->s->tmp_table ||
                 thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
                                    t->s->db.str, t->s->table_name.str,
                                    t->reginfo.lock_type >= TL_WRITE_ALLOW_WRITE ?
-                                   MDL_SHARED_WRITE : MDL_SHARED_READ) ||
-                (t->open_by_handler &&
-                 thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
-                                    t->s->db.str, t->s->table_name.str,
-                                    MDL_SHARED)));
+                                   MDL_SHARED_WRITE : MDL_SHARED_READ));
 
     /*
       Prevent modifications to base tables if READ_ONLY is activated.
