@@ -6502,9 +6502,6 @@ fil_spaces_lookup(
 
 	if (user_space_id == TRX_SYS_SPACE) {
 		spaces->user = NULL;
-	} else if (user_space_id <= FIL_SYS_LOOKUP_SPACES) {
-		spaces->user = fil_sys_lookup[user_space_id];
-		ut_d(fil_space_validate_for_mtr_commit(spaces->user));
 	} else {
 		mutex_enter(&fil_system->mutex);
 		spaces->user = fil_space_lookup(user_space_id);
