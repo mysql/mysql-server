@@ -106,7 +106,7 @@ public:
     void create_empty();
 
     // effect: create pivot keys by copying the given DBT array
-    void create_from_dbts(const DBT *keys, int num_pivots);
+    void create_from_dbts(const DBT *keys, int n);
 
     // effect: create pivot keys as a clone of an existing set of pivotkeys
     void create_from_pivot_keys(const ftnode_pivot_keys &pivotkeys);
@@ -114,10 +114,14 @@ public:
     void destroy();
 
     // effect: deserialize pivot keys previously serialized by serialize_to_wbuf()
-    void deserialize_from_rbuf(struct rbuf *rb, int num_pivots);
+    void deserialize_from_rbuf(struct rbuf *rb, int n);
 
     // returns: unowned DBT representing the i'th pivot key
-    const DBT *get_pivot(int i) const;
+    DBT get_pivot(int i) const;
+
+    // effect: fills a DBT with the i'th pivot key
+    // returns: the given dbt
+    DBT *fill_pivot(int i, DBT *dbt) const;
 
     // effect: insert a pivot into the i'th position, shifting others to the right
     void insert_at(const DBT *key, int i);
@@ -136,21 +140,59 @@ public:
     // requires: *other is empty (size == 0)
     void split_at(int i, ftnode_pivot_keys *other);
 
+    // effect: serialize pivot keys to a wbuf
+    // requires: wbuf has at least ftnode_pivot_keys::total_size() bytes available
+    void serialize_to_wbuf(struct wbuf *wb) const;
+
     int num_pivots() const;
 
     // return: the sum of the keys sizes of each pivot
     size_t total_size() const;
 
-    // effect: serialize pivot keys to a wbuf
-    // requires: wbuf has at least ftnode_pivot_keys::total_size() bytes available
-    void serialize_to_wbuf(struct wbuf *wb) const;
-
 private:
-    // adds/destroys keys at a certain index, maintaining _total_size, but not _num_pivots
-    void _add_key(const DBT *key, int i);
-    void _destroy_key(int i);
+    // effect: create pivot keys, in fixed key format, by copying the given key array
+    void _create_from_fixed_keys(const char *fixedkeys, size_t fixed_keylen, int n);
 
-    DBT *_keys;
+    char *_fixed_key(int i) const {
+        return &_fixed_keys[i * _fixed_keylen];
+    }
+
+    bool _fixed_format() const {
+        return _fixed_keys != nullptr;
+    }
+
+    void sanity_check() const;
+
+    void _insert_at_dbt(const DBT *key, int i);
+    void _append_dbt(const ftnode_pivot_keys &pivotkeys);
+    void _replace_at_dbt(const DBT *key, int i);
+    void _delete_at_dbt(int i);
+    void _split_at_dbt(int i, ftnode_pivot_keys *other);
+
+    void _insert_at_fixed(const DBT *key, int i);
+    void _append_fixed(const ftnode_pivot_keys &pivotkeys);
+    void _replace_at_fixed(const DBT *key, int i);
+    void _delete_at_fixed(int i);
+    void _split_at_fixed(int i, ftnode_pivot_keys *other);
+
+    // adds/destroys keys at a certain index (in dbt format),
+    // maintaining _total_size, but not _num_pivots
+    void _add_key_dbt(const DBT *key, int i);
+    void _destroy_key_dbt(int i);
+
+    // conversions to and from packed key array format
+    void _convert_to_dbt_format();
+    void _convert_to_fixed_format();
+
+    // If every key is _fixed_keylen long, then _fixed_key is a
+    // packed array of keys..
+    char *_fixed_keys;
+    size_t _fixed_keylen;
+
+    // ..otherwise _fixed_keys is null and we store an array of dbts,
+    // each representing a key. this is simpler but less cache-efficient.
+    DBT *_dbt_keys;
+
     int _num_pivots;
     size_t _total_size;
 };
@@ -482,12 +524,13 @@ void toku_ft_bnc_move_messages_to_stale(FT ft, NONLEAF_CHILDINFO bnc);
 void toku_move_ftnode_messages_to_stale(FT ft, FTNODE node);
 
 // TODO: Should ft_handle just be FT?
+class pivot_bounds;
 void toku_apply_ancestors_messages_to_node(FT_HANDLE t, FTNODE node, ANCESTORS ancestors,
-                                           struct pivot_bounds const *const bounds,
+                                           const pivot_bounds &bounds,
                                            bool *msgs_applied, int child_to_read);
 
 bool toku_ft_leaf_needs_ancestors_messages(FT ft, FTNODE node, ANCESTORS ancestors,
-                                           struct pivot_bounds const *const bounds,
+                                           const pivot_bounds &bounds,
                                            MSN *const max_msn_in_path, int child_to_read);
 
 void toku_ft_bn_update_max_msn(FTNODE node, MSN max_msn_applied, int child_to_read);

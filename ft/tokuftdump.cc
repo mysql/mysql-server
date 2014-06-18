@@ -260,11 +260,11 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
 
     printf(" pivots:\n");
     for (int i=0; i<n->n_children-1; i++) {
-        const DBT *piv = n->pivotkeys.get_pivot(i);
+        const DBT piv = n->pivotkeys.get_pivot(i);
         printf("  pivot %2d:", i);
         if (n->flags)
             printf(" flags=%x ", n->flags);
-        print_item(piv->data, piv->size);
+        print_item(piv.data, piv.size);
         printf("\n");
     }
     printf(" children:\n");
