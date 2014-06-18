@@ -103,4 +103,7 @@ const NdbOperation * KeyOperation::prepare(NdbTransaction *tx) {
   }
 }
 
-
+void KeyOperation::setBlobHandler(BlobHandler *b) {
+  b->setNext(blobHandler);
+  blobHandler = b;
+}

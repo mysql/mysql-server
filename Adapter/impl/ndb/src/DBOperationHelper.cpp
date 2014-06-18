@@ -120,10 +120,9 @@ void createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
   for(int i = 0 ; i < ncol ; i++) {
     const NdbDictionary::Column * col = rowRecord->getColumn(i);
     if((col->getType() ==  NdbDictionary::Column::Blob) ||
-       (col->getType() ==  NdbDictionary::Column::Text)) {
-      BlobHandler * next = op.blobHandler;
-      op.blobHandler = new BlobReadHandler(i, col->getColumnNo());
-      op.blobHandler->setNext(next);
+       (col->getType() ==  NdbDictionary::Column::Text)) 
+    {
+      op.setBlobHandler(new BlobReadHandler(i, col->getColumnNo()));
     }
   }
 }
@@ -139,9 +138,7 @@ void createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
       const NdbDictionary::Column * col = rowRecord->getColumn(i);
       assert( (col->getType() ==  NdbDictionary::Column::Blob) ||
               (col->getType() ==  NdbDictionary::Column::Text));
-      BlobHandler * next = op.blobHandler;
-      op.blobHandler = new BlobWriteHandler(i, col->getColumnNo(), blobValue);
-      op.blobHandler->setNext(next);
+      op.setBlobHandler(new BlobWriteHandler(i, col->getColumnNo(), blobValue));
     }
   }
 }

@@ -984,23 +984,29 @@ Handle<Value> bufferForText(const Arguments & args) {
 
   const NdbDictionary::Column * col =
     unwrapPointer<const NdbDictionary::Column *>(args[0]->ToObject());
+  return getBufferForText(col, args[1]->ToString());
+}
+
+Handle<Object> getBufferForText(const NdbDictionary::Column *col, 
+                                Handle<String> str) {
+  HandleScope scope;
   const EncoderCharset * csinfo = getEncoderCharsetForColumn(col);
-  Handle<String> str = args[1]->ToString();
   size_t length, utf8Length;
   node::Buffer * buffer;
   char * data;
-  DEBUG_PRINT("bufferForText: %s %d", col->getName(), length);
 
   /* Fully Externalized Value; no copying.
   */
   if(   (str->IsExternalAscii() && ! csinfo->isMultibyte)
      || (str->IsExternal() && csinfo->isUtf16le))
   {
+    DEBUG_PRINT("getBufferForText: fully externalized");
     stats.externalized_text_writes++;
-    return node::Buffer::New(str);
+    return scope.Close(node::Buffer::New(str));
   }
 
   length = str->Length();
+  DEBUG_PRINT("getBufferForText: %s %d", col->getName(), length);
   utf8Length = str->Utf8Length();
   bool valueIsAscii = (utf8Length == length);
      
@@ -1032,28 +1038,30 @@ Handle<Value> bufferForText(const Arguments & args) {
     delete[] recode_buffer;
   }
   
-  return buffer->handle_;
+  return scope.Close(buffer->handle_);
 }
 
 
 // TEXT column reader textFromBuffer(column, buffer) 
-Handle<Value> textFromBuffer(const Arguments & args) {
-  HandleScope scope;
-  
+Handle<Value> textFromBuffer(const Arguments & args) {  
   if(! args[1]->IsObject()) return Null();
-
   const NdbDictionary::Column * col =
     unwrapPointer<const NdbDictionary::Column *>(args[0]->ToObject());
-  const EncoderCharset * csinfo = getEncoderCharsetForColumn(col);
+  return getTextFromBuffer(col, args[1]->ToObject());
+}
 
-  Handle<Object> bufferObj = args[1]->ToObject();
+
+Handle<String> getTextFromBuffer(const NdbDictionary::Column *col, 
+                                 Handle<Object> bufferObj) {
+  HandleScope scope;
+
+  const EncoderCharset * csinfo = getEncoderCharsetForColumn(col);
   size_t len = node::Buffer::Length(bufferObj);
   char * str = node::Buffer::Data(bufferObj);
 
   Local<String> string;
   
-  /* We'll call stringIsAscii() on a little CHAR column but not on a whole big
-     TEXT buffer */
+  // We won't call stringIsAscii() on a whole big TEXT buffer...
   if(csinfo->isAscii) {
     stats.read_strings_externalized++;
     ExternalizedAsciiString *ext = new ExternalizedAsciiString(str, len);
@@ -1068,6 +1076,7 @@ Handle<Value> textFromBuffer(const Arguments & args) {
   } else {
     stats.read_strings_created++;
     if (csinfo->isUtf8) {
+      DEBUG_PRINT("New from UTF8 [%d] %s", len, str);
       string = String::New(str, len);
     } else { // Recode
       stats.read_strings_recoded++;
@@ -1075,11 +1084,13 @@ Handle<Value> textFromBuffer(const Arguments & args) {
       int32_t lengths[2];
       lengths[0] = len;
       lengths[1] = getUtf8BufferSizeForColumn(len, csinfo);
+      DEBUG_PRINT("Recode [%d / %d]", lengths[0], lengths[1]);
       char * recode_buffer = new char[lengths[1]];
       csmap.recode(lengths, 
                    col->getCharsetNumber(),
                    csmap.getUTF8CharsetNumber(),
                    str, recode_buffer);
+      DEBUG_PRINT("New from Recode [%d] %s", lengths[1], recode_buffer);
       string = String::New(recode_buffer, lengths[1]);
       delete[] recode_buffer;
     }
