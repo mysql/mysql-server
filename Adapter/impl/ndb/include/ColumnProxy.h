@@ -27,7 +27,7 @@ public:
   ColumnProxy();
   ~ColumnProxy();
   void setHandler(const ColumnHandler *);
-  void setBlobBuffer(Handle<Value>);
+  void setBlobBuffer(Handle<Object>);
   bool valueIsNull();
   BlobWriteHandler * createBlobWriteHandle(int);
 
@@ -60,6 +60,3 @@ inline bool ColumnProxy::valueIsNull() {
   return isNull;
 }
 
-inline void ColumnProxy::setBlobBuffer(Handle<Value> buffer) {
-  blobBuffer = Persistent<Object>(buffer->ToObject());
-}

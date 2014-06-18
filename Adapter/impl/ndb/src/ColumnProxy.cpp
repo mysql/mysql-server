@@ -74,3 +74,7 @@ BlobWriteHandler * ColumnProxy::createBlobWriteHandle(int i) {
   }
   return b;
 }
+
+void ColumnProxy::setBlobBuffer(Handle<Object> buffer) {
+  blobBuffer = Persistent<Object>::New(buffer);
+}
