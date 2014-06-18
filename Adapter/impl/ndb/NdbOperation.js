@@ -567,7 +567,7 @@ function buildValueObject(op) {
   
   if(VOC) {
     /* Turn the buffer into a Value Object */
-    op.result.value = new VOC(op.buffers.row);
+    op.result.value = new VOC(op.buffers.row, op.blobs);
 
     /* TODO: Apply type converters here, rather than in Column Handler??? */
 
@@ -732,11 +732,11 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
     }
 
     if(op.result.success && op.opcode === opcodes.OP_READ) {
-      if(op.tableHandler.numberOfLobColumns) {
-        readResultRow(op);    // Objects with BLOBs get plain JS Objects
-      } else {
+//      if(op.tableHandler.numberOfLobColumns) {
+//        readResultRow(op);    // Objects with BLOBs get plain JS Objects
+//      } else {
         buildValueObject(op); // Objects without BLOBS get ValueObjects
-      }
+//      }
     } 
   }
   if(udebug.is_detail()) udebug.log("buildOperationResult finished:", op.result);

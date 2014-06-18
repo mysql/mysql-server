@@ -111,7 +111,8 @@ void nroSetter(Local<String>, Local<Value> value, const AccessorInfo& info)
 
 
 /* Generic constructor wrapper.
- * args[0]: buffer
+ * args[0]: row buffer
+ * args[1]: array of blob & text column values
  * args.Data(): mapData holding the record and ColumnHandlers
  * args.This(): VO built from the mapping-specific InstanceTemplate
 */
@@ -129,9 +130,7 @@ Handle<Value> nroConstructor(const Arguments &args) {
       unwrapPointer<ColumnHandlerSet *>(mapData->Get(1)->ToObject());
 
     /* Build NdbRecordObject */
-    NdbRecordObject * nro = new NdbRecordObject(record, handlers, args[0]);
-
-    // TODO: Expose JS wrapper for NdbRecordObject::prepare()
+    NdbRecordObject * nro = new NdbRecordObject(record, handlers, args[0], args[1]);
 
     /* Wrap for JavaScript */
     wrapPointerInObject<NdbRecordObject *>(nro, nroEnvelope, args.This());

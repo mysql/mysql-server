@@ -25,20 +25,20 @@
 #include "adapter_global.h"
 #include "JsWrapper.h"
 #include "NdbRecordObject.h"
+#include "BlobHandler.h"
 
 
 NdbRecordObject::NdbRecordObject(const Record *_record, 
                                  ColumnHandlerSet * _handlers,
-                                 Handle<Value> jsBuffer) : 
+                                 Handle<Value> jsBuffer,
+                                 Handle<Value> blobBufferArray) : 
   record(_record), 
   handlers(_handlers),
   ncol(record->getNoOfColumns()),
   proxy(new ColumnProxy[record->getNoOfColumns()]),
   nWrites(0)
 {
-  DEBUG_PRINT("    ___Constructor___       [%d col, bufsz %d]", 
-              ncol, record->getBufferSize());
-
+  int nblobs = 0;
   /* Retain a handler on the buffer for our whole lifetime */
   persistentBufferHandle = Persistent<Value>::New(jsBuffer);
   buffer = node::Buffer::Data(jsBuffer->ToObject());  
@@ -50,6 +50,23 @@ NdbRecordObject::NdbRecordObject(const Record *_record,
   /* Attach the column proxies to their handlers */
   for(unsigned int i = 0 ; i < ncol ; i++)
     proxy[i].setHandler(handlers->getHandler(i));
+  
+  /* Attach BLOB buffers */
+  if(blobBufferArray->IsObject()) {
+    for(unsigned int i = 0 ; i < ncol ; i++) {
+      Handle<Value> b = blobBufferArray->ToObject()->Get(i);
+      if(b->IsObject()) {
+        nblobs++;
+        assert(node::Buffer::HasInstance(b));
+        proxy[i].setBlobBuffer(b);
+        record->setNotNull(i, buffer);
+      } else if(b->IsNull()) {
+        record->setNull(i, buffer);
+      }
+    }
+  }
+  DEBUG_PRINT("    ___Constructor___       [%d col, bufsz %d, %d blobs]", 
+              ncol, record->getBufferSize(), nblobs);
 }
 
 
@@ -76,7 +93,7 @@ Handle<Value> NdbRecordObject::prepare() {
   for(unsigned int i = 0 ; i < ncol ; i++) {
     if(isMaskedIn(i)) {
       n++;
-      if(proxy[i].isNull) {
+      if(proxy[i].valueIsNull()) {
         record->setNull(i, buffer);
       }
       else {
@@ -89,3 +106,12 @@ Handle<Value> NdbRecordObject::prepare() {
   return scope.Close(savedError);
 }
 
+
+void NdbRecordObject::createBlobWriteHandles(KeyOperation & op) {
+  for(unsigned int i = 0 ; i < ncol ; i++) {
+    if(isMaskedIn(i)) {
+      BlobWriteHandler * b = proxy[i].createBlobWriteHandle(i);
+      if(b) op.setBlobHandler(b);
+    }
+  }
+}

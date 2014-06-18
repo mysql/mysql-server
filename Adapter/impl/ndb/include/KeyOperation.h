@@ -55,6 +55,7 @@ public:
   void setRowMask(uint32_t);
 
   // Prepare operation
+  void setBlobHandler(BlobHandler *);
   bool isBlobReadOperation();
   const NdbOperation *prepare(NdbTransaction *);
 
