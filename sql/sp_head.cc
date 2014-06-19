@@ -2008,7 +2008,7 @@ bool sp_head::merge_table_list(THD *thd,
       */
       char tname_buff[(NAME_LEN + 1) * 3];
       String tname(tname_buff, sizeof(tname_buff), &my_charset_bin);
-      uint temp_table_key_length;
+      size_t temp_table_key_length;
 
       tname.length(0);
       tname.append(table->db, table->db_length);
