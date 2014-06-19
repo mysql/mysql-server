@@ -850,12 +850,12 @@ void sp_instr_stmt::print(String *str)
     Print the query string (but not too much of it), just to indicate which
     statement it is.
   */
-  uint len= m_query.length;
+  size_t len= m_query.length;
   if (len > SP_STMT_PRINT_MAXLEN)
     len= SP_STMT_PRINT_MAXLEN-3;
 
   /* Copy the query string and replace '\n' with ' ' in the process */
-  for (uint i= 0 ; i < len ; i++)
+  for (size_t i= 0 ; i < len ; i++)
   {
     char c= m_query.str[i];
     if (c == '\n')
@@ -927,7 +927,7 @@ bool sp_instr_set::exec_core(THD *thd, uint *nextp)
 void sp_instr_set::print(String *str)
 {
   /* set name@offset ... */
-  int rsrv = SP_INSTR_UINT_MAXLEN+6;
+  size_t rsrv = SP_INSTR_UINT_MAXLEN+6;
   sp_variable *var = m_parsing_ctx->find_variable(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
@@ -1475,7 +1475,7 @@ void sp_instr_cpush::print(String *str)
 {
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
-  uint rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1581,7 +1581,7 @@ void sp_instr_copen::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* copen name@offset */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+7;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1624,7 +1624,7 @@ void sp_instr_cclose::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* cclose name@offset */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1669,7 +1669,7 @@ void sp_instr_cfetch::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* cfetch name@offset vars... */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (cursor_name)
     rsrv+= cursor_name->length;

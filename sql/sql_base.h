@@ -531,6 +531,11 @@ public:
     return m_has_protection_against_grl;
   }
 
+  bool can_back_off() const
+  {
+    return !m_has_locks;
+  }
+
 private:
   /* THD for which tables are opened. */
   THD *m_thd;

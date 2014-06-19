@@ -203,6 +203,7 @@ class ha_innobase: public handler
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);
+	uint lock_count(void) const;
 	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 					enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER();

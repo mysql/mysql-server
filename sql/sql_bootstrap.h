@@ -39,7 +39,7 @@
 typedef struct st_mysql_file *fgets_input_t;
 typedef char * (*fgets_fn_t)(char *, size_t, fgets_input_t, int *error);
 
-int read_bootstrap_query(char *query, int *query_length,
+int read_bootstrap_query(char *query, size_t *query_length,
                          fgets_input_t input, fgets_fn_t fgets_fn, int *error);
 
 #endif

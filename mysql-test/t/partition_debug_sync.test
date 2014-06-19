@@ -94,22 +94,23 @@ SET DEBUG_SYNC= 'RESET';
 --echo #
 --echo # Coverage test for non pruned ha_partition::store_lock()
 --echo #
-CREATE TABLE t1 (a int) ENGINE = InnoDB;
+--echo # Use MyISAM tables as InnoDB no longer relies on THR_LOCK locks.
+CREATE TABLE t1 (a int) ENGINE = MyISAM;
 CREATE TABLE t2 (a int PRIMARY KEY)
-ENGINE = InnoDB PARTITION BY HASH (a) PARTITIONS 3;
+ENGINE = MyISAM PARTITION BY HASH (a) PARTITIONS 3;
 
 HANDLER t1 OPEN;
 
 --echo # Con1
 connect (con1, localhost, root,,);
 
-LOCK TABLES t1 WRITE, t2 READ;
+LOCK TABLES t1 WRITE, t2 READ LOCAL;
 
 --echo # Default
 connection default;
 
 SET DEBUG_SYNC="wait_for_lock SIGNAL locking";
-send INSERT INTO t2 VALUES (1), (2), (3);
+send UPDATE t2 SET a=1;
 
 --echo # Con1
 connection con1;
