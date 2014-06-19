@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -485,8 +485,7 @@ private:
 			  GlobalSignalNumber gsn,
 			  Uint32 blockRef,
 			  Uint32 failNo,
-			  Uint32 noOfNodes,
-			  const NodeId theNodes[]);
+			  const NdbNodeBitmask& nodes);
 
   void handleApiCloseComConf(Signal* signal);
   void add_failconf_block(NodeRecPtr, Uint32 block);
@@ -523,9 +522,6 @@ private:
 
   Uint16 cdelayRegreq;
   Uint16 cpresidentAlive;
-  Uint16 cnoFailedNodes;
-  Uint16 cnoPrepFailedNodes;
-  Uint16 cnoCommitFailedNodes;
   Uint16 c_allow_api_connect;
   UintR chbApiDelay;
 
@@ -543,9 +539,9 @@ private:
   Timer hb_api_timer;
 
 
-  Uint16 cfailedNodes[MAX_NDB_NODES];
-  Uint16 cprepFailedNodes[MAX_NDB_NODES];
-  Uint16 ccommitFailedNodes[MAX_NDB_NODES];
+  NdbNodeBitmask cfailedNodes;
+  NdbNodeBitmask cprepFailedNodes;
+  NdbNodeBitmask ccommitFailedNodes;
   
   struct OpAllocNodeIdReq {
     RequestTracker m_tracker;
