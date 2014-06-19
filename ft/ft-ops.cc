@@ -4114,7 +4114,7 @@ toku_ft_keysrange_internal (FT_HANDLE ft_handle, FTNODE node,
 
             struct unlock_ftnode_extra unlock_extra   = {ft_handle,childnode,false};
             struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, unlockers};
-            const struct pivot_bounds next_bounds = bounds.next_bounds(node, left_child_number);
+            const pivot_bounds next_bounds = bounds.next_bounds(node, left_child_number);
 
             r = toku_ft_keysrange_internal(ft_handle, childnode, key_left, key_right, child_may_find_right,
                                            less, equal_left, middle, equal_right, greater, single_basement_node,
