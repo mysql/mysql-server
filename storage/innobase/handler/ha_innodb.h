@@ -195,7 +195,6 @@ class ha_innobase: public handler
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
-	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
 	int get_parent_foreign_key_list(THD *thd,
