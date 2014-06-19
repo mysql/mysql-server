@@ -3781,7 +3781,7 @@ sp_proc_stmt_iterate:
             uint ip= sp->instructions();
 
             /* Inclusive the dest. */
-            uint n= pctx->diff_handlers(lab->ctx, FALSE);
+            size_t n= pctx->diff_handlers(lab->ctx, FALSE);
 
             if (n)
             {
@@ -12642,9 +12642,9 @@ IDENT_sys:
             {
               const CHARSET_INFO *cs= system_charset_info;
               int dummy_error;
-              uint wlen= cs->cset->well_formed_len(cs, $1.str,
-                                                   $1.str+$1.length,
-                                                   $1.length, &dummy_error);
+              size_t wlen= cs->cset->well_formed_len(cs, $1.str,
+                                                     $1.str+$1.length,
+                                                     $1.length, &dummy_error);
               if (wlen < $1.length)
               {
                 ErrConvString err($1.str, $1.length, &my_charset_bin);
@@ -14483,7 +14483,7 @@ view_select:
             LEX *lex= Lex;
 
             lex->create_view_select.str= const_cast<char *>(@2.cpp.start);
-            uint len= @3.cpp.end - lex->create_view_select.str;
+            size_t len= @3.cpp.end - lex->create_view_select.str;
             void *create_view_select= thd->memdup(lex->create_view_select.str, len);
             lex->create_view_select.length= len;
             lex->create_view_select.str= (char *) create_view_select;

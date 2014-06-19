@@ -6,7 +6,7 @@
 # If not, the test will be skipped.
 --source include/have_expect.inc
 --source include/not_embedded.inc
---source include/windows.inc
+--source include/not_windows.inc
 
 SELECT password_last_changed into @password from mysql.user where host='localhost';
 call mtr.add_suppression("Dictionary file not specified");
