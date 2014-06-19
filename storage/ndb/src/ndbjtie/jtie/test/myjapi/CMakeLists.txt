@@ -54,7 +54,11 @@ IF(HAVE_JDK)
 
   # the Java API's JNI implementation
   ADD_LIBRARY(libmyjapi SHARED myjapi_lib.cpp)
-  SET_TARGET_PROPERTIES(libmyjapi PROPERTIES OUTPUT_NAME "myjapi")
+  IF(UNIX)
+    # Set any special linker flags for shared library
+    SET_TARGET_PROPERTIES(libmyjapi
+      PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
+  ENDIF()
   TARGET_LINK_LIBRARIES(libmyjapi libmyapi)
 
 ENDIF(HAVE_JDK)
