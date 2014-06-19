@@ -4077,7 +4077,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
       key_part_info->fieldnr= field;
       key_part_info->offset=  (uint16) sql_field->offset;
       key_part_info->key_type=sql_field->pack_flag;
-      uint key_part_length= sql_field->key_length;
+      size_t key_part_length= sql_field->key_length;
 
       if (column->length)
       {
@@ -4090,7 +4090,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
             than the BLOB field max size. We handle this case
             using the max_field_size variable below.
           */
-          uint max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
+          size_t max_field_size= sql_field->key_length * sql_field->charset->mbmaxlen;
 	  if ((max_field_size && key_part_length > max_field_size) ||
               key_part_length > max_key_length ||
 	      key_part_length > file->max_key_part_length())
