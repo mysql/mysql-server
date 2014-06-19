@@ -1218,6 +1218,16 @@ static monitor_info_t	innodb_counter_info[] =
 	 MONITOR_NONE,
 	 MONITOR_DEFAULT_START, MONITOR_PENDING_ALTER_TABLE},
 
+	{"ddl_sort_file_alter_table", "ddl",
+	 "Number of sort files created during alter table",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ALTER_TABLE_SORT_FILES},
+
+	{"ddl_log_file_alter_table", "ddl",
+	 "Number of log files created during alter table",
+	 MONITOR_NONE,
+	 MONITOR_DEFAULT_START, MONITOR_ALTER_TABLE_LOG_FILES},
+
 	/* ===== Counters for ICP (Index Condition Pushdown) Module ===== */
 	{"module_icp", "icp", "Index Condition Pushdown",
 	 MONITOR_MODULE,

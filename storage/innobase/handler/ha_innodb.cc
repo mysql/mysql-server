@@ -1554,7 +1554,7 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
