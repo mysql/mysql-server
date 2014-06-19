@@ -208,6 +208,7 @@ struct cli_args {
     bool nocrashstatus; // do not print engine status upon crash
     bool prelock_updates; // update threads perform serial updates on a prelocked range
     bool disperse_keys; // spread the keys out during a load (by reversing the bits in the loop index) to make a wide tree we can spread out random inserts into
+    bool memcmp_keys; // pack keys big endian and use the builtin key comparison function in the fractal tree
     bool direct_io; // use direct I/O
     const char *print_engine_status; // print engine status rows matching a simple regex "a|b|c", matching strings where a or b or c is a subtring.
 };
@@ -832,12 +833,13 @@ fill_key_buf(int64_t key, uint8_t *data, struct cli_args *args) {
     }
     invariant(key >= 0);
     if (args->key_size == sizeof(int)) {
-        const int key32 = key;
+        const int key32 = args->memcmp_keys ? toku_htonl(key) : key;
         memcpy(data, &key32, sizeof(key32));
     } else {
         invariant(args->key_size >= sizeof(key));
-        memcpy(data, &key, sizeof(key));
-        memset(data + sizeof(key), 0, args->key_size - sizeof(key));
+        const int64_t key64 = args->memcmp_keys ? toku_htonl(key) : key;
+        memcpy(data, &key64, sizeof(key64));
+        memset(data + sizeof(key64), 0, args->key_size - sizeof(key64));
     }
 }
 
@@ -1965,7 +1967,9 @@ static int create_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     db_env_set_num_bucket_mutexes(env_args.num_bucket_mutexes);
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
-    r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    if (!cli_args->memcmp_keys) {
+        r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    }
     r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
     r = env->set_lg_bsize(env, env_args.rollback_node_size); CKERR(r);
@@ -2163,7 +2167,9 @@ static int open_tables(DB_ENV **env_res, DB **db_res, int num_DBs,
     db_env_set_num_bucket_mutexes(env_args.num_bucket_mutexes);
     r = db_env_create(&env, 0); assert(r == 0);
     r = env->set_redzone(env, 0); CKERR(r);
-    r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    if (!cli_args->memcmp_keys) {
+        r = env->set_default_bt_compare(env, bt_compare); CKERR(r);
+    }
     r = env->set_lk_max_memory(env, env_args.lk_max_memory); CKERR(r);
     env->set_update(env, env_args.update_function);
     r = env->set_cachesize(env, env_args.cachetable_size / (1 << 30), env_args.cachetable_size % (1 << 30), 1); CKERR(r);
@@ -2281,6 +2287,7 @@ static struct cli_args UU() get_default_args(void) {
         .nocrashstatus = false,
         .prelock_updates = false,
         .disperse_keys = false,
+        .memcmp_keys = false,
         .direct_io = false,
         };
     DEFAULT_ARGS.env_args.envdir = TOKU_TEST_FILENAME;
@@ -2668,6 +2675,7 @@ static inline void parse_stress_test_args (int argc, char *const argv[], struct 
         BOOL_ARG("nocrashstatus",                     nocrashstatus),
         BOOL_ARG("prelock_updates",                   prelock_updates),
         BOOL_ARG("disperse_keys",                     disperse_keys),
+        BOOL_ARG("memcmp_keys",                       memcmp_keys),
         BOOL_ARG("direct_io",                         direct_io),
 
         STRING_ARG("--envdir",                        env_args.envdir),
