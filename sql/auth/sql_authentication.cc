@@ -343,7 +343,7 @@ Rsa_authentication_keys::read_rsa_keys()
 
 */
 
-int set_default_auth_plugin(char *plugin_name, int plugin_name_length)
+int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length)
 {
   default_auth_plugin_name.str= plugin_name;
   default_auth_plugin_name.length= plugin_name_length;
@@ -636,7 +636,7 @@ static bool send_server_handshake_packet(MPVIO_EXT *mpvio,
   end+= SCRAMBLE_LENGTH_323;
   *end++= 0;
  
-  int2store(end, mpvio->client_capabilities);
+  int2store(end, static_cast<uint16>(mpvio->client_capabilities));
   /* write server characteristics: up to 16 bytes allowed */
   end[2]= (char) default_charset_info->number;
   int2store(end + 3, mpvio->server_status[0]);
@@ -1121,7 +1121,7 @@ static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
   char *end= user + packet_length;
   /* Safe because there is always a trailing \0 at the end of the packet */
   char *passwd= strend(user) + 1;
-  uint user_len= passwd - user - 1;
+  size_t user_len= passwd - user - 1;
   char *db= passwd;
   char db_buff[NAME_LEN + 1];                 // buffer to store db in utf8
   char user_buff[USERNAME_LENGTH + 1];        // buffer to store user in utf8
@@ -2197,7 +2197,7 @@ check_password_lifetime(THD *thd, const ACL_USER *acl_user)
   @retval 1  error
 */
 int
-acl_authenticate(THD *thd, uint com_change_user_pkt_len)
+acl_authenticate(THD *thd, size_t com_change_user_pkt_len)
 {
   int res= CR_OK;
   MPVIO_EXT mpvio;
@@ -2212,7 +2212,7 @@ acl_authenticate(THD *thd, uint com_change_user_pkt_len)
 
   server_mpvio_initialize(thd, &mpvio, &charset_adapter);
 
-  DBUG_PRINT("info", ("com_change_user_pkt_len=%u", com_change_user_pkt_len));
+  DBUG_PRINT("info", ("com_change_user_pkt_len=%zu", com_change_user_pkt_len));
 
   /*
     Clear thd->db as it points to something, that will be freed when
@@ -2654,7 +2654,6 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
                                      MYSQL_SERVER_AUTH_INFO *info)
 {
   uchar *pkt;
-  int pkt_len;
   MPVIO_EXT *mpvio= (MPVIO_EXT *) vio;
 
   /* generate the scramble, or reuse the old one */
@@ -2666,9 +2665,11 @@ static int old_password_authenticate(MYSQL_PLUGIN_VIO *vio,
     return CR_AUTH_HANDSHAKE;
 
   /* read the reply and authenticate */
-  if ((pkt_len= mpvio->read_packet(mpvio, &pkt)) < 0)
+  int res= mpvio->read_packet(mpvio, &pkt);
+  if (res < 0)
     return CR_AUTH_HANDSHAKE;
 
+  size_t pkt_len= res;
 #ifdef NO_EMBEDDED_ACCESS_CHECKS
   return CR_OK;
 #endif /* NO_EMBEDDED_ACCESS_CHECKS */
