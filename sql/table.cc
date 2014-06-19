@@ -5989,8 +5989,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
-                     table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(table_list->lock_type),
                      MDL_TRANSACTION);
 }
 
