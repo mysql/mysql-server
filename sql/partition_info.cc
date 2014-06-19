@@ -602,7 +602,7 @@ void partition_info::set_show_version_string(String *packet)
 char *partition_info::create_default_subpartition_name(uint subpart_no,
                                                const char *part_name)
 {
-  uint size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
+  size_t size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
   char *ptr= (char*) sql_calloc(size_alloc);
   DBUG_ENTER("create_default_subpartition_name");
 
@@ -1887,7 +1887,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
 bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
                                    char *end_token, bool is_subpart)
 {
-  uint expr_len= end_token - start_token;
+  size_t expr_len= end_token - start_token;
   char *func_string= (char*) sql_memdup(start_token, expr_len);
 
   if (!func_string)

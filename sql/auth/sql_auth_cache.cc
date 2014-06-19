@@ -1160,7 +1160,7 @@ int acl_compare(ACL_ACCESS *a,ACL_ACCESS *b)
 */
 
 bool set_user_salt(ACL_USER *acl_user,
-                   const char *password, uint password_len)
+                   const char *password, size_t password_len)
 {
   bool result= false;
   /* Using old password protocol */
@@ -1230,7 +1230,7 @@ validate_user_plugin_records()
                             " Nobody can currently login using this account.",
                             (int) acl_user->plugin.length, acl_user->plugin.str,
                             acl_user->user,
-                            acl_user->host.get_host_len(), 
+                            static_cast<int>(acl_user->host.get_host_len()),
                             acl_user->host.get_host());
         }
       }
@@ -1248,7 +1248,7 @@ validate_user_plugin_records()
                             "Nobody can currently login using this account.",
                             sha256_password_plugin_name.str,
                             acl_user->user,
-                            acl_user->host.get_host_len(), 
+                            static_cast<int>(acl_user->host.get_host_len()),
                             acl_user->host.get_host());
       }
     }
@@ -1349,7 +1349,7 @@ static my_bool acl_load(THD *thd, TABLE_LIST *tables)
   char tmp_name[NAME_LEN+1];
   int password_length;
   char *password;
-  uint password_len;
+  size_t password_len;
   sql_mode_t old_sql_mode= thd->variables.sql_mode;
   bool password_expired= false;
   DBUG_ENTER("acl_load");
@@ -2355,7 +2355,7 @@ end:
 
 
 void acl_update_user(const char *user, const char *host,
-                     const char *password, uint password_len,
+                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -2435,7 +2435,7 @@ void acl_update_user(const char *user, const char *host,
 
 
 void acl_insert_user(const char *user, const char *host,
-                     const char *password, uint password_len,
+                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
