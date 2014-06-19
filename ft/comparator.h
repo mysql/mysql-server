@@ -97,6 +97,9 @@ PATENT RIGHTS GRANT:
 #include <ft/fttypes.h>
 #include <portability/memory.h>
 
+// TODO: this should really all be encapsulated in ft/comparator.cc
+int toku_builtin_compare_fun(DB *, const DBT *a, const DBT *b) __attribute__((__visibility__("default")));
+
 namespace toku {
 
     // a comparator object encapsulates the data necessary for 
@@ -109,6 +112,7 @@ namespace toku {
             _cmp = cmp;
             XCALLOC(_fake_db);
             _fake_db->cmp_descriptor = desc;
+            _builtin = _cmp == &toku_builtin_compare_fun;
         }
 
         void destroy() {
@@ -132,9 +136,10 @@ namespace toku {
         }
 
         int operator()(const DBT *a, const DBT *b) const {
-            // TODO: add an unlikely() compiler note for this branch
-            if (toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b)) {
+            if (__builtin_expect(!!(toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b)), 0)) {
                 return toku_dbt_infinite_compare(a, b);
+            } else if (_builtin) {
+                return toku_builtin_compare_fun(nullptr, a, b);
             } else {
                 // yikes, const sadness here
                 return _cmp(const_cast<DB *>(_fake_db), a, b);
@@ -144,6 +149,7 @@ namespace toku {
     private:
         DB *_fake_db;
         ft_compare_func _cmp;
+        bool _builtin;
     };
 
 } /* namespace toku */
