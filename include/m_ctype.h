@@ -691,7 +691,7 @@ extern char *my_strchr(const CHARSET_INFO *cs, const char *str,
                        const char *end, pchar c);
 extern size_t my_strcspn(const CHARSET_INFO *cs, const char *str,
                          const char *end, const char *reject,
-                         int reject_length);
+                         size_t reject_length);
 
 my_bool my_propagate_simple(const CHARSET_INFO *cs, const uchar *str,
                             size_t len);
