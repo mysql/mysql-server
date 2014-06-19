@@ -251,6 +251,8 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
 else()
   set(FINAL_LINK_FLAGS "")
 endif()
+#  Prepend any link flags required for building shared lib
+set(FINAL_LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS} ${FINAL_LINK_FLAGS}")
 
 set_target_properties(ndb_engine PROPERTIES
                       PREFIX ""
