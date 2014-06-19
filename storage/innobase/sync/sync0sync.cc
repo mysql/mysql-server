@@ -458,6 +458,7 @@ mutex_set_waiters(
 
 	*ptr = n;		/* Here we assume that the write of a single
 				word in memory is atomic */
+	os_wmb;
 }
 
 /******************************************************************//**
@@ -499,16 +500,17 @@ mutex_loop:
 	a memory word. */
 
 spin_loop:
-
+	os_rmb;
 	while (mutex_get_lock_word(mutex) != 0 && i < SYNC_SPIN_ROUNDS) {
 		if (srv_spin_wait_delay) {
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 
-		i++;
+		i += SPIN_WAIT_INCREMENT;
+		os_rmb;
 	}
 
-	if (i == SYNC_SPIN_ROUNDS) {
+	if (i >= SYNC_SPIN_ROUNDS) {
 		os_thread_yield();
 	}
 
