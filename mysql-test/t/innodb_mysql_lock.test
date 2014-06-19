@@ -66,6 +66,7 @@ set @@autocommit=1;
 connection default;
 
 disconnect con1;
+disconnect con2;
 disconnect con3;
 
 
@@ -121,57 +122,6 @@ connection con37346;
 connection default;
 disconnect con37346;
 drop table t1;
-
-
---echo #
---echo # Bug #42147 Concurrent DML and LOCK TABLE ... READ for InnoDB 
---echo #            table cause warnings in errlog
---echo #
-
---echo #
---echo # Note that this test for now relies on a global suppression of 
---echo # the warning "Found lock of type 6 that is write and read locked"
---echo # This suppression rule can be removed once Bug#42147 is properly
---echo # fixed. See bug page for more info.
---echo #
-
---disable_warnings
-DROP TABLE IF EXISTS t1;
---enable_warnings
-
-CREATE TABLE t1 (i INT) engine= innodb;
-
---echo # Connection 2
---echo # Get user-level lock
-connection con2;
-SELECT get_lock('bug42147_lock', 60);
-
---echo # Connection 1
-connection default;
---send INSERT INTO t1 SELECT get_lock('bug42147_lock', 60)
-
---echo # Connection 2
-connection con2;
-let $wait_condition=
-  SELECT COUNT(*) > 0 FROM information_schema.processlist
-  WHERE state = 'User lock' 
-  AND info = 'INSERT INTO t1 SELECT get_lock(\'bug42147_lock\', 60)';
---source include/wait_condition.inc
-LOCK TABLES t1 READ;
-SELECT release_lock('bug42147_lock');
-
---echo # Connection 1
-connection default;
---reap
-
---echo # Connection 2
-connection con2;
-UNLOCK TABLES;
-
---echo # Connection 1
-connection default;
-disconnect con2;
-DROP TABLE t1;
 
 
 --echo #

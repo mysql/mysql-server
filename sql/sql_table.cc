@@ -5558,6 +5558,24 @@ int mysql_discard_or_import_tablespace(THD *thd,
   }
 #endif /* WITH_PARTITION_STORAGE_ENGINE */
 
+  /*
+    Under LOCK TABLES we need to upgrade SNRW metadata lock to X lock
+    before doing discard or import of tablespace.
+
+    Skip this step for temporary tables as metadata locks are not
+    applicable for them.
+  */
+  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
+      (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES) &&
+      thd->mdl_context.upgrade_shared_lock(table_list->table->mdl_ticket,
+                                           MDL_EXCLUSIVE,
+                                           thd->variables.lock_wait_timeout))
+  {
+    thd->tablespace_op= FALSE;
+    DBUG_RETURN(-1);
+  }
+
   error= table_list->table->file->ha_discard_or_import_tablespace(discard);
 
   THD_STAGE_INFO(thd, stage_end);
@@ -5580,6 +5598,13 @@ int mysql_discard_or_import_tablespace(THD *thd,
   error= write_bin_log(thd, false, thd->query().str, thd->query().length);
 
 err:
+  if (table_list->table->s->tmp_table == NO_TMP_TABLE &&
+      (thd->locked_tables_mode == LTM_LOCK_TABLES ||
+       thd->locked_tables_mode == LTM_PRELOCKED_UNDER_LOCK_TABLES))
+  {
+    table_list->table->mdl_ticket->downgrade_lock(MDL_SHARED_NO_READ_WRITE);
+  }
+
   thd->tablespace_op=FALSE;
 
   if (error == 0)
