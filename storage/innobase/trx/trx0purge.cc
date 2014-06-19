@@ -763,6 +763,9 @@ trx_purge_initiate_truncate(
 	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs() && all_free; ++i) {
 
 		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+
+		mutex_enter(&rseg->mutex);
+
 		ut_ad(rseg->skip_allocation);
 
 		/* We never free the header page so always > and not >= */
@@ -772,24 +775,15 @@ trx_purge_initiate_truncate(
 			rseg->curr_size - rseg->pages_marked_freed;
 
 		if (size_of_rsegs == 1) {
+			mutex_exit(&rseg->mutex);
 			continue;
-		} else if (size_of_rsegs <= 3) {
+		} else {
 
 			/* There could be cached undo segment. Check if records
 			in these segments can be purged. Normal purge history
 			will not touch these cached segment. */
-			ulint upd_len =
-				UT_LIST_GET_LEN(rseg->update_undo_cached);
-			ulint ins_len =
-				UT_LIST_GET_LEN(rseg->insert_undo_cached);
-
-			if (size_of_rsegs == 2) {
-				all_free = (upd_len != 0 || ins_len != 0);
-			} else {
-				all_free = (upd_len != 0 && ins_len != 0);
-			}
-
 			trx_undo_t*	undo;
+			ulint		cached_undo_size = 0;
 
 			for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
 			     undo != NULL && all_free;
@@ -797,6 +791,8 @@ trx_purge_initiate_truncate(
 
 				if (limit->trx_no < undo->trx_id) {
 					all_free = false;
+				} else {
+					cached_undo_size += undo->size;
 				}
 			}
 
@@ -806,11 +802,21 @@ trx_purge_initiate_truncate(
 
 				if (limit->trx_no < undo->trx_id) {
 					all_free = false;
+				} else {
+					cached_undo_size += undo->size;
 				}
 			}
-		} else {
-			all_free = false;
+
+			ut_ad(size_of_rsegs >= (cached_undo_size + 1));
+
+			if (size_of_rsegs > (cached_undo_size + 1)) {
+				/* There are pages besides cached pages that
+				still hold active data. */
+				all_free = false;
+			}
 		}
+
+		mutex_exit(&rseg->mutex);
 	}
 
 	if (!all_free) {
@@ -877,7 +883,6 @@ trx_purge_initiate_truncate(
 
 			if ((*it2)->space
 				== undo_trunc->get_undo_mark_for_trunc()) {
-				// TODO: Check if this is safe.
 				it->erase(it2);
 				break;
 			}
