@@ -525,7 +525,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
     0           Unknown variable (error message is given)
 */
 
-sys_var *intern_find_sys_var(const char *str, uint length)
+sys_var *intern_find_sys_var(const char *str, size_t length)
 {
   sys_var *var;
 

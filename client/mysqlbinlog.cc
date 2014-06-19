@@ -527,7 +527,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
                                                     uint file_id,
                                                     Create_file_log_event *ce)
 {
-  uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
+  size_t full_len= target_dir_name_len + blen + 9 + 9 + 1;
   Exit_status retval= OK_CONTINUE;
   char *fname, *ptr;
   File file;
@@ -603,7 +603,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
 Exit_status  Load_log_processor::process(Create_file_log_event *ce)
 {
   const char *bname= ce->fname + dirname_length(ce->fname);
-  uint blen= ce->fname_len - (bname-ce->fname);
+  size_t blen= ce->fname_len - (bname-ce->fname);
 
   return process_first_event(bname, blen, ce->block, ce->block_len,
                              ce->file_id, ce);
@@ -2239,7 +2239,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, start_position);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-    int4store(ptr_buffer, encoded_data_size);
+    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
     ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
     gtid_set_excluded->encode(ptr_buffer);
     ptr_buffer+= encoded_data_size;
@@ -2392,8 +2392,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             error("Could not create log file '%s'", log_file_name);
             DBUG_RETURN(ERROR_STOP);
           }
-          my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
-                    BIN_LOG_HEADER_SIZE, MYF(0));
+          DBUG_EXECUTE_IF("simulate_result_file_write_error_for_FD_event",
+                          DBUG_SET("+d,simulate_fwrite_error"););
+          if (my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
+                        BIN_LOG_HEADER_SIZE, MYF(MY_NABP)))
+          {
+            error("Could not write into log file '%s'", log_file_name);
+            DBUG_RETURN(ERROR_STOP);
+          }
           /*
             Need to handle these events correctly in raw mode too 
             or this could get messy
@@ -2416,7 +2422,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
       if (raw_mode)
       {
-        my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(0));
+        DBUG_EXECUTE_IF("simulate_result_file_write_error",
+                        DBUG_SET("+d,simulate_fwrite_error"););
+        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        {
+          error("Could not write into log file '%s'", log_file_name);
+          retval= ERROR_STOP;
+        }
         if (ev)
         {
           ev->temp_buf=0;

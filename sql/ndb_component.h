@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -72,8 +72,8 @@ private:
 
   ThreadState m_thread_state;
   pthread_t m_thread;
-  pthread_mutex_t m_start_stop_mutex;
-  pthread_cond_t m_start_stop_cond;
+  native_mutex_t m_start_stop_mutex;
+  native_cond_t m_start_stop_cond;
 
   void run_impl();
   friend void * Ndb_component_run_C(void *);

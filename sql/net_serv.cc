@@ -93,7 +93,7 @@ extern void query_cache_insert(const char *packet, ulong length,
 #define VIO_SOCKET_ERROR  ((size_t) -1)
 #define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
-static my_bool net_write_buff(NET *, const uchar *, ulong);
+static my_bool net_write_buff(NET *, const uchar *, size_t);
 
 /** Init with packet info. */
 
@@ -307,7 +307,7 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
     len-=     z_size;
   }
   /* Write last packet */
-  int3store(buff,len);
+  int3store(buff, static_cast<uint>(len));
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net, buff, NET_HEADER_SIZE))
   {
@@ -426,7 +426,7 @@ net_write_command(NET *net,uchar command,
 */
 
 static my_bool
-net_write_buff(NET *net, const uchar *packet, ulong len)
+net_write_buff(NET *net, const uchar *packet, size_t len)
 {
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)

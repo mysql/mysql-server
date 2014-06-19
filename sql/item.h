@@ -3132,14 +3132,14 @@ protected:
   }
 public:
   /* Create from a string, set name from the string itself. */
-  Item_string(const char *str,uint length,
+  Item_string(const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
     init(str, length, cs, dv, repertoire);
   }
-  Item_string(const POS &pos, const char *str,uint length,
+  Item_string(const POS &pos, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : super(pos), m_cs_specified(FALSE)
@@ -3158,12 +3158,12 @@ public:
   }
 
   /* Create from the given name and string. */
-  Item_string(const Name_string name_par, const char *str, uint length,
+  Item_string(const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : m_cs_specified(FALSE)
   {
-    str_value.set_or_copy_aligned(str, length, cs);
+    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
     collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     item_name= name_par;
@@ -3171,12 +3171,12 @@ public:
     // it is constant => can be used without fix_fields (and frequently used)
     fixed= 1;
   }
-  Item_string(const POS &pos, const Name_string name_par, const char *str, uint length,
+  Item_string(const POS &pos, const Name_string name_par, const char *str, size_t length,
               const CHARSET_INFO *cs, Derivation dv= DERIVATION_COERCIBLE,
               uint repertoire= MY_REPERTOIRE_UNICODE30)
     : super(pos), m_cs_specified(FALSE)
   {
-    str_value.set_or_copy_aligned(str, length, cs);
+    str_value.set_or_copy_aligned(str, static_cast<uint32>(length), cs);
     collation.set(cs, dv, repertoire);
     max_length= str_value.numchars()*cs->mbmaxlen;
     item_name= name_par;
@@ -3312,12 +3312,12 @@ class Item_static_string_func :public Item_string
   const Name_string func_name;
 public:
   Item_static_string_func(const Name_string &name_par,
-                          const char *str, uint length, const CHARSET_INFO *cs,
+                          const char *str, size_t length, const CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(null_name_string, str, length, cs, dv), func_name(name_par)
   {}
   Item_static_string_func(const POS &pos, const Name_string &name_par,
-                          const char *str, uint length, const CHARSET_INFO *cs,
+                          const char *str, size_t length, const CHARSET_INFO *cs,
                           Derivation dv= DERIVATION_COERCIBLE)
     :Item_string(pos, null_name_string, str, length, cs, dv),
      func_name(name_par)
@@ -3338,11 +3338,11 @@ public:
 class Item_partition_func_safe_string: public Item_string
 {
 public:
-  Item_partition_func_safe_string(const Name_string name, uint length,
+  Item_partition_func_safe_string(const Name_string name, size_t length,
                                   const CHARSET_INFO *cs= NULL):
     Item_string(name, NullS, 0, cs)
   {
-    max_length= length;
+    max_length= static_cast<uint32>(length);
   }
 };
 
@@ -3350,7 +3350,7 @@ public:
 class Item_blob :public Item_partition_func_safe_string
 {
 public:
-  Item_blob(const char *name, uint length) :
+  Item_blob(const char *name, size_t length) :
     Item_partition_func_safe_string(Name_string(name, strlen(name)),
                                     length, &my_charset_bin)
   { }
@@ -3368,12 +3368,12 @@ public:
 class Item_empty_string :public Item_partition_func_safe_string
 {
 public:
-  Item_empty_string(const char *header, uint length,
+  Item_empty_string(const char *header, size_t length,
                     const CHARSET_INFO *cs= NULL) :
     Item_partition_func_safe_string(Name_string(header, strlen(header)),
                                     0, cs ? cs : &my_charset_utf8_general_ci)
     {
-      max_length= length * collation.collation->mbmaxlen;
+      max_length= static_cast<uint32>(length * collation.collation->mbmaxlen);
     }
   void make_field(Send_field *field);
 };
