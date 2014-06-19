@@ -209,7 +209,7 @@ toku_pin_ftnode_for_query(
     uint32_t fullhash,
     UNLOCKERS unlockers,
     ANCESTORS ancestors,
-    const PIVOT_BOUNDS bounds,
+    const pivot_bounds &bounds,
     FTNODE_FETCH_EXTRA bfe,
     bool apply_ancestor_messages, // this bool is probably temporary, for #3972, once we know how range query estimates work, will revisit this
     FTNODE *node_p,

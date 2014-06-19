@@ -317,6 +317,12 @@ bool toku_dbt_is_infinite(const DBT *dbt) {
     return dbt == toku_dbt_positive_infinity() || dbt == toku_dbt_negative_infinity();
 }
 
+bool toku_dbt_is_empty(const DBT *dbt) {
+    // can't have a null data field with a non-zero size
+    paranoid_invariant(dbt->data != nullptr || dbt->size == 0);
+    return dbt->data == nullptr;
+}
+
 int toku_dbt_infinite_compare(const DBT *a, const DBT *b) {
     if (a == b) {
         return 0;

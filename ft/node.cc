@@ -100,135 +100,348 @@ PATENT RIGHTS GRANT:
 void ftnode_pivot_keys::create_empty() {
     _num_pivots = 0;
     _total_size = 0;
-    _keys = nullptr;
+    _fixed_keys = nullptr;
+    _fixed_keylen = 0;
+    _dbt_keys = nullptr;
 }
 
 void ftnode_pivot_keys::create_from_dbts(const DBT *keys, int n) {
+    create_empty();
     _num_pivots = n;
-    _total_size = 0;
-    XMALLOC_N(_num_pivots, _keys);
-    for (int i = 0; i < _num_pivots; i++) {
-        size_t size = keys[i].size;
-        toku_memdup_dbt(&_keys[i], keys[i].data, size);
-        _total_size += size;
+
+    // see if every key has the same length
+    bool keys_same_size = true;
+    for (int i = 1; i < _num_pivots; i++) {
+        if (keys[i].size != keys[i - 1].size) {
+            keys_same_size = false;
+            break;
+        }
     }
+
+    if (keys_same_size && _num_pivots > 0) {
+        // if so, store pivots in a tightly packed array of fixed length keys
+        _fixed_keylen = keys[0].size;
+        _total_size = _fixed_keylen * _num_pivots;
+        XMALLOC_N(_total_size, _fixed_keys);
+        for (int i = 0; i < _num_pivots; i++) {
+            invariant(keys[i].size == _fixed_keylen);
+            memcpy(_fixed_key(i), keys[i].data, _fixed_keylen);
+        }
+    } else {
+        // otherwise we'll just store the pivots in an array of dbts
+        XMALLOC_N(_num_pivots, _dbt_keys);
+        for (int i = 0; i < _num_pivots; i++) {
+            size_t size = keys[i].size;
+            toku_memdup_dbt(&_dbt_keys[i], keys[i].data, size);
+            _total_size += size;
+        }
+    }
+}
+
+void ftnode_pivot_keys::_create_from_fixed_keys(const char *fixedkeys, size_t fixed_keylen, int n) {
+    create_empty();
+    _num_pivots = n;
+    _fixed_keylen = fixed_keylen;
+    _total_size = _fixed_keylen * _num_pivots;
+    XMEMDUP_N(_fixed_keys, fixedkeys, _total_size);
 }
 
 // effect: create pivot keys as a clone of an existing set of pivotkeys
 void ftnode_pivot_keys::create_from_pivot_keys(const ftnode_pivot_keys &pivotkeys) {
-    create_from_dbts(pivotkeys._keys, pivotkeys._num_pivots);
+    if (pivotkeys._fixed_format()) {
+        _create_from_fixed_keys(pivotkeys._fixed_keys, pivotkeys._fixed_keylen, pivotkeys._num_pivots);
+    } else {
+        create_from_dbts(pivotkeys._dbt_keys, pivotkeys._num_pivots);
+    }
 }
 
 void ftnode_pivot_keys::destroy() {
-    if (_keys != nullptr) {
+    if (_dbt_keys != nullptr) {
         for (int i = 0; i < _num_pivots; i++) {
-            toku_destroy_dbt(&_keys[i]);
+            toku_destroy_dbt(&_dbt_keys[i]);
         }
-        toku_free(_keys);
+        toku_free(_dbt_keys);
+        _dbt_keys = nullptr;
     }
-    _keys = nullptr;
+    if (_fixed_keys != nullptr) {
+        toku_free(_fixed_keys);
+        _fixed_keys = nullptr;
+    }
+    _fixed_keylen = 0;
     _num_pivots = 0;
     _total_size = 0;
 }
 
+void ftnode_pivot_keys::_convert_to_fixed_format() {
+    invariant(!_fixed_format());
+
+    // convert to a tightly packed array of fixed length keys
+    _fixed_keylen = _dbt_keys[0].size;
+    _total_size = _fixed_keylen * _num_pivots;
+    XMALLOC_N(_total_size, _fixed_keys);
+    for (int i = 0; i < _num_pivots; i++) {
+        invariant(_dbt_keys[i].size == _fixed_keylen);
+        memcpy(_fixed_key(i), _dbt_keys[i].data, _fixed_keylen);
+    }
+
+    // destroy the dbt array format
+    for (int i = 0; i < _num_pivots; i++) {
+        toku_destroy_dbt(&_dbt_keys[i]);
+    }
+    toku_free(_dbt_keys);
+    _dbt_keys = nullptr;
+
+    invariant(_fixed_format());
+}
+
+void ftnode_pivot_keys::_convert_to_dbt_format() {
+    invariant(_fixed_format());
+
+    // convert to an aray of dbts
+    XREALLOC_N(_num_pivots, _dbt_keys);
+    for (int i = 0; i < _num_pivots; i++) {
+        toku_memdup_dbt(&_dbt_keys[i], _fixed_key(i), _fixed_keylen);
+    }
+
+    // destroy the fixed key format
+    toku_free(_fixed_keys);
+    _fixed_keys = nullptr;
+    _fixed_keylen = 0;
+
+    invariant(!_fixed_format());
+}
+
 void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
-    XMALLOC_N(n, _keys);
     _num_pivots = n;
     _total_size = 0;
+    _fixed_keys = nullptr;
+    _fixed_keylen = 0;
+    _dbt_keys = nullptr;
+
+    XMALLOC_N(_num_pivots, _dbt_keys);
+    bool keys_same_size = true;
     for (int i = 0; i < _num_pivots; i++) {
         bytevec pivotkeyptr;
         uint32_t size;
         rbuf_bytes(rb, &pivotkeyptr, &size);
-        toku_memdup_dbt(&_keys[i], pivotkeyptr, size);
+        toku_memdup_dbt(&_dbt_keys[i], pivotkeyptr, size);
         _total_size += size;
+        if (i > 0 && keys_same_size && _dbt_keys[i].size != _dbt_keys[i - 1].size) {
+            // not all keys are the same size, we'll stick to the dbt array format
+            keys_same_size = false;
+        }
+    }
+
+    if (keys_same_size && _num_pivots > 0) {
+        _convert_to_fixed_format();
     }
 }
 
-const DBT *ftnode_pivot_keys::get_pivot(int i) const {
+DBT ftnode_pivot_keys::get_pivot(int i) const {
     paranoid_invariant(i < _num_pivots);
-    return &_keys[i];
+    if (_fixed_format()) {
+        paranoid_invariant(i * _fixed_keylen < _total_size);
+        DBT dbt;
+        toku_fill_dbt(&dbt, _fixed_key(i), _fixed_keylen);
+        return dbt;
+    } else {
+        return _dbt_keys[i];
+    }
 }
 
-void ftnode_pivot_keys::_add_key(const DBT *key, int i) {
-    toku_clone_dbt(&_keys[i], *key);
-    _total_size += _keys[i].size;
+DBT *ftnode_pivot_keys::fill_pivot(int i, DBT *dbt) const {
+    paranoid_invariant(i < _num_pivots);
+    if (_fixed_format()) {
+        toku_fill_dbt(dbt, _fixed_key(i), _fixed_keylen);
+    } else {
+        toku_copyref_dbt(dbt, _dbt_keys[i]);
+    }
+    return dbt;
 }
 
-void ftnode_pivot_keys::_destroy_key(int i) {
-    invariant(_total_size >= _keys[i].size);
-    _total_size -= _keys[i].size;
-    toku_destroy_dbt(&_keys[i]);
+void ftnode_pivot_keys::_add_key_dbt(const DBT *key, int i) {
+    toku_clone_dbt(&_dbt_keys[i], *key);
+    _total_size += _dbt_keys[i].size;
+}
+
+void ftnode_pivot_keys::_destroy_key_dbt(int i) {
+    invariant(_total_size >= _dbt_keys[i].size);
+    _total_size -= _dbt_keys[i].size;
+    toku_destroy_dbt(&_dbt_keys[i]);
+}
+
+void ftnode_pivot_keys::_insert_at_dbt(const DBT *key, int i) {
+    // make space for a new pivot, slide existing keys to the right
+    REALLOC_N(_num_pivots + 1, _dbt_keys);
+    memmove(&_dbt_keys[i + 1], &_dbt_keys[i], (_num_pivots - i) * sizeof(DBT));
+    _add_key_dbt(key, i);
+}
+
+void ftnode_pivot_keys::_insert_at_fixed(const DBT *key, int i) {
+    REALLOC_N((_num_pivots + 1) * _fixed_keylen, _fixed_keys); 
+    memmove(_fixed_key(i + 1), _fixed_key(i), (_num_pivots - i) * _fixed_keylen);
+    memcpy(_fixed_key(i), key->data, _fixed_keylen);
+    _total_size += _fixed_keylen;
 }
 
 void ftnode_pivot_keys::insert_at(const DBT *key, int i) {
     invariant(i <= _num_pivots); // it's ok to insert at the end, so we check <= n
 
-    // make space for a new pivot, slide existing keys to the right
-    REALLOC_N(_num_pivots + 1, _keys);
-    memmove(&_keys[i + 1], &_keys[i], (_num_pivots - i) * sizeof(DBT));
+    // if the new key doesn't have the same size, we can't be in fixed format
+    if (_fixed_format() && key->size != _fixed_keylen) {
+        _convert_to_dbt_format();
+    }
 
+    if (_fixed_format()) {
+        _insert_at_fixed(key, i);
+    } else {
+        _insert_at_dbt(key, i);
+    }
     _num_pivots++;
-    _add_key(key, i);
+
+    invariant(total_size() > 0);
+}
+
+void ftnode_pivot_keys::_append_dbt(const ftnode_pivot_keys &pivotkeys) {
+    REALLOC_N(_num_pivots + pivotkeys._num_pivots, _dbt_keys);
+    bool other_fixed = pivotkeys._fixed_format();
+    for (int i = 0; i < pivotkeys._num_pivots; i++) {
+        toku_memdup_dbt(&_dbt_keys[_num_pivots + i],
+                        other_fixed ? pivotkeys._fixed_key(i) :
+                                      pivotkeys._dbt_keys[i].data,
+                        other_fixed ? pivotkeys._fixed_keylen :
+                                      pivotkeys._dbt_keys[i].size);
+    }
+}
+
+void ftnode_pivot_keys::_append_fixed(const ftnode_pivot_keys &pivotkeys) {
+    if (pivotkeys._fixed_format() && pivotkeys._fixed_keylen == _fixed_keylen) {
+        // other pivotkeys have the same fixed keylen 
+        REALLOC_N((_num_pivots + pivotkeys._num_pivots) * _fixed_keylen, _fixed_keys);
+        memcpy(_fixed_key(_num_pivots), pivotkeys._fixed_keys, pivotkeys._total_size);
+    } else {
+        // must convert to dbt format, other pivotkeys have different length'd keys
+        _convert_to_dbt_format();
+        _append_dbt(pivotkeys);
+    }
 }
 
 void ftnode_pivot_keys::append(const ftnode_pivot_keys &pivotkeys) {
-    REALLOC_N(_num_pivots + pivotkeys._num_pivots, _keys);
-    for (int i = 0; i < pivotkeys._num_pivots; i++) {
-        const DBT *key = &pivotkeys._keys[i];
-        toku_memdup_dbt(&_keys[_num_pivots + i], key->data, key->size);
+    if (_fixed_format()) {
+        _append_fixed(pivotkeys);
+    } else {
+        _append_dbt(pivotkeys);
     }
     _num_pivots += pivotkeys._num_pivots;
     _total_size += pivotkeys._total_size;
 }
 
+void ftnode_pivot_keys::_replace_at_dbt(const DBT *key, int i) {
+    _destroy_key_dbt(i);
+    _add_key_dbt(key, i);
+}
+
+void ftnode_pivot_keys::_replace_at_fixed(const DBT *key, int i) {
+    if (key->size == _fixed_keylen) {
+        memcpy(_fixed_key(i), key->data, _fixed_keylen);
+    } else {
+        // must convert to dbt format, replacement key has different length
+        _convert_to_dbt_format();
+        _replace_at_dbt(key, i);
+    }
+}
+
 void ftnode_pivot_keys::replace_at(const DBT *key, int i) {
     if (i < _num_pivots) {
-        _destroy_key(i);
-        _add_key(key, i);
+        if (_fixed_format()) {
+            _replace_at_fixed(key, i);
+        } else {
+            _replace_at_dbt(key, i);
+        }
     } else {
         invariant(i == _num_pivots); // appending to the end is ok
         insert_at(key, i);
     }
+    invariant(total_size() > 0);
+}
+
+void ftnode_pivot_keys::_delete_at_fixed(int i) {
+    memmove(_fixed_key(i), _fixed_key(i + 1), (_num_pivots - 1 - i) * _fixed_keylen);
+    _total_size -= _fixed_keylen;
+}
+
+void ftnode_pivot_keys::_delete_at_dbt(int i) {
+    // slide over existing keys, then shrink down to size
+    _destroy_key_dbt(i);
+    memmove(&_dbt_keys[i], &_dbt_keys[i + 1], (_num_pivots - 1 - i) * sizeof(DBT));
+    REALLOC_N(_num_pivots - 1, _dbt_keys);
 }
 
 void ftnode_pivot_keys::delete_at(int i) {
     invariant(i < _num_pivots);
-    _destroy_key(i);
 
-    // slide over existing keys
-    memmove(&_keys[i], &_keys[i + 1], (_num_pivots - 1 - i) * sizeof(DBT));
+    if (_fixed_format()) {
+        _delete_at_fixed(i);
+    } else {
+        _delete_at_dbt(i);
+    }
 
-    // shrink down to the new size
     _num_pivots--;
-    REALLOC_N(_num_pivots, _keys);
+}
+
+void ftnode_pivot_keys::_split_at_fixed(int i, ftnode_pivot_keys *other) {
+    // recreate the other set of pivots from index >= i
+    other->_create_from_fixed_keys(_fixed_key(i), _fixed_keylen, _num_pivots - i);
+
+    // shrink down to size
+    _total_size = i * _fixed_keylen;
+    REALLOC_N(_total_size, _fixed_keys);
+}
+
+void ftnode_pivot_keys::_split_at_dbt(int i, ftnode_pivot_keys *other) {
+    // recreate the other set of pivots from index >= i
+    other->create_from_dbts(&_dbt_keys[i], _num_pivots - i);
+
+    // destroy everything greater, shrink down to size
+    for (int k = i; k < _num_pivots; k++) {
+        _destroy_key_dbt(k);
+    }
+    REALLOC_N(i, _dbt_keys);
 }
 
 void ftnode_pivot_keys::split_at(int i, ftnode_pivot_keys *other) {
     if (i < _num_pivots) {
-        other->create_from_dbts(&_keys[i], _num_pivots - i);
-
-        // destroy everything greater
-        for (int k = i; k < _num_pivots; k++) {
-            _destroy_key(k);
+        if (_fixed_format()) {
+            _split_at_fixed(i, other);
+        } else {
+            _split_at_dbt(i, other);
         }
-
         _num_pivots = i;
-        REALLOC_N(_num_pivots, _keys);
     }
 }
 
+void ftnode_pivot_keys::serialize_to_wbuf(struct wbuf *wb) const {
+    bool fixed = _fixed_format();
+    size_t written = 0;
+    for (int i = 0; i < _num_pivots; i++) {
+        size_t size = fixed ? _fixed_keylen : _dbt_keys[i].size;
+        invariant(size);
+        wbuf_nocrc_bytes(wb, fixed ? _fixed_key(i) : _dbt_keys[i].data, size);
+        written += size;
+    }
+    invariant(written == _total_size);
+}
+
 int ftnode_pivot_keys::num_pivots() const {
+    // if we have fixed size keys, the number of pivots should be consistent
+    paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen * _num_pivots));
     return _num_pivots;
 }
 
 size_t ftnode_pivot_keys::total_size() const {
+    // if we have fixed size keys, the total size should be consistent
+    paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen * _num_pivots));
     return _total_size;
-}
-
-void ftnode_pivot_keys::serialize_to_wbuf(struct wbuf *wb) const {
-    for (int i = 0; i < _num_pivots; i++) {
-        wbuf_nocrc_bytes(wb, _keys[i].data, _keys[i].size);
-    }
 }
 
 // Effect: Fill in N as an empty ftnode.
@@ -465,20 +678,20 @@ find_bounds_within_message_tree(
     const toku::comparator &cmp,
     const find_bounds_omt_t &message_tree,      /// tree holding message buffer offsets, in which we want to look for indices
     message_buffer *msg_buffer,           /// message buffer in which messages are found
-    struct pivot_bounds const * const bounds,  /// key bounds within the basement node we're applying messages to
+    const pivot_bounds &bounds,  /// key bounds within the basement node we're applying messages to
     uint32_t *lbi,        /// (output) "lower bound inclusive" (index into message_tree)
     uint32_t *ube         /// (output) "upper bound exclusive" (index into message_tree)
     )
 {
     int r = 0;
 
-    if (bounds->lower_bound_exclusive) {
+    if (!toku_dbt_is_empty(bounds.lbe())) {
         // By setting msn to MAX_MSN and by using direction of +1, we will
         // get the first message greater than (in (key, msn) order) any
         // message (with any msn) with the key lower_bound_exclusive.
         // This will be a message we want to try applying, so it is the
         // "lower bound inclusive" within the message_tree.
-        struct toku_msg_buffer_key_msn_heaviside_extra lbi_extra(cmp, msg_buffer, bounds->lower_bound_exclusive, MAX_MSN);
+        struct toku_msg_buffer_key_msn_heaviside_extra lbi_extra(cmp, msg_buffer, bounds.lbe(), MAX_MSN);
         int32_t found_lb;
         r = message_tree.template find<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(lbi_extra, +1, &found_lb, lbi);
         if (r == DB_NOTFOUND) {
@@ -489,11 +702,11 @@ find_bounds_within_message_tree(
             *ube = 0;
             return;
         }
-        if (bounds->upper_bound_inclusive) {
+        if (!toku_dbt_is_empty(bounds.ubi())) {
             // Check if what we found for lbi is greater than the upper
             // bound inclusive that we have.  If so, there are no relevant
             // messages between these bounds.
-            const DBT *ubi = bounds->upper_bound_inclusive;
+            const DBT *ubi = bounds.ubi();
             const int32_t offset = found_lb;
             DBT found_lbidbt;
             msg_buffer->get_message_key_msn(offset, &found_lbidbt, nullptr);
@@ -514,12 +727,12 @@ find_bounds_within_message_tree(
         // the first message in the OMT.
         *lbi = 0;
     }
-    if (bounds->upper_bound_inclusive) {
+    if (!toku_dbt_is_empty(bounds.ubi())) {
         // Again, we use an msn of MAX_MSN and a direction of +1 to get
         // the first thing bigger than the upper_bound_inclusive key.
         // This is therefore the smallest thing we don't want to apply,
         // and omt::iterate_on_range will not examine it.
-        struct toku_msg_buffer_key_msn_heaviside_extra ube_extra(cmp, msg_buffer, bounds->upper_bound_inclusive, MAX_MSN);
+        struct toku_msg_buffer_key_msn_heaviside_extra ube_extra(cmp, msg_buffer, bounds.ubi(), MAX_MSN);
         r = message_tree.template find<struct toku_msg_buffer_key_msn_heaviside_extra, toku_msg_buffer_key_msn_heaviside>(ube_extra, +1, nullptr, ube);
         if (r == DB_NOTFOUND) {
             // Couldn't find anything in the buffer bigger than our key,
@@ -547,7 +760,7 @@ bnc_apply_messages_to_basement_node(
     BASEMENTNODE bn,   // where to apply messages
     FTNODE ancestor,  // the ancestor node where we can find messages to apply
     int childnum,      // which child buffer of ancestor contains messages we want
-    struct pivot_bounds const * const bounds,  // contains pivot key bounds of this basement node
+    const pivot_bounds &bounds,  // contains pivot key bounds of this basement node
     txn_gc_info *gc_info,
     bool* msgs_applied
     )
@@ -641,13 +854,13 @@ apply_ancestors_messages_to_bn(
     FTNODE node,
     int childnum,
     ANCESTORS ancestors,
-    struct pivot_bounds const * const bounds, 
+    const pivot_bounds &bounds, 
     txn_gc_info *gc_info,
     bool* msgs_applied
     )
 {
     BASEMENTNODE curr_bn = BLB(node, childnum);
-    struct pivot_bounds curr_bounds = next_pivot_keys(node, childnum, bounds);
+    const pivot_bounds curr_bounds = bounds.next_bounds(node, childnum);
     for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
         if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > curr_bn->max_msn_applied.msn) {
             paranoid_invariant(BP_STATE(curr_ancestors->node, curr_ancestors->childnum) == PT_AVAIL);
@@ -656,7 +869,7 @@ apply_ancestors_messages_to_bn(
                 curr_bn,
                 curr_ancestors->node,
                 curr_ancestors->childnum,
-                &curr_bounds,
+                curr_bounds,
                 gc_info,
                 msgs_applied
                 );
@@ -678,7 +891,7 @@ toku_apply_ancestors_messages_to_node (
     FT_HANDLE t, 
     FTNODE node, 
     ANCESTORS ancestors, 
-    struct pivot_bounds const * const bounds, 
+    const pivot_bounds &bounds, 
     bool* msgs_applied, 
     int child_to_read
     )
@@ -741,13 +954,13 @@ static bool bn_needs_ancestors_messages(
     FT ft,
     FTNODE node,
     int childnum,
-    struct pivot_bounds const * const bounds,
+    const pivot_bounds &bounds,
     ANCESTORS ancestors, 
     MSN* max_msn_applied
     ) 
 {
     BASEMENTNODE bn = BLB(node, childnum);
-    struct pivot_bounds curr_bounds = next_pivot_keys(node, childnum, bounds);
+    const pivot_bounds curr_bounds = bounds.next_bounds(node, childnum);
     bool needs_ancestors_messages = false;
     for (ANCESTORS curr_ancestors = ancestors; curr_ancestors; curr_ancestors = curr_ancestors->next) {
         if (curr_ancestors->node->max_msn_applied_to_node_on_disk.msn > bn->max_msn_applied.msn) {
@@ -762,7 +975,7 @@ static bool bn_needs_ancestors_messages(
                 find_bounds_within_message_tree(ft->cmp,
                                                 bnc->stale_message_tree,
                                                 &bnc->msg_buffer,
-                                                &curr_bounds,
+                                                curr_bounds,
                                                 &stale_lbi,
                                                 &stale_ube);
                 if (stale_lbi < stale_ube) {
@@ -774,7 +987,7 @@ static bool bn_needs_ancestors_messages(
             find_bounds_within_message_tree(ft->cmp,
                                             bnc->fresh_message_tree,
                                             &bnc->msg_buffer,
-                                            &curr_bounds,
+                                            curr_bounds,
                                             &fresh_lbi,
                                             &fresh_ube);
             if (fresh_lbi < fresh_ube) {
@@ -794,7 +1007,7 @@ bool toku_ft_leaf_needs_ancestors_messages(
     FT ft, 
     FTNODE node, 
     ANCESTORS ancestors, 
-    struct pivot_bounds const * const bounds, 
+    const pivot_bounds &bounds, 
     MSN *const max_msn_in_path, 
     int child_to_read
     )
@@ -1767,9 +1980,11 @@ int toku_ftnode_which_child(FTNODE node, const DBT *k, const toku::comparator &c
     // a funny case of no pivots
     if (node->n_children <= 1) return 0;
 
+    DBT pivot;
+
     // check the last key to optimize seq insertions
     int n = node->n_children-1;
-    int c = ft_compare_pivot(cmp, k, node->pivotkeys.get_pivot(n - 1));
+    int c = ft_compare_pivot(cmp, k, node->pivotkeys.fill_pivot(n - 1, &pivot));
     if (c > 0) return n;
 
     // binary search the pivots
@@ -1778,7 +1993,7 @@ int toku_ftnode_which_child(FTNODE node, const DBT *k, const toku::comparator &c
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        c = ft_compare_pivot(cmp, k, node->pivotkeys.get_pivot(mi));
+        c = ft_compare_pivot(cmp, k, node->pivotkeys.fill_pivot(mi, &pivot));
         if (c > 0) {
             lo = mi+1;
             continue;
@@ -1794,12 +2009,13 @@ int toku_ftnode_which_child(FTNODE node, const DBT *k, const toku::comparator &c
 
 // Used for HOT.
 int toku_ftnode_hot_next_child(FTNODE node, const DBT *k, const toku::comparator &cmp) {
+    DBT pivot;
     int low = 0;
     int hi = node->n_children - 1;
     int mi;
     while (low < hi) {
         mi = (low + hi) / 2;
-        int r = ft_compare_pivot(cmp, k, node->pivotkeys.get_pivot(mi));
+        int r = ft_compare_pivot(cmp, k, node->pivotkeys.fill_pivot(mi, &pivot));
         if (r > 0) {
             low = mi + 1;
         } else if (r < 0) {

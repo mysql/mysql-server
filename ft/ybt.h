@@ -129,6 +129,9 @@ const DBT *toku_dbt_negative_infinity(void);
 // returns: true if the given dbt is either positive or negative infinity
 bool toku_dbt_is_infinite(const DBT *dbt);
 
+// returns: true if the given dbt has no data (ie: dbt->data == nullptr)
+bool toku_dbt_is_empty(const DBT *dbt);
+
 // effect: compares two potentially infinity-valued dbts
 // requires: at least one is infinite (assert otherwise)
 int toku_dbt_infinite_compare(const DBT *a, const DBT *b);

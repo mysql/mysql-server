@@ -445,27 +445,54 @@ uint32_t compute_child_fullhash (CACHEFILE cf, FTNODE node, int childnum) {
     return toku_cachetable_hash(cf, BP_BLOCKNUM(node, childnum));
 }
 
-const DBT *prepivotkey (FTNODE node, int childnum, const DBT * const lower_bound_exclusive) {
-    if (childnum==0)
-        return lower_bound_exclusive;
-    else {
+//
+// pivot bounds
+// TODO: move me to ft/node.cc?
+// 
+
+pivot_bounds::pivot_bounds(const DBT &lbe_dbt, const DBT &ubi_dbt) :
+    _lower_bound_exclusive(lbe_dbt), _upper_bound_inclusive(ubi_dbt) {
+}
+
+pivot_bounds pivot_bounds::infinite_bounds() {
+    DBT dbt;
+    toku_init_dbt(&dbt);
+
+    // infinity is represented by an empty dbt
+    invariant(toku_dbt_is_empty(&dbt));
+    return pivot_bounds(dbt, dbt);
+}
+
+const DBT *pivot_bounds::lbe() const {
+    return &_lower_bound_exclusive;
+}
+
+const DBT *pivot_bounds::ubi() const {
+    return &_upper_bound_inclusive;
+}
+
+DBT pivot_bounds::_prepivotkey(FTNODE node, int childnum, const DBT &lbe_dbt) const {
+    if (childnum == 0) {
+        return lbe_dbt;
+    } else {
         return node->pivotkeys.get_pivot(childnum - 1);
     }
 }
 
-const DBT *postpivotkey (FTNODE node, int childnum, const DBT * const upper_bound_inclusive) {
-    if (childnum+1 == node->n_children)
-        return upper_bound_inclusive;
-    else {
+DBT pivot_bounds::_postpivotkey(FTNODE node, int childnum, const DBT &ubi_dbt) const {
+    if (childnum + 1 == node->n_children) {
+        return ubi_dbt;
+    } else {
         return node->pivotkeys.get_pivot(childnum);
     }
 }
 
-struct pivot_bounds next_pivot_keys (FTNODE node, int childnum, struct pivot_bounds const * const old_pb) {
-    struct pivot_bounds pb = {.lower_bound_exclusive = prepivotkey(node, childnum, old_pb->lower_bound_exclusive),
-                              .upper_bound_inclusive = postpivotkey(node, childnum, old_pb->upper_bound_inclusive)};
-    return pb;
+pivot_bounds pivot_bounds::next_bounds(FTNODE node, int childnum) const {
+    return pivot_bounds(_prepivotkey(node, childnum, _lower_bound_exclusive),
+                        _postpivotkey(node, childnum, _upper_bound_inclusive));
 }
+
+////////////////////////////////////////////////////////////////////////////////
 
 static long get_avail_internal_node_partition_size(FTNODE node, int i) {
     paranoid_invariant(node->height > 0);
@@ -3443,7 +3470,7 @@ ft_search_node (
     FT_CURSOR ftcursor,
     UNLOCKERS unlockers,
     ANCESTORS,
-    struct pivot_bounds const * const bounds,
+    const pivot_bounds &bounds,
     bool can_bulk_fetch
     );
 
@@ -3540,7 +3567,7 @@ unlock_ftnode_fun (void *v) {
 /* search in a node's child */
 static int
 ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, bool *doprefetch, FT_CURSOR ftcursor, UNLOCKERS unlockers,
-                 ANCESTORS ancestors, struct pivot_bounds const * const bounds, bool can_bulk_fetch)
+                 ANCESTORS ancestors, const pivot_bounds &bounds, bool can_bulk_fetch)
 // Effect: Search in a node's child.  Searches are read-only now (at least as far as the hardcopy is concerned).
 {
     struct ancestors next_ancestors = {node, childnum, ancestors};
@@ -3620,7 +3647,7 @@ ft_search_child(FT_HANDLE ft_handle, FTNODE node, int childnum, ft_search *searc
 static inline int
 search_which_child_cmp_with_bound(const toku::comparator &cmp, FTNODE node, int childnum,
                                   ft_search *search, DBT *dbt) {
-    return cmp(toku_copyref_dbt(dbt, *node->pivotkeys.get_pivot(childnum)), &search->pivot_bound);
+    return cmp(toku_copyref_dbt(dbt, node->pivotkeys.get_pivot(childnum)), &search->pivot_bound);
 }
 
 int
@@ -3634,7 +3661,7 @@ toku_ft_search_which_child(const toku::comparator &cmp, FTNODE node, ft_search *
     int mi;
     while (lo < hi) {
         mi = (lo + hi) / 2;
-        toku_copyref_dbt(&pivotkey, *node->pivotkeys.get_pivot(mi));
+        node->pivotkeys.fill_pivot(mi, &pivotkey);
         // search->compare is really strange, and only works well with a
         // linear search, it makes binary search a pita.
         //
@@ -3690,7 +3717,7 @@ maybe_search_save_bound(
     int p = (search->direction == FT_SEARCH_LEFT) ? child_searched : child_searched - 1;
     if (p >= 0 && p < node->n_children-1) {
         toku_destroy_dbt(&search->pivot_bound);
-        toku_clone_dbt(&search->pivot_bound, *node->pivotkeys.get_pivot(p));
+        toku_clone_dbt(&search->pivot_bound, node->pivotkeys.get_pivot(p));
     }
 }
 
@@ -3725,7 +3752,7 @@ ft_search_node(
     FT_CURSOR ftcursor,
     UNLOCKERS unlockers,
     ANCESTORS ancestors,
-    struct pivot_bounds const * const bounds,
+    const pivot_bounds &bounds,
     bool can_bulk_fetch
     )
 {
@@ -3737,7 +3764,7 @@ ft_search_node(
     // At this point, we must have the necessary partition available to continue the search
     //
     assert(BP_STATE(node,child_to_search) == PT_AVAIL);
-    const struct pivot_bounds next_bounds = next_pivot_keys(node, child_to_search, bounds);
+    const pivot_bounds next_bounds = bounds.next_bounds(node, child_to_search);
     if (node->height > 0) {
         r = ft_search_child(
             ft_handle,
@@ -3750,7 +3777,7 @@ ft_search_node(
             ftcursor,
             unlockers,
             ancestors,
-            &next_bounds,
+            next_bounds,
             can_bulk_fetch
             );
     }
@@ -3779,12 +3806,8 @@ ft_search_node(
     // we have a new pivotkey
     if (node->height == 0) {
         // when we run off the end of a basement, try to lock the range up to the pivot. solves #3529
-        const DBT *pivot = nullptr;
-        if (search->direction == FT_SEARCH_LEFT) {
-            pivot = next_bounds.upper_bound_inclusive; // left -> right
-        } else {
-            pivot = next_bounds.lower_bound_exclusive; // right -> left
-        }
+        const DBT *pivot = search->direction == FT_SEARCH_LEFT ? next_bounds.ubi() : // left -> right
+                                                                 next_bounds.lbe();  // right -> left
         if (pivot != nullptr) {
             int rr = getf(pivot->size, pivot->data, 0, nullptr, getf_v, true);
             if (rr != 0) {
@@ -3811,11 +3834,6 @@ ft_search_node(
 
     return r;
 }
-
-static const struct pivot_bounds infinite_bounds = {
-    .lower_bound_exclusive = nullptr,
-    .upper_bound_inclusive = nullptr,
-};
 
 int toku_ft_search(FT_HANDLE ft_handle, ft_search *search, FT_GET_CALLBACK_FUNCTION getf, void *getf_v, FT_CURSOR ftcursor, bool can_bulk_fetch)
 // Effect: Perform a search.  Associate cursor with a leaf if possible.
@@ -3894,7 +3912,7 @@ try_again:
     {
         bool doprefetch = false;
         //static int counter = 0;         counter++;
-        r = ft_search_node(ft_handle, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, ftcursor, &unlockers, (ANCESTORS)NULL, &infinite_bounds, can_bulk_fetch);
+        r = ft_search_node(ft_handle, node, search, bfe.child_to_read, getf, getf_v, &doprefetch, ftcursor, &unlockers, (ANCESTORS)NULL, pivot_bounds::infinite_bounds(), can_bulk_fetch);
         if (r==TOKUDB_TRY_AGAIN) {
             // there are two cases where we get TOKUDB_TRY_AGAIN
             //  case 1 is when some later call to toku_pin_ftnode returned
@@ -4048,7 +4066,7 @@ toku_ft_keysrange_internal (FT_HANDLE ft_handle, FTNODE node,
                             uint64_t estimated_num_rows,
                             struct ftnode_fetch_extra *min_bfe, // set up to read a minimal read.
                             struct ftnode_fetch_extra *match_bfe, // set up to read a basement node iff both keys in it
-                            struct unlockers *unlockers, ANCESTORS ancestors, struct pivot_bounds const * const bounds)
+                            struct unlockers *unlockers, ANCESTORS ancestors, const pivot_bounds &bounds)
 // Implementation note: Assign values to less, equal, and greater, and then on the way out (returning up the stack) we add more values in.
 {
     int r = 0;
@@ -4096,11 +4114,11 @@ toku_ft_keysrange_internal (FT_HANDLE ft_handle, FTNODE node,
 
             struct unlock_ftnode_extra unlock_extra   = {ft_handle,childnode,false};
             struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void*)&unlock_extra, unlockers};
-            const struct pivot_bounds next_bounds = next_pivot_keys(node, left_child_number, bounds);
+            const struct pivot_bounds next_bounds = bounds.next_bounds(node, left_child_number);
 
             r = toku_ft_keysrange_internal(ft_handle, childnode, key_left, key_right, child_may_find_right,
                                            less, equal_left, middle, equal_right, greater, single_basement_node,
-                                           rows_per_child, min_bfe, match_bfe, &next_unlockers, &next_ancestors, &next_bounds);
+                                           rows_per_child, min_bfe, match_bfe, &next_unlockers, &next_ancestors, next_bounds);
             if (r != TOKUDB_TRY_AGAIN) {
                 assert_zero(r);
 
@@ -4179,7 +4197,7 @@ try_again:
             r = toku_ft_keysrange_internal (ft_handle, node, key_left, key_right, true,
                                             &less, &equal_left, &middle, &equal_right, &greater,
                                             &single_basement_node, numrows,
-                                            &min_bfe, &match_bfe, &unlockers, (ANCESTORS)NULL, &infinite_bounds);
+                                            &min_bfe, &match_bfe, &unlockers, (ANCESTORS)NULL, pivot_bounds::infinite_bounds());
             assert(r == 0 || r == TOKUDB_TRY_AGAIN);
             if (r == TOKUDB_TRY_AGAIN) {
                 assert(!unlockers.locked);
@@ -4195,7 +4213,7 @@ try_again:
                 r = toku_ft_keysrange_internal (ft_handle, node, key_right, nullptr, false,
                                                 &less2, &equal_left2, &middle2, &equal_right2, &greater2,
                                                 &ignore, numrows,
-                                                &min_bfe, &match_bfe, &unlockers, (ANCESTORS)nullptr, &infinite_bounds);
+                                                &min_bfe, &match_bfe, &unlockers, (ANCESTORS)nullptr, pivot_bounds::infinite_bounds());
                 assert(r == 0 || r == TOKUDB_TRY_AGAIN);
                 if (r == TOKUDB_TRY_AGAIN) {
                     assert(!unlockers.locked);
@@ -4282,9 +4300,9 @@ static int get_key_after_bytes_in_basementnode(FT ft, BASEMENTNODE bn, const DBT
     return r;
 }
 
-static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped);
+static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, const pivot_bounds &bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped);
 
-static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, int childnum, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, const pivot_bounds &bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, int childnum, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
     int r;
     struct ancestors next_ancestors = {node, childnum, ancestors};
     BLOCKNUM childblocknum = BP_BLOCKNUM(node, childnum);
@@ -4299,11 +4317,11 @@ static int get_key_after_bytes_in_child(FT_HANDLE ft_h, FT ft, FTNODE node, UNLO
     assert_zero(r);
     struct unlock_ftnode_extra unlock_extra = {ft_h, child, false};
     struct unlockers next_unlockers = {true, unlock_ftnode_fun, (void *) &unlock_extra, unlockers};
-    const struct pivot_bounds next_bounds = next_pivot_keys(node, childnum, bounds);
-    return get_key_after_bytes_in_subtree(ft_h, ft, child, &next_unlockers, &next_ancestors, &next_bounds, bfe, search, subtree_bytes, start_key, skip_len, callback, cb_extra, skipped);
+    const pivot_bounds next_bounds = bounds.next_bounds(node, childnum);
+    return get_key_after_bytes_in_subtree(ft_h, ft, child, &next_unlockers, &next_ancestors, next_bounds, bfe, search, subtree_bytes, start_key, skip_len, callback, cb_extra, skipped);
 }
 
-static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, PIVOT_BOUNDS bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
+static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UNLOCKERS unlockers, ANCESTORS ancestors, const pivot_bounds &bounds, FTNODE_FETCH_EXTRA bfe, ft_search *search, uint64_t subtree_bytes, const DBT *start_key, uint64_t skip_len, void (*callback)(const DBT *, uint64_t, void *), void *cb_extra, uint64_t *skipped) {
     int r;
     int childnum = toku_ft_search_which_child(ft->cmp, node, search);
     const uint64_t child_subtree_bytes = subtree_bytes / node->n_children;
@@ -4321,7 +4339,8 @@ static int get_key_after_bytes_in_subtree(FT_HANDLE ft_h, FT ft, FTNODE node, UN
             } else {
                 *skipped += child_subtree_bytes;
                 if (*skipped >= skip_len && i < node->n_children - 1) {
-                    callback(node->pivotkeys.get_pivot(i), *skipped, cb_extra);
+                    DBT pivot;
+                    callback(node->pivotkeys.fill_pivot(i, &pivot), *skipped, cb_extra);
                     r = 0;
                 }
                 // Otherwise, r is still DB_NOTFOUND.  If this is the last
@@ -4389,7 +4408,7 @@ int toku_ft_get_key_after_bytes(FT_HANDLE ft_h, const DBT *start_key, uint64_t s
             numbytes = 0;
         }
         uint64_t skipped = 0;
-        r = get_key_after_bytes_in_subtree(ft_h, ft, root, &unlockers, nullptr, &infinite_bounds, &bfe, &search, (uint64_t) numbytes, start_key, skip_len, callback, cb_extra, &skipped);
+        r = get_key_after_bytes_in_subtree(ft_h, ft, root, &unlockers, nullptr, pivot_bounds::infinite_bounds(), &bfe, &search, (uint64_t) numbytes, start_key, skip_len, callback, cb_extra, &skipped);
         assert(!unlockers.locked);
         if (r != TOKUDB_TRY_AGAIN) {
             if (r == DB_NOTFOUND) {
@@ -4450,7 +4469,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
         int i;
         for (i=0; i+1< node->n_children; i++) {
             fprintf(file, "%*spivotkey %d =", depth+1, "", i);
-            toku_print_BYTESTRING(file, node->pivotkeys.get_pivot(i)->size, (char *) node->pivotkeys.get_pivot(i)->data);
+            toku_print_BYTESTRING(file, node->pivotkeys.get_pivot(i).size, (char *) node->pivotkeys.get_pivot(i).data);
             fprintf(file, "\n");
         }
         for (i=0; i< node->n_children; i++) {
@@ -4492,12 +4511,13 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
             for (i=0; i<node->n_children; i++) {
                 fprintf(file, "%*schild %d\n", depth, "", i);
                 if (i>0) {
-                    char *CAST_FROM_VOIDP(key, node->pivotkeys.get_pivot(i - 1)->data);
-                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->pivotkeys.get_pivot(i - 1)->size, (unsigned)toku_dtoh32(*(int*)key));
+                    char *CAST_FROM_VOIDP(key, node->pivotkeys.get_pivot(i - 1).data);
+                    fprintf(file, "%*spivot %d len=%u %u\n", depth+1, "", i-1, node->pivotkeys.get_pivot(i - 1).size, (unsigned)toku_dtoh32(*(int*)key));
                 }
+                DBT x, y;
                 toku_dump_ftnode(file, ft_handle, BP_BLOCKNUM(node, i), depth+4,
-                                  (i==0) ? lorange : node->pivotkeys.get_pivot(i - 1),
-                                  (i==node->n_children-1) ? hirange : node->pivotkeys.get_pivot(i));
+                                  (i==0) ? lorange : node->pivotkeys.fill_pivot(i - 1, &x),
+                                  (i==node->n_children-1) ? hirange : node->pivotkeys.fill_pivot(i, &y));
             }
         }
     }

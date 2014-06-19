@@ -360,7 +360,7 @@ test_serialize_leaf_check_msn(enum ftnode_verify_type bft, bool do_clone) {
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(elts[last_i].le));
                 assert(memcmp(curr_le, elts[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, elts[last_i].keyp) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn).data, elts[last_i].keyp) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -495,7 +495,7 @@ test_serialize_leaf_with_large_pivots(enum ftnode_verify_type bft, bool do_clone
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
                 assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, les[last_i].keyp) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn).data, les[last_i].keyp) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -618,7 +618,7 @@ test_serialize_leaf_with_many_rows(enum ftnode_verify_type bft, bool do_clone) {
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
                 assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    uint32_t *CAST_FROM_VOIDP(pivot, dn->pivotkeys.get_pivot(bn)->data);
+                    uint32_t *CAST_FROM_VOIDP(pivot, dn->pivotkeys.get_pivot(bn).data);
                     void* tmp = les[last_i].keyp;
                     uint32_t *CAST_FROM_VOIDP(item, tmp);
                     assert(*pivot >= *item);
@@ -759,7 +759,7 @@ test_serialize_leaf_with_large_rows(enum ftnode_verify_type bft, bool do_clone) 
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(les[last_i].le));
                 assert(memcmp(curr_le, les[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, (char*)(les[last_i].keyp)) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn).data, (char*)(les[last_i].keyp)) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -888,7 +888,7 @@ test_serialize_leaf_with_empty_basement_nodes(enum ftnode_verify_type bft, bool 
                 assert(leafentry_memsize(curr_le) == leafentry_memsize(elts[last_i].le));
                 assert(memcmp(curr_le, elts[last_i].le, leafentry_memsize(curr_le)) == 0);
                 if (bn < npartitions-1) {
-                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn)->data, (char*)(elts[last_i].keyp)) <= 0);
+                    assert(strcmp((char*)dn->pivotkeys.get_pivot(bn).data, (char*)(elts[last_i].keyp)) <= 0);
                 }
                 // TODO for later, get a key comparison here as well
                 last_i++;
@@ -1107,8 +1107,8 @@ test_serialize_nonleaf(enum ftnode_verify_type bft, bool do_clone) {
     assert(dn->layout_version_read_from_disk ==FT_LAYOUT_VERSION);
     assert(dn->height == 1);
     assert(dn->n_children==2);
-    assert(strcmp((char*)dn->pivotkeys.get_pivot(0)->data, "hello")==0);
-    assert(dn->pivotkeys.get_pivot(0)->size==6);
+    assert(strcmp((char*)dn->pivotkeys.get_pivot(0).data, "hello")==0);
+    assert(dn->pivotkeys.get_pivot(0).size==6);
     assert(BP_BLOCKNUM(dn,0).b==30);
     assert(BP_BLOCKNUM(dn,1).b==35);
 

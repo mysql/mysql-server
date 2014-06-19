@@ -468,7 +468,7 @@ ct_maybe_merge_child(struct flusher_advice *fa,
             ctme.is_last_child = false;
             pivot_to_save = childnum;
         }
-        toku_clone_dbt(&ctme.target_key, *parent->pivotkeys.get_pivot(pivot_to_save));
+        toku_clone_dbt(&ctme.target_key, parent->pivotkeys.get_pivot(pivot_to_save));
 
         // at this point, ctme is properly setup, now we can do the merge
         struct flusher_advice new_fa;
@@ -580,7 +580,7 @@ handle_split_of_child(
         if (toku_ft_debug_mode) {
             printf("%s:%d Child %d splitting on %s\n", __FILE__, __LINE__, childnum, (char*)splitk->data);
             printf("%s:%d oldsplitkeys:", __FILE__, __LINE__);
-            for(int i = 0; i < node->n_children - 1; i++) printf(" %s", (char *) node->pivotkeys.get_pivot(i)->data);
+            for(int i = 0; i < node->n_children - 1; i++) printf(" %s", (char *) node->pivotkeys.get_pivot(i).data);
             printf("\n");
         }
     )
@@ -631,7 +631,7 @@ handle_split_of_child(
     WHEN_NOT_GCOV(
         if (toku_ft_debug_mode) {
             printf("%s:%d splitkeys:", __FILE__, __LINE__);
-            for (int i = 0; i < node->n_children - 2; i++) printf(" %s", (char *) node->pivotkeys.get_pivot(i)->data);
+            for (int i = 0; i < node->n_children - 2; i++) printf(" %s", (char *) node->pivotkeys.get_pivot(i).data);
             printf("\n");
         }
     )
@@ -937,7 +937,7 @@ ftleaf_split(
         int split_idx = num_left_bns - (split_on_boundary ? 0 : 1);
         node->pivotkeys.split_at(split_idx, &B->pivotkeys);
         if (split_on_boundary && num_left_bns < node->n_children && splitk) {
-            toku_copyref_dbt(splitk, *node->pivotkeys.get_pivot(num_left_bns - 1));
+            toku_copyref_dbt(splitk, node->pivotkeys.get_pivot(num_left_bns - 1));
         } else if (splitk) {
             bn_data* bd = BLB_DATA(node, num_left_bns - 1);
             uint32_t keylen;
@@ -997,7 +997,7 @@ ft_nonleaf_split(
 
         // the split key for our parent is the rightmost pivot key in node
         node->pivotkeys.split_at(n_children_in_a, &B->pivotkeys);
-        toku_clone_dbt(splitk, *node->pivotkeys.get_pivot(n_children_in_a - 1));
+        toku_clone_dbt(splitk, node->pivotkeys.get_pivot(n_children_in_a - 1));
         node->pivotkeys.delete_at(n_children_in_a - 1);
 
         node->n_children = n_children_in_a;
@@ -1408,8 +1408,8 @@ ft_merge_child(
     {
         DBT splitk;
         toku_init_dbt(&splitk);
-        const DBT *old_split_key = node->pivotkeys.get_pivot(childnuma);
-        maybe_merge_pinned_nodes(node, old_split_key, childa, childb, &did_merge, &did_rebalance, &splitk, ft->h->nodesize);
+        const DBT old_split_key = node->pivotkeys.get_pivot(childnuma);
+        maybe_merge_pinned_nodes(node, &old_split_key, childa, childb, &did_merge, &did_rebalance, &splitk, ft->h->nodesize);
         //toku_verify_estimates(t,childa);
         // the tree did react if a merge (did_merge) or rebalance (new spkit key) occurred
         *did_react = (bool)(did_merge || did_rebalance);

@@ -737,9 +737,8 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         BP_STATE(parentnode, 0) = PT_AVAIL;
         parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
         struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
-        const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
         bool msgs_applied;
-        toku_apply_ancestors_messages_to_node(t, child, &ancestors, &infinite_bounds, &msgs_applied, -1);
+        toku_apply_ancestors_messages_to_node(t, child, &ancestors, pivot_bounds::infinite_bounds(), &msgs_applied, -1);
 
         struct checkit_fn {
             int operator()(FT_MSG UU(msg), bool is_fresh) {
@@ -962,12 +961,11 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
     parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
     DBT lbe, ubi;
-    const struct pivot_bounds bounds = {
-        .lower_bound_exclusive = toku_init_dbt(&lbe),
-        .upper_bound_inclusive = toku_clone_dbt(&ubi, childkeys[7])
-    };
+    toku_init_dbt(&lbe);
+    toku_clone_dbt(&ubi, childkeys[7]);
+    const pivot_bounds bounds(lbe, ubi);
     bool msgs_applied;
-    toku_apply_ancestors_messages_to_node(t, child, &ancestors, &bounds, &msgs_applied, -1);
+    toku_apply_ancestors_messages_to_node(t, child, &ancestors, bounds, &msgs_applied, -1);
 
     struct checkit_fn {
         DBT *childkeys;
@@ -1162,9 +1160,8 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     BP_STATE(parentnode, 0) = PT_AVAIL;
     parentnode->max_msn_applied_to_node_on_disk = max_parent_msn;
     struct ancestors ancestors = { .node = parentnode, .childnum = 0, .next = NULL };
-    const struct pivot_bounds infinite_bounds = { .lower_bound_exclusive = NULL, .upper_bound_inclusive = NULL };
     bool msgs_applied;
-    toku_apply_ancestors_messages_to_node(t, child2, &ancestors, &infinite_bounds, &msgs_applied, -1);
+    toku_apply_ancestors_messages_to_node(t, child2, &ancestors, pivot_bounds::infinite_bounds(), &msgs_applied, -1);
 
     struct checkit_fn {
         int operator()(FT_MSG UU(msg), bool is_fresh) {

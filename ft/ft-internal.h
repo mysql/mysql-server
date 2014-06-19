@@ -461,15 +461,26 @@ void fill_bfe_for_prefetch(struct ftnode_fetch_extra *bfe, FT ft, struct ft_curs
 
 void destroy_bfe_for_prefetch(struct ftnode_fetch_extra *bfe);
 
-struct pivot_bounds {
-    const DBT * const lower_bound_exclusive;
-    const DBT * const upper_bound_inclusive; // NULL to indicate negative or positive infinity (which are in practice exclusive since there are now transfinite keys in messages).
-};
-typedef struct pivot_bounds const * const PIVOT_BOUNDS;
+class pivot_bounds {
+public:
+    pivot_bounds(const DBT &lbe_dbt, const DBT &ubi_dbt);
 
-const DBT *prepivotkey (FTNODE node, int childnum, const DBT * const lower_bound_exclusive);
-const DBT *postpivotkey (FTNODE node, int childnum, const DBT * const upper_bound_inclusive);
-struct pivot_bounds next_pivot_keys (FTNODE node, int childnum, struct pivot_bounds const * const old_pb);
+    pivot_bounds next_bounds(FTNODE node, int childnum) const;
+
+    const DBT *lbe() const;
+    const DBT *ubi() const;
+
+    static pivot_bounds infinite_bounds();
+
+private:
+    DBT _prepivotkey(FTNODE node, int childnum, const DBT &lbe_dbt) const;
+    DBT _postpivotkey(FTNODE node, int childnum, const DBT &ubi_dbt) const;
+
+    // if toku_dbt_is_empty() is true for either bound, then it represents
+    // negative or positive infinity (which are exclusive in practice)
+    const DBT _lower_bound_exclusive;
+    const DBT _upper_bound_inclusive;
+};
 
 bool
 toku_bfe_wants_child_available (struct ftnode_fetch_extra* bfe, int childnum);
