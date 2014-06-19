@@ -2071,6 +2071,7 @@ bool sp_head::merge_table_list(THD *thd,
 
 void sp_head::add_used_tables_to_table_list(THD *thd,
                                             TABLE_LIST ***query_tables_last_ptr,
+                                            enum_sql_command sql_command,
                                             TABLE_LIST *belong_to_view)
 {
   /*
@@ -2115,11 +2116,31 @@ void sp_head::add_used_tables_to_table_list(THD *thd,
         is safe to infer the type of metadata lock from the type of
         table lock.
       */
+      enum_mdl_type mdl_lock_type;
+
+      if (sql_command == SQLCOM_LOCK_TABLES)
+      {
+        /*
+          We are building a table list for LOCK TABLES. We need to
+          acquire "strong" locks to ensure that LOCK TABLES properly
+          works for storage engines which don't use THR_LOCK locks.
+        */
+        mdl_lock_type= (table->lock_type >= TL_WRITE_ALLOW_WRITE) ?
+                       MDL_SHARED_NO_READ_WRITE : MDL_SHARED_READ_ONLY;
+      }
+      else
+      {
+        /*
+          For other statements "normal" locks can be acquired.
+          Let us respect explicit LOW_PRIORITY clause if was used
+          in the routine.
+        */
+        mdl_lock_type= mdl_type_for_dml(table->lock_type);
+      }
+
       MDL_REQUEST_INIT(&table->mdl_request,
                        MDL_key::TABLE, table->db, table->table_name,
-                       table->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                         MDL_SHARED_WRITE : MDL_SHARED_READ,
-                       MDL_TRANSACTION);
+                       mdl_lock_type, MDL_TRANSACTION);
 
       /* Everyting else should be zeroed */
 
