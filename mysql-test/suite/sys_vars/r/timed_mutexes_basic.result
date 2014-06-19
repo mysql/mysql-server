@@ -1,34 +1,56 @@
 SET @global_start_value = @@global.timed_mutexes;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @global_start_value;
 @global_start_value
 0
 '#--------------------FN_DYNVARS_177_01------------------------#'
 SET @@global.timed_mutexes = 1;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SET @@global.timed_mutexes = DEFAULT;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 0
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_177_02-------------------------#'
 SET timed_mutexes = 1;
 ERROR HY000: Variable 'timed_mutexes' is a GLOBAL variable and should be set with SET GLOBAL
 SELECT @@timed_mutexes;
 @@timed_mutexes
 0
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT global.timed_mutexes;
 ERROR 42S02: Unknown table 'global' in field list
 SET global timed_mutexes = 1;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 1
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_177_03------------------------#'
 SET @@global.timed_mutexes = 0;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 0
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SET @@global.timed_mutexes = 1;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 1
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 '#--------------------FN_DYNVARS_177_04-------------------------#'
 SET @@global.timed_mutexes = -1;
 ERROR 42000: Variable 'timed_mutexes' can't be set to the value of '-1'
@@ -72,9 +94,13 @@ FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES
 WHERE VARIABLE_NAME='timed_mutexes';
 IF(@@global.timed_mutexes, "ON", "OFF") = VARIABLE_VALUE
 1
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 1
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT VARIABLE_VALUE 
 FROM INFORMATION_SCHEMA.GLOBAL_VARIABLES 
 WHERE VARIABLE_NAME='timed_mutexes';
@@ -82,23 +108,43 @@ VARIABLE_VALUE
 ON
 '#---------------------FN_DYNVARS_177_08-------------------------#'
 SET @@global.timed_mutexes = OFF;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 0
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SET @@global.timed_mutexes = ON;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 1
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 '#---------------------FN_DYNVARS_177_09----------------------#'
 SET @@global.timed_mutexes = TRUE;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 1
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SET @@global.timed_mutexes = FALSE;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 0
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SET @@global.timed_mutexes = @global_start_value;
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
 SELECT @@global.timed_mutexes;
 @@global.timed_mutexes
 0
+Warnings:
+Warning	1287	'@@timed_mutexes' is deprecated and will be removed in a future release.
