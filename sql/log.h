@@ -731,7 +731,7 @@ public:
 
      @note Acceptable values are LOG_NONE, LOG_FILE, LOG_TABLE
   */
-  void set_handlers(uint log_printer);
+  void set_handlers(ulonglong log_printer);
 
   /**
      Activate log handlers for the given log type.

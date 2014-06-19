@@ -650,7 +650,7 @@ void Query_cache::unlock(void)
 */
 
 static bool has_no_cache_directive(const char *sql, uint offset,
-                                   uint query_length)
+                                   size_t query_length)
 {
   uint i= offset;
 
