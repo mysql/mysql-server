@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,7 +81,7 @@ int NdbMutex_Init(NdbMutex* pNdbMutex)
 int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
 {
   int result;
-  pthread_mutex_t * p;
+  native_mutex_t * p;
   DBUG_ENTER("NdbMutex_Init");
   (void)name;
 
@@ -125,7 +125,7 @@ int NdbMutex_InitWithName(NdbMutex* pNdbMutex, const char * name)
     pthread_mutexattr_destroy(&t);
   }
 #else
-  result = pthread_mutex_init(p, 0);
+  result = native_mutex_init(p, 0);
 #endif
 
 #ifdef NDB_MUTEX_DEADLOCK_DETECTOR
@@ -151,7 +151,7 @@ int NdbMutex_Deinit(NdbMutex* p_mutex)
 #ifdef NDB_MUTEX_STRUCT
   result = pthread_mutex_destroy(&p_mutex->mutex);
 #else
-  result = pthread_mutex_destroy(p_mutex);
+  result = native_mutex_destroy(p_mutex);
 #endif
 
   return result;
@@ -252,7 +252,7 @@ int NdbMutex_Lock(NdbMutex* p_mutex)
 #elif defined NDB_MUTEX_STRUCT
   result = pthread_mutex_lock(&p_mutex->mutex);
 #else
-  result = pthread_mutex_lock(p_mutex);
+  result = native_mutex_lock(p_mutex);
 #endif
   assert(result == 0);
 
@@ -291,7 +291,7 @@ int NdbMutex_Unlock(NdbMutex* p_mutex)
 #elif defined NDB_MUTEX_STRUCT
   result = pthread_mutex_unlock(&p_mutex->mutex);
 #else
-  result = pthread_mutex_unlock(p_mutex);
+  result = native_mutex_unlock(p_mutex);
 #endif
   assert(result == 0);
 
@@ -324,7 +324,7 @@ int NdbMutex_Trylock(NdbMutex* p_mutex)
 #elif defined NDB_MUTEX_STRUCT
   result = pthread_mutex_trylock(&p_mutex->mutex);
 #else
-  result = pthread_mutex_trylock(p_mutex);
+  result = native_mutex_trylock(p_mutex);
 #endif
 #ifndef NDEBUG
   if (result && result != EBUSY)

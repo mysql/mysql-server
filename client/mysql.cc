@@ -2133,7 +2133,7 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
-  ulong line_length= 0;
+  size_t line_length= 0;
   status.exit_status=1;
 
   real_binary_mode= !interactive && opt_binary_mode;
@@ -3823,7 +3823,7 @@ print_table_data(MYSQL_RES *result)
   separator.copy("+",1,charset_info);
   while ((field = mysql_fetch_field(result)))
   {
-    uint length= column_names ? field->name_length : 0;
+    size_t length= column_names ? field->name_length : 0;
     if (quick)
       length= max<size_t>(length, field->length);
     else
@@ -3842,7 +3842,7 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      uint name_length= (uint) strlen(field->name);
+      size_t name_length= strlen(field->name);
       uint numcells= charset_info->cset->numcells(charset_info,
                                                   field->name,
                                                   field->name + name_length);
@@ -3868,7 +3868,7 @@ print_table_data(MYSQL_RES *result)
       const char *buffer;
       uint data_length;
       uint field_max_length;
-      uint visible_length;
+      size_t visible_length;
       uint extra_padding;
 
       if (off)

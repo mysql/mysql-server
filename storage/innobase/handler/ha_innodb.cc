@@ -1554,7 +1554,7 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
@@ -2192,9 +2192,9 @@ check_trx_exists(
 		trx = innobase_trx_allocate(thd);
 	} else {
 		ut_a(trx->magic_n == TRX_MAGIC_N);
-	}
 
-	innobase_trx_init(thd, trx);
+		innobase_trx_init(thd, trx);
+	}
 
 	return(trx);
 }
@@ -2343,7 +2343,8 @@ ha_innobase::ha_innobase(
 		  HA_CAN_FULLTEXT_HINTS |
 		  HA_CAN_EXPORT |
 		  HA_CAN_RTREEKEYS |
-		  HA_HAS_RECORDS
+		  HA_HAS_RECORDS |
+		  HA_NO_READ_LOCAL_LOCK
 		  ),
 	start_of_scan(0),
 	num_write_row(0)
@@ -3367,7 +3368,7 @@ innobase_change_buffering_inited_ok:
 			 MY_MUTEX_INIT_FAST);
 	mysql_mutex_init(commit_cond_mutex_key,
 			 &commit_cond_m, MY_MUTEX_INIT_FAST);
-	mysql_cond_init(commit_cond_key, &commit_cond, NULL);
+	mysql_cond_init(commit_cond_key, &commit_cond);
 	innodb_inited= 1;
 #ifdef MYSQL_DYNAMIC_PLUGIN
 	if (innobase_hton != p) {
@@ -12326,9 +12327,13 @@ ha_innobase::get_foreign_key_list(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= prebuilt->table->foreign_set.begin();
+	     it != prebuilt->table->foreign_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
@@ -12363,9 +12368,13 @@ ha_innobase::get_parent_foreign_key_list(
 
 	mutex_enter(&(dict_sys->mutex));
 
-	for (foreign = UT_LIST_GET_FIRST(prebuilt->table->referenced_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= prebuilt->table->referenced_set.begin();
+	     it != prebuilt->table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		pf_key_info = get_foreign_key_info(thd, foreign);
 		if (pf_key_info) {
 			f_key_list->push_back(pf_key_info);
@@ -12398,8 +12407,8 @@ ha_innobase::can_switch_engines(void)
 			"determining if there are foreign key constraints";
 	row_mysql_freeze_data_dictionary(prebuilt->trx);
 
-	can_switch = !UT_LIST_GET_FIRST(prebuilt->table->referenced_list)
-			&& !UT_LIST_GET_FIRST(prebuilt->table->foreign_list);
+	can_switch = prebuilt->table->referenced_set.empty()
+		&& prebuilt->table->foreign_set.empty();
 
 	row_mysql_unfreeze_data_dictionary(prebuilt->trx);
 	prebuilt->trx->op_info = "";
@@ -13226,25 +13235,45 @@ free_share(
 	mysql_mutex_unlock(&innobase_share_mutex);
 }
 
+/*********************************************************************//**
+Returns number of THR_LOCK locks used for one instance of InnoDB table.
+InnoDB no longer relies on THR_LOCK locks so 0 value is returned.
+Instead of THR_LOCK locks InnoDB relies on combination of metadata locks
+(e.g. for LOCK TABLES and DDL) and its own locking subsystem.
+Note that even though this method returns 0, SQL-layer still calls
+::store_lock(), ::start_stmt() and ::external_lock() methods for InnoDB
+tables. */
+
+uint
+ha_innobase::lock_count(void) const
+/*===============================*/
+{
+	return 0;
+}
+
 /*****************************************************************//**
-Converts a MySQL table lock stored in the 'lock' field of the handle to
-a proper type before storing pointer to the lock into an array of pointers.
+Supposed to convert a MySQL table lock stored in the 'lock' field of the
+handle to a proper type before storing pointer to the lock into an array
+of pointers.
+In practice, since InnoDB no longer relies on THR_LOCK locks and its
+lock_count() method returns 0 it just informs storage engine about type
+of THR_LOCK which SQL-layer would have acquired for this specific statement
+on this specific table.
 MySQL also calls this if it wants to reset some table locks to a not-locked
 state during the processing of an SQL query. An example is that during a
 SELECT the read lock is released early on the 'const' tables where we only
 fetch one row. MySQL does not call this when it releases all locks at the
 end of an SQL statement.
-@return pointer to the next element in the 'to' array */
+@return pointer to the current element in the 'to' array. */
 
 THR_LOCK_DATA**
 ha_innobase::store_lock(
 /*====================*/
 	THD*			thd,		/*!< in: user thread handle */
-	THR_LOCK_DATA**		to,		/*!< in: pointer to an array
-						of pointers to lock structs;
-						pointer to the 'lock' field
-						of current handle is stored
-						next to this array */
+	THR_LOCK_DATA**		to,		/*!< in: pointer to the current
+						element in an array of pointers
+						to lock structs;
+						only used as return value */
 	enum thr_lock_type	lock_type)	/*!< in: lock type to store in
 						'lock'; this may also be
 						TL_IGNORE */
@@ -13465,8 +13494,6 @@ ha_innobase::store_lock(
 
 		lock.type = lock_type;
 	}
-
-	*to++= &lock;
 
 	if (!trx_is_started(trx)
 	    && (prebuilt->select_lock_type != LOCK_NONE

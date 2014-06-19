@@ -945,16 +945,16 @@ void field_decimal::get_opt_type(String *answer,
 {
   my_decimal zero;
   char buff[MAX_FIELD_WIDTH];
-  uint length;
+  size_t length;
 
   my_decimal_set_zero(&zero);
   my_bool is_unsigned= (my_decimal_cmp(&zero, &min_arg) >= 0);
 
   length= my_snprintf(buff, sizeof(buff), "DECIMAL(%d, %d)",
-                      (int) (max_length - (item->decimals ? 1 : 0)),
-                      item->decimals);
+                      static_cast<int>(max_length - (item->decimals ? 1 : 0)),
+                      static_cast<int>(item->decimals));
   if (is_unsigned)
-    length= (uint) (my_stpcpy(buff+length, " UNSIGNED")- buff);
+    length= (my_stpcpy(buff+length, " UNSIGNED")- buff);
   answer->append(buff, length);
 }
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -650,7 +650,7 @@ void Query_cache::unlock(void)
 */
 
 static bool has_no_cache_directive(const char *sql, uint offset,
-                                   uint query_length)
+                                   size_t query_length)
 {
   uint i= offset;
 
@@ -2216,7 +2216,7 @@ void Query_cache::init()
   mysql_mutex_init(key_structure_guard_mutex,
                    &structure_guard_mutex, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_cache_status_changed,
-                  &COND_cache_status_changed, NULL);
+                  &COND_cache_status_changed);
   m_cache_lock_status= Query_cache::UNLOCKED;
   initialized = 1;
   /*
