@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -35,7 +35,7 @@ NdbInfo::NdbInfo(class Ndb_cluster_connection* connection,
 
 bool NdbInfo::init(void)
 {
-  if (pthread_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST))
+  if (native_mutex_init(&m_mutex, MY_MUTEX_INIT_FAST))
     return false;
   if (!load_hardcoded_tables())
     return false;
@@ -44,7 +44,7 @@ bool NdbInfo::init(void)
 
 NdbInfo::~NdbInfo(void)
 {
-  pthread_mutex_destroy(&m_mutex);
+  native_mutex_destroy(&m_mutex);
 }
 
 BaseString NdbInfo::mysql_table_name(const char* table_name) const
@@ -357,10 +357,10 @@ int
 NdbInfo::openTable(const char* table_name,
                    const NdbInfo::Table** table_copy)
 {
-  pthread_mutex_lock(&m_mutex);
+  native_mutex_lock(&m_mutex);
 
   if (!check_tables()){
-    pthread_mutex_unlock(&m_mutex);
+    native_mutex_unlock(&m_mutex);
     return ERR_ClusterFailure;
   }
 
@@ -368,14 +368,14 @@ NdbInfo::openTable(const char* table_name,
   if (!m_tables.search(table_name, &tab))
   {
     // No such table existed
-    pthread_mutex_unlock(&m_mutex);
+    native_mutex_unlock(&m_mutex);
     return ERR_NoSuchTable;
   }
 
   // Return a _copy_ of the table
   *table_copy = new Table(*tab);
 
-  pthread_mutex_unlock(&m_mutex);
+  native_mutex_unlock(&m_mutex);
   return 0;
 }
 
@@ -383,10 +383,10 @@ int
 NdbInfo::openTable(Uint32 tableId,
                    const NdbInfo::Table** table_copy)
 {
-  pthread_mutex_lock(&m_mutex);
+  native_mutex_lock(&m_mutex);
 
   if (!check_tables()){
-    pthread_mutex_unlock(&m_mutex);
+    native_mutex_unlock(&m_mutex);
     return ERR_ClusterFailure;
   }
 
@@ -404,14 +404,14 @@ NdbInfo::openTable(Uint32 tableId,
   if (table == NULL)
   {
     // No such table existed
-    pthread_mutex_unlock(&m_mutex);
+    native_mutex_unlock(&m_mutex);
     return ERR_NoSuchTable;
   }
 
   // Return a _copy_ of the table
   *table_copy = new Table(*table);
 
-  pthread_mutex_unlock(&m_mutex);
+  native_mutex_unlock(&m_mutex);
   return 0;
 }
 

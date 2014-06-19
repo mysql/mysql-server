@@ -683,8 +683,7 @@ String *Item_func_spatial_collection::val_str(String *str)
       const uint data_offset= 4/*SRID*/ + 1;
       if (res->length() < data_offset + sizeof(uint32))
         goto err;
-      const char *data= res->ptr() + data_offset, *firstpt= NULL;
-      char *p_npts= NULL;
+      const char *data= res->ptr() + data_offset;
 
       /*
 	In the case of named collection we must check that items
@@ -715,6 +714,8 @@ String *Item_func_spatial_collection::val_str(String *str)
 	uint32 n_points;
 	double x1, y1, x2, y2;
 	const char *org_data= data;
+        const char *firstpt= NULL;
+        char *p_npts= NULL;
 
 	if (len < 4)
 	  goto err;

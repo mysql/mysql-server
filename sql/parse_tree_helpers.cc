@@ -47,8 +47,8 @@ Item_splocal* create_item_for_sp_var(THD *thd,
                                      const char *end)
 {
   LEX *lex= thd->lex;
-  uint spv_pos_in_query= 0;
-  uint spv_len_in_query= 0;
+  size_t spv_pos_in_query= 0;
+  size_t spv_len_in_query= 0;
   sp_pcontext *pctx= lex->get_sp_current_parsing_ctx();
 
   /* If necessary, look for the variable. */
