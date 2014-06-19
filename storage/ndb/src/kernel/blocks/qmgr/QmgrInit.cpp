@@ -37,7 +37,6 @@ void Qmgr::initData()
     nodeRec[i].m_secret = 0;
   }
 
-  cnoCommitFailedNodes = 0;
   c_maxDynamicId = 0;
   c_clusterNodes.clear();
   c_stopReq.senderRef = 0;
@@ -85,8 +84,9 @@ void Qmgr::initData()
   cfailureNr = 1;
   ccommitFailureNr = 1;
   cprepareFailureNr = 1;
-  cnoFailedNodes = 0;
-  cnoPrepFailedNodes = 0;
+  cfailedNodes.clear();
+  cprepFailedNodes.clear();
+  ccommitFailedNodes.clear();
   creadyDistCom = ZFALSE;
   cpresident = ZNIL;
   c_start.m_president_candidate = ZNIL;
