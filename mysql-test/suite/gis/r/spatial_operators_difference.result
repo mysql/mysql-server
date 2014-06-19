@@ -445,7 +445,6 @@ MULTILINESTRING((0 5,5.172413793103447 11.896551724137929),(5.172413793103447 11
 SELECT AsText(ST_Difference(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Difference(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')))
 MULTILINESTRING((0 5,15 25),(15 25,0 25))
-#multilinestring,multilinestring
 SELECT AsText(ST_Difference(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Difference(g,GeomFromText(@star_line_vertical)))
 LINESTRING(0 5,15 25,0 25)
@@ -567,8 +566,8 @@ ERROR HY000: Geometry overlay calculation error: geometry data is invalid in fun
 SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
 AsText(ST_Difference(g,GeomFromText(@star_collection_elems)))
 GEOMETRYCOLLECTION()
-SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)));
-AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)))
+SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_elems)));
+AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_elems)))
 GEOMETRYCOLLECTION()
 #-------------------------------------------------------------------------------------------
 #multipolygon,point
