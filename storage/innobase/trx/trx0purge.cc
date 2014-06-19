@@ -822,8 +822,10 @@ trx_purge_initiate_truncate(
 	/* Step-3: Start the actual truncate.
 	a. log-checkpoint
 	b. Write the DDL log to protect truncate action from CRASH
-	c. Execute actual truncate
-	d. Remove the DDL log. */
+	c. Remove rseg instance if added to purge queue before we
+	   initiate truncate.
+	d. Execute actual truncate
+	e. Remove the DDL log. */
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Truncating UNDO tablespace with space identifier " ULINTPF "",
 		undo_trunc->get_undo_mark_for_trunc());
@@ -854,6 +856,42 @@ trx_purge_initiate_truncate(
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"ib_undo_trunc_before_truncate");
 			DBUG_SUICIDE(););
+
+	mutex_enter(&purge_sys->pq_mutex);
+	typedef	std::vector<TrxUndoRsegs>	purge_elem_list_t;
+	purge_elem_list_t			purge_elem_list;
+
+	while (!purge_sys->purge_queue->empty()) {
+		purge_elem_list.push_back(purge_sys->purge_queue->top());
+		purge_sys->purge_queue->pop();
+	}
+	ut_ad(purge_sys->purge_queue->empty());
+
+	for (purge_elem_list_t::iterator it = purge_elem_list.begin();
+	     it != purge_elem_list.end();
+	     ++it) {
+
+		for (TrxUndoRsegs::iterator it2 = it->begin();
+		     it2 != it->end();
+		     ++it2) {
+
+			if ((*it2)->space
+				== undo_trunc->get_undo_mark_for_trunc()) {
+				// TODO: Check if this is safe.
+				it->erase(it2);
+				break;
+			}
+		}
+
+		ulint	size = it->size();
+		if (size != 0) {
+			/* size != 0 suggest that there exist other rsegs that
+			needs processing so add this element to purge queue.
+			Note: Other rseg could be non-redo rsegs. */
+			purge_sys->purge_queue->push(*it);
+		}
+	}
+	mutex_exit(&purge_sys->pq_mutex);
 
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	if (!success) {
