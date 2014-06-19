@@ -732,11 +732,7 @@ function buildOperationResult(transactionHandler, op, op_ndb_error, execMode) {
     }
 
     if(op.result.success && op.opcode === opcodes.OP_READ) {
-//      if(op.tableHandler.numberOfLobColumns) {
-//        readResultRow(op);    // Objects with BLOBs get plain JS Objects
-//      } else {
-        buildValueObject(op); // Objects without BLOBS get ValueObjects
-//      }
+      buildValueObject(op);
     } 
   }
   if(udebug.is_detail()) udebug.log("buildOperationResult finished:", op.result);

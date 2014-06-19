@@ -1177,11 +1177,6 @@ Handle<Value> CharWriter(const NdbDictionary::Column * col,
   return writerOK;
 }
 
-// TODO:  In both CHAR and VARCHAR readers,
-// in the case where the result is not a ValueObject, but the string is 
-// externalized from an ASCII or UTF16LE buffer, verify that the buffer
-// contents will remain valid for the whole lifetime of the string.
- 
 // Templated encoder for Varchar and LongVarchar
 template<typename LENGTHTYPE>
 Handle<Value> varcharReader(const NdbDictionary::Column *col, 
