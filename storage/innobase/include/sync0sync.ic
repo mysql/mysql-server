@@ -80,7 +80,11 @@ ib_mutex_test_and_set(
 	ib_mutex_t*	mutex)	/*!< in: mutex */
 {
 #if defined(HAVE_ATOMIC_BUILTINS)
+# if defined(HAVE_ATOMIC_BUILTINS_BYTE)
 	return(os_atomic_test_and_set_byte(&mutex->lock_word, 1));
+# else
+	return(os_atomic_test_and_set_ulint(&mutex->lock_word, 1));
+# endif
 #else
 	ibool	ret;
 
@@ -92,6 +96,7 @@ ib_mutex_test_and_set(
 		ut_a(mutex->lock_word == 0);
 
 		mutex->lock_word = 1;
+		os_wmb;
 	}
 
 	return((byte) ret);
@@ -111,7 +116,11 @@ mutex_reset_lock_word(
 	/* In theory __sync_lock_release should be used to release the lock.
 	Unfortunately, it does not work properly alone. The workaround is
 	that more conservative __sync_lock_test_and_set is used instead. */
+# if defined(HAVE_ATOMIC_BUILTINS_BYTE)
 	os_atomic_test_and_set_byte(&mutex->lock_word, 0);
+# else
+	os_atomic_test_and_set_ulint(&mutex->lock_word, 0);
+# endif
 #else
 	mutex->lock_word = 0;
 

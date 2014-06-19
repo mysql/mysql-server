@@ -49,6 +49,8 @@ extern "C" my_bool	timed_mutexes;
 #ifdef HAVE_WINDOWS_ATOMICS
 typedef LONG lock_word_t;	/*!< On Windows, InterlockedExchange operates
 				on LONG variable */
+#elif defined(HAVE_ATOMIC_BUILTINS) && !defined(HAVE_ATOMIC_BUILTINS_BYTE)
+typedef ulint lock_word_t;
 #else
 typedef byte lock_word_t;
 #endif
