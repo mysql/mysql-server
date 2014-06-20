@@ -24950,6 +24950,8 @@ Dbdict::createFK_parse(Signal* signal, bool master,
     return;
   }
 
+  D("FK: " << fk);
+
   /**
    * validate
    */
