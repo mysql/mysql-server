@@ -8731,13 +8731,14 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
   }
 #endif
 
-  // enforce format <parentid>/<childid>/name
-  if (strchr(fk.Name, '/') != 0)
   {
-    m_error.code = 21090;
-    DBUG_RETURN(-1);
-  }
-  {
+    // don't allow slash in fk name
+    if (strchr(fk.Name, '/') != 0)
+    {
+      m_error.code = 21090;
+      DBUG_RETURN(-1);
+    }
+    // enforce format <parentid>/<childid>/name
     char buf[MAX_TAB_NAME_SIZE];
     BaseString::snprintf(buf, sizeof(buf), "%u/%u/%s",
                          fk.ParentTableId, fk.ChildTableId, fk.Name);
