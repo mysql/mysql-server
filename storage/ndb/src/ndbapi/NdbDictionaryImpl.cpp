@@ -8681,6 +8681,8 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
                             NdbDictObjectImpl* obj,
                             Uint32 flags)
 {
+  DBUG_ENTER("NdbDictInterface::create_fk");
+
   DictForeignKeyInfo::ForeignKey fk; fk.init();
   BaseString::snprintf(fk.Name, sizeof(fk.Name),
                        "%s", src.getName());
@@ -8720,6 +8722,27 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
   for (unsigned i = 0; i < src.m_child_columns.size(); i++)
     fk.ChildColumns[i] = src.m_child_columns[i];
   fk.ChildColumnsLength = 4 * src.m_child_columns.size(); // bytes :(
+
+#ifndef DBUG_OFF
+  {
+    char buf[2048];
+    ndbout_print(fk, buf, sizeof(buf));
+    DBUG_PRINT("info", ("FK: %s", buf));
+  }
+#endif
+
+  // enforce format <parentid>/<childid>/name
+  if (strchr(fk.Name, '/') != 0)
+  {
+    m_error.code = 21090;
+    DBUG_RETURN(-1);
+  }
+  {
+    char buf[MAX_TAB_NAME_SIZE];
+    BaseString::snprintf(buf, sizeof(buf), "%u/%u/%s",
+                         fk.ParentTableId, fk.ChildTableId, fk.Name);
+    strcpy(fk.Name, buf);
+  }
 
   SimpleProperties::UnpackStatus s;
   UtilBufferWriter w(m_buffer);
@@ -8770,7 +8793,7 @@ NdbDictInterface::create_fk(const NdbForeignKeyImpl& src,
     obj->m_version = data[1];
   }
 
-  return ret;
+  DBUG_RETURN(ret);
 }
 
 void
