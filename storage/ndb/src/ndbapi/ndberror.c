@@ -468,7 +468,7 @@ ErrorBundle ErrorCodes[] = {
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
   { 909,  DMEC, IE, "No free index scan op" },
   { 910, HA_ERR_NO_SUCH_TABLE, SE, "Index is being dropped" },
-  { 913,  DMEC, AE, "Invalid index for index state update" },
+  { 913,  DMEC, AE, "Invalid index for index stats update" },
   { 914,  DMEC, IE, "Invalid index stats request" },
   { 915,  DMEC, TR, "No free index stats op" },
   { 916,  DMEC, IE, "Invalid index stats sys tables" },

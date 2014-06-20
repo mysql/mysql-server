@@ -2072,7 +2072,8 @@ private:
 
   Uint32 check_read_obj(Uint32 objId, Uint32 transId = 0);
   Uint32 check_read_obj(SchemaFile::TableEntry*, Uint32 transId = 0);
-  Uint32 check_write_obj(Uint32 objId, Uint32 transId = 0);
+  Uint32 check_write_obj(Uint32 objId, Uint32 transId = 0,
+         SchemaFile::EntryState = SchemaFile::SF_UNUSED);
   Uint32 check_write_obj(Uint32, Uint32, SchemaFile::EntryState, ErrorInfo&);
 
   typedef RecordPool<SchemaTrans,ArenaPool> SchemaTrans_pool;
