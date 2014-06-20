@@ -520,7 +520,7 @@ int debug_sync_init(void)
 
     /* Initialize the global variables. */
     if ((rc= mysql_cond_init(key_debug_sync_globals_ds_cond,
-                             &debug_sync_global.ds_cond, NULL)) ||
+                             &debug_sync_global.ds_cond)) ||
         (rc= mysql_mutex_init(key_debug_sync_globals_ds_mutex,
                               &debug_sync_global.ds_mutex,
                               MY_MUTEX_INIT_FAST)))

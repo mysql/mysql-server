@@ -139,11 +139,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
   {
     mysql_mutex_init(key_relay_log_info_log_space_lock,
                      &log_space_lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
+    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond);
     mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond,
-                    NULL);
+    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
     mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
 

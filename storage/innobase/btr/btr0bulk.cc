@@ -925,6 +925,10 @@ BtrBulk::finish(
 	dict_sync_check check(true);
 
 	ut_ad(!sync_check_iterate(check));
+
+	if (err == DB_SUCCESS) {
+		ut_ad(btr_validate_index(m_index, NULL, false));
+	}
 #endif /* UNIV_DEBUG */
 
 	return(err);
