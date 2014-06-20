@@ -799,6 +799,13 @@ alter table t2
 add constraint foreign key myfk (a) references t1 (a);
 alter table t4
 add constraint foreign key myfk (a) references t3 (a);
+alter table t4
+add constraint foreign key `11/22/myfk` (a) references t3 (a);
+ERROR HY000: Cannot add foreign key constraint
+show warnings;
+Level	Code	Message
+Warning	1296	Got error 21090 'Create foreign key failed in NDB - name contains invalid character (/)' from NDB
+Error	1215	Cannot add foreign key constraint
 # run backup
 drop table t2, t1;
 drop table t4, t3;
