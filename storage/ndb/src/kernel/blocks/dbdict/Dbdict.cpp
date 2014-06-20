@@ -2670,6 +2670,8 @@ Dbdict::check_read_obj(Uint32 objId, Uint32 transId)
 Uint32
 Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
 {
+  D("check_read_obj" << V(*te) << V(transId));
+
   if (te->m_tableState == SchemaFile::SF_UNUSED)
   {
     jam();
@@ -2705,18 +2707,29 @@ Dbdict::check_read_obj(SchemaFile::TableEntry* te, Uint32 transId)
 
 
 Uint32
-Dbdict::check_write_obj(Uint32 objId, Uint32 transId)
+Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
+                       SchemaFile::EntryState op)
 {
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   if (objId < (NDB_SF_PAGE_ENTRIES * xsf->noOfPages))
   {
     jam();
     SchemaFile::TableEntry* te = getTableEntry(xsf, objId);
+    D("check_write_obj" << V(op) << V(*te) << V(transId));
 
     if (te->m_tableState == SchemaFile::SF_UNUSED)
     {
       jam();
       return GetTabInfoRef::TableNotDefined;
+    }
+
+    // bug#18766430 - detect double drop earlier
+    // TODO: detect other incompatible ops at this stage
+    if (te->m_tableState == SchemaFile::SF_DROP &&
+        op == SchemaFile::SF_DROP)
+    {
+      jam();
+      return DropTableRef::ActiveSchemaTrans;
     }
 
     if (te->m_transId == 0 || te->m_transId == transId)
@@ -2735,7 +2748,7 @@ Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
                         SchemaFile::EntryState op,
                         ErrorInfo& error)
 {
-  Uint32 err = check_write_obj(objId, transId);
+  Uint32 err = check_write_obj(objId, transId, op);
   if (err)
   {
     jam();
@@ -30723,6 +30736,7 @@ Dbdict::trans_log_schema_op(SchemaOpPtr op_ptr,
 
   XSchemaFile * xsf = &c_schemaFile[SchemaRecord::NEW_SCHEMA_FILE];
   SchemaFile::TableEntry * oldEntry = getTableEntry(xsf, objectId);
+  D("trans_log_schema_op" << V(*oldEntry) << V(*newEntry));
 
   if (oldEntry->m_transId != 0)
   {
