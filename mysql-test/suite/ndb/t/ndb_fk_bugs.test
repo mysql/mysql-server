@@ -855,6 +855,11 @@ alter table t2
 alter table t4
   add constraint foreign key myfk (a) references t3 (a);
 
+--error ER_CANNOT_ADD_FOREIGN
+alter table t4
+  add constraint foreign key `11/22/myfk` (a) references t3 (a);
+show warnings;
+
 --echo # run backup
 --source include/ndb_backup.inc
 
