@@ -17,6 +17,7 @@
 
 #include <signaldata/DictTabInfo.hpp>
 #include <ndb_limits.h>
+#include <NdbOut.hpp>
 
 //static 
 const
@@ -427,4 +428,29 @@ DictForeignKeyInfo::ForeignKey::init()
   OnDeleteAction = NDB_FK_NO_ACTION;
   ParentColumnsLength = 0;
   ChildColumnsLength = 0;
+}
+
+void
+ndbout_print(const DictForeignKeyInfo::ForeignKey& fk, char* buf, size_t sz)
+{
+  BaseString::snprintf(buf, sz,
+    "fk: name:%s id:%u"
+    " parent table: name:%s id:%u"
+    " parent index: name:%s id:%u"
+    " child table: name:%s id:%u"
+    " child index: name:%s id:%u",
+    fk.Name, fk.ForeignKeyId,
+    fk.ParentTableName, fk.ParentTableId,
+    fk.ParentIndexName, fk.ParentIndexId,
+    fk.ChildTableName, fk.ChildTableId,
+    fk.ChildIndexName, fk.ChildIndexId);
+}
+
+NdbOut&
+operator<<(NdbOut& out, const DictForeignKeyInfo::ForeignKey& fk)
+{
+  char buf[2048];
+  ndbout_print(fk, buf, sizeof(buf));
+  out << buf;
+  return out;
 }
