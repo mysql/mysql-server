@@ -2582,6 +2582,7 @@ Dbdict::check_write_obj(Uint32 objId, Uint32 transId,
     }
 
     // bug#18766430 - detect double drop earlier
+    // TODO: detect other incompatible ops at this stage
     if (te->m_tableState == SchemaFile::SF_DROP &&
         op == SchemaFile::SF_DROP)
     {
