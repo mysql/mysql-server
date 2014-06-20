@@ -1,6 +1,10 @@
 cmake_minimum_required(VERSION 2.8.8 FATAL_ERROR)
 set(CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake_modules")
 
+cmake_policy(SET CMP0026 OLD)
+cmake_policy(SET CMP0043 OLD)
+cmake_policy(SET CMP0045 OLD)
+
 project(TokuDB)
 
 # suppress -rdynamic
