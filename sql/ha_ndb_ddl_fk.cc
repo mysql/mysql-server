@@ -415,9 +415,7 @@ class Fk_util
       }
 
       char fk_name[FN_REFLEN+1];
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
-                  new_parent_tab.get_table()->getObjectId(),
-                  child_id,
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
                   name);
       DBUG_PRINT("info", ("Setting new fk name: %s", fk_name));
       new_fk.setName(fk_name);
@@ -1420,16 +1418,12 @@ ha_ndbcluster::create_fks(THD *thd, Ndb *ndb)
     char fk_name[FN_REFLEN];
     if (!isnull(fk->name))
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/%s",
-                  parent_tab.get_table()->getObjectId(),
-                  child_tab.get_table()->getObjectId(),
+      my_snprintf(fk_name, sizeof(fk_name), "%s",
                   lex2str(fk->name, tmpbuf, sizeof(tmpbuf)));
     }
     else
     {
-      my_snprintf(fk_name, sizeof(fk_name), "%u/%u/FK_%u_%u",
-                  parent_tab.get_table()->getObjectId(),
-                  child_tab.get_table()->getObjectId(),
+      my_snprintf(fk_name, sizeof(fk_name), "FK_%u_%u",
                   parent_index ?
                   parent_index->getObjectId() :
                   parent_tab.get_table()->getObjectId(),
@@ -2500,9 +2494,7 @@ ha_ndbcluster::copy_fk_for_offline_alter(THD * thd, Ndb* ndb, NDBTAB* _dsttab)
 
       char new_name[FN_LEN + 1];
       name= fk_split_name(db_and_name, fk.getName());
-      my_snprintf(new_name, sizeof(new_name), "%u/%u/%s",
-                  parentObjectId,
-                  childObjectId,
+      my_snprintf(new_name, sizeof(new_name), "%s",
                   name);
       fk.setName(new_name);
       setDbName(ndb, db_and_name);
