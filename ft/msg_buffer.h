@@ -102,7 +102,14 @@ public:
 
     void destroy();
 
-    void resize(size_t new_size);
+    // effect: deserializes a message buffer from the given rbuf
+    // returns: *fresh_offsets (etc) malloc'd to be num_entries large and
+    //          populated with *nfresh (etc) offsets in the message buffer
+    // requires: if fresh_offsets (etc) != nullptr, then nfresh != nullptr
+    void deserialize_from_rbuf(struct rbuf *rb,
+                               int32_t **fresh_offsets, int32_t *nfresh,
+                               int32_t **stale_offsets, int32_t *nstale,
+                               int32_t **broadcast_offsets, int32_t *nbroadcast);
 
     void enqueue(FT_MSG msg, bool is_fresh, int32_t *offset);
 
@@ -139,9 +146,13 @@ public:
 
     bool equals(message_buffer *other) const;
 
+    void serialize_to_wbuf(struct wbuf *wb) const;
+
     static size_t msg_memsize_in_buffer(FT_MSG msg);
 
 private:
+    void _resize(size_t new_size);
+
     // If this isn't packged, the compiler aligns the xids array and we waste a lot of space
     struct __attribute__((__packed__)) buffer_entry {
         unsigned int  keylen;

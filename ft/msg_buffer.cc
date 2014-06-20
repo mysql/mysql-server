@@ -110,7 +110,63 @@ void message_buffer::destroy() {
     }
 }
 
-void message_buffer::resize(size_t new_size) {
+void message_buffer::deserialize_from_rbuf(struct rbuf *rb,
+                                           int32_t **fresh_offsets, int32_t *nfresh,
+                                           int32_t **stale_offsets, int32_t *nstale,
+                                           int32_t **broadcast_offsets, int32_t *nbroadcast) {
+    // read the number of messages in this buffer
+    int n_in_this_buffer = rbuf_int(rb);
+    if (fresh_offsets != nullptr) {
+        XMALLOC_N(n_in_this_buffer, *fresh_offsets);
+    }
+    if (stale_offsets != nullptr) {
+        XMALLOC_N(n_in_this_buffer, *stale_offsets);
+    }
+    if (broadcast_offsets != nullptr) {
+        XMALLOC_N(n_in_this_buffer, *broadcast_offsets);
+    }
+
+    _resize(rb->size + 64); // rb->size is a good hint for how big the buffer will be
+
+    // read in each message individually
+    for (int i = 0; i < n_in_this_buffer; i++) {
+        bytevec key; ITEMLEN keylen;
+        bytevec val; ITEMLEN vallen;
+        // this is weird but it's necessary to pass icc and gcc together
+        unsigned char ctype = rbuf_char(rb);
+        enum ft_msg_type type = (enum ft_msg_type) ctype;
+        bool is_fresh = rbuf_char(rb);
+        MSN msn = rbuf_msn(rb);
+        XIDS xids;
+        xids_create_from_buffer(rb, &xids);
+        rbuf_bytes(rb, &key, &keylen); /* Returns a pointer into the rbuf. */
+        rbuf_bytes(rb, &val, &vallen);
+        int32_t *dest = nullptr;
+        if (ft_msg_type_applies_once(type)) {
+            if (is_fresh) {
+                dest = fresh_offsets ? *fresh_offsets + (*nfresh)++ : nullptr;
+            } else {
+                dest = stale_offsets ? *stale_offsets + (*nstale)++ : nullptr;
+            }
+        } else {
+            invariant(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type));
+            dest = broadcast_offsets ? *broadcast_offsets + (*nbroadcast)++ : nullptr;
+        }
+
+        // TODO: Function to parse stuff out of an rbuf into an FT_MSG
+        DBT k, v;
+        FT_MSG_S msg = {
+            type, msn, xids,
+            .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen) } }
+        };
+        enqueue(&msg, is_fresh, dest);
+        xids_destroy(&xids);
+    }
+
+    invariant(num_entries() == n_in_this_buffer);
+}
+
+void message_buffer::_resize(size_t new_size) {
     XREALLOC_N(new_size, _memory);
     _memory_size = new_size;
 }
@@ -134,7 +190,7 @@ void message_buffer::enqueue(FT_MSG msg, bool is_fresh, int32_t *offset) {
     if (_memory == nullptr || need_space_total > _memory_size) {
         // resize the buffer to the next power of 2 greater than the needed space
         int next_2 = next_power_of_two(need_space_total);
-        resize(next_2);
+        _resize(next_2);
     }
     ITEMLEN keylen = ft_msg_get_keylen(msg);
     ITEMLEN datalen = ft_msg_get_vallen(msg);
@@ -210,6 +266,26 @@ size_t message_buffer::memory_footprint() const {
 bool message_buffer::equals(message_buffer *other) const {
     return (_memory_used == other->_memory_used &&
             memcmp(_memory, other->_memory, _memory_used) == 0);
+}
+
+void message_buffer::serialize_to_wbuf(struct wbuf *wb) const {
+    wbuf_nocrc_int(wb, num_entries());
+    struct msg_serialize_fn {
+        struct wbuf *wb;
+        msg_serialize_fn(struct wbuf *w) : wb(w) { }
+        int operator()(FT_MSG msg, bool is_fresh) {
+            enum ft_msg_type type = (enum ft_msg_type) msg->type;
+            paranoid_invariant((int) type >= 0 && (int) type < 256);
+            wbuf_nocrc_char(wb, (unsigned char) type);
+            wbuf_nocrc_char(wb, (unsigned char) is_fresh);
+            wbuf_MSN(wb, msg->msn);
+            wbuf_nocrc_xids(wb, ft_msg_get_xids(msg));
+            wbuf_nocrc_bytes(wb, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
+            wbuf_nocrc_bytes(wb, ft_msg_get_val(msg), ft_msg_get_vallen(msg));
+            return 0;
+        }
+    } serialize_fn(wb);
+    iterate(serialize_fn);
 }
 
 size_t message_buffer::msg_memsize_in_buffer(FT_MSG msg) {
