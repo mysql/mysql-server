@@ -2,17 +2,20 @@
 # wl#7277: InnoDB: Bulk Load for Create Index
 #
 
--- source include/have_innodb.inc
-
 # Create Insert Procedure
 DELIMITER |;
-CREATE PROCEDURE populate_t1()
+CREATE PROCEDURE populate_t1(load_even INT)
 BEGIN
 	DECLARE i int DEFAULT 1;
 
 	START TRANSACTION;
 	WHILE (i <= 10000) DO
-		INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                IF i%2 = 0 AND load_even = 1 THEN
+		    INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                END IF;
+                IF i%2 != 0 AND load_even != 1 THEN
+		    INSERT INTO t1 VALUES (i, i, CONCAT('a', i));
+                END IF;
 		SET i = i + 1;
 	END WHILE;
 	COMMIT;
@@ -48,7 +51,8 @@ if ($row_format == 'COMPRESSED')
 }
 
 -- disable_query_log
-CALL populate_t1();
+# Load half records
+CALL populate_t1(1);
 -- enable_query_log
 
 SELECT COUNT(*) FROM t1;
@@ -92,6 +96,13 @@ SELECT * FROM t1 WHERE title = 'b4000';
 
 SELECT * FROM t1 WHERE id = 4001;
 SELECT * FROM t1 WHERE title = 'a4001';
+
+-- disable_query_log
+# Load half records (follow up load)
+CALL populate_t1(0);
+-- enable_query_log
+SELECT COUNT(*) FROM t1;
+
 
 /* Add column. */
 ALTER TABLE t1 ADD COLUMN content TEXT;
@@ -140,23 +151,34 @@ if ($row_format != 'COMPRESSED') {
 if ($row_format == 'COMPRESSED') {
   eval CREATE TABLE t1(
 	a INT PRIMARY KEY,
-	b TEXT,
+	b BLOB,
 	c TEXT) ENGINE=InnoDB ROW_FORMAT=$row_format KEY_BLOCK_SIZE=4;
 }
 
-INSERT INTO t1 VALUES
-        (1, REPEAT('a',10000), 'a'),
-        (2, REPEAT('b',20000), 'b'),
-        (3, REPEAT('c',40000), 'c'),
-        (4, REPEAT('d',60000), 'd');
+let $cnt= 5000;
+-- disable_query_log
+WHILE ($cnt>=4950) 
+{
+EVAL INSERT INTO t1 VALUES
+        ($cnt, REPEAT(CONCAT('a', $cnt),2000), CONCAT('a', $cnt));
+dec $cnt;
+}
+-- enable_query_log
+ALTER TABLE t1 ADD INDEX `idx` (a,b(5));
 
-SELECT CHAR_LENGTH(b) FROM t1;
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+UPDATE t1 SET b = REPEAT(CONCAT('b',4975),2000) WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('a',4975),2000) FROM t1 WHERE a=4975 AND b like 'a4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
+DELETE FROM t1 WHERE a=4975 AND b like 'b4975%';
+SELECT b=REPEAT(CONCAT('b',4975),2000) FROM t1 WHERE a=4975 AND b like 'b4975%';
 
 ALTER TABLE t1 DROP COLUMN c;
 
 CHECK TABLE t1;
 
-SELECT CHAR_LENGTH(b) FROM t1;
+SELECT CHAR_LENGTH(b) FROM t1 WHERE a=4975;
 
 DROP TABLE t1;
 
