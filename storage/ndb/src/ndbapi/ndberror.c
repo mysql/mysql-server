@@ -205,6 +205,8 @@ ErrorBundle ErrorCodes[] = {
   /* Drop index */
   { 21081, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as parent index of a foreign key" },
   { 21082, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as child index of a foreign key" },
+  /* Misc */
+  { 21090, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - name contains invalid character (/)" },
   
   /**
    * Node shutdown
