@@ -383,6 +383,7 @@ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
                                                                                       Point(0, 0)))))))) as Result;
 
 
+<<<<<<< TREE
 select astext(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))));
 select area(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0))))));
 select astext(envelope(PolyFromWKB(AsWKB(Polygon(LineString(Point(0, 0), Point(30, 0), Point(30, 30), Point(1, 0)))))));
@@ -509,6 +510,8 @@ SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 1,
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(point(3 8), point( 8 3), multipoint(0 0, 1 1, 2 2), point(-1 -1), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 
 
+=======
+>>>>>>> MERGE-SOURCE
 --echo #
 --echo # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
 --echo #
