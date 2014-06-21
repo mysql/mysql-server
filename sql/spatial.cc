@@ -441,12 +441,14 @@ uint32 wkb_get_uint(const char *ptr, Geometry::wkbByteOrder bo)
   Scan WKB byte string and notify WKB events by calling registered callbacks.
   @param wkb a little endian WKB byte string of 'len' bytes, with or
              without WKB header.
+  @param len[in/out] remaining number of bytes of the wkb string.
   @param geotype the type of the geometry to be scanned.
   @param hashdr whether the 'wkb' point to a WKB header or right after
                 the header. If it is true, the
                 'geotype' should be the same as the type in the header;
-                otherwise, and we will use the type in WKB header.
+                otherwise, and we will use the type specified in WKB header.
   @param handler the registered WKB_scanner_event_handler object to be notified.
+  @return the next byte after last valid geometry just scanned.
  */
 const char*
 wkb_scanner(const char *wkb, uint32 *len, uint32 geotype, bool has_hdr,
@@ -1559,7 +1561,7 @@ Gis_polygon::~Gis_polygon()
   */
 Gis_polygon &Gis_polygon::operator=(const Gis_polygon &rhs)
 {
-  if (this == &rhs)
+  if (this == &rhs || !is_bg_adapter() || !rhs.is_bg_adapter())
     return *this;
   Geometry::operator=(rhs);
 
