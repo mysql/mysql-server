@@ -491,6 +491,141 @@ public:
 };
 
 
+/**
+  Retrieve from a geometry collection geometries of the same base type into
+  a multi-xxx geometry object. For example, group all points and multipoints
+  into a single multipoint object, where the base type is point.
+
+  @tparam Base_type the base type to group.
+*/
+template <typename Base_type>
+class Geometry_grouper : public WKB_scanner_event_handler
+{
+  std::vector<Geometry::wkbType> m_types;
+  std::vector<const void *> m_ptrs;
+
+  typedef Gis_wkb_vector<Base_type> Group_type;
+  Group_type *m_group;
+  Geometry::wkbType m_target_type;
+
+public:
+  Geometry_grouper(Group_type *out) :m_group(out)
+  {
+    switch (out->get_type())
+    {
+    case Geometry::wkb_multipoint:
+      m_target_type= Geometry::wkb_point;
+      break;
+    case Geometry::wkb_multilinestring:
+      m_target_type= Geometry::wkb_linestring;
+      break;
+    case Geometry::wkb_multipolygon:
+      m_target_type= Geometry::wkb_polygon;
+      break;
+    default:
+      DBUG_ASSERT(false);
+      break;
+    }
+  }
+
+
+  virtual void on_wkb_start(Geometry::wkbByteOrder bo,
+                            Geometry::wkbType geotype,
+                            const void *wkb, uint32 len, bool has_hdr)
+  {
+    m_types.push_back(geotype);
+    m_ptrs.push_back(wkb);
+
+    if (m_types.size() == 1)
+      DBUG_ASSERT(geotype == Geometry::wkb_geometrycollection);
+  }
+
+
+  virtual void on_wkb_end(const void *wkb_end)
+  {
+    Geometry::wkbType geotype= m_types.back();
+    m_types.pop_back();
+
+    const void *wkb_start= m_ptrs.back();
+    m_ptrs.pop_back();
+
+    if (geotype != m_target_type || m_types.size() == 0)
+      return;
+
+    Geometry::wkbType ptype= m_types.back();
+    size_t len= static_cast<const char *>(wkb_end) -
+      static_cast<const char *>(wkb_start);
+
+    /*
+      We only group independent geometries, points in linestrings or polygons
+      are not independent, nor are linestrings in polygons.
+     */
+    if ((m_target_type == Geometry::wkb_point &&
+         (ptype == Geometry::wkb_geometrycollection ||
+          ptype == Geometry::wkb_multipoint)) ||
+        (m_target_type == Geometry::wkb_linestring &&
+         (ptype == Geometry::wkb_geometrycollection ||
+          ptype == Geometry::wkb_multilinestring)) ||
+        m_target_type == Geometry::wkb_polygon)
+    {
+      Base_type g(wkb_start, len, Geometry::Flags_t(m_target_type, 0), 0);
+      m_group->push_back(g);
+    }
+  }
+};
+
+
+template <typename Coordsys>
+bool geometry_collection_centroid(Geometry *geom,
+                                  typename BG_models<double, Coordsys>::
+                                  Point &respt)
+{
+  typename BG_models<double, Coordsys>::Multipolygon mplgn;
+  Geometry_grouper<typename BG_models<double, Coordsys>::Polygon>
+    plgn_grouper(&mplgn);
+
+  const char *wkb_start= geom->get_cptr();
+  uint32 wkb_len0, wkb_len= geom->get_data_size();
+  bool null_value= false;
+
+  /*
+    The geometries with largest dimension determine the centroid, because
+    components of lower dimensions weighs nothing in comparison.
+   */
+  wkb_len0= wkb_len;
+  wkb_scanner(wkb_start, &wkb_len,
+              Geometry::wkb_geometrycollection, false, &plgn_grouper);
+  if (mplgn.size() > 0)
+    boost::geometry::centroid(mplgn, respt);
+  else
+  {
+    typename BG_models<double, Coordsys>::Multilinestring mls;
+    wkb_len= wkb_len0;
+    Geometry_grouper<typename BG_models<double, Coordsys>::Linestring>
+      ls_grouper(&mls);
+    wkb_scanner(wkb_start, &wkb_len,
+                Geometry::wkb_geometrycollection, false, &ls_grouper);
+    if (mls.size() > 0)
+      boost::geometry::centroid(mls, respt);
+    else
+    {
+      typename BG_models<double, Coordsys>::Multipoint mpts;
+      wkb_len= wkb_len0;
+      Geometry_grouper<typename BG_models<double, Coordsys>::Point>
+        pt_grouper(&mpts);
+      wkb_scanner(wkb_start, &wkb_len,
+                  Geometry::wkb_geometrycollection, false, &pt_grouper);
+      if (mpts.size() > 0)
+        boost::geometry::centroid(mpts, respt);
+      else
+        null_value= true;
+    }
+  }
+
+  return null_value;
+}
+
+
 template <typename Coordsys>
 bool Item_func_centroid::bg_centroid(Geometry *geom, String *ptwkb)
 {
@@ -556,18 +691,7 @@ bool Item_func_centroid::bg_centroid(Geometry *geom, String *ptwkb)
       }
       break;
     case Geometry::wkb_geometrycollection:
-      {
-        typename BG_models<double, Coordsys>::Multipoint mpts;
-        Point_accumulator pt_acc(&mpts);
-
-        const char *wkb_start= geom->get_cptr();
-        uint32 wkb_len= geom->get_data_size();
-        wkb_scanner(wkb_start, &wkb_len,
-                    Geometry::wkb_geometrycollection, false, &pt_acc);
-        if (mpts.size() == 0)
-          return (null_value= true);
-        boost::geometry::centroid(mpts, respt);
-      }
+      null_value= geometry_collection_centroid<Coordsys>(geom, respt);
       break;
     default:
       DBUG_ASSERT(false);

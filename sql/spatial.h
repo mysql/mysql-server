@@ -2404,9 +2404,6 @@ public:
       parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
       set_ownmem(true);
     }
-    memcpy(m_ptr, v.get_ptr(), get_nbytes());
-    parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
-    set_ownmem(true);
     guard.release();
   }
 
@@ -3669,6 +3666,7 @@ public:
     @param geotype geometry type of the WKB;
     @param wkb WKB byte string, the first byte after the WKB header if any.
     @param len NO. of bytes of the WKB byte string starting from wkb.
+               There can be many geometries in the [wkb, wkb+len) buffer.
     @param has_hdr whether there is a WKB header right before 'wkb' in the
                    byte string.
    */
