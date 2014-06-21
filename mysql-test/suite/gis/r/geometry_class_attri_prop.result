@@ -1,5 +1,3 @@
-#Turn on the geometry data print.
-SET SESSION debug="+d,row_print_geometry_data";
 #Confirming the storage engine
 SHOW VARIABLES LIKE '%engine%';
 Variable_name	Value

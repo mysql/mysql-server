@@ -202,7 +202,7 @@ void do_tests()
 TEST(Mysys, LockFree)
 {
   mysql_mutex_init(0, &mutex, 0);
-  mysql_cond_init(0, &cond, NULL);
+  mysql_cond_init(0, &cond);
   pthread_attr_init(&thr_attr);
   pthread_attr_setdetachstate(&thr_attr, PTHREAD_CREATE_DETACHED);
  

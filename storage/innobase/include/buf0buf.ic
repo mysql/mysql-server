@@ -1276,10 +1276,6 @@ buf_page_release_latch(
 	ulint		rw_latch)	/*!< in: RW_S_LATCH, RW_X_LATCH,
 					RW_NO_LATCH */
 {
-	ut_ad(rw_latch == RW_NO_LATCH
-	      || buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE
-	      || buf_block_get_state(block) == BUF_BLOCK_REMOVE_HASH);
-
 #ifdef UNIV_SYNC_DEBUG
 	/* No debug latch is acquired if block belongs to system
 	temporary. Debug latch is not of much help if access to block

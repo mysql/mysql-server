@@ -157,13 +157,14 @@ protected:
 /**
   Builder for cast expressions.
   @param thd The current thread
+  @param pos Location of casting expression
   @param a The item to cast
   @param type the type casted into
 */
 Item *
-create_func_cast(THD *thd, Item *a, const Cast_type *type);
+create_func_cast(THD *thd, const POS &pos, Item *a, const Cast_type *type);
 Item *
-create_func_cast(THD *thd, Item *a_arg, Cast_target cast_target,
+create_func_cast(THD *thd, const POS &pos, Item *a, Cast_target cast_target,
                  const CHARSET_INFO *cs_arg);
 
 Item *create_temporal_literal(THD *thd,
