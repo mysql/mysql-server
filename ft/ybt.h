@@ -102,6 +102,9 @@ PATENT RIGHTS GRANT:
 
 DBT *toku_init_dbt(DBT *);
 
+// returns: an initialized but empty dbt (for which toku_dbt_is_empty() is true)
+DBT toku_empty_dbt(void);
+
 DBT *toku_init_dbt_flags(DBT *, uint32_t flags);
 
 void toku_destroy_dbt(DBT *);

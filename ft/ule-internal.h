@@ -135,7 +135,7 @@ typedef struct ule {     // unpacked leaf entry
 
 
 
-void test_msg_modify_ule(ULE ule, FT_MSG msg);
+void test_msg_modify_ule(ULE ule, const ft_msg &msg);
 
 
 //////////////////////////////////////////////////////////////////////////////////////

@@ -105,7 +105,7 @@ PATENT RIGHTS GRANT:
 #include <toku_portability.h>
 #include "ft/fttypes.h"
 #include "ft/ft-internal.h"
-#include "ft/ft_msg.h"
+#include "ft/msg.h"
 #include "ft/leafentry.h"
 #include "ft/logger.h"
 #include "ft/txn.h"
@@ -216,7 +216,7 @@ const UXR_S committed_delete = {
 // Local functions:
 
 static void msg_init_empty_ule(ULE ule);
-static void msg_modify_ule(ULE ule, FT_MSG msg);
+static void msg_modify_ule(ULE ule, const ft_msg &msg);
 static void ule_init_empty_ule(ULE ule);
 static void ule_do_implicit_promotions(ULE ule, XIDS xids);
 static void ule_try_promote_provisional_outermost(ULE ule, TXNID oldest_possible_live_xid);
@@ -496,7 +496,7 @@ enum {
 //   Otehrwise the new_leafentry_p points at the new leaf entry.
 // As of October 2011, this function always returns 0.
 void
-toku_le_apply_msg(FT_MSG   msg,
+toku_le_apply_msg(const ft_msg &msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced
@@ -510,7 +510,7 @@ toku_le_apply_msg(FT_MSG   msg,
     int64_t oldnumbytes = 0;
     int64_t newnumbytes = 0;
     uint64_t oldmemsize = 0;
-    uint32_t keylen = ft_msg_get_keylen(msg);
+    uint32_t keylen = msg.kdbt()->size;
 
     if (old_leafentry == NULL) {
         msg_init_empty_ule(&ule);
@@ -555,7 +555,7 @@ toku_le_apply_msg(FT_MSG   msg,
         &ule, // create packed leafentry
         data_buffer,
         idx,
-        ft_msg_get_key(msg), // contract of this function is caller has this set, always
+        msg.kdbt()->data, // contract of this function is caller has this set, always
         keylen, // contract of this function is caller has this set, always
         old_keylen,
         oldmemsize,
@@ -693,10 +693,10 @@ msg_init_empty_ule(ULE ule) {
 // Purpose is to modify the unpacked leafentry in our private workspace.
 //
 static void 
-msg_modify_ule(ULE ule, FT_MSG msg) {
-    XIDS xids = ft_msg_get_xids(msg);
+msg_modify_ule(ULE ule, const ft_msg &msg) {
+    XIDS xids = msg.xids();
     invariant(xids_get_num_xids(xids) < MAX_TRANSACTION_RECORDS);
-    enum ft_msg_type type = ft_msg_get_type(msg);
+    enum ft_msg_type type = msg.type();
     if (type != FT_OPTIMIZE && type != FT_OPTIMIZE_FOR_UPGRADE) {
         ule_do_implicit_promotions(ule, xids);
     }
@@ -709,9 +709,9 @@ msg_modify_ule(ULE ule, FT_MSG msg) {
         //fall through to FT_INSERT on purpose.
     }
     case FT_INSERT: {
-        uint32_t vallen = ft_msg_get_vallen(msg);
+        uint32_t vallen = msg.vdbt()->size;
         invariant(IS_VALID_LEN(vallen));
-        void * valp      = ft_msg_get_val(msg);
+        void * valp      = msg.vdbt()->data;
         ule_apply_insert(ule, xids, vallen, valp);
         break;
     }
@@ -738,16 +738,14 @@ msg_modify_ule(ULE ule, FT_MSG msg) {
         assert(false); // These messages don't get this far.  Instead they get translated (in setval_fun in do_update) into FT_INSERT messages.
         break;
     default:
-        assert(false /* illegal FT_MSG.type */);
+        assert(false); /* illegal ft msg type */
         break;
     }
 }
 
-void 
-test_msg_modify_ule(ULE ule, FT_MSG msg){
+void test_msg_modify_ule(ULE ule, const ft_msg &msg){
     msg_modify_ule(ule,msg);
 }
-
 
 static void ule_optimize(ULE ule, XIDS xids) {
     if (ule->num_puxrs) {

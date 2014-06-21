@@ -1,11 +1,5 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
-
-/* The purpose of this file is to provide access to the ft_msg,
- * which is the ephemeral version of the messages that lives in
- * a message buffer.
- */
-
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -92,121 +86,86 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
-#pragma once
-
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-/* tree command types */
-enum ft_msg_type {
-    FT_NONE = 0,
-    FT_INSERT = 1,
-    FT_DELETE_ANY = 2,  // Delete any matching key.  This used to be called FT_DELETE.
-    //FT_DELETE_BOTH = 3,
-    FT_ABORT_ANY = 4,   // Abort any commands on any matching key.
-    //FT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
-    FT_COMMIT_ANY  = 6,
-    //FT_COMMIT_BOTH = 7,
-    FT_COMMIT_BROADCAST_ALL = 8, // Broadcast to all leafentries, (commit all transactions).
-    FT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
-    FT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).
-    FT_INSERT_NO_OVERWRITE = 11,
-    FT_OPTIMIZE = 12,             // Broadcast
-    FT_OPTIMIZE_FOR_UPGRADE = 13, // same as FT_OPTIMIZE, but record version number in leafnode
-    FT_UPDATE = 14,
-    FT_UPDATE_BROADCAST_ALL = 15
-};
+#include "portability/toku_portability.h"
 
-static inline bool
-ft_msg_type_applies_once(enum ft_msg_type type)
-{
-    bool ret_val;
-    switch (type) {
-    case FT_INSERT_NO_OVERWRITE:
-    case FT_INSERT:
-    case FT_DELETE_ANY:
-    case FT_ABORT_ANY:
-    case FT_COMMIT_ANY:
-    case FT_UPDATE:
-        ret_val = true;
-        break;
-    case FT_COMMIT_BROADCAST_ALL:
-    case FT_COMMIT_BROADCAST_TXN:
-    case FT_ABORT_BROADCAST_TXN:
-    case FT_OPTIMIZE:
-    case FT_OPTIMIZE_FOR_UPGRADE:
-    case FT_UPDATE_BROADCAST_ALL:
-    case FT_NONE:
-        ret_val = false;
-        break;
-    default:
-        assert(false);
-    }
-    return ret_val;
+#include "ft/fttypes.h"
+#include "ft/msg.h"
+#include "ft/xids.h"
+#include "ft/ybt.h"
+
+ft_msg::ft_msg(const DBT *key, const DBT *val, enum ft_msg_type t, MSN m, XIDS x) :
+    _key(key ? *key : toku_empty_dbt()),
+    _val(val ? *val : toku_empty_dbt()),
+    _type(t), _msn(m), _xids(x) {
 }
 
-static inline bool
-ft_msg_type_applies_all(enum ft_msg_type type)
-{
-    bool ret_val;
-    switch (type) {
-    case FT_NONE:
-    case FT_INSERT_NO_OVERWRITE:
-    case FT_INSERT:
-    case FT_DELETE_ANY:
-    case FT_ABORT_ANY:
-    case FT_COMMIT_ANY:
-    case FT_UPDATE:
-        ret_val = false;
-        break;
-    case FT_COMMIT_BROADCAST_ALL:
-    case FT_COMMIT_BROADCAST_TXN:
-    case FT_ABORT_BROADCAST_TXN:
-    case FT_OPTIMIZE:
-    case FT_OPTIMIZE_FOR_UPGRADE:
-    case FT_UPDATE_BROADCAST_ALL:
-        ret_val = true;
-        break;
-    default:
-        assert(false);
-    }
-    return ret_val;
+ft_msg ft_msg::deserialize_from_rbuf(struct rbuf *rb, XIDS *x, bool *is_fresh) {
+    bytevec keyp, valp;
+    ITEMLEN keylen, vallen;
+    enum ft_msg_type t = (enum ft_msg_type) rbuf_char(rb);
+    *is_fresh = rbuf_char(rb);
+    MSN m = rbuf_msn(rb);
+    xids_create_from_buffer(rb, x);
+    rbuf_bytes(rb, &keyp, &keylen);
+    rbuf_bytes(rb, &valp, &vallen);
+
+    DBT k, v;
+    return ft_msg(toku_fill_dbt(&k, keyp, keylen), toku_fill_dbt(&v, valp, vallen), t, m, *x);
 }
 
-static inline bool
-ft_msg_type_does_nothing(enum ft_msg_type type)
-{
-    return (type == FT_NONE);
+ft_msg ft_msg::deserialize_from_rbuf_v13(struct rbuf *rb, MSN m, XIDS *x) {
+    bytevec keyp, valp;
+    ITEMLEN keylen, vallen;
+    enum ft_msg_type t = (enum ft_msg_type) rbuf_char(rb);
+    xids_create_from_buffer(rb, x);
+    rbuf_bytes(rb, &keyp, &keylen);
+    rbuf_bytes(rb, &valp, &vallen);
+
+    DBT k, v;
+    return ft_msg(toku_fill_dbt(&k, keyp, keylen), toku_fill_dbt(&v, valp, vallen), t, m, *x);
 }
 
-typedef struct xids_t *XIDS;
+const DBT *ft_msg::kdbt() const {
+    return &_key;
+}
 
-/* tree commands */
-struct ft_msg {
-    enum ft_msg_type type;
-    MSN          msn;          // message sequence number
-    XIDS         xids;
-    union {
-        /* insert or delete */
-        struct ft_msg_insert_delete {
-            const DBT *key;   // for insert, delete, upsertdel
-            const DBT *val;   // for insert, delete, (and it is the "extra" for upsertdel, upsertdel_broadcast_all)
-        } id;
-    } u;
-};
+const DBT *ft_msg::vdbt() const {
+    return &_val;
+}
 
-// Message sent into the ft to implement insert, delete, update, etc
-typedef struct ft_msg FT_MSG_S;
-typedef struct ft_msg *FT_MSG;
+enum ft_msg_type ft_msg::type() const {
+    return _type;
+}
 
-uint32_t ft_msg_get_keylen(FT_MSG ft_msg);
+MSN ft_msg::msn() const {
+    return _msn;
+}
 
-uint32_t ft_msg_get_vallen(FT_MSG ft_msg);
+XIDS ft_msg::xids() const {
+    return _xids;
+}
 
-XIDS ft_msg_get_xids(FT_MSG ft_msg);
+size_t ft_msg::total_size() const {
+    // Must store two 4-byte lengths
+    static const size_t key_val_overhead = 8;
 
-void *ft_msg_get_key(FT_MSG ft_msg);
+    // 1 byte type, 1 byte freshness, then 8 byte MSN
+    static const size_t msg_overhead = 2 + sizeof(MSN);
 
-void *ft_msg_get_val(FT_MSG ft_msg);
+    static const size_t total_overhead = key_val_overhead + msg_overhead;
 
-enum ft_msg_type ft_msg_get_type(FT_MSG ft_msg);
+    const size_t keyval_size = _key.size + _val.size;
+    const size_t xids_size = xids_get_serialize_size(xids());
+    return total_overhead + keyval_size + xids_size;
+}
+
+void ft_msg::serialize_to_wbuf(struct wbuf *wb, bool is_fresh) const {
+    wbuf_nocrc_char(wb, (unsigned char) _type);
+    wbuf_nocrc_char(wb, (unsigned char) is_fresh);
+    wbuf_MSN(wb, _msn);
+    wbuf_nocrc_xids(wb, _xids);
+    wbuf_nocrc_bytes(wb, _key.data, _key.size);
+    wbuf_nocrc_bytes(wb, _val.data, _val.size);
+}

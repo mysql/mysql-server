@@ -90,23 +90,30 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include <db.h>
-#include <memory.h>
 #include <string.h>
-#include <fttypes.h>
 
-#include "ybt.h"
+#include "portability/memory.h"
+
+#include "ft/fttypes.h"
+#include "ft/ybt.h"
 
 DBT *
-toku_init_dbt(DBT *ybt) {
-    memset(ybt, 0, sizeof(*ybt));
-    return ybt;
+toku_init_dbt(DBT *dbt) {
+    memset(dbt, 0, sizeof(*dbt));
+    return dbt;
+}
+
+DBT
+toku_empty_dbt(void) {
+    static const DBT empty_dbt = { .data = 0, .size = 0, .ulen = 0, .flags = 0 };
+    return empty_dbt;
 }
 
 DBT *
-toku_init_dbt_flags(DBT *ybt, uint32_t flags) {
-    toku_init_dbt(ybt);
-    ybt->flags = flags;
-    return ybt;
+toku_init_dbt_flags(DBT *dbt, uint32_t flags) {
+    toku_init_dbt(dbt);
+    dbt->flags = flags;
+    return dbt;
 }
 
 DBT_ARRAY *

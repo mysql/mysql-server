@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 #include "ft/fttypes.h"
 #include "ft/xids-internal.h"
 #include "ft/xids.h"
-#include "ft/ft_msg.h"
+#include "ft/msg.h"
 #include "ft/ybt.h"
 
 class message_buffer {
@@ -111,13 +111,24 @@ public:
                                int32_t **stale_offsets, int32_t *nstale,
                                int32_t **broadcast_offsets, int32_t *nbroadcast);
 
-    void enqueue(FT_MSG msg, bool is_fresh, int32_t *offset);
+    // effect: deserializes a message buffer whose messages are at version 13/14
+    // returns: similar to deserialize_from_rbuf(), excpet there are no stale messages
+    //          and each message is assigned a sequential value from *highest_unused_msn_for_upgrade,
+    //          which is modified as needed using toku_sync_fech_and_sub()
+    // returns: the highest MSN assigned to any message in this buffer
+    // requires: similar to deserialize_from_rbuf(), and highest_unused_msn_for_upgrade != nullptr
+    MSN deserialize_from_rbuf_v13(struct rbuf *rb,
+                                  MSN *highest_unused_msn_for_upgrade,
+                                  int32_t **fresh_offsets, int32_t *nfresh,
+                                  int32_t **broadcast_offsets, int32_t *nbroadcast);
+
+    void enqueue(const ft_msg &msg, bool is_fresh, int32_t *offset);
 
     void set_freshness(int32_t offset, bool is_fresh);
 
     bool get_freshness(int32_t offset) const;
 
-    FT_MSG_S get_message(int32_t offset, DBT *keydbt, DBT *valdbt) const;
+    ft_msg get_message(int32_t offset, DBT *keydbt, DBT *valdbt) const;
 
     void get_message_key_msn(int32_t offset, DBT *key, MSN *msn) const;
 
@@ -133,13 +144,13 @@ public:
     int iterate(F &fn) const {
         for (int32_t offset = 0; offset < _memory_used; ) {
             DBT k, v;
-            FT_MSG_S msg = get_message(offset, &k, &v);
+            const ft_msg msg = get_message(offset, &k, &v);
             bool is_fresh = get_freshness(offset);
-            int r = fn(&msg, is_fresh);
+            int r = fn(msg, is_fresh);
             if (r != 0) {
                 return r;
             }
-            offset += msg_memsize_in_buffer(&msg);
+            offset += msg_memsize_in_buffer(msg);
         }
         return 0;
     }
@@ -148,7 +159,7 @@ public:
 
     void serialize_to_wbuf(struct wbuf *wb) const;
 
-    static size_t msg_memsize_in_buffer(FT_MSG msg);
+    static size_t msg_memsize_in_buffer(const ft_msg &msg);
 
 private:
     void _resize(size_t new_size);

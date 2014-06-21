@@ -1682,7 +1682,7 @@ void toku_bnc_flush_to_child(FT ft, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID p
             ft(t), child(n), bnc(nl), gc_info(g), remaining_memsize(bnc->msg_buffer.buffer_size_in_use()) {
             stats_delta = { 0, 0 };
         }
-        int operator()(FT_MSG msg, bool is_fresh) {
+        int operator()(const ft_msg &msg, bool is_fresh) {
             size_t flow_deltas[] = { 0, 0 };
             size_t memsize_in_buffer = message_buffer::msg_memsize_in_buffer(msg);
             if (remaining_memsize <= bnc->flow[0]) {

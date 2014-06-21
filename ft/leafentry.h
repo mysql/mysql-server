@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/txn_manager.h"
 #include "ft/rbuf.h"
-#include "ft/ft_msg.h"
+#include "ft/msg.h"
 
 /*
     Memory format of packed leaf entry
@@ -248,7 +248,7 @@ toku_le_upgrade_13_14(LEAFENTRY_13 old_leafentry, // NULL if there was no stored
 class bn_data;
 
 void
-toku_le_apply_msg(FT_MSG   msg,
+toku_le_apply_msg(const ft_msg &msg,
                   LEAFENTRY old_leafentry, // NULL if there was no stored data.
                   bn_data* data_buffer, // bn_data storing leafentry, if NULL, means there is no bn_data
                   uint32_t idx, // index in data_buffer where leafentry is stored (and should be replaced

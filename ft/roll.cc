@@ -257,13 +257,11 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
     XIDS xids;
     xids = toku_txn_get_xids(txn);
     {
-        FT_MSG_S ftmsg = { type, ZERO_MSN, xids,
-                           .u = { .id = { (key.len > 0)
-                                          ? toku_fill_dbt(&key_dbt,  key.data,  key.len)
-                                          : toku_init_dbt(&key_dbt),
-                                          data
-                                          ? toku_fill_dbt(&data_dbt, data->data, data->len)
-                                          : toku_init_dbt(&data_dbt) } } };
+        const DBT *kdbt = key.len > 0 ? toku_fill_dbt(&key_dbt, key.data, key.len) :
+                                        toku_init_dbt(&key_dbt);
+        const DBT *vdbt = data ? toku_fill_dbt(&data_dbt, data->data, data->len) :
+                                 toku_init_dbt(&data_dbt);
+        ft_msg msg(kdbt, vdbt, type, ZERO_MSN, xids);
 
         TXN_MANAGER txn_manager = toku_logger_get_txn_manager(txn->logger);
         txn_manager_state txn_state_for_gc(txn_manager);
@@ -274,7 +272,7 @@ static int do_insertion (enum ft_msg_type type, FILENUM filenum, BYTESTRING key,
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,
                             !txn->for_recovery);
-        toku_ft_root_put_msg(ft, &ftmsg, &gc_info);
+        toku_ft_root_put_msg(ft, msg, &gc_info);
         if (reset_root_xid_that_created) {
             TXNID new_root_xid_that_created = xids_get_outermost_xid(xids);
             toku_reset_root_xid_that_created(ft, new_root_xid_that_created);
