@@ -509,5 +509,14 @@ SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 1,
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(point(3 8), point( 8 3), multipoint(0 0, 1 1, 2 2), point(-1 -1), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 
 
+--echo #
+--echo # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
+--echo #
+select (aswkb(cast(st_union(multipoint(
+                                       point(8,6), point(1,-17679),
+                                       point(-9,-9)),
+                            linestring(point(91,12), point(-77,49),
+                                       point(53,-81)))as char(18))))
+in  ('1','2');
 
 --source include/gis_debug.inc

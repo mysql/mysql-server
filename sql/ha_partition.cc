@@ -2239,26 +2239,6 @@ void ha_partition::change_table_ptr(TABLE *table_arg, TABLE_SHARE *share)
   }
 }
 
-/*
-  Change comments specific to handler
-
-  SYNOPSIS
-    update_table_comment()
-    comment                       Original comment
-
-  RETURN VALUE
-    new comment
-
-  DESCRIPTION
-    No comment changes so far
-*/
-
-char *ha_partition::update_table_comment(const char *comment)
-{
-  return (char*) comment;                       /* Nothing to change */
-}
-
-
 /**
   Handle delete and rename table
 

@@ -604,7 +604,7 @@ char mysql_real_data_home[FN_REFLEN],
 char *lc_messages_dir_ptr, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
-uint mysql_real_data_home_len, mysql_data_home_len= 1;
+size_t mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -3274,29 +3274,29 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
-  mysql_cond_init(key_COND_manager, &COND_manager, NULL);
+  mysql_cond_init(key_COND_manager, &COND_manager);
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
+  mysql_cond_init(key_COND_server_started, &COND_server_started);
   mysql_mutex_init(key_LOCK_compress_gtid_table,
                    &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_compress_gtid_table,
-                  &COND_compress_gtid_table, NULL);
+                  &COND_compress_gtid_table);
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count,
                    &LOCK_handler_count, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_handler_count, &COND_handler_count, NULL);
+  mysql_cond_init(key_COND_handler_count, &COND_handler_count);
 #else
   mysql_mutex_init(key_LOCK_socket_listener_active,
                    &LOCK_socket_listener_active, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_socket_listener_active,
-                  &COND_socket_listener_active, NULL);
+                  &COND_socket_listener_active);
   mysql_mutex_init(key_LOCK_start_signal_handler,
                    &LOCK_start_signal_handler, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_start_signal_handler,
-                  &COND_start_signal_handler, NULL);
+                  &COND_start_signal_handler);
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */

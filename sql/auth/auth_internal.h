@@ -62,11 +62,11 @@ ACL_PROXY_USER * acl_find_proxy_user(const char *user,
                                      bool *proxy_used);
 bool set_user_salt(ACL_USER *acl_user,
                    const char *password,
-                   uint password_len);
+                   size_t password_len);
 void acl_insert_proxy_user(ACL_PROXY_USER *new_value);
 
 void acl_update_user(const char *user, const char *host,
-                     const char *password, uint password_len,
+                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -77,7 +77,7 @@ void acl_update_user(const char *user, const char *host,
                      const LEX_CSTRING &auth,
                      MYSQL_TIME password_change_time);
 void acl_insert_user(const char *user, const char *host,
-                     const char *password, uint password_len,
+                     const char *password, size_t password_len,
                      enum SSL_type ssl_type,
                      const char *ssl_cipher,
                      const char *x509_issuer,
@@ -98,7 +98,7 @@ bool update_sctx_cache(Security_context *sctx, ACL_USER *acl_user_ptr,
 /* sql_user_table */
 ulong get_access(TABLE *form,uint fieldnr, uint *next_field);
 bool acl_trans_commit_and_close_tables(THD *thd);
-void acl_notify_htons(THD* thd, const char* query, uint query_length);
+void acl_notify_htons(THD* thd, const char* query, size_t query_length);
 bool update_user_table(THD *thd, TABLE *table,
                        const char *host, const char *user,
                        const char *new_password, uint new_password_len,

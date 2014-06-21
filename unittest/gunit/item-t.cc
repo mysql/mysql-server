@@ -759,4 +759,48 @@ TEST_F(ItemTest, ItemFuncConvIntMin)
   EXPECT_EQ(null_string, item_conv->val_str(&str));
 }
 
+TEST_F(ItemTest, ItemDecimalTypecast)
+{
+  const char msg[]= "";
+  POS pos;
+  pos.cpp.start= pos.cpp.end= pos.raw.start= pos.raw.end= msg;
+
+  Cast_type type;
+  type.target= ITEM_CAST_DECIMAL;
+
+  type.length= "123456789012345678901234567890";
+  type.dec= NULL;
+
+  {
+    initializer.set_expected_error(ER_TOO_BIG_PRECISION);
+    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+  }
+
+  {
+    char buff[20];
+    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_PRECISION + 1);
+    type.length= buff;
+    type.dec= NULL;
+    initializer.set_expected_error(ER_TOO_BIG_PRECISION);
+    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+  }
+
+  {
+    type.length= NULL;
+    type.dec= "123456789012345678901234567890";
+    initializer.set_expected_error(ER_TOO_BIG_SCALE);
+    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+  }
+
+  {
+    char buff[20];
+    my_snprintf(buff, sizeof(buff) - 1, "%d", DECIMAL_MAX_SCALE + 1);
+    type.length= buff;
+    type.dec= buff;
+    initializer.set_expected_error(ER_TOO_BIG_SCALE);
+    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+  }
+
+}
+
 }

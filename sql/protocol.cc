@@ -47,7 +47,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length)
 bool Protocol_binary::net_store_data(const uchar *from, size_t length)
 #endif
 {
-  ulong packet_length=packet->length();
+  size_t packet_length=packet->length();
   /* 
      The +9 comes from that strings of length longer than 16M require
      9 bytes to be stored (see net_store_length).
@@ -83,7 +83,7 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
 {
   uint dummy_errors;
   /* Calculate maxumum possible result length */
-  uint conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
+  size_t conv_length= to_cs->mbmaxlen * length / from_cs->mbminlen;
   if (conv_length > 250)
   {
     /*
@@ -102,8 +102,8 @@ bool Protocol::net_store_data(const uchar *from, size_t length,
             net_store_data((const uchar*) convert->ptr(), convert->length()));
   }
 
-  ulong packet_length= packet->length();
-  ulong new_length= packet_length + conv_length + 1;
+  size_t packet_length= packet->length();
+  size_t new_length= packet_length + conv_length + 1;
 
   if (new_length > packet->alloced_length() && packet->realloc(new_length))
     return 1;
@@ -546,7 +546,7 @@ bool net_send_error_packet(NET* net, uint sql_errno, const char *err,
   - ulonglong for bigger numbers.
 */
 
-static uchar *net_store_length_fast(uchar *packet, uint length)
+static uchar *net_store_length_fast(uchar *packet, size_t length)
 {
   if (length < 251)
   {
@@ -1014,7 +1014,7 @@ bool Protocol::store(const char *from, const CHARSET_INFO *cs)
 {
   if (!from)
     return store_null();
-  uint length= strlen(from);
+  size_t length= strlen(from);
   return store(from, length, cs);
 }
 
@@ -1436,7 +1436,7 @@ bool Protocol_binary::store_long(longlong from)
   char *to= packet->prep_append(4, PACKET_BUFFER_EXTRA_ALLOC);
   if (!to)
     return 1;
-  int4store(to, from);
+  int4store(to, static_cast<uint32>(from));
   return 0;
 }
 

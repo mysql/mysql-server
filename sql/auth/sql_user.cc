@@ -136,7 +136,7 @@ enum enum_acl_lists
 
 
 int check_change_password(THD *thd, const char *host, const char *user,
-                          const char *new_password, uint new_password_len)
+                          const char *new_password, size_t new_password_len)
 {
   if (!initialized)
   {

@@ -679,6 +679,8 @@ bool Geometry::create_point(String *result, point_xy p) const
 
 /**
   Append N points from packed format to text
+  Before calling this function, caller must have already checked that wkb's
+  buffer is complete and not truncated.
 
   @param OUT txt        Append points here
   @param     n_points   Number of points
@@ -1095,6 +1097,9 @@ void Gis_point::set_ptr(void *ptr, size_t len)
 
 uint32 Gis_point::get_data_size() const
 {
+  if (get_nbytes() < POINT_DATA_SIZE)
+    return GET_SIZE_ERROR;
+
   return POINT_DATA_SIZE;
 }
 
@@ -2622,6 +2627,8 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
   res->q_append(n_line_strings);
 
   wkb+= 4;
+  len-= 4;
+
   while (n_line_strings--)
   {
     Gis_line_string ls(false);
@@ -2632,7 +2639,7 @@ uint Gis_multi_line_string::init_from_wkb(const char *wkb, uint len,
       return 0;
 
     write_wkb_header(res, wkb_linestring);
-    if (!(ls_len= ls.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
+    if (!(ls_len= ls.init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                                    (wkbByteOrder) wkb[0], res)))
       return 0;
     ls_len+= WKB_HEADER_SIZE;;
@@ -2868,7 +2875,9 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
     return 0;
   res->q_append(n_poly);
 
-  wkb+=4;
+  wkb+= 4;
+  len-= 4;
+
   while (n_poly--)
   {
     Gis_polygon p(false);
@@ -2878,7 +2887,7 @@ uint Gis_multi_polygon::init_from_wkb(const char *wkb, uint len,
         res->reserve(WKB_HEADER_SIZE, 512))
       return 0;
     write_wkb_header(res, wkb_polygon);
-    if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len,
+    if (!(p_len= p.init_from_wkb(wkb + WKB_HEADER_SIZE, len - WKB_HEADER_SIZE,
                                  (wkbByteOrder) wkb[0], res)))
       return 0;
     p_len+= WKB_HEADER_SIZE;
@@ -3229,6 +3238,7 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
   res->q_append(n_geom);
 
   wkb+= 4;
+  len-= 4;
 
   /* Allow 0 components as an empty collection. */
   while (n_geom--)
@@ -3246,7 +3256,8 @@ uint Gis_geometry_collection::init_from_wkb(const char *wkb, uint len,
     write_wkb_header(res, static_cast<wkbType>(wkb_type));
 
     if (!(geom= create_by_typeid(&buffer, wkb_type)) ||
-        !(g_len= geom->init_from_wkb(wkb + WKB_HEADER_SIZE, len,
+        !(g_len= geom->init_from_wkb(wkb + WKB_HEADER_SIZE,
+                                     len - WKB_HEADER_SIZE,
                                      (wkbByteOrder)  wkb[0], res)))
       return 0;
     g_len+= WKB_HEADER_SIZE;
