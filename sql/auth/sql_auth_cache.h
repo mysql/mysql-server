@@ -33,14 +33,14 @@ class String;
 class ACL_HOST_AND_IP
 {
   char *hostname;
-  uint hostname_length;
+  size_t hostname_length;
   long ip, ip_mask; // Used with masked ip:s
 
   const char *calc_ip(const char *ip_arg, long *val, char end);
 
 public:
   const char *get_host() const { return hostname; }
-  int get_host_len() { return hostname_length; }
+  size_t get_host_len() { return hostname_length; }
 
   bool has_wildcard()
   {

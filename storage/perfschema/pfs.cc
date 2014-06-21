@@ -6128,8 +6128,14 @@ void pfs_register_memory_v1(const char *category,
 
 static PSI_memory_key pfs_memory_alloc_v1(PSI_memory_key key, size_t size)
 {
+  if (! flag_global_instrumentation)
+    return PSI_NOT_INSTRUMENTED;
+
   PFS_memory_class *klass= find_memory_class(key);
   if (klass == NULL)
+    return PSI_NOT_INSTRUMENTED;
+
+  if (! klass->m_enabled)
     return PSI_NOT_INSTRUMENTED;
 
   PFS_memory_stat *event_name_array;
@@ -6188,7 +6194,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
       event_name_array= pfs_thread->write_instr_class_memory_stats();
       stat= & event_name_array[index];
 
-      if (klass->m_enabled)
+      if (flag_global_instrumentation && klass->m_enabled)
       {
         delta= stat->count_realloc(old_size, new_size, &delta_buffer);
       }
@@ -6210,7 +6216,7 @@ static PSI_memory_key pfs_memory_realloc_v1(PSI_memory_key key, size_t old_size,
   event_name_array= global_instr_class_memory_array;
   stat= & event_name_array[index];
 
-  if (klass->m_enabled)
+  if (flag_global_instrumentation && klass->m_enabled)
   {
     (void) stat->count_realloc(old_size, new_size, &delta_buffer);
   }
@@ -6231,6 +6237,7 @@ static void pfs_memory_free_v1(PSI_memory_key key, size_t size)
 
   /*
     Do not check klass->m_enabled.
+    Do not check flag_global_instrumentation.
     If a memory alloc was instrumented,
     the corresponding free must be instrumented.
   */

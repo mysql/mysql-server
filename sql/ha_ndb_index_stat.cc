@@ -43,10 +43,10 @@ Ndb_index_stat_thread::Ndb_index_stat_thread()
   : running(-1)
 {
   native_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
-  native_cond_init(&COND, NULL);
-  native_cond_init(&COND_ready, NULL);
+  native_cond_init(&COND);
+  native_cond_init(&COND_ready);
   native_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
-  native_cond_init(&stat_cond, NULL);
+  native_cond_init(&stat_cond);
 }
 
 Ndb_index_stat_thread::~Ndb_index_stat_thread()
