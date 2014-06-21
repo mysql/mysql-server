@@ -62,15 +62,6 @@ while [ $# -gt 0 ] ; do
     fi
 done
 
-if [[ $mysqlbuild =~ (.*)-(tokudb-.*)-(linux)-(x86_64) ]] ; then
-    mysql=${BASH_REMATCH[1]}
-    tokudb=${BASH_REMATCH[2]}
-    system=${BASH_REMATCH[3]}
-    arch=${BASH_REMATCH[4]}
-else
-    exit 1
-fi
-
 # setup the dbname
 if [ $dbname = "iibench" ] ; then dbname=${cmd}_${engine}; fi
 if [ "$testinstance" != "" ] ; then dbname=${dbname}_${testinstance}; fi
@@ -139,7 +130,7 @@ if [ "$instancetype" != "" ] ; then runfile=$runfile-$instancetype; fi
 testresult="PASS"
 
 pushd $testdir/py
-    echo `date` $cmd start $mysql $svn_branch $svn_revision $max_rows $rows_per_report >>$runfile
+    echo `date` $cmd start $mysqlbuild $svn_branch $svn_revision $max_rows $rows_per_report >>$runfile
     runcmd=$cmd.py
     args="--db_user=$mysqluser --db_name=$dbname --db_socket=$mysqlsocket --engine=$engine --setup --max_rows=$max_rows --rows_per_report=$rows_per_report --table_name=$tblname"
     if [ $cmd = "iibench" -a $insert_only != 0 ] ; then runcmd="$runcmd --insert_only"; fi
