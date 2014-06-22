@@ -102,6 +102,7 @@ void ftnode_pivot_keys::create_empty() {
     _total_size = 0;
     _fixed_keys = nullptr;
     _fixed_keylen = 0;
+    _fixed_keylen_aligned = 0;
     _dbt_keys = nullptr;
 }
 
@@ -121,15 +122,16 @@ void ftnode_pivot_keys::create_from_dbts(const DBT *keys, int n) {
     if (keys_same_size && _num_pivots > 0) {
         // if so, store pivots in a tightly packed array of fixed length keys
         _fixed_keylen = keys[0].size;
-        _total_size = _fixed_keylen * _num_pivots;
-        XMALLOC_N(_total_size, _fixed_keys);
+        _fixed_keylen_aligned = _align4(_fixed_keylen);
+        _total_size = _fixed_keylen_aligned * _num_pivots;
+        XMALLOC_N_ALIGNED(64, _total_size, _fixed_keys);
         for (int i = 0; i < _num_pivots; i++) {
             invariant(keys[i].size == _fixed_keylen);
             memcpy(_fixed_key(i), keys[i].data, _fixed_keylen);
         }
     } else {
         // otherwise we'll just store the pivots in an array of dbts
-        XMALLOC_N(_num_pivots, _dbt_keys);
+        XMALLOC_N_ALIGNED(64, _num_pivots, _dbt_keys);
         for (int i = 0; i < _num_pivots; i++) {
             size_t size = keys[i].size;
             toku_memdup_dbt(&_dbt_keys[i], keys[i].data, size);
@@ -142,7 +144,8 @@ void ftnode_pivot_keys::_create_from_fixed_keys(const char *fixedkeys, size_t fi
     create_empty();
     _num_pivots = n;
     _fixed_keylen = fixed_keylen;
-    _total_size = _fixed_keylen * _num_pivots;
+    _fixed_keylen_aligned = _align4(fixed_keylen);
+    _total_size = _fixed_keylen_aligned * _num_pivots;
     XMEMDUP_N(_fixed_keys, fixedkeys, _total_size);
 }
 
@@ -168,6 +171,7 @@ void ftnode_pivot_keys::destroy() {
         _fixed_keys = nullptr;
     }
     _fixed_keylen = 0;
+    _fixed_keylen_aligned = 0;
     _num_pivots = 0;
     _total_size = 0;
 }
@@ -177,8 +181,9 @@ void ftnode_pivot_keys::_convert_to_fixed_format() {
 
     // convert to a tightly packed array of fixed length keys
     _fixed_keylen = _dbt_keys[0].size;
-    _total_size = _fixed_keylen * _num_pivots;
-    XMALLOC_N(_total_size, _fixed_keys);
+    _fixed_keylen_aligned = _align4(_fixed_keylen);
+    _total_size = _fixed_keylen_aligned * _num_pivots;
+    XMALLOC_N_ALIGNED(64, _total_size, _fixed_keys);
     for (int i = 0; i < _num_pivots; i++) {
         invariant(_dbt_keys[i].size == _fixed_keylen);
         memcpy(_fixed_key(i), _dbt_keys[i].data, _fixed_keylen);
@@ -198,7 +203,7 @@ void ftnode_pivot_keys::_convert_to_dbt_format() {
     invariant(_fixed_format());
 
     // convert to an aray of dbts
-    XREALLOC_N(_num_pivots, _dbt_keys);
+    REALLOC_N_ALIGNED(64, _num_pivots, _dbt_keys);
     for (int i = 0; i < _num_pivots; i++) {
         toku_memdup_dbt(&_dbt_keys[i], _fixed_key(i), _fixed_keylen);
     }
@@ -218,7 +223,7 @@ void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
     _fixed_keylen = 0;
     _dbt_keys = nullptr;
 
-    XMALLOC_N(_num_pivots, _dbt_keys);
+    XMALLOC_N_ALIGNED(64, _num_pivots, _dbt_keys);
     bool keys_same_size = true;
     for (int i = 0; i < _num_pivots; i++) {
         bytevec pivotkeyptr;
@@ -240,7 +245,7 @@ void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
 DBT ftnode_pivot_keys::get_pivot(int i) const {
     paranoid_invariant(i < _num_pivots);
     if (_fixed_format()) {
-        paranoid_invariant(i * _fixed_keylen < _total_size);
+        paranoid_invariant(i * _fixed_keylen_aligned < _total_size);
         DBT dbt;
         toku_fill_dbt(&dbt, _fixed_key(i), _fixed_keylen);
         return dbt;
@@ -272,16 +277,18 @@ void ftnode_pivot_keys::_destroy_key_dbt(int i) {
 
 void ftnode_pivot_keys::_insert_at_dbt(const DBT *key, int i) {
     // make space for a new pivot, slide existing keys to the right
-    REALLOC_N(_num_pivots + 1, _dbt_keys);
+    REALLOC_N_ALIGNED(64, _num_pivots + 1, _dbt_keys);
     memmove(&_dbt_keys[i + 1], &_dbt_keys[i], (_num_pivots - i) * sizeof(DBT));
     _add_key_dbt(key, i);
 }
 
 void ftnode_pivot_keys::_insert_at_fixed(const DBT *key, int i) {
-    REALLOC_N((_num_pivots + 1) * _fixed_keylen, _fixed_keys); 
-    memmove(_fixed_key(i + 1), _fixed_key(i), (_num_pivots - i) * _fixed_keylen);
+    REALLOC_N_ALIGNED(64, (_num_pivots + 1) * _fixed_keylen_aligned, _fixed_keys); 
+    // TODO: This is not going to be valgrind-safe, because we do not initialize the space
+    // between _fixed_keylen and _fixed_keylen_aligned (but we probably should)
+    memmove(_fixed_key(i + 1), _fixed_key(i), (_num_pivots - i) * _fixed_keylen_aligned);
     memcpy(_fixed_key(i), key->data, _fixed_keylen);
-    _total_size += _fixed_keylen;
+    _total_size += _fixed_keylen_aligned;
 }
 
 void ftnode_pivot_keys::insert_at(const DBT *key, int i) {
@@ -303,7 +310,7 @@ void ftnode_pivot_keys::insert_at(const DBT *key, int i) {
 }
 
 void ftnode_pivot_keys::_append_dbt(const ftnode_pivot_keys &pivotkeys) {
-    REALLOC_N(_num_pivots + pivotkeys._num_pivots, _dbt_keys);
+    REALLOC_N_ALIGNED(64, _num_pivots + pivotkeys._num_pivots, _dbt_keys);
     bool other_fixed = pivotkeys._fixed_format();
     for (int i = 0; i < pivotkeys._num_pivots; i++) {
         toku_memdup_dbt(&_dbt_keys[_num_pivots + i],
@@ -317,7 +324,7 @@ void ftnode_pivot_keys::_append_dbt(const ftnode_pivot_keys &pivotkeys) {
 void ftnode_pivot_keys::_append_fixed(const ftnode_pivot_keys &pivotkeys) {
     if (pivotkeys._fixed_format() && pivotkeys._fixed_keylen == _fixed_keylen) {
         // other pivotkeys have the same fixed keylen 
-        REALLOC_N((_num_pivots + pivotkeys._num_pivots) * _fixed_keylen, _fixed_keys);
+        REALLOC_N_ALIGNED(64, (_num_pivots + pivotkeys._num_pivots) * _fixed_keylen_aligned, _fixed_keys);
         memcpy(_fixed_key(_num_pivots), pivotkeys._fixed_keys, pivotkeys._total_size);
     } else {
         // must convert to dbt format, other pivotkeys have different length'd keys
@@ -366,15 +373,15 @@ void ftnode_pivot_keys::replace_at(const DBT *key, int i) {
 }
 
 void ftnode_pivot_keys::_delete_at_fixed(int i) {
-    memmove(_fixed_key(i), _fixed_key(i + 1), (_num_pivots - 1 - i) * _fixed_keylen);
-    _total_size -= _fixed_keylen;
+    memmove(_fixed_key(i), _fixed_key(i + 1), (_num_pivots - 1 - i) * _fixed_keylen_aligned);
+    _total_size -= _fixed_keylen_aligned;
 }
 
 void ftnode_pivot_keys::_delete_at_dbt(int i) {
     // slide over existing keys, then shrink down to size
     _destroy_key_dbt(i);
     memmove(&_dbt_keys[i], &_dbt_keys[i + 1], (_num_pivots - 1 - i) * sizeof(DBT));
-    REALLOC_N(_num_pivots - 1, _dbt_keys);
+    REALLOC_N_ALIGNED(64, _num_pivots - 1, _dbt_keys);
 }
 
 void ftnode_pivot_keys::delete_at(int i) {
@@ -395,7 +402,7 @@ void ftnode_pivot_keys::_split_at_fixed(int i, ftnode_pivot_keys *other) {
 
     // shrink down to size
     _total_size = i * _fixed_keylen;
-    REALLOC_N(_total_size, _fixed_keys);
+    REALLOC_N_ALIGNED(64, _total_size, _fixed_keys);
 }
 
 void ftnode_pivot_keys::_split_at_dbt(int i, ftnode_pivot_keys *other) {
@@ -406,7 +413,7 @@ void ftnode_pivot_keys::_split_at_dbt(int i, ftnode_pivot_keys *other) {
     for (int k = i; k < _num_pivots; k++) {
         _destroy_key_dbt(k);
     }
-    REALLOC_N(i, _dbt_keys);
+    REALLOC_N_ALIGNED(64, i, _dbt_keys);
 }
 
 void ftnode_pivot_keys::split_at(int i, ftnode_pivot_keys *other) {
@@ -434,12 +441,12 @@ void ftnode_pivot_keys::serialize_to_wbuf(struct wbuf *wb) const {
 
 int ftnode_pivot_keys::num_pivots() const {
     // if we have fixed size keys, the number of pivots should be consistent
-    paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen * _num_pivots));
+    paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen_aligned * _num_pivots));
     return _num_pivots;
 }
 
 size_t ftnode_pivot_keys::total_size() const {
     // if we have fixed size keys, the total size should be consistent
-    paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen * _num_pivots));
+    paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen_aligned * _num_pivots));
     return _total_size;
 }
