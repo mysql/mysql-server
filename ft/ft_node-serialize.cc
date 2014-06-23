@@ -469,7 +469,7 @@ serialize_ftnode_info_size(FTNODE node)
     retval += 4; // flags
     retval += 4; // height;
     retval += 8; // oldest_referenced_xid_known
-    retval += node->pivotkeys.total_size();
+    retval += node->pivotkeys.serialized_size();
     retval += (node->n_children-1)*4; // encode length of each pivot
     if (node->height > 0) {
         retval += node->n_children*8; // child blocknum's
