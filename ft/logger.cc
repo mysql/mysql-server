@@ -1103,7 +1103,7 @@ int toku_logprint_XIDP (FILE *outf, FILE *inf, const char *fieldname, struct x17
     XIDP vp;
     int r = toku_fread_XIDP(inf, &vp, checksum, len);
     if (r!=0) return r;
-    fprintf(outf, "%s={formatID=0x%lx gtrid_length=%ld bqual_length=%ld data=", fieldname, vp->formatID, vp->gtrid_length, vp->bqual_length);
+    fprintf(outf, " %s={formatID=0x%lx gtrid_length=%ld bqual_length=%ld data=", fieldname, vp->formatID, vp->gtrid_length, vp->bqual_length);
     toku_print_bytes(outf, vp->gtrid_length + vp->bqual_length, vp->data);
     fprintf(outf, "}");
     toku_free(vp);
