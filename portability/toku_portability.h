@@ -352,14 +352,8 @@ void toku_set_func_pread (ssize_t (*)(int, void *, size_t, off_t));
 int toku_portability_init(void);
 void toku_portability_destroy(void);
 
-static inline uint64_t roundup_to_multiple(uint64_t alignment, uint64_t v)
 // Effect: Return X, where X the smallest multiple of ALIGNMENT such that X>=V.
 // Requires: ALIGNMENT is a power of two
-{
-    assert(0==(alignment&(alignment-1)));  // alignment must be a power of two
-    uint64_t result = (v+alignment-1)&~(alignment-1);
-    assert(result>=v);                     // The result is >=V.
-    assert(result%alignment==0);           // The result is a multiple of alignment.
-    assert(result<v+alignment);            // The result is the smallest such multiple of alignment.
-    return result;
+static inline uint64_t roundup_to_multiple(uint64_t alignment, uint64_t v) {
+    return (v + alignment - 1) & ~(alignment - 1);
 }

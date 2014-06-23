@@ -150,11 +150,15 @@ public:
     size_t total_size() const;
 
 private:
+    inline size_t _align4(size_t x) const {
+        return roundup_to_multiple(4, x);
+    }
+
     // effect: create pivot keys, in fixed key format, by copying the given key array
     void _create_from_fixed_keys(const char *fixedkeys, size_t fixed_keylen, int n);
 
     char *_fixed_key(int i) const {
-        return &_fixed_keys[i * _fixed_keylen];
+        return &_fixed_keys[i * _fixed_keylen_aligned];
     }
 
     bool _fixed_format() const {
@@ -187,7 +191,10 @@ private:
     // If every key is _fixed_keylen long, then _fixed_key is a
     // packed array of keys..
     char *_fixed_keys;
+    // The actual length of the fixed key
     size_t _fixed_keylen;
+    // The aligned length that we use for fixed key storage
+    size_t _fixed_keylen_aligned;
 
     // ..otherwise _fixed_keys is null and we store an array of dbts,
     // each representing a key. this is simpler but less cache-efficient.
