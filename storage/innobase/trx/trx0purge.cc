@@ -860,6 +860,8 @@ trx_purge_initiate_truncate(
 	typedef	std::vector<TrxUndoRsegs>	purge_elem_list_t;
 	purge_elem_list_t			purge_elem_list;
 
+	/* Remove rseg instances that are in the purge queue before we start
+	truncate of corresponding UNDO truncate. */
 	while (!purge_sys->purge_queue->empty()) {
 		purge_elem_list.push_back(purge_sys->purge_queue->top());
 		purge_sys->purge_queue->pop();
@@ -915,6 +917,18 @@ trx_purge_initiate_truncate(
 			" space identifier " ULINTPF "",
 			undo_trunc->get_undo_mark_for_trunc());
 		return;
+	}
+
+	if (purge_sys->rseg != NULL
+	    && purge_sys->rseg->last_page_no == FIL_NULL) {
+		/* If purge_sys->rseg is pointing to rseg that was recently
+		truncated then move to next rseg element.
+		Note: Ideally purge_sys->rseg should be NULL because purge
+		should complete processing of all the records but there is
+		purge_batch_size that can force the purge loop to exist before
+		the all the records are purge and in this case purge_sys->rseg
+		could point to a valid rseg waiting for next purge cycle. */
+		purge_sys->rseg_iter->set_next();
 	}
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_end",
