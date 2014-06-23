@@ -1028,8 +1028,6 @@ The following options may be given as the first argument:
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
- --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
- currently supported)
  --tmp-table-size=#  If an internal in-memory temporary table exceeds this
  size, MySQL will automatically convert it to an on-disk
  MyISAM table
@@ -1362,7 +1360,6 @@ thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
 time-format %H:%i:%s
-timed-mutexes FALSE
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ
