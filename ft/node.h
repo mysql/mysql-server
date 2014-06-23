@@ -146,8 +146,11 @@ public:
 
     int num_pivots() const;
 
-    // return: the sum of the keys sizes of each pivot
+    // return: the total size of this data structure
     size_t total_size() const;
+
+    // return: the sum of the keys sizes of each pivot (for serialization)
+    size_t serialized_size() const;
 
 private:
     inline size_t _align4(size_t x) const {
