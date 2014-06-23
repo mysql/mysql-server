@@ -60,67 +60,30 @@ struct row_prebuilt_t;
 /** The class defining a handle to an InnoDB table */
 class ha_innobase: public handler
 {
-	row_prebuilt_t*	m_prebuilt;	/*!< prebuilt struct in InnoDB, used
-					to save CPU time with prebuilt data
-					structures*/
-	THD*		user_thd;	/*!< the thread handle of the user
-					currently using the handle; this is
-					set in external_lock function */
-	THR_LOCK_DATA	lock;
-	INNOBASE_SHARE*	share;		/*!< information for MySQL
-					table locking */
-
-	uchar*		upd_buf;	/*!< buffer used in updates */
-	ulint		upd_buf_size;	/*!< the size of upd_buf in bytes */
-	uchar		srch_key_val1[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
-	uchar		srch_key_val2[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
-					/*!< buffers used in converting
-					search key values from MySQL format
-					to InnoDB format. For each column
-					2 bytes are used to store length,
-					hence MAX_REF_PARTS*2. */
-	Table_flags	int_table_flags;
-	uint		primary_key;
-	bool		m_start_of_scan;/*!< this is set to 1 when we are
-					starting a table scan but have not
-					yet fetched any row, else 0 */
-	uint		last_match_mode;/* match mode of the latest search:
-					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
-					or undefined */
-	uint		m_num_write_row;/*!< number of write_row() calls */
-
-	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
-                                   const uchar* record);
-	inline void update_thd(THD* thd);
-	void update_thd();
-	int change_active_index(uint keynr);
-	int general_fetch(uchar* buf, uint direction, uint match_mode);
-	dberr_t innobase_lock_autoinc();
-	ulonglong innobase_peek_autoinc();
-	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
-	dberr_t innobase_reset_autoinc(ulonglong auto_inc);
-	dberr_t innobase_get_autoinc(ulonglong* value);
-	void innobase_initialize_autoinc();
-	dict_index_t* innobase_get_index(uint keynr);
-
-	/* Init values for the class: */
  public:
 	ha_innobase(handlerton *hton, TABLE_SHARE *table_arg);
 	~ha_innobase();
-	/*
-	  Get the row type from the storage engine.  If this method returns
-	  ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used.
-	*/
-	enum row_type get_row_type() const;
+
+	/** Get the row type from the storage engine.  If this method returns
+	ROW_TYPE_NOT_USED, the information in HA_CREATE_INFO should be used. */
+	row_type get_row_type() const;
 
 	const char* table_type() const;
+
 	const char* index_type(uint key_number);
+
 	const char** bas_ext() const;
+
 	Table_flags table_flags() const;
+
 	ulong index_flags(uint idx, uint part, bool all_parts) const;
+
 	uint max_supported_keys() const;
+
 	uint max_supported_key_length() const;
+
 	uint max_supported_key_part_length() const;
+
 	const key_map* keys_to_use_for_scanning();
 
 	int open(const char *name, int mode, uint test_if_locked);
@@ -139,16 +102,32 @@ class ha_innobase: public handler
 	void unlock_row();
 
 	int index_init(uint index, bool sorted);
+
 	int index_end();
-	int index_read(uchar * buf, const uchar * key,
-		uint key_len, enum ha_rkey_function find_flag);
-	int index_read_idx(uchar * buf, uint index, const uchar * key,
-			   uint key_len, enum ha_rkey_function find_flag);
+
+	int index_read(
+		uchar*			buf,
+		const uchar*		key,
+		uint			key_len,
+		ha_rkey_function	find_flag);
+
+	int index_read_idx(
+		uchar*			buf,
+		uint			index,
+		const uchar*		key,
+		uint			key_len,
+		ha_rkey_function	find_flag);
+
 	int index_read_last(uchar * buf, const uchar * key, uint key_len);
+
 	int index_next(uchar * buf);
+
 	int index_next_same(uchar * buf, const uchar *key, uint keylen);
+
 	int index_prev(uchar * buf);
+
 	int index_first(uchar * buf);
+
 	int index_last(uchar * buf);
 
 	int rnd_init(bool scan);
@@ -157,75 +136,133 @@ class ha_innobase: public handler
 	int rnd_pos(uchar * buf, uchar *pos);
 
 	int ft_init();
+
 	void ft_end();
-	FT_INFO *ft_init_ext(uint flags, uint inx, String* key);
-	FT_INFO *ft_init_ext_with_hints(uint inx, String* key,
-					Ft_hints *hints);
+
+	FT_INFO* ft_init_ext(uint flags, uint inx, String* key);
+
+	FT_INFO* ft_init_ext_with_hints(
+		uint			inx,
+		String*			key,
+		Ft_hints*		hints);
+
 	int ft_read(uchar* buf);
 
 	void position(const uchar *record);
+
 	int info(uint);
+
 	int enable_indexes(uint mode);
+
 	int disable_indexes(uint mode);
+
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
+
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
+
 	int discard_or_import_tablespace(my_bool discard);
-	int extra(enum ha_extra_function operation);
+
+	int extra(ha_extra_function operation);
+
 	int reset();
+
 	int external_lock(THD *thd, int lock_type);
+
 	int transactional_table_lock(THD *thd, int lock_type);
+
 	int start_stmt(THD *thd, thr_lock_type lock_type);
+
 	void position(uchar *record);
+
 	ha_rows records();
-	ha_rows records_in_range(uint inx, key_range *min_key, key_range
-								*max_key);
+
+	ha_rows records_in_range(
+		uint			inx,
+		key_range*		min_key,
+		key_range*		max_key);
+
 	ha_rows estimate_rows_upper_bound();
 
 	void update_create_info(HA_CREATE_INFO* create_info);
-	int parse_table_name(const char*name,
-			     HA_CREATE_INFO* create_info,
-			     ulint flags,
-			     ulint flags2,
-			     char* norm_name,
-			     char* temp_path,
-			     char* remote_path);
-	int create(const char *name, register TABLE *form,
-					HA_CREATE_INFO *create_info);
+
+	int parse_table_name(
+		const char*		name,
+		HA_CREATE_INFO*		create_info,
+		ulint			flags,
+		ulint			flags2,
+		char*			norm_name,
+		char*			temp_path,
+		char*			remote_path);
+
+	int create(
+		const char*		name,
+		TABLE*			form,
+		HA_CREATE_INFO*		create_info);
+
 	int truncate();
+
 	int delete_table(const char *name);
+
 	int rename_table(const char* from, const char* to);
+
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
+
 	char* get_foreign_key_create_info();
+
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
-	int get_parent_foreign_key_list(THD *thd,
-					List<FOREIGN_KEY_INFO> *f_key_list);
+
+	int get_parent_foreign_key_list(
+		THD*			thd,
+		List<FOREIGN_KEY_INFO>*	f_key_list);
+
 	bool can_switch_engines();
+
 	uint referenced_by_foreign_key();
+
 	void free_foreign_key_create_info(char* str);
+
 	uint lock_count(void) const;
-	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
-					enum thr_lock_type lock_type);
+
+	THR_LOCK_DATA** store_lock(
+		THD*			thd,
+		THR_LOCK_DATA**		to,
+		thr_lock_type		lock_type);
+
 	void init_table_handle_for_HANDLER();
-        virtual void get_auto_increment(ulonglong offset, ulonglong increment,
-                                        ulonglong nb_desired_values,
-                                        ulonglong *first_value,
-                                        ulonglong *nb_reserved_values);
+
+        virtual void get_auto_increment(
+		ulonglong		offset,
+		ulonglong		increment,
+		ulonglong		nb_desired_values,
+		ulonglong*		first_value,
+		ulonglong*		nb_reserved_values);
+
 	int reset_auto_increment(ulonglong value);
 
 	virtual bool get_error_message(int error, String *buf);
+
 	virtual bool get_foreign_dup_key(char*, uint, char*, uint);
+
 	uint8 table_cache_type();
-	/*
-	  ask handler about permission to cache table during query registration
+
+	/**
+	Ask handler about permission to cache table during query registration
 	*/
-	my_bool register_query_cache_table(THD *thd, char *table_key,
-					   uint key_length,
-					   qc_engine_callback *call_back,
-					   ulonglong *engine_data);
+	my_bool register_query_cache_table(
+		THD*			thd,
+		char*			table_key,
+		uint			key_length,
+		qc_engine_callback*	call_back,
+		ulonglong*		engine_data);
+
 	static const char *get_mysql_bin_log_name();
+
 	static ulonglong get_mysql_bin_log_pos();
+
 	bool primary_key_is_clustered();
-	int cmp_ref(const uchar *ref1, const uchar *ref2);
+
+	int cmp_ref(const uchar* ref1, const uchar* ref2);
+
 	/** On-line ALTER TABLE interface @see handler0alter.cc @{ */
 
 	/** Check if InnoDB supports a particular alter table in-place
@@ -236,16 +273,14 @@ class ha_innobase: public handler
 	@retval HA_ALTER_INPLACE_NOT_SUPPORTED Not supported
 	@retval HA_ALTER_INPLACE_NO_LOCK Supported
 	@retval HA_ALTER_INPLACE_SHARED_LOCK_AFTER_PREPARE
-						Supported, but requires lock
-						during main phase and exclusive
-						lock during prepare phase.
+		Supported, but requires lock during main phase and
+		exclusive lock during prepare phase.
 	@retval HA_ALTER_INPLACE_NO_LOCK_AFTER_PREPARE
-						Supported, prepare phase
-						requires exclusive lock.
-	*/
+		Supported, prepare phase requires exclusive lock.  */
 	enum_alter_inplace_result check_if_supported_inplace_alter(
 		TABLE*			altered_table,
 		Alter_inplace_info*	ha_alter_info);
+
 	/** Allows InnoDB to update internal structures with concurrent
 	writes blocked (provided that check_if_supported_inplace_alter()
 	did not return HA_ALTER_INPLACE_NO_LOCK).
@@ -297,9 +332,39 @@ class ha_innobase: public handler
 		Alter_inplace_info*	ha_alter_info,
 		bool			commit);
 	/** @} */
-	bool check_if_incompatible_data(HA_CREATE_INFO *info,
-					uint table_changes);
+
+	bool check_if_incompatible_data(
+		HA_CREATE_INFO*		info,
+		uint			table_changes);
 private:
+	uint store_key_val_for_row(
+		uint			keynr,
+		char*			buff,
+		uint			buff_len,
+		const uchar*		record);
+
+	inline void update_thd(THD* thd);
+
+	void update_thd();
+
+	int change_active_index(uint keynr);
+
+	int general_fetch(uchar* buf, uint direction, uint match_mode);
+
+	dberr_t innobase_lock_autoinc();
+
+	ulonglong innobase_peek_autoinc();
+
+	dberr_t innobase_set_max_autoinc(ulonglong auto_inc);
+
+	dberr_t innobase_reset_autoinc(ulonglong auto_inc);
+
+	dberr_t innobase_get_autoinc(ulonglong* value);
+
+	void innobase_initialize_autoinc();
+
+	dict_index_t* innobase_get_index(uint keynr);
+
 	/** Builds a 'template' to the prebuilt struct.
 
 	The template is used in fast retrieval of just those column
@@ -307,6 +372,7 @@ private:
 	@param whole_row true if access is needed to a whole row,
 	false if accessing individual fields is enough */
 	void build_template(bool whole_row);
+
 	/** Resets a query execution 'template'.
 	@see build_template() */
 	inline void reset_template();
@@ -322,10 +388,13 @@ public:
 	@param n_ranges
 	@param mode
 	@param buf */
-	int multi_range_read_init(RANGE_SEQ_IF* seq,
-				  void* seq_init_param,
-				  uint n_ranges, uint mode,
-				  HANDLER_BUFFER* buf);
+	int multi_range_read_init(
+		RANGE_SEQ_IF*		seq,
+		void*			seq_init_param,
+		uint			n_ranges,
+		uint			mode,
+		HANDLER_BUFFER*		buf);
+
 	/** Process next multi range read @see DsMrr_impl::dsmrr_next
 	@param range_info */
 	int multi_range_read_next(char** range_info);
@@ -340,10 +409,15 @@ public:
 	@param bufsz
 	@param flags
 	@param cost */
-	ha_rows multi_range_read_info_const(uint keyno, RANGE_SEQ_IF* seq,
-					   void* seq_init_param,
-					   uint n_ranges, uint* bufsz,
-					   uint* flags, Cost_estimate* cost);
+	ha_rows multi_range_read_info_const(
+		uint			keyno,
+		RANGE_SEQ_IF*		seq,
+		void*			seq_init_param,
+		uint			n_ranges,
+		uint*			bufsz,
+		uint*			flags,
+		Cost_estimate*		cost);
+
 	/** Initialize multi range read and get information.
 	@see DsMrr_impl::dsmrr_info
 	@param keyno
@@ -353,20 +427,54 @@ public:
 	@param bufsz
 	@param flags
 	@param cost */
-	ha_rows multi_range_read_info(uint keyno, uint n_ranges, uint keys,
-				      uint* bufsz, uint* flags,
-				      Cost_estimate* cost);
+	ha_rows multi_range_read_info(
+		uint			keyno,
+		uint			n_ranges,
+		uint			keys,
+		uint*			bufsz,
+		uint*			flags,
+		Cost_estimate*		cost);
 
 	/** Attempt to push down an index condition.
 	@param[in] keyno MySQL key number
 	@param[in] idx_cond Index condition to be checked
 	@return idx_cond if pushed; NULL if not pushed */
 	class Item* idx_cond_push(uint keyno, class Item* idx_cond);
+	/* @} */
 
 private:
 	/** The multi range read session object */
-	DsMrr_impl ds_mrr;
-	/* @} */
+	DsMrr_impl 	m_ds_mrr;
+
+	row_prebuilt_t*	m_prebuilt;	/*!< prebuilt struct in InnoDB, used
+					to save CPU time with prebuilt data
+					structures*/
+	THD*		m_user_thd;	/*!< the thread handle of the user
+					currently using the handle; this is
+					set in external_lock function */
+	THR_LOCK_DATA	m_lock;
+	INNOBASE_SHARE*	share;		/*!< information for MySQL
+					table locking */
+
+	uchar*		m_upd_buf;	/*!< buffer used in updates */
+	ulint		m_upd_buf_size;	/*!< the size of upd_buf in bytes */
+	uchar		m_srch_key_val1[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
+	uchar		m_srch_key_val2[MAX_KEY_LENGTH + MAX_REF_PARTS*2];
+					/*!< buffers used in converting
+					search key values from MySQL format
+					to InnoDB format. For each column
+					2 bytes are used to store length,
+					hence MAX_REF_PARTS*2. */
+	Table_flags	m_int_table_flags;
+	uint		m_primary_key;
+	bool		m_start_of_scan;/*!< this is set to 1 when we are
+					starting a table scan but have not
+					yet fetched any row, else 0 */
+	uint		m_last_match_mode;
+					/*!< match mode of the latest search:
+					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
+					or undefined */
+	uint		m_num_write_row;/*!< number of write_row() calls */
 };
 
 /* Some accessor functions which the InnoDB plugin needs, but which
@@ -415,7 +523,7 @@ bool thd_sqlcom_can_generate_row_events(const MYSQL_THD thd);
 /** Gets information on the durability property requested by a thread.
 @param thd Thread handle
 @return a durability property. */
-enum durability_properties thd_get_durability_property(const MYSQL_THD thd);
+durability_properties thd_get_durability_property(const MYSQL_THD thd);
 
 /** Get the auto_increment_offset auto_increment_increment.
 @param thd Thread object
@@ -553,7 +661,7 @@ Check whether the table has a unique index with FTS_DOC_ID_INDEX_NAME
 on the Doc ID column.
 @return the status of the FTS_DOC_ID index */
 
-enum fts_doc_id_index_enum
+fts_doc_id_index_enum
 innobase_fts_check_doc_id_index(
 /*============================*/
 	const dict_table_t*	table,		/*!< in: table definition */
@@ -569,7 +677,7 @@ on the Doc ID column in MySQL create index definition.
 @return FTS_EXIST_DOC_ID_INDEX if there exists the FTS_DOC_ID index,
 FTS_INCORRECT_DOC_ID_INDEX if the FTS_DOC_ID index is of wrong format */
 
-enum fts_doc_id_index_enum
+fts_doc_id_index_enum
 innobase_fts_check_doc_id_index_in_def(
 /*===================================*/
 	ulint		n_key,		/*!< in: Number of keys */

@@ -288,7 +288,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	NULL to a NOT NULL value. */
 	if ((ha_alter_info->handler_flags
 	     & Alter_inplace_info::ALTER_COLUMN_NOT_NULLABLE)
-	    && !thd_is_strict_mode(user_thd)) {
+	    && !thd_is_strict_mode(m_user_thd)) {
 		ha_alter_info->unsupported_reason = innobase_get_err_msg(
 			ER_ALTER_OPERATION_NOT_SUPPORTED_REASON_NOT_NULL);
 		DBUG_RETURN(HA_ALTER_INPLACE_NOT_SUPPORTED);
@@ -3669,7 +3669,7 @@ ha_innobase::prepare_inplace_alter_table(
 	if (ha_alter_info->handler_flags
 	    & Alter_inplace_info::CHANGE_CREATE_OPTION) {
 		const char* invalid_opt = create_options_are_invalid(
-			    user_thd, ha_alter_info->create_info,
+			    m_user_thd, ha_alter_info->create_info,
 			    m_prebuilt->table->space != 0);
 		if (invalid_opt) {
 			my_error(ER_ILLEGAL_HA_CREATE_OPTION, MYF(0),
@@ -3680,13 +3680,15 @@ ha_innobase::prepare_inplace_alter_table(
 
 	/* Check if any index name is reserved. */
 	if (innobase_index_name_is_reserved(
-		    user_thd,
+		    m_user_thd,
 		    ha_alter_info->key_info_buffer,
 		    ha_alter_info->key_count)) {
 err_exit_no_heap:
 		DBUG_ASSERT(m_prebuilt->trx->dict_operation_lock_mode == 0);
 		if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) {
-			online_retry_drop_indexes(m_prebuilt->table, user_thd);
+
+			online_retry_drop_indexes(
+				m_prebuilt->table, m_user_thd);
 		}
 		DBUG_RETURN(true);
 	}
@@ -3760,7 +3762,7 @@ check_if_ok_to_rename:
 
 	if (!innobase_table_flags(altered_table,
 				  ha_alter_info->create_info,
-				  user_thd,
+				  m_user_thd,
 				  srv_file_per_table
 				  || indexed_table->space != 0,
 				  &flags, &flags2)) {
@@ -3929,7 +3931,7 @@ found_fk:
 
 			if (!index) {
 				push_warning_printf(
-					user_thd,
+					m_user_thd,
 					Sql_condition::SL_WARNING,
 					HA_ERR_WRONG_INDEX,
 					"InnoDB could not find key"
@@ -4124,7 +4126,10 @@ err_exit:
 func_exit:
 		DBUG_ASSERT(m_prebuilt->trx->dict_operation_lock_mode == 0);
 		if (ha_alter_info->handler_flags & ~INNOBASE_INPLACE_IGNORE) {
-			online_retry_drop_indexes(m_prebuilt->table, user_thd);
+
+			online_retry_drop_indexes(
+				m_prebuilt->table, m_user_thd);
+
 		}
 		DBUG_RETURN(false);
 	}
@@ -4144,7 +4149,7 @@ func_exit:
 			add_fts_doc_id_idx = true;
 
 			push_warning_printf(
-				user_thd,
+				m_user_thd,
 				Sql_condition::SL_WARNING,
 				HA_ERR_WRONG_INDEX,
 				"InnoDB rebuilding table to add"
@@ -4216,7 +4221,7 @@ found_col:
 	}
 
 	DBUG_ASSERT(heap);
-	DBUG_ASSERT(user_thd == m_prebuilt->trx->mysql_thd);
+	DBUG_ASSERT(m_user_thd == m_prebuilt->trx->mysql_thd);
 	DBUG_ASSERT(!ha_alter_info->handler_ctx);
 
 	ha_alter_info->handler_ctx = new ha_innobase_inplace_ctx(
@@ -4267,11 +4272,11 @@ ha_innobase::inplace_alter_table(
 	ut_ad(!rw_lock_own(&dict_operation_lock, RW_LOCK_S));
 #endif /* UNIV_SYNC_DEBUG */
 
-	DEBUG_SYNC(user_thd, "innodb_inplace_alter_table_enter");
+	DEBUG_SYNC(m_user_thd, "innodb_inplace_alter_table_enter");
 
 	if (!(ha_alter_info->handler_flags & INNOBASE_ALTER_DATA)) {
 ok_exit:
-		DEBUG_SYNC(user_thd, "innodb_after_inplace_alter_table");
+		DEBUG_SYNC(m_user_thd, "innodb_after_inplace_alter_table");
 		DBUG_RETURN(false);
 	}
 
@@ -5946,7 +5951,7 @@ ha_innobase::commit_inplace_alter_table(
 		}
 	}
 
-	DEBUG_SYNC(user_thd, "innodb_alter_commit_after_lock_table");
+	DEBUG_SYNC(m_user_thd, "innodb_alter_commit_after_lock_table");
 
 	const bool	new_clustered	= ctx0->need_rebuild();
 	trx_t*		trx		= ctx0->trx;
@@ -5975,7 +5980,7 @@ ha_innobase::commit_inplace_alter_table(
 
 	if (!trx) {
 		DBUG_ASSERT(!new_clustered);
-		trx = innobase_trx_allocate(user_thd);
+		trx = innobase_trx_allocate(m_user_thd);
 	}
 
 	trx_start_for_ddl(trx, TRX_DICT_OP_INDEX);
@@ -6210,7 +6215,7 @@ foreign_fail:
 					"InnoDB: dict_load_foreigns()"
 					" returned %u for %s",
 					(unsigned) error,
-					thd_query_unsafe(user_thd)
+					thd_query_unsafe(m_user_thd)
 					.str);
 				ut_ad(0);
 			} else {
@@ -6337,7 +6342,7 @@ foreign_fail:
 				    errstr, sizeof(errstr))
 			    != DB_SUCCESS) {
 				push_warning_printf(
-					user_thd,
+					m_user_thd,
 					Sql_condition::SL_WARNING,
 					ER_ALTER_INFO,
 					"Deleting persistent statistics"
@@ -6396,7 +6401,7 @@ foreign_fail:
 
 			alter_stats_rebuild(
 				ctx->new_table, table->s->table_name.str,
-				user_thd);
+				m_user_thd);
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
@@ -6410,7 +6415,7 @@ foreign_fail:
 
 			alter_stats_norebuild(
 				ha_alter_info, ctx, altered_table,
-				table->s->table_name.str, user_thd);
+				table->s->table_name.str, m_user_thd);
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
