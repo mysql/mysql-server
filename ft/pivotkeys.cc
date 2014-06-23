@@ -138,6 +138,8 @@ void ftnode_pivot_keys::create_from_dbts(const DBT *keys, int n) {
             _total_size += size;
         }
     }
+
+    sanity_check();
 }
 
 void ftnode_pivot_keys::_create_from_fixed_keys(const char *fixedkeys, size_t fixed_keylen, int n) {
@@ -156,6 +158,8 @@ void ftnode_pivot_keys::create_from_pivot_keys(const ftnode_pivot_keys &pivotkey
     } else {
         create_from_dbts(pivotkeys._dbt_keys, pivotkeys._num_pivots);
     }
+
+    sanity_check();
 }
 
 void ftnode_pivot_keys::destroy() {
@@ -240,6 +244,8 @@ void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
     if (keys_same_size && _num_pivots > 0) {
         _convert_to_fixed_format();
     }
+
+    sanity_check();
 }
 
 DBT ftnode_pivot_keys::get_pivot(int i) const {
@@ -341,6 +347,8 @@ void ftnode_pivot_keys::append(const ftnode_pivot_keys &pivotkeys) {
     }
     _num_pivots += pivotkeys._num_pivots;
     _total_size += pivotkeys._total_size;
+
+    sanity_check();
 }
 
 void ftnode_pivot_keys::_replace_at_dbt(const DBT *key, int i) {
@@ -401,7 +409,7 @@ void ftnode_pivot_keys::_split_at_fixed(int i, ftnode_pivot_keys *other) {
     other->_create_from_fixed_keys(_fixed_key(i), _fixed_keylen, _num_pivots - i);
 
     // shrink down to size
-    _total_size = i * _fixed_keylen;
+    _total_size = i * _fixed_keylen_aligned;
     REALLOC_N_ALIGNED(64, _total_size, _fixed_keys);
 }
 
@@ -425,6 +433,8 @@ void ftnode_pivot_keys::split_at(int i, ftnode_pivot_keys *other) {
         }
         _num_pivots = i;
     }
+
+    sanity_check();
 }
 
 void ftnode_pivot_keys::serialize_to_wbuf(struct wbuf *wb) const {
@@ -455,4 +465,15 @@ size_t ftnode_pivot_keys::serialized_size() const {
     // we only return the size that will be used when serialized, so we calculate based
     // on the fixed keylen and not the aligned keylen.
     return _fixed_format() ? _num_pivots * _fixed_keylen : _total_size;
+}
+
+void ftnode_pivot_keys::sanity_check() const {
+    if (_fixed_format()) {
+        invariant(_dbt_keys == nullptr);
+        invariant(_fixed_keylen_aligned == _align4(_fixed_keylen));
+        invariant(_num_pivots * _fixed_keylen <= _total_size);
+        invariant(_num_pivots * _fixed_keylen_aligned == _total_size);
+    } else {
+        invariant(_num_pivots == 0 || _dbt_keys != nullptr);
+    }
 }
