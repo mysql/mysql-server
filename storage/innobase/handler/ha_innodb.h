@@ -60,7 +60,7 @@ struct row_prebuilt_t;
 /** The class defining a handle to an InnoDB table */
 class ha_innobase: public handler
 {
-	row_prebuilt_t*	prebuilt;	/*!< prebuilt struct in InnoDB, used
+	row_prebuilt_t*	m_prebuilt;	/*!< prebuilt struct in InnoDB, used
 					to save CPU time with prebuilt data
 					structures*/
 	THD*		user_thd;	/*!< the thread handle of the user
@@ -81,13 +81,13 @@ class ha_innobase: public handler
 					hence MAX_REF_PARTS*2. */
 	Table_flags	int_table_flags;
 	uint		primary_key;
-	ulong		start_of_scan;	/*!< this is set to 1 when we are
+	bool		m_start_of_scan;/*!< this is set to 1 when we are
 					starting a table scan but have not
 					yet fetched any row, else 0 */
 	uint		last_match_mode;/* match mode of the latest search:
 					ROW_SEL_EXACT, ROW_SEL_EXACT_PREFIX,
 					or undefined */
-	uint		num_write_row;	/*!< number of write_row() calls */
+	uint		m_num_write_row;/*!< number of write_row() calls */
 
 	uint store_key_val_for_row(uint keynr, char* buff, uint buff_len,
                                    const uchar* record);

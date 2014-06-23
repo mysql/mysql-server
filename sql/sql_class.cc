@@ -720,8 +720,12 @@ int thd_tx_priority(const THD* thd)
 extern "C"
 THD* thd_tx_arbitrate(THD *requestor, THD* holder)
 {
+ /* Should be different sessions. */
+ DBUG_ASSERT(holder != requestor);
+
+ /* Can't have two high priority transactions. */
  return(thd_tx_priority(requestor) == thd_tx_priority(holder)
-	? NULL
+	? requestor
 	: ((thd_tx_priority(requestor)
 	    > thd_tx_priority(holder)) ? holder : requestor));
 }

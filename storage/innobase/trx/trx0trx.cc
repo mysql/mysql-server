@@ -100,10 +100,6 @@ trx_init(
 
 	trx->no = TRX_ID_MAX;
 
-	trx->abort = false;
-
-	trx->kill_trx = NULL;
-
 	trx->state = TRX_STATE_NOT_STARTED;
 
 	trx->is_recovered = false;
@@ -159,6 +155,8 @@ trx_init(
 	trx->lock.rec_cached = 0;
 
 	trx->lock.table_cached = 0;
+
+	trx->killed_by = 0;
 }
 
 /** For managing the life-cycle of the trx_t instance that we get
@@ -203,6 +201,8 @@ struct TrxFactory {
 		new(&trx->lock.table_pool) lock_pool_t();
 
 		new(&trx->lock.table_locks) lock_pool_t();
+
+		new(&trx->kill) trx_list_t();
 
 		lock_trx_alloc_locks(trx);
 	}
@@ -258,6 +258,8 @@ struct TrxFactory {
 		trx->lock.rec_pool.~lock_pool_t();
 
 		trx->lock.table_pool.~lock_pool_t();
+
+		trx->kill.~trx_list_t();
 	}
 
 	/** Enforce any invariants here, this is called before the transaction
@@ -290,6 +292,10 @@ struct TrxFactory {
 		ut_ad(trx->autoinc_locks == NULL);
 
 		ut_ad(trx->lock.table_locks.empty());
+
+		ut_ad(trx->kill.empty());
+
+		ut_ad(trx->killed_by == 0);
 
 		return(true);
 	}
@@ -1193,6 +1199,9 @@ trx_start_low(
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
 	ut_ad(trx->roll_limit == 0);
 	ut_ad(!trx->in_rollback);
+
+	trx->abort = false;
+	trx->in_innodb &= ~TRX_ASYNC_ROLLBACK_IN_PROGRESS;
 
 	/* Check whether it is an AUTOCOMMIT SELECT */
 	trx->auto_commit = (trx->api_trx && trx->api_auto_commit)
@@ -2507,11 +2516,11 @@ have edited non-transactional tables are considered heavier than ones
 that have not.
 @return TRUE if weight(a) >= weight(b) */
 
-ibool
+bool
 trx_weight_ge(
 /*==========*/
-	const trx_t*	a,	/*!< in: the first transaction to be compared */
-	const trx_t*	b)	/*!< in: the second transaction to be compared */
+	const trx_t*	a,	/*!< in: transaction to be compared */
+	const trx_t*	b)	/*!< in: transaction to be compared */
 {
 	ibool	a_notrans_edit;
 	ibool	b_notrans_edit;
@@ -3032,4 +3041,62 @@ trx_set_rw_mode(
 	}
 
 	mutex_exit(&trx_sys->mutex);
+}
+
+/**
+Kill all transactions that are blocking this transaction from acquiring locks.
+@param[in,out] trx	High priority transaction */
+
+void
+trx_kill_blocking(trx_t* trx)
+{
+	// FIXME: Q&D
+	extern void thd_kill(THD* thd);
+
+	if (trx->kill.empty()) {
+		return;
+	}
+
+	trx_list_t::reverse_iterator	end = trx->kill.rend();
+
+	for (trx_list_t::reverse_iterator it = trx->kill.rbegin();
+	     it != end;
+	     ++it) {
+
+		trx_t*	kill_trx = *it;
+
+		ut_a(kill_trx != trx);
+
+		ut_a(kill_trx->mysql_thd != trx->mysql_thd);
+
+		trx_mutex_enter(kill_trx);
+
+		ut_ad(kill_trx->in_innodb & TRX_ASYNC_ROLLBACK_IN_PROGRESS);
+
+		while ((kill_trx->in_innodb
+			& ~TRX_ASYNC_ROLLBACK_IN_PROGRESS) > 0) {
+
+			trx_mutex_exit(kill_trx);
+
+			os_thread_sleep(20);
+
+			trx_mutex_enter(kill_trx);
+		}
+
+		ut_ad(kill_trx->in_innodb & TRX_ASYNC_ROLLBACK_IN_PROGRESS);
+
+		trx_mutex_exit(kill_trx);
+
+		fprintf(stderr, "%lu kill %p\n",
+			os_thread_get_curr_id(), kill_trx);
+
+		if (trx_is_started(kill_trx)) {
+
+			trx_rollback_for_mysql(kill_trx);
+
+			//thd_kill(kill_trx->mysql_thd);
+		}
+	}
+
+	trx->kill.clear();
 }

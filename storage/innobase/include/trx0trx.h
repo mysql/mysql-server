@@ -27,6 +27,7 @@ Created 3/26/1996 Heikki Tuuri
 #define trx0trx_h
 
 #include <set>
+#include <list>
 
 #include "ha_prototypes.h"
 
@@ -166,6 +167,15 @@ trx_start_internal_low(
 void
 trx_start_internal_read_only_low(
 	trx_t*	trx);
+
+/**
+Check if transaction is started.
+@param[in] trx		Transaction whose state we need to check
+@reutrn true if transaction is in state started */
+UNIV_INLINE
+bool
+trx_is_started(
+	const trx_t*	trx);
 
 #ifdef UNIV_DEBUG
 #define trx_start_if_not_started_xa(t, rw)			\
@@ -484,13 +494,13 @@ is estimated as the number of altered rows + the number of locked rows.
 Compares the "weight" (or size) of two transactions. Transactions that
 have edited non-transactional tables are considered heavier than ones
 that have not.
-@return TRUE if weight(a) >= weight(b) */
+@return true if weight(a) >= weight(b) */
 
-ibool
+bool
 trx_weight_ge(
 /*==========*/
-	const trx_t*	a,	/*!< in: the first transaction to be compared */
-	const trx_t*	b);	/*!< in: the second transaction to be compared */
+	const trx_t*	a,	/*!< in: the transaction to be compared */
+	const trx_t*	b);	/*!< in: the transaction to be compared */
 
 /* Maximum length of a string that can be returned by
 trx_get_que_state_str(). */
@@ -586,7 +596,14 @@ trx_arbitrate(const trx_t* requestor, const trx_t* holder);
 @return true if the transaction can rollback */
 UNIV_INLINE
 bool
-trx_can_rollback(const trx_t* trx);
+trx_is_high_priority(const trx_t* trx);
+
+/**
+Kill all transactions that are blocking this transaction from acquiring locks.
+@param[in,out] trx	High priority transaction */
+
+void
+trx_kill_blocking(trx_t* trx);
 
 /**
 Transactions that aren't started by the MySQL server don't set
@@ -781,7 +798,9 @@ struct trx_lock_t {
 					and the trx_t::mutex. */
 };
 
-#define TRX_MAGIC_N	91118598
+static const ulint TRX_MAGIC_N = 91118598;
+
+static const ib_uint32_t TRX_ASYNC_ROLLBACK_IN_PROGRESS = 1 << 31;
 
 /** Type used to store the list of tables that are modified by a given
 transaction. We store pointers to the table objects in memory because
@@ -834,7 +853,7 @@ lock_sys->mutex and sometimes by trx->mutex. */
 
 
 /** Represents an instance of rollback segment along with its state variables.*/
-struct trx_undo_ptr_t{
+struct trx_undo_ptr_t {
 	trx_rseg_t*	rseg;		/*!< rollback segment assigned to the
 					transaction, or NULL if not assigned
 					yet */
@@ -863,11 +882,15 @@ enum trx_rseg_type_t {
 	TRX_RSEG_TYPE_NOREDO		/*!< non-redo rollback segment. */
 };
 
-struct trx_t{
+typedef std::list<trx_t*> trx_list_t;
+
+struct trx_t {
 	TrxMutex	mutex;		/*!< Mutex protecting the fields
 					state and lock (except some fields
 					of lock, which are protected by
 					lock_sys->mutex) */
+	ib_uint32_t	in_innodb;	/*!< if the thread is executing
+					in the InnoDB context count > 0. */
 	UT_LIST_NODE_T(trx_t)
 			trx_list;	/*!< list of transactions;
 					protected by trx_sys->mutex. */
@@ -963,7 +986,13 @@ struct trx_t{
 	bool		abort;		/*!< if this flag is set then
 					this transaction must abort when
 					it can */
-	trx_t*		kill_trx;	/*!< Transaction to kill */
+
+	trx_list_t	kill;		/*!< List of transactions to kill,
+					when a high priority transaction
+					is blocked on a lock wait. */
+
+	os_thread_id_t	killed_by;	/*!< The transaction that wants to
+					kill this transaction asynchronously */
 
 	/* These fields are not protected by any mutex. */
 	const char*	op_info;	/*!< English text describing the
@@ -1292,6 +1321,80 @@ but does NOT protect:
 Bear in mind (3) and (4) when using the hash index.
 */
 extern rw_lock_t*	btr_search_latch_temp;
+
+/** Track if a transaction is executing inside InnoDB code */
+class TrxInInnoDB {
+public:
+	TrxInInnoDB(trx_t* trx)
+		:
+		m_trx(trx)
+	{
+		trx_mutex_enter(m_trx);
+
+		m_abort = m_trx->abort;
+
+		wait();
+
+		trx_mutex_exit(m_trx);
+	}
+
+	void wait()
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		for (;;) {
+
+			if (is_in_async_rollback()) {
+
+				if (m_trx->killed_by
+				    == os_thread_get_curr_id()
+				    || !trx_is_started(m_trx)) {
+
+					break;
+				}
+
+				trx_mutex_exit(m_trx);
+
+				os_thread_sleep(20);
+
+				trx_mutex_enter(m_trx);
+
+			} else {
+
+				break;
+			}
+		}
+
+		++m_trx->in_innodb;
+	}
+
+	bool is_in_async_rollback() const
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		return(m_trx->in_innodb & TRX_ASYNC_ROLLBACK_IN_PROGRESS);
+	}
+
+	bool is_aborted() const
+	{
+		return(m_abort);
+	}
+
+	~TrxInInnoDB()
+	{
+		trx_mutex_enter(m_trx);
+
+		ut_ad((m_trx->in_innodb & ~TRX_ASYNC_ROLLBACK_IN_PROGRESS) > 0);
+
+		--m_trx->in_innodb;
+
+		trx_mutex_exit(m_trx);
+	}
+
+private:
+	trx_t*		m_trx;
+	bool		m_abort;
+};
 
 /** The latch protecting the adaptive search system */
 #define btr_search_latch	(*btr_search_latch_temp)

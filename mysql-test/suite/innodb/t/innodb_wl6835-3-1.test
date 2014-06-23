@@ -1,0 +1,52 @@
+# T1= ({R(Z), R(B), W(Z), W(B)})
+# T2= ({R(C), R(B), W(B)})
+# T3= ({R(B), W(B), C}, HIGH_PRIORITY)
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, 0, 0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+--connect(con3,localhost,root,,test)
+
+--echo
+--echo # On connection 1
+--connection con1
+START TRANSACTION;
+UPDATE t1 SET c1=1, c2=1 WHERE c1=0 AND c2=0;
+
+--echo
+--echo # On connection 2
+--connection con2
+START TRANSACTION;
+--send UPDATE t1 SET c2=2 WHERE c3=0 AND c2=0
+
+--echo
+--echo # On connection 3
+--connection con3
+START TRANSACTION HIGH_PRIORITY;
+UPDATE t1 SET c2=3 WHERE c2=0;
+COMMIT;
+
+--echo
+--echo # On connection 1
+--connection con1
+# We should have a error here stating that transaction
+# was aborted.
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+
+--echo
+--echo # On connection 2
+--connection con2
+--reap
+COMMIT;
+
+--connection default
+--query_vertical SELECT * FROM t1
+
+DROP TABLE t1;
+
+--disconnect con1
+--disconnect con2
+--disconnect con3

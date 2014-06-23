@@ -728,17 +728,9 @@ handle_new_error:
 		}
 		/* MySQL will roll back the latest SQL statement */
 		break;
-	case DB_LOCK_WAIT:
+	case DB_LOCK_WAIT: {
 
-		if (thr_get_trx(thr)->kill_trx != NULL) {
-			extern void thd_kill(THD* thd);
-
-			thd_kill(thr_get_trx(thr)->kill_trx->mysql_thd);
-
-			trx_rollback_for_mysql(thr_get_trx(thr)->kill_trx);
-
-			thr_get_trx(thr)->kill_trx = NULL;
-		}
+		trx_kill_blocking(trx);
 
 		lock_wait_suspend_thread(thr);
 
@@ -751,6 +743,7 @@ handle_new_error:
 		*new_err = err;
 
 		return(true);
+	}
 
 	case DB_DEADLOCK:
 	case DB_LOCK_TABLE_FULL:
@@ -2524,7 +2517,7 @@ row_delete_all_rows(
 
 	/* Step-1: Now truncate all the indexes and re-create them.
 	Note: This is ddl action even though delete all rows is
-	dml action. Any error during this action is ir-reversible. */
+	DML action. Any error during this action is ir-reversible. */
 	for (dict_index_t* index = UT_LIST_GET_FIRST(table->indexes);
 	     index != NULL && err == DB_SUCCESS;
 	     index = UT_LIST_GET_NEXT(indexes, index)) {

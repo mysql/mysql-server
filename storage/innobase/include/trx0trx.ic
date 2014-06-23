@@ -361,11 +361,23 @@ trx_arbitrate(const trx_t* requestor, const trx_t* holder)
 @return true if the transaction can rollback */
 UNIV_INLINE
 bool
-trx_can_rollback(const trx_t* trx)
+trx_is_high_priority(const trx_t* trx)
 {
 	if (trx->mysql_thd == NULL) {
 		return(true);
 	}
 
 	return(thd_trx_priority(trx->mysql_thd) == 0);
+}
+
+/**
+Check if transaction is started.
+@param[in] trx		Transaction whose state we need to check
+@reutrn true if transaction is in state started */
+UNIV_INLINE
+bool
+trx_is_started(
+	const trx_t*	trx)
+{
+	return(trx->state != TRX_STATE_NOT_STARTED);
 }

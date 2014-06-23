@@ -1256,13 +1256,13 @@ trx_sys_any_active_transactions(void)
 
 #ifdef UNIV_DEBUG
 /*************************************************************//**
-Validate the trx_list_t.
+Validate the trx_ut_list_t.
 @return true if valid. */
 static
 bool
 trx_sys_validate_trx_list_low(
 /*===========================*/
-	trx_list_t*	trx_list)	/*!< in: &trx_sys->rw_trx_list */
+	trx_ut_list_t*	trx_list)	/*!< in: &trx_sys->rw_trx_list */
 {
 	const trx_t*	trx;
 	const trx_t*	prev_trx = NULL;
