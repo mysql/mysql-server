@@ -1,0 +1,18 @@
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+# On connection 1
+START TRANSACTION HIGH_PRIORITY;
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+# On connection 2
+START TRANSACTION HIGH_PRIORITY;
+UPDATE t1 SET c1=2 WHERE c1=0;
+ERROR 40001: Deadlock found when trying to get lock; try restarting transaction
+COMMIT;
+
+# On connection 1
+COMMIT;
+SELECT * FROM t1;
+c1	1
+DROP TABLE t1;
