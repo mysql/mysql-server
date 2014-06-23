@@ -167,7 +167,7 @@ bool Sql_cmd_handler_open::execute(THD *thd)
 {
   TABLE_LIST    *hash_tables = NULL;
   char          *db, *name, *alias;
-  uint          dblen, namelen, aliaslen;
+  size_t        dblen, namelen, aliaslen;
   TABLE_LIST    *tables= thd->lex->select_lex->get_table_list();
   DBUG_ENTER("Sql_cmd_handler_open::execute");
   DBUG_PRINT("enter",("'%s'.'%s' as '%s'",
