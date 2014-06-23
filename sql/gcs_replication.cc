@@ -359,8 +359,8 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
   DBUG_ASSERT(gtid_mode > 0);
 
   global_sid_lock->wrlock();
-  const Gtid_set *logged_gtids= gtid_state->get_logged_gtids();
-  *length= logged_gtids->get_encoded_length();
+  const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
+  *length= executed_gtids->get_encoded_length();
   *encoded_gtid_executed= (uchar*) my_malloc(key_memory_Gtid_set_to_string,
                                              *length, MYF(MY_WME));
   if (*encoded_gtid_executed == NULL)
@@ -369,7 +369,7 @@ bool get_server_encoded_gtid_executed(uchar **encoded_gtid_executed,
     return true;
   }
 
-  logged_gtids->encode(*encoded_gtid_executed);
+  executed_gtids->encode(*encoded_gtid_executed);
   global_sid_lock->unlock();
   return false;
 }

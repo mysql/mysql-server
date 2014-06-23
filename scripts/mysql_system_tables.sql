@@ -197,6 +197,17 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
+    source_uuid CHAR(36) NOT NULL COMMENT 'uuid of the source where the transaction was originally executed.',
+    interval_start BIGINT NOT NULL COMMENT 'First number of interval.',
+    interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
+    PRIMARY KEY(source_uuid, interval_start))";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 --
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,

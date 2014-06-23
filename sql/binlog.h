@@ -143,10 +143,10 @@ public:
             )
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_COND_done, &m_cond_done, NULL);
+    mysql_cond_init(key_COND_done, &m_cond_done);
 #ifndef DBUG_OFF
     /* reuse key_COND_done 'cos a new PSI object would be wasteful in DBUG_ON */
-    mysql_cond_init(key_COND_done, &m_cond_preempt, NULL);
+    mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
 #ifdef HAVE_PSI_INTERFACE
@@ -605,12 +605,14 @@ public:
                       Gtid *last_gtid, bool verify_checksum,
                       bool need_lock);
 
-  void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
+  void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
-    previous_gtid_set= previous_gtid_set_param;
+    DBUG_ASSERT(is_relay_log);
+    previous_gtid_set_relaylog= previous_gtid_set_param;
   }
 private:
-  Gtid_set* previous_gtid_set;
+  /* The prevoius gtid set in relay log. */
+  Gtid_set* previous_gtid_set_relaylog;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
   bool change_stage(THD *thd, Stage_manager::StageID stage,

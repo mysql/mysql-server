@@ -55,10 +55,10 @@ Applier_module::Applier_module()
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_mutex_init(run_key_mutex, &run_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(run_key_cond, &run_cond, 0);
+  mysql_cond_init(run_key_cond, &run_cond);
   mysql_mutex_init(suspend_key_mutex, &suspend_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(suspend_key_cond, &suspend_cond, 0);
-  mysql_cond_init(suspend_wait_key_cond, &suspension_waiting_condition, 0);
+  mysql_cond_init(suspend_key_cond, &suspend_cond);
+  mysql_cond_init(suspend_wait_key_cond, &suspension_waiting_condition);
 }
 
 Applier_module::~Applier_module(){

@@ -430,7 +430,7 @@ public:
 #endif /* HAVE_PSI_INTERFACE */
 
     mysql_mutex_init(cont_mutex_key, &lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(cont_cond_key, &cond, NULL);
+    mysql_cond_init(cont_cond_key, &cond);
   }
 
   ~Continuation()

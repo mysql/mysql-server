@@ -66,6 +66,10 @@ LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 /* WORKER_INFO name */
 LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 
+/* GTID_EXECUTED name */
+LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -297,6 +301,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                       WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == GTID_EXECUTED_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                       GTID_EXECUTED_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_GTID;
+
   }
 
   return TABLE_CATEGORY_USER;
@@ -2384,7 +2395,8 @@ partititon_err:
   }
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
-      (share->table_category == TABLE_CATEGORY_RPL_INFO))
+      (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (share->table_category == TABLE_CATEGORY_GTID))
   {
     outparam->no_replicate= TRUE;
   }
@@ -2982,13 +2994,13 @@ File create_frm(THD *thd, const char *name, const char *db,
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
     int2store(fileinfo+16,reclength);
-    int4store(fileinfo+18,create_info->max_rows);
-    int4store(fileinfo+22,create_info->min_rows);
+    int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
+    int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
     /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
     /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
-    int2store(fileinfo+30,create_info->table_options);
+    int2store(fileinfo+30, static_cast<uint16>(create_info->table_options));
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
@@ -3015,7 +3027,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       59-60 is reserved for extra_rec_buf_length,
       61 for default_part_db_type
     */
-    int2store(fileinfo+62, create_info->key_block_size);
+    int2store(fileinfo+62, static_cast<uint16>(create_info->key_block_size));
     memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
@@ -5743,6 +5755,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
+
+  // optim_join_cond() may point to freed memory of previous execution.
+  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*
@@ -5974,8 +5989,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
-                     table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(table_list->lock_type),
                      MDL_TRANSACTION);
 }
 

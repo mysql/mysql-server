@@ -70,9 +70,9 @@ Recovery_module::Recovery_module(Applier_module_interface *applier,
 #endif /* HAVE_PSI_INTERFACE */
 
   mysql_mutex_init(run_mutex_key, &run_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(run_cond_key, &run_cond, 0);
+  mysql_cond_init(run_cond_key, &run_cond);
   mysql_mutex_init(recovery_mutex_key, &recovery_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(recovery_cond_key, &recovery_condition, 0);
+  mysql_cond_init(recovery_cond_key, &recovery_condition);
   mysql_mutex_init(donor_selection_mutex_key,
                    &donor_selection_lock,
                    MY_MUTEX_INIT_FAST);

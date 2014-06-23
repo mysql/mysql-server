@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -376,13 +376,13 @@ struct	NullValidate { void operator()(const void* elem) { } };
 
 /********************************************************************//**
 Iterate over all the elements and call the functor for each element.
-@param list base node (not a pointer to it)
-@param functor Functor that is called for each element in the list */
+@param[in]	list	base node (not a pointer to it)
+@param[in,out]	functor	Functor that is called for each element in the list */
 template <typename List, class Functor>
 void
 ut_list_map(
-	List&		list,
-	Functor		functor)
+	const List&	list,
+	Functor&	functor)
 {
 	ulint		count = 0;
 
@@ -400,38 +400,33 @@ ut_list_map(
 
 /********************************************************************//**
 Checks the consistency of a two-way list.
-@param list base node (not a pointer to it)
-@param functor Functor that is called for each element in the list */
+@param[in]		list base node (not a pointer to it)
+@param[in,out]		functor Functor that is called for each element in the list */
 template <typename List, class Functor>
 void
 ut_list_validate(
-	List&		list,
-	Functor		functor = NullValidate())
+	const List&	list,
+	Functor&	functor)
 {
 	ut_list_map(list, functor);
 
+	/* Validate the list backwards. */
 	ulint		count = 0;
 
 	for (typename List::elem_type* elem = list.end;
 	     elem != 0;
-	     elem = (elem->*list.node).prev, ++count) {
-
-		functor(elem);
+	     elem = (elem->*list.node).prev) {
+		++count;
 	}
 
 	ut_a(count == list.count);
 }
 
-/********************************************************************//**
-Checks the consistency of a two-way list.
-@param LIST base node (not a pointer to it)
-@param FUNCTOR called for each list element */
-#define UT_LIST_VALIDATE(LIST, FUNCTOR)		ut_list_validate(LIST, FUNCTOR)
-
-/********************************************************************//**
-Checks the consistency of a two-way list.
-@param LIST base node (not a pointer to it) */
-#define UT_LIST_CHECK(LIST)						\
-	ut_list_validate(LIST, NullValidate())
+/** Check the consistency of a two-way list.
+@param[in] LIST base node reference */
+#define UT_LIST_CHECK(LIST) do {		\
+	NullValidate nullV;			\
+	ut_list_validate(LIST, nullV);		\
+} while (0)
 
 #endif /* ut0lst.h */

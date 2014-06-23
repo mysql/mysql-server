@@ -106,6 +106,7 @@ extern CHARSET_INFO *character_set_filesystem;
 extern MY_BITMAP temp_pool;
 extern bool opt_large_files, server_id_supplied;
 extern bool opt_update_log, opt_bin_log, opt_error_log;
+extern my_bool opt_log_slave_updates;
 extern bool opt_general_log, opt_slow_log, opt_general_log_raw;
 extern my_bool opt_backup_history_log;
 extern my_bool opt_backup_progress_log;
@@ -232,6 +233,7 @@ extern const char *binlog_checksum_type_names[];
 extern my_bool opt_master_verify_checksum;
 extern my_bool opt_slave_sql_verify_checksum;
 extern my_bool enforce_gtid_consistency;
+extern uint executed_gtids_compression_period;
 extern ulong binlogging_impossible_mode;
 enum enum_binlogging_impossible_mode
 {
@@ -384,6 +386,7 @@ extern PSI_mutex_key key_RELAYLOG_LOCK_xids;
 extern PSI_mutex_key key_LOCK_sql_rand;
 extern PSI_mutex_key key_gtid_ensure_index_mutex;
 extern PSI_mutex_key key_mts_temp_table_LOCK;
+extern PSI_mutex_key key_LOCK_compress_gtid_table;
 #ifdef HAVE_MY_TIMER
 extern PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -419,12 +422,15 @@ extern PSI_cond_key key_RELAYLOG_update_cond;
 extern PSI_cond_key key_BINLOG_prep_xids_cond;
 extern PSI_cond_key key_RELAYLOG_prep_xids_cond;
 extern PSI_cond_key key_gtid_ensure_index_cond;
+extern PSI_cond_key key_COND_compress_gtid_table;
+
 #ifdef HAVE_REPLICATION
 extern PSI_cond_key key_commit_order_manager_cond;
 #endif
 extern PSI_thread_key key_thread_bootstrap,
   key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_one_connection, key_thread_signal_hand,
+  key_thread_compress_gtid_table;
 
 #ifdef HAVE_MY_TIMER
 extern PSI_thread_key key_thread_timer_notifier;
@@ -691,6 +697,8 @@ extern PSI_stage_info stage_slave_waiting_worker_queue;
 extern PSI_stage_info stage_slave_waiting_event_from_coordinator;
 extern PSI_stage_info stage_slave_waiting_workers_to_exit;
 extern PSI_stage_info stage_slave_waiting_for_workers_to_finish;
+extern PSI_stage_info stage_compressing_gtid_table;
+extern PSI_stage_info stage_suspending;
 #ifdef HAVE_REPLICATION
 extern PSI_stage_info stage_worker_waiting_for_its_turn_to_commit;
 #endif
@@ -737,8 +745,8 @@ extern MYSQL_PLUGIN_IMPORT uint reg_ext_length;
 extern MYSQL_PLUGIN_IMPORT uint lower_case_table_names;
 extern MYSQL_PLUGIN_IMPORT bool mysqld_embedded;
 extern ulong specialflag;
-extern uint mysql_data_home_len;
-extern uint mysql_real_data_home_len;
+extern size_t mysql_data_home_len;
+extern size_t mysql_real_data_home_len;
 extern const char *mysql_real_data_home_ptr;
 extern MYSQL_PLUGIN_IMPORT char  *mysql_data_home;
 extern "C" MYSQL_PLUGIN_IMPORT char server_version[SERVER_VERSION_LENGTH];
@@ -769,6 +777,8 @@ extern mysql_mutex_t LOCK_des_key_file;
 #endif
 extern mysql_mutex_t LOCK_server_started;
 extern mysql_cond_t COND_server_started;
+extern mysql_mutex_t LOCK_compress_gtid_table;
+extern mysql_cond_t COND_compress_gtid_table;
 extern mysql_rwlock_t LOCK_grant, LOCK_sys_init_connect, LOCK_sys_init_slave;
 extern mysql_rwlock_t LOCK_system_variables_hash;
 extern mysql_cond_t COND_manager;

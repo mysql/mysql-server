@@ -1506,6 +1506,19 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
   MDL_request mdl_request;
   bool release_mdl= false;
+  bool need_clear_owned_gtid= false;
+  /*
+    Save transaction owned gtid into table before transaction prepare
+    if binlog is disabled, or binlog is enabled and log_slave_updates
+    is disabled with slave SQL thread or slave worker thread.
+  */
+  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+      (all || !thd->in_multi_stmt_transaction_mode()) &&
+      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
+  {
+    error= gtid_state->save(thd);
+    need_clear_owned_gtid= true;
+  }
 
   if (ha_info)
   {
@@ -1586,8 +1599,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     thd->m_transaction_psi= NULL;
   }
 #endif
-  
-  DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_commit_after",
+                  if (!thd->is_operating_gtid_table) DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
   {
@@ -1603,6 +1616,21 @@ end:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     trn_ctx->cleanup();
+
+  if (need_clear_owned_gtid)
+  {
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    /*
+      Release the owned GTID when binlog is disabled, or binlog is
+      enabled and log_slave_updates is disabled with slave SQL thread
+      or slave worker thread.
+    */
+    if (error)
+      gtid_state->update_on_rollback(thd);
+    else
+      gtid_state->update_on_commit(thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1797,7 +1825,7 @@ int ha_rollback_trans(THD *thd, bool all)
     complete transaction is being rollback or autocommit=1.
   */
   if (is_real_trans)
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this

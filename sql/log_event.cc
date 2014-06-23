@@ -7588,8 +7588,8 @@ bool Xid_log_event::do_commit(THD *thd_arg)
                   DBUG_SUICIDE(););
   thd_arg->mdl_context.release_transactional_locks();
 
-  if (thd_arg->variables.gtid_next.type == GTID_GROUP &&
-      thd_arg->owned_gtid.sidno != 0)
+  if (!error && thd_arg->variables.gtid_next.type == GTID_GROUP &&
+      thd_arg->owned_gtid.sidno != 0 && opt_bin_log && opt_log_slave_updates)
   {
     // GTID logging and cleanup runs regardless of the current res
     error |= gtid_empty_group_log_and_cleanup(thd_arg);
@@ -11189,6 +11189,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+  restart_ha_rnd_next:
       error= m_table->file->ha_rnd_next(m_table->record[0]);
       if (error)
         DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
@@ -11196,11 +11197,16 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
       case HA_ERR_END_OF_FILE:
         // restart scan from top
         if (++restart_count < 2)
-          error= m_table->file->ha_rnd_init(1);
+        {
+          if ((error= m_table->file->ha_rnd_init(1)))
+            goto end;
+          goto restart_ha_rnd_next;
+        }
         break;
 
       case HA_ERR_RECORD_DELETED:
         // fetch next
+        goto restart_ha_rnd_next;
       case 0:
         // we're good, check if record matches
         break;
@@ -11210,9 +11216,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
         goto end;
       }
     }
-    while ((error == HA_ERR_END_OF_FILE && restart_count < 2) ||
-           (error == HA_ERR_RECORD_DELETED) ||
-           (!error && record_compare(m_table, &m_cols)));
+    while (restart_count < 2 && record_compare(m_table, &m_cols));
   }
 
 end:
@@ -13797,7 +13801,7 @@ int Gtid_log_event::do_apply_event(Relay_log_info const *rli)
     truncated transaction and move on.
   */
   if (thd->owned_gtid.sidno)
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
   if (spec.type == ANONYMOUS_GROUP)
   {

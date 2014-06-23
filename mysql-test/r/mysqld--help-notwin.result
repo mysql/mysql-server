@@ -213,6 +213,12 @@ The following options may be given as the first argument:
  Enable the event scheduler. Possible values are ON, OFF,
  and DISABLED (keep the event scheduler completely
  deactivated, it cannot be activated run-time)
+ --executed-gtids-compression-period[=#] 
+ When binlog is disabled, a background thread wakes up to
+ compress the gtid_executed table every
+ executed_gtids_compression_period transactions, as a
+ special case, if variable is 0, the thread never wakes up
+ to compress the gtid_executed table.
  -T, --exit-info[=#] Used for debugging. Use at your own risk.
  --expire-logs-days=# 
  If non-zero, binary logs will be purged after
@@ -1022,8 +1028,6 @@ The following options may be given as the first argument:
  one-thread-per-connection, no-threads, loaded-dynamically
  --thread-stack=#    The stack size for each thread
  --time-format=name  The TIME format (ignored)
- --timed-mutexes     Specify whether to time mutexes (only InnoDB mutexes are
- currently supported)
  --tmp-table-size=#  If an internal in-memory temporary table exceeds this
  size, MySQL will automatically convert it to an on-disk
  MyISAM table
@@ -1112,6 +1116,7 @@ end-markers-in-json FALSE
 enforce-gtid-consistency FALSE
 eq-range-index-dive-limit 200
 event-scheduler OFF
+executed-gtids-compression-period 1000
 expire-logs-days 0
 explicit-defaults-for-timestamp FALSE
 external-locking FALSE
@@ -1355,7 +1360,6 @@ thread-cache-size 9
 thread-handling one-thread-per-connection
 thread-stack 262144
 time-format %H:%i:%s
-timed-mutexes FALSE
 tmp-table-size 16777216
 transaction-alloc-block-size 8192
 transaction-isolation REPEATABLE-READ

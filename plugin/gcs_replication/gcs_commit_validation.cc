@@ -50,7 +50,7 @@ int init_cond_mutex(mysql_cond_t* condition, mysql_mutex_t* mutex)
   int error= 0;
   if ((error= mysql_mutex_init(key_LOCK_certify_wait, mutex, MY_MUTEX_INIT_FAST)))
     return 1;
-  if ((error= mysql_cond_init(key_COND_certify_wait, condition, NULL)))
+  if ((error= mysql_cond_init(key_COND_certify_wait, condition)))
     return 1;
 
   return error;

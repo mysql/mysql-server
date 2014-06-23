@@ -41,6 +41,7 @@
 #include "my_readline.h"
 #include <signal.h>
 #include <violite.h>
+#include "prealloced_array.h"
 
 #include <algorithm>
 
@@ -301,7 +302,8 @@ static int get_field_disp_length(MYSQL_FIELD * field);
 static int normalize_dbname(const char *line, char *buff, uint buff_size);
 static int get_quote_count(const char *line);
 
-DYNAMIC_ARRAY histignore_patterns;
+typedef Prealloced_array<LEX_STRING, 16> Histignore_patterns;
+Histignore_patterns *histignore_patterns;
 
 static my_bool check_histignore(const char *string);
 static my_bool parse_histignore();
@@ -2133,7 +2135,7 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
-  ulong line_length= 0;
+  size_t line_length= 0;
   status.exit_status=1;
 
   real_binary_mode= !interactive && opt_binary_mode;
@@ -3121,16 +3123,15 @@ static void add_filtered_history(const char *string)
 static
 my_bool check_histignore(const char *string)
 {
-  uint i;
   int rc;
 
   LEX_STRING *tmp;
 
   DBUG_ENTER("check_histignore");
 
-  for (i= 0; i < histignore_patterns.elements; i++)
+  for (tmp= histignore_patterns->begin();
+       tmp != histignore_patterns->end(); ++tmp)
   {
-    tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
     if ((rc= charset_info->coll->wildcmp(charset_info,
                                          string, string + strlen(string),
                                          tmp->str, tmp->str + tmp->length,
@@ -3169,7 +3170,7 @@ my_bool parse_histignore()
   {
     pattern.str= token;
     pattern.length= strlen(pattern.str);
-    insert_dynamic(&histignore_patterns, &pattern);
+    histignore_patterns->push_back(pattern);
     token= strtok(NULL, search);
   }
   DBUG_RETURN(0);
@@ -3178,14 +3179,15 @@ my_bool parse_histignore()
 static
 my_bool init_hist_patterns()
 {
-  return my_init_dynamic_array(&histignore_patterns,
-                               sizeof(LEX_STRING), 50, 50);
+  histignore_patterns=
+    new (std::nothrow) Histignore_patterns(PSI_NOT_INSTRUMENTED);
+  return histignore_patterns == NULL;
 }
 
 static
 void free_hist_patterns()
 {
-  delete_dynamic(&histignore_patterns);
+  delete histignore_patterns;
 }
 
 void add_syslog(const char *line) {
@@ -3823,7 +3825,7 @@ print_table_data(MYSQL_RES *result)
   separator.copy("+",1,charset_info);
   while ((field = mysql_fetch_field(result)))
   {
-    uint length= column_names ? field->name_length : 0;
+    size_t length= column_names ? field->name_length : 0;
     if (quick)
       length= max<size_t>(length, field->length);
     else
@@ -3842,7 +3844,7 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      uint name_length= (uint) strlen(field->name);
+      size_t name_length= strlen(field->name);
       uint numcells= charset_info->cset->numcells(charset_info,
                                                   field->name,
                                                   field->name + name_length);
@@ -3868,7 +3870,7 @@ print_table_data(MYSQL_RES *result)
       const char *buffer;
       uint data_length;
       uint field_max_length;
-      uint visible_length;
+      size_t visible_length;
       uint extra_padding;
 
       if (off)

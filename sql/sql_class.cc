@@ -836,6 +836,28 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
+/**
+  Handle an error from MDL_context::upgrade_lock() and mysql_lock_tables().
+  Ignore ER_LOCK_ABORTED and ER_LOCK_DEADLOCK errors.
+*/
+
+bool
+MDL_deadlock_and_lock_abort_error_handler::
+handle_condition(THD *thd,
+                 uint sql_errno,
+                 const char *sqlstate,
+                 Sql_condition::enum_severity_level *level,
+                 const char* msg,
+                 Sql_condition **cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
+    m_need_reopen= true;
+
+  return m_need_reopen;
+}
+
+
 void Open_tables_state::set_open_tables_state(Open_tables_state *state)
 {
   this->open_tables= state->open_tables;
@@ -918,13 +940,10 @@ THD::THD(bool enable_plugins)
    m_stmt_da(&main_da)
 {
   mdl_context.init(this);
-  /*
-    Pass nominal parameters to init_alloc_root only to ensure that
-    the destructor works OK in case of an error. The main_mem_root
-    will be re-initialized in init_for_queries().
-  */
   init_sql_alloc(key_memory_thd_main_mem_root,
-                 &main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+                 &main_mem_root,
+                 global_system_variables.query_alloc_block_size,
+                 global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
   catalog= (char*)"std"; // the only catalog we have for now
@@ -942,6 +961,7 @@ THD::THD(bool enable_plugins)
   cuted_fields= 0L;
   m_sent_row_count= 0L;
   limit_found_rows= 0;
+  is_operating_gtid_table= false;
   m_row_count_func= -1;
   statement_id_counter= 0UL;
   // Must be reset to handle error with THD's created for init of mysqld

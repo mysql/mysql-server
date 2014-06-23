@@ -60,6 +60,7 @@
 #include <my_dir.h>
 #include <my_bit.h>
 #include "rpl_gtid.h"
+#include "rpl_gtid_persist.h"
 #include "rpl_slave.h"
 #include "rpl_master.h"
 #include "rpl_mi.h"
@@ -455,6 +456,7 @@ my_bool enforce_gtid_consistency;
 ulong binlogging_impossible_mode;
 const char *binlogging_impossible_err[]= {"IGNORE_ERROR", "ABORT_SERVER", NullS};
 ulong gtid_mode;
+uint executed_gtids_compression_period= 0;
 const char *gtid_mode_names[]=
 {"OFF", "UPGRADE_STEP_1", "UPGRADE_STEP_2", "ON", NullS};
 TYPELIB gtid_mode_typelib=
@@ -602,7 +604,7 @@ char mysql_real_data_home[FN_REFLEN],
 char *lc_messages_dir_ptr, *log_error_file_ptr;
 char mysql_unpacked_real_data_home[FN_REFLEN];
 size_t mysql_unpacked_real_data_home_len;
-uint mysql_real_data_home_len, mysql_data_home_len= 1;
+size_t mysql_real_data_home_len, mysql_data_home_len= 1;
 uint reg_ext_length;
 const key_map key_map_empty(0);
 key_map key_map_full(0);                        // Will be initialized later
@@ -707,6 +709,8 @@ pthread_t signal_thread_id= 0;
 pthread_attr_t connection_attrib;
 mysql_mutex_t LOCK_server_started;
 mysql_cond_t COND_server_started;
+mysql_mutex_t LOCK_compress_gtid_table;
+mysql_cond_t COND_compress_gtid_table;
 #if !defined (EMBEDDED_LIBRARY) && !defined(_WIN32)
 mysql_mutex_t LOCK_socket_listener_active;
 mysql_cond_t COND_socket_listener_active;
@@ -774,6 +778,7 @@ Connection_acceptor<Shared_mem_listener> *shared_mem_acceptor= NULL;
 Checkable_rwlock *global_sid_lock= NULL;
 Sid_map *global_sid_map= NULL;
 Gtid_state *gtid_state= NULL;
+Gtid_table_persistor *gtid_table_persistor= NULL;
 
 
 void set_remaining_args(int argc, char **argv)
@@ -1356,12 +1361,26 @@ static void mysqld_exit(int exit_code)
 */
 void gtid_server_cleanup()
 {
-  delete gtid_state;
-  delete global_sid_map;
-  delete global_sid_lock;
-  global_sid_lock= NULL;
-  global_sid_map= NULL;
-  gtid_state= NULL;
+  if (gtid_state != NULL)
+  {
+    delete gtid_state;
+    gtid_state= NULL;
+  }
+  if (global_sid_map != NULL)
+  {
+    delete global_sid_map;
+    global_sid_map= NULL;
+  }
+  if (global_sid_lock != NULL)
+  {
+    delete global_sid_lock;
+    global_sid_lock= NULL;
+  }
+  if (gtid_table_persistor != NULL)
+  {
+    delete gtid_table_persistor;
+    gtid_table_persistor= NULL;
+  }
 }
 
 /**
@@ -1375,7 +1394,8 @@ bool gtid_server_init()
   bool res=
     (!(global_sid_lock= new Checkable_rwlock) ||
      !(global_sid_map= new Sid_map(global_sid_lock)) ||
-     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map)));
+     !(gtid_state= new Gtid_state(global_sid_lock, global_sid_map))||
+     !(gtid_table_persistor= new Gtid_table_persistor()));
   if (res)
   {
     gtid_server_cleanup();
@@ -2750,8 +2770,7 @@ int init_common_variables()
       mysql_init_variables())
     return 1;
 
-  if (ignore_db_dirs_init())
-    return 1;
+  ignore_db_dirs_init();
 
   {
     struct tm tm_tmp;
@@ -3264,25 +3283,29 @@ static int init_thread_environment()
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_connect, &LOCK_sys_init_connect);
   mysql_rwlock_init(key_rwlock_LOCK_sys_init_slave, &LOCK_sys_init_slave);
   mysql_rwlock_init(key_rwlock_LOCK_grant, &LOCK_grant);
-  mysql_cond_init(key_COND_manager, &COND_manager, NULL);
+  mysql_cond_init(key_COND_manager, &COND_manager);
   mysql_mutex_init(key_LOCK_server_started,
                    &LOCK_server_started, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_server_started, &COND_server_started, NULL);
+  mysql_cond_init(key_COND_server_started, &COND_server_started);
+  mysql_mutex_init(key_LOCK_compress_gtid_table,
+                   &LOCK_compress_gtid_table, MY_MUTEX_INIT_FAST);
+  mysql_cond_init(key_COND_compress_gtid_table,
+                  &COND_compress_gtid_table);
 #ifndef EMBEDDED_LIBRARY
   Events::init_mutexes();
 #if defined(_WIN32)
   mysql_mutex_init(key_LOCK_handler_count,
                    &LOCK_handler_count, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_handler_count, &COND_handler_count, NULL);
+  mysql_cond_init(key_COND_handler_count, &COND_handler_count);
 #else
   mysql_mutex_init(key_LOCK_socket_listener_active,
                    &LOCK_socket_listener_active, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_socket_listener_active,
-                  &COND_socket_listener_active, NULL);
+                  &COND_socket_listener_active);
   mysql_mutex_init(key_LOCK_start_signal_handler,
                    &LOCK_start_signal_handler, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_COND_start_signal_handler,
-                  &COND_start_signal_handler, NULL);
+                  &COND_start_signal_handler);
 #endif // _WIN32
 #endif // !EMBEDDED_LIBRARY
   /* Parameter for threads created for connections */
@@ -4077,11 +4100,6 @@ a file name for --log-bin-index option", opt_binlog_index_name);
     "data directory and creates system tables.");
     gtid_mode= 0;
   }
-  if (gtid_mode >= 1 && !(opt_bin_log && opt_log_slave_updates))
-  {
-    sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 or UPGRADE_STEP_2 requires --log-bin and --log-slave-updates");
-    unireg_abort(1);
-  }
   if (gtid_mode >= 2 && !enforce_gtid_consistency)
   {
     sql_print_error("--gtid-mode=ON or UPGRADE_STEP_1 requires --enforce-gtid-consistency");
@@ -4100,9 +4118,7 @@ a file name for --log-bin-index option", opt_binlog_index_name);
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    mysql_bin_log.set_previous_gtid_set(
-      const_cast<Gtid_set*>(gtid_state->get_logged_gtids()));
-
+    DBUG_ASSERT(!mysql_bin_log.is_relay_log);
     mysql_mutex_t *log_lock= mysql_bin_log.get_log_lock();
     mysql_mutex_lock(log_lock);
 
@@ -4492,6 +4508,10 @@ int mysqld_main(int argc, char **argv)
       unireg_abort(1);
     }
 
+    Gtid_set *executed_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_executed_gtids());
+    Gtid_set *lost_gtids=
+      const_cast<Gtid_set *>(gtid_state->get_lost_gtids());
     if (opt_bin_log)
     {
       /*
@@ -4508,13 +4528,87 @@ int mysqld_main(int argc, char **argv)
       if (ret)
         unireg_abort(1);
 
-      if (mysql_bin_log.init_gtid_sets(
-            const_cast<Gtid_set *>(gtid_state->get_logged_gtids()),
-            const_cast<Gtid_set *>(gtid_state->get_lost_gtids()),
-            NULL,
-            opt_master_verify_checksum,
-            true/*true=need lock*/))
+      /*
+        Initialize GLOBAL.GTID_EXECUTED and GLOBAL.GTID_PURGED from
+        gtid_executed table and binlog files during server startup.
+      */
+      Gtid_set purged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
+      Gtid_set unsaved_gtids_in_table(global_sid_map, global_sid_lock);
+      Gtid_set *gtids_only_in_table=
+        const_cast<Gtid_set *>(gtid_state->get_gtids_only_in_table());
+      Gtid_set *previous_gtids_logged=
+        const_cast<Gtid_set *>(gtid_state->get_previous_gtids_logged());
+
+      if (mysql_bin_log.init_gtid_sets(&logged_gtids_binlog,
+                                       &purged_gtids_binlog,
+                                       NULL,
+                                       opt_master_verify_checksum,
+                                       true/*true=need lock*/) ||
+          gtid_state->fetch_gtids(executed_gtids) == -1)
         unireg_abort(1);
+
+      global_sid_lock->wrlock();
+
+      if (!logged_gtids_binlog.is_empty() &&
+          !logged_gtids_binlog.is_subset(executed_gtids))
+      {
+        unsaved_gtids_in_table.add_gtid_set(&logged_gtids_binlog);
+        if (!executed_gtids->is_empty())
+          unsaved_gtids_in_table.remove_gtid_set(executed_gtids);
+        /*
+          Save unsaved GTIDs into gtid_executed table, in the following
+          four cases:
+            1. the upgrade case.
+            2. the case that a slave is provisioned from a backup of
+               the master and the slave is cleaned by RESET MASTER
+               and RESET SLAVE before this.
+            3. the case that no binlog rotation happened from the
+               last RESET MASTER on the server before it crashes.
+            4. The set of GTIDs of the last binlog is not saved into the
+               gtid_executed table if server crashes, so we save it into
+               gtid_executed table and executed_gtids during recovery
+               from the crash.
+        */
+        if (gtid_state->save(&unsaved_gtids_in_table) == -1)
+        {
+          global_sid_lock->unlock();
+          unireg_abort(1);
+        }
+        executed_gtids->add_gtid_set(&unsaved_gtids_in_table);
+      }
+
+      /* gtids_only_in_table= executed_gtids - logged_gtids_binlog */
+      if (gtids_only_in_table->add_gtid_set(executed_gtids) !=
+          RETURN_STATUS_OK ||
+          gtids_only_in_table->remove_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+      /*
+        lost_gtids = executed_gtids -
+                     (logged_gtids_binlog - purged_gtids_binlog)
+                   = gtids_only_in_table + purged_gtids_binlog;
+      */
+      DBUG_ASSERT(lost_gtids->is_empty());
+      if (lost_gtids->add_gtid_set(gtids_only_in_table) != RETURN_STATUS_OK ||
+          lost_gtids->add_gtid_set(&purged_gtids_binlog) != RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+
+      /* Prepare previous_gtids_logged for next binlog */
+      if (previous_gtids_logged->add_gtid_set(&logged_gtids_binlog) !=
+          RETURN_STATUS_OK)
+      {
+        global_sid_lock->unlock();
+        unireg_abort(1);
+      }
+
+      global_sid_lock->unlock();
 
       /*
         Write the previous set of gtids at this point because during
@@ -4527,10 +4621,10 @@ int mysqld_main(int argc, char **argv)
       if (gtid_mode > 0)
       {
         global_sid_lock->wrlock();
-        const Gtid_set *logged_gtids= gtid_state->get_logged_gtids();
-        if (gtid_mode > 1 || !logged_gtids->is_empty())
+        if (gtid_mode > GTID_MODE_UPGRADE_STEP_1 ||
+            !logged_gtids_binlog.is_empty())
         {
-          Previous_gtids_log_event prev_gtids_ev(logged_gtids);
+          Previous_gtids_log_event prev_gtids_ev(&logged_gtids_binlog);
           global_sid_lock->unlock();
 
           prev_gtids_ev.checksum_alg= binlog_checksum_options;
@@ -4547,6 +4641,15 @@ int mysqld_main(int argc, char **argv)
           global_sid_lock->unlock();
       }
       (void) RUN_HOOK(server_state, after_engine_recovery, (current_thd));
+    }
+    else if (gtid_mode > GTID_MODE_OFF)
+    {
+      /*
+        If gtid_mode is enabled and binlog is disabled, initialize
+        executed_gtids from gtid_executed table.
+      */
+      if (gtid_state->fetch_gtids(executed_gtids) == -1)
+        unireg_abort(1);
     }
   }
 
@@ -4680,6 +4783,9 @@ int mysqld_main(int argc, char **argv)
 #endif
   start_handle_manager();
 
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+    create_compress_gtid_table_thread();
+
   sql_print_information(ER_DEFAULT(ER_STARTUP),
                         my_progname,
                         server_version,
@@ -4725,6 +4831,20 @@ int mysqld_main(int argc, char **argv)
 #endif /* _WIN32 */
 
   DBUG_PRINT("info", ("No longer listening for incoming connections"));
+
+  if (gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  {
+    terminate_compress_gtid_table_thread();
+    /*
+      Save set of GTIDs of the last binlog into gtid_executed table
+      on server shutdown.
+    */
+    if (gtid_state->save_gtids_of_last_binlog_into_table(false))
+      sql_print_warning("Failed to save set of GTIDs of the last binlog "
+                        "into gtid_executed table on server shutdown, "
+                        "so we save it into gtid_executed table and "
+                        "executed_gtids during next server startup.");
+  }
 
 #ifndef _WIN32
   mysql_mutex_lock(&LOCK_socket_listener_active);
@@ -7693,6 +7813,7 @@ PSI_mutex_key key_RELAYLOG_LOCK_xids;
 PSI_mutex_key key_LOCK_sql_rand;
 PSI_mutex_key key_gtid_ensure_index_mutex;
 PSI_mutex_key key_mts_temp_table_LOCK;
+PSI_mutex_key key_LOCK_compress_gtid_table;
 #ifdef HAVE_MY_TIMER
 PSI_mutex_key key_thd_timer_mutex;
 #endif
@@ -7778,6 +7899,7 @@ static PSI_mutex_info all_server_mutexes[]=
   { &key_gtid_ensure_index_mutex, "Gtid_state", PSI_FLAG_GLOBAL},
   { &key_LOCK_query_plan, "THD::LOCK_query_plan", 0},
   { &key_mts_temp_table_LOCK, "key_mts_temp_table_LOCK",0},
+  { &key_LOCK_compress_gtid_table, "LOCK_compress_gtid_table", PSI_FLAG_GLOBAL},
 #ifdef HAVE_MY_TIMER
   { &key_thd_timer_mutex, "thd_timer_mutex", 0},
 #endif
@@ -7842,6 +7964,7 @@ PSI_cond_key key_RELAYLOG_COND_done;
 PSI_cond_key key_BINLOG_prep_xids_cond;
 PSI_cond_key key_RELAYLOG_prep_xids_cond;
 PSI_cond_key key_gtid_ensure_index_cond;
+PSI_cond_key key_COND_compress_gtid_table;
 #ifdef HAVE_REPLICATION
 PSI_cond_key key_commit_order_manager_cond;
 #endif
@@ -7883,7 +8006,8 @@ static PSI_cond_info all_server_conds[]=
   { &key_cond_slave_parallel_worker, "Worker_info::jobs_cond", 0},
   { &key_TABLE_SHARE_cond, "TABLE_SHARE::cond", 0},
   { &key_user_level_lock_cond, "User_level_lock::cond", 0},
-  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL}
+  { &key_gtid_ensure_index_cond, "Gtid_state", PSI_FLAG_GLOBAL},
+  { &key_COND_compress_gtid_table, "COND_compress_gtid_table", PSI_FLAG_GLOBAL}
 #ifdef HAVE_REPLICATION
   ,
   { &key_commit_order_manager_cond, "Commit_order_manager::m_workers.cond", 0}
@@ -7891,7 +8015,8 @@ static PSI_cond_info all_server_conds[]=
 };
 
 PSI_thread_key key_thread_bootstrap, key_thread_handle_manager, key_thread_main,
-  key_thread_one_connection, key_thread_signal_hand;
+  key_thread_one_connection, key_thread_signal_hand,
+  key_thread_compress_gtid_table;
 
 #ifdef HAVE_MY_TIMER
 PSI_thread_key key_thread_timer_notifier;
@@ -7912,7 +8037,8 @@ static PSI_thread_info all_server_threads[]=
   { &key_thread_handle_manager, "manager", PSI_FLAG_GLOBAL},
   { &key_thread_main, "main", PSI_FLAG_GLOBAL},
   { &key_thread_one_connection, "one_connection", 0},
-  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL}
+  { &key_thread_signal_hand, "signal_handler", PSI_FLAG_GLOBAL},
+  { &key_thread_compress_gtid_table, "compress_gtid_table", PSI_FLAG_GLOBAL}
 };
 
 #ifdef HAVE_MMAP
@@ -8066,6 +8192,8 @@ PSI_stage_info stage_slave_waiting_worker_to_free_events= { 0, "Waiting for Slav
 PSI_stage_info stage_slave_waiting_worker_queue= { 0, "Waiting for Slave Worker queue", 0};
 PSI_stage_info stage_slave_waiting_event_from_coordinator= { 0, "Waiting for an event from Coordinator", 0};
 PSI_stage_info stage_slave_waiting_for_workers_to_finish= { 0, "Waiting for slave workers to finish.", 0};
+PSI_stage_info stage_compressing_gtid_table= { 0, "Compressing gtid_executed table", 0};
+PSI_stage_info stage_suspending= { 0, "Suspending", 0};
 #ifdef HAVE_REPLICATION
 PSI_stage_info stage_worker_waiting_for_its_turn_to_commit= { 0, "Waiting for its turn to commit.", 0};
 #endif
@@ -8167,6 +8295,8 @@ PSI_stage_info *all_server_stages[]=
   & stage_waiting_for_the_next_event_in_relay_log,
   & stage_waiting_for_the_slave_thread_to_advance_position,
   & stage_waiting_to_finalize_termination,
+  & stage_compressing_gtid_table,
+  & stage_suspending,
   & stage_starting
 };
 

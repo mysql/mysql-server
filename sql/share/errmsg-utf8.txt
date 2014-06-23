@@ -5522,7 +5522,7 @@ ER_TOO_BIG_SCALE 42000 S1009
         eng "Too big scale %d specified for column '%-.192s'. Maximum is %lu."
         ger "Zu großer Skalierungsfaktor %d für Feld '%-.192s' angegeben. Maximum ist %lu"
 ER_TOO_BIG_PRECISION 42000 S1009
-        eng "Too big precision %d specified for column '%-.192s'. Maximum is %lu."
+        eng "Too-big precision %d specified for '%-.192s'. Maximum is %lu."
         ger "Zu große Genauigkeit %d für Feld '%-.192s' angegeben. Maximum ist %lu"
 ER_M_BIGGER_THAN_D 42000 S1009
         eng "For float(M,D), double(M,D) or decimal(M,D), M must be >= D (column '%-.192s')."
@@ -7224,6 +7224,9 @@ ER_STD_UNKNOWN_EXCEPTION
 
 ER_GIS_DATA_WRONG_ENDIANESS
   eng "Geometry byte string must be little endian."
+
+ER_CHANGE_MASTER_PASSWORD_LENGTH
+  eng "The password provided for the replication user exceeds the maximum length of 32 characters"
 
 ER_GCS_REPLICATION_CONFIGURATION
   eng "The server is not configured properly to be an active member of the GCS CLUSTER."

@@ -473,7 +473,8 @@ static st_plugin_dl *plugin_dl_add(const LEX_STRING *dl, int report)
 {
 #ifdef HAVE_DLOPEN
   char dlpath[FN_REFLEN];
-  uint plugin_dir_len, dummy_errors, dlpathlen, i;
+  uint dummy_errors, i;
+  size_t plugin_dir_len, dlpathlen;
   struct st_plugin_dl *tmp, plugin_dl;
   void *sym;
   DBUG_ENTER("plugin_dl_add");
@@ -876,7 +877,7 @@ static bool plugin_add(MEM_ROOT *tmp_root,
   /* Find plugin by name */
   for (plugin= tmp.plugin_dl->plugins; plugin->info; plugin++)
   {
-    uint name_len= strlen(plugin->name);
+    size_t name_len= strlen(plugin->name);
     if (plugin->type >= 0 && plugin->type < MYSQL_MAX_PLUGIN_TYPE_NUM &&
         ! my_strnncoll(system_charset_info,
                        (const uchar *)name->str, name->length,
@@ -2572,7 +2573,7 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
                                   int flags)
 {
   st_bookmark *result= NULL;
-  uint namelen, length, pluginlen= 0;
+  size_t namelen, length, pluginlen= 0;
   char *varname, *p;
 
   if (!(flags & PLUGIN_VAR_THDLOCAL))
@@ -2612,7 +2613,7 @@ static st_bookmark *find_bookmark(const char *plugin, const char *name,
 static st_bookmark *register_var(const char *plugin, const char *name,
                                  int flags)
 {
-  uint length= strlen(plugin) + strlen(name) + 3, size= 0, offset, new_size;
+  size_t length= strlen(plugin) + strlen(name) + 3, size= 0, offset, new_size;
   st_bookmark *result;
   char *varname, *p;
 
@@ -3519,8 +3520,8 @@ static int construct_options(MEM_ROOT *mem_root, struct st_plugin_int *tmp,
 {
   const char *plugin_name= tmp->plugin->name;
   const LEX_STRING plugin_dash = { C_STRING_WITH_LEN("plugin-") };
-  uint plugin_name_len= strlen(plugin_name);
-  uint optnamelen;
+  size_t plugin_name_len= strlen(plugin_name);
+  size_t optnamelen;
   const int max_comment_len= 180;
   char *comment= (char *) alloc_root(mem_root, max_comment_len + 1);
   char *optname;
@@ -3854,7 +3855,8 @@ static int test_plugin_options(MEM_ROOT *tmp_root, struct st_plugin_int *tmp,
   int error;
   sys_var *v __attribute__((unused));
   struct st_bookmark *var;
-  uint len, count= EXTRA_OPTIONS;
+  size_t len;
+  uint count= EXTRA_OPTIONS;
   DBUG_ENTER("test_plugin_options");
   DBUG_ASSERT(tmp->plugin && tmp->name.str);
 

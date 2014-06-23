@@ -67,7 +67,7 @@ public:
     register_gcs_psi_keys(queue_mutexes, 1, queue_conds, 1);
 
     mysql_mutex_init(key_mutex, &lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond, &cond, NULL);
+    mysql_cond_init(key_cond, &cond);
   }
 
   bool empty()
