@@ -540,7 +540,7 @@ ftnode_memory_size (FTNODE node)
     int n_children = node->n_children;
     retval += sizeof(*node);
     retval += (n_children)*(sizeof(node->bp[0]));
-    retval += node->pivotkeys.serialized_size();
+    retval += node->pivotkeys.total_size();
 
     // now calculate the sizes of the partitions
     for (int i = 0; i < n_children; i++) {
