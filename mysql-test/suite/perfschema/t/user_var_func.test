@@ -1,10 +1,30 @@
 
-set @v1="Hello";
-set @v2="World";
-set @v3=65;
-set @v4=NULL;
+set @v1a="Hello";
+set @v2a="World";
+set @v3a=65;
+set @v4a=NULL;
 
-select @v1, @v2, @v3, @v4, @v_unknown;
+select @v1a, @v2a, @v3a, @v4a, @v_unknown;
+
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.user_variables_by_thread
+  order by VARIABLE_NAME;
+
+connect(con1, localhost, root,,);
+
+set @v1b="Salut";
+set @v2b="La compagnie";
+set @v3b=12;
+set @v4b=NULL;
+
+select @v1b, @v2b, @v3b, @v4b, @v_unknown;
+
+select VARIABLE_NAME, VARIABLE_VALUE
+  from performance_schema.user_variables_by_thread
+  order by VARIABLE_NAME;
+
+--connection default
+--disconnect con1
 
 select VARIABLE_NAME, VARIABLE_VALUE
   from performance_schema.user_variables_by_thread
