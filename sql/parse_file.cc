@@ -215,7 +215,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   File handler;
   IO_CACHE file;
   char path[FN_REFLEN+1];	// +1 to put temporary file name for sure
-  int path_end;
+  size_t path_end;
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",
