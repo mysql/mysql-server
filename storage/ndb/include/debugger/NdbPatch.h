@@ -59,9 +59,10 @@ extern "C" {
 #endif
 
 void NdbPatch__init();
+void NdbPatch__end();
+void NdbPatch__configure(const char config[]);
 void NdbPatch__info(const char fmt[], ...);
-const char* NdbPatch__source_basename(const char* filename);
-void NdbPatch__dump_config();
+const char* NdbPatch__source_basename(const char filename[]);
 extern int NdbPatch__features;
 
 #ifdef __cplusplus
@@ -70,7 +71,8 @@ extern int NdbPatch__features;
 
 #define NDB_PATCH_FEATURE(n) unlikely(NdbPatch__features & (1 << (n))?1:0)
 #define NDB_PATCH_INIT() NdbPatch__init()
-#define NDB_PATCH_DUMP_CONFIG() NdbPatch__dump_config()
+#define NDB_PATCH_END() NdbPatch__end()
+#define NDB_PATCH_CONFIGURE(s) NdbPatch__configure(s)
 
 #define NDB_PATCH_INFO(fmt,...) \
   if (NDB_PATCH_FEATURE(0)) \

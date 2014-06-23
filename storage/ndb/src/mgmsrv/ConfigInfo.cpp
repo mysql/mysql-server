@@ -16,6 +16,7 @@
 */
 
 #include <ndb_global.h>
+#include "NdbPatch.h"
 
 #include <NdbTCP.h>
 #include "ConfigInfo.hpp"
@@ -26,7 +27,6 @@
 #include <Bitmask.hpp>
 #include <ndb_opts.h>
 #include <ndb_version.h>
-
 
 #include <portlib/ndb_localtime.h>
 
@@ -2259,6 +2259,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(MAX_INT_RNIL)
   },
 
+#ifdef NDB_PATCH
+  {
+    CFG_PATCH,
+    "PatchConfig",
+    DB_TOKEN ,
+    "Patch specific configuration, see separate documentation of patch.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_STRING,
+    0, 0, 0 },
+#endif
+
   /***************************************************************************
    * API
    ***************************************************************************/
@@ -2501,6 +2513,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     STR_VALUE(NDB_DEFAULT_HASHMAP_BUCKETS)
   },
 
+#ifdef NDB_PATCH
+  {
+    CFG_PATCH,
+    "PatchConfig",
+    API_TOKEN ,
+    "Patch specific configuration, see separate documentation of patch.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_STRING,
+    0, 0, 0 },
+#endif
+
   /****************************************************************************
    * MGM
    ***************************************************************************/
@@ -2717,6 +2741,18 @@ const ConfigInfo::ParamInfo ConfigInfo::m_ParamInfo[] = {
     "1500",
     "100",
     STR_VALUE(MAX_INT_RNIL) },
+
+#ifdef NDB_PATCH
+  {
+    CFG_PATCH,
+    "PatchConfig",
+    MGM_TOKEN ,
+    "Patch specific configuration, see separate documentation of patch.",
+    ConfigInfo::CI_USED,
+    0,
+    ConfigInfo::CI_STRING,
+    0, 0, 0 },
+#endif
 
   /****************************************************************************
    * TCP

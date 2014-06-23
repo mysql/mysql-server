@@ -16,6 +16,7 @@
 */
 
 #include <ndb_global.h>
+#include <NdbPatch.h>
 
 #include <TransporterRegistry.hpp>
 #include "Configuration.hpp"
@@ -239,6 +240,13 @@ Configuration::fetch_configuration(const char* _connect_string,
   }
   NdbConfig_SetPath(datadir);
 
+#ifdef NDB_PATCH
+  const char * patch_config;
+  if (!iter.get(CFG_PATCH, &patch_config))
+  {
+    NDB_PATCH_CONFIGURE(patch_config);
+  }
+#endif
 }
 
 static char * get_and_validate_path(ndb_mgm_configuration_iterator &iter,

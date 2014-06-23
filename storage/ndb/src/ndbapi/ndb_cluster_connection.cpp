@@ -16,6 +16,7 @@
 */
 
 #include <ndb_global.h>
+#include <NdbPatch.h>
 
 #include "ndb_cluster_connection_impl.hpp"
 #include <mgmapi_configuration.hpp>
@@ -777,6 +778,14 @@ Ndb_cluster_connection_impl::configure(Uint32 nodeId,
       }
       m_config.m_waitfor_timeout = timeout;
     }
+
+#ifdef NDB_PATCH
+    const char* patch_config;
+    if (!iter.get(CFG_PATCH, &patch_config))
+    {
+      NDB_PATCH_CONFIGURE(patch_config);
+    }
+#endif
   }
   DBUG_RETURN(init_nodes_vector(nodeId, config));
 }

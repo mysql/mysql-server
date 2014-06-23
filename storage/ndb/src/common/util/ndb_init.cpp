@@ -105,7 +105,10 @@ ndb_end_internal()
     g_ndb_connection_mutex=NULL;
   }
   if (g_eventLogger)
+  {
+    NDB_PATCH_END();
     destroy_event_logger(&g_eventLogger);
+  }
 
   NdbThread_End();
   NdbMutex_SysEnd();

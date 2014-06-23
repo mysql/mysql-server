@@ -220,6 +220,11 @@
 
 #define CFG_MGMD_MGMD_HEARTBEAT_INTERVAL 204
 
+#ifdef NDB_PATCH
+// CFG_PATCH not to be used in official code
+#define CFG_PATCH                 205
+#endif
+
 #define CFG_MIN_LOGLEVEL          250
 #define CFG_LOGLEVEL_STARTUP      250
 #define CFG_LOGLEVEL_SHUTDOWN     251

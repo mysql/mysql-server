@@ -16,6 +16,7 @@
 
 #include <ndb_global.h>
 #include <ndb_version.h>
+#include <NdbPatch.h>
 
 #include "angel.hpp"
 #include "ndbd.hpp"
@@ -532,6 +533,14 @@ configure(const ndb_mgm_configuration* conf, NodeId nodeid)
                            NdbConfig_get_path(NULL), errno);
     // Ignore error
   }
+
+#ifdef NDB_PATCH
+  const char * patch_config;
+  if (!iter.get(CFG_PATCH, &patch_config))
+  {
+    NDB_PATCH_CONFIGURE(patch_config);
+  }
+#endif
 
   return true;
 }
