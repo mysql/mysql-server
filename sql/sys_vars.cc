@@ -3349,12 +3349,6 @@ static Sys_var_ulonglong Sys_tmp_table_size(
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1));
 
-static Sys_var_mybool Sys_timed_mutexes(
-       "timed_mutexes",
-       "Specify whether to time mutexes (only InnoDB mutexes are currently "
-       "supported)",
-       GLOBAL_VAR(timed_mutexes), CMD_LINE(OPT_ARG), DEFAULT(0));
-
 static char *server_version_ptr;
 static Sys_var_charptr Sys_version(
        "version", "Server version",
