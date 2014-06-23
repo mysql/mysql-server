@@ -59,7 +59,7 @@ static void handle_bootstrap_impl(THD *thd)
 
   for ( ; ; )
   {
-    int length;
+    size_t length;
     int error= 0;
     int rc= read_bootstrap_query(buffer, &length, file, fgets_fn, &error);
 

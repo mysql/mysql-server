@@ -12208,7 +12208,7 @@ static int ndbcluster_init(void *p)
   ndb_index_stat_thread.init();
 
   native_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
-  native_cond_init(&COND_ndb_setup_complete, NULL);
+  native_cond_init(&COND_ndb_setup_complete);
   ndbcluster_terminating= 0;
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
@@ -15374,62 +15374,14 @@ ha_ndbcluster::parent_of_pushed_join() const
 }
 
 /**
-  @param[in] comment  table comment defined by user
-
-  @return
-    table comment + additional
-*/
-char*
-ha_ndbcluster::update_table_comment(
-                                /* out: table comment + additional */
-        const char*     comment)/* in:  table comment defined by user */
-{
-  THD *thd= current_thd;
-  uint length= (uint)strlen(comment);
-  if (length > 64000 - 3)
-  {
-    return((char*)comment); /* string too long */
-  }
-
-  Ndb* ndb;
-  if (!(ndb= get_ndb(thd)))
-  {
-    return((char*)comment);
-  }
-
-  if (ndb->setDatabaseName(m_dbname))
-  {
-    return((char*)comment);
-  }
-  const NDBTAB* tab= m_table;
-  DBUG_ASSERT(tab != NULL);
-
-  char *str;
-  const char *fmt="%s%snumber_of_replicas: %d";
-  const unsigned fmt_len_plus_extra= length + (uint)strlen(fmt);
-  if ((str= (char*) my_malloc(PSI_INSTRUMENT_ME, fmt_len_plus_extra, MYF(0))) == NULL)
-  {
-    sql_print_error("ha_ndbcluster::update_table_comment: "
-                    "my_malloc(%u) failed", (unsigned int)fmt_len_plus_extra);
-    return (char*)comment;
-  }
-
-  my_snprintf(str,fmt_len_plus_extra,fmt,comment,
-              length > 0 ? " ":"",
-              tab->getReplicaCount());
-  return str;
-}
-
-
-/**
   Utility thread main loop.
 */
 Ndb_util_thread::Ndb_util_thread()
   : running(-1)
 {
   native_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
-  native_cond_init(&COND, NULL);
-  native_cond_init(&COND_ready, NULL);
+  native_cond_init(&COND);
+  native_cond_init(&COND_ready);
 }
 
 Ndb_util_thread::~Ndb_util_thread()

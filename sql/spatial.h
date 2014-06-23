@@ -2381,7 +2381,7 @@ public:
         It's hard to know how many more space will be needed so let's 
         allocate more later.
       */
-      get_cptr()[get_nbytes()]= 0xff;
+      get_cptr()[get_nbytes()]= '\xff';
       get_cptr()[get_nbytes() + 1]= '\0';
       parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
       set_ownmem(true);

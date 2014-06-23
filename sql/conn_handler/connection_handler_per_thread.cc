@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -81,8 +81,8 @@ void Per_thread_connection_handler::init()
 
   mysql_mutex_init(key_LOCK_thread_cache, &LOCK_thread_cache,
                    MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_thread_cache, &COND_thread_cache, NULL);
-  mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache, NULL);
+  mysql_cond_init(key_COND_thread_cache, &COND_thread_cache);
+  mysql_cond_init(key_COND_flush_thread_cache, &COND_flush_thread_cache);
   waiting_channel_info_list= new (std::nothrow) std::list<Channel_info*>;
   DBUG_ASSERT(waiting_channel_info_list != NULL);
 }

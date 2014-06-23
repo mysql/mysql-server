@@ -1383,6 +1383,30 @@ private:
 
 
 /**
+  Internal error handler to process an error from MDL_context::upgrade_lock()
+  and mysql_lock_tables(). Used by implementations of HANDLER READ and
+  LOCK TABLES LOCAL.
+*/
+
+class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
+{
+public:
+  virtual
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition **cond_hdl);
+
+  bool need_reopen() const { return m_need_reopen; };
+  void init() { m_need_reopen= false; };
+private:
+  bool m_need_reopen;
+};
+
+
+/**
   Tables that were locked with LOCK TABLES statement.
 
   Encapsulates a list of TABLE_LIST instances for tables
@@ -4742,7 +4766,7 @@ class user_var_entry
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type);
+  bool store(const void *from, uint length, Item_result type);
 
 public:
   user_var_entry() {}                         /* Remove gcc warning */
@@ -4765,7 +4789,7 @@ public:
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type,
+  bool store(const void *from, uint length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**
     Set type of to the given value.
