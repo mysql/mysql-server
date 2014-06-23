@@ -2600,8 +2600,6 @@ public:
   /* end of the list of admin commands */
 
   virtual int indexes_are_disabled(void) {return 0;}
-  virtual char *update_table_comment(const char * comment)
-  { return (char*) comment;}
   virtual void append_create_info(String *packet) {}
   /**
     If index == MAX_KEY then a check for table is made and if index <

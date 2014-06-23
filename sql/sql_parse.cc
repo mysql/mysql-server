@@ -1555,10 +1555,10 @@ bool dispatch_command(enum enum_server_command command, THD *thd,
   {
     STATUS_VAR current_global_status_var;
     ulong uptime;
-    uint length __attribute__((unused));
+    size_t length __attribute__((unused));
     ulonglong queries_per_second1000;
     char buff[250];
-    uint buff_len= sizeof(buff);
+    size_t buff_len= sizeof(buff);
 
     query_logger.general_log_print(thd, command, NullS);
     thd->status_var.com_stat[SQLCOM_SHOW_STATUS]++;
@@ -6843,8 +6843,8 @@ bool check_string_char_length(const LEX_CSTRING &str, const char *err_msg,
                               bool no_error)
 {
   int well_formed_error;
-  uint res= cs->cset->well_formed_len(cs, str.str, str.str + str.length,
-                                      max_char_length, &well_formed_error);
+  size_t res= cs->cset->well_formed_len(cs, str.str, str.str + str.length,
+                                        max_char_length, &well_formed_error);
 
   if (!well_formed_error &&  str.length == res)
     return FALSE;

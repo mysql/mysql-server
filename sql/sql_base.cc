@@ -993,7 +993,7 @@ TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
                                     const char *table_name)
 {
   char key[MAX_DBKEY_LENGTH];
-  uint key_length;
+  size_t key_length;
   TABLE_SHARE *share= NULL;
   mysql_mutex_assert_owner(&LOCK_open);
 
@@ -2439,7 +2439,7 @@ bool rename_temporary_table(THD* thd, TABLE *table, const char *db,
 			    const char *table_name)
 {
   char *key;
-  uint key_length;
+  size_t key_length;
   TABLE_SHARE *share= table->s;
   DBUG_ENTER("rename_temporary_table");
 
@@ -3511,8 +3511,8 @@ err_unlock:
 TABLE *find_locked_table(TABLE *list, const char *db, const char *table_name)
 {
   char	key[MAX_DBKEY_LENGTH];
-  uint key_length= create_table_def_key((THD*)NULL, key, db, table_name,
-                                        false);
+  size_t key_length= create_table_def_key((THD*)NULL, key, db, table_name,
+                                          false);
 
   for (TABLE *table= list; table ; table=table->next)
   {
@@ -9526,10 +9526,10 @@ my_bool mysql_rm_tmp_tables(void)
           !memcmp(file->name, tmp_file_prefix, tmp_file_prefix_length))
       {
         char *ext= fn_ext(file->name);
-        uint ext_len= strlen(ext);
-        uint filePath_len= my_snprintf(filePath, sizeof(filePath),
-                                       "%s%c%s", tmpdir, FN_LIBCHAR,
-                                       file->name);
+        size_t ext_len= strlen(ext);
+        size_t filePath_len= my_snprintf(filePath, sizeof(filePath),
+                                         "%s%c%s", tmpdir, FN_LIBCHAR,
+                                         file->name);
         if (!memcmp(reg_ext, ext, ext_len))
         {
           handler *handler_file= 0;
@@ -9626,7 +9626,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       bool has_lock)
 {
   char key[MAX_DBKEY_LENGTH];
-  uint key_length;
+  size_t key_length;
   TABLE_SHARE *share;
 
   if (! has_lock)
