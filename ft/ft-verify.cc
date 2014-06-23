@@ -204,13 +204,13 @@ int verify_message_tree(const int32_t &offset, const uint32_t UU(idx), struct ve
     int keep_going_on_failure = e->keep_going_on_failure;
     int result = 0;
     DBT k, v;
-    FT_MSG_S msg = e->msg_buffer->get_message(offset, &k, &v);
+    ft_msg msg = e->msg_buffer->get_message(offset, &k, &v);
     bool is_fresh = e->msg_buffer->get_freshness(offset);
     if (e->broadcast) {
-        VERIFY_ASSERTION(ft_msg_type_applies_all((enum ft_msg_type) msg.type) || ft_msg_type_does_nothing((enum ft_msg_type) msg.type),
+        VERIFY_ASSERTION(ft_msg_type_applies_all((enum ft_msg_type) msg.type()) || ft_msg_type_does_nothing((enum ft_msg_type) msg.type()),
                          e->i, "message found in broadcast list that is not a broadcast");
     } else {
-        VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) msg.type),
+        VERIFY_ASSERTION(ft_msg_type_applies_once((enum ft_msg_type) msg.type()),
                          e->i, "message found in fresh or stale message tree that does not apply once");
         if (e->is_fresh) {
             if (e->messages_have_been_moved) {
@@ -322,14 +322,14 @@ struct verify_msg_fn {
         blocknum(b), this_msn(tmsn), verbose(v), keep_going_on_failure(k), messages_have_been_moved(m), last_msn(ZERO_MSN), msg_i(0) {
     }
 
-    int operator()(FT_MSG msg, bool is_fresh) {
-        enum ft_msg_type type = (enum ft_msg_type) msg->type;
-        MSN msn = msg->msn;
-        XIDS xid = msg->xids;
-        const void *key = ft_msg_get_key(msg);
-        const void *data = ft_msg_get_val(msg);
-        ITEMLEN keylen = ft_msg_get_keylen(msg);
-        ITEMLEN datalen = ft_msg_get_vallen(msg);
+    int operator()(const ft_msg &msg, bool is_fresh) {
+        enum ft_msg_type type = (enum ft_msg_type) msg.type();
+        MSN msn = msg.msn();
+        XIDS xid = msg.xids();
+        const void *key = msg.kdbt()->data;
+        const void *data = msg.vdbt()->data;
+        ITEMLEN keylen = msg.kdbt()->size;
+        ITEMLEN datalen = msg.vdbt()->size;
 
         int r = verify_msg_in_child_buffer(ft_handle, type, msn, key, keylen, data, datalen, xid,
                                            curr_less_pivot,

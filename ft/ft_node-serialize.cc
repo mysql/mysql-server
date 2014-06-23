@@ -859,7 +859,62 @@ toku_serialize_ftnode_to (int fd, BLOCKNUM blocknum, FTNODE node, FTNODE_DISK_DA
 }
 
 static void
-deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf, const toku::comparator &cmp) {
+sort_and_steal_offset_arrays(NONLEAF_CHILDINFO bnc,
+                             const toku::comparator &cmp,
+                             int32_t **fresh_offsets, int32_t nfresh,
+                             int32_t **stale_offsets, int32_t nstale,
+                             int32_t **broadcast_offsets, int32_t nbroadcast) {
+    // We always have fresh / broadcast offsets (even if they are empty)
+    // but we may not have stale offsets, in the case of v13 upgrade.
+    invariant(fresh_offsets != nullptr);
+    invariant(broadcast_offsets != nullptr);
+    invariant(cmp.valid());
+
+    typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> msn_sort;
+
+    const int32_t n_in_this_buffer = nfresh + nstale + nbroadcast;
+    struct toku_msg_buffer_key_msn_cmp_extra extra(cmp, &bnc->msg_buffer);
+    msn_sort::mergesort_r(*fresh_offsets, nfresh, extra);
+    bnc->fresh_message_tree.destroy();
+    bnc->fresh_message_tree.create_steal_sorted_array(fresh_offsets, nfresh, n_in_this_buffer);
+    if (stale_offsets) {
+        msn_sort::mergesort_r(*stale_offsets, nstale, extra);
+        bnc->stale_message_tree.destroy();
+        bnc->stale_message_tree.create_steal_sorted_array(stale_offsets, nstale, n_in_this_buffer);
+    }
+    bnc->broadcast_list.destroy();
+    bnc->broadcast_list.create_steal_sorted_array(broadcast_offsets, nbroadcast, n_in_this_buffer);
+}
+
+static MSN
+deserialize_child_buffer_v13(FT ft, NONLEAF_CHILDINFO bnc, struct rbuf *rb) {
+    // We skip 'stale' offsets for upgraded nodes.
+    int32_t nfresh = 0, nbroadcast = 0;
+    int32_t *fresh_offsets = nullptr, *broadcast_offsets = nullptr;
+
+    // Only sort buffers if we have a valid comparison function. In certain scenarios,
+    // like deserialie_ft_versioned() or tokuftdump, we'll need to deserialize ftnodes
+    // for simple inspection and don't actually require that the message buffers are
+    // properly sorted. This is very ugly, but correct.
+    const bool sort = ft->cmp.valid();
+
+    MSN highest_msn_in_this_buffer =
+        bnc->msg_buffer.deserialize_from_rbuf_v13(rb, &ft->h->highest_unused_msn_for_upgrade,
+                                                  sort ? &fresh_offsets : nullptr, &nfresh,
+                                                  sort ? &broadcast_offsets : nullptr, &nbroadcast);
+
+    if (sort) {
+        sort_and_steal_offset_arrays(bnc, ft->cmp,
+                                     &fresh_offsets, nfresh,
+                                     nullptr, 0, // no stale offsets
+                                     &broadcast_offsets, nbroadcast);
+    }
+
+    return highest_msn_in_this_buffer;
+}
+
+static void
+deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rb, const toku::comparator &cmp) {
     int32_t nfresh = 0, nstale = 0, nbroadcast = 0;
     int32_t *fresh_offsets, *stale_offsets, *broadcast_offsets;
 
@@ -870,50 +925,44 @@ deserialize_child_buffer_v26(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf, const tok
     const bool sort = cmp.valid();
 
     // read in the message buffer
-    bnc->msg_buffer.deserialize_from_rbuf(rbuf,
+    bnc->msg_buffer.deserialize_from_rbuf(rb,
                                           sort ? &fresh_offsets : nullptr, &nfresh,
                                           sort ? &stale_offsets : nullptr, &nstale,
                                           sort ? &broadcast_offsets : nullptr, &nbroadcast);
 
     if (sort) {
-        int n_in_this_buffer = nfresh + nstale + nbroadcast;
-        struct toku_msg_buffer_key_msn_cmp_extra extra(cmp, &bnc->msg_buffer);
-        toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(fresh_offsets, nfresh, extra);
-        bnc->fresh_message_tree.destroy();
-        bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-        toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp>::mergesort_r(stale_offsets, nstale, extra);
-        bnc->stale_message_tree.destroy();
-        bnc->stale_message_tree.create_steal_sorted_array(&stale_offsets, nstale, n_in_this_buffer);
-        bnc->broadcast_list.destroy();
-        bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast, n_in_this_buffer);
+        sort_and_steal_offset_arrays(bnc, cmp,
+                                     &fresh_offsets, nfresh,
+                                     &stale_offsets, nstale,
+                                     &broadcast_offsets, nbroadcast);
     }
 }
 
 static void
-deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rbuf) {
+deserialize_child_buffer(NONLEAF_CHILDINFO bnc, struct rbuf *rb) {
     // read in the message buffer
-    bnc->msg_buffer.deserialize_from_rbuf(rbuf,
+    bnc->msg_buffer.deserialize_from_rbuf(rb,
                                           nullptr, nullptr,  // fresh_offsets, nfresh,
                                           nullptr, nullptr,  // stale_offsets, nstale,
                                           nullptr, nullptr); // broadcast_offsets, nbroadcast
 
     // read in each message tree (fresh, stale, broadcast)
-    int32_t nfresh = rbuf_int(rbuf);
+    int32_t nfresh = rbuf_int(rb);
     int32_t *XMALLOC_N(nfresh, fresh_offsets);
     for (int i = 0; i < nfresh; i++) {
-        fresh_offsets[i] = rbuf_int(rbuf);
+        fresh_offsets[i] = rbuf_int(rb);
     }
 
-    int32_t nstale = rbuf_int(rbuf);
+    int32_t nstale = rbuf_int(rb);
     int32_t *XMALLOC_N(nstale, stale_offsets);
     for (int i = 0; i < nstale; i++) {
-        stale_offsets[i] = rbuf_int(rbuf);
+        stale_offsets[i] = rbuf_int(rb);
     }
 
-    int32_t nbroadcast = rbuf_int(rbuf);
+    int32_t nbroadcast = rbuf_int(rb);
     int32_t *XMALLOC_N(nbroadcast, broadcast_offsets);
     for (int i = 0; i < nbroadcast; i++) {
-        broadcast_offsets[i] = rbuf_int(rbuf);
+        broadcast_offsets[i] = rbuf_int(rb);
     }
 
     // build OMTs out of each offset array
@@ -1681,83 +1730,12 @@ deserialize_and_upgrade_internal_node(FTNODE node,
     MSN highest_msn;
     highest_msn.msn = 0;
 
-    // Only sort buffers if we have a valid comparison function. In certain scenarios,
-    // like deserialie_ft_versioned() or tokuftdump, we'll need to deserialize ftnodes
-    // for simple inspection and don't actually require that the message buffers are
-    // properly sorted. This is very ugly, but correct.
-    const bool sort_buffers = bfe->ft->cmp.valid();
-
     // Deserialize de-compressed buffers.
     for (int i = 0; i < node->n_children; ++i) {
         NONLEAF_CHILDINFO bnc = BNC(node, i);
-        int n_in_this_buffer = rbuf_int(rb);          // 22. node count
-
-        int32_t *fresh_offsets = nullptr;
-        int32_t *broadcast_offsets = nullptr;
-        int nfresh = 0;
-        int nbroadcast = 0;
-
-        // We skip 'stale' offsets for upgraded nodes.
-        if (sort_buffers) {
-            XMALLOC_N(n_in_this_buffer, fresh_offsets);
-            XMALLOC_N(n_in_this_buffer, broadcast_offsets);
-        }
-
-        // Atomically decrement the header's MSN count by the number
-        // of messages in the buffer.
-        MSN lowest;
-        uint64_t amount = n_in_this_buffer;
-        lowest.msn = toku_sync_sub_and_fetch(&bfe->ft->h->highest_unused_msn_for_upgrade.msn, amount);
+        MSN highest_msn_in_this_buffer = deserialize_child_buffer_v13(bfe->ft, bnc, rb);
         if (highest_msn.msn == 0) {
-            highest_msn.msn = lowest.msn + n_in_this_buffer;
-        }
-
-        // Create the message buffers from the deserialized buffer.
-        for (int j = 0; j < n_in_this_buffer; ++j) {
-            bytevec key; ITEMLEN keylen;
-            bytevec val; ITEMLEN vallen;
-            unsigned char ctype = rbuf_char(rb);       // 23. message type
-            enum ft_msg_type type = (enum ft_msg_type) ctype;
-            XIDS xids;
-            xids_create_from_buffer(rb, &xids);        // 24. XID
-            rbuf_bytes(rb, &key, &keylen);             // 25. key
-            rbuf_bytes(rb, &val, &vallen);             // 26. value
-
-            // <CER> can we factor this out?
-            int32_t *dest = nullptr;
-            if (sort_buffers) {
-                if (ft_msg_type_applies_once(type)) {
-                    dest = &fresh_offsets[nfresh];
-                    nfresh++;
-                } else if (ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type)) {
-                    dest = &broadcast_offsets[nbroadcast];
-                    nbroadcast++;
-                } else {
-                    abort();
-                }
-            }
-
-            // Increment our MSN, the last message should have the
-            // newest/highest MSN.  See above for a full explanation.
-            lowest.msn++;
-            // TODO: Function to parse stuff out of an rbuf into an FT_MSG
-            DBT k, v;
-            FT_MSG_S msg = {
-                type, lowest, xids,
-                .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen) } }
-            };
-            bnc->msg_buffer.enqueue(&msg, true, dest);
-            xids_destroy(&xids);
-        }
-
-        if (sort_buffers) {
-            struct toku_msg_buffer_key_msn_cmp_extra extra(bfe->ft->cmp, &bnc->msg_buffer);
-            typedef toku::sort<int32_t, const struct toku_msg_buffer_key_msn_cmp_extra, toku_msg_buffer_key_msn_cmp> key_msn_sort;
-            key_msn_sort::mergesort_r(fresh_offsets, nfresh, extra);
-            bnc->fresh_message_tree.destroy();
-            bnc->fresh_message_tree.create_steal_sorted_array(&fresh_offsets, nfresh, n_in_this_buffer);
-            bnc->broadcast_list.destroy();
-            bnc->broadcast_list.create_steal_sorted_array(&broadcast_offsets, nbroadcast, n_in_this_buffer);
+            highest_msn.msn = highest_msn_in_this_buffer.msn;
         }
     }
 

@@ -208,7 +208,7 @@ basement nodes, bulk fetch,  and partial fetch:
 #include "ft/ft-flusher.h"
 #include "ft/ft-internal.h"
 #include "ft/ft_layout_version.h"
-#include "ft/ft_msg.h"
+#include "ft/msg.h"
 #include "ft/leafentry.h"
 #include "ft/log-internal.h"
 #include "ft/node.h"
@@ -1578,20 +1578,11 @@ ft_init_new_root(FT ft, FTNODE oldroot, FTNODE *newrootp)
         );
 }
 
-// TODO Use this function to clean up other places where bits of messages are passed around
-//      such as toku_bnc_insert_msg() and the call stack above it.
-static uint64_t
-ft_msg_size(FT_MSG msg) {
-    size_t keyval_size = msg->u.id.key->size + msg->u.id.val->size;
-    size_t xids_size = xids_get_serialize_size(msg->xids);
-    return keyval_size + KEY_VALUE_OVERHEAD + FT_MSG_OVERHEAD + xids_size;
-}
-
 static void inject_message_in_locked_node(
     FT ft, 
     FTNODE node, 
     int childnum, 
-    FT_MSG_S *msg, 
+    const ft_msg &msg, 
     size_t flow_deltas[],
     txn_gc_info *gc_info
     ) 
@@ -1616,15 +1607,17 @@ static void inject_message_in_locked_node(
     // Get the MSN from the header.  Now that we have a write lock on the
     // node we're injecting into, we know no other thread will get an MSN
     // after us and get that message into our subtree before us.
-    msg->msn.msn = toku_sync_add_and_fetch(&ft->h->max_msn_in_ft.msn, 1);
-    paranoid_invariant(msg->msn.msn > node->max_msn_applied_to_node_on_disk.msn);
+    MSN msg_msn = { .msn = toku_sync_add_and_fetch(&ft->h->max_msn_in_ft.msn, 1) };
+    ft_msg msg_with_msn(msg.kdbt(), msg.vdbt(), msg.type(), msg_msn, msg.xids());
+    paranoid_invariant(msg_with_msn.msn().msn > node->max_msn_applied_to_node_on_disk.msn);
+
     STAT64INFO_S stats_delta = {0,0};
     toku_ftnode_put_msg(
         ft->cmp,
         ft->update_fun,
         node,
         childnum,
-        msg,
+        msg_with_msn,
         true,
         gc_info,
         flow_deltas,
@@ -1642,17 +1635,17 @@ static void inject_message_in_locked_node(
 
     // update some status variables
     if (node->height != 0) {
-        uint64_t msgsize = ft_msg_size(msg);
+        size_t msgsize = msg.total_size();
         STATUS_INC(FT_MSG_BYTES_IN, msgsize);
         STATUS_INC(FT_MSG_BYTES_CURR, msgsize);
         STATUS_INC(FT_MSG_NUM, 1);
-        if (ft_msg_type_applies_all(msg->type)) {
+        if (ft_msg_type_applies_all(msg.type())) {
             STATUS_INC(FT_MSG_NUM_BROADCAST, 1);
         }
     }
 
     // verify that msn of latest message was captured in root node
-    paranoid_invariant(msg->msn.msn == node->max_msn_applied_to_node_on_disk.msn);
+    paranoid_invariant(msg_with_msn.msn().msn == node->max_msn_applied_to_node_on_disk.msn);
 
     if (node->blocknum.b == ft->rightmost_blocknum.b) {
         if (ft->seqinsert_score < FT_SEQINSERT_SCORE_THRESHOLD) {
@@ -1794,7 +1787,7 @@ static bool process_maybe_reactive_child(FT ft, FTNODE parent, FTNODE child, int
     abort();
 }
 
-static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t fullhash, FT_MSG_S *msg, size_t flow_deltas[], txn_gc_info *gc_info)
+static void inject_message_at_this_blocknum(FT ft, CACHEKEY cachekey, uint32_t fullhash, const ft_msg &msg, size_t flow_deltas[], txn_gc_info *gc_info)
 // Effect:
 //  Inject message into the node at this blocknum (cachekey).
 //  Gets a write lock on the node for you.
@@ -1845,7 +1838,7 @@ static void push_something_in_subtree(
     FT ft, 
     FTNODE subtree_root, 
     int target_childnum, 
-    FT_MSG_S *msg, 
+    const ft_msg &msg, 
     size_t flow_deltas[], 
     txn_gc_info *gc_info,
     int depth, 
@@ -1903,10 +1896,10 @@ static void push_something_in_subtree(
         NONLEAF_CHILDINFO bnc;
 
         // toku_ft_root_put_msg should not have called us otherwise.
-        paranoid_invariant(ft_msg_type_applies_once(msg->type));
+        paranoid_invariant(ft_msg_type_applies_once(msg.type()));
 
         childnum = (target_childnum >= 0 ? target_childnum
-                    : toku_ftnode_which_child(subtree_root, msg->u.id.key, ft->cmp));
+                    : toku_ftnode_which_child(subtree_root, msg.kdbt(), ft->cmp));
         bnc = BNC(subtree_root, childnum);
 
         if (toku_bnc_n_entries(bnc) > 0) {
@@ -2042,7 +2035,7 @@ static void push_something_in_subtree(
 
 void toku_ft_root_put_msg(
     FT ft, 
-    FT_MSG_S *msg, 
+    const ft_msg &msg, 
     txn_gc_info *gc_info
     )
 // Effect:
@@ -2142,7 +2135,7 @@ void toku_ft_root_put_msg(
     // anyway.
 
     // Now, either inject here or promote.  We decide based on a heuristic:
-    if (node->height == 0 || !ft_msg_type_applies_once(msg->type)) {
+    if (node->height == 0 || !ft_msg_type_applies_once(msg.type())) {
         // If the root's a leaf or we're injecting a broadcast, drop the read lock and inject here.
         toku_unpin_ftnode_read_only(ft, node);
         STATUS_INC(FT_PRO_NUM_ROOT_H0_INJECT, 1);
@@ -2153,7 +2146,7 @@ void toku_ft_root_put_msg(
     } else {
         // The root's height 1.  We may be eligible for promotion here.
         // On the extremes, we want to promote, in the middle, we don't.
-        int childnum = toku_ftnode_which_child(node, msg->u.id.key, ft->cmp);
+        int childnum = toku_ftnode_which_child(node, msg.kdbt(), ft->cmp);
         if (childnum == 0 || childnum == node->n_children - 1) {
             // On the extremes, promote.  We know which childnum we're going to, so pass that down too.
             push_something_in_subtree(ft, node, childnum, msg, flow_deltas, gc_info, 0, LEFT_EXTREME | RIGHT_EXTREME, false);
@@ -2476,7 +2469,7 @@ void toku_ft_optimize (FT_HANDLE ft_h) {
         DBT val;
         toku_init_dbt(&key);
         toku_init_dbt(&val);
-        FT_MSG_S ftmsg = { FT_OPTIMIZE, ZERO_MSN, message_xids, .u = { .id = {&key,&val} } };
+        ft_msg msg(&key, &val, FT_OPTIMIZE, ZERO_MSN, message_xids);
 
         TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
         txn_manager_state txn_state_for_gc(txn_manager);
@@ -2487,7 +2480,7 @@ void toku_ft_optimize (FT_HANDLE ft_h) {
                             // no messages above us, we can implicitly promote uxrs based on this xid
                             oldest_referenced_xid_estimate,
                             true);
-        toku_ft_root_put_msg(ft_h->ft, &ftmsg, &gc_info);
+        toku_ft_root_put_msg(ft_h->ft, msg, &gc_info);
         xids_destroy(&message_xids);
     }
 }
@@ -2601,17 +2594,13 @@ static void ft_insert_directly_into_leaf(FT ft, FTNODE leaf, int target_childnum
 //           algorithm would have selected the given leaf node as the point of injection.
 //           That means this function relies on the current implementation of promotion.
 {
-    FT_MSG_S ftcmd = { type, ZERO_MSN, message_xids, .u = { .id = { key, val } } }; 
+    ft_msg msg(key, val, type, ZERO_MSN, message_xids);
     size_t flow_deltas[] = { 0, 0 }; 
-    inject_message_in_locked_node(ft, leaf, target_childnum, &ftcmd, flow_deltas, gc_info);
+    inject_message_in_locked_node(ft, leaf, target_childnum, msg, flow_deltas, gc_info);
 }
 
 static void
-ft_send_update_msg(FT_HANDLE ft_h, FT_MSG_S *msg, TOKUTXN txn) {
-    msg->xids = (txn
-                 ? toku_txn_get_xids(txn)
-                 : xids_get_root_xids());
-    
+ft_send_update_msg(FT_HANDLE ft_h, const ft_msg &msg, TOKUTXN txn) {
     TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
     txn_manager_state txn_state_for_gc(txn_manager);
 
@@ -2650,9 +2639,9 @@ void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_func
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        FT_MSG_S msg = { FT_UPDATE, ZERO_MSN, NULL,
-                         .u = { .id = { key, update_function_extra } } };
-        ft_send_update_msg(ft_h, &msg, txn);
+        XIDS message_xids = txn ? toku_txn_get_xids(txn) : xids_get_root_xids();
+        ft_msg msg(key, update_function_extra, FT_UPDATE, ZERO_MSN, message_xids);
+        ft_send_update_msg(ft_h, msg, txn);
     }
 }
 
@@ -2682,23 +2671,22 @@ void toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_e
         oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
 
     } else {
-        DBT nullkey;
-        const DBT *nullkeyp = toku_init_dbt(&nullkey);
-        FT_MSG_S msg = { FT_UPDATE_BROADCAST_ALL, ZERO_MSN, NULL,
-                         .u = { .id = { nullkeyp, update_function_extra } } };
-        ft_send_update_msg(ft_h, &msg, txn);
+        DBT empty_dbt;
+        XIDS message_xids = txn ? toku_txn_get_xids(txn) : xids_get_root_xids();
+        ft_msg msg(toku_init_dbt(&empty_dbt), update_function_extra, FT_UPDATE_BROADCAST_ALL, ZERO_MSN, message_xids);
+        ft_send_update_msg(ft_h, msg, txn);
     }
 }
 
 void toku_ft_send_insert(FT_HANDLE ft_handle, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info) {
-    FT_MSG_S ftmsg = { type, ZERO_MSN, xids, .u = { .id = { key, val } } };
-    toku_ft_root_put_msg(ft_handle->ft, &ftmsg, gc_info);
+    ft_msg msg(key, val, type, ZERO_MSN, xids);
+    toku_ft_root_put_msg(ft_handle->ft, msg, gc_info);
 }
 
 void toku_ft_send_commit_any(FT_HANDLE ft_handle, DBT *key, XIDS xids, txn_gc_info *gc_info) {
     DBT val;
-    FT_MSG_S ftmsg = { FT_COMMIT_ANY, ZERO_MSN, xids, .u = { .id = { key, toku_init_dbt(&val) } } };
-    toku_ft_root_put_msg(ft_handle->ft, &ftmsg, gc_info);
+    ft_msg msg(key, toku_init_dbt(&val), FT_COMMIT_ANY, ZERO_MSN, xids);
+    toku_ft_root_put_msg(ft_handle->ft, msg, gc_info);
 }
 
 void toku_ft_delete(FT_HANDLE ft_handle, DBT *key, TOKUTXN txn) {
@@ -2769,8 +2757,8 @@ void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_vali
 
 void toku_ft_send_delete(FT_HANDLE ft_handle, DBT *key, XIDS xids, txn_gc_info *gc_info) {
     DBT val; toku_init_dbt(&val);
-    FT_MSG_S ftmsg = { FT_DELETE_ANY, ZERO_MSN, xids, .u = { .id = { key, &val } } };
-    toku_ft_root_put_msg(ft_handle->ft, &ftmsg, gc_info);
+    ft_msg msg(key, toku_init_dbt(&val), FT_DELETE_ANY, ZERO_MSN, xids);
+    toku_ft_root_put_msg(ft_handle->ft, msg, gc_info);
 }
 
 /* ******************** open,close and create  ********************** */
@@ -4480,12 +4468,12 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
                     FILE *file;
                     int depth;
                     print_msg_fn(FILE *f, int d) : file(f), depth(d) { }
-                    int operator()(FT_MSG msg, bool UU(is_fresh)) {
+                    int operator()(const ft_msg &msg, bool UU(is_fresh)) {
                         fprintf(file, "%*s xid=%" PRIu64 " %u (type=%d) msn=0x%" PRIu64 "\n",
                                       depth+2, "",
-                                      xids_get_innermost_xid(ft_msg_get_xids(msg)),
-                                      (unsigned)toku_dtoh32(*(int*)ft_msg_get_key(msg)),
-                                      ft_msg_get_type(msg), msg->msn.msn);
+                                      xids_get_innermost_xid(msg.xids()),
+                                      static_cast<unsigned>(toku_dtoh32(*(int*)msg.kdbt()->data)),
+                                      msg.type(), msg.msn().msn);
                         return 0;
                     }
                 } print_fn(file, depth);

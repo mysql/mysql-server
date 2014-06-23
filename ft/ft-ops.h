@@ -99,7 +99,7 @@ PATENT RIGHTS GRANT:
 #include "cachetable.h"
 #include "log.h"
 #include "compress.h"
-#include "ft_msg.h"
+#include "ft/msg.h"
 
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 

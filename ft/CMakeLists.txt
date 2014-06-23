@@ -35,7 +35,6 @@ set(FT_SOURCES
   ft-cachetable-wrappers
   ft-flusher
   ft-hot-flusher
-  ft_msg
   ft_node-serialize
   ft-node-deserialize
   ft-ops
@@ -52,6 +51,7 @@ set(FT_SOURCES
   logfilemgr
   logger
   log_upgrade
+  msg
   msg_buffer
   node
   pivotkeys

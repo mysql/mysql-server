@@ -224,25 +224,22 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, const
     toku_verify_or_set_counts(node);
     assert(node->height==0);
 
-    DBT keydbt,valdbt;
-    MSN msn = next_dummymsn();
-    FT_MSG_S msg = { FT_INSERT, msn, xids_get_root_xids(),
-                     .u = { .id = { toku_fill_dbt(&keydbt, key, keylen),
-                                    toku_fill_dbt(&valdbt, val, vallen) } } };
+    DBT kdbt, vdbt;
+    ft_msg msg(toku_fill_dbt(&kdbt, key, keylen), toku_fill_dbt(&vdbt, val, vallen),
+               FT_INSERT, next_dummymsn(), xids_get_root_xids());
 
     static size_t zero_flow_deltas[] = { 0, 0 };
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
-    toku_ftnode_put_msg(
-        ft_handle->ft->cmp,
-        ft_handle->ft->update_fun,
-        node,
-        -1,
-        &msg,
-        true,
-        &gc_info,
-        zero_flow_deltas,
-        NULL
-        );
+    toku_ftnode_put_msg(ft_handle->ft->cmp,
+                        ft_handle->ft->update_fun,
+                        node,
+                        -1,
+                        msg,
+                        true,
+                        &gc_info,
+                        zero_flow_deltas,
+                        NULL
+                        );
 
     toku_verify_or_set_counts(node);
 

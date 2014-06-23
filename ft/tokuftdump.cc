@@ -280,14 +280,14 @@ static void dump_node(int fd, BLOCKNUM blocknum, FT ft) {
             }
             if (do_dump_data) {
                 struct dump_data_fn {
-                    int operator()(FT_MSG msg, bool UU(is_fresh)) {
-                        enum ft_msg_type type = (enum ft_msg_type) msg->type;
-                        MSN msn = msg->msn;
-                        XIDS xids = msg->xids;
-                        const void *key = ft_msg_get_key(msg);
-                        const void *data = ft_msg_get_val(msg);
-                        ITEMLEN keylen = ft_msg_get_keylen(msg);
-                        ITEMLEN datalen = ft_msg_get_vallen(msg);
+                    int operator()(const ft_msg &msg, bool UU(is_fresh)) {
+                        enum ft_msg_type type = (enum ft_msg_type) msg.type();
+                        MSN msn = msg.msn();
+                        XIDS xids = msg.xids();
+                        const void *key = msg.kdbt()->data;
+                        const void *data = msg.vdbt()->data;
+                        ITEMLEN keylen = msg.kdbt()->size;
+                        ITEMLEN datalen = msg.vdbt()->size;
                         printf("    msn=%" PRIu64 " (0x%" PRIx64 ") ", msn.msn, msn.msn);
                         printf("    TYPE=");
                         switch (type) {

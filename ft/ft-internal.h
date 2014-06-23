@@ -119,8 +119,6 @@ PATENT RIGHTS GRANT:
 struct block_table;
 struct ft_search;
 
-enum { KEY_VALUE_OVERHEAD = 8 }; /* Must store the two lengths. */
-enum { FT_MSG_OVERHEAD = (2 + sizeof(MSN)) };   // the type plus freshness plus MSN
 enum { FT_DEFAULT_FANOUT = 16 };
 enum { FT_DEFAULT_NODE_SIZE = 4 * 1024 * 1024 };
 enum { FT_DEFAULT_BASEMENT_NODE_SIZE = 128 * 1024 };
@@ -493,7 +491,7 @@ toku_bfe_rightmost_child_wanted(struct ftnode_fetch_extra *bfe, FTNODE node);
 // allocate a block number
 // allocate and initialize a ftnode
 // put the ftnode into the cache table
-void toku_create_new_ftnode (FT_HANDLE t, FTNODE *result, int height, int n_children);
+void toku_create_new_ftnode(FT_HANDLE ft_handle, FTNODE *result, int height, int n_children);
 
 /* Stuff for testing */
 // toku_testsetup_initialize() must be called before any other test_setup_xxx() functions are called.
@@ -506,14 +504,10 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_h, BLOCKNUM, const char *key, in
 int toku_testsetup_insert_to_nonleaf (FT_HANDLE ft_h, BLOCKNUM, enum ft_msg_type, const char *key, int keylen, const char *val, int vallen);
 void toku_pin_node_with_min_bfe(FTNODE* node, BLOCKNUM b, FT_HANDLE t);
 
-void toku_ft_root_put_msg(FT ft, FT_MSG msg, txn_gc_info *gc_info);
+void toku_ft_root_put_msg(FT ft, const ft_msg &msg, txn_gc_info *gc_info);
 
-void
-toku_get_node_for_verify(
-    BLOCKNUM blocknum,
-    FT_HANDLE ft_h,
-    FTNODE* nodep
-    );
+// TODO: Rename
+void toku_get_node_for_verify(BLOCKNUM blocknum, FT_HANDLE ft_h, FTNODE* nodep);
 
 int
 toku_verify_ftnode (FT_HANDLE ft_h,

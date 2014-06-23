@@ -128,42 +128,75 @@ void message_buffer::deserialize_from_rbuf(struct rbuf *rb,
 
     _resize(rb->size + 64); // rb->size is a good hint for how big the buffer will be
 
-    // read in each message individually
+    // deserialize each message individually, noting whether it was fresh
+    // and putting its buffer offset in the appropriate offsets array
     for (int i = 0; i < n_in_this_buffer; i++) {
-        bytevec key; ITEMLEN keylen;
-        bytevec val; ITEMLEN vallen;
-        // this is weird but it's necessary to pass icc and gcc together
-        unsigned char ctype = rbuf_char(rb);
-        enum ft_msg_type type = (enum ft_msg_type) ctype;
-        bool is_fresh = rbuf_char(rb);
-        MSN msn = rbuf_msn(rb);
         XIDS xids;
-        xids_create_from_buffer(rb, &xids);
-        rbuf_bytes(rb, &key, &keylen); /* Returns a pointer into the rbuf. */
-        rbuf_bytes(rb, &val, &vallen);
-        int32_t *dest = nullptr;
-        if (ft_msg_type_applies_once(type)) {
+        bool is_fresh;
+        const ft_msg msg = ft_msg::deserialize_from_rbuf(rb, &xids, &is_fresh);
+
+        int32_t *dest;
+        if (ft_msg_type_applies_once(msg.type())) {
             if (is_fresh) {
                 dest = fresh_offsets ? *fresh_offsets + (*nfresh)++ : nullptr;
             } else {
                 dest = stale_offsets ? *stale_offsets + (*nstale)++ : nullptr;
             }
         } else {
-            invariant(ft_msg_type_applies_all(type) || ft_msg_type_does_nothing(type));
+            invariant(ft_msg_type_applies_all(msg.type()) || ft_msg_type_does_nothing(msg.type()));
             dest = broadcast_offsets ? *broadcast_offsets + (*nbroadcast)++ : nullptr;
         }
 
-        // TODO: Function to parse stuff out of an rbuf into an FT_MSG
-        DBT k, v;
-        FT_MSG_S msg = {
-            type, msn, xids,
-            .u = { .id = { toku_fill_dbt(&k, key, keylen), toku_fill_dbt(&v, val, vallen) } }
-        };
-        enqueue(&msg, is_fresh, dest);
+        enqueue(msg, is_fresh, dest);
         xids_destroy(&xids);
     }
 
-    invariant(num_entries() == n_in_this_buffer);
+    invariant(_num_entries == n_in_this_buffer);
+}
+
+MSN message_buffer::deserialize_from_rbuf_v13(struct rbuf *rb,
+                                              MSN *highest_unused_msn_for_upgrade,
+                                              int32_t **fresh_offsets, int32_t *nfresh,
+                                              int32_t **broadcast_offsets, int32_t *nbroadcast) {
+    // read the number of messages in this buffer
+    int n_in_this_buffer = rbuf_int(rb);
+    if (fresh_offsets != nullptr) {
+        XMALLOC_N(n_in_this_buffer, *fresh_offsets);
+    }
+    if (broadcast_offsets != nullptr) {
+        XMALLOC_N(n_in_this_buffer, *broadcast_offsets);
+    }
+
+    // Atomically decrement the header's MSN count by the number
+    // of messages in the buffer.
+    MSN highest_msn_in_this_buffer = {
+        .msn = toku_sync_sub_and_fetch(&highest_unused_msn_for_upgrade->msn, n_in_this_buffer)
+    };
+
+    // Create the message buffers from the deserialized buffer.
+    for (int i = 0; i < n_in_this_buffer; i++) {
+        XIDS xids;
+        // There were no stale messages at this version, so call it fresh.
+        const bool is_fresh = true;
+
+        // Increment our MSN, the last message should have the
+        // newest/highest MSN.  See above for a full explanation.
+        highest_msn_in_this_buffer.msn++;
+        const ft_msg msg = ft_msg::deserialize_from_rbuf_v13(rb, highest_msn_in_this_buffer, &xids);
+
+        int32_t *dest;
+        if (ft_msg_type_applies_once(msg.type())) {
+            dest = fresh_offsets ? *fresh_offsets + (*nfresh)++ : nullptr;
+        } else {
+            invariant(ft_msg_type_applies_all(msg.type()) || ft_msg_type_does_nothing(msg.type()));
+            dest = broadcast_offsets ? *broadcast_offsets + (*nbroadcast)++ : nullptr;
+        }
+
+        enqueue(msg, is_fresh, dest);
+        xids_destroy(&xids);
+    }
+
+    return highest_msn_in_this_buffer;
 }
 
 void message_buffer::_resize(size_t new_size) {
@@ -184,7 +217,7 @@ struct message_buffer::buffer_entry *message_buffer::get_buffer_entry(int32_t of
     return (struct buffer_entry *) (_memory + offset);
 }
 
-void message_buffer::enqueue(FT_MSG msg, bool is_fresh, int32_t *offset) {
+void message_buffer::enqueue(const ft_msg &msg, bool is_fresh, int32_t *offset) {
     int need_space_here = msg_memsize_in_buffer(msg);
     int need_space_total = _memory_used + need_space_here;
     if (_memory == nullptr || need_space_total > _memory_size) {
@@ -192,18 +225,18 @@ void message_buffer::enqueue(FT_MSG msg, bool is_fresh, int32_t *offset) {
         int next_2 = next_power_of_two(need_space_total);
         _resize(next_2);
     }
-    ITEMLEN keylen = ft_msg_get_keylen(msg);
-    ITEMLEN datalen = ft_msg_get_vallen(msg);
+    ITEMLEN keylen = msg.kdbt()->size;
+    ITEMLEN datalen = msg.vdbt()->size;
     struct buffer_entry *entry = get_buffer_entry(_memory_used);
-    entry->type = (unsigned char) ft_msg_get_type(msg);
-    entry->msn = msg->msn;
-    xids_cpy(&entry->xids_s, ft_msg_get_xids(msg));
+    entry->type = (unsigned char) msg.type();
+    entry->msn = msg.msn();
+    xids_cpy(&entry->xids_s, msg.xids());
     entry->is_fresh = is_fresh;
     unsigned char *e_key = xids_get_end_of_array(&entry->xids_s);
     entry->keylen = keylen;
-    memcpy(e_key, ft_msg_get_key(msg), keylen);
+    memcpy(e_key, msg.kdbt()->data, keylen);
     entry->vallen = datalen;
-    memcpy(e_key + keylen, ft_msg_get_val(msg), datalen);
+    memcpy(e_key + keylen, msg.vdbt()->data, datalen);
     if (offset) {
         *offset = _memory_used;
     }
@@ -221,7 +254,7 @@ bool message_buffer::get_freshness(int32_t offset) const {
     return entry->is_fresh;
 }
 
-FT_MSG_S message_buffer::get_message(int32_t offset, DBT *keydbt, DBT *valdbt) const {
+ft_msg message_buffer::get_message(int32_t offset, DBT *keydbt, DBT *valdbt) const {
     struct buffer_entry *entry = get_buffer_entry(offset);
     ITEMLEN keylen = entry->keylen;
     ITEMLEN vallen = entry->vallen;
@@ -230,11 +263,7 @@ FT_MSG_S message_buffer::get_message(int32_t offset, DBT *keydbt, DBT *valdbt) c
     const XIDS xids = (XIDS) &entry->xids_s;
     bytevec key = xids_get_end_of_array(xids);
     bytevec val = (uint8_t *) key + entry->keylen;
-    FT_MSG_S msg = {
-        type, msn, xids,
-        .u = { .id = { toku_fill_dbt(keydbt, key, keylen), toku_fill_dbt(valdbt, val, vallen) } }
-    };
-    return msg;
+    return ft_msg(toku_fill_dbt(keydbt, key, keylen), toku_fill_dbt(valdbt, val, vallen), type, msn, xids);
 }
 
 void message_buffer::get_message_key_msn(int32_t offset, DBT *key, MSN *msn) const {
@@ -269,28 +298,21 @@ bool message_buffer::equals(message_buffer *other) const {
 }
 
 void message_buffer::serialize_to_wbuf(struct wbuf *wb) const {
-    wbuf_nocrc_int(wb, num_entries());
+    wbuf_nocrc_int(wb, _num_entries);
     struct msg_serialize_fn {
         struct wbuf *wb;
         msg_serialize_fn(struct wbuf *w) : wb(w) { }
-        int operator()(FT_MSG msg, bool is_fresh) {
-            enum ft_msg_type type = (enum ft_msg_type) msg->type;
-            paranoid_invariant((int) type >= 0 && (int) type < 256);
-            wbuf_nocrc_char(wb, (unsigned char) type);
-            wbuf_nocrc_char(wb, (unsigned char) is_fresh);
-            wbuf_MSN(wb, msg->msn);
-            wbuf_nocrc_xids(wb, ft_msg_get_xids(msg));
-            wbuf_nocrc_bytes(wb, ft_msg_get_key(msg), ft_msg_get_keylen(msg));
-            wbuf_nocrc_bytes(wb, ft_msg_get_val(msg), ft_msg_get_vallen(msg));
+        int operator()(const ft_msg &msg, bool is_fresh) {
+            msg.serialize_to_wbuf(wb, is_fresh);
             return 0;
         }
     } serialize_fn(wb);
     iterate(serialize_fn);
 }
 
-size_t message_buffer::msg_memsize_in_buffer(FT_MSG msg) {
-    const uint32_t keylen = ft_msg_get_keylen(msg);
-    const uint32_t datalen = ft_msg_get_vallen(msg);
-    const size_t xidslen = xids_get_size(msg->xids);
+size_t message_buffer::msg_memsize_in_buffer(const ft_msg &msg) {
+    const uint32_t keylen = msg.kdbt()->size;
+    const uint32_t datalen = msg.vdbt()->size;
+    const size_t xidslen = xids_get_size(msg.xids());
     return sizeof(struct buffer_entry) + keylen + datalen + xidslen - sizeof(XIDS_S);
 }

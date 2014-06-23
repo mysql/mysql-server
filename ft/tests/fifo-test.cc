@@ -136,10 +136,8 @@ test_enqueue(int n) {
             startmsn = msn;
         enum ft_msg_type type = (enum ft_msg_type) i;
         DBT k, v;
-        FT_MSG_S msg = {
-            type, msn, xids, .u = { .id = { toku_fill_dbt(&k, thekey, thekeylen), toku_fill_dbt(&v, theval, thevallen) } }
-        };
-        msg_buffer.enqueue(&msg, true, nullptr);
+        ft_msg msg(toku_fill_dbt(&k, thekey, thekeylen), toku_fill_dbt(&v, theval, thevallen), type, msn, xids);
+        msg_buffer.enqueue(msg, true, nullptr);
         xids_destroy(&xids);
         toku_free(thekey);
         toku_free(theval);
@@ -152,20 +150,20 @@ test_enqueue(int n) {
         checkit_fn(MSN smsn, bool v)
             : startmsn(smsn), verbose(v), i(0) {
         }
-        int operator()(FT_MSG msg, bool UU(is_fresh)) {
+        int operator()(const ft_msg &msg, bool UU(is_fresh)) {
             int thekeylen = i + 1;
             int thevallen = i + 2;
             char *thekey = buildkey(thekeylen);
             char *theval = buildval(thevallen);
 
-            MSN msn = msg->msn;
-            enum ft_msg_type type = ft_msg_get_type(msg);
+            MSN msn = msg.msn();
+            enum ft_msg_type type = msg.type();
             if (verbose) printf("checkit %d %d %" PRIu64 "\n", i, type, msn.msn);
             assert(msn.msn == startmsn.msn + i);
-            assert((int) ft_msg_get_keylen(msg) == thekeylen); assert(memcmp(ft_msg_get_key(msg), thekey, ft_msg_get_keylen(msg)) == 0);
-            assert((int) ft_msg_get_vallen(msg) == thevallen); assert(memcmp(ft_msg_get_val(msg), theval, ft_msg_get_vallen(msg)) == 0);
+            assert((int) msg.kdbt()->size == thekeylen); assert(memcmp(msg.kdbt()->data, thekey, msg.kdbt()->size) == 0);
+            assert((int) msg.vdbt()->size == thevallen); assert(memcmp(msg.vdbt()->data, theval, msg.vdbt()->size) == 0);
             assert(i % 256 == (int)type);
-            assert((TXNID)i==xids_get_innermost_xid(ft_msg_get_xids(msg)));
+            assert((TXNID)i==xids_get_innermost_xid(msg.xids()));
             i += 1;
             toku_free(thekey);
             toku_free(theval);

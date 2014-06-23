@@ -1,5 +1,11 @@
 /* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+
+/* The purpose of this file is to provide access to the ft_msg,
+ * which is the ephemeral version of the messages that lives in
+ * a message buffer.
+ */
+
 #ident "$Id$"
 /*
 COPYING CONDITIONS NOTICE:
@@ -86,48 +92,125 @@ PATENT RIGHTS GRANT:
   under this License.
 */
 
+#pragma once
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
+#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
+/* tree command types */
+enum ft_msg_type {
+    FT_NONE = 0,
+    FT_INSERT = 1,
+    FT_DELETE_ANY = 2,  // Delete any matching key.  This used to be called FT_DELETE.
+    //FT_DELETE_BOTH = 3,
+    FT_ABORT_ANY = 4,   // Abort any commands on any matching key.
+    //FT_ABORT_BOTH  = 5, // Abort commands that match both the key and the value
+    FT_COMMIT_ANY  = 6,
+    //FT_COMMIT_BOTH = 7,
+    FT_COMMIT_BROADCAST_ALL = 8, // Broadcast to all leafentries, (commit all transactions).
+    FT_COMMIT_BROADCAST_TXN = 9, // Broadcast to all leafentries, (commit specific transaction).
+    FT_ABORT_BROADCAST_TXN  = 10, // Broadcast to all leafentries, (commit specific transaction).
+    FT_INSERT_NO_OVERWRITE = 11,
+    FT_OPTIMIZE = 12,             // Broadcast
+    FT_OPTIMIZE_FOR_UPGRADE = 13, // same as FT_OPTIMIZE, but record version number in leafnode
+    FT_UPDATE = 14,
+    FT_UPDATE_BROADCAST_ALL = 15
+};
 
-#include <toku_portability.h>
-#include "fttypes.h"
-#include "xids.h"
-#include "ft_msg.h"
-
-
-uint32_t 
-ft_msg_get_keylen(FT_MSG ft_msg) {
-    uint32_t rval = ft_msg->u.id.key->size;
-    return rval;
+static inline bool
+ft_msg_type_applies_once(enum ft_msg_type type)
+{
+    bool ret_val;
+    switch (type) {
+    case FT_INSERT_NO_OVERWRITE:
+    case FT_INSERT:
+    case FT_DELETE_ANY:
+    case FT_ABORT_ANY:
+    case FT_COMMIT_ANY:
+    case FT_UPDATE:
+        ret_val = true;
+        break;
+    case FT_COMMIT_BROADCAST_ALL:
+    case FT_COMMIT_BROADCAST_TXN:
+    case FT_ABORT_BROADCAST_TXN:
+    case FT_OPTIMIZE:
+    case FT_OPTIMIZE_FOR_UPGRADE:
+    case FT_UPDATE_BROADCAST_ALL:
+    case FT_NONE:
+        ret_val = false;
+        break;
+    default:
+        assert(false);
+    }
+    return ret_val;
 }
 
-uint32_t 
-ft_msg_get_vallen(FT_MSG ft_msg) {
-    uint32_t rval = ft_msg->u.id.val->size;
-    return rval;
+static inline bool
+ft_msg_type_applies_all(enum ft_msg_type type)
+{
+    bool ret_val;
+    switch (type) {
+    case FT_NONE:
+    case FT_INSERT_NO_OVERWRITE:
+    case FT_INSERT:
+    case FT_DELETE_ANY:
+    case FT_ABORT_ANY:
+    case FT_COMMIT_ANY:
+    case FT_UPDATE:
+        ret_val = false;
+        break;
+    case FT_COMMIT_BROADCAST_ALL:
+    case FT_COMMIT_BROADCAST_TXN:
+    case FT_ABORT_BROADCAST_TXN:
+    case FT_OPTIMIZE:
+    case FT_OPTIMIZE_FOR_UPGRADE:
+    case FT_UPDATE_BROADCAST_ALL:
+        ret_val = true;
+        break;
+    default:
+        assert(false);
+    }
+    return ret_val;
 }
 
-XIDS
-ft_msg_get_xids(FT_MSG ft_msg) {
-    XIDS rval = ft_msg->xids;
-    return rval;
+static inline bool
+ft_msg_type_does_nothing(enum ft_msg_type type)
+{
+    return (type == FT_NONE);
 }
 
-void *
-ft_msg_get_key(FT_MSG ft_msg) {
-    void * rval = ft_msg->u.id.key->data;
-    return rval;
-}
+typedef struct xids_t *XIDS;
 
-void *
-ft_msg_get_val(FT_MSG ft_msg) {
-    void * rval = ft_msg->u.id.val->data;
-    return rval;
-}
+class ft_msg {
+public:
+    ft_msg(const DBT *key, const DBT *val, enum ft_msg_type t, MSN m, XIDS x);
 
-enum ft_msg_type
-ft_msg_get_type(FT_MSG ft_msg) {
-    enum ft_msg_type rval = ft_msg->type;
-    return rval;
-}
+    enum ft_msg_type type() const;
 
+    MSN msn() const;
+
+    XIDS xids() const;
+
+    const DBT *kdbt() const;
+
+    const DBT *vdbt() const;
+
+    size_t total_size() const;
+
+    void serialize_to_wbuf(struct wbuf *wb, bool is_fresh) const;
+
+    // deserialization goes through a static factory function so the ft msg
+    // API stays completely const and there's no default constructor
+    static ft_msg deserialize_from_rbuf(struct rbuf *rb, XIDS *xids, bool *is_fresh);
+
+    // Version 13/14 messages did not have an msn - so `m' is the MSN
+    // that will be assigned to the message that gets deserialized.
+    static ft_msg deserialize_from_rbuf_v13(struct rbuf *rb, MSN m, XIDS *xids);
+
+private:
+    const DBT _key;
+    const DBT _val;
+    enum ft_msg_type _type;
+    MSN _msn;
+    XIDS _xids;
+};
