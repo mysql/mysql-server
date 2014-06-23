@@ -1,0 +1,32 @@
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+
+--echo
+--echo # On connection 1
+--connection con1
+START TRANSACTION HIGH_PRIORITY;
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+--echo
+--echo # On connection 2
+--connection con2
+START TRANSACTION HIGH_PRIORITY;
+--error ER_LOCK_DEADLOCK
+UPDATE t1 SET c1=2 WHERE c1=0;
+COMMIT;
+
+--echo
+--echo # On connection 1
+--connection con1
+COMMIT;
+
+--connection default
+--query_vertical SELECT * FROM t1
+
+DROP TABLE t1;
+
+--disconnect con1
+--disconnect con2

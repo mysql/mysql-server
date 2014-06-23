@@ -593,14 +593,13 @@ private:
 	}
 
 	/**
-	@param[in,out] lock	Newly created record lock
-	@param[in] own_mutex	true if callers owns the mutex for
-				the requesting transaction */
-	void lock_add(lock_t* lock, bool own_mutex) const;
-
-	/**
 	Do some checks and prepare for creating a new record lock */
 	void prepare() const;
+
+	/**
+	Collect the transactions that will need to be rolled back asynchronously
+	@param[in, out] trx	Transaction to be rolled back */
+	void mark_trx_for_rollback(trx_t* trx);
 
 	/**
 	Add the lock to the head of the record lock {space, page_no} wait queue
@@ -623,7 +622,7 @@ private:
 	Add the lock to the record lock hash and the transaction's lock list
 	@param[in,out] lock	Newly created record lock to add to the
 				rec hash and the transaction lock list */
-	void lock_add(lock_t* lock);
+	void lock_add(lock_t* lock, bool add_to_hash);
 
 	/**
 	Check and resolve any deadlocks
