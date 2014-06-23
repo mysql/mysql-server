@@ -161,7 +161,11 @@ enum dberr_t {
 					type of errors */
 
 	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
-	DB_TABLE_CORRUPT		/*!< Table/clustered index is corrupted */
+	DB_TABLE_CORRUPT,		/*!< Table/clustered index is
+					corrupted */
+	DB_ABORTED			/*!< Transaction was forced to rollback
+					by a higher priority transaction */
+
 };
 
 #endif

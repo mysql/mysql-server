@@ -1431,7 +1431,7 @@ RecLock::lock_alloc(
 Add the lock to the record lock hash and the transaction's lock list
 @param[in,out] lock	Newly created record lock to add to the rec hash */
 void
-RecLock::lock_add(lock_t* lock)
+RecLock::lock_add(lock_t* lock, bool add_to_hash)
 {
 	ut_ad(lock_mutex_own());
 	ut_ad(trx_mutex_own(lock->trx));
@@ -1440,7 +1440,9 @@ RecLock::lock_add(lock_t* lock)
 
 	ulint	key = m_rec_id.fold();
 
-	HASH_INSERT(lock_t, hash, lock_hash_get(m_mode), key, lock);
+	if (add_to_hash) {
+		HASH_INSERT(lock_t, hash, lock_hash_get(m_mode), key, lock);
+	}
 
 	if (m_mode & LOCK_WAIT) {
 		lock_set_lock_and_trx_wait(lock, lock->trx);
@@ -1472,7 +1474,7 @@ RecLock::create(trx_t* trx, bool owns_trx_mutex)
 		trx_mutex_enter(trx);
 	}
 
-	lock_add(lock);
+	lock_add(lock, true);
 
 	if (!owns_trx_mutex) {
 		trx_mutex_exit(trx);
@@ -1599,6 +1601,25 @@ RecLock::rollback_blocking_trx(lock_t* lock) const
 }
 
 /**
+Collect the transactions that will need to be rolled back asynchronously
+@param[in, out] trx	Transaction to be rolled back */
+void
+RecLock::mark_trx_for_rollback(trx_t* trx)
+{
+	trx->abort = true;
+
+	ut_ad(!(trx->in_innodb & TRX_ASYNC_ROLLBACK_IN_PROGRESS));
+
+	trx->in_innodb |= TRX_ASYNC_ROLLBACK_IN_PROGRESS;
+
+	ut_ad(trx->killed_by == 0);
+
+	trx->killed_by = os_thread_get_curr_id();
+
+	m_trx->kill.push_back(trx);
+}
+
+/**
 Add the lock to the head of the record lock {space, page_no} wait queue and
 the transaction's lock list.
 @param[in, out] lock		Lock being requested
@@ -1609,42 +1630,39 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
 	ut_ad(m_trx == lock->trx);
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(wait_for->trx != m_trx);
-	ut_ad(!trx_can_rollback(m_trx));
+	ut_ad(!trx_is_high_priority(m_trx));
 	ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
 
 	/* We need to change the hash bucket list pointers only. */
 	lock_t*	head = const_cast<lock_t*>(wait_for);
 
-	/* Follow the links to the head of the record lock queue and
-	search for the first waiting record lock for {space, page_no} */
-
-	for (lock_t* elem = wait_for->hash; elem != NULL; elem = elem->hash) {
-
-		const lock_rec_t&	rec_lock = elem->un_member.rec_lock;
-
-		/* For now only a single high priority transaction
-		can be running at a time. */
-
- 		ut_ad(trx_can_rollback(elem->trx));
-
-		 if ((elem->type_mode & LOCK_WAIT)
-		     && rec_lock.space == m_rec_id.m_space
-		     && rec_lock.page_no == m_rec_id.m_page_no
-		     && lock_rec_get_nth_bit(elem, m_rec_id.m_heap_no)) {
-
-			head = elem;
-		}
-	}
+	mark_trx_for_rollback(wait_for->trx);
 
 	lock->hash = head->hash;
 	head->hash = lock;
 
-	/* If wait_for is at the head of the rec lock queue then it
-	can't be be waiting for another transaction's lock */
+	/* Active S locks ahead in the queue need to be rolled back. */
 
-	ut_ad(head != wait_for || !(head->type_mode & LOCK_WAIT));
+	for (lock_t* next = lock->hash; next != NULL; next = next->hash) {
 
-	UT_LIST_ADD_LAST(m_trx->lock.trx_locks, lock);
+		const lock_rec_t&	queued_lock = next->un_member.rec_lock;
+
+		if (!lock_get_wait(next)
+		    && queued_lock.space == m_rec_id.m_space
+		    && queued_lock.page_no == m_rec_id.m_page_no
+		    && lock_rec_get_nth_bit(next, m_rec_id.m_heap_no)) {
+
+			ut_ad(next != wait_for);
+			ut_ad(next->trx != wait_for->trx);
+			ut_ad(lock_get_mode(next) == LOCK_S);
+
+			trx_mutex_enter(next->trx);
+
+			mark_trx_for_rollback(next->trx);
+
+			trx_mutex_exit(next->trx);
+		}
+	}
 }
 
 /**
@@ -1684,17 +1702,20 @@ RecLock::enqueue_priority(const lock_t* wait_for)
 
 	trx_mutex_enter(wait_for->trx);
 
-	/* Only if the blocking transaction is itself waiting.
-	We can't rollback a running transaction, too messy. */
+	/* Move the lock being requested to the head of
+	the wait queue so that if the transaction that
+	we are waiting for is rolled back we get dibs
+	on the row. */
+
+	jump_queue(lock, wait_for);
+
+	/* Only if the blocking transaction is itself waiting, we
+	do the rollback here. For active transactions we do the
+	rollback before we enter lock wait. */
 
 	if (wait_for->trx->lock.que_state == TRX_QUE_LOCK_WAIT) {
 
-		/* Move the lock being requested to the head of
-		the wait queue so that if the transaction that
-		we are waiting for is rolled back we get dibs
-		on the row. */
-
-		jump_queue(lock, wait_for);
+		UT_LIST_ADD_LAST(m_trx->lock.trx_locks, lock);
 
 		/* Prepare the transaction for a wait and
 		possible grant when we rollback the transaction
@@ -1712,37 +1733,20 @@ RecLock::enqueue_priority(const lock_t* wait_for)
 
 		trx_mutex_exit(wait_for->trx);
 
-		/* It is now possible that trx has been granted
-		the lock */
+		/* Lock should be granted, we were the first in the queue. */
 
-		if (!lock_get_wait(lock)) {
-#ifdef UNIV_DEBUG
-			const	trx_t*	wait_trx = wait_for->trx;
+		ut_a(!lock_get_wait(lock));
 
-			ut_ad(wait_trx->lock.wait_lock == wait_for);
-			ut_ad(m_trx->lock.wait_lock == NULL);
-#endif /* UNIV_DEBUG */
-			return(NULL);
-		} else {
+		trx_mutex_enter(m_trx);
 
-			/* We weren't granted our lock but it can
-			be granted once the wait_for transaction
-			releases all its locks during rollback */
-
-			trx_mutex_enter(m_trx);
-		}
+		return(NULL);
 
 	} else {
 
 		trx_mutex_exit(wait_for->trx);
 
-		lock_add(lock);
+		lock_add(lock, false);
 	}
-
-	wait_for->trx->abort = true;
-
-	ut_ad(m_trx->kill_trx == NULL);
-	m_trx->kill_trx = wait_for->trx;
 
 	return(lock);
 }
@@ -1773,16 +1777,27 @@ RecLock::add_to_waitq(const lock_t* wait_for)
 
 	lock_t*	lock;
 
-	/* High priority transactions cannot rollback but can sometimes
-	wait for other running transactions. However, try and jump the
-	queue and rollback waiting transactions ahead in the queue. */
+	/* Currently, if both are high priority transactions then the
+	requesting transaction will be rolled back. */
 
 	const trx_t*	victim_trx = trx_arbitrate(m_trx, wait_for->trx);
 
-	if (victim_trx == NULL || victim_trx == m_trx) {
+	if (victim_trx == m_trx || victim_trx == NULL) {
 
 		/* Ensure that the wait flag is not set. */
 		lock = create(m_trx, true);
+
+		/* If a high priority transaction has been selected as
+		a victim there is nothing we can do. */
+
+	       	if (!trx_is_high_priority(m_trx) && victim_trx != NULL) {
+
+			lock_reset_lock_and_trx_wait(lock);
+
+			lock_rec_reset_nth_bit(lock, m_rec_id.m_heap_no);
+
+			return(DB_DEADLOCK);
+		}
 
 	} else if ((lock = enqueue_priority(wait_for)) == NULL) {
 
@@ -4776,7 +4791,7 @@ private:
 	ulint			m_index;
 
 	/** Current transaction list */
-	trx_list_t*		m_trx_list;
+	trx_ut_list_t*		m_trx_list;
 
 	/** For iterating over a transaction's locks */
 	TrxLockIterator		m_lock_iter;
@@ -5314,7 +5329,7 @@ static
 ibool
 lock_validate_table_locks(
 /*======================*/
-	const trx_list_t*	trx_list)	/*!< in: trx list */
+	const trx_ut_list_t*	trx_list)	/*!< in: trx list */
 {
 	const trx_t*	trx;
 
@@ -6601,7 +6616,7 @@ lock_table_locks_lookup(
 						any locks held on records in
 						this table or on the table
 						itself */
-	const trx_list_t*	trx_list)	/*!< in: trx list to check */
+	const trx_ut_list_t*	trx_list)	/*!< in: trx list to check */
 {
 	trx_t*			trx;
 
@@ -6931,8 +6946,8 @@ DeadlockChecker::get_first_lock(ulint* heap_no) const
 		hash_table_t*	lock_hash;
 
 		lock_hash = lock->type_mode & LOCK_PREDICATE
-				? lock_sys->prdt_hash
-				: lock_sys->rec_hash;
+			? lock_sys->prdt_hash
+			: lock_sys->rec_hash;
 
 		/* We are only interested in records that match the heap_no. */
 		*heap_no = lock_rec_find_set_bit(lock);
@@ -7017,13 +7032,20 @@ DeadlockChecker::select_victim() const
 	ut_ad(m_start->lock.wait_lock != 0);
 	ut_ad(m_wait_lock->trx != m_start);
 
-	const trx_t*	victim = trx_arbitrate(m_start, m_wait_lock->trx);
+	if (thd_trx_priority(m_start->mysql_thd) > 0
+	    || thd_trx_priority(m_wait_lock->trx->mysql_thd) > 0) {
 
-	if (victim != NULL) {
+		const trx_t*	victim;
 
-		return(victim);
+		victim = trx_arbitrate(m_start, m_wait_lock->trx);
 
-	} else if (trx_weight_ge(m_wait_lock->trx, m_start)) {
+		if (victim != NULL) {
+
+			return(victim);
+		}
+	}
+
+	if (trx_weight_ge(m_wait_lock->trx, m_start)) {
 
 		/* The joining  transaction is 'smaller',
 		choose it as the victim and roll it back. */

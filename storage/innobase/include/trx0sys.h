@@ -43,7 +43,7 @@ Created 3/26/1996 Heikki Tuuri
 #include "ut0mutex.h"
 #include "trx0trx.h"
 
-typedef UT_LIST_BASE_NODE_T(trx_t) trx_list_t;
+typedef UT_LIST_BASE_NODE_T(trx_t) trx_ut_list_t;
 
 // Forward declaration
 class MVCC;
@@ -618,7 +618,7 @@ struct trx_sys_t {
 					volatile because it can be accessed
 					without holding any mutex during
 					AC-NL-RO view creation. */
-	trx_list_t	serialisation_list;
+	trx_ut_list_t	serialisation_list;
 					/*!< Ordered on trx_t::no of all the
 					currenrtly active RW transactions */
 #ifdef UNIV_DEBUG
@@ -627,13 +627,13 @@ struct trx_sys_t {
 #endif /* UNIV_DEBUG */
 
 	char		pad1[64];	/*!< To avoid false sharing */
-	trx_list_t	rw_trx_list;	/*!< List of active and committed in
+	trx_ut_list_t	rw_trx_list;	/*!< List of active and committed in
 					memory read-write transactions, sorted
 					on trx id, biggest first. Recovered
 					transactions are always on this list. */
 
 	char		pad2[64];	/*!< To avoid false sharing */
-	trx_list_t	mysql_trx_list;	/*!< List of transactions created
+	trx_ut_list_t	mysql_trx_list;	/*!< List of transactions created
 					for MySQL. All user transactions are
 					on mysql_trx_list. The rw_trx_list
 					can contain system transactions and

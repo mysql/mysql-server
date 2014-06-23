@@ -1,0 +1,33 @@
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0);
+
+--connect(con1,localhost,root,,test)
+--connect(con2,localhost,root,,test)
+
+--echo
+--echo # On connection 1
+--connection con1
+START TRANSACTION;
+UPDATE t1 SET c1=1 WHERE c1=0;
+
+--echo
+--echo # On connection 2
+--connection con2
+START TRANSACTION HIGH_PRIORITY;
+# It's hanging here.
+UPDATE t1 SET c1=2 WHERE c1=0;
+COMMIT;
+
+--echo
+--echo # On connection 1
+--connection con1
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+
+--connection default
+--query_vertical SELECT * FROM t1
+
+DROP TABLE t1;
+
+--disconnect con1
+--disconnect con2
