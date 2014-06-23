@@ -546,6 +546,10 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables)
     Acquire SNW locks on tables to be exported. Don't acquire
     global IX as this will make this statement incompatible
     with FLUSH TABLES WITH READ LOCK.
+    We can't acquire SRO locks instead of SNW locks as it will
+    make two concurrent FLUSH TABLE ... FOR EXPORT statements
+    for the same table possible, which creates race between
+    creation/deletion of metadata file.
   */
   if (open_and_lock_tables(thd, all_tables, false,
                            MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,

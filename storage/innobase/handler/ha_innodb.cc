@@ -1588,7 +1588,7 @@ convert_error_code_to_mysql(
 	case DB_OUT_OF_FILE_SPACE:
 		return(HA_ERR_RECORD_FILE_FULL);
 
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		return(HA_ERR_TEMP_FILE_WRITE_FAILURE);
 
 	case DB_TABLE_IN_FK_CHECK:
@@ -2364,7 +2364,8 @@ ha_innobase::ha_innobase(
 		  HA_CAN_FULLTEXT_HINTS |
 		  HA_CAN_EXPORT |
 		  HA_CAN_RTREEKEYS |
-		  HA_HAS_RECORDS
+		  HA_HAS_RECORDS |
+		  HA_NO_READ_LOCAL_LOCK
 		  ),
 	m_start_of_scan(),
 	m_num_write_row()
@@ -12142,90 +12143,6 @@ ha_innobase::check(
 	DBUG_RETURN(is_ok ? HA_ADMIN_OK : HA_ADMIN_CORRUPT);
 }
 
-/*************************************************************//**
-Adds information about free space in the InnoDB tablespace to a table comment
-which is printed out when a user calls SHOW TABLE STATUS. Adds also info on
-foreign keys.
-@return table comment + InnoDB free space + info on foreign keys */
-
-char*
-ha_innobase::update_table_comment(
-/*==============================*/
-	const char*	comment)/*!< in: table comment defined by user */
-{
-	uint	length = (uint) strlen(comment);
-
-	/* We do not know if MySQL can call this function before calling
-	external_lock(). To be safe, update the thd of the current table
-	handle. */
-
-	if (length > 64000 - 3) {
-		return((char*) comment); /* string too long */
-	}
-
-	update_thd(ha_thd());
-
-	m_prebuilt->trx->op_info = "returning table comment";
-
-	TrxInInnoDB	set(m_prebuilt->trx);
-
-	/* In case MySQL calls this in the middle of a SELECT query, release
-	possible adaptive hash latch to avoid deadlocks of threads */
-
-	trx_search_latch_release_if_reserved(m_prebuilt->trx);
-
-	char*	str = NULL;
-
-	/* output the data to a temporary file */
-
-	if (!srv_read_only_mode) {
-
-		mutex_enter(&srv_dict_tmpfile_mutex);
-
-		rewind(srv_dict_tmpfile);
-
-		fprintf(srv_dict_tmpfile, "InnoDB free: %" PRIuMAX " kB",
-			fsp_get_available_space_in_free_extents(
-				m_prebuilt->table->space));
-
-		dict_print_info_on_foreign_keys(
-			FALSE, srv_dict_tmpfile, m_prebuilt->trx,
-			m_prebuilt->table);
-
-		long	flen = ftell(srv_dict_tmpfile);
-
-		if (flen < 0) {
-			flen = 0;
-		} else if (length + flen + 3 > 64000) {
-			flen = 64000 - 3 - length;
-		}
-
-		/* allocate buffer for the full string, and
-		read the contents of the temporary file */
-
-		str = (char*) my_malloc(PSI_INSTRUMENT_ME,
-                                        length + flen + 3, MYF(0));
-
-		if (str) {
-			char* pos	= str + length;
-			if (length) {
-				memcpy(str, comment, length);
-				*pos++ = ';';
-				*pos++ = ' ';
-			}
-			rewind(srv_dict_tmpfile);
-			flen = (uint) fread(pos, 1, flen, srv_dict_tmpfile);
-			pos[flen] = 0;
-		}
-
-		mutex_exit(&srv_dict_tmpfile_mutex);
-	}
-
-	m_prebuilt->trx->op_info = "";
-
-	return(str ? str : (char*) comment);
-}
-
 /*******************************************************************//**
 Gets the foreign key create info for a table stored in InnoDB.
 @return own: character string in the form which can be inserted to the
@@ -13373,25 +13290,45 @@ free_share(
 	mysql_mutex_unlock(&innobase_share_mutex);
 }
 
+/*********************************************************************//**
+Returns number of THR_LOCK locks used for one instance of InnoDB table.
+InnoDB no longer relies on THR_LOCK locks so 0 value is returned.
+Instead of THR_LOCK locks InnoDB relies on combination of metadata locks
+(e.g. for LOCK TABLES and DDL) and its own locking subsystem.
+Note that even though this method returns 0, SQL-layer still calls
+::store_lock(), ::start_stmt() and ::external_lock() methods for InnoDB
+tables. */
+
+uint
+ha_innobase::lock_count(void) const
+/*===============================*/
+{
+	return 0;
+}
+
 /*****************************************************************//**
-Converts a MySQL table lock stored in the 'lock' field of the handle to
-a proper type before storing pointer to the lock into an array of pointers.
+Supposed to convert a MySQL table lock stored in the 'lock' field of the
+handle to a proper type before storing pointer to the lock into an array
+of pointers.
+In practice, since InnoDB no longer relies on THR_LOCK locks and its
+lock_count() method returns 0 it just informs storage engine about type
+of THR_LOCK which SQL-layer would have acquired for this specific statement
+on this specific table.
 MySQL also calls this if it wants to reset some table locks to a not-locked
 state during the processing of an SQL query. An example is that during a
 SELECT the read lock is released early on the 'const' tables where we only
 fetch one row. MySQL does not call this when it releases all locks at the
 end of an SQL statement.
-@return pointer to the next element in the 'to' array */
+@return pointer to the current element in the 'to' array. */
 
 THR_LOCK_DATA**
 ha_innobase::store_lock(
 /*====================*/
 	THD*			thd,		/*!< in: user thread handle */
-	THR_LOCK_DATA**		to,		/*!< in: pointer to an array
-						of pointers to lock structs;
-						pointer to the 'lock' field
-						of current handle is stored
-						next to this array */
+	THR_LOCK_DATA**		to,		/*!< in: pointer to the current
+						element in an array of pointers
+						to lock structs;
+						only used as return value */
 	thr_lock_type		lock_type)	/*!< in: lock type to store in
 						'lock'; this may also be
 						TL_IGNORE */
@@ -13613,8 +13550,6 @@ ha_innobase::store_lock(
 
 		lock.type = lock_type;
 	}
-
-	*to++= &lock;
 
 	if (!trx_is_started(trx)
 	    && (m_prebuilt->select_lock_type != LOCK_NONE

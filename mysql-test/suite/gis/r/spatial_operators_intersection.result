@@ -445,7 +445,6 @@ MULTIPOINT(5.172413793103447 11.896551724137929,12 25,10 25)
 SELECT AsText(ST_Intersection(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Intersection(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')))
 POINT(15 25)
-#multilinestring,multilinestring
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 AsText(ST_Intersection(g,GeomFromText(@star_line_vertical)))
 NULL
@@ -639,8 +638,6 @@ SELECT AsText(ST_Intersection(g,GeomFromText(@star_collection_elems))) FROM gis_
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 SELECT AsText(ST_Intersection(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=115 and fid2=115;
-ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
-SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
 ERROR HY000: Geometry overlay calculation error: geometry data is invalid in function st_intersection.
