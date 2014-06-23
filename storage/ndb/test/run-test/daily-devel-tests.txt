@@ -69,7 +69,7 @@ cmd: testIndex
 args: -n NFNR3_O T6 T13 
 
 # dict trans
-max-time: 1800
+max-time: 3600
 cmd: testDict
 args: -n SchemaTrans -l 1
 
