@@ -228,6 +228,10 @@ struct trx_rseg_t {
 	where the segment resides is marked for truncate then we delay
 	free operation and instead let the truncate do the actual free. */
 	ulint				pages_marked_freed;
+
+	/** track the logs removed by truncate of this rseg and update
+	the trx_sys->rseg_history_len accordingly on truncate. */
+	ulint				n_removed_logs;
 };
 
 /* Undo log segment slot in a rollback segment header */

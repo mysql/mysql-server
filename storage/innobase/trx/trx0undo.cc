@@ -2149,6 +2149,7 @@ trx_undo_truncate_tablespace(
 
 		rseg->skip_allocation = false;
 		rseg->pages_marked_freed = 0;
+		rseg->n_removed_logs = 0;
 		rseg->last_page_no = FIL_NULL;
 		rseg->last_offset = 0;
 		rseg->last_trx_no = 0;

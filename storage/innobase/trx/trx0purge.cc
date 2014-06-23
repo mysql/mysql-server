@@ -544,6 +544,7 @@ trx_purge_truncate_rseg_history(
 	mutex_enter(&(rseg->mutex));
 
 	rseg->pages_marked_freed = 0;
+	rseg->n_removed_logs = 0;
 
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
 				 rseg->page_size, &mtr);
@@ -618,15 +619,7 @@ loop:
 		if (rseg->skip_allocation) {
 			mutex_enter(&(rseg->mutex));
 			rseg->pages_marked_freed += seg_size;
-			ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
-#ifdef HAVE_ATOMIC_BUILTINS
-			os_atomic_decrement_ulint(
-				&trx_sys->rseg_history_len, n_removed_logs);
-#else
-			trx_sys_mutex_enter();
-			trx_sys->rseg_history_len -= n_removed_logs;
-			trx_sys_mutex_exit();
-#endif /* HAVE_ATOMIC_BUILTINS */
+			rseg->n_removed_logs += n_removed_logs;
 			mutex_exit(&(rseg->mutex));
 		} else {
 			trx_purge_free_segment(
@@ -897,6 +890,20 @@ trx_purge_initiate_truncate(
 		}
 	}
 	mutex_exit(&purge_sys->pq_mutex);
+
+	ulint	n_removed_logs = 0;
+	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs() && all_free; ++i) {
+		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
+		n_removed_logs += rseg->n_removed_logs;
+	}
+
+#ifdef HAVE_ATOMIC_BUILTINS
+	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
+#else
+	trx_sys_mutex_enter();
+	trx_sys->rseg_history_len -= rseg->n_removed_logs;
+	trx_sys_mutex_exit();
+#endif /* HAVE_ATOMIC_BUILTINS */
 
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	if (!success) {
