@@ -436,7 +436,7 @@ void ftnode_pivot_keys::serialize_to_wbuf(struct wbuf *wb) const {
         wbuf_nocrc_bytes(wb, fixed ? _fixed_key(i) : _dbt_keys[i].data, size);
         written += size;
     }
-    invariant(written == _total_size);
+    invariant(written == serialized_size());
 }
 
 int ftnode_pivot_keys::num_pivots() const {
@@ -449,4 +449,10 @@ size_t ftnode_pivot_keys::total_size() const {
     // if we have fixed size keys, the total size should be consistent
     paranoid_invariant(_fixed_keys == nullptr || (_total_size == _fixed_keylen_aligned * _num_pivots));
     return _total_size;
+}
+
+size_t ftnode_pivot_keys::serialized_size() const {
+    // we only return the size that will be used when serialized, so we calculate based
+    // on the fixed keylen and not the aligned keylen.
+    return _fixed_format() ? _num_pivots * _fixed_keylen : _total_size;
 }
