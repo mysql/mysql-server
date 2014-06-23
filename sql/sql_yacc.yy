@@ -22,13 +22,9 @@
 */
 
 %{
-/* thd is passed as an argument to yyparse(), and subsequently to yylex().
-** The type will be void*, so it must be  cast to (THD*) when used.
-** Use the YYTHD macro for this.
+/*
+Note: YYTHD is passed as an argument to yyparse(), and subsequently to yylex().
 */
-#define YYPARSE_PARAM yythd
-#define YYLEX_PARAM yythd
-#define YYTHD ((THD *)yythd)
 #define YYLIP (& YYTHD->m_parser_state->m_lip)
 #define YYPS (& YYTHD->m_parser_state->m_yacc)
 #define YYCSCL  YYTHD->variables.character_set_client
@@ -85,7 +81,7 @@ int yylex(void *yylval, void *yythd);
     ulong val= *(F);                          \
     if (my_yyoverflow((B), (D), &val))        \
     {                                         \
-      yyerror((char*) (A));                   \
+      yyerror(YYTHD, (char*) (A));            \
       return 2;                               \
     }                                         \
     else                                      \
@@ -183,10 +179,8 @@ void my_parse_error(const char *s)
   to abort from the parser.
 */
 
-void MYSQLerror(const char *s)
+void MYSQLerror(THD *thd, const char *s)
 {
-  THD *thd= current_thd;
-
   /*
     Restore the original LEX if it was replaced when parsing
     a stored procedure. We must ensure that a parsing error
@@ -1031,7 +1025,9 @@ bool match_authorized_user(Security_context *ctx, LEX_USER *user)
 bool my_yyoverflow(short **a, YYSTYPE **b, ulong *yystacksize);
 %}
 
-%pure_parser                                    /* We have threads */
+%parse-param { class THD *YYTHD }
+%lex-param { class THD *YYTHD }
+%pure-parser                                    /* We have threads */
 /*
   Currently there are 161 shift/reduce conflicts.
   We should not introduce new conflicts any more.
