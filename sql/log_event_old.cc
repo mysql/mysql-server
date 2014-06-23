@@ -2477,6 +2477,7 @@ int Old_rows_log_event::find_row(const Relay_log_info *rli)
             table->file->print_error(error, MYF(0));
             DBUG_RETURN(error);
           }
+          goto restart_ha_rnd_next;
         }
         break;
 

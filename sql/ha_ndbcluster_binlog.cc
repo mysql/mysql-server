@@ -4091,7 +4091,7 @@ int ndbcluster_binlog_start()
   }
 
   native_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
-  native_cond_init(&injector_cond, NULL);
+  native_cond_init(&injector_cond);
   native_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
 
   /* Create injector thread */

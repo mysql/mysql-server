@@ -1340,23 +1340,24 @@ CREATE TABLE articles (
 
 # Repeatedly insert/delete records, the ranking should be the same for
 # each of them
-INSERT INTO articles (title,body) VALUES 
-('myfulltext database', 'my test fulltext database');
+INSERT INTO articles (title,body) VALUES ('Test Article','blah blah
+blah'),("Matt's Noise",'this is noisy'),('February Weather','It was terrible
+this year.'),('Peter Pan','Tis a kids story.'),('Test1','nada'),('Database
+database database','foo database database database'),('Database article
+title','body with lots of words.'),('myfulltext database', 'my test fulltext
+database');  
 
-SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
-MODE) AS score FROM articles ORDER BY score DESC;
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
 DELETE from articles WHERE title like "myfulltext database";
 
 INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
 
-SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
-MODE) AS score FROM articles ORDER BY score DESC;
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
 DELETE from articles WHERE title like "myfulltext database";
 
 INSERT INTO articles (title,body) VALUES ('myfulltext database', 'my test fulltext database');
 
-SELECT id, title, body, MATCH (title,body)  AGAINST ('database' IN BOOLEAN
-MODE) AS score FROM articles ORDER BY score DESC;
+SELECT id, title, body FROM articles ORDER BY MATCH (title,body)  AGAINST ('database' IN BOOLEAN MODE) DESC;
 
 DROP TABLE articles;
 

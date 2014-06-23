@@ -119,7 +119,7 @@ Slave_worker::Slave_worker(Relay_log_info *rli
                         SLAVE_INIT_DBS_IN_GROUP, 1);
   mysql_mutex_init(key_mutex_slave_parallel_worker, &jobs_lock,
                    MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond, NULL);
+  mysql_cond_init(key_cond_slave_parallel_worker, &jobs_cond);
 }
 
 Slave_worker::~Slave_worker()
@@ -612,11 +612,11 @@ bool init_hash_workers(ulong slave_parallel_workers)
 #ifdef HAVE_PSI_INTERFACE
     mysql_mutex_init(key_mutex_slave_worker_hash, &slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond, NULL);
+    mysql_cond_init(key_cond_slave_worker_hash, &slave_worker_hash_cond);
 #else
     mysql_mutex_init(NULL, &slave_worker_hash_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(NULL, &slave_worker_hash_cond, NULL);
+    mysql_cond_init(NULL, &slave_worker_hash_cond);
 #endif
   }
 

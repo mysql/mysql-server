@@ -33,7 +33,7 @@ Ndb_component::init()
   assert(m_thread_state == TS_UNINIT);
 
   native_mutex_init(&m_start_stop_mutex, MY_MUTEX_INIT_FAST);
-  native_cond_init(&m_start_stop_cond, NULL);
+  native_cond_init(&m_start_stop_cond);
 
   int res= do_init();
   if (res == 0)
