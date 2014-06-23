@@ -440,6 +440,8 @@ private:
 	@return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
+		os_rmb;
+
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
 
@@ -500,7 +502,7 @@ private:
 	@return value of lock word before locking. */
 	lock_word_t ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
-		for (ulint i = 0; i < max_spins; ++i) {
+		for (ulint i = 0; i < max_spins; i += SPIN_WAIT_INCREMENT) {
 
 			if (!is_locked()) {
 				lock_word_t	lock = trylock();
@@ -618,6 +620,8 @@ struct TTASMutex {
 	/** @return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
+		os_rmb;
+
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
 
@@ -627,6 +631,7 @@ struct TTASMutex {
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
+		os_rmb;
 		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
@@ -659,7 +664,8 @@ private:
 		do {
 			ulint	i;
 
-			for (i = 0; !is_locked() && i < max_spins; ++i) {
+			for (i = 0; !is_locked() && i < max_spins;
+			     i += SPIN_WAIT_INCREMENT) {
 
 				ut_delay(ut_rnd_interval(0, max_delay));
 			}
@@ -786,6 +792,8 @@ struct TTASEventMutex {
 	@return the lock state. */
 	lock_word_t state() const UNIV_NOTHROW
 	{
+		os_rmb;
+
 		/** Try and force a memory read. */
 		const volatile void*	p = &m_lock_word;
 
@@ -802,6 +810,7 @@ struct TTASEventMutex {
 	/** @return true if locked by some thread */
 	bool is_locked() const UNIV_NOTHROW
 	{
+		os_rmb;
 		return(m_lock_word != MUTEX_STATE_UNLOCKED);
 	}
 
@@ -846,7 +855,7 @@ private:
 
 			ut_delay(ut_rnd_interval(0, max_delay));
 
-			++i;
+			i += SPIN_WAIT_INCREMENT;
 		}
 
 		return(i);
@@ -917,12 +926,14 @@ private:
 	void set_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 1;
+		os_wmb;
 	}
 
 	/** Note that there are no threads waiting on the mutex */
 	void clear_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 0;
+		os_wmb;
 	}
 
 	/**

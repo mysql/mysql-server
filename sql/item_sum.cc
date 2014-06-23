@@ -1067,13 +1067,21 @@ void Aggregator_distinct::clear()
 
 bool Aggregator_distinct::add()
 {
-  if (const_distinct != NOT_CONST)
+  if (const_distinct == CONST_NULL)
     return 0;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
     int error;
+
+    if (const_distinct == CONST_NOT_NULL)
+    {
+      DBUG_ASSERT(item_sum->fixed == 1);
+      Item_sum_count *sum= (Item_sum_count *)item_sum;
+      sum->count= 1;
+      return 0;
+    }
     copy_fields(tmp_table_param);
     if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
       return TRUE;
@@ -1130,6 +1138,12 @@ void Aggregator_distinct::endup()
   if (endup_done)
     return;
 
+  if (const_distinct ==  CONST_NOT_NULL)
+  {
+    endup_done= TRUE;
+    return;
+  }
+
   /* we are going to calculate the aggregate value afresh */
   item_sum->clear();
 
@@ -1143,12 +1157,6 @@ void Aggregator_distinct::endup()
     DBUG_ASSERT(item_sum->fixed == 1);
     Item_sum_count *sum= (Item_sum_count *)item_sum;
 
-    if (const_distinct ==  CONST_NOT_NULL)
-    {
-      sum->count= 1;
-      endup_done= TRUE;
-      return;
-    }
     if (tree && tree->elements == 0)
     {
       /* everything fits in memory */

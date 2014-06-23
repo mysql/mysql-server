@@ -2,20 +2,20 @@
 #                                                                             #
 # This test is aimed to test all geometry types as per the hierarchy for      #
 # being instantiable or non-instantiable.                                     #
-#	Geometry (noninstantiable),                                           #           
-# 	Point (instantiable)                                                  #
-#	Curve (noninstantiable)                                               # 
-#	LineString (instantiable)                                             #
-# 	Line                                                                  #
-#	LinearRing                                                            #
-#	Surface (noninstantiable)                                             #
-#	Polygon (instantiable)                                                #
-#	GeometryCollection (instantiable)                                     #
-#	MultiPoint (instantiable)                                             #
-#	MultiCurve (noninstantiable)                                          #
-#	MultiLineString (instantiable)                                        #
-#	MultiSurface (noninstantiable)                                        #
-#	MultiPolygon (instantiable)                                           #
+#       Geometry (noninstantiable),                                           #
+#       Point (instantiable)                                                  #
+#       Curve (noninstantiable)                                               #
+#       LineString (instantiable)                                             #
+#       Line                                                                  #
+#       LinearRing                                                            #
+#       Surface (noninstantiable)                                             #
+#       Polygon (instantiable)                                                #
+#       GeometryCollection (instantiable)                                     #
+#       MultiPoint (instantiable)                                             #
+#       MultiCurve (noninstantiable)                                          #
+#       MultiLineString (instantiable)                                        #
+#       MultiSurface (noninstantiable)                                        #
+#       MultiPolygon (instantiable)                                           #
 # Also the Geometry types support for 0-D, 1-D and 2-D would be tested        #
 # in this test case.                                                          #
 #                                                                             #
@@ -118,7 +118,7 @@ INSERT INTO gis_point VALUES
 (131, PointFromText('POINT(1 .1)'));
 --enable_warnings
 
---echo #Checking the integrity of the above insert statements 
+--echo #Checking the integrity of the above insert statements
 select count(g) from gis_point;
 --echo 11 expected
 select count(astext(g)) from gis_point;
@@ -194,7 +194,7 @@ INSERT INTO gis_line VALUES
 (239, LineFromText('LINESTRING(1 .1)'));
 --enable_warnings
 
---echo #Checking the integrity of the above insert statements 
+--echo #Checking the integrity of the above insert statements
 select count(g) from gis_line;
 --echo 15 expected
 select count(astext(g)) from gis_line;
@@ -279,7 +279,7 @@ INSERT INTO gis_polygon VALUES
 (342, PolyFromWKB(AsWKB(Polygon(LineString(Point(-0, -0), Point(1, 1), Point(2, 2), Point(1, 1), Point(0, 0))))));
 --enable_warnings
 
---echo #Checking the integrity of the above insert statements 
+--echo #Checking the integrity of the above insert statements
 select count(g) from gis_polygon;
 --echo 18 expected
 select count(astext(g)) from gis_polygon;
@@ -356,7 +356,7 @@ INSERT INTO gis_multi_point VALUES
 (442, MPointFromWKB(AsWKB(MultiPoint(Point('NULL', '88.999999999999999999999999999999999999999999999999')))));
 --enable_warnings
 
---echo #Checking the integrity of the above insert statements 
+--echo #Checking the integrity of the above insert statements
 select count(g) from gis_multi_point;
 --echo 21 expected
 select count(astext(g)) from gis_multi_point;
@@ -434,7 +434,7 @@ INSERT INTO gis_multi_line VALUES
 (539, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '88.999999999999999')))))),
 (540, MLineFromWKB(AsWKB(MultiLineString(LineString(Point('NULL', '88.999999999999999999999999999999999999999999999999'))))));
 
---echo #Checking the integrity of the above insert statements 
+--echo #Checking the integrity of the above insert statements
 select count(g) from gis_multi_line;
 --echo 19 expected
 select count(astext(g)) from gis_multi_line;
@@ -613,7 +613,7 @@ INSERT into gis_geometry SELECT * FROM gis_multi_line;
 INSERT into gis_geometry SELECT * FROM gis_multi_polygon;
 INSERT into gis_geometry SELECT * FROM gis_geometrycollection;
 
---echo #Checking the integrity of the above insert statements 
+--echo #Checking the integrity of the above insert statements
 select count(g) from gis_geometry;
 --echo 114 expected
 select count(astext(g)) from gis_geometry;
@@ -1031,7 +1031,7 @@ PARTITION BY LIST(store_id) (
     PARTITION pWest VALUES IN (70,80,100)
 );
 
---echo #check Datatypes with compression tables 
+--echo #check Datatypes with compression tables
 CREATE TABLE tab3(c1 POINT,c2 LINESTRING,c3 POLYGON,C4 MULTIPOINT,c5 MULTILINESTRING ,
 c6 MULTIPOLYGON,c7 GEOMETRYCOLLECTION ,c8 GEOMETRY) 
 KEY_BLOCK_SIZE=8 ROW_FORMAT=COMPRESSED;
@@ -1046,7 +1046,7 @@ ALTER TABLE tab3 KEY_BLOCK_SIZE=16 ROW_FORMAT=Dynamic;
 SHOW CREATE TABLE tab3;
 
 ############################################################################################
-# Checking the commit and rollback                                  #
+# Checking the commit and rollback                                                         #
 ############################################################################################
 
 SELECT COUNT(*) FROM tab3;
@@ -1067,7 +1067,7 @@ COMMIT;
 SELECT COUNT(*) FROM tab3;
 --echo 0 expected
 
---echo #check information schema for all the columns 
+--echo #check information schema for all the columns
 SELECT sc.COLUMN_NAME, sc.ORDINAL_POSITION, sc.DATA_TYPE, sc.COLUMN_TYPE FROM information_schema.columns sc INNER JOIN information_schema.tables st ON sc.TABLE_NAME=st.TABLE_NAME WHERE st.TABLE_NAME='tab' ORDER BY sc.COLUMN_NAME;
 
 SELECT sc.COLUMN_NAME, sc.ORDINAL_POSITION, sc.DATA_TYPE, sc.COLUMN_TYPE FROM information_schema.columns sc INNER JOIN information_schema.tables st ON sc.TABLE_NAME=st.TABLE_NAME WHERE st.TABLE_NAME='tab1' ORDER BY sc.COLUMN_NAME;

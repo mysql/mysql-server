@@ -117,7 +117,7 @@ void end_slave_list()
     1	Error.   Error message sent to client
 */
 
-int register_slave(THD* thd, uchar* packet, uint packet_length)
+int register_slave(THD* thd, uchar* packet, size_t packet_length)
 {
   int res;
   SLAVE_INFO *si;
@@ -303,7 +303,7 @@ bool show_slave_hosts(THD* thd)
   } while (0)
 
 
-bool com_binlog_dump(THD *thd, char *packet, uint packet_length)
+bool com_binlog_dump(THD *thd, char *packet, size_t packet_length)
 {
   DBUG_ENTER("com_binlog_dump");
   ulong pos;
@@ -345,7 +345,7 @@ error_malformed_packet:
 }
 
 
-bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length)
+bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
 {
   DBUG_ENTER("com_binlog_dump_gtid");
   /*

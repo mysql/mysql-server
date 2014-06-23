@@ -186,7 +186,7 @@ extern int rw_pr_unlock(rw_pr_lock_t *);
 extern int rw_pr_destroy(rw_pr_lock_t *);
 
 static inline void
-rw_pr_lock_assert_write_owner(rw_pr_lock_t *rwlock __attribute__((unused)))
+rw_pr_lock_assert_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused)))
 {
 #ifdef SAFE_MUTEX
   DBUG_ASSERT(rwlock->active_writer &&
@@ -195,7 +195,7 @@ rw_pr_lock_assert_write_owner(rw_pr_lock_t *rwlock __attribute__((unused)))
 }
 
 static inline void
-rw_pr_lock_assert_not_write_owner(rw_pr_lock_t *rwlock __attribute__((unused)))
+rw_pr_lock_assert_not_write_owner(const rw_pr_lock_t *rwlock __attribute__((unused)))
 {
 #ifdef SAFE_MUTEX
   DBUG_ASSERT(!rwlock->active_writer ||
