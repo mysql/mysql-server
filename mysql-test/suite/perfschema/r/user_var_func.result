@@ -1,15 +1,42 @@
-set @v1="Hello";
-set @v2="World";
-set @v3=65;
-set @v4=NULL;
-select @v1, @v2, @v3, @v4, @v_unknown;
-@v1	@v2	@v3	@v4	@v_unknown
+set @v1a="Hello";
+set @v2a="World";
+set @v3a=65;
+set @v4a=NULL;
+select @v1a, @v2a, @v3a, @v4a, @v_unknown;
+@v1a	@v2a	@v3a	@v4a	@v_unknown
 Hello	World	65	NULL	NULL
 select VARIABLE_NAME, VARIABLE_VALUE
 from performance_schema.user_variables_by_thread
 order by VARIABLE_NAME;
 VARIABLE_NAME	VARIABLE_VALUE
-v1	Hello
-v2	World
-v3	65
-v4	NULL
+v1a	Hello
+v2a	World
+v3a	65
+v4a	NULL
+set @v1b="Salut";
+set @v2b="La compagnie";
+set @v3b=12;
+set @v4b=NULL;
+select @v1b, @v2b, @v3b, @v4b, @v_unknown;
+@v1b	@v2b	@v3b	@v4b	@v_unknown
+Salut	La compagnie	12	NULL	NULL
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.user_variables_by_thread
+order by VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+v1a	Hello
+v1b	Salut
+v2a	World
+v2b	La compagnie
+v3a	65
+v3b	12
+v4a	NULL
+v4b	NULL
+select VARIABLE_NAME, VARIABLE_VALUE
+from performance_schema.user_variables_by_thread
+order by VARIABLE_NAME;
+VARIABLE_NAME	VARIABLE_VALUE
+v1a	Hello
+v2a	World
+v3a	65
+v4a	NULL
