@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -618,8 +618,8 @@ void init_io_cache_share(IO_CACHE *read_cache, IO_CACHE_SHARE *cshare,
 
   mysql_mutex_init(key_IO_CACHE_SHARE_mutex,
                    &cshare->mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_IO_CACHE_SHARE_cond, &cshare->cond, 0);
-  mysql_cond_init(key_IO_CACHE_SHARE_cond_writer, &cshare->cond_writer, 0);
+  mysql_cond_init(key_IO_CACHE_SHARE_cond, &cshare->cond);
+  mysql_cond_init(key_IO_CACHE_SHARE_cond_writer, &cshare->cond_writer);
 
   cshare->running_threads= num_threads;
   cshare->total_threads=   num_threads;

@@ -509,8 +509,7 @@ srv_conc_enter_innodb(
 	{
 		btrsea_sync_check	check(trx->has_search_latch);
 
-		ut_ad(dict_table_is_intrinsic(prebuilt->table)
-		      || !sync_check_iterate(check));
+		ut_ad(!sync_check_iterate(check));
 	}
 
 #ifdef HAVE_ATOMIC_BUILTINS

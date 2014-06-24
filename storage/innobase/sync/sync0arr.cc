@@ -866,6 +866,7 @@ sync_arr_cell_can_wake_up(
 
 		mutex = cell->latch.mutex;
 
+		os_rmb;
 		if (mutex->state() == MUTEX_STATE_UNLOCKED) {
 
 			return(true);
@@ -880,6 +881,7 @@ sync_arr_cell_can_wake_up(
 	case RW_LOCK_SX:
 		lock = cell->latch.lock;
 
+		os_rmb;
 		if (lock->lock_word > X_LOCK_HALF_DECR) {
 		/* Either unlocked or only read locked. */
 
@@ -893,6 +895,7 @@ sync_arr_cell_can_wake_up(
 		lock = cell->latch.lock;
 
                 /* lock_word == 0 means all readers or sx have left */
+		os_rmb;
 		if (lock->lock_word == 0) {
 
 			return(true);
@@ -904,6 +907,7 @@ sync_arr_cell_can_wake_up(
 		lock = cell->latch.lock;
 
                 /* lock_word > 0 means no writer or reserved writer */
+		os_rmb;
 		if (lock->lock_word > 0) {
 
 			return(true);

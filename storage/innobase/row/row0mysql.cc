@@ -66,6 +66,7 @@ Created 9/17/2000 Heikki Tuuri
 #include <deque>
 #include "row0ext.h"
 #include <vector>
+#include <algorithm>
 
 const char* MODIFICATIONS_NOT_ALLOWED_MSG_RAW_PARTITION =
 	"A new raw disk partition was initialized. We do not allow database"
@@ -1821,8 +1822,6 @@ init_fts_doc_id_for_ref(
 {
 	dict_foreign_t* foreign;
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
-
 	table->fk_max_recusive_level = 0;
 
 	(*depth)++;
@@ -1834,17 +1833,23 @@ init_fts_doc_id_for_ref(
 
 	/* Loop through this table's referenced list and also
 	recursively traverse each table's foreign table list */
-	while (foreign && foreign->foreign_table) {
-		if (foreign->foreign_table->fts) {
+	for (dict_foreign_set::iterator it = table->referenced_set.begin();
+	     it != table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
+		ut_ad(foreign->foreign_table != NULL);
+
+		if (foreign->foreign_table->fts != NULL) {
 			fts_init_doc_id(foreign->foreign_table);
 		}
 
-		if (UT_LIST_GET_LEN(foreign->foreign_table->referenced_list)
-		    > 0 && foreign->foreign_table != table) {
-			init_fts_doc_id_for_ref(foreign->foreign_table, depth);
+		if (!foreign->foreign_table->referenced_set.empty()
+		    && foreign->foreign_table != table) {
+			init_fts_doc_id_for_ref(
+				foreign->foreign_table, depth);
 		}
-
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
 	}
 }
 
@@ -1864,7 +1869,6 @@ private:
 
 
 typedef	std::vector<btr_pcur_t>	cursors_t;
-typedef	std::vector<bool>	index_update_t;
 
 /** Delete row from table (corresponding entries from all the indexes).
 Function will maintain cursor to the entries to invoke explicity rollback
@@ -3480,43 +3484,47 @@ row_discard_tablespace_foreign_key_checks(
 	const trx_t*		trx,	/*!< in: transaction handle */
 	const dict_table_t*	table)	/*!< in: table to be discarded */
 {
-	const dict_foreign_t*	foreign;
+
+	if (srv_read_only_mode || !trx->check_foreigns) {
+		return(DB_SUCCESS);
+	}
 
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
-	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
-	     foreign && foreign->foreign_table == table;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
-
+	if (it == table->referenced_set.end()) {
+		return(DB_SUCCESS);
 	}
 
-	if (!srv_read_only_mode && foreign && trx->check_foreigns) {
+	const dict_foreign_t*	foreign	= *it;
+	FILE*			ef	= dict_foreign_err_file;
 
-		FILE*	ef	= dict_foreign_err_file;
+	ut_ad(foreign->foreign_table != table);
+	ut_ad(foreign->referenced_table == table);
 
-		/* We only allow discarding a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+	/* We only allow discarding a referenced table if
+	FOREIGN_KEY_CHECKS is set to 0 */
 
-		mutex_enter(&dict_foreign_err_mutex);
+	mutex_enter(&dict_foreign_err_mutex);
 
-		rewind(ef);
+	rewind(ef);
 
-		ut_print_timestamp(ef);
+	ut_print_timestamp(ef);
 
-		fputs("  Cannot DISCARD table ", ef);
-		ut_print_name(stderr, trx, TRUE, table->name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
+	fputs("  Cannot DISCARD table ", ef);
+	ut_print_name(stderr, trx, TRUE, table->name);
+	fputs("\n"
+	      "because it is referenced by ", ef);
+	ut_print_name(stderr, trx, TRUE, foreign->foreign_table_name);
+	putc('\n', ef);
 
-		mutex_exit(&dict_foreign_err_mutex);
+	mutex_exit(&dict_foreign_err_mutex);
 
-		return(DB_CANNOT_DROP_CONSTRAINT);
-	}
-
-	return(DB_SUCCESS);
+	return(DB_CANNOT_DROP_CONSTRAINT);
 }
 
 /*********************************************************************//**
@@ -3993,42 +4001,45 @@ row_drop_table_for_mysql(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	foreign = UT_LIST_GET_FIRST(table->referenced_list);
+	if (!srv_read_only_mode && trx->check_foreigns) {
 
-	while (foreign && foreign->foreign_table == table) {
-check_next_foreign:
-		foreign = UT_LIST_GET_NEXT(referenced_list, foreign);
-	}
+		for (dict_foreign_set::iterator it
+			= table->referenced_set.begin();
+		     it != table->referenced_set.end();
+		     ++it) {
 
-	if (!srv_read_only_mode
-	    && foreign
-	    && trx->check_foreigns
-	    && !(drop_db && dict_tables_have_same_db(
-			 name, foreign->foreign_table_name_lookup))) {
-		FILE*	ef	= dict_foreign_err_file;
+			foreign = *it;
 
-		/* We only allow dropping a referenced table if
-		FOREIGN_KEY_CHECKS is set to 0 */
+			const bool	ref_ok = drop_db
+				&& dict_tables_have_same_db(
+					name,
+					foreign->foreign_table_name_lookup);
 
-		err = DB_CANNOT_DROP_CONSTRAINT;
+			if (foreign->foreign_table != table && !ref_ok) {
 
-		mutex_enter(&dict_foreign_err_mutex);
-		rewind(ef);
-		ut_print_timestamp(ef);
+				FILE*	ef	= dict_foreign_err_file;
 
-		fputs("  Cannot drop table ", ef);
-		ut_print_name(ef, trx, TRUE, name);
-		fputs("\n"
-		      "because it is referenced by ", ef);
-		ut_print_name(ef, trx, TRUE, foreign->foreign_table_name);
-		putc('\n', ef);
-		mutex_exit(&dict_foreign_err_mutex);
+				/* We only allow dropping a referenced table
+				if FOREIGN_KEY_CHECKS is set to 0 */
 
-		goto funct_exit;
-	}
+				err = DB_CANNOT_DROP_CONSTRAINT;
 
-	if (foreign && trx->check_foreigns) {
-		goto check_next_foreign;
+				mutex_enter(&dict_foreign_err_mutex);
+				rewind(ef);
+				ut_print_timestamp(ef);
+
+				fputs("  Cannot drop table ", ef);
+				ut_print_name(ef, trx, TRUE, name);
+				fputs("\n"
+				      "because it is referenced by ", ef);
+				ut_print_name(ef, trx, TRUE,
+					      foreign->foreign_table_name);
+				putc('\n', ef);
+				mutex_exit(&dict_foreign_err_mutex);
+
+				goto funct_exit;
+			}
+		}
 	}
 
 	/* TODO: could we replace the counter n_foreign_key_checks_running

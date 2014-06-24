@@ -28,7 +28,10 @@ source include/have_binlog_format_row.inc;
 # test case any further. It is prepared to support windows, but
 # it is not 100% compliant.
 --source include/not_windows.inc
---source include/no_valgrind_without_big.inc
+
+# This test takes long time, so only run it with the --big-test mtr-flag.
+--source include/big_test.inc
+
 
 connection master;
 --let $master_datadir= `select @@datadir`

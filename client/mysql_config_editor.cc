@@ -508,9 +508,9 @@ static int execute_commands(int command)
       exit(1);
   }
 
+done:
   my_close(g_fd, MYF(MY_WME));
 
-done:
   DBUG_RETURN(rc);
 }
 
@@ -804,7 +804,7 @@ static my_bool check_and_create_login_file(void)
   {
     verbose_msg("File does not exist.\nCreating login file.\n");
     if ((g_fd= my_create(my_login_file, create_mode, access_flag,
-                       MYF(MY_WME)) == -1))
+                       MYF(MY_WME))) == -1)
     {
       my_perror("couldn't create the login file");
       goto error;
@@ -812,6 +812,7 @@ static my_bool check_and_create_login_file(void)
     else
     {
       verbose_msg("Login file created.\n");
+      my_close(g_fd, MYF(MY_WME));
       verbose_msg("Opening the file.\n");
 
       if((g_fd= my_open(my_login_file, access_flag, MYF(MY_WME))) == -1)
@@ -977,7 +978,7 @@ static void remove_option(DYNAMIC_STRING *file_buf, const char *path_name,
 
   char *start= NULL, *end= NULL;
   char *search_str;
-  int search_len, shift_len;
+  size_t search_len, shift_len;
   bool option_found= FALSE;
 
   search_str= (char *) my_malloc(PSI_NOT_INSTRUMENTED,

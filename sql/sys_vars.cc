@@ -720,6 +720,28 @@ static Sys_var_int32 Sys_binlog_max_flush_queue_time(
        VALID_RANGE(0, 100000), DEFAULT(0), BLOCK_SIZE(1),
        NO_MUTEX_GUARD, NOT_IN_BINLOG);
 
+static Sys_var_ulong Sys_binlog_group_commit_sync_delay(
+       "binlog_group_commit_sync_delay",
+       "The number of microseconds the server waits for the "
+       "binary log group commit sync queue to fill before "
+       "continuing. Default: 0. Min: 0. Max: 1000000.",
+       GLOBAL_VAR(opt_binlog_group_commit_sync_delay),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 1000000 /* max 1 sec */), DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
+static Sys_var_ulong Sys_binlog_group_commit_sync_no_delay_count(
+       "binlog_group_commit_sync_no_delay_count",
+       "If there are this many transactions in the commit sync "
+       "queue and the server is waiting for more transactions "
+       "to be enqueued (as set using --binlog-group-commit-sync-delay), "
+       "the commit procedure resumes.",
+       GLOBAL_VAR(opt_binlog_group_commit_sync_no_delay_count),
+       CMD_LINE(REQUIRED_ARG),
+       VALID_RANGE(0, 100000 /* max connections */),
+       DEFAULT(0), BLOCK_SIZE(1),
+       NO_MUTEX_GUARD, NOT_IN_BINLOG);
+
 static bool check_has_super(sys_var *self, THD *thd, set_var *var)
 {
   DBUG_ASSERT(self->scope() != sys_var::GLOBAL);// don't abuse check_has_super()
@@ -3327,12 +3349,6 @@ static Sys_var_ulonglong Sys_tmp_table_size(
        VALID_RANGE(1024, (ulonglong)~(intptr)0), DEFAULT(16*1024*1024),
        BLOCK_SIZE(1));
 
-static Sys_var_mybool Sys_timed_mutexes(
-       "timed_mutexes",
-       "Specify whether to time mutexes (only InnoDB mutexes are currently "
-       "supported)",
-       GLOBAL_VAR(timed_mutexes), CMD_LINE(OPT_ARG), DEFAULT(0));
-
 static char *server_version_ptr;
 static Sys_var_charptr Sys_version(
        "version", "Server version",
@@ -4854,6 +4870,15 @@ static Sys_var_enum Sys_gtid_mode(
 
 #endif // HAVE_REPLICATION
 
+static Sys_var_uint Sys_executed_gtids_compression_period(
+       "executed_gtids_compression_period", "When binlog is disabled, "
+       "a background thread wakes up to compress the gtid_executed table "
+       "every executed_gtids_compression_period transactions, as a "
+       "special case, if variable is 0, the thread never wakes up "
+       "to compress the gtid_executed table.",
+       GLOBAL_VAR(executed_gtids_compression_period),
+       CMD_LINE(OPT_ARG), VALID_RANGE(0, UINT_MAX32), DEFAULT(1000),
+       BLOCK_SIZE(1));
 
 static Sys_var_mybool Sys_disconnect_on_expired_password(
        "disconnect_on_expired_password",

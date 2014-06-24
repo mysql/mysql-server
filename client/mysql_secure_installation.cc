@@ -258,7 +258,7 @@ void execute_query_with_message(const char *query, const char *opt_message)
   return    FALSE in case of success
             TRUE  in case of failure
 */
-bool execute_query(const char **query, unsigned int length)
+bool execute_query(const char **query, size_t length)
 {
   if (!mysql_real_query(&mysql, (const char *) *query, length))
     return FALSE;
@@ -363,7 +363,7 @@ int install_password_validation_plugin()
       }
       char *query, *end;
       int tmp= sizeof("SET GLOBAL validate_password_policy = ") + 3;
-      int strength_length= strlen(strength);
+      size_t strength_length= strlen(strength);
       /*
 	query string needs memory which is atleast the length of initial part
 	of query plus twice the size of variable being appended.
@@ -395,8 +395,8 @@ int install_password_validation_plugin()
 void estimate_password_strength(char *password_string)
 {
   char *query, *end;
-  int tmp= sizeof("SELECT validate_password_strength(") + 3;
-  int password_length= strlen(password_string);
+  size_t tmp= sizeof("SELECT validate_password_strength(") + 3;
+  size_t password_length= strlen(password_string);
   /*
     query string needs memory which is atleast the length of initial part
     of query plus twice the size of variable being appended.
@@ -438,7 +438,7 @@ void estimate_password_strength(char *password_string)
 
 my_bool mysql_set_password(MYSQL *mysql, char *password)
 {
-  int password_len= strlen(password);
+  size_t password_len= strlen(password);
   char *query, *end;
   query= (char *)my_malloc(PSI_NOT_INSTRUMENTED, password_len+50, MYF(MY_WME));
   end= my_stpmov(query, "SET PASSWORD= PASSWORD('");
@@ -476,7 +476,7 @@ my_bool mysql_set_password(MYSQL *mysql, char *password)
 my_bool mysql_expire_password(MYSQL *mysql)
 {
   char sql[]= "UPDATE mysql.user SET password_expired= 'Y'";
-  int sql_len= strlen(sql);
+  size_t sql_len= strlen(sql);
   if (mysql_real_query(mysql, sql, sql_len))
     return FALSE;
 
@@ -537,7 +537,7 @@ static void set_root_password(int plugin_set)
 					 "Yes, any other key for No) : ");
     }
 
-    int pass_length= strlen(password1);
+    size_t pass_length= strlen(password1);
 
     if ((!plugin_set) || (reply == (int) 'y' || reply == (int) 'Y'))
     {
@@ -689,7 +689,7 @@ void drop_users(MYSQL_RES *result)
   while ((row= mysql_fetch_row(result)))
   {
     char *query, *end;
-    int user_length, host_length;
+    size_t user_length, host_length;
     int tmp= sizeof("DROP USER ")+5;
     user_tmp= row[0];
     host_tmp= row[1];
@@ -843,8 +843,8 @@ my_bool find_temporary_password(char **p)
   if (home == NULL)
     home= root_path;
 
-  int home_len= strlen(home);
-  int path_len= home_len + strlen(password_file_name)+1;
+  size_t home_len= strlen(home);
+  size_t path_len= home_len + strlen(password_file_name)+1;
   char *path= (char *)malloc(path_len);
   memset(path, 0, path_len);
   
@@ -863,7 +863,7 @@ my_bool find_temporary_password(char **p)
   */
   char header[256];
   char password[64];
-  int password_len=0;
+  size_t password_len=0;
   /* Read header and skip it */
   if (fgets(&header[0], sizeof(header), fp) == NULL || header[0] != '#')
     goto error;

@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1260,7 +1259,8 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_SCHEDULER= 8,
   SYSTEM_THREAD_EVENT_WORKER= 16,
   SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64
+  SYSTEM_THREAD_SLAVE_WORKER= 64,
+  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128
 };
 
 inline char const *
@@ -1277,6 +1277,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1378,6 +1379,30 @@ public:
                         Sql_condition ** cond_hdl);
 
 private:
+};
+
+
+/**
+  Internal error handler to process an error from MDL_context::upgrade_lock()
+  and mysql_lock_tables(). Used by implementations of HANDLER READ and
+  LOCK TABLES LOCAL.
+*/
+
+class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
+{
+public:
+  virtual
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition **cond_hdl);
+
+  bool need_reopen() const { return m_need_reopen; };
+  void init() { m_need_reopen= false; };
+private:
+  bool m_need_reopen;
 };
 
 
@@ -2257,6 +2282,11 @@ public:
     Stores the result of the FOUND_ROWS() function.
   */
   ulonglong  limit_found_rows;
+  /*
+    Indicate if the gtid_executed table is being operated
+    in current transaction.
+  */
+  bool  is_operating_gtid_table;
 
 private:
   /**
@@ -2374,6 +2404,8 @@ public:
   PROFILING  profiling;
 #endif
 
+  /** Current stage progress instrumentation. */
+  PSI_stage_progress *m_stage_progress_psi;
   /** Current statement digest. */
   sql_digest_state *m_digest;
   /** Top level statement digest. */
@@ -4066,7 +4098,7 @@ public:
 
 
 class select_export :public select_to_file {
-  uint field_term_length;
+  size_t field_term_length;
   int field_sep_char,escape_char,line_sep_char;
   int field_term_char; // first char of FIELDS TERMINATED BY or MAX_INT
   /*
@@ -4640,12 +4672,12 @@ class user_var_entry
 {
   static const size_t extra_size= sizeof(double);
   char *m_ptr;          // Value
-  ulong m_length;       // Value length
+  size_t m_length;      // Value length
   Item_result m_type;   // Value type
 
   void reset_value()
   { m_ptr= NULL; m_length= 0; }
-  void set_value(char *value, ulong length)
+  void set_value(char *value, size_t length)
   { m_ptr= value; m_length= length; }
 
   /**
@@ -4670,7 +4702,7 @@ class user_var_entry
     or allocate a separate buffer.
     @param length - length of the value to be stored.
   */
-  bool realloc(uint length);
+  bool realloc(size_t length);
 
   /**
     Check if m_ptr point to an external buffer previously alloced by realloc().
@@ -4734,7 +4766,7 @@ class user_var_entry
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type);
+  bool store(const void *from, size_t length, Item_result type);
 
 public:
   user_var_entry() {}                         /* Remove gcc warning */
@@ -4757,7 +4789,7 @@ public:
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type,
+  bool store(const void *from, size_t length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**
     Set type of to the given value.
@@ -4809,7 +4841,7 @@ public:
 
   /* Routines to access the value and its type */
   const char *ptr() const { return m_ptr; }
-  ulong length() const { return m_length; }
+  size_t length() const { return m_length; }
   Item_result type() const { return m_type; }
   /* Item-alike routines to access the value */
   double val_real(my_bool *null_value);

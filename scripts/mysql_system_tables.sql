@@ -197,6 +197,17 @@ PREPARE stmt FROM @str;
 EXECUTE stmt;
 DROP PREPARE stmt;
 
+SET @cmd= "CREATE TABLE IF NOT EXISTS gtid_executed (
+    source_uuid CHAR(36) NOT NULL COMMENT 'uuid of the source where the transaction was originally executed.',
+    interval_start BIGINT NOT NULL COMMENT 'First number of interval.',
+    interval_end BIGINT NOT NULL COMMENT 'Last number of interval.',
+    PRIMARY KEY(source_uuid, interval_start))";
+
+SET @str=IF(@have_innodb <> 0, CONCAT(@cmd, ' ENGINE= INNODB;'), CONCAT(@cmd, ' ENGINE= MYISAM;'));
+PREPARE stmt FROM @str;
+EXECUTE stmt;
+DROP PREPARE stmt;
+
 --
 -- PERFORMANCE SCHEMA INSTALLATION
 -- Note that this script is also reused by mysql_upgrade,
@@ -1064,6 +1075,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_current("
   "TIMER_START BIGINT unsigned,"
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
+  "WORK_COMPLETED BIGINT unsigned,"
+  "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -1086,6 +1099,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history("
   "TIMER_START BIGINT unsigned,"
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
+  "WORK_COMPLETED BIGINT unsigned,"
+  "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";
@@ -1108,6 +1123,8 @@ SET @cmd="CREATE TABLE performance_schema.events_stages_history_long("
   "TIMER_START BIGINT unsigned,"
   "TIMER_END BIGINT unsigned,"
   "TIMER_WAIT BIGINT unsigned,"
+  "WORK_COMPLETED BIGINT unsigned,"
+  "WORK_ESTIMATED BIGINT unsigned,"
   "NESTING_EVENT_ID BIGINT unsigned,"
   "NESTING_EVENT_TYPE ENUM('TRANSACTION', 'STATEMENT', 'STAGE', 'WAIT')"
   ")ENGINE=PERFORMANCE_SCHEMA;";

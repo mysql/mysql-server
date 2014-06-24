@@ -88,7 +88,7 @@ bool Cached_item_str::cmp(void)
   DBUG_ENTER("Cached_item_str::cmp");
   DBUG_ASSERT(!item->is_temporal());
   if ((res=item->val_str(&tmp_value)))
-    res->length(min(res->length(), value_max_length));
+    res->length(min(res->length(), static_cast<size_t>(value_max_length)));
   DBUG_PRINT("info", ("old: %s, new: %s",
                       value.c_ptr_safe(), res ? res->c_ptr_safe() : ""));
   if (null_value != item->null_value)

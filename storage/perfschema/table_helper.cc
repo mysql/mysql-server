@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -592,8 +592,14 @@ void set_field_mdl_type(Field *f, opaque_mdl_type mdl_type)
   case MDL_SHARED_WRITE:
     PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE", 12);
     break;
+  case MDL_SHARED_WRITE_LOW_PRIO:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_WRITE_LOW_PRIO", 21);
+    break;
   case MDL_SHARED_UPGRADABLE:
     PFS_engine_table::set_field_varchar_utf8(f, "SHARED_UPGRADABLE", 17);
+    break;
+  case MDL_SHARED_READ_ONLY:
+    PFS_engine_table::set_field_varchar_utf8(f, "SHARED_READ_ONLY", 16);
     break;
   case MDL_SHARED_NO_WRITE:
     PFS_engine_table::set_field_varchar_utf8(f, "SHARED_NO_WRITE", 15);

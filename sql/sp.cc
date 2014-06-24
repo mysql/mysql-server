@@ -40,11 +40,11 @@
 static bool
 create_string(THD *thd, String *buf,
 	      enum_sp_type sp_type,
-	      const char *db, ulong dblen,
-	      const char *name, ulong namelen,
-	      const char *params, ulong paramslen,
-	      const char *returns, ulong returnslen,
-	      const char *body, ulong bodylen,
+	      const char *db, size_t dblen,
+	      const char *name, size_t namelen,
+	      const char *params, size_t paramslen,
+	      const char *returns, size_t returnslen,
+	      const char *body, size_t bodylen,
 	      st_sp_chistics *chistics,
               const LEX_CSTRING &definer_user,
               const LEX_CSTRING &definer_host,
@@ -571,7 +571,7 @@ db_find_routine(THD *thd, enum_sp_type type, sp_name *name, sp_head **sphp)
   longlong modified;
   st_sp_chistics chistics;
   char *ptr;
-  uint length;
+  size_t length;
   char buff[65];
   String str(buff, sizeof(buff), &my_charset_bin);
   bool saved_time_zone_used= thd->time_zone_used;
@@ -1638,8 +1638,8 @@ sp_drop_db_routines(THD *thd, char *db)
 #ifdef HAVE_PSI_SP_INTERFACE
       char* sp_name= (char*)table->field[MYSQL_PROC_FIELD_NAME]->ptr;
       char* sp_name_end= strstr(sp_name," ");
-      uint sp_name_length= sp_name_end - sp_name;
-      uint db_name_length= strlen(db);
+      size_t sp_name_length= sp_name_end - sp_name;
+      size_t db_name_length= strlen(db);
 
       enum_sp_type sp_type= (enum_sp_type) table->field[MYSQL_PROC_MYSQL_TYPE]->ptr[0];
       /* Drop statistics for this stored program from performance schema. */
@@ -2191,11 +2191,11 @@ int sp_cache_routine(THD *thd, enum_sp_type type, sp_name *name,
 */
 static bool create_string(THD *thd, String *buf,
                           enum_sp_type type,
-                          const char *db, ulong dblen,
-                          const char *name, ulong namelen,
-                          const char *params, ulong paramslen,
-                          const char *returns, ulong returnslen,
-                          const char *body, ulong bodylen,
+                          const char *db, size_t dblen,
+                          const char *name, size_t namelen,
+                          const char *params, size_t paramslen,
+                          const char *returns, size_t returnslen,
+                          const char *body, size_t bodylen,
                           st_sp_chistics *chistics,
                           const LEX_CSTRING &definer_user,
                           const LEX_CSTRING &definer_host,

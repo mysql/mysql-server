@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,9 +27,9 @@ public:
   virtual ~Ndb_util_thread();
 
   int running;
-  pthread_mutex_t LOCK;
-  pthread_cond_t COND;
-  pthread_cond_t COND_ready;
+  native_mutex_t LOCK;
+  native_cond_t COND;
+  native_cond_t COND_ready;
 
 private:
   virtual int do_init() { return 0;}

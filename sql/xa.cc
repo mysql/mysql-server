@@ -1,4 +1,4 @@
-/* Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2013, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -61,7 +61,7 @@ static void ha_commit_or_rollback_by_xid(THD *thd, XID *xid, bool commit)
   plugin_foreach(NULL, commit ? xacommit_handlerton : xarollback_handlerton,
                  MYSQL_STORAGE_ENGINE_PLUGIN, xid);
 
-  gtid_rollback(thd);
+  gtid_state->update_on_rollback(thd);
 }
 
 
@@ -771,10 +771,10 @@ void XID_STATE::store_xid_info(Protocol *protocol, bool print_xid_as_hex) const
     xid_buf[0]= '0';
     xid_buf[1]= 'x';
 
-    uint xid_str_len= bin_to_hex_str(xid_buf + 2, sizeof(xid_buf) - 2,
-                                     const_cast<char*>(m_xid.data),
-                                     m_xid.gtrid_length +
-                                     m_xid.bqual_length) + 2;
+    size_t xid_str_len= bin_to_hex_str(xid_buf + 2, sizeof(xid_buf) - 2,
+                                       const_cast<char*>(m_xid.data),
+                                       m_xid.gtrid_length +
+                                       m_xid.bqual_length) + 2;
     protocol->store(xid_buf, xid_str_len, &my_charset_bin);
   }
   else
