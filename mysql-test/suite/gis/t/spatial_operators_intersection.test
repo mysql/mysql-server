@@ -345,7 +345,6 @@ SELECT AsText(ST_Intersection(g,GeomFromText(@star_line_vertical))) FROM gis_geo
 SELECT AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')));
 SELECT AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal)));
 SELECT AsText(ST_Intersection(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
 SELECT AsText(ST_Intersection(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,polygon
 SELECT AsText(ST_Intersection(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical)));
@@ -440,8 +439,6 @@ SELECT AsText(ST_Intersection(g,GeomFromText(@star_collection_elems))) FROM gis_
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT AsText(ST_Intersection(g,g2)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=115 and fid2=115;
---error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
-SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT AsText(ST_Intersection(GeomFromText(@star_of_elems),GeomFromText(@star_collection_multilinestr)));
 --echo #-------------------------------------------------------------------------------------------
