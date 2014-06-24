@@ -267,10 +267,12 @@ SET(TESTS
   strtoll
   thread_utils
   my_timer
-  path
-  auth_utils
   )
-  
+ 
+IF (UNIX)
+  LIST(APPEND TESTS path auth_utils)
+ENDIF()
+
 IF(WIN32)
   LIST(APPEND TESTS win_tests)
 ENDIF()
