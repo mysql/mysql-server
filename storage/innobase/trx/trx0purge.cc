@@ -545,6 +545,7 @@ trx_purge_truncate_rseg_history(
 
 	rseg->pages_marked_freed = 0;
 	rseg->n_removed_logs = 0;
+	rseg->n_can_be_removed_logs = 0;
 
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
 				 rseg->page_size, &mtr);
@@ -628,6 +629,10 @@ loop:
 
 		n_removed_logs = 0;
 	} else {
+		/* Track the logs that can be removed if we truncate UNDO
+		tablespace. This count will help us adjust rseg_history_len. */
+		rseg->n_can_be_removed_logs++;
+
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 	}
@@ -897,6 +902,7 @@ trx_purge_initiate_truncate(
 	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs() && all_free; ++i) {
 		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
 		n_removed_logs += rseg->n_removed_logs;
+		n_removed_logs += rseg->n_can_be_removed_logs;
 	}
 
 #ifdef HAVE_ATOMIC_BUILTINS
