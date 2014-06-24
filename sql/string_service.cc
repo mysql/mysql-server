@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,18 +87,21 @@ mysql_string_iterator_handle mysql_string_get_iterator(mysql_string_handle
 extern "C"
 int mysql_string_iterator_next(mysql_string_iterator_handle iterator_handle)
 {
-  int char_len, char_type;
+  int char_len, char_type, tmp_len;
   string_iterator *iterator= (string_iterator *) iterator_handle;
   String *str= iterator->iterator_str;
   const CHARSET_INFO *cs= str->charset();
   char *end= (char*) str->ptr() + str->length();
-  if (iterator->iterator_ptr == (const char*) end)
+  if (iterator->iterator_ptr >= (const char*) end)
     return (0);
   char_len= (cs->cset->ctype(cs, &char_type, (uchar*) iterator->iterator_ptr,
                              (uchar*) end));
   iterator->ctype= char_type;
-  iterator->iterator_ptr+= (char_len > 0 ? char_len : (char_len < 0
-                                                       ? -char_len : 1));
+  tmp_len= (char_len > 0 ? char_len : (char_len < 0 ? -char_len : 1));
+  if(iterator->iterator_ptr+tmp_len > end)
+    return (0);
+  else
+    iterator->iterator_ptr+= tmp_len;
   return (1);
 }
 
