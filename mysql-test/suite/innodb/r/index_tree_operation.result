@@ -1,0 +1,55 @@
+#
+# Bug#15923864 (Bug#67718):
+#  INNODB DRASTICALLY UNDER-FILLS PAGES IN CERTAIN CONDITIONS
+#
+SET GLOBAL innodb_file_per_table=ON;
+CREATE TABLE t1 (a BIGINT PRIMARY KEY, b VARCHAR(4096)) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (0, REPEAT('a', 4096));
+INSERT INTO t1 VALUES (1000, REPEAT('a', 4096));
+INSERT INTO t1 VALUES (1001, REPEAT('a', 4096));
+INSERT INTO t1 VALUES (1002, REPEAT('a', 4096));
+INSERT INTO t1 VALUES (1, REPEAT('a', 4096));
+INSERT INTO t1 VALUES (2, REPEAT('a', 4096));
+SELECT page_number, number_records
+FROM information_schema.innodb_sys_tablespaces s1,
+information_schema.innodb_buffer_page s2
+WHERE s1.space = s2.space AND name = 'test/t1'
+AND page_type = "INDEX" ORDER BY page_number;
+page_number	number_records
+3	2
+4	3
+5	3
+INSERT INTO t1 VALUES (999, REPEAT('a', 4096));
+SELECT page_number, number_records
+FROM information_schema.innodb_sys_tablespaces s1,
+information_schema.innodb_buffer_page s2
+WHERE s1.space = s2.space AND name = 'test/t1'
+AND page_type = "INDEX" ORDER BY page_number;
+page_number	number_records
+3	3
+4	3
+5	3
+6	1
+INSERT INTO t1 VALUES (998, REPEAT('a', 4096));
+SELECT page_number, number_records
+FROM information_schema.innodb_sys_tablespaces s1,
+information_schema.innodb_buffer_page s2
+WHERE s1.space = s2.space AND name = 'test/t1'
+AND page_type = "INDEX" ORDER BY page_number;
+page_number	number_records
+3	3
+4	3
+5	3
+6	2
+INSERT INTO t1 VALUES (997, REPEAT('a', 4096));
+SELECT page_number, number_records
+FROM information_schema.innodb_sys_tablespaces s1,
+information_schema.innodb_buffer_page s2
+WHERE s1.space = s2.space AND name = 'test/t1'
+AND page_type = "INDEX" ORDER BY page_number;
+page_number	number_records
+3	3
+4	3
+5	3
+6	3
+DROP TABLE t1;

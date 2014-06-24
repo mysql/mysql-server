@@ -130,13 +130,6 @@ select * from information_schema.session_variables where variable_name like 'con
 set global concurrent_insert=DEFAULT;
 select @@concurrent_insert;
 
-set global timed_mutexes=ON;
-show variables like 'timed_mutexes';
-select * from information_schema.session_variables where variable_name like 'timed_mutexes';
-set global timed_mutexes=0;
-show variables like 'timed_mutexes';
-select * from information_schema.session_variables where variable_name like 'timed_mutexes';
-
 set default_storage_engine=MYISAM, default_storage_engine="HEAP", global default_storage_engine="MERGE";
 show local variables like 'default_storage_engine';
 select * from information_schema.session_variables where variable_name like 'default_storage_engine';

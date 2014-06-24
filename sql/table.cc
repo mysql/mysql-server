@@ -2994,13 +2994,13 @@ File create_frm(THD *thd, const char *name, const char *db,
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
     int2store(fileinfo+16,reclength);
-    int4store(fileinfo+18,create_info->max_rows);
-    int4store(fileinfo+22,create_info->min_rows);
+    int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
+    int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
     /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
     /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
-    int2store(fileinfo+30,create_info->table_options);
+    int2store(fileinfo+30, static_cast<uint16>(create_info->table_options));
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
@@ -3027,7 +3027,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       59-60 is reserved for extra_rec_buf_length,
       61 for default_part_db_type
     */
-    int2store(fileinfo+62, create_info->key_block_size);
+    int2store(fileinfo+62, static_cast<uint16>(create_info->key_block_size));
     memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
