@@ -543,8 +543,6 @@ private:
                                   ulonglong *nb_reserved_values);
   bool uses_blob_value(const MY_BITMAP *bitmap) const;
 
-  char *update_table_comment(const char * comment);
-
   int write_ndb_file(const char *name) const;
 
   int check_ndb_connection(THD* thd) const;

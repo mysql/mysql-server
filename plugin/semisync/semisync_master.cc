@@ -409,7 +409,14 @@ int ReplSemiSyncMaster::initObject()
   mysql_mutex_init(key_ss_mutex_LOCK_binlog_,
                    &LOCK_binlog_, MY_MUTEX_INIT_FAST);
   mysql_cond_init(key_ss_cond_COND_binlog_send_,
-                  &COND_binlog_send_, NULL);
+                  &COND_binlog_send_);
+
+  /*
+    rpl_semi_sync_master_wait_for_slave_count may be set through mysqld option.
+    So call setWaitSlaveCount to initialize the internal ack container.
+  */
+  if (setWaitSlaveCount(rpl_semi_sync_master_wait_for_slave_count))
+    return 1;
 
   if (rpl_semi_sync_master_enabled)
     result = enableMaster();
@@ -436,7 +443,14 @@ int ReplSemiSyncMaster::enableMaster()
       wait_file_name_inited_   = false;
 
       set_master_enabled(true);
-      state_ = true;
+      /*
+        state_ will be set off when users don't want to wait(
+        rpl_semi_sync_master_wait_no_slave == 0) if there is no enough active
+        semisync clients
+      */
+      state_ = (rpl_semi_sync_master_wait_no_slave != 0 ||
+                (rpl_semi_sync_master_clients >=
+                 rpl_semi_sync_master_wait_for_slave_count));
       sql_print_information("Semi-sync replication enabled on the master.");
     }
     else
@@ -928,11 +942,6 @@ int ReplSemiSyncMaster::reserveSyncHeader(unsigned char *header,
   function_enter(kWho);
 
   int hlen=0;
-  if (!is_semi_sync_slave())
-  {
-    hlen= 0;
-  }
-  else
   {
     /* No enough space for the extra header, disable semi-sync master */
     if (sizeof(kSyncHeader) > size)
@@ -962,10 +971,10 @@ int ReplSemiSyncMaster::updateSyncHeader(unsigned char *packet,
   int  cmp = 0;
   bool sync = false;
 
-  /* If the semi-sync master is not enabled, or the slave is not a semi-sync
-   * target, do not request replies from the slave.
+  /* If the semi-sync master is not enabled, do not request replies from the
+     slave.
    */
-  if (!getMasterEnabled() || !is_semi_sync_slave())
+  if (!getMasterEnabled())
     return 0;
 
   function_enter(kWho);
@@ -1185,8 +1194,6 @@ int ReplSemiSyncMaster::resetMaster()
 
   lock();
 
-  state_ = getMasterEnabled()? 1 : 0;
-
   ack_container_.clear();
 
   wait_file_name_inited_   = false;
@@ -1233,9 +1240,6 @@ int ReplSemiSyncMaster::setWaitSlaveCount(unsigned int new_value)
 
   const char *kWho = "ReplSemiSyncMaster::updateWaitSlaves";
   function_enter(kWho);
-
-  if (new_value == rpl_semi_sync_master_wait_for_slave_count)
-    return function_exit(kWho, 0);
 
   lock();
 
@@ -1311,6 +1315,9 @@ int AckContainer::resize(unsigned int size, const AckInfo **ackinfo)
   AckInfo *old_ack_array= m_ack_array;
   unsigned int old_array_size= m_size;
   unsigned int i;
+
+  if (size - 1 == m_size)
+    return 0;
 
   m_size= size - 1;
   m_ack_array= NULL;

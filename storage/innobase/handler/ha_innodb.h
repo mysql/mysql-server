@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 2000, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2000, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -24,6 +24,8 @@ this program; if not, write to the Free Software Foundation, Inc.,
 */
 
 #include "dict0stats.h"
+#include <string>
+#include "sess0sess.h"
 
 /* Structure defines translation table between mysql index and InnoDB
 index structures */
@@ -51,7 +53,6 @@ typedef struct st_innobase_share {
 						table between MySQL and
 						InnoDB */
 } INNOBASE_SHARE;
-
 
 /** Prebuilt structures in an InnoDB table handle used within MySQL */
 struct row_prebuilt_t;
@@ -132,6 +133,7 @@ class ha_innobase: public handler
 	int write_row(uchar * buf);
 	int update_row(const uchar * old_data, uchar * new_data);
 	int delete_row(const uchar * buf);
+	int delete_all_rows();
 	bool was_semi_consistent_read();
 	void try_semi_consistent_read(bool yes);
 	void unlock_row();
@@ -157,10 +159,14 @@ class ha_innobase: public handler
 	int ft_init();
 	void ft_end();
 	FT_INFO *ft_init_ext(uint flags, uint inx, String* key);
+	FT_INFO *ft_init_ext_with_hints(uint inx, String* key,
+					Ft_hints *hints);
 	int ft_read(uchar* buf);
 
 	void position(const uchar *record);
 	int info(uint);
+	int enable_indexes(uint mode);
+	int disable_indexes(uint mode);
 	int analyze(THD* thd,HA_CHECK_OPT* check_opt);
 	int optimize(THD* thd,HA_CHECK_OPT* check_opt);
 	int discard_or_import_tablespace(my_bool discard);
@@ -189,7 +195,6 @@ class ha_innobase: public handler
 	int delete_table(const char *name);
 	int rename_table(const char* from, const char* to);
 	int check(THD* thd, HA_CHECK_OPT* check_opt);
-	char* update_table_comment(const char* comment);
 	char* get_foreign_key_create_info();
 	int get_foreign_key_list(THD *thd, List<FOREIGN_KEY_INFO> *f_key_list);
 	int get_parent_foreign_key_list(THD *thd,
@@ -197,6 +202,7 @@ class ha_innobase: public handler
 	bool can_switch_engines();
 	uint referenced_by_foreign_key();
 	void free_foreign_key_create_info(char* str);
+	uint lock_count(void) const;
 	THR_LOCK_DATA **store_lock(THD *thd, THR_LOCK_DATA **to,
 					enum thr_lock_type lock_type);
 	void init_table_handle_for_HANDLER();
@@ -371,7 +377,8 @@ the definitions are bracketed with #ifdef INNODB_COMPATIBILITY_HOOKS */
 #error InnoDB needs MySQL to be built with #define INNODB_COMPATIBILITY_HOOKS
 #endif
 
-LEX_CSTRING thd_query_string(MYSQL_THD thd);
+LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
+size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
 
 extern "C" {
 

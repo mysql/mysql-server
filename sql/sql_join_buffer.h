@@ -121,7 +121,7 @@ protected:
     case 1: return uint(*ptr);
     case 2: return uint2korr(ptr);
     case 4: return uint4korr(ptr);
-    case 8: return uint8korr(ptr);
+    case 8: return static_cast<ulong>(uint8korr(ptr));
     }
     return 0;
   }

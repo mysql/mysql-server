@@ -185,7 +185,8 @@ insert into t1 values (GeomFromText('Point(1 2)'));
 insert into t1 values ('Garbage');
 -- error 1416
 insert IGNORE into t1 values ('Garbage');
---error 1464
+
+# Now we support spatial index
 alter table t1 add spatial index(a);
 
 drop table t1;
@@ -822,7 +823,7 @@ CREATE TABLE t3 (
   col2 POINT
 );
 
---error 1464
+--error 1210
 CREATE SPATIAL INDEX idx0 ON t2 (col1, col2);
 
 
@@ -840,6 +841,7 @@ DROP TABLE IF EXISTS t0, t1, t2, t3,t4;
 --echo #
 --echo # BUG#12414917 - ISCLOSED() CRASHES ON 64-BIT BUILDS
 --echo #
+--error ER_GIS_DATA_WRONG_ENDIANESS
 SELECT ISCLOSED(CONVERT(CONCAT('     ', 0x2), BINARY(20)));
 
 --echo #
@@ -1312,10 +1314,19 @@ WHERE fid = 120;
 
 --echo # Conformance Item T37 
 # TODO: ST_PolyFromText() alias
+--error ER_GIS_DIFFERENT_SRIDS
 SELECT ST_Equals(boundary, 
 PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',1)) 
 FROM named_places 
 WHERE name = 'Goose Island'; 
+
+--echo # Conformance Item T37
+--echo # Geometry arguments' SRIDs must be identical.
+SELECT ST_Equals(boundary,
+PolyFromText('POLYGON( ( 67 13, 67 18, 59 18, 59 13, 67 13) )',101))
+FROM named_places
+WHERE name = 'Goose Island';
+
 
 --echo # Conformance Item T38 
 SELECT ST_Disjoint(centerlines, boundary) 

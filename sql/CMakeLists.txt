@@ -13,6 +13,7 @@
 # along with this program; if not, write to the Free Software
 # Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
 
+
 INCLUDE_DIRECTORIES(
   ${CMAKE_SOURCE_DIR}/include 
   ${CMAKE_SOURCE_DIR}/sql/conn_handler
@@ -22,6 +23,8 @@ INCLUDE_DIRECTORIES(
   ${ZLIB_INCLUDE_DIR}
   ${SSL_INCLUDE_DIRS}
   ${CMAKE_BINARY_DIR}/sql
+  ${BOOST_PATCHES_DIR}
+  ${BOOST_INCLUDE_DIR}
 )
 
 SET(CONF_SOURCES
@@ -106,10 +109,15 @@ SET(SQL_SHARED_SOURCES
   opt_explain_traditional.cc
   opt_explain_json.cc
   opt_range.cc
+  opt_statistics.cc
   opt_sum.cc 
   opt_trace.cc
   opt_trace2server.cc
   parse_file.cc
+  parse_tree_helpers.cc
+  parse_tree_items.cc
+  parse_tree_node_base.cc
+  parse_tree_nodes.cc
   partition_info.cc
   procedure.cc 
   protocol.cc
@@ -172,7 +180,6 @@ SET(SQL_SHARED_SOURCES
   sql_show.cc
   sql_signal.cc
   sql_state.c
-  sql_string.cc 
   sql_table.cc
   sql_tablespace.cc
   sql_test.cc
@@ -217,6 +224,7 @@ SET(SQL_SOURCE
   ../sql-common/my_user.c 
   ../sql-common/pack.c
   ../sql-common/client_authentication.cc
+  ../sql-common/sql_string.cc 
   conn_handler/channel_info.cc
   conn_handler/connection_handler_per_thread.cc
   conn_handler/connection_handler_one_thread.cc
@@ -233,6 +241,7 @@ SET(SQL_SOURCE
   mysqld_thd_manager.cc
   signal_handler.cc
   sql_client.cc
+  rpl_slave_commit_order_manager.cc
   )
 
 IF(WIN32)
@@ -241,6 +250,15 @@ IF(WIN32)
               conn_handler/named_pipe_connection.cc
               conn_handler/shared_memory_connection.cc
       )
+ENDIF()
+
+# Boost Geometry source has unused local typedefs.
+MY_CHECK_CXX_COMPILER_FLAG("-Wno-unused-local-typedefs" HAVE_NO_UNUSED_TYPEDEFS)
+IF(HAVE_NO_UNUSED_TYPEDEFS)
+  SET_SOURCE_FILES_PROPERTIES(
+    item_geofunc.cc
+    PROPERTIES COMPILE_FLAGS "-Wno-unused-local-typedefs"
+  )
 ENDIF()
 
 MY_CHECK_CXX_COMPILER_FLAG("-fno-builtin-memcmp" HAVE_NO_BUILTIN_MEMCMP)
@@ -287,10 +305,11 @@ ENDIF()
 SET (BINLOG_SOURCE uuid.cc rpl_gtid_misc.cc
                    rpl_gtid_sid_map.cc rpl_gtid_set.cc rpl_gtid_specification.cc
                    rpl_gtid_state.cc rpl_gtid_owned.cc rpl_gtid_cache.cc
-                   rpl_gtid_execution.cc rpl_gtid_mutex_cond_array.cc
+                   rpl_slave_commit_order_manager.cc rpl_gtid_execution.cc
+                   rpl_gtid_mutex_cond_array.cc rpl_gtid_persist.cc
                    log_event.cc log_event_old.cc binlog.cc sql_binlog.cc
-		   rpl_filter.cc rpl_record.cc rpl_record_old.cc rpl_utility.cc
-		   rpl_injector.cc)
+                   rpl_filter.cc rpl_record.cc rpl_record_old.cc
+                   rpl_utility.cc rpl_injector.cc)
 ADD_LIBRARY(binlog ${BINLOG_SOURCE})
 SET (RPL_SOURCE rpl_handler.cc rpl_tblmap.cc)
 ADD_DEPENDENCIES(binlog GenError)
@@ -303,7 +322,8 @@ SET (SLAVE_SOURCE rpl_slave.cc rpl_reporting.cc rpl_mi.cc rpl_rli.cc
                   rpl_info_handler.cc rpl_info_file.cc
                   rpl_info_table.cc rpl_info_values.cc rpl_info.cc
                   rpl_info_factory.cc rpl_info_table_access.cc dynamic_ids.cc
-                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc)
+                  rpl_rli_pdb.cc rpl_info_dummy.cc rpl_mts_submode.cc
+                  rpl_slave_commit_order_manager.cc)
 ADD_LIBRARY(slave ${SLAVE_SOURCE})
 ADD_DEPENDENCIES(slave GenError)
 
@@ -314,7 +334,7 @@ SET(SQL_GUNIT_LIB_SOURCE
   mdl.cc 
   opt_costmodel.cc
   sql_list.cc 
-  sql_string.cc
+  ../sql-common/sql_string.cc
   thr_malloc.cc
   )
 

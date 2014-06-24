@@ -77,7 +77,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN EXTENDED SELECT 1 FROM t1 WHERE a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	p0	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'EXTENDED' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select 1 AS `1` from `test`.`t1` where (`test`.`t1`.`a` > 1)
@@ -1672,7 +1672,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain partitions select * from t1 where f1 < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p3	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	p1,p3	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` < 3)
@@ -1703,7 +1703,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain partitions select * from t1 where f1 < 3;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	100.00	Using where
+1	SIMPLE	t1	p1,p2,p3,p4,p5	ALL	NULL	NULL	NULL	NULL	5	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`f1` AS `f1` from `test`.`t1` where (`test`.`t1`.`f1` < 3)
@@ -1734,7 +1734,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 explain partitions select * from t1 where a is null or a < 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pn,p0,p1	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	pn,p0,p1	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 2))
@@ -1744,7 +1744,7 @@ NULL
 2
 explain partitions select * from t1 where a is null or a < 0 or a > 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t1	pn,p2	ALL	NULL	NULL	NULL	NULL	2	87.50	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (isnull(`test`.`t1`.`a`) or (`test`.`t1`.`a` < 0) or (`test`.`t1`.`a` > 1))
@@ -2361,7 +2361,7 @@ Table	Op	Msg_type	Msg_text
 test.t1	analyze	status	OK
 EXPLAIN PARTITIONS SELECT * FROM t1 WHERE a>=200;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	p2,p3	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 Warnings:
 Warning	1681	'PARTITIONS' is deprecated and will be removed in a future release.
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a` from `test`.`t1` where (`test`.`t1`.`a` >= 200)

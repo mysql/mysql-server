@@ -10,8 +10,8 @@
    GNU General Public License for more details.
 
    You should have received a copy of the GNU General Public License
-   along with this program; if not, write to the Free Software Foundation,
-   51 Franklin Street, Suite 500, Boston, MA 02110-1335 USA */
+   along with this program; if not, write to the Free Software
+   Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
 /**
   @file
@@ -215,7 +215,7 @@ sql_create_definition_file(const LEX_STRING *dir, const LEX_STRING *file_name,
   File handler;
   IO_CACHE file;
   char path[FN_REFLEN+1];	// +1 to put temporary file name for sure
-  int path_end;
+  size_t path_end;
   File_option *param;
   DBUG_ENTER("sql_create_definition_file");
   DBUG_PRINT("enter", ("Dir: %s, file: %s, base 0x%lx",

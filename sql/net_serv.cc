@@ -93,7 +93,7 @@ extern void query_cache_insert(const char *packet, ulong length,
 #define VIO_SOCKET_ERROR  ((size_t) -1)
 #define MAX_PACKET_LENGTH (256L*256L*256L-1)
 
-static my_bool net_write_buff(NET *, const uchar *, ulong);
+static my_bool net_write_buff(NET *, const uchar *, size_t);
 
 /** Init with packet info. */
 
@@ -307,7 +307,7 @@ my_bool my_net_write(NET *net, const uchar *packet, size_t len)
     len-=     z_size;
   }
   /* Write last packet */
-  int3store(buff,len);
+  int3store(buff, static_cast<uint>(len));
   buff[3]= (uchar) net->pkt_nr++;
   if (net_write_buff(net, buff, NET_HEADER_SIZE))
   {
@@ -426,7 +426,7 @@ net_write_command(NET *net,uchar command,
 */
 
 static my_bool
-net_write_buff(NET *net, const uchar *packet, ulong len)
+net_write_buff(NET *net, const uchar *packet, size_t len)
 {
   ulong left_length;
   if (net->compress && net->max_packet > MAX_PACKET_LENGTH)
@@ -801,7 +801,7 @@ static my_bool net_read_packet_header(NET *net)
   @return The length of the packet, or @packet_error on error.
 */
 
-static ulong net_read_packet(NET *net, size_t *complen)
+static size_t net_read_packet(NET *net, size_t *complen)
 {
   size_t pkt_len, pkt_data_len;
 
@@ -907,14 +907,14 @@ my_net_read(NET *net)
     if (len != packet_error)
       net->read_pos[len]=0;		/* Safeguard for mysql_use_result */
     MYSQL_NET_READ_DONE(0, len);
-    return len;
+    return static_cast<ulong>(len);
 #ifdef HAVE_COMPRESS
   }
   else
   {
     /* We are using the compressed protocol */
 
-    ulong buf_length;
+    size_t buf_length;
     ulong start_of_packet;
     ulong first_packet_offset;
     uint read_length, multi_byte_packet=0;
@@ -1018,7 +1018,7 @@ my_net_read(NET *net)
   }
 #endif /* HAVE_COMPRESS */
   MYSQL_NET_READ_DONE(0, len);
-  return len;
+  return static_cast<ulong>(len);
 }
 
 

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -376,7 +376,7 @@ void reset_mqh(LEX_USER *lu, bool get_them= 0)
   if (lu)  // for GRANT
   {
     USER_CONN *uc;
-    uint temp_len=lu->user.length+lu->host.length+2;
+    size_t temp_len=lu->user.length+lu->host.length+2;
     char temp_user[USER_HOST_BUFF_SIZE];
 
     memcpy(temp_user,lu->user.str,lu->user.length);
@@ -729,7 +729,7 @@ static bool login_connection(THD *thd)
 void end_connection(THD *thd)
 {
   NET *net= &thd->net;
-  plugin_thdvar_cleanup(thd);
+  plugin_thdvar_cleanup(thd, thd->m_enable_plugins);
 
   /*
     The thread may returned back to the pool and assigned to a user

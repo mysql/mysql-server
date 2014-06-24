@@ -55,8 +55,11 @@ TEST_F(ItemTimeFuncTest, dateAddInterval)
 {
   Item_int *arg0= new Item_int(20130122145221LL); // 2013-01-22 14:52:21
   Item_decimal *arg1= new Item_decimal(0.1234567, 8, 7);
-  Item_date_add_interval *item= 
-    new Item_date_add_interval(arg0, arg1, INTERVAL_SECOND_MICROSECOND, false);
+  Item *item= 
+    new Item_date_add_interval(POS(),
+                               arg0, arg1, INTERVAL_SECOND_MICROSECOND, false);
+  Parse_context pc(thd(), thd()->lex->current_select());
+  EXPECT_FALSE(item->itemize(&pc, &item));
   EXPECT_FALSE(item->fix_fields(thd(), NULL));
   
   // The below result is not correct, see Bug#16198372
@@ -164,8 +167,13 @@ void testItemTimeFunctions(Item_time_func *item, MYSQL_TIME *ltime,
 TEST_P(ItemTimeFuncTestP, secToTime)
 {
   Item_decimal *sec= 
-    new Item_decimal(m_t.secs, strlen(m_t.secs), &my_charset_latin1_bin);
-  Item_func_sec_to_time *time= new Item_func_sec_to_time(sec);
+    new Item_decimal(POS(), m_t.secs, strlen(m_t.secs), &my_charset_latin1_bin);
+  Item_func_sec_to_time *time= new Item_func_sec_to_time(POS(), sec);
+
+  Parse_context pc(thd(), thd()->lex->current_select());
+  Item *item;
+  EXPECT_FALSE(time->itemize(&pc, &item));
+  EXPECT_EQ(time, item);
   EXPECT_FALSE(time->fix_fields(thd(), NULL));
 
   MYSQL_TIME ltime;

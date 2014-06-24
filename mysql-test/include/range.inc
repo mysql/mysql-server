@@ -2050,3 +2050,61 @@ ANALYZE TABLE t2;
 
 SELECT a, b FROM t2 WHERE (a, b) IN ((0, 0), (1, 1));
 DROP TABLE t2;
+
+--echo #
+--echo # BUG#18364815: OPTIMIZER PREFERS TABLE SCAN WHEN 
+--echo #               USING "IN" WITH VALUE OF DIFFERENT TYPE
+--echo #
+
+CREATE TABLE t1 (a INT PRIMARY KEY, b INT);
+
+INSERT INTO t1 VALUES (1,1), (2,1), (3,1), (4,1), (5,1), (6,1);
+
+EXPLAIN SELECT * FROM t1 WHERE a IN (1, 2);
+EXPLAIN SELECT * FROM t1 WHERE a IN (1, "2");
+
+SELECT * FROM t1 WHERE a IN (1, 2);
+SELECT * FROM t1 WHERE a IN (1, "2");
+
+DROP TABLE t1;
+
+--echo # 
+--echo # Bug#18715670
+--echo # CRASH IN DECIMAL_ACTUAL_FRACTION COMPARING DECIMAL TO NULLS
+--echo # 
+
+CREATE TABLE t1(n DECIMAL(39,19) NOT NULL, KEY(n)) engine=innodb;
+INSERT INTO t1 SET n=0;
+SELECT 1 FROM t1 WHERE n NOT IN(NULL, NULL);
+DROP TABLE t1;
+
+--echo #
+--echo # Bug#18759597 MISSING ROWS ON WHERE .. 
+--echo #              IN QUERY WITH VARIABLES AND CONCAT
+--echo #
+
+CREATE TABLE t1 (
+  col_varchar_key varchar(2),
+  KEY col_varchar_key (col_varchar_key)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 VALUES ('n'),('xm');
+
+SET @var1 = 't', @var2 = 'him',
+    @var3 = 'n', @var4 = 'n',
+    @var5 = 'n', @var6 = 'g',
+    @var7 = 'b', @var8 = 'o',
+    @var9 = 'm', @var10 = 'xm', @var11 = 'u'
+;
+
+SELECT col_varchar_key AS field1
+FROM t1
+WHERE ( col_varchar_key, col_varchar_key ) IN (
+  ('m', @var1  ),
+  ('n', @var3  ),
+  ('a', @var5  ),
+  ('l', @var7  ),
+  (CONCAT('x', @var9 ), @var10 )
+);
+
+DROP TABLE t1;

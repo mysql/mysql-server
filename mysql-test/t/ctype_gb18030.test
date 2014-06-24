@@ -106,6 +106,9 @@ SET NAMES utf8mb4;
 SET collation_connection=gb18030_unicode_520_ci;
 --source include/ctype_unicode520.inc
 
+SET NAMES gb18030 COLLATE gb18030_unicode_520_ci;
+SELECT 1 gb18030_unicode_520_ci;
+
 #
 # CJK chars test
 CREATE DATABASE gb18030 CHARSET=GB18030;

@@ -190,6 +190,7 @@ public:
 #endif
   /* Destroy this statement */
   void deallocate();
+  virtual const LEX_CSTRING& query() const { return Statement::query(); }
 private:
   /**
     The memory root to allocate parsed tree elements (instances of Item,
@@ -197,7 +198,7 @@ private:
   */
   MEM_ROOT main_mem_root;
 private:
-  bool set_db(const char *db, uint db_length);
+  bool set_db(const char *db, size_t db_length);
   bool set_parameters(String *expanded_query,
                       uchar *packet, uchar *packet_end);
   bool execute(String *expanded_query, bool open_cursor);
@@ -529,7 +530,7 @@ static void set_param_short(Item_param *param, uchar **pos, ulong len)
     return;
   value= sint2korr(*pos);
 #else
-  shortget(value, *pos);
+  shortget(&value, *pos);
 #endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint16) value) :
                                         (longlong) value, 6);
@@ -544,7 +545,7 @@ static void set_param_int32(Item_param *param, uchar **pos, ulong len)
     return;
   value= sint4korr(*pos);
 #else
-  longget(value, *pos);
+  longget(&value, *pos);
 #endif
   param->set_int(param->unsigned_flag ? (longlong) ((uint32) value) :
                                         (longlong) value, 11);
@@ -559,7 +560,7 @@ static void set_param_int64(Item_param *param, uchar **pos, ulong len)
     return;
   value= (longlong) sint8korr(*pos);
 #else
-  longlongget(value, *pos);
+  longlongget(&value, *pos);
 #endif
   param->set_int(value, 21);
   *pos+= 8;
@@ -571,9 +572,9 @@ static void set_param_float(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 4)
     return;
-  float4get(data,*pos);
+  float4get(&data,*pos);
 #else
-  floatget(data, *pos);
+  floatget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 4;
@@ -585,9 +586,9 @@ static void set_param_double(Item_param *param, uchar **pos, ulong len)
 #ifndef EMBEDDED_LIBRARY
   if (len < 8)
     return;
-  float8get(data,*pos);
+  float8get(&data,*pos);
 #else
-  doubleget(data, *pos);
+  doubleget(&data, *pos);
 #endif
   param->set_double((double) data);
   *pos+= 8;
@@ -1266,7 +1267,8 @@ static bool mysql_test_insert(Prepared_statement *stmt,
 
     if (mysql_prepare_insert(thd, table_list, &insert_table_ref,
                              fields, values, update_fields, update_values,
-                             duplic, &unused_conds, FALSE, FALSE, FALSE))
+                             duplic, &unused_conds, FALSE, FALSE))
+
       goto error;
 
     value_count= values->elements;
@@ -2282,7 +2284,7 @@ void mysqld_stmt_prepare(THD *thd, const char *packet, size_t packet_length)
     0         in case of error (out of memory)
 */
 
-static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
+static const char *get_dynamic_sql_string(LEX *lex, size_t *query_len)
 {
   THD *thd= lex->thd;
   char *query_str= 0;
@@ -2295,7 +2297,8 @@ static const char *get_dynamic_sql_string(LEX *lex, uint *query_len)
     bool needs_conversion;
     user_var_entry *entry;
     String *var_value= &str;
-    uint32 unused, len;
+    uint32 unused;
+    size_t len;
     /*
       Convert @var contents to string in connection character set. Although
       it is known that int/real/NULL value cannot be a valid query we still
@@ -2377,7 +2380,7 @@ void mysql_sql_stmt_prepare(THD *thd)
   LEX_STRING *name= &lex->prepared_stmt_name;
   Prepared_statement *stmt;
   const char *query;
-  uint query_len= 0;
+  size_t query_len= 0;
   DBUG_ENTER("mysql_sql_stmt_prepare");
 
   if ((stmt= (Prepared_statement*) thd->stmt_map.find_by_name(name)))
@@ -2508,9 +2511,6 @@ void reinit_stmt_before_use(THD *thd, LEX *lex)
       }
       for (order= sl->order_list.first; order; order= order->next)
         order->item= &order->item_ptr;
-
-      /* clear the no_error flag for INSERT/UPDATE IGNORE */
-      sl->no_error= FALSE;
     }
     {
       SELECT_LEX_UNIT *unit= sl->master_unit();
@@ -2639,6 +2639,11 @@ void mysqld_stmt_execute(THD *thd, char *packet_arg, size_t packet_length)
              llstr(stmt_id, llbuf), "mysqld_stmt_execute");
     DBUG_VOID_RETURN;
   }
+
+#if defined(ENABLED_PROFILING)
+  thd->profiling.set_query_source(stmt->query().str,
+                                  stmt->query().length);
+#endif
 
   DBUG_PRINT("info",("stmt: 0x%lx", (long) stmt));
 
@@ -3265,7 +3270,7 @@ bool Prepared_statement::set_name(LEX_STRING *name_arg)
 */
 
 bool
-Prepared_statement::set_db(const char *db_arg, uint db_length_arg)
+Prepared_statement::set_db(const char *db_arg, size_t db_length_arg)
 {
   /* Remember the current database. */
   if (db_arg && db_length_arg)
@@ -3588,11 +3593,6 @@ Prepared_statement::execute_loop(String *expanded_query,
   Reprepare_observer reprepare_observer;
   bool error;
   int reprepare_attempt= 0;
-
-#if defined(ENABLED_PROFILING)
-  thd->profiling.set_query_source(query().str,
-                                  query().length);
-#endif
 
   /* Check if we got an error when sending long data */
   if (state == Query_arena::STMT_ERROR)

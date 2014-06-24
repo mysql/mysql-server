@@ -121,16 +121,18 @@ select * from t1 order by c1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ]
                 },
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "sort_cost": 1,
                 "new_cost_for_plan": 2.2,
                 "chosen": true
@@ -257,16 +259,18 @@ select * from t1 order by c1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ]
                 },
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "sort_cost": 1,
                 "new_cost_for_plan": 2.2,
                 "chosen": true
@@ -393,16 +397,18 @@ select * from t1 order by c1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ]
                 },
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "sort_cost": 1,
                 "new_cost_for_plan": 2.2,
                 "chosen": true
@@ -529,16 +535,18 @@ select * from t1 order by c1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ]
                 },
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "sort_cost": 1,
                 "new_cost_for_plan": 2.2,
                 "chosen": true
@@ -925,16 +933,18 @@ SELECT * FROM t1 ORDER BY c1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true,
                       "use_tmp_table": true
                     }
                   ]
                 },
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "sort_cost": 1,
                 "new_cost_for_plan": 2.2,
                 "chosen": true

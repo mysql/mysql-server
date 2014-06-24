@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -136,7 +136,7 @@ extern THD * injector_thd; // Declared in ha_ndbcluster.cc
   to enable ndb injector thread receiving events.
 
   Must therefore always be used with a surrounding
-  pthread_mutex_lock(&injector_mutex), when doing create/dropEventOperation
+  native_mutex_lock(&injector_mutex), when doing create/dropEventOperation
 */
 static Ndb *injector_ndb= 0;
 static Ndb *schema_ndb= 0;
@@ -147,8 +147,8 @@ static int ndbcluster_binlog_inited= 0;
   Mutex and condition used for interacting between client sql thread
   and injector thread
 */
-static pthread_mutex_t injector_mutex;
-static pthread_cond_t  injector_cond;
+static native_mutex_t injector_mutex;
+static native_cond_t  injector_cond;
 
 /* NDB Injector thread (used for binlog creation) */
 static ulonglong ndb_latest_applied_binlog_epoch= 0;
@@ -157,7 +157,7 @@ static ulonglong ndb_latest_received_binlog_epoch= 0;
 
 NDB_SHARE *ndb_apply_status_share= 0;
 NDB_SHARE *ndb_schema_share= 0;
-static pthread_mutex_t ndb_schema_share_mutex;
+static native_mutex_t ndb_schema_share_mutex;
 
 extern my_bool opt_log_slave_updates;
 static my_bool g_ndb_log_slave_updates;
@@ -485,7 +485,7 @@ static void ndbcluster_binlog_wait(THD *thd)
       thd->proc_info= "Waiting for ndbcluster binlog update to "
 	"reach current position";
     const Uint64 start_handled_epoch = ndb_latest_handled_binlog_epoch;
-    pthread_mutex_lock(&injector_mutex);
+    native_mutex_lock(&injector_mutex);
     while (!(thd && thd->killed) && count && ndb_binlog_running &&
            (ndb_latest_handled_binlog_epoch == 0 ||
             ndb_latest_handled_binlog_epoch < wait_epoch))
@@ -493,9 +493,9 @@ static void ndbcluster_binlog_wait(THD *thd)
       count--;
       struct timespec abstime;
       set_timespec(abstime, 1);
-      pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
+      native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
     }
-    pthread_mutex_unlock(&injector_mutex);
+    native_mutex_unlock(&injector_mutex);
 
     if (count == 0)
     {
@@ -797,9 +797,9 @@ int ndbcluster_binlog_end(THD *thd)
     ndb_binlog_thread.stop();
     ndb_binlog_thread.deinit();
 
-    pthread_mutex_destroy(&injector_mutex);
-    pthread_cond_destroy(&injector_cond);
-    pthread_mutex_destroy(&ndb_schema_share_mutex);
+    native_mutex_destroy(&injector_mutex);
+    native_cond_destroy(&injector_cond);
+    native_mutex_destroy(&ndb_schema_share_mutex);
   }
 
   DBUG_RETURN(0);
@@ -924,11 +924,11 @@ ndb_open_tables__is_table_open(const char* db, size_t db_length,
   DBUG_PRINT("enter", ("db: '%s', table: '%s', key: '%s'",
                        db, table, key));
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   bool result = my_hash_search(&ndbcluster_open_tables,
                                (const uchar*)key,
                                key_length) != NULL;
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
 
   DBUG_PRINT("exit", ("result: %d", result));
   DBUG_RETURN(result);
@@ -1070,7 +1070,7 @@ private:
 };
 
 extern int ndb_setup_complete;
-extern pthread_cond_t COND_ndb_setup_complete;
+extern native_cond_t COND_ndb_setup_complete;
 
 /*
    ndb_notify_tables_writable
@@ -1080,10 +1080,10 @@ extern pthread_cond_t COND_ndb_setup_complete;
 */ 
 static void ndb_notify_tables_writable()
 {
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   ndb_setup_complete= 1;
-  pthread_cond_broadcast(&COND_ndb_setup_complete);
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_cond_broadcast(&COND_ndb_setup_complete);
+  native_mutex_unlock(&ndbcluster_mutex);
 }
 
 
@@ -1262,7 +1262,7 @@ static int ndbcluster_find_all_databases(THD *thd)
         query[query_length]= 0;
         build_table_filename(name, sizeof(name), db, "", "", 0);
         int database_exists= !my_access(name, F_OK);
-        if (strncasecmp("CREATE", query, 6) == 0)
+        if (native_strncasecmp("CREATE", query, 6) == 0)
         {
           /* Database should exist */
           if (!database_exists)
@@ -1274,7 +1274,7 @@ static int ndbcluster_find_all_databases(THD *thd)
                       no_print_error);
           }
         }
-        else if (strncasecmp("ALTER", query, 5) == 0)
+        else if (native_strncasecmp("ALTER", query, 5) == 0)
         {
           /* Database should exist */
           if (!database_exists)
@@ -1289,7 +1289,7 @@ static int ndbcluster_find_all_databases(THD *thd)
                       no_print_error);
           }
         }
-        else if (strncasecmp("DROP", query, 4) == 0)
+        else if (native_strncasecmp("DROP", query, 4) == 0)
         {
           /* Database should not exist */
           if (database_exists)
@@ -1346,7 +1346,7 @@ int ndbcluster_find_all_files(THD *thd)
   Ndb* ndb;
   char key[FN_REFLEN + 1];
   NDBDICT *dict;
-  int unhandled, retries= 5, skipped;
+  int unhandled= 0, retries= 5, skipped= 0;
   DBUG_ENTER("ndbcluster_find_all_files");
 
   if (!(ndb= check_ndb_in_thd(thd)))
@@ -1480,13 +1480,13 @@ ndb_binlog_setup(THD *thd)
     the schema_ndb pointer(since that pointer is used for
     creating the event operations owned by ndb_schema_share)
   */
-  pthread_mutex_lock(&injector_mutex);
+  native_mutex_lock(&injector_mutex);
   if (!schema_ndb)
   {
-    pthread_mutex_unlock(&injector_mutex);
+    native_mutex_unlock(&injector_mutex);
     return false;
   }
-  pthread_mutex_unlock(&injector_mutex);
+  native_mutex_unlock(&injector_mutex);
 
   /*
     Take the global schema lock to make sure that
@@ -1550,7 +1550,7 @@ ndb_binlog_setup(THD *thd)
   }
 
   /* Signal injector thread that all is setup */
-  pthread_cond_signal(&injector_cond);
+  native_cond_signal(&injector_cond);
 
   return true; // Setup completed -> OK
 }
@@ -1583,12 +1583,12 @@ static void ndb_report_waiting(const char *key,
 {
   ulonglong ndb_latest_epoch= 0;
   const char *proc_info= "<no info>";
-  pthread_mutex_lock(&injector_mutex);
+  native_mutex_lock(&injector_mutex);
   if (injector_ndb)
     ndb_latest_epoch= injector_ndb->getLatestGCI();
   if (injector_thd)
     proc_info= injector_thd->proc_info;
-  pthread_mutex_unlock(&injector_mutex);
+  native_mutex_unlock(&injector_mutex);
   if (map == 0)
   {
     sql_print_information("NDB %s:"
@@ -1779,21 +1779,21 @@ int ndbcluster_log_schema_op(THD *thd,
     int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
 
     /* begin protect ndb_schema_share */
-    pthread_mutex_lock(&ndb_schema_share_mutex);
+    native_mutex_lock(&ndb_schema_share_mutex);
     if (ndb_schema_share == 0)
     {
-      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      native_mutex_unlock(&ndb_schema_share_mutex);
       ndb_free_schema_object(&ndb_schema_object);
       DBUG_RETURN(0);    
     }
-    pthread_mutex_lock(&ndb_schema_share->mutex);
+    native_mutex_lock(&ndb_schema_share->mutex);
     for (i= 0; i < no_storage_nodes; i++)
     {
       bitmap_union(&ndb_schema_object->slock_bitmap,
                    &ndb_schema_share->subscriber_bitmap[i]);
     }
-    pthread_mutex_unlock(&ndb_schema_share->mutex);
-    pthread_mutex_unlock(&ndb_schema_share_mutex);
+    native_mutex_unlock(&ndb_schema_share->mutex);
+    native_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
 
     if (also_internal)
@@ -2003,39 +2003,39 @@ end:
   if (ndb_error == 0 && !bitmap_is_clear_all(&ndb_schema_object->slock_bitmap))
   {
     int max_timeout= DEFAULT_SYNC_TIMEOUT;
-    pthread_mutex_lock(&ndb_schema_object->mutex);
+    native_mutex_lock(&ndb_schema_object->mutex);
     while (1)
     {
       struct timespec abstime;
       int i;
       int no_storage_nodes= g_ndb_cluster_connection->no_db_nodes();
       set_timespec(abstime, 1);
-      int ret= pthread_cond_timedwait(&injector_cond,
-                                      &ndb_schema_object->mutex,
-                                      &abstime);
+      int ret= native_cond_timedwait(&injector_cond,
+                                     &ndb_schema_object->mutex,
+                                     &abstime);
       if (thd->killed)
         break;
 
       /* begin protect ndb_schema_share */
-      pthread_mutex_lock(&ndb_schema_share_mutex);
+      native_mutex_lock(&ndb_schema_share_mutex);
       if (ndb_schema_share == 0)
       {
-        pthread_mutex_unlock(&ndb_schema_share_mutex);
+        native_mutex_unlock(&ndb_schema_share_mutex);
         break;
       }
       MY_BITMAP servers;
       bitmap_init(&servers, 0, 256, FALSE);
       bitmap_clear_all(&servers);
       bitmap_set_bit(&servers, node_id); // "we" are always alive
-      pthread_mutex_lock(&ndb_schema_share->mutex);
+      native_mutex_lock(&ndb_schema_share->mutex);
       for (i= 0; i < no_storage_nodes; i++)
       {
         /* remove any unsubscribed from schema_subscribers */
         MY_BITMAP *tmp= &ndb_schema_share->subscriber_bitmap[i];
         bitmap_union(&servers, tmp);
       }
-      pthread_mutex_unlock(&ndb_schema_share->mutex);
-      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      native_mutex_unlock(&ndb_schema_share->mutex);
+      native_mutex_unlock(&ndb_schema_share_mutex);
       /* end protect ndb_schema_share */
 
       /* remove any unsubscribed from ndb_schema_object->slock */
@@ -2061,7 +2061,7 @@ end:
                              &ndb_schema_object->slock_bitmap);
       }
     }
-    pthread_mutex_unlock(&ndb_schema_object->mutex);
+    native_mutex_unlock(&ndb_schema_object->mutex);
   }
   else if (ndb_error)
   {
@@ -2135,7 +2135,7 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
       ndbtab_g.invalidate();
   }
 
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   DBUG_ASSERT(share->state == NSS_DROPPED || 
               share->op == pOp || share->new_op == pOp);
   if (share->new_op)
@@ -2146,13 +2146,13 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   {
     share->op= 0;
   }
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
 
   /* Signal ha_ndbcluster::delete/rename_table that drop is done */
   DBUG_PRINT("info", ("signal that drop is done"));
-  (void) pthread_cond_signal(&injector_cond);
+  (void) native_cond_signal(&injector_cond);
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference binlog free */
   DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                            share->key, share->use_count));
@@ -2181,16 +2181,16 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
   }
   else
     share= 0;
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
 
   DBUG_PRINT("info", ("Deleting event_data"));
   delete event_data;
   pOp->setCustomData(NULL);
 
   DBUG_PRINT("info", ("Dropping event operation"));
-  pthread_mutex_lock(&injector_mutex);
+  native_mutex_lock(&injector_mutex);
   is_ndb->dropEventOperation(pOp);
-  pthread_mutex_unlock(&injector_mutex);
+  native_mutex_unlock(&injector_mutex);
 
   if (do_close_cached_tables)
   {
@@ -2207,16 +2207,16 @@ ndb_handle_schema_change(THD *thd, Ndb *is_ndb, NdbEventOperation *pOp,
 class Mutex_guard
 {
 public:
-  Mutex_guard(pthread_mutex_t &mutex) : m_mutex(mutex)
+  Mutex_guard(native_mutex_t &mutex) : m_mutex(mutex)
   {
-    pthread_mutex_lock(&m_mutex);
+    native_mutex_lock(&m_mutex);
   };
   ~Mutex_guard()
   {
-    pthread_mutex_unlock(&m_mutex);
+    native_mutex_unlock(&m_mutex);
   };
 private:
-  pthread_mutex_t &m_mutex;
+  native_mutex_t &m_mutex;
 };
 
 
@@ -2614,17 +2614,17 @@ class Ndb_schema_event_handler {
     assert(event_data->ndb_value[0]);
     assert(event_data->ndb_value[1]);
 
-    pthread_mutex_lock(&ndb_schema_share_mutex);
+    native_mutex_lock(&ndb_schema_share_mutex);
     if (share != ndb_schema_share)
     {
       // Received event from s_ndb not pointing at the ndb_schema_share
-      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      native_mutex_unlock(&ndb_schema_share_mutex);
       assert(false);
       return false;
     }
     assert(!strncmp(share->db, STRING_WITH_LEN(NDB_REP_DB)));
     assert(!strncmp(share->table_name, STRING_WITH_LEN(NDB_SCHEMA_TABLE)));
-    pthread_mutex_unlock(&ndb_schema_share_mutex);
+    native_mutex_unlock(&ndb_schema_share_mutex);
     return true;
   }
 
@@ -2854,7 +2854,7 @@ class Ndb_schema_event_handler {
       Copy the latest slock info into the ndb_schema_object so that
       waiter can check if all nodes it's waiting for has answered
     */
-    pthread_mutex_lock(&ndb_schema_object->mutex);
+    native_mutex_lock(&ndb_schema_object->mutex);
     if (opt_ndb_extra_logging > 19)
     {
       sql_print_information("NDB: CLEAR_SLOCK key: %s(%u/%u) from"
@@ -2870,12 +2870,12 @@ class Ndb_schema_event_handler {
     DBUG_DUMP("ndb_schema_object->slock_bitmap.bitmap",
               (uchar*)ndb_schema_object->slock_bitmap.bitmap,
               no_bytes_in_map(&ndb_schema_object->slock_bitmap));
-    pthread_mutex_unlock(&ndb_schema_object->mutex);
+    native_mutex_unlock(&ndb_schema_object->mutex);
 
     ndb_free_schema_object(&ndb_schema_object);
 
     /* Wake up the waiter */
-    pthread_cond_signal(&injector_cond);
+    native_cond_signal(&injector_cond);
 
     DBUG_VOID_RETURN;
   }
@@ -2908,7 +2908,7 @@ class Ndb_schema_event_handler {
     NDB_SHARE *share= get_share(schema);  // 3) Temporary pin 'share'
     if (share)
     {
-      pthread_mutex_lock(&share->mutex);
+      native_mutex_lock(&share->mutex);
       if (share->op)
       {
         Ndb_event_data *event_data=
@@ -2924,7 +2924,7 @@ class Ndb_schema_event_handler {
         free_share(&share);   // Free binlog ref, 2)
         DBUG_ASSERT(share);   // Still ref'ed by 1) & 3)
       }
-      pthread_mutex_unlock(&share->mutex);
+      native_mutex_unlock(&share->mutex);
       free_share(&share);   // Free temporary ref, 3)
       DBUG_ASSERT(share);   // Still ref'ed by dict, 1)
 
@@ -2934,10 +2934,10 @@ class Ndb_schema_event_handler {
        * If there are more (trailing) references, the share will remain as an
        * unvisible instance in the share-hash until remaining references are dropped.
        */
-      pthread_mutex_lock(&ndbcluster_mutex);
+      native_mutex_lock(&ndbcluster_mutex);
       handle_trailing_share(m_thd, share); // Unref my 'share', and make any pending refs 'trailing'
       share= 0;                            // It's gone
-      pthread_mutex_unlock(&ndbcluster_mutex);
+      native_mutex_unlock(&ndbcluster_mutex);
     } // if (share)
 
     if (is_local_table(schema->db, schema->name) &&
@@ -2990,14 +2990,14 @@ class Ndb_schema_event_handler {
       if (opt_ndb_extra_logging > 9)
         sql_print_information("NDB Binlog: handling online alter/rename");
 
-      pthread_mutex_lock(&share->mutex);
+      native_mutex_lock(&share->mutex);
       ndb_binlog_close_shadow_table(share);
 
       if (ndb_binlog_open_shadow_table(m_thd, share))
       {
         sql_print_error("NDB Binlog: Failed to re-open shadow table %s.%s",
                         schema->db, schema->name);
-        pthread_mutex_unlock(&share->mutex);
+        native_mutex_unlock(&share->mutex);
       }
       else
       {
@@ -3027,13 +3027,13 @@ class Ndb_schema_event_handler {
           share->new_op= share->op;
         }
         share->op= tmp_op;
-        pthread_mutex_unlock(&share->mutex);
+        native_mutex_unlock(&share->mutex);
 
         if (opt_ndb_extra_logging > 9)
           sql_print_information("NDB Binlog: handling online "
                                 "alter/rename done");
       }
-      pthread_mutex_lock(&share->mutex);
+      native_mutex_lock(&share->mutex);
       if (share->op && share->new_op)
       {
         Ndb_event_data *event_data=
@@ -3050,7 +3050,7 @@ class Ndb_schema_event_handler {
         free_share(&share);
         DBUG_ASSERT(share);   // Should still be ref'ed
       }
-      pthread_mutex_unlock(&share->mutex);
+      native_mutex_unlock(&share->mutex);
 
       free_share(&share);
     }
@@ -3637,12 +3637,12 @@ public:
                               "read only on reconnect.");
 
       /* release the ndb_schema_share */
-      pthread_mutex_lock(&ndb_schema_share_mutex);
+      native_mutex_lock(&ndb_schema_share_mutex);
       free_share(&ndb_schema_share);
       ndb_schema_share= 0;
       ndb_binlog_tables_inited= FALSE;
       ndb_binlog_is_ready= FALSE;
-      pthread_mutex_unlock(&ndb_schema_share_mutex);
+      native_mutex_unlock(&ndb_schema_share_mutex);
 
       ndb_tdc_close_cached_tables();
       // fall through
@@ -3657,7 +3657,7 @@ public:
       NDB_SHARE *tmp_share= event_data->share;
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       DBUG_ASSERT(node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
+      native_mutex_lock(&tmp_share->mutex);
       bitmap_clear_all(&tmp_share->subscriber_bitmap[node_id]);
       DBUG_PRINT("info",("NODE_FAILURE UNSUBSCRIBE[%d]", node_id));
       if (opt_ndb_extra_logging)
@@ -3668,8 +3668,8 @@ public:
                               tmp_share->subscriber_bitmap[node_id].bitmap[1],
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
-      pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
+      native_mutex_unlock(&tmp_share->mutex);
+      (void) native_cond_signal(&injector_cond);
       break;
     }
 
@@ -3680,7 +3680,7 @@ public:
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       uint8 req_id= pOp->getReqNodeId();
       DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
+      native_mutex_lock(&tmp_share->mutex);
       bitmap_set_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
       DBUG_PRINT("info",("SUBSCRIBE[%d] %d", node_id, req_id));
       if (opt_ndb_extra_logging)
@@ -3692,8 +3692,8 @@ public:
                               tmp_share->subscriber_bitmap[node_id].bitmap[1],
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
-      pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
+      native_mutex_unlock(&tmp_share->mutex);
+      (void) native_cond_signal(&injector_cond);
       break;
     }
 
@@ -3704,7 +3704,7 @@ public:
       uint8 node_id= g_node_id_map[pOp->getNdbdNodeId()];
       uint8 req_id= pOp->getReqNodeId();
       DBUG_ASSERT(req_id != 0 && node_id != 0xFF);
-      pthread_mutex_lock(&tmp_share->mutex);
+      native_mutex_lock(&tmp_share->mutex);
       bitmap_clear_bit(&tmp_share->subscriber_bitmap[node_id], req_id);
       DBUG_PRINT("info",("UNSUBSCRIBE[%d] %d", node_id, req_id));
       if (opt_ndb_extra_logging)
@@ -3716,8 +3716,8 @@ public:
                               tmp_share->subscriber_bitmap[node_id].bitmap[1],
                               tmp_share->subscriber_bitmap[node_id].bitmap[0]);
       }
-      pthread_mutex_unlock(&tmp_share->mutex);
-      (void) pthread_cond_signal(&injector_cond);
+      native_mutex_unlock(&tmp_share->mutex);
+      (void) native_cond_signal(&injector_cond);
       break;
     }
 
@@ -4028,9 +4028,9 @@ int ndbcluster_binlog_start()
 
   ndb_binlog_thread.init();
 
-  pthread_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&injector_cond, NULL);
-  pthread_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
+  native_mutex_init(&injector_mutex, MY_MUTEX_INIT_FAST);
+  native_cond_init(&injector_cond);
+  native_mutex_init(&ndb_schema_share_mutex, MY_MUTEX_INIT_FAST);
 
   // The binlog thread globals has been initied and should be freed
   ndbcluster_binlog_inited= 1;
@@ -5219,10 +5219,10 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     DBUG_RETURN(-1);
   }
 
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   if (get_binlog_nologging(share) || share->op != 0 || share->new_op != 0)
   {
-    pthread_mutex_unlock(&share->mutex);
+    native_mutex_unlock(&share->mutex);
     free_share(&share);
     DBUG_RETURN(0); // replication already setup, or should not
   }
@@ -5230,7 +5230,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
   if (!share->need_events(ndb_binlog_running))
   {
     set_binlog_nologging(share);
-    pthread_mutex_unlock(&share->mutex);
+    native_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
 
@@ -5277,7 +5277,7 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
     {
       if (opt_ndb_extra_logging)
         sql_print_information("NDB Binlog: NOT logging %s", share->key);
-      pthread_mutex_unlock(&share->mutex);
+      native_mutex_unlock(&share->mutex);
       DBUG_RETURN(0);
     }
 
@@ -5322,11 +5322,11 @@ int ndbcluster_create_binlog_setup(THD *thd, Ndb *ndb, const char *key,
       /* a warning has been issued to the client */
       break;
     }
-    pthread_mutex_unlock(&share->mutex);
+    native_mutex_unlock(&share->mutex);
     DBUG_RETURN(0);
   }
 
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
   free_share(&share);
   DBUG_RETURN(-1);
 }
@@ -5747,7 +5747,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_apply_status_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key, share->use_count));
-    (void) pthread_cond_signal(&injector_cond);
+    (void) native_cond_signal(&injector_cond);
   }
   else if (do_ndb_schema_share)
   {
@@ -5755,7 +5755,7 @@ ndbcluster_create_event_ops(THD *thd, NDB_SHARE *share,
     ndb_schema_share= get_share(share);
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra  use_count: %u",
                              share->key, share->use_count));
-    (void) pthread_cond_signal(&injector_cond);
+    (void) native_cond_signal(&injector_cond);
   }
 
   DBUG_PRINT("info",("%s share->op: 0x%lx  share->use_count: %u",
@@ -5856,15 +5856,15 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
 #define SYNC_DROP_
 #ifdef SYNC_DROP_
   thd->proc_info= "Syncing ndb table schema operation and binlog";
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   int max_timeout= DEFAULT_SYNC_TIMEOUT;
   while (share->op)
   {
     struct timespec abstime;
     set_timespec(abstime, 1);
-    int ret= pthread_cond_timedwait(&injector_cond,
-                                    &share->mutex,
-                                    &abstime);
+    int ret= native_cond_timedwait(&injector_cond,
+                                   &share->mutex,
+                                   &abstime);
     if (thd->killed ||
         share->op == 0)
       break;
@@ -5883,11 +5883,11 @@ ndbcluster_handle_drop_table(THD *thd, Ndb *ndb, NDB_SHARE *share,
                            type_str, share->key, 0);
     }
   }
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
 #else
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   share->op= 0;
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
 #endif
   thd->proc_info= save_proc_info;
 
@@ -6568,10 +6568,10 @@ remove_event_operations(Ndb* ndb)
     delete event_data;
     op->setCustomData(NULL);
 
-    pthread_mutex_lock(&share->mutex);
+    native_mutex_lock(&share->mutex);
     share->op= 0;
     share->new_op= 0;
-    pthread_mutex_unlock(&share->mutex);
+    native_mutex_unlock(&share->mutex);
 
     DBUG_PRINT("NDB_SHARE", ("%s binlog free  use_count: %u",
                              share->key, share->use_count));
@@ -6732,7 +6732,7 @@ Ndb_binlog_thread::do_run()
 
   DBUG_ENTER("ndb_binlog_thread");
 
-  pthread_mutex_lock(&injector_mutex);
+  native_mutex_lock(&injector_mutex);
 
   log_info("Starting...");
 
@@ -6748,8 +6748,8 @@ Ndb_binlog_thread::do_run()
   if (thd->store_globals())
   {
     delete thd;
-    pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    native_mutex_unlock(&injector_mutex);
+    native_cond_signal(&injector_cond);
     DBUG_VOID_RETURN;
   }
   lex_start(thd);
@@ -6782,8 +6782,8 @@ restart_cluster_failure:
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     log_error("Creating Thd_ndb object failed");
-    pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    native_mutex_unlock(&injector_mutex);
+    native_cond_signal(&injector_cond);
     goto err;
   }
 
@@ -6791,8 +6791,8 @@ restart_cluster_failure:
       s_ndb->init())
   {
     log_error("Creating schema Ndb object failed");
-    pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    native_mutex_unlock(&injector_mutex);
+    native_cond_signal(&injector_cond);
     goto err;
   }
 
@@ -6801,8 +6801,8 @@ restart_cluster_failure:
       i_ndb->init())
   {
     log_error("Creating injector Ndb object failed");
-    pthread_mutex_unlock(&injector_mutex);
-    pthread_cond_signal(&injector_cond);
+    native_mutex_unlock(&injector_mutex);
+    native_cond_signal(&injector_cond);
     goto err;
   }
 
@@ -6813,7 +6813,7 @@ restart_cluster_failure:
 
     Used by both sql client thread and binlog thread to interact
     with the storage
-    pthread_mutex_lock(&injector_mutex);
+    native_mutex_lock(&injector_mutex);
   */
   injector_thd= thd;
   injector_ndb= i_ndb;
@@ -6827,8 +6827,8 @@ restart_cluster_failure:
   log_verbose(1, "Setup completed");
 
   /* Thread start up completed  */
-  pthread_mutex_unlock(&injector_mutex);
-  pthread_cond_signal(&injector_cond);
+  native_mutex_unlock(&injector_mutex);
+  native_cond_signal(&injector_cond);
 
   log_verbose(1, "Wait for server start completed");
   /*
@@ -6896,7 +6896,7 @@ restart_cluster_failure:
     log_verbose(1, "Wait for cluster to start");
     thd->proc_info= "Waiting for ndbcluster to start";
 
-    pthread_mutex_lock(&injector_mutex);
+    native_mutex_lock(&injector_mutex);
     while (!ndb_schema_share ||
            (ndb_binlog_running && !ndb_apply_status_share) ||
            !ndb_binlog_tables_inited)
@@ -6916,10 +6916,10 @@ restart_cluster_failure:
       /* ndb not connected yet */
       struct timespec abstime;
       set_timespec(abstime, 1);
-      pthread_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
+      native_cond_timedwait(&injector_cond, &injector_mutex, &abstime);
       if (is_stop_requested())
       {
-        pthread_mutex_unlock(&injector_mutex);
+        native_mutex_unlock(&injector_mutex);
         goto err;
       }
       if (thd->killed == THD::KILL_CONNECTION)
@@ -6932,11 +6932,11 @@ restart_cluster_failure:
         */
         sql_print_information("NDB Binlog: Server shutdown detected while "
                               "waiting for ndbcluster to start...");
-        pthread_mutex_unlock(&injector_mutex);
+        native_mutex_unlock(&injector_mutex);
         goto err;
       }
     }
-    pthread_mutex_unlock(&injector_mutex);
+    native_mutex_unlock(&injector_mutex);
 
     DBUG_ASSERT(ndbcluster_hton->slot != ~(uint)0);
     thd_set_thd_ndb(thd, thd_ndb);
@@ -7552,12 +7552,12 @@ restart_cluster_failure:
     thd->proc_info= "Restarting";
   }
   if (!have_injector_mutex_lock)
-    pthread_mutex_lock(&injector_mutex);
+    native_mutex_lock(&injector_mutex);
   /* don't mess with the injector_ndb anymore from other threads */
   injector_thd= 0;
   injector_ndb= 0;
   schema_ndb= 0;
-  pthread_mutex_unlock(&injector_mutex);
+  native_mutex_unlock(&injector_mutex);
   thd->db= 0; // as not to try to free memory
 
   /*
@@ -7579,14 +7579,14 @@ restart_cluster_failure:
   if (ndb_schema_share)
   {
     /* begin protect ndb_schema_share */
-    pthread_mutex_lock(&ndb_schema_share_mutex);
+    native_mutex_lock(&ndb_schema_share_mutex);
     /* ndb_share reference binlog extra free */
     DBUG_PRINT("NDB_SHARE", ("%s binlog extra free  use_count: %u",
                              ndb_schema_share->key,
                              ndb_schema_share->use_count));
     free_share(&ndb_schema_share);
     ndb_schema_share= 0;
-    pthread_mutex_unlock(&ndb_schema_share_mutex);
+    native_mutex_unlock(&ndb_schema_share_mutex);
     /* end protect ndb_schema_share */
   }
 
@@ -7618,7 +7618,7 @@ restart_cluster_failure:
     if (opt_ndb_extra_logging > 9)
       sql_print_information("NDB Binlog: Release extra share references");
 
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
     for (uint i= 0; i < ndbcluster_open_tables.records;)
     {
       NDB_SHARE * share = (NDB_SHARE*)my_hash_element(&ndbcluster_open_tables,
@@ -7645,7 +7645,7 @@ restart_cluster_failure:
         i++;
       }
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
   }
   log_info("Stopping...");
 
@@ -7666,7 +7666,7 @@ restart_cluster_failure:
 
   if (binlog_thread_state == BCCC_restart)
   {
-    pthread_mutex_lock(&injector_mutex);
+    native_mutex_lock(&injector_mutex);
     goto restart_cluster_failure;
   }
 
@@ -7677,7 +7677,7 @@ restart_cluster_failure:
   delete thd;
 
   ndb_binlog_running= FALSE;
-  (void) pthread_cond_signal(&injector_cond);
+  (void) native_cond_signal(&injector_cond);
 
   log_info("Stopped");
 
@@ -7705,11 +7705,11 @@ ndbcluster_show_status_binlog(char *buf, size_t buf_size)
 {
   DBUG_ENTER("ndbcluster_show_status_binlog");
   
-  pthread_mutex_lock(&injector_mutex);
+  native_mutex_lock(&injector_mutex);
   if (injector_ndb)
   {
     const ulonglong latest_epoch= injector_ndb->getLatestGCI();
-    pthread_mutex_unlock(&injector_mutex);
+    native_mutex_unlock(&injector_mutex);
 
     // Get highest trans gci seen by the cluster connections
     const ulonglong latest_trans_epoch = ndb_get_latest_trans_gci();
@@ -7729,7 +7729,7 @@ ndbcluster_show_status_binlog(char *buf, size_t buf_size)
       DBUG_RETURN(buf_len);
   }
   else
-    pthread_mutex_unlock(&injector_mutex);
+    native_mutex_unlock(&injector_mutex);
   DBUG_RETURN(0);
 }
 

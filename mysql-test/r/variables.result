@@ -198,20 +198,6 @@ set global concurrent_insert=DEFAULT;
 select @@concurrent_insert;
 @@concurrent_insert
 AUTO
-set global timed_mutexes=ON;
-show variables like 'timed_mutexes';
-Variable_name	Value
-timed_mutexes	ON
-select * from information_schema.session_variables where variable_name like 'timed_mutexes';
-VARIABLE_NAME	VARIABLE_VALUE
-TIMED_MUTEXES	ON
-set global timed_mutexes=0;
-show variables like 'timed_mutexes';
-Variable_name	Value
-timed_mutexes	OFF
-select * from information_schema.session_variables where variable_name like 'timed_mutexes';
-VARIABLE_NAME	VARIABLE_VALUE
-TIMED_MUTEXES	OFF
 set default_storage_engine=MYISAM, default_storage_engine="HEAP", global default_storage_engine="MERGE";
 show local variables like 'default_storage_engine';
 Variable_name	Value
@@ -701,15 +687,15 @@ select @a, @b;
 @a	@b
 2	1
 set @@global.global.key_buffer_size= 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_buffer_size= 1' at line 1
 set GLOBAL global.key_buffer_size= 1;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size= 1' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_buffer_size= 1' at line 1
 SELECT @@global.global.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'global.key_buffer_size' at line 1
 SELECT @@global.session.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'session.key_buffer_size' at line 1
 SELECT @@global.local.key_buffer_size;
-ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'key_buffer_size' at line 1
+ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near 'local.key_buffer_size' at line 1
 set @tstlw = @@log_warnings;
 Warnings:
 Warning	1287	'@@log_warnings' is deprecated and will be removed in a future release. Please use log_error_verbosity instead

@@ -258,24 +258,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #define QUOTE_ARG(x)		#x	/* Quote argument (before cpp) */
 #define STRINGIFY_ARG(x) QUOTE_ARG(x)	/* Quote argument, after cpp */
 
-/* Does the system remember a signal handler after a signal ? */
-#if !defined(HAVE_SIGACTION)
-#define SIGNAL_HANDLER_RESET_ON_DELIVERY
-#endif
-
-/*
-  Deprecated workaround for false-positive uninitialized variables
-  warnings. Those should be silenced using tool-specific heuristics.
-
-  Enabled by default for g++ due to the bug referenced below.
-*/
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
-    (defined(__GNUC__) && defined(__cplusplus))
-#define LINT_INIT(var) var= 0
-#else
-#define LINT_INIT(var)
-#endif
-
 #ifndef SO_EXT
 #ifdef _WIN32
 #define SO_EXT ".dll"
@@ -284,20 +266,6 @@ extern "C" int madvise(void *addr, size_t len, int behav);
 #else
 #define SO_EXT ".so"
 #endif
-#endif
-
-/*
-   Suppress uninitialized variable warning without generating code.
-
-   The _cplusplus is a temporary workaround for C++ code pending a fix
-   for a g++ bug (http://gcc.gnu.org/bugzilla/show_bug.cgi?id=34772).
-*/
-#if defined(_lint) || defined(FORCE_INIT_OF_VARS) || \
-    defined(__cplusplus) || !defined(__GNUC__)
-#define UNINIT_VAR(x) x= 0
-#else
-/* GCC specific self-initialization which inhibits the warning. */
-#define UNINIT_VAR(x) x= x
 #endif
 
 #if !defined(HAVE_UINT)
@@ -325,14 +293,6 @@ typedef unsigned short ushort;
 /* The DBUG_ON flag always takes precedence over default DBUG_OFF */
 #if defined(DBUG_ON) && defined(DBUG_OFF)
 #undef DBUG_OFF
-#endif
-
-/* We might be forced to turn debug off, if not turned off already */
-#if (defined(FORCE_DBUG_OFF) || defined(_lint)) && !defined(DBUG_OFF)
-#  define DBUG_OFF
-#  ifdef DBUG_ON
-#    undef DBUG_ON
-#  endif
 #endif
 
 /* Some types that is different between systems */
@@ -598,6 +558,8 @@ inline unsigned long long my_double2ulonglong(double d)
 #else
   #ifdef HAVE_LLVM_LIBCPP /* finite is deprecated in libc++ */
     #define my_isfinite(X) isfinite(X)
+  #elif defined _WIN32
+    #define my_isfinite(X) _finite(X)
   #else
     #define my_isfinite(X) finite(X)
   #endif
@@ -787,7 +749,6 @@ typedef char		my_bool; /* Small bool */
 /* Some helper macros */
 #define YESNO(X) ((X) ? "yes" : "no")
 
-#define MY_HOW_OFTEN_TO_ALARM	2	/* How often we want info on screen */
 #define MY_HOW_OFTEN_TO_WRITE	1000	/* How often we want info on screen */
 
 #include <my_byteorder.h>
@@ -947,5 +908,105 @@ enum loglevel {
    WARNING_LEVEL=     1,
    INFORMATION_LEVEL= 2
 };
+
+
+#ifdef _WIN32
+/****************************************************************************
+** Replacements for localtime_r and gmtime_r
+****************************************************************************/
+
+static inline struct tm *localtime_r(const time_t *timep,struct tm *tmp)
+{
+  localtime_s(tmp, timep);
+  return tmp;
+}
+
+static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
+{
+  gmtime_s(res, clock);
+  return res;
+}
+
+
+/*
+   Declare a union to make sure FILETIME is properly aligned
+   so it can be used directly as a 64 bit value. The value
+   stored is in 100ns units.
+ */
+ union ft64 {
+  FILETIME ft;
+  __int64 i64;
+ };
+struct timespec {
+  union ft64 tv;
+  /* The max timeout value in millisecond for native_cond_timedwait */
+  long max_timeout_msec;
+};
+#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {          \
+  (ABSTIME).tv.i64= (TIME)+(__int64)(NSEC)/100;                 \
+  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000);           \
+} while(0)
+
+#define set_timespec_nsec(ABSTIME,NSEC) do {                    \
+  union ft64 tv;                                                \
+  GetSystemTimeAsFileTime(&tv.ft);                              \
+  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC));            \
+} while(0)
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
+   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
+
+#define diff_timespec(TS1, TS2) \
+  ((TS1.tv.i64 - TS2.tv.i64) * 100)
+
+#else /* _WIN32 */
+
+#define set_timespec_nsec(ABSTIME,NSEC)                                 \
+  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
+
+#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
+  ulonglong nsec= (NSEC);                                               \
+  ulonglong now= (TIME) + (nsec/100);                                   \
+  (ABSTIME).tv_sec=  (now / 10000000ULL);                          \
+  (ABSTIME).tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
+} while(0)
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv_sec > TS2.tv_sec || \
+    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
+   ((TS1.tv_sec < TS2.tv_sec || \
+     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
+
+#define diff_timespec(TS1, TS2) \
+  ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
+
+#endif /* _WIN32 */
+
+/*
+  The defines set_timespec and set_timespec_nsec should be used
+  for calculating an absolute time at which
+  pthread_cond_timedwait should timeout
+*/
+#define set_timespec(ABSTIME,SEC) \
+  set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
 
 #endif  // MY_GLOBAL_INCLUDED

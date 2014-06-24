@@ -59,8 +59,12 @@
 #include "sql_tmp_table.h" // Tmp tables
 #include "sql_optimizer.h" // JOIN
 #include "mysqld_thd_manager.h"  // Global_THD_manager
+#include "mutex_lock.h"
+#include "prealloced_array.h"
+#include "template_utils.h"
 
 #include <algorithm>
+#include <functional>
 using std::max;
 using std::min;
 
@@ -141,7 +145,7 @@ static Item * make_cond_for_info_schema(Item *cond, TABLE_LIST *table);
 ** List all table types supported
 ***************************************************************************/
 
-static int make_version_string(char *buf, int buf_length, uint version)
+static size_t make_version_string(char *buf, size_t buf_length, uint version)
 {
   return my_snprintf(buf, buf_length, "%d.%d", version>>8,version&0xff);
 }
@@ -345,7 +349,8 @@ static HASH ignore_db_dirs_hash;
   An array of LEX_STRING pointers to collect the options at 
   option parsing time.
 */
-static DYNAMIC_ARRAY ignore_db_dirs_array;
+typedef Prealloced_array<LEX_STRING *, 16> Ignore_db_dirs_array;
+static Ignore_db_dirs_array *ignore_db_dirs_array;
 
 /**
   A value for the read only system variable to show a list of
@@ -359,17 +364,11 @@ char *opt_ignore_db_dirs= NULL;
   processing time.
   We need to collect the directories in an array first, because
   we need the character sets initialized before setting up the hash.
-
-  @return state
-  @retval TRUE  failed
-  @retval FALSE success
 */
 
-bool
-ignore_db_dirs_init()
+void ignore_db_dirs_init()
 {
-  return my_init_dynamic_array(&ignore_db_dirs_array, sizeof(LEX_STRING *),
-                               0, 0);
+  ignore_db_dirs_array= new Ignore_db_dirs_array(key_memory_ignored_db);
 }
 
 
@@ -427,7 +426,7 @@ push_ignored_db_dir(char *path)
   memcpy(new_elt_buffer, path, path_len);
   new_elt_buffer[path_len]= 0;
   new_elt->length= path_len;
-  return insert_dynamic(&ignore_db_dirs_array, &new_elt);
+  return ignore_db_dirs_array->push_back(new_elt);
 }
 
 
@@ -441,10 +440,7 @@ push_ignored_db_dir(char *path)
 void
 ignore_db_dirs_reset()
 {
-  LEX_STRING **elt;
-  while (NULL!= (elt= (LEX_STRING **) pop_dynamic(&ignore_db_dirs_array)))
-    if (elt && *elt)
-      my_free(*elt);
+  my_free_container_pointers(*ignore_db_dirs_array);
 }
 
 
@@ -463,7 +459,7 @@ ignore_db_dirs_free()
     opt_ignore_db_dirs= NULL;
   }
   ignore_db_dirs_reset();
-  delete_dynamic(&ignore_db_dirs_array);
+  delete ignore_db_dirs_array;
   my_hash_free(&ignore_db_dirs_hash);
 }
 
@@ -483,10 +479,8 @@ ignore_db_dirs_free()
 bool
 ignore_db_dirs_process_additions()
 {
-  ulong i;
   size_t len;
   char *ptr;
-  LEX_STRING *dir;
 
   DBUG_ASSERT(opt_ignore_db_dirs == NULL);
 
@@ -500,10 +494,11 @@ ignore_db_dirs_process_additions()
 
   /* len starts from 1 because of the terminating zero. */
   len= 1;
-  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  LEX_STRING **iter;
+  for (iter= ignore_db_dirs_array->begin();
+       iter != ignore_db_dirs_array->end(); ++iter)
   {
-    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
-    len+= dir->length + 1;                      // +1 for the comma
+    len+= (*iter)->length + 1;                      // +1 for the comma
   }
 
   /* No delimiter for the last directory. */
@@ -519,9 +514,10 @@ ignore_db_dirs_process_additions()
   /* Make sure we have an empty string to start with. */
   *ptr= 0;
 
-  for (i= 0; i < ignore_db_dirs_array.elements; i++)
+  for (iter= ignore_db_dirs_array->begin();
+       iter != ignore_db_dirs_array->end(); ++iter)
   {
-    get_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    LEX_STRING *dir= *iter;
     if (my_hash_insert(&ignore_db_dirs_hash, (uchar *)dir))
     {
       /* ignore duplicates from the config file */
@@ -535,8 +531,7 @@ ignore_db_dirs_process_additions()
           the end of the function, not destructed.
         */
         my_free(dir);
-        dir= NULL;
-        set_dynamic(&ignore_db_dirs_array, (uchar *)&dir, i);
+        (*iter)= NULL;
         continue;
       }
       return true;
@@ -549,8 +544,7 @@ ignore_db_dirs_process_additions()
       Set the transferred array element to NULL to avoid double free
       in case of error.
     */
-    dir= NULL;
-    set_dynamic(&ignore_db_dirs_array, (uchar *) &dir, i);
+    (*iter)= NULL;
   }
 
   /* get back to the last comma, if there is one */
@@ -567,7 +561,7 @@ ignore_db_dirs_process_additions()
     It's OK to empty the array here as the allocated elements are
     referenced through the hash now.
   */
-  reset_dynamic(&ignore_db_dirs_array);
+  ignore_db_dirs_array->clear();
 
   return false;
 }
@@ -619,7 +613,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
+  size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
@@ -653,7 +647,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
     char uname[NAME_LEN + 1];                   /* Unencoded name */
     FILEINFO *file;
     LEX_STRING *file_name= 0;
-    uint file_name_len;
+    size_t file_name_len;
     char *ext;
 
     file=dirp->dir_entry+i;
@@ -793,7 +787,7 @@ public:
   }
 
   bool handle_condition(THD *thd, uint sql_errno, const char * /* sqlstate */,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char *message, Sql_condition ** /* cond_hdl */)
   {
     /*
@@ -1149,7 +1143,7 @@ static const char *require_quotes(const char *name, uint name_length)
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length)
+append_identifier(THD *thd, String *packet, const char *name, size_t length)
 {
   const char *name_end;
   char quote_char;
@@ -1203,7 +1197,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length)
 */
 
 void
-append_identifier(THD *thd, String *packet, const char *name, uint length,
+append_identifier(THD *thd, String *packet, const char *name, size_t length,
                   const CHARSET_INFO *from_cs, const CHARSET_INFO *to_cs)
 {
         String to_name(name,length, from_cs);
@@ -1235,7 +1229,7 @@ append_identifier(THD *thd, String *packet, const char *name, uint length,
     #	  Quote character
 */
 
-int get_quote_char_for_identifier(THD *thd, const char *name, uint length)
+int get_quote_char_for_identifier(THD *thd, const char *name, size_t length)
 {
   if (length &&
       !is_keyword(name,length) &&
@@ -1255,7 +1249,7 @@ static void append_directory(THD *thd, String *packet, const char *dir_type,
 {
   if (filename && !(thd->variables.sql_mode & MODE_NO_DIR_IN_CREATE))
   {
-    uint length= dirname_length(filename);
+    size_t length= dirname_length(filename);
     packet->append(' ');
     packet->append(dir_type);
     packet->append(STRING_WITH_LEN(" DIRECTORY='"));
@@ -1900,7 +1894,7 @@ void
 view_store_options(THD *thd, TABLE_LIST *table, String *buff)
 {
   append_algorithm(table, buff);
-  append_definer(thd, buff, &table->definer.user, &table->definer.host);
+  append_definer(thd, buff, table->definer.user, table->definer.host);
   if (table->view_suid)
     buff->append(STRING_WITH_LEN("SQL SECURITY DEFINER "));
   else
@@ -1948,13 +1942,13 @@ static void append_algorithm(TABLE_LIST *table, String *buff)
     definer_host  [in] host name part of definer
 */
 
-void append_definer(THD *thd, String *buffer, const LEX_STRING *definer_user,
-                    const LEX_STRING *definer_host)
+void append_definer(THD *thd, String *buffer, const LEX_CSTRING &definer_user,
+                    const LEX_CSTRING &definer_host)
 {
   buffer->append(STRING_WITH_LEN("DEFINER="));
-  append_identifier(thd, buffer, definer_user->str, definer_user->length);
+  append_identifier(thd, buffer, definer_user.str, definer_user.length);
   buffer->append('@');
-  append_identifier(thd, buffer, definer_host->str, definer_host->length);
+  append_identifier(thd, buffer, definer_host.str, definer_host.length);
   buffer->append(' ');
 }
 
@@ -2147,6 +2141,12 @@ public:
                              inspect_sctx->get_host()->length() ?
                              inspect_sctx->get_host()->ptr() : "");
 
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db;
@@ -2167,7 +2167,10 @@ public:
     if (inspect_thd->mysys_var)
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
     /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     if (inspect_thd->query().str)
     {
       const size_t width= min(m_max_query_length,
@@ -2177,7 +2180,7 @@ public:
       thd_info->query_string=
         CSET_STRING(q, q ? width : 0, inspect_thd->charset());
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
     thd_info->start_time= inspect_thd->start_time.tv_sec;
@@ -2312,6 +2315,12 @@ public:
                              strlen(inspect_sctx->host_or_ip),
                              system_charset_info);
 
+    DBUG_EXECUTE_IF("processlist_acquiring_dump_threads_LOCK_thd_data",
+                    {
+                    if (inspect_thd->get_command() == COM_BINLOG_DUMP ||
+                        inspect_thd->get_command() == COM_BINLOG_DUMP_GTID)
+                    DEBUG_SYNC(m_client_thd, "processlist_after_LOCK_thd_count_before_LOCK_thd_data");
+                    });
     /* DB */
     mysql_mutex_lock(&inspect_thd->LOCK_thd_data);
     const char *db= inspect_thd->db;
@@ -2346,7 +2355,10 @@ public:
     if (inspect_thd->mysys_var)
       mysql_mutex_unlock(&inspect_thd->mysys_var->mutex);
 
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+
     /* INFO */
+    mysql_mutex_lock(&inspect_thd->LOCK_thd_query);
     if (inspect_thd->query().str)
     {
       const size_t width= min<size_t>(PROCESS_LIST_INFO_WIDTH,
@@ -2355,7 +2367,7 @@ public:
                              inspect_thd->charset());
       table->field[7]->set_notnull();
     }
-    mysql_mutex_unlock(&inspect_thd->LOCK_thd_data);
+    mysql_mutex_unlock(&inspect_thd->LOCK_thd_query);
 
     /* MYSQL_TIME */
     if (inspect_thd->start_time.tv_sec)
@@ -2384,35 +2396,46 @@ int fill_schema_processlist(THD* thd, TABLE_LIST* tables, Item* cond)
   Status functions
 *****************************************************************************/
 
-static DYNAMIC_ARRAY all_status_vars;
+// TODO: allocator based on my_malloc.
+typedef std::vector<st_mysql_show_var> Status_var_array;
+static Status_var_array all_status_vars(0);
+
 static bool status_vars_inited= 0;
 
-C_MODE_START
-static int show_var_cmp(const void *var1, const void *var2)
+static inline int show_var_cmp(const SHOW_VAR *var1, const SHOW_VAR *var2)
 {
-  return strcmp(((SHOW_VAR*)var1)->name, ((SHOW_VAR*)var2)->name);
+  return strcmp(var1->name, var2->name);
 }
-C_MODE_END
+
+class Show_var_cmp :
+  public std::binary_function<const st_mysql_show_var &,
+                              const st_mysql_show_var &, bool>
+{
+public:
+  bool operator()(const st_mysql_show_var &var1,
+                  const st_mysql_show_var &var2)
+  {
+    return show_var_cmp(&var1, &var2) < 0;
+  }
+};
+
+
+static inline bool is_show_undef(const st_mysql_show_var &var)
+{
+  return var.type == SHOW_UNDEF;
+}
 
 /*
-  deletes all the SHOW_UNDEF elements from the array and calls
-  delete_dynamic() if it's completely empty.
+  Deletes all the SHOW_UNDEF elements from the array.
+  Shrinks array capacity to zero if it is completely empty.
 */
-static void shrink_var_array(DYNAMIC_ARRAY *array)
+static void shrink_var_array(Status_var_array *array)
 {
-  uint a,b;
-  SHOW_VAR *all= dynamic_element(array, 0, SHOW_VAR *);
-
-  for (a= b= 0; b < array->elements; b++)
-    if (all[b].type != SHOW_UNDEF)
-      all[a++]= all[b];
-  if (a)
-  {
-    memset(all+a, 0, sizeof(SHOW_VAR)); // writing NULL-element to the end
-    array->elements= a;
-  }
-  else // array is completely empty - delete it
-    delete_dynamic(array);
+  // remove_if maintains order for the elements that are *not* removed.
+  array->erase(std::remove_if(array->begin(), array->end(), is_show_undef),
+               array->end());
+  if (array->empty())
+    Status_var_array().swap(*array);
 }
 
 /*
@@ -2430,31 +2453,29 @@ static void shrink_var_array(DYNAMIC_ARRAY *array)
 
     As a special optimization, if add_status_vars() is called before
     init_status_vars(), it assumes "startup mode" - neither concurrent access
-    to the array nor SHOW STATUS are possible (thus it skips locks and qsort)
+    to the array nor SHOW STATUS are possible (thus it skips locks and sort)
 
     The last entry of the all_status_vars[] should always be {0,0,SHOW_UNDEF}
 */
 int add_status_vars(SHOW_VAR *list)
 {
-  int res= 0;
-  if (status_vars_inited)
-    mysql_mutex_lock(&LOCK_status);
-  if (!all_status_vars.buffer && // array is not allocated yet - do it now
-      my_init_dynamic_array(&all_status_vars, sizeof(SHOW_VAR), 200, 20))
-  {
-    res= 1;
-    goto err;
+  Mutex_lock lock(status_vars_inited ? &LOCK_status : NULL);
+
+  try {
+    while (list->name)
+      all_status_vars.push_back(*list++);
   }
-  while (list->name)
-    res|= insert_dynamic(&all_status_vars, list++);
-  res|= insert_dynamic(&all_status_vars, list); // appending NULL-element
-  all_status_vars.elements--; // but next insert_dynamic should overwite it
+  catch (std::bad_alloc)
+  {
+    my_error(ER_OUTOFMEMORY, MYF(ME_FATALERROR),
+             static_cast<int>(sizeof(Status_var_array::value_type)));
+    return 1;
+  }
+
   if (status_vars_inited)
-    sort_dynamic(&all_status_vars, show_var_cmp);
-err:
-  if (status_vars_inited)
-    mysql_mutex_unlock(&LOCK_status);
-  return res;
+    std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
+
+  return 0;
 }
 
 /*
@@ -2468,19 +2489,19 @@ err:
 void init_status_vars()
 {
   status_vars_inited=1;
-  sort_dynamic(&all_status_vars, show_var_cmp);
+  std::sort(all_status_vars.begin(), all_status_vars.end(), Show_var_cmp());
 }
 
 void reset_status_vars()
 {
-  SHOW_VAR *ptr= (SHOW_VAR*) all_status_vars.buffer;
-  SHOW_VAR *last= ptr + all_status_vars.elements;
+  Status_var_array::iterator ptr= all_status_vars.begin();
+  Status_var_array::iterator last= all_status_vars.end();
   for (; ptr < last; ptr++)
   {
     /* Note that SHOW_LONG_NOFLUSH variables are not reset */
     if (ptr->type == SHOW_LONG || ptr->type == SHOW_SIGNED_LONG)
       *(ulong*) ptr->value= 0;
-  }  
+  }
 }
 
 /*
@@ -2494,7 +2515,47 @@ void reset_status_vars()
 */
 void free_status_vars()
 {
-  delete_dynamic(&all_status_vars);
+  Status_var_array().swap(all_status_vars);
+}
+
+/**
+  @brief           Get the value of given status variable
+
+  @param[in]       thd        thread handler
+  @param[in]       list       list of SHOW_VAR objects in which function should
+                              search
+  @param[in]       name       name of the status variable
+  @param[in]       var_type   Variable type
+  @param[in/out]   value      buffer in which value of the status variable
+                              needs to be filled in
+  @param[in/out]   length     filled with buffer length
+
+  @return          status
+    @retval        FALSE      if variable is not found in the list
+    @retval        TRUE       if variable is found in the list
+*/
+
+bool get_status_var(THD *thd, SHOW_VAR *list, const char * name,
+                    char * const value, enum_var_type var_type, size_t *length)
+{
+  for (; list->name; list++)
+  {
+    int res= strcmp(list->name, name);
+    if (res == 0)
+    {
+      /*
+        if var->type is SHOW_FUNC, call the function.
+        Repeat as necessary, if new var is again SHOW_FUNC
+       */
+      SHOW_VAR tmp;
+      for (; list->type == SHOW_FUNC; list= &tmp)
+        ((mysql_show_var_func)(list->value))(thd, &tmp, value);
+
+      get_one_variable(thd, list, var_type, list->type, NULL, NULL, value, length);
+      return TRUE;
+    }
+  }
+  return FALSE;
 }
 
 /*
@@ -2516,15 +2577,14 @@ void remove_status_vars(SHOW_VAR *list)
   if (status_vars_inited)
   {
     mysql_mutex_lock(&LOCK_status);
-    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
-    int a= 0, b= all_status_vars.elements, c= (a+b)/2;
+    int a= 0, b= all_status_vars.size(), c= (a+b)/2;
 
     for (; list->name; list++)
     {
       int res= 0;
-      for (a= 0, b= all_status_vars.elements; b-a > 1; c= (a+b)/2)
+      for (a= 0, b= all_status_vars.size(); b-a > 1; c= (a+b)/2)
       {
-        res= show_var_cmp(list, all+c);
+        res= show_var_cmp(list, &all_status_vars[c]);
         if (res < 0)
           b= c;
         else if (res > 0)
@@ -2533,22 +2593,21 @@ void remove_status_vars(SHOW_VAR *list)
           break;
       }
       if (res == 0)
-        all[c].type= SHOW_UNDEF;
+        all_status_vars[c].type= SHOW_UNDEF;
     }
     shrink_var_array(&all_status_vars);
     mysql_mutex_unlock(&LOCK_status);
   }
   else
   {
-    SHOW_VAR *all= dynamic_element(&all_status_vars, 0, SHOW_VAR *);
     uint i;
     for (; list->name; list++)
     {
-      for (i= 0; i < all_status_vars.elements; i++)
+      for (i= 0; i < all_status_vars.size(); i++)
       {
-        if (show_var_cmp(list, all+i))
+        if (show_var_cmp(list, &all_status_vars[i]))
           continue;
-        all[i].type= SHOW_UNDEF;
+        all_status_vars[i].type= SHOW_UNDEF;
         break;
       }
     }
@@ -2731,7 +2790,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
-  int len;
+  size_t len;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
@@ -2832,10 +2891,38 @@ void calc_sum_of_all_status(STATUS_VAR *to)
 extern ST_SCHEMA_TABLE schema_tables[];
 
 #ifdef MCP_WL1735
+/**
+  Condition pushdown used for INFORMATION_SCHEMA / SHOW queries.
+  This structure is to implement an optimization when
+  accessing data dictionary data in the INFORMATION_SCHEMA
+  or SHOW commands.
+  When the query contain a TABLE_SCHEMA or TABLE_NAME clause,
+  narrow the search for data based on the constraints given.
+*/
 typedef struct st_lookup_field_values
 {
-  LEX_STRING db_value, table_value;
-  bool wild_db_value, wild_table_value;
+  /**
+    Value of a TABLE_SCHEMA clause.
+    Note that this value length may exceed @c NAME_LEN.
+    @sa wild_db_value
+  */
+  LEX_STRING db_value;
+  /**
+    Value of a TABLE_NAME clause.
+    Note that this value length may exceed @c NAME_LEN.
+    @sa wild_table_value
+  */
+  LEX_STRING table_value;
+  /**
+    True when @c db_value is a LIKE clause,
+    false when @c db_value is an '=' clause.
+  */
+  bool wild_db_value;
+  /**
+    True when @c table_value is a LIKE clause,
+    false when @c table_value is an '=' clause.
+  */
+  bool wild_table_value;
 } LOOKUP_FIELD_VALUES;
 #endif
 
@@ -3241,14 +3328,22 @@ int make_db_list(THD *thd, List<LEX_STRING> *files,
 
 
   /*
-    If we have db lookup vaule we just add it to list and
+    If we have db lookup value we just add it to list and
     exit from the function.
     We don't do this for database names longer than the maximum
-    path length.
+    name length.
   */
-  if (lookup_field_vals->db_value.str && 
-      lookup_field_vals->db_value.length < FN_REFLEN)
+  if (lookup_field_vals->db_value.str)
   {
+    if (lookup_field_vals->db_value.length > NAME_LEN)
+    {
+      /*
+        Impossible value for a database name,
+        found in a WHERE DATABASE_NAME = 'xxx' clause.
+      */
+      return 0;
+    }
+
     if (is_infoschema_db(lookup_field_vals->db_value.str,
                          lookup_field_vals->db_value.length))
     {
@@ -3385,15 +3480,24 @@ make_table_name_list(THD *thd, List<LEX_STRING> *table_names, LEX *lex,
   if (!lookup_field_vals->wild_table_value &&
       lookup_field_vals->table_value.str)
   {
+    if (lookup_field_vals->table_value.length > NAME_LEN)
+    {
+      /*
+        Impossible value for a table name,
+        found in a WHERE TABLE_NAME = 'xxx' clause.
+      */
+      return 0;
+    }
+
     if (with_i_schema)
     {
-      LEX_STRING *name;
+      LEX_STRING *name= NULL;
       ST_SCHEMA_TABLE *schema_table=
         find_schema_table(thd, lookup_field_vals->table_value.str);
       if (schema_table && !schema_table->hidden)
       {
-        if (!(name= 
-              thd->make_lex_string(NULL, schema_table->table_name,
+        if (!(name=
+              thd->make_lex_string(name, schema_table->table_name,
                                    strlen(schema_table->table_name), TRUE)) ||
             table_names->push_back(name))
           return 1;
@@ -3853,10 +3957,13 @@ static int fill_schema_table_from_frm(THD *thd, TABLE_LIST *tables,
   int not_used;
   my_hash_value_type hash_value;
   const char *key;
-  uint key_length;
+  size_t key_length;
   char db_name_buff[NAME_LEN + 1], table_name_buff[NAME_LEN + 1];
 
   memset(&table_list, 0, sizeof(TABLE_LIST));
+
+  DBUG_ASSERT(db_name->length <= NAME_LEN);
+  DBUG_ASSERT(table_name->length <= NAME_LEN);
 
   if (lower_case_table_names)
   {
@@ -4052,7 +4159,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -4205,6 +4312,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
   it.rewind(); /* To get access to new elements in basis list */
   while ((db_name= it++))
   {
+    DBUG_ASSERT(db_name->length <= NAME_LEN);
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
     if (!(check_access(thd, SELECT_ACL, db_name->str,
                        &thd->col_access, NULL, 0, 1) ||
@@ -4226,6 +4334,7 @@ int get_all_tables(THD *thd, TABLE_LIST *tables, Item *cond)
       List_iterator_fast<LEX_STRING> it_files(table_names);
       while ((table_name= it_files++))
       {
+        DBUG_ASSERT(table_name->length <= NAME_LEN);
 	restore_record(table, s->default_values);
         table->field[schema_table->idx_field1]->
           store(db_name->str, db_name->length, system_charset_info);
@@ -4372,6 +4481,7 @@ int fill_schema_schemata(THD *thd, TABLE_LIST *tables, Item *cond)
   List_iterator_fast<LEX_STRING> it(db_names);
   while ((db_name=it++))
   {
+    DBUG_ASSERT(db_name->length <= NAME_LEN);
     if (with_i_schema)       // information schema name is always first in list
     {
       if (store_schema_shemata(thd, table, db_name,
@@ -5599,7 +5709,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   char definer[USER_HOST_BUFF_SIZE];
-  uint definer_len;
+  size_t definer_len;
   bool updatable_view;
   DBUG_ENTER("get_schema_views_record");
 
@@ -5739,7 +5849,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 
 bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
                        LEX_STRING *table_name, const char *key_name,
-                       uint key_len, const char *con_type, uint con_len)
+                       size_t key_len, const char *con_type, size_t con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -5935,7 +6045,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 
 void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
                             LEX_STRING *table_name, const char *key_name,
-                            uint key_len, const char *con_type, uint con_len,
+                            size_t key_len, const char *con_type, size_t con_len,
                             longlong idx)
 {
   CHARSET_INFO *cs= system_charset_info;
@@ -6680,6 +6790,7 @@ int fill_open_tables(THD *thd, TABLE_LIST *tables, Item *cond)
 int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
 {
   DBUG_ENTER("fill_variables");
+  SHOW_VAR *sys_var_array;
   int res= 0;
   LEX *lex= thd->lex;
   const char *wild= lex->wild ? lex->wild->ptr() : NullS;
@@ -6693,10 +6804,21 @@ int fill_variables(THD *thd, TABLE_LIST *tables, Item *cond)
       schema_table_idx == SCH_GLOBAL_VARIABLES)
     option_type= OPT_GLOBAL;
 
+  /*
+    Lock LOCK_plugin_delete to avoid deletion of any plugins while creating
+    SHOW_VAR array and hold it until all variables are stored in the table.
+  */
+  mysql_mutex_lock(&LOCK_plugin_delete);
+  // Lock LOCK_system_variables_hash to prepare SHOW_VARs array.
   mysql_rwlock_rdlock(&LOCK_system_variables_hash);
-  res= show_status_array(thd, wild, enumerate_sys_vars(thd, sorted_vars, option_type),
-                         option_type, NULL, "", tables->table, upper_case_names, cond);
+  DEBUG_SYNC(thd, "acquired_LOCK_system_variables_hash");
+  sys_var_array= enumerate_sys_vars(thd, sorted_vars, option_type);
   mysql_rwlock_unlock(&LOCK_system_variables_hash);
+
+  res= show_status_array(thd, wild, sys_var_array, option_type, NULL, "",
+                         tables->table, upper_case_names, cond);
+
+  mysql_mutex_unlock(&LOCK_plugin_delete);
   DBUG_RETURN(res);
 }
 
@@ -6740,10 +6862,14 @@ int fill_status(THD *thd, TABLE_LIST *tables, Item *cond)
     mysql_mutex_lock(&LOCK_status);
   if (option_type == OPT_GLOBAL)
     calc_sum_of_all_status(&tmp);
+  // Push an empty tail element
+  all_status_vars.push_back(st_mysql_show_var());
   res= show_status_array(thd, wild,
-                         (SHOW_VAR *)all_status_vars.buffer,
+                         &all_status_vars[0],
                          option_type, tmp1, "", tables->table,
                          upper_case_names, cond);
+  all_status_vars.pop_back(); // Pop the empty element.
+
   if (thd->fill_status_recursion_level-- == 1) 
     mysql_mutex_unlock(&LOCK_status);
   DBUG_RETURN(res);

@@ -57,6 +57,8 @@ a	b
 3	24
 SELECT * FROM t1 WHERE a=3 FOR UPDATE;
 SET DEBUG_SYNC='now SIGNAL select5';
+Warnings:
+Warning	1062	Duplicate entry '3' for key 'PRIMARY'
 a	b
 3	24
 SET DEBUG_SYNC='write_row_replace SIGNAL insert6 WAIT_FOR select6';

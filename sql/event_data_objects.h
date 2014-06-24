@@ -135,8 +135,8 @@ class Event_timed : public Event_queue_element
 public:
   LEX_STRING body;
 
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
+  LEX_CSTRING definer_user;
+  LEX_CSTRING definer_host;
 
   LEX_STRING comment;
 
@@ -166,8 +166,8 @@ class Event_job_data : public Event_basic
 {
 public:
   LEX_STRING body;
-  LEX_STRING definer_user;
-  LEX_STRING definer_host;
+  LEX_CSTRING definer_user;
+  LEX_CSTRING definer_host;
 
   sql_mode_t sql_mode;
 

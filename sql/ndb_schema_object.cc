@@ -20,7 +20,7 @@
 #include "hash.h"
 
 
-extern pthread_mutex_t ndbcluster_mutex;
+extern native_mutex_t ndbcluster_mutex;
 
 
 static uchar *
@@ -58,7 +58,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
   DBUG_ENTER("ndb_get_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", key));
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   while (!(ndb_schema_object=
            (NDB_SCHEMA_OBJECT*) my_hash_search(&ndb_schema_objects.m_hash,
                                                (const uchar*) key,
@@ -85,7 +85,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
       my_free(ndb_schema_object);
       break;
     }
-    pthread_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
+    native_mutex_init(&ndb_schema_object->mutex, MY_MUTEX_INIT_FAST);
     bitmap_init(&ndb_schema_object->slock_bitmap, ndb_schema_object->slock,
                 sizeof(ndb_schema_object->slock)*8, FALSE);
     bitmap_clear_all(&ndb_schema_object->slock_bitmap);
@@ -96,7 +96,7 @@ NDB_SCHEMA_OBJECT *ndb_get_schema_object(const char *key,
     ndb_schema_object->use_count++;
     DBUG_PRINT("info", ("use_count: %d", ndb_schema_object->use_count));
   }
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(ndb_schema_object);
 }
 
@@ -107,12 +107,12 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   DBUG_ENTER("ndb_free_schema_object");
   DBUG_PRINT("enter", ("key: '%s'", (*ndb_schema_object)->key));
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   if (!--(*ndb_schema_object)->use_count)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
     my_hash_delete(&ndb_schema_objects.m_hash, (uchar*) *ndb_schema_object);
-    pthread_mutex_destroy(&(*ndb_schema_object)->mutex);
+    native_mutex_destroy(&(*ndb_schema_object)->mutex);
     my_free(*ndb_schema_object);
     *ndb_schema_object= 0;
   }
@@ -120,6 +120,6 @@ ndb_free_schema_object(NDB_SCHEMA_OBJECT **ndb_schema_object)
   {
     DBUG_PRINT("info", ("use_count: %d", (*ndb_schema_object)->use_count));
   }
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
   DBUG_VOID_RETURN;
 }

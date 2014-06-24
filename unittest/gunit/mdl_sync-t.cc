@@ -47,6 +47,7 @@ protected:
     debug_sync_init();
     /* Force immediate destruction of unused MDL_lock objects. */
     mdl_locks_unused_locks_low_water= 0;
+    max_write_lock_count= ULONG_MAX;
     mdl_init();
 
     m_initializer.SetUp();
@@ -86,10 +87,26 @@ bool debug_sync_set_action(THD *thd, const char *sync)
 class MDLSyncThread : public Thread
 {
 public:
-  MDLSyncThread(enum_mdl_type mdl_type_arg, const char *sync_arg,
+  MDLSyncThread(const char *main_table_arg, enum_mdl_type main_mdl_type_arg,
+                const char *sync_arg,
                 Notification *grabbed_arg, Notification *release_arg)
-    : m_mdl_type(mdl_type_arg), m_sync(sync_arg),
-      m_lock_grabbed(grabbed_arg), m_lock_release(release_arg)
+    : m_main_table(main_table_arg), m_main_mdl_type(main_mdl_type_arg),
+      m_sync(sync_arg),
+      m_lock_grabbed(grabbed_arg), m_lock_release(release_arg),
+      m_pre_table(NULL), m_pre_mdl_type(MDL_INTENTION_EXCLUSIVE),
+      m_pre_sync(NULL)
+  {}
+
+  MDLSyncThread(const char *main_table_arg, enum_mdl_type main_mdl_type_arg,
+                const char *sync_arg,
+                Notification *grabbed_arg, Notification *release_arg,
+                const char *pre_table_arg, enum_mdl_type pre_mdl_type_arg,
+                const char *pre_sync_arg)
+    : m_main_table(main_table_arg), m_main_mdl_type(main_mdl_type_arg),
+      m_sync(sync_arg),
+      m_lock_grabbed(grabbed_arg), m_lock_release(release_arg),
+      m_pre_table(pre_table_arg), m_pre_mdl_type(pre_mdl_type_arg),
+      m_pre_sync(pre_sync_arg)
   {}
 
   virtual void run()
@@ -97,6 +114,26 @@ public:
     m_initializer.SetUp();
     m_thd= m_initializer.thd();
     m_mdl_context= &m_thd->mdl_context;
+
+    if (m_pre_table)
+    {
+      Mock_error_handler error_handler(m_thd, 0);
+
+      if (m_pre_sync)
+      {
+        EXPECT_FALSE(debug_sync_set_action(m_thd, m_pre_sync));
+      }
+
+      /* Pre-acquire lock on auxiliary table if requested. */
+      MDL_request request;
+      MDL_REQUEST_INIT(&request, MDL_key::TABLE, "db", m_pre_table,
+                       m_pre_mdl_type, MDL_TRANSACTION);
+
+      EXPECT_FALSE(m_mdl_context->acquire_lock(&request, 3600));
+
+      /* The above should not generate any warnings (e.g. about timeouts). */
+      EXPECT_EQ(0, error_handler.handle_called());
+    }
 
     /*
       Use a block to ensure that Mock_error_handler dtor is called
@@ -111,12 +148,14 @@ public:
       }
 
       MDL_request request;
-      MDL_REQUEST_INIT(&request, MDL_key::TABLE, "db", "table", m_mdl_type,
-                       MDL_TRANSACTION);
+      MDL_REQUEST_INIT(&request, MDL_key::TABLE, "db", m_main_table,
+                       m_main_mdl_type, MDL_TRANSACTION);
 
       EXPECT_FALSE(m_mdl_context->acquire_lock(&request, 3600));
       EXPECT_TRUE(m_mdl_context->
-                  is_lock_owner(MDL_key::TABLE, "db", "table", m_mdl_type));
+                  owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                              "db", m_main_table,
+                                              m_main_mdl_type));
 
       if (m_lock_grabbed)
         m_lock_grabbed->notify();
@@ -136,10 +175,14 @@ private:
   Server_initializer m_initializer;
   THD *m_thd;
   MDL_context *m_mdl_context;
-  enum_mdl_type m_mdl_type;
+  const char *m_main_table;
+  enum_mdl_type m_main_mdl_type;
   const char *m_sync;
   Notification *m_lock_grabbed;
   Notification *m_lock_release;
+  const char *m_pre_table;
+  enum_mdl_type m_pre_mdl_type;
+  const char *m_pre_sync;
 };
 
 
@@ -150,11 +193,11 @@ private:
 
 TEST_F(MDLSyncTest, IsDestroyedFastPath)
 {
-  MDLSyncThread thread1(MDL_SHARED,
+  MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
                         NULL, NULL);
-  MDLSyncThread thread2(MDL_SHARED,
+  MDLSyncThread thread2("table", MDL_SHARED,
                         "mdl_acquire_lock_is_destroyed_fast_path "
                         "SIGNAL resume_removal", NULL, NULL);
 
@@ -194,11 +237,11 @@ TEST_F(MDLSyncTest, IsDestroyedFastPath)
 
 TEST_F(MDLSyncTest, IsDestroyedSlowPath)
 {
-  MDLSyncThread thread1(MDL_SHARED,
+  MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL marked WAIT_FOR resume_removal",
                         NULL, NULL);
-  MDLSyncThread thread2(MDL_SHARED_NO_READ_WRITE,
+  MDLSyncThread thread2("table", MDL_SHARED_NO_READ_WRITE,
                         "mdl_acquire_lock_is_destroyed_slow_path "
                         "SIGNAL resume_removal", NULL, NULL);
 
@@ -238,11 +281,11 @@ TEST_F(MDLSyncTest, IsDestroyedSlowPath)
 
 TEST_F(MDLSyncTest, DoubleDestroyTakeOne)
 {
-  MDLSyncThread thread1(MDL_SHARED,
+  MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_before_search "
                         "SIGNAL before_search WAIT_FOR start_search",
                         NULL, NULL);
-  MDLSyncThread thread2(MDL_SHARED, NULL, NULL, NULL);
+  MDLSyncThread thread2("table", MDL_SHARED, NULL, NULL, NULL);
 
   /*
     Start the first thread which acquires S lock on a table and immediately
@@ -284,11 +327,11 @@ TEST_F(MDLSyncTest, DoubleDestroyTakeOne)
 
 TEST_F(MDLSyncTest, DoubleDestroyTakeTwo)
 {
-  MDLSyncThread thread1(MDL_SHARED,
+  MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_search "
                         "SIGNAL found WAIT_FOR resume_destroy",
                         NULL, NULL);
-  MDLSyncThread thread2(MDL_SHARED,
+  MDLSyncThread thread2("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_is_destroyed_set "
                         "SIGNAL resume_destroy", NULL, NULL);
 
@@ -337,11 +380,11 @@ TEST_F(MDLSyncTest, DoubleDestroyTakeTwo)
 TEST_F(MDLSyncTest, DestroyUsed)
 {
   Notification lock_grabbed, lock_release;
-  MDLSyncThread thread1(MDL_SHARED,
+  MDLSyncThread thread1("table", MDL_SHARED,
                         "mdl_remove_random_unused_after_search "
                         "SIGNAL found WAIT_FOR resume_destroy",
                         NULL, NULL);
-  MDLSyncThread thread2(MDL_SHARED,
+  MDLSyncThread thread2("table", MDL_SHARED,
                         NULL, &lock_grabbed, &lock_release);
 
   /*
@@ -379,6 +422,216 @@ TEST_F(MDLSyncTest, DestroyUsed)
   /* So does the second thread after it releases S lock. */
   lock_release.notify();
   thread2.join();
+}
+
+
+/*
+  Test that shows that reschedule of waiters in cases when we acquire
+  "hog" locks without waiting and this changes priority matrice is
+  important.
+*/
+
+TEST_F(MDLSyncTest, PriorityDeadlock)
+{
+  Notification first_grabbed, first_release;
+  MDLSyncThread thread1("alpha", MDL_SHARED_READ,
+                        NULL, &first_grabbed, &first_release);
+  MDLSyncThread thread2("alpha", MDL_SHARED_NO_READ_WRITE,
+                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ",
+                        NULL, NULL);
+  MDLSyncThread thread3("alpha", MDL_SHARED_READ,
+                        "mdl_acquire_lock_wait SIGNAL sr_blocked "
+                        "WAIT_FOR sr_resume", NULL, NULL,
+                        "beta", MDL_SHARED_WRITE, NULL);
+  MDLSyncThread thread4("beta", MDL_SHARED_NO_WRITE,
+                        NULL, NULL, NULL,
+                        "alpha", MDL_SHARED_NO_WRITE, NULL);
+
+  /*
+    Set "max_write_lock_count" to low value to ensure that switch of priority
+    matrices happens early.
+  */
+  max_write_lock_count= 1;
+
+  /* Start the first thread which acquires SR lock on "alpha". */
+  thread1.start();
+  first_grabbed.wait_for_notification();
+
+  /* Start the second thread which will try to acquire SNRW on "alpha". */
+  thread2.start();
+  /* Wait until the thread gets blocked creating pending SNRW lock. */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR snrw_blocked"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+
+  /*
+    Start the third thread. It will acquire SW lock on table "beta",
+    and will try to acquire SR lock on "alpha". It will be blocked
+    because of pending SNRW lock on it.
+  */
+  thread3.start();
+  /*
+    Pause execution of the thread after it get blocked, but before
+    deadlock detection is done.
+  */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR sr_blocked"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+
+  /*
+    Start the fourth thread. It will acquire SNW lock on "alpha".
+    This will switch priority matrice for this table and unblock pending
+    SR lock request (because max_write_lock_count will be reached).
+    After that it will try to acquire SNW lock on "beta" and block
+    due to active SW lock from thread 3.
+  */
+  thread4.start();
+
+  /*
+    Resume thread 3.
+    It should not wait because priority matrice has been changed and SR lock
+    can now be granted (Reporting deadlock is acceptable outcome as well).
+  */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now SIGNAL sr_resume"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+  thread3.join();
+
+  /*
+    After SR lock has been acquired on "alpha" by thread 3.
+    It will release all locks including SW lock on "beta".
+    So thread 4 should be able to proceed.
+  */
+  thread4.join();
+
+  /* Wrap-up. */
+  first_release.notify();
+  thread1.join();
+  thread2.join();
+}
+
+
+/*
+  Test that shows that reschedule is also important when priority
+  matrice is changed due to "hog" lock being granted after wait.
+*/
+
+TEST_F(MDLSyncTest, PriorityDeadlock2)
+{
+  Notification first_grabbed, first_release,
+               second_grabbed, second_release;
+  MDLSyncThread thread1("alpha", MDL_SHARED_WRITE,
+                        NULL, &first_grabbed, &first_release);
+  MDLSyncThread thread2("alpha", MDL_SHARED_READ,
+                        NULL, &second_grabbed, &second_release);
+  MDLSyncThread thread3("alpha", MDL_SHARED_NO_READ_WRITE,
+                        "mdl_acquire_lock_wait SIGNAL snrw_blocked ",
+                        NULL, NULL);
+  MDLSyncThread thread4("alpha", MDL_SHARED_READ,
+                        "mdl_acquire_lock_wait SIGNAL sr_blocked "
+                        "WAIT_FOR sr_resume", NULL, NULL,
+                        "beta", MDL_SHARED_WRITE, NULL);
+  MDLSyncThread thread5("beta", MDL_SHARED_NO_WRITE,
+                        NULL, NULL, NULL,
+                        "alpha", MDL_SHARED_NO_WRITE,
+                        "mdl_acquire_lock_wait SIGNAL snw_blocked");
+
+  /*
+    Set "max_write_lock_count" to low value to ensure that switch of priority
+    matrices happens early.
+  */
+  max_write_lock_count= 1;
+
+  /* Start the first thread which acquires SW lock on "alpha". */
+  thread1.start();
+  first_grabbed.wait_for_notification();
+  /* Start the second thread which acquires SR lock on "alpha". */
+  thread2.start();
+  second_grabbed.wait_for_notification();
+
+  /* Start the third thread which will try to acquire SNRW on "alpha". */
+  thread3.start();
+  /* Wait until the thread gets blocked creating pending SNRW lock. */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR snrw_blocked"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+
+  /*
+    Start the fourth thread. It will acquire SW lock on table "beta",
+    and will try to acquire SR lock on "alpha". It will be blocked
+    because of pending SNRW lock on it.
+  */
+  thread4.start();
+  /*
+    Pause execution of the thread after it get blocked, but before
+    deadlock detection is done.
+  */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR sr_blocked"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+
+
+  /*
+    Start the fifth thread. It will try to acquire SNW lock on "alpha".
+    It will get blocked because of active SW lock.
+  */
+  thread5.start();
+
+  /*
+    Wait until the thread gets blocked and SNW request is added to waiters
+    queue.
+  */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now WAIT_FOR snw_blocked"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+
+  /*
+    Release SW lock. This will unblock the fifth thread. SNW lock will
+    be granted.
+
+    This will switch priority matrice for this table and unblock pending
+    SR lock request (because max_write_lock_count will be reached).
+    After that it will try to acquire SNW lock on "beta" and block
+    due to active SW lock from thread 3.
+  */
+  first_release.notify();
+  thread1.join();
+
+  /*
+    Resume thread 4.
+    It should not wait because priority matrice has been changed and SR lock
+    can now be granted (Reporting deadlock is acceptable outcome as well).
+  */
+  {
+    Mock_error_handler error_handler(m_thd, 0);
+    EXPECT_FALSE(debug_sync_set_action(m_thd, "now SIGNAL sr_resume"));
+    EXPECT_EQ(0, error_handler.handle_called());
+  }
+  thread4.join();
+
+  /*
+    After SR lock has been acquired on "alpha" by thread 4.
+    It will release all locks including SW lock on "beta".
+    So thread 5 should be able to proceed.
+  */
+  thread5.join();
+
+  /* Wrap-up. */
+  second_release.notify();
+  thread2.join();
+  thread3.join();
 }
 
 

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -460,12 +460,12 @@ bool partition_info::set_used_partition(List<Item> &fields,
 
   if (fields.elements || !values.elements)
   {
-    if (fill_record(thd, fields, values, false, &full_part_field_set, NULL))
+    if (fill_record(thd, fields, values, &full_part_field_set, NULL))
       goto err;
   }
   else
   {
-    if (fill_record(thd, table->field, values, false, &full_part_field_set,
+    if (fill_record(thd, table->field, values, &full_part_field_set,
                     NULL))
       goto err;
   }
@@ -602,7 +602,7 @@ void partition_info::set_show_version_string(String *packet)
 char *partition_info::create_default_subpartition_name(uint subpart_no,
                                                const char *part_name)
 {
-  uint size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
+  size_t size_alloc= strlen(part_name) + MAX_PART_NAME_SIZE;
   char *ptr= (char*) sql_calloc(size_alloc);
   DBUG_ENTER("create_default_subpartition_name");
 
@@ -1194,7 +1194,7 @@ bool partition_info::check_range_constants(THD *thd)
   if (column_list)
   {
     part_column_list_val *loc_range_col_array;
-    part_column_list_val *UNINIT_VAR(current_largest_col_val);
+    part_column_list_val *current_largest_col_val= NULL;
     uint num_column_values= part_field_list.elements;
     uint size_entries= sizeof(part_column_list_val) * num_column_values;
     range_col_array= (part_column_list_val*)sql_calloc(num_parts *
@@ -1232,7 +1232,7 @@ bool partition_info::check_range_constants(THD *thd)
   }
   else
   {
-    longlong UNINIT_VAR(current_largest);
+    longlong current_largest= 0;
     longlong part_range_value;
     bool signed_flag= !part_expr->unsigned_flag;
 
@@ -1402,7 +1402,7 @@ bool partition_info::check_list_constants(THD *thd)
   bool result= TRUE;
   longlong type_add, calc_value;
   void *curr_value;
-  void *UNINIT_VAR(prev_value);
+  void *prev_value= NULL;
   partition_element* part_def;
   bool found_null= FALSE;
   qsort_cmp compare_func;
@@ -1887,7 +1887,7 @@ void partition_info::print_no_partition_found(TABLE *table_arg)
 bool partition_info::set_part_expr(char *start_token, Item *item_ptr,
                                    char *end_token, bool is_subpart)
 {
-  uint expr_len= end_token - start_token;
+  size_t expr_len= end_token - start_token;
   char *func_string= (char*) sql_memdup(start_token, expr_len);
 
   if (!func_string)
@@ -2039,8 +2039,7 @@ bool partition_info::set_up_charset_field_preps()
     i= 0;
     while ((field= *(ptr++)))
     {
-      uchar *field_buf;
-      LINT_INIT(field_buf);
+      uchar *field_buf= NULL;
 
       if (!field_is_partition_charset(field))
         continue;

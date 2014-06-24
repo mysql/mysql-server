@@ -104,7 +104,7 @@ public:
   /**
      @see THD::notify_shared_lock()
    */
-  virtual bool notify_shared_lock(MDL_context_owner *in_use,
+  virtual void notify_shared_lock(MDL_context_owner *in_use,
                                   bool needs_thr_lock_abort) = 0;
 
   /**
@@ -192,14 +192,28 @@ enum enum_mdl_type {
   */
   MDL_SHARED_WRITE,
   /*
-    An upgradable shared metadata lock for cases when there is an intention
-    to modify (and not just read) data in the table.
-    Can be upgraded to MDL_SHARED_NO_WRITE and MDL_EXCLUSIVE.
-    A connection holding SU lock can read table metadata and modify or read
-    table data (after acquiring appropriate table and row-level locks).
+    A version of MDL_SHARED_WRITE lock which has lower priority than
+    MDL_SHARED_READ_ONLY locks. Used by DML statements modifying
+    tables and using the LOW_PRIORITY clause.
+  */
+  MDL_SHARED_WRITE_LOW_PRIO,
+  /*
+    An upgradable shared metadata lock which allows concurrent updates and
+    reads of table data.
+    A connection holding this kind of lock can read table metadata and read
+    table data. It should not modify data as this lock is compatible with
+    SRO locks.
+    Can be upgraded to SNW, SNRW and X locks. Once SU lock is upgraded to X
+    or SNRW lock data modification can happen freely.
     To be used for the first phase of ALTER TABLE.
   */
   MDL_SHARED_UPGRADABLE,
+  /*
+    A shared metadata lock for cases when we need to read data from table
+    and block all concurrent modifications to it (for both data and metadata).
+    Used by LOCK TABLES READ statement.
+  */
+  MDL_SHARED_READ_ONLY,
   /*
     An upgradable shared metadata lock which blocks all attempts to update
     table data, allowing reads.
@@ -463,6 +477,25 @@ public:
     type= type_arg;
   }
 
+  /**
+    Is this a request for a lock which allow data to be updated?
+
+    @note This method returns true for MDL_SHARED_UPGRADABLE type of
+          lock. Even though this type of lock doesn't allow updates
+          it will always be upgraded to one that does.
+  */
+  bool is_write_lock_request() const
+  {
+    return (type >= MDL_SHARED_WRITE &&
+            type != MDL_SHARED_READ_ONLY);
+  }
+
+  /** Is this a request for a strong, DDL/LOCK TABLES-type, of lock? */
+  bool is_ddl_or_lock_tables_lock_request() const
+  {
+    return type >= MDL_SHARED_UPGRADABLE;
+  }
+
   /*
     This is to work around the ugliness of TABLE_LIST
     compiler-generated assignment operator. It is currently used
@@ -544,11 +577,9 @@ public:
   */
   virtual bool accept_visitor(MDL_wait_for_graph_visitor *gvisitor) = 0;
 
-  enum enum_deadlock_weight
-  {
-    DEADLOCK_WEIGHT_DML= 0,
-    DEADLOCK_WEIGHT_DDL= 100
-  };
+  static const uint DEADLOCK_WEIGHT_DML= 0;
+  static const uint DEADLOCK_WEIGHT_DDL= 100;
+
   /* A helper used to determine which lock request should be aborted. */
   virtual uint get_deadlock_weight() const = 0;
 };
@@ -781,9 +812,9 @@ public:
   void release_all_locks_for_name(MDL_ticket *ticket);
   void release_lock(MDL_ticket *ticket);
 
-  bool is_lock_owner(MDL_key::enum_mdl_namespace mdl_namespace,
-                     const char *db, const char *name,
-                     enum_mdl_type mdl_type);
+  bool owns_equal_or_stronger_lock(MDL_key::enum_mdl_namespace mdl_namespace,
+                                   const char *db, const char *name,
+                                   enum_mdl_type mdl_type);
 
   bool has_lock(const MDL_savepoint &mdl_savepoint, MDL_ticket *mdl_ticket);
 
@@ -812,7 +843,11 @@ public:
 
   /** @pre Only valid if we started waiting for lock. */
   inline uint get_deadlock_weight() const
-  { return m_waiting_for->get_deadlock_weight(); }
+  {
+    return m_force_dml_deadlock_weight ?
+           MDL_wait_for_subgraph::DEADLOCK_WEIGHT_DML :
+           m_waiting_for->get_deadlock_weight();
+  }
 
   void init(MDL_context_owner *arg) { m_owner= arg; }
 
@@ -841,6 +876,11 @@ public:
   bool get_needs_thr_lock_abort() const
   {
     return m_needs_thr_lock_abort;
+  }
+
+  void set_force_dml_deadlock_weight(bool force_dml_deadlock_weight)
+  {
+    m_force_dml_deadlock_weight= force_dml_deadlock_weight;
   }
 
   /**
@@ -952,6 +992,17 @@ private:
   bool m_needs_thr_lock_abort;
 
   /**
+    Indicates that we need to use DEADLOCK_WEIGHT_DML deadlock
+    weight for this context and ignore the deadlock weight provided
+    by the MDL_wait_for_subgraph object which we are waiting for.
+
+    @note Can be changed only when there is a guarantee that this
+          MDL_context is not waiting for a metadata lock or table
+          definition entry.
+  */
+  bool m_force_dml_deadlock_weight;
+
+  /**
     Read-write lock protecting m_waiting_for member.
 
     @note The fact that this read-write lock prefers readers is
@@ -1047,8 +1098,8 @@ extern mysql_mutex_t LOCK_open;
 
 /*
   Metadata locking subsystem tries not to grant more than
-  max_write_lock_count high-prio, strong locks successively,
-  to avoid starving out weak, low-prio locks.
+  max_write_lock_count high priority, strong locks successively,
+  to avoid starving out weak, lower priority locks.
 */
 extern "C" ulong max_write_lock_count;
 

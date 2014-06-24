@@ -188,6 +188,7 @@ SET(libexecdir ${prefix}/${INSTALL_SBINDIR})
 SET(scriptdir ${prefix}/${INSTALL_BINDIR})
 SET(datadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
 SET(pkgdatadir ${prefix}/${INSTALL_MYSQLSHAREDIR})
+SET(libsubdir  ${INSTALL_LIBDIR})
 SET(pkgincludedir ${prefix}/${INSTALL_INCLUDEDIR})
 SET(pkglibdir ${prefix}/${INSTALL_LIBDIR})
 SET(pkgplugindir ${prefix}/${INSTALL_PLUGINDIR})
@@ -269,7 +270,7 @@ IF(WIN32)
   SET(PLIN_FILES mysql_config)
   # Input files with .sh extension
 
-  SET(SH_FILES mysqld_multi mysqldumpslow mysqlhotcopy)
+  SET(SH_FILES mysqld_multi mysqldumpslow)
 
   FOREACH(file ${PLIN_FILES})
     IF(NOT ${file}_COMPONENT)
@@ -293,8 +294,6 @@ ELSE()
   SET(mysql_config_COMPONENT COMPONENT Development)
   SET(BIN_SCRIPTS
     mysql_config
-    mysql_zap
-    mysqlhotcopy
     mysqldumpslow
     mysqld_multi
     mysqld_safe

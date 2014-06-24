@@ -1,6 +1,6 @@
 #ifndef SQL_DATA_CHANGE_INCLUDED
 #define SQL_DATA_CHANGE_INCLUDED
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -103,9 +103,6 @@ private:
   /// Policy for handling insertion of duplicate values.
   const enum enum_duplicates handle_duplicates;
 
-  /// Policy for whether certain errors should be ignored.
-  const bool ignore;
-
 protected:
 
   /**
@@ -152,41 +149,18 @@ public:
      @param manage_defaults  Whether this object should manage function
                              defaults.
      @param duplicate_handling The policy for handling duplicates.
-     @param ignore_errors    Whether certain ignorable errors should be
-                             ignored. A proper documentation has never existed
-                             for this member, so the following has been
-                             compiled by examining how clients actually use
-                             the member.
 
-     - Ignore non-fatal errors, except duplicate key error, during this insert
-       operation (this constructor can only construct an insert operation).
-     - If the insert operation spawns an update operation (as in ON DUPLICATE
-       KEY UPDATE), tell the layer below
-       (fill_record_n_invoke_before_triggers) to 'ignore errors'. (More
-       detailed documentation is not available).
-     - Let @i v be a view for which WITH CHECK OPTION applies. This can happen
-       either if @i v is defined with WITH ... CHECK OPTION, or if @i v is
-       being inserted into by a cascaded insert and an outer view is defined
-       with "WITH CASCADED CHECK OPTION".
-       If the insert operation on @i v spawns an update operation (as in ON
-       DUPLICATE KEY UPDATE) for a certain row, and hence the @i v is being
-       updated, ignore whether the WHERE clause was true for this row or
-       not. I.e. if ignore is true, WITH CHECK OPTION can be ignored.
-     - If the insert operation spawns an update operation (as in ON DUPLICATE
-       KEY UPDATE) that fails, ignore this error.
   */
   COPY_INFO(operation_type optype,
             List<Item> *inserted_columns,
             bool manage_defaults,
-            enum_duplicates duplicate_handling,
-            bool ignore_errors) :
+            enum_duplicates duplicate_handling) :
     m_optype(optype),
     m_changed_columns(inserted_columns),
     m_changed_columns2(NULL),
     m_manage_defaults(manage_defaults),
     m_function_default_columns(NULL),
     handle_duplicates(duplicate_handling),
-    ignore(ignore_errors),
     stats(),
     escape_char(0),
     last_errno(0),
@@ -223,7 +197,6 @@ public:
             List<Item> *inserted_columns2,
             bool manage_defaults,
             enum_duplicates duplicates_handling,
-            bool ignore_duplicates,
             int escape_character) :
     m_optype(optype),
     m_changed_columns(inserted_columns),
@@ -231,7 +204,6 @@ public:
     m_manage_defaults(manage_defaults),
     m_function_default_columns(NULL),
     handle_duplicates(duplicates_handling),
-    ignore(ignore_duplicates),
     stats(),
     escape_char(escape_character),
     last_errno(0),
@@ -256,7 +228,6 @@ public:
     m_manage_defaults(true),
     m_function_default_columns(NULL),
     handle_duplicates(DUP_ERROR),
-    ignore(false),
     stats(),
     escape_char(0),
     last_errno(0),
@@ -274,8 +245,6 @@ public:
   bool get_manage_defaults() const { return m_manage_defaults; }
 
   enum_duplicates get_duplicate_handling() const { return handle_duplicates; }
-
-  bool get_ignore_errors() const { return ignore; }
 
   /**
      Assigns function default values to columns of the supplied table. This

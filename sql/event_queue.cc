@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -95,7 +95,7 @@ Event_queue::Event_queue()
    waiting_on_cond(FALSE)
 {
   mysql_mutex_init(key_LOCK_event_queue, &LOCK_event_queue, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_queue_state, &COND_queue_state, NULL);
+  mysql_cond_init(key_COND_queue_state, &COND_queue_state);
 }
 
 
@@ -570,8 +570,8 @@ Event_queue::get_top_for_execution_if_time(THD *thd,
 {
   bool ret= FALSE;
   *event_name= NULL;
-  my_time_t UNINIT_VAR(last_executed);
-  int UNINIT_VAR(status);
+  my_time_t last_executed= 0;
+  int status= 0;
   DBUG_ENTER("Event_queue::get_top_for_execution_if_time");
 
   LOCK_QUEUE_DATA();

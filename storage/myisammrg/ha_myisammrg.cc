@@ -239,8 +239,8 @@ extern "C" int myisammrg_parent_open_callback(void *callback_param,
   char          *db;
   char          *table_name;
   uint          dirlen;
-  uint          db_length;
-  uint          table_name_length;
+  size_t        db_length;
+  size_t        table_name_length;
   char          dir_path[FN_REFLEN];
   char          name_buf[NAME_LEN];
   DBUG_ENTER("myisammrg_parent_open_callback");
@@ -490,26 +490,30 @@ int ha_myisammrg::add_children_list(void)
     */
     child_l->prelocking_placeholder= parent_l->prelocking_placeholder;
     /*
-      For statements which acquire a SNW metadata lock on a parent table and
-      then later try to upgrade it to an X lock (e.g. ALTER TABLE), SNW
-      locks should be also taken on the children tables.
+      For ALTER TABLE statements, which acquire a SU metadata lock on a
+      parent table and then later try to upgrade it first to SNW and then
+      to X lock, SNW locks should be also taken on the children tables.
 
-      Otherwise we end up in a situation where the thread trying to upgrade SNW
-      to X lock on the parent also holds a SR metadata lock and a read
-      thr_lock.c lock on the child. As a result, another thread might be
-      blocked on the thr_lock.c lock for the child after successfully acquiring
-      a SR or SW metadata lock on it. If at the same time this second thread
-      has a shared metadata lock on the parent table or there is some other
-      thread which has a shared metadata lock on the parent and is waiting for
-      this second thread, we get a deadlock. This deadlock cannot be properly
-      detected by the MDL subsystem as part of the waiting happens within
-      thr_lock.c. By taking SNW locks on the child tables we ensure that any
-      thread which waits for a thread doing SNW -> X upgrade, does this within
-      the MDL subsystem and thus potential deadlocks are exposed to the deadlock
+      Otherwise, we end up in a situation where the thread trying to upgrade
+      SU to SNW/SNW to X lock on the parent also holds a SR metadata lock
+      and a read thr_lock.c lock on the child. As a result, another thread
+      might be blocked on the thr_lock.c lock for the child after successfully
+      acquiring a SR or SW metadata lock on it. If at the same time this second
+      thread has a shared metadata lock on the parent table or there is some
+      other thread which has a shared metadata lock on the parent and is waiting
+      for this second thread, we get a deadlock. This deadlock cannot be
+      properly detected by the MDL subsystem as part of the waiting happens
+      within thr_lock.c. By taking SNW locks on the child tables we ensure that
+      any thread which waits for a thread doing upgrade, does this within the
+      MDL subsystem and thus potential deadlocks are exposed to the deadlock
       detector.
 
-      We don't do the same thing for SNRW locks as this would allow
-      DDL on implicitly locked underlying tables of a MERGE table.
+      We don't do similar thing for SNRW locks as only S locks associated with
+      open HANDLER statements can cause issue with SNRW -> X upgrade. But this
+      issue is solved thanks to notification mechanism in MDL subsystem.
+
+      SRO locks don't require similar handling since they are never upgraded and
+      underlying tables are always propertly protected by thr_lock.c locks.
     */
     if (! thd->locked_tables_mode &&
         parent_l->mdl_request.type == MDL_SHARED_UPGRADABLE)
@@ -1534,8 +1538,8 @@ int ha_myisammrg::create(const char *name, TABLE *form,
       opened through the table cache. They are opened by db.table_name,
       not by their path name.
     */
-    uint length= build_table_filename(buff, sizeof(buff),
-                                      tables->db, tables->table_name, "", 0);
+    size_t length= build_table_filename(buff, sizeof(buff),
+                                        tables->db, tables->table_name, "", 0);
     /*
       If a MyISAM table is in the same directory as the MERGE table,
       we use the table name without a path. This means that the

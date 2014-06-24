@@ -378,8 +378,8 @@ extern my_bool validate_user_plugins;
 
 /* sql_authentication */
 
-int set_default_auth_plugin(char *plugin_name, int plugin_name_length);
-int acl_authenticate(THD *thd, uint com_change_user_pkt_len);
+int set_default_auth_plugin(char *plugin_name, size_t plugin_name_length);
+int acl_authenticate(THD *thd, size_t com_change_user_pkt_len);
 int check_password_strength(String *password);
 int check_password_policy(String *password);
 bool acl_check_host(const char *host, const char *ip);
@@ -388,7 +388,7 @@ bool acl_check_host(const char *host, const char *ip);
 void append_user(THD *thd, String *str, LEX_USER *user,
                  bool comma, bool ident);
 int check_change_password(THD *thd, const char *host, const char *user,
-                           char *password, uint password_len);
+                          const char *password, size_t password_len);
 bool change_password(THD *thd, const char *host, const char *user,
                      char *password);
 bool mysql_create_user(THD *thd, List <LEX_USER> &list);
@@ -426,9 +426,9 @@ bool check_grant(THD *thd, ulong want_access, TABLE_LIST *tables,
                  bool any_combination_will_do, uint number, bool no_errors);
 bool check_grant_column (THD *thd, GRANT_INFO *grant,
                          const char *db_name, const char *table_name,
-                         const char *name, uint length, Security_context *sctx);
+                         const char *name, size_t length, Security_context *sctx);
 bool check_column_grant_in_table_ref(THD *thd, TABLE_LIST * table_ref,
-                                     const char *name, uint length);
+                                     const char *name, size_t length);
 bool check_grant_all_columns(THD *thd, ulong want_access, 
                              Field_iterator_table_ref *fields);
 bool check_grant_routine(THD *thd, ulong want_access,

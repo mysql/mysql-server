@@ -59,7 +59,7 @@ load_des_key_file(const char *file_name)
     char *start, *end;
     char buf[1024], offset;
     st_des_keyblock keyblock;
-    uint length;
+    size_t length;
 
     if (!(length=my_b_gets(&io,buf,sizeof(buf)-1)))
       break;					// End of file

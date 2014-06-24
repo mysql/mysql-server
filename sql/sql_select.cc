@@ -536,7 +536,7 @@ static bool setup_semijoin_dups_elimination(JOIN *join, ulonglong options,
         SJ_TMP_TABLE *sjtbl;
         if (jt_rowid_offset) /* Temptable has at least one rowid */
         {
-          uint tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
+          size_t tabs_size= (last_tab - sjtabs) * sizeof(SJ_TMP_TABLE::TAB);
           if (!(sjtbl= new (thd->mem_root) SJ_TMP_TABLE) ||
               !(sjtbl->tabs= (SJ_TMP_TABLE::TAB*) thd->alloc(tabs_size)))
             DBUG_RETURN(TRUE); /* purecov: inspected */
@@ -727,7 +727,7 @@ void JOIN::reset()
       func->clear();
   }
 
-  init_ftfuncs(thd, select_lex, MY_TEST(order));
+  init_ftfuncs(thd, select_lex);
 
   DBUG_VOID_RETURN;
 }
@@ -1248,7 +1248,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
 
     length=0;
     keyparts=1;
-    ifm->join_key=1;
+    ifm->get_master()->join_key= 1;
   }
   else /* not ftkey */
     calc_length_and_keyparts(keyuse, j, key, used_tables, chosen_keyuses,
@@ -1285,6 +1285,7 @@ bool create_ref_for_key(JOIN *join, JOIN_TAB *j, Key_use *org_keyuse,
       DBUG_RETURN(TRUE);                        // not supported yet. SerG
 
     j->type=JT_FT;
+    j->ft_func= ((Item_func_match *)keyuse->val);
     memset(j->ref.key_copy, 0, sizeof(j->ref.key_copy[0]) * keyparts);
   }
   else
@@ -1928,6 +1929,11 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
   sjm_pos->sj_strategy= SJ_OPT_NONE;
 
   sjm_pos->use_join_buffer= false;
+  /*
+    No need to recalculate filter_effect since there are no post-read
+    conditions for materialized tables.
+  */
+  sjm_pos->filter_effect= 1.0;
 
   /*
     Key_use objects are required so that create_ref_for_key() can set up
@@ -1940,27 +1946,26 @@ bool JOIN::setup_materialized_table(JOIN_TAB *tab, uint tableno,
     DBUG_RETURN(true);
 
   double fanout= (tab == join_tab + tab->join->const_tables) ?
-                 1.0 : (tab-1)->position->prefix_record_count;
+                 1.0 : (tab-1)->position->prefix_rowcount;
   if (!sjm_exec->is_scan)
   {
-    const double block_read_cost= table->cost_model()->io_block_read_cost(1.0);
     sjm_pos->key= keyuse->begin(); // MaterializeLookup will use the index
     tab->keyuse= keyuse->begin();
     tab->keys.set_bit(0);          // There is one index - use it always
     tab->index= 0;
-    sjm_pos->set_prefix_costs(block_read_cost, fanout);
-    sjm_pos->fanout= 1.0;   
-    sjm_pos->read_cost= block_read_cost;      
+    sjm_pos->read_cost= emb_sj_nest->nested_join->sjm.lookup_cost.total_cost() *
+                        fanout;      
+    sjm_pos->rows_fetched= 1.0;    // Unique lookup  
     tab->type= JT_REF;
   }
   else
   {
     sjm_pos->key= NULL; // No index use for MaterializeScan
-    sjm_pos->set_prefix_costs(tab->read_time, tab->records * fanout);
-    sjm_pos->fanout= tab->records;
-    sjm_pos->read_cost= tab->read_time;
+    sjm_pos->read_cost= tab->read_time * fanout;
+    sjm_pos->rows_fetched= tab->records;
     tab->type= JT_ALL;
   }
+  sjm_pos->set_prefix_join_cost((tab - join_tab), cost_model());
 
   DBUG_RETURN(false);
 }
@@ -2011,9 +2016,18 @@ void JOIN_TAB::init_join_cache()
     DBUG_ASSERT(0);
 
   }
+  DBUG_EXECUTE_IF("jb_alloc_with_prev_fail",
+                  if (prev_cache)
+                  {
+                    DBUG_SET("+d,jb_alloc_fail");
+                    DBUG_SET("-d,jb_alloc_with_prev_fail");
+                  });
   if (!op || op->init())
   {
     use_join_cache= JOIN_CACHE::ALG_NONE;
+    // Unlink cache
+    if (prev_cache)
+      prev_cache->next_cache= NULL;
     op= NULL;
   }
   else
@@ -2167,6 +2181,11 @@ make_join_readinfo(JOIN *join, ulonglong options, uint no_jbuf_after)
       }
       break;
     case JT_FT:
+      if (tab->join->fts_index_access(tab))
+      {
+        tab->table->set_keyread(true);
+        tab->table->covering_keys.set_bit(tab->ft_func->key);
+      }
       break;
     default:
       DBUG_PRINT("error",("Table type %d found",tab->type)); /* purecov: deadcode */
@@ -2207,8 +2226,6 @@ bool error_if_full_join(JOIN *join)
 
     if (tab->type == JT_ALL && (!tab->select || !tab->select->quick))
     {
-      /* This error should not be ignored. */
-      join->select_lex->no_error= FALSE;
       my_message(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE,
                  ER(ER_UPDATE_WITHOUT_KEY_IN_SAFE_MODE), MYF(0));
       return true;
@@ -3878,7 +3895,9 @@ test_if_cheaper_ordering(const JOIN_TAB *tab, ORDER *order, TABLE *table,
     read_time= tab->position->read_cost;
     for (const JOIN_TAB *jt= tab + 1;
          jt < join->join_tab + join->primary_tables; jt++)
-      fanout*= jt->position->fanout; // fanout is always >= 1
+    {
+      fanout*= jt->position->rows_fetched * jt->position->filter_effect;
+    }
   }
   else
     read_time= table->file->table_scan_cost().total_cost();

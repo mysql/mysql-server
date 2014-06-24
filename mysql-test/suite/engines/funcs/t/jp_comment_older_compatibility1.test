@@ -2,7 +2,7 @@
 DROP TABLE IF EXISTS t1;
 --enable_warnings
 
-let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='STORAGE_ENGINE'`;
+let $ENGINE=`select variable_value from information_schema.global_variables where variable_name='DEFAULT_STORAGE_ENGINE'`;
 
 SET NAMES cp932;
 CREATE TABLE t1 (c1 INTEGER COMMENT 'あいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこあいうえおかきくけこ', c12 INTEGER, c13 DATETIME, c14 CHAR(10), PRIMARY KEY(c1), INDEX(c12,c13)) COMMENT='アイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコアイウエオカキクケコ';

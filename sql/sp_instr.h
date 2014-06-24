@@ -455,7 +455,7 @@ public:
   { m_valid= false; }
 
   virtual void get_query(String *sql_query) const
-  { sql_query->append(m_query.str, m_query.length); }
+  { sql_query->append(m_query.str, static_cast<uint32>(m_query.length)); }
 
   virtual bool on_after_expr_parsing(THD *thd)
   {
@@ -1368,7 +1368,7 @@ public:
   { m_valid= false; }
 
   virtual void get_query(String *sql_query) const
-  { sql_query->append(m_cursor_query.str, m_cursor_query.length); }
+  { sql_query->append(m_cursor_query.str, static_cast<uint32>(m_cursor_query.length)); }
 
   virtual bool on_after_expr_parsing(THD *thd)
   {

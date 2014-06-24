@@ -27,7 +27,7 @@ static CHARSET_INFO all_charsets[512];
 
 
 void
-print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
+print_array(FILE *f, const char *set, const char *name, const uchar *a, int n)
 {
   int i;
 
@@ -44,7 +44,7 @@ print_array(FILE *f, const char *set, const char *name, uchar *a, int n)
 
 
 void
-print_array16(FILE *f, const char *set, const char *name, uint16 *a, int n)
+print_array16(FILE *f, const char *set, const char *name, const uint16 *a, int n)
 {
   int i;
 

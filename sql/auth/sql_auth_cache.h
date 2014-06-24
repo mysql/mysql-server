@@ -33,14 +33,14 @@ class String;
 class ACL_HOST_AND_IP
 {
   char *hostname;
-  uint hostname_length;
+  size_t hostname_length;
   long ip, ip_mask; // Used with masked ip:s
 
   const char *calc_ip(const char *ip_arg, long *val, char end);
 
 public:
   const char *get_host() const { return hostname; }
-  int get_host_len() { return hostname_length; }
+  size_t get_host_len() { return hostname_length; }
 
   bool has_wildcard()
   {
@@ -92,7 +92,7 @@ public:
   uint8 salt_len;
   enum SSL_type ssl_type;
   const char *ssl_cipher, *x509_issuer, *x509_subject;
-  LEX_STRING plugin;
+  LEX_CSTRING plugin;
   LEX_STRING auth_string;
   bool password_expired;
   bool can_authenticate;
@@ -175,17 +175,17 @@ public:
     with_grant= grant->with_grant;
   }
 
-  static int store_pk(TABLE *table, 
-                      const LEX_STRING *host, 
-                      const LEX_STRING *user,
-                      const LEX_STRING *proxied_host, 
-                      const LEX_STRING *proxied_user);
+  static int store_pk(TABLE *table,
+                      const LEX_CSTRING &host,
+                      const LEX_CSTRING &user,
+                      const LEX_CSTRING &proxied_host,
+                      const LEX_CSTRING &proxied_user);
 
   static int store_data_record(TABLE *table,
-                               const LEX_STRING *host,
-                               const LEX_STRING *user,
-                               const LEX_STRING *proxied_host,
-                               const LEX_STRING *proxied_user,
+                               const LEX_CSTRING &host,
+                               const LEX_CSTRING &user,
+                               const LEX_CSTRING &proxied_host,
+                               const LEX_CSTRING &proxied_user,
                                bool with_grant,
                                const char *grantor);
 };
@@ -286,7 +286,7 @@ inline GRANT_TABLE * table_hash_search(const char *host, const char *ip,
 }
 
 inline GRANT_COLUMN * column_hash_search(GRANT_TABLE *t, const char *cname,
-                                         uint length)
+                                         size_t length)
 {
   return (GRANT_COLUMN*) my_hash_search(&t->hash_columns,
                                         (uchar*) cname, length);

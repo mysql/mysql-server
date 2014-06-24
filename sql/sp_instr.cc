@@ -518,6 +518,9 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
   {
     thd->lex->set_trg_event_type_for_tables();
 
+    // Call after-parsing callback.
+    parsing_failed= on_after_expr_parsing(thd);
+
     if (sp->m_type == SP_TYPE_TRIGGER)
     {
       /*
@@ -540,13 +543,8 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
                                t->get_subject_table_grant(), false);
     }
 
-    // Call after-parsing callback.
-
-    parsing_failed= on_after_expr_parsing(thd);
-
     // Append newly created Items to the list of Items, owned by this
     // instruction.
-
     free_list= thd->free_list;
   }
 
@@ -852,12 +850,12 @@ void sp_instr_stmt::print(String *str)
     Print the query string (but not too much of it), just to indicate which
     statement it is.
   */
-  uint len= m_query.length;
+  size_t len= m_query.length;
   if (len > SP_STMT_PRINT_MAXLEN)
     len= SP_STMT_PRINT_MAXLEN-3;
 
   /* Copy the query string and replace '\n' with ' ' in the process */
-  for (uint i= 0 ; i < len ; i++)
+  for (size_t i= 0 ; i < len ; i++)
   {
     char c= m_query.str[i];
     if (c == '\n')
@@ -929,7 +927,7 @@ bool sp_instr_set::exec_core(THD *thd, uint *nextp)
 void sp_instr_set::print(String *str)
 {
   /* set name@offset ... */
-  int rsrv = SP_INSTR_UINT_MAXLEN+6;
+  size_t rsrv = SP_INSTR_UINT_MAXLEN+6;
   sp_variable *var = m_parsing_ctx->find_variable(m_offset);
 
   /* 'var' should always be non-null, but just in case... */
@@ -989,6 +987,14 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
                                            m_trigger_field_name.str,
                                            UPDATE_ACL,
                                            false);
+
+  if (m_trigger_field)
+  {
+    /* Adding m_trigger_field to the list of all Item_trigger_field objects */
+    sp_head *sp= thd->sp_runtime_ctx->sp;
+    sp->m_trg_table_fields.link_in_list(m_trigger_field,
+                                        &m_trigger_field->next_trg_field);
+  }
 
   return m_value_item == NULL || m_trigger_field == NULL;
 }
@@ -1469,7 +1475,7 @@ void sp_instr_cpush::print(String *str)
 {
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
-  uint rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN + 7 + m_cursor_query.length + 1;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1575,7 +1581,7 @@ void sp_instr_copen::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* copen name@offset */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+7;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+7;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1618,7 +1624,7 @@ void sp_instr_cclose::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* cclose name@offset */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (cursor_name)
     rsrv+= cursor_name->length;
@@ -1663,7 +1669,7 @@ void sp_instr_cfetch::print(String *str)
   const LEX_STRING *cursor_name= m_parsing_ctx->find_cursor(m_cursor_idx);
 
   /* cfetch name@offset vars... */
-  uint rsrv= SP_INSTR_UINT_MAXLEN+8;
+  size_t rsrv= SP_INSTR_UINT_MAXLEN+8;
 
   if (cursor_name)
     rsrv+= cursor_name->length;

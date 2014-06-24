@@ -11,31 +11,40 @@ select * from information_schema.session_status where variable_name like 'Table_
 VARIABLE_NAME	VARIABLE_VALUE
 TABLE_LOCKS_IMMEDIATE	0
 TABLE_LOCKS_WAITED	0
-# Switched to connection: con1
 set sql_log_bin=0;
 set @old_general_log = @@global.general_log;
 set global general_log = 'OFF';
 drop table if exists t1;
 create table t1(n int) engine=myisam;
 insert into t1 values(1);
-select 1;
-1
+select get_lock('mysqltest_lock', 100);
+get_lock('mysqltest_lock', 100)
 1
 # Switched to connection: con2
-lock tables t1 read;
-unlock tables;
-lock tables t1 read;
+# Sending:
+update t1 set n = get_lock('mysqltest_lock', 100) ;
 # Switched to connection: con1
+# Wait for the first UPDATE to get blocked.
+# Sending:
 update t1 set n = 3;
+# Switched to connection: default
+# wait for the second UPDATE to get blocked
+select release_lock('mysqltest_lock');
+release_lock('mysqltest_lock')
+1
 # Switched to connection: con2
-unlock tables;
+# Reaping first UPDATE
+select release_lock('mysqltest_lock');
+release_lock('mysqltest_lock')
+1
 # Switched to connection: con1
+# Reaping second UPDATE
 show status like 'Table_locks_waited';
 Variable_name	Value
 Table_locks_waited	1
+# Switched to connection: default
 drop table t1;
 set global general_log = @old_general_log;
-# Switched to connection: default
 select 1;
 1
 1
@@ -341,5 +350,26 @@ Table_open_cache_overflows	5
 # Cleanup
 set @@global.table_open_cache= @old_table_open_cache;
 drop tables t1, t2, t3;
+SHOW STATUS LIKE 'max_used_connections_time';
+Variable_name	Value
+Max_used_connections_time	DTVALUE
+# Should report 4
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	4
+# Should report 4
+SHOW STATUS LIKE 'max_used_connections';
+Variable_name	Value
+Max_used_connections	4
+# This should report 0 as it must have the same value as above
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+0
+# This should report 0 as timestamp is updated only when connection count strictly exceeds the previos highest value
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+0
+FLUSH STATUS;
+# This should not report 0 as FLUSH STATUS is called.
+TIMESTAMPDIFF(SECOND,'DTVALUE','DTVALUE') <> 0
+1
 set @@global.concurrent_insert= @old_concurrent_insert;
 SET GLOBAL log_output = @old_log_output;

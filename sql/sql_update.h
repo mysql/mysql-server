@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,12 +28,12 @@ typedef class st_select_lex_unit SELECT_LEX_UNIT;
 bool mysql_prepare_update(THD *thd, const TABLE_LIST *update_table_ref);
 bool mysql_update(THD *thd, List<Item> &fields,
                   List<Item> &values, ha_rows limit,
-                  enum enum_duplicates handle_duplicates, bool ignore,
+                  enum enum_duplicates handle_duplicates,
                   ha_rows *found_return, ha_rows *updated_return);
 bool mysql_multi_update(THD *thd,
                         List<Item> *fields, List<Item> *values,
                         ulonglong options,
-                        enum enum_duplicates handle_duplicates, bool ignore,
+                        enum enum_duplicates handle_duplicates,
                         SELECT_LEX *select_lex,
                         multi_update **result);
 bool records_are_comparable(const TABLE *table);

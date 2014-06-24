@@ -60,20 +60,22 @@ XML_TAG::XML_TAG(int l, String f, String v)
 }
 
 
+#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
+#define PUSH(A) *(stack_pos++)=(A)
+
 class READ_INFO {
   File	file;
   uchar	*buffer,			/* Buffer for read text */
 	*end_of_buff;			/* Data in bufferts ends here */
-  uint	buff_length,			/* Length of buffert */
-	max_length;			/* Max length of row */
-  const char *field_term_ptr, *line_term_ptr, *line_start_ptr, *line_start_end;
+  uint	buff_length;			/* Length of buffer */
+  const uchar *field_term_ptr, *line_term_ptr;
+  const char *line_start_ptr, *line_start_end;
   uint	field_term_length,line_term_length,enclosed_length;
   int	field_term_char,line_term_char,enclosed_char,escape_char;
   int	*stack,*stack_pos;
   bool	found_end_of_line,start_of_line,eof;
   bool  need_end_io_cache;
   IO_CACHE cache;
-  NET *io_net;
   int level; /* for load xml */
 
 public:
@@ -93,7 +95,7 @@ public:
   int read_fixed_length(void);
   int next_line(void);
   char unescape(char chr);
-  int terminator(const char *ptr,uint length);
+  int terminator(const uchar *ptr, uint length);
   bool find_start_of_fields();
   /* load xml */
   List<XML_TAG> taglist;
@@ -117,24 +119,30 @@ public:
     either the table or THD value
   */
   void set_io_cache_arg(void* arg) { cache.arg = arg; }
+
+  /**
+    skip all data till the eof.
+  */
+  void skip_data_till_eof()
+  {
+    while (GET != my_b_EOF)
+      ;
+  }
 };
 
 static int read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                              List<Item> &fields_vars, List<Item> &set_fields,
                              List<Item> &set_values, READ_INFO &read_info,
-			     ulong skip_lines,
-			     bool ignore_check_option_errors);
+			     ulong skip_lines);
 static int read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &fields_vars, List<Item> &set_fields,
                           List<Item> &set_values, READ_INFO &read_info,
-			  const String &enclosed, ulong skip_lines,
-			  bool ignore_check_option_errors);
+			  const String &enclosed, ulong skip_lines);
 
 static int read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                           List<Item> &fields_vars, List<Item> &set_fields,
                           List<Item> &set_values, READ_INFO &read_info,
-                          ulong skip_lines,
-                          bool ignore_check_option_errors);
+                          ulong skip_lines);
 
 #ifndef EMBEDDED_LIBRARY
 static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
@@ -142,7 +150,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* table_name_arg,
                                                bool is_concurrent,
                                                enum enum_duplicates duplicates,
-                                               bool ignore,
                                                bool transactional_table,
                                                int errocode);
 #endif /* EMBEDDED_LIBRARY */
@@ -161,7 +168,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
       set_values  - expressions to assign to fields in previous list
       handle_duplicates - indicates whenever we should emit error or
                           replace row if we will meet duplicates.
-      ignore -          - indicates whenever we should ignore duplicates
       read_file_from_client - is this LOAD DATA LOCAL ?
 
   RETURN VALUES
@@ -171,15 +177,15 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
 int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 	        List<Item> &fields_vars, List<Item> &set_fields,
                 List<Item> &set_values,
-                enum enum_duplicates handle_duplicates, bool ignore,
+                enum enum_duplicates handle_duplicates,
                 bool read_file_from_client)
 {
   char name[FN_REFLEN];
   File file;
   int error= 0;
-  const String *field_term= ex->field_term;
-  const String *escaped=    ex->escaped;
-  const String *enclosed=   ex->enclosed;
+  const String *field_term= ex->field.field_term;
+  const String *escaped=    ex->field.escaped;
+  const String *enclosed=   ex->field.enclosed;
   bool is_fifo=0;
 #ifndef EMBEDDED_LIBRARY
   LOAD_FILE_INFO lf_info;
@@ -219,7 +225,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   /* Report problems with non-ascii separators */
   if (!escaped->is_ascii() || !enclosed->is_ascii() ||
       !field_term->is_ascii() ||
-      !ex->line_term->is_ascii() || !ex->line_start->is_ascii())
+      !ex->line.line_term->is_ascii() || !ex->line.line_start->is_ascii())
   {
     push_warning(thd, Sql_condition::SL_WARNING,
                  WARN_NON_ASCII_SEPARATOR_NOT_IMPLEMENTED,
@@ -305,9 +311,10 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     if (setup_fields(thd, Ref_ptr_array(),
                      fields_vars, MARK_COLUMNS_WRITE, 0, 0) ||
         setup_fields(thd, Ref_ptr_array(),
-                     set_fields, MARK_COLUMNS_WRITE, 0, 0) ||
-        check_that_all_fields_are_given_values(thd, table, table_list))
+                     set_fields, MARK_COLUMNS_WRITE, 0, 0))
       DBUG_RETURN(TRUE);
+    /* We explicitly ignore the return value */
+    (void)check_that_all_fields_are_given_values(thd, table, table_list);
     /* Fix the expressions in SET clause */
     if (setup_fields(thd, Ref_ptr_array(), set_values, MARK_COLUMNS_READ, 0, 0))
       DBUG_RETURN(TRUE);
@@ -316,10 +323,6 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   const int escape_char= (escaped->length() && (ex->escaped_given() ||
                           !(thd->variables.sql_mode & MODE_NO_BACKSLASH_ESCAPES)))
                           ? (*escaped)[0] : INT_MAX;
-
-  /* We can't give an error in the middle when using LOCAL files */
-  if (read_file_from_client && handle_duplicates == DUP_ERROR)
-    ignore= 1;
 
   /*
     * LOAD DATA INFILE fff INTO TABLE xxx SET columns2
@@ -333,7 +336,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   COPY_INFO info(COPY_INFO::INSERT_OPERATION,
                  &fields_vars, &set_fields,
                  manage_defaults,
-                 handle_duplicates, ignore, escape_char);
+                 handle_duplicates, escape_char);
 
   if (info.add_function_default_columns(table, table->write_set))
     DBUG_RETURN(TRUE);
@@ -363,7 +366,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
     else if (item->type() == Item::STRING_ITEM)
       use_vars= 1;
   }
-  if (use_blobs && !ex->line_term->length() && !field_term->length())
+  if (use_blobs && !ex->line.line_term->length() && !field_term->length())
   {
     my_message(ER_BLOBS_AND_NO_TERMINATED,ER(ER_BLOBS_AND_NO_TERMINATED),
 	       MYF(0));
@@ -453,7 +456,8 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
 
   READ_INFO read_info(file,tot_length,
                       ex->cs ? ex->cs : thd->variables.collation_database,
-		      *field_term,*ex->line_start, *ex->line_term, *enclosed,
+		      *field_term,*ex->line.line_start, *ex->line.line_term,
+                      *enclosed,
 		      info.escape_char, read_file_from_client, is_fifo);
   if (read_info.error)
   {
@@ -476,7 +480,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   thd->count_cuted_fields= CHECK_FIELD_WARN;		/* calc cuted fields */
   thd->cuted_fields=0L;
   /* Skip lines if there is a line terminator */
-  if (ex->line_term->length() && ex->filetype != FILETYPE_XML)
+  if (ex->line.line_term->length() && ex->filetype != FILETYPE_XML)
   {
     /* ex->skip_lines needs to be preserved for logging */
     while (skip_lines > 0)
@@ -491,7 +495,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   {
 
     table->next_number_field=table->found_next_number_field;
-    if (ignore ||
+    if (thd->lex->is_ignore() ||
 	handle_duplicates == DUP_REPLACE)
       table->file->extra(HA_EXTRA_IGNORE_DUP_KEY);
     if (handle_duplicates == DUP_REPLACE &&
@@ -502,20 +506,18 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
       table->file->ha_start_bulk_insert((ha_rows) 0);
     table->copy_blobs=1;
 
-    thd->abort_on_warning= (!ignore && thd->is_strict_mode());
-
     if (ex->filetype == FILETYPE_XML) /* load xml */
       error= read_xml_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
-                            skip_lines, ignore);
+                            skip_lines);
     else if (!field_term->length() && !enclosed->length())
       error= read_fixed_length(thd, info, insert_table_ref, fields_vars,
                                set_fields, set_values, read_info,
-                               skip_lines, ignore);
+			       skip_lines);
     else
       error= read_sep_field(thd, info, insert_table_ref, fields_vars,
                             set_fields, set_values, read_info,
-                            *enclosed, skip_lines, ignore);
+			    *enclosed, skip_lines);
     if (thd->locked_tables_mode <= LTM_LOCK_TABLES &&
         table->file->ha_end_bulk_insert() && !error)
     {
@@ -553,8 +555,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
   if (error)
   {
     if (read_file_from_client)
-      while (!read_info.next_line())
-	;
+      read_info.skip_data_till_eof();
 
 #ifndef EMBEDDED_LIBRARY
     if (mysql_bin_log.is_open())
@@ -596,7 +597,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
                                                       table_list->db, 
                                                       table_list->table_name,
                                                       is_concurrent,
-                                                      handle_duplicates, ignore,
+                                                      handle_duplicates,
                                                       transactional_table,
                                                       errcode);
 	  else
@@ -645,7 +646,7 @@ int mysql_load(THD *thd,sql_exchange *ex,TABLE_LIST *table_list,
         error= write_execute_load_query_log_event(thd, ex,
                                                   table_list->db, table_list->table_name,
                                                   is_concurrent,
-                                                  handle_duplicates, ignore,
+                                                  handle_duplicates,
                                                   transactional_table,
                                                   errcode);
       }
@@ -671,7 +672,6 @@ err:
                 Transaction_ctx::STMT));
   table->file->ha_release_auto_increment();
   table->auto_increment_field_not_null= FALSE;
-  thd->abort_on_warning= 0;
   DBUG_RETURN(error);
 }
 
@@ -684,7 +684,6 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                                                const char* table_name_arg,
                                                bool is_concurrent,
                                                enum enum_duplicates duplicates,
-                                               bool ignore,
                                                bool transactional_table,
                                                int errcode)
 {
@@ -717,7 +716,8 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                     strlen(table_name_arg));
   tbl= string_buf.c_ptr_safe();
   Load_log_event       lle(thd, ex, tdb, tbl, fv, is_concurrent,
-                           duplicates, ignore, transactional_table);
+                           duplicates, thd->lex->is_ignore(),
+                           transactional_table);
 
   /*
     force in a LOCAL if there was one in the original.
@@ -766,7 +766,7 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
                         strlen(item->item_name.ptr()));
       // Extract exact Item value
       str->copy();
-      pfields.append((char *)str->ptr());
+      pfields.append(str->ptr());
       str->free();
     }
     /*
@@ -782,19 +782,19 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
   if (!(load_data_query= (char *)thd->alloc(lle.get_query_buffer_length() + 1 + pl)))
     return TRUE;
 
-  lle.print_query(FALSE, (const char *) ex->cs?ex->cs->csname:NULL,
+  lle.print_query(FALSE, ex->cs ? ex->cs->csname : NULL,
                   load_data_query, &end,
-                  (char **)&fname_start, (char **)&fname_end);
+                  &fname_start, &fname_end);
 
   strcpy(end, p);
   end += pl;
 
   Execute_load_query_log_event
     e(thd, load_data_query, end-load_data_query,
-      (uint) ((char*) fname_start - load_data_query - 1),
-      (uint) ((char*) fname_end - load_data_query),
+      static_cast<uint>(fname_start - load_data_query - 1),
+      static_cast<uint>(fname_end - load_data_query),
       (duplicates == DUP_REPLACE) ? LOAD_DUP_REPLACE :
-      (ignore ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
+      (thd->lex->is_ignore() ? LOAD_DUP_IGNORE : LOAD_DUP_ERROR),
       transactional_table, FALSE, FALSE, errcode);
   return mysql_bin_log.write_event(&e);
 }
@@ -802,17 +802,16 @@ static bool write_execute_load_query_log_event(THD *thd, sql_exchange* ex,
 #endif
 
 /****************************************************************************
-** Read of rows of fixed size + optional garage + optonal newline
+** Read of rows of fixed size + optional garbage + optional newline
 ****************************************************************************/
 
 static int
 read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                   List<Item> &fields_vars, List<Item> &set_fields,
                   List<Item> &set_values, READ_INFO &read_info,
-                  ulong skip_lines, bool ignore_check_option_errors)
+                  ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields_vars);
-  Item_field *sql_field;
   TABLE *table= table_list->table;
   bool err;
   DBUG_ENTER("read_fixed_length");
@@ -849,12 +848,15 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       break;
     }
 
-    /*
-      There is no variables in fields_vars list in this format so
-      this conversion is safe.
-    */
-    while ((sql_field= (Item_field*) it++))
+    Item *item;
+    while ((item= it++))
     {
+      /*
+        There is no variables in fields_vars list in this format so
+        this conversion is safe (no need to check for STRING_ITEM).
+      */
+      DBUG_ASSERT(item->real_item()->type() == Item::FIELD_ITEM);
+      Item_field *sql_field= static_cast<Item_field*>(item->real_item());
       Field *field= sql_field->field;                  
       if (field == table->next_number_field)
         table->auto_increment_field_not_null= TRUE;
@@ -903,13 +905,11 @@ read_fixed_length(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             ignore_check_option_errors,
                                              table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
-    switch (table_list->view_check_option(thd,
-                                          ignore_check_option_errors)) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;
@@ -975,8 +975,7 @@ static int
 read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                List<Item> &fields_vars, List<Item> &set_fields,
                List<Item> &set_values, READ_INFO &read_info,
-	       const String &enclosed, ulong skip_lines,
-	       bool ignore_check_option_errors)
+	       const String &enclosed, ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
@@ -1058,6 +1057,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 	}
         else if (item->type() == Item::STRING_ITEM)
         {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1081,6 +1081,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       }
       else if (item->type() == Item::STRING_ITEM)
       {
+        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *)item)->set_value((char*) pos, length,
                                                         read_info.read_charset);
       }
@@ -1139,6 +1140,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         }
         else if (item->type() == Item::STRING_ITEM)
         {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(
                                                   read_info.read_charset);
         }
@@ -1152,7 +1154,6 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             ignore_check_option_errors,
                                              table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
@@ -1181,8 +1182,7 @@ read_sep_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
     if (thd->is_error())
       DBUG_RETURN(1);
 
-    switch (table_list->view_check_option(thd,
-                                          ignore_check_option_errors)) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;
@@ -1223,8 +1223,7 @@ static int
 read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                List<Item> &fields_vars, List<Item> &set_fields,
                List<Item> &set_values, READ_INFO &read_info,
-               ulong skip_lines,
-               bool ignore_check_option_errors)
+               ulong skip_lines)
 {
   List_iterator_fast<Item> it(fields_vars);
   Item *item;
@@ -1282,11 +1281,13 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
       while(tag && strcmp(tag->field.c_ptr(), item->item_name.ptr()) != 0)
         tag= xmlit++;
       
+      item= item->real_item();
+
       if (!tag) // found null
       {
         if (item->type() == Item::FIELD_ITEM)
         {
-          Field *field= ((Item_field *) item)->field;
+          Field *field= (static_cast<Item_field*>(item))->field;
           field->reset();
           field->set_null();
           if (field == table->next_number_field)
@@ -1302,13 +1303,15 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
           }
         }
         else
+        {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *) item)->set_null_value(cs);
+        }
         continue;
       }
 
       if (item->type() == Item::FIELD_ITEM)
       {
-
         Field *field= ((Item_field *)item)->field;
         field->set_notnull();
         if (field == table->next_number_field)
@@ -1316,9 +1319,12 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
         field->store((char *) tag->value.ptr(), tag->value.length(), cs);
       }
       else
+      {
+        DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
         ((Item_user_var_as_out_param *) item)->set_value(
                                                  (char *) tag->value.ptr(), 
                                                  tag->value.length(), cs);
+      }
     }
     
     if (read_info.error)
@@ -1353,19 +1359,20 @@ read_xml_field(THD *thd, COPY_INFO &info, TABLE_LIST *table_list,
                               thd->get_stmt_da()->current_row_for_condition());
         }
         else
+        {
+          DBUG_ASSERT(NULL != dynamic_cast<Item_user_var_as_out_param*>(item));
           ((Item_user_var_as_out_param *)item)->set_null_value(cs);
+        }
       }
     }
 
     if (thd->killed ||
         fill_record_n_invoke_before_triggers(thd, set_fields, set_values,
-                                             ignore_check_option_errors,
                                              table, TRG_EVENT_INSERT,
                                              table->s->fields))
       DBUG_RETURN(1);
 
-    switch (table_list->view_check_option(thd,
-                                          ignore_check_option_errors)) {
+    switch (table_list->view_check_option(thd)) {
     case VIEW_CHECK_SKIP:
       read_info.next_line();
       goto continue_loop;
@@ -1424,10 +1431,18 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
    found_end_of_line(false), eof(false), need_end_io_cache(false),
    error(false), line_cuted(false), found_null(false), read_charset(cs)
 {
-  field_term_ptr= field_term.ptr();
+  /*
+    Field and line terminators must be interpreted as sequence of unsigned char.
+    Otherwise, non-ascii terminators will be negative on some platforms,
+    and positive on others (depending on the implementation of char).
+  */
+  field_term_ptr=
+    static_cast<const uchar*>(static_cast<const void*>(field_term.ptr()));
   field_term_length= field_term.length();
-  line_term_ptr= line_term.ptr();
+  line_term_ptr=
+    static_cast<const uchar*>(static_cast<const void*>(line_term.ptr()));
   line_term_length= line_term.length();
+
   level= 0; /* for load xml */
   if (line_start.length() == 0)
   {
@@ -1436,7 +1451,7 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
   }
   else
   {
-    line_start_ptr=(char*) line_start.ptr();
+    line_start_ptr= line_start.ptr();
     line_start_end=line_start_ptr+line_start.length();
     start_of_line= 1;
   }
@@ -1445,12 +1460,12 @@ READ_INFO::READ_INFO(File file_par, uint tot_length, const CHARSET_INFO *cs,
       !memcmp(field_term_ptr,line_term_ptr,field_term_length))
   {
     line_term_length=0;
-    line_term_ptr=(char*) "";
+    line_term_ptr= NULL;
   }
   enclosed_char= (enclosed_length=enclosed_par.length()) ?
     (uchar) enclosed_par[0] : INT_MAX;
-  field_term_char= field_term_length ? (uchar) field_term_ptr[0] : INT_MAX;
-  line_term_char= line_term_length ? (uchar) line_term_ptr[0] : INT_MAX;
+  field_term_char= field_term_length ? field_term_ptr[0] : INT_MAX;
+  line_term_char= line_term_length ? line_term_ptr[0] : INT_MAX;
 
 
   /* Set of a stack for unget if long terminators */
@@ -1509,9 +1524,6 @@ READ_INFO::~READ_INFO()
 }
 
 
-#define GET (stack_pos != stack ? *--stack_pos : my_b_get(&cache))
-#define PUSH(A) *(stack_pos++)=(A)
-
 /**
   The logic here is similar with my_mbcharlen, except for GET and PUSH
 
@@ -1535,13 +1547,15 @@ READ_INFO::~READ_INFO()
     }                                                                         \
   } while (0)
 
-inline int READ_INFO::terminator(const char *ptr,uint length)
+
+inline int READ_INFO::terminator(const uchar *ptr, uint length)
 {
   int chr=0;					// Keep gcc happy
   uint i;
   for (i=1 ; i < length ; i++)
   {
-    if ((chr=GET) != *++ptr)
+    chr= GET;
+    if (chr != *++ptr)
     {
       break;
     }
@@ -1550,7 +1564,7 @@ inline int READ_INFO::terminator(const char *ptr,uint length)
     return 1;
   PUSH(chr);
   while (i-- > 1)
-    PUSH((uchar) *--ptr);
+    PUSH(*--ptr);
   return 0;
 }
 
@@ -1686,7 +1700,7 @@ int READ_INFO::read_field()
       if (ml > 1 &&
           to + ml <= end_of_buff)
       {
-        uchar* p= (uchar*) to;
+        uchar* p= to;
         *to++ = chr;
 
         for (uint i= 1; i < ml; i++)
@@ -1708,7 +1722,7 @@ int READ_INFO::read_field()
                         (const char *)to))
           continue;
         for (uint i= 0; i < ml; i++)
-          PUSH((uchar) *--to);
+          PUSH(*--to);
         chr= GET;
       }
       *to++ = (uchar) chr;
@@ -1870,7 +1884,7 @@ bool READ_INFO::find_start_of_fields()
       PUSH(chr);
       while (--ptr != line_start_ptr)
       {						// Restart with next char
-	PUSH((uchar) *ptr);
+	PUSH( *ptr);
       }
       goto try_again;
     }
@@ -2073,7 +2087,7 @@ int READ_INFO::read_xml()
       
       // row tag should be in ROWS IDENTIFIED BY '<row>' - stored in line_term 
       if((tag.length() == line_term_length -2) &&
-         (strncmp(tag.c_ptr_safe(), line_term_ptr + 1, tag.length()) == 0))
+         (memcmp(tag.ptr(), line_term_ptr + 1, tag.length()) == 0))
       {
         DBUG_PRINT("read_xml", ("start-of-row: %i %s %s", 
                                 level,tag.c_ptr_safe(), line_term_ptr));
@@ -2135,7 +2149,7 @@ int READ_INFO::read_xml()
       }
       
       if((tag.length() == line_term_length -2) &&
-         (strncmp(tag.c_ptr_safe(), line_term_ptr + 1, tag.length()) == 0))
+         (memcmp(tag.ptr(), line_term_ptr + 1, tag.length()) == 0))
       {
          DBUG_PRINT("read_xml", ("found end-of-row %i %s", 
                                  level, tag.c_ptr_safe()));

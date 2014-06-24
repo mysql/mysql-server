@@ -72,8 +72,8 @@ void init_alloc_root(PSI_memory_key key,
                                pre_alloc_size+ ALIGN_SIZE(sizeof(USED_MEM)),
 			       MYF(0))))
     {
-      mem_root->free->size= pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM));
-      mem_root->free->left= pre_alloc_size;
+      mem_root->free->size= (uint)(pre_alloc_size+ALIGN_SIZE(sizeof(USED_MEM)));
+      mem_root->free->left= (uint)pre_alloc_size;
       mem_root->free->next= 0;
     }
   }
@@ -122,7 +122,7 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
       while (*prev)
       {
         mem= *prev;
-        if (mem->size == size)
+        if (mem->size == (uint)size)
         {
           /* We found a suitable block, no need to do anything else */
           mem_root->pre_alloc= mem;
@@ -145,8 +145,8 @@ void reset_root_defaults(MEM_ROOT *mem_root, size_t block_size,
       if ((mem= (USED_MEM *) my_malloc(mem_root->m_psi_key,
                                        size, MYF(0))))
       {
-        mem->size= size; 
-        mem->left= pre_alloc_size;
+        mem->size= (uint)size;
+        mem->left= (uint)pre_alloc_size;
         mem->next= *prev;
         *prev= mem_root->pre_alloc= mem; 
       }
@@ -188,8 +188,8 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     DBUG_RETURN((uchar*) 0);			/* purecov: inspected */
   }
   next->next= mem_root->used;
-  next->size= length;
-  next->left= length - ALIGN_SIZE(sizeof(USED_MEM));
+  next->size= (uint)length;
+  next->left= (uint)(length - ALIGN_SIZE(sizeof(USED_MEM)));
   mem_root->used= next;
   DBUG_PRINT("exit",("ptr: 0x%lx", (long) (((char*) next)+
                                            ALIGN_SIZE(sizeof(USED_MEM)))));
@@ -242,14 +242,14 @@ void *alloc_root(MEM_ROOT *mem_root, size_t length)
     }
     mem_root->block_num++;
     next->next= *prev;
-    next->size= get_size;
-    next->left= get_size-ALIGN_SIZE(sizeof(USED_MEM));
+    next->size= (uint)get_size;
+    next->left= (uint)(get_size-ALIGN_SIZE(sizeof(USED_MEM)));
     *prev=next;
   }
 
   point= (uchar*) ((char*) next+ (next->size-next->left));
   /*TODO: next part may be unneded due to mem_root->first_block_usage counter*/
-  if ((next->left-= length) < mem_root->min_malloc)
+  if ((next->left-= (uint)length) < mem_root->min_malloc)
   {						/* Full block */
     *prev= next->next;				/* Remove block from list */
     next->next= mem_root->used;
@@ -323,7 +323,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   last= &root->free;
   for (next= root->free; next; next= *(last= &next->next))
   {
-    next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+    next->left= next->size - (uint)ALIGN_SIZE(sizeof(USED_MEM));
     TRASH_MEM(next);
   }
 
@@ -333,7 +333,7 @@ static inline void mark_blocks_free(MEM_ROOT* root)
   /* now go through the used blocks and mark them free */
   for (; next; next= next->next)
   {
-    next->left= next->size - ALIGN_SIZE(sizeof(USED_MEM));
+    next->left= next->size - (uint)ALIGN_SIZE(sizeof(USED_MEM));
     TRASH_MEM(next);
   }
 
@@ -400,38 +400,13 @@ void free_root(MEM_ROOT *root, myf MyFlags)
   if (root->pre_alloc)
   {
     root->free=root->pre_alloc;
-    root->free->left=root->pre_alloc->size-ALIGN_SIZE(sizeof(USED_MEM));
+    root->free->left=root->pre_alloc->size-(uint)ALIGN_SIZE(sizeof(USED_MEM));
     TRASH_MEM(root->pre_alloc);
     root->free->next=0;
   }
   root->block_num= 4;
   root->first_block_usage= 0;
   DBUG_VOID_RETURN;
-}
-
-/*
-  Find block that contains an object and set the pre_alloc to it
-*/
-
-void set_prealloc_root(MEM_ROOT *root, char *ptr)
-{
-  USED_MEM *next;
-  for (next=root->used; next ; next=next->next)
-  {
-    if ((char*) next <= ptr && (char*) next + next->size > ptr)
-    {
-      root->pre_alloc=next;
-      return;
-    }
-  }
-  for (next=root->free ; next ; next=next->next)
-  {
-    if ((char*) next <= ptr && (char*) next + next->size > ptr)
-    {
-      root->pre_alloc=next;
-      return;
-    }
-  }
 }
 
 

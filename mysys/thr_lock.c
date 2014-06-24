@@ -67,10 +67,6 @@ lock at the same time as multiple read locks.
 
 */
 
-#if !defined(MAIN) && !defined(DBUG_OFF) && !defined(EXTRA_DEBUG)
-#define FORCE_DBUG_OFF
-#endif
-
 #include "mysys_priv.h"
 
 #include "thr_lock.h"
@@ -126,7 +122,7 @@ static int check_lock(struct st_lock_list *list, const char* lock_type,
 {
   THR_LOCK_DATA *data,**prev;
   uint count=0;
-  THR_LOCK_INFO *UNINIT_VAR(first_owner);
+  THR_LOCK_INFO *first_owner= NULL;
 
   prev= &list->data;
   if (list->data)
@@ -554,14 +550,15 @@ thr_lock(THR_LOCK_DATA *data, THR_LOCK_INFO *owner,
            ||\ = READ_HIGH_PRIORITY
            |\  = READ_WITH_SHARED_LOCKS
            \   = READ
-          
 
         + = Request can be satisified.
         - = Request cannot be satisified.
 
         READ_NO_INSERT and WRITE_ALLOW_WRITE should in principle
-        be incompatible. However this will cause starvation of
-        LOCK TABLE READ in InnoDB under high write load.
+        be incompatible. Before this could have caused starvation of
+        LOCK TABLE READ in InnoDB under high write load. However
+        now READ_NO_INSERT is only used for LOCK TABLES READ and this
+        statement is handled by the MDL subsystem.
         See Bug#42147 for more information.
       */
 
@@ -1154,10 +1151,9 @@ void thr_abort_locks(THR_LOCK *lock, my_bool upgrade_lock)
   This is used to abort all locks for a specific thread
 */
 
-my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
+void thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
 {
   THR_LOCK_DATA *data;
-  my_bool found= FALSE;
   DBUG_ENTER("thr_abort_locks_for_thread");
 
   mysql_mutex_lock(&lock->mutex);
@@ -1168,7 +1164,6 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
       DBUG_PRINT("info",("Aborting read-wait lock"));
       data->type= TL_UNLOCK;			/* Mark killed */
       /* It's safe to signal the cond first: we're still holding the mutex. */
-      found= TRUE;
       mysql_cond_signal(data->cond);
       data->cond= 0;				/* Removed from list */
 
@@ -1184,7 +1179,6 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
     {
       DBUG_PRINT("info",("Aborting write-wait lock"));
       data->type= TL_UNLOCK;
-      found= TRUE;
       mysql_cond_signal(data->cond);
       data->cond= 0;
 
@@ -1196,7 +1190,7 @@ my_bool thr_abort_locks_for_thread(THR_LOCK *lock, my_thread_id thread_id)
   }
   wake_up_waiters(lock);
   mysql_mutex_unlock(&lock->mutex);
-  DBUG_RETURN(found);
+  DBUG_VOID_RETURN;
 }
 
 
@@ -1453,7 +1447,7 @@ int main(int argc __attribute__((unused)),char **argv __attribute__((unused)))
 
   printf("Main thread: %s\n",my_thread_name());
 
-  if ((error= mysql_cond_init(0, &COND_thread_count, NULL)))
+  if ((error= mysql_cond_init(0, &COND_thread_count)))
   {
     my_message_stderr(0, "Got error %d from mysql_cond_init", errno);
     exit(1);

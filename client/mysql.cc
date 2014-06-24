@@ -41,6 +41,7 @@
 #include "my_readline.h"
 #include <signal.h>
 #include <violite.h>
+#include "prealloced_array.h"
 
 #include <algorithm>
 
@@ -301,7 +302,8 @@ static int get_field_disp_length(MYSQL_FIELD * field);
 static int normalize_dbname(const char *line, char *buff, uint buff_size);
 static int get_quote_count(const char *line);
 
-DYNAMIC_ARRAY histignore_patterns;
+typedef Prealloced_array<LEX_STRING, 16> Histignore_patterns;
+Histignore_patterns *histignore_patterns;
 
 static my_bool check_histignore(const char *string);
 static my_bool parse_histignore();
@@ -1171,7 +1173,7 @@ inline int get_command_index(char cmd_char)
     All client-specific commands are in the first part of commands array
     and have a function to implement it.
   */
-  for (uint i= 0; *commands[i].func; i++)
+  for (uint i= 0; *commands[i].func != NULL; i++)
     if (commands[i].cmd_char == cmd_char)
       return i;
   return -1;
@@ -1323,7 +1325,7 @@ int main(int argc,char *argv[])
 
   put_info("Welcome to the MySQL monitor.  Commands end with ; or \\g.",
 	   INFO_INFO);
-  snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
+  my_snprintf((char*) glob_buffer.ptr(), glob_buffer.alloced_length(),
 	   "Your MySQL connection id is %lu\nServer version: %s\n",
 	   mysql_thread_id(&mysql), server_version_string(&mysql));
   put_info((char*) glob_buffer.ptr(),INFO_INFO);
@@ -1628,15 +1630,20 @@ static struct my_option my_long_options[] =
 #ifdef DBUG_OFF
   {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", 'T', "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log.", &default_dbug_option,
    &default_dbug_option, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", 'T', "Print some debug info at exit.", &debug_info_flag,
    &debug_info_flag, 0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"database", 'D', "Database to use.", &current_db,
    &current_db, 0, GET_STR_ALLOC, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"default-character-set", OPT_DEFAULT_CHARSET,
@@ -2128,7 +2135,7 @@ static int read_and_execute(bool interactive)
   ulong line_number=0;
   bool ml_comment= 0;  
   COMMANDS *com;
-  ulong line_length= 0;
+  size_t line_length= 0;
   status.exit_status=1;
 
   real_binary_mode= !interactive && opt_binary_mode;
@@ -3116,16 +3123,15 @@ static void add_filtered_history(const char *string)
 static
 my_bool check_histignore(const char *string)
 {
-  uint i;
   int rc;
 
   LEX_STRING *tmp;
 
   DBUG_ENTER("check_histignore");
 
-  for (i= 0; i < histignore_patterns.elements; i++)
+  for (tmp= histignore_patterns->begin();
+       tmp != histignore_patterns->end(); ++tmp)
   {
-    tmp= dynamic_element(&histignore_patterns, i, LEX_STRING *);
     if ((rc= charset_info->coll->wildcmp(charset_info,
                                          string, string + strlen(string),
                                          tmp->str, tmp->str + tmp->length,
@@ -3164,7 +3170,7 @@ my_bool parse_histignore()
   {
     pattern.str= token;
     pattern.length= strlen(pattern.str);
-    insert_dynamic(&histignore_patterns, &pattern);
+    histignore_patterns->push_back(pattern);
     token= strtok(NULL, search);
   }
   DBUG_RETURN(0);
@@ -3173,14 +3179,15 @@ my_bool parse_histignore()
 static
 my_bool init_hist_patterns()
 {
-  return my_init_dynamic_array(&histignore_patterns,
-                               sizeof(LEX_STRING), 50, 50);
+  histignore_patterns=
+    new (std::nothrow) Histignore_patterns(PSI_NOT_INSTRUMENTED);
+  return histignore_patterns == NULL;
 }
 
 static
 void free_hist_patterns()
 {
-  delete_dynamic(&histignore_patterns);
+  delete histignore_patterns;
 }
 
 void add_syslog(const char *line) {
@@ -3345,8 +3352,6 @@ static int com_server_help(String *buffer __attribute__((unused)),
       char last_char= 0;
 
       int num_name= 0, num_cat= 0;
-      LINT_INIT(num_name);
-      LINT_INIT(num_cat);
 
       if (num_fields == 2)
       {
@@ -3372,7 +3377,7 @@ static int com_server_help(String *buffer __attribute__((unused)),
     else
     {
       put_info("\nNothing found", INFO_INFO);
-      if (strncasecmp(server_cmd, "help 'contents'", 15) == 0)
+      if (native_strncasecmp(server_cmd, "help 'contents'", 15) == 0)
       {
          put_info("\nPlease check if 'help tables' are loaded.\n", INFO_INFO); 
          goto err;
@@ -3486,7 +3491,7 @@ com_go(String *buffer,char *line __attribute__((unused)))
   }
 
   /* Remove garbage for nicer messages */
-  LINT_INIT(buff[0]);
+  buff[0]= 0;
   remove_cntrl(*buffer);
 
   if (buffer->is_empty())
@@ -3820,7 +3825,7 @@ print_table_data(MYSQL_RES *result)
   separator.copy("+",1,charset_info);
   while ((field = mysql_fetch_field(result)))
   {
-    uint length= column_names ? field->name_length : 0;
+    size_t length= column_names ? field->name_length : 0;
     if (quick)
       length= max<size_t>(length, field->length);
     else
@@ -3839,7 +3844,7 @@ print_table_data(MYSQL_RES *result)
     (void) tee_fputs("|", PAGER);
     for (uint off=0; (field = mysql_fetch_field(result)) ; off++)
     {
-      uint name_length= (uint) strlen(field->name);
+      size_t name_length= strlen(field->name);
       uint numcells= charset_info->cset->numcells(charset_info,
                                                   field->name,
                                                   field->name + name_length);
@@ -3865,7 +3870,7 @@ print_table_data(MYSQL_RES *result)
       const char *buffer;
       uint data_length;
       uint field_max_length;
-      uint visible_length;
+      size_t visible_length;
       uint extra_padding;
 
       if (off)
@@ -4594,6 +4599,7 @@ com_use(String *buffer __attribute__((unused)), char *line)
 {
   char *tmp, buff[FN_REFLEN + 1];
   int select_db;
+  uint warnings;
 
   memset(buff, 0, sizeof(buff));
 
@@ -4675,6 +4681,17 @@ com_use(String *buffer __attribute__((unused)), char *line)
 #endif
   }
 
+
+  if (0 < (warnings= mysql_warning_count(&mysql)))
+  {
+    my_snprintf(buff, sizeof(buff),
+                "Database changed, %u warning%s", warnings,
+                warnings > 1 ? "s" : "");
+    put_info(buff, INFO_INFO);
+    if (show_warnings == 1)
+      print_warnings();
+  }
+  else
   put_info("Database changed",INFO_INFO);
   return 0;
 }
@@ -4799,7 +4816,8 @@ char *get_arg(char *line, my_bool get_next_arg)
   }
   for (start=ptr ; *ptr; ptr++)
   {
-    if (*ptr == '\\' && ptr[1]) // escaped character
+    // if it is a quoted string do not remove backslash
+    if (!quoted && *ptr == '\\' && ptr[1]) // escaped character
     {
       // Remove the backslash
       my_stpmov(ptr, ptr+1);
@@ -5039,8 +5057,7 @@ com_status(String *buffer __attribute__((unused)),
   const char *status_str;
   char buff[40];
   ulonglong id;
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
 
   if (mysql_real_query_for_lazy(
         C_STRING_WITH_LEN("select DATABASE(), USER() limit 1")))
@@ -5658,8 +5675,7 @@ static void init_username()
   my_free(full_username);
   my_free(part_username);
 
-  MYSQL_RES *result;
-  LINT_INIT(result);
+  MYSQL_RES *result= NULL;
   if (!mysql_query(&mysql,"select USER()") &&
       (result=mysql_use_result(&mysql)))
   {

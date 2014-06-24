@@ -219,7 +219,7 @@ ANALYZE TABLE t1;
 EXPLAIN SELECT * FROM t1 WHERE s1='a';
 EXPLAIN SELECT * FROM t1 WHERE s2='a';
 EXPLAIN SELECT * FROM t1 WHERE s1='a' COLLATE latin1_german1_ci;
---replace_result 11 10
+--replace_result 11 10 9.09 10.00
 EXPLAIN SELECT * FROM t1 WHERE s2='a' COLLATE latin1_german1_ci;
 
 EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
@@ -227,7 +227,7 @@ EXPLAIN SELECT * FROM t1 WHERE s1 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
 EXPLAIN SELECT * FROM t1 WHERE s2 BETWEEN 'a' AND 'b' COLLATE latin1_german1_ci;
 
 EXPLAIN SELECT * FROM t1 WHERE s1 IN  ('a','b' COLLATE latin1_german1_ci);
---replace_result 11 10
+--replace_result 11 10 18.18 20.00 3.31 4.00
 EXPLAIN SELECT * FROM t1 WHERE s2 IN  ('a','b' COLLATE latin1_german1_ci);
 
 EXPLAIN SELECT * FROM t1 WHERE s1 LIKE 'a' COLLATE latin1_german1_ci;
