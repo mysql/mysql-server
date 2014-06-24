@@ -2404,6 +2404,8 @@ public:
   PROFILING  profiling;
 #endif
 
+  /** Current stage progress instrumentation. */
+  PSI_stage_progress *m_stage_progress_psi;
   /** Current statement digest. */
   sql_digest_state *m_digest;
   /** Top level statement digest. */
