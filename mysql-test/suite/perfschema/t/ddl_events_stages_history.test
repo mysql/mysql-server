@@ -14,3 +14,8 @@ ALTER TABLE performance_schema.events_stages_history ADD INDEX test_index(EVENT_
 -- error ER_DBACCESS_DENIED_ERROR
 CREATE UNIQUE INDEX test_index ON performance_schema.events_stages_history(EVENT_ID);
 
+--disable_query_log
+# Checking if the column WORK_COMPLETED and WORK_ESTIMATED exists
+select * from information_schema.columns where TABLE_NAME ='events_stages_history' and column_name in ('WORK_COMPLETED','WORK_ESTIMATED')
+and table_schema='performance_schema';
+--enable_query_log
