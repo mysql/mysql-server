@@ -251,7 +251,7 @@ void test_utf8_parser_bad_encoding()
   ptr= packet;
   *ptr++= strlen(attr);
   memcpy(ptr, attr, strlen(attr));
-  ptr[0]= 0xFA; // invalid UTF-8 char
+  ptr[0]= (char)0xFA; // invalid UTF-8 char
   ptr+= strlen(attr);
   *ptr++= strlen(val);
   memcpy(ptr, val, strlen(val));

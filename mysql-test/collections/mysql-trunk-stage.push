@@ -10,7 +10,7 @@ perl mysql-test-run.pl --force --timer --parallel=auto --experimental=collection
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=ps-debug         --vardir=var-ps-debug --ps-protocol
 
 # Run all default suites in embedded mode
-perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=embedded --vardir=var-embedded  --embedded-server --experimental=collections/default.experimental
+perl mysql-test-run.pl --timer --force --parallel=auto --comment=embedded --vardir=var-embedded  --embedded-server --experimental=collections/default.experimental
 
 # Run with innodb page size 4k
 perl mysql-test-run.pl --timer --debug-server --force --parallel=auto --comment=innodb_4k_size-debug --vardir=var-innodb-4k --experimental=collections/default.experimental --suite=innodb --mysqld=--innodb-page-size=4k

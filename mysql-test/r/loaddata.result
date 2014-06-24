@@ -530,3 +530,15 @@ LOAD DATA LOCAL INFILE '' REPLACE INTO TABLE v1;
 ERROR HY000: The target table v1 of the LOAD is not updatable
 DROP VIEW v1;
 DROP TABLE t1;
+#
+# Bug#11759519 INFINITE HANG WITH 100% CPU USAGE WITH LOAD DATA LOCAL AND IMPORT ERRORS
+#
+SET @old_mode= @@sql_mode;
+CREATE TABLE t1 (fld1 INT);
+SET sql_mode='strict_all_tables';
+# Without fix, load data hangs forever.
+LOAD DATA LOCAL INFILE 'MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
+FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
+Got one of the listed errors
+SET @@sql_mode= @old_mode;
+DROP TABLE t1;

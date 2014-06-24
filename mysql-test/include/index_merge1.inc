@@ -794,7 +794,7 @@ analyze table t3;
 
 if ($index_merge_random_rows_in_EXPLAIN)
 {
-  --replace_column 10 #
+  --replace_column 10 # 11 #
 }
 explain select * from t1 
 where exists (select 1 from t2, t3 

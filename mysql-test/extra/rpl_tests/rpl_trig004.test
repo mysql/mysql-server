@@ -36,7 +36,6 @@ INSERT INTO test.t2 VALUES (1, 0.0);
 select * from test.t1;
 select * from test.t2;
 --source include/sync_slave_sql_with_master.inc
-connection slave;
 select * from test.t1;
 select * from test.t2;
 

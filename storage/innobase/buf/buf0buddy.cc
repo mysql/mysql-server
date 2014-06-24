@@ -172,6 +172,7 @@ buf_buddy_get(
 	}
 }
 
+#ifdef UNIV_DEBUG
 /** Validate a given zip_free list. */
 struct	CheckZipFree {
 	CheckZipFree(ulint i) : m_i(i) {}
@@ -185,10 +186,19 @@ struct	CheckZipFree {
 	ulint		m_i;
 };
 
-#define BUF_BUDDY_LIST_VALIDATE(bp, i)				\
-	UT_LIST_VALIDATE(bp->zip_free[i], CheckZipFree(i))
+/** Validate a buddy list.
+@param[in]	buf_pool	buffer pool instance
+@param[in]	i		buddy size to validate */
+static
+void
+buf_buddy_list_validate(
+	const buf_pool_t*	buf_pool,
+	ulint			i)
+{
+	CheckZipFree	check(i);
+	ut_list_validate(buf_pool->zip_free[i], check);
+}
 
-#ifdef UNIV_DEBUG
 /**********************************************************************//**
 Debug function to validate that a buffer is indeed free i.e.: in the
 zip_free[].
@@ -281,7 +291,7 @@ buf_buddy_add_to_free(
 
 	buf_buddy_stamp_free(buf, i);
 	UT_LIST_ADD_FIRST(buf_pool->zip_free[i], buf);
-	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
+	ut_d(buf_buddy_list_validate(buf_pool, i));
 }
 
 /**********************************************************************//**
@@ -319,7 +329,7 @@ buf_buddy_alloc_zip(
 	ut_a(i < BUF_BUDDY_SIZES);
 	ut_a(i >= buf_buddy_get_slot(UNIV_ZIP_SIZE_MIN));
 
-	ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
+	ut_d(buf_buddy_list_validate(buf_pool, i));
 
 	buf = UT_LIST_GET_FIRST(buf_pool->zip_free[i]);
 
@@ -683,7 +693,7 @@ buddy_is_free:
 		goto recombine;
 
 	case BUF_BUDDY_STATE_USED:
-		ut_d(BUF_BUDDY_LIST_VALIDATE(buf_pool, i));
+		ut_d(buf_buddy_list_validate(buf_pool, i));
 
 		/* The buddy is not free. Is there a free block of
 		this size? */

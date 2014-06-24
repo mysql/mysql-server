@@ -79,6 +79,7 @@ row_undo_ins_remove_clust_rec(
 	ut_ad(node->trx->in_rollback);
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	/* This is similar to row_undo_mod_clust(). The DDL thread may
@@ -145,6 +146,7 @@ row_undo_ins_remove_clust_rec(
 retry:
 	/* If did not succeed, try pessimistic descent to tree */
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	success = btr_pcur_restore_position(
@@ -187,22 +189,27 @@ row_undo_ins_remove_sec_low(
 				depending on whether we wish optimistic or
 				pessimistic descent down the index tree */
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry to remove */
+	dtuple_t*	entry,	/*!< in: index entry to remove */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	btr_pcur_t		pcur;
 	btr_cur_t*		btr_cur;
 	dberr_t			err	= DB_SUCCESS;
 	mtr_t			mtr;
 	enum row_search_result	search_result;
+	ibool			modify_leaf = false;
 
 	log_free_check();
+	memset(&pcur, 0, sizeof(pcur));
 
 	mtr_start(&mtr);
+	mtr.set_named_space(index->space);
 	dict_disable_redo_if_temporary(index->table, &mtr);
 
 	if (mode == BTR_MODIFY_LEAF) {
 		mode = BTR_MODIFY_LEAF | BTR_ALREADY_S_LATCHED;
 		mtr_s_lock(dict_index_get_lock(index), &mtr);
+		modify_leaf = true;
 	} else {
 		ut_ad(mode == (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE));
 		mtr_sx_lock(dict_index_get_lock(index), &mtr);
@@ -210,6 +217,14 @@ row_undo_ins_remove_sec_low(
 
 	if (row_log_online_op_try(index, entry, 0)) {
 		goto func_exit_no_pcur;
+	}
+
+	if (dict_index_is_spatial(index)) {
+		if (mode & BTR_MODIFY_LEAF) {
+			btr_pcur_get_btr_cur(&pcur)->thr = thr;
+			mode |= BTR_DELETE_MARK;
+		}
+		mode |= BTR_RTREE_UNDO_INS;
 	}
 
 	search_result = row_search_index_entry(index, entry, mode,
@@ -220,6 +235,7 @@ row_undo_ins_remove_sec_low(
 		goto func_exit;
 	case ROW_FOUND:
 		break;
+
 	case ROW_BUFFERED:
 	case ROW_NOT_DELETED_REF:
 		/* These are invalid outcomes, because the mode passed
@@ -228,9 +244,20 @@ row_undo_ins_remove_sec_low(
 		ut_error;
 	}
 
+	if (search_result == ROW_FOUND && dict_index_is_spatial(index)) {
+		rec_t*	rec = btr_pcur_get_rec(&pcur);
+		if (rec_get_deleted_flag(rec,
+					 dict_table_is_comp(index->table))) {
+			ib_logf(IB_LOG_LEVEL_ERROR,
+				"Record found in index %s is deleted marked"
+				" on insert rollback.",
+				index->name);
+		}
+	}
+
 	btr_cur = btr_pcur_get_btr_cur(&pcur);
 
-	if (mode != (BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE)) {
+	if (modify_leaf) {
 		err = btr_cur_optimistic_delete(btr_cur, 0, &mtr)
 			? DB_SUCCESS : DB_FAIL;
 	} else {
@@ -259,14 +286,15 @@ dberr_t
 row_undo_ins_remove_sec(
 /*====================*/
 	dict_index_t*	index,	/*!< in: index */
-	dtuple_t*	entry)	/*!< in: index entry to insert */
+	dtuple_t*	entry,	/*!< in: index entry to insert */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
 	ulint	n_tries	= 0;
 
 	/* Try first optimistic descent to the B-tree */
 
-	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry);
+	err = row_undo_ins_remove_sec_low(BTR_MODIFY_LEAF, index, entry, thr);
 
 	if (err == DB_SUCCESS) {
 
@@ -277,7 +305,7 @@ row_undo_ins_remove_sec(
 retry:
 	err = row_undo_ins_remove_sec_low(
 		BTR_MODIFY_TREE | BTR_LATCH_FOR_DELETE,
-		index, entry);
+		index, entry, thr);
 
 	/* The delete operation may fail if we have little
 	file space left: TODO: easiest to crash the database
@@ -359,7 +387,8 @@ static __attribute__((nonnull, warn_unused_result))
 dberr_t
 row_undo_ins_remove_sec_rec(
 /*========================*/
-	undo_node_t*	node)	/*!< in/out: row undo node */
+	undo_node_t*	node,	/*!< in/out: row undo node */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t		err	= DB_SUCCESS;
 	dict_index_t*	index	= node->index;
@@ -394,7 +423,7 @@ row_undo_ins_remove_sec_rec(
 			assume that the secondary index record does
 			not exist. */
 		} else {
-			err = row_undo_ins_remove_sec(index, entry);
+			err = row_undo_ins_remove_sec(index, entry, thr);
 
 			if (UNIV_UNLIKELY(err != DB_SUCCESS)) {
 				goto func_exit;
@@ -422,7 +451,8 @@ anyway, it will remove it in the rollback.
 dberr_t
 row_undo_ins(
 /*=========*/
-	undo_node_t*	node)	/*!< in: row undo node */
+	undo_node_t*	node,	/*!< in: row undo node */
+	que_thr_t*	thr)	/*!< in: query thread */
 {
 	dberr_t	err;
 	ibool	dict_locked;
@@ -448,7 +478,7 @@ row_undo_ins(
 
 	dict_table_skip_corrupt_index(node->index);
 
-	err = row_undo_ins_remove_sec_rec(node);
+	err = row_undo_ins_remove_sec_rec(node, thr);
 
 	if (err == DB_SUCCESS) {
 

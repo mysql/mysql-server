@@ -65,7 +65,7 @@ static void die(const char *fmt, ...)
 
 char *fgets_fn(char *buffer, size_t size, fgets_input_t input, int *error)
 {
-  char *line= fgets(buffer, size, (FILE*) input);
+  char *line= fgets(buffer, (int)size, (FILE*) input);
   if (error)
     *error= (line == NULL) ? ferror((FILE*)input) : 0;
   return line;
@@ -119,7 +119,7 @@ int main(int argc, char *argv[])
   char* infile_name= argv[2];
   char* outfile_name= argv[3];
   int rc;
-  int query_length= 0;
+  size_t query_length= 0;
   int error= 0;
   char *err_ptr;
 

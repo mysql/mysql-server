@@ -5,13 +5,13 @@ SET @@global.innodb_max_dirty_pages_pct = 80;
 'connection con1'
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
-80
+80.000000
 SET @@global.innodb_max_dirty_pages_pct = 70;
 'connect (con2,localhost,root,,,,)'
 'connection con2'
 SELECT @@global.innodb_max_dirty_pages_pct;
 @@global.innodb_max_dirty_pages_pct
-70
+70.000000
 'connection default'
 'disconnect con2'
 'disconnect con1'

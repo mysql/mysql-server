@@ -106,7 +106,7 @@ size_t my_fcvt(double x, int precision, char *to, my_bool *error)
   }
 
   src= res;
-  len= end - src;
+  len= (int)(end - src);
 
   if (sign)
     *dst++= '-';
@@ -238,7 +238,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
     *error= FALSE;
 
   src= res;
-  len= end - res;
+  len= (int)(end - res);
 
   /*
     Number of digits in the exponent from the 'e' conversion.
@@ -330,7 +330,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
       dtoa_free(res, buf, sizeof(buf));
       res= dtoa(x, 5, width - decpt, &decpt, &sign, &end, buf, sizeof(buf));
       src= res;
-      len= end - res;
+      len= (int)(end - res);
     }
 
     if (len == 0)
@@ -396,7 +396,7 @@ size_t my_gcvt(double x, my_gcvt_arg_type type, int width, char *to,
       dtoa_free(res, buf, sizeof(buf));
       res= dtoa(x, 4, width, &decpt, &sign, &end, buf, sizeof(buf));
       src= res;
-      len= end - res;
+      len= (int)(end - res);
       if (--decpt < 0)
         decpt= -decpt;
     }
@@ -1350,7 +1350,7 @@ static const double tinytens[]=
 static double my_strtod_int(const char *s00, char **se, int *error, char *buf, size_t buf_size)
 {
   int scale;
-  int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, UNINIT_VAR(c), dsign,
+  int bb2, bb5, bbe, bd2, bd5, bbbits, bs2, c= 0, dsign,
      e, e1, esign, i, j, k, nd, nd0, nf, nz, nz0, sign;
   const char *s, *s0, *s1, *end = *se;
   double aadj, aadj1;
@@ -2162,8 +2162,8 @@ static char *dtoa(double dd, int mode, int ndigits, int *decpt, int *sign,
     to hold the suppressed trailing zeros.
   */
 
-  int bbits, b2, b5, be, dig, i, ieps, UNINIT_VAR(ilim), ilim0, 
-    UNINIT_VAR(ilim1), j, j1, k, k0, k_check, leftright, m2, m5, s2, s5,
+  int bbits, b2, b5, be, dig, i, ieps, ilim= 0, ilim0,
+    ilim1= 0, j, j1, k, k0, k_check, leftright, m2, m5, s2, s5,
     spec_case, try_quick;
   Long L;
   int denorm;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -29,6 +29,7 @@
 #include "rpl_slave.h"
 #include "rpl_rli_pdb.h"
 #include "rpl_info_factory.h"
+#include "rpl_slave_commit_order_manager.h"
 #include <mysql/plugin.h>
 #include <mysql/service_thd_wait.h>
 
@@ -82,6 +83,7 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    group_master_log_pos(0),
    gtid_set(global_sid_map, global_sid_lock),
    rli_fake(is_rli_fake),
+   gtid_retrieved_initialized(false),
    is_group_master_log_pos_invalid(false),
    log_space_total(0), ignore_log_space_limit(0),
    sql_force_rotate_relay(false),
@@ -99,8 +101,10 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
    recovery_groups_inited(false), mts_recovery_group_cnt(0),
    mts_recovery_index(0), mts_recovery_group_seen_begin(0),
    mts_group_status(MTS_NOT_IN_GROUP),
+   least_occupied_workers(PSI_NOT_INSTRUMENTED),
    current_mts_submode(0),
    reported_unsafe_warning(false), rli_description_event(NULL),
+   commit_order_mngr(NULL),
    sql_delay(0), sql_delay_end(0), m_flags(0), row_stmt_start_timestamp(0),
    long_find_row_note_printed(false), error_on_rli_init_info(false)
 {
@@ -133,15 +137,12 @@ Relay_log_info::Relay_log_info(bool is_slave_recovery
 
   if(!rli_fake)
   {
-    my_atomic_rwlock_init(&slave_open_temp_tables_lock);
-
     mysql_mutex_init(key_relay_log_info_log_space_lock,
                      &log_space_lock, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond, NULL);
+    mysql_cond_init(key_relay_log_info_log_space_cond, &log_space_cond);
     mysql_mutex_init(key_mutex_slave_parallel_pend_jobs, &pending_jobs_lock,
                      MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond,
-                    NULL);
+    mysql_cond_init(key_cond_slave_parallel_pend_jobs, &pending_jobs_cond);
     mysql_mutex_init(key_mts_temp_table_LOCK, &mts_temp_table_LOCK,
                      MY_MUTEX_INIT_FAST);
 
@@ -199,7 +200,6 @@ Relay_log_info::~Relay_log_info()
     mysql_mutex_destroy(&pending_jobs_lock);
     mysql_cond_destroy(&pending_jobs_cond);
     mysql_mutex_destroy(&mts_temp_table_LOCK);
-    my_atomic_rwlock_destroy(&slave_open_temp_tables_lock);
     relay_log.cleanup();
   }
 
@@ -920,21 +920,21 @@ int Relay_log_info::wait_for_gtid_set(THD* thd, String* gtid,
     //wait for master update, with optional timeout.
 
     global_sid_lock->wrlock();
-    const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
+    const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
     const Owned_gtids* owned_gtids= gtid_state->get_owned_gtids();
 
     DBUG_PRINT("info", ("Waiting for '%s'. is_subset: %d and "
                         "!is_intersection_nonempty: %d",
-      gtid->c_ptr_safe(), wait_gtid_set.is_subset(logged_gtids),
+      gtid->c_ptr_safe(), wait_gtid_set.is_subset(executed_gtids),
       !owned_gtids->is_intersection_nonempty(&wait_gtid_set)));
-    logged_gtids->dbug_print("gtid_executed:");
+    executed_gtids->dbug_print("gtid_executed:");
     owned_gtids->dbug_print("owned_gtids:");
 
     /*
       Since commit is performed after log to binary log, we must also
       check if any GTID of wait_gtid_set is not yet committed.
     */
-    if (wait_gtid_set.is_subset(logged_gtids) &&
+    if (wait_gtid_set.is_subset(executed_gtids) &&
         !owned_gtids->is_intersection_nonempty(&wait_gtid_set))
     {
       global_sid_lock->unlock();
@@ -1330,14 +1330,17 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   }
 
   case UNTIL_SQL_BEFORE_GTIDS:
-    // We only need to check once if logged_gtids set contains any of the until_sql_gtids.
+    /*
+      We only need to check once if executed_gtids set
+      contains any of the until_sql_gtids.
+    */
     if (until_sql_gtids_first_event)
     {
       until_sql_gtids_first_event= false;
       global_sid_lock->wrlock();
       /* Check if until GTIDs were already applied. */
-      const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-      if (until_sql_gtids.is_intersection_nonempty(logged_gtids))
+      const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
+      if (until_sql_gtids.is_intersection_nonempty(executed_gtids))
       {
         char *buffer= until_sql_gtids.to_string();
         global_sid_lock->unlock();
@@ -1370,8 +1373,8 @@ bool Relay_log_info::is_until_satisfied(THD *thd, Log_event *ev)
   case UNTIL_SQL_AFTER_GTIDS:
     {
       global_sid_lock->wrlock();
-      const Gtid_set* logged_gtids= gtid_state->get_logged_gtids();
-      if (until_sql_gtids.is_subset(logged_gtids))
+      const Gtid_set* executed_gtids= gtid_state->get_executed_gtids();
+      if (until_sql_gtids.is_subset(executed_gtids))
       {
         char *buffer= until_sql_gtids.to_string();
         global_sid_lock->unlock();
@@ -1837,7 +1840,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       last_retrieved_gtid_event if relay_log_recovery=1 (retrieved set will
       be cleared off in that case).
     */
-    if (!current_thd &&
+    if (!gtid_retrieved_initialized &&
         relay_log.init_gtid_sets(&gtid_set, NULL,
                                  is_relay_log_recovery ? NULL : get_last_retrieved_gtid(),
                                  opt_slave_sql_verify_checksum,
@@ -1846,6 +1849,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       sql_print_error("Failed in init_gtid_sets() called from Relay_log_info::rli_init_info().");
       DBUG_RETURN(1);
     }
+    gtid_retrieved_initialized= true;
 #ifndef DBUG_OFF
     global_sid_lock->wrlock();
     gtid_set.dbug_print("set of GTIDs in relay log after initialization");
@@ -1856,7 +1860,7 @@ a file name for --relay-log-index option.", opt_relaylog_index_name);
       gtid(s). This is necessary in the MYSQL_BIN_LOG::MYSQL_BIN_LOG to
       corretly compute the set of previous gtids.
     */
-    relay_log.set_previous_gtid_set(&gtid_set);
+    relay_log.set_previous_gtid_set_relaylog(&gtid_set);
     /*
       note, that if open() fails, we'll still have index file open
       but a destructor will take care of that

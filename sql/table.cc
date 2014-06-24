@@ -40,6 +40,7 @@
 #include "opt_trace.h"           // opt_trace_disable_if_no_security_...
 #include "table_cache.h"         // table_cache_manager
 #include "sql_view.h"
+#include "debug_sync.h"
 
 /* INFORMATION_SCHEMA name */
 LEX_STRING INFORMATION_SCHEMA_NAME= {C_STRING_WITH_LEN("information_schema")};
@@ -65,6 +66,10 @@ LEX_STRING MI_INFO_NAME= {C_STRING_WITH_LEN("slave_master_info")};
 /* WORKER_INFO name */
 LEX_STRING WORKER_INFO_NAME= {C_STRING_WITH_LEN("slave_worker_info")};
 
+/* GTID_EXECUTED name */
+LEX_STRING GTID_EXECUTED_NAME= {C_STRING_WITH_LEN("gtid_executed")};
+
+
 	/* Functions defined in this file */
 
 void open_table_error(TABLE_SHARE *share, int error, int db_errno,
@@ -79,7 +84,7 @@ static Item *create_view_field(THD *thd, TABLE_LIST *view, Item **field_ref,
                                const char *name,
                                Name_resolution_context *context);
 
-inline bool is_system_table_name(const char *name, uint length);
+inline bool is_system_table_name(const char *name, size_t length);
 
 static ulong get_form_pos(File file, uchar *head);
 
@@ -296,6 +301,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
                       WORKER_INFO_NAME.str,
                       name->str) == 0))
       return TABLE_CATEGORY_RPL_INFO;
+
+    if ((name->length == GTID_EXECUTED_NAME.length) &&
+        (my_strcasecmp(system_charset_info,
+                       GTID_EXECUTED_NAME.str,
+                       name->str) == 0))
+      return TABLE_CATEGORY_GTID;
+
   }
 
   return TABLE_CATEGORY_USER;
@@ -315,13 +327,13 @@ TABLE_CATEGORY get_table_category(const LEX_STRING *db, const LEX_STRING *name)
 */
 
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               uint key_length)
+                               size_t key_length)
 {
   MEM_ROOT mem_root;
   TABLE_SHARE *share= NULL;
   char *key_buff, *path_buff;
   char path[FN_REFLEN + 1];
-  uint path_length;
+  size_t path_length;
   Table_cache_element **cache_element_array;
   bool was_truncated= false;
   DBUG_ENTER("alloc_table_share");
@@ -418,7 +430,7 @@ TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
 */
 
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
-                          uint key_length, const char *table_name,
+                          size_t key_length, const char *table_name,
                           const char *path)
 {
   DBUG_ENTER("init_tmp_table_share");
@@ -565,7 +577,7 @@ void free_table_share(TABLE_SHARE *share)
   and should not contain user tables.
 */
 
-inline bool is_system_table_name(const char *name, uint length)
+inline bool is_system_table_name(const char *name, size_t length)
 {
   CHARSET_INFO *ci= system_charset_info;
 
@@ -696,7 +708,7 @@ int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags)
       goto err_not_open;
 
     /* Try unencoded 5.0 name */
-    uint length;
+    size_t length;
     strxnmov(path, sizeof(path)-1,
              mysql_data_home, "/", share->db.str, "/",
              share->table_name.str, reg_ext, NullS);
@@ -1019,7 +1031,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   uchar *record;
   uchar *disk_buff, *strpos, *null_flags, *null_pos;
   ulong pos, record_offset, *rec_per_key, rec_buff_length;
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
   handler *handler_file= 0;
   KEY	*keyinfo;
   KEY_PART_INFO *key_part;
@@ -1148,7 +1160,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
   if (!multi_alloc_root(&share->mem_root, 
                         &keyinfo, n_length + uint2korr(disk_buff + 4),
                         &rec_per_key, sizeof(ulong) * total_key_parts,
-                        &rec_per_key_float, sizeof(float) * total_key_parts,
+                        &rec_per_key_float,
+                        sizeof(rec_per_key_t) * total_key_parts,
                         NULL))
     goto err;                                   /* purecov: inspected */
 
@@ -1318,7 +1331,8 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
           replacing it with a globally locked version of tmp_plugin
         */
         /* Check if the partitioning engine is ready */
-        if (!plugin_is_ready(&name, MYSQL_STORAGE_ENGINE_PLUGIN))
+        LEX_CSTRING name_cstr= {name.str, name.length};
+        if (!plugin_is_ready(name_cstr, MYSQL_STORAGE_ENGINE_PLUGIN))
         {
           error= 8;
           my_error(ER_OPTION_PREVENTS_STATEMENT, MYF(0),
@@ -1393,17 +1407,16 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
     {
       if (keyinfo->flags & HA_USES_PARSER)
       {
-        LEX_STRING parser_name;
         if (next_chunk >= buff_end)
         {
           DBUG_PRINT("error",
                      ("fulltext key uses parser that is not defined in .frm"));
           goto err;
         }
-        parser_name.str= (char*) next_chunk;
-        parser_name.length= strlen((char*) next_chunk);
+        LEX_CSTRING parser_name= {reinterpret_cast<char*>(next_chunk),
+                                  strlen(reinterpret_cast<char*>(next_chunk))};
         next_chunk+= parser_name.length + 1;
-        keyinfo->parser= my_plugin_lock_by_name(NULL, &parser_name,
+        keyinfo->parser= my_plugin_lock_by_name(NULL, parser_name,
                                                 MYSQL_FTPARSER_PLUGIN);
         if (! keyinfo->parser)
         {
@@ -1465,7 +1478,7 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
       /* tablespace */
       const char *tablespace=
         (const char*)next_chunk + format_section_header_size;
-      const uint tablespace_length= strlen(tablespace);
+      const size_t tablespace_length= strlen(tablespace);
       if (tablespace_length &&
           !(share->tablespace= strmake_root(&share->mem_root,
                                             tablespace, tablespace_length+1)))
@@ -2088,6 +2101,7 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
   bool error_reported= FALSE;
   uchar *record, *bitmaps;
   Field **field_ptr;
+  Field *fts_doc_id_field = NULL;
   DBUG_ENTER("open_table_from_share");
   DBUG_PRINT("enter",("name: '%s.%s'  form: 0x%lx", share->db.str,
                       share->table_name.str, (long) outparam));
@@ -2177,6 +2191,11 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
     new_field->init(outparam);
     new_field->move_field_offset((my_ptrdiff_t) (outparam->record[0] -
                                                  outparam->s->default_values));
+    /* Check if FTS_DOC_ID column is present in the table */
+    if (outparam->file &&
+        (outparam->file->ha_table_flags() & HA_CAN_FULLTEXT_EXT) &&
+        !strcmp(outparam->field[i]->field_name, FTS_DOC_ID_COL_NAME))
+      fts_doc_id_field= new_field;
   }
   (*field_ptr)= 0;                              // End marker
 
@@ -2231,6 +2250,10 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
       }
       /* Skip unused key parts if they exist */
       key_part+= key_info->unused_key_parts;
+      
+      /* Set TABLE::fts_doc_id_field for tables with FT KEY */
+      if ((key_info->flags & HA_FULLTEXT))
+        outparam->fts_doc_id_field= fts_doc_id_field;
     }
   }
 
@@ -2304,7 +2327,7 @@ partititon_err:
   /* Allocate bitmaps */
 
   bitmap_size= share->column_bitmap_size;
-  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 4)))
+  if (!(bitmaps= (uchar*) alloc_root(&outparam->mem_root, bitmap_size * 5)))
     goto err;
   bitmap_init(&outparam->def_read_set,
               (my_bitmap_map*) bitmaps, share->fields, FALSE);
@@ -2312,8 +2335,10 @@ partititon_err:
               (my_bitmap_map*) (bitmaps+bitmap_size), share->fields, FALSE);
   bitmap_init(&outparam->tmp_set,
               (my_bitmap_map*) (bitmaps+bitmap_size*2), share->fields, FALSE);
+  bitmap_init(&outparam->cond_set,
+              (my_bitmap_map*) (bitmaps+bitmap_size*3), share->fields, FALSE);
   bitmap_init(&outparam->def_fields_set_during_insert,
-              (my_bitmap_map*) (bitmaps + bitmap_size * 3), share->fields,
+              (my_bitmap_map*) (bitmaps + bitmap_size * 4), share->fields,
               FALSE);
   outparam->default_column_bitmaps();
 
@@ -2370,7 +2395,8 @@ partititon_err:
   }
 
   if ((share->table_category == TABLE_CATEGORY_LOG) ||
-      (share->table_category == TABLE_CATEGORY_RPL_INFO))
+      (share->table_category == TABLE_CATEGORY_RPL_INFO) ||
+      (share->table_category == TABLE_CATEGORY_GTID))
   {
     outparam->no_replicate= TRUE;
   }
@@ -2855,7 +2881,7 @@ ulong next_io_size(ulong pos)
     May fail with some multibyte charsets though.
 */
 
-void append_unescaped(String *res, const char *pos, uint length)
+void append_unescaped(String *res, const char *pos, size_t length)
 {
   const char *end= pos+length;
   res->append('\'');
@@ -2913,7 +2939,7 @@ File create_frm(THD *thd, const char *name, const char *db,
   ulong length;
   uchar fill[IO_SIZE];
   int create_flags= O_RDWR | O_TRUNC;
-  ulong key_comment_total_bytes= 0;
+  size_t key_comment_total_bytes= 0;
   uint i;
 
   if (create_info->options & HA_LEX_CREATE_TMP_TABLE)
@@ -2968,13 +2994,13 @@ File create_frm(THD *thd, const char *name, const char *db,
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
     int2store(fileinfo+14,tmp_key_length);
     int2store(fileinfo+16,reclength);
-    int4store(fileinfo+18,create_info->max_rows);
-    int4store(fileinfo+22,create_info->min_rows);
+    int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
+    int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
     /* fileinfo[26] is set in mysql_create_frm() */
     fileinfo[27]=2;				// Use long pack-fields
     /* fileinfo[28 & 29] is set to key_info_length in mysql_create_frm() */
     create_info->table_options|=HA_OPTION_LONG_BLOB_PTR; // Use portable blob pointers
-    int2store(fileinfo+30,create_info->table_options);
+    int2store(fileinfo+30, static_cast<uint16>(create_info->table_options));
     fileinfo[32]=0;				// No filename anymore
     fileinfo[33]=5;                             // Mark for 5.0 frm file
     int4store(fileinfo+34,create_info->avg_row_length);
@@ -3001,7 +3027,7 @@ File create_frm(THD *thd, const char *name, const char *db,
       59-60 is reserved for extra_rec_buf_length,
       61 for default_part_db_type
     */
-    int2store(fileinfo+62, create_info->key_block_size);
+    int2store(fileinfo+62, static_cast<uint16>(create_info->key_block_size));
     memset(fill, 0, IO_SIZE);
     for (; length > IO_SIZE ; length-= IO_SIZE)
     {
@@ -3161,7 +3187,7 @@ enum_ident_name_check check_and_convert_db_name(LEX_STRING *org_name,
                                                 bool preserve_lettercase)
 {
   char *name= org_name->str;
-  uint name_length= org_name->length;
+  size_t name_length= org_name->length;
   bool check_for_path_chars;
   enum_ident_name_check ident_check_status;
 
@@ -3530,6 +3556,20 @@ end:
   Wait until the subject share is removed from the table
   definition cache and make sure it's destroyed.
 
+  @note This method may access the share concurrently with another
+  thread if the share is in the process of being opened, i.e., that
+  m_open_in_progress is true. In this case, close_cached_tables() may
+  iterate over elements in the table definition cache, and call this
+  method regardless of the share being opened or not. This works anyway
+  since a new flush ticket is added below, and LOCK_open ensures
+  that the share may not be destroyed by another thread in the time
+  between finding this share (having an old version) and adding the flush
+  ticket. Thus, after this thread has added the flush ticket, the thread
+  opening the table will eventually call free_table_share (as a result of
+  releasing the share after using it, or as a result of a failing
+  open_table_def()), which will notify the owners of the flush tickets,
+  and the last one being notified will actually destroy the share.
+
   @param mdl_context     MDL context for thread which is going to wait.
   @param abstime         Timeout for waiting as absolute time value.
   @param deadlock_weight Weight of this wait for deadlock detector.
@@ -3568,6 +3608,8 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
 
   mdl_context->find_deadlock();
 
+  DEBUG_SYNC(thd, "flush_complete");
+
   wait_status= mdl_context->m_wait.timed_wait(thd, abstime, TRUE,
                                               &stage_waiting_for_table_flush);
 
@@ -3585,6 +3627,8 @@ bool TABLE_SHARE::wait_for_old_version(THD *thd, struct timespec *abstime,
     */
     destroy();
   }
+
+  DEBUG_SYNC(thd, "share_destroyed");
 
   /*
     In cases when our wait was aborted by KILL statement,
@@ -4204,33 +4248,25 @@ void TABLE_LIST::cleanup_items()
 }
 
 
-/*
+/**
   check CHECK OPTION condition
 
-  SYNOPSIS
-    TABLE_LIST::view_check_option()
-    ignore_failure ignore check option fail
-
-  RETURN
-    VIEW_CHECK_OK     OK
-    VIEW_CHECK_ERROR  FAILED
-    VIEW_CHECK_SKIP   FAILED, but continue
+  @param thd                Thread object
+ 
+  @retval VIEW_CHECK_OK     OK
+  @retval VIEW_CHECK_ERROR  FAILED
+  @retval VIEW_CHECK_SKIP   FAILED, but continue
 */
 
-int TABLE_LIST::view_check_option(THD *thd, bool ignore_failure) const
+int TABLE_LIST::view_check_option(THD *thd) const
 {
   if (check_option && check_option->val_int() == 0)
   {
     const TABLE_LIST *main_view= top_table();
-    if (ignore_failure)
-    {
-      push_warning_printf(thd, Sql_condition::SL_WARNING,
-                          ER_VIEW_CHECK_FAILED, ER(ER_VIEW_CHECK_FAILED),
-                          main_view->view_db.str, main_view->view_name.str);
-      return(VIEW_CHECK_SKIP);
-    }
     my_error(ER_VIEW_CHECK_FAILED, MYF(0), main_view->view_db.str,
              main_view->view_name.str);
+    if (thd->lex->is_ignore())
+      return(VIEW_CHECK_SKIP);
     return(VIEW_CHECK_ERROR);
   }
   return(VIEW_CHECK_OK);
@@ -4357,9 +4393,8 @@ bool TABLE_LIST::is_leaf_for_name_resolution()
 
 TABLE_LIST *TABLE_LIST::first_leaf_for_name_resolution()
 {
-  TABLE_LIST *cur_table_ref;
+  TABLE_LIST *cur_table_ref= NULL;
   NESTED_JOIN *cur_nested_join;
-  LINT_INIT(cur_table_ref);
 
   if (is_leaf_for_name_resolution())
     return this;
@@ -4493,8 +4528,11 @@ bool TABLE_LIST::prepare_view_securety_context(THD *thd)
   {
     DBUG_PRINT("info", ("This table is suid view => load contest"));
     DBUG_ASSERT(view && view_sctx);
-    if (acl_getroot(view_sctx, definer.user.str, definer.host.str,
-                                definer.host.str, thd->db))
+    if (acl_getroot(view_sctx,
+                    const_cast<char*>(definer.user.str),
+                    const_cast<char*>(definer.host.str),
+                    const_cast<char*>(definer.host.str),
+                    thd->db))
     {
       if ((thd->lex->sql_command == SQLCOM_SHOW_CREATE) ||
           (thd->lex->sql_command == SQLCOM_SHOW_FIELDS))
@@ -4998,10 +5036,9 @@ Field_iterator_table_ref::get_or_create_column_ref(THD *thd, TABLE_LIST *parent_
 {
   Natural_join_column *nj_col;
   bool is_created= TRUE;
-  uint field_count;
+  uint field_count= 0;
   TABLE_LIST *add_table_ref= parent_table_ref ?
                              parent_table_ref : table_ref;
-  LINT_INIT(field_count);
 
   if (field_it == &table_field_it)
   {
@@ -5122,6 +5159,8 @@ void TABLE::clear_column_bitmaps()
 
   bitmap_clear_all(&def_fields_set_during_insert);
   fields_set_during_insert= &def_fields_set_during_insert;
+
+  bitmap_clear_all(&tmp_set);
 }
 
 
@@ -5527,12 +5566,13 @@ bool TABLE::add_tmp_key(Field_map *key_parts, char *key_name)
   */
   const size_t key_buf_size= sizeof(KEY_PART_INFO) * key_part_count;
   ulong *rec_per_key;
-  float *rec_per_key_float;
+  rec_per_key_t *rec_per_key_float;
 
   if(!multi_alloc_root(&mem_root,
                        &key_buf, key_buf_size,
                        &rec_per_key, sizeof(ulong) * key_part_count,
-                       &rec_per_key_float, sizeof(float) * key_part_count,
+                       &rec_per_key_float,
+                       sizeof(rec_per_key_t) * key_part_count,
                        NULL))
     return true;                                /* purecov: inspected */
 
@@ -5715,6 +5755,9 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
+
+  // optim_join_cond() may point to freed memory of previous execution.
+  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*
@@ -5946,8 +5989,7 @@ void init_mdl_requests(TABLE_LIST *table_list)
     MDL_REQUEST_INIT(&table_list->mdl_request,
                      MDL_key::TABLE,
                      table_list->db, table_list->table_name,
-                     table_list->lock_type >= TL_WRITE_ALLOW_WRITE ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(table_list->lock_type),
                      MDL_TRANSACTION);
 }
 
@@ -6344,6 +6386,8 @@ bool TABLE::update_const_key_parts(Item *conds)
 
 bool TABLE::check_read_removal(uint index)
 {
+  bool retval= false;
+
   DBUG_ENTER("check_read_removal");
   DBUG_ASSERT(file->ha_table_flags() & HA_READ_BEFORE_WRITE_REMOVAL);
   DBUG_ASSERT(index != MAX_KEY);
@@ -6355,11 +6399,15 @@ bool TABLE::check_read_removal(uint index)
   // Full index must be used
   bitmap_clear_all(&tmp_set);
   mark_columns_used_by_index_no_reset(index, &tmp_set);
-  if (!bitmap_cmp(&tmp_set, read_set))
-    DBUG_RETURN(false);
 
-  // Start read removal in handler
-  DBUG_RETURN(file->start_read_removal());
+  if (bitmap_cmp(&tmp_set, read_set))
+  {
+    // Start read removal in handler
+    retval= file->start_read_removal();
+  }
+
+  bitmap_clear_all(&tmp_set);
+  DBUG_RETURN(retval);
 }
 
 

@@ -45,9 +45,9 @@
 #
 # Added in WL#3584 - Global Transaction Identifiers
 
+--let $rpl_gtid_utils= 1
 --source include/master-slave.inc
 --source include/rpl_set_gtid_mode.inc
---source include/gtid_utils.inc
 --source include/have_debug.inc
 
 --echo ######## Initialize ########
@@ -196,5 +196,4 @@ while ($corruption_mode <= $corruption_mode_count)
 --echo ######## Clean up ########
 --connection master
 DROP TABLE t1;
---source include/gtid_utils_end.inc
 --source include/rpl_end.inc

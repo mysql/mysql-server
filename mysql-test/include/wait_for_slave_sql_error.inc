@@ -6,7 +6,7 @@
 #
 # ==== Usage ====
 #
-# --let $slave_sql_errno= NUMBER [, NUMBER...] [ # comment ]
+# --let $slave_sql_errno= NUMBER [, NUMBER ...] [# comment]
 # [--let $show_slave_sql_error= 1]
 # [--let $rpl_debug= 1]
 # [--let $slave_timeout= NUMBER]
@@ -14,7 +14,13 @@
 #
 # Parameters:
 #   $slave_sql_errno
-#     The expected SQL error number.  This is required.
+#     The expected SQL error numbers. This can be either a single
+#     number, or a comma-separated list of numbers. Examples:
+#       --let $slave_sql_errno= 1040, 1053, 2002, 2003, 2006, 2013
+#       --let $slave_sql_errno= 1593 # ER_SLAVE_FATAL_ERROR
+#     It is allowed to add a comment at the end of the line, and it
+#     is strongly advised to put the symbolic name of the error in
+#     this comment, like the example above.
 #     (After BUG#41956 has been fixed, this will be required to be a
 #     symbolic name instead of a number.)
 #
@@ -53,6 +59,11 @@ if ($slave_sql_errno == '') {
 
 # Strip away comment
 --let $_wfsse_slave_sql_errno= `SELECT IF(LOCATE('#', '$slave_sql_errno') != 0, SUBSTR('$slave_sql_errno', 1, LOCATE('#', '$slave_sql_errno') - 1), '$slave_sql_errno')`
+
+if ($rpl_debug)
+{
+  --echo # debug: slave_sql_errno='$slave_sql_errno'; stripped from comments='$_wfsse_slave_sql_errno' wfsse_errno='$_wfsse_errno'
+}
 
 if (`SELECT $_wfsse_errno NOT IN ($_wfsse_slave_sql_errno)`) {
   --echo **** Slave stopped with wrong error code: $_wfsse_errno (expected $slave_sql_errno) ****

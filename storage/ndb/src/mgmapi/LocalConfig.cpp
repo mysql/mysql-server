@@ -237,8 +237,8 @@ LocalConfig::parseString(const char * connectString, BaseString &err){
   char * copy = strdup(connectString);
   NdbAutoPtr<char> tmp_aptr(copy);
 
-  for (char *tok = strtok_r(copy,";,",&for_strtok); tok != 0;
-       tok = strtok_r(NULL, ";,", &for_strtok)) {
+  for (char *tok = my_strtok_r(copy,";,",&for_strtok); tok != 0;
+       tok = my_strtok_r(NULL, ";,", &for_strtok)) {
     if (tok[0] == '#') continue;
 
     if (!_ownNodeId) // only one nodeid definition allowed

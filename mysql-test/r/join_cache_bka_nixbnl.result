@@ -39,8 +39,8 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	100.00	Using where
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	100.00	Using where
+1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	11.11	Using where
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.17	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
@@ -70,9 +70,9 @@ countrylanguage.Country=country.Code AND
 city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	100.00	Using where
-1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	100.00	Using where
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	100.00	Using where
+1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
+1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	0.17	Using where
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.06	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -231,8 +231,8 @@ SELECT city.Name, country.Name FROM city,country
 WHERE city.Country=country.Code AND 
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	100.00	Using where
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	100.00	Using where
+1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	11.11	Using where
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.17	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
@@ -262,9 +262,9 @@ countrylanguage.Country=country.Code AND
 city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	100.00	Using where
-1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	100.00	Using where
-1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	100.00	Using where
+1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
+1	SIMPLE	countrylanguage	NULL	ALL	NULL	NULL	NULL	NULL	984	0.17	Using where
+1	SIMPLE	city	NULL	ALL	NULL	NULL	NULL	NULL	4079	0.06	Using where
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -455,7 +455,7 @@ WHERE city.country=country.Code AND
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
@@ -486,8 +486,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	countrylanguage	NULL	range	PRIMARY,Percentage	Percentage	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	100.00	Using where; Using join buffer (Batched Key Access)
-1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	33.33	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	11.11	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`country`.`Code` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Country` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -643,7 +643,7 @@ WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AN
 city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name` from `world`.`country` join `world`.`city` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Population` > 100000) and (`world`.`country`.`Name` like 'L%'))
 SELECT Name FROM city
@@ -672,7 +672,7 @@ FROM country LEFT JOIN countrylanguage ON
 WHERE 
 country.Population > 10000000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	100.00	Using where
+1	SIMPLE	country	NULL	ALL	NULL	NULL	NULL	NULL	239	33.33	Using where
 1	SIMPLE	countrylanguage	NULL	eq_ref	PRIMARY	PRIMARY	33	world.country.Code,const	1	100.00	Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`country`.`Name` AS `Name`,if(isnull(`world`.`countrylanguage`.`Country`),NULL,`world`.`countrylanguage`.`Percentage`) AS `IF(ISNULL(countrylanguage.country), NULL, countrylanguage.Percentage)` from `world`.`country` left join `world`.`countrylanguage` on(((`world`.`countrylanguage`.`Language` = 'English') and (`world`.`countrylanguage`.`Country` = `world`.`country`.`Code`))) where (`world`.`country`.`Population` > 10000000)
@@ -770,7 +770,7 @@ WHERE city.country=country.Code AND
 country.Name LIKE 'L%' AND city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name` from `world`.`city` join `world`.`country` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`country`.`Name` like 'L%') and (`world`.`city`.`Population` > 100000))
 SELECT city.Name, country.Name FROM city,country
@@ -801,8 +801,8 @@ city.Name LIKE 'L%' AND country.Population > 3000000 AND
 countrylanguage.Percentage > 50;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	countrylanguage	NULL	range	PRIMARY,Percentage	Percentage	4	NULL	#	100.00	Using index condition; Using MRR
-1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	100.00	Using where; Using join buffer (Batched Key Access)
-1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	country	NULL	eq_ref	PRIMARY	PRIMARY	3	world.countrylanguage.Country	1	33.33	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	city	NULL	ref	Country	Country	3	world.countrylanguage.Country	18	11.11	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name`,`world`.`country`.`Name` AS `Name`,`world`.`countrylanguage`.`Language` AS `Language` from `world`.`city` join `world`.`country` join `world`.`countrylanguage` where ((`world`.`country`.`Code` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Country` = `world`.`countrylanguage`.`Country`) and (`world`.`city`.`Name` like 'L%') and (`world`.`country`.`Population` > 3000000) and (`world`.`countrylanguage`.`Percentage` > 50))
 SELECT city.Name, country.Name, countrylanguage.Language
@@ -958,7 +958,7 @@ WHERE city.country IN (SELECT Code FROM country WHERE country.Name LIKE 'L%') AN
 city.Population > 100000;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	country	NULL	range	PRIMARY,Name	Name	52	NULL	10	100.00	Using index condition; Using MRR
-1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	city	NULL	ref	Population,Country	Country	3	world.country.Code	18	87.57	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `world`.`city`.`Name` AS `Name` from `world`.`country` join `world`.`city` where ((`world`.`city`.`Country` = `world`.`country`.`Code`) and (`world`.`city`.`Population` > 100000) and (`world`.`country`.`Name` like 'L%'))
 SELECT Name FROM city
@@ -1327,11 +1327,11 @@ t1.metaid = t2.metaid AND t1.affiliateid = '2';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t6	NULL	system	PRIMARY	NULL	NULL	NULL	1	100.00	NULL
 1	SIMPLE	t1	NULL	ref	t1_affiliateid,t1_metaid	t1_affiliateid	4	const	1	100.00	NULL
-1	SIMPLE	t4	NULL	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	100.00	Using where; Using join buffer (Batched Key Access)
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	100.00	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t7	NULL	ref	PRIMARY	PRIMARY	4	test.t1.metaid	1	100.00	Using index
 1	SIMPLE	t8	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t7.artistid	1	100.00	Using join buffer (Batched Key Access)
+1	SIMPLE	t4	NULL	ref	PRIMARY,t4_formatclassid,t4_formats_idx	t4_formats_idx	1	const	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY,t5_formattypeid	PRIMARY	4	test.t4.formatclassid	1	50.00	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	t9	NULL	ref	PRIMARY,t9_subgenreid,t9_metaid	t9_metaid	4	test.t1.metaid	2	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t10	NULL	eq_ref	PRIMARY,t10_genreid	PRIMARY	4	test.t9.subgenreid	1	100.00	Using join buffer (Batched Key Access)
 1	SIMPLE	t11	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t10.genreid	1	100.00	Using join buffer (Batched Key Access)
@@ -1504,7 +1504,7 @@ EXPLAIN
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	5	100.00	NULL
-1	SIMPLE	t2	NULL	ref	i_a	i_a	4	test.t1.a	2	100.00	Using where; Not exists; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	i_a	i_a	4	test.t1.a	2	20.00	Using where; Not exists; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where isnull(`test`.`t2`.`b`)
 SELECT * FROM t1 LEFT JOIN t2 ON t1.a=t2.a WHERE t2.b IS NULL;
@@ -1548,7 +1548,7 @@ a	b	a	c
 explain select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	NULL
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	3	55.56	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t1`.`b` AS `b`,`test`.`t2`.`a` AS `a`,`test`.`t2`.`c` AS `c` from `test`.`t1` left join `test`.`t2` on((`test`.`t2`.`a` = `test`.`t1`.`a`)) where ((`test`.`t2`.`c` = 102) or isnull(`test`.`t2`.`c`))
 select * from t1 left join t2 on t1.a=t2.a where t2.c=102 or t2.c is null;
@@ -1570,7 +1570,7 @@ a	b
 20	NULL
 explain select * from t1 left join t2 on (1=0) where a=40;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
+1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	33.33	Using where
 1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`a` AS `a`,`test`.`t2`.`b` AS `b` from `test`.`t1` left join `test`.`t2` on((1 = 0)) where (`test`.`t1`.`a` = 40)
@@ -1649,9 +1649,9 @@ SELECT COUNT(*) FROM t1,t2,t3
 WHERE t1.a=t2.a AND t2.a=t3.a AND
 t1.b IS NULL AND t2.b IS NULL AND t3.b IS NULL;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	16384	100.00	Using where
-1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where; Using join buffer (Batched Key Access)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t1	NULL	ALL	PRIMARY	NULL	NULL	NULL	16384	0.50	Using where
+1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	5.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	4	test.t1.a	1	5.00	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select count(0) AS `COUNT(*)` from `test`.`t1` join `test`.`t2` join `test`.`t3` where ((`test`.`t2`.`a` = `test`.`t1`.`a`) and (`test`.`t3`.`a` = `test`.`t1`.`a`) and isnull(`test`.`t1`.`b`) and isnull(`test`.`t2`.`b`) and isnull(`test`.`t3`.`b`))
 SELECT COUNT(*) FROM t1,t2,t3
@@ -1787,7 +1787,7 @@ explain select t2.f1, t2.f2, t2.f3 from t1,t2
 where t1.f1=t2.f1 and t2.f2 between t1.f1 and t2.f2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	3	100.00	Using where
-1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	3	100.00	Using index condition; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	f1	f1	4	test.t1.f1	3	11.11	Using index condition; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t2`.`f1` AS `f1`,`test`.`t2`.`f2` AS `f2`,`test`.`t2`.`f3` AS `f3` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`f1` = `test`.`t1`.`f1`) and (`test`.`t2`.`f2` between `test`.`t1`.`f1` and `test`.`t2`.`f2`))
 drop table t1,t2;
@@ -1820,7 +1820,7 @@ select t1.id1  from t1 join t2 on t1.id1=t2.id1
 where t1.d=3 and t2.id2 > 200 order by t1.id1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ref	idx1	idx1	5	const	4	100.00	Using where; Using index; Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	idx2	idx2	5	test.t1.id1	2	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	idx2	idx2	5	test.t1.id1	2	33.33	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`id1` AS `id1` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`id1` = `test`.`t1`.`id1`) and (`test`.`t1`.`d` = 3) and (`test`.`t2`.`id2` > 200)) order by `test`.`t1`.`id1`
 select t1.id1  from t1 join t2 on t1.id1=t2.id1 
@@ -1916,9 +1916,9 @@ t5.enum2='Active' AND t3.id4=t2.id4 AND t2.id3=t1.id3 AND t3.text1<'D';
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	t1	NULL	ALL	NULL	NULL	NULL	NULL	349	100.00	Using where
 1	SIMPLE	t2	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id3	1	100.00	Using where; Using join buffer (Batched Key Access)
-1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t3	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t2.id4	1	33.33	Using where; Using join buffer (Batched Key Access)
 1	SIMPLE	t4	NULL	eq_ref	PRIMARY	PRIMARY	8	test.t1.id2	1	100.00	Using join buffer (Batched Key Access)
-1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t5	NULL	eq_ref	PRIMARY	PRIMARY	16	test.t1.id1,test.t1.id2	1	33.33	Using where; Using join buffer (Batched Key Access)
 Warnings:
 Note	1003	/* select#1 */ select straight_join `test`.`t1`.`id1` AS `id1`,`test`.`t1`.`num3` AS `num3`,`test`.`t3`.`text1` AS `text1`,`test`.`t3`.`id4` AS `id4`,`test`.`t2`.`id3` AS `id3`,`test`.`t4`.`dummy` AS `dummy` from `test`.`t1` join `test`.`t2` join `test`.`t3` join `test`.`t4` join `test`.`t5` where ((`test`.`t2`.`id3` = `test`.`t1`.`id3`) and (`test`.`t3`.`id4` = `test`.`t2`.`id4`) and (`test`.`t5`.`enum2` = 'Active') and (`test`.`t4`.`id2` = `test`.`t1`.`id2`) and (`test`.`t5`.`id2` = `test`.`t1`.`id2`) and (`test`.`t5`.`id1` = `test`.`t1`.`id1`) and (`test`.`t3`.`text1` < 'D'))
 SELECT STRAIGHT_JOIN t1.id1, t1.num3, t3.text1, t3.id4, t2.id3, t4.dummy
@@ -2042,7 +2042,7 @@ SELECT MAX(t1.i)
 FROM t1 JOIN t2 ON t2.v
 ORDER BY t2.v;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	50.00	Using where
 1	SIMPLE	t1	NULL	index	NULL	PRIMARY	4	NULL	4	100.00	Using index
 Warnings:
 Note	1003	/* select#1 */ select max(`test`.`t1`.`i`) AS `MAX(t1.i)` from `test`.`t1` join `test`.`t2` where `test`.`t2`.`v` order by `test`.`t2`.`v`
@@ -2253,10 +2253,10 @@ t1 table3 force index (`col_varchar_key`)
 where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
 and table3 .`col_varchar_key`  = table2 .`col_varchar_nokey`;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	table2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
-1	SIMPLE	table3	NULL	ref	col_varchar_key	col_varchar_key	4	test.table2.col_varchar_nokey	1	100.00	Using index condition; Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	table3	NULL	ALL	col_varchar_key	NULL	NULL	NULL	2	50.00	Using where
+1	SIMPLE	table2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where
 Warnings:
-Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key` from `test`.`t1` `table2` join `test`.`t1` `table3` FORCE INDEX (`col_varchar_key`) where ((`test`.`table3`.`col_varchar_key` = `test`.`table2`.`col_varchar_nokey`) and `test`.`table3`.`pk` and (`test`.`table3`.`col_int_key` >= `test`.`table2`.`pk`))
+Note	1003	/* select#1 */ select `test`.`table2`.`col_int_key` AS `col_int_key` from `test`.`t1` `table2` join `test`.`t1` `table3` FORCE INDEX (`col_varchar_key`) where ((`test`.`table2`.`col_varchar_nokey` = `test`.`table3`.`col_varchar_key`) and `test`.`table3`.`pk` and (`test`.`table3`.`col_int_key` >= `test`.`table2`.`pk`))
 SELECT table2 .`col_int_key` FROM t1 table2,
 t1 table3 force index (`col_varchar_key`)
 where table3 .`pk` and table3 .`col_int_key`  >= table2 .`pk`  
@@ -2291,8 +2291,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	3	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	1	100.00	Using where; Using join buffer (Batched Key Access)
+1	SIMPLE	t2	NULL	ref	col_int_key	col_int_key	5	const	1	50.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_datetime` AS `col_datetime` from `test`.`t1` join `test`.`t2` where ((`test`.`t2`.`col_int_key` = 1) and (`test`.`t2`.`col_int` >= 3)) group by `test`.`t1`.`col_int_key` order by `test`.`t1`.`col_int_key`,`test`.`t1`.`col_datetime` limit 2
 SELECT t1.col_int_key, t1.col_datetime 
@@ -2311,8 +2311,8 @@ GROUP BY t1.col_int_key
 ORDER BY t1.col_int_key, t1.col_datetime
 LIMIT 2;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t1	NULL	index	col_int_key	col_int_key	5	NULL	3	100.00	Using temporary; Using filesort
-1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	100.00	Using where
+1	SIMPLE	t2	NULL	ALL	NULL	NULL	NULL	NULL	2	25.00	Using where; Using temporary; Using filesort
+1	SIMPLE	t1	NULL	ALL	col_int_key	NULL	NULL	NULL	3	100.00	NULL
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t1`.`col_int_key` AS `col_int_key`,`test`.`t1`.`col_datetime` AS `col_datetime` from `test`.`t1` FORCE INDEX (`col_int_key`) join `test`.`t2` IGNORE INDEX (`col_int_key`) where ((`test`.`t2`.`col_int_key` = 1) and (`test`.`t2`.`col_int` >= 3)) group by `test`.`t1`.`col_int_key` order by `test`.`t1`.`col_int_key`,`test`.`t1`.`col_datetime` limit 2
 SELECT t1.col_int_key, t1.col_datetime 

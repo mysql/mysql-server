@@ -57,8 +57,11 @@ C_MODE_START
 #include "../mysys/my_static.h"			// For soundex_map
 C_MODE_END
 
+#include "template_utils.h"
+
 using std::min;
 using std::max;
+
 
 /*
   For the Items which have only val_str_ascii() method
@@ -173,16 +176,27 @@ String *Item_func_md5::val_str_ascii(String *str)
 }
 
 
+/*
+  The MD5()/SHA() functions treat their parameter as being a case sensitive.
+  Thus we set binary collation on it so different instances of MD5() will be
+  compared properly.
+*/
+static CHARSET_INFO *get_checksum_charset(const char *csname)
+{
+  CHARSET_INFO *cs= get_charset_by_csname(csname, MY_CS_BINSORT, MYF(0));
+  if (!cs)
+  {
+    // Charset has no binary collation: use my_charset_bin.
+    cs= &my_charset_bin;
+  }
+  return cs;
+}
+
+
 void Item_func_md5::fix_length_and_dec()
 {
-  /*
-    The MD5() function treats its parameter as being a case sensitive. Thus
-    we set binary collation on it so different instances of MD5() will be
-    compared properly.
-  */
-  args[0]->collation.set(
-      get_charset_by_csname(args[0]->collation.collation->csname,
-                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
+  CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
+  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   fix_length_and_charset(32, default_charset());
 }
 
@@ -212,14 +226,8 @@ String *Item_func_sha::val_str_ascii(String *str)
 
 void Item_func_sha::fix_length_and_dec()
 {
-  /*
-    The SHA() function treats its parameter as being a case sensitive. Thus
-    we set binary collation on it so different instances of MD5() will be
-    compared properly.
-  */
-  args[0]->collation.set(
-      get_charset_by_csname(args[0]->collation.collation->csname,
-                            MY_CS_BINSORT,MYF(0)), DERIVATION_COERCIBLE);
+  CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
+  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
   // size of hex representation of hash
   fix_length_and_charset(SHA1_HASH_SIZE * 2, default_charset());
 }
@@ -336,24 +344,16 @@ void Item_func_sha2::fix_length_and_dec()
     break;
 #endif
   default:
+    fix_length_and_charset(SHA256_DIGEST_LENGTH * 2, default_charset());
     push_warning_printf(current_thd,
       Sql_condition::SL_WARNING,
       ER_WRONG_PARAMETERS_TO_NATIVE_FCT,
       ER(ER_WRONG_PARAMETERS_TO_NATIVE_FCT), "sha2");
   }
 
-  /*
-    The SHA2() function treats its parameter as being a case sensitive.
-    Thus we set binary collation on it so different instances of SHA2()
-    will be compared properly.
-  */
+  CHARSET_INFO *cs= get_checksum_charset(args[0]->collation.collation->csname);
+  args[0]->collation.set(cs, DERIVATION_COERCIBLE);
 
-  args[0]->collation.set(
-      get_charset_by_csname(
-        args[0]->collation.collation->csname,
-        MY_CS_BINSORT,
-        MYF(0)),
-      DERIVATION_COERCIBLE);
 #else
   push_warning_printf(current_thd,
     Sql_condition::SL_WARNING,
@@ -436,6 +436,20 @@ public:
 };
 
 
+bool Item_func_aes_encrypt::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  /* Unsafe for SBR since result depends on a session variable */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  /* Not safe to cache either */
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  return false;
+}
+
+
 String *Item_func_aes_encrypt::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -446,7 +460,7 @@ String *Item_func_aes_encrypt::val_str(String *str)
   THD *thd= current_thd;
   ulong aes_opmode;
   iv_argument iv_arg;
-  DBUG_ENTER("Item_func_aes_decrypt::val_str");
+  DBUG_ENTER("Item_func_aes_encrypt::val_str");
 
   sptr= args[0]->val_str(str);			// String to encrypt
   key=  args[1]->val_str(&tmp_key_value);	// key
@@ -494,6 +508,20 @@ void Item_func_aes_encrypt::fix_length_and_dec()
 
   max_length=my_aes_get_size(args[0]->max_length,
                              (enum my_aes_opmode) aes_opmode);
+}
+
+
+bool Item_func_aes_decrypt::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  /* Unsafe for SBR since result depends on a session variable */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  /* Not safe to cache either */
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  return false;
 }
 
 
@@ -547,6 +575,22 @@ void Item_func_aes_decrypt::fix_length_and_dec()
    max_length=args[0]->max_length;
    maybe_null= 1;
 }
+
+
+bool Item_func_random_bytes::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  /* it is unsafe for SBR since it uses crypto random from the ssl library */
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  /* Not safe to cache either */
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
+  return false;
+}
+
 
 /*
   Artificially limited to 1k to avoid excessive memory usage.
@@ -1819,205 +1863,99 @@ String *Item_func_substr_index::val_str(String *str)
 ** a substring that points at the original string.
 */
 
-
-String *Item_func_ltrim::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  String tmp(buff,sizeof(buff),system_charset_info);
-  String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
-
-  res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  remove_str= &remove;                          /* Default value. */
-  if (arg_count == 2)
-  {
-    remove_str= args[1]->val_str(&tmp);
-    if ((null_value= args[1]->null_value))
-      return 0;
-  }
-
-  if ((remove_length= remove_str->length()) == 0 ||
-      remove_length > res->length())
-    return res;
-
-  ptr= (char*) res->ptr();
-  end= ptr+res->length();
-  if (remove_length == 1)
-  {
-    char chr=(*remove_str)[0];
-    while (ptr != end && *ptr == chr)
-      ptr++;
-  }
-  else
-  {
-    const char *r_ptr=remove_str->ptr();
-    end-=remove_length;
-    while (ptr <= end && !memcmp(ptr, r_ptr, remove_length))
-      ptr+=remove_length;
-    end+=remove_length;
-  }
-  if (ptr == res->ptr())
-    return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
-  return &tmp_value;
-}
-
-
-String *Item_func_rtrim::val_str(String *str)
-{
-  DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  String tmp(buff, sizeof(buff), system_charset_info);
-  String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
-
-  res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  remove_str= &remove;                          /* Default value. */
-  if (arg_count == 2)
-  {
-    remove_str= args[1]->val_str(&tmp);
-    if ((null_value= args[1]->null_value))
-      return 0;
-  }
-
-  if ((remove_length= remove_str->length()) == 0 ||
-      remove_length > res->length())
-    return res;
-
-  ptr= (char*) res->ptr();
-  end= ptr+res->length();
-  char *p=ptr;
-  uint32 l;
-  if (remove_length == 1)
-  {
-    char chr=(*remove_str)[0];
-    if (use_mb(res->charset()))
-    {
-      while (ptr < end)
-      {
-	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l,p=ptr;
-	else ++ptr;
-      }
-      ptr=p;
-    }
-    while (ptr != end  && end[-1] == chr)
-      end--;
-  }
-  else
-  {
-    const char *r_ptr=remove_str->ptr();
-    if (use_mb(res->charset()))
-    {
-  loop:
-      while (ptr + remove_length < end)
-      {
-	if ((l=my_ismbchar(res->charset(), ptr,end))) ptr+=l;
-	else ++ptr;
-      }
-      if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
-      {
-	end-=remove_length;
-	ptr=p;
-	goto loop;
-      }
-    }
-    else
-    {
-      while (ptr + remove_length <= end &&
-	     !memcmp(end-remove_length, r_ptr, remove_length))
-	end-=remove_length;
-    }
-  }
-  if (end == res->ptr()+res->length())
-    return res;
-  tmp_value.set(*res,0,(uint) (end-res->ptr()));
-  return &tmp_value;
-}
-
-
 String *Item_func_trim::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
-  char buff[MAX_FIELD_WIDTH], *ptr, *end;
-  const char *r_ptr;
-  String tmp(buff, sizeof(buff), system_charset_info);
-  String *res, *remove_str;
-  uint remove_length;
-  LINT_INIT(remove_length);
 
-  res= args[0]->val_str(str);
-  if ((null_value=args[0]->null_value))
-    return 0;
-  remove_str= &remove;                          /* Default value. */
+  String *res= args[0]->val_str(str);
+  if ((null_value = args[0]->null_value))
+    return NULL;
+
+  char buff[MAX_FIELD_WIDTH];
+  String tmp(buff, sizeof(buff), system_charset_info);
+  const String *remove_str= &remove;            // Default value.
+
   if (arg_count == 2)
   {
     remove_str= args[1]->val_str(&tmp);
     if ((null_value= args[1]->null_value))
-      return 0;
+      return NULL;
   }
 
-  if ((remove_length= remove_str->length()) == 0 ||
+  const size_t remove_length= remove_str->length();
+  if (remove_length == 0 ||
       remove_length > res->length())
     return res;
 
-  ptr= (char*) res->ptr();
-  end= ptr+res->length();
-  r_ptr= remove_str->ptr();
+  const char *ptr= res->ptr();
+  const char *end= ptr + res->length();
+  const char *const r_ptr= remove_str->ptr();
+
   if (use_mb(res->charset()))
   {
-    while (ptr + remove_length <= end)
+    if (m_trim_leading)
     {
-      uint num_bytes= 0;
-      while (num_bytes < remove_length)
+      while (ptr + remove_length <= end)
       {
-        uint len;
-        if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
-          num_bytes+= len;
-        else
-          ++num_bytes;
+        uint num_bytes= 0;
+        while (num_bytes < remove_length)
+        {
+          uint len;
+          if ((len= my_ismbchar(res->charset(), ptr + num_bytes, end)))
+            num_bytes+= len;
+          else
+            ++num_bytes;
+        }
+        if (num_bytes != remove_length)
+          break;
+        if (memcmp(ptr, r_ptr, remove_length))
+          break;
+        ptr+= remove_length;
       }
-      if (num_bytes != remove_length)
-        break;
-      if (memcmp(ptr, r_ptr, remove_length))
-        break;
-      ptr+= remove_length;
     }
-    char *p=ptr;
-    uint32 l;
- loop:
-    while (ptr + remove_length < end)
+    if (m_trim_trailing)
     {
-      if ((l= my_ismbchar(res->charset(), ptr,end)))
-        ptr+= l;
-      else
-        ++ptr;
+      bool found;
+      const char *p= ptr;
+      do
+      {
+        found= false;
+        while (ptr + remove_length < end)
+        {
+          uint32 l;
+          if ((l= my_ismbchar(res->charset(), ptr, end)))
+            ptr+= l;
+          else
+            ++ptr;
+        }
+        if (ptr + remove_length == end && !memcmp(ptr, r_ptr, remove_length))
+        {
+          end-= remove_length;
+          found= true;
+        }
+        ptr= p;
+      }
+      while (found);
     }
-    if (ptr + remove_length == end && !memcmp(ptr,r_ptr,remove_length))
-    {
-      end-=remove_length;
-      ptr=p;
-      goto loop;
-    }
-    ptr=p;
   }
   else
   {
-    while (ptr+remove_length <= end && !memcmp(ptr,r_ptr,remove_length))
-      ptr+=remove_length;
-    while (ptr + remove_length <= end &&
-	   !memcmp(end-remove_length,r_ptr,remove_length))
-      end-=remove_length;
+    if (m_trim_leading)
+    {
+      while (ptr + remove_length <= end && !memcmp(ptr, r_ptr, remove_length))
+        ptr+= remove_length;
+    }
+    if (m_trim_trailing)
+    {
+      while (ptr + remove_length <= end &&
+             !memcmp(end-remove_length, r_ptr, remove_length))
+        end-=remove_length;
+    }
   }
-  if (ptr == res->ptr() && end == ptr+res->length())
+  if (ptr == res->ptr() && end == ptr + res->length())
     return res;
-  tmp_value.set(*res,(uint) (ptr - res->ptr()),(uint) (end-ptr));
+  tmp_value.set(*res, static_cast<uint>(ptr - res->ptr()),
+                static_cast<uint>(end - ptr));
   return &tmp_value;
 }
 
@@ -2043,17 +1981,32 @@ void Item_func_trim::fix_length_and_dec()
 
 void Item_func_trim::print(String *str, enum_query_type query_type)
 {
-  if (arg_count == 1)
-  {
-    Item_func::print(str, query_type);
-    return;
-  }
   str->append(Item_func_trim::func_name());
   str->append('(');
-  str->append(mode_name());
-  str->append(' ');
-  args[1]->print(str, query_type);
-  str->append(STRING_WITH_LEN(" from "));
+  const char *mode_name;
+  switch(m_trim_mode) {
+  case TRIM_BOTH:
+    mode_name= "both ";
+    break;
+  case TRIM_LEADING:
+    mode_name= "leading ";
+    break;
+  case TRIM_TRAILING:
+    mode_name= "trailing ";
+    break;
+  default:
+    mode_name= NULL;
+    break;
+  }
+  if (mode_name)
+  {
+    str->append(mode_name);
+  }
+  if (arg_count == 2)
+  {
+    args[1]->print(str, query_type);
+    str->append(STRING_WITH_LEN(" from "));
+  }
   args[0]->print(str, query_type);
   str->append(')');
 }
@@ -2187,6 +2140,17 @@ char *Item_func_password::
 
 /* Item_func_old_password */
 
+bool Item_func_old_password::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  pc->thd->lex->contains_plaintext_password= true;
+  return false;
+}
+
 String *Item_func_old_password::val_str_ascii(String *str)
 {
   String *res;
@@ -2224,6 +2188,18 @@ char *Item_func_old_password::alloc(THD *thd, const char *password,
     my_make_scrambled_password_323(buff, password, pass_len);
   }
   return buff;
+}
+
+bool Item_func_encrypt::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  DBUG_ASSERT(arg_count == 1 || arg_count == 2);
+  if (arg_count == 1)
+    pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_RAND);
+  return false;
 }
 
 
@@ -2362,6 +2338,18 @@ Item *Item_func_sysconst::safe_charset_converter(const CHARSET_INFO *tocs)
 }
 
 
+bool Item_func_database::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+ 
+  pc->thd->lex->safe_to_cache_query=0;
+  return false;
+}
+
+
 String *Item_func_database::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -2407,11 +2395,36 @@ bool Item_func_user::init(const char *user, const char *host)
 }
 
 
+bool Item_func_user::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  LEX *lex= pc->thd->lex;
+  lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  lex->safe_to_cache_query= 0;
+  return false;
+}
+
 bool Item_func_user::fix_fields(THD *thd, Item **ref)
 {
   return (Item_func_sysconst::fix_fields(thd, ref) ||
           init(thd->main_security_ctx.user,
                thd->main_security_ctx.host_or_ip));
+}
+
+
+bool Item_func_current_user::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+
+  context= pc->thd->lex->current_context();
+  return false;
 }
 
 
@@ -2810,6 +2823,19 @@ String *Item_func_elt::val_str(String *str)
     result->set_charset(collation.collation);
   null_value= args[tmp]->null_value;
   return result;
+}
+
+
+bool Item_func_make_set::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  /*
+    We have to itemize() the "item" before the super::itemize() call there since
+    this reflects the "natural" order of former semantic action code execution
+    in the original parser:
+  */
+  return item->itemize(pc, &item) || super::itemize(pc, res);
 }
 
 
@@ -3443,6 +3469,20 @@ void Item_func_conv_charset::print(String *str, enum_query_type query_type)
   str->append(')');
 }
 
+bool Item_func_set_collation::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  THD *thd= pc->thd;
+  args[1]= new (pc->mem_root) Item_string(collation_string.str,
+                                          collation_string.length,
+                                          thd->charset());
+  if (args[1] == NULL)
+    return true;
+
+  return super::itemize(pc, res);
+}
+
 String *Item_func_set_collation::val_str(String *str)
 {
   DBUG_ASSERT(fixed == 1);
@@ -3535,6 +3575,23 @@ String *Item_func_collation::val_str(String *str)
   str->copy(cs->name, (uint) strlen(cs->name),
 	    &my_charset_latin1, collation.collation, &dummy_errors);
   return str;
+}
+
+
+bool Item_func_weight_string::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (as_binary)
+  {
+    if (args[0]->itemize(pc, &args[0]))
+      return true;
+    args[0]= new (pc->mem_root) Item_char_typecast(args[0], nweights,
+                                                   &my_charset_bin);
+    if (args[0] == NULL)
+      return true;
+  }
+  return super::itemize(pc, res);
 }
 
 
@@ -3901,6 +3958,18 @@ void Item_func_binary::print(String *str, enum_query_type query_type)
 }
 
 
+bool Item_load_file::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->set_uncacheable(pc->select, UNCACHEABLE_SIDEEFFECT);
+  return false;
+}
+
+
 #include <my_dir.h>				// For my_stat
 
 String *Item_load_file::val_str(String *str)
@@ -4215,17 +4284,28 @@ null:
   return 0;
 }
 
+/**
+  @returns The length that the compressed string args[0] had before
+  being compressed.
+
+  @note This function is supposed to handle this case:
+  SELECT UNCOMPRESSED_LENGTH(COMPRESS(<some string>))
+  However, in mysql tradition, the input argument can be *anything*.
+
+  We return NULL if evaluation of the input argument returns NULL.
+  If the input string does not look like something produced by
+  Item_func_compress::val_str, we issue a warning and return 0.
+ */
 longlong Item_func_uncompressed_length::val_int()
 {
   DBUG_ASSERT(fixed == 1);
   String *res= args[0]->val_str(&value);
-  if (!res)
-  {
-    null_value=1;
-    return 0; /* purecov: inspected */
-  }
-  null_value=0;
-  if (res->is_empty()) return 0;
+
+  if ((null_value= args[0]->null_value))
+    return 0;
+
+  if (!res || res->is_empty())
+    return 0;
 
   /*
     If length is <= 4 bytes, data is corrupt. This is the best we can do
@@ -4236,7 +4316,6 @@ longlong Item_func_uncompressed_length::val_int()
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_ZLIB_Z_DATA_ERROR,
                         ER(ER_ZLIB_Z_DATA_ERROR));
-    null_value= 1;
     return 0;
   }
 
@@ -4273,7 +4352,7 @@ String *Item_func_compress::val_str(String *str)
   ulong new_size;
   String *res;
   Byte *body;
-  char *tmp, *last_char;
+  char *last_char;
   DBUG_ASSERT(fixed == 1);
 
   if (!(res= args[0]->val_str(str)))
@@ -4315,8 +4394,7 @@ String *Item_func_compress::val_str(String *str)
     return 0;
   }
 
-  tmp= (char*)buffer.ptr(); // int4store is a macro; avoid side effects
-  int4store(tmp, res->length() & 0x3FFFFFFF);
+  int4store(const_cast<char*>(buffer.ptr()), res->length() & 0x3FFFFFFF);
 
   /* This is to ensure that things works for CHAR fields, which trim ' ': */
   last_char= ((char*)body)+new_size-1;
@@ -4368,8 +4446,10 @@ String *Item_func_uncompress::val_str(String *str)
   if (buffer.realloc((uint32)new_size))
     goto err;
 
-  if ((err= uncompress((Byte*)buffer.ptr(), &new_size,
-		       ((const Bytef*)res->ptr())+4,res->length())) == Z_OK)
+  if ((err= uncompress(pointer_cast<Byte*>(const_cast<char*>(buffer.ptr())),
+                       &new_size,
+                       pointer_cast<const Bytef*>(res->ptr()) + 4,
+                       res->length() - 4)) == Z_OK)
   {
     buffer.length((uint32) new_size);
     return &buffer;
@@ -4424,6 +4504,19 @@ static void set_clock_seq_str()
   tohex(clock_seq_and_node_str+1, clock_seq, 4);
   nanoseq= 0;
 }
+
+
+bool Item_func_uuid::itemize(Parse_context *pc, Item **res)
+{
+  if (skip_itemize(res))
+    return false;
+  if (super::itemize(pc, res))
+    return true;
+  pc->thd->lex->set_stmt_unsafe(LEX::BINLOG_STMT_UNSAFE_SYSTEM_FUNCTION);
+  pc->thd->lex->safe_to_cache_query= 0;
+  return false;
+}
+
 
 String *Item_func_uuid::val_str(String *str)
 {

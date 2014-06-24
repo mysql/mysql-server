@@ -39,17 +39,26 @@ public:
 
     Only member variables needed for the rec_per_key interface are
     currently initialized.
+
+    @param key_parts_arg number of key parts this index should have
+    @param unique        unique or non-unique key
   */
 
-  Fake_KEY(unsigned int key_parts_arg)
+  Fake_KEY(unsigned int key_parts_arg, bool unique)
   {
     DBUG_ASSERT(key_parts_arg > 0);
 
+    flags= 0;
+    if (unique)
+      flags|= HA_NOSAME;
+    actual_flags= flags;
+
+    user_defined_key_parts= key_parts_arg;
     actual_key_parts= key_parts_arg;
 
     // Allocate memory for the two rec_per_key arrays
     m_rec_per_key= new ulong[actual_key_parts];
-    m_rec_per_key_float= new float[actual_key_parts];
+    m_rec_per_key_float= new rec_per_key_t[actual_key_parts];
     set_rec_per_key_array(m_rec_per_key, m_rec_per_key_float);
 
     // Initialize the rec_per_key arrays with default/unknown value
@@ -70,7 +79,7 @@ public:
 private:
   // Storage for the two records per key arrays
   ulong *m_rec_per_key;
-  float *m_rec_per_key_float;
+  rec_per_key_t *m_rec_per_key_float;
 };
 
 #endif /* FAKE_KEY_INCLUDED */

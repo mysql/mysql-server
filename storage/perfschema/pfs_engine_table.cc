@@ -358,7 +358,7 @@ static int compare_table_names(const char *name1, const char *name2)
     to be simply my_strcasecmp(system_charset_info, name1, name2).
   */
   if (lower_case_table_names)
-    return strcasecmp(name1, name2);
+    return native_strcasecmp(name1, name2);
   return strcmp(name1, name2);
 }
 

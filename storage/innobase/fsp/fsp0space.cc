@@ -26,6 +26,7 @@ Created 2012-11-16 by Sunny Bains as srv/srv0space.cc
 #include "ha_prototypes.h"
 
 #include "fsp0space.h"
+#include "fsp0sysspace.h"
 #include "fsp0fsp.h"
 #include "os0file.h"
 
@@ -132,9 +133,13 @@ Tablespace::open_or_create(bool is_temp)
 	for (files_t::iterator it = begin; it != end; ++it) {
 
 		if (it->m_exists) {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only
+				? false : srv_read_only_mode);
 		} else {
-			err = it->open_or_create();
+			err = it->open_or_create(
+				m_ignore_read_only
+				? false : srv_read_only_mode);
 
 			/* Set the correct open flags now that we have
 			successfully created the file. */
@@ -218,6 +223,8 @@ Tablespace::delete_files()
 
 	for (files_t::iterator it = m_files.begin(); it != end; ++it) {
 
+		it->close();
+
 		bool file_pre_exists;
 		bool success = os_file_delete_if_exists(
 			innodb_data_file_key, it->m_filepath, &file_pre_exists);
@@ -228,4 +235,15 @@ Tablespace::delete_files()
 				"\"%s\"", it->m_name);
 		}
 	}
+}
+
+/** Check if undo tablespace.
+@return true if undo tablespace */
+bool
+Tablespace::is_undo_tablespace(
+	ulint	id)
+{
+	return(id <= srv_undo_tablespaces_open
+	       && id != srv_sys_space.space_id()
+	       && id != srv_tmp_space.space_id());
 }

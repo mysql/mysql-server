@@ -1,6 +1,3 @@
-#
-# Copyright (c) 2013, Oracle and/or its affiliates. All rights reserved.
-#
 # ==== Purpose ====
 #
 # This test script serves as the functionality testing for the table
@@ -34,6 +31,7 @@
 #  ==== Related Worklog ====
 #
 #  WL#3656: PERFORMANCE SCHEMA table for SHOW SLAVE STATUS
+#  Bug#18358253: RPL.RPL_PERFSCHEMA_EXECUTE_STATUS_BY_WORKER HAS SPORADIC FAILURES ON PB2
 #
 
 source include/not_gtid_enabled.inc;
@@ -49,9 +47,10 @@ let $assert_cond= [select count(*) from performance_schema.replication_execute_s
 source include/assert.inc;
 
 --echo
---echo # Setup MTS and performa testing on a fresh slave.
+--echo # Setup MTS and perform testing on a fresh slave.
 --echo
 
+--source include/sync_slave_sql_with_master.inc
 --connection slave
 
 # PB2 runs the tests with slave-parallel-worker=4 in a combination.

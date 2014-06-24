@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -130,7 +130,9 @@ File my_register_filename(File fd, const char *FileName, enum file_type
 #if defined(_WIN32)
       my_errno= EMFILE;
 #else
-      thread_safe_increment(my_file_opened,&THR_LOCK_open);
+      mysql_mutex_lock(&THR_LOCK_open);
+      my_file_opened++;
+      mysql_mutex_unlock(&THR_LOCK_open);
       DBUG_RETURN(fd);				/* safeguard */
 #endif
     }

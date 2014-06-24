@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -78,13 +78,14 @@ void table_def_free(void);
 void table_def_start_shutdown(void);
 void assign_new_table_id(TABLE_SHARE *share);
 uint cached_table_definitions(void);
-uint get_table_def_key(const TABLE_LIST *table_list, const char **key);
+size_t get_table_def_key(const TABLE_LIST *table_list, const char **key);
 TABLE_SHARE *get_table_share(THD *thd, TABLE_LIST *table_list,
-                             const char *key, uint key_length,
+                             const char *key, size_t key_length,
                              uint db_flags, int *error,
                              my_hash_value_type hash_value);
 void release_table_share(TABLE_SHARE *share);
-TABLE_SHARE *get_cached_table_share(const char *db, const char *table_name);
+TABLE_SHARE *get_cached_table_share(THD *thd, const char *db,
+                                    const char *table_name);
 
 TABLE *open_ltable(THD *thd, TABLE_LIST *table_list, thr_lock_type update,
                    uint lock_flags);
@@ -170,17 +171,15 @@ TABLE_LIST *find_table_in_list(TABLE_LIST *table,
 TABLE *find_temporary_table(THD *thd, const char *db, const char *table_name);
 TABLE *find_temporary_table(THD *thd, const TABLE_LIST *tl);
 TABLE *find_temporary_table(THD *thd, const char *table_key,
-                            uint table_key_length);
+                            size_t table_key_length);
 void close_thread_tables(THD *thd);
 bool fill_record_n_invoke_before_triggers(THD *thd, List<Item> &fields,
                                           List<Item> &values,
-                                          bool ignore_errors,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
 bool fill_record_n_invoke_before_triggers(THD *thd, Field **field,
                                           List<Item> &values,
-                                          bool ignore_errors,
                                           TABLE *table,
                                           enum enum_trigger_event_type event,
                                           int num_fields);
@@ -193,11 +192,11 @@ bool setup_fields(THD *thd, Ref_ptr_array ref_pointer_array,
                   List<Item> &item, enum_mark_columns mark_used_columns,
                   List<Item> *sum_func_list, bool allow_sum_func);
 bool fill_record(THD * thd, List<Item> &fields, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap,
-                 MY_BITMAP *insert_into_fields_bitmap);
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
 bool fill_record(THD *thd, Field **field, List<Item> &values,
-                 bool ignore_errors, MY_BITMAP *bitmap,
-                 MY_BITMAP *insert_into_fields_bitmap);
+                 MY_BITMAP *bitmap, MY_BITMAP *insert_into_fields_bitmap);
+
+bool check_record(THD *thd, Field **ptr);
 
 Field *
 find_field_in_tables(THD *thd, Item_ident *item,
@@ -206,14 +205,14 @@ find_field_in_tables(THD *thd, Item_ident *item,
                      bool check_privileges, bool register_tree_change);
 Field *
 find_field_in_table_ref(THD *thd, TABLE_LIST *table_list,
-                        const char *name, uint length,
+                        const char *name, size_t length,
                         const char *item_name, const char *db_name,
                         const char *table_name, Item **ref,
                         bool check_privileges, bool allow_rowid,
                         uint *cached_field_index_ptr,
                         bool register_tree_change, TABLE_LIST **actual_table);
 Field *
-find_field_in_table(THD *thd, TABLE *table, const char *name, uint length,
+find_field_in_table(THD *thd, TABLE *table, const char *name, size_t length,
                     bool allow_rowid, uint *cached_field_index_ptr);
 Field *
 find_field_in_table_sef(TABLE *table, const char *name);
@@ -240,7 +239,7 @@ void update_non_unique_table_error(TABLE_LIST *update,
                                    const char *operation,
                                    TABLE_LIST *duplicate);
 int setup_ftfuncs(SELECT_LEX* select);
-int init_ftfuncs(THD *thd, SELECT_LEX* select, bool no_order);
+int init_ftfuncs(THD *thd, SELECT_LEX* select);
 bool lock_table_names(THD *thd, TABLE_LIST *table_list,
                       TABLE_LIST *table_list_end, ulong lock_wait_timeout,
                       uint flags);
@@ -295,7 +294,7 @@ void tdc_remove_table(THD *thd, enum_tdc_remove_table_type remove_type,
                       const char *db, const char *table_name,
                       bool has_lock);
 bool tdc_open_view(THD *thd, TABLE_LIST *table_list, const char *alias,
-                   const char *cache_key, uint cache_key_length, uint flags);
+                   const char *cache_key, size_t cache_key_length, uint flags);
 void tdc_flush_unused_tables();
 TABLE *find_table_for_mdl_upgrade(THD *thd, const char *db,
                                   const char *table_name,
@@ -532,6 +531,11 @@ public:
     return m_has_protection_against_grl;
   }
 
+  bool can_back_off() const
+  {
+    return !m_has_locks;
+  }
+
 private:
   /* THD for which tables are opened. */
   THD *m_thd;
@@ -603,7 +607,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -620,5 +624,38 @@ private:
 
 #include "pfs_table_provider.h"
 #include "mysql/psi/mysql_table.h"
+
+/**
+  This internal handler implements downgrade from SL_ERROR to SL_WARNING
+  for statements which support IGNORE.
+*/
+
+class Ignore_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
+};
+
+/**
+  This internal handler implements upgrade from SL_WARNING to SL_ERROR
+  for the error codes affected by STRICT mode. Currently STRICT mode does
+  not affect SELECT statements.
+*/
+
+class Strict_error_handler : public Internal_error_handler
+{
+public:
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char* sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition ** cond_hdl);
+};
 
 #endif /* SQL_BASE_INCLUDED */

@@ -521,7 +521,7 @@ void free_charsets(void)
 static const char*
 get_collation_name_alias(const char *name, char *buf, size_t bufsize)
 {
-  if (!strncasecmp(name, "utf8mb3_", 8))
+  if (!native_strncasecmp(name, "utf8mb3_", 8))
   {
     my_snprintf(buf, bufsize, "utf8_%s", name + 8);
     return buf;

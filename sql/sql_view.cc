@@ -1,4 +1,4 @@
-/* Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -169,7 +169,7 @@ err:
 static bool make_valid_column_names(LEX *lex)
 {
   Item *item;
-  uint name_len;
+  size_t name_len;
   char buff[NAME_LEN];
   uint column_no= 1;
   DBUG_ENTER("make_valid_column_names");
@@ -243,7 +243,7 @@ static bool
 fill_defined_view_parts (THD *thd, TABLE_LIST *view)
 {
   const char *key;
-  uint key_length;
+  size_t key_length;
   LEX *lex= thd->lex;
   TABLE_LIST decoy;
 
@@ -1180,7 +1180,7 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
   TABLE_LIST *top_view= table->top_table();
   bool parse_status= true;
   bool result= true, view_is_mergeable;
-  TABLE_LIST *UNINIT_VAR(view_main_select_tables);
+  TABLE_LIST *view_main_select_tables= NULL;
 
   DBUG_ENTER("mysql_make_view");
   DBUG_PRINT("info", ("table: 0x%lx (%s)", (ulong) table, table->table_name));
@@ -1518,6 +1518,15 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
         privileges of top_view
       */
       tbl->grant.want_privilege= SELECT_ACL;
+
+      /*
+        For LOCK TABLES we need to acquire "strong" metadata lock to ensure
+        that we properly protect underlying tables for storage engines which
+        don't use THR_LOCK locks.
+      */
+      if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
+        tbl->mdl_request.set_type(MDL_SHARED_READ_ONLY);
+
       /*
         After unfolding the view we lose the list of tables referenced in it
         (we will have only a list of underlying tables in case of MERGE
@@ -1578,9 +1587,36 @@ bool mysql_make_view(THD *thd, TABLE_SHARE *share, TABLE_LIST *table,
       */
       for (tbl= view_main_select_tables; tbl; tbl= tbl->next_local)
       {
+        enum_mdl_type mdl_lock_type;
+
         tbl->lock_type= table->lock_type;
-        tbl->mdl_request.set_type((tbl->lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                                  MDL_SHARED_WRITE : MDL_SHARED_READ);
+
+        if (old_lex->sql_command == SQLCOM_LOCK_TABLES)
+        {
+          /*
+            For LOCK TABLES we need to acquire "strong" metadata lock to
+            ensure that we properly protect underlying tables for storage
+            engines which don't use THR_LOCK locks.
+            OTOH for mergeable views we want to respect LOCAL clause in
+            LOCK TABLES ... READ LOCAL.
+          */
+          if (tbl->lock_type >= TL_WRITE_ALLOW_WRITE)
+            mdl_lock_type= MDL_SHARED_NO_READ_WRITE;
+          else
+          {
+            mdl_lock_type= (tbl->lock_type == TL_READ) ?
+                           MDL_SHARED_READ : MDL_SHARED_READ_ONLY;
+          }
+        }
+        else
+        {
+          /*
+            For other statements we can acquire "weak" locks.
+            Still we want to respect explicit LOW_PRIORITY clause.
+          */
+          mdl_lock_type= mdl_type_for_dml(tbl->lock_type);
+        }
+        tbl->mdl_request.set_type(mdl_lock_type);
       }
       /*
         If the view is mergeable, we might want to

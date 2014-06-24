@@ -471,7 +471,7 @@ void Diagnostics_area::set_error_status(uint mysql_errno,
 
 
 bool Diagnostics_area::has_sql_condition(const char *message_text,
-                                         ulong message_length) const
+                                         size_t message_length) const
 {
   Sql_condition_iterator it(m_conditions_list);
   const Sql_condition *err;
@@ -893,7 +893,8 @@ ErrConvString::ErrConvString(double nr)
   // enough to print '-[digits].E+###'
   DBUG_ASSERT(sizeof(err_buffer) > DBL_DIG + 8);
   buf_length= my_gcvt(nr, MY_GCVT_ARG_DOUBLE,
-                      sizeof(err_buffer) - 1, err_buffer, NULL);  
+                      static_cast<int>(sizeof(err_buffer)) - 1,
+                      err_buffer, NULL);
 }
 
 
@@ -926,8 +927,8 @@ ErrConvString::ErrConvString(const struct st_mysql_time *ltime, uint dec)
    number of bytes written to "to"
 */
 
-uint err_conv(char *buff, size_t to_length, const char *from,
-              size_t from_length, const CHARSET_INFO *from_cs)
+size_t err_conv(char *buff, size_t to_length, const char *from,
+                size_t from_length, const CHARSET_INFO *from_cs)
 {
   char *to= buff;
   const char *from_start= from;
@@ -995,9 +996,9 @@ uint err_conv(char *buff, size_t to_length, const char *from,
    length of converted string
 */
 
-uint32 convert_error_message(char *to, uint32 to_length,
+size_t convert_error_message(char *to, size_t to_length,
                              const CHARSET_INFO *to_cs,
-                             const char *from, uint32 from_length,
+                             const char *from, size_t from_length,
                              const CHARSET_INFO *from_cs, uint *errors)
 {
   int         cnvres;

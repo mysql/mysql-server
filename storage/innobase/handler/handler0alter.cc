@@ -51,7 +51,8 @@ Smart ALTER TABLE
 /** Operations for creating secondary indexes (no rebuild needed) */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ONLINE_CREATE
 	= Alter_inplace_info::ADD_INDEX
-	| Alter_inplace_info::ADD_UNIQUE_INDEX;
+	| Alter_inplace_info::ADD_UNIQUE_INDEX
+	| Alter_inplace_info::ADD_SPATIAL_INDEX;
 
 /** Operations for rebuilding a table in place */
 static const Alter_inplace_info::HA_ALTER_FLAGS INNOBASE_ALTER_REBUILD
@@ -127,7 +128,7 @@ my_error_innodb(
 	case DB_OUT_OF_FILE_SPACE:
 		my_error(ER_RECORD_FILE_FULL, MYF(0), table);
 		break;
-	case DB_TEMP_FILE_WRITE_FAILURE:
+	case DB_TEMP_FILE_WRITE_FAIL:
 		my_error(ER_TEMP_FILE_WRITE_FAILURE, MYF(0));
 		break;
 	case DB_TOO_BIG_INDEX_COL:
@@ -334,6 +335,7 @@ ha_innobase::check_if_supported_inplace_alter(
 	     new_key < ha_alter_info->key_info_buffer
 		     + ha_alter_info->key_count;
 	     new_key++) {
+
 		for (KEY_PART_INFO* key_part = new_key->key_part;
 		     key_part < new_key->key_part + new_key->user_defined_key_parts;
 		     key_part++) {
@@ -404,6 +406,11 @@ ha_innobase::check_if_supported_inplace_alter(
 		    <= table->s->fields);
 	DBUG_ASSERT(!prebuilt->table->fts || prebuilt->table->fts->doc_col
 		    < dict_table_get_n_user_cols(prebuilt->table));
+
+	if (ha_alter_info->handler_flags
+	    & Alter_inplace_info::ADD_SPATIAL_INDEX) {
+		online = false;
+	}
 
 	if (prebuilt->table->fts
 	    && innobase_fulltext_exist(altered_table)) {
@@ -543,15 +550,9 @@ innobase_init_foreign(
 		/* Check if any existing foreign key has the same id,
 		this is needed only if user supplies the constraint name */
 
-		for (const dict_foreign_t* existing_foreign
-			= UT_LIST_GET_FIRST(table->foreign_list);
-		     existing_foreign != 0;
-		     existing_foreign = UT_LIST_GET_NEXT(
-			     foreign_list, existing_foreign)) {
-
-			if (ut_strcmp(existing_foreign->id, foreign->id) == 0) {
-				return(false);
-			}
+		if (table->foreign_set.find(foreign)
+		    != table->foreign_set.end()) {
+			return(false);
 		}
         }
 
@@ -685,7 +686,8 @@ innobase_find_equiv_index(
 	for (uint i = 0; i < n_add; i++) {
 		const KEY*	key = &keys[add[i]];
 
-		if (key->user_defined_key_parts < n_cols) {
+		if (key->user_defined_key_parts < n_cols
+		    || key->flags & HA_SPATIAL) {
 no_match:
 			continue;
 		}
@@ -1506,6 +1508,7 @@ innobase_create_index_def(
 		DBUG_ASSERT(!(key->flags & HA_FULLTEXT));
 		index->ind_type |= DICT_CLUSTERED;
 	} else if (key->flags & HA_FULLTEXT) {
+		DBUG_ASSERT(!(key->flags & HA_SPATIAL));
 		DBUG_ASSERT(!(key->flags & HA_KEYFLAG_MASK
 			      & ~(HA_FULLTEXT
 				  | HA_PACK_KEY
@@ -1537,15 +1540,24 @@ innobase_create_index_def(
 				index->parser = &fts_default_parser;);
 			ut_ad(index->parser);
 		}
+	} else if (key->flags & HA_SPATIAL) {
+		DBUG_ASSERT(!(key->flags & HA_NOSAME));
+		index->ind_type |= DICT_SPATIAL;
+		ut_ad(n_fields == 1);
+		index->fields[0].col_no = key->key_part[0].fieldnr;
+		index->fields[0].prefix_len = 0;
 	}
 
 	if (!new_clustered) {
 		altered_table = NULL;
 	}
 
-	for (i = 0; i < n_fields; i++) {
-		innobase_create_index_field_def(
-			altered_table, &key->key_part[i], &index->fields[i]);
+	if (!(key->flags & HA_SPATIAL)) {
+		for (i = 0; i < n_fields; i++) {
+			innobase_create_index_field_def(
+				altered_table, &key->key_part[i],
+				&index->fields[i]);
+		}
 	}
 
 	DBUG_VOID_RETURN;
@@ -2050,6 +2062,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 	ulonglong	max_autoinc;
 	/** temporary table name to use for old table when renaming tables */
 	const char*	tmp_name;
+	/** whether the order of the clustered index is unchanged */
+	bool		skip_pk_sort;
 
 	ha_innobase_inplace_ctx(row_prebuilt_t*& prebuilt_arg,
 				dict_index_t** drop_arg,
@@ -2083,7 +2097,8 @@ struct ha_innobase_inplace_ctx : public inplace_alter_handler_ctx
 		sequence(prebuilt->trx->mysql_thd,
 			 autoinc_col_min_value_arg, autoinc_col_max_value_arg),
 		max_autoinc (0),
-		tmp_name (0)
+		tmp_name (0),
+		skip_pk_sort(false)
 	{
 #ifdef UNIV_DEBUG
 		for (ulint i = 0; i < num_to_add_index; i++) {
@@ -2236,14 +2251,18 @@ innobase_check_foreigns_low(
 	const char*		col_name,
 	bool			drop)
 {
+	dict_foreign_t*	foreign;
 	ut_ad(mutex_own(&dict_sys->mutex));
 
 	/* Check if any FOREIGN KEY constraints are defined on this
 	column. */
-	for (const dict_foreign_t* foreign = UT_LIST_GET_FIRST(
-		     user_table->foreign_list);
-	     foreign;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+
+	for (dict_foreign_set::iterator it = user_table->foreign_set.begin();
+	     it != user_table->foreign_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		if (!drop && !(foreign->type
 			       & (DICT_FOREIGN_ON_DELETE_SET_NULL
 				  | DICT_FOREIGN_ON_UPDATE_SET_NULL))) {
@@ -2275,10 +2294,13 @@ innobase_check_foreigns_low(
 
 	/* Check if any FOREIGN KEY constraints in other tables are
 	referring to the column that is being dropped. */
-	for (const dict_foreign_t* foreign = UT_LIST_GET_FIRST(
-		     user_table->referenced_list);
-	     foreign;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= user_table->referenced_set.begin();
+	     it != user_table->referenced_set.end();
+	     ++it) {
+
+		foreign = *it;
+
 		if (innobase_dropping_foreign(foreign, drop_fk, n_drop_fk)) {
 			continue;
 		}
@@ -2582,6 +2604,91 @@ innobase_get_col_names(
 	DBUG_RETURN(cols);
 }
 
+/** Determine whether both the indexes have same set of primary key
+fields arranged in the same order.
+@param[in]	col_map		mapping of old column numbers to new ones
+@param[in]	ha_alter_info	Data used during in-place alter
+@param[in]	old_clust_index	index to be compared
+@param[in]	new_clust_index index to be compared
+@retval true if both indexes have same order.
+@retval false. */
+static __attribute__((warn_unused_result))
+bool
+innobase_pk_order_preserved(
+	const ulint*		col_map,
+	const dict_index_t*	old_clust_index,
+	const dict_index_t*	new_clust_index)
+{
+	ulint	old_n_fields
+		= dict_index_get_n_ordering_defined_by_user(
+			old_clust_index);
+	ulint	new_n_fields
+		= dict_index_get_n_ordering_defined_by_user(
+			new_clust_index);
+
+	ut_ad(dict_index_is_clust(old_clust_index));
+	ut_ad(dict_index_is_clust(new_clust_index));
+	ut_ad(old_clust_index->table != new_clust_index->table);
+	ut_ad(col_map != NULL);
+
+	if (old_n_fields == 0) {
+		/* There was no PRIMARY KEY in the table.
+		If there is no PRIMARY KEY after the ALTER either,
+		no sorting is needed. */
+		return(new_n_fields == old_n_fields);
+	}
+
+	/* DROP PRIMARY KEY is only allowed in combination with
+	ADD PRIMARY KEY. */
+	ut_ad(new_n_fields > 0 || old_n_fields == 0);
+
+	ulint old_field = 0;
+	ulint new_field = 0;
+	ulint old_n_cols = dict_table_get_n_cols(old_clust_index->table);
+	bool pk_col_dropped = false;
+
+	/* Sorting will not be needed when the PRIMARY KEY
+	column list is being appended to or newly added columns
+	are being added to the PRIMARY KEY. */
+	while (old_field < old_n_fields && new_field < new_n_fields) {
+		ulint old_col_no =
+			old_clust_index->fields[old_field].col->ind;
+		ulint new_col_no =
+			new_clust_index->fields[new_field].col->ind;
+		ut_ad(new_col_no != ULINT_UNDEFINED);
+
+		old_col_no = col_map[old_col_no];
+
+		if (old_col_no == new_col_no) {
+			if (pk_col_dropped) {
+				/* Dropping columns in the middle
+				requires sorting. */
+				return(false);
+			}
+
+			old_field++;
+			new_field++;
+		} else if (old_col_no == ULINT_UNDEFINED) {
+			pk_col_dropped = true;
+			old_field++;
+		} else {
+			/* Check whether column in new table is
+			an existing column or newly added */
+			for (ulint k = 0; k < old_n_cols; k++) {
+				if (col_map[k] == new_col_no) {
+				/* Changing the order of existing
+				columns in the PRIMARY KEY requires
+				sorting. */
+					return(false);
+				}
+			}
+
+			new_field++;
+		}
+	}
+
+	return(true);
+}
 /** Update internal structures with concurrent writes blocked,
 while preparing ALTER TABLE.
 
@@ -2680,7 +2787,7 @@ prepare_inplace_alter_table_dict(
 		check_if_supported_inplace_alter(). */
 		ut_ad(0);
 		my_error(ER_NOT_SUPPORTED_YET, MYF(0),
-			 thd_query_string(ctx->prebuilt->trx->mysql_thd).str);
+			 thd_query_unsafe(ctx->prebuilt->trx->mysql_thd).str);
 		goto error_handled;
 	}
 
@@ -3010,22 +3117,28 @@ prepare_inplace_alter_table_dict(
 			error = DB_OUT_OF_MEMORY;
 			goto error_handling;);
 
-	if (new_clustered && ctx->online) {
-		/* Allocate a log for online table rebuild. */
-		dict_index_t* clust_index = dict_table_get_first_index(
+	if (new_clustered) {
+		dict_index_t*	clust_index = dict_table_get_first_index(
 			user_table);
+		dict_index_t*	new_clust_index = dict_table_get_first_index(
+			ctx->new_table);
+		ctx->skip_pk_sort = innobase_pk_order_preserved(
+			ctx->col_map, clust_index, new_clust_index);
 
-		rw_lock_x_lock(&clust_index->lock);
-		bool ok = row_log_allocate(
-			clust_index, ctx->new_table,
-			!(ha_alter_info->handler_flags
-			  & Alter_inplace_info::ADD_PK_INDEX),
-			ctx->add_cols, ctx->col_map);
-		rw_lock_x_unlock(&clust_index->lock);
+		if (ctx->online) {
+			/* Allocate a log for online table rebuild. */
+			rw_lock_x_lock(&clust_index->lock);
+			bool ok = row_log_allocate(
+				clust_index, ctx->new_table,
+				!(ha_alter_info->handler_flags
+				  & Alter_inplace_info::ADD_PK_INDEX),
+				ctx->add_cols, ctx->col_map);
+			rw_lock_x_unlock(&clust_index->lock);
 
-		if (!ok) {
-			error = DB_OUT_OF_MEMORY;
-			goto error_handling;
+			if (!ok) {
+				error = DB_OUT_OF_MEMORY;
+				goto error_handling;
+			}
 		}
 	}
 
@@ -3760,11 +3873,12 @@ check_if_ok_to_rename:
 				continue;
 			}
 
-			for (dict_foreign_t* foreign = UT_LIST_GET_FIRST(
-				     prebuilt->table->foreign_list);
-			     foreign != NULL;
-			     foreign = UT_LIST_GET_NEXT(
-				     foreign_list, foreign)) {
+			for (dict_foreign_set::iterator it
+				= prebuilt->table->foreign_set.begin();
+			     it != prebuilt->table->foreign_set.end();
+			     ++it) {
+
+				dict_foreign_t*	foreign = *it;
 				const char* fid = strchr(foreign->id, '/');
 
 				DBUG_ASSERT(fid);
@@ -3883,34 +3997,32 @@ check_if_can_drop_indexes:
 			}
 		}
 
-		if (prebuilt->trx->check_foreigns) {
-			for (uint i = 0; i < n_drop_index; i++) {
-			     dict_index_t*	index = drop_index[i];
+		for (uint i = 0; i < n_drop_index; i++) {
+			dict_index_t*	index = drop_index[i];
 
-				if (innobase_check_foreign_key_index(
-					ha_alter_info, index,
-					indexed_table, col_names,
-					prebuilt->trx, drop_fk, n_drop_fk)) {
-					row_mysql_unlock_data_dictionary(
-						prebuilt->trx);
-					prebuilt->trx->error_info = index;
-					print_error(HA_ERR_DROP_INDEX_FK,
-						    MYF(0));
-					goto err_exit;
-				}
-			}
-
-			/* If a primary index is dropped, need to check
-			any depending foreign constraints get affected */
-			if (drop_primary
-			    && innobase_check_foreign_key_index(
-				ha_alter_info, drop_primary,
+			if (innobase_check_foreign_key_index(
+				ha_alter_info, index,
 				indexed_table, col_names,
 				prebuilt->trx, drop_fk, n_drop_fk)) {
-				row_mysql_unlock_data_dictionary(prebuilt->trx);
-				print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
+				row_mysql_unlock_data_dictionary(
+					prebuilt->trx);
+				prebuilt->trx->error_info = index;
+				print_error(HA_ERR_DROP_INDEX_FK,
+					    MYF(0));
 				goto err_exit;
 			}
+		}
+
+		/* If a primary index is dropped, need to check
+		any depending foreign constraints get affected */
+		if (drop_primary
+		    && innobase_check_foreign_key_index(
+			    ha_alter_info, drop_primary,
+			    indexed_table, col_names,
+			    prebuilt->trx, drop_fk, n_drop_fk)) {
+			row_mysql_unlock_data_dictionary(prebuilt->trx);
+			print_error(HA_ERR_DROP_INDEX_FK, MYF(0));
+			goto err_exit;
 		}
 
 		row_mysql_unlock_data_dictionary(prebuilt->trx);
@@ -4190,7 +4302,7 @@ ok_exit:
 		ctx->online,
 		ctx->add_index, ctx->add_key_numbers, ctx->num_to_add_index,
 		altered_table, ctx->add_cols, ctx->col_map,
-		ctx->add_autoinc, ctx->sequence);
+		ctx->add_autoinc, ctx->sequence, ctx->skip_pk_sort);
 #ifndef DBUG_OFF
 oom:
 #endif /* !DBUG_OFF */
@@ -4620,10 +4732,12 @@ err_exit:
 rename_foreign:
 	trx->op_info = "renaming column in SYS_FOREIGN_COLS";
 
-	for (const dict_foreign_t* foreign = UT_LIST_GET_FIRST(
-		     user_table->foreign_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(foreign_list, foreign)) {
+	for (dict_foreign_set::iterator it = user_table->foreign_set.begin();
+	     it != user_table->foreign_set.end();
+	     ++it) {
+
+		dict_foreign_t*	foreign = *it;
+
 		for (unsigned i = 0; i < foreign->n_fields; i++) {
 			if (strcmp(foreign->foreign_col_names[i], from)) {
 				continue;
@@ -4653,10 +4767,12 @@ rename_foreign:
 		}
 	}
 
-	for (const dict_foreign_t* foreign = UT_LIST_GET_FIRST(
-		     user_table->referenced_list);
-	     foreign != NULL;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	for (dict_foreign_set::iterator it
+		= user_table->referenced_set.begin();
+	     it != user_table->referenced_set.end();
+	     ++it) {
+
+		dict_foreign_t*	foreign = *it;
 		for (unsigned i = 0; i < foreign->n_fields; i++) {
 			if (strcmp(foreign->referenced_col_names[i], from)) {
 				continue;
@@ -5106,8 +5222,8 @@ innobase_update_foreign_cache(
 		column names. No need to pass col_names or to drop
 		constraints from the data dictionary cache. */
 		DBUG_ASSERT(!ctx->col_names);
-		DBUG_ASSERT(UT_LIST_GET_LEN(user_table->foreign_list) == 0);
-		DBUG_ASSERT(UT_LIST_GET_LEN(user_table->referenced_list) == 0);
+		DBUG_ASSERT(user_table->foreign_set.empty());
+		DBUG_ASSERT(user_table->referenced_set.empty());
 		user_table = ctx->new_table;
 	} else {
 		/* Drop the foreign key constraints if the
@@ -5955,11 +6071,15 @@ ha_innobase::commit_inplace_alter_table(
 			/* Generate the redo log for the file
 			operations that will be performed in
 			commit_cache_rebuild(). */
-			fil_mtr_rename_log(ctx->old_table->space,
-					   ctx->old_table->name,
-					   ctx->new_table->space,
-					   ctx->new_table->name,
-					   ctx->tmp_name, &mtr);
+			if (!fil_mtr_rename_log(ctx->old_table,
+						ctx->new_table,
+						ctx->tmp_name, &mtr)) {
+				/* Out of memory. */
+				mtr.set_log_mode(MTR_LOG_NO_REDO);
+				mtr_commit(&mtr);
+				trx_rollback_for_mysql(trx);
+				fail = true;
+			}
 			DBUG_INJECT_CRASH("ib_commit_inplace_crash",
 					  crash_inject_count++);
 		}
@@ -5972,9 +6092,7 @@ ha_innobase::commit_inplace_alter_table(
 		DBUG_EXECUTE_IF("innodb_alter_commit_crash_before_commit",
 				log_buffer_flush_to_disk();
 				DBUG_SUICIDE(););
-		ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
 		ut_ad(!trx->fts_trx);
-		ut_ad(trx_is_rseg_updated(trx));
 
 		/* The following call commits the
 		mini-transaction, making the data dictionary
@@ -5983,7 +6101,11 @@ ha_innobase::commit_inplace_alter_table(
 		log_buffer_flush_to_disk() returns. In the
 		logical sense the commit in the file-based
 		data structures happens here. */
-		trx_commit_low(trx, &mtr);
+		if (!fail) {
+			ut_ad(trx_state_eq(trx, TRX_STATE_ACTIVE));
+			ut_ad(trx_is_rseg_updated(trx));
+			trx_commit_low(trx, &mtr);
+		}
 
 		/* If server crashes here, the dictionary in
 		InnoDB and MySQL will differ.  The .ibd files
@@ -6085,7 +6207,7 @@ foreign_fail:
 					"InnoDB: dict_load_foreigns()"
 					" returned %u for %s",
 					(unsigned) error,
-					thd_query_string(user_thd)
+					thd_query_unsafe(user_thd)
 					.str);
 				ut_ad(0);
 			} else {

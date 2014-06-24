@@ -1,5 +1,6 @@
 # Not supported in embedded
 --source include/not_embedded.inc
+--source include/no_valgrind_without_big.inc
 
 -- source include/have_innodb.inc
 call mtr.add_suppression("\\[Warning\\] InnoDB: Cannot calculate statistics for table \"test\"\.\"t1\" because the \.ibd file is missing");

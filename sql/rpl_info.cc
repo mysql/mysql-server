@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -54,19 +54,19 @@ Rpl_info::Rpl_info(const char* type
                     &sleep_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(*key_info_thd_lock,
                     &info_thd_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(*key_info_data_cond, &data_cond, NULL);
-  mysql_cond_init(*key_info_start_cond, &start_cond, NULL);
-  mysql_cond_init(*key_info_stop_cond, &stop_cond, NULL);
-  mysql_cond_init(*key_info_sleep_cond, &sleep_cond, NULL);
+  mysql_cond_init(*key_info_data_cond, &data_cond);
+  mysql_cond_init(*key_info_start_cond, &start_cond);
+  mysql_cond_init(*key_info_stop_cond, &stop_cond);
+  mysql_cond_init(*key_info_sleep_cond, &sleep_cond);
 #else
   mysql_mutex_init(NULL, &run_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(NULL, &data_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(NULL, &sleep_lock, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(NULL, &info_thd_lock, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(NULL, &data_cond, NULL);
-  mysql_cond_init(NULL, &start_cond, NULL);
-  mysql_cond_init(NULL, &stop_cond, NULL);
-  mysql_cond_init(NULL, &sleep_cond, NULL);
+  mysql_cond_init(NULL, &data_cond);
+  mysql_cond_init(NULL, &start_cond);
+  mysql_cond_init(NULL, &stop_cond);
+  mysql_cond_init(NULL, &sleep_cond);
 #endif
 }
 

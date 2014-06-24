@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -218,7 +218,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sql_state,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl)
   {
@@ -235,7 +235,7 @@ static void ull2timeval(ulonglong utime, struct timeval *tv)
 {
   DBUG_ASSERT(tv != NULL);
   DBUG_ASSERT(utime > 0);      /* should hold true in this context */
-  tv->tv_sec= utime / 1000000;
+  tv->tv_sec= static_cast<long>(utime / 1000000);
   tv->tv_usec=utime % 1000000;
 }
 
@@ -255,7 +255,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
 {
   struct tm  my_tm;
   char       tzinfo[7]="Z";  // max 6 chars plus \0
-  int        len;
+  size_t     len;
   time_t     seconds;
 
   if (utime == 0)
@@ -300,7 +300,7 @@ int make_iso8601_timestamp(char *buf, ulonglong utime= 0)
                    (unsigned long) utime,
                    tzinfo);
 
-  return min(len, iso8601_size - 1);
+  return min<int>(len, iso8601_size - 1);
 }
 
 
@@ -352,7 +352,7 @@ bool File_query_log::open()
 
   {
     char *end;
-    int len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
+    size_t len=my_snprintf(buff, sizeof(buff), "%s, Version: %s (%s). "
 #ifdef EMBEDDED_LIBRARY
                         "embedded library\n",
                         my_progname, server_version, MYSQL_COMPILATION_COMMENT
@@ -449,7 +449,7 @@ bool File_query_log::write_general(ulonglong event_utime,
                                    size_t sql_text_len)
 {
   char buff[32];
-  uint length= 0;
+  size_t length= 0;
 
   mysql_mutex_lock(&LOCK_log);
   DBUG_ASSERT(is_open());
@@ -499,7 +499,7 @@ bool File_query_log::write_slow(THD *thd, ulonglong current_utime,
 {
   char buff[80], *end;
   char query_time_buff[22+7], lock_time_buff[22+7];
-  uint buff_len;
+  size_t buff_len;
   end= buff;
 
   mysql_mutex_lock(&LOCK_log);
@@ -816,8 +816,8 @@ bool Log_to_csv_event_handler::log_slow(THD *thd, ulonglong current_utime,
     if (table->field[SQLT_FIELD_QUERY_TIME]->store_time(&t))
       goto err;
     /* lock_time */
-    calc_time_from_sec(&t, min<long>((longlong) (lock_utime / 1000000),
-                                     (longlong) TIME_MAX_VALUE_SECONDS),
+    calc_time_from_sec(&t, min((longlong) (lock_utime / 1000000),
+                               (longlong) TIME_MAX_VALUE_SECONDS),
                        lock_utime % 1000000);
     if (table->field[SQLT_FIELD_LOCK_TIME]->store_time(&t))
       goto err;
@@ -1022,13 +1022,13 @@ bool Query_logger::slow_log_write(THD *thd, const char *query,
   /* fill in user_host value: the format is "%s[%s] @ %s [%s]" */
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
   Security_context *sctx= thd->security_ctx;
-  uint user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
-                                sctx->priv_user ? sctx->priv_user : "", "[",
-                                sctx->user ? sctx->user : "", "] @ ",
-                                sctx->get_host()->length() ?
-                                sctx->get_host()->ptr() : "", " [",
-                                sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
-                                "", "]", NullS) - user_host_buff);
+  size_t user_host_len= (strxnmov(user_host_buff, MAX_USER_HOST_SIZE,
+                                  sctx->priv_user ? sctx->priv_user : "", "[",
+                                  sctx->user ? sctx->user : "", "] @ ",
+                                  sctx->get_host()->length() ?
+                                  sctx->get_host()->ptr() : "", " [",
+                                  sctx->get_ip()->length() ? sctx->get_ip()->ptr() :
+                                  "", "]", NullS) - user_host_buff);
   ulonglong current_utime= thd->current_utime();
   ulonglong query_utime, lock_utime;
   if (thd->start_utime)
@@ -1109,7 +1109,7 @@ bool Query_logger::general_log_write(THD *thd, enum_server_command command,
   mysql_rwlock_rdlock(&LOCK_logger);
 
   char user_host_buff[MAX_USER_HOST_SIZE + 1];
-  uint user_host_len= make_user_name(thd, user_host_buff);
+  size_t user_host_len= make_user_name(thd, user_host_buff);
   ulonglong current_utime= thd->current_utime();
 
   mysql_audit_general_log(thd, current_utime / 1000000,
@@ -1221,7 +1221,7 @@ void Query_logger::init_query_log(enum_log_table_type log_type,
 }
 
 
-void Query_logger::set_handlers(uint log_printer)
+void Query_logger::set_handlers(ulonglong log_printer)
 {
   mysql_rwlock_wrlock(&LOCK_logger);
 
@@ -1432,7 +1432,7 @@ void Slow_log_throttle::print_summary(THD *thd, ulong suppressed,
 
   char buf[128];
 
-  snprintf(buf, sizeof(buf), summary_template, suppressed);
+  my_snprintf(buf, sizeof(buf), summary_template, suppressed);
 
   mysql_mutex_lock(&thd->LOCK_thd_data);
   thd->start_utime=                thd->current_utime() - print_exec_time;
@@ -1588,10 +1588,19 @@ Slow_log_throttle log_throttle_qni(&opt_log_throttle_queries_not_using_indexes,
 bool reopen_fstreams(const char *filename,
                      FILE *outstream, FILE *errstream)
 {
-  if (outstream && !my_freopen(filename, "a", outstream))
-    return true;
+  int retries= 2, errors= 0;
 
-  if (errstream && !my_freopen(filename, "a", errstream))
+  do
+  {
+    errors= 0;
+    if (errstream && !my_freopen(filename, "a", errstream))
+      errors++;
+    if (outstream && !my_freopen(filename, "a", outstream))
+      errors++;
+  }
+  while (retries-- && errors);
+
+  if (errors)
     return true;
 
   /* The error stream must be unbuffered. */
@@ -1733,7 +1742,8 @@ void error_log_print(enum loglevel level, const char *format, va_list args)
     print_buffer_to_file(level, buff, length);
 
 #ifdef _WIN32
-    print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
+    if (!abort_loop) // Don't write to the eventlog during shutdown.
+      print_buffer_to_nt_eventlog(level, buff, length, sizeof(buff));
 #endif
   }
 
@@ -1801,8 +1811,8 @@ int my_plugin_log_message(MYSQL_PLUGIN *plugin_ptr, plugin_log_level level,
   }
 
   va_start(args, format);
-  snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'", 
-           (int) plugin->name.length, plugin->name.str, format);
+  my_snprintf(format2, sizeof (format2) - 1, "Plugin %.*s reported: '%s'",
+              (int) plugin->name.length, plugin->name.str, format);
   error_log_print(lvl, format2, args);
   va_end(args);
   return 0;
@@ -1924,7 +1934,7 @@ int TC_LOG_MMAP::open(const char *opt_name)
     pg->next=pg+1;
     pg->waiters=0;
     pg->state=PS_POOL;
-    mysql_cond_init(key_PAGE_cond, &pg->cond, 0);
+    mysql_cond_init(key_PAGE_cond, &pg->cond);
     pg->size=pg->free=tc_log_page_size/sizeof(my_xid);
     pg->start= (my_xid *)(data + i*tc_log_page_size);
     pg->end= pg->start + pg->size;
@@ -1945,8 +1955,8 @@ int TC_LOG_MMAP::open(const char *opt_name)
   inited=5;
 
   mysql_mutex_init(key_LOCK_tc, &LOCK_tc, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_COND_active, &COND_active, 0);
-  mysql_cond_init(key_COND_pool, &COND_pool, 0);
+  mysql_cond_init(key_COND_active, &COND_active);
+  mysql_cond_init(key_COND_pool, &COND_pool);
 
   inited=6;
 

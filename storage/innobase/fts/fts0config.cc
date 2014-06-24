@@ -431,10 +431,9 @@ fts_config_set_ulint(
 	value.f_len = FTS_MAX_CONFIG_VALUE_LEN;
 	value.f_str = static_cast<byte*>(ut_malloc(value.f_len + 1));
 
-	// FIXME: Get rid of snprintf
 	ut_a(FTS_MAX_INT_LEN < FTS_MAX_CONFIG_VALUE_LEN);
 
-	value.f_len = snprintf(
+	value.f_len = my_snprintf(
 		(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 	error = fts_config_set_value(trx, fts_table, name, &value);
@@ -518,8 +517,7 @@ fts_config_increment_value(
 
 		ut_a(FTS_MAX_CONFIG_VALUE_LEN > FTS_MAX_INT_LEN);
 
-		// FIXME: Get rid of snprintf
-		value.f_len = snprintf(
+		value.f_len = my_snprintf(
 			(char*) value.f_str, FTS_MAX_INT_LEN, "%lu", int_value);
 
 		fts_config_set_value(trx, fts_table, name, &value);

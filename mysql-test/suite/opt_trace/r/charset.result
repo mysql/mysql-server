@@ -61,15 +61,17 @@ explain extended select '�����', _latin1'�����' from t1 limit 1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -156,15 +158,17 @@ explain extended select 'ÁÂÃÄÅ', _latin1'ÁÂÃÄÅ' from t1 limit 1	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "scan",
-                      "rows": 1,
+                      "resulting_rows": 1,
                       "cost": 1.2,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.2,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.2,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -282,15 +286,17 @@ select * from v1 where v1.col = 'ÁÂÃÄÅ'	{
                       "best_access_path": {
                         "considered_access_paths": [
                           {
+                            "rows_to_scan": 1,
                             "access_type": "scan",
-                            "rows": 1,
+                            "resulting_rows": 1,
                             "cost": 1.2,
                             "chosen": true
                           }
                         ] /* considered_access_paths */
                       } /* best_access_path */,
-                      "cost_for_plan": 1.2,
+                      "condition_filtering_pct": 100,
                       "rows_for_plan": 1,
+                      "cost_for_plan": 1.2,
                       "chosen": true
                     }
                   ] /* considered_execution_plans */
@@ -542,15 +548,17 @@ select * from t1 where c < 'ÁÂÃÄÅ'	{
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 2,
                       "access_type": "scan",
-                      "rows": 2,
+                      "resulting_rows": 2,
                       "cost": 1.4,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.4,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 2,
+                "cost_for_plan": 1.4,
                 "chosen": true
               }
             ] /* considered_execution_plans */
@@ -755,15 +763,20 @@ select `col
                 "best_access_path": {
                   "considered_access_paths": [
                     {
+                      "rows_to_scan": 1,
                       "access_type": "range",
-                      "rows": 1,
+                      "range_details": {
+                        "used_index": "index\n1\ta"
+                      } /* range_details */,
+                      "resulting_rows": 1,
                       "cost": 1.41,
                       "chosen": true
                     }
                   ] /* considered_access_paths */
                 } /* best_access_path */,
-                "cost_for_plan": 1.41,
+                "condition_filtering_pct": 100,
                 "rows_for_plan": 1,
+                "cost_for_plan": 1.41,
                 "chosen": true
               }
             ] /* considered_execution_plans */

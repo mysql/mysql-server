@@ -480,17 +480,23 @@ enum quick_type { QS_NONE, QS_RANGE, QS_DYNAMIC_RANGE};
 typedef struct st_position : public Sql_alloc
 {
   /**
-    The "fanout" - number of output rows that will be produced (after
-    table condition is applied) per each row combination of previous
-    tables. That is:
+    The number of rows that will be fetched by the chosen access
+    method per each row combination of previous tables. That is:
 
-      fanout = selectivity(access_condition) * cardinality(table)
+      rows_fetched = selectivity(access_condition) * cardinality(table)
 
-    where 'access_condition' is whatever condition
-    was chosen for index access, depending on the access method
-    ('ref', 'range', etc.)
+    where 'access_condition' is whatever condition was chosen for
+    index access, depending on the access method ('ref', 'range',
+    etc.)
+
+    @Note that for index/table scans, rows_fetched may be less than
+    the number of rows in the table because the cost of evaluating
+    constant conditions is included in the scan cost, and the number
+    of rows produced by these scans is the estimated number of rows
+    that pass the constant conditions. @see
+    Optimize_table_order::calculate_scan_cost()
   */
-  double fanout;
+  double rows_fetched;
 
   /**
     Cost of accessing the table in course of the entire complete join
@@ -502,6 +508,60 @@ typedef struct st_position : public Sql_alloc
     executor (row_evaluate_cost).
   */
   double read_cost;
+  
+  /**
+    The fraction of the 'rows_fetched' rows that will pass the table
+    conditions that were NOT used by the access method. If, e.g.,
+
+      "SELECT ... WHERE t1.colx = 4 and t1.coly > 5"
+
+    is resolved by ref access on t1.colx, filter_effect will be the
+    fraction of rows that will pass the "t1.coly > 5" predicate. The
+    valid range is 0..1, where 0.0 means that no rows will pass the
+    table conditions and 1.0 means that all rows will pass.
+
+    It is used to calculate how many row combinations will be joined
+    with the next table, @see prefix_rowcount below.
+
+    @Note that with condition filtering enabled, it is possible to get
+    a fanout = rows_fetched * filter_effect that is less than 1.0.
+    Consider, e.g., a join between t1 and t2:
+
+       "SELECT ... WHERE t1.col1=t2.colx and t2.coly OP <something>"
+
+    where t1 is a prefix table and the optimizer currently calculates
+    the cost of adding t2 to the join. Assume that the chosen access
+    method on t2 is a 'ref' access on 'colx' that is estimated to
+    produce 2 rows per row from t1 (i.e., rows_fetched = 2). It will
+    in this case be perfectly fine to calculate a filtering effect
+    <0.5 (resulting in "rows_fetched * filter_effect < 1.0") from the
+    predicate "t2.coly OP <something>". If so, the number of row
+    combinations from (t1,t2) is lower than the prefix_rowcount of t1.
+
+    The above is just an example of how the fanout of a table can
+    become less than one. It can happen for any access method.
+  */
+  float filter_effect;
+
+  /**
+    prefix_rowcount and prefix_cost form a stack of partial join
+    order costs and output sizes
+
+    prefix_rowcount: The number of row combinations that will be
+    joined to the next table in the join sequence.
+
+    For a joined table it is calculated as
+      prefix_rowcount =
+          last_table.prefix_rowcount * rows_fetched * filter_effect
+
+    @see filter_effect
+
+    For a semijoined table it may be less than this formula due to
+    duplicate elimination.
+  */
+  double prefix_rowcount;
+  double prefix_cost;
+
   JOIN_TAB *table;
 
   /**
@@ -513,11 +573,6 @@ typedef struct st_position : public Sql_alloc
   /** If ref-based access is used: bitmap of tables this table depends on  */
   table_map ref_depend_map;
   bool use_join_buffer; 
-  
-  
-  /** These form a stack of partial join order costs and output sizes */
-  Cost_estimate prefix_cost;
-  double    prefix_record_count;
 
   /**
     Current optimization state: Semi-join strategy to be used for this
@@ -610,14 +665,44 @@ typedef struct st_position : public Sql_alloc
     sj_strategy= SJ_OPT_NONE;
     dups_producing_tables= 0;
   }
-  void set_prefix_costs(double read_time_arg, double row_count_arg)
+  /**
+    Set complete estimated cost and produced rowcount for the prefix of tables
+    up to and including this table, in the join plan.
+
+    @param cost     Estimated cost
+    @param rowcount Estimated row count
+  */
+  void set_prefix_cost(double cost, double rowcount)
   {
-    prefix_cost.reset();
-    prefix_cost.add_io(read_time_arg);
-    prefix_record_count= row_count_arg;
+    prefix_cost= cost;
+    prefix_rowcount= rowcount;
+  }
+  /**
+    Set complete estimated cost and produced rowcount for the prefix of tables
+    up to and including this table, calculated from the cost of the previous
+    stage, the fanout of the current stage and the cost to process a row at
+    the current stage.
+
+    @param idx      Index of position object within array, if zero there is no
+                    "previous" stage that can be added.
+    @param cm       Cost model that provides the actual calculation
+  */
+  void set_prefix_join_cost(uint idx, const Cost_model_server *cm)
+  {
+    if (idx == 0)
+    {
+      prefix_rowcount= rows_fetched;
+      prefix_cost= read_cost + cm->row_evaluate_cost(prefix_rowcount);
+    }
+    else
+    {
+      prefix_rowcount= (this-1)->prefix_rowcount * rows_fetched;
+      prefix_cost= (this-1)->prefix_cost + read_cost +
+                   cm->row_evaluate_cost(prefix_rowcount);
+    }
+    prefix_rowcount*= filter_effect;
   }
 } POSITION;
-
 
 struct st_cache_field;
 class QEP_operation;
@@ -684,7 +769,7 @@ typedef struct st_join_table : public Sql_alloc
     *m_join_cond_ref= cond;
   }
 
-  /// @returns combined condition after attaching where and join condition
+  /// @returns the table condition for this table in the join order.
   Item *condition() const
   {
     return m_condition;
@@ -727,7 +812,12 @@ typedef struct st_join_table : public Sql_alloc
   SQL_SELECT    *select;
   QUICK_SELECT_I *quick;
 private:
-  Item          *m_condition;   /**< condition for this join_tab             */
+  /**
+    Table condition, ie condition to be evaluated for a row from this table.
+    Notice that the condition may refer to rows from previous tables in the
+    join prefix, as well as outer tables.
+  */
+  Item          *m_condition;
   /**
      Pointer to the associated join condition:
      - if this is a table with position==NULL (e.g. internal sort/group
@@ -963,6 +1053,9 @@ public:
   /** TRUE <=> AM will scan backward */
   bool reversed_access;
 
+  /** FT function */
+  Item_func_match *ft_func;
+
   /** Clean up associated table after query execution, including resources */
   void cleanup();
 
@@ -1149,7 +1242,8 @@ st_join_table::st_join_table()
     distinct(false),
     use_keyread(false),
     join_cache_flags(0),
-    reversed_access(false)
+    reversed_access(false),
+    ft_func(NULL)
 {
   /**
     @todo Add constructor to READ_RECORD.
@@ -1417,10 +1511,10 @@ class store_key_field: public store_key
  protected: 
   enum store_key_result copy_inner()
   {
-    TABLE *table= copy_field.to_field->table;
+    TABLE *table= copy_field.to_field()->table;
     my_bitmap_map *old_map= dbug_tmp_use_all_columns(table,
                                                      table->write_set);
-    copy_field.do_copy(&copy_field);
+    copy_field.invoke_do_copy(&copy_field);
     dbug_tmp_restore_column_map(table->write_set, old_map);
     null_key= to_field->is_null();
     return err != 0 ? STORE_KEY_FATAL : STORE_KEY_OK;

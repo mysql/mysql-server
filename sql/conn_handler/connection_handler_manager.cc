@@ -30,6 +30,7 @@
 // Initialize static members
 uint Connection_handler_manager::connection_count= 0;
 ulong Connection_handler_manager::max_used_connections= 0;
+ulong Connection_handler_manager::max_used_connections_time= 0;
 THD_event_functions* Connection_handler_manager::event_functions= NULL;
 THD_event_functions* Connection_handler_manager::saved_event_functions= NULL;
 mysql_mutex_t Connection_handler_manager::LOCK_connection_count;
@@ -105,7 +106,10 @@ bool Connection_handler_manager::check_and_incr_conn_count()
   {
     ++connection_count;
     if (connection_count > max_used_connections)
+    {
       max_used_connections= connection_count;
+      max_used_connections_time= (ulong)my_time(0);
+    }
   }
   mysql_mutex_unlock(&LOCK_connection_count);
   return connection_accepted;
@@ -191,6 +195,13 @@ void Connection_handler_manager::destroy_instance()
   }
 }
 
+void Connection_handler_manager::reset_max_used_connections()
+{
+  mysql_mutex_lock(&LOCK_connection_count);
+  max_used_connections= connection_count;
+  max_used_connections_time= (ulong)my_time(0);
+  mysql_mutex_unlock(&LOCK_connection_count);
+}
 
 void Connection_handler_manager::load_connection_handler(
                                 Connection_handler* conn_handler)

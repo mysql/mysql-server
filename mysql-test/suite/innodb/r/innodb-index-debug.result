@@ -37,3 +37,76 @@ DROP TABLE bug13861218;
 set global innodb_file_per_table=1;
 set global innodb_file_format=Antelope;
 set global innodb_file_format_max=Antelope;
+#
+# Bug #17657223	EXCESSIVE TEMPORARY FILE USAGE IN ALTER TABLE
+#
+create table t480(a serial)engine=innodb;
+insert into t480
+values(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),(),
+(),(),(),(),(),(),(),();
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+insert into t480 select 0 from t480;
+create table t1(f1 int auto_increment not null,
+f2 char(200) not null, f3 char(200) not null,
+primary key(f1,f2,f3), key(f1))engine=innodb;
+insert into t1 select NULL,'aaa','bbb' from t480;
+insert into t1 select NULL,'aaaa','bbbb' from t480;
+insert into t1 select NULL,'aaaaa','bbbbb' from t480;
+insert into t1 select NULL,'aaaaaa','bbbbbb' from t480;
+SET DEBUG = '+d,row_merge_write_failure';
+alter table t1 drop primary key,add primary key(f2,f1);
+ERROR HY000: Temporary file write failure.
+SET DEBUG = '-d,row_merge_write_failure';
+drop table t1;
+create table t1(k1 int auto_increment primary key,
+k2 char(200),k3 char(200))engine=innodb;
+insert into t1 values(NULL,'a','b'), (NULL,'aa','bb');
+SET DEBUG_SYNC= 'row_merge_after_scan
+SIGNAL opened WAIT_FOR flushed';
+optimize table t1;
+connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+INSERT INTO t1 select NULL,'aaa','bbb' from t480;
+SET DEBUG_SYNC= 'now SIGNAL flushed';
+/*con1 reap*/ Optimize table t1;
+Table	Op	Msg_type	Msg_text
+test.t1	optimize	note	Table does not support optimize, doing recreate + analyze instead
+test.t1	optimize	status	OK
+affected rows: 2
+SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
+COUNT(k1)	k2	k3
+1	a	b
+1	aa	bb
+480	aaa	bbb
+drop table t1;
+create table t1(k1 int auto_increment primary key,
+k2 char(200),k3 char(200))engine=innodb;
+SET DEBUG_SYNC= 'row_merge_after_scan
+SIGNAL opened WAIT_FOR flushed';
+ALTER TABLE t1 ADD COLUMN k4 int;
+connection default
+SET DEBUG_SYNC= 'now WAIT_FOR opened';
+SET debug = '+d,row_log_tmpfile_fail';
+INSERT INTO t1 select NULL,'aaa','bbb' from t480;
+INSERT INTO t1 select NULL,'aaaa','bbbb' from t480;
+SET DEBUG_SYNC= 'now SIGNAL flushed';
+SET debug = '-d,row_log_tmpfile_fail';
+/*con1 reap*/ ALTER TABLE t1 ADD COLUMN k4 int;
+ERROR HY000: Out of memory; check if mysqld or some other process uses all available memory; if not, you may have to use 'ulimit' to allow mysqld to use more memory or you can add more swap space
+SELECT COUNT(k1),k2,k3 FROM t1 GROUP BY k2,k3;
+COUNT(k1)	k2	k3
+480	aaa	bbb
+480	aaaa	bbbb
+show create table t1;
+Table	Create Table
+t1	CREATE TABLE `t1` (
+  `k1` int(11) NOT NULL AUTO_INCREMENT,
+  `k2` char(200) DEFAULT NULL,
+  `k3` char(200) DEFAULT NULL,
+  PRIMARY KEY (`k1`)
+) ENGINE=InnoDB AUTO_INCREMENT=1023 DEFAULT CHARSET=latin1
+drop table t1;
+drop table t480;
+SET DEBUG_SYNC='RESET';

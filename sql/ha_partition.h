@@ -2,7 +2,7 @@
 #define HA_PARTITION_INCLUDED
 
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -143,14 +143,18 @@ private:
   partition_info *m_part_info;          // local reference to partition
   Field **m_part_field_array;           // Part field array locally to save acc
   uchar *m_ordered_rec_buffer;          // Row and key buffer for ord. idx scan
-  /*
-    Current index.
-    When used in key_rec_cmp: If clustered pk, index compare
-    must compare pk if given index is same for two rows.
-    So normally m_curr_key_info[0]= current index and m_curr_key[1]= NULL,
-    and if clustered pk, [0]= current index, [1]= pk, [2]= NULL
+  /**
+    Current index used for sorting.
+    If clustered PK exists, then it will be used as secondary index to
+    sort on if the first is equal in key_rec_cmp.
+    So if clustered pk: m_curr_key_info[0]= current index and
+    m_curr_key_info[1]= pk and [2]= NULL.
+    Otherwise [0]= current index, [1]= NULL, and we will
+    sort by rowid as secondary sort key if equal first key.
   */
-  KEY *m_curr_key_info[3];              // Current index
+  KEY *m_curr_key_info[3];
+  /** Offset in m_ordered_rec_buffer from part buffer to its record buffer. */
+  uint m_rec_offset;
   uchar *m_rec0;                        // table->record[0]
   const uchar *m_err_rec;               // record which gave error
   QUEUE m_queue;                        // Prio queue used by sorted read
@@ -263,6 +267,8 @@ private:
   bool m_key_not_found;
   bool m_reverse_order;
   bool m_icp_in_use;
+  /** Need to sort by ref (rowid) too. */
+  bool m_sec_sort_by_rowid;
 public:
   Partition_share *get_part_share() { return part_share; }
   handler *clone(const char *name, MEM_ROOT *mem_root);
@@ -304,10 +310,6 @@ public:
     Meta data routines to CREATE, DROP, RENAME table and often used at
     ALTER TABLE (update_create_info used from ALTER TABLE and SHOW ..).
 
-    update_table_comment is used in SHOW TABLE commands to provide a
-    chance for the handler to add any interesting comments to the table
-    comments not provided by the users comment.
-
     create_handler_files is called before opening a new handler object
     with openfrm to call create. It is used to create any local handler
     object needed in opening the object in openfrm
@@ -321,7 +323,6 @@ public:
                                    const char *old_name, int action_flag,
                                    HA_CREATE_INFO *create_info);
   virtual void update_create_info(HA_CREATE_INFO *create_info);
-  virtual char *update_table_comment(const char *comment);
   virtual int change_partitions(HA_CREATE_INFO *create_info,
                                 const char *path,
                                 ulonglong * const copied,

@@ -6,6 +6,9 @@ insert into t2 (payoutID) SELECT DISTINCT payoutID FROM t1;
 insert into t2 (payoutID) SELECT payoutID+10 FROM t1;
 ERROR 23000: Duplicate entry '16' for key 'PRIMARY'
 insert ignore into t2 (payoutID) SELECT payoutID+10 FROM t1;
+Warnings:
+Warning	1062	Duplicate entry '16' for key 'PRIMARY'
+Warning	1062	Duplicate entry '22' for key 'PRIMARY'
 select * from t2;
 payoutID
 1

@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1995, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1995, 2014, Oracle and/or its affiliates. All Rights Reserved.
 Copyright (c) 2008, Google Inc.
 
 Portions of this file contain modifications contributed and copyrighted by
@@ -100,7 +100,7 @@ struct sync_cell_t {
 	bool		waiting;	/*!< TRUE if the thread has already
 					called sync_array_event_wait
 					on this cell */
-	ib_int64_t	signal_count;	/*!< We capture the signal_count
+	int64_t		signal_count;	/*!< We capture the signal_count
 					of the latch when we
 					reset the event. This value is
 					then passed on to os_event_wait
@@ -880,6 +880,7 @@ sync_arr_cell_can_wake_up(
 	case RW_LOCK_SX:
 		lock = cell->latch.lock;
 
+		os_rmb;
 		if (lock->lock_word > X_LOCK_HALF_DECR) {
 		/* Either unlocked or only read locked. */
 
@@ -893,6 +894,7 @@ sync_arr_cell_can_wake_up(
 		lock = cell->latch.lock;
 
                 /* lock_word == 0 means all readers or sx have left */
+		os_rmb;
 		if (lock->lock_word == 0) {
 
 			return(true);
@@ -904,6 +906,7 @@ sync_arr_cell_can_wake_up(
 		lock = cell->latch.lock;
 
                 /* lock_word > 0 means no writer or reserved writer */
+		os_rmb;
 		if (lock->lock_word > 0) {
 
 			return(true);

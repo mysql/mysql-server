@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1996, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1996, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -69,6 +69,11 @@ row_get_rec_roll_ptr(
 	const dict_index_t*	index,	/*!< in: clustered index */
 	const ulint*		offsets)/*!< in: rec_get_offsets(rec, index) */
 	__attribute__((nonnull, warn_unused_result));
+
+/* Flags for row build type. */
+#define ROW_BUILD_NORMAL	0	/*!< build row for insert. */
+#define ROW_BUILD_FOR_PURGE	1	/*!< build row for purge. */
+#define ROW_BUILD_FOR_UNDO	2	/*!< build row for undo. */
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds
 the entry to be inserted into or purged from an index on the table.
@@ -84,9 +89,12 @@ row_build_index_entry_low(
 	const row_ext_t*	ext,	/*!< in: externally stored column
 					prefixes, or NULL */
 	dict_index_t*		index,	/*!< in: index on the table */
-	mem_heap_t*		heap)	/*!< in: memory heap from which
+	mem_heap_t*		heap,	/*!< in: memory heap from which
 					the memory for the index entry
 					is allocated */
+	ulint			flag)	/*!< in: ROW_BUILD_NORMAL,
+					ROW_BUILD_FOR_PURGE
+                                        or ROW_BUILD_FOR_UNDO */
 	__attribute__((warn_unused_result, nonnull(1,3,4)));
 /*****************************************************************//**
 When an insert or purge to a table is performed, this function builds

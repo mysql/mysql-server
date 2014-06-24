@@ -49,6 +49,9 @@
 #include <welcome_copyright_notice.h> // ORACLE_WELCOME_COPYRIGHT_NOTICE
 
 #include <algorithm>
+#include <functional>
+#include "prealloced_array.h"
+#include "template_utils.h"
 
 using std::min;
 using std::max;
@@ -62,6 +65,8 @@ using std::max;
 
 #ifdef _WIN32
 #define setenv(a,b,c) _putenv_s(a,b)
+#define popen _popen
+#define pclose _pclose
 #endif
 
 #define MAX_VAR_NAME_LENGTH    256
@@ -73,6 +78,25 @@ using std::max;
 /* Flags controlling send and reap */
 #define QUERY_SEND_FLAG  1
 #define QUERY_REAP_FLAG  2
+
+#define APPEND_TYPE(type)                                                      \
+{                                                                              \
+  dynstr_append(ds, "-- ");                                                    \
+  switch (type)                                                                \
+  {                                                                            \
+  case SESSION_TRACK_SYSTEM_VARIABLES:                                         \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SYSTEM_VARIABLES\n");           \
+    break;                                                                     \
+  case SESSION_TRACK_SCHEMA:                                                   \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_SCHEMA\n");                     \
+    break;                                                                     \
+  case SESSION_TRACK_STATE_CHANGE:                                             \
+    dynstr_append(ds, "Tracker : SESSION_TRACK_STATE_CHANGE\n");               \
+    break;                                                                     \
+  default:                                                                     \
+    dynstr_append(ds, "\n");                                                   \
+  }                                                                            \
+}
 
 C_MODE_START
 static void signal_handler(int sig);
@@ -252,7 +276,9 @@ static void free_re(void);
 static uint opt_protocol= 0;
 #endif
 
-DYNAMIC_ARRAY q_lines;
+struct st_command;
+typedef Prealloced_array<st_command*, 1024> Q_lines;
+Q_lines *q_lines;
 
 #include "sslopt-vars.h"
 
@@ -304,10 +330,10 @@ struct st_connection
   const char *cur_query;
   size_t cur_query_len;
   int command, result;
-  pthread_mutex_t query_mutex;
-  pthread_cond_t query_cond;
-  pthread_mutex_t result_mutex;
-  pthread_cond_t result_cond;
+  native_mutex_t query_mutex;
+  native_cond_t query_cond;
+  native_mutex_t result_mutex;
+  native_cond_t result_cond;
   int query_done;
   my_bool has_thread;
 #endif /*EMBEDDED_LIBRARY*/
@@ -469,7 +495,7 @@ const char *command_names[]=
   "remove_files_wildcard",
   "send_eval",
   "output",
-  "resetconnection",
+  "reset_connection",
 
   0
 };
@@ -528,22 +554,40 @@ struct st_command *curr_command= 0;
 
 char builtin_echo[FN_REFLEN];
 
+/* Stores regex substitutions */
+
+struct st_regex
+{
+  char* pattern; /* Pattern to be replaced */
+  char* replace; /* String or expression to replace the pattern with */
+  int icase; /* true if the match is case insensitive */
+};
+
 struct st_replace_regex
 {
-DYNAMIC_ARRAY regex_arr; /* stores a list of st_regex subsitutions */
+  st_replace_regex()
+    : regex_arr(PSI_NOT_INSTRUMENTED),
+      buf(NULL),
+      even_buf(NULL),
+      odd_buf(NULL),
+      even_buf_len(0),
+      odd_buf_len(0)
+  {}
+  /* stores a list of st_regex subsitutions */
+  Prealloced_array<st_regex, 128> regex_arr;
 
-/*
-Temporary storage areas for substitutions. To reduce unnessary copying
-and memory freeing/allocation, we pre-allocate two buffers, and alternate
-their use, one for input/one for output, the roles changing on the next
-st_regex substition. At the end of substitutions  buf points to the
-one containing the final result.
-*/
-char* buf;
-char* even_buf;
-char* odd_buf;
-int even_buf_len;
-int odd_buf_len;
+  /*
+    Temporary storage areas for substitutions. To reduce unnessary copying
+    and memory freeing/allocation, we pre-allocate two buffers, and alternate
+    their use, one for input/one for output, the roles changing on the next
+    st_regex substition. At the end of substitutions  buf points to the
+    one containing the final result.
+  */
+  char* buf;
+  char* even_buf;
+  char* odd_buf;
+  int even_buf_len;
+  int odd_buf_len;
 };
 
 struct st_replace_regex *glob_replace_regex= 0;
@@ -831,10 +875,10 @@ pthread_handler_t connection_thread(void *arg)
   {
     if (!cn->command)
     {
-      pthread_mutex_lock(&cn->query_mutex);
+      native_mutex_lock(&cn->query_mutex);
       while (!cn->command)
-        pthread_cond_wait(&cn->query_cond, &cn->query_mutex);
-      pthread_mutex_unlock(&cn->query_mutex);
+        native_cond_wait(&cn->query_cond, &cn->query_mutex);
+      native_mutex_unlock(&cn->query_mutex);
     }
     switch (cn->command)
     {
@@ -851,10 +895,10 @@ pthread_handler_t connection_thread(void *arg)
         DBUG_ASSERT(0);
     }
     cn->command= 0;
-    pthread_mutex_lock(&cn->result_mutex);
+    native_mutex_lock(&cn->result_mutex);
     cn->query_done= 1;
-    pthread_cond_signal(&cn->result_cond);
-    pthread_mutex_unlock(&cn->result_mutex);
+    native_cond_signal(&cn->result_cond);
+    native_mutex_unlock(&cn->result_mutex);
   }
 
 end_thread:
@@ -869,10 +913,10 @@ static void wait_query_thread_done(struct st_connection *con)
   DBUG_ASSERT(con->has_thread);
   if (!con->query_done)
   {
-    pthread_mutex_lock(&con->result_mutex);
+    native_mutex_lock(&con->result_mutex);
     while (!con->query_done)
-      pthread_cond_wait(&con->result_cond, &con->result_mutex);
-    pthread_mutex_unlock(&con->result_mutex);
+      native_cond_wait(&con->result_cond, &con->result_mutex);
+    native_mutex_unlock(&con->result_mutex);
   }
 }
 
@@ -882,9 +926,9 @@ static void signal_connection_thd(struct st_connection *cn, int command)
   DBUG_ASSERT(cn->has_thread);
   cn->query_done= 0;
   cn->command= command;
-  pthread_mutex_lock(&cn->query_mutex);
-  pthread_cond_signal(&cn->query_cond);
-  pthread_mutex_unlock(&cn->query_mutex);
+  native_mutex_lock(&cn->query_mutex);
+  native_cond_signal(&cn->query_cond);
+  native_mutex_unlock(&cn->query_mutex);
 }
 
 
@@ -924,10 +968,10 @@ static void emb_close_connection(struct st_connection *cn)
   signal_connection_thd(cn, EMB_END_CONNECTION);
   pthread_join(cn->tid, NULL);
   cn->has_thread= FALSE;
-  pthread_mutex_destroy(&cn->query_mutex);
-  pthread_cond_destroy(&cn->query_cond);
-  pthread_mutex_destroy(&cn->result_mutex);
-  pthread_cond_destroy(&cn->result_cond);
+  native_mutex_destroy(&cn->query_mutex);
+  native_cond_destroy(&cn->query_cond);
+  native_mutex_destroy(&cn->result_mutex);
+  native_cond_destroy(&cn->result_cond);
 }
 
 
@@ -935,10 +979,10 @@ static void init_connection_thd(struct st_connection *cn)
 {
   cn->query_done= 1;
   cn->command= 0;
-  if (pthread_mutex_init(&cn->query_mutex, NULL) ||
-      pthread_cond_init(&cn->query_cond, NULL) ||
-      pthread_mutex_init(&cn->result_mutex, NULL) ||
-      pthread_cond_init(&cn->result_cond, NULL) ||
+  if (native_mutex_init(&cn->query_mutex, NULL) ||
+      native_cond_init(&cn->query_cond) ||
+      native_mutex_init(&cn->result_mutex, NULL) ||
+      native_cond_init(&cn->result_cond) ||
       pthread_create(&cn->tid, &cn_thd_attrib, connection_thread, (void*)cn))
     die("Error in the thread library");
   cn->has_thread=TRUE;
@@ -1293,7 +1337,7 @@ end:
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    size_t err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -1365,9 +1409,9 @@ void free_used_memory()
   close_files();
   my_hash_free(&var_hash);
 
-  for (i= 0 ; i < q_lines.elements ; i++)
+  struct st_command **q;
+  for (q= q_lines->begin(); q != q_lines->end(); ++q)
   {
-    struct st_command **q= dynamic_element(&q_lines, i, struct st_command**);
     my_free((*q)->query_buf);
     if ((*q)->content.str)
       dynstr_free(&(*q)->content);
@@ -1380,7 +1424,7 @@ void free_used_memory()
   }
   while (embedded_server_arg_count > 1)
     my_free(embedded_server_args[--embedded_server_arg_count]);
-  delete_dynamic(&q_lines);
+  delete q_lines;
   dynstr_free(&ds_res);
   if (ds_warn)
     dynstr_free(ds_warn);
@@ -2460,12 +2504,11 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
 {
   char *end = (char*)((query_end && *query_end) ?
 		      *query_end : query + strlen(query));
-  MYSQL_RES *res;
+  MYSQL_RES *res= NULL;
   MYSQL_ROW row;
   MYSQL* mysql = &cur_con->mysql;
   DYNAMIC_STRING ds_query;
   DBUG_ENTER("var_query_set");
-  LINT_INIT(res);
 
   /* Only white space or ) allowed past ending ` */
   while (end > query && *end != '`')
@@ -2516,7 +2559,7 @@ void var_query_set(VAR *var, const char *query, const char** query_end)
       {
         /* Add column to tab separated string */
 	char *val= row[i];
-	int len= lengths[i];
+	size_t len= lengths[i];
 	
 	if (glob_replace_regex)
 	{
@@ -2611,7 +2654,7 @@ typedef struct
 
 static st_error global_error_names[] =
 {
-  { "<No error>", -1U, "" },
+  { "<No error>", (uint)-1, "" },
 #include <mysqld_ername.h>
   { 0, 0, 0 }
 };
@@ -2706,7 +2749,7 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
 {
   long row_no;
   int col_no= -1;
-  MYSQL_RES* res;
+  MYSQL_RES* res= NULL;
   MYSQL* mysql= &cur_con->mysql;
 
   static DYNAMIC_STRING ds_query;
@@ -2719,7 +2762,6 @@ void var_set_query_get_value(struct st_command *command, VAR *var)
   };
 
   DBUG_ENTER("var_set_query_get_value");
-  LINT_INIT(res);
 
   strip_parentheses(command);
   DBUG_PRINT("info", ("query: %s", command->query));
@@ -3101,8 +3143,8 @@ static void init_builtin_echo(void)
 */
 
 static int replace(DYNAMIC_STRING *ds_str,
-                   const char *search_str, ulong search_len,
-                   const char *replace_str, ulong replace_len)
+                   const char *search_str, size_t search_len,
+                   const char *replace_str, size_t replace_len)
 {
   DYNAMIC_STRING ds_tmp;
   const char *start= strstr(ds_str->str, search_str);
@@ -3247,7 +3289,7 @@ void do_exec(struct st_command *command)
   {
     const char var_name[]= "__error";
     char buf[10];
-    int err_len= snprintf(buf, 10, "%u", error);
+    size_t err_len= my_snprintf(buf, 10, "%u", error);
     buf[err_len > 9 ? 9 : err_len]= '0';
     var_set(var_name, var_name + 7, buf, buf + err_len);
   }
@@ -3368,6 +3410,17 @@ void do_remove_file(struct st_command *command)
 
   DBUG_PRINT("info", ("removing file: %s", ds_filename.str));
   error= my_delete(ds_filename.str, MYF(0)) != 0;
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error= my_delete(ds_filename.str, MYF(0)) != 0;
+  }
   handle_command_error(command, error);
   dynstr_free(&ds_filename);
   DBUG_VOID_RETURN;
@@ -3492,6 +3545,18 @@ void do_copy_file(struct st_command *command)
   /* MY_HOLD_ORIGINAL_MODES prevents attempts to chown the file */
   error= (my_copy(ds_from_file.str, ds_to_file.str,
                   MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error= (my_copy(ds_from_file.str, ds_to_file.str,
+                    MYF(MY_DONT_OVERWRITE_FILE | MY_HOLD_ORIGINAL_MODES)) != 0);
+  }
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -3528,6 +3593,18 @@ void do_move_file(struct st_command *command)
   DBUG_PRINT("info", ("Move %s to %s", ds_from_file.str, ds_to_file.str));
   error= (my_rename(ds_from_file.str, ds_to_file.str,
                     MYF(0)) != 0);
+  /*
+    Some anti-virus programs hold access to files for a short time
+    even after the application/server quit. During testing, sleep
+    5 seconds and then retry once more to avoid spurious test failures.
+    Also on slow/loaded machines the file system may need to catch up.
+  */
+  if (error)
+  {
+    my_sleep(5 * 1000 * 1000);
+    error= (my_rename(ds_from_file.str, ds_to_file.str,
+                      MYF(0)) != 0);
+  }
   handle_command_error(command, error);
   dynstr_free(&ds_from_file);
   dynstr_free(&ds_to_file);
@@ -4341,7 +4418,7 @@ void do_wait_for_slave_to_stop(struct st_command *c __attribute__((unused)))
   MYSQL* mysql = &cur_con->mysql;
   for (;;)
   {
-    MYSQL_RES *UNINIT_VAR(res);
+    MYSQL_RES *res= NULL;
     MYSQL_ROW row;
     int done;
 
@@ -4521,7 +4598,7 @@ ndb_wait_for_binlog_injector(void)
         if (*status)
         {
           status+= sizeof(latest_trans_epoch_str)-1;
-          latest_trans_epoch= strtoull(status, (char**) 0, 10);
+          latest_trans_epoch= my_strtoull(status, (char**) 0, 10);
         }
         else
           die("result does not contain '%s' in '%s'",
@@ -4535,7 +4612,7 @@ ndb_wait_for_binlog_injector(void)
         if (*status)
         {
           status+= sizeof(latest_handled_binlog_epoch_str)-1;
-          latest_handled_binlog_epoch= strtoull(status, (char**) 0, 10);
+          latest_handled_binlog_epoch= my_strtoull(status, (char**) 0, 10);
         }
         else
           die("result does not contain '%s' in '%s'",
@@ -4800,46 +4877,80 @@ int query_get_string(MYSQL* mysql, const char* query,
 }
 
 
-static int my_kill(int pid, int sig)
+/**
+  Check if process is active.
+
+  @param pid  Process id.
+
+  @return true if process is active, false otherwise.
+*/
+static bool is_process_active(int pid)
 {
 #ifdef _WIN32
+  DWORD exit_code;
   HANDLE proc;
-  if ((proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid)) == NULL)
-    return -1;
-  if (sig == 0)
-  {
-    CloseHandle(proc);
-    return 0;
-  }
-  (void)TerminateProcess(proc, 201);
+  proc= OpenProcess(PROCESS_QUERY_INFORMATION, FALSE, pid);
+  if (proc == NULL)
+    return false;  /* Process could not be found. */
+
+  if (!GetExitCodeProcess(proc, &exit_code))
+    exit_code= 0;
+
   CloseHandle(proc);
-  return 1;
+  if (exit_code != STILL_ACTIVE)
+    return false;  /* Error or process has terminated. */
+
+  return true;
 #else
-  return kill(pid, sig);
+  return (kill(pid, 0) == 0);
 #endif
 }
 
+/**
+  kill process.
+
+  @param pid  Process id.
+
+  @return true if process is terminated, false otherwise.
+*/
+static bool kill_process(int pid)
+{
+  bool killed= true;
+#ifdef _WIN32
+  HANDLE proc;
+  proc= OpenProcess(PROCESS_TERMINATE, FALSE, pid);
+  if (proc == NULL)
+    return true;  /* Process could not be found. */
+
+  if (!TerminateProcess(proc, 201))
+    killed= false;
+
+  CloseHandle(proc);
+#else
+  killed= (kill(pid, 9) == 0);
+#endif
+  return killed;
+}
 
 
-/*
-  Shutdown the server of current connection and
-  make sure it goes away within <timeout> seconds
+/**
+  Shutdown or kill the server.
+  If timeout is set to 0 the server is killed/terminated
+  immediately. Otherwise the shutdown command is first sent
+  and then it waits for the server to terminate within
+  <timeout> seconds. If it has not terminated before <timeout>
+  seconds the command will fail.
 
-  NOTE! Currently only works with local server
+  @note Currently only works with local server
 
-  SYNOPSIS
-  do_shutdown_server()
-  command  called command
-
-  DESCRIPTION
-  shutdown_server [<timeout>]
-
+  @param commmand  Optionally including a timeout else the
+  default of 60 seconds is used.
 */
 
 void do_shutdown_server(struct st_command *command)
 {
   long timeout=60;
-  int pid;
+  int pid, error= 0;
   DYNAMIC_STRING ds_pidfile_name;
   MYSQL* mysql = &cur_con->mysql;
   static DYNAMIC_STRING ds_timeout;
@@ -4888,28 +4999,48 @@ void do_shutdown_server(struct st_command *command)
   }
   DBUG_PRINT("info", ("Got pid %d", pid));
 
-  /* Tell server to shutdown if timeout > 0*/
-  if (timeout && mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
-    die("mysql_shutdown failed");
-
-  /* Check that server dies */
-  while(timeout--){
-    if (my_kill(pid, 0) < 0){
-      DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
-      DBUG_VOID_RETURN;
+  if (timeout)
+  {
+    /* Tell server to shutdown if timeout > 0. */
+    if (mysql_shutdown(mysql, SHUTDOWN_DEFAULT))
+    {
+      error= -1;   /* Failed to issue shutdown command. */
+      goto end;
     }
-    DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
-    my_sleep(1000000L);
+
+    /* Check that server dies */
+    do
+    {
+      if (!is_process_active(pid))
+      {
+        DBUG_PRINT("info", ("Process %d does not exist anymore", pid));
+        DBUG_VOID_RETURN;
+      }
+      if (timeout)
+      {
+        DBUG_PRINT("info", ("Sleeping, timeout: %ld", timeout));
+        my_sleep(1000000L);
+      }
+    } while(timeout-- > 0);
+    error= -2;
+  }
+  else
+  {
+    /* Kill the server */
+    DBUG_PRINT("info", ("Killing server, pid: %d", pid));
+    /*
+      kill_process can fail (bad privileges, non existing process on *nix etc),
+      so also check if the process is active before setting error.
+    */
+    if (!kill_process(pid) && is_process_active(pid))
+      error= -3;
   }
 
-  /* Kill the server */
-  DBUG_PRINT("info", ("Killing server, pid: %d", pid));
-  (void)my_kill(pid, 9);
-
+end:
+  if (error)
+    handle_command_error(command, error);
   DBUG_VOID_RETURN;
-
 }
-
 
 
 uint get_errcode_from_name(char *error_name, char *error_end)
@@ -6187,7 +6318,7 @@ my_bool end_of_query(int c)
 
 int read_line(char *buf, int size)
 {
-  char c, UNINIT_VAR(last_quote), last_char= 0;
+  char c, last_quote= 0, last_char= 0;
   char *p= buf, *buf_end= buf + size - 1;
   int skip_char= 0;
   my_bool have_slash= FALSE;
@@ -6362,7 +6493,7 @@ int read_line(char *buf, int size)
       {
         if (!(charlen= my_mbcharlen(charset_info, (unsigned char) c)))
         {
-          char c1= my_getc(cur_file->file);
+          int c1= my_getc(cur_file->file);
           if (c1 == EOF)
           {
             *p++= c;
@@ -6560,14 +6691,14 @@ int read_command(struct st_command** command_ptr)
 
   if (parser.current_line < parser.read_lines)
   {
-    get_dynamic(&q_lines, (uchar*) command_ptr, parser.current_line) ;
+    *command_ptr= q_lines->at(parser.current_line);
     DBUG_RETURN(0);
   }
   if (!(*command_ptr= command=
         (struct st_command*) my_malloc(PSI_NOT_INSTRUMENTED,
                                        sizeof(*command),
                                        MYF(MY_WME|MY_ZEROFILL))) ||
-      insert_dynamic(&q_lines, &command))
+      q_lines->push_back(command))
     die("Out of memory");
   command->type= Q_UNKNOWN;
 
@@ -6645,18 +6776,23 @@ static struct my_option my_long_options[] =
   {"database", 'D', "Database to use.", &opt_db, &opt_db, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
 #ifdef DBUG_OFF
-  {"debug", '#', "This is a non-debug version. Catch this and exit",
+  {"debug", '#', "This is a non-debug version. Catch this and exit.",
    0,0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+  {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
 #else
   {"debug", '#', "Output debug log. Often this is 'd:t:o,filename'.",
    0, 0, 0, GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
-#endif
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
    &debug_check_flag, &debug_check_flag, 0,
    GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"host", 'h', "Connect to host.", &opt_host, &opt_host, 0,
    GET_STR, REQUIRED_ARG, 0, 0, 0, 0, 0, 0},
   {"include", 'i', "Include SQL before each test case.", &opt_include,
@@ -7039,7 +7175,8 @@ void check_regerr(my_regex_t* r, int err)
 
 #ifdef _WIN32
 
-DYNAMIC_ARRAY patterns;
+typedef Prealloced_array<const char*, 16> Patterns;
+Patterns *patterns;
 
 /*
   init_win_path_patterns
@@ -7066,7 +7203,7 @@ void init_win_path_patterns()
 
   DBUG_ENTER("init_win_path_patterns");
 
-  my_init_dynamic_array(&patterns, sizeof(const char*), 16, 16);
+  patterns= new Patterns(PSI_NOT_INSTRUMENTED);
 
   /* Loop through all paths in the array */
   for (i= 0; i < num_paths; i++)
@@ -7089,7 +7226,7 @@ void init_win_path_patterns()
       continue;
     }
 
-    if (insert_dynamic(&patterns, &p))
+    if (patterns->push_back(p))
       die("Out of memory");
 
     DBUG_PRINT("info", ("p: %s", p));
@@ -7106,12 +7243,13 @@ void init_win_path_patterns()
 void free_win_path_patterns()
 {
   uint i= 0;
-  for (i=0 ; i < patterns.elements ; i++)
+  const char **pat;
+  for (pat= patterns->begin(); pat != patterns->end(); ++pat)
   {
-    const char** pattern= dynamic_element(&patterns, i, const char**);
-    my_free((void *) *pattern);
+    my_free(const_cast<char*>(*pat));
   }
-  delete_dynamic(&patterns);
+  delete patterns;
+  patterns= NULL;
 }
 
 /*
@@ -7130,19 +7268,17 @@ void free_win_path_patterns()
 
 void fix_win_paths(const char *val, size_t len)
 {
-  uint i;
-  char *p;
-
   DBUG_ENTER("fix_win_paths");
-  for (i= 0; i < patterns.elements; i++)
+  const char **pat;
+  for (pat= patterns->begin(); pat != patterns->end(); ++pat)
   {
-    const char** pattern= dynamic_element(&patterns, i, const char**);
-    DBUG_PRINT("info", ("pattern: %s", *pattern));
+    char *p;
+    DBUG_PRINT("info", ("pattern: %s", *pat));
 
     /* Search for the path in string */
-    while ((p= strstr((char*)val, *pattern)))
+    while ((p= strstr(const_cast<char*>(val), *pat)))
     {
-      DBUG_PRINT("info", ("Found %s in val p: %s", *pattern, p));
+      DBUG_PRINT("info", ("Found %s in val p: %s", *pat, p));
 
       while (*p && !my_isspace(charset_info, *p))
       {
@@ -7410,6 +7546,11 @@ void append_session_track_info(DYNAMIC_STRING *ds, MYSQL *mysql)
                                        (enum_session_state_type) type,
                                        &data, &data_length))
     {
+      /*
+	Append the type information. Please update the definition of APPEND_TYPE when
+	any changes are made to enum_session_state_type.
+      */
+      APPEND_TYPE(type);
       dynstr_append(ds, "-- ");
       dynstr_append_mem(ds, data, data_length);
     }
@@ -8752,7 +8893,7 @@ int main(int argc, char **argv)
   cur_block->ok= TRUE; /* Outer block should always be executed */
   cur_block->cmd= cmd_none;
 
-  my_init_dynamic_array(&q_lines, sizeof(struct st_command*), 1024, 1024);
+  q_lines= new Q_lines(PSI_NOT_INSTRUMENTED);
 
   if (my_hash_init(&var_hash, charset_info,
                    1024, 0, 0, get_var_key, var_free, MYF(0)))
@@ -9687,15 +9828,6 @@ void replace_strings_append(REPLACE *rep, DYNAMIC_STRING* ds,
 */
 
 
-/* Stores regex substitutions */
-
-struct st_regex
-{
-  char* pattern; /* Pattern to be replaced */
-  char* replace; /* String or expression to replace the pattern with */
-  int icase; /* true if the match is case insensitive */
-};
-
 int reg_replace(char** buf_p, int* buf_len_p, char *pattern, char *replace,
                 char *string, int icase);
 
@@ -9747,9 +9879,9 @@ struct st_replace_regex* init_replace_regex(char* expr)
   struct st_regex reg;
 
   /* my_malloc() will die on fail with MY_FAE */
-  res=(struct st_replace_regex*)my_malloc(PSI_NOT_INSTRUMENTED,
-                                          sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME));
-  my_init_dynamic_array(&res->regex_arr,sizeof(struct st_regex),128,128);
+  void *rawmem= my_malloc(PSI_NOT_INSTRUMENTED,
+                          sizeof(*res)+expr_len ,MYF(MY_FAE+MY_WME));
+  res= new (rawmem) st_replace_regex;
 
   buf= (char*)res + sizeof(*res);
   expr_end= expr + expr_len;
@@ -9770,7 +9902,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
 
     if (p == expr_end || ++p == expr_end)
     {
-      if (res->regex_arr.elements)
+      if (res->regex_arr.size())
         break;
       else
         goto err;
@@ -9801,7 +9933,7 @@ struct st_replace_regex* init_replace_regex(char* expr)
       reg.icase= 1;
 
     /* done parsing the statement, now place it in regex_arr */
-    if (insert_dynamic(&res->regex_arr, &reg))
+    if (res->regex_arr.push_back(reg))
       die("Out of memory");
   }
   res->odd_buf_len= res->even_buf_len= 8192;
@@ -9840,7 +9972,7 @@ err:
 
 int multi_reg_replace(struct st_replace_regex* r,char* val)
 {
-  uint i;
+  size_t i;
   char* in_buf, *out_buf;
   int* buf_len_p;
 
@@ -9850,12 +9982,10 @@ int multi_reg_replace(struct st_replace_regex* r,char* val)
   r->buf= 0;
 
   /* For each substitution, do the replace */
-  for (i= 0; i < r->regex_arr.elements; i++)
+  for (i= 0; i < r->regex_arr.size(); i++)
   {
-    struct st_regex re;
+    struct st_regex re(r->regex_arr[i]);
     char* save_out_buf= out_buf;
-
-    get_dynamic(&r->regex_arr,(uchar*)&re,i);
 
     if (!reg_replace(&out_buf, buf_len_p, re.pattern, re.replace,
                      in_buf, re.icase))
@@ -9911,11 +10041,11 @@ void free_replace_regex()
 {
   if (glob_replace_regex)
   {
-    delete_dynamic(&glob_replace_regex->regex_arr);
     my_free(glob_replace_regex->even_buf);
     my_free(glob_replace_regex->odd_buf);
+    glob_replace_regex->~st_replace_regex();
     my_free(glob_replace_regex);
-    glob_replace_regex=0;
+    glob_replace_regex= NULL;
   }
 }
 
@@ -9927,7 +10057,7 @@ void free_replace_regex()
 */
 #define SECURE_REG_BUF   if (buf_len < need_buf_len)                    \
   {                                                                     \
-    int off= res_p - buf;                                               \
+    my_ptrdiff_t off= res_p - buf;                                      \
     buf= (char*)my_realloc(PSI_NOT_INSTRUMENTED,                        \
                            buf,need_buf_len,MYF(MY_WME+MY_FAE));        \
     res_p= buf + off;                                                   \
@@ -10805,22 +10935,24 @@ void replace_dynstr_append_uint(DYNAMIC_STRING *ds, uint val)
 
 */
 
-static int comp_lines(const char **a, const char **b)
+class Comp_lines :
+  public std::binary_function<const char*, const char *, bool>
 {
-  return (strcmp(*a,*b));
-}
+public:
+  bool operator()(const char *a, const char *b)
+  {
+    return strcmp(a, b) < 0;
+  }
+};
 
 void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
 {
-  unsigned i;
   char *start= ds_input->str;
-  DYNAMIC_ARRAY lines;
+  Prealloced_array<const char*, 32> lines(PSI_NOT_INSTRUMENTED);
   DBUG_ENTER("dynstr_append_sorted");
 
   if (!*start)
     DBUG_VOID_RETURN;  /* No input */
-
-  my_init_dynamic_array(&lines, sizeof(const char*), 32, 32);
 
   /* First line is result header, skip past it */
   while (*start && *start != '\n')
@@ -10839,24 +10971,21 @@ void dynstr_append_sorted(DYNAMIC_STRING* ds, DYNAMIC_STRING *ds_input)
     *line_end= 0;
 
     /* Insert pointer to the line in array */
-    if (insert_dynamic(&lines, &start))
+    if (lines.push_back(start))
       die("Out of memory inserting lines to sort");
 
     start= line_end+1;
   }
 
   /* Sort array */
-  qsort(lines.buffer, lines.elements,
-        sizeof(char**), (qsort_cmp)comp_lines);
+  std::sort(lines.begin(), lines.end(), Comp_lines());
 
   /* Create new result */
-  for (i= 0; i < lines.elements ; i++)
+  for (const char **line= lines.begin(); line != lines.end(); ++line)
   {
-    const char **line= dynamic_element(&lines, i, const char**);
     dynstr_append(ds, *line);
     dynstr_append(ds, "\n");
   }
 
-  delete_dynamic(&lines);
   DBUG_VOID_RETURN;
 }

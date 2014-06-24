@@ -59,7 +59,10 @@
 
 
   CREATE TABLE t1 (a INT, b INT, INDEX (a,b)) ;
-    INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5), (2,2), (2,3), (2,1), (3,1), (4,1), (4,2), (4,3), (4,4), (4,5), (4,6) ;
+  INSERT INTO t1 (a, b) VALUES (1,1), (1,2), (1,3), (1,4), (1,5),
+                               (2,2), (2,3), (2,1), (3,1), (4,1),
+                               (4,2), (4,3), (4,4), (4,5), (4,6),
+                               (5,1), (5,2), (5,3), (5,4), (5,5);
   CREATE TABLE t2 SELECT max(b), a FROM t1 GROUP BY a ;
   let $point=   before_reset_query_plan;let $query=  SELECT * FROM (SELECT max(b), a FROM t1 GROUP BY a) b ;
   --source include/explain_for_connection.inc
@@ -231,18 +234,23 @@
   UPDATE t1 SET a = 13 + 99, b = CONCAT(b, ', updated 3') WHERE a = 99 ;
   UPDATE t1 SET a = a + 1, b = CONCAT(b, ', updated 4 -> p9') WHERE a = 112 ;
   UPDATE t1 SET b = CONCAT(b, ', same as min(a) + 2 in t2') WHERE a = (SELECT MIN(a) + 2 FROM t2) ;
+
   let $point=   planned_single_update;let $query=  UPDATE t1 SET b = CONCAT(b, ', max(a) in t2: ', (SELECT MAX(a) FROM t2)) WHERE a = 5 ;
   --source include/explain_for_connection.inc
   let $point=   before_reset_query_plan;let $query=  UPDATE t1, t2 SET t1.b = CONCAT(t1.b, ', t2.b:', t2.b), t2.b = CONCAT(t2.b, ', t1.b:', t1.b) WHERE t2.b = t1.b and t2.a = 4 ;
   --source include/explain_for_connection.inc
+
+
   DROP TABLE t1,t2;
 
 
 
   CREATE TABLE t1 ( OXID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '', OXPARENTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT 'oxrootid', OXLEFT int NOT NULL DEFAULT '0', OXRIGHT int NOT NULL DEFAULT '0', OXROOTID varchar(32) COLLATE latin1_german2_ci NOT NULL DEFAULT '', PRIMARY KEY  (OXID), KEY OXNID (OXID), KEY OXLEFT (OXLEFT), KEY OXRIGHT (OXRIGHT), KEY OXROOTID (OXROOTID) ) ENGINE=MyISAM DEFAULT CHARSET=latin1 COLLATE=latin1_german2_ci ;
   INSERT INTO t1 VALUES ('d8c4177d09f8b11f5.52725521','oxrootid',1,40,'d8c4177d09f8b11f5.52725521'), ('d8c4177d151affab2.81582770','d8c4177d09f8b11f5.52725521',2,3, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d206a333d2.74422679','d8c4177d09f8b11f5.52725521',4,5, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d225791924.30714720','d8c4177d09f8b11f5.52725521',6,7, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d2380fc201.39666693','d8c4177d09f8b11f5.52725521',8,9, 'd8c4177d09f8b11f5.52725521'), ('d8c4177d24ccef970.14957924','d8c4177d09f8b11f5.52725521',10,11, 'd8c4177d09f8b11f5.52725521') ;
+  let $replace=/"rows_produced_per_join": 24/"rows_produced_per_join": 25/ ;
   let $point=   before_reset_query_plan;let $query=  SELECT s.oxid FROM t1 v, t1 s  WHERE s.oxrootid = 'd8c4177d09f8b11f5.52725521' AND v.oxrootid ='d8c4177d09f8b11f5.52725521' AND s.oxleft > v.oxleft AND s.oxleft < v.oxright ;
   --source include/explain_for_connection.inc
+  let $replace=;
   DROP TABLE t1 ;
 
 

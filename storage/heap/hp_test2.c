@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
   HP_SHARE *tmp_share;
   HP_KEYDEF keyinfo[MAX_KEYS];
   HA_KEYSEG keyseg[MAX_KEYS*5];
-  HEAP_PTR UNINIT_VAR(position);
+  HEAP_PTR position= 0;
   HP_CREATE_INFO hp_create_info;
   CHARSET_INFO *cs= &my_charset_latin1;
   my_bool unused;

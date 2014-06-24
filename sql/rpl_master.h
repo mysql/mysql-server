@@ -1,5 +1,5 @@
 #ifndef RPL_MASTER_H_INCLUDED
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -38,7 +38,7 @@ typedef struct st_slave_info
 
 void init_slave_list();
 void end_slave_list();
-int register_slave(THD* thd, uchar* packet, uint packet_length);
+int register_slave(THD* thd, uchar* packet, size_t packet_length);
 void unregister_slave(THD* thd, bool only_mine, bool need_lock_slave_list);
 bool show_slave_hosts(THD* thd);
 String *get_slave_uuid(THD *thd, String *value);
@@ -57,7 +57,7 @@ void kill_zombie_dump_threads(String *slave_uuid);
   @retval true Error
   @retval false Success
 */
-bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length);
+bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length);
 
 /**
   Process a COM_BINLOG_DUMP packet.
@@ -70,7 +70,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, uint packet_length);
   @retval true Error
   @retval false Success
 */
-bool com_binlog_dump(THD *thd, char *packet, uint packet_length);
+bool com_binlog_dump(THD *thd, char *packet, size_t packet_length);
 
 /**
   Low-level function where the dump thread iterates over the binary
@@ -96,7 +96,7 @@ bool com_binlog_dump(THD *thd, char *packet, uint packet_length);
   events in that set.
 */
 void mysql_binlog_send(THD* thd, char* log_ident, my_off_t pos,
-                       Gtid_set* gtid_set);
+                       Gtid_set* gtid_set, uint32 flags);
 
 int reset_master(THD* thd);
 

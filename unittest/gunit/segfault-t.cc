@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -191,7 +191,7 @@ TEST(PrintUtilities, Printf)
   void *p= this;
   my_safe_snprintf(buff, sizeof(buff), "hello 0x%p hello", p);
   my_snprintf(sprintfbuff, sizeof(sprintfbuff), "hello %p hello", p);
-  EXPECT_STREQ(sprintfbuff, buff);
+  EXPECT_STREQ(sprintfbuff, buff) << "my_safe_snprintf:" << buff;
 }
 
 

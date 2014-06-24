@@ -204,8 +204,8 @@ private:
 
 ///////////////////////////////////////////////////////////////////////////
 
-uint err_conv(char *buff, size_t to_length, const char *from,
-              size_t from_length, const CHARSET_INFO *from_cs);
+size_t err_conv(char *buff, size_t to_length, const char *from,
+                size_t from_length, const CHARSET_INFO *from_cs);
 
 class ErrConvString
 {
@@ -431,7 +431,7 @@ public:
     @return true if the condition list contains an SQL-condition with the given
     message text.
   */
-  bool has_sql_condition(const char *message_text, ulong message_length) const;
+  bool has_sql_condition(const char *message_text, size_t message_length) const;
 
   /**
     Reset the current condition information stored in the Diagnostics Area.
@@ -730,9 +730,9 @@ void push_deprecated_warn_no_replacement(THD *thd, const char *old_syntax);
 
 bool mysqld_show_warnings(THD *thd, ulong levels_to_show);
 
-uint32 convert_error_message(char *to, uint32 to_length,
+size_t convert_error_message(char *to, size_t to_length,
                              const CHARSET_INFO *to_cs,
-                             const char *from, uint32 from_length,
+                             const char *from, size_t from_length,
                              const CHARSET_INFO *from_cs, uint *errors);
 
 extern const LEX_STRING warning_level_names[];

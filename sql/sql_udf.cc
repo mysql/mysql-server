@@ -203,8 +203,10 @@ void udf_init()
 
       On windows we must check both FN_LIBCHAR and '/'.
     */
+
+    LEX_CSTRING name_cstr= {name.str, name.length};
     if (check_valid_path(dl_name, strlen(dl_name)) ||
-        check_string_char_length(&name, "", NAME_CHAR_LEN,
+        check_string_char_length(name_cstr, "", NAME_CHAR_LEN,
                                  system_charset_info, 1))
     {
       sql_print_error("Invalid row in mysql.func table for function '%.64s'",
@@ -309,7 +311,7 @@ static void del_udf(udf_func *udf)
       doesn't use it anymore
     */
     char *name= udf->name.str;
-    uint name_length=udf->name.length;
+    size_t name_length=udf->name.length;
     udf->name.str=(char*) "*";
     udf->name.length=1;
     my_hash_update(&udf_hash,(uchar*) udf,(uchar*) name,name_length);
@@ -344,7 +346,7 @@ void free_udf(udf_func *udf)
 
 /* This is only called if using_udf_functions != 0 */
 
-udf_func *find_udf(const char *name,uint length,bool mark_used)
+udf_func *find_udf(const char *name, size_t length,bool mark_used)
 {
   udf_func *udf=0;
   DBUG_ENTER("find_udf");
@@ -359,7 +361,7 @@ udf_func *find_udf(const char *name,uint length,bool mark_used)
     mysql_rwlock_rdlock(&THR_LOCK_udf);  /* Called during parsing */
 
   if ((udf=(udf_func*) my_hash_search(&udf_hash,(uchar*) name,
-                                      length ? length : (uint) strlen(name))))
+                                      length ? length : strlen(name))))
   {
     if (!udf->dlhandle)
       udf=0;					// Could not be opened
@@ -452,7 +454,8 @@ int mysql_create_function(THD *thd,udf_func *udf)
     my_message(ER_UDF_NO_PATHS, ER(ER_UDF_NO_PATHS), MYF(0));
     DBUG_RETURN(1);
   }
-  if (check_string_char_length(&udf->name, "", NAME_CHAR_LEN,
+  LEX_CSTRING udf_name_cstr= {udf->name.str, udf->name.length};
+  if (check_string_char_length(udf_name_cstr, "", NAME_CHAR_LEN,
                                system_charset_info, 1))
   {
     my_error(ER_TOO_LONG_IDENT, MYF(0), udf->name.str);
@@ -570,7 +573,7 @@ int mysql_drop_function(THD *thd,const LEX_STRING *udf_name)
   TABLE_LIST tables;
   udf_func *udf;
   char *exact_name_str;
-  uint exact_name_len;
+  size_t exact_name_len;
   bool save_binlog_row_based;
   int error= 1;
   DBUG_ENTER("mysql_drop_function");

@@ -249,15 +249,30 @@ CHARSET_INFO*
 innobase_get_charset(
 /*=================*/
 	THD*	thd);	/*!< in: MySQL thread handle */
-/**********************************************************************//**
-Determines the current SQL statement.
-@return SQL statement string */
 
+/** Determines the current SQL statement.
+Thread unsafe, can only be called from the thread owning the THD.
+@param[in]	thd	MySQL thread handle
+@param[out]	length	Length of the SQL statement
+@return			SQL statement string */
 const char*
-innobase_get_stmt(
-/*==============*/
-	THD*	thd,		/*!< in: MySQL thread handle */
-	size_t*	length);		/*!< out: length of the SQL statement */
+innobase_get_stmt_unsafe(
+	THD*	thd,
+	size_t*	length);
+
+/** Determines the current SQL statement.
+Thread safe, can be called from any thread as the string is copied
+into the provided buffer.
+@param[in]	thd	MySQL thread handle
+@param[out]	buf	Buffer containing SQL statement
+@param[in]	buflen	Length of provided buffer
+@return			Length of the SQL statement */
+size_t
+innobase_get_stmt_safe(
+	THD*	thd,
+	char*	buf,
+	size_t	buflen);
+
 /******************************************************************//**
 This function is used to find the storage length in bytes of the first n
 characters for prefix indexes using a multibyte character set. The function

@@ -64,7 +64,6 @@ astext(g)
 POINT(4 4)
 POINT(6 2)
 POINT(6 6)
-POINT(8 4)
 DROP TABLE t1;
 select 0, ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'));
 0	ST_Within(GeomFromText('LINESTRING(15 15, 50 50, 60 60)'), GeomFromText('POLYGON((10 10,30 20,20 40, 10 10))'))
@@ -75,15 +74,15 @@ select 1, ST_Within(GeomFromText('LINESTRING(15 15, 16 16)'), GeomFromText('POLY
 select 1, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(50 15, 15 50)'));
 1	ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(50 15, 15 50)'))
 1	1
-select 0, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'));
-0	ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'))
-0	0
+select 1, ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'));
+1	ST_Intersects(GeomFromText('LINESTRING(15 15, 50 50)'), GeomFromText('LINESTRING(16 16, 51 51)'))
+1	1
 select 1, ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'));
 1	ST_Intersects(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))'))
 1	1
 select astext(ST_Union(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')));
 astext(ST_Union(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')))
-POLYGON((0 0,1 2,2 0,0 0))
+POLYGON((0 0,2 0,1 2,0 0))
 select astext(ST_Intersection(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')));
 astext(ST_Intersection(geometryfromtext('point(1 1)'), geometryfromtext('polygon((0 0, 2 0, 1 2, 0 0))')))
 POINT(1 1)
@@ -122,7 +121,7 @@ ST_DISTANCE(geomfromtext('linestring(0 0, 3 6, 6 3, 0 0)'), geomfromtext('polygo
 0.8944271909999159
 select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')));
 astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('POLYGON((50 5, 55 10, 0 45, 50 5))')))
-POLYGON((26.470588235294116 23.823529411764703,21.951219512195124 27.439024390243905,23.855421686746986 29.819277108433734,29.289940828402365 26.360946745562128,26.470588235294116 23.823529411764703))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((21.951219512195124 27.439024390243905,26.47058823529412 23.823529411764707,29.289940828402365 26.36094674556213,23.855421686746986 29.819277108433734,21.951219512195124 27.439024390243905))),POINT(21.95121951219512 27.4390243902439))
 select astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')));
 astext(ST_Intersection(GeomFromText('LINESTRING(0 0, 50 45, 40 50, 0 0)'), GeomFromText('LINESTRING(50 5, 55 10, 0 45, 50 5)')))
 MULTIPOINT(26.470588235294116 23.823529411764703,29.289940828402365 26.360946745562128,21.951219512195124 27.439024390243905,23.855421686746986 29.819277108433734)
@@ -134,19 +133,19 @@ astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFr
 POINT(20 20)
 select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200)')));
 astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200)')))
-LINESTRING(0 0,46.666666666666664 46.666666666666664)
+MULTILINESTRING((0 0,46.666666666666664 46.666666666666664))
 select astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 astext(ST_Intersection(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
-MULTILINESTRING((0 0,46.666666666666664 46.666666666666664),(8.000000000000002 10.000000000000002,45.333333333333336 47.333333333333336))
+MULTILINESTRING((0 0,46.666666666666664 46.666666666666664),(45.33333333333334 47.33333333333334,8 10))
 select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
 GEOMETRYCOLLECTION(LINESTRING(-10 -10,0 0),LINESTRING(-11 -9,8.000000000000002 10.000000000000002),POLYGON((0 0,40 50,50 45,0 0)),LINESTRING(46.666666666666664 46.666666666666664,200 200,199 201,45.333333333333336 47.333333333333336))
 select astext(ST_intersection(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
 astext(ST_intersection(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')))
-POLYGON((0 0,0 1,0.5 0.5,0 0))
+MULTIPOLYGON(((0 1,0 0,0.5 0.5,0 1)))
 select astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')));
 astext(ST_symdifference(geomfromtext('polygon((0 0, 1 0, 0 1, 0 0))'), geomfromtext('polygon((0 0, 1 1, 0 2, 0 0))')))
-MULTIPOLYGON(((0 0,0 1,0 0,0.5 0.5,1 0,0 0)),((0.5 0.5,0 1,0 2,1 1,0.5 0.5)))
+MULTIPOLYGON(((0.5 0.5,0 0,1 0,0.5 0.5)),((0 1,0.5 0.5,1 1,0 2,0 1)))
 select astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')));
 astext(ST_UNION(GeomFromText('POLYGON((0 0, 50 45, 40 50, 0 0))'), GeomFromText('LINESTRING(-10 -10, 200 200, 199 201, -11 -9)')))
 GEOMETRYCOLLECTION(LINESTRING(-10 -10,0 0),LINESTRING(-11 -9,8.000000000000002 10.000000000000002),POLYGON((0 0,40 50,50 45,0 0)),LINESTRING(46.666666666666664 46.666666666666664,200 200,199 201,45.333333333333336 47.333333333333336))
@@ -176,7 +175,7 @@ st_touches(geomfromtext('point(0 0)'), geomfromtext('point(1 1)'))
 0
 select st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'));
 st_touches(geomfromtext('point(1 1)'), geomfromtext('point(1 1)'))
-1
+0
 select st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'));
 st_touches(geomfromtext('polygon((0 0, 2 2, 0 4, 0 0))'), geomfromtext('point(1 1)'))
 1
@@ -476,7 +475,7 @@ GeomFromText('POINT(5 10)')));
 AsText(ST_UNION(
 GeomFromText('MULTIPOLYGON(((0 0, 0 5, 5 5, 5 0, 0 0)),((6 6, 6 11, 11 11, 11 6, 6 6)))'),
 GeomFromText('POINT(5 10)')))
-GEOMETRYCOLLECTION(POLYGON((0 0,0 5,5 5,5 0,0 0)),POLYGON((6 6,6 11,11 11,11 6,6 6)),POINT(5 10))
+GEOMETRYCOLLECTION(MULTIPOLYGON(((0 0,5 0,5 5,0 5,0 0)),((6 6,11 6,11 11,6 11,6 6))),POINT(5 10))
 DROP PROCEDURE p1;
 #
 # Bug #13833019 ASSERTION `T1->RESULT_RANGE' FAILED IN GCALC_OPERATION_REDUCER::END_COUPLE
@@ -519,3 +518,17 @@ SRID(GEOMETRYFROMTEXT(' MULTIPOINT(8 4,5 0,7 8,6 9,3 4,7 3,5 5) '))));
 ASTEXT(ST_BUFFER(POLYGONFROMTEXT(' POLYGON((9 9,5 2,4 5,9 9))'),
 SRID(GEOMETRYFROMTEXT(' MULTIPOINT(8 4,5 0,7 8,6 9,3 4,7 3,5 5) '))))
 POLYGON((9 9,5 2,4 5,9 9))
+#
+# 18701868 CRASH IN MY_DECIMAL::SANITY_CHECK,
+#          ORDER BY CAST (INVALID GIS FUNCTION RESULT)
+#
+CREATE TABLE t1 (a INT) engine=innodb;
+INSERT INTO t1 VALUES (1);
+SELECT * FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+a
+1
+DELETE FROM t1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+ERROR HY000: Invalid GIS data provided to function st_distance.
+UPDATE t1 SET a=1 ORDER BY cast(st_distance(1,1) as DECIMAL);
+ERROR HY000: Invalid GIS data provided to function st_distance.
+DROP TABLE t1;

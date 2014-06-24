@@ -115,6 +115,7 @@ public:
   // Status variables. Must be static as they are used by the signal handler.
   static uint connection_count;          // Protected by LOCK_connection_count
   static ulong max_used_connections;     // Protected by LOCK_connection_count
+  static ulong max_used_connections_time;// Protected by LOCK_connection_count
 
   // System variable
   static ulong thread_handling;
@@ -164,12 +165,7 @@ public:
     Reset the max_used_connections counter to the number of current
     connections.
   */
-  static void reset_max_used_connections()
-  {
-    mysql_mutex_lock(&LOCK_connection_count);
-    max_used_connections= connection_count;
-    mysql_mutex_unlock(&LOCK_connection_count);
-  }
+  static void reset_max_used_connections();
 
   /**
     Decrease the number of current connections.

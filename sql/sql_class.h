@@ -1,5 +1,4 @@
-/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights
-   reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -178,7 +177,8 @@ extern LEX_CSTRING EMPTY_CSTR;
 extern LEX_CSTRING NULL_CSTR;
 extern MYSQL_PLUGIN_IMPORT const char **errmesg;
 
-extern "C" LEX_CSTRING thd_query_string (MYSQL_THD thd);
+extern "C" LEX_CSTRING thd_query_unsafe(MYSQL_THD thd);
+extern "C" size_t thd_query_safe(MYSQL_THD thd, char *buf, size_t buflen);
 
 /**
   @class CSET_STRING
@@ -829,7 +829,7 @@ public:
 
     In order to enforce a safe access pattern when it is used by
     THD, it is private and its getter/setter are protected.
-    It is assumed that other classes interiting from Statement
+    It is assumed that other classes inheriting from Statement
     (Prepared_Statement) access the query string from one thread only.
 
     See comments for THD's setters/getters about how to access this
@@ -841,7 +841,7 @@ private:
 protected:
   virtual const LEX_CSTRING& query() const { return m_query_string; }
 
-  void set_query_inner(const LEX_CSTRING& string_arg)
+  void set_query(const LEX_CSTRING& string_arg)
   {
     m_query_string= string_arg;
   }
@@ -988,6 +988,10 @@ public:
   const char *host_or_ip;
   ulong master_access;                 /* Global privileges from mysql.user */
   ulong db_access;                     /* Privileges for current db */
+  /*
+    This flag is set according to connecting user's context and not the
+    effective user.
+  */
   bool password_expired;               /* password expiration flag */
 
   void init();
@@ -1009,8 +1013,8 @@ public:
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   bool
   change_security_context(THD *thd,
-                          LEX_STRING *definer_user,
-                          LEX_STRING *definer_host,
+                          const LEX_CSTRING &definer_user,
+                          const LEX_CSTRING &definer_host,
                           LEX_STRING *db,
                           Security_context **backup);
 
@@ -1255,7 +1259,8 @@ enum enum_thread_type
   SYSTEM_THREAD_EVENT_SCHEDULER= 8,
   SYSTEM_THREAD_EVENT_WORKER= 16,
   SYSTEM_THREAD_INFO_REPOSITORY= 32,
-  SYSTEM_THREAD_SLAVE_WORKER= 64
+  SYSTEM_THREAD_SLAVE_WORKER= 64,
+  SYSTEM_THREAD_COMPRESS_GTID_TABLE= 128
 };
 
 inline char const *
@@ -1272,6 +1277,7 @@ show_system_thread(enum_thread_type thread)
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_EVENT_WORKER);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_INFO_REPOSITORY);
     RETURN_NAME_AS_STRING(SYSTEM_THREAD_SLAVE_WORKER);
+    RETURN_NAME_AS_STRING(SYSTEM_THREAD_COMPRESS_GTID_TABLE);
   default:
     sprintf(buf, "<UNKNOWN SYSTEM THREAD: %d>", thread);
     return buf;
@@ -1321,7 +1327,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl) = 0;
 
@@ -1342,7 +1348,7 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl)
   {
@@ -1368,11 +1374,35 @@ public:
   bool handle_condition(THD *thd,
                         uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
 private:
+};
+
+
+/**
+  Internal error handler to process an error from MDL_context::upgrade_lock()
+  and mysql_lock_tables(). Used by implementations of HANDLER READ and
+  LOCK TABLES LOCAL.
+*/
+
+class MDL_deadlock_and_lock_abort_error_handler: public Internal_error_handler
+{
+public:
+  virtual
+  bool handle_condition(THD *thd,
+                        uint sql_errno,
+                        const char *sqlstate,
+                        Sql_condition::enum_severity_level *level,
+                        const char* msg,
+                        Sql_condition **cond_hdl);
+
+  bool need_reopen() const { return m_need_reopen; };
+  void init() { m_need_reopen= false; };
+private:
+  bool m_need_reopen;
 };
 
 
@@ -1620,12 +1650,16 @@ public:
   THR_LOCK_INFO lock_info;              // Locking info of this thread
   /**
     Protects THD data accessed from other threads:
-    - thd->query and thd->query_length (used by SHOW ENGINE
-      INNODB STATUS and SHOW PROCESSLIST
     - thd->mysys_var (used by KILL statement and shutdown).
     Is locked when THD is deleted.
   */
   mysql_mutex_t LOCK_thd_data;
+
+  /**
+    Protects THD::m_query_string. No other mutexes should be locked
+    while having this mutex locked.
+  */
+  mysql_mutex_t LOCK_thd_query;
 
   /**
     Protects query plan (SELECT/UPDATE/DELETE's) from being freed/changed
@@ -2248,6 +2282,11 @@ public:
     Stores the result of the FOUND_ROWS() function.
   */
   ulonglong  limit_found_rows;
+  /*
+    Indicate if the gtid_executed table is being operated
+    in current transaction.
+  */
+  bool  is_operating_gtid_table;
 
 private:
   /**
@@ -2444,7 +2483,8 @@ public:
   bool              tx_read_only;
   enum_check_fields count_cuted_fields;
 
-  DYNAMIC_ARRAY user_var_events;        /* For user variables replication */
+  // For user variables replication
+  Prealloced_array<BINLOG_USER_VAR_EVENT*, 2> user_var_events;
   MEM_ROOT      *user_var_events_alloc; /* Allocate above array elements here */
 
   /**
@@ -2607,7 +2647,6 @@ public:
   bool	     charset_is_system_charset, charset_is_collation_connection;
   bool       charset_is_character_set_filesystem;
   bool       enable_slow_log;   /* enable slow log for current statement */
-  bool	     abort_on_warning;
   bool 	     got_warning;       /* Set on call to push_warning() */
   /* set during loop of derived table processing */
   bool       derived_tables_processing;
@@ -2683,7 +2722,7 @@ public:
     This list is later iterated to invoke release_thd() on those
     plugins.
   */
-  DYNAMIC_ARRAY audit_class_plugins;
+  Prealloced_array<plugin_ref, 2> audit_class_plugins;
   /**
     Array of bits indicating which audit classes have already been
     added to the list of audit plugins which are currently in use.
@@ -2840,11 +2879,8 @@ public:
     @param needs_thr_lock_abort Indicates that to wake up thread
                                 this call needs to abort its waiting
                                 on table-level lock.
-
-    @retval  TRUE  if the thread was woken up
-    @retval  FALSE otherwise.
    */
-  virtual bool notify_shared_lock(MDL_context_owner *ctx_in_use,
+  virtual void notify_shared_lock(MDL_context_owner *ctx_in_use,
                                   bool needs_thr_lock_abort);
 
   /**
@@ -3019,12 +3055,15 @@ public:
     return !stmt_arena->is_stmt_prepare();
   }
 
+  LEX_CSTRING *make_lex_string(LEX_CSTRING *lex_str,
+                              const char *str, size_t length,
+                              bool allocate_lex_string);
   LEX_STRING *make_lex_string(LEX_STRING *lex_str,
                               const char* str, size_t length,
                               bool allocate_lex_string);
 
   bool convert_string(LEX_STRING *to, const CHARSET_INFO *to_cs,
-		      const char *from, uint from_length,
+		      const char *from, size_t from_length,
 		      const CHARSET_INFO *from_cs);
 
   bool convert_string(String *s, const CHARSET_INFO *from_cs,
@@ -3203,14 +3242,6 @@ public:
       */
       my_message(err, ER(err), MYF(ME_FATALERROR));
     }
-  }
-  /* return TRUE if we will abort query if we make a warning now */
-  inline bool really_abort_on_warning()
-  {
-    return (abort_on_warning &&
-            (!get_transaction()->cannot_safely_rollback(
-                Transaction_ctx::STMT) ||
-             (variables.sql_mode & MODE_STRICT_ALL_TABLES)));
   }
   void set_status_var_init();
   void reset_n_backup_open_tables_state(Open_tables_backup *backup);
@@ -3480,7 +3511,7 @@ private:
   */
   bool handle_condition(uint sql_errno,
                         const char* sqlstate,
-                        Sql_condition::enum_severity_level level,
+                        Sql_condition::enum_severity_level *level,
                         const char* msg,
                         Sql_condition ** cond_hdl);
 
@@ -3569,25 +3600,29 @@ public:
     For safe and protected access to the query string, the following
     rules should be followed:
     1: Only the owner (current_thd) can set the query string.
-       This will be protected by LOCK_thd_data.
+       This will be protected by LOCK_thd_query.
     2: The owner (current_thd) can read the query string without
-       locking LOCK_thd_data.
-    3: Other threads must lock LOCK_thd_data before reading
+       locking LOCK_thd_query.
+    3: Other threads must lock LOCK_thd_query before reading
        the query string.
 
-    This means that write-write conflicts are avoided by LOCK_thd_data.
+    This means that write-write conflicts are avoided by LOCK_thd_query.
     Read(by owner or other thread)-write(other thread) are disallowed.
-    Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_data.
+    Read(other thread)-write(by owner) conflicts are avoided by LOCK_thd_query.
     Read(by owner)-write(by owner) won't happen as THD=thread.
   */
   virtual const LEX_CSTRING& query() const
   {
+#ifndef DBUG_OFF
+    if (current_thd != this)
+      mysql_mutex_assert_owner(&LOCK_thd_query);
+#endif
     return Statement::query();
   }
 
   /**
-    Assign a new value to thd->query and thd->query_id and mysys_var.
-    Protected with LOCK_thd_data mutex.
+    Assign a new value to thd->m_query_string.
+    Protected with the LOCK_thd_query mutex.
   */
   void set_query(const char *query_arg, size_t query_length_arg)
   {
@@ -3596,16 +3631,40 @@ public:
   }
   void set_query(const LEX_CSTRING& query_arg);
   void reset_query() { set_query(LEX_CSTRING()); }
-  void set_query_and_id(const char *query_arg, size_t query_length_arg,
-                        query_id_t new_query_id);
-  void set_query_id(query_id_t new_query_id);
+
+  /**
+    Assign a new value to thd->query_id.
+    Protected with the LOCK_thd_data mutex.
+  */
+  void set_query_id(query_id_t new_query_id)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    query_id= new_query_id;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
+
+  /**
+    Assign a new value to open_tables.
+    Protected with the LOCK_thd_data mutex.
+  */
   void set_open_tables(TABLE *open_tables_arg)
   {
     mysql_mutex_lock(&LOCK_thd_data);
     open_tables= open_tables_arg;
     mysql_mutex_unlock(&LOCK_thd_data);
   }
-  void set_mysys_var(struct st_my_thread_var *new_mysys_var);
+
+  /**
+    Assign a new value to mysys_var.
+    Protected with the LOCK_thd_data mutex.
+  */
+  void set_mysys_var(struct st_my_thread_var *new_mysys_var)
+  {
+    mysql_mutex_lock(&LOCK_thd_data);
+    mysys_var= new_mysys_var;
+    mysql_mutex_unlock(&LOCK_thd_data);
+  }
+
   void enter_locked_tables_mode(enum_locked_tables_mode mode_arg)
   {
     DBUG_ASSERT(locked_tables_mode == LTM_NONE);
@@ -3677,12 +3736,14 @@ public:
   void get_definer(LEX_USER *definer);
   void set_invoker(const LEX_STRING *user, const LEX_STRING *host)
   {
-    invoker_user= *user;
-    invoker_host= *host;
+    m_invoker_user.str= user->str;
+    m_invoker_user.length= user->length;
+    m_invoker_host.str= host->str;
+    m_invoker_host.length= host->length;
   }
-  LEX_STRING get_invoker_user() { return invoker_user; }
-  LEX_STRING get_invoker_host() { return invoker_host; }
-  bool has_invoker() { return invoker_user.length > 0; }
+  LEX_CSTRING get_invoker_user() const { return m_invoker_user; }
+  LEX_CSTRING get_invoker_host() const { return m_invoker_host; }
+  bool has_invoker() { return m_invoker_user.length > 0; }
 
   void mark_transaction_to_rollback(bool all);
 
@@ -3725,7 +3786,8 @@ private:
     TRIGGER or VIEW statements.
 
     Current user will be binlogged into Query_log_event if current_user_used
-    is TRUE; It will be stored into invoker_host and invoker_user by SQL thread.
+    is TRUE; It will be stored into m_invoker_host and m_invoker_user by SQL
+    thread.
    */
   bool m_binlog_invoker;
 
@@ -3735,8 +3797,8 @@ private:
     TRIGGER or VIEW statements or current user in account management
     statements if it is not NULL.
    */
-  LEX_STRING invoker_user;
-  LEX_STRING invoker_host;
+  LEX_CSTRING m_invoker_user;
+  LEX_CSTRING m_invoker_host;
 
 private:
   /**
@@ -3845,6 +3907,10 @@ LEX_STRING *
 make_lex_string_root(MEM_ROOT *mem_root,
                      LEX_STRING *lex_str, const char* str, size_t length,
                      bool allocate_lex_string);
+LEX_CSTRING *
+make_lex_string_root(MEM_ROOT *mem_root,
+                     LEX_CSTRING *lex_str, const char* str, size_t length,
+                     bool allocate_lex_string);
 
 inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
                                    const char *src, size_t src_len)
@@ -3873,14 +3939,14 @@ inline LEX_STRING *lex_string_copy(MEM_ROOT *root, LEX_STRING *dst,
 class sql_exchange :public Sql_alloc
 {
 public:
+  Field_separators field;
+  Line_separators line;
   enum enum_filetype filetype; /* load XML, Added by Arnold & Erik */
-  char *file_name;
-  const String *field_term, *enclosed, *line_term, *line_start, *escaped;
-  bool opt_enclosed;
+  const char *file_name;
   bool dumpfile;
   ulong skip_lines;
   const CHARSET_INFO *cs;
-  sql_exchange(char *name, bool dumpfile_flag,
+  sql_exchange(const char *name, bool dumpfile_flag,
                enum_filetype filetype_arg= FILETYPE_CSV);
   bool escaped_given(void);
 };
@@ -4106,8 +4172,6 @@ public:
      @param update_values    The values to be assigned in case of duplicate
                              keys. May be NULL.
      @param duplicate        The policy for handling duplicates.
-     @param ignore           How the insert operation is to handle certain
-                             errors. See COPY_INFO.
 
      @todo This constructor takes 8 arguments, 6 of which are used to
      immediately construct a COPY_INFO object. Obviously the constructor
@@ -4147,8 +4211,7 @@ public:
                 List<Item> *target_or_source_columns,
                 List<Item> *update_fields,
                 List<Item> *update_values,
-                enum_duplicates duplic,
-                bool ignore)
+                enum_duplicates duplic)
     :table_list(table_list_par),
      table(table_par),
      fields(target_or_source_columns),
@@ -4158,8 +4221,7 @@ public:
           target_columns,
           // manage_defaults
           (target_columns == NULL || target_columns->elements != 0),
-          duplic,
-          ignore),
+          duplic),
      update(COPY_INFO::UPDATE_OPERATION,
             update_fields,
             update_values),
@@ -4192,7 +4254,6 @@ public:
    which is confusing.
 */
 class select_create: public select_insert {
-  ORDER *group;
   TABLE_LIST *create_table;
   HA_CREATE_INFO *create_info;
   TABLE_LIST *select_tables;
@@ -4206,7 +4267,7 @@ public:
   select_create (TABLE_LIST *table_arg,
 		 HA_CREATE_INFO *create_info_par,
                  Alter_info *alter_info_arg,
-		 List<Item> &select_fields,enum_duplicates duplic, bool ignore,
+		 List<Item> &select_fields,enum_duplicates duplic,
                  TABLE_LIST *select_tables_arg)
     :select_insert (NULL, // table_list_par
                     NULL, // table_par
@@ -4214,8 +4275,7 @@ public:
                     &select_fields,
                     NULL, // update_fields
                     NULL, // update_values
-                    duplic,
-                    ignore),
+                    duplic),
      create_table(table_arg),
      create_info(create_info_par),
      select_tables(select_tables_arg),
@@ -4576,6 +4636,9 @@ public:
     else
       db= db_arg;
   }
+  inline Table_ident(LEX_STRING db_arg, LEX_STRING table_arg)
+    :db(db_arg), table(table_arg), sel(NULL)
+  {}
   inline Table_ident(LEX_STRING table_arg) 
     :table(table_arg), sel(NULL)
   {
@@ -4701,7 +4764,7 @@ class user_var_entry
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type);
+  bool store(const void *from, uint length, Item_result type);
 
 public:
   user_var_entry() {}                         /* Remove gcc warning */
@@ -4724,7 +4787,7 @@ public:
     @retval        false on success
     @retval        true on memory allocation error
   */
-  bool store(void *from, uint length, Item_result type,
+  bool store(const void *from, uint length, Item_result type,
              const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   /**
     Set type of to the given value.
@@ -4821,7 +4884,7 @@ public:
   bool initialize_tables (JOIN *join);
   void send_error(uint errcode,const char *err);
   int do_deletes();
-  int do_table_deletes(TABLE *table, bool ignore);
+  int do_table_deletes(TABLE *table);
   bool send_eof();
   inline ha_rows num_deleted()
   {
@@ -4839,7 +4902,7 @@ class multi_update :public select_result_interceptor
 {
   TABLE_LIST *all_tables; /* query/update command tables */
   TABLE_LIST *leaves;     /* list of leves of join table tree */
-  TABLE_LIST *update_tables, *table_being_updated;
+  TABLE_LIST *update_tables;
   TABLE **tmp_tables, *main_table, *table_to_update;
   Temp_table_param *tmp_table_param;
   ha_rows updated, found;
@@ -4856,7 +4919,6 @@ class multi_update :public select_result_interceptor
   bool do_update, trans_safe;
   /* True if the update operation has made a change in a transactional table */
   bool transactional_tables;
-  bool ignore;
   /* 
      error handling (rollback and binlogging) can happen in send_eof()
      so that afterward send_error() needs to find out that.
@@ -4882,7 +4944,7 @@ class multi_update :public select_result_interceptor
 public:
   multi_update(TABLE_LIST *ut, TABLE_LIST *leaves_list,
 	       List<Item> *fields, List<Item> *values,
-	       enum_duplicates handle_duplicates, bool ignore);
+	       enum_duplicates handle_duplicates);
   ~multi_update();
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
   bool send_data(List<Item> &items);
@@ -4901,29 +4963,10 @@ public:
   virtual void abort_result_set();
 };
 
-class my_var : public Sql_alloc  {
-public:
-  LEX_STRING s;
-#ifndef DBUG_OFF
-  /*
-    Routine to which this Item_splocal belongs. Used for checking if correct
-    runtime context is used for variable handling.
-  */
-  sp_head *sp;
-#endif
-  bool local;
-  uint offset;
-  enum_field_types type;
-  my_var (LEX_STRING& j, bool i, uint o, enum_field_types t)
-    :s(j), local(i), offset(o), type(t)
-  {}
-  ~my_var() {}
-};
-
 class select_dumpvar :public select_result_interceptor {
   ha_rows row_count;
 public:
-  List<my_var> var_list;
+  List<PT_select_var> var_list;
   select_dumpvar()  { var_list.empty(); row_count= 0;}
   ~select_dumpvar() {}
   int prepare(List<Item> &list, SELECT_LEX_UNIT *u);
@@ -5055,7 +5098,7 @@ void add_diff_to_status(STATUS_VAR *to_var, STATUS_VAR *from_var,
 
 inline bool add_item_to_list(THD *thd, Item *item)
 {
-  return thd->lex->current_select()->add_item_to_list(thd, item);
+  return thd->lex->select_lex->add_item_to_list(thd, item);
 }
 
 inline bool add_value_to_list(THD *thd, Item *value)
@@ -5063,19 +5106,14 @@ inline bool add_value_to_list(THD *thd, Item *value)
   return thd->lex->value_list.push_back(value);
 }
 
-inline bool add_order_to_list(THD *thd, Item *item, bool asc)
+inline void add_order_to_list(THD *thd, ORDER *order)
 {
-  return thd->lex->current_select()->add_order_to_list(thd, item, asc);
+  thd->lex->select_lex->add_order_to_list(order);
 }
 
-inline bool add_gorder_to_list(THD *thd, Item *item, bool asc)
+inline void add_group_to_list(THD *thd, ORDER *order)
 {
-  return thd->lex->current_select()->add_gorder_to_list(thd, item, asc);
-}
-
-inline bool add_group_to_list(THD *thd, Item *item, bool asc)
-{
-  return thd->lex->current_select()->add_group_to_list(thd, item, asc);
+  thd->lex->select_lex->add_group_to_list(order);
 }
 
 /*************************************************************************/

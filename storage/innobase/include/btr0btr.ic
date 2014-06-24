@@ -1,6 +1,6 @@
 /*****************************************************************************
 
-Copyright (c) 1994, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 1994, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -166,11 +166,6 @@ btr_page_get_next(
 				/*!< in: mini-transaction handle */
 {
 	ut_ad(page && mtr);
-	ut_ad(mtr_memo_contains_page_flagged(mtr, page,
-					     MTR_MEMO_PAGE_S_FIX
-					     | MTR_MEMO_PAGE_X_FIX
-					     | MTR_MEMO_PAGE_SX_FIX));
-
 	return(mach_read_from_4(page + FIL_PAGE_NEXT));
 }
 
@@ -284,11 +279,27 @@ btr_leaf_page_release(
 					BTR_MODIFY_LEAF */
 	mtr_t*		mtr)		/*!< in: mtr */
 {
-	ut_ad(latch_mode == BTR_SEARCH_LEAF || latch_mode == BTR_MODIFY_LEAF);
+	ut_ad(latch_mode == BTR_SEARCH_LEAF
+	      || latch_mode == BTR_MODIFY_LEAF
+	      || latch_mode == BTR_NO_LATCHES);
+
 	ut_ad(!mtr_memo_contains(mtr, block, MTR_MEMO_MODIFY));
 
-	mtr->memo_release(block,
-			  latch_mode == BTR_SEARCH_LEAF
-			  ? MTR_MEMO_PAGE_S_FIX : MTR_MEMO_PAGE_X_FIX);
+	ulint mode;
+	switch (latch_mode) {
+		case BTR_SEARCH_LEAF:
+			mode = MTR_MEMO_PAGE_S_FIX;
+			break;
+		case BTR_MODIFY_LEAF:
+			mode = MTR_MEMO_PAGE_X_FIX;
+			break;
+		case BTR_NO_LATCHES:
+			mode = MTR_MEMO_BUF_FIX;
+			break;
+		default:
+			ut_a(0);
+	}
+
+	mtr->memo_release(block, mode);
 }
 #endif /* !UNIV_HOTBACKUP */
