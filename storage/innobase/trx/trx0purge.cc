@@ -903,7 +903,7 @@ trx_purge_initiate_truncate(
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
 #else
 	trx_sys_mutex_enter();
-	trx_sys->rseg_history_len -= rseg->n_removed_logs;
+	trx_sys->rseg_history_len -= n_removed_logs;
 	trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
@@ -928,7 +928,8 @@ trx_purge_initiate_truncate(
 		purge_batch_size that can force the purge loop to exist before
 		the all the records are purge and in this case purge_sys->rseg
 		could point to a valid rseg waiting for next purge cycle. */
-		purge_sys->rseg_iter->set_next();
+		purge_sys->next_stored = FALSE;
+		purge_sys->rseg = NULL;
 	}
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_end",

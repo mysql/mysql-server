@@ -1494,6 +1494,10 @@ trx_write_serialisation_history(
 			undo_hdr_page = trx_undo_set_state_at_finish(
 				trx->rsegs.m_redo.update_undo, mtr);
 
+			/* Delay update of rseg_history_len if we plan to add
+			non-redo update_undo too. This is to avoid immediate
+			invocation of purge as we need to club these 2 segments
+			with same trx-no as single unit. */
 			bool update_rseg_len =
 				!(trx->rsegs.m_noredo.update_undo != NULL);
 
