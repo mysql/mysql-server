@@ -1959,7 +1959,7 @@ public:
   String *str_result(String *str);
   my_decimal *val_decimal_result(my_decimal *);
   bool is_null_result();
-  bool update_hash(void *ptr, uint length, enum Item_result type,
+  bool update_hash(const void *ptr, uint length, enum Item_result type,
   		   const CHARSET_INFO *cs, Derivation dv, bool unsigned_arg);
   bool send(Protocol *protocol, String *str_arg);
   void make_field(Send_field *tmp_field);
@@ -2067,7 +2067,7 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   virtual void print(String *str, enum_query_type query_type);
   void set_null_value(const CHARSET_INFO* cs);
-  void set_value(const char *str, uint length, const CHARSET_INFO* cs);
+  void set_value(const char *str, size_t length, const CHARSET_INFO* cs);
 };
 
 
@@ -2291,10 +2291,10 @@ public:
      @param type   comparison operation type
      @param value  comparison operation value
   */
-  void set_hints_op(enum ft_operation type, double value)
+  void set_hints_op(enum ft_operation type, double value_arg)
   {
     DBUG_ASSERT(!master);
-    hints->set_hint_op(type, value);
+    hints->set_hint_op(type, value_arg);
   }
   
   /**

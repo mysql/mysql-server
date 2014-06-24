@@ -722,7 +722,7 @@ static inline int read_str_at_most_255_bytes(const char **buf,
   Transforms a string into "" or its expression in 0x... form.
 */
 
-char *str_to_hex(char *to, const char *from, uint len)
+char *str_to_hex(char *to, const char *from, size_t len)
 {
   if (len)
   {
@@ -748,7 +748,7 @@ append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                     String const *from, String *to)
 {
   char *beg, *ptr;
-  uint32 const orig_len= to->length();
+  size_t const orig_len= to->length();
   if (to->reserve(orig_len + from->length()*2+3))
     return 1;
 
@@ -7735,7 +7735,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
   size_t id_len= my_strmov_quoted_identifier(this->thd, quoted_id, name, name_len);
   quoted_id[id_len]= '\0';
   uint val_offset= 2 + id_len;
-  uint event_len= val_offset;
+  size_t event_len= val_offset;
 
   if (is_null)
   {
@@ -11166,6 +11166,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
     /* Continue until we find the right record or have made a full loop */
     do
     {
+  restart_ha_rnd_next:
       error= m_table->file->ha_rnd_next(m_table->record[0]);
       if (error)
         DBUG_PRINT("info", ("error: %s", HA_ERR(error)));
@@ -11173,11 +11174,16 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
       case HA_ERR_END_OF_FILE:
         // restart scan from top
         if (++restart_count < 2)
-          error= m_table->file->ha_rnd_init(1);
+        {
+          if ((error= m_table->file->ha_rnd_init(1)))
+            goto end;
+          goto restart_ha_rnd_next;
+        }
         break;
 
       case HA_ERR_RECORD_DELETED:
         // fetch next
+        goto restart_ha_rnd_next;
       case 0:
         // we're good, check if record matches
         break;
@@ -11187,9 +11193,7 @@ int Rows_log_event::do_table_scan_and_update(Relay_log_info const *rli)
         goto end;
       }
     }
-    while ((error == HA_ERR_END_OF_FILE && restart_count < 2) ||
-           (error == HA_ERR_RECORD_DELETED) ||
-           (!error && record_compare(m_table, &m_cols)));
+    while (restart_count < 2 && record_compare(m_table, &m_cols));
   }
 
 end:

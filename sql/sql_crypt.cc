@@ -51,9 +51,9 @@ void SQL_CRYPT::init(ulong *rand_nr)
 }
 
 
-void SQL_CRYPT::encode(char *str,uint length)
+void SQL_CRYPT::encode(char *str, size_t length)
 {
-  for (uint i=0; i < length; i++)
+  for (size_t i=0; i < length; i++)
   {
     shift^=(uint) (my_rnd(&rand)*255.0);
     uint idx= (uint) (uchar) str[0];
@@ -63,9 +63,9 @@ void SQL_CRYPT::encode(char *str,uint length)
 }
 
 
-void SQL_CRYPT::decode(char *str,uint length)
+void SQL_CRYPT::decode(char *str, size_t length)
 {
-  for (uint i=0; i < length; i++)
+  for (size_t i=0; i < length; i++)
   {
     shift^=(uint) (my_rnd(&rand)*255.0);
     uint idx= (uint) ((uchar) str[0] ^ shift);

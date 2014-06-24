@@ -240,6 +240,56 @@ public:
   }
 
   /**
+    The array is extended by inserting a new element before the element at the
+    specified position.
+
+    This is generally an inefficient operation, since we need to copy
+    elements to make a new "hole" in the array.
+
+    We use std::copy_backward to move objects, hence Element_type must be
+    assignable.
+
+    @retval An iterator pointing to the inserted value.
+   */
+  iterator insert(iterator position, const value_type &val)
+  {
+    const difference_type n= position - begin();
+    if (position == end())
+      push_back(val);
+    else
+    {
+      resize(m_size + 1);
+      // resize() may invalidate position, so do not use it here.
+      std::copy_backward(begin() + n, end() - 1, end());
+      *(begin() + n) = val;
+    }
+    return begin() + n;
+  }
+
+  /**
+    Similar to std::set<>::insert()
+    Extends the array by inserting a new element, but only if it cannot be found
+    in the array already.
+
+    Assumes that the array is sorted with std::less<Element_type>
+    Insertion using this function will maintain order.
+
+    @retval A pair, with its member pair::first set an iterator pointing to
+            either the newly inserted element, or to the equivalent element
+            already in the array. The pair::second element is set to true if
+            the new element was inserted, or false if an equivalent element
+            already existed.
+  */
+  std::pair<iterator, bool> insert_unique(const value_type &val)
+  {
+    std::pair<iterator, iterator> p= std::equal_range(begin(), end(), val);
+    // p.first == p.second means we did not find it.
+    if (p.first == p.second)
+      return std::make_pair(insert(p.first, val), true);
+    return std::make_pair(p.first, false);
+  }
+
+  /**
     Removes a single element from the array.
     The removed element is destroyed.
     This effectively reduces the container size by one.
@@ -248,7 +298,7 @@ public:
     elements to fill the "hole" in the array.
 
     We use std::copy to move objects, hence Element_type must be assignable.
-   */
+  */
   iterator erase(iterator position)
   {
     DBUG_ASSERT(position != end());

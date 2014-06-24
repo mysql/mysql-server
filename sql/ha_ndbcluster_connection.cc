@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -25,7 +25,7 @@ Ndb_cluster_connection* g_ndb_cluster_connection= NULL;
 static Ndb_cluster_connection **g_pool= NULL;
 static uint g_pool_alloc= 0;
 static uint g_pool_pos= 0;
-static pthread_mutex_t g_pool_mutex;
+static native_mutex_t g_pool_mutex;
 
 /*
   Global flag in ndbapi to specify if api should wait to connect
@@ -114,7 +114,7 @@ ndbcluster_connect(int (*connect_callback)(void),
       my_malloc(PSI_INSTRUMENT_ME,
                 g_pool_alloc * sizeof(Ndb_cluster_connection*),
                 MYF(MY_WME | MY_ZEROFILL));
-    pthread_mutex_init(&g_pool_mutex,
+    native_mutex_init(&g_pool_mutex,
                        MY_MUTEX_INIT_FAST);
     g_pool[0]= g_ndb_cluster_connection;
     for (uint i= 1; i < g_pool_alloc; i++)
@@ -238,7 +238,7 @@ void ndbcluster_disconnect(void)
           delete g_pool[i];
       }
       my_free((uchar*) g_pool, MYF(MY_ALLOW_ZERO_PTR));
-      pthread_mutex_destroy(&g_pool_mutex);
+      native_mutex_destroy(&g_pool_mutex);
       g_pool= 0;
     }
     g_pool_alloc= 0;
@@ -252,12 +252,12 @@ void ndbcluster_disconnect(void)
 
 Ndb_cluster_connection *ndb_get_cluster_connection()
 {
-  pthread_mutex_lock(&g_pool_mutex);
+  native_mutex_lock(&g_pool_mutex);
   Ndb_cluster_connection *connection= g_pool[g_pool_pos];
   g_pool_pos++;
   if (g_pool_pos == g_pool_alloc)
     g_pool_pos= 0;
-  pthread_mutex_unlock(&g_pool_mutex);
+  native_mutex_unlock(&g_pool_mutex);
   return connection;
 }
 

@@ -355,7 +355,7 @@ typedef struct  user_conn {
   */
   ulonglong reset_utime;
   /* Total length of the key. */
-  uint len;
+  size_t len;
   /* Current amount of concurrent connections for this account. */
   uint connections;
   /*

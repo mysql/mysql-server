@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -33,10 +33,10 @@ mysql_cond_t  THR_COND_threads;
 uint            THR_thread_count= 0;
 uint 		my_thread_end_wait_time= 5;
 #ifdef PTHREAD_ADAPTIVE_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_fast_mutexattr;
+native_mutexattr_t my_fast_mutexattr;
 #endif
 #ifdef PTHREAD_ERRORCHECK_MUTEX_INITIALIZER_NP
-pthread_mutexattr_t my_errorcheck_mutexattr;
+native_mutexattr_t my_errorcheck_mutexattr;
 #endif
 #ifdef _MSC_VER
 static void install_sigabrt_handler();
@@ -87,7 +87,7 @@ void my_thread_global_reinit(void)
   mysql_mutex_init(key_THR_LOCK_threads, &THR_LOCK_threads, MY_MUTEX_INIT_FAST);
 
   mysql_cond_destroy(&THR_COND_threads);
-  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
+  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads);
 
   tmp= _my_thread_var();
   DBUG_ASSERT(tmp);
@@ -96,7 +96,7 @@ void my_thread_global_reinit(void)
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
 
   mysql_cond_destroy(&tmp->suspend);
-  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
+  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 }
 
 /*
@@ -165,7 +165,7 @@ my_bool my_thread_global_init(void)
   mysql_mutex_init(key_THR_LOCK_myisam_mmap, &THR_LOCK_myisam_mmap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_heap, &THR_LOCK_heap, MY_MUTEX_INIT_FAST);
   mysql_mutex_init(key_THR_LOCK_net, &THR_LOCK_net, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads, NULL);
+  mysql_cond_init(key_THR_COND_threads, &THR_COND_threads);
 
 #ifdef _MSC_VER
   install_sigabrt_handler();
@@ -289,7 +289,7 @@ my_bool my_thread_init(void)
   set_mysys_var(tmp);
   tmp->pthread_self= pthread_self();
   mysql_mutex_init(key_my_thread_var_mutex, &tmp->mutex, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend, NULL);
+  mysql_cond_init(key_my_thread_var_suspend, &tmp->suspend);
 
   tmp->stack_ends_here= (char*)&tmp +
                          STACK_DIRECTION * (long)my_thread_stack_size;

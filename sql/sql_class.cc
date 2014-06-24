@@ -620,8 +620,13 @@ void THD::enter_stage(const PSI_stage_info *new_stage,
     m_current_stage_key= new_stage->m_key;
     proc_info= msg;
 
-    MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
+    m_stage_progress_psi= MYSQL_SET_STAGE(m_current_stage_key, calling_file, calling_line);
   }
+  else
+  {
+    m_stage_progress_psi= NULL;
+  }
+
   return;
 }
 
@@ -836,6 +841,28 @@ bool Drop_table_error_handler::handle_condition(THD *thd,
 }
 
 
+/**
+  Handle an error from MDL_context::upgrade_lock() and mysql_lock_tables().
+  Ignore ER_LOCK_ABORTED and ER_LOCK_DEADLOCK errors.
+*/
+
+bool
+MDL_deadlock_and_lock_abort_error_handler::
+handle_condition(THD *thd,
+                 uint sql_errno,
+                 const char *sqlstate,
+                 Sql_condition::enum_severity_level *level,
+                 const char* msg,
+                 Sql_condition **cond_hdl)
+{
+  *cond_hdl= NULL;
+  if (sql_errno == ER_LOCK_ABORTED || sql_errno == ER_LOCK_DEADLOCK)
+    m_need_reopen= true;
+
+  return m_need_reopen;
+}
+
+
 void Open_tables_state::set_open_tables_state(Open_tables_state *state)
 {
   this->open_tables= state->open_tables;
@@ -887,6 +914,7 @@ THD::THD(bool enable_plugins)
    m_trans_end_pos(0),
    table_map_for_update(0),
    m_examined_row_count(0),
+   m_stage_progress_psi(NULL),
    m_digest(NULL),
    m_statement_psi(NULL),
    m_transaction_psi(NULL),
@@ -918,13 +946,10 @@ THD::THD(bool enable_plugins)
    m_stmt_da(&main_da)
 {
   mdl_context.init(this);
-  /*
-    Pass nominal parameters to init_alloc_root only to ensure that
-    the destructor works OK in case of an error. The main_mem_root
-    will be re-initialized in init_for_queries().
-  */
   init_sql_alloc(key_memory_thd_main_mem_root,
-                 &main_mem_root, ALLOC_ROOT_MIN_BLOCK_SIZE, 0);
+                 &main_mem_root,
+                 global_system_variables.query_alloc_block_size,
+                 global_system_variables.query_prealloc_size);
   stmt_arena= this;
   thread_stack= 0;
   catalog= (char*)"std"; // the only catalog we have for now
@@ -2199,7 +2224,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
 
 void THD::update_charset()
 {
-  uint32 not_used;
+  size_t not_used;
   charset_is_system_charset=
     !String::needs_conversion(0,
                               variables.character_set_client,
@@ -2764,7 +2789,8 @@ bool select_export::send_data(List<Item> &items)
   }
   row_count++;
   Item *item;
-  uint used_length=0,items_left=items.elements;
+  size_t used_length=0;
+  uint items_left=items.elements;
   List_iterator_fast<Item> li(items);
 
   if (my_b_write(&cache,(uchar*) exchange->line.line_start->ptr(),
@@ -2784,7 +2810,7 @@ bool select_export::send_data(List<Item> &items)
       const char *cannot_convert_error_pos;
       const char *from_end_pos;
       const char *error_pos;
-      uint32 bytes;
+      size_t bytes;
       uint64 estimated_bytes=
         ((uint64) res->length() / res->charset()->mbminlen + 1) *
         write_cs->mbmaxlen + 1;
@@ -2857,7 +2883,7 @@ bool select_export::send_data(List<Item> &items)
     else
     {
       if (fixed_row_size)
-	used_length=min(res->length(),item->max_length);
+	used_length=min<size_t>(res->length(),item->max_length);
       else
 	used_length=res->length();
       if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&

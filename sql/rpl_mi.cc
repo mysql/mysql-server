@@ -130,25 +130,13 @@ Master_info::Master_info(
   master_uuid[0]= 0;
   start_plugin_auth[0]= 0; start_plugin_dir[0]= 0;
   start_user[0]= 0;
-  ignore_server_ids= new Server_ids(sizeof(::server_id));
+  ignore_server_ids= new Server_ids;
 }
 
 Master_info::~Master_info()
 {
   delete ignore_server_ids;
   delete mi_description_event;
-}
-
-/**
-   A comparison function to be supplied as argument to @c sort_dynamic()
-   and @c bsearch()
-
-   @return -1 if first argument is less, 0 if it equal to, 1 if it is greater
-   than the second
-*/
-int change_master_server_id_cmp(ulong *id1, ulong *id2)
-{
-  return *id1 < *id2? -1 : (*id1 > *id2? 1 : 0);
 }
 
 /**
@@ -166,15 +154,8 @@ int change_master_server_id_cmp(ulong *id1, ulong *id2)
  */
 bool Master_info::shall_ignore_server_id(ulong s_id)
 {
-  if (likely(ignore_server_ids->dynamic_ids.elements == 1))
-    return (* (ulong*)
-      dynamic_array_ptr(&(ignore_server_ids->dynamic_ids), 0)) == s_id;
-  else      
-    return bsearch((const ulong *) &s_id,
-                   ignore_server_ids->dynamic_ids.buffer,
-                   ignore_server_ids->dynamic_ids.elements, sizeof(ulong),
-                   (int (*) (const void*, const void*)) change_master_server_id_cmp)
-      != NULL;
+  return std::binary_search(ignore_server_ids->dynamic_ids.begin(),
+                            ignore_server_ids->dynamic_ids.end(), s_id);
 }
 
 /**
@@ -199,6 +180,7 @@ void Master_info::clear_in_memory_info(bool all)
     ssl_capath[0]= 0; ssl_cert[0]= 0; ssl_cipher[0]= 0; ssl_key[0]= 0;
     ssl_crl[0]= 0; ssl_crlpath[0]= 0; master_uuid[0]= 0;
     start_plugin_auth[0]= 0; start_plugin_dir[0]= 0; start_user[0]= 0;
+    ignore_server_ids->dynamic_ids.clear();
   }
 }
 
@@ -208,19 +190,6 @@ void Master_info::init_master_log_pos()
 
   master_log_name[0]= 0;
   master_log_pos= BIN_LOG_HEADER_SIZE;             // skip magic number
-
-  /* Intentionally init ssl_verify_server_cert to 0, no option available  */
-  ssl_verify_server_cert= 0;
-  /* 
-    always request heartbeat unless master_heartbeat_period is set
-    explicitly zero.  Here is the default value for heartbeat period
-    if CHANGE MASTER did not specify it.  (no data loss in conversion
-    as hb period has a max)
-  */
-  heartbeat_period= min<float>(SLAVE_MAX_HEARTBEAT_PERIOD,
-                               (slave_net_timeout/2.0));
-  DBUG_ASSERT(heartbeat_period > (float) 0.001
-              || heartbeat_period == 0);
 
   DBUG_VOID_RETURN;
 }
@@ -460,7 +429,7 @@ bool Master_info::read_info(Rpl_info_handler *from)
   */
   if (lines >= LINE_FOR_REPLICATE_IGNORE_SERVER_IDS)
   {
-     if (from->get_info(ignore_server_ids, (Dynamic_ids *) NULL))
+     if (from->get_info(ignore_server_ids, (Server_ids *) NULL))
       DBUG_RETURN(true);
   }
 
