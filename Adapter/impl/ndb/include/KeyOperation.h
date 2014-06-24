@@ -41,7 +41,6 @@ public:
   NdbOperation::LockMode lmode;
   NdbOperation::OperationOptions *options;
   int opcode;
-  const char * opcode_str;
   BlobHandler * blobHandler;
   
   // Constructor and Destructor
@@ -58,6 +57,9 @@ public:
   void setBlobHandler(BlobHandler *);
   bool isBlobReadOperation();
   const NdbOperation *prepare(NdbTransaction *);
+  
+  // Diagnostic 
+  const char * getOperationName();
 
 private:  
   // read
@@ -78,7 +80,7 @@ private:
 inline KeyOperation::KeyOperation(): 
   row_buffer(0), key_buffer(0), row_record(0), key_record(0),
   read_mask_ptr(0), lmode(NdbOperation::LM_SimpleRead), options(0), opcode(0),
-  opcode_str(0), blobHandler(0)
+  blobHandler(0)
 {
   u.maskvalue = 0;
 }

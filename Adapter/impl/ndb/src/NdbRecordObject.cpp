@@ -103,16 +103,22 @@ Handle<Value> NdbRecordObject::prepare() {
       }
     }
   }
-  DEBUG_PRINT("Prepared %d column%s", n, (n == 1 ? "" : "s"));
+  DEBUG_PRINT("Prepared %d column%s. Mask %u.", n, (n == 1 ? "" : "s"), u.maskvalue);
   return scope.Close(savedError);
 }
 
 
-void NdbRecordObject::createBlobWriteHandles(KeyOperation & op) {
+int NdbRecordObject::createBlobWriteHandles(KeyOperation & op) {
+  int ncreated = 0;
   for(unsigned int i = 0 ; i < ncol ; i++) {
     if(isMaskedIn(i)) {
       BlobWriteHandler * b = proxy[i].createBlobWriteHandle(i);
-      if(b) op.setBlobHandler(b);
+      if(b) { 
+        DEBUG_PRINT(" createBlobWriteHandles -- for column %d", i);
+        op.setBlobHandler(b);
+        ncreated++;
+      }
     }
   }
+  return ncreated;
 }

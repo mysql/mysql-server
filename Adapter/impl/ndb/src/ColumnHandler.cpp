@@ -139,6 +139,7 @@ Handle<Value> ColumnHandler::write(Handle<Value> val, char *buffer) const {
 
 BlobWriteHandler * ColumnHandler::createBlobWriteHandle(Handle<Value> val, 
                                                         int fieldNo) const {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   BlobWriteHandler * b = 0;
   Handle<Object> obj = val->ToObject();

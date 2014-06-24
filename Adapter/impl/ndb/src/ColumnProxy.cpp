@@ -56,13 +56,14 @@ void ColumnProxy::set(Handle<Value> newValue) {
 
 Handle<Value> ColumnProxy::write(char *buffer) {
   HandleScope scope;
-  Handle<Value> rval;
+  Handle<Value> rval = Undefined();
 
-  if(isDirty) {
+  /* Write dirty, non-blob values */
+  if(isDirty && blobBuffer.IsEmpty()) {
     rval = handler->write(jsValue, buffer);
+    DEBUG_PRINT("write %s", handler->column->getName());
+    isDirty = false;
   }
-  isDirty = false;
-  DEBUG_PRINT("write %s", handler->column->getName());
   return scope.Close(rval);
 }
 
@@ -70,8 +71,10 @@ Handle<Value> ColumnProxy::write(char *buffer) {
 BlobWriteHandler * ColumnProxy::createBlobWriteHandle(int i) {
   BlobWriteHandler * b = 0;
   if(isDirty && ! isNull) {
+    DEBUG_PRINT("createBlobWriteHandle %s", handler->column->getName());
     b = handler->createBlobWriteHandle(blobBuffer, i);
   }
+  isDirty = false;
   return b;
 }
 

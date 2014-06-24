@@ -33,6 +33,8 @@ Record::Record(NdbDictionary::Dictionary *d, int ncol, bool isPK) :
   size_of_nullmap(0),
   ndb_record(0), 
   specs(new NdbDictionary::RecordSpecification[ncol]),
+  pkColumnMask(),
+  allColumnMask(),
   isPrimaryKey(isPK)                                                       {};
 
 Record::~Record() {
@@ -65,6 +67,12 @@ void Record::addColumn(const NdbDictionary::Column *column) {
   else {
     specs[index].nullbit_byte_offset = 0;
     specs[index].nullbit_bit_in_byte = 0;
+  }
+
+  /* Maintain smask of all columns and of PK columns */
+  allColumnMask.array[index >> 3] |= (1 << (index & 7));
+  if(column->getPrimaryKey()) {
+    pkColumnMask.array[index >> 3] |= (1 << (index & 7));
   }
 
   /* Increment the counter and record size */

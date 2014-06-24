@@ -49,7 +49,7 @@ private:
 
 
 inline ColumnProxy::ColumnProxy() :
-  isNull(false), isLoaded(false), isDirty(false)
+  jsValue(), blobBuffer(), isNull(false), isLoaded(false), isDirty(false)
 {}
 
 inline void ColumnProxy::setHandler(const ColumnHandler *h) {

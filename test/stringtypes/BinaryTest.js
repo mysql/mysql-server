@@ -165,4 +165,38 @@ t8.run = function() {
   fail_openSession(this, new InsertFunction(data));
 };
 
-module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8];
+var t9 = new harness.ConcurrentTest("t9:ReadModifyUpdate");
+t9.run = function() {
+  var data, value1, value2, i;
+  data = new TestData();
+  value1 = new Buffer(320);
+  value2 = new Buffer(320);
+  for(i = 0 ; i < 320 ; i ++) {
+    value1[i] = 32 + (i % 90);
+    value2[i] = 119 - (i % 80);
+  }
+  data.bin_lob = value1;
+  data.bin_var_long = value1;
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      session.find(TestData, data.id, function(err, obj) {
+        obj.bin_var_long = value2;
+        session.update(obj, function(err) {
+          testCase.errorIfError(err);
+          session.find(TestData, data.id, function(err, foundInstance) {
+            testCase.errorIfError(err);
+            testCase.errorIfNotEqual("Unexpected VARBINARY", value2, 
+                                     foundInstance.bin_var_long);
+            testCase.errorIfNotEqual("Unexpected BLOB", value1, 
+                                     foundInstance.bin_lob);
+            testCase.failOnError();          
+          });
+        });
+      });
+    });
+  });
+};
+
+
+
+module.exports.tests = [t1, t2, t3, t4, t5, t6, t7, t8, t9];
