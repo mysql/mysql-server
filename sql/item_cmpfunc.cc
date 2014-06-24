@@ -1434,8 +1434,8 @@ int Arg_comparator::compare_binary_string()
     {
       if (set_null)
         owner->null_value= 0;
-      uint res1_length= res1->length();
-      uint res2_length= res2->length();
+      size_t res1_length= res1->length();
+      size_t res2_length= res2->length();
       int cmp= memcmp(res1->ptr(), res2->ptr(), min(res1_length,res2_length));
       return cmp ? cmp : (int) (res1_length - res2_length);
     }
@@ -4461,7 +4461,7 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 {
   switch (type) {
   case STRING_RESULT:
-    return new cmp_item_sort_string(cs);
+    return new cmp_item_string(cs);
   case INT_RESULT:
     return new cmp_item_int;
   case REAL_RESULT:
@@ -4478,9 +4478,9 @@ cmp_item* cmp_item::get_comparator(Item_result type,
 }
 
 
-cmp_item* cmp_item_sort_string::make_same()
+cmp_item* cmp_item_string::make_same()
 {
-  return new cmp_item_sort_string_in_static(cmp_charset);
+  return new cmp_item_string(cmp_charset);
 }
 
 cmp_item* cmp_item_int::make_same()
@@ -4612,7 +4612,7 @@ int cmp_item_row::cmp(Item *arg)
 
 int cmp_item_row::compare(const cmp_item *c) const
 {
-  cmp_item_row *l_cmp= (cmp_item_row *) c;
+  const cmp_item_row *l_cmp= down_cast<const cmp_item_row*>(c);
   for (uint i=0; i < n; i++)
   {
     int res;
@@ -4643,7 +4643,7 @@ int cmp_item_decimal::cmp(Item *arg)
 
 int cmp_item_decimal::compare(const cmp_item *arg) const
 {
-  cmp_item_decimal *l_cmp= (cmp_item_decimal*) arg;
+  const cmp_item_decimal *l_cmp= down_cast<const cmp_item_decimal*>(arg);
   return my_decimal_cmp(&value, &l_cmp->value);
 }
 
@@ -4675,7 +4675,7 @@ int cmp_item_datetime::cmp(Item *arg)
 
 int cmp_item_datetime::compare(const cmp_item *ci) const
 {
-  cmp_item_datetime *l_cmp= (cmp_item_datetime *)ci;
+  const cmp_item_datetime *l_cmp= down_cast<const cmp_item_datetime*>(ci);
   return (value < l_cmp->value) ? -1 : ((value == l_cmp->value) ? 0 : 1);
 }
 
@@ -6052,13 +6052,13 @@ bool Item_func_like::fix_fields(THD *thd, Item **ref)
           Convert to "cs" if charset of escape differs.
         */
         const CHARSET_INFO *cs= cmp.cmp_collation.collation;
-        uint32 unused;
+        size_t unused;
         if (escape_str->needs_conversion(escape_str->length(),
                                          escape_str->charset(), cs, &unused))
         {
           char ch;
           uint errors;
-          uint32 cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
+          size_t cnvlen= copy_and_convert(&ch, 1, cs, escape_str_ptr,
                                           escape_str->length(),
                                           escape_str->charset(), &errors);
           escape= cnvlen ? ch : '\\';
@@ -6418,7 +6418,7 @@ void Item_func_like::bm_compute_bad_character_shifts()
     returns true/false for match/no match
 */
 
-bool Item_func_like::bm_matches(const char* text, int text_len) const
+bool Item_func_like::bm_matches(const char* text, size_t text_len) const
 {
   int bcShift;
   int shift = pattern_len;

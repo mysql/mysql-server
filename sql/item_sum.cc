@@ -1067,13 +1067,21 @@ void Aggregator_distinct::clear()
 
 bool Aggregator_distinct::add()
 {
-  if (const_distinct != NOT_CONST)
+  if (const_distinct == CONST_NULL)
     return 0;
 
   if (item_sum->sum_func() == Item_sum::COUNT_FUNC || 
       item_sum->sum_func() == Item_sum::COUNT_DISTINCT_FUNC)
   {
     int error;
+
+    if (const_distinct == CONST_NOT_NULL)
+    {
+      DBUG_ASSERT(item_sum->fixed == 1);
+      Item_sum_count *sum= (Item_sum_count *)item_sum;
+      sum->count= 1;
+      return 0;
+    }
     copy_fields(tmp_table_param);
     if (copy_funcs(tmp_table_param->items_to_copy, table->in_use))
       return TRUE;
@@ -1130,6 +1138,12 @@ void Aggregator_distinct::endup()
   if (endup_done)
     return;
 
+  if (const_distinct ==  CONST_NOT_NULL)
+  {
+    endup_done= TRUE;
+    return;
+  }
+
   /* we are going to calculate the aggregate value afresh */
   item_sum->clear();
 
@@ -1143,12 +1157,6 @@ void Aggregator_distinct::endup()
     DBUG_ASSERT(item_sum->fixed == 1);
     Item_sum_count *sum= (Item_sum_count *)item_sum;
 
-    if (const_distinct ==  CONST_NOT_NULL)
-    {
-      sum->count= 1;
-      endup_done= TRUE;
-      return;
-    }
     if (tree && tree->elements == 0)
     {
       /* everything fits in memory */
@@ -3133,7 +3141,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
   uchar *key= (uchar *) key_arg;
   String *result= &item->result;
   Item **arg= item->args, **arg_end= item->args + item->arg_count_field;
-  uint old_length= result->length();
+  size_t old_length= result->length();
 
   if (item->no_appended)
     item->no_appended= FALSE;
@@ -3179,7 +3187,7 @@ int dump_leaf_key(void* key_arg, element_count count __attribute__((unused)),
     int well_formed_error;
     const CHARSET_INFO *cs= item->collation.collation;
     const char *ptr= result->ptr();
-    uint add_length;
+    size_t add_length;
     /*
       It's ok to use item->result.length() as the fourth argument
       as this is never used to limit the length of the data.
@@ -3512,12 +3520,13 @@ Item_func_group_concat::fix_fields(THD *thd, Item **ref)
   null_value= 1;
   max_length= thd->variables.group_concat_max_len;
 
-  uint32 offset;
+  size_t offset;
   if (separator->needs_conversion(separator->length(), separator->charset(),
                                   collation.collation, &offset))
   {
-    uint32 buflen= collation.collation->mbmaxlen * separator->length();
-    uint errors, conv_length;
+    size_t buflen= collation.collation->mbmaxlen * separator->length();
+    uint errors;
+    size_t conv_length;
     char *buf;
     String *new_separator;
 

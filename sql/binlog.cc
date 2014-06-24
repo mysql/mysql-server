@@ -1,4 +1,4 @@
-/* Copyright (c) 2009, 2014 Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1424,6 +1424,7 @@ Stage_manager::Mutex_queue::append(THD *first)
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                        (ulonglong) m_first, (ulonglong) &m_first,
                        (ulonglong) m_last));
+  int32 count= 1;
   bool empty= (m_first == NULL);
   *m_last= first;
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
@@ -1434,8 +1435,14 @@ Stage_manager::Mutex_queue::append(THD *first)
     moderately short. If they are not, we need to track the end of
     the queue as well.
   */
+
   while (first->next_to_commit)
+  {
+    count++;
     first= first->next_to_commit;
+  }
+  my_atomic_add32(&m_size, count);
+
   m_last= &first->next_to_commit;
   DBUG_PRINT("info", ("m_first: 0x%llx, &m_first: 0x%llx, m_last: 0x%llx",
                         (ulonglong) m_first, (ulonglong) &m_first,
@@ -1467,6 +1474,8 @@ Stage_manager::Mutex_queue::pop_front()
     more= false;
     m_last = &m_first;
   }
+  DBUG_ASSERT(my_atomic_load32(&m_size) > 0);
+  my_atomic_add32(&m_size, -1);
   DBUG_ASSERT(m_first || m_last == &m_first);
   unlock();
   DBUG_PRINT("return", ("result: 0x%llx, more: %s",
@@ -1499,6 +1508,11 @@ Stage_manager::enroll_for(StageID stage, THD *thd, mysql_mutex_t *stage_mutex)
   */
   if (stage_mutex)
     mysql_mutex_unlock(stage_mutex);
+
+#ifndef DBUG_OFF
+  if (stage == Stage_manager::SYNC_STAGE)
+    DEBUG_SYNC(thd, "bgc_after_enrolling_for_sync_stage");
+#endif
 
   /*
     If the queue was not empty, we're a follower and wait for the
@@ -1541,8 +1555,36 @@ THD *Stage_manager::Mutex_queue::fetch_and_empty()
                        (ulonglong) m_last));
   DBUG_ASSERT(m_first || m_last == &m_first);
   DBUG_PRINT("return", ("result: 0x%llx", (ulonglong) result));
+  DBUG_ASSERT(my_atomic_load32(&m_size) >= 0);
+  my_atomic_store32(&m_size, 0);
   unlock();
   DBUG_RETURN(result);
+}
+
+time_t Stage_manager::wait_count_or_timeout(ulong count, time_t usec, StageID stage)
+{
+  time_t to_wait=
+    DBUG_EVALUATE_IF("bgc_set_infinite_delay", LONG_MAX, usec);
+  /*
+    For testing purposes while waiting for inifinity
+    to arrive, we keep checking the queue size at regular,
+    small intervals. Otherwise, waiting 0.1 * infinite
+    is too long.
+   */
+  time_t delta=
+    DBUG_EVALUATE_IF("bgc_set_infinite_delay", 100000,
+                     static_cast<time_t>(to_wait * 0.1));
+
+  while (to_wait > 0 && (count == 0 || static_cast<ulong>(m_queue[stage].get_size()) < count))
+  {
+#ifndef DBUG_OFF
+    if (current_thd)
+      DEBUG_SYNC(current_thd, "bgc_wait_count_or_timeout");
+#endif
+    my_sleep(delta);
+    to_wait -= delta;
+  }
+  return to_wait;
 }
 
 #ifndef DBUG_OFF
@@ -1739,7 +1781,7 @@ int MYSQL_BIN_LOG::rollback(THD *thd, bool all)
       We reach this point if the effect of a statement did not properly get into
       a cache and need to be rolled back.
     */
-    error |= cache_mngr->trx_cache.truncate(thd, all);
+    error|= cache_mngr->trx_cache.truncate(thd, all);
   }
 
 end:
@@ -1748,8 +1790,12 @@ end:
     implicitly, so the same should happen to its GTID.
   */
   if (!thd->in_active_multi_stmt_transaction())
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
+  /*
+    TODO: some errors are overwritten, which may cause problem,
+    fix it later.
+  */
   DBUG_PRINT("return", ("error: %d", error));
   DBUG_RETURN(error);
 }
@@ -2548,7 +2594,7 @@ MYSQL_BIN_LOG::MYSQL_BIN_LOG(uint *sync_period,
    is_relay_log(0), signal_cnt(0),
    checksum_alg_reset(BINLOG_CHECKSUM_ALG_UNDEF),
    relay_log_checksum_alg(BINLOG_CHECKSUM_ALG_UNDEF),
-   previous_gtid_set(0)
+   previous_gtid_set_relaylog(0)
 {
   /*
     We don't want to initialize locks here as such initialization depends on
@@ -2598,8 +2644,8 @@ void MYSQL_BIN_LOG::init_pthread_objects()
   mysql_mutex_init(m_key_LOCK_binlog_end_pos, &LOCK_binlog_end_pos,
                    MY_MUTEX_INIT_FAST);
   mysql_mutex_init(m_key_LOCK_xids, &LOCK_xids, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(m_key_update_cond, &update_cond, 0);
-  mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond, NULL);
+  mysql_cond_init(m_key_update_cond, &update_cond);
+  mysql_cond_init(m_key_prep_xids_cond, &m_prep_xids_cond);
   stage_manager.init(
 #ifdef HAVE_PSI_INTERFACE
                    m_key_LOCK_flush_queue,
@@ -3585,11 +3631,37 @@ bool MYSQL_BIN_LOG::open_binlog(const char *log_name,
   */
   if (current_thd && gtid_mode > 0)
   {
+    Gtid_set logged_gtids_binlog(global_sid_map, global_sid_lock);
+    Gtid_set* previous_logged_gtids;
+
+    if (is_relay_log)
+      previous_logged_gtids= previous_gtid_set_relaylog;
+    else
+      previous_logged_gtids= &logged_gtids_binlog;
+
     if (need_sid_lock)
       global_sid_lock->wrlock();
     else
       global_sid_lock->assert_some_wrlock();
-    Previous_gtids_log_event prev_gtids_ev(previous_gtid_set);
+
+    if (!is_relay_log)
+    {
+      const Gtid_set *executed_gtids= gtid_state->get_executed_gtids();
+      const Gtid_set *gtids_only_in_table=
+        gtid_state->get_gtids_only_in_table();
+      /* logged_gtids_binlog= executed_gtids - gtids_only_in_table */
+      if (logged_gtids_binlog.add_gtid_set(executed_gtids) !=
+          RETURN_STATUS_OK ||
+          logged_gtids_binlog.remove_gtid_set(gtids_only_in_table) !=
+          RETURN_STATUS_OK)
+      {
+        if (need_sid_lock)
+          global_sid_lock->unlock();
+        goto err;
+      }
+    }
+    Previous_gtids_log_event prev_gtids_ev(previous_logged_gtids);
+
     if (need_sid_lock)
       global_sid_lock->unlock();
     prev_gtids_ev.checksum_alg= s.checksum_alg;
@@ -4200,7 +4272,11 @@ bool MYSQL_BIN_LOG::reset_logs(THD* thd)
   }
   else
   {
-    gtid_state->clear();
+    if(gtid_state->clear(thd))
+    {
+      error= 1;
+      goto err;
+    }
     // don't clear global_sid_map because it's used by the relay log too
     if (gtid_state->init() != 0)
       goto err;
@@ -5167,7 +5243,8 @@ int MYSQL_BIN_LOG::new_file_without_locking(Format_description_log_event *extra_
 */
 int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_event *extra_description_event)
 {
-  int error= 0, close_on_error= FALSE;
+  int error= 0;
+  bool close_on_error= false;
   char new_name[FN_REFLEN], *new_name_ptr, *old_name, *file_to_open;
 
   DBUG_ENTER("MYSQL_BIN_LOG::new_file_impl");
@@ -5198,15 +5275,15 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
 
   mysql_mutex_lock(&LOCK_index);
 
-  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
-      && (error= ha_flush_logs(NULL)))
-    goto end;
-
   mysql_mutex_assert_owner(&LOCK_log);
   mysql_mutex_assert_owner(&LOCK_index);
 
   /* Reuse old name if not binlog and not update log */
   new_name_ptr= name;
+
+  if (DBUG_EVALUATE_IF("expire_logs_always", 0, 1)
+      && (error= ha_flush_logs(NULL)))
+    goto end;
 
   /*
     If user hasn't specified an extension, generate a new log name
@@ -5231,12 +5308,13 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     if (is_relay_log)
       r.checksum_alg= relay_log_checksum_alg;
     DBUG_ASSERT(!is_relay_log || relay_log_checksum_alg != BINLOG_CHECKSUM_ALG_UNDEF);
-    if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event", (error=close_on_error=TRUE), FALSE) ||
+    if(DBUG_EVALUATE_IF("fault_injection_new_file_rotate_event",
+                        (error=1), FALSE) ||
        (error= r.write(&log_file)))
     {
       char errbuf[MYSYS_STRERROR_SIZE];
       DBUG_EXECUTE_IF("fault_injection_new_file_rotate_event", errno=2;);
-      close_on_error= TRUE;
+      close_on_error= true;
       my_printf_error(ER_ERROR_ON_WRITE, ER(ER_CANT_OPEN_FILE),
                       MYF(ME_FATALERROR), name,
                       errno, my_strerror(errbuf, sizeof(errbuf), errno));
@@ -5246,6 +5324,16 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
   }
   flush_io_cache(&log_file);
   DEBUG_SYNC(current_thd, "after_rotate_event_appended");
+
+  if (!is_relay_log && gtid_mode > GTID_MODE_UPGRADE_STEP_1)
+  {
+    /* Save set of GTIDs of the last binlog into table on binlog rotation */
+    if ((error= gtid_state->save_gtids_of_last_binlog_into_table(true)))
+    {
+      close_on_error= true;
+      goto end;
+    }
+  }
 
   old_name=name;
   name=0;				// Don't free name
@@ -5291,7 +5379,7 @@ int MYSQL_BIN_LOG::new_file_impl(bool need_lock_log, Format_description_log_even
     my_printf_error(ER_CANT_OPEN_FILE, ER(ER_CANT_OPEN_FILE), 
                     MYF(ME_FATALERROR), file_to_open,
                     error, my_strerror(errbuf, sizeof(errbuf), error));
-    close_on_error= TRUE;
+    close_on_error= true;
   }
   my_free(old_name);
 
@@ -7271,9 +7359,7 @@ MYSQL_BIN_LOG::finish_commit(THD *thd)
     Remove committed GTID from owned_gtids, it was already logged on
     MYSQL_BIN_LOG::write_cache().
   */
-  global_sid_lock->rdlock();
   gtid_state->update_on_commit(thd);
-  global_sid_lock->unlock();
 
   DBUG_ASSERT(thd->commit_error || !thd->get_transaction()->m_flags.run_hooks);
   DBUG_ASSERT(!thd_get_cache_mngr(thd)->dbug_any_finalized());
@@ -7400,6 +7486,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
                        YESNO(thd->get_transaction()->m_flags.pending),
                        thd->commit_error, thd->thread_id));
 
+  DEBUG_SYNC(thd, "bgc_before_flush_stage");
+
   /*
     Stage #1: flushing transactions to binary log
 
@@ -7468,6 +7556,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
     DBUG_EXECUTE_IF("crash_commit_after_log", DBUG_SUICIDE(););
   }
 
+  DEBUG_SYNC(thd, "bgc_after_flush_stage_before_sync_stage");
+
   /*
     Stage #2: Syncing binary log file to disk
   */
@@ -7478,6 +7568,12 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
                           thd->thread_id, thd->commit_error));
     DBUG_RETURN(finish_commit(thd));
   }
+
+  /* Shall introduce a delay. */
+  stage_manager.wait_count_or_timeout(opt_binlog_group_commit_sync_no_delay_count,
+                                      opt_binlog_group_commit_sync_delay,
+                                      Stage_manager::SYNC_STAGE);
+
   THD *final_queue= stage_manager.fetch_queue_for(Stage_manager::SYNC_STAGE);
   if (flush_error == 0 && total_bytes > 0)
   {
@@ -7495,6 +7591,8 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
 
     update_binlog_end_pos(tmp_thd->get_trans_pos());
   }
+
+  DEBUG_SYNC(thd, "bgc_after_sync_stage_before_commit_stage");
 
   /*
     Stage #3: Commit all transactions in order.

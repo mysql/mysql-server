@@ -50,8 +50,7 @@ fts_ast_node_create(void)
 {
 	fts_ast_node_t*	node;
 
-	node = (fts_ast_node_t*) ut_malloc(sizeof(*node));
-	memset(node, 0x0, sizeof(*node));
+	node = (fts_ast_node_t*) ut_zalloc(sizeof(*node));
 
 	return(node);
 }

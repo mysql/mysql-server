@@ -39,12 +39,21 @@ public:
 
     Only member variables needed for the rec_per_key interface are
     currently initialized.
+
+    @param key_parts_arg number of key parts this index should have
+    @param unique        unique or non-unique key
   */
 
-  Fake_KEY(unsigned int key_parts_arg)
+  Fake_KEY(unsigned int key_parts_arg, bool unique)
   {
     DBUG_ASSERT(key_parts_arg > 0);
 
+    flags= 0;
+    if (unique)
+      flags|= HA_NOSAME;
+    actual_flags= flags;
+
+    user_defined_key_parts= key_parts_arg;
     actual_key_parts= key_parts_arg;
 
     // Allocate memory for the two rec_per_key arrays

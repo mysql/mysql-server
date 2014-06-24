@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -23,7 +23,7 @@
 
 /* from other files */
 extern struct st_ndb_status g_ndb_status;
-extern pthread_mutex_t ndbcluster_mutex;
+extern native_mutex_t ndbcluster_mutex;
 
 /* Implemented in ha_ndbcluster.cc */
 extern bool ndb_index_stat_get_enable(THD *thd);
@@ -42,20 +42,20 @@ typedef NdbDictionary::Index NDBINDEX;
 Ndb_index_stat_thread::Ndb_index_stat_thread()
   : running(-1)
 {
-  pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND, NULL);
-  pthread_cond_init(&COND_ready, NULL);
-  pthread_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&stat_cond, NULL);
+  native_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
+  native_cond_init(&COND);
+  native_cond_init(&COND_ready);
+  native_mutex_init(&stat_mutex, MY_MUTEX_INIT_FAST);
+  native_cond_init(&stat_cond);
 }
 
 Ndb_index_stat_thread::~Ndb_index_stat_thread()
 {
-  pthread_mutex_destroy(&LOCK);
-  pthread_cond_destroy(&COND);
-  pthread_cond_destroy(&COND_ready);
-  pthread_mutex_destroy(&stat_mutex);
-  pthread_cond_destroy(&stat_cond);
+  native_mutex_destroy(&LOCK);
+  native_cond_destroy(&COND);
+  native_cond_destroy(&COND_ready);
+  native_mutex_destroy(&stat_mutex);
+  native_cond_destroy(&stat_cond);
 }
 
 struct Ndb_index_stat {
@@ -1035,8 +1035,8 @@ ndb_index_stat_get_share(NDB_SHARE *share,
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
 
-  pthread_mutex_lock(&share->mutex);
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&share->mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   time_t now= ndb_index_stat_time();
   err_out= 0;
 
@@ -1088,8 +1088,8 @@ ndb_index_stat_get_share(NDB_SHARE *share,
   else
     st= 0;
 
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&share->mutex);
   return st;
 }
 
@@ -1154,7 +1154,7 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
   DBUG_PRINT("index_stat", ("(index_id:%d index_version:%d",
                             index_id, index_version));
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   uint found= 0;
   Ndb_index_stat *st= share->index_stat_list;
@@ -1175,7 +1175,7 @@ ndb_index_stat_free(NDB_SHARE *share, int index_id, int index_version)
   }
 
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1184,7 +1184,7 @@ ndb_index_stat_free(NDB_SHARE *share)
 {
   DBUG_ENTER("ndb_index_stat_free");
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   uint found= 0;
   Ndb_index_stat *st;
@@ -1207,7 +1207,7 @@ ndb_index_stat_free(NDB_SHARE *share)
   }
 
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   DBUG_VOID_RETURN;
 }
 
@@ -1217,8 +1217,8 @@ static Ndb_index_stat*
 ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
 {
   DBUG_ENTER("ndb_index_stat_find_entry");
-  pthread_mutex_lock(&ndbcluster_mutex);
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   DBUG_PRINT("index_stat", ("find index:%d version:%d table:%d",
                             index_id, index_version, table_id));
 
@@ -1231,16 +1231,16 @@ ndb_index_stat_find_entry(int index_id, int index_version, int table_id)
       if (st->index_id == index_id &&
           st->index_version == index_version)
       {
-        pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+        native_mutex_unlock(&ndbcluster_mutex);
         DBUG_RETURN(st);
       }
       st= st->list_next;
     }
   }
 
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
   DBUG_RETURN(0);
 }
 
@@ -1393,7 +1393,7 @@ static void
 ndb_index_stat_proc_new(Ndb_index_stat_proc &pr)
 {
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   const int lt= Ndb_index_stat::LT_New;
   Ndb_index_stat_list &list= ndb_index_stat_list[lt];
 
@@ -1408,7 +1408,7 @@ ndb_index_stat_proc_new(Ndb_index_stat_proc &pr)
     ndb_index_stat_list_move(st, pr.lt);
   }
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -1416,7 +1416,7 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
 {
   if (st->is->update_stat(pr.ndb) == -1)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     ndb_index_stat_error(st, 0, "update_stat", __LINE__);
 
     /*
@@ -1425,8 +1425,8 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     */
     ndb_index_stat_force_update(st, false);
 
-    pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 
     pr.lt= Ndb_index_stat::LT_Error;
     return;
@@ -1457,9 +1457,9 @@ ndb_index_stat_proc_update(Ndb_index_stat_proc &pr)
     assert(pr.lt != lt);
     ndb_index_stat_list_move(st, pr.lt);
     // db op so update status after each
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.set_status();
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     cnt++;
   }
   if (cnt == batch)
@@ -1473,7 +1473,7 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   NdbIndexStat::Head head;
   if (st->is->read_stat(pr.ndb) == -1)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     ndb_index_stat_error(st, 0, "read_stat", __LINE__);
     const bool force_update= st->force_update;
     ndb_index_stat_force_update(st, false);
@@ -1490,14 +1490,14 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
       pr.lt= Ndb_index_stat::LT_Error;
     }
 
-    pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+    native_cond_broadcast(&ndb_index_stat_thread.stat_cond);
     pr.now= ndb_index_stat_time();
     st->check_time= pr.now;
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     return;
   }
 
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   pr.now= ndb_index_stat_time();
   st->is->get_head(head);
   st->load_time= (time_t)head.m_loadTime;
@@ -1511,8 +1511,8 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   ndb_index_stat_cache_move(st);
   pr.lt= Ndb_index_stat::LT_Idle;
   glob.refresh_count++;
-  pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -1535,9 +1535,9 @@ ndb_index_stat_proc_read(Ndb_index_stat_proc &pr)
     assert(pr.lt != lt);
     ndb_index_stat_list_move(st, pr.lt);
     // db op so update status after each
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.set_status();
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     cnt++;
   }
   if (cnt == batch)
@@ -1607,7 +1607,7 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
   const Ndb_index_stat_opt &opt= ndb_index_stat_opt;
   uint batch= opt.get(Ndb_index_stat_opt::Iidle_batch);
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     const Ndb_index_stat_glob &glob= ndb_index_stat_glob;
     const int lt_update= Ndb_index_stat::LT_Update;
     const Ndb_index_stat_list &list_update= ndb_index_stat_list[lt_update];
@@ -1616,7 +1616,7 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
       // probably there is a force update waiting on Idle list
       batch= ~(uint)0;
     }
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
   // entry may be moved to end of this list
   if (batch > list.count)
@@ -1636,9 +1636,9 @@ ndb_index_stat_proc_idle(Ndb_index_stat_proc &pr)
     cnt++;
   }
   // full batch does not set pr.busy
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -1649,7 +1649,7 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
   NdbIndexStat::Head head;
   if (st->is->read_head(pr.ndb) == -1)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     ndb_index_stat_error(st, 0, "read_head", __LINE__);
     /* no stats is not unexpected error */
     if (st->is->getNdbError().code == NdbIndexStat::NoIndexStats)
@@ -1661,8 +1661,8 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr, Ndb_index_stat *st)
     {
       pr.lt= Ndb_index_stat::LT_Error;
     }
-    pthread_cond_broadcast(&ndb_index_stat_thread.stat_cond);
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_cond_broadcast(&ndb_index_stat_thread.stat_cond);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     return;
   }
   st->is->get_head(head);
@@ -1698,9 +1698,9 @@ ndb_index_stat_proc_check(Ndb_index_stat_proc &pr)
     assert(pr.lt != lt);
     ndb_index_stat_list_move(st, pr.lt);
     // db op so update status after each
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.set_status();
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     cnt++;
   }
   if (cnt == batch)
@@ -1755,7 +1755,7 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     return;
 
   /* Mutex entire routine (protect access_time) */
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   /* Create a LRU batch */
   Ndb_index_stat* st_lru_arr[ndb_index_stat_max_evict_batch + 1];
@@ -1847,7 +1847,7 @@ ndb_index_stat_proc_evict(Ndb_index_stat_proc &pr, int lt)
     pr.busy= true;
 
   glob.evict_count+= cnt;
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -1868,7 +1868,7 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
   const uint batch= !pr.end ? delete_batch : ~(uint)0;
 
   /* Mutex entire routine */
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
 
   Ndb_index_stat *st_loop= list.head;
   uint cnt= 0;
@@ -1908,7 +1908,7 @@ ndb_index_stat_proc_delete(Ndb_index_stat_proc &pr)
     pr.busy= true;
 
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -1972,9 +1972,9 @@ ndb_index_stat_proc_error(Ndb_index_stat_proc &pr)
     cnt++;
   }
   // full batch does not set pr.busy
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -2070,9 +2070,9 @@ ndb_index_stat_proc_event(Ndb_index_stat_proc &pr)
       glob.event_miss++;
     }
   }
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 /* Control options */
@@ -2086,11 +2086,11 @@ ndb_index_stat_proc_control(Ndb_index_stat_proc &pr)
   /* Request to zero accumulating counters */
   if (opt.get(Ndb_index_stat_opt::Izero_total) == true)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.zero_total();
     glob.set_status();
     opt.set(Ndb_index_stat_opt::Izero_total, false);
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
 }
 
@@ -2188,7 +2188,7 @@ static void
 ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
 {
   const Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   pr.cache_query_bytes= 0;
   pr.cache_clean_bytes= 0;
 
@@ -2197,7 +2197,7 @@ ndb_index_stat_list_verify(Ndb_index_stat_proc &pr)
 
   assert(glob.cache_query_bytes == pr.cache_query_bytes);
   assert(glob.cache_clean_bytes == pr.cache_clean_bytes);
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 }
 
 static void
@@ -2436,10 +2436,10 @@ Ndb_index_stat_thread::do_run()
   have_listener= false;
 
   /* Signal successful initialization */
-  pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+  native_mutex_lock(&ndb_index_stat_thread.LOCK);
   ndb_index_stat_thread.running= 1;
-  pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  native_cond_signal(&ndb_index_stat_thread.COND_ready);
+  native_mutex_unlock(&ndb_index_stat_thread.LOCK);
 
   /*
     wait for mysql server to start
@@ -2453,7 +2453,7 @@ Ndb_index_stat_thread::do_run()
     if (ndbcluster_terminating)
     {
       mysql_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+      native_mutex_lock(&ndb_index_stat_thread.LOCK);
       goto ndb_index_stat_thread_end;
     }
   }
@@ -2462,18 +2462,18 @@ Ndb_index_stat_thread::do_run()
   /*
     Wait for cluster to start
   */
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
+  native_mutex_lock(&ndb_util_thread.LOCK);
   while (!ndbcluster_terminating && !g_ndb_status.cluster_node_id &&
          (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
-    pthread_cond_wait(&ndb_util_thread.COND, &ndb_util_thread.LOCK);
+    native_cond_wait(&ndb_util_thread.COND, &ndb_util_thread.LOCK);
   }
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
+  native_mutex_unlock(&ndb_util_thread.LOCK);
 
   if (ndbcluster_terminating)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&ndb_index_stat_thread.LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2481,14 +2481,14 @@ Ndb_index_stat_thread::do_run()
   if (!(pr.is_util= new NdbIndexStat))
   {
     sql_print_error("Could not allocate NdbIndexStat is_util object");
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&ndb_index_stat_thread.LOCK);
     goto ndb_index_stat_thread_end;
   }
 
   if (!pr.init_ndb(g_ndb_cluster_connection))
   {
     // Error already printed
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&ndb_index_stat_thread.LOCK);
     goto ndb_index_stat_thread_end;
   }
 
@@ -2496,9 +2496,9 @@ Ndb_index_stat_thread::do_run()
   ndb_index_stat_allow(1);
 
   /* Fill in initial status variable */
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   glob.set_status();
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
 
   bool enable_ok;
   enable_ok= false;
@@ -2506,11 +2506,11 @@ Ndb_index_stat_thread::do_run()
   set_timespec(abstime, 0);
   for (;;)
   {
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&ndb_index_stat_thread.LOCK);
     if (!ndbcluster_terminating && ndb_index_stat_waiter == false) {
-      int ret= pthread_cond_timedwait(&ndb_index_stat_thread.COND,
-                                      &ndb_index_stat_thread.LOCK,
-                                      &abstime);
+      int ret= native_cond_timedwait(&ndb_index_stat_thread.COND,
+                                     &ndb_index_stat_thread.LOCK,
+                                     &abstime);
       const char* reason= ret == ETIMEDOUT ? "timed out" : "wake up";
       (void)reason; // USED
       DBUG_PRINT("index_stat", ("loop: %s", reason));
@@ -2518,7 +2518,7 @@ Ndb_index_stat_thread::do_run()
     if (ndbcluster_terminating) /* Shutting down server */
       goto ndb_index_stat_thread_end;
     ndb_index_stat_waiter= false;
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    native_mutex_unlock(&ndb_index_stat_thread.LOCK);
 
     if (ndb_index_stat_restart_flag)
     {
@@ -2590,9 +2590,9 @@ Ndb_index_stat_thread::do_run()
     glob.th_enable= enable_ok;
     glob.th_busy= pr.busy;
     glob.th_loop= msecs;
-    pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
     glob.set_status();
-    pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+    native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   }
 
 ndb_index_stat_thread_end:
@@ -2614,8 +2614,8 @@ ndb_index_stat_thread_end:
 
   /* signal termination */
   ndb_index_stat_thread.running= 0;
-  pthread_cond_signal(&ndb_index_stat_thread.COND_ready);
-  pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+  native_cond_signal(&ndb_index_stat_thread.COND_ready);
+  native_mutex_unlock(&ndb_index_stat_thread.LOCK);
   DBUG_PRINT("exit", ("ndb_index_stat_thread"));
 
   DBUG_LEAVE;
@@ -2648,7 +2648,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
   DBUG_ENTER("ndb_index_stat_wait_query");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err= 0;
   uint count= 0;
   struct timespec abstime;
@@ -2701,14 +2701,14 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_query count:%u",
                               st->id, count));
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&ndb_index_stat_thread.LOCK);
     ndb_index_stat_waiter= true;
-    pthread_cond_signal(&ndb_index_stat_thread.COND);
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    native_cond_signal(&ndb_index_stat_thread.COND);
+    native_mutex_unlock(&ndb_index_stat_thread.LOCK);
     set_timespec(abstime, 1);
-    ret= pthread_cond_timedwait(&ndb_index_stat_thread.stat_cond,
-                                &ndb_index_stat_thread.stat_mutex,
-                                &abstime);
+    ret= native_cond_timedwait(&ndb_index_stat_thread.stat_cond,
+                               &ndb_index_stat_thread.stat_mutex,
+                               &abstime);
     if (ret != 0 && ret != ETIMEDOUT)
     {
       err= ret;
@@ -2717,7 +2717,7 @@ ndb_index_stat_wait_query(Ndb_index_stat *st,
   }
   assert(glob.wait_stats != 0);
   glob.wait_stats--;
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   if (err != 0)
   {
     DBUG_PRINT("index_stat", ("st %s wait_query error: %d",
@@ -2736,7 +2736,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   DBUG_ENTER("ndb_index_stat_wait_analyze");
 
   Ndb_index_stat_glob &glob= ndb_index_stat_glob;
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   int err= 0;
   uint count= 0;
   struct timespec abstime;
@@ -2777,14 +2777,14 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
     count++;
     DBUG_PRINT("index_stat", ("st %s wait_analyze count:%u",
                               st->id, count));
-    pthread_mutex_lock(&ndb_index_stat_thread.LOCK);
+    native_mutex_lock(&ndb_index_stat_thread.LOCK);
     ndb_index_stat_waiter= true;
-    pthread_cond_signal(&ndb_index_stat_thread.COND);
-    pthread_mutex_unlock(&ndb_index_stat_thread.LOCK);
+    native_cond_signal(&ndb_index_stat_thread.COND);
+    native_mutex_unlock(&ndb_index_stat_thread.LOCK);
     set_timespec(abstime, 1);
-    ret= pthread_cond_timedwait(&ndb_index_stat_thread.stat_cond,
-                                &ndb_index_stat_thread.stat_mutex,
-                                &abstime);
+    ret= native_cond_timedwait(&ndb_index_stat_thread.stat_cond,
+                               &ndb_index_stat_thread.stat_mutex,
+                               &abstime);
     if (ret != 0 && ret != ETIMEDOUT)
     {
       err= ret;
@@ -2793,7 +2793,7 @@ ndb_index_stat_wait_analyze(Ndb_index_stat *st,
   }
   assert(glob.wait_update != 0);
   glob.wait_update--;
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   if (err != 0)
   {
     DBUG_PRINT("index_stat", ("st %s wait_analyze error: %d",
@@ -2848,28 +2848,28 @@ ha_ndbcluster::ndb_index_stat_query(uint inx,
     const NdbRecord* key_record= data.ndb_record_key;
     if (st->is->convert_range(range, key_record, &ib) == -1)
     {
-      pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+      native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
       ndb_index_stat_error(st, 1, "convert_range", __LINE__);
       err= st->client_error.code;
-      pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+      native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
       break;
     }
     if (st->is->query_stat(range, stat) == -1)
     {
       /* Invalid cache - should remove the entry */
-      pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+      native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
       ndb_index_stat_error(st, 1, "query_stat", __LINE__);
       err= st->client_error.code;
-      pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+      native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
       break;
     }
   }
   while (0);
 
   /* Release reference to st */
-  pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
   ndb_index_stat_ref_count(st, false);
-  pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+  native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
   DBUG_RETURN(err);
 }
 
@@ -2979,9 +2979,9 @@ ha_ndbcluster::ndb_index_stat_analyze(Ndb *ndb,
       DBUG_PRINT("index_stat", ("wait for update: %s", index->getName()));
       r.err=ndb_index_stat_wait_analyze(r.st, r.snap);
       /* Release reference to r.st */
-      pthread_mutex_lock(&ndb_index_stat_thread.stat_mutex);
+      native_mutex_lock(&ndb_index_stat_thread.stat_mutex);
       ndb_index_stat_ref_count(r.st, false);
-      pthread_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
+      native_mutex_unlock(&ndb_index_stat_thread.stat_mutex);
     }
   }
 

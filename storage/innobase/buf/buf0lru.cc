@@ -2301,10 +2301,6 @@ buf_LRU_block_remove_hashed(
 				 UNIV_PAGE_SIZE);
 		buf_page_set_state(bpage, BUF_BLOCK_REMOVE_HASH);
 
-		if (buf_pool->flush_rbt == NULL) {
-			bpage->id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
-		}
-
 		/* Question: If we release bpage and hash mutex here
 		then what protects us against:
 		1) Some other thread buffer fixing this page
@@ -2373,12 +2369,15 @@ buf_LRU_block_free_hashed_page(
 	buf_block_t*	block)	/*!< in: block, must contain a file page and
 				be in a state where it can be freed */
 {
-#ifdef UNIV_DEBUG
 	buf_pool_t*	buf_pool = buf_pool_from_block(block);
 	ut_ad(buf_pool_mutex_own(buf_pool));
-#endif
 
 	buf_page_mutex_enter(block);
+
+	if (buf_pool->flush_rbt == NULL) {
+		block->page.id.reset(ULINT32_UNDEFINED, ULINT32_UNDEFINED);
+	}
+
 	buf_block_set_state(block, BUF_BLOCK_MEMORY);
 
 	buf_LRU_block_free_non_file_page(block);
@@ -2571,7 +2570,7 @@ buf_LRU_validate_instance(
 		ut_a(old_len <= new_len + BUF_LRU_OLD_TOLERANCE);
 	}
 
-	UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList());
+	CheckInLRUList::validate(buf_pool);
 
 	old_len = 0;
 
@@ -2613,7 +2612,7 @@ buf_LRU_validate_instance(
 
 	ut_a(buf_pool->LRU_old_len == old_len);
 
-	UT_LIST_VALIDATE(buf_pool->free, CheckInFreeList());
+	CheckInFreeList::validate(buf_pool);
 
 	for (buf_page_t* bpage = UT_LIST_GET_FIRST(buf_pool->free);
 	     bpage != NULL;
@@ -2622,7 +2621,7 @@ buf_LRU_validate_instance(
 		ut_a(buf_page_get_state(bpage) == BUF_BLOCK_NOT_USED);
 	}
 
-	UT_LIST_VALIDATE(buf_pool->unzip_LRU, CheckUnzipLRUAndLRUList());
+	CheckUnzipLRUAndLRUList::validate(buf_pool);
 
 	for (buf_block_t* block = UT_LIST_GET_FIRST(buf_pool->unzip_LRU);
 	     block != NULL;

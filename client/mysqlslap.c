@@ -106,11 +106,11 @@ static char *shared_memory_base_name=0;
 
 /* Global Thread counter */
 uint thread_counter;
-pthread_mutex_t counter_mutex;
-pthread_cond_t count_threshhold;
+native_mutex_t counter_mutex;
+native_cond_t count_threshold;
 uint master_wakeup;
-pthread_mutex_t sleeper_mutex;
-pthread_cond_t sleep_threshhold;
+native_mutex_t sleeper_mutex;
+native_cond_t sleep_threshold;
 
 static char **defaults_argv;
 
@@ -370,10 +370,10 @@ int main(int argc, char **argv)
     }
   }
 
-  pthread_mutex_init(&counter_mutex, NULL);
-  pthread_cond_init(&count_threshhold, NULL);
-  pthread_mutex_init(&sleeper_mutex, NULL);
-  pthread_cond_init(&sleep_threshhold, NULL);
+  native_mutex_init(&counter_mutex, NULL);
+  native_cond_init(&count_threshold);
+  native_mutex_init(&sleeper_mutex, NULL);
+  native_cond_init(&sleep_threshold);
 
   /* Main iterations loop */
   eptr= engine_options;
@@ -404,10 +404,10 @@ int main(int argc, char **argv)
 
   } while (eptr ? (eptr= eptr->next) : 0);
 
-  pthread_mutex_destroy(&counter_mutex);
-  pthread_cond_destroy(&count_threshhold);
-  pthread_mutex_destroy(&sleeper_mutex);
-  pthread_cond_destroy(&sleep_threshhold);
+  native_mutex_destroy(&counter_mutex);
+  native_cond_destroy(&count_threshold);
+  native_mutex_destroy(&sleeper_mutex);
+  native_cond_destroy(&sleep_threshold);
 
   if (!opt_only_print) 
     mysql_close(&mysql); /* Close & free connection */
@@ -1770,12 +1770,12 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
   pthread_attr_setdetachstate(&attr,
 		  PTHREAD_CREATE_DETACHED);
 
-  pthread_mutex_lock(&counter_mutex);
+  native_mutex_lock(&counter_mutex);
   thread_counter= 0;
 
-  pthread_mutex_lock(&sleeper_mutex);
+  native_mutex_lock(&sleeper_mutex);
   master_wakeup= 1;
-  pthread_mutex_unlock(&sleeper_mutex);
+  native_mutex_unlock(&sleeper_mutex);
   for (x= 0; x < concur; x++)
   {
     /* now you create the thread */
@@ -1788,28 +1788,28 @@ run_scheduler(stats *sptr, statement *stmts, uint concur, ulonglong limit)
     }
     thread_counter++;
   }
-  pthread_mutex_unlock(&counter_mutex);
+  native_mutex_unlock(&counter_mutex);
   pthread_attr_destroy(&attr);
 
-  pthread_mutex_lock(&sleeper_mutex);
+  native_mutex_lock(&sleeper_mutex);
   master_wakeup= 0;
-  pthread_mutex_unlock(&sleeper_mutex);
-  pthread_cond_broadcast(&sleep_threshhold);
+  native_mutex_unlock(&sleeper_mutex);
+  native_cond_broadcast(&sleep_threshold);
 
   gettimeofday(&start_time, NULL);
 
   /*
     We loop until we know that all children have cleaned up.
   */
-  pthread_mutex_lock(&counter_mutex);
+  native_mutex_lock(&counter_mutex);
   while (thread_counter)
   {
     struct timespec abstime;
 
     set_timespec(abstime, 3);
-    pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
+    native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
   }
-  pthread_mutex_unlock(&counter_mutex);
+  native_mutex_unlock(&counter_mutex);
 
   gettimeofday(&end_time, NULL);
 
@@ -1836,12 +1836,12 @@ pthread_handler_t run_task(void *p)
   DBUG_ENTER("run_task");
   DBUG_PRINT("info", ("task script \"%s\"", con->stmt ? con->stmt->string : ""));
 
-  pthread_mutex_lock(&sleeper_mutex);
+  native_mutex_lock(&sleeper_mutex);
   while (master_wakeup)
   {
-    pthread_cond_wait(&sleep_threshhold, &sleeper_mutex);
+    native_cond_wait(&sleep_threshold, &sleeper_mutex);
   }
-  pthread_mutex_unlock(&sleeper_mutex);
+  native_mutex_unlock(&sleeper_mutex);
 
   if (!(mysql= mysql_init(NULL)))
   {
@@ -1980,10 +1980,10 @@ end:
 
   mysql_thread_end();
 
-  pthread_mutex_lock(&counter_mutex);
+  native_mutex_lock(&counter_mutex);
   thread_counter--;
-  pthread_cond_signal(&count_threshhold);
-  pthread_mutex_unlock(&counter_mutex);
+  native_cond_signal(&count_threshold);
+  native_mutex_unlock(&counter_mutex);
 
   DBUG_RETURN(0);
 }

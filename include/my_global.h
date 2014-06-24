@@ -909,4 +909,104 @@ enum loglevel {
    INFORMATION_LEVEL= 2
 };
 
+
+#ifdef _WIN32
+/****************************************************************************
+** Replacements for localtime_r and gmtime_r
+****************************************************************************/
+
+static inline struct tm *localtime_r(const time_t *timep,struct tm *tmp)
+{
+  localtime_s(tmp, timep);
+  return tmp;
+}
+
+static inline struct tm *gmtime_r(const time_t *clock, struct tm *res)
+{
+  gmtime_s(res, clock);
+  return res;
+}
+
+
+/*
+   Declare a union to make sure FILETIME is properly aligned
+   so it can be used directly as a 64 bit value. The value
+   stored is in 100ns units.
+ */
+ union ft64 {
+  FILETIME ft;
+  __int64 i64;
+ };
+struct timespec {
+  union ft64 tv;
+  /* The max timeout value in millisecond for native_cond_timedwait */
+  long max_timeout_msec;
+};
+#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {          \
+  (ABSTIME).tv.i64= (TIME)+(__int64)(NSEC)/100;                 \
+  (ABSTIME).max_timeout_msec= (long)((NSEC)/1000000);           \
+} while(0)
+
+#define set_timespec_nsec(ABSTIME,NSEC) do {                    \
+  union ft64 tv;                                                \
+  GetSystemTimeAsFileTime(&tv.ft);                              \
+  set_timespec_time_nsec((ABSTIME), tv.i64, (NSEC));            \
+} while(0)
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv.i64 > TS2.tv.i64) ? 1 : \
+   ((TS1.tv.i64 < TS2.tv.i64) ? -1 : 0))
+
+#define diff_timespec(TS1, TS2) \
+  ((TS1.tv.i64 - TS2.tv.i64) * 100)
+
+#else /* _WIN32 */
+
+#define set_timespec_nsec(ABSTIME,NSEC)                                 \
+  set_timespec_time_nsec((ABSTIME),my_getsystime(),(NSEC))
+
+#define set_timespec_time_nsec(ABSTIME,TIME,NSEC) do {                  \
+  ulonglong nsec= (NSEC);                                               \
+  ulonglong now= (TIME) + (nsec/100);                                   \
+  (ABSTIME).tv_sec=  (now / 10000000ULL);                          \
+  (ABSTIME).tv_nsec= (now % 10000000ULL * 100 + (nsec % 100));     \
+} while(0)
+
+/**
+   Compare two timespec structs.
+
+   @retval  1 If TS1 ends after TS2.
+
+   @retval  0 If TS1 is equal to TS2.
+
+   @retval -1 If TS1 ends before TS2.
+*/
+#define cmp_timespec(TS1, TS2) \
+  ((TS1.tv_sec > TS2.tv_sec || \
+    (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec > TS2.tv_nsec)) ? 1 : \
+   ((TS1.tv_sec < TS2.tv_sec || \
+     (TS1.tv_sec == TS2.tv_sec && TS1.tv_nsec < TS2.tv_nsec)) ? -1 : 0))
+
+#define diff_timespec(TS1, TS2) \
+  ((TS1.tv_sec - TS2.tv_sec) * 1000000000ULL + TS1.tv_nsec - TS2.tv_nsec)
+
+#endif /* _WIN32 */
+
+/*
+  The defines set_timespec and set_timespec_nsec should be used
+  for calculating an absolute time at which
+  pthread_cond_timedwait should timeout
+*/
+#define set_timespec(ABSTIME,SEC) \
+  set_timespec_nsec((ABSTIME),(SEC)*1000000000ULL)
+
 #endif  // MY_GLOBAL_INCLUDED
