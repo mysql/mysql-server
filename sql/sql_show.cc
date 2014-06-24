@@ -613,7 +613,7 @@ find_files(THD *thd, List<LEX_STRING> *files, const char *db,
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   uint col_access=thd->col_access;
 #endif
-  uint wild_length= 0;
+  size_t wild_length= 0;
   TABLE_LIST table_list;
   DBUG_ENTER("find_files");
 
@@ -2790,7 +2790,7 @@ static bool show_status_array(THD *thd, const char *wild,
   char *prefix_end;
   /* the variable name should not be longer than 64 characters */
   char name_buffer[64];
-  int len;
+  size_t len;
   SHOW_VAR tmp, *var;
   Item *partial_cond= 0;
   enum_check_fields save_count_cuted_fields= thd->count_cuted_fields;
@@ -5707,7 +5707,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 {
   CHARSET_INFO *cs= system_charset_info;
   char definer[USER_HOST_BUFF_SIZE];
-  uint definer_len;
+  size_t definer_len;
   bool updatable_view;
   DBUG_ENTER("get_schema_views_record");
 
@@ -5847,7 +5847,7 @@ static int get_schema_views_record(THD *thd, TABLE_LIST *tables,
 
 bool store_constraints(THD *thd, TABLE *table, LEX_STRING *db_name,
                        LEX_STRING *table_name, const char *key_name,
-                       uint key_len, const char *con_type, uint con_len)
+                       size_t key_len, const char *con_type, size_t con_len)
 {
   CHARSET_INFO *cs= system_charset_info;
   restore_record(table, s->default_values);
@@ -6043,7 +6043,7 @@ static int get_schema_triggers_record(THD *thd, TABLE_LIST *tables,
 
 void store_key_column_usage(TABLE *table, LEX_STRING *db_name,
                             LEX_STRING *table_name, const char *key_name,
-                            uint key_len, const char *con_type, uint con_len,
+                            size_t key_len, const char *con_type, size_t con_len,
                             longlong idx)
 {
   CHARSET_INFO *cs= system_charset_info;

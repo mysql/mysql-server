@@ -51,8 +51,6 @@ PSI_memory_key key_memory_win_PACL;
 PSI_memory_key key_memory_win_IP_ADAPTER_ADDRESSES;
 #endif /* _WIN32 */
 
-my_bool timed_mutexes= 0;
-
 	/* from my_init */
 char *	home_dir=0;
 const char      *my_progname=0;

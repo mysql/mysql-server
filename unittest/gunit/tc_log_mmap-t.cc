@@ -52,6 +52,10 @@ public:
     my_snprintf(namebuff, FN_REFLEN,
                 "tc_log_mmap_test_%d", static_cast<int>(getpid()));
     ASSERT_EQ(0, tc_log_mmap.open(namebuff));
+    // Since we are using the same MEM_ROOT for different threads (sic),
+    // change the defaults to work like malloc.
+    thd()->get_transaction()->init_mem_root_defaults(ALLOC_ROOT_MIN_BLOCK_SIZE,
+                                                     0);
   }
 
   virtual void TearDown()
