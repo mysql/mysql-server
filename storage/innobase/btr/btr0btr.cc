@@ -909,6 +909,7 @@ log record during recovery
 @param[in]	mtr			mini-transaction handle
 record during recovery
 @return page number of the created root, FIL_NULL if did not succeed */
+
 ulint
 btr_create(
 	ulint			type,
@@ -924,6 +925,8 @@ btr_create(
 	buf_frame_t*		frame;
 	page_t*			page;
 	page_zip_des_t*		page_zip;
+
+	ut_ad(mtr->is_named_space(space));
 
 	/* Create the two new segments (one, in the case of an ibuf tree) for
 	the index tree; the segment headers are put on the allocated root page
@@ -1131,6 +1134,7 @@ top_loop:
 /** Frees the B-tree root page. Other tree MUST already have been freed.
 @param[in]	root_page_id	id of the root page
 @param[in,out]	mtr		mini-transaction */
+
 void
 btr_free_root(
 	const page_id_t&	root_page_id,
@@ -1140,7 +1144,7 @@ btr_free_root(
 	buf_block_t*	block;
 	fseg_header_t*	header;
 
-	mtr->set_named_space(root_page_id.space());
+	ut_ad(mtr->is_named_space(root_page_id.space()));
 
 	block = btr_block_get(root_page_id, page_size, RW_X_LATCH, NULL, mtr);
 
@@ -2290,6 +2294,110 @@ btr_page_tuple_smaller(
 	return(cmp_dtuple_rec(tuple, first_rec, *offsets) < 0);
 }
 
+/** Insert the tuple into the right sibling page, if the cursor is at the end
+of a page.
+@param[in]	flags	undo logging and locking flags
+@param[in,out]	cursor	cursor at which to insert; when the function succeeds,
+			the cursor is positioned before the insert point.
+@param[out]	offsets	offsets on inserted record
+@param[in,out]	heap	memory heap for allocating offsets
+@param[in]	tuple	tuple to insert
+@param[in]	n_ext	number of externally stored columns
+@param[in,out]	mtr	mini-transaction
+@return	inserted record (first record on the right sibling page);
+	the cursor will be positioned on the page infimum
+@retval	NULL if the operation was not performed */
+static
+rec_t*
+btr_insert_into_right_sibling(
+	ulint		flags,
+	btr_cur_t*	cursor,
+	ulint**		offsets,
+	mem_heap_t**	heap,
+	const dtuple_t*	tuple,
+	ulint		n_ext,
+	mtr_t*		mtr)
+{
+	buf_block_t*	block = btr_cur_get_block(cursor);
+	page_t*		page = buf_block_get_frame(block);
+	ulint		next_page_no = btr_page_get_next(page, mtr);
+
+	ut_ad(mtr_memo_contains_flagged(mtr,
+					dict_index_get_lock(cursor->index),
+					MTR_MEMO_X_LOCK | MTR_MEMO_SX_LOCK)
+	      || dict_table_is_intrinsic(cursor->index->table));
+	ut_ad(mtr_is_block_fix(
+		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table));
+	ut_ad(*heap);
+
+	if (next_page_no == FIL_NULL || !page_rec_is_supremum(
+			page_rec_get_next(btr_cur_get_rec(cursor)))) {
+
+		return(NULL);
+	}
+
+	page_cur_t	next_page_cursor;
+	buf_block_t*	next_block;
+	page_t*		next_page;
+	btr_cur_t	next_father_cursor;
+	rec_t*		rec = NULL;
+
+	const ulint	space = block->page.id.space();
+
+	next_block = btr_block_get(
+		page_id_t(space, next_page_no), block->page.size,
+		RW_X_LATCH, cursor->index, mtr);
+	next_page = buf_block_get_frame(next_block);
+
+	btr_page_get_father(
+		cursor->index, next_block, mtr, &next_father_cursor);
+
+	page_cur_search(
+		next_block, cursor->index, tuple, PAGE_CUR_LE,
+		&next_page_cursor);
+
+	rec = page_cur_tuple_insert(
+		&next_page_cursor, tuple, cursor->index, offsets, heap,
+		n_ext, mtr);
+
+	if (rec == NULL) {
+		return(NULL);
+	}
+
+	ibool	compressed;
+	dberr_t	err;
+	ulint	level = btr_page_get_level(next_page, mtr);
+
+	/* adjust cursor position */
+	*btr_cur_get_page_cur(cursor) = next_page_cursor;
+
+	ut_ad(btr_cur_get_rec(cursor) == page_get_infimum_rec(next_page));
+	ut_ad(page_rec_get_next(page_get_infimum_rec(next_page)) == rec);
+
+	/* We have to change the parent node pointer */
+
+	compressed = btr_cur_pessimistic_delete(
+		&err, TRUE, &next_father_cursor,
+		BTR_CREATE_FLAG, false, mtr);
+
+	ut_a(err == DB_SUCCESS);
+
+	if (!compressed) {
+		btr_cur_compress_if_useful(&next_father_cursor, FALSE, mtr);
+	}
+
+	dtuple_t*	node_ptr = dict_index_build_node_ptr(
+		cursor->index, rec, next_block->page.id.page_no(),
+		*heap, level);
+
+	btr_insert_on_non_leaf_level(
+		flags, cursor->index, level + 1, node_ptr, mtr);
+
+	ut_ad(rec_offs_validate(rec, cursor->index, *offsets));
+
+	return(rec);
+}
+
 /*************************************************************//**
 Splits an index page to halves and inserts the tuple. It is assumed
 that mtr holds an x-latch to the index tree. NOTE: the tree x-latch is
@@ -2373,6 +2481,14 @@ func_start:
 	ut_ad(mtr_is_block_fix(
 		mtr, block, MTR_MEMO_PAGE_X_FIX, cursor->index->table));
 	ut_ad(!page_is_empty(page));
+
+	/* try to insert to the next page if possible before split */
+	rec = btr_insert_into_right_sibling(
+		flags, cursor, offsets, heap, tuple, n_ext, mtr);
+
+	if (rec != NULL) {
+		return(rec);
+	}
 
 	page_no = block->page.id.page_no();
 

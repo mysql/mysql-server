@@ -39,6 +39,8 @@
 #include <signal.h>
 #include <my_dir.h>
 
+#include "prealloced_array.h"
+
 /*
   error() is used in macro BINLOG_ERROR which is invoked in
   rpl_gtid.h, hence the early forward declaration.
@@ -59,14 +61,14 @@ static void warning(const char *format, ...)
 #include "rpl_constants.h"
 
 #include <algorithm>
+#include <utility>
+#include <map>
 
 using std::min;
 using std::max;
 
 #define BIN_LOG_HEADER_SIZE	4U
 #define PROBE_HEADER_LEN	(EVENT_LEN_OFFSET+4)
-#define INTVAR_DYNAMIC_INIT	16
-#define INTVAR_DYNAMIC_INCR	1
 
 /*
   The character set used should be equal to the one used in mysqld.cc for
@@ -78,6 +80,19 @@ using std::max;
 
 char server_version[SERVER_VERSION_LENGTH];
 ulong filter_server_id = 0;
+
+/*
+  This strucure is used to store the event and the log postion of the events 
+  which is later used to print the event details from correct log postions.
+  The Log_event *event is used to store the pointer to the current event and 
+  the event_pos is used to store the current event log postion.
+*/
+struct buff_event_info
+{
+  Log_event *event;
+  my_off_t event_pos;
+};
+
 /* 
   One statement can result in a sequence of several events: Intvar_log_events,
   User_var_log_events, and Rand_log_events, followed by one
@@ -87,8 +102,8 @@ ulong filter_server_id = 0;
   the Query_log_event. This dynamic array buff_ev is used to buffer a structure 
   which stores such an event and the corresponding log position.
 */
-
-DYNAMIC_ARRAY buff_ev;
+typedef Prealloced_array<buff_event_info, 16, true> Buff_ev;
+Buff_ev *buff_ev(PSI_NOT_INSTRUMENTED);
 
 // needed by net_serv.c
 ulong bytes_sent = 0L, bytes_received = 0L;
@@ -220,19 +235,6 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 static Exit_status dump_log_entries(const char* logname);
 static Exit_status safe_connect();
 
-/*
-  This strucure is used to store the event and the log postion of the events 
-  which is later used to print the event details from correct log postions.
-  The Log_event *event is used to store the pointer to the current event and 
-  the event_pos is used to store the current event log postion.
-*/
-
-struct buff_event_info
-  {
-    Log_event *event;
-    my_off_t event_pos;
-  };
-
 struct buff_event_info buff_event;
 
 class Load_log_processor
@@ -243,7 +245,7 @@ class Load_log_processor
   /*
     When we see first event corresponding to some LOAD DATA statement in
     binlog, we create temporary file to store data to be loaded.
-    We add name of this file to file_names array using its file_id as index.
+    We add name of this file to file_names set using its file_id as index.
     If we have Create_file event (i.e. we have binary log in pre-5.0.3
     format) we also store save event object to be able which is needed to
     emit LOAD DATA statement when we will meet Exec_load_data event.
@@ -255,14 +257,9 @@ class Load_log_processor
     char *fname;
     Create_file_log_event *event;
   };
-  /*
-    @todo Should be a map (e.g., a hash map), not an array.  With the
-    present implementation, the number of elements in this array is
-    about the number of files loaded since the server started, which
-    may be big after a few years.  We should be able to use existing
-    library data structures for this. /Sven
-  */
-  DYNAMIC_ARRAY file_names;
+
+  typedef std::map<uint, File_name_record> File_names;
+  File_names file_names;
 
   /**
     Looks for a non-existing filename by adding a numerical suffix to
@@ -294,14 +291,9 @@ class Load_log_processor
     }
 
 public:
-  Load_log_processor() {}
+  Load_log_processor() : file_names()
+  {}
   ~Load_log_processor() {}
-
-  int init()
-  {
-    return init_dynamic_array(&file_names, sizeof(File_name_record),
-			      100, 100);
-  }
 
   void init_by_dir_name(const char *dir)
     {
@@ -316,10 +308,11 @@ public:
     }
   void destroy()
   {
-    File_name_record *ptr= (File_name_record *)file_names.buffer;
-    File_name_record *end= ptr + file_names.elements;
-    for (; ptr < end; ptr++)
+    File_names::iterator iter= file_names.begin();
+    File_names::iterator end= file_names.end();
+    for (; iter != end; ++iter)
     {
+      File_name_record *ptr= &iter->second;
       if (ptr->fname)
       {
         my_free(ptr->fname);
@@ -328,7 +321,7 @@ public:
       }
     }
 
-    delete_dynamic(&file_names);
+    file_names.clear();
   }
 
   /**
@@ -347,17 +340,18 @@ public:
     seen any Create_file_log_event with this file_id.
   */
   Create_file_log_event *grab_event(uint file_id)
-    {
-      File_name_record *ptr;
-      Create_file_log_event *res;
+  {
+    File_name_record *ptr;
+    Create_file_log_event *res;
 
-      if (file_id >= file_names.elements)
-        return 0;
-      ptr= dynamic_element(&file_names, file_id, File_name_record*);
-      if ((res= ptr->event))
-        memset(ptr, 0, sizeof(File_name_record));
-      return res;
-    }
+    File_names::iterator it= file_names.find(file_id);
+    if (it == file_names.end())
+      return NULL;
+    ptr= &((*it).second);
+    if ((res= ptr->event))
+      memset(ptr, 0, sizeof(File_name_record));
+    return res;
+  }
 
   /**
     Obtain file name of temporary file for LOAD DATA statement by its
@@ -375,20 +369,21 @@ public:
     have not seen any Begin_load_query_event with this file_id.
   */
   char *grab_fname(uint file_id)
-    {
-      File_name_record *ptr;
-      char *res= 0;
+  {
+    File_name_record *ptr;
+    char *res= NULL;
 
-      if (file_id >= file_names.elements)
-        return 0;
-      ptr= dynamic_element(&file_names, file_id, File_name_record*);
-      if (!ptr->event)
-      {
-        res= ptr->fname;
-        memset(ptr, 0, sizeof(File_name_record));
-      }
-      return res;
+    File_names::iterator it= file_names.find(file_id);
+    if (it == file_names.end())
+      return NULL;
+    ptr= &((*it).second);
+    if (!ptr->event)
+    {
+      res= ptr->fname;
+      memset(ptr, 0, sizeof(File_name_record));
     }
+    return res;
+  }
   Exit_status process(Create_file_log_event *ce);
   Exit_status process(Begin_load_query_log_event *ce);
   Exit_status process(Append_block_log_event *ae);
@@ -527,7 +522,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
                                                     uint file_id,
                                                     Create_file_log_event *ce)
 {
-  uint full_len= target_dir_name_len + blen + 9 + 9 + 1;
+  size_t full_len= target_dir_name_len + blen + 9 + 9 + 1;
   Exit_status retval= OK_CONTINUE;
   char *fname, *ptr;
   File file;
@@ -565,13 +560,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
      after Execute_load_query_log_event or Execute_load_log_event
      will have been processed, otherwise in Load_log_processor::destroy()
   */
-  if (set_dynamic(&file_names, &rec, file_id))
-  {
-    error("Out of memory.");
-    my_free(fname);
-    delete ce;
-    DBUG_RETURN(ERROR_STOP);
-  }
+  file_names[file_id]= rec;
 
   if (ce)
     ce->set_fname_outside_temp_buf(fname, (uint) strlen(fname));
@@ -603,7 +592,7 @@ Exit_status Load_log_processor::process_first_event(const char *bname,
 Exit_status  Load_log_processor::process(Create_file_log_event *ce)
 {
   const char *bname= ce->fname + dirname_length(ce->fname);
-  uint blen= ce->fname_len - (bname-ce->fname);
+  size_t blen= ce->fname_len - (bname-ce->fname);
 
   return process_first_event(bname, blen, ce->block, ce->block_len,
                              ce->file_id, ce);
@@ -652,9 +641,9 @@ Exit_status Load_log_processor::process(Begin_load_query_log_event *blqe)
 Exit_status Load_log_processor::process(Append_block_log_event *ae)
 {
   DBUG_ENTER("Load_log_processor::process");
-  const char* fname= ((ae->file_id < file_names.elements) ?
-                       dynamic_element(&file_names, ae->file_id,
-                                       File_name_record*)->fname : 0);
+  File_names::iterator it= file_names.find(ae->file_id);
+  const char *fname= ((it != file_names.end()) ?
+                      (*it).second.fname : NULL);
 
   if (fname)
   {
@@ -923,9 +912,9 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       bool ends_group= ((Query_log_event*) ev)->ends_group();
       bool starts_group= ((Query_log_event*) ev)->starts_group();
 
-      for (uint i= 0; i < buff_ev.elements; i++) 
+      for (size_t i= 0; i < buff_ev->size(); i++) 
       {
-        buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
+        buff_event_info pop_event_array= buff_ev->at(i);
         Log_event *temp_event= pop_event_array.event;
         my_off_t temp_log_pos= pop_event_array.event_pos;
         print_event_info->hexdump_from= (opt_hexdump ? temp_log_pos : 0); 
@@ -935,7 +924,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       }
       
       print_event_info->hexdump_from= (opt_hexdump ? pos : 0);
-      reset_dynamic(&buff_ev);
+      buff_ev->clear();
 
       if (parent_query_skips)
       {
@@ -981,7 +970,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;
-      insert_dynamic(&buff_ev, (uchar*) &buff_event);
+      buff_ev->push_back(buff_event);
       break;
     }
     	
@@ -990,7 +979,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;      
-      insert_dynamic(&buff_ev, (uchar*) &buff_event);
+      buff_ev->push_back(buff_event);
       break;
     }
     
@@ -999,7 +988,7 @@ Exit_status process_event(PRINT_EVENT_INFO *print_event_info, Log_event *ev,
       destroy_evt= FALSE;
       buff_event.event= ev;
       buff_event.event_pos= pos;      
-      insert_dynamic(&buff_ev, (uchar*) &buff_event);
+      buff_ev->push_back(buff_event);
       break; 
     }
 
@@ -1709,12 +1698,12 @@ static void cleanup()
   my_free(user);
   my_free(dirname_for_local_load);
   
-  for (uint i= 0; i < buff_ev.elements; i++)
+  for (size_t i= 0; i < buff_ev->size(); i++)
   {
-    buff_event_info pop_event_array= *dynamic_element(&buff_ev, i, buff_event_info *);
+    buff_event_info pop_event_array= buff_ev->at(i);
     delete (pop_event_array.event);
   }
-  delete_dynamic(&buff_ev);
+  delete buff_ev;
   
   delete glob_description_event;
   if (mysql)
@@ -1984,7 +1973,7 @@ static Exit_status dump_log_entries(const char* logname)
     break;
   }
 
-  if (buff_ev.elements > 0)
+  if (!buff_ev->empty())
     warning("The range of printed events ends with an Intvar_event, "
             "Rand_event or User_var_event with no matching Query_log_event. "
             "This might be because the last statement was not fully written "
@@ -2239,7 +2228,7 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
     ptr_buffer+= BINLOG_NAME_INFO_SIZE;
     int8store(ptr_buffer, start_position);
     ptr_buffer+= ::BINLOG_POS_INFO_SIZE;
-    int4store(ptr_buffer, encoded_data_size);
+    int4store(ptr_buffer, static_cast<uint32>(encoded_data_size));
     ptr_buffer+= ::BINLOG_DATA_SIZE_INFO_SIZE;
     gtid_set_excluded->encode(ptr_buffer);
     ptr_buffer+= encoded_data_size;
@@ -2392,8 +2381,14 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
             error("Could not create log file '%s'", log_file_name);
             DBUG_RETURN(ERROR_STOP);
           }
-          my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
-                    BIN_LOG_HEADER_SIZE, MYF(0));
+          DBUG_EXECUTE_IF("simulate_result_file_write_error_for_FD_event",
+                          DBUG_SET("+d,simulate_fwrite_error"););
+          if (my_fwrite(result_file, (const uchar*) BINLOG_MAGIC,
+                        BIN_LOG_HEADER_SIZE, MYF(MY_NABP)))
+          {
+            error("Could not write into log file '%s'", log_file_name);
+            DBUG_RETURN(ERROR_STOP);
+          }
           /*
             Need to handle these events correctly in raw mode too 
             or this could get messy
@@ -2416,7 +2411,13 @@ static Exit_status dump_remote_log_entries(PRINT_EVENT_INFO *print_event_info,
 
       if (raw_mode)
       {
-        my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(0));
+        DBUG_EXECUTE_IF("simulate_result_file_write_error",
+                        DBUG_SET("+d,simulate_fwrite_error"););
+        if (my_fwrite(result_file, net->read_pos + 1 , len - 1, MYF(MY_NABP)))
+        {
+          error("Could not write into log file '%s'", log_file_name);
+          retval= ERROR_STOP;
+        }
         if (ev)
         {
           ev->temp_buf=0;
@@ -2925,18 +2926,15 @@ int main(int argc, char** argv)
   DBUG_PROCESS(argv[0]);
 
   my_init_time(); // for time functions
-   /*
+
+  /*
     A pointer of type Log_event can point to
      INTVAR
      USER_VAR
      RANDOM
-    events,  when we allocate a element of sizeof(Log_event*) 
-    for the DYNAMIC_ARRAY.
+    events.
   */
-
-  if((my_init_dynamic_array(&buff_ev, sizeof(buff_event_info), 
-                            INTVAR_DYNAMIC_INIT, INTVAR_DYNAMIC_INCR)))
-    exit(1);
+  buff_ev= new Buff_ev(PSI_NOT_INSTRUMENTED);
 
   my_getopt_use_args_separator= TRUE;
   if (load_defaults("my", load_default_groups, &argc, &argv))
@@ -2982,8 +2980,6 @@ int main(int argc, char** argv)
                                       my_tmpdir(&tmpdir), MY_WME);
   }
 
-  if (load_processor.init())
-    exit(1);
   if (dirname_for_local_load)
     load_processor.init_by_dir_name(dirname_for_local_load);
   else

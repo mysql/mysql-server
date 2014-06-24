@@ -2394,16 +2394,17 @@ Warnings:
 Note	1276	Field or reference 'test.t1.i' of SELECT #2 was resolved in SELECT #1
 Note	1003	/* select#1 */ select `test`.`t1`.`i` AS `i` from `test`.`t1` group by (/* select#2 */ select `test`.`t2`.`j` from `test`.`t2` where (`test`.`t2`.`i` = `test`.`t1`.`i`))
 DROP TABLE t1, t2;
-CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, PRIMARY KEY(a, b));
+CREATE TABLE t1 (a INT NOT NULL, b INT NOT NULL, KEY k1 (a, b));
 INSERT INTO t1 VALUES (10,1),(10,2),(10,3),(20,4),(20,5),(20,6),
-(30,7),(30,8),(30,9),(40,10),(40,11),(40,12),(40,13);
+(30,7),(30,8),(30,9),(40,10),(40,11),(40,12),(40,13),
+(40,14),(40,15),(40,16),(40,17),(40,18),(40,19),(40,20);
 EXPLAIN FORMAT=JSON SELECT a, MIN(b) AS b FROM t1 GROUP BY a ORDER BY b;
 EXPLAIN
 {
   "query_block": {
     "select_id": 1,
     "cost_info": {
-      "query_cost": "4.50"
+      "query_cost": "6.50"
     } /* cost_info */,
     "ordering_operation": {
       "using_temporary_table": true,
@@ -2414,22 +2415,22 @@ EXPLAIN
           "table_name": "t1",
           "access_type": "range",
           "possible_keys": [
-            "PRIMARY"
+            "k1"
           ] /* possible_keys */,
-          "key": "PRIMARY",
+          "key": "k1",
           "used_key_parts": [
             "a"
           ] /* used_key_parts */,
           "key_length": "4",
-          "rows_examined_per_scan": 7,
-          "rows_produced_per_join": 7,
+          "rows_examined_per_scan": 11,
+          "rows_produced_per_join": 11,
           "filtered": 100,
           "using_index_for_group_by": true,
           "cost_info": {
-            "read_cost": "3.10",
-            "eval_cost": "1.40",
-            "prefix_cost": "4.50",
-            "data_read_per_join": "112"
+            "read_cost": "4.30",
+            "eval_cost": "2.20",
+            "prefix_cost": "6.50",
+            "data_read_per_join": "176"
           } /* cost_info */,
           "used_columns": [
             "a",

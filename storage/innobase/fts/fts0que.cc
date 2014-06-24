@@ -3675,9 +3675,7 @@ fts_query_prepare_result(
 	bool			result_is_null = false;
 
 	if (result == NULL) {
-		result = static_cast<fts_result_t*>(ut_malloc(sizeof(*result)));
-
-		memset(result, 0x0, sizeof(*result));
+		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
 
 		result->rankings_by_id = rbt_create(
 			sizeof(fts_ranking_t), fts_ranking_doc_id_cmp);
@@ -3705,14 +3703,15 @@ fts_query_prepare_result(
 			doc_freq = rbt_value(fts_doc_freq_t, node);
 
 			/* Don't put deleted docs into result */
-			if (fts_bsearch(array, 0, static_cast<int>(size), doc_freq->doc_id)
-			    >= 0) {
+			if (fts_bsearch(array, 0, static_cast<int>(size),
+					doc_freq->doc_id) >= 0) {
+				/* one less matching doc count */
+				--word_freq->doc_count;
 				continue;
 			}
 
 			ranking.doc_id = doc_freq->doc_id;
-			ranking.rank = static_cast<fts_rank_t>(
-				doc_freq->freq * word_freq->idf * word_freq->idf);
+			ranking.rank = static_cast<fts_rank_t>(doc_freq->freq);
 			ranking.words = NULL;
 
 			fts_query_add_ranking(query, result->rankings_by_id,
@@ -3723,6 +3722,25 @@ fts_query_prepare_result(
 				fts_query_free_result(result);
 				return(NULL);
 			}
+		}
+
+		/* Calculate IDF only after we exclude the deleted items */
+		fts_query_calculate_idf(query);
+
+		node = rbt_first(query->word_freqs);
+		word_freq = rbt_value(fts_word_freq_t, node);
+
+		/* Calculate the ranking for each doc */
+		for (node = rbt_first(result->rankings_by_id);
+		     node != NULL;
+		     node = rbt_next(result->rankings_by_id, node)) {
+
+			fts_ranking_t*  ranking;
+
+			ranking = rbt_value(fts_ranking_t, node);
+
+			ranking->rank = static_cast<fts_rank_t>(
+				ranking->rank * word_freq->idf * word_freq->idf);
 		}
 
 		return(result);
@@ -3781,8 +3799,7 @@ fts_query_get_result(
 		result = fts_query_prepare_result(query, result);
 	} else {
 		/* Create an empty result instance. */
-		result = static_cast<fts_result_t*>(ut_malloc(sizeof(*result)));
-		memset(result, 0, sizeof(*result));
+		result = static_cast<fts_result_t*>(ut_zalloc(sizeof(*result)));
 	}
 
 	return(result);
@@ -4171,7 +4188,8 @@ fts_query(
 		}
 
 		/* Calculate the inverse document frequency of the terms. */
-		if (query.error == DB_SUCCESS) {
+		if (query.error == DB_SUCCESS
+		    && query.flags != FTS_OPT_RANKING) {
 			fts_query_calculate_idf(&query);
 		}
 
@@ -4185,8 +4203,7 @@ fts_query(
 	} else {
 		/* still return an empty result set */
 		*result = static_cast<fts_result_t*>(
-			ut_malloc(sizeof(**result)));
-		memset(*result, 0, sizeof(**result));
+			ut_zalloc(sizeof(**result)));
 	}
 
 	ut_free(lc_query_str);

@@ -383,6 +383,8 @@ struct TTASFutexMutex {
 		them up. Reset the lock state to unlocked so that waiting
 		threads can test for success. */
 
+		os_rmb;
+
 		if (state() == MUTEX_STATE_WAITERS) {
 
 			m_lock_word = MUTEX_STATE_UNLOCKED;
@@ -500,6 +502,8 @@ private:
 	@return value of lock word before locking. */
 	lock_word_t ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
+		os_rmb;
+
 		for (ulint i = 0; i < max_spins; ++i) {
 
 			if (!is_locked()) {
@@ -656,6 +660,8 @@ private:
 	@param max_delay	max delay per spin */
 	void ttas(ulint max_spins, ulint max_delay) UNIV_NOTHROW
 	{
+		os_rmb;
+
 		do {
 			ulint	i;
 
@@ -873,6 +879,8 @@ private:
 	{
 		ulint	n_spins = 0;
 
+		os_rmb;
+
 		for (;;) {
 
 			n_spins = ttas(max_spins, max_delay, n_spins);
@@ -917,12 +925,14 @@ private:
 	void set_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 1;
+		os_wmb;
 	}
 
 	/** Note that there are no threads waiting on the mutex */
 	void clear_waiters() UNIV_NOTHROW
 	{
 		*waiters() = 0;
+		os_wmb;
 	}
 
 	/**
