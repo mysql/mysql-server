@@ -628,6 +628,7 @@ loop:
 		}
 
 		n_removed_logs = 0;
+		rseg->n_can_be_removed_logs = 0;
 	} else {
 		/* Track the logs that can be removed if we truncate UNDO
 		tablespace. This count will help us adjust rseg_history_len. */
@@ -830,10 +831,6 @@ trx_purge_initiate_truncate(
 	   initiate truncate.
 	d. Execute actual truncate
 	e. Remove the DDL log. */
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Truncating UNDO tablespace with space identifier " ULINTPF "",
-		undo_trunc->get_undo_mark_for_trunc());
-
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_checkpoint",
 			ib_logf(IB_LOG_LEVEL_INFO,
 				"ib_undo_trunc_before_checkpoint");
@@ -843,6 +840,10 @@ trx_purge_initiate_truncate(
 	undo tablespace might not stand valid as tablespace has been
 	truncated. */
 	log_make_checkpoint_at(LSN_MAX, TRUE);
+
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Truncating UNDO tablespace with space identifier " ULINTPF "",
+		undo_trunc->get_undo_mark_for_trunc());
 
 	DBUG_EXECUTE_IF("ib_undo_trunc_before_ddl_log_start",
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -905,6 +906,8 @@ trx_purge_initiate_truncate(
 		n_removed_logs += rseg->n_can_be_removed_logs;
 	}
 
+	ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
+
 #ifdef HAVE_ATOMIC_BUILTINS
 	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
 #else
@@ -948,7 +951,7 @@ trx_purge_initiate_truncate(
 	undo_trunc->undo_logger.done(undo_trunc->get_undo_mark_for_trunc());
 
 	ib_logf(IB_LOG_LEVEL_INFO,
-		"Complete truncate of UNDO tablespace with space identifier "
+		"Completed truncate of UNDO tablespace with space identifier "
 		ULINTPF "", undo_trunc->get_undo_mark_for_trunc());
 
 	undo_trunc->reset();
