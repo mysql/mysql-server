@@ -373,7 +373,7 @@ Event_scheduler::Event_scheduler(Event_queue *queue_arg)
 {
   mysql_mutex_init(key_event_scheduler_LOCK_scheduler_state,
                    &LOCK_scheduler_state, MY_MUTEX_INIT_FAST);
-  mysql_cond_init(key_event_scheduler_COND_state, &COND_state, NULL);
+  mysql_cond_init(key_event_scheduler_COND_state, &COND_state);
 }
 
 

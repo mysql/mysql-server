@@ -381,4 +381,16 @@ select AsText(GeometryFromWKB(AsWKB(GeometryCollection(POINT(0, 0),
                                                       POLYGON(LineString(Point(10, 20), Point(1, 1), Point(2, 2))),
                                                       MULTIPOLYGON(Polygon(LineString(Point(0, 0), Point(1, 0), Point(1, 1),
                                                                                       Point(0, 0)))))))) as Result;
+
+
+--echo #
+--echo # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
+--echo #
+select (aswkb(cast(st_union(multipoint(
+                                       point(8,6), point(1,-17679),
+                                       point(-9,-9)),
+                            linestring(point(91,12), point(-77,49),
+                                       point(53,-81)))as char(18))))
+in  ('1','2');
+
 --source include/gis_debug.inc

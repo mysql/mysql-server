@@ -95,6 +95,7 @@ rw_lock_set_waiter_flag(
 	(void) os_compare_and_swap_ulint(&lock->waiters, 0, 1);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 1;
+	os_wmb;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
@@ -112,6 +113,7 @@ rw_lock_reset_waiter_flag(
 	(void) os_compare_and_swap_ulint(&lock->waiters, 1, 0);
 #else /* INNODB_RW_LOCKS_USE_ATOMICS */
 	lock->waiters = 0;
+	os_wmb;
 #endif /* INNODB_RW_LOCKS_USE_ATOMICS */
 }
 
@@ -272,7 +274,10 @@ rw_lock_lock_word_decr(
 	lint		threshold)	/*!< in: threshold of judgement */
 {
 #ifdef INNODB_RW_LOCKS_USE_ATOMICS
-	lint local_lock_word = lock->lock_word;
+	lint local_lock_word;
+
+	os_rmb;
+	local_lock_word = lock->lock_word;
 	while (local_lock_word > threshold) {
 		if (os_compare_and_swap_lint(&lock->lock_word,
 					     local_lock_word,

@@ -2371,10 +2371,21 @@ public:
 
     const_cast<self &>(v).reassemble();
     set_flags(v.get_flags());
-    m_ptr= gis_wkb_alloc(get_nbytes());
-    memcpy(m_ptr, v.get_ptr(), get_nbytes());
-    parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
-    set_ownmem(true);
+    set_nbytes(v.get_nbytes());
+    if (get_nbytes() > 0)
+    {
+      m_ptr= gis_wkb_alloc(v.get_nbytes() + 2);
+      memcpy(m_ptr, v.get_ptr(), v.get_nbytes());
+      /*
+        The extra 2 bytes makes the buffer usable by get_nbytes_free.
+        It's hard to know how many more space will be needed so let's 
+        allocate more later.
+      */
+      get_cptr()[get_nbytes()]= '\xff';
+      get_cptr()[get_nbytes() + 1]= '\0';
+      parse_wkb_data(this, get_cptr(), v.get_geo_vect()->size());
+      set_ownmem(true);
+    }
     guard.release();
   }
 
@@ -2652,9 +2663,14 @@ public:
 
     size_t cap= current_size();
     if (cap == 0)
+    {
+      DBUG_ASSERT(m_ptr == NULL);
       return 0;
+    }
 
     const char *p= NULL, *ptr= get_cptr();
+    DBUG_ASSERT(ptr != NULL);
+
     /*
       There will always be remaining free space because in push_back, when
       number of free bytes equals needed bytes we will do a realloc.
