@@ -40,7 +40,7 @@ void DBOperationSet::prepare(NdbTransaction *ndbtx) {
       const NdbOperation *op = keyOperations[i].prepare(ndbtx);
       ops[i] = op;
       if(! op) errors[i] = & ndbtx->getNdbError();
-      DEBUG_PRINT("prepare %s [%s]", keyOperations[i].opcode_str,
+      DEBUG_PRINT("prepare %s [%s]", keyOperations[i].getOperationName(),
                   op ? "ok" : errors[i]->message);
       if(keyOperations[i].isBlobReadOperation()) doesReadBlobs = true;
     }

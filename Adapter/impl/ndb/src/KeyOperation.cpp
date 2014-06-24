@@ -20,6 +20,13 @@
 
 #include "KeyOperation.h"
 
+const char * opcode_strings[17] = 
+ { 0, "read  ", "insert", 0, "update", 0, 0, 0, "write ",
+   0, 0, 0, 0, 0, 0, 0, "delete" };
+
+const char * KeyOperation::getOperationName() {
+  return opcode < 17 ? opcode_strings[opcode] : 0;
+}
 
 // Call the right destructor for a chain of blob handlers,
 // where B is either BlobReadHandler or BlobWriteHandler
@@ -83,22 +90,16 @@ const NdbOperation * KeyOperation::updateTuple(NdbTransaction *tx) {
 const NdbOperation * KeyOperation::prepare(NdbTransaction *tx) {
   switch(opcode) {
     case 1:  // OP_READ:
-      opcode_str = "read  ";
       return readTuple(tx);
     case 2:  // OP_INSERT:
-      opcode_str = "insert";
       return insertTuple(tx);
     case 4:  // OP_UPDATE:
-      opcode_str = "update";
       return updateTuple(tx);
     case 8:  // OP_WRITE:
-      opcode_str = "write ";
       return writeTuple(tx);
     case 16: // OP_DELETE:
-      opcode_str = "delete";
       return deleteTuple(tx);
     default:
-      opcode_str = "-XXX-";
       return NULL;
   }
 }
@@ -107,3 +108,4 @@ void KeyOperation::setBlobHandler(BlobHandler *b) {
   b->setNext(blobHandler);
   blobHandler = b;
 }
+

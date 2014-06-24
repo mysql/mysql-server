@@ -153,9 +153,24 @@ t7.run = function() {
   });
 };
 
-// TODO:
-// Read / Modify / Update of text column
-// Read / Modify / Update object but not text column
+var t8 = new harness.ConcurrentTest("t8:PersistReadModifyUpdateText");
+t8.run = function() {
+  var data = new TextCharsetData(13);
+  data.ascii_text = "  #$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLM  ";
+  fail_openSession(this, function(session, testCase) {
+    session.persist(data, function(err) {
+      session.find(TextCharsetData, data.id, function(err, obj) {
+        var new_text = "  #$%&'()*+,-./012345678";
+        obj.ascii_text = new_text;
+        session.update(obj, function(err) {
+          testCase.errorIfError(err);
+          var verifier = new ValueVerifier(testCase, "ascii_text", new_text);
+          session.find(TextCharsetData, data.id, verifier.run);
+        });
+      });
+    });
+  });
+};
 
 
-module.exports.tests = [ t1 , t2 , t3 , t4 , t5 , t6 , t7 ];
+module.exports.tests = [ t1 , t2 , t3 , t4 , t5 , t6 , t7 , t8 ];

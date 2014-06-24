@@ -36,7 +36,7 @@ public:
   char * getBuffer() const;
   uint32_t getMaskValue() const;
   unsigned short getWriteCount() const;
-  void createBlobWriteHandles(KeyOperation &);
+  int createBlobWriteHandles(KeyOperation &);
 
 private:
   const Record * record;

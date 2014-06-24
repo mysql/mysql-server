@@ -114,8 +114,9 @@ void setKeysInOp(Handle<Object> spec, KeyOperation & op) {
 }
 
 
-void createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
-                           KeyOperation & op) {
+int createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                          KeyOperation & op) {
+  int ncreated = 0;
   int ncol = rowRecord->getNoOfColumns();
   for(int i = 0 ; i < ncol ; i++) {
     const NdbDictionary::Column * col = rowRecord->getColumn(i);
@@ -123,13 +124,16 @@ void createBlobReadHandles(Handle<Object> blobsArray, const Record * rowRecord,
        (col->getType() ==  NdbDictionary::Column::Text)) 
     {
       op.setBlobHandler(new BlobReadHandler(i, col->getColumnNo()));
+      ncreated++;
     }
   }
+  return ncreated;
 }
 
 
-void createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
-                            KeyOperation & op) {
+int createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
+                           KeyOperation & op) {
+  int ncreated = 0;
   int ncol = rowRecord->getNoOfColumns();
   for(int i = 0 ; i < ncol ; i++) {
     if(blobsArray->Get(i)->IsObject()) {
@@ -138,9 +142,11 @@ void createBlobWriteHandles(Handle<Object> blobsArray, const Record * rowRecord,
       const NdbDictionary::Column * col = rowRecord->getColumn(i);
       assert( (col->getType() ==  NdbDictionary::Column::Blob) ||
               (col->getType() ==  NdbDictionary::Column::Text));
+      ncreated++;
       op.setBlobHandler(new BlobWriteHandler(i, col->getColumnNo(), blobValue));
     }
   }
+  return ncreated;
 }
 
 
@@ -149,6 +155,7 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
 
   Local<Value> v;
   Local<Object> o;
+  int nblobs = 0;
 
   setKeysInOp(spec, op);
   
@@ -167,9 +174,9 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
     v = spec->Get(HELPER_BLOBS);
     if(v->IsObject()) {
       if(op.opcode == 1) {
-        createBlobReadHandles(v->ToObject(), record, op);
+        nblobs = createBlobReadHandles(v->ToObject(), record, op);
       } else {
-        createBlobWriteHandles(v->ToObject(), record, op);
+        nblobs = createBlobWriteHandles(v->ToObject(), record, op);
       }
     }
   }
@@ -189,11 +196,13 @@ void DBOperationHelper_NonVO(Handle<Object> spec, KeyOperation & op) {
     }
   }
 
-  DEBUG_PRINT("Non-VO opcode: %d mask: %u", op.opcode, op.u.maskvalue);
+  DEBUG_PRINT("Non-VO %s -- mask: %u lobs: %d", op.getOperationName(), 
+              op.u.maskvalue, nblobs);
 }
 
 
 void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
+  DEBUG_MARKER(UDEB_DETAIL);
   HandleScope scope;
   Local<Value> v;
   Local<Object> o;
@@ -210,15 +219,21 @@ void DBOperationHelper_VO(Handle<Object> spec,  KeyOperation & op) {
   op.row_record = nro->getRecord();
   op.row_buffer = nro->getBuffer();
 
-  /* "write" and "persist" must write all columns. 
-     Other operations only require the columns that have changed since read.
+  /* A persist operation must write all columns.
+     A save operation must write all columns only if the PK has changed.
+     Other operations only write columns that have changed since being read.
   */
-  if(op.opcode == 2 || op.opcode == 8) 
-    op.setRowMask(0xFFFFFFFF);
+  if(op.opcode == 2) 
+    op.setRowMask(op.row_record->getAllColumnMask());
+  else if(op.opcode == 8 && (nro->getMaskValue() & op.row_record->getPkColumnMask())) 
+    op.setRowMask(op.row_record->getAllColumnMask());
   else 
     op.setRowMask(nro->getMaskValue());
 
-  DEBUG_PRINT("  VO   opcode: %d mask: %u", op.opcode, op.u.maskvalue);  
+  int nblobs = nro->createBlobWriteHandles(op);
+
+  DEBUG_PRINT("  VO   %s -- mask: %u lobs: %d", op.getOperationName(), 
+              op.u.maskvalue, nblobs);
   nro->resetMask(); 
 }
 
