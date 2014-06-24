@@ -506,8 +506,7 @@ spin_loop:
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 
-		i += SPIN_WAIT_INCREMENT;
-		os_rmb;
+		i++;
 	}
 
 	if (i >= SYNC_SPIN_ROUNDS) {

@@ -387,8 +387,7 @@ lock_loop:
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 
-		i += SPIN_WAIT_INCREMENT;
-		os_rmb;
+		i++;
 	}
 
 	if (i >= SYNC_SPIN_ROUNDS) {
@@ -486,7 +485,7 @@ rw_lock_x_lock_wait(
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 		if(i < SYNC_SPIN_ROUNDS) {
-			i += SPIN_WAIT_INCREMENT;
+			i++;
 			os_rmb;
 			continue;
 		}
@@ -654,8 +653,7 @@ lock_loop:
 							 srv_spin_wait_delay));
 			}
 
-			i += SPIN_WAIT_INCREMENT;
-			os_rmb;
+			i++;
 		}
 		if (i >= SYNC_SPIN_ROUNDS) {
 			os_thread_yield();
