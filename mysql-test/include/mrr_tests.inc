@@ -206,7 +206,7 @@ ANALYZE TABLE t1;
 -- enable_query_log
 
 --echo This must show range + using index condition:
---replace_column 10 x
+--replace_column 10 x 11 x
 explain select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 select * from t1 where a < 10 and b = repeat(char(65+a), 20);
 drop table t0,t1;

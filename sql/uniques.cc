@@ -437,8 +437,8 @@ C_MODE_END
     <> 0  error
 */
 
-static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
-                       uint key_length, Merge_chunk *begin, Merge_chunk *end,
+static bool merge_walk(uchar *merge_buffer, size_t merge_buffer_size,
+                       size_t key_length, Merge_chunk *begin, Merge_chunk *end,
                        tree_walk_action walk_action, void *walk_action_arg,
                        qsort_cmp2 compare, const void *compare_arg,
                        IO_CACHE *file)
@@ -456,7 +456,7 @@ static bool merge_walk(uchar *merge_buffer, ulong merge_buffer_size,
   uint max_key_count_per_piece= (uint) (merge_buffer_size/(end-begin) /
                                         key_length);
   /* if piece_size is aligned reuse_freed_buffer will always hit */
-  uint piece_size= max_key_count_per_piece * key_length;
+  size_t piece_size= max_key_count_per_piece * key_length;
   uint bytes_read;               /* to hold return value of read_to_buffer */
   Merge_chunk *top;
   int res= 1;
@@ -595,9 +595,9 @@ bool Unique::walk(tree_walk_action action, void *walk_action_arg)
     must at least be able to store one element from each file pointer plus
     one extra.
   */
-  const ulong min_merge_buffer_size= (file_ptrs.size() + 1) * size;
-  const ulong merge_buffer_size=
-    std::max<ulong>(min_merge_buffer_size, max_in_memory_size);
+  const size_t min_merge_buffer_size= (file_ptrs.size() + 1) * size;
+  const size_t merge_buffer_size=
+    std::max<size_t>(min_merge_buffer_size, max_in_memory_size);
 
   if (!(merge_buffer= (uchar *) my_malloc(key_memory_Unique_merge_buffer,
                                           merge_buffer_size, MYF(0))))

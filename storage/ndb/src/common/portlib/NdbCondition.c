@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -116,7 +116,7 @@ NdbCondition_Init(struct NdbCondition* ndb_cond)
     result = pthread_cond_init(&ndb_cond->cond, NULL);
   }
 #else
-  result = pthread_cond_init(&ndb_cond->cond, NULL);
+  result = native_cond_init(&ndb_cond->cond);
 #endif
   assert(result==0);
   return result;
@@ -149,7 +149,7 @@ NdbCondition_Wait(struct NdbCondition* p_cond,
 #ifdef NDB_MUTEX_STRUCT
   result = pthread_cond_wait(&p_cond->cond, &p_mutex->mutex);
 #else
-  result = pthread_cond_wait(&p_cond->cond, p_mutex);
+  result = native_cond_wait(&p_cond->cond, p_mutex);
 #endif
   
   return result;
@@ -220,7 +220,7 @@ NdbCondition_WaitTimeoutAbs(struct NdbCondition* p_cond,
 #ifdef NDB_MUTEX_STRUCT
   return pthread_cond_timedwait(&p_cond->cond, &p_mutex->mutex, waitarg);
 #else
-  return pthread_cond_timedwait(&p_cond->cond, p_mutex, waitarg);
+  return native_cond_timedwait(&p_cond->cond, p_mutex, waitarg);
 #endif
 }
 
@@ -231,7 +231,7 @@ NdbCondition_Signal(struct NdbCondition* p_cond){
   if (p_cond == NULL)
     return 1;
 
-  result = pthread_cond_signal(&p_cond->cond);
+  result = native_cond_signal(&p_cond->cond);
                              
   return result;
 }
@@ -244,7 +244,7 @@ int NdbCondition_Broadcast(struct NdbCondition* p_cond)
   if (p_cond == NULL)
     return 1;
 
-  result = pthread_cond_broadcast(&p_cond->cond);
+  result = native_cond_broadcast(&p_cond->cond);
                              
   return result;
 }
@@ -257,7 +257,7 @@ int NdbCondition_Destroy(struct NdbCondition* p_cond)
   if (p_cond == NULL)
     return 1;
 
-  result = pthread_cond_destroy(&p_cond->cond);
+  result = native_cond_destroy(&p_cond->cond);
   free(p_cond);
 
   return 0;

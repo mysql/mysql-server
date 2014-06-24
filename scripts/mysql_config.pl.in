@@ -42,7 +42,7 @@ use Cwd;
 use strict;
 
 my @exclude_cflags =
-  qw/DDBUG_OFF DSAFE_MUTEX DFORCE_INIT_OF_VARS
+  qw/DDBUG_OFF DSAFE_MUTEX
      DEXTRA_DEBUG DHAVE_VALGRIND O O[0-9] xO[0-9] W[-A-Za-z]*
      unroll2 ip mp restrict/;
 

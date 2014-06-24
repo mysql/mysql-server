@@ -193,9 +193,9 @@ sp_pcontext *sp_pcontext::pop_context()
 }
 
 
-uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
+size_t sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 {
-  uint n= 0;
+  size_t n= 0;
   const sp_pcontext *pctx= this;
   const sp_pcontext *last_ctx= NULL;
 
@@ -211,9 +211,9 @@ uint sp_pcontext::diff_handlers(const sp_pcontext *ctx, bool exclusive) const
 }
 
 
-uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
+size_t sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 {
-  uint n= 0;
+  size_t n= 0;
   const sp_pcontext *pctx= this;
   const sp_pcontext *last_ctx= NULL;
 
@@ -232,7 +232,7 @@ uint sp_pcontext::diff_cursors(const sp_pcontext *ctx, bool exclusive) const
 sp_variable *sp_pcontext::find_variable(LEX_STRING name,
                                         bool current_scope_only) const
 {
-  uint i= m_vars.size() - m_pboundary;
+  size_t i= m_vars.size() - m_pboundary;
 
   while (i--)
   {
@@ -335,7 +335,7 @@ bool sp_pcontext::add_condition(THD *thd,
 sp_condition_value *sp_pcontext::find_condition(LEX_STRING name,
                                                 bool current_scope_only) const
 {
-  uint i= m_conditions.size();
+  size_t i= m_conditions.size();
 
   while (i--)
   {
@@ -513,7 +513,7 @@ bool sp_pcontext::find_cursor(LEX_STRING name,
                               uint *poff,
                               bool current_scope_only) const
 {
-  uint i= m_cursors.size();
+  size_t i= m_cursors.size();
 
   while (i--)
   {

@@ -382,8 +382,10 @@ Event_timed::init()
 {
   DBUG_ENTER("Event_timed::init");
 
-  definer_user.str= definer_host.str= body.str= comment.str= NULL;
-  definer_user.length= definer_host.length= body.length= comment.length= 0;
+  definer_user= NULL_CSTR;
+  definer_host= NULL_CSTR;
+  body= NULL_STR;
+  comment= NULL_STR;
 
   sql_mode= 0;
 
@@ -1210,7 +1212,7 @@ Event_timed::get_create_event(THD *thd, String *buf)
     DBUG_RETURN(EVEX_MICROSECOND_UNSUP);
 
   buf->append(STRING_WITH_LEN("CREATE "));
-  append_definer(thd, buf, &definer_user, &definer_host);
+  append_definer(thd, buf, definer_user, definer_host);
   buf->append(STRING_WITH_LEN("EVENT "));
   append_identifier(thd, buf, name.str, name.length);
 
@@ -1379,7 +1381,7 @@ Event_job_data::execute(THD *thd, bool drop)
 
 #ifndef NO_EMBEDDED_ACCESS_CHECKS
   if (event_sctx.change_security_context(thd,
-                                         &definer_user, &definer_host,
+                                         definer_user, definer_host,
                                          &dbname, &save_sctx))
   {
     sql_print_error("Event Scheduler: "

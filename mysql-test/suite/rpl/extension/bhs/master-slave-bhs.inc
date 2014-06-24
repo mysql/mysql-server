@@ -10,7 +10,7 @@ connection master;
 connect (blackhole_slave,127.0.0.1,root,,test,$BHS_MYPORT,);
 connection blackhole_slave;
 source include/have_blackhole.inc;
-SET storage_engine=BLACKHOLE;
+SET default_storage_engine=BLACKHOLE;
 STOP SLAVE;
 source include/wait_for_slave_to_stop.inc;
 RESET SLAVE;

@@ -1,4 +1,4 @@
-/* Copyright (c) 2006, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2006, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,11 +28,10 @@ bool mysql_prepare_insert(THD *thd, TABLE_LIST *table_list,
                           List<Item> &update_fields,
                           List<Item> &update_values, enum_duplicates duplic,
                           Item **where, bool select_insert,
-                          bool check_fields, bool abort_on_warning);
+                          bool check_fields);
 bool mysql_insert(THD *thd,TABLE_LIST *table,List<Item> &fields,
                   List<List_item> &values, List<Item> &update_fields,
-                  List<Item> &update_values, enum_duplicates flag,
-                  bool ignore);
+                  List<Item> &update_values, enum_duplicates flag);
 void upgrade_lock_type_for_insert(THD *thd, thr_lock_type *lock_type,
                                   enum_duplicates duplic,
                                   bool is_multi_insert);

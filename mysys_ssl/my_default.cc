@@ -47,6 +47,7 @@
 #include <winbase.h>
 #endif
 
+#include "prealloced_array.h"
 
 C_MODE_START
 #ifdef HAVE_PSI_INTERFACE
@@ -144,10 +145,11 @@ static int handle_default_option(void *in_ctx, const char *group_name,
    was called from load_defaults.
 */
 
+typedef Prealloced_array<char*, 100> My_args;
 struct handle_option_ctx
 {
    MEM_ROOT *alloc;
-   DYNAMIC_ARRAY *args;
+   My_args *m_args;
    TYPELIB *group;
 };
 
@@ -158,7 +160,6 @@ static int search_default_file_with_ext(Process_option_func func,
 					const char *dir, const char *ext,
 					const char *config_file, int recursion_level);
 static my_bool mysql_file_getline(char *str, int size, MYSQL_FILE *file);
-static int check_file_permissions(const char *file_name);
 
 
 /**
@@ -474,7 +475,7 @@ static int handle_default_option(void *in_ctx, const char *group_name,
   {
     if (!(tmp= (char *) alloc_root(ctx->alloc, strlen(option) + 1)))
       return 1;
-    if (insert_dynamic(ctx->args, &tmp))
+    if (ctx->m_args->push_back(tmp))
       return 1;
     my_stpcpy(tmp, option);
   }
@@ -625,7 +626,7 @@ int load_defaults(const char *conf_file, const char **groups,
 int my_load_defaults(const char *conf_file, const char **groups,
                   int *argc, char ***argv, const char ***default_directories)
 {
-  DYNAMIC_ARRAY args;
+  My_args my_args(key_memory_defaults);
   TYPELIB group;
   my_bool found_print_defaults= 0;
   uint args_used= 0;
@@ -654,11 +655,8 @@ int my_load_defaults(const char *conf_file, const char **groups,
   for (; *groups ; groups++)
     group.count++;
 
-  if (my_init_dynamic_array(&args, sizeof(char*),*argc, 32))
-    goto err;
-
   ctx.alloc= &alloc;
-  ctx.args= &args;
+  ctx.m_args= &my_args;
   ctx.group= &group;
 
   if ((error= my_search_option_files(conf_file, argc, argv,
@@ -685,14 +683,16 @@ int my_load_defaults(const char *conf_file, const char **groups,
     Here error contains <> 0 only if we have a fully specified conf_file
     or a forced default file
   */
-  if (!(ptr=(char*) alloc_root(&alloc,sizeof(alloc)+
-			       (args.elements + *argc + 1 + args_sep) *sizeof(char*))))
+  if (!(ptr=(char*)
+        alloc_root(&alloc,sizeof(alloc)+
+                   (my_args.size() + *argc + 1 + args_sep) *sizeof(char*))))
     goto err;
   res= (char**) (ptr+sizeof(alloc));
 
   /* copy name + found arguments + command line arguments to new array */
   res[0]= argv[0][0];  /* Name MUST be set, even by embedded library */
-  memcpy((uchar*) (res+1), args.buffer, args.elements*sizeof(char*));
+  if (!my_args.empty())
+    memcpy((res+1), &my_args[0], my_args.size() * sizeof(char*));
   /* Skip --defaults-xxx options */
   (*argc)-= args_used;
   (*argv)+= args_used;
@@ -711,18 +711,18 @@ int my_load_defaults(const char *conf_file, const char **groups,
   {
     /* set arguments separator for arguments from config file and
        command line */
-    set_args_separator(&res[args.elements+1]);
+    set_args_separator(&res[my_args.size() + 1]);
   }
 
   if (*argc)
-    memcpy((uchar*) (res+1+args.elements+args_sep), (char*) ((*argv)+1),
+    memcpy((uchar*) (res + 1 + my_args.size() + args_sep),
+           (char*) ((*argv)+1),
 	   (*argc-1)*sizeof(char*));
-  res[args.elements+ *argc+args_sep]=0;                /* last null */
+  res[my_args.size() + *argc + args_sep]= 0;  /* last null */
 
-  (*argc)+=args.elements+args_sep;
+  (*argc)+= my_args.size() + args_sep;
   *argv= (char**) res;
   *(MEM_ROOT*) ptr= alloc;			/* Save alloc root for free */
-  delete_dynamic(&args);
 
   if (default_directories)
     *default_directories= dirs;
@@ -1468,7 +1468,7 @@ int my_default_get_login_file(char *file_name, size_t file_name_size)
            1 - Failed to stat.
            2 - Success.
 */
-static int check_file_permissions(const char *file_name)
+int check_file_permissions(const char *file_name)
 {
 #if !defined(_WIN32)
   MY_STAT stat_info;

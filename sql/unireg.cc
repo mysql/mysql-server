@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,7 +67,7 @@ struct Pack_header_error_handler: public Internal_error_handler
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   bool is_handled;
@@ -80,7 +80,7 @@ Pack_header_error_handler::
 handle_condition(THD *,
                  uint sql_errno,
                  const char*,
-                 Sql_condition::enum_severity_level,
+                 Sql_condition::enum_severity_level*,
                  const char*,
                  Sql_condition ** cond_hdl)
 {
@@ -131,7 +131,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   int error;
   const uint format_section_header_size= 8;
   uint format_section_length;
-  uint tablespace_length= 0;
+  size_t tablespace_length= 0;
   DBUG_ENTER("mysql_create_frm");
 
   DBUG_ASSERT(*fn_rext((char*)file_name)); // Check .frm extension
@@ -313,13 +313,13 @@ bool mysql_create_frm(THD *thd, const char *file_name,
 		     create_fields,reclength, data_offset, db_file))
     goto err;
 
-  int2store(buff, create_info->connect_string.length);
+  int2store(buff, static_cast<uint16>(create_info->connect_string.length));
   if (mysql_file_write(file, (const uchar*)buff, 2, MYF(MY_NABP)) ||
       mysql_file_write(file, (const uchar*)create_info->connect_string.str,
                create_info->connect_string.length, MYF(MY_NABP)))
       goto err;
 
-  int2store(buff, str_db_type.length);
+  int2store(buff, static_cast<uint16>(str_db_type.length));
   if (mysql_file_write(file, (const uchar*)buff, 2, MYF(MY_NABP)) ||
       mysql_file_write(file, (const uchar*)str_db_type.str,
                str_db_type.length, MYF(MY_NABP)))
@@ -355,7 +355,7 @@ bool mysql_create_frm(THD *thd, const char *file_name,
   if (forminfo[46] == (uchar)255)
   {
     uchar comment_length_buff[2];
-    int2store(comment_length_buff,create_info->comment.length);
+    int2store(comment_length_buff, static_cast<uint16>(create_info->comment.length));
     if (mysql_file_write(file, comment_length_buff, 2, MYF(MY_NABP)) ||
         mysql_file_write(file, (uchar*) create_info->comment.str,
                          create_info->comment.length, MYF(MY_NABP)))
@@ -610,7 +610,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   key_parts=0;
   for (key=keyinfo,end=keyinfo+key_count ; key != end ; key++)
   {
-    int2store(pos, (key->flags ^ HA_NOSAME));
+    int2store(pos, static_cast<uint16>(key->flags ^ HA_NOSAME));
     int2store(pos+2,key->key_length);
     pos[4]= (uchar) key->user_defined_key_parts;
     pos[5]= (uchar) key->algorithm;
@@ -654,7 +654,7 @@ static uint pack_keys(uchar *keybuff, uint key_count, KEY *keyinfo,
   {
     if (key->flags & HA_USES_COMMENT)
     {
-      int2store(pos, key->comment.length);
+      int2store(pos, static_cast<uint16>(key->comment.length));
       uchar *tmp= (uchar*)my_stpnmov((char*) pos+2,key->comment.str,
                                      key->comment.length);
       pos= tmp;
@@ -815,10 +815,10 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   forminfo[256] = (uint8) screens;
   int2store(forminfo+258,create_fields.elements);
   int2store(forminfo+260,info_length);
-  int2store(forminfo+262,totlength);
+  int2store(forminfo+262, static_cast<uint16>(totlength));
   int2store(forminfo+264,no_empty);
-  int2store(forminfo+266,reclength);
-  int2store(forminfo+268,n_length);
+  int2store(forminfo+266, static_cast<uint16>(reclength));
+  int2store(forminfo+268, static_cast<uint16>(n_length));
   int2store(forminfo+270,int_count);
   int2store(forminfo+272,int_parts);
   int2store(forminfo+274,int_length);
@@ -826,7 +826,7 @@ static bool pack_header(uchar *forminfo, enum legacy_db_type table_type,
   int2store(forminfo+278,80);			/* Columns needed */
   int2store(forminfo+280,22);			/* Rows needed */
   int2store(forminfo+282,null_fields);
-  int2store(forminfo+284,com_length);
+  int2store(forminfo+284, static_cast<uint16>(com_length));
   /* Up to forminfo+288 is free to use for additional information */
   DBUG_RETURN(0);
 } /* pack_header */
@@ -866,7 +866,8 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
                         ulong data_offset)
 {
   uint i;
-  uint int_count, comment_length=0;
+  uint int_count;
+  size_t comment_length= 0;
   uchar buff[MAX_FIELD_WIDTH];
   Create_field *field;
   DBUG_ENTER("pack_fields");
@@ -882,7 +883,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     buff[0]= (uchar) field->row;
     buff[1]= (uchar) field->col;
     buff[2]= (uchar) field->sc_length;
-    int2store(buff+3, field->length);
+    int2store(buff+3, static_cast<uint16>(field->length));
     /* The +1 is here becasue the col offset in .frm file have offset 1 */
     recpos= field->offset+1 + (uint) data_offset;
     int3store(buff+5,recpos);
@@ -904,7 +905,7 @@ static bool pack_fields(File file, List<Create_field> &create_fields,
     {
       buff[11]= buff[14]= 0;			// Numerical
     }
-    int2store(buff+15, field->comment.length);
+    int2store(buff+15, static_cast<uint16>(field->comment.length));
     comment_length+= field->comment.length;
     set_if_bigger(int_count,field->interval_id);
     if (mysql_file_write(file, buff, FCOMP, MYF_RW))

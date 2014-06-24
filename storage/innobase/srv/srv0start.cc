@@ -189,7 +189,8 @@ srv_file_check_mode(
 
 	memset(&stat, 0x0, sizeof(stat));
 
-	dberr_t		err = os_file_get_status(name, &stat, true);
+	dberr_t		err = os_file_get_status(
+		name, &stat, true, srv_read_only_mode);
 
 	if (err == DB_FAIL) {
 
@@ -312,7 +313,7 @@ create_log_file(
 	*file = os_file_create(
 		innodb_log_file_key, name,
 		OS_FILE_CREATE|OS_FILE_ON_ERROR_NO_EXIT, OS_FILE_NORMAL,
-		OS_LOG_FILE, &ret);
+		OS_LOG_FILE, srv_read_only_mode, &ret);
 
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot create %s", name);
@@ -441,10 +442,10 @@ create_log_files(
 	fil_open_log_and_system_tablespace_files();
 
 	/* Create a log checkpoint. */
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	ut_d(recv_no_log_write = FALSE);
 	recv_reset_logs(lsn);
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	return(DB_SUCCESS);
 }
@@ -476,7 +477,7 @@ create_log_files_rename(
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Renaming log file %s to %s", logfile0, logfilename);
 
-	mutex_enter(&log_sys->mutex);
+	log_mutex_enter();
 	ut_ad(strlen(logfile0) == 2 + strlen(logfilename));
 	bool success = os_file_rename(
 		innodb_log_file_key, logfile0, logfilename);
@@ -486,7 +487,7 @@ create_log_files_rename(
 
 	/* Replace the first file with ib_logfile0. */
 	strcpy(logfile0, logfilename);
-	mutex_exit(&log_sys->mutex);
+	log_mutex_exit();
 
 	fil_open_log_and_system_tablespace_files();
 
@@ -508,7 +509,7 @@ open_log_file(
 
 	*file = os_file_create(innodb_log_file_key, name,
 			       OS_FILE_OPEN, OS_FILE_AIO,
-			       OS_LOG_FILE, &ret);
+			       OS_LOG_FILE, srv_read_only_mode, &ret);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "Unable to open '%s'", name);
 		return(DB_ERROR);
@@ -541,7 +542,7 @@ srv_undo_tablespace_create(
 		innodb_data_file_key,
 		name,
 		srv_read_only_mode ? OS_FILE_OPEN : OS_FILE_CREATE,
-		OS_FILE_NORMAL, OS_DATA_FILE, &ret);
+		OS_FILE_NORMAL, OS_DATA_FILE, srv_read_only_mode, &ret);
 
 	if (srv_read_only_mode && ret) {
 		ib_logf(IB_LOG_LEVEL_INFO,
@@ -614,6 +615,7 @@ srv_undo_tablespace_open(
 		| OS_FILE_ON_ERROR_SILENT,
 		OS_FILE_NORMAL,
 		OS_DATA_FILE,
+		srv_read_only_mode,
 		&ret);
 
 	/* If the file open was successful then load the tablespace. */
@@ -693,6 +695,7 @@ srv_check_undo_redo_logs_exists()
 			| OS_FILE_ON_ERROR_SILENT,
 			OS_FILE_NORMAL,
 			OS_DATA_FILE,
+			srv_read_only_mode,
 			&ret);
 
 		if (ret) {
@@ -723,6 +726,7 @@ srv_check_undo_redo_logs_exists()
 			| OS_FILE_ON_ERROR_SILENT,
 			OS_FILE_NORMAL,
 			OS_LOG_FILE,
+			srv_read_only_mode,
 			&ret);
 
 		if (ret) {
@@ -968,16 +972,13 @@ srv_open_tmp_tablespace(
 /*====================*/
 	SysTablespace*	tmp_space)	/*!< in/out: SysTablespace */
 {
-	if (srv_read_only_mode) {
-		return(DB_SUCCESS);
-	}
-
 	ulint	sum_of_new_sizes;
 
 	/* Will try to remove if there is existing file left-over by last
 	unclean shutdown */
 	tmp_space->set_sanity_check_status(true);
 	tmp_space->delete_files();
+	tmp_space->set_ignore_read_only(true);
 
 	ib_logf(IB_LOG_LEVEL_INFO,
 		"Creating shared tablespace for temporary tables");
@@ -1187,6 +1188,10 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_read_only_mode) {
 		ib_logf(IB_LOG_LEVEL_INFO, "Started in read only mode");
+
+		/* There is no write except to intrinsic table and so turn-off
+		doublewrite mechanism completely. */
+		srv_use_doublewrite_buf = FALSE;
 	}
 
 	ib_logf(IB_LOG_LEVEL_INFO,
@@ -1238,18 +1243,26 @@ innobase_start_or_create_for_mysql(void)
 #endif /* UNIV_LOG_LSN_DEBUG */
 
 #if defined(COMPILER_HINTS_ENABLED)
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compiler hints enabled.");
+	ib_logf(IB_LOG_LEVEL_INFO, "Compiler hints enabled.");
 #endif /* defined(COMPILER_HINTS_ENABLED) */
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" IB_ATOMICS_STARTUP_MSG "");
+	ib_logf(IB_LOG_LEVEL_INFO, IB_ATOMICS_STARTUP_MSG);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"" MUTEX_TYPE"");
+	ib_logf(IB_LOG_LEVEL_INFO, MUTEX_TYPE);
 
-	ib_logf(IB_LOG_LEVEL_INFO,
-		"Compressed tables use zlib " ZLIB_VERSION
+	ib_logf(IB_LOG_LEVEL_INFO, IB_MEMORY_BARRIER_STARTUP_MSG);
+
+#ifndef HAVE_MEMORY_BARRIER
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64
+#else
+	ib_logf(IB_LOG_LEVEL_WARN,
+		"MySQL was built without a memory barrier capability on this"
+		" architecture, which might allow a mutex/rw_lock violation"
+		" under high thread concurrency. This may cause a hang.");
+#endif /* IA32 or AMD64 */
+#endif /* HAVE_MEMORY_BARRIER */
+
+	ib_logf(IB_LOG_LEVEL_INFO, "Compressed tables use zlib " ZLIB_VERSION
 #ifdef UNIV_ZIP_DEBUG
 	      " with validation"
 #endif /* UNIV_ZIP_DEBUG */
@@ -1257,7 +1270,6 @@ innobase_start_or_create_for_mysql(void)
 #ifdef UNIV_ZIP_COPY
 	ib_logf(IB_LOG_LEVEL_INFO, "and extra copying");
 #endif /* UNIV_ZIP_COPY */
-
 
 	/* Since InnoDB does not currently clean up all its internal data
 	structures in MySQL Embedded Server Library server_end(), we
@@ -1274,11 +1286,6 @@ innobase_start_or_create_for_mysql(void)
 	}
 
 	srv_start_has_been_called = TRUE;
-
-#ifdef UNIV_DEBUG
-	log_do_write = TRUE;
-#endif /* UNIV_DEBUG */
-	/*	yydebug = TRUE; */
 
 	srv_is_being_started = true;
 	srv_startup_is_before_trx_rollback_phase = TRUE;
@@ -1323,11 +1330,8 @@ innobase_start_or_create_for_mysql(void)
 
 	if (srv_file_flush_method_str == NULL) {
 		/* These are the default options */
-
-		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-
-		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 #ifndef _WIN32
+		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "fsync")) {
 		srv_unix_file_flush_method = SRV_UNIX_FSYNC;
 
@@ -1346,6 +1350,7 @@ innobase_start_or_create_for_mysql(void)
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "nosync")) {
 		srv_unix_file_flush_method = SRV_UNIX_NOSYNC;
 #else
+		srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
 	} else if (0 == ut_strcmp(srv_file_flush_method_str, "normal")) {
 		srv_win_file_flush_method = SRV_WIN_IO_NORMAL;
 		srv_use_native_aio = FALSE;
@@ -1505,16 +1510,14 @@ innobase_start_or_create_for_mysql(void)
 
 	/* Now overwrite the value on srv_n_file_io_threads */
 	srv_n_file_io_threads = srv_n_read_io_threads;
+	srv_n_file_io_threads += srv_n_write_io_threads;
 
 	if (!srv_read_only_mode) {
 		/* Add the log and ibuf IO threads. */
 		srv_n_file_io_threads += 2;
-		srv_n_file_io_threads += srv_n_write_io_threads;
 	} else {
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Disabling background IO write threads.");
-
-		srv_n_write_io_threads = 0;
+			"Disabling background log and ibuf IO write threads.");
 	}
 
 	ut_a(srv_n_file_io_threads <= SRV_MAX_N_IO_THREADS);
@@ -1592,6 +1595,11 @@ innobase_start_or_create_for_mysql(void)
 	recv_sys_init(buf_pool_get_curr_size());
 	lock_sys_create(srv_lock_table_size);
 	srv_start_state_set(SRV_START_STATE_LOCK_SYS);
+
+#ifdef UNIV_SYNC_DEBUG
+	/* Switch latching order checks on in sync0debug.cc */
+	sync_check_enable();
+#endif /* UNIV_SYNC_DEBUG */
 
 	/* Create i/o-handler threads: */
 
@@ -1708,7 +1716,8 @@ innobase_start_or_create_for_mysql(void)
 				"ib_logfile%u", i);
 
 			err = os_file_get_status(
-				logfilename, &stat_info, false);
+				logfilename, &stat_info, false,
+				srv_read_only_mode);
 
 			if (err == DB_NOT_FOUND) {
 				if (i == 0) {
@@ -1917,10 +1926,6 @@ files_checked:
 
 		create_log_files_rename(
 			logfilename, dirnamelen, max_flushed_lsn, logfile0);
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc. */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 	} else {
 
@@ -1965,24 +1970,41 @@ files_checked:
 		err = recv_recovery_from_checkpoint_start(
 			min_flushed_lsn, max_flushed_lsn);
 
-		if (err != DB_SUCCESS) {
+		if (err == DB_SUCCESS) {
+			/* Initialize the change buffer. */
+			err = dict_boot();
+		}
 
+		if (err != DB_SUCCESS) {
 			return(srv_init_abort(DB_ERROR));
 		}
 
-		/* Since the insert buffer init is in dict_boot, and the
-		insert buffer is needed in any disk i/o, first we call
-		dict_boot(). Note that trx_sys_init_at_db_start() only needs
-		to access space 0, and the insert buffer at this stage already
-		works for space 0. */
+		purge_queue = trx_sys_init_at_db_start();
 
-		err = dict_boot();
+		if (srv_force_recovery < SRV_FORCE_NO_LOG_REDO) {
+			/* Apply the hashed log records to the
+			respective file pages, for the last batch of
+			recv_group_scan_log_recs(). */
 
-		if (err != DB_SUCCESS) {
-			return(srv_init_abort(err));
+			recv_apply_hashed_log_recs(TRUE);
+			DBUG_PRINT("ib_log", ("apply completed"));
+
+			if (recv_needed_recovery) {
+				trx_sys_print_mysql_binlog_offset();
+			}
 		}
 
-		purge_queue = trx_sys_init_at_db_start();
+		if (recv_sys->found_corrupt_log) {
+			ib_logf(IB_LOG_LEVEL_WARN,
+				"The log file may have been corrupt and it"
+				" is possible that the log scan or parsing"
+				" did not proceed far enough in recovery."
+				" Please run CHECK TABLE on your InnoDB tables"
+				" to check that they are ok!"
+				" It may be safest to recover your"
+				" InnoDB database from a backup!");
+		}
+
 		n_recovered_trx = UT_LIST_GET_LEN(trx_sys->rw_trx_list);
 
 		/* The purge system needs to create the purge view and
@@ -2003,8 +2025,8 @@ files_checked:
 
 			In a crash recovery, we check that the info in data
 			dictionary is consistent with what we already know
-			about space id's from the call of
-			fil_load_single_table_tablespaces().
+			about space id's from the calls to
+			fil_load_single_table_tablespace().
 
 			In a normal startup, we create the space objects for
 			every table in the InnoDB data dictionary that has
@@ -2013,9 +2035,7 @@ files_checked:
 			We also determine the maximum tablespace id used. */
 			dict_check_t	dict_check;
 
-			if (recv_needed_recovery) {
-				dict_check = DICT_CHECK_ALL_LOADED;
-			} else if (n_recovered_trx) {
+			if (recv_needed_recovery || n_recovered_trx) {
 				dict_check = DICT_CHECK_SOME_LOADED;
 			} else {
 				dict_check = DICT_CHECK_NONE_LOADED;
@@ -2051,7 +2071,11 @@ files_checked:
 
 			RECOVERY_CRASH(1);
 
-			min_flushed_lsn = max_flushed_lsn = log_get_lsn();
+			log_mutex_enter();
+
+			fil_names_clear(log_sys->lsn, false);
+
+			min_flushed_lsn = max_flushed_lsn = log_sys->lsn;
 
 			ib_logf(IB_LOG_LEVEL_WARN,
 				"Resizing redo log from %u*%u to %u*%u pages"
@@ -2063,7 +2087,9 @@ files_checked:
 				max_flushed_lsn);
 
 			/* Flush the old log files. */
-			log_buffer_flush_to_disk();
+			log_mutex_exit();
+
+			log_write_up_to(max_flushed_lsn, true);
 
 			/* If innodb_flush_method=O_DSYNC,
 			we need to explicitly flush the log buffers. */
@@ -2114,11 +2140,6 @@ files_checked:
 		}
 
 		srv_startup_is_before_trx_rollback_phase = FALSE;
-
-#ifdef UNIV_SYNC_DEBUG
-		/* Switch latching order checks on in sync0debug.cc */
-		sync_check_enable();
-#endif /* UNIV_SYNC_DEBUG */
 
 		recv_recovery_rollback_active();
 
@@ -2185,11 +2206,6 @@ files_checked:
 		/* Can only happen if server is read only. */
 		ut_a(srv_read_only_mode);
 		srv_undo_logs = ULONG_UNDEFINED;
-	}
-
-	/* Flush the changes made to TRX_SYS_PAGE by trx_sys_create_rsegs()*/
-	if (!srv_force_recovery && !srv_read_only_mode) {
-		buf_flush_sync_all_buf_pools();
 	}
 
 	if (!srv_read_only_mode) {
@@ -2264,16 +2280,16 @@ files_checked:
 		purge_sys->state = PURGE_STATE_DISABLED;
 	}
 
-	if (!srv_read_only_mode) {
-		buf_flush_page_cleaner_init();
+	/* Even in read-only mode there could be flush job generated by
+	intrinsic table operations. */
+	buf_flush_page_cleaner_init();
 
-		os_thread_create(buf_flush_page_cleaner_coordinator,
+	os_thread_create(buf_flush_page_cleaner_coordinator,
+			 NULL, NULL);
+
+	for (i = 1; i < srv_n_page_cleaners; ++i) {
+		os_thread_create(buf_flush_page_cleaner_worker,
 				 NULL, NULL);
-
-		for (i = 1; i < srv_n_page_cleaners; ++i) {
-			os_thread_create(buf_flush_page_cleaner_worker,
-					 NULL, NULL);
-		}
 	}
 
 	sum_of_data_file_sizes = srv_sys_space.get_sum_of_sizes();
@@ -2372,9 +2388,9 @@ files_checked:
 	}
 
 	if (srv_print_verbose_log) {
-		ib_logf(IB_LOG_LEVEL_INFO,
-			"%s started; log sequence number " LSN_PF "",
-			INNODB_VERSION_STR, srv_start_lsn);
+		ib::info() << INNODB_VERSION_STR
+			<< " started; log sequence number "
+			<< srv_start_lsn;
 	}
 
 	if (srv_force_recovery > 0) {

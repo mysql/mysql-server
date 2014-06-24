@@ -1,6 +1,4 @@
-SET storage_engine=ndbcluster;
-Warnings:
-Warning	1287	'@@storage_engine' is deprecated and will be removed in a future release. Please use '@@default_storage_engine' instead
+SET default_storage_engine=ndbcluster;
 SET ndb_use_exact_count=1;
 DROP TABLE IF EXISTS t1, gis_point, gis_line, gis_polygon, gis_multi_point, gis_multi_line, gis_multi_polygon, gis_geometrycollection, gis_geometry;
 CREATE TABLE gis_point  (fid INTEGER PRIMARY KEY AUTO_INCREMENT, g POINT);

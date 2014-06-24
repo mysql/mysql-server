@@ -265,7 +265,7 @@ public:
 
   time_t last_heartbeat;
 
-  Dynamic_ids *ignore_server_ids;
+  Server_ids *ignore_server_ids;
 
   ulong master_id;
   /*

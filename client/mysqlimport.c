@@ -35,8 +35,8 @@
 /* Global Thread counter */
 uint counter;
 #ifdef HAVE_LIBPTHREAD
-pthread_mutex_t counter_mutex;
-pthread_cond_t count_threshhold;
+native_mutex_t counter_mutex;
+native_cond_t count_threshold;
 #endif
 
 static void db_error_with_table(MYSQL *mysql, char *table);
@@ -84,6 +84,15 @@ static struct my_option my_long_options[] =
   {"compress", 'C', "Use compression in server/client protocol.",
    &opt_compress, &opt_compress, 0, GET_BOOL, NO_ARG, 0, 0, 0,
    0, 0, 0},
+#ifdef DBUG_OFF
+   {"debug", '#', "This is a non-debug version. Catch this and exit.",
+   0, 0, 0, GET_DISABLED, OPT_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-check", OPT_DEBUG_CHECK, "This is a non-debug version. Catch this and exit.",
+   0, 0, 0,
+   GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+   {"debug-info", OPT_DEBUG_INFO, "This is a non-debug version. Catch this and exit.", 0,
+   0, 0, GET_DISABLED, NO_ARG, 0, 0, 0, 0, 0, 0},
+#else
   {"debug",'#', "Output debug log. Often this is 'd:t:o,filename'.", 0, 0, 0,
    GET_STR, OPT_ARG, 0, 0, 0, 0, 0, 0},
   {"debug-check", OPT_DEBUG_CHECK, "Check memory and open file usage at exit.",
@@ -92,6 +101,7 @@ static struct my_option my_long_options[] =
   {"debug-info", OPT_DEBUG_INFO, "Print some debug info at exit.",
    &debug_info_flag, &debug_info_flag,
    0, GET_BOOL, NO_ARG, 0, 0, 0, 0, 0, 0},
+#endif
   {"default_auth", OPT_DEFAULT_AUTH,
    "Default authentication client-side plugin to use.",
    &opt_default_auth, &opt_default_auth, 0,
@@ -318,7 +328,7 @@ static int write_to_table(char *filename, MYSQL *mysql)
   {
     if (verbose)
       fprintf(stdout, "Deleting the old data from table %s\n", tablename);
-    snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
+    my_snprintf(sql_statement, FN_REFLEN*16+256, "DELETE FROM %s", tablename);
     if (mysql_query(mysql, sql_statement))
     {
       db_error_with_table(mysql, tablename);
@@ -584,10 +594,10 @@ error:
   if (mysql)
     db_disconnect(current_host, mysql);
 
-  pthread_mutex_lock(&counter_mutex);
+  native_mutex_lock(&counter_mutex);
   counter--;
-  pthread_cond_signal(&count_threshhold);
-  pthread_mutex_unlock(&counter_mutex);
+  native_cond_signal(&count_threshold);
+  native_mutex_unlock(&counter_mutex);
   mysql_thread_end();
 
   return 0;
@@ -623,29 +633,29 @@ int main(int argc, char **argv)
     pthread_attr_setdetachstate(&attr,
                                 PTHREAD_CREATE_DETACHED);
 
-    pthread_mutex_init(&counter_mutex, NULL);
-    pthread_cond_init(&count_threshhold, NULL);
+    native_mutex_init(&counter_mutex, NULL);
+    native_cond_init(&count_threshold);
 
     for (counter= 0; *argv != NULL; argv++) /* Loop through tables */
     {
-      pthread_mutex_lock(&counter_mutex);
+      native_mutex_lock(&counter_mutex);
       while (counter == opt_use_threads)
       {
         struct timespec abstime;
 
         set_timespec(abstime, 3);
-        pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
+        native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
       }
       /* Before exiting the lock we set ourselves up for the next thread */
       counter++;
-      pthread_mutex_unlock(&counter_mutex);
+      native_mutex_unlock(&counter_mutex);
       /* now create the thread */
       if (pthread_create(&mainthread, &attr, worker_thread, 
                          (void *)*argv) != 0)
       {
-        pthread_mutex_lock(&counter_mutex);
+        native_mutex_lock(&counter_mutex);
         counter--;
-        pthread_mutex_unlock(&counter_mutex);
+        native_mutex_unlock(&counter_mutex);
         fprintf(stderr,"%s: Could not create thread\n",
                 my_progname);
       }
@@ -654,17 +664,17 @@ int main(int argc, char **argv)
     /*
       We loop until we know that all children have cleaned up.
     */
-    pthread_mutex_lock(&counter_mutex);
+    native_mutex_lock(&counter_mutex);
     while (counter)
     {
       struct timespec abstime;
 
       set_timespec(abstime, 3);
-      pthread_cond_timedwait(&count_threshhold, &counter_mutex, &abstime);
+      native_cond_timedwait(&count_threshold, &counter_mutex, &abstime);
     }
-    pthread_mutex_unlock(&counter_mutex);
-    pthread_mutex_destroy(&counter_mutex);
-    pthread_cond_destroy(&count_threshhold);
+    native_mutex_unlock(&counter_mutex);
+    native_mutex_destroy(&counter_mutex);
+    native_cond_destroy(&count_threshold);
     pthread_attr_destroy(&attr);
   }
   else

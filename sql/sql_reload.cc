@@ -1,4 +1,4 @@
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -138,35 +138,55 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
   if (options & REFRESH_ENGINE_LOG)
     if (ha_flush_logs(NULL))
       result= 1;
-
-  if (options & REFRESH_BINARY_LOG)
+  if ((options & REFRESH_BINARY_LOG) || (options & REFRESH_RELAY_LOG ))
   {
     /*
-      Writing this command to the binlog may result in infinite loops
-      when doing mysqlbinlog|mysql, and anyway it does not really make
-      sense to log it automatically (would cause more trouble to users
-      than it would help them)
-    */
-    tmp_write_to_binlog= 0;
-    if (mysql_bin_log.is_open())
+      If reload_acl_and_cache() is called from SIGHUP handler we have to
+      allocate temporary THD for execution of binlog/relay log rotation.
+     */
+    THD *tmp_thd= 0;
+    if (!thd && (thd= (tmp_thd= new THD)))
     {
-      if (mysql_bin_log.rotate_and_purge(true))
-        *write_to_binlog= -1;
+      thd->thread_stack= (char *) (&tmp_thd);
+      thd->store_globals();
     }
-  }
-  if (options & REFRESH_RELAY_LOG)
-  {
+
+    if (options & REFRESH_BINARY_LOG)
+    {
+      /*
+        Writing this command to the binlog may result in infinite loops
+        when doing mysqlbinlog|mysql, and anyway it does not really make
+        sense to log it automatically (would cause more trouble to users
+        than it would help them)
+       */
+      tmp_write_to_binlog= 0;
+      if (mysql_bin_log.is_open())
+      {
+        if (mysql_bin_log.rotate_and_purge(true))
+          *write_to_binlog= -1;
+      }
+    }
+    if (options & REFRESH_RELAY_LOG)
+    {
 #ifdef HAVE_REPLICATION
-    mysql_mutex_lock(&LOCK_active_mi);
-    if (active_mi != NULL)
-    {
-      mysql_mutex_lock(&active_mi->data_lock);
-      if (rotate_relay_log(active_mi))
-        *write_to_binlog= -1;
-      mysql_mutex_unlock(&active_mi->data_lock);
-    }
-    mysql_mutex_unlock(&LOCK_active_mi);
+      mysql_mutex_lock(&LOCK_active_mi);
+      if (active_mi != NULL)
+      {
+        mysql_mutex_lock(&active_mi->data_lock);
+        if (rotate_relay_log(active_mi))
+          *write_to_binlog= -1;
+        mysql_mutex_unlock(&active_mi->data_lock);
+      }
+      mysql_mutex_unlock(&LOCK_active_mi);
 #endif
+    }
+    if (tmp_thd)
+    {
+      delete tmp_thd;
+      /* Remember that we don't have a THD */
+      my_pthread_setspecific_ptr(THR_THD,  0);
+      thd= 0;
+    }
   }
   if (options & REFRESH_QUERY_CACHE_FREE)
   {
@@ -250,8 +270,8 @@ bool reload_acl_and_cache(THD *thd, unsigned long options,
             global read lock.
           */
           if (thd->open_tables &&
-              !thd->mdl_context.is_lock_owner(MDL_key::GLOBAL, "", "",
-                                              MDL_INTENTION_EXCLUSIVE))
+              !thd->mdl_context.owns_equal_or_stronger_lock(MDL_key::GLOBAL,
+                                  "", "", MDL_INTENTION_EXCLUSIVE))
           {
             my_error(ER_TABLE_NOT_LOCKED_FOR_WRITE, MYF(0),
                      thd->open_tables->s->table_name.str);
@@ -526,6 +546,10 @@ bool flush_tables_for_export(THD *thd, TABLE_LIST *all_tables)
     Acquire SNW locks on tables to be exported. Don't acquire
     global IX as this will make this statement incompatible
     with FLUSH TABLES WITH READ LOCK.
+    We can't acquire SRO locks instead of SNW locks as it will
+    make two concurrent FLUSH TABLE ... FOR EXPORT statements
+    for the same table possible, which creates race between
+    creation/deletion of metadata file.
   */
   if (open_and_lock_tables(thd, all_tables, false,
                            MYSQL_OPEN_SKIP_SCOPED_MDL_LOCK,

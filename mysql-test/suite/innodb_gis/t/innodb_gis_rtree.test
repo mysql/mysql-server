@@ -1,0 +1,209 @@
+# WL#6745 InnoDB R-tree support
+# This test case will test basic R-tree support features.
+
+# Not supported in embedded
+--source include/not_embedded.inc
+
+--source include/have_innodb.inc
+
+# Create table with R-tree index.
+create table t1 (i int, g geometry not null, spatial index (g))engine=innodb;
+
+# Insert values.
+insert into t1 values (1, POINT(1,1));
+insert into t1 values (1, POINT(1.5,1.5));
+insert into t1 values (1, POINT(3,3));
+insert into t1 values (1, POINT(3.1,3.1));
+insert into t1 values (1, POINT(5,5));
+
+# Select by R-tree index.
+set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+explain select astext(t1.g) from t1 where Within(t1.g, @g1);
+select astext(t1.g) from t1 where Within(t1.g, @g1);
+
+# Delete values.
+set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+delete from t1 where Within(t1.g, @g1);
+check table t1;
+
+select astext(t1.g) from t1;
+
+# Update values.
+set @g1 = GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
+update t1 set g = POINT(2,2) where Within(t1.g, @g1);
+check table t1;
+
+select astext(t1.g) from t1;
+
+# Show index.
+--replace_column 7 #
+show indexes from t1;
+
+# Cleanup.
+drop table t1;
+
+# Test functions.
+create table t1 (name VARCHAR(100), square GEOMETRY not null, spatial index (square))engine=innodb;
+
+
+INSERT INTO t1 VALUES("small",  GeomFromText('POLYGON (( 0 0, 0 1, 1 1, 1 0, 0 0))'));
+INSERT INTO t1 VALUES("big",    GeomFromText('POLYGON (( 0 0, 0 3, 3 3, 3 0, 0 0))'));
+
+INSERT INTO t1 VALUES("up",     GeomFromText('POLYGON (( 0 1, 0 3, 2 3, 2 1, 0 1))'));
+INSERT INTO t1 VALUES("up2",    GeomFromText('POLYGON (( 0 2, 0 4, 2 4, 2 2, 0 2))'));
+INSERT INTO t1 VALUES("up3",    GeomFromText('POLYGON (( 0 3, 0 5, 2 5, 2 3, 0 3))'));
+
+INSERT INTO t1 VALUES("down",   GeomFromText('POLYGON (( 0 -1, 0  1, 2  1, 2 -1, 0 -1))'));
+INSERT INTO t1 VALUES("down2",  GeomFromText('POLYGON (( 0 -2, 0  0, 2  0, 2 -2, 0 -2))'));
+INSERT INTO t1 VALUES("down3",  GeomFromText('POLYGON (( 0 -3, 0 -1, 2 -1, 2 -3, 0 -3))'));
+
+INSERT INTO t1 VALUES("right",  GeomFromText('POLYGON (( 1 0, 1 2, 3 2, 3 0, 1 0))'));
+INSERT INTO t1 VALUES("right2", GeomFromText('POLYGON (( 2 0, 2 2, 4 2, 4 0, 2 0))'));
+INSERT INTO t1 VALUES("right3", GeomFromText('POLYGON (( 3 0, 3 2, 5 2, 5 0, 3 0))'));
+
+INSERT INTO t1 VALUES("left",   GeomFromText('POLYGON (( -1 0, -1 2,  1 2,  1 0, -1 0))'));
+INSERT INTO t1 VALUES("left2",  GeomFromText('POLYGON (( -2 0, -2 2,  0 2,  0 0, -2 0))'));
+INSERT INTO t1 VALUES("left3",  GeomFromText('POLYGON (( -3 0, -3 2, -1 2, -1 0, -3 0))'));
+
+SET @p = GeomFromText('POLYGON (( 0 0, 0 2, 2 2, 2 0, 0 0))');
+SELECT name, AsText(square) from t1 where MBRContains(@p, square);
+SELECT name, AsText(square) from t1 where MBRDisjoint(@p, square);
+SELECT name, AsText(square) from t1 where MBREqual(@p, square);
+SELECT name, AsText(square) from t1 where MBRIntersects(@p, square);
+SELECT name, AsText(square) from t1 where MBROverlaps(@p, square);
+SELECT name, AsText(square) from t1 where MBRTouches(@p, square);
+SELECT name, AsText(square) from t1 where MBRWithin(@p, square);
+
+SELECT name, AsText(square) from t1 where Contains(@p, square);
+SELECT name, AsText(square) from t1 where Disjoint(@p, square);
+SELECT name, AsText(square) from t1 where Equals(@p, square);
+SELECT name, AsText(square) from t1 where Intersects(@p, square);
+SELECT name, AsText(square) from t1 where Overlaps(@p, square);
+SELECT name, AsText(square) from t1 where Touches(@p, square);
+SELECT name, AsText(square) from t1 where Within(@p, square);
+
+# Overlaps needs a few more tests, with point and line dimensions
+
+SET @vert1   = GeomFromText('POLYGON ((0 -2, 0 2, 0 -2))');
+SET @horiz1  = GeomFromText('POLYGON ((-2 0, 2 0, -2 0))');
+SET @horiz2 = GeomFromText('POLYGON ((-1 0, 3 0, -1 0))');
+SET @horiz3 = GeomFromText('POLYGON ((2 0, 3 0, 2 0))');
+SET @point1 = GeomFromText('POLYGON ((0 0))');
+SET @point2 = GeomFromText('POLYGON ((-2 0))');
+
+SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS overlaps FROM t1 a1 WHERE Overlaps(a1.square, @vert1) GROUP BY a1.name;
+SELECT GROUP_CONCAT(a1.name ORDER BY a1.name) AS overlaps FROM t1 a1 WHERE Overlaps(a1.square, @horiz1) GROUP BY a1.name;
+SELECT Overlaps(@horiz1, @vert1) FROM DUAL;
+SELECT Overlaps(@horiz1, @horiz2) FROM DUAL;
+SELECT Overlaps(@horiz1, @horiz3) FROM DUAL;
+SELECT Overlaps(@horiz1, @point1) FROM DUAL;
+SELECT Overlaps(@horiz1, @point2) FROM DUAL;
+
+DROP TABLE t1;
+
+# Inplace create spatial index is not supported
+create table t1 (i int not null, g geometry not null)engine=innodb;
+
+# Insert values.
+insert into t1 values (1, POINT(1,1));
+insert into t1 values (2, POINT(1.5,1.5));
+insert into t1 values (3, POINT(3,3));
+insert into t1 values (4, POINT(3.1,3.1));
+insert into t1 values (5, POINT(5,5));
+
+alter table t1 add primary key(i), algorithm=inplace;
+alter table t1 drop primary key;
+
+create spatial index idx on t1(g) algorithm=inplace;
+
+create spatial index idx2 on t1(g);
+
+alter table t1 add primary key(i), algorithm=inplace;
+
+show create table t1;
+
+drop index idx on t1;
+
+drop table t1;
+
+#Test multi pk table.
+create table t1 (i int, i2 char(10), g geometry not null, primary key (i, i2), spatial index (g))engine=innodb;
+
+# Insert values.
+insert into t1 values (1, "111", POINT(1,1));
+insert into t1 values (2, "222", POINT(1.5,1.5));
+insert into t1 values (3, "333", POINT(3,3));
+insert into t1 values (4, "444", POINT(3.1,3.1));
+insert into t1 values (5, "555", POINT(5,5));
+
+# Select by R-tree index.
+set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+explain select astext(t1.g) from t1 where Within(t1.g, @g1);
+select astext(t1.g) from t1 where Within(t1.g, @g1);
+
+# Delete values.
+set @g1 = GeomFromText('Polygon((0 0,0 3,3 3,3 0,0 0))');
+delete from t1 where Within(t1.g, @g1);
+check table t1;
+
+select astext(t1.g) from t1;
+
+# Update values.
+set @g1 = GeomFromText('Polygon((5 5,5 5,5 5,5 5,5 5))');
+update t1 set g = POINT(2,2) where Within(t1.g, @g1);
+check table t1;
+
+select astext(t1.g) from t1;
+
+# Show index.
+--replace_column 7 #
+show indexes from t1;
+
+# Cleanup.
+drop table t1;
+
+CREATE TABLE `t1` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `way` geometry NOT NULL,
+  PRIMARY KEY (`id`),
+  SPATIAL KEY `way` (`way`)
+) ENGINE=InnoDB;
+
+INSERT INTO t1 SET way = GeomFromText('POINT(1 1)');
+INSERT INTO t1 SET way = GeomFromText('POINT(1 2)');
+INSERT INTO t1 SET way = GeomFromText('POINT(1 3)');
+INSERT INTO t1 SET way = GeomFromText('POINT(1 4)');
+INSERT INTO t1 SET way = GeomFromText('POINT(1 5)');
+INSERT INTO t1 SET way = GeomFromText('POINT(2 1)');
+INSERT INTO t1 SET way = GeomFromText('POINT(2 2)');
+INSERT INTO t1 SET way = GeomFromText('POINT(2 3)');
+INSERT INTO t1 SET way = GeomFromText('POINT(2 4)');
+INSERT INTO t1 SET way = GeomFromText('POINT(2 5)');
+INSERT INTO t1 SET way = GeomFromText('POINT(3 1)');
+INSERT INTO t1 SET way = GeomFromText('POINT(3 2)');
+INSERT INTO t1 SET way = GeomFromText('POINT(3 3)');
+INSERT INTO t1 SET way = GeomFromText('POINT(3 4)');
+INSERT INTO t1 SET way = GeomFromText('POINT(3 5)');
+INSERT INTO t1 SET way = GeomFromText('POINT(4 1)');
+INSERT INTO t1 SET way = GeomFromText('POINT(4 2)');
+INSERT INTO t1 SET way = GeomFromText('POINT(4 3)');
+INSERT INTO t1 SET way = GeomFromText('POINT(4 4)');
+INSERT INTO t1 SET way = GeomFromText('POINT(4 5)');
+INSERT INTO t1 SET way = GeomFromText('POINT(5 1)');
+INSERT INTO t1 SET way = GeomFromText('POINT(5 2)');
+INSERT INTO t1 SET way = GeomFromText('POINT(5 3)');
+INSERT INTO t1 SET way = GeomFromText('POINT(5 4)');
+INSERT INTO t1 SET way = GeomFromText('POINT(5 5)');
+
+SELECT COUNT(*)
+  FROM t1
+ WHERE ST_CONTAINS(GeomFromText('POLYGON((2 2,4 2, 4 4, 2 4, 2 2))'),way);
+
+OPTIMIZE TABLE t1;
+
+SELECT COUNT(*)
+  FROM t1
+ WHERE ST_CONTAINS(GeomFromText('POLYGON((2 2,4 2, 4 4, 2 4, 2 2))'),way);
+
+
+DROP TABLE t1;

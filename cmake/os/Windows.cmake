@@ -49,11 +49,9 @@ ELSE()
   SET(SYSTEM_TYPE "Win32")
 ENDIF()
 
-ADD_DEFINITIONS("-D_CRT_SECURE_NO_DEPRECATE")
-
-# Target Windows Vista or later, i.e _WIN32_WINNT_VISTA
-ADD_DEFINITIONS("-D_WIN32_WINNT=0x0600")
-SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0600")
+# Target Windows 7 / Windows Server 2008 R2 or later, i.e _WIN32_WINNT_WIN7
+ADD_DEFINITIONS("-D_WIN32_WINNT=0x0601")
+SET(CMAKE_REQUIRED_FLAGS "${CMAKE_REQUIRED_FLAGS} -D_WIN32_WINNT=0x0601")
 
 # Speed up build process excluding unused header files
 ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
@@ -62,39 +60,40 @@ ADD_DEFINITIONS("-DWIN32_LEAN_AND_MEAN")
 ADD_DEFINITIONS("-DNOMINMAX")
   
 # Should be available on Windows Server 2003 and above.
-CHECK_CXX_SOURCE_COMPILES(
-"#include <Windows.h>
-int main() {
-  GetCurrentProcessorNumber();
-  return 0;
-} " HAVE_GETCURRENTPROCESSORNUMBER)
-IF(HAVE_GETCURRENTPROCESSORNUMBER)
- ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
-ENDIF()
+ADD_DEFINITIONS(-DHAVE_GETCURRENTPROCESSORNUMBER=1)
 
 IF(MSVC)
-  # Enable debug info also in Release build, and create PDB to be able to analyze 
-  # crashes
-  FOREACH(lang C CXX)
-    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Zi")
-  ENDFOREACH()
+  # Enable debug info also in Release build,
+  # and create PDB to be able to analyze crashes.
   FOREACH(type EXE SHARED MODULE)
-   SET(CMAKE_{type}_LINKER_FLAGS_RELEASE "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
+   SET(CMAKE_{type}_LINKER_FLAGS_RELEASE
+     "${CMAKE_${type}_LINKER_FLAGS_RELEASE} /debug")
   ENDFOREACH()
   
-  # Force static runtime libraries
-  # Choose C++ exception handling:
-  #   If /EH is not specified, the compiler will catch structured and
-  #   C++ exceptions, but will not destroy C++ objects that will go out of
-  #   scope as a result of the exception.
-  #   /EHsc catches C++ exceptions only and tells the compiler to assume that
-  #   extern C functions never throw a C++ exception.
+  # For release types Debug Release RelWithDebInfo (but not MinSizeRel):
+  # - Force static runtime libraries
+  # - Choose C++ exception handling:
+  #     If /EH is not specified, the compiler will catch structured and
+  #     C++ exceptions, but will not destroy C++ objects that will go out of
+  #     scope as a result of the exception.
+  #     /EHsc catches C++ exceptions only and tells the compiler to assume that
+  #     extern C functions never throw a C++ exception.
+  # - Choose debugging information:
+  #     /Z7
+  #     Produces an .obj file containing full symbolic debugging
+  #     information for use with the debugger. The symbolic debugging
+  #     information includes the names and types of variables, as well as
+  #     functions and line numbers. No .pdb file is produced by the compiler.
+  FOREACH(lang C CXX)
+    SET(CMAKE_${lang}_FLAGS_RELEASE "${CMAKE_${lang}_FLAGS_RELEASE} /Z7")
+  ENDFOREACH()
   FOREACH(flag 
-   CMAKE_C_FLAGS_RELEASE CMAKE_C_FLAGS_RELWITHDEBINFO 
-   CMAKE_C_FLAGS_DEBUG CMAKE_C_FLAGS_DEBUG_INIT 
+   CMAKE_C_FLAGS_RELEASE    CMAKE_C_FLAGS_RELWITHDEBINFO 
+   CMAKE_C_FLAGS_DEBUG      CMAKE_C_FLAGS_DEBUG_INIT 
    CMAKE_CXX_FLAGS_RELEASE  CMAKE_CXX_FLAGS_RELWITHDEBINFO
-   CMAKE_CXX_FLAGS_DEBUG  CMAKE_CXX_FLAGS_DEBUG_INIT)
+   CMAKE_CXX_FLAGS_DEBUG    CMAKE_CXX_FLAGS_DEBUG_INIT)
    STRING(REPLACE "/MD"  "/MT" "${flag}" "${${flag}}")
+   STRING(REPLACE "/Zi"  "/Z7" "${flag}" "${${flag}}")
    SET("${flag}" "${${flag}} /EHsc")
   ENDFOREACH()
   
@@ -111,10 +110,8 @@ IF(MSVC)
   ENDIF()
   
   # Speed up multiprocessor build
-  IF (MSVC_VERSION GREATER 1400)
-    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
-    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
-  ENDIF()
+  SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /MP")
+  SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /MP")
   
   #TODO: update the code and remove the disabled warnings
   SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /wd4800 /wd4805 /wd4996")
@@ -176,43 +173,6 @@ CHECK_SYMBOL_EXISTS(isnan math.h HAVE_ISNAN)
 IF(NOT HAVE_ISNAN)
   CHECK_SYMBOL_REPLACEMENT(isnan _isnan float.h)
 ENDIF()
-
-# See http://msdn.microsoft.com/en-us/library/ms235384.aspx
-# about POSIX functions and their Windows replacements
-
-# Windows replacement functions.
-SET(alloca _alloca)
-SET(finite _finite)
-SET(popen _popen)
-SET(pclose _pclose)
-SET(strcasecmp _stricmp)
-SET(strncasecmp _strnicmp)
-SET(strtoll _strtoi64)
-SET(strtoull _strtoui64)
-SET(snprintf _snprintf)
-SET(vsnprintf _vsnprintf)
-
-# Windows replacement functions where the POSIX name is deprecated.
-SET(access _access)
-SET(chdir _chdir)
-SET(chmod _chmod)
-SET(dup _dup)
-SET(fdopen _fdopen)
-SET(fileno _fileno)
-SET(getcwd _getcwd)
-SET(isatty _isatty)
-SET(mkdir _mkdir)
-SET(putenv _putenv)
-SET(read _read)
-SET(rmdir _rmdir)
-SET(strdup _strdup)
-SET(stricmp _stricmp)
-SET(tzset _tzset)
-SET(umask _umask)
-SET(unlink _unlink)
-
-# Windows security enchanced replacement functions.
-SET(strtok_r strtok_s)
 
 CHECK_TYPE_SIZE(ssize_t SIZE_OF_SSIZE_T)
 IF(NOT HAVE_SIZE_OF_SSIZE_T)

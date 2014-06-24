@@ -23,6 +23,10 @@
 #include <stdio.h>
 #include <string.h>
 
+#ifdef _WIN32
+#define popen _popen
+#define pclose _pclose
+#endif
 
 #define SHOW_VERSION "1.0.0"
 #define PRINT_VERSION do { printf("%s  Ver %s Distrib %s\n",    \
@@ -187,7 +191,7 @@ static char *get_value(char *line, const char *item)
   int item_len= (int)strlen(item);
   int line_len = (int)strlen(line);
 
-  if ((strncasecmp(line, item, item_len) == 0))
+  if ((native_strncasecmp(line, item, item_len) == 0))
   {
     int start= 0;
     char *s= 0;
@@ -265,7 +269,7 @@ static char *convert_path(const char *argument)
   char *winfilename= my_strdup(PSI_NOT_INSTRUMENTED,
                                argument, MYF(MY_FAE));
   char *pos, *end;
-  int length= strlen(argument);
+  size_t length= strlen(argument);
 
   for (pos= winfilename, end= pos+length ; pos < end ; pos++)
   {
@@ -290,11 +294,11 @@ static char *add_quotes(const char *path)
   char windows_cmd_friendly[FN_REFLEN];
 
   if (has_spaces(path))
-    snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
-             "\"%s\"", path);
+    my_snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
+                "\"%s\"", path);
   else
-    snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
-             "%s", path);
+    my_snprintf(windows_cmd_friendly, sizeof(windows_cmd_friendly),
+                "%s", path);
   return my_strdup(PSI_NOT_INSTRUMENTED,
                    windows_cmd_friendly, MYF(MY_FAE));
 }
@@ -343,16 +347,16 @@ static int get_default_values()
       else
         format_str = "%s mysqld > %s";
   
-      snprintf(defaults_cmd, sizeof(defaults_cmd), format_str,
-               add_quotes(tool_path), add_quotes(defaults_file));
+      my_snprintf(defaults_cmd, sizeof(defaults_cmd), format_str,
+                  add_quotes(tool_path), add_quotes(defaults_file));
       if (opt_verbose)
       {
         printf("# my_print_defaults found: %s\n", tool_path);
       }
     }
 #else
-    snprintf(defaults_cmd, sizeof(defaults_cmd),
-             "%s mysqld > %s", tool_path, defaults_file);
+    my_snprintf(defaults_cmd, sizeof(defaults_cmd),
+                "%s mysqld > %s", tool_path, defaults_file);
 #endif
 
     /* Execute the command */
@@ -766,11 +770,11 @@ static int check_options(int argc, char **argv, char *operation)
   
   /* Form prefix strings for the options. */
   const char *basedir_prefix = "--basedir=";
-  int basedir_len= strlen(basedir_prefix);
+  size_t basedir_len= strlen(basedir_prefix);
   const char *datadir_prefix = "--datadir=";
-  int datadir_len= strlen(datadir_prefix);
+  size_t datadir_len= strlen(datadir_prefix);
   const char *plugin_dir_prefix = "--plugin_dir=";
-  int plugin_dir_len= strlen(plugin_dir_prefix);
+  size_t plugin_dir_len= strlen(plugin_dir_prefix);
 
   strcpy(plugin_name, "");
   for (i = 0; i < argc && num_found < 5; i++)
@@ -780,13 +784,13 @@ static int check_options(int argc, char **argv, char *operation)
     {
       continue;
     }
-    if ((strcasecmp(argv[i], "ENABLE") == 0) ||
-        (strcasecmp(argv[i], "DISABLE") == 0))
+    if ((native_strcasecmp(argv[i], "ENABLE") == 0) ||
+        (native_strcasecmp(argv[i], "DISABLE") == 0))
     {
       strcpy(operation, argv[i]);
       num_found++;
     }
-    else if ((strncasecmp(argv[i], basedir_prefix, basedir_len) == 0) &&
+    else if ((native_strncasecmp(argv[i], basedir_prefix, basedir_len) == 0) &&
              !opt_basedir)
     {
       opt_basedir= my_strndup(PSI_NOT_INSTRUMENTED,
@@ -794,7 +798,7 @@ static int check_options(int argc, char **argv, char *operation)
                               strlen(argv[i])-basedir_len, MYF(MY_FAE));
       num_found++;
     }
-    else if ((strncasecmp(argv[i], datadir_prefix, datadir_len) == 0) &&
+    else if ((native_strncasecmp(argv[i], datadir_prefix, datadir_len) == 0) &&
              !opt_datadir)
     {
       opt_datadir= my_strndup(PSI_NOT_INSTRUMENTED,
@@ -802,7 +806,7 @@ static int check_options(int argc, char **argv, char *operation)
                               strlen(argv[i])-datadir_len, MYF(MY_FAE));
       num_found++;
     }
-    else if ((strncasecmp(argv[i], plugin_dir_prefix, plugin_dir_len) == 0) &&
+    else if ((native_strncasecmp(argv[i], plugin_dir_prefix, plugin_dir_len) == 0) &&
              !opt_plugin_dir)
     {
       opt_plugin_dir= my_strndup(PSI_NOT_INSTRUMENTED,
@@ -843,7 +847,7 @@ static int check_options(int argc, char **argv, char *operation)
     {
       return 1;
     }
-    if (strcasecmp(plugin_data.name, plugin_name) != 0)
+    if (native_strcasecmp(plugin_data.name, plugin_name) != 0)
     {
       fprintf(stderr, "ERROR: plugin name requested does not match config "
               "file data.\n");
@@ -1117,7 +1121,7 @@ static int build_bootstrap_file(char *operation, char *bootstrap)
     error= 1;
     goto exit;
   }
-  if (strcasecmp(operation, "enable") == 0)
+  if (native_strcasecmp(operation, "enable") == 0)
   {
     int i= 0;
     fprintf(file, "REPLACE INTO mysql.plugin VALUES ");
@@ -1239,14 +1243,14 @@ static int bootstrap_server(char *server_path, char *bootstrap_file)
   else 
     format_str= "%s %s --bootstrap --datadir=%s --basedir=%s < %s";
 
-  snprintf(bootstrap_cmd, sizeof(bootstrap_cmd), format_str,
-           add_quotes(convert_path(server_path)), verbose_str,
-           add_quotes(opt_datadir), add_quotes(opt_basedir),
-           add_quotes(bootstrap_file));
+  my_snprintf(bootstrap_cmd, sizeof(bootstrap_cmd), format_str,
+              add_quotes(convert_path(server_path)), verbose_str,
+              add_quotes(opt_datadir), add_quotes(opt_basedir),
+              add_quotes(bootstrap_file));
 #else
-  snprintf(bootstrap_cmd, sizeof(bootstrap_cmd),
-           "%s --no-defaults --bootstrap --datadir=%s --basedir=%s"
-           " < %s", server_path, opt_datadir, opt_basedir, bootstrap_file);
+  my_snprintf(bootstrap_cmd, sizeof(bootstrap_cmd),
+              "%s --no-defaults --bootstrap --datadir=%s --basedir=%s"
+              " < %s", server_path, opt_datadir, opt_basedir, bootstrap_file);
 #endif
 
   /* Execute the command */

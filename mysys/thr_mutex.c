@@ -13,50 +13,42 @@
    along with this program; if not, write to the Free Software
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA */
 
+#include <my_global.h>
+#include "my_pthread.h"
+
+#if defined(SAFE_MUTEX)
 /* This makes a wrapper for mutex handling to make it easier to debug mutex */
 
-#include <my_global.h>
-#if defined(TARGET_OS_LINUX) && !defined (__USE_UNIX98)
-#define __USE_UNIX98			/* To get rw locks under Linux */
-#endif
-#if defined(SAFE_MUTEX)
-#include "mysys_priv.h"
-#include "my_static.h"
-#include <m_string.h>
-
-/* Not instrumented */
-static pthread_mutex_t THR_LOCK_mutex;
-static ulong safe_mutex_count= 0;		/* Number of mutexes created */
 static my_bool safe_mutex_inited= FALSE;
 
+/**
+  While it looks like this function is pointless, it makes it possible to
+  catch usage of global static mutexes. Since the order of construction of
+  global objects in different compilation units is undefined, this is
+  quite useful.
+*/
 void safe_mutex_global_init(void)
 {
-  pthread_mutex_init(&THR_LOCK_mutex,MY_MUTEX_INIT_FAST);
   safe_mutex_inited= TRUE;
 }
 
 
-int safe_mutex_init(safe_mutex_t *mp,
-		    const pthread_mutexattr_t *attr __attribute__((unused)),
-		    const char *file,
-		    uint line)
+int safe_mutex_init(my_mutex_t *mp, const native_mutexattr_t *attr,
+		    const char *file, uint line)
 {
   DBUG_ASSERT(safe_mutex_inited);
   memset(mp, 0, sizeof(*mp));
-  pthread_mutex_init(&mp->global,MY_MUTEX_INIT_ERRCHK);
-  pthread_mutex_init(&mp->mutex,attr);
+  native_mutex_init(&mp->global,MY_MUTEX_INIT_ERRCHK);
+  native_mutex_init(&mp->mutex,attr);
   /* Mark that mutex is initialized */
   mp->file= file;
   mp->line= line;
-
-  pthread_mutex_lock(&THR_LOCK_mutex);
-  safe_mutex_count++;
-  pthread_mutex_unlock(&THR_LOCK_mutex);
   return 0;
 }
 
 
-int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint line)
+int safe_mutex_lock(my_mutex_t *mp, my_bool try_lock,
+                    const char *file, uint line)
 {
   int error;
   if (!mp->file)
@@ -68,12 +60,12 @@ int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint l
     abort();
   }
 
-  pthread_mutex_lock(&mp->global);
+  native_mutex_lock(&mp->global);
   if (mp->count > 0)
   {
     if (try_lock)
     {
-      pthread_mutex_unlock(&mp->global);
+      native_mutex_unlock(&mp->global);
       return EBUSY;
     }
     else if (pthread_equal(pthread_self(),mp->thread))
@@ -86,7 +78,7 @@ int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint l
       abort();
     }
   }
-  pthread_mutex_unlock(&mp->global);
+  native_mutex_unlock(&mp->global);
 
   /*
     If we are imitating trylock(), we need to take special
@@ -106,14 +98,14 @@ int safe_mutex_lock(safe_mutex_t *mp, my_bool try_lock, const char *file, uint l
    */
   if (try_lock)
   {
-    error= pthread_mutex_trylock(&mp->mutex);
+    error= native_mutex_trylock(&mp->mutex);
     if (error == EBUSY)
       return error;
   }
   else
-    error= pthread_mutex_lock(&mp->mutex);
+    error= native_mutex_lock(&mp->mutex);
 
-  if (error || (error=pthread_mutex_lock(&mp->global)))
+  if (error || (error=native_mutex_lock(&mp->global)))
   {
     fprintf(stderr,"Got error %d when trying to lock mutex at %s, line %d\n",
 	    error, file, line);
@@ -130,15 +122,15 @@ line %d more than 1 time\n", file,line);
   }
   mp->file= file;
   mp->line=line;
-  pthread_mutex_unlock(&mp->global);
+  native_mutex_unlock(&mp->global);
   return error;
 }
 
 
-int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
+int safe_mutex_unlock(my_mutex_t *mp, const char *file, uint line)
 {
   int error;
-  pthread_mutex_lock(&mp->global);
+  native_mutex_lock(&mp->global);
   if (mp->count == 0)
   {
     fprintf(stderr,"safe_mutex: Trying to unlock mutex that wasn't locked at %s, line %d\n            Last used at %s, line: %d\n",
@@ -155,113 +147,19 @@ int safe_mutex_unlock(safe_mutex_t *mp,const char *file, uint line)
   }
   mp->thread= 0;
   mp->count--;
-#ifdef _WIN32
-  pthread_mutex_unlock(&mp->mutex);
-  error=0;
-#else
-  error=pthread_mutex_unlock(&mp->mutex);
+  error=native_mutex_unlock(&mp->mutex);
   if (error)
   {
     fprintf(stderr,"safe_mutex: Got error: %d (%d) when trying to unlock mutex at %s, line %d\n", error, errno, file, line);
     fflush(stderr);
     abort();
   }
-#endif /* _WIN32 */
-  pthread_mutex_unlock(&mp->global);
+  native_mutex_unlock(&mp->global);
   return error;
 }
 
 
-int safe_cond_wait(pthread_cond_t *cond, safe_mutex_t *mp, const char *file,
-		   uint line)
-{
-  int error;
-  pthread_mutex_lock(&mp->global);
-  if (mp->count == 0)
-  {
-    fprintf(stderr,"safe_mutex: Trying to cond_wait on a unlocked mutex at %s, line %d\n",file,line);
-    fflush(stderr);
-    abort();
-  }
-  if (!pthread_equal(pthread_self(),mp->thread))
-  {
-    fprintf(stderr,"safe_mutex: Trying to cond_wait on a mutex at %s, line %d  that was locked by another thread at: %s, line: %d\n",
-	    file,line,mp->file,mp->line);
-    fflush(stderr);
-    abort();
-  }
-
-  if (mp->count-- != 1)
-  {
-    fprintf(stderr,"safe_mutex:  Count was %d on locked mutex at %s, line %d\n",
-	    mp->count+1, file, line);
-    fflush(stderr);
-    abort();
-  }
-  pthread_mutex_unlock(&mp->global);
-  error=pthread_cond_wait(cond,&mp->mutex);
-  pthread_mutex_lock(&mp->global);
-  if (error)
-  {
-    fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_mutex_wait at %s, line %d\n", error, errno, file, line);
-    fflush(stderr);
-    abort();
-  }
-  mp->thread=pthread_self();
-  if (mp->count++)
-  {
-    fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread 0x%lx when locking mutex at %s, line %d\n",
-	    mp->count-1, my_thread_dbug_id(), file, line);
-    fflush(stderr);
-    abort();
-  }
-  mp->file= file;
-  mp->line=line;
-  pthread_mutex_unlock(&mp->global);
-  return error;
-}
-
-
-int safe_cond_timedwait(pthread_cond_t *cond, safe_mutex_t *mp,
-                        const struct timespec *abstime,
-                        const char *file, uint line)
-{
-  int error;
-  pthread_mutex_lock(&mp->global);
-  if (mp->count != 1 || !pthread_equal(pthread_self(),mp->thread))
-  {
-    fprintf(stderr,"safe_mutex: Trying to cond_wait at %s, line %d on a not hold mutex\n",file,line);
-    fflush(stderr);
-    abort();
-  }
-  mp->count--;					/* Mutex will be released */
-  pthread_mutex_unlock(&mp->global);
-  error=pthread_cond_timedwait(cond,&mp->mutex,abstime);
-#ifdef EXTRA_DEBUG
-  if (error && (error != EINTR && error != ETIMEDOUT && error != ETIME))
-  {
-    fprintf(stderr,"safe_mutex: Got error: %d (%d) when doing a safe_mutex_timedwait at %s, line %d\n", error, errno, file, line);
-  }
-#endif
-  pthread_mutex_lock(&mp->global);
-  mp->thread=pthread_self();
-  if (mp->count++)
-  {
-    fprintf(stderr,
-	    "safe_mutex:  Count was %d in thread 0x%lx when locking mutex at %s, line %d (error: %d (%d))\n",
-	    mp->count-1, my_thread_dbug_id(), file, line, error, error);
-    fflush(stderr);
-    abort();
-  }
-  mp->file= file;
-  mp->line=line;
-  pthread_mutex_unlock(&mp->global);
-  return error;
-}
-
-
-int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
+int safe_mutex_destroy(my_mutex_t *mp, const char *file, uint line)
 {
   int error=0;
   if (!mp->file)
@@ -279,58 +177,17 @@ int safe_mutex_destroy(safe_mutex_t *mp, const char *file, uint line)
     fflush(stderr);
     abort();
   }
-#ifdef _WIN32 
-  pthread_mutex_destroy(&mp->global);
-  pthread_mutex_destroy(&mp->mutex);
-#else
-  if (pthread_mutex_destroy(&mp->global))
+  if (native_mutex_destroy(&mp->global))
     error=1;
-  if (pthread_mutex_destroy(&mp->mutex))
+  if (native_mutex_destroy(&mp->mutex))
     error=1;
-#endif
   mp->file= 0;					/* Mark destroyed */
-
-  pthread_mutex_lock(&THR_LOCK_mutex);
-  safe_mutex_count--;
-  pthread_mutex_unlock(&THR_LOCK_mutex);
   return error;
-}
-
-
-/*
-  Free global resources and check that all mutex has been destroyed
-
-  SYNOPSIS
-    safe_mutex_end()
-    file		Print errors on this file
-
-  NOTES
-    We can't use DBUG_PRINT() here as we have in my_end() disabled
-    DBUG handling before calling this function.
-
-   In MySQL one may get one warning for a mutex created in my_thr_init.c
-   This is ok, as this thread may not yet have been exited.
-*/
-
-void safe_mutex_end(FILE *file __attribute__((unused)))
-{
-  if (!safe_mutex_count)			/* safetly */
-    pthread_mutex_destroy(&THR_LOCK_mutex);
 }
 
 #elif defined(MY_PTHREAD_FASTMUTEX)
 
-#include "mysys_priv.h"
-#include "my_static.h"
-#include <m_string.h>
-
-#include <m_ctype.h>
-#include <hash.h>
-#include <myisampack.h>
-#include <mysys_err.h>
-#include <my_sys.h>
-
-ulong mutex_delay(ulong delayloops)
+static ulong mutex_delay(ulong delayloops)
 {
   ulong	i;
   volatile ulong j;
@@ -340,23 +197,23 @@ ulong mutex_delay(ulong delayloops)
   for (i = 0; i < delayloops * 50; i++)
     j += i;
 
-  return(j); 
-}	
+  return(j);
+}
 
 #define MY_PTHREAD_FASTMUTEX_SPINS 8
 #define MY_PTHREAD_FASTMUTEX_DELAY 4
 
 static int cpu_count= 0;
 
-int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
-                              const pthread_mutexattr_t *attr)
+int my_pthread_fastmutex_init(my_mutex_t *mp,
+                              const native_mutexattr_t *attr)
 {
   if ((cpu_count > 1) && (attr == MY_MUTEX_INIT_FAST))
     mp->spins= MY_PTHREAD_FASTMUTEX_SPINS; 
   else
     mp->spins= 0;
   mp->rng_state= 1;
-  return pthread_mutex_init(&mp->mutex, attr); 
+  return native_mutex_init(&mp->mutex, attr); 
 }
 
 /**
@@ -376,13 +233,13 @@ int my_pthread_fastmutex_init(my_pthread_fastmutex_t *mp,
   Commun. ACM, October 1988, Volume 31, No 10, pages 1192-1201.
 */
 
-static double park_rng(my_pthread_fastmutex_t *mp)
+static double park_rng(my_mutex_t *mp)
 {
   mp->rng_state= ((my_ulonglong)mp->rng_state * 279470273U) % 4294967291U;
   return (mp->rng_state / 2147483647.0);
 }
 
-int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
+int my_pthread_fastmutex_lock(my_mutex_t *mp)
 {
   int   res;
   uint  i;
@@ -390,7 +247,7 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
 
   for (i= 0; i < mp->spins; i++)
   {
-    res= pthread_mutex_trylock(&mp->mutex);
+    res= native_mutex_trylock(&mp->mutex);
 
     if (res == 0)
       return 0;
@@ -401,7 +258,7 @@ int my_pthread_fastmutex_lock(my_pthread_fastmutex_t *mp)
     mutex_delay(maxdelay);
     maxdelay += park_rng(mp) * MY_PTHREAD_FASTMUTEX_DELAY + 1;
   }
-  return pthread_mutex_lock(&mp->mutex);
+  return native_mutex_lock(&mp->mutex);
 }
 
 
@@ -411,5 +268,5 @@ void fastmutex_global_init(void)
   cpu_count= sysconf(_SC_NPROCESSORS_CONF);
 #endif
 }
-  
-#endif /* defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */ 
+
+#endif /* defined(MY_PTHREAD_FASTMUTEX) && !defined(SAFE_MUTEX) */

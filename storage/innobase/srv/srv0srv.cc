@@ -215,8 +215,11 @@ a heavier load on the I/O sub system. */
 ulong	srv_insert_buffer_batch_size = 20;
 
 char*	srv_file_flush_method_str = NULL;
-ulint	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
-ulint	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#ifndef _WIN32
+enum srv_unix_flush_t	srv_unix_file_flush_method = SRV_UNIX_FSYNC;
+#else
+enum srv_win_flush_t	srv_win_file_flush_method = SRV_WIN_IO_UNBUFFERED;
+#endif /* _WIN32 */
 
 ulint	srv_max_n_open_files	  = 300;
 
@@ -232,8 +235,8 @@ in the buffer pool to all database pages in the buffer pool smaller than
 the following number. But it is not guaranteed that the value stays below
 that during a time of heavy update/insert activity. */
 
-ulong	srv_max_buf_pool_modified_pct	= 75;
-ulong	srv_max_dirty_pages_pct_lwm	= 50;
+double	srv_max_buf_pool_modified_pct	= 75.0;
+double	srv_max_dirty_pages_pct_lwm	= 0.0;
 
 /* This is the percentage of log capacity at which adaptive flushing,
 if enabled, will kick in. */
@@ -666,7 +669,7 @@ srv_reserve_slot(
 Suspends the calling thread to wait for the event in its thread slot.
 @return the current signal count of the event. */
 static
-ib_int64_t
+int64_t
 srv_suspend_thread_low(
 /*===================*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
@@ -715,14 +718,14 @@ srv_suspend_thread_low(
 Suspends the calling thread to wait for the event in its thread slot.
 @return the current signal count of the event. */
 static
-ib_int64_t
+int64_t
 srv_suspend_thread(
 /*===============*/
 	srv_slot_t*	slot)	/*!< in/out: thread slot */
 {
 	srv_sys_mutex_enter();
 
-	ib_int64_t	sig_count = srv_suspend_thread_low(slot);
+	int64_t		sig_count = srv_suspend_thread_low(slot);
 
 	srv_sys_mutex_exit();
 
@@ -849,7 +852,9 @@ srv_init(void)
 
 	srv_sys->n_sys_threads = n_sys_threads;
 
-	if (!srv_read_only_mode) {
+	/* Even in read-only mode we flush pages related to intrinsic table
+	and so mutex creation is needed. */
+	{
 
 		mutex_create("srv_sys", &srv_sys->mutex);
 
@@ -896,6 +901,8 @@ srv_init(void)
 	trx_i_s_cache_init(trx_i_s_cache);
 
 	ut_crc32_init();
+
+	dict_mem_init();
 }
 
 /*********************************************************************//**
@@ -908,7 +915,7 @@ srv_free(void)
 	mutex_free(&srv_innodb_monitor_mutex);
 	mutex_free(&page_zip_stat_per_index_mutex);
 
-	if (!srv_read_only_mode) {
+	{
 		mutex_free(&srv_sys->mutex);
 		mutex_free(&srv_sys->tasks_mutex);
 
@@ -1411,7 +1418,7 @@ DECLARE_THREAD(srv_monitor_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
-	ib_int64_t	sig_count;
+	int64_t		sig_count;
 	double		time_elapsed;
 	time_t		current_time;
 	time_t		last_monitor_time;
@@ -1529,7 +1536,7 @@ DECLARE_THREAD(srv_error_monitor_thread)(
 	ulint		fatal_cnt	= 0;
 	lsn_t		old_lsn;
 	lsn_t		new_lsn;
-	ib_int64_t	sig_count;
+	int64_t		sig_count;
 	/* longest waiting thread for a semaphore */
 	os_thread_id_t	waiter		= os_thread_get_curr_id();
 	os_thread_id_t	old_waiter	= waiter;
@@ -2140,6 +2147,9 @@ DECLARE_THREAD(srv_master_thread)(
 			/*!< in: a dummy parameter required by
 			os_thread_create */
 {
+	my_thread_init();
+	DBUG_ENTER("srv_master_thread");
+
 	srv_slot_t*	slot;
 	ulint		old_activity_count = srv_get_activity_count();
 	ib_time_t	last_print_time;
@@ -2181,7 +2191,8 @@ loop:
 		}
 	}
 
-	while (srv_master_do_shutdown_tasks(&last_print_time)) {
+	while (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS
+	       && srv_master_do_shutdown_tasks(&last_print_time)) {
 
 		/* Shouldn't loop here in case of very fast shutdown */
 		ut_ad(srv_fast_shutdown < 2);
@@ -2200,13 +2211,13 @@ suspend_thread:
 
 	os_event_wait(slot->event);
 
-	if (srv_shutdown_state == SRV_SHUTDOWN_EXIT_THREADS) {
-		os_thread_exit(NULL);
+	if (srv_shutdown_state != SRV_SHUTDOWN_EXIT_THREADS) {
+		goto loop;
 	}
 
-	goto loop;
-
-	OS_THREAD_DUMMY_RETURN;	/* Not reached, avoid compiler warning */
+	my_thread_end();
+	os_thread_exit(NULL);
+	DBUG_RETURN(0);
 }
 
 /*********************************************************************//**
@@ -2445,7 +2456,7 @@ srv_purge_coordinator_suspend(
 	/** Maximum wait time on the purge event, in micro-seconds. */
 	static const ulint SRV_PURGE_MAX_TIMEOUT = 10000;
 
-	ib_int64_t	sig_count = srv_suspend_thread(slot);
+	int64_t		sig_count = srv_suspend_thread(slot);
 
 	do {
 		ulint		ret;

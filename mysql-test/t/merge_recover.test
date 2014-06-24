@@ -16,6 +16,7 @@ connection con1;
 --echo # Minimal values.
 --echo #
 # MERGE tables require MyISAM tables
+--source include/no_valgrind_without_big.inc
 --source include/have_myisam.inc 
 
 call mtr.add_suppression("Got an error from thread_id=.*ha_myisam.cc:");

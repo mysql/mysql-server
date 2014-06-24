@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -1039,7 +1039,6 @@ int ha_myisam::repair(THD *thd, MI_CHECK &param, bool do_optimize)
 
   param.db_name=    table->s->db.str;
   param.table_name= table->alias;
-  param.tmpfile_createflag = O_RDWR | O_TRUNC;
   param.using_global_keycache = 1;
   param.thd= thd;
   param.tmpdir= &mysql_tmpdir_list;
@@ -2111,8 +2110,7 @@ int ha_myisam::ft_read(uchar *buf)
   if (!ft_handler)
     return -1;
 
-  thread_safe_increment(table->in_use->status_var.ha_read_next_count,
-                        &LOCK_status); // why ?
+  ha_statistic_increment(&SSV::ha_read_next_count);
 
   error=ft_handler->please->read_next(ft_handler,(char*) buf);
 

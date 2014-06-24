@@ -681,8 +681,8 @@ UPDATE IGNORE
 ( SELECT ( SELECT COUNT(*) FROM t1 GROUP BY a, @v ) a FROM t2 ) x, t3
 SET t3.a = 0;
 Warnings:
-Error	1242	Subquery returns more than 1 row
-Error	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
+Warning	1242	Subquery returns more than 1 row
 DROP TABLE t1, t2, t3;
 SET SESSION sql_safe_updates = DEFAULT;
 #
@@ -776,7 +776,9 @@ CREATE TABLE t1 (id INT PRIMARY KEY);
 INSERT INTO t1 VALUES (1), (2);
 UPDATE IGNORE t1, (SELECT 1 AS duplicate_id) AS t2 SET t1.id=t2.duplicate_id;
 affected rows: 0
-info: Rows matched: 2  Changed: 0  Warnings: 0
+info: Rows matched: 2  Changed: 0  Warnings: 1
+Warnings:
+Warning	1062	Duplicate entry '1' for key 'PRIMARY'
 # Check that no rows changed.
 SELECT * FROM t1;
 id
@@ -802,3 +804,14 @@ Warnings:
 Warning	1264	Out of range value for column 'field1' at row 1
 Warning	1264	Out of range value for column 'field1' at row 2
 DROP TABLE table_11757486;
+#
+# Bug #18352634 	"UPDATE ORDER BY" OF MULTI-TABLE VIEW DOES NOT WORK
+#
+CREATE TABLE t1 (a INT) ENGINE=INNODB;
+CREATE VIEW v AS SELECT t1.a FROM t1,t1 q;
+UPDATE v SET a=1 ORDER BY a;
+Got one of the listed errors
+UPDATE v SET a=1 LIMIT 3;
+Got one of the listed errors
+DROP TABLE t1;
+DROP VIEW v;

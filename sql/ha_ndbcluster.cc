@@ -387,14 +387,14 @@ static int ndbcluster_inited= 0;
    (bug#46955)
 */
 int ndb_setup_complete= 0;
-pthread_cond_t COND_ndb_setup_complete; // Signal with ndbcluster_mutex
+native_cond_t COND_ndb_setup_complete; // Signal with ndbcluster_mutex
 
 extern Ndb* g_ndb;
 
 uchar g_node_id_map[max_ndb_nodes];
 
 /// Handler synchronization
-pthread_mutex_t ndbcluster_mutex;
+native_mutex_t ndbcluster_mutex;
 
 /// Table lock handling
 HASH ndbcluster_open_tables;
@@ -815,7 +815,7 @@ int ndb_to_mysql_error(const NdbError *ndberr)
     If we don't abort directly on warnings push a warning
     with the internal error information
    */
-  if (!current_thd->abort_on_warning)
+  if (!current_thd->is_strict_mode())
   {
     /*
       Push the NDB error message as warning
@@ -4235,11 +4235,11 @@ public:
     m_share(share),
     range(share->tuple_id_range)
   {
-    pthread_mutex_lock(&m_share->mutex);
+    native_mutex_lock(&m_share->mutex);
   }
   ~Ndb_tuple_id_range_guard()
   {
-    pthread_mutex_unlock(&m_share->mutex);
+    native_mutex_unlock(&m_share->mutex);
   }
   Ndb::TupleIdRange& range;
 };
@@ -7957,11 +7957,11 @@ int ha_ndbcluster::external_lock(THD *thd, int lock_type)
 
       if (opt_ndb_cache_check_time)
       {
-        pthread_mutex_lock(&m_share->mutex);
+        native_mutex_lock(&m_share->mutex);
         DBUG_PRINT("info", ("Invalidating commit_count"));
         m_share->commit_count= 0;
         m_share->commit_count_lock++;
-        pthread_mutex_unlock(&m_share->mutex);
+        native_mutex_unlock(&m_share->mutex);
       }
     }
 
@@ -8386,12 +8386,12 @@ int ndbcluster_commit(handlerton *hton, THD *thd, bool all)
   {
     DBUG_PRINT("info", ("Remove share to list of changed tables, %p",
                         share));
-    pthread_mutex_lock(&share->mutex);
+    native_mutex_lock(&share->mutex);
     DBUG_PRINT("info", ("Invalidate commit_count for %s, share->commit_count: %lu",
                         share->table_name, (ulong) share->commit_count));
     share->commit_count= 0;
     share->commit_count_lock++;
-    pthread_mutex_unlock(&share->mutex);
+    native_mutex_unlock(&share->mutex);
     free_share(&share);
   }
   thd_ndb->changed_tables.empty();
@@ -10005,7 +10005,7 @@ cleanup_failed:
   else // if (!my_errno)
   {
     NDB_SHARE *share= 0;
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
     /*
       First make sure we get a "fresh" share here, not an old trailing one...
     */
@@ -10030,7 +10030,7 @@ cleanup_failed:
       DBUG_PRINT("NDB_SHARE", ("%s binlog create  use_count: %u",
                                share->key, share->use_count));
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
 
     while (!IS_TMP_PREFIX(m_tabname))
     {
@@ -10609,7 +10609,7 @@ delete_table_drop_share(NDB_SHARE* share, const char * path)
   DBUG_ENTER("delete_table_drop_share");
   if (share)
   {
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
 do_drop:
     if (share->state != NSS_DROPPED)
     {
@@ -10626,17 +10626,17 @@ do_drop:
     DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                              share->key, share->use_count));
     free_share(&share, TRUE);
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
   }
   else if (path)
   {
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
     share= get_share(path, 0, FALSE, TRUE);
     if (share)
     {
       goto do_drop;
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
   }
   DBUG_VOID_RETURN;
 }
@@ -12095,7 +12095,7 @@ static bool is_supported_system_table(const char *db,
 /* Call back after cluster connect */
 static int connect_callback()
 {
-  pthread_mutex_lock(&ndb_util_thread.LOCK);
+  native_mutex_lock(&ndb_util_thread.LOCK);
   update_status_variables(NULL, &g_ndb_status,
                           g_ndb_cluster_connection);
 
@@ -12105,8 +12105,8 @@ static int connect_callback()
   while ((node_id= g_ndb_cluster_connection->get_next_node(node_iter)))
     g_node_id_map[node_id]= i++;
 
-  pthread_cond_broadcast(&ndb_util_thread.COND);
-  pthread_mutex_unlock(&ndb_util_thread.LOCK);
+  native_cond_broadcast(&ndb_util_thread.COND);
+  native_mutex_unlock(&ndb_util_thread.LOCK);
   return 0;
 }
 
@@ -12123,7 +12123,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
 {
   DBUG_ENTER("ndb_wait_setup_func_impl");
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
 
   struct timespec abstime;
   set_timespec(abstime, 1);
@@ -12131,9 +12131,9 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
   while (max_wait &&
          (!ndb_setup_complete || !ndb_index_stat_thread.is_setup_complete()))
   {
-    int rc= pthread_cond_timedwait(&COND_ndb_setup_complete,
-                                   &ndbcluster_mutex,
-                                   &abstime);
+    int rc= native_cond_timedwait(&COND_ndb_setup_complete,
+                                  &ndbcluster_mutex,
+                                  &abstime);
     if (rc)
     {
       if (rc == ETIMEDOUT)
@@ -12144,7 +12144,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
       }
       else
       {
-        DBUG_PRINT("info", ("Bad pthread_cond_timedwait rc : %u",
+        DBUG_PRINT("info", ("Bad native_cond_timedwait rc : %u",
                             rc));
         assert(false);
         break;
@@ -12152,7 +12152,7 @@ static int ndb_wait_setup_func_impl(ulong max_wait)
     }
   }
 
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
 
 #ifndef NDB_WITHOUT_DIST_PRIV
   do
@@ -12284,8 +12284,8 @@ int ndbcluster_init(void* p)
     ndbcluster_init_abort("Failed to initialize NDB Index Stat");
   }
 
-  pthread_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND_ndb_setup_complete, NULL);
+  native_mutex_init(&ndbcluster_mutex,MY_MUTEX_INIT_FAST);
+  native_cond_init(&COND_ndb_setup_complete);
   ndb_dictionary_is_mysqld= 1;
   ndb_setup_complete= 0;
   ndbcluster_hton= (handlerton *)p;
@@ -12413,7 +12413,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndbcluster_binlog_end(NULL);
 
   {
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
     uint save = ndbcluster_open_tables.records; (void)save;
     while (ndbcluster_open_tables.records)
     {
@@ -12428,13 +12428,13 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 #endif
       ndbcluster_real_free_share(&share);
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
     DBUG_ASSERT(save == 0);
   }
   my_hash_free(&ndbcluster_open_tables);
 
   {
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
     uint save = ndbcluster_dropped_tables.records; (void)save;
     while (ndbcluster_dropped_tables.records)
     {
@@ -12458,7 +12458,7 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
 #endif
       ndbcluster_real_free_share(&share);
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
     DBUG_ASSERT(save == 0);
   }
   my_hash_free(&ndbcluster_dropped_tables);
@@ -12470,8 +12470,8 @@ static int ndbcluster_end(handlerton *hton, ha_panic_function type)
   ndb_util_thread.deinit();
   ndb_index_stat_thread.deinit();
 
-  pthread_mutex_destroy(&ndbcluster_mutex);
-  pthread_cond_destroy(&COND_ndb_setup_complete);
+  native_mutex_destroy(&ndbcluster_mutex);
+  native_cond_destroy(&COND_ndb_setup_complete);
 
   // Cleanup NdbApi
   ndb_end_internal();
@@ -12927,12 +12927,12 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
   DBUG_ENTER("ndb_get_commitcount");
 
   DBUG_PRINT("enter", ("name: %s", norm_name));
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   if (!(share=(NDB_SHARE*) my_hash_search(&ndbcluster_open_tables,
                                           (const uchar*) norm_name,
                                           strlen(norm_name))))
   {
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
     DBUG_PRINT("info", ("Table %s not found in ndbcluster_open_tables",
                          norm_name));
     DBUG_RETURN(1);
@@ -12941,9 +12941,9 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
   share->use_count++;
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                            share->key, share->use_count));
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
 
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   if (opt_ndb_cache_check_time > 0)
   {
     if (share->commit_count != 0)
@@ -12951,7 +12951,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
       DBUG_PRINT("info", ("Getting commit_count: %llu from share",
                           share->commit_count));
       *commit_count= share->commit_count;
-      pthread_mutex_unlock(&share->mutex);
+      native_mutex_unlock(&share->mutex);
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
@@ -12970,7 +12970,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
     ERR_RETURN(ndb->getNdbError());
   }
   uint lock= share->commit_count_lock;
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
 
   struct Ndb_statistics stat;
   {
@@ -12992,7 +12992,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
     }
   }
 
-  pthread_mutex_lock(&share->mutex);
+  native_mutex_lock(&share->mutex);
   if (share->commit_count_lock == lock)
   {
     DBUG_PRINT("info", ("Setting commit_count: %llu", stat.commit_count));
@@ -13004,7 +13004,7 @@ uint ndb_get_commitcount(THD *thd, char *norm_name,
     DBUG_PRINT("info", ("Discarding commit_count, comit_count_lock changed"));
     *commit_count= 0;
   }
-  pthread_mutex_unlock(&share->mutex);
+  native_mutex_unlock(&share->mutex);
   /* ndb_share reference temporary free */
   DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                            share->key, share->use_count));
@@ -13228,7 +13228,7 @@ static void print_ndbcluster_open_tables()
   to avoid segmentation faults.  There is a risk that the memory for
   this trailing share leaks.
   
-  Must be called with previous pthread_mutex_lock(&ndbcluster_mutex)
+  Must be called with previous native_mutex_lock(&ndbcluster_mutex)
 */
 int handle_trailing_share(THD *thd, NDB_SHARE *share)
 {
@@ -13241,11 +13241,11 @@ int handle_trailing_share(THD *thd, NDB_SHARE *share)
     sql_print_information ("handle_trailing_share: %s use_count: %u", share->key, share->use_count);
   DBUG_PRINT("NDB_SHARE", ("%s temporary  use_count: %u",
                            share->key, share->use_count));
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
 
   ndb_tdc_close_cached_table(thd, share->db, share->table_name);
 
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   /* ndb_share reference temporary free */
   DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                            share->key, share->use_count));
@@ -13361,7 +13361,7 @@ int ndbcluster_undo_rename_share(THD *thd, NDB_SHARE *share)
 int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
 {
   NDB_SHARE *tmp;
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   uint new_length= (uint) strlen(share->new_key);
   DBUG_PRINT("ndbcluster_rename_share", ("old_key: %s  old__length: %d",
                               share->key, share->key_length));
@@ -13395,7 +13395,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
                            share->key));
     }
     dbug_print_open_tables();
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
     return -1;
   }
   dbug_print_open_tables();
@@ -13433,7 +13433,7 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_rename_share: %s-%s use_count: %u", old_key, share->key, share->use_count);
 
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
   return 0;
 }
 
@@ -13443,14 +13443,14 @@ int ndbcluster_rename_share(THD *thd, NDB_SHARE *share)
 */
 NDB_SHARE *ndbcluster_get_share(NDB_SHARE *share)
 {
-  pthread_mutex_lock(&ndbcluster_mutex);
+  native_mutex_lock(&ndbcluster_mutex);
   share->use_count++;
 
   dbug_print_open_tables();
   dbug_print_share("ndbcluster_get_share:", share);
   if (opt_ndb_extra_logging > 9)
     sql_print_information ("ndbcluster_get_share: %s use_count: %u", share->key, share->use_count);
-  pthread_mutex_unlock(&ndbcluster_mutex);
+  native_mutex_unlock(&ndbcluster_mutex);
   return share;
 }
 
@@ -13483,7 +13483,7 @@ NDB_SHARE::create(const char* key, size_t key_length,
   share->table_name= share->db + strlen(share->db) + 1;
   my_stpcpy(share->table_name, table_name);
   thr_lock_init(&share->lock);
-  pthread_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
+  native_mutex_init(&share->mutex, MY_MUTEX_INIT_FAST);
   share->commit_count= 0;
   share->commit_count_lock= 0;
 
@@ -13599,12 +13599,12 @@ NDB_SHARE *ndbcluster_get_share(const char *key, TABLE *table,
                        key, create_if_not_exists, have_lock));
 
   if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
 
   share= ndbcluster_get_share(key, table, create_if_not_exists);
 
   if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
 
   DBUG_RETURN(share);
 }
@@ -13644,7 +13644,7 @@ void ndbcluster_real_free_share(NDB_SHARE **share)
 void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
 {
   if (!have_lock)
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
   if (!--(*share)->use_count)
   {
     if (opt_ndb_extra_logging > 9)
@@ -13659,7 +13659,7 @@ void ndbcluster_free_share(NDB_SHARE **share, bool have_lock)
     dbug_print_share("ndbcluster_free_share:", *share);
   }
   if (!have_lock)
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
 }
 
 void
@@ -13700,9 +13700,9 @@ int ha_ndbcluster::update_stats(THD *thd,
   {
     if (m_share && !do_read_stat)
     {
-      pthread_mutex_lock(&m_share->mutex);
+      native_mutex_lock(&m_share->mutex);
       stat= m_share->stat;
-      pthread_mutex_unlock(&m_share->mutex);
+      native_mutex_unlock(&m_share->mutex);
 
       DBUG_ASSERT(stat.row_count != ~(ha_rows)0); // should never be invalid
 
@@ -13727,9 +13727,9 @@ int ha_ndbcluster::update_stats(THD *thd,
     /* Update shared statistics with fresh data */
     if (m_share)
     {
-      pthread_mutex_lock(&m_share->mutex);
+      native_mutex_lock(&m_share->mutex);
       m_share->stat= stat;
-      pthread_mutex_unlock(&m_share->mutex);
+      native_mutex_unlock(&m_share->mutex);
     }
     break;
   }
@@ -13773,7 +13773,7 @@ void modify_shared_stats(NDB_SHARE *share,
 {
   if (local_stat->no_uncommitted_rows_count)
   {
-    pthread_mutex_lock(&share->mutex);
+    native_mutex_lock(&share->mutex);
     DBUG_ASSERT(share->stat.row_count != ~(ha_rows)0);// should never be invalid
     if (share->stat.row_count != ~(ha_rows)0)
     {
@@ -13785,7 +13785,7 @@ void modify_shared_stats(NDB_SHARE *share,
          ? share->stat.row_count+local_stat->no_uncommitted_rows_count
          : 0;
     }
-    pthread_mutex_unlock(&share->mutex);
+    native_mutex_unlock(&share->mutex);
     local_stat->no_uncommitted_rows_count= 0;
   }
 }
@@ -15380,67 +15380,19 @@ ha_ndbcluster::parent_of_pushed_join() const
 }
 
 /**
-  @param[in] comment  table comment defined by user
-
-  @return
-    table comment + additional
-*/
-char*
-ha_ndbcluster::update_table_comment(
-                                /* out: table comment + additional */
-        const char*     comment)/* in:  table comment defined by user */
-{
-  THD *thd= current_thd;
-  uint length= (uint)strlen(comment);
-  if (length > 64000 - 3)
-  {
-    return((char*)comment); /* string too long */
-  }
-
-  Ndb* ndb;
-  if (!(ndb= get_ndb(thd)))
-  {
-    return((char*)comment);
-  }
-
-  if (ndb->setDatabaseName(m_dbname))
-  {
-    return((char*)comment);
-  }
-  const NDBTAB* tab= m_table;
-  DBUG_ASSERT(tab != NULL);
-
-  char *str;
-  const char *fmt="%s%snumber_of_replicas: %d";
-  const unsigned fmt_len_plus_extra= length + (uint)strlen(fmt);
-  if ((str= (char*) my_malloc(PSI_INSTRUMENT_ME, fmt_len_plus_extra, MYF(0))) == NULL)
-  {
-    sql_print_error("ha_ndbcluster::update_table_comment: "
-                    "my_malloc(%u) failed", (unsigned int)fmt_len_plus_extra);
-    return (char*)comment;
-  }
-
-  my_snprintf(str,fmt_len_plus_extra,fmt,comment,
-              length > 0 ? " ":"",
-              tab->getReplicaCount());
-  return str;
-}
-
-
-/**
   Utility thread main loop.
 */
 Ndb_util_thread::Ndb_util_thread()
   : Ndb_component("Util")
 {
-  pthread_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
-  pthread_cond_init(&COND, NULL);
+  native_mutex_init(&LOCK, MY_MUTEX_INIT_FAST);
+  native_cond_init(&COND);
 }
 
 Ndb_util_thread::~Ndb_util_thread()
 {
-  pthread_mutex_destroy(&LOCK);
-  pthread_cond_destroy(&COND);
+  native_mutex_destroy(&LOCK);
+  native_cond_destroy(&COND);
 }
 
 void Ndb_util_thread::do_wakeup()
@@ -15448,9 +15400,9 @@ void Ndb_util_thread::do_wakeup()
   // Wakeup from potential wait
   log_info("Wakeup");
 
-  pthread_mutex_lock(&LOCK);
-  pthread_cond_signal(&COND);
-  pthread_mutex_unlock(&LOCK);
+  native_mutex_lock(&LOCK);
+  native_cond_signal(&COND);
+  native_mutex_unlock(&LOCK);
 }
 
 
@@ -15475,7 +15427,7 @@ Ndb_util_thread::do_run()
 
   log_info("Starting...");
 
-  pthread_mutex_lock(&LOCK);
+  native_mutex_lock(&LOCK);
 
   thd= new THD; /* note that contructor of THD uses DBUG_ */
   if (thd == NULL)
@@ -15505,7 +15457,7 @@ Ndb_util_thread::do_run()
   thd->variables.collation_connection= charset_connection;
   thd->update_charset();
 
-  pthread_mutex_unlock(&LOCK);
+  native_mutex_unlock(&LOCK);
 
   log_info("Wait for server start completed");
   /*
@@ -15520,7 +15472,7 @@ Ndb_util_thread::do_run()
     if (is_stop_requested())
     {
       mysql_mutex_unlock(&LOCK_server_started);
-      pthread_mutex_lock(&LOCK);
+      native_mutex_lock(&LOCK);
       goto ndb_util_thread_end;
     }
   }
@@ -15534,21 +15486,21 @@ Ndb_util_thread::do_run()
   /*
     Wait for cluster to start
   */
-  pthread_mutex_lock(&LOCK);
+  native_mutex_lock(&LOCK);
   while (!g_ndb_status.cluster_node_id && (ndbcluster_hton->slot != ~(uint)0))
   {
     /* ndb not connected yet */
-    pthread_cond_wait(&COND, &LOCK);
+    native_cond_wait(&COND, &LOCK);
     if (is_stop_requested())
       goto ndb_util_thread_end;
   }
-  pthread_mutex_unlock(&LOCK);
+  native_mutex_unlock(&LOCK);
 
   /* Get thd_ndb for this thread */
   if (!(thd_ndb= Thd_ndb::seize(thd)))
   {
     sql_print_error("Could not allocate Thd_ndb object");
-    pthread_mutex_lock(&LOCK);
+    native_mutex_lock(&LOCK);
     goto ndb_util_thread_end;
   }
   thd_set_thd_ndb(thd, thd_ndb);
@@ -15562,14 +15514,14 @@ Ndb_util_thread::do_run()
   set_timespec(abstime, 0);
   for (;;)
   {
-    pthread_mutex_lock(&LOCK);
+    native_mutex_lock(&LOCK);
     if (!is_stop_requested())
-      pthread_cond_timedwait(&COND,
+      native_cond_timedwait(&COND,
                              &LOCK,
                              &abstime);
     if (is_stop_requested()) /* Stopping thread */
       goto ndb_util_thread_end;
-    pthread_mutex_unlock(&LOCK);
+    native_mutex_unlock(&LOCK);
 #ifdef NDB_EXTRA_DEBUG_UTIL_THREAD
     DBUG_PRINT("ndb_util_thread", ("Started, cache_check_time: %lu",
                                    opt_ndb_cache_check_time));
@@ -15609,7 +15561,7 @@ Ndb_util_thread::do_run()
 
     /* Lock mutex and fill list with pointers to all open tables */
     NDB_SHARE *share;
-    pthread_mutex_lock(&ndbcluster_mutex);
+    native_mutex_lock(&ndbcluster_mutex);
     uint i, open_count, record_count= ndbcluster_open_tables.records;
     if (share_list_size < record_count)
     {
@@ -15618,7 +15570,7 @@ Ndb_util_thread::do_run()
       {
         sql_print_warning("ndb util thread: malloc failure, "
                           "query cache not maintained properly");
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        native_mutex_unlock(&ndbcluster_mutex);
         goto next;                               // At least do not crash
       }
       delete [] share_list;
@@ -15643,7 +15595,7 @@ Ndb_util_thread::do_run()
       /* Store pointer to table */
       share_list[open_count++]= share;
     }
-    pthread_mutex_unlock(&ndbcluster_mutex);
+    native_mutex_unlock(&ndbcluster_mutex);
 
     /* Iterate through the open files list */
     for (i= 0; i < open_count; i++)
@@ -15659,10 +15611,10 @@ Ndb_util_thread::do_run()
         DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                  share->key, share->use_count));
         
-        pthread_mutex_lock(&ndbcluster_mutex);
+        native_mutex_lock(&ndbcluster_mutex);
         share->util_thread= false;
         free_share(&share, true);
-        pthread_mutex_unlock(&ndbcluster_mutex);
+        native_mutex_unlock(&ndbcluster_mutex);
         continue;
       }
       DBUG_PRINT("ndb_util_thread",
@@ -15670,9 +15622,9 @@ Ndb_util_thread::do_run()
 
       struct Ndb_statistics stat;
       uint lock;
-      pthread_mutex_lock(&share->mutex);
+      native_mutex_lock(&share->mutex);
       lock= share->commit_count_lock;
-      pthread_mutex_unlock(&share->mutex);
+      native_mutex_unlock(&share->mutex);
       {
         /* Contact NDB to get commit count for table */
         Ndb* ndb= thd_ndb->ndb;
@@ -15698,18 +15650,18 @@ Ndb_util_thread::do_run()
         }
       }
   loop_next:
-      pthread_mutex_lock(&share->mutex);
+      native_mutex_lock(&share->mutex);
       if (share->commit_count_lock == lock)
         share->commit_count= stat.commit_count;
-      pthread_mutex_unlock(&share->mutex);
+      native_mutex_unlock(&share->mutex);
 
       /* ndb_share reference temporary free */
       DBUG_PRINT("NDB_SHARE", ("%s temporary free  use_count: %u",
                                share->key, share->use_count));
-      pthread_mutex_lock(&ndbcluster_mutex);
+      native_mutex_lock(&ndbcluster_mutex);
       share->util_thread= false;
       free_share(&share, true);
-      pthread_mutex_unlock(&ndbcluster_mutex);
+      native_mutex_unlock(&ndbcluster_mutex);
     }
 next:
     /* Calculate new time to wake up */
@@ -15718,7 +15670,7 @@ next:
 
   log_info("Stopping...");
 
-  pthread_mutex_lock(&LOCK);
+  native_mutex_lock(&LOCK);
 
 ndb_util_thread_end:
   net_end(&thd->net);
@@ -15732,7 +15684,7 @@ ndb_util_thread_fail:
   }
   delete thd;
   
-  pthread_mutex_unlock(&LOCK);
+  native_mutex_unlock(&LOCK);
   DBUG_PRINT("exit", ("ndb_util_thread"));
 
   log_info("Stopped");
@@ -17204,7 +17156,7 @@ int ndbcluster_alter_tablespace(handlerton *hton,
   NdbError err;
   NDBDICT *dict;
   int error;
-  const char *errmsg;
+  const char *errmsg= NULL;
   Ndb *ndb;
   DBUG_ENTER("ndbcluster_alter_tablespace");
 
@@ -17509,7 +17461,7 @@ bool ha_ndbcluster::get_no_parts(const char *name, uint *no_parts)
   THD *thd= current_thd;
   Ndb *ndb;
   NDBDICT *dict;
-  int err;
+  int err= 0;
   DBUG_ENTER("ha_ndbcluster::get_no_parts");
 
   set_dbname(name);

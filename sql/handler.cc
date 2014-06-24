@@ -339,7 +339,9 @@ redo:
     return is_temp_table ? 
       ha_default_plugin(thd) : ha_default_temp_plugin(thd);
 
-  if ((plugin= my_plugin_lock_by_name(thd, name, MYSQL_STORAGE_ENGINE_PLUGIN)))
+  LEX_CSTRING cstring_name= {name->str, name->length};
+  if ((plugin= my_plugin_lock_by_name(thd, cstring_name,
+                                      MYSQL_STORAGE_ENGINE_PLUGIN)))
   {
     handlerton *hton= plugin_data(plugin, handlerton *);
     if (!(hton->flags & HTON_NOT_USER_SELECTABLE))
@@ -1433,6 +1435,19 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
 
   MDL_request mdl_request;
   bool release_mdl= false;
+  bool need_clear_owned_gtid= false;
+  /*
+    Save transaction owned gtid into table before transaction prepare
+    if binlog is disabled, or binlog is enabled and log_slave_updates
+    is disabled with slave SQL thread or slave worker thread.
+  */
+  if ((!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates)) &&
+      (all || !thd->in_multi_stmt_transaction_mode()) &&
+      !thd->owned_gtid.is_null() && !thd->is_operating_gtid_table)
+  {
+    error= gtid_state->save(thd);
+    need_clear_owned_gtid= true;
+  }
 
   if (ha_info)
   {
@@ -1513,8 +1528,8 @@ int ha_commit_trans(THD *thd, bool all, bool ignore_global_read_lock)
     thd->m_transaction_psi= NULL;
   }
 #endif
-  
-  DBUG_EXECUTE_IF("crash_commit_after", DBUG_SUICIDE(););
+  DBUG_EXECUTE_IF("crash_commit_after",
+                  if (!thd->is_operating_gtid_table) DBUG_SUICIDE(););
 end:
   if (release_mdl && mdl_request.ticket)
   {
@@ -1530,6 +1545,21 @@ end:
   /* Free resources and perform other cleanup even for 'empty' transactions. */
   if (is_real_trans)
     trn_ctx->cleanup();
+
+  if (need_clear_owned_gtid)
+  {
+    thd->server_status&= ~SERVER_STATUS_IN_TRANS;
+    /*
+      Release the owned GTID when binlog is disabled, or binlog is
+      enabled and log_slave_updates is disabled with slave SQL thread
+      or slave worker thread.
+    */
+    if (error)
+      gtid_state->update_on_rollback(thd);
+    else
+      gtid_state->update_on_commit(thd);
+  }
+
   DBUG_RETURN(error);
 }
 
@@ -1719,7 +1749,7 @@ int ha_rollback_trans(THD *thd, bool all)
     complete transaction is being rollback or autocommit=1.
   */
   if (is_real_trans)
-    gtid_rollback(thd);
+    gtid_state->update_on_rollback(thd);
 
   /*
     If the transaction cannot be rolled back safely, warn; don't warn if this
@@ -2111,7 +2141,7 @@ public:
   virtual bool handle_condition(THD *thd,
                                 uint sql_errno,
                                 const char* sqlstate,
-                                Sql_condition::enum_severity_level level,
+                                Sql_condition::enum_severity_level *level,
                                 const char* msg,
                                 Sql_condition ** cond_hdl);
   char buff[MYSQL_ERRMSG_SIZE];
@@ -2123,7 +2153,7 @@ Ha_delete_table_error_handler::
 handle_condition(THD *,
                  uint,
                  const char*,
-                 Sql_condition::enum_severity_level,
+                 Sql_condition::enum_severity_level*,
                  const char* msg,
                  Sql_condition ** cond_hdl)
 {
@@ -3063,7 +3093,14 @@ int handler::update_auto_increment()
     if (forced != NULL)
     {
       nr= forced->minimum();
-      nb_reserved_values= forced->values();
+      /*
+        In a multi insert statement when the number of affected rows is known
+        then reserve those many number of auto increment values. So that
+        interval will be starting value to starting value + number of affected
+        rows * increment of auto increment.
+       */
+      nb_reserved_values= (estimation_rows_to_insert > 0) ?
+        estimation_rows_to_insert : forced->values();
     }
     else
     {
@@ -3436,6 +3473,9 @@ bool handler::is_fatal_error(int error)
     */
     case HA_ERR_LOCK_WAIT_TIMEOUT:
     case HA_ERR_LOCK_DEADLOCK:
+      DBUG_RETURN(false);
+
+    case HA_ERR_NULL_IN_SPATIAL:
       DBUG_RETURN(false);
   }
 
@@ -4297,10 +4337,10 @@ bool handler::ha_commit_inplace_alter_table(TABLE *altered_table,
      In this case, we might be rolling back after a failed lock upgrade,
      so we could be holding the same lock level as for inplace_alter_table().
    */
-   DBUG_ASSERT(ha_thd()->mdl_context.is_lock_owner(MDL_key::TABLE,
-                                                   table->s->db.str,
-                                                   table->s->table_name.str,
-                                                   MDL_EXCLUSIVE) ||
+   DBUG_ASSERT(ha_thd()->mdl_context.owns_equal_or_stronger_lock(MDL_key::TABLE,
+                                       table->s->db.str,
+                                       table->s->table_name.str,
+                                       MDL_EXCLUSIVE) ||
                !commit);
 
    return commit_inplace_alter_table(altered_table, ha_alter_info, commit);
@@ -4564,10 +4604,10 @@ int handler::index_next_same(uchar *buf, const uchar *key, uint keylen)
   if (!(error=index_next(buf)))
   {
     my_ptrdiff_t ptrdiff= buf - table->record[0];
-    uchar *UNINIT_VAR(save_record_0);
-    KEY *UNINIT_VAR(key_info);
-    KEY_PART_INFO *UNINIT_VAR(key_part);
-    KEY_PART_INFO *UNINIT_VAR(key_part_end);
+    uchar *save_record_0= NULL;
+    KEY *key_info= NULL;
+    KEY_PART_INFO *key_part= NULL;
+    KEY_PART_INFO *key_part_end= NULL;
 
     /*
       key_cmp_if_same() compares table->record[0] against 'key'.
@@ -4653,7 +4693,6 @@ int ha_create_table(THD *thd, const char *path,
   char name_buff[FN_REFLEN];
   const char *name;
   TABLE_SHARE share;
-  bool saved_abort_on_warning;
   DBUG_ENTER("ha_create_table");
 #ifdef HAVE_PSI_TABLE_INTERFACE
   my_bool temp_table= (my_bool)is_temp_table ||
@@ -4678,10 +4717,7 @@ int ha_create_table(THD *thd, const char *path,
 
   name= get_canonical_filename(table.file, share.path.str, name_buff);
 
-  saved_abort_on_warning = thd->abort_on_warning; 
-  thd->abort_on_warning = false;
   error= table.file->ha_create(name, &table, create_info);
-  thd->abort_on_warning = saved_abort_on_warning;
   if (error)
   {
     table.file->print_error(error, MYF(0));
@@ -5397,7 +5433,7 @@ static my_bool binlog_log_query_handlerton(THD *thd,
 
 void ha_binlog_log_query(THD *thd, handlerton *hton,
                          enum_binlog_command binlog_command,
-                         const char *query, uint query_length,
+                         const char *query, size_t query_length,
                          const char *db, const char *table_name)
 {
   struct binlog_log_query_st b;
@@ -6993,9 +7029,9 @@ TYPELIB* ha_known_exts()
 }
 
 
-static bool stat_print(THD *thd, const char *type, uint type_len,
-                       const char *file, uint file_len,
-                       const char *status, uint status_len)
+static bool stat_print(THD *thd, const char *type, size_t type_len,
+                       const char *file, size_t file_len,
+                       const char *status, size_t status_len)
 {
   Protocol *protocol= thd->protocol;
   protocol->prepare_for_resend();

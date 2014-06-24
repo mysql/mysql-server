@@ -671,6 +671,7 @@ int JOIN_CACHE_BKA::init()
   use_emb_key= check_emb_key_usage();
 
   create_remaining_fields(FALSE);
+  bitmap_clear_all(&tab->table->tmp_set);
 
   set_constants();
 

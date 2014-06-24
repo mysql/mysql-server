@@ -1,4 +1,4 @@
-/* Copyright (c) 2002, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2002, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -39,7 +39,6 @@ static void init_one_value(const struct my_option *, void *, longlong);
 static void fini_one_value(const struct my_option *, void *, longlong);
 static int setval(const struct my_option *, void *, char *, my_bool);
 static char *check_struct_option(char *cur_arg, char *key_name);
-static void print_cmdline_password_warning();
 static my_bool get_bool_argument(const struct my_option *opts,
                                  const char *argument,
                                  bool *error);
@@ -97,7 +96,7 @@ int handle_options(int *argc, char ***argv,
 		   const struct my_option *longopts,
                    my_get_one_option get_one_option)
 {
-  return my_handle_options(argc, argv, longopts, get_one_option, NULL);
+  return my_handle_options(argc, argv, longopts, get_one_option, NULL, FALSE);
 }
 
 union ull_dbl
@@ -192,13 +191,17 @@ double getopt_ulonglong2double(ulonglong v)
                              exit, argv [out] would contain all the remaining
                              unparsed options along with the matched command.
 
+  @param [in] ignore_unknown_option When set to TRUE, options are continued to
+                                    be read even when unknown options are
+				    encountered.
+
   @return error in case of ambiguous or unknown options,
           0 on success.
 */
 int my_handle_options(int *argc, char ***argv,
                       const struct my_option *longopts,
                       my_get_one_option get_one_option,
-                      const char **command_list)
+                      const char **command_list, my_bool ignore_unknown_option)
 {
   uint argvpos= 0, length;
   my_bool end_of_options= 0, must_be_var, set_maximum_value,
@@ -352,10 +355,10 @@ int my_handle_options(int *argc, char ***argv,
                 my_getopt_error_reporter(option_is_loose ?
                                          WARNING_LEVEL : ERROR_LEVEL,
                                          "unknown option '--%s'", cur_arg);
-	      if (!option_is_loose)
+	      if (!(option_is_loose || ignore_unknown_option))
 		return EXIT_UNKNOWN_OPTION;
 	    }
-	    if (option_is_loose)
+	    if (option_is_loose || ignore_unknown_option)
 	    {
 	      (*argc)--;
 	      continue;
@@ -610,7 +613,7 @@ done:
  * if password string is specified on the command line.
  */
 
-static void print_cmdline_password_warning()
+void print_cmdline_password_warning()
 {
   static my_bool password_warning_announced= FALSE;
 
@@ -709,9 +712,40 @@ static int setval(const struct my_option *opts, void *value, char *argument,
 {
   int err= 0, res= 0;
   bool error= 0;
+  ulong var_type= opts->var_type & GET_TYPE_MASK;
 
   if (!argument)
     argument= enabled_my_option;
+
+  /*
+    Thus check applies only to options that have a defined value
+    storage pointer.
+    We do it for numeric types only, as empty value is a valid
+    option for strings (the only way to reset back to default value).
+    Note: it does not relate to OPT_ARG/REQUIRED_ARG/NO_ARG, since
+    --param="" is not generally the same as --param.
+    TODO: Add an option definition flag to signify whether empty value
+    (i.e. --param="") is an acceptable value or an error and extend
+    the check to all options.
+  */
+  if (!*argument &&
+      (
+       var_type == GET_INT ||
+       var_type == GET_UINT ||
+       var_type == GET_LONG ||
+       var_type == GET_ULONG ||
+       var_type == GET_LL ||
+       var_type == GET_ULL ||
+       var_type == GET_DOUBLE ||
+       var_type == GET_ENUM
+      )
+     )
+  {
+    my_getopt_error_reporter(ERROR_LEVEL,
+                             "%s: Empty value for '%s' specified",
+                             my_progname, opts->name);
+    return EXIT_ARGUMENT_REQUIRED;
+  }
 
   if (value)
   {
@@ -723,7 +757,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
       return EXIT_NO_PTR_TO_VARIABLE;
     }
 
-    switch ((opts->var_type & GET_TYPE_MASK)) {
+    switch (var_type) {
     case GET_BOOL: /* If argument differs from 0, enable option, else disable */
       *((my_bool*) value)= get_bool_argument(opts, argument, &error);
       if(error)
@@ -819,7 +853,7 @@ static int setval(const struct my_option *opts, void *value, char *argument,
         *((ulonglong*)value)=
               find_set_from_flags(opts->typelib, opts->typelib->count, 
                                   *(ulonglong *)value, opts->def_value,
-                                  argument, strlen(argument),
+                                  argument, (uint)strlen(argument),
                                   &error, &error_len);
         if (error)
         {
@@ -910,7 +944,7 @@ static longlong eval_num_suffix(char *argument, int *error, char *option_name)
   
   *error= 0;
   errno= 0;
-  num= strtoll(argument, &endchar, 10);
+  num= my_strtoll(argument, &endchar, 10);
   if (errno == ERANGE)
   {
     my_getopt_error_reporter(ERROR_LEVEL,
@@ -952,7 +986,7 @@ static ulonglong eval_num_suffix_ull(char *argument, int *error, char *option_na
 
   *error= 0;
   errno= 0;
-  num= strtoull(argument, &endchar, 10);
+  num= my_strtoull(argument, &endchar, 10);
   if (errno == ERANGE)
   {
     my_getopt_error_reporter(ERROR_LEVEL,

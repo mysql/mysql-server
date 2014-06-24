@@ -22,9 +22,8 @@ if ($mysqld_name)
 }
 --exec echo "wait" > $_expect_file_name
 
-# Send shutdown to the connected server and give
-# it 10 seconds to die before zapping it
-shutdown_server 10;
+# Send shutdown to the connected server.
+shutdown_server;
 
 --source include/wait_until_disconnected.inc
 

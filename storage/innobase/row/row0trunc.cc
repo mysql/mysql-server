@@ -227,7 +227,7 @@ protected:
 	table_id_t		m_id;
 
 	/** Turn off logging. */
-	bool			m_noredo;
+	const bool		m_noredo;
 };
 
 /**
@@ -339,7 +339,7 @@ public:
 		os_file_t	handle = os_file_create(
 			innodb_log_file_key, m_log_file_name,
 			OS_FILE_CREATE, OS_FILE_NORMAL,
-			OS_LOG_FILE, &ret);
+			OS_LOG_FILE, srv_read_only_mode, &ret);
 		if (!ret) {
 			return(DB_IO_ERROR);
 		}
@@ -409,7 +409,8 @@ public:
 		bool	ret;
 		os_file_t handle = os_file_create_simple_no_error_handling(
 			innodb_log_file_key, m_log_file_name,
-			OS_FILE_OPEN, OS_FILE_READ_WRITE, &ret);
+			OS_FILE_OPEN, OS_FILE_READ_WRITE,
+			srv_read_only_mode, &ret);
 		DBUG_EXECUTE_IF("ib_err_trunc_writing_magic_number",
 				os_file_close(handle);
 				ret = false;);
@@ -584,7 +585,7 @@ TruncateLogParser::parse(
 	bool		ret;
 	os_file_t	handle = os_file_create_simple(
 		innodb_log_file_key, log_file_name,
-		OS_FILE_OPEN, OS_FILE_READ_ONLY, &ret);
+		OS_FILE_OPEN, OS_FILE_READ_ONLY, srv_read_only_mode, &ret);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"Error opening truncate log file: %s",
@@ -710,10 +711,11 @@ public:
 	/**
 	Constructor
 
-	@param table	Table to truncate */
-	explicit DropIndex(dict_table_t* table)
+	@param[in/out]	table	Table to truncate
+	@param[in]	noredo	whether to disable redo logging */
+	DropIndex(dict_table_t* table, bool noredo)
 		:
-		Callback(table->id, false),
+		Callback(table->id, noredo),
 		m_table(table)
 	{
 		/* No op */
@@ -737,10 +739,11 @@ public:
 	/**
 	Constructor
 
-	@param table	Table to truncate */
-	explicit CreateIndex(dict_table_t* table)
+	@param[in/out]	table	Table to truncate
+	@param[in]	noredo	whether to disable redo logging */
+	CreateIndex(dict_table_t* table, bool noredo)
 		:
-		Callback(table->id, false),
+		Callback(table->id, noredo),
 		m_table(table)
 	{
 		/* No op */
@@ -917,9 +920,11 @@ DropIndex::operator()(mtr_t* mtr, btr_pcur_t* pcur) const
 		The dict_drop_index_tree() call has freed
 		a page in this mini-transaction, and the rest
 		of this loop could latch another index page.*/
+		const mtr_log_t log_mode = mtr->get_log_mode();
 		mtr_commit(mtr);
 
 		mtr_start(mtr);
+		mtr->set_log_mode(log_mode);
 
 		btr_pcur_restore_position(BTR_MODIFY_LEAF, pcur, mtr);
 	} else {
@@ -1052,17 +1057,19 @@ sequence works as expected.
 @param new_id			new table id that was suppose to get assigned
 				to the table if truncate executed successfully.
 @param has_internal_doc_id	indicate existence of fts index
+@param no_redo			if true, turn-off redo logging
 @param corrupted		table corrupted status
 @param unlock_index		if true then unlock indexes before action */
 static
 void
 row_truncate_rollback(
-	dict_table_t* table,
-	trx_t* trx,
-	table_id_t new_id,
-	bool has_internal_doc_id,
-	bool corrupted,
-	bool unlock_index)
+	dict_table_t*	table,
+	trx_t*		trx,
+	table_id_t	new_id,
+	bool		has_internal_doc_id,
+	bool		no_redo,
+	bool		corrupted,
+	bool		unlock_index)
 {
 	if (unlock_index) {
 		dict_table_x_unlock_indexes(table);
@@ -1081,7 +1088,7 @@ row_truncate_rollback(
 		it can be recovered using drop/create sequence. */
 		dict_table_x_lock_indexes(table);
 
-		DropIndex       dropIndex(table);
+		DropIndex       dropIndex(table, no_redo);
 
 		SysIndexIterator().for_each(dropIndex);
 
@@ -1384,7 +1391,8 @@ SYSTEM TABLES with the new id.
 @param table,			table being truncated
 @param new_id,			new table id
 @param has_internal_doc_id,	has doc col (fts)
-@param trx)			transaction handle
+@param no_redo			if true, turn-off redo logging
+@param trx			transaction handle
 @return	error code or DB_SUCCESS */
 static __attribute__((warn_unused_result))
 dberr_t
@@ -1392,6 +1400,7 @@ row_truncate_update_system_tables(
 	dict_table_t*	table,
 	table_id_t	new_id,
 	bool		has_internal_doc_id,
+	bool		no_redo,
 	trx_t*		trx)
 {
 	dberr_t		err	= DB_SUCCESS;
@@ -1407,7 +1416,7 @@ row_truncate_update_system_tables(
 
 		row_truncate_rollback(
 			table, trx, new_id, has_internal_doc_id,
-			true, false);
+			no_redo, true, false);
 
 		char	table_name[MAX_FULL_NAME_LEN + 1];
 		innobase_format_name(
@@ -1491,16 +1500,16 @@ row_truncate_foreign_key_checks(
 	/* Check if the table is referenced by foreign key constraints from
 	some other table (not the table itself) */
 
-	dict_foreign_t*	foreign;
+	dict_foreign_set::iterator	it
+		= std::find_if(table->referenced_set.begin(),
+			       table->referenced_set.end(),
+			       dict_foreign_different_tables());
 
-	for (foreign = UT_LIST_GET_FIRST(table->referenced_list);
-	     foreign != 0 && foreign->foreign_table == table;
-	     foreign = UT_LIST_GET_NEXT(referenced_list, foreign)) {
+	if (!srv_read_only_mode
+	    && it != table->referenced_set.end()
+	    && trx->check_foreigns) {
 
-		/* Do nothing. */
-	}
-
-	if (!srv_read_only_mode && foreign != NULL && trx->check_foreigns) {
+		dict_foreign_t*	foreign = *it;
 
 		FILE*	ef = dict_foreign_err_file;
 
@@ -1781,6 +1790,9 @@ row_truncate_table_for_mysql(
 		dict_table_has_fts_index(table)
 		|| DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID);
 
+	bool	no_redo =
+		(!is_system_tablespace(table->space) && !has_internal_doc_id);
+
 	/* Step-8: Log information about tablespace which includes
 	table and index information. If there is a crash in the next step
 	then during recovery we will attempt to fixup the operation. */
@@ -1805,7 +1817,7 @@ row_truncate_table_for_mysql(
 			if (err != DB_SUCCESS) {
 				row_truncate_rollback(
 					table, trx, new_id, has_internal_doc_id,
-					false, true);
+					no_redo, false, true);
 				return(row_truncate_complete(
 					table, trx, flags, logger, err));
 			}
@@ -1818,7 +1830,7 @@ row_truncate_table_for_mysql(
 			if (flags == ULINT_UNDEFINED) {
 				row_truncate_rollback(
 					table, trx, new_id, has_internal_doc_id,
-					false, true);
+					no_redo, false, true);
 				return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 			}
@@ -1830,7 +1842,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				false, true);
+				no_redo, false, true);
 			return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 
@@ -1840,7 +1852,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				false, true);
+				no_redo, false, true);
 			return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 
@@ -1853,7 +1865,7 @@ row_truncate_table_for_mysql(
 		if (err != DB_SUCCESS) {
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				false, true);
+				no_redo, false, true);
 			return(row_truncate_complete(
 					table, trx, flags, logger, DB_ERROR));
 		}
@@ -1868,7 +1880,7 @@ row_truncate_table_for_mysql(
 	indexes) */
 	if (!dict_table_is_temporary(table)) {
 
-		DropIndex	dropIndex(table);
+		DropIndex	dropIndex(table, no_redo);
 
 		err = SysIndexIterator().for_each(dropIndex);
 
@@ -1876,7 +1888,7 @@ row_truncate_table_for_mysql(
 
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				true, true);
+				no_redo, true, true);
 
 			return(row_truncate_complete(
 				table, trx, flags, logger, err));
@@ -1893,7 +1905,7 @@ row_truncate_table_for_mysql(
 			if (err != DB_SUCCESS) {
 				row_truncate_rollback(
 					table, trx, new_id, has_internal_doc_id,
-					true, true);
+					no_redo, true, true);
 				return(row_truncate_complete(
 					table, trx, flags, logger, err));
 			}
@@ -1930,7 +1942,7 @@ row_truncate_table_for_mysql(
 	/* Step-10: Re-create new indexes. */
 	if (!dict_table_is_temporary(table)) {
 
-		CreateIndex	createIndex(table);
+		CreateIndex	createIndex(table, no_redo);
 
 		err = SysIndexIterator().for_each(createIndex);
 
@@ -1938,7 +1950,7 @@ row_truncate_table_for_mysql(
 
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				true, true);
+				no_redo, true, true);
 
 			return(row_truncate_complete(
 				table, trx, flags, logger, err));
@@ -1957,7 +1969,7 @@ row_truncate_table_for_mysql(
 
 			row_truncate_rollback(
 				table, trx, new_id, has_internal_doc_id,
-				true, false);
+				no_redo, true, false);
 
 			return(row_truncate_complete(
 				table, trx, flags, logger, err));
@@ -1980,7 +1992,7 @@ row_truncate_table_for_mysql(
 		ut_ad(old_space == table->space);
 
 		err = row_truncate_update_system_tables(
-			table, new_id, has_internal_doc_id, trx);
+			table, new_id, has_internal_doc_id, no_redo, trx);
 
 		if (err != DB_SUCCESS) {
 			return(row_truncate_complete(

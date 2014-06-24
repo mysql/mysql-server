@@ -3939,14 +3939,14 @@ CREATE TABLE t3 LIKE t1;
 
 --echo # should have 1 impossible where and 2 dependent subqueries
 EXPLAIN
-SELECT 1 FROM t1
+SELECT COUNT(*) FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
-ORDER BY count(*);
+ORDER BY COUNT(*);
 
 --echo # should not crash the next statement
-SELECT 1 FROM t1
+SELECT COUNT(*) FROM t1
 WHERE NOT EXISTS (SELECT 1 FROM t2 WHERE 1 = (SELECT MIN(t2.b) FROM t3))
-ORDER BY count(*);
+ORDER BY COUNT(*);
 
 --echo # should not crash: the crash is caused by the previous statement
 SELECT 1;
@@ -4658,11 +4658,13 @@ DROP TABLE t1, t2;
 #
 CREATE TABLE t1 (a ENUM('rainbow'));
 INSERT INTO t1 VALUES (),(),(),(),();
-SELECT 1 FROM t1 GROUP BY (SELECT 1 FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
+SELECT 1
+FROM t1 GROUP BY (SELECT COUNT(*) FROM t1 ORDER BY AVG(LAST_INSERT_ID()));
 DROP TABLE t1;
 CREATE TABLE t1 (a LONGBLOB);
 INSERT INTO t1 SET a = 'aaaa';
 INSERT INTO t1 SET a = 'aaaa';
+--error ER_AGGREGATE_ORDER_NON_AGG_QUERY
 SELECT 1 FROM t1 GROUP BY
   (SELECT LAST_INSERT_ID() FROM t1 ORDER BY MIN(a) ASC LIMIT 1);
 DROP TABLE t1;
@@ -6174,3 +6176,22 @@ DROP TABLE t1;
 
 set @@optimizer_switch=@old_opt_switch;
 # New tests go here.
+
+--echo #
+--echo # Bug #18486607 ASSERTION FAILED:
+--echo # IN_SUBQ_PRED->LEFT_EXPR->FIXED IN CONVERT_SUBQUERY_TO_SEMIJOIN 
+--echo #
+
+CREATE TABLE t1 (a INT);
+CREATE TABLE t2 (b INT);
+
+# not with prepared statements because of Bug#16926177
+--disable_ps_protocol
+SELECT (SELECT 1 FROM t2
+        WHERE a IN (SELECT 1 FROM t2)
+       ) AS scalar
+FROM t1
+GROUP BY a;
+--enable_ps_protocol
+
+DROP TABLE t1,t2;

@@ -28,7 +28,7 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
   my_bool auto_key_changed=0;
   ulonglong changed;
   MYISAM_SHARE *share=info->s;
-  ha_checksum UNINIT_VAR(old_checksum);
+  ha_checksum old_checksum= 0;
   DBUG_ENTER("mi_update");
 
   DBUG_EXECUTE_IF("myisam_pretend_crashed_table_on_usage",
@@ -108,9 +108,6 @@ int mi_update(MI_INFO *info, const uchar *oldrec, uchar *newrec)
       {
 	uint new_length=_mi_make_key(info,i,new_key,newrec,pos);
 	uint old_length=_mi_make_key(info,i,old_key,oldrec,pos);
-
-        /* The above changed info->lastkey2. Inform mi_rnext_same(). */
-        info->update&= ~HA_STATE_RNEXT_SAME;
 
 	if (new_length != old_length ||
 	    memcmp((uchar*) old_key,(uchar*) new_key,new_length))

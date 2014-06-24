@@ -38,7 +38,6 @@ Created 11/5/1995 Heikki Tuuri
 #ifdef UNIV_NONINL
 #include "buf0buf.ic"
 #endif
-
 #ifdef UNIV_INNOCHECKSUM
 #include "string.h"
 #include "mach0data.h"
@@ -47,6 +46,7 @@ Created 11/5/1995 Heikki Tuuri
 #include "mem0mem.h"
 #include "btr0btr.h"
 #include "fil0fil.h"
+#include "fsp0sysspace.h"
 #ifndef UNIV_HOTBACKUP
 #include "buf0buddy.h"
 #include "lock0lock.h"
@@ -60,12 +60,14 @@ Created 11/5/1995 Heikki Tuuri
 #include "dict0dict.h"
 #include "log0recv.h"
 #include "srv0mon.h"
+#include "fsp0sysspace.h"
 #endif /* !UNIV_INNOCHECKSUM */
 #include "page0zip.h"
 #include "buf0checksum.h"
 #include "sync0sync.h"
 
 #include <new>
+
 
 /*
 		IMPLEMENTATION OF THE BUFFER POOL
@@ -258,6 +260,7 @@ the read requests for the whole area.
 #if (!(defined(UNIV_HOTBACKUP) || defined(UNIV_INNOCHECKSUM)))
 /** Value in microseconds */
 static const int WAIT_FOR_READ	= 100;
+static const int WAIT_FOR_WRITE = 100;
 /** Number of attemtps made to read in a page in the buffer pool */
 static const ulint BUF_PAGE_READ_MAX_RETRIES = 100;
 
@@ -320,7 +323,15 @@ buf_pool_get_oldest_modification(void)
 
 		buf_page_t*	bpage;
 
-		bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		/* We don't let log-checkpoint halt because pages from system
+		temporary are not yet flushed to the disk. Anyway, object
+		residing in system temporary doesn't generate REDO logging. */
+		for (bpage = UT_LIST_GET_LAST(buf_pool->flush_list);
+		     bpage != NULL
+			&& fsp_is_system_temporary(bpage->id.space());
+		     bpage = UT_LIST_GET_PREV(list, bpage)) {
+			/* Do nothing. */
+		}
 
 		if (bpage != NULL) {
 			ut_ad(bpage->in_flush_list);
@@ -481,6 +492,7 @@ buf_page_is_zeroes(
 the LSN
 @param[in]	read_buf	database page
 @param[in]	page_size	page size
+@param[in]	skip_checksum	if true, skip checksum
 @param[in]	page_no		page number of given read_buf
 @param[in]	strict_check	true if strict-check option is enabled
 @param[in]	is_log_enabled	true if log option is enabled
@@ -490,7 +502,8 @@ ibool
 buf_page_is_corrupted(
 	bool			check_lsn,
 	const byte*		read_buf,
-	const page_size_t&	page_size
+	const page_size_t&	page_size,
+	bool			skip_checksum
 #ifdef UNIV_INNOCHECKSUM
 	,uintmax_t		page_no,
 	bool			strict_check,
@@ -517,24 +530,24 @@ buf_page_is_corrupted(
 
 #if !defined(UNIV_HOTBACKUP) && !defined(UNIV_INNOCHECKSUM)
 	if (check_lsn && recv_lsn_checks_on) {
-		lsn_t	current_lsn;
+		lsn_t		current_lsn;
+		const lsn_t	page_lsn
+			= mach_read_from_8(read_buf + FIL_PAGE_LSN);
 
 		/* Since we are going to reset the page LSN during the import
 		phase it makes no sense to spam the log with error messages. */
 
-		if (log_peek_lsn(&current_lsn)
-		    && current_lsn
-		    < mach_read_from_8(read_buf + FIL_PAGE_LSN)) {
-
+		if (log_peek_lsn(&current_lsn) && current_lsn < page_lsn) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Page %lu log sequence number"
-				" " LSN_PF
+				"Page " ULINTPF ":" ULINTPF
+				" log sequence number " LSN_PF
 				" is in the future! Current system"
 				" log sequence number " LSN_PF ".",
-				(ulong) mach_read_from_4(
+				mach_read_from_4(
+					read_buf + FIL_PAGE_SPACE_ID),
+				mach_read_from_4(
 					read_buf + FIL_PAGE_OFFSET),
-				(lsn_t) mach_read_from_8(
-					read_buf + FIL_PAGE_LSN),
+				page_lsn,
 				current_lsn);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Your database may be corrupt or"
@@ -549,7 +562,8 @@ buf_page_is_corrupted(
 
 	/* Check whether the checksum fields have correct values */
 
-	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE) {
+	if (srv_checksum_algorithm == SRV_CHECKSUM_ALGORITHM_NONE
+	    || skip_checksum) {
 		return(FALSE);
 	}
 
@@ -845,7 +859,7 @@ buf_page_is_corrupted(
 	is added and not handled here */
 	}
 
-	DBUG_EXECUTE_IF("buf_page_is_corrupt_failure", return(TRUE); );
+	DBUG_EXECUTE_IF("buf_page_import_corrupt_failure", return(TRUE); );
 
 	return(FALSE);
 }
@@ -1099,6 +1113,7 @@ buf_block_init(
 
 	block->check_index_page_at_flush = FALSE;
 	block->index = NULL;
+	block->made_dirty_with_no_latch = false;
 
 #ifdef UNIV_DEBUG
 	block->page.in_page_hash = FALSE;
@@ -1441,6 +1456,9 @@ buf_pool_init_instance(
 
 	buf_pool->watch = (buf_page_t*) ut_zalloc(
 		sizeof(*buf_pool->watch) * BUF_POOL_WATCH_SIZE);
+	for (i = 0; i < BUF_POOL_WATCH_SIZE; i++) {
+		buf_pool->watch[i].buf_pool_index = buf_pool->instance_no;
+	}
 
 	/* All fields are initialized by ut_zalloc(). */
 
@@ -1710,7 +1728,7 @@ buf_relocate(
 #endif /* UNIV_LRU_DEBUG */
 	}
 
-        ut_d(UT_LIST_VALIDATE(buf_pool->LRU, CheckInLRUList()));
+        ut_d(CheckInLRUList::validate(buf_pool));
 
 	/* relocate buf_pool->page_hash */
 	ulint	fold = bpage->id.fold();
@@ -1975,7 +1993,7 @@ buf_pool_watch_remove(
 }
 
 /** Stop watching if the page has been read in.
-buf_pool_watch_set(space,offset) must have returned NULL before.
+buf_pool_watch_set(same_page_id) must have returned NULL before.
 @param[in]	page_id	page id */
 void
 buf_pool_watch_unset(
@@ -2020,8 +2038,8 @@ buf_pool_watch_unset(
 }
 
 /** Check if the page has been read in.
-This may only be called after buf_pool_watch_set(space,offset)
-has returned NULL and before invoking buf_pool_watch_unset(space,offset).
+This may only be called after buf_pool_watch_set(same_page_id)
+has returned NULL and before invoking buf_pool_watch_unset(same_page_id).
 @param[in]	page_id	page id
 @return FALSE if the given page was not read in, TRUE if it was */
 ibool
@@ -2328,6 +2346,7 @@ buf_block_init_low(
 {
 	block->check_index_page_at_flush = FALSE;
 	block->index		= NULL;
+	block->made_dirty_with_no_latch = false;
 
 	block->n_hash_helps	= 0;
 	block->n_fields		= 1;
@@ -2670,6 +2689,9 @@ BUF_PEEK_IF_IN_POOL, BUF_GET_NO_LATCH, or BUF_GET_IF_IN_POOL_OR_WATCH
 @param[in]	file		file name
 @param[in]	line		line where called
 @param[in]	mtr		mini-transaction
+@param[in]	dirty_with_no_latch
+				mark page as dirty even if page
+				is being pinned without any latch
 @return pointer to the block or NULL */
 buf_block_t*
 buf_page_get_gen(
@@ -2680,7 +2702,8 @@ buf_page_get_gen(
 	ulint			mode,
 	const char*		file,
 	ulint			line,
-	mtr_t*			mtr)
+	mtr_t*			mtr,
+	bool			dirty_with_no_latch)
 {
 	buf_block_t*	block;
 	unsigned	access_time;
@@ -2769,7 +2792,23 @@ loop:
 				increment the fix count to make
 				sure that no state change takes place. */
 				fix_block = block;
+				fix_mutex = buf_page_get_mutex(
+					&fix_block->page);
+
+				if (fsp_is_system_temporary(page_id.space())) {
+					/* Flush thread synchronization for
+					object residing in temporary tablespace
+					is done using fix_count and io_fix state
+					so before changing any of it get the
+					mutex. */
+					mutex_enter(fix_mutex);
+				}
+
 				buf_block_fix(fix_block);
+
+				if (fsp_is_system_temporary(page_id.space())) {
+					mutex_exit(fix_mutex);
+				}
 
 				/* Now safe to release page_hash mutex */
 				rw_lock_x_unlock(hash_lock);
@@ -2823,14 +2862,25 @@ loop:
 		fix_block = block;
 	}
 
+	fix_mutex = buf_page_get_mutex(&fix_block->page);
+
+	if (fsp_is_system_temporary(page_id.space())) {
+		mutex_enter(fix_mutex);
+	}
+
+	/* Flush thread synchronization for object residing in temporary
+	tablespace is done using fix_count and io_fix state so before changing
+	any of it get the mutex. */
 	buf_block_fix(fix_block);
+
+	if (fsp_is_system_temporary(page_id.space())) {
+		mutex_exit(fix_mutex);
+	}
 
 	/* Now safe to release page_hash mutex */
 	rw_lock_s_unlock(hash_lock);
 
 got_block:
-
-	fix_mutex = buf_page_get_mutex(&fix_block->page);
 
 	if (mode == BUF_GET_IF_IN_POOL || mode == BUF_PEEK_IF_IN_POOL) {
 
@@ -2862,6 +2912,18 @@ got_block:
 		buf_page_t*	bpage;
 
 	case BUF_BLOCK_FILE_PAGE:
+		bpage = &block->page;
+		if (fsp_is_system_temporary(page_id.space())
+		    && buf_page_get_io_fix(bpage) != BUF_IO_NONE) {
+				/* This suggest that page is being flushed.
+				Avoid returning reference to this page.
+				Instead wait for flush action to complete.
+				For normal page this sync is done using SX
+				lock but for intrinsic there is no latching. */
+				buf_block_unfix(fix_block);
+				os_thread_sleep(WAIT_FOR_WRITE);
+				goto loop;
+		}
 		break;
 
 	case BUF_BLOCK_ZIP_PAGE:
@@ -3049,12 +3111,6 @@ got_block:
 
 	ut_ad(buf_block_get_state(fix_block) == BUF_BLOCK_FILE_PAGE);
 
-#if UNIV_WORD_SIZE == 4
-	/* On 32-bit systems, there is no padding in buf_page_t.  On
-	other systems, Valgrind could complain about uninitialized pad
-	bytes. */
-	UNIV_MEM_ASSERT_RW(&fix_block->page, sizeof fix_block->page);
-#endif
 #if defined UNIV_DEBUG || defined UNIV_IBUF_DEBUG
 
 	if ((mode == BUF_GET_IF_IN_POOL || mode == BUF_GET_IF_IN_POOL_OR_WATCH)
@@ -3138,10 +3194,13 @@ got_block:
 
 #ifdef UNIV_SYNC_DEBUG
 	/* We have already buffer fixed the page, and we are committed to
-	returning this page to the caller. Register for debugging. */
-	{
-		ibool	ret;
-		ret = rw_lock_s_lock_nowait(&fix_block->debug_latch, file, line);
+	returning this page to the caller. Register for debugging.
+	Avoid debug latching if page/block belongs to system temporary
+	tablespace (Not much needed for table with single threaded access.). */
+	if (!fsp_is_system_temporary(page_id.space())) {
+		ibool   ret;
+		ret = rw_lock_s_lock_nowait(
+			&fix_block->debug_latch, file, line);
 		ut_a(ret);
 	}
 #endif /* UNIV_SYNC_DEBUG */
@@ -3178,6 +3237,17 @@ got_block:
 	and block->lock. */
 	buf_wait_for_read(fix_block);
 #endif /* PAGE_ATOMIC_REF_COUNT */
+
+	/* Mark block as dirty if requested by caller. If not requested (false)
+	then we avoid updating the dirty state of the block and retain the
+	original one. This is reason why ?
+	Same block can be shared/pinned by 2 different mtrs. If first mtr
+	set the dirty state to true and second mtr mark it as false the last
+	updated dirty state is retained. Which means we can loose flushing of
+	a modified block. */
+	if (dirty_with_no_latch) {
+		fix_block->made_dirty_with_no_latch = dirty_with_no_latch;
+	}
 
 	mtr_memo_type_t	fix_type;
 
@@ -3685,7 +3755,7 @@ buf_page_init_for_read(
 	const page_id_t&	page_id,
 	const page_size_t&	page_size,
 	ibool			unzip,
-	ib_int64_t		tablespace_version)
+	int64_t			tablespace_version)
 {
 	buf_block_t*	block;
 	buf_page_t*	bpage	= NULL;
@@ -4314,16 +4384,20 @@ buf_page_io_complete(
 
 		/* From version 3.23.38 up we store the page checksum
 		to the 4 first bytes of the page end lsn field */
-
-		if (buf_page_is_corrupted(true, frame, bpage->size)) {
+		if (buf_page_is_corrupted(true, frame, bpage->size,
+					  fsp_is_checksum_disabled(
+						bpage->id.space()))) {
 
 			/* Not a real corruption if it was triggered by
 			error injection */
-			DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+			DBUG_EXECUTE_IF(
+				"buf_page_import_corrupt_failure",
 				if (bpage->id.space() > TRX_SYS_SPACE
+				    && !Tablespace::is_undo_tablespace(
+					    bpage->id.space())
 				    && buf_mark_space_corrupt(bpage)) {
 					ib_logf(IB_LOG_LEVEL_INFO,
-						"Simulated page corruption");
+						"Simulated IMPORT corruption");
 					return(true);
 				}
 				goto page_not_corrupt;
@@ -4367,7 +4441,7 @@ corrupt:
 			}
 		}
 
-		DBUG_EXECUTE_IF("buf_page_is_corrupt_failure",
+		DBUG_EXECUTE_IF("buf_page_import_corrupt_failure",
 				page_not_corrupt:  bpage = bpage; );
 
 		if (recv_recovery_is_on()) {
@@ -4380,6 +4454,7 @@ corrupt:
 		During re-init we have already freed ibuf entries. */
 		if (uncompressed
 		    && !recv_no_ibuf_operations
+		    && !Tablespace::is_undo_tablespace(bpage->id.space())
 		    && !srv_is_tablespace_truncated(bpage->id.space())) {
 
 			ibuf_merge_or_delete_for_page(
@@ -5113,18 +5188,19 @@ Returns the ratio in percents of modified pages in the buffer pool /
 database pages in the buffer pool.
 @return modified page percentage ratio */
 
-ulint
+double
 buf_get_modified_ratio_pct(void)
 /*============================*/
 {
-	ulint		ratio;
+	double		ratio;
 	ulint		lru_len = 0;
 	ulint		free_len = 0;
 	ulint		flush_list_len = 0;
 
 	buf_get_total_list_len(&lru_len, &free_len, &flush_list_len);
 
-	ratio = (100 * flush_list_len) / (1 + lru_len + free_len);
+	ratio = static_cast<double>(100 * flush_list_len)
+		/ (1 + lru_len + free_len);
 
 	/* 1 + is there to avoid division by zero */
 

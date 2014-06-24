@@ -332,7 +332,7 @@ bool throw_bounds_warning(THD *thd, const char *name, bool fixed, double v)
   {
     char buf[64];
 
-    my_gcvt(v, MY_GCVT_ARG_DOUBLE, sizeof(buf) - 1, buf, NULL);
+    my_gcvt(v, MY_GCVT_ARG_DOUBLE, static_cast<int>(sizeof(buf)) - 1, buf, NULL);
 
     if (thd->variables.sql_mode & MODE_STRICT_ALL_TABLES)
     {
@@ -525,7 +525,7 @@ SHOW_VAR* enumerate_sys_vars(THD *thd, bool sorted, enum enum_var_type type)
     0           Unknown variable (error message is given)
 */
 
-sys_var *intern_find_sys_var(const char *str, uint length)
+sys_var *intern_find_sys_var(const char *str, size_t length)
 {
   sys_var *var;
 

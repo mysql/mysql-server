@@ -15052,7 +15052,11 @@ static void test_bug15510()
 
   myheader("test_bug15510");
 
-  rc= mysql_query(mysql, "set @@sql_mode='STRICT_ALL_TABLES'");
+  /* Behavior change introduced by WL#7467 */
+  if (mysql_get_server_version(mysql) < 50704)
+    rc= mysql_query(mysql, "set @@sql_mode='ERROR_FOR_DIVISION_BY_ZERO'");
+  else
+    rc= mysql_query(mysql, "set @@sql_mode='STRICT_ALL_TABLES'");
   myquery(rc);
 
   stmt= mysql_stmt_init(mysql);
@@ -19379,6 +19383,57 @@ static void test_wl6587()
   myquery(rc);
 }
 
+#ifndef EMBEDDED_LIBRARY
+/*
+  Bug #17309863 AUTO RECONNECT DOES NOT WORK WITH 5.6 LIBMYSQLCLIENT
+*/
+static void test_bug17309863()
+{
+  MYSQL *lmysql;
+  unsigned long thread_id;
+  char query[MAX_TEST_QUERY_LENGTH];
+  int rc;
+
+  myheader("test_bug17309863");
+
+  if (!opt_silent)
+    fprintf(stdout, "\n Establishing a test connection ...");
+  if (!(lmysql= mysql_client_init(NULL)))
+  {
+    myerror("mysql_client_init() failed");
+    exit(1);
+  }
+  lmysql->reconnect= 1;
+  if (!(mysql_real_connect(lmysql, opt_host, opt_user,
+                           opt_password, current_db, opt_port,
+                           opt_unix_socket, 0)))
+  {
+    myerror("connection failed");
+    exit(1);
+  }
+  if (!opt_silent)
+    fprintf(stdout, "OK");
+
+  thread_id= mysql_thread_id(lmysql);
+  sprintf(query, "KILL %lu", thread_id);
+
+  /*
+    Running the "KILL <thread_id>" query in a separate connection.
+  */
+  if (thread_query(query))
+    exit(1);
+
+  /*
+    The above KILL statement should have closed our connection. But reconnect
+    flag allows to detect this before sending query and re-establish it without
+    returning an error.
+  */
+  rc= mysql_query(lmysql, "SELECT 'bug17309863'");
+  myquery(rc);
+
+  mysql_close(lmysql);
+}
+#endif
 
 static void test_wl5928()
 {
@@ -19659,6 +19714,14 @@ static void test_wl5768()
   int        rc;
 
   myheader("test_wl5768");
+
+  if (mysql_get_server_version(mysql) < 50704)
+  {
+    if (!opt_silent)
+      fprintf(stdout, "Skipping test_wl5768: "
+              "tested feature does not exist in versions before MySQL 5.7.4\n");
+    return;
+  }
 
   rc= mysql_query(mysql, "DROP TABLE IF EXISTS ps_t1");
   myquery(rc);
@@ -20029,6 +20092,9 @@ static struct my_tests_st my_tests[]= {
   { "test_wl6797", test_wl6797 },
   { "test_wl6791", test_wl6791 },
   { "test_wl5768", test_wl5768 },
+#ifndef EMBEDDED_LIBRARY
+  { "test_bug17309863", test_bug17309863},
+#endif
   { 0, 0 }
 };
 

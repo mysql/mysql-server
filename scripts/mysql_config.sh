@@ -76,8 +76,8 @@ get_full_path ()
 
 me=`get_full_path $0`
 
-# Script might have been renamed but assume mysql_<something>config
-basedir=`echo $me | sed -e 's;/bin/mysql_.*config;;'`
+# Script might have been renamed but assume mysql_<something>config<something>
+basedir=`echo $me | sed -e 's;/bin/mysql_.*config.*;;'`
 
 ldata='@localstatedir@'
 execdir='@libexecdir@'
@@ -86,11 +86,11 @@ bindir='@bindir@'
 # If installed, search for the compiled in directory first (might be "lib64")
 pkglibdir='@pkglibdir@'
 pkglibdir_rel=`echo $pkglibdir | sed -e "s;^$basedir/;;"`
-fix_path pkglibdir $pkglibdir_rel lib/mysql lib
+fix_path pkglibdir $pkglibdir_rel @libsubdir@/mysql @libsubdir@
 
 plugindir='@pkgplugindir@'
 plugindir_rel=`echo $plugindir | sed -e "s;^$basedir/;;"`
-fix_path plugindir $plugindir_rel lib/mysql/plugin lib/plugin
+fix_path plugindir $plugindir_rel @libsubdir@/mysql/plugin @libsubdir@/plugin
 
 pkgincludedir='@pkgincludedir@'
 if [ -f "$basedir/include/mysql/mysql.h" ]; then
@@ -124,7 +124,7 @@ cxxflags="-I$pkgincludedir @CXXFLAGS@ " #note: end space!
 include="-I$pkgincludedir"
 
 # Remove some options that a client doesn't have to care about
-for remove in DDBUG_OFF DSAFE_MUTEX DFORCE_INIT_OF_VARS \
+for remove in DDBUG_OFF DSAFE_MUTEX \
               DEXTRA_DEBUG DHAVE_VALGRIND O 'O[0-9]' 'xO[0-9]' 'W[-A-Za-z]*' \
               'mtune=[-A-Za-z0-9]*' 'mcpu=[-A-Za-z0-9]*' 'march=[-A-Za-z0-9]*' \
               unroll2 ip mp restrict

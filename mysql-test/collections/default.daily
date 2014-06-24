@@ -34,8 +34,8 @@ perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experime
 perl mysql-test-run.pl --force --timer --debug-server --parallel=auto --experimental=collections/default.experimental --comment=binlog_gtid-debug --vardir=var-binlog_gtid-debug --suite=binlog --mysqld=--binlog-checksum=CRC32 --mysqld=--enforce-gtid-consistency --mysqld=--log-slave-updates --mysqld=--gtid-mode=on --skip-test-list=collections/disabled-gtid-on.list
 
 # Run innodb suite including big-test with innodb-page-size=4k and 8k
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
-perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_4k_size --vardir=var-n_mix_4k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=4k --skip-test=innodb_ignore_builtin --suite=innodb
+perl mysql-test-run.pl --timer --force --big-test --testcase-timeout=60 --debug-server --parallel=auto --comment=n_mix_8k_size --vardir=var-n_mix_8k --mysqld=--binlog-format=mixed --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--innodb-page-size=8k --skip-test=innodb_ignore_builtin --suite=innodb
 
 #Engine independent tests
 perl mysql-test-run.pl --timer --force --debug-server --parallel=auto --comment=eits-rpl-binlog-row-tests-myisam-engine-debug --experimental=collections/default.experimental --vardir=var-binlog-row-eits-tests-myisam-engine-debug --suite=engines/iuds,engines/funcs --suite-timeout=500 --max-test-fail=0 --retry-failure=0 --mysqld=--default-storage-engine=myisam --do-test=rpl --mysqld=--binlog-format=row --skip-test-list=collections/disabled-daily.list
@@ -51,3 +51,6 @@ perl mysql-test-run.pl --timer --force --debug-server --comment=memcached-debug 
 #Run with Query Cache Enabled
 
 perl mysql-test-run.pl --debug-server --timer --force --testcase-timeout=60 --parallel=auto --comment=Query_Cache_Enabled --vardir=var-QC_Enabled --experimental=collections/default.experimental --skip-test-list=collections/disabled-daily.list --mysqld=--query_cache_type=1 --mysqld=--query_cache_size=1M
+
+# Run all tests under the suite interactive_utilities
+perl mysql-test-run.pl --force --timer  --testcase-timeout=60 --parallel=auto --experimental=collections/default.experimental --comment=interactive_tests  --vardir=interactive-tests  --suite=interactive_utilities

@@ -59,7 +59,7 @@ struct srv_stats_t {
 	typedef ib_counter_t<lsn_t, 1, single_indexer_t> lsn_ctr_1_t;
 	typedef ib_counter_t<ulint, 1, single_indexer_t> ulint_ctr_1_t;
 	typedef ib_counter_t<lint, 1, single_indexer_t> lint_ctr_1_t;
-	typedef ib_counter_t<ib_int64_t, 1, single_indexer_t> ib_int64_ctr_1_t;
+	typedef ib_counter_t<int64_t, 1, single_indexer_t> int64_ctr_1_t;
 
 	/** Count the amount of data written in total (in bytes) */
 	ulint_ctr_1_t		data_written;
@@ -110,7 +110,7 @@ struct srv_stats_t {
 	ulint_ctr_1_t		data_read;
 
 	/** Wait time of database locks */
-	ib_int64_ctr_1_t	n_lock_wait_time;
+	int64_ctr_1_t		n_lock_wait_time;
 
 	/** Number of database lock waits */
 	ulint_ctr_1_t		n_lock_wait_count;
@@ -297,15 +297,13 @@ as enum type because the configure option takes unsigned integer type. */
 extern ulong	srv_innodb_stats_method;
 
 extern char*	srv_file_flush_method_str;
-extern ulint	srv_unix_file_flush_method;
-extern ulint	srv_win_file_flush_method;
 
 extern ulint	srv_max_n_open_files;
 
 extern ulong	srv_n_page_cleaners;
 
-extern ulong	srv_max_dirty_pages_pct;
-extern ulong	srv_max_dirty_pages_pct_lwm;
+extern double	srv_max_dirty_pages_pct;
+extern double	srv_max_dirty_pages_pct_lwm;
 
 extern ulong	srv_adaptive_flushing_lwm;
 extern ulong	srv_flushing_avg_loops;
@@ -333,7 +331,7 @@ extern ibool	srv_use_doublewrite_buf;
 extern ulong	srv_doublewrite_batch_size;
 extern ulong	srv_checksum_algorithm;
 
-extern ulong	srv_max_buf_pool_modified_pct;
+extern double	srv_max_buf_pool_modified_pct;
 extern ulong	srv_max_purge_lag;
 extern ulong	srv_max_purge_lag_delay;
 
@@ -436,9 +434,10 @@ do {								\
 
 #endif /* !UNIV_HOTBACKUP */
 
+#ifndef _WIN32
 /** Alternatives for the file flush option in Unix; see the InnoDB manual
 about what these mean */
-enum {
+enum srv_unix_flush_t {
 	SRV_UNIX_FSYNC = 1,	/*!< fsync, the default */
 	SRV_UNIX_O_DSYNC,	/*!< open log files in O_SYNC mode */
 	SRV_UNIX_LITTLESYNC,	/*!< do not call os_file_flush()
@@ -459,12 +458,15 @@ enum {
 				this case user/DBA should be sure about
 				the integrity of the meta-data */
 };
-
+extern enum srv_unix_flush_t	srv_unix_file_flush_method;
+#else
 /** Alternatives for file i/o in Windows */
-enum {
+enum srv_win_flush_t {
 	SRV_WIN_IO_NORMAL = 1,	/*!< buffered I/O */
 	SRV_WIN_IO_UNBUFFERED	/*!< unbuffered I/O; this is the default */
 };
+extern enum srv_win_flush_t	srv_win_file_flush_method;
+#endif /* _WIN32 */
 
 /** Alternatives for srv_force_recovery. Non-zero values are intended
 to help the user get a damaged database up so that he can dump intact
@@ -798,7 +800,7 @@ struct export_var_t{
 	ulint innodb_pages_written;		/*!< buf_pool->stat.n_pages_written */
 	ulint innodb_row_lock_waits;		/*!< srv_n_lock_wait_count */
 	ulint innodb_row_lock_current_waits;	/*!< srv_n_lock_wait_current_count */
-	ib_int64_t innodb_row_lock_time;	/*!< srv_n_lock_wait_time
+	int64_t innodb_row_lock_time;		/*!< srv_n_lock_wait_time
 						/ 1000 */
 	ulint innodb_row_lock_time_avg;		/*!< srv_n_lock_wait_time
 						/ 1000

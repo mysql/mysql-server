@@ -75,19 +75,11 @@ end:
 
 int my_copystat(const char *from, const char *to, int MyFlags)
 {
-  struct stat statbuf;
+  MY_STAT statbuf;
 
-  if (stat(from, &statbuf))
-  {
-    my_errno=errno;
-    if (MyFlags & (MY_FAE+MY_WME))
-    {
-      char errbuf[MYSYS_STRERROR_SIZE];
-      my_error(EE_STAT, MYF(ME_BELL+ME_WAITTANG), from,
-               errno, my_strerror(errbuf, sizeof(errbuf), errno));
-    }
+  if (my_stat(from, &statbuf, MyFlags) == NULL)
     return -1;				/* Can't get stat on input file */
-  }
+
   if ((statbuf.st_mode & S_IFMT) != S_IFREG)
     return 1;
 

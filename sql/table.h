@@ -452,7 +452,24 @@ enum enum_table_category
     User queries do not write directly to these tables.
     Replication tables are cached in the table cache.
   */
-  TABLE_CATEGORY_RPL_INFO=7
+  TABLE_CATEGORY_RPL_INFO=7,
+
+  /**
+    Gtid Table.
+    The table is used to store gtids.
+    The table does *not* honor:
+    - LOCK TABLE t FOR READ/WRITE
+    - FLUSH TABLES WITH READ LOCK
+    - SET GLOBAL READ_ONLY = ON
+    as there is no point in locking explicitly
+    a Gtid table.
+    An example of gtid_executed table is:
+    - mysql.gtid_executed,
+    which is updated even when there is either
+    a GLOBAL READ LOCK or a GLOBAL READ_ONLY in effect.
+    Gtid table is cached in the table cache.
+  */
+  TABLE_CATEGORY_GTID=8
 };
 typedef enum enum_table_category TABLE_CATEGORY;
 
@@ -646,6 +663,7 @@ struct TABLE_SHARE
   bool db_low_byte_first;		/* Portable row format */
   bool crashed;
   bool is_view;
+  bool m_open_in_progress;              /* True: alloc'ed, false: def opened */
   Table_id table_map_id;                   /* for row-based replication */
 
   /*
@@ -721,7 +739,7 @@ struct TABLE_SHARE
       appropriate values by using table cache key as their source.
   */
 
-  void set_table_cache_key(char *key_buff, uint key_length)
+  void set_table_cache_key(char *key_buff, size_t key_length)
   {
     table_cache_key.str= key_buff;
     table_cache_key.length= key_length;
@@ -751,7 +769,7 @@ struct TABLE_SHARE
       it should has same life-time as share itself.
   */
 
-  void set_table_cache_key(char *key_buff, const char *key, uint key_length)
+  void set_table_cache_key(char *key_buff, const char *key, size_t key_length)
   {
     memcpy(key_buff, key, key_length);
     set_table_cache_key(key_buff, key_length);
@@ -1004,6 +1022,7 @@ public:
 
   Field *next_number_field;		/* Set if next_number is activated */
   Field *found_next_number_field;	/* Set on open */
+  Field *fts_doc_id_field;              /* Set if FTS_DOC_ID field is present */
 
   /* Table's triggers, 0 if there are no of them */
   Table_trigger_dispatcher *triggers;
@@ -1015,6 +1034,15 @@ public:
   uchar		*null_flags;
   my_bitmap_map	*bitmap_init_value;
   MY_BITMAP     def_read_set, def_write_set, tmp_set; /* containers */
+  /*
+    Bitmap of fields that one or more query condition refers to. Only
+    used if optimizer_condition_fanout_filter is turned 'on'.
+    Currently, only the WHERE clause and ON clause of inner joins is
+    taken into account but not ON conditions of outer joins.
+    Furthermore, HAVING conditions apply to groups and are therefore
+    not useful as table condition filters.
+  */
+  MY_BITMAP     cond_set;
 
   /**
     Bitmap of table fields (columns), which are explicitly set in the
@@ -1450,6 +1478,19 @@ public:
 
 
 /**
+  Derive type of metadata lock to be requested for table used by a DML
+  statement from the type of THR_LOCK lock requested for this table.
+*/
+
+inline enum enum_mdl_type mdl_type_for_dml(enum thr_lock_type lock_type)
+{
+  return lock_type >= TL_WRITE_ALLOW_WRITE ?
+         (lock_type == TL_WRITE_LOW_PRIORITY ?
+          MDL_SHARED_WRITE_LOW_PRIO : MDL_SHARED_WRITE) :
+         MDL_SHARED_READ;
+}
+
+/**
    Type of table which can be open for an element of table list.
 */
 
@@ -1537,8 +1578,7 @@ struct TABLE_LIST
     lock_type= lock_type_arg;
     MDL_REQUEST_INIT(&mdl_request,
                      MDL_key::TABLE, db, table_name,
-                     (lock_type >= TL_WRITE_ALLOW_WRITE) ?
-                       MDL_SHARED_WRITE : MDL_SHARED_READ,
+                     mdl_type_for_dml(lock_type),
                      MDL_TRANSACTION);
     callback_func= 0;
   }
@@ -1594,7 +1634,7 @@ struct TABLE_LIST
 private:
   /**
      If this table or join nest is the Y in "X [LEFT] JOIN Y ON C", this
-     member points to C.
+     member points to C. May also be generated from JOIN ... USING clause.
      It may be modified only by permanent transformations (permanent = done
      once for all executions of a prepared statement).
   */
@@ -1909,7 +1949,7 @@ public:
 
   void calc_md5(char *buffer);
   void set_underlying_merge();
-  int view_check_option(THD *thd, bool ignore_failure) const;
+  int view_check_option(THD *thd) const;
   bool setup_underlying(THD *thd);
   void cleanup_items();
   bool placeholder()
@@ -2400,9 +2440,9 @@ int open_table_from_share(THD *thd, TABLE_SHARE *share, const char *alias,
                           uint db_stat, uint prgflag, uint ha_open_flags,
                           TABLE *outparam, bool is_create_table);
 TABLE_SHARE *alloc_table_share(TABLE_LIST *table_list, const char *key,
-                               uint key_length);
+                               size_t key_length);
 void init_tmp_table_share(THD *thd, TABLE_SHARE *share, const char *key,
-                          uint key_length,
+                          size_t key_length,
                           const char *table_name, const char *path);
 void free_table_share(TABLE_SHARE *share);
 int open_table_def(THD *thd, TABLE_SHARE *share, uint db_flags);
@@ -2426,7 +2466,7 @@ ulong get_form_pos(File file, uchar *head, TYPELIB *save_names);
 ulong make_new_entry(File file,uchar *fileinfo,TYPELIB *formnames,
 		     const char *newname);
 ulong next_io_size(ulong pos);
-void append_unescaped(String *res, const char *pos, uint length);
+void append_unescaped(String *res, const char *pos, size_t length);
 File create_frm(THD *thd, const char *name, const char *db,
                 const char *table, uint reclength, uchar *fileinfo,
   		HA_CREATE_INFO *create_info, uint keys, KEY *key_info);

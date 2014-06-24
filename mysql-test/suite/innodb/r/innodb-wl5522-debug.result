@@ -836,10 +836,10 @@ ALTER TABLE test_wl5522.t1 DISCARD TABLESPACE;
 SELECT COUNT(*) FROM test_wl5522.t1;
 ERROR HY000: Tablespace has been discarded for table 't1'
 restore: t1 .ibd and .cfg files
-SET SESSION debug="+d,buf_page_is_corrupt_failure";
+SET SESSION debug="+d,buf_page_import_corrupt_failure";
 ALTER TABLE test_wl5522.t1 IMPORT TABLESPACE;
 ERROR HY000: Internal error: Cannot reset LSNs in table '"test_wl5522"."t1"' : Data structure corruption
-SET SESSION debug="-d,buf_page_is_corrupt_failure";
+SET SESSION debug="-d,buf_page_import_corrupt_failure";
 DROP TABLE test_wl5522.t1;
 unlink: t1.ibd
 unlink: t1.cfg

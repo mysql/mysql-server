@@ -15,22 +15,18 @@
 
 # Common warning flags for GCC, G++, Clang and Clang++
 SET(MY_WARNING_FLAGS "-Wall -Wextra -Wformat-security")
+MY_CHECK_C_COMPILER_FLAG("-Wvla" HAVE_WVLA) # Requires GCC 4.3+ or Clang
+IF(HAVE_WVLA)
+  SET(MY_WARNING_FLAGS "${MY_WARNING_FLAGS} -Wvla")
+ENDIF()
 
 # Common warning flags for GCC and Clang
 SET(MY_C_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Wwrite-strings -Wdeclaration-after-statement")
-MY_CHECK_C_COMPILER_FLAG("-Wvla" HAVE_WVLA_C) # Requires GCC 4.3+ or Clang
-IF(HAVE_WVLA_C)
-  SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Wvla")
-ENDIF()
 
 # Common warning flags for G++ and Clang++
 SET(MY_CXX_WARNING_FLAGS
     "${MY_WARNING_FLAGS} -Woverloaded-virtual -Wno-unused-parameter")
-MY_CHECK_CXX_COMPILER_FLAG("-Wvla" HAVE_WVLA_CXX) # Requires GCC 4.3+ or Clang
-IF(HAVE_WVLA_CXX)
-  SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Wvla")
-ENDIF()
 
 # Extra warning flags for Clang++
 IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
@@ -38,11 +34,9 @@ IF(CMAKE_CXX_COMPILER_ID MATCHES "Clang")
       "${MY_CXX_WARNING_FLAGS} -Wno-null-conversion -Wno-unused-private-field")
 ENDIF()
 
-# Turn on Werror (warning => error) when using GCC/G++ and maintainer mode.
-IF(CMAKE_COMPILER_IS_GNUCC AND MYSQL_MAINTAINER_MODE)
+# Turn on Werror (warning => error) when using maintainer mode.
+IF(MYSQL_MAINTAINER_MODE)
   SET(MY_C_WARNING_FLAGS "${MY_C_WARNING_FLAGS} -Werror")
-ENDIF()
-IF(CMAKE_COMPILER_IS_GNUCXX AND MYSQL_MAINTAINER_MODE)
   SET(MY_CXX_WARNING_FLAGS "${MY_CXX_WARNING_FLAGS} -Werror")
 ENDIF()
 

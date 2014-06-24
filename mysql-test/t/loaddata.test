@@ -652,3 +652,21 @@ LOAD DATA LOCAL INFILE '' REPLACE INTO TABLE v1;
 
 DROP VIEW v1;
 DROP TABLE t1;
+
+--echo #
+--echo # Bug#11759519 INFINITE HANG WITH 100% CPU USAGE WITH LOAD DATA LOCAL AND IMPORT ERRORS
+--echo #
+SET @old_mode= @@sql_mode;
+CREATE TABLE t1 (fld1 INT);
+SET sql_mode='strict_all_tables';
+
+--copy_file $EXE_MYSQL $MYSQLTEST_VARDIR/mysql
+
+--echo # Without fix, load data hangs forever.
+--replace_result $MYSQLTEST_VARDIR MYSQLTEST_VARDIR
+--error ER_TRUNCATED_WRONG_VALUE_FOR_FIELD,1000
+eval LOAD DATA LOCAL INFILE '$MYSQLTEST_VARDIR/mysql' REPLACE INTO TABLE t1
+     FIELDS TERMINATED BY 't' LINES TERMINATED BY '';
+
+SET @@sql_mode= @old_mode;
+DROP TABLE t1;

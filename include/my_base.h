@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -204,7 +204,9 @@ enum ha_extra_function {
     Prepare table for export
     (e.g. quiesce the table and write table metadata).
   */
-  HA_EXTRA_EXPORT
+  HA_EXTRA_EXPORT,
+  /** Do secondary sort by handler::ref (rowid) after key sort. */
+  HA_EXTRA_SECONDARY_SORT_ROWID
 };
 
 /* Compatible option, to be deleted in 6.0 */
@@ -555,7 +557,6 @@ typedef ulong key_part_map;
 #define HA_STATE_BUFF_SAVED	512	/* If current keybuff is info->buff */
 #define HA_STATE_ROW_CHANGED	1024	/* To invalide ROW cache */
 #define HA_STATE_EXTEND_BLOCK	2048
-#define HA_STATE_RNEXT_SAME	4096	/* rnext_same occupied lastkey2 */
 
 /* myisampack expects no more than 32 field types. */
 enum en_fieldtype {

@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -790,7 +790,10 @@ int SSL_CTX_load_verify_locations(SSL_CTX* ctx, const char* file,
             strncpy(name, path, MAX_PATH - 1 - HALF_PATH);
             strncat(name, "/", 1);
             strncat(name, entry->d_name, HALF_PATH);
-            if (stat(name, &buf) < 0) return SSL_BAD_STAT;
+            if (stat(name, &buf) < 0) {
+                closedir(dir);
+                return SSL_BAD_STAT;
+            }
      
             if (S_ISREG(buf.st_mode))
                 ret = read_file(ctx, name, SSL_FILETYPE_PEM, CA);
@@ -1696,7 +1699,11 @@ unsigned long ERR_get_error()
       };
 
       TaoCrypt::ASN1_TIME_extract(time->data, time->type, &t);
+#ifdef _WIN32
+      _snprintf(buf, len, "%s %2d %02d:%02d:%02d %d GMT",
+#else
       snprintf(buf, len, "%s %2d %02d:%02d:%02d %d GMT",
+#endif
                month_names[t.tm_mon], t.tm_mday, t.tm_hour, t.tm_min, 
                t.tm_sec, t.tm_year + 1900);
       return buf;

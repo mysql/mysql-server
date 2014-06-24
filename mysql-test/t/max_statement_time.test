@@ -217,8 +217,9 @@ SELECT f1();
 # @a=1
 SELECT @a;
 
-# Following SELECT should not time out as it is not a read only query.
-SELECT f2();
+# Following SELECT should not time out as it is not a read only query.  Note,
+# for desabling timer is generated for this query.
+SELECT MAX_STATEMENT_TIME=60000 f2();
 
 DROP FUNCTION f1;
 DROP FUNCTION f2;
@@ -281,15 +282,13 @@ END
 
 delimiter ;|
 
-SET @@SESSION.max_statement_time = 0;
 --echo # Wait until at least one instance of event is executed.
-let $wait_condition= SELECT COUNT(*) FROM t2;
+let $wait_condition= SELECT MAX_STATEMENT_TIME=3600000 COUNT(*) FROM t2;
 --source include/wait_condition.inc
-SET @@SESSION.max_statement_time = 2;
 
 #Since MAX_STATEMENT_TIME is not applicable for events & SELECTs of event,
 #selects of event1 are not interruped so table contains 0 value.
-SELECT * FROM t2;
+SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
 
 DELETE FROM t2;
 SET @@global.event_scheduler= @global_event_scheduler_status;
@@ -326,12 +325,12 @@ SELECT @a, @b;
 INSERT INTO t1 VALUES (1, 'string');
 #Since MAX_STATEMENT_TIME is not applicable for  SELECTs of triggers, selects of
 #triggers are not interruped so table contains 0 value.
-SELECT * FROM t2;
+SELECT MAX_STATEMENT_TIME=3600000 * FROM t2;
 
 DROP TABLE t1,t2;
 
 --echo #
---echo # 8. Test MAX_STATEMENT_TIME precedence set at difference levels.
+--echo # 8. Test MAX_STATEMENT_TIME precedence set at different levels.
 --echo #
 
 # Session MAX_STATEMENT_TIME is used when statament level MAX_STATEMENT_TIME 

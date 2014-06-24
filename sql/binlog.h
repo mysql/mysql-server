@@ -1,5 +1,5 @@
 #ifndef BINLOG_H_INCLUDED
-/* Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -19,6 +19,7 @@
 #include "mysqld.h"                             /* opt_relay_logname */
 #include "log_event.h"
 #include "log.h"
+#include "my_atomic.h"
 
 class Relay_log_info;
 class Master_info;
@@ -31,7 +32,6 @@ class Format_description_log_event;
 class  Logical_clock
 {
 private:
-  my_atomic_rwlock_t m_state_lock;
   int64 state;
 protected:
   void init(){ state= 0; }
@@ -39,7 +39,7 @@ public:
   Logical_clock();
   int64 step();
   int64 get_timestamp();
-  ~Logical_clock();
+  ~Logical_clock() { }
 };
 
 /**
@@ -51,7 +51,7 @@ public:
     friend class Stage_manager;
   public:
     Mutex_queue()
-      : m_first(NULL), m_last(&m_first)
+      : m_first(NULL), m_last(&m_first), m_size(0)
     {
     }
 
@@ -83,6 +83,11 @@ public:
 
     std::pair<bool,THD*> pop_front();
 
+    inline int32 get_size()
+    {
+      return my_atomic_load32(&m_size);
+    }
+
   private:
     void lock() { mysql_mutex_lock(&m_lock); }
     void unlock() { mysql_mutex_unlock(&m_lock); }
@@ -100,6 +105,9 @@ public:
        the last thread that is enqueued.
     */
     THD **m_last;
+
+    /** size of the queue */
+    int32 m_size;
 
     /** Lock for protecting the queue. */
     mysql_mutex_t m_lock;
@@ -135,10 +143,10 @@ public:
             )
   {
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
-    mysql_cond_init(key_COND_done, &m_cond_done, NULL);
+    mysql_cond_init(key_COND_done, &m_cond_done);
 #ifndef DBUG_OFF
     /* reuse key_COND_done 'cos a new PSI object would be wasteful in DBUG_ON */
-    mysql_cond_init(key_COND_done, &m_cond_preempt, NULL);
+    mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(
 #ifdef HAVE_PSI_INTERFACE
@@ -215,6 +223,21 @@ public:
     DBUG_PRINT("debug", ("Fetching queue for stage %d", stage));
     return m_queue[stage].fetch_and_empty();
   }
+
+  /**
+    Introduces a wait operation on the executing thread.  The
+    waiting is done until the timeout elapses or count is
+    reached (whichever comes first).
+
+    If count == 0, then the session will wait until the timeout
+    elapses. If timeout == 0, then there is no waiting.
+
+    @param usec     the number of microseconds to wait.
+    @param count    wait for as many as count to join the queue the
+                    session is waiting on
+    @param stage    which stage queue size to compare count against.
+   */
+  time_t wait_count_or_timeout(ulong count, time_t usec, StageID stage);
 
   void signal_done(THD *queue) {
     mysql_mutex_lock(&m_lock_done);
@@ -383,7 +406,6 @@ class MYSQL_BIN_LOG: public TC_LOG
   uint *sync_period_ptr;
   uint sync_counter;
 
-  my_atomic_rwlock_t m_prep_xids_lock;
   mysql_cond_t m_prep_xids_cond;
   volatile int32 m_prep_xids;
 
@@ -392,14 +414,12 @@ class MYSQL_BIN_LOG: public TC_LOG
    */
   void inc_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::inc_prep_xids");
-    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
 #ifndef DBUG_OFF
     int result= my_atomic_add32(&m_prep_xids, 1);
 #else
     (void) my_atomic_add32(&m_prep_xids, 1);
 #endif
     DBUG_PRINT("debug", ("m_prep_xids: %d", result + 1));
-    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
     thd->get_transaction()->m_flags.xid_written= true;
     DBUG_VOID_RETURN;
   }
@@ -411,10 +431,8 @@ class MYSQL_BIN_LOG: public TC_LOG
    */
   void dec_prep_xids(THD *thd) {
     DBUG_ENTER("MYSQL_BIN_LOG::dec_prep_xids");
-    my_atomic_rwlock_wrlock(&m_prep_xids_lock);
     int32 result= my_atomic_add32(&m_prep_xids, -1);
     DBUG_PRINT("debug", ("m_prep_xids: %d", result - 1));
-    my_atomic_rwlock_wrunlock(&m_prep_xids_lock);
     thd->get_transaction()->m_flags.xid_written= false;
     /* If the old value was 1, it is zero now. */
     if (result == 1)
@@ -427,9 +445,7 @@ class MYSQL_BIN_LOG: public TC_LOG
   }
 
   int32 get_prep_xids() {
-    my_atomic_rwlock_rdlock(&m_prep_xids_lock);
     int32 result= my_atomic_load32(&m_prep_xids);
-    my_atomic_rwlock_rdunlock(&m_prep_xids_lock);
     return result;
   }
 
@@ -589,12 +605,14 @@ public:
                       Gtid *last_gtid, bool verify_checksum,
                       bool need_lock);
 
-  void set_previous_gtid_set(Gtid_set *previous_gtid_set_param)
+  void set_previous_gtid_set_relaylog(Gtid_set *previous_gtid_set_param)
   {
-    previous_gtid_set= previous_gtid_set_param;
+    DBUG_ASSERT(is_relay_log);
+    previous_gtid_set_relaylog= previous_gtid_set_param;
   }
 private:
-  Gtid_set* previous_gtid_set;
+  /* The prevoius gtid set in relay log. */
+  Gtid_set* previous_gtid_set_relaylog;
 
   int open(const char *opt_name) { return open_binlog(opt_name); }
   bool change_stage(THD *thd, Stage_manager::StageID stage,
@@ -766,7 +784,7 @@ public:
   int set_crash_safe_index_file_name(const char *base_file_name);
   int open_crash_safe_index_file();
   int close_crash_safe_index_file();
-  int add_log_to_index(uchar* log_file_name, int name_len,
+  int add_log_to_index(uchar* log_file_name, size_t name_len,
                        bool need_lock_index);
   int move_crash_safe_index_file_to_index_file(bool need_lock_index);
   int set_purge_index_file_name(const char *base_file_name);

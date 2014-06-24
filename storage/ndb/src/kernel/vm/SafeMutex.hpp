@@ -17,12 +17,7 @@
 #define NDB_SAFE_MUTEX_HPP
 
 #include <ndb_global.h>
-
-#ifdef _WIN32
 #include <my_pthread.h>
-#else
-#include <pthread.h>
-#endif
 #include <assert.h>
 #include <ndb_types.h>
 #include <NdbOut.hpp>
@@ -48,8 +43,8 @@ class SafeMutex {
   const Uint32 m_limit; // error if usage exceeds this
   const bool m_debug;   // use recursive implementation even for limit 1
   const bool m_simple;
-  pthread_mutex_t m_mutex;
-  pthread_cond_t m_cond;
+  native_mutex_t m_mutex;
+  native_cond_t m_cond;
   pthread_t m_owner;
   bool m_initdone;
   Uint32 m_level;

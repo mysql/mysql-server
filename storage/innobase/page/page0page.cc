@@ -291,6 +291,38 @@ page_create_write_log(
 # define page_create_write_log(frame,mtr,comp) ((void) 0)
 #endif /* !UNIV_HOTBACKUP */
 
+/** The page infimum and supremum of an empty page in ROW_FORMAT=REDUNDANT */
+static const byte infimum_supremum_redundant[] = {
+	/* the infimum record */
+	0x08/*end offset*/,
+	0x01/*n_owned*/,
+	0x00, 0x00/*heap_no=0*/,
+	0x03/*n_fields=1, 1-byte offsets*/,
+	0x00, 0x74/* pointer to supremum */,
+	'i', 'n', 'f', 'i', 'm', 'u', 'm', 0,
+	/* the supremum record */
+	0x09/*end offset*/,
+	0x01/*n_owned*/,
+	0x00, 0x08/*heap_no=1*/,
+	0x03/*n_fields=1, 1-byte offsets*/,
+	0x00, 0x00/* end of record list */,
+	's', 'u', 'p', 'r', 'e', 'm', 'u', 'm', 0
+};
+
+/** The page infimum and supremum of an empty page in ROW_FORMAT=COMPACT */
+static const byte infimum_supremum_compact[] = {
+	/* the infimum record */
+	0x01/*n_owned=1*/,
+	0x00, 0x02/* heap_no=0, REC_STATUS_INFIMUM */,
+	0x00, 0x0d/* pointer to supremum */,
+	'i', 'n', 'f', 'i', 'm', 'u', 'm', 0,
+	/* the supremum record */
+	0x01/*n_owned=1*/,
+	0x00, 0x0b/* heap_no=1, REC_STATUS_SUPREMUM */,
+	0x00, 0x00/* end of record list */,
+	's', 'u', 'p', 'r', 'e', 'm', 'u', 'm'
+};
+
 /**********************************************************//**
 The index page creation function.
 @return pointer to the page */
@@ -302,18 +334,8 @@ page_create_low(
 					page is created */
 	ulint		comp)		/*!< in: nonzero=compact page format */
 {
-	page_dir_slot_t* slot;
-	mem_heap_t*	heap;
-	dtuple_t*	tuple;
-	dfield_t*	field;
-	byte*		heap_top;
-	rec_t*		infimum_rec;
-	rec_t*		supremum_rec;
 	page_t*		page;
-	dict_index_t*	index;
-	ulint*		offsets;
 
-	ut_ad(block);
 #if PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA
 # error "PAGE_BTR_IBUF_FREE_LIST + FLST_BASE_NODE_SIZE > PAGE_DATA"
 #endif
@@ -321,124 +343,41 @@ page_create_low(
 # error "PAGE_BTR_IBUF_FREE_LIST_NODE + FLST_NODE_SIZE > PAGE_DATA"
 #endif
 
-	/* The infimum and supremum records use a dummy index. */
-	if (UNIV_LIKELY(comp)) {
-		index = dict_ind_compact;
-	} else {
-		index = dict_ind_redundant;
-	}
-
-	/* 1. INCREMENT MODIFY CLOCK */
 	buf_block_modify_clock_inc(block);
 
 	page = buf_block_get_frame(block);
 
 	fil_page_set_type(page, FIL_PAGE_INDEX);
 
-	heap = mem_heap_create(200);
+	memset(page + PAGE_HEADER, 0, PAGE_HEADER_PRIV_END);
+	page[PAGE_HEADER + PAGE_N_DIR_SLOTS + 1] = 2;
+	page[PAGE_HEADER + PAGE_DIRECTION + 1] = PAGE_NO_DIRECTION;
 
-	/* 3. CREATE THE INFIMUM AND SUPREMUM RECORDS */
-
-	/* Create first a data tuple for infimum record */
-	tuple = dtuple_create(heap, 1);
-	dtuple_set_info_bits(tuple, REC_STATUS_INFIMUM);
-	field = dtuple_get_nth_field(tuple, 0);
-
-	dfield_set_data(field, "infimum", 8);
-	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, 8);
-	/* Set the corresponding physical record to its place in the page
-	record heap */
-
-	heap_top = page + PAGE_DATA;
-
-	infimum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple, 0);
-
-	if (UNIV_LIKELY(comp)) {
-		ut_a(infimum_rec == page + PAGE_NEW_INFIMUM);
-
-		rec_set_n_owned_new(infimum_rec, NULL, 1);
-		rec_set_heap_no_new(infimum_rec, 0);
+	if (comp) {
+		page[PAGE_HEADER + PAGE_N_HEAP] = 0x80;/*page_is_comp()*/
+		page[PAGE_HEADER + PAGE_N_HEAP + 1] = PAGE_HEAP_NO_USER_LOW;
+		page[PAGE_HEADER + PAGE_HEAP_TOP + 1] = PAGE_NEW_SUPREMUM_END;
+		memcpy(page + PAGE_DATA, infimum_supremum_compact,
+		       sizeof infimum_supremum_compact);
+		memset(page
+		       + PAGE_NEW_SUPREMUM_END, 0,
+		       UNIV_PAGE_SIZE - PAGE_DIR - PAGE_NEW_SUPREMUM_END);
+		page[UNIV_PAGE_SIZE - PAGE_DIR - PAGE_DIR_SLOT_SIZE * 2 + 1]
+			= PAGE_NEW_SUPREMUM;
+		page[UNIV_PAGE_SIZE - PAGE_DIR - PAGE_DIR_SLOT_SIZE + 1]
+			= PAGE_NEW_INFIMUM;
 	} else {
-		ut_a(infimum_rec == page + PAGE_OLD_INFIMUM);
-
-		rec_set_n_owned_old(infimum_rec, 1);
-		rec_set_heap_no_old(infimum_rec, 0);
-	}
-
-	offsets = rec_get_offsets(infimum_rec, index, NULL,
-				  ULINT_UNDEFINED, &heap);
-
-	heap_top = rec_get_end(infimum_rec, offsets);
-
-	/* Create then a tuple for supremum */
-
-	tuple = dtuple_create(heap, 1);
-	dtuple_set_info_bits(tuple, REC_STATUS_SUPREMUM);
-	field = dtuple_get_nth_field(tuple, 0);
-
-	dfield_set_data(field, "supremum", comp ? 8 : 9);
-	dtype_set(dfield_get_type(field),
-		  DATA_VARCHAR, DATA_ENGLISH | DATA_NOT_NULL, comp ? 8 : 9);
-
-	supremum_rec = rec_convert_dtuple_to_rec(heap_top, index, tuple, 0);
-
-	if (UNIV_LIKELY(comp)) {
-		ut_a(supremum_rec == page + PAGE_NEW_SUPREMUM);
-
-		rec_set_n_owned_new(supremum_rec, NULL, 1);
-		rec_set_heap_no_new(supremum_rec, 1);
-	} else {
-		ut_a(supremum_rec == page + PAGE_OLD_SUPREMUM);
-
-		rec_set_n_owned_old(supremum_rec, 1);
-		rec_set_heap_no_old(supremum_rec, 1);
-	}
-
-	offsets = rec_get_offsets(supremum_rec, index, offsets,
-				  ULINT_UNDEFINED, &heap);
-	heap_top = rec_get_end(supremum_rec, offsets);
-
-	ut_ad(heap_top == page
-	      + (comp ? PAGE_NEW_SUPREMUM_END : PAGE_OLD_SUPREMUM_END));
-
-	mem_heap_free(heap);
-
-	/* 4. INITIALIZE THE PAGE */
-
-	page_header_set_field(page, NULL, PAGE_N_DIR_SLOTS, 2);
-	page_header_set_ptr(page, NULL, PAGE_HEAP_TOP, heap_top);
-	page_header_set_field(page, NULL, PAGE_N_HEAP, comp
-			      ? 0x8000 | PAGE_HEAP_NO_USER_LOW
-			      : PAGE_HEAP_NO_USER_LOW);
-	page_header_set_ptr(page, NULL, PAGE_FREE, NULL);
-	page_header_set_field(page, NULL, PAGE_GARBAGE, 0);
-	page_header_set_ptr(page, NULL, PAGE_LAST_INSERT, NULL);
-	page_header_set_field(page, NULL, PAGE_DIRECTION, PAGE_NO_DIRECTION);
-	page_header_set_field(page, NULL, PAGE_N_DIRECTION, 0);
-	page_header_set_field(page, NULL, PAGE_N_RECS, 0);
-	page_set_max_trx_id(block, NULL, 0, NULL);
-	memset(heap_top, 0, UNIV_PAGE_SIZE - PAGE_EMPTY_DIR_START
-	       - page_offset(heap_top));
-
-	/* 5. SET POINTERS IN RECORDS AND DIR SLOTS */
-
-	/* Set the slots to point to infimum and supremum. */
-
-	slot = page_dir_get_nth_slot(page, 0);
-	page_dir_slot_set_rec(slot, infimum_rec);
-
-	slot = page_dir_get_nth_slot(page, 1);
-	page_dir_slot_set_rec(slot, supremum_rec);
-
-	/* Set the next pointers in infimum and supremum */
-
-	if (UNIV_LIKELY(comp)) {
-		rec_set_next_offs_new(infimum_rec, PAGE_NEW_SUPREMUM);
-		rec_set_next_offs_new(supremum_rec, 0);
-	} else {
-		rec_set_next_offs_old(infimum_rec, PAGE_OLD_SUPREMUM);
-		rec_set_next_offs_old(supremum_rec, 0);
+		page[PAGE_HEADER + PAGE_N_HEAP + 1] = PAGE_HEAP_NO_USER_LOW;
+		page[PAGE_HEADER + PAGE_HEAP_TOP + 1] = PAGE_OLD_SUPREMUM_END;
+		memcpy(page + PAGE_DATA, infimum_supremum_redundant,
+		       sizeof infimum_supremum_redundant);
+		memset(page
+		       + PAGE_OLD_SUPREMUM_END, 0,
+		       UNIV_PAGE_SIZE - PAGE_DIR - PAGE_OLD_SUPREMUM_END);
+		page[UNIV_PAGE_SIZE - PAGE_DIR - PAGE_DIR_SLOT_SIZE * 2 + 1]
+			= PAGE_OLD_SUPREMUM;
+		page[UNIV_PAGE_SIZE - PAGE_DIR - PAGE_DIR_SLOT_SIZE + 1]
+			= PAGE_OLD_INFIMUM;
 	}
 
 	return(page);
@@ -470,6 +409,7 @@ page_create(
 	mtr_t*		mtr,		/*!< in: mini-transaction handle */
 	ulint		comp)		/*!< in: nonzero=compact page format */
 {
+	ut_ad(mtr->is_named_space(block->page.id.space()));
 	page_create_write_log(buf_block_get_frame(block), mtr, comp);
 	return(page_create_low(block, comp));
 }
@@ -672,6 +612,9 @@ page_copy_rec_list_end(
 	page_t*		page		= page_align(rec);
 	rec_t*		ret		= page_rec_get_next(
 		page_get_infimum_rec(new_page));
+	ulint		num_moved	= 0;
+	rtr_rec_move_t*	rec_move	= NULL;
+	mem_heap_t*	heap		= NULL;
 
 #ifdef UNIV_ZIP_DEBUG
 	if (new_page_zip) {
@@ -701,8 +644,27 @@ page_copy_rec_list_end(
 		page_copy_rec_list_end_to_created_page(new_page, rec,
 						       index, mtr);
 	} else {
-		page_copy_rec_list_end_no_locks(new_block, block, rec,
-						index, mtr);
+		if (dict_index_is_spatial(index)) {
+			ulint	max_to_move = page_get_n_recs(
+						buf_block_get_frame(block));
+			heap = mem_heap_create(256);
+
+			rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+					heap,
+					sizeof (*rec_move) * max_to_move));
+
+			/* For spatial index, we need to insert recs one by one
+			to keep recs ordered. */
+			rtr_page_copy_rec_list_end_no_locks(new_block,
+							    block, rec, index,
+							    heap, rec_move,
+							    max_to_move,
+							    &num_moved,
+							    mtr);
+		} else {
+			page_copy_rec_list_end_no_locks(new_block, block, rec,
+							index, mtr);
+		}
 	}
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
@@ -745,6 +707,11 @@ page_copy_rec_list_end(
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
+
+				if (heap) {
+					mem_heap_free(heap);
+				}
+
 				return(NULL);
 			} else {
 				/* The page was reorganized:
@@ -760,7 +727,15 @@ page_copy_rec_list_end(
 
 	/* Update the lock table and possible hash index */
 
-	lock_move_rec_list_end(new_block, block, rec);
+	if (dict_index_is_spatial(index) && rec_move) {
+		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
+	} else if (!dict_table_is_locking_disabled(index->table)) {
+		lock_move_rec_list_end(new_block, block, rec);
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -794,6 +769,8 @@ page_copy_rec_list_start(
 	page_cur_t	cur1;
 	rec_t*		cur2;
 	mem_heap_t*	heap		= NULL;
+	ulint		num_moved	= 0;
+	rtr_rec_move_t*	rec_move	= NULL;
 	rec_t*		ret
 		= page_rec_get_prev(page_get_supremum_rec(new_page));
 	ulint		offsets_[REC_OFFS_NORMAL_SIZE];
@@ -820,20 +797,33 @@ page_copy_rec_list_start(
 	cur2 = ret;
 
 	/* Copy records from the original page to the new page */
+	if (dict_index_is_spatial(index)) {
+		ulint		max_to_move = page_get_n_recs(
+						buf_block_get_frame(block));
+		heap = mem_heap_create(256);
 
-	while (page_cur_get_rec(&cur1) != rec) {
-		rec_t*	cur1_rec = page_cur_get_rec(&cur1);
-		offsets = rec_get_offsets(cur1_rec, index, offsets,
-					  ULINT_UNDEFINED, &heap);
-		cur2 = page_cur_insert_rec_low(cur2, index,
-					       cur1_rec, offsets, mtr);
-		ut_a(cur2);
+		rec_move = static_cast<rtr_rec_move_t*>(mem_heap_alloc(
+					heap,
+					sizeof (*rec_move) * max_to_move));
 
-		page_cur_move_to_next(&cur1);
-	}
+		/* For spatial index, we need to insert recs one by one
+		to keep recs ordered. */
+		rtr_page_copy_rec_list_start_no_locks(new_block,
+						      block, rec, index, heap,
+						      rec_move, max_to_move,
+						      &num_moved, mtr);
+	} else {
 
-	if (UNIV_LIKELY_NULL(heap)) {
-		mem_heap_free(heap);
+		while (page_cur_get_rec(&cur1) != rec) {
+			rec_t*	cur1_rec = page_cur_get_rec(&cur1);
+			offsets = rec_get_offsets(cur1_rec, index, offsets,
+						  ULINT_UNDEFINED, &heap);
+			cur2 = page_cur_insert_rec_low(cur2, index,
+						       cur1_rec, offsets, mtr);
+			ut_a(cur2);
+
+			page_cur_move_to_next(&cur1);
+		}
 	}
 
 	/* Update PAGE_MAX_TRX_ID on the uncompressed page.
@@ -881,6 +871,11 @@ zip_reorganize:
 					ut_error;
 				}
 				ut_ad(page_validate(new_page, index));
+
+				if (UNIV_LIKELY_NULL(heap)) {
+					mem_heap_free(heap);
+				}
+
 				return(NULL);
 			}
 
@@ -891,7 +886,15 @@ zip_reorganize:
 
 	/* Update the lock table and possible hash index */
 
-	lock_move_rec_list_start(new_block, block, rec, ret);
+	if (dict_index_is_spatial(index)) {
+		lock_rtr_move_rec_list(new_block, block, rec_move, num_moved);
+	} else if (!dict_table_is_locking_disabled(index->table)) {
+		lock_move_rec_list_start(new_block, block, rec, ret);
+	}
+
+	if (heap) {
+		mem_heap_free(heap);
+	}
 
 	btr_search_move_or_delete_hash_entries(new_block, block, index);
 
@@ -1291,6 +1294,8 @@ page_move_rec_list_end(
 	ulint		new_data_size;
 	ulint		old_n_recs;
 	ulint		new_n_recs;
+
+	ut_ad(!dict_index_is_spatial(index));
 
 	old_data_size = page_get_data_size(new_page);
 	old_n_recs = page_get_n_recs(new_page);
@@ -2414,6 +2419,12 @@ page_validate(
 	ulint*			offsets		= NULL;
 	ulint*			old_offsets	= NULL;
 
+#ifdef UNIV_DEBUG
+	if (dict_index_is_spatial(index)) {
+		fprintf(stderr, "Page no: %lu\n", page_get_page_no(page));
+	}
+#endif /* UNIV_DEBUG */
+
 	if (UNIV_UNLIKELY((ibool) !!page_is_comp(page)
 			  != dict_table_is_comp(index->table))) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "'compact format' flag mismatch");
@@ -2502,22 +2513,39 @@ page_validate(
 
 #ifndef UNIV_HOTBACKUP
 		/* Check that the records are in the ascending order */
-		if (UNIV_LIKELY(count >= PAGE_HEAP_NO_USER_LOW)
+		if (count >= PAGE_HEAP_NO_USER_LOW
 		    && !page_rec_is_supremum(rec)) {
-			if (UNIV_UNLIKELY
-			    (0 >= cmp_rec_rec(rec, old_rec,
-					      offsets, old_offsets, index))) {
+
+			int	ret = cmp_rec_rec(
+				rec, old_rec, offsets, old_offsets, index);
+
+			if (ret <= 0) {
+
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"Records in wrong order"
 					" on space %lu page %lu index %s",
 					(ulong) page_get_space_id(page),
 					(ulong) page_get_page_no(page),
 					index->name);
+
 				fputs("\nInnoDB: previous record ", stderr);
-				rec_print_new(stderr, old_rec, old_offsets);
-				fputs("\nInnoDB: record ", stderr);
-				rec_print_new(stderr, rec, offsets);
-				putc('\n', stderr);
+				/* For spatial index, print the mbr info.*/
+				if (index->type & DICT_SPATIAL) {
+					putc('\n', stderr);
+					rec_print_mbr_rec(stderr,
+						old_rec, old_offsets);
+					fputs("\nInnoDB: record ", stderr);
+					putc('\n', stderr);
+					rec_print_mbr_rec(stderr, rec, offsets);
+					putc('\n', stderr);
+					putc('\n', stderr);
+
+				} else {
+					rec_print_new(stderr, old_rec, old_offsets);
+					fputs("\nInnoDB: record ", stderr);
+					rec_print_new(stderr, rec, offsets);
+					putc('\n', stderr);
+				}
 
 				goto func_exit;
 			}
@@ -2527,6 +2555,14 @@ page_validate(
 		if (page_rec_is_user_rec(rec)) {
 
 			data_size += rec_offs_size(offsets);
+
+#ifdef UNIV_DEBUG
+			/* For spatial index, print the mbr info.*/
+			if (index->type & DICT_SPATIAL) {
+				rec_print_mbr_rec(stderr, rec, offsets);
+				putc('\n', stderr);
+			}
+#endif /* UNIV_DEBUG */
 		}
 
 		offs = page_offset(rec_get_start(rec, offsets));
