@@ -143,6 +143,11 @@ void test_noop()
   PSI_server->start_file_close_wait(NULL, NULL, 0);
   PSI_server->end_file_close_wait(NULL, 0);
   PSI_server->start_stage(1, NULL, 0);
+
+  PSI_stage_progress *progress;
+  progress= PSI_server->get_current_stage_progress();
+  ok(progress == NULL, "no progress");
+
   PSI_server->end_stage();
   statement_locker= PSI_server->get_thread_statement_locker(NULL, 1, NULL, NULL);
   ok(statement_locker == NULL, "no statement_locker");
@@ -216,7 +221,7 @@ void test_noop()
 
 int main(int, char **)
 {
-  plan(33);
+  plan(34);
 
   MY_INIT("pfs_noop-t");
   test_noop();

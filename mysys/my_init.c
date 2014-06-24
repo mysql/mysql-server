@@ -468,6 +468,13 @@ static PSI_mutex_info all_mysys_mutexes[]=
   { &key_THR_LOCK_myisam_mmap, "THR_LOCK_myisam_mmap", PSI_FLAG_GLOBAL}
 };
 
+PSI_rwlock_key key_SAFE_HASH_lock;
+
+static PSI_rwlock_info all_mysys_rwlocks[]=
+{
+  { &key_SAFE_HASH_lock, "SAFE_HASH::lock", 0}
+};
+
 PSI_cond_key key_IO_CACHE_SHARE_cond,
   key_IO_CACHE_SHARE_cond_writer, key_my_thread_var_suspend,
   key_THR_COND_threads;
@@ -539,6 +546,9 @@ void my_init_mysys_psi_keys()
 
   count= sizeof(all_mysys_mutexes)/sizeof(all_mysys_mutexes[0]);
   mysql_mutex_register(category, all_mysys_mutexes, count);
+
+  count= sizeof(all_mysys_rwlocks)/sizeof(all_mysys_rwlocks[0]);
+  mysql_rwlock_register(category, all_mysys_rwlocks, count);
 
   count= sizeof(all_mysys_conds)/sizeof(all_mysys_conds[0]);
   mysql_cond_register(category, all_mysys_conds, count);

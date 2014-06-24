@@ -238,7 +238,7 @@ int my_decimal2binary(uint mask, const my_decimal *d, uchar *bin, int prec,
     E_DEC_OOM
 */
 
-int str2my_decimal(uint mask, const char *from, uint length,
+int str2my_decimal(uint mask, const char *from, size_t length,
                    const CHARSET_INFO *charset, my_decimal *decimal_value)
 {
   char *end, *from_end;

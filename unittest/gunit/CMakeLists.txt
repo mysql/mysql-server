@@ -232,6 +232,7 @@ SET(TESTS
   bounds_checked_array
   bitmap
   byteorder
+  calloc
   cost_estimate
   dbug
   decimal
@@ -264,6 +265,7 @@ SET(TESTS
   sql_plist
   sql_string
   stdcxx
+  stl_alloc
   strings_skip_trailing
   strtoll
   thread_utils

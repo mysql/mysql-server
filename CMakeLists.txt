@@ -32,6 +32,14 @@ IF(CMAKE_VERSION VERSION_EQUAL "2.8.12" OR
  CMAKE_POLICY(SET CMP0022 OLD)
 ENDIF()
 
+# We use the LOCATION target property (CMP0026)
+# and get_target_property() for non-existent targets (CMP0045)
+IF(CMAKE_VERSION VERSION_EQUAL "3.0.0" OR
+   CMAKE_VERSION VERSION_GREATER "3.0.0")
+ CMAKE_POLICY(SET CMP0026 OLD)
+ CMAKE_POLICY(SET CMP0045 OLD)
+ENDIF()
+
 MESSAGE(STATUS "Running cmake version ${CMAKE_VERSION}")
 
 SET(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_SOURCE_DIR}/cmake)
@@ -416,9 +424,8 @@ IF(NOT CMAKE_BUILD_TYPE
     ENDIF()
 ENDIF()
 
-# Add safemutex for debug configurations, except on Windows
-# (safemutex has never worked on Windows)
-IF(NOT WIN32 AND NOT WITH_INNODB_MEMCACHED)
+# Add safemutex for debug configurations
+IF(NOT WITH_INNODB_MEMCACHED)
   FOREACH(LANG C CXX)
       SET(CMAKE_${LANG}_FLAGS_DEBUG
           "${CMAKE_${LANG}_FLAGS_DEBUG} -DSAFE_MUTEX")
@@ -559,7 +566,6 @@ IF(NOT WITHOUT_SERVER)
   IF(EXISTS ${CMAKE_SOURCE_DIR}/internal/CMakeLists.txt)
     ADD_SUBDIRECTORY(internal)
   ENDIF()
-  ADD_SUBDIRECTORY(packaging/rpm-uln)
   ADD_SUBDIRECTORY(packaging/rpm-oel)
   ADD_SUBDIRECTORY(packaging/rpm-fedora)
 ENDIF()
