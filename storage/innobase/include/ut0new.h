@@ -170,7 +170,7 @@ public:
 	ut_allocator(
 		const ut_allocator<U>&	other)
 	{
-		m_key = other.get_mem_key(NULL, 0, NULL);
+		m_key = other.get_mem_key(NULL);
 	}
 
 	/** Assignment operator, not used, thus disabled. */
@@ -198,16 +198,12 @@ public:
 	@param[in]	hint		pointer to a nearby memory location,
 	unused by this implementation
 	@param[in]	file		file name of the caller
-	@param[in]	line		line number in the file of the caller
-	@param[in]	func		function name of the caller
 	@return pointer to the allocated memory */
 	pointer
 	allocate(
 		size_type	n_elements,
 		const_pointer	hint = NULL,
-		const char*	file = NULL,
-		int		line = 0,
-		const char*	func = NULL)
+		const char*	file = NULL)
 	{
 		if (n_elements == 0) {
 			return(NULL);
@@ -246,23 +242,18 @@ public:
 
 		ut_new_pfx_t*	pfx = static_cast<ut_new_pfx_t*>(ptr);
 
-		allocate_trace(total_bytes, file, line, func, pfx);
+		allocate_trace(total_bytes, file, pfx);
 
 		return(reinterpret_cast<pointer>(pfx + 1));
 	}
 
 	/** Free a memory allocated by allocate() and trace the deallocation.
-	@param[in,out]	ptr	pointer to memory to free
-	@param[in]	file	file name of the caller
-	@param[in]	line	line number within the file of the caller
-	@param[in]	func	function name of the caller */
+	@param[in,out]	ptr		pointer to memory to free
+	@param[in]	n_elements	number of elements allocated (unused) */
 	void
 	deallocate(
 		void*		ptr,
-		size_type	n_elements = 0,
-		const char*	file = NULL,
-		int		line = 0,
-		const char*	func = NULL)
+		size_type	n_elements = 0)
 	{
 		if (ptr == NULL) {
 			return;
@@ -270,7 +261,7 @@ public:
 
 		ut_new_pfx_t*	pfx = static_cast<ut_new_pfx_t*>(ptr) - 1;
 
-		deallocate_trace(pfx, file, line, func);
+		deallocate_trace(pfx);
 
 		free(pfx);
 	}
@@ -323,20 +314,16 @@ public:
 	must be passed to delete_array() when no longer needed.
 	@param[in]	n_elements	number of elements to allocate
 	@param[in]	file		file name of the caller
-	@param[in]	line		line number within the file of the caller
-	@param[in]	func		function name of the caller
 	@return pointer to the first allocated object or NULL */
 	pointer
 	new_array(
 		size_type	n_elements,
-		const char*	file,
-		int		line,
-		const char*	func)
+		const char*	file)
 	{
 		T*	p;
 
 		try {
-			p = allocate(n_elements, NULL, file, line, func);
+			p = allocate(n_elements, NULL, file);
 		} catch (...) {
 			return(NULL);
 		}
@@ -356,7 +343,7 @@ public:
 			}
 			first->~T();
 
-			deallocate(first, 0, file, line, func);
+			deallocate(first);
 
 			return(NULL);
 		}
@@ -366,16 +353,10 @@ public:
 
 	/** Destroy, deallocate and trace the deallocation of an array created
 	by new_array().
-	@param[in,out]	ptr		pointer to the first object in the array
-	@param[in]	file		file name of the caller
-	@param[in]	line		line number within the file of the caller
-	@param[in]	func		function name of the caller */
+	@param[in,out]	ptr	pointer to the first object in the array */
 	void
 	delete_array(
-		T*		ptr,
-		const char*	file,
-		int		line,
-		const char*	func)
+		T*	ptr)
 	{
 		if (ptr == NULL) {
 			return;
@@ -390,15 +371,15 @@ public:
 			--p;
 		}
 
-		deallocate(ptr, 0, file, line, func);
+		deallocate(ptr);
 	}
 
-	/** Return the performance schema key to use for tracing allocations. */
+	/** Get the performance schema key to use for tracing allocations.
+	@param[in]	file	file name of the caller or NULL if unknown
+	@return performance schema key */
 	PSI_memory_key
 	get_mem_key(
-		const char*	file,
-		int		line,
-		const char*	func) const
+		const char*	file) const
 	{
 		if (m_key != PSI_NOT_INSTRUMENTED) {
 			return(m_key);
@@ -463,20 +444,16 @@ private:
 	After the accounting, the data needed for tracing the deallocation
 	later is written into 'pfx'.
 	@param[in]	size	number of bytes that were allocated
-	@param[in]	file	file name of the caller
-	@param[in]	line	line number within the file of the caller
-	@param[in]	func	function name of the caller
+	@param[in]	file	file name of the caller or NULL if unknown
 	@param[out]	pfx	placeholder to store the info which will be
 	needed when freeing the memory */
 	void
 	allocate_trace(
 		size_t		size,
 		const char*	file,
-		int		line,
-		const char*	func,
 		ut_new_pfx_t*	pfx)
 	{
-		const PSI_memory_key	key = get_mem_key(file, line, func);
+		const PSI_memory_key	key = get_mem_key(file);
 
 		pfx->m_key = PSI_MEMORY_CALL(memory_alloc)(key, size);
 		pfx->m_size = size;
@@ -486,10 +463,7 @@ private:
 	@param[in]	pfx	info for the deallocation */
 	void
 	deallocate_trace(
-		const ut_new_pfx_t*	pfx,
-		const char*		file,
-		int			line,
-		const char*		func)
+		const ut_new_pfx_t*	pfx)
 	{
 		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size);
 	}
@@ -523,13 +497,6 @@ operator!=(
 
 #ifdef UNIV_PFS_MEMORY
 
-/** A human readable string representing the current function. */
-#ifdef _MSC_VER
-#define IB_FUNC	__FUNCSIG__
-#else
-#define IB_FUNC	__PRETTY_FUNCTION__
-#endif
-
 /** Allocate, trace the allocation and construct an object.
 Use this macro instead of 'new' within InnoDB.
 For example: instead of
@@ -547,7 +514,7 @@ pointer must be passed to UT_DELETE() when no longer needed.
 		char*	_p; \
 	 	try { \
 	 		_p = ut_allocator<char>(key).allocate( \
-				sizeof expr, NULL, __FILE__, __LINE__, IB_FUNC); \
+				sizeof expr, NULL, __FILE__); \
 	 	} catch (...) { \
 	 		_p = NULL; \
 	 	} \
@@ -574,21 +541,15 @@ pointer must be passed to UT_DELETE() when no longer needed.
 UT_NEW() or UT_NEW_NOKEY().
 We can't instantiate ut_allocator without having the type of the object, thus
 we redirect this to a templated function. */
-#define UT_DELETE(ptr)		ut_delete(ptr, __FILE__, __LINE__, IB_FUNC)
+#define UT_DELETE(ptr)		ut_delete(ptr)
 
 /** Destroy and account object created by UT_NEW() or UT_NEW_NOKEY().
-@param[in,out]	ptr		pointer to the first object in the array
-@param[in]	file		file name of the caller
-@param[in]	line		line number within the file of the caller
-@param[in]	func		function name of the caller */
+@param[in,out]	ptr	pointer to the object */
 template <typename T>
 inline
 void
 ut_delete(
-	T*		ptr,
-	const char*	file,
-	int		line,
-	const char*	func)
+	T*	ptr)
 {
 	if (ptr == NULL) {
 		return;
@@ -597,7 +558,7 @@ ut_delete(
 	ut_allocator<T>	allocator;
 
 	allocator.destroy(ptr);
-	allocator.deallocate(ptr, 0, file, line, func);
+	allocator.deallocate(ptr);
 }
 
 /** Allocate and account 'n_elements' objects of type 'type'.
@@ -608,7 +569,7 @@ The returned pointer must be passed to UT_DELETE_ARRAY().
 @param[in]	key		performance schema memory tracing key
 @return pointer to the first allocated object or NULL */
 #define UT_NEW_ARRAY(type, n_elements, key) \
-	ut_allocator<type>(key).new_array(n_elements, __FILE__, __LINE__, IB_FUNC)
+	ut_allocator<type>(key).new_array(n_elements, __FILE__)
 
 /** Allocate and account 'n_elements' objects of type 'type'.
 Use this macro to allocate memory within InnoDB instead of 'new[]' and
@@ -623,25 +584,18 @@ instead of UT_NEW_ARRAY() when it is not feasible to create a dedicated key.
 UT_NEW_ARRAY() or UT_NEW_ARRAY_NOKEY().
 We can't instantiate ut_allocator without having the type of the object, thus
 we redirect this to a templated function. */
-#define UT_DELETE_ARRAY(ptr) \
-	ut_delete_array(ptr, __FILE__, __LINE__, IB_FUNC)
+#define UT_DELETE_ARRAY(ptr)	ut_delete_array(ptr)
 
 /** Destroy and account objects created by UT_NEW_ARRAY() or
 UT_NEW_ARRAY_NOKEY().
-@param[in,out]	ptr		pointer to the first object in the array
-@param[in]	file		file name of the caller
-@param[in]	line		line number within the file of the caller
-@param[in]	func		function name of the caller */
+@param[in,out]	ptr	pointer to the first object in the array */
 template <typename T>
 inline
 void
 ut_delete_array(
-	T*		ptr,
-	const char*	file,
-	int		line,
-	const char*	func)
+	T*	ptr)
 {
-	ut_allocator<T>().delete_array(ptr, file, line, func);
+	ut_allocator<T>().delete_array(ptr);
 }
 
 #else /* UNIV_PFS_MEMORY */
