@@ -947,6 +947,10 @@ trx_purge_initiate_truncate(
 
 	undo_trunc->undo_logger.done(undo_trunc->get_undo_mark_for_trunc());
 
+	ib_logf(IB_LOG_LEVEL_INFO,
+		"Complete truncate of UNDO tablespace with space identifier "
+		ULINTPF "", undo_trunc->get_undo_mark_for_trunc());
+
 	undo_trunc->reset();
 	undo_trunc_t::clear_trunc_list();
 	srv_undo_purge_lag = undo_trunc->get_purge_lag();
