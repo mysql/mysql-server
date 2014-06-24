@@ -943,7 +943,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
       select_lex->join->get_plan_state() == JOIN::PLAN_READY)
   {
     char buf[128];
-    int len;
+    size_t len;
     int pushed_id= 0;
 
     for (JOIN_TAB* prev= select_lex->join->join_tab; prev <= tab; prev++)
@@ -1095,7 +1095,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
         ft_hints->get_op_type() != FT_OP_NO)
     {
       char buf[64];
-      int len= 0;
+      size_t len= 0;
 
       if (not_first)
         buff.append(", ");
@@ -1120,7 +1120,7 @@ bool Explain_table_base::explain_extra_common(const SQL_SELECT *select,
     if (ft_hints->get_limit() != HA_POS_ERROR)
     {
       char buf[64];
-      int len= 0;
+      size_t len= 0;
 
       if (not_first)
         buff.append(", ");
@@ -1716,7 +1716,7 @@ bool Explain_join::explain_extra()
         {
           char namebuf[NAME_LEN];
           /* Derived table name generation */
-          int len= my_snprintf(namebuf, sizeof(namebuf)-1,
+          size_t len= my_snprintf(namebuf, sizeof(namebuf)-1,
               "<derived%u>",
               prev_table->pos_in_table_list->query_block_id());
           buff.append(namebuf, len);

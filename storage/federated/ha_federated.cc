@@ -1720,7 +1720,7 @@ bool ha_federated::append_stmt_insert(String *query)
 {
   char insert_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   Field **field;
-  uint tmp_length;
+  size_t tmp_length;
   bool added_field= FALSE;
 
   /* The main insert query string */
@@ -1800,7 +1800,7 @@ int ha_federated::write_row(uchar *buf)
   char values_buffer[FEDERATED_QUERY_BUFFER_SIZE];
   char insert_field_value_buffer[STRING_BUFFER_USUAL_SIZE];
   Field **field;
-  uint tmp_length;
+  size_t tmp_length;
   int error= 0;
   bool use_bulk_insert;
   bool auto_increment_update_required= (table->next_number_field != NULL);

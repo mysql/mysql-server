@@ -2218,7 +2218,7 @@ bool THD::convert_string(String *s, const CHARSET_INFO *from_cs,
 
 void THD::update_charset()
 {
-  uint32 not_used;
+  size_t not_used;
   charset_is_system_charset=
     !String::needs_conversion(0,
                               variables.character_set_client,
@@ -2783,7 +2783,8 @@ bool select_export::send_data(List<Item> &items)
   }
   row_count++;
   Item *item;
-  uint used_length=0,items_left=items.elements;
+  size_t used_length=0;
+  uint items_left=items.elements;
   List_iterator_fast<Item> li(items);
 
   if (my_b_write(&cache,(uchar*) exchange->line.line_start->ptr(),
@@ -2803,7 +2804,7 @@ bool select_export::send_data(List<Item> &items)
       const char *cannot_convert_error_pos;
       const char *from_end_pos;
       const char *error_pos;
-      uint32 bytes;
+      size_t bytes;
       uint64 estimated_bytes=
         ((uint64) res->length() / res->charset()->mbminlen + 1) *
         write_cs->mbmaxlen + 1;
@@ -2876,7 +2877,7 @@ bool select_export::send_data(List<Item> &items)
     else
     {
       if (fixed_row_size)
-	used_length=min(res->length(),item->max_length);
+	used_length=min<size_t>(res->length(),item->max_length);
       else
 	used_length=res->length();
       if ((result_type == STRING_RESULT || is_unsafe_field_sep) &&

@@ -367,7 +367,7 @@ static const char *item_val_str(struct st_mysql_value *value,
   String str(buffer, *length, system_charset_info), *res;
   if (!(res= ((st_item_value_holder*)value)->item->val_str(&str)))
     return NULL;
-  *length= res->length();
+  *length= static_cast<int>(res->length());
   if (res->c_ptr_quick() == buffer)
     return buffer;
 

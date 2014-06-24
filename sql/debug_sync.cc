@@ -815,7 +815,7 @@ static int debug_sync_qsort_cmp(const void* arg1, const void* arg2)
   DBUG_ASSERT(action1);
   DBUG_ASSERT(action2);
 
-  if (!(diff= action1->sync_point.length() - action2->sync_point.length()))
+  if (!(diff= static_cast<int>(action1->sync_point.length() - action2->sync_point.length())))
     diff= memcmp(action1->sync_point.ptr(), action2->sync_point.ptr(),
                  action1->sync_point.length());
 
@@ -860,7 +860,7 @@ static st_debug_sync_action *debug_sync_find(st_debug_sync_action *actionarr,
   {
     mid= (low + high) / 2;
     action= actionarr + mid;
-    if (!(diff= name_len - action->sync_point.length()) &&
+    if (!(diff= static_cast<int>(name_len - action->sync_point.length())) &&
         !(diff= memcmp(dsp_name, action->sync_point.ptr(), name_len)))
       return action;
     if (diff > 0)
