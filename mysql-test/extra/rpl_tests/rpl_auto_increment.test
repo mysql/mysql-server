@@ -217,7 +217,7 @@ DROP TABLE t2;
 connection master;
 let $MYSQLD_DATADIR= `SELECT @@DATADIR`;
 # Keep original binlog file
---copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin.saved
+--copy_file $MYSQLD_DATADIR/master-bin.000001 $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved
 # Stop slave
 connection slave;
 source include/stop_slave.inc;
@@ -230,7 +230,8 @@ FLUSH LOGS;
 connection slave;
 source include/start_slave.inc;
 connection master;
---exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin.saved | $MYSQL test
+--exec $MYSQL_BINLOG $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved | $MYSQL test
+--remove_file $MYSQLD_DATADIR/master-bin-rpl-auto-increment.saved
 --source include/sync_slave_sql_with_master.inc
 
 let $diff_tables= master:t1, slave:t1;

@@ -740,6 +740,7 @@ void Trigger::add_tables_and_routines(THD *thd,
   {
     m_sp->add_used_tables_to_table_list(thd,
                                         &prelocking_ctx->query_tables_last,
+                                        prelocking_ctx->sql_command,
                                         table_list->belong_to_view);
     sp_update_stmt_used_routines(thd, prelocking_ctx,
                                   &m_sp->m_sroutines,

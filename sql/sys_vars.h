@@ -475,7 +475,7 @@ public:
       var->save_result.string_value.str= 0;
     else
     {
-      uint32 unused;
+      size_t unused;
       if (String::needs_conversion(res->length(), res->charset(),
                                    charset(thd), &unused))
       {
@@ -1096,8 +1096,9 @@ public:
         bool not_used;
 
         var->save_result.ulonglong_value=
-              find_set(&typelib, res->ptr(), res->length(), NULL,
-                      &error, &error_len, &not_used);
+              find_set(&typelib, res->ptr(),
+                       static_cast<uint>(res->length()), NULL,
+                       &error, &error_len, &not_used);
         /*
           note, we only issue an error if error_len > 0.
           That is even while empty (zero-length) values are considered
@@ -1189,34 +1190,34 @@ public:
   {
     char buff[STRING_BUFFER_USUAL_SIZE];
     String str(buff,sizeof(buff), system_charset_info), *res;
+
+    /* NULLs can't be used as a default storage engine */
     if (!(res=var->value->val_str(&str)))
-      var->save_result.plugin= NULL;
+      return true;
+
+    const LEX_STRING pname= { const_cast<char*>(res->ptr()), res->length() };
+    plugin_ref plugin;
+
+    // special code for storage engines (e.g. to handle historical aliases)
+    if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
+      plugin= ha_resolve_by_name(thd, &pname, FALSE);
     else
     {
-      const LEX_STRING pname= { const_cast<char*>(res->ptr()), res->length() };
-      plugin_ref plugin;
-
-      // special code for storage engines (e.g. to handle historical aliases)
-      if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-        plugin= ha_resolve_by_name(thd, &pname, FALSE);
-      else
-      {
-        LEX_CSTRING pname_cstr= {pname.str, pname.length};
-        plugin= my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
-      }
-
-      if (!plugin)
-      {
-        // historically different error code
-        if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
-        {
-          ErrConvString err(res);
-          my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), err.ptr());
-        }
-        return true;
-      }
-      var->save_result.plugin= plugin;
+      LEX_CSTRING pname_cstr= { pname.str, pname.length };
+      plugin= my_plugin_lock_by_name(thd, pname_cstr, plugin_type);
     }
+
+    if (!plugin)
+    {
+      // historically different error code
+      if (plugin_type == MYSQL_STORAGE_ENGINE_PLUGIN)
+      {
+        ErrConvString err(res);
+        my_error(ER_UNKNOWN_STORAGE_ENGINE, MYF(0), err.ptr());
+      }
+      return true;
+    }
+    var->save_result.plugin= plugin;
     return false;
   }
   void do_update(plugin_ref *valptr, plugin_ref newval)

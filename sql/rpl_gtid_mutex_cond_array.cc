@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -82,7 +82,7 @@ enum_return_status Mutex_cond_array::ensure_index(int n)
         if (mutex_cond == NULL)
           goto error;
         mysql_mutex_init(key_gtid_ensure_index_mutex, &mutex_cond->mutex, NULL);
-        mysql_cond_init(key_gtid_ensure_index_cond, &mutex_cond->cond, NULL);
+        mysql_cond_init(key_gtid_ensure_index_cond, &mutex_cond->cond);
         insert_dynamic(&array, &mutex_cond);
         DBUG_ASSERT(&get_mutex_cond(i)->mutex == &mutex_cond->mutex);
       }

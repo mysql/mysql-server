@@ -345,7 +345,6 @@ SELECT AsText(ST_Difference(g,GeomFromText(@star_line_vertical))) FROM gis_geome
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText('MULTILINESTRING((0 5,15 25,0 15))')));
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_lines_near_horizontal)));
 SELECT AsText(ST_Difference(g,GeomFromText('MULTILINESTRING((0 5,15 25,0 15))'))) FROM gis_geometrycollection WHERE fid=114;
---echo #multilinestring,multilinestring
 SELECT AsText(ST_Difference(g,GeomFromText(@star_line_vertical))) FROM gis_geometrycollection WHERE fid=114;
 --echo #multilinestring,polygon
 SELECT AsText(ST_Difference(GeomFromText(@star_lines_near_vertical),GeomFromText(@star_elem_vertical)));
@@ -397,7 +396,7 @@ SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_el
 --error ER_BOOST_GEOMETRY_OVERLAY_INVALID_INPUT_EXCEPTION
 SELECT AsText(ST_Difference(GeomFromText(@star_elem_vertical),GeomFromText(@star_collection_elems)));
 SELECT AsText(ST_Difference(g,GeomFromText(@star_collection_elems))) FROM gis_geometrycollection WHERE fid=100;
-SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_multilinestr)));
+SELECT AsText(ST_Difference(GeomFromText(@star),GeomFromText(@star_collection_elems)));
 --echo #-------------------------------------------------------------------------------------------
 --echo #multipolygon,point
 SELECT AsText(ST_Difference(GeomFromText(@star_of_elems),GeomFromText(@star_top)));

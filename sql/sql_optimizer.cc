@@ -479,7 +479,7 @@ JOIN::optimize()
     having_cond= remove_eq_conds(thd, having_cond, &select_lex->having_value);
     if (select_lex->having_value == Item::COND_FALSE)
     {
-      having_cond= having_for_explain= new Item_int((longlong) 0,1);
+      having_cond= new Item_int((longlong) 0,1);
       zero_result_cause= "Impossible HAVING noticed after reading const tables";
       goto setup_subq_exit;
     }

@@ -3846,9 +3846,11 @@ fil_open_single_table_tablespace(
 		tablespaces_found++;
 	}
 
-	/* Always look for a file at the default location. */
+	/* Always look for a file at the default location. But don't log
+	an error if the tablespace is already open in remote or dict. */
 	ut_a(df_default.filepath());
-	if (df_default.open_read_only(true) == DB_SUCCESS) {
+	const bool strict = (tablespaces_found == 0);
+	if (df_default.open_read_only(strict) == DB_SUCCESS) {
 		ut_ad(df_default.is_open());
 		tablespaces_found++;
 	}

@@ -1126,7 +1126,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
           }
           break;
         }
-        uint length= res->length();
+        size_t length= res->length();
         if (sort_field->need_strxnfrm)
         {
           char *from=(char*) res->ptr();
@@ -1138,7 +1138,7 @@ uint Sort_param::make_sortkey(uchar *to, const uchar *ref_pos)
             from= tmp_buffer;
           }
 #ifndef DBUG_OFF
-          uint tmp_length=
+          size_t tmp_length=
 #endif
             cs->coll->strnxfrm(cs, to, sort_field->length,
                                item->max_char_length(),
