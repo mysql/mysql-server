@@ -438,14 +438,6 @@ for synchronization */
 	"Memory barrier is not used"
 #endif
 
-/* internal counter for innodb_sync_spin_loops is adjusted
-because memory barrier is more expensive than an empty loop. */
-#ifdef HAVE_MEMORY_BARRIER
-# define SPIN_WAIT_INCREMENT 2
-#else
-# define SPIN_WAIT_INCREMENT 1
-#endif /* HAVE_MEMORY_BARRIER */
-
 #ifndef UNIV_NONINL
 #include "os0atomic.ic"
 #endif /* UNIV_NOINL */
