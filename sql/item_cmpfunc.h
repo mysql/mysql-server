@@ -1809,7 +1809,7 @@ class Item_func_like :public Item_bool_func2
   void bm_compute_suffixes(int* suff);
   void bm_compute_good_suffix_shifts(int* suff);
   void bm_compute_bad_character_shifts();
-  bool bm_matches(const char* text, int text_len) const;
+  bool bm_matches(const char* text, size_t text_len) const;
   enum { alphabet_size = 256 };
 
   Item *escape_item;
