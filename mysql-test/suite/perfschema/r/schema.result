@@ -108,6 +108,8 @@ events_stages_current	CREATE TABLE `events_stages_current` (
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
   `TIMER_END` bigint(20) unsigned DEFAULT NULL,
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `WORK_COMPLETED` bigint(20) unsigned DEFAULT NULL,
+  `WORK_ESTIMATED` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
@@ -122,6 +124,8 @@ events_stages_history	CREATE TABLE `events_stages_history` (
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
   `TIMER_END` bigint(20) unsigned DEFAULT NULL,
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `WORK_COMPLETED` bigint(20) unsigned DEFAULT NULL,
+  `WORK_ESTIMATED` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8
@@ -136,6 +140,8 @@ events_stages_history_long	CREATE TABLE `events_stages_history_long` (
   `TIMER_START` bigint(20) unsigned DEFAULT NULL,
   `TIMER_END` bigint(20) unsigned DEFAULT NULL,
   `TIMER_WAIT` bigint(20) unsigned DEFAULT NULL,
+  `WORK_COMPLETED` bigint(20) unsigned DEFAULT NULL,
+  `WORK_ESTIMATED` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_ID` bigint(20) unsigned DEFAULT NULL,
   `NESTING_EVENT_TYPE` enum('TRANSACTION','STATEMENT','STAGE','WAIT') DEFAULT NULL
 ) ENGINE=PERFORMANCE_SCHEMA DEFAULT CHARSET=utf8

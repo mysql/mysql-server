@@ -1009,7 +1009,7 @@ size_t convert_error_message(char *to, size_t to_length,
   my_charset_conv_mb_wc mb_wc= from_cs->cset->mb_wc;
   my_charset_conv_wc_mb wc_mb;
   uint error_count= 0;
-  uint length;
+  size_t length;
 
   DBUG_ASSERT(to_length > 0);
   /* Make room for the null terminator. */
