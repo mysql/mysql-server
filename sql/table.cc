@@ -3097,7 +3097,7 @@ bool get_field(MEM_ROOT *mem, Field *field, String *res)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
-  uint length;
+  size_t length;
 
   field->val_str(&str);
   if (!(length= str.length()))
@@ -3129,13 +3129,13 @@ char *get_field(MEM_ROOT *mem, Field *field)
 {
   char buff[MAX_FIELD_WIDTH], *to;
   String str(buff,sizeof(buff),&my_charset_bin);
-  uint length;
+  size_t length;
 
   field->val_str(&str);
   length= str.length();
   if (!length || !(to= (char*) alloc_root(mem,length+1)))
     return NullS;
-  memcpy(to,str.ptr(),(uint) length);
+  memcpy(to,str.ptr(), length);
   to[length]=0;
   return to;
 }

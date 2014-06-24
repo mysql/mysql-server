@@ -3070,7 +3070,7 @@ static TYPELIB *create_typelib(MEM_ROOT *mem_root,
   String conv;
   for (uint i=0; i < result->count; i++)
   {
-    uint32 dummy;
+    size_t dummy;
     size_t length;
     String *tmp= it++;
 
@@ -3463,7 +3463,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
         for (uint i= 0; (tmp= int_it++); i++)
         {
           size_t lengthsp;
-          uint32 dummy2;
+          size_t dummy2;
           if (String::needs_conversion(tmp->length(), tmp->charset(),
                                        cs, &dummy2))
           {
@@ -5198,7 +5198,7 @@ mysql_rename_table(handlerton *base, const char *old_db,
   handler *file;
   int error=0;
   ulonglong save_bits= thd->variables.option_bits;
-  int length;
+  size_t length;
   bool was_truncated;
   DBUG_ENTER("mysql_rename_table");
   DBUG_PRINT("enter", ("old: '%s'.'%s'  new: '%s'.'%s'",
