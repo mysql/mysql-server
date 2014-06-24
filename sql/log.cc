@@ -2523,9 +2523,10 @@ int MYSQL_LOG::generate_new_name(char *new_name, const char *log_name)
     {
       if (find_uniq_filename(new_name))
       {
-        my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
-                        MYF(ME_FATALERROR), log_name);
-	sql_print_error(ER(ER_NO_UNIQUE_LOGFILE), log_name);
+        if (current_thd)
+          my_printf_error(ER_NO_UNIQUE_LOGFILE, ER(ER_NO_UNIQUE_LOGFILE),
+                          MYF(ME_FATALERROR), log_name);
+        sql_print_error(ER_DEFAULT(ER_NO_UNIQUE_LOGFILE), log_name);
 	return 1;
       }
     }
