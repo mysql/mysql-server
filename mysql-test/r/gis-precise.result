@@ -680,7 +680,7 @@ AsText(Centroid(GeomFromText('multipolygon(((0 0, 1 1, 2 2), (3 3, 4 4, 5 5)), (
 NULL
 SELECT AsText(Centroid(GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 AsText(Centroid(GeomFromText('geometrycollection(polygon((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), polygon((0 0, 1 0, 1 1, 0 1, 0 0)))')))
-POINT(1.4090909090909092 1.4090909090909092)
+POINT(1.3888888888888888 1.3888888888888888)
 SELECT AsText(Centroid(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')));
 AsText(Centroid(GeomFromText('multipolygon(((0 0, 3 0, 3 3, 0 3, 0 0), (1 1, 2 1, 2 2, 1 2, 1 1)), ((0 0, 1 0, 1 1, 0 1, 0 0)))')))
 POINT(1.3888888888888888 1.3888888888888888)
@@ -853,7 +853,7 @@ centroid
 POINT(6.666666666666667 0)
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))'))) as centroid;
 centroid
-POINT(5 -0)
+POINT(5 0)
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('MULTIPOLYGON(((0 0,0 10,10 10,10 0,0 0)),((0 0,10 0,10 -10,0 -10,0 0)))'))) as centroid;
 centroid
 POINT(5 0)
@@ -865,13 +865,22 @@ centroid
 POINT(5 0)
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(multipoint(0 0, 1 1, 2 2), LINESTRING(5 5, 10 10), point(-1 -1),POLYGON((0 0,0 10,10 10,10 0,0 0)),point(3 8), LINESTRING(0 1, 1 0, 2 2), MULTILINESTRING((3 3, 0 3, -3 0), (0 8, 0 0, 8 0)), point( 8 3), POLYGON((0 0,10 0,10 -10,0 -10,0 0)), MULTILINESTRING((4 4, 8 8, 8 4), (0 3, 3 0, 0 -3)), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 centroid
-POINT(5 -0)
+POINT(5 0)
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 1, 1 0, 2 2), point(3 8), point( 8 3), MULTILINESTRING((3 3, 0 3, -3 0), (0 8, 0 0, 8 0)), LINESTRING(5 5, 10 10), multipoint(0 0, 1 1, 2 2), point(-1 -1), MULTILINESTRING((4 4, 8 8, 8 4), (0 3, 3 0, 0 -3)), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 centroid
 POINT(3.1838733307161555 3.09524586263968)
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(point(3 8), point( 8 3), multipoint(0 0, 1 1, 2 2), point(-1 -1), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 centroid
 POINT(5.777777777777778 5.777777777777778)
+SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,-10 10,-10 0,0 0)),POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
+ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,-10 10,-10 0,0 0)),POLYGON((0 0,0 10,10 10,10 0,0 0)))')))
+POINT(0 5)
+SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,0 -10,10 -10,10 0,0 0)))')));
+ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,0 -10,10 -10,10 0,0 0)))')))
+POINT(5 0)
+SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')));
+ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')))
+POINT(5 0)
 #
 # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)
 #
