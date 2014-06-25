@@ -201,6 +201,7 @@ void ftnode_pivot_keys::_convert_to_fixed_format() {
     _dbt_keys = nullptr;
 
     invariant(_fixed_format());
+    sanity_check();
 }
 
 void ftnode_pivot_keys::_convert_to_dbt_format() {
@@ -211,13 +212,17 @@ void ftnode_pivot_keys::_convert_to_dbt_format() {
     for (int i = 0; i < _num_pivots; i++) {
         toku_memdup_dbt(&_dbt_keys[i], _fixed_key(i), _fixed_keylen);
     }
+    // pivots sizes are not aligned up  dbt format
+    _total_size = _num_pivots * _fixed_keylen;
 
     // destroy the fixed key format
     toku_free(_fixed_keys);
     _fixed_keys = nullptr;
     _fixed_keylen = 0;
+    _fixed_keylen_aligned = 0;
 
     invariant(!_fixed_format());
+    sanity_check();
 }
 
 void ftnode_pivot_keys::deserialize_from_rbuf(struct rbuf *rb, int n) {
@@ -475,5 +480,10 @@ void ftnode_pivot_keys::sanity_check() const {
         invariant(_num_pivots * _fixed_keylen_aligned == _total_size);
     } else {
         invariant(_num_pivots == 0 || _dbt_keys != nullptr);
+        size_t size = 0;
+        for (int i = 0; i < _num_pivots; i++) {
+            size += _dbt_keys[i].size;
+        }
+        invariant(size == _total_size);
     }
 }
