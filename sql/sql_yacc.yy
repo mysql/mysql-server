@@ -5603,7 +5603,8 @@ spatial_type:
         | GEOMETRYCOLLECTION  { $$= Field::GEOM_GEOMETRYCOLLECTION; }
         | POINT_SYM
           {
-            Lex->length= (char*)"25";
+            Lex->length= const_cast<char*>(STRINGIFY_ARG
+                                           (MAX_LEN_GEOM_POINT_FIELD));
             $$= Field::GEOM_POINT;
           }
         | MULTIPOINT          { $$= Field::GEOM_MULTIPOINT; }
