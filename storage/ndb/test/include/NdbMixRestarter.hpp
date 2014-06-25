@@ -73,7 +73,7 @@ private:
   unsigned ownseed;
   Uint32 m_mask;
   Vector<ndb_mgm_node_state> m_nodes;
-  int restart_cluster(NDBT_Context* ctx, NDBT_Step* step, bool abort = true);
+  int restart_cluster(NDBT_Context* ctx, NDBT_Step* step, bool abort = false);
 };
 
 #endif
