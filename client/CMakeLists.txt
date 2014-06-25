@@ -81,6 +81,7 @@ TARGET_LINK_LIBRARIES(mysql_secure_installation mysqlclient)
 IF(UNIX)
 MYSQL_ADD_EXECUTABLE(mysql_install_db mysql_install_db.cc auth_utils.cc path.cc)
 TARGET_LINK_LIBRARIES(mysql_install_db mysqlclient)
+ADD_DEPENDENCIES(mysql_install_db GenBootstrapPriv)
 ENDIF(UNIX)
 
 # "WIN32" also covers 64 bit. "echo" is used in some files below "mysql-test/".
