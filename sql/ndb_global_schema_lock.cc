@@ -423,7 +423,7 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
 
   // No attempt at taking global schema lock has been done, neither
   // error or trans set -> programming error
-  LEX_CSTRING query= thd_query_string(m_thd);
+  LEX_CSTRING query= thd_query_unsafe(m_thd);
   sql_print_error("NDB: programming error, no lock taken while running "
                   "query '%*s' in function '%s'",
                   (int)query.length, query.str, func);
