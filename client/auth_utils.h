@@ -18,11 +18,7 @@
 #define AUTH_UTILS_INCLUDED
 #include <string>
 #include <iostream>
-#include <sstream>
 #include <map>
-
-#include "my_rnd.h"
-#include "my_aes.h"
 
 #define ERR_FILE 1 // File related error
 #define ERR_ENCRYPTION 2  // Encryption related error
