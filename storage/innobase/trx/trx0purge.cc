@@ -533,7 +533,6 @@ trx_purge_truncate_rseg_history(
 	ulint		n_removed_logs	= 0;
 	mtr_t		mtr;
 	trx_id_t	undo_trx_no;
-	ulint		seg_size;
 	const bool	noredo		= trx_sys_is_noredo_rseg_slot(
 		rseg->id);
 
@@ -542,10 +541,6 @@ trx_purge_truncate_rseg_history(
 		mtr.set_log_mode(MTR_LOG_NO_REDO);
 	}
 	mutex_enter(&(rseg->mutex));
-
-	rseg->pages_marked_freed = 0;
-	rseg->n_removed_logs = 0;
-	rseg->n_can_be_removed_logs = 0;
 
 	rseg_hdr = trx_rsegf_get(rseg->space, rseg->page_no,
 				 rseg->page_size, &mtr);
@@ -602,7 +597,6 @@ loop:
 	n_removed_logs++;
 
 	seg_hdr = undo_page + TRX_UNDO_SEG_HDR;
-	seg_size = flst_get_len(seg_hdr + TRX_UNDO_PAGE_LIST, &mtr);
 
 	if ((mach_read_from_2(seg_hdr + TRX_UNDO_STATE) == TRX_UNDO_TO_PURGE)
 	    && (mach_read_from_2(log_hdr + TRX_UNDO_NEXT_LOG) == 0)) {
@@ -612,28 +606,10 @@ loop:
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 
-		/* If UNDO tablespace where the given rseg resides, is marked
-		for truncate then avoid freeing actual pages, as anyway after
-		sometime we plan to truncate the complete tablespace.
-		Instead update the free page count that will be used
-		to adjust the rseg->curr_size. */
-		if (rseg->skip_allocation) {
-			mutex_enter(&(rseg->mutex));
-			rseg->pages_marked_freed += seg_size;
-			rseg->n_removed_logs += n_removed_logs;
-			mutex_exit(&(rseg->mutex));
-		} else {
-			trx_purge_free_segment(
-				rseg, hdr_addr, n_removed_logs, noredo);
-		}
+		trx_purge_free_segment(rseg, hdr_addr, n_removed_logs, noredo);
 
 		n_removed_logs = 0;
-		rseg->n_can_be_removed_logs = 0;
 	} else {
-		/* Track the logs that can be removed if we truncate UNDO
-		tablespace. This count will help us adjust rseg_history_len. */
-		rseg->n_can_be_removed_logs++;
-
 		mutex_exit(&(rseg->mutex));
 		mtr_commit(&mtr);
 	}
@@ -719,8 +695,6 @@ trx_purge_mark_undo_for_truncate(
 			if (rseg->space
 				== undo_trunc->get_undo_mark_for_trunc()) {
 
-				ut_ad(rseg->pages_marked_freed == 0);
-
 				/* Once set this rseg will not be allocated
 				to new booting transaction but we will wait
 				for existing active transaction to finish. */
@@ -767,11 +741,7 @@ trx_purge_initiate_truncate(
 
 		ut_ad(rseg->skip_allocation);
 
-		/* We never free the header page so always > and not >= */
-		ut_ad(rseg->curr_size > rseg->pages_marked_freed);
-
-		ulint	size_of_rsegs =
-			rseg->curr_size - rseg->pages_marked_freed;
+		ulint	size_of_rsegs = rseg->curr_size;
 
 		if (size_of_rsegs == 1) {
 			mutex_exit(&rseg->mutex);
@@ -898,23 +868,6 @@ trx_purge_initiate_truncate(
 		}
 	}
 	mutex_exit(&purge_sys->pq_mutex);
-
-	ulint	n_removed_logs = 0;
-	for (ulint i = 0; i < undo_trunc->get_no_of_rsegs() && all_free; ++i) {
-		trx_rseg_t*	rseg = undo_trunc->get_ith_rseg(i);
-		n_removed_logs += rseg->n_removed_logs;
-		n_removed_logs += rseg->n_can_be_removed_logs;
-	}
-
-	ut_ad(trx_sys->rseg_history_len >= n_removed_logs);
-
-#ifdef HAVE_ATOMIC_BUILTINS
-	os_atomic_decrement_ulint(&trx_sys->rseg_history_len, n_removed_logs);
-#else
-	trx_sys_mutex_enter();
-	trx_sys->rseg_history_len -= n_removed_logs;
-	trx_sys_mutex_exit();
-#endif /* HAVE_ATOMIC_BUILTINS */
 
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	if (!success) {
