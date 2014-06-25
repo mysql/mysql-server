@@ -65,32 +65,32 @@ ADD_CUSTOM_TARGET(GenFixPrivs
 
 IF(UNIX)
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_SOURCE_DIR}/client/sql_commands_system_data.h
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
   COMMAND comp_sql
   mysql_system_data
-  ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables_data.sql
-  ${CMAKE_SOURCE_DIR}/client/sql_commands_system_data.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+  sql_commands_system_data.h
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS comp_sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
 )
 
 ADD_CUSTOM_COMMAND(
-  OUTPUT ${CMAKE_SOURCE_DIR}/client/sql_commands_system_tables.h
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
   COMMAND comp_sql
   mysql_system_tables
-  ${CMAKE_SOURCE_DIR}/scripts/mysql_system_tables.sql
-  ${CMAKE_SOURCE_DIR}/client/sql_commands_system_tables.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+  sql_commands_system_tables.h
   WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
   DEPENDS comp_sql
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
 )
 
 # Add target for the above to be built
 ADD_CUSTOM_TARGET(GenBootstrapPriv
   ALL
-  DEPENDS ${CMAKE_SOURCE_DIR}/client/sql_commands_system_data.h
-  ${CMAKE_SOURCE_DIR}/client/sql_commands_system_tables.h
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
 )
 ENDIF(UNIX)
 
