@@ -42,6 +42,8 @@ public:
   {
   }
 
+  virtual ~Packet() {};
+
   /**
    @return the packet type
   */
@@ -82,8 +84,7 @@ public:
 
   ~Data_packet()
   {
-    if (payload != NULL)
-      my_free(payload);
+    my_free(payload);
   }
 
   uchar *payload;

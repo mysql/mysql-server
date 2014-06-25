@@ -53,7 +53,7 @@ public:
     @param  action           the packet action
   */
   Action_packet(enum_packet_action action)
-    : Packet(ACTION_PACKET_TYPE), packet_action(action)
+    :Packet(ACTION_PACKET_TYPE), packet_action(action), payload(NULL), len(0)
   {
   }
 

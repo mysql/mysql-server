@@ -14415,6 +14415,7 @@ char *View_change_log_event::read_data_map(char *pos,
     std::string key(hash);
     pos+= len;
     (*map)[key]= value;
+    my_free(hash);
   }
   DBUG_RETURN(pos);
 }

@@ -246,6 +246,9 @@ int Replication_thread_api::stop_threads(bool flush_relay_logs, int thread_mask)
 
 void Replication_thread_api::clean_thread_repositories()
 {
+  //terminate the relay log info structures
+  rli->end_info();
+
   if (mi != NULL)
   {
     delete mi;

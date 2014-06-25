@@ -178,12 +178,14 @@ Applier_module::applier_thread_handle()
       //packet used to break the queue blocking wait
       if (action == TERMINATION_PACKET)
       {
+        delete packet;
         break;
       }
       //packet to signal the applier to suspend
       if (action == SUSPENSION_PACKET)
       {
         suspend_applier_module();
+        delete packet;
         continue;
       }
       //signals the injection of a view change event into the pipeline
@@ -194,6 +196,7 @@ Applier_module::applier_thread_handle()
                 = new View_change_log_event(view_id);
         PipelineEvent* pevent= new PipelineEvent(view_change_event, fde_evt);
         error= inject_event_into_pipeline(pevent,cont);
+        delete pevent;
         delete packet;
         continue;
       }
@@ -223,6 +226,7 @@ Applier_module::applier_thread_handle()
 
     delete packet;
   }
+  delete fde_evt;
   delete cont;
 
   log_message(MY_INFORMATION_LEVEL, "The applier thread was killed");
