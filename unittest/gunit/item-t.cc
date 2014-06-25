@@ -764,6 +764,9 @@ TEST_F(ItemTest, ItemDecimalTypecast)
   const char msg[]= "";
   POS pos;
   pos.cpp.start= pos.cpp.end= pos.raw.start= pos.raw.end= msg;
+  // Sun Studio needs this null_item,
+  // it fails to compile EXPECT_EQ(NULL, create_func_cast());
+  const Item *null_item= NULL;
 
   Cast_type type;
   type.target= ITEM_CAST_DECIMAL;
@@ -773,7 +776,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
 
   {
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
   {
@@ -782,14 +785,14 @@ TEST_F(ItemTest, ItemDecimalTypecast)
     type.length= buff;
     type.dec= NULL;
     initializer.set_expected_error(ER_TOO_BIG_PRECISION);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
   {
     type.length= NULL;
     type.dec= "123456789012345678901234567890";
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
   {
@@ -798,7 +801,7 @@ TEST_F(ItemTest, ItemDecimalTypecast)
     type.length= buff;
     type.dec= buff;
     initializer.set_expected_error(ER_TOO_BIG_SCALE);
-    EXPECT_EQ(NULL, create_func_cast(thd(), pos, NULL, &type));
+    EXPECT_EQ(null_item, create_func_cast(thd(), pos, NULL, &type));
   }
 
 }

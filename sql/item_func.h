@@ -2067,7 +2067,7 @@ public:
   bool fix_fields(THD *thd, Item **ref);
   virtual void print(String *str, enum_query_type query_type);
   void set_null_value(const CHARSET_INFO* cs);
-  void set_value(const char *str, uint length, const CHARSET_INFO* cs);
+  void set_value(const char *str, size_t length, const CHARSET_INFO* cs);
 };
 
 
@@ -2291,10 +2291,10 @@ public:
      @param type   comparison operation type
      @param value  comparison operation value
   */
-  void set_hints_op(enum ft_operation type, double value)
+  void set_hints_op(enum ft_operation type, double value_arg)
   {
     DBUG_ASSERT(!master);
-    hints->set_hint_op(type, value);
+    hints->set_hint_op(type, value_arg);
   }
   
   /**
