@@ -812,7 +812,7 @@ fil_node_open_file(
 		space_id = fsp_header_get_space_id(page);
 		flags = fsp_header_get_flags(page);
 
-		::ut_free(buf2);
+		ut_free(buf2);
 
 		/* Close the file now that we have read the space id from it */
 
@@ -1209,8 +1209,8 @@ fil_node_free(
 	UT_LIST_REMOVE(space->chain, node);
 
 	os_event_destroy(node->sync_event);
-	::ut_free(node->name);
-	::ut_free(node);
+	ut_free(node->name);
+	ut_free(node);
 }
 
 /** Frees a space object from the tablespace memory cache.
@@ -1915,7 +1915,7 @@ fil_write_lsn_and_arch_no_to_file(
 				univ_page_size.physical(), buf);
 	}
 
-	::ut_free(buf1);
+	ut_free(buf1);
 
 	return(err);
 }
@@ -2071,7 +2071,7 @@ fil_create_directory_for_tablename(
 	bool	success = os_file_create_directory(path, false);
 	ut_a(success);
 
-	::ut_free(path);
+	ut_free(path);
 }
 
 #ifndef UNIV_HOTBACKUP
@@ -2317,7 +2317,7 @@ fil_recreate_tablespace(
 		err = fil_write(page_id_t(space_id, 0), page_size, 0,
 				page_size.physical(), page_zip.data);
 
-		::ut_free(buf);
+		ut_free(buf);
 
 		if (err != DB_SUCCESS) {
 			ib_logf(IB_LOG_LEVEL_INFO,
@@ -2830,10 +2830,10 @@ fil_close_tablespace(
 	char*	cfg_name = fil_make_filepath(path, NULL, CFG, false);
 	if (cfg_name != NULL) {
 		os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
-		::ut_free(cfg_name);
+		ut_free(cfg_name);
 	}
 
-	::ut_free(path);
+	ut_free(path);
 
 	return(err);
 }
@@ -2934,7 +2934,7 @@ fil_delete_tablespace(
 		char*	cfg_name = fil_make_filepath(path, NULL, CFG, false);
 		if (cfg_name != NULL) {
 			os_file_delete_if_exists(innodb_data_file_key, cfg_name, NULL);
-			::ut_free(cfg_name);
+			ut_free(cfg_name);
 		}
 	}
 
@@ -2972,7 +2972,7 @@ fil_delete_tablespace(
 		err = DB_IO_ERROR;
 	}
 
-	::ut_free(path);
+	ut_free(path);
 
 	return(err);
 }
@@ -3033,7 +3033,7 @@ fil_prepare_for_truncate(
 	dberr_t	err = fil_check_pending_operations(
 		id, FIL_OPERATION_TRUNCATE, &space, &path);
 
-	::ut_free(path);
+	ut_free(path);
 
 	if (err == DB_TABLESPACE_NOT_FOUND) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3200,8 +3200,8 @@ fil_rename_tablespace_in_mem(
 
 	HASH_DELETE(fil_space_t, name_hash, fil_system->name_hash,
 		    ut_fold_string(space->name), space);
-	::ut_free(space->name);
-	::ut_free(node->name);
+	ut_free(space->name);
+	ut_free(node->name);
 
 	space->name = mem_strdup(new_name);
 	node->name = mem_strdup(new_path);
@@ -3658,7 +3658,7 @@ fil_create_new_single_table_tablespace(
 					page_size.physical());
 	}
 
-	::ut_free(buf2);
+	ut_free(buf2);
 
 	if (!success) {
 		ib_logf(IB_LOG_LEVEL_ERROR,
@@ -3725,7 +3725,7 @@ error_exit_1:
 		os_file_delete(innodb_data_file_key, path);
 	}
 
-	::ut_free(path);
+	ut_free(path);
 
 	return(err);
 }
@@ -4274,7 +4274,7 @@ fil_load_single_table_tablespace(
 
 		ut_a(success);
 
-		::ut_free(new_path);
+		ut_free(new_path);
 
 		return(FIL_LOAD_ID_CHANGED);
 	}
@@ -4306,7 +4306,7 @@ fil_load_single_table_tablespace(
 
 		ut_a(success);
 
-		::ut_free(new_path);
+		ut_free(new_path);
 		return(FIL_LOAD_OK);
 	}
 #endif /* UNIV_HOTBACKUP */
@@ -4679,7 +4679,7 @@ fil_write_zeros(
 				DBUG_SUICIDE(););
 	}
 
-	::ut_free(ptr);
+	ut_free(ptr);
 
 	return(true);
 }
@@ -4922,7 +4922,7 @@ fil_extend_tablespaces_to_stored_len(void)
 
 	mutex_exit(&fil_system->mutex);
 
-	::ut_free(buf);
+	ut_free(buf);
 }
 #endif
 
@@ -5694,7 +5694,7 @@ fil_flush_file_spaces(
 		fil_flush(space_ids[i]);
 	}
 
-	::ut_free(space_ids);
+	ut_free(space_ids);
 }
 
 /** Functor to validate the file node list of a tablespace. */
@@ -5858,7 +5858,7 @@ fil_close(void)
 
 	mutex_free(&fil_system->mutex);
 
-	::ut_free(fil_system);
+	ut_free(fil_system);
 
 	fil_system = NULL;
 }
@@ -6078,7 +6078,7 @@ fil_tablespace_iterate(
 			"Trying to import a tablespace, but could not"
 			" open the tablespace file %s", filepath);
 
-		::ut_free(filepath);
+		ut_free(filepath);
 
 		return(DB_TABLESPACE_NOT_FOUND);
 
@@ -6144,7 +6144,7 @@ fil_tablespace_iterate(
 
 		err = fil_iterate(iter, block, callback);
 
-		::ut_free(io_buffer);
+		ut_free(io_buffer);
 	}
 
 	if (err == DB_SUCCESS) {
@@ -6161,12 +6161,12 @@ fil_tablespace_iterate(
 
 	os_file_close(file);
 
-	::ut_free(page_ptr);
-	::ut_free(filepath);
+	ut_free(page_ptr);
+	ut_free(filepath);
 
 	mutex_free(&block->mutex);
 
-	::ut_free(block);
+	ut_free(block);
 
 	return(err);
 }
@@ -6201,7 +6201,7 @@ fil_delete_file(
 	if (cfg_filepath != NULL) {
 		os_file_delete_if_exists(
 			innodb_data_file_key, cfg_filepath, NULL);
-		::ut_free(cfg_filepath);
+		ut_free(cfg_filepath);
 	}
 }
 
@@ -6529,7 +6529,7 @@ truncate_t::truncate(
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"Failed to open tablespace file %s.", path);
 
-			::ut_free(path);
+			ut_free(path);
 
 			return(DB_ERROR);
 		}
@@ -6573,7 +6573,7 @@ truncate_t::truncate(
 		}
 	}
 
-	::ut_free(path);
+	ut_free(path);
 
 	return(err);
 }

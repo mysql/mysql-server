@@ -1,6 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2010, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2010, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -25,6 +25,7 @@ Created 2010-05-28 by Sunny Bains
 
 #include "ut0bh.h"
 #include "ut0mem.h"
+#include "ut0new.h"
 
 #ifdef UNIV_NONINL
 #include "ut0bh.ic"

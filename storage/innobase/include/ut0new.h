@@ -198,12 +198,15 @@ public:
 	@param[in]	hint		pointer to a nearby memory location,
 	unused by this implementation
 	@param[in]	file		file name of the caller
+	@param[in]	set_to_zero	if true, then the returned memory is
+	initialized with 0x0 bytes.
 	@return pointer to the allocated memory */
 	pointer
 	allocate(
 		size_type	n_elements,
 		const_pointer	hint = NULL,
-		const char*	file = NULL)
+		const char*	file = NULL,
+		bool		set_to_zero = false)
 	{
 		if (n_elements == 0) {
 			return(NULL);
@@ -220,7 +223,11 @@ public:
 			= sizeof(ut_new_pfx_t) + n_elements * sizeof(T);
 
 		do {
-			ptr = malloc(total_bytes);
+			if (set_to_zero) {
+				ptr = calloc(1, total_bytes);
+			} else {
+				ptr = malloc(total_bytes);
+			}
 
 			if (ptr == NULL) {
 				os_thread_sleep(1000000 /* 1 second */);
@@ -598,6 +605,26 @@ ut_delete_array(
 	ut_allocator<T>().delete_array(ptr);
 }
 
+#define ut_malloc_low(n_bytes, set_to_zero, key) \
+	({ \
+		byte*	_p; \
+	 	try { \
+	 		_p = ut_allocator<byte>(key).allocate( \
+				n_bytes, NULL, __FILE__, set_to_zero); \
+	 	} catch (...) { \
+	 		_p = NULL; \
+	 	} \
+	 	static_cast<void*>(_p); \
+	 })
+
+#define ut_malloc(n_bytes) \
+	ut_malloc_low(n_bytes, false, PSI_NOT_INSTRUMENTED)
+
+#define ut_zalloc(n_bytes) \
+	ut_malloc_low(n_bytes, true, PSI_NOT_INSTRUMENTED)
+
+#define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate(ptr)
+
 #else /* UNIV_PFS_MEMORY */
 
 /* Fallbacks when memory tracing is disabled at compile time. */
@@ -613,6 +640,12 @@ ut_delete_array(
 	new(std::nothrow) type[n_elements]
 
 #define UT_DELETE_ARRAY(ptr)		delete[] ptr
+
+#define ut_malloc(n_bytes) 		::malloc(n_bytes)
+
+#define ut_zalloc(n_bytes)		::calloc(1, n_bytes)
+
+#define ut_free(ptr)			::free(ptr)
 
 #endif /* UNIV_PFS_MEMORY */
 

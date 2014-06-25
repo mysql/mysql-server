@@ -27,8 +27,10 @@ Refactored 2013-7-26 by Kevin Lewis
 #include "ha_prototypes.h"
 
 #include "fsp0sysspace.h"
+#include "mem0mem.h"
 #include "os0file.h"
 #include "srv0start.h"
+#include "ut0new.h"
 
 /** The control info of the system tablespace. */
 SysTablespace srv_sys_space;
@@ -94,7 +96,7 @@ SysTablespace::parse(
 	ut_ad(m_last_file_size_max == 0);
 	ut_ad(!m_auto_extend_last_file);
 
-	char*	new_str = strdup(filepath_spec);
+	char*	new_str = mem_strdup(filepath_spec);
 	char*	str = new_str;
 
 	input_str = str;
@@ -114,7 +116,7 @@ SysTablespace::parse(
 		}
 
 		if (*str == '\0') {
-			::free(new_str);
+			ut_free(new_str);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"syntax error in file path or size specified"
 				" is less than 1 megabyte");
@@ -140,7 +142,7 @@ SysTablespace::parse(
 			}
 
 			if (*str != '\0') {
-				::free(new_str);
+				ut_free(new_str);
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"syntax error in file path or size specified"
 					" is less than 1 megabyte");
@@ -159,7 +161,7 @@ SysTablespace::parse(
 					"Tablespace doesn't support raw"
 					" devices");
 
-				::free(new_str);
+				ut_free(new_str);
 				return(false);
 			}
 
@@ -175,13 +177,13 @@ SysTablespace::parse(
 					"Tablespace doesn't support raw"
 					" devices");
 
-				::free(new_str);
+				ut_free(new_str);
 				return(false);
 			}
 		}
 
 		if (size == 0) {
-			::free(new_str);
+			ut_free(new_str);
 			ib_logf(IB_LOG_LEVEL_ERROR,
 				"syntax error in file path or size specified"
 				" is less than 1 megabyte");
@@ -193,14 +195,14 @@ SysTablespace::parse(
 		if (*str == ';') {
 			str++;
 		} else if (*str != '\0') {
-			::free(new_str);
+			ut_free(new_str);
 			return(false);
 		}
 	}
 
 	if (n_files == 0) {
 		/* filepath_spec must contain at least one data file definition */
-		::free(new_str);
+		ut_free(new_str);
 		ib_logf(IB_LOG_LEVEL_ERROR,
 			"syntax error in file path or size specified"
 			" is less than 1 megabyte");
@@ -251,7 +253,7 @@ SysTablespace::parse(
 			}
 
 			if (*str != '\0') {
-				::free(new_str);
+				ut_free(new_str);
 				ib_logf(IB_LOG_LEVEL_ERROR,
 					"syntax error in file path or size"
 					" specified is less than 1 megabyte");
@@ -294,7 +296,7 @@ SysTablespace::parse(
 
 	ut_ad(n_files == ulint(m_files.size()));
 
-	::free(new_str);
+	ut_free(new_str);
 
 	return(true);
 }
