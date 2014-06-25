@@ -3459,7 +3459,7 @@ mysql_prepare_create_table(THD *thd, HA_CREATE_INFO *create_info,
 	  }
           if (f_is_geom(sql_field->pack_flag) && sql_field->geom_type ==
               Field::GEOM_POINT)
-            column->length= 25;
+            column->length= MAX_LEN_GEOM_POINT_FIELD;
 	  if (!column->length)
 	  {
 	    my_error(ER_BLOB_KEY_WITHOUT_LENGTH, MYF(0), column->field_name.str);
