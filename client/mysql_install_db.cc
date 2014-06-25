@@ -46,8 +46,8 @@
 
 using namespace std;
 
-#include "sql_commands_system_tables.h"
-#include "sql_commands_system_data.h"
+#include "../scripts/sql_commands_system_tables.h"
+#include "../scripts/sql_commands_system_data.h"
 
 #define PROGRAM_NAME "mysql_install_db"
 #define MYSQLD_EXECUTABLE "mysqld"
