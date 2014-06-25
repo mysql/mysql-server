@@ -1,0 +1,25 @@
+--source include/have_innodb.inc
+
+--echo #
+--echo # Bug #19027905 ASSERT RET.SECOND DICT_CREATE_FOREIGN_CONSTRAINTS_LOW
+--echo # DICT_CREATE_FOREIGN_CONSTR
+--echo #
+
+create table t1 (f1 int primary key) engine=InnoDB;
+--error ER_CANNOT_ADD_FOREIGN
+create table t2 (f1 int primary key,
+constraint c1 foreign key (f1) references t1(f1),
+constraint c1 foreign key (f1) references t1(f1)) engine=InnoDB; 
+create table t2 (f1 int primary key,
+   constraint c1 foreign key (f1) references t1(f1)) engine=innodb;
+
+--replace_regex /#sql-[0-9a-f_]*'/#sql-temporary'/
+--error ER_DUP_KEY
+alter table t2 add constraint c1 foreign key (f1) references t1(f1); 
+
+set foreign_key_checks = 0;
+--error ER_FK_DUP_NAME
+alter table t2 add constraint c1 foreign key (f1) references t1(f1); 
+
+drop table t2, t1;
+
