@@ -439,17 +439,16 @@ string create_string(char *ptr)
     return string("");
 }
 
-#ifndef all_of
 template <class InputIterator, class UnaryPredicate >
-  bool all_of (InputIterator first, InputIterator last, UnaryPredicate pred)
+bool my_all_of(InputIterator first, InputIterator last, UnaryPredicate pred)
 {
-  while (first!=last) {
+  while (first != last)
+  {
     if (!pred(*first)) return false;
     ++first;
   }
   return true;
 }
-#endif
 
 bool my_legal_username_chars(const char &c)
 {
@@ -489,15 +488,15 @@ bool assert_valid_root_account(const string &username, const string &host,
           << endl;
     return false;
   }
-  if (!all_of(username.begin(), username.end(), my_legal_username_chars) ||
-      !all_of(host.begin(), host.end(), my_legal_hostname_chars))
+  if (!my_all_of(username.begin(), username.end(), my_legal_username_chars) ||
+      !my_all_of(host.begin(), host.end(), my_legal_hostname_chars))
   {
     error << "Recommended practice is to use only alpha-numericals in "
              "the user / host name."
           << endl;
     return false;
   }
-  if (!all_of(plugin.begin(), plugin.end(), my_legal_plugin_chars))
+  if (!my_all_of(plugin.begin(), plugin.end(), my_legal_plugin_chars))
   {
     error << "Only use alpha-numericals in the the plugin name."
           << endl;
