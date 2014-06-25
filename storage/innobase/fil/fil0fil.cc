@@ -3015,31 +3015,13 @@ fil_truncate_tablespace(
 
 	bool success = os_file_truncate(node->name, node->handle, 0);
 	if (success) {
-		/* os_file_set_size will use SYNC_IO but file might be open in
-		ASYNC_IO that will make the os_file_set_size incompatible with
-		exisitng modes/attributes. Re-open the file for
-		os_file_set_size and close it immediately. */ 
-		os_file_t	fh;
-		bool		ret;
-		fh = os_file_create(
-			innodb_data_file_key, node->name,
-			OS_FILE_OPEN_RETRY
-			| OS_FILE_ON_ERROR_NO_EXIT
-			| OS_FILE_ON_ERROR_SILENT,
-			OS_FILE_NORMAL, OS_DATA_FILE,
-			srv_read_only_mode, &ret);
-
-		if (ret) {
-			success = os_file_set_size(
-				node->name, fh,
-				size_in_pages * UNIV_PAGE_SIZE);
-			if (success) {
-				space->stop_new_ops = false;
-				space->is_being_truncated = false;
-			}
-
-			os_file_flush(fh);
-			os_file_close(fh);
+		success = os_file_set_size(
+			node->name, node->handle,
+			size_in_pages * UNIV_PAGE_SIZE,
+			srv_read_only_mode);
+		if (success) {
+			space->stop_new_ops = false;
+			space->is_being_truncated = false;
 		}
 	}
 
@@ -3669,10 +3651,12 @@ fil_create_new_single_table_tablespace(
 		}
 	} else {
 
-		success = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
+		success = os_file_set_size(
+			path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
 	}
 #else
-	success = os_file_set_size(path, file, size * UNIV_PAGE_SIZE);
+	success = os_file_set_size(
+		path, file, size * UNIV_PAGE_SIZE, srv_read_only_mode);
 #endif /* !NO_FALLOCATE && UNIV_LINUX */
 
 	if (!success) {

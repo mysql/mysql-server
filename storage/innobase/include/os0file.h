@@ -900,7 +900,10 @@ os_file_set_size(
 	const char*	name,	/*!< in: name of the file or path as a
 				null-terminated string */
 	os_file_t	file,	/*!< in: handle to a file */
-	os_offset_t	size)	/*!< in: file size */
+	os_offset_t	size,	/*!< in: file size */
+	bool		read_only_mode)
+				/*!< in: if true, read only mode
+				checks are enforced. */
 	__attribute__((nonnull, warn_unused_result));
 /***********************************************************************//**
 Truncates a file at its current position.
