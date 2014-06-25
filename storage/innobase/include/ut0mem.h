@@ -67,31 +67,6 @@ UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
 
-/** Allocate memory.
-@param[in]	n number of bytes to allocate
-@return		allocated memory block */
-
-void*
-ut_malloc(
-	ulint	n)
-	__attribute__((malloc));
-
-/** Allocate zero-filled memory.
-@param[in]	n number of bytes to allocate
-@return		zero-filled allocated memory block */
-
-void*
-ut_zalloc(
-	ulint	n)
-	__attribute__((malloc));
-
-/** Free a memory block allocated with ut_malloc.
-Freeing a NULL pointer is a no-op.
-@param[in,out]	mem	memory block, can be NULL */
-
-void
-ut_free(void* ptr);
-
 #ifndef UNIV_HOTBACKUP
 /** Wrapper for realloc().
 @param[in,out]	ptr	Pointer to old block or NULL

@@ -62,11 +62,11 @@ public:
 		ut_ad(m_files.empty());
 		ut_ad(m_space_id == ULINT_UNDEFINED);
 		if (m_name != NULL) {
-			::free(m_name);
+			ut_free(m_name);
 			m_name = NULL;
 		}
 		if (m_path != NULL) {
-			::free(m_path);
+			ut_free(m_path);
 			m_path = NULL;
 		}
 	}
@@ -80,7 +80,7 @@ public:
 	void set_name(const char* name)
 	{
 		ut_ad(m_name == NULL);
-		m_name = ::strdup(name);
+		m_name = mem_strdup(name);
 		ut_ad(m_name != NULL);
 	}
 
@@ -96,7 +96,7 @@ public:
 	void set_path(const char* path)
 	{
 		ut_ad(m_path == NULL);
-		m_path = ::strdup(path);
+		m_path = mem_strdup(path);
 		ut_ad(m_path != NULL);
 
 		os_normalize_path_for_win(m_path);

@@ -6656,7 +6656,7 @@ fts_check_and_drop_orphaned_tables(
 					os_file_delete_if_exists(
 						innodb_data_file_key, path, NULL);
 
-					::ut_free(path);
+					ut_free(path);
 				}
 			}
 		} else {

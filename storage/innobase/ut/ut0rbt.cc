@@ -1,6 +1,6 @@
 /***************************************************************************//**
 
-Copyright (c) 2007, 2013, Oracle and/or its affiliates. All Rights Reserved.
+Copyright (c) 2007, 2014, Oracle and/or its affiliates. All Rights Reserved.
 
 This program is free software; you can redistribute it and/or modify it under
 the terms of the GNU General Public License as published by the Free Software
@@ -23,6 +23,7 @@ Red-Black tree implementation
 Created 2007-03-20 Sunny Bains
 ***********************************************************************/
 
+#include "ut0new.h"
 #include "ut0rbt.h"
 
 /**********************************************************************//**
