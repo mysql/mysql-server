@@ -323,7 +323,8 @@ create_log_file(
 
 	ret = os_file_set_size(name, *file,
 			       (os_offset_t) srv_log_file_size
-			       << UNIV_PAGE_SIZE_SHIFT);
+			       << UNIV_PAGE_SIZE_SHIFT,
+			       srv_read_only_mode);
 	if (!ret) {
 		ib_logf(IB_LOG_LEVEL_ERROR, "Cannot set log file"
 			" %s to size %lu MB", name, (ulong) srv_log_file_size
@@ -566,7 +567,9 @@ srv_undo_tablespace_create(
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Database physically writes the file full: wait...");
 
-		ret = os_file_set_size(name, fh, size << UNIV_PAGE_SIZE_SHIFT);
+		ret = os_file_set_size(
+			name, fh, size << UNIV_PAGE_SIZE_SHIFT,
+			srv_read_only_mode);
 
 		if (!ret) {
 			ib_logf(IB_LOG_LEVEL_INFO,
