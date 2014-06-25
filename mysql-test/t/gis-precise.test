@@ -508,6 +508,9 @@ SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(multipoint(0 0,
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(LINESTRING(0 1, 1 0, 2 2), point(3 8), point( 8 3), MULTILINESTRING((3 3, 0 3, -3 0), (0 8, 0 0, 8 0)), LINESTRING(5 5, 10 10), multipoint(0 0, 1 1, 2 2), point(-1 -1), MULTILINESTRING((4 4, 8 8, 8 4), (0 3, 3 0, 0 -3)), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(point(3 8), point( 8 3), multipoint(0 0, 1 1, 2 2), point(-1 -1), point(9 9), multipoint(10 10, 20 20))'))) as centroid;
 
+SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,-10 10,-10 0,0 0)),POLYGON((0 0,0 10,10 10,10 0,0 0)))')));
+SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,0 -10,10 -10,10 0,0 0)))')));
+SELECT ST_AsText(ST_Centroid(ST_GeomFromText('GEOMETRYCOLLECTION(POLYGON((0 0,0 10,10 10,10 0,0 0)),POLYGON((0 0,10 0,10 -10,0 -10,0 0)))')));
 
 --echo #
 --echo # BUG #18911119 ASSERTION FAILED: !NO_DATA(NBYTES)

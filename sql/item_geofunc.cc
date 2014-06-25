@@ -596,7 +596,10 @@ bool geometry_collection_centroid(Geometry *geom,
   wkb_scanner(wkb_start, &wkb_len,
               Geometry::wkb_geometrycollection, false, &plgn_grouper);
   if (mplgn.size() > 0)
+  {
+    mplgn.normalize_ring_order();
     boost::geometry::centroid(mplgn, respt);
+  }
   else
   {
     typename BG_models<double, Coordsys>::Multilinestring mls;

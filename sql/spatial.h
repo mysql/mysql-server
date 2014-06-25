@@ -3177,7 +3177,7 @@ public:
     totlen+= (nbytes ? nbytes : (is_inns ? 0 : sizeof(uint32)));
 
     size_t len= 0, total_len= 0, last_i= 0, numgeoms= 0;
-    char *ptr= static_cast<char *>(gis_wkb_alloc(totlen)), *q;
+    char *ptr= static_cast<char *>(gis_wkb_alloc(totlen)), *q= NULL;
 
     if (ptr == NULL)
     {
