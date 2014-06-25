@@ -23,6 +23,8 @@ A vector of pointers to data items
 Created 4/6/2006 Osku Salerma
 ************************************************************************/
 
+#include "ut0new.h"
+
 #define	IB_VEC_OFFSET(v, i)	(vec->sizeof_value * i)
 
 /********************************************************************

@@ -2158,7 +2158,7 @@ truncate_t::truncate_t(
 	m_log_file_name()
 {
 	if (dir_path != NULL) {
-		m_dir_path = ::strdup(dir_path);
+		m_dir_path = mem_strdup(dir_path);
 	}
 }
 
@@ -2181,7 +2181,7 @@ truncate_t::truncate_t(
 	m_log_lsn(),
 	m_log_file_name()
 {
-	m_log_file_name = ::strdup(log_file_name);
+	m_log_file_name = mem_strdup(log_file_name);
 	if (m_log_file_name == NULL) {
 		ib_logf(IB_LOG_LEVEL_FATAL,
 			"Failed creating truncate_t; out of memory");
@@ -2208,17 +2208,17 @@ truncate_t::index_t::index_t()
 truncate_t::~truncate_t()
 {
 	if (m_dir_path != NULL) {
-		::free(m_dir_path);
+		ut_free(m_dir_path);
 		m_dir_path = NULL;
 	}
 
 	if (m_tablename != NULL) {
-		::free(m_tablename);
+		ut_free(m_tablename);
 		m_tablename = NULL;
 	}
 
 	if (m_log_file_name != NULL) {
-		::free(m_log_file_name);
+		ut_free(m_log_file_name);
 		m_log_file_name = NULL;
 	}
 
@@ -2351,7 +2351,7 @@ truncate_t::parse(
 		if (end_ptr < start_ptr + n_tablename_len) {
 			return(DB_FAIL);
 		}
-		m_tablename = strdup(reinterpret_cast<char*>(start_ptr));
+		m_tablename = mem_strdup(reinterpret_cast<char*>(start_ptr));
 		ut_ad(m_tablename[n_tablename_len - 1] == 0);
 		start_ptr += n_tablename_len;
 	}
@@ -2384,7 +2384,7 @@ truncate_t::parse(
 
 		if (n_tabledirpath_len > 0) {
 
-			m_dir_path = strdup(reinterpret_cast<char*>(start_ptr));
+			m_dir_path = mem_strdup(reinterpret_cast<char*>(start_ptr));
 			ut_ad(m_dir_path[n_tabledirpath_len - 1] == 0);
 			start_ptr += n_tabledirpath_len;
 		}

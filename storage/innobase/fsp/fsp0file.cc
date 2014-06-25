@@ -253,7 +253,7 @@ void
 Datafile::free_filepath()
 {
 	if (m_filepath != NULL) {
-		::ut_free(m_filepath);
+		ut_free(m_filepath);
 		m_filepath = NULL;
 		m_filename = NULL;
 	}
@@ -307,7 +307,7 @@ void
 Datafile::free_first_page()
 {
 	if (m_first_page_buf) {
-		::ut_free(m_first_page_buf);
+		ut_free(m_first_page_buf);
 		m_first_page_buf = NULL;
 		m_first_page = NULL;
 	}
@@ -508,8 +508,8 @@ Datafile::validate_first_page()
 			prev_name, prev_filepath, m_space_id,
 			m_name, m_filepath);
 
-		::ut_free(prev_name);
-		::ut_free(prev_filepath);
+		ut_free(prev_name);
+		ut_free(prev_filepath);
 
 		m_is_valid = false;
 		free_first_page();
@@ -607,7 +607,7 @@ Datafile::find_space_id()
 			}
 		}
 
-		::ut_free(buf);
+		ut_free(buf);
 
 		ib_logf(IB_LOG_LEVEL_INFO,
 			"Page size: %lu, Possible space_id count:%lu",
@@ -762,7 +762,7 @@ RemoteDatafile::shutdown()
 	Datafile::shutdown();
 
 	if (m_link_filepath != 0) {
-		::ut_free(m_link_filepath);
+		ut_free(m_link_filepath);
 		m_link_filepath = 0;
 	}
 }
@@ -793,9 +793,9 @@ RemoteDatafile::create_link_file(
 		/* Truncate will call this with an existing
 		link file which contains the same filepath. */
 		bool same = !strcmp(prev_filepath, filepath);
-		::ut_free(prev_filepath);
+		ut_free(prev_filepath);
 		if (same) {
-			::ut_free(link_filepath);
+			ut_free(link_filepath);
 			return(DB_SUCCESS);
 		}
 	}
@@ -829,7 +829,7 @@ RemoteDatafile::create_link_file(
 		}
 
 		/* file is not open, no need to close it. */
-		::ut_free(link_filepath);
+		ut_free(link_filepath);
 		return(err);
 	}
 
@@ -841,7 +841,7 @@ RemoteDatafile::create_link_file(
 	/* Close the file, we only need it at startup */
 	os_file_close(file);
 
-	::ut_free(link_filepath);
+	ut_free(link_filepath);
 
 	return(err);
 }
@@ -858,7 +858,7 @@ RemoteDatafile::delete_link_file(
 	if (link_filepath != NULL) {
 		os_file_delete_if_exists(innodb_data_file_key, link_filepath, NULL);
 
-		::ut_free(link_filepath);
+		ut_free(link_filepath);
 	}
 }
 
