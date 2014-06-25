@@ -166,6 +166,7 @@ Requires:       mysql-community-common%{?_isa} = %{version}-%{release}
 Obsoletes:      MySQL-server < %{version}-%{release}
 Obsoletes:      mysql-server < %{version}-%{release}
 Obsoletes:      mariadb-server
+Obsoletes:      mariadb-galera-server
 Provides:       mysql-server = %{version}-%{release}
 Provides:       mysql-server%{?_isa} = %{version}-%{release}
 %if 0%{?systemd}
@@ -261,6 +262,25 @@ Provides:       mysql-test%{?_isa} = %{version}-%{release}
 This package contains the MySQL regression test suite for MySQL
 database server.
 
+
+%package        bench
+Summary:        MySQL benchmark suite
+Group:          Applications/Databases
+%if 0%{?commercial}
+Obsoletes:      mysql-community-bench < %{version}-%{release}
+Requires:       mysql-enterprise-server%{?_isa} = %{version}-%{release}
+%else
+Requires:       mysql-community-server%{?_isa} = %{version}-%{release}
+%endif
+Obsoletes:      mariadb-bench
+Obsoletes:      community-mysql-bench < %{obs_ver}
+Obsoletes:      mysql-bench < %{obs_ver}
+Provides:       mysql-bench = %{version}-%{release}
+Provides:       mysql-bench%{?_isa} = %{version}-%{release}
+
+%description    bench
+This package contains the MySQL Benchmark Suite for MySQL database
+server.
 
 %package        devel
 Summary:        Development header files and libraries for MySQL database client applications
@@ -472,11 +492,12 @@ mkdir debug
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=Debug %{?el7:-DENABLE_DTRACE=OFF} \
+           -DCMAKE_BUILD_TYPE=Debug \
            -DCMAKE_C_FLAGS="$optflags" \
            -DCMAKE_CXX_FLAGS="$optflags" \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
@@ -495,11 +516,12 @@ mkdir release
   cmake ../%{src_dir} \
            -DBUILD_CONFIG=mysql_release \
            -DINSTALL_LAYOUT=RPM \
-           -DCMAKE_BUILD_TYPE=RelWithDebInfo %{?el7:-DENABLE_DTRACE=OFF} \
+           -DCMAKE_BUILD_TYPE=RelWithDebInfo \
            -DCMAKE_C_FLAGS="%{optflags}" \
            -DCMAKE_CXX_FLAGS="%{optflags}" \
            -DINSTALL_LIBDIR="%{_lib}/mysql" \
            -DINSTALL_PLUGINDIR="%{_lib}/mysql/plugin" \
+           -DINSTALL_SQLBENCHDIR=share \
            -DMYSQL_UNIX_ADDR="%{mysqldatadir}/mysql.sock" \
            -DFEATURE_SET="%{feature_set}" \
            -DWITH_EMBEDDED_SERVER=1 \
@@ -862,6 +884,10 @@ fi
 %attr(644, root, root) %{_mandir}/man1/mysql_client_test_embedded.1*
 %attr(644, root, root) %{_mandir}/man1/mysqltest_embedded.1*
 
+%files bench
+%defattr(-, root, root, -)
+%{_datadir}/sql-bench
+
 %files embedded
 %defattr(-, root, root, -)
 %dir %attr(755, root, root) %{_libdir}/mysql
@@ -881,6 +907,10 @@ fi
 %endif
 
 %changelog
+* Wed Jun 25 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.39-1
+- Add bench package
+- Enable dtrace 
+
 * Sun May 11 2014 Balasubramanian Kandasamy <balasubramanian.kandasamy@oracle.com> - 5.5.38-2
 - Increment release version to resolve upgrade conflict issue
 
