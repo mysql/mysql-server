@@ -60,4 +60,5 @@ private:
   std::string m_delimiter;
 };
 
-#endif 
+#endif
+
