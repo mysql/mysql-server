@@ -483,8 +483,7 @@ flst_truncate_end(
 					     | MTR_MEMO_PAGE_SX_FIX));
 	if (n_nodes == 0) {
 
-		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr))
-		      || (rseg->pages_marked_freed > 0));
+		ut_ad(fil_addr_is_null(flst_get_next_addr(node2, mtr)));
 
 		return;
 	}
