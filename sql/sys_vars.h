@@ -475,7 +475,7 @@ public:
       var->save_result.string_value.str= 0;
     else
     {
-      uint32 unused;
+      size_t unused;
       if (String::needs_conversion(res->length(), res->charset(),
                                    charset(thd), &unused))
       {
@@ -1096,8 +1096,9 @@ public:
         bool not_used;
 
         var->save_result.ulonglong_value=
-              find_set(&typelib, res->ptr(), res->length(), NULL,
-                      &error, &error_len, &not_used);
+              find_set(&typelib, res->ptr(),
+                       static_cast<uint>(res->length()), NULL,
+                       &error, &error_len, &not_used);
         /*
           note, we only issue an error if error_len > 0.
           That is even while empty (zero-length) values are considered

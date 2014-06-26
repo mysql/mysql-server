@@ -694,7 +694,7 @@ public:
                              const char *data, uint32 data_len);
   static Geometry *construct(Geometry_buffer *buffer, const String *str)
   {
-    return construct(buffer, str->ptr(), str->length());
+    return construct(buffer, str->ptr(), static_cast<uint32>(str->length()));
   }
   static Geometry *create_from_wkt(Geometry_buffer *buffer,
 				   Gis_read_stream *trs, String *wkt,

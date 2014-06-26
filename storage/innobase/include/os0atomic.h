@@ -401,7 +401,14 @@ for synchronization */
 	} while (0);
 
 /** barrier definitions for memory ordering */
-#ifdef HAVE_IB_GCC_ATOMIC_THREAD_FENCE
+#if defined __i386__ || defined __x86_64__ || defined _M_IX86 || defined _M_X64 || defined __WIN__
+/* Performance regression was observed at some conditions for Intel
+architecture. Disable memory barrier for Intel architecture for now. */
+# define os_rmb
+# define os_wmb
+# define IB_MEMORY_BARRIER_STARTUP_MSG \
+	"Memory barrier is not used"
+#elif defined(HAVE_IB_GCC_ATOMIC_THREAD_FENCE)
 # define HAVE_MEMORY_BARRIER
 # define os_rmb	__atomic_thread_fence(__ATOMIC_ACQUIRE)
 # define os_wmb	__atomic_thread_fence(__ATOMIC_RELEASE)
@@ -423,7 +430,7 @@ for synchronization */
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"Solaris memory ordering functions are used for memory barrier"
 
-#elif defined(HAVE_WINDOWS_MM_FENCE)
+#elif defined(HAVE_WINDOWS_MM_FENCE) && defined(_WIN64)
 # define HAVE_MEMORY_BARRIER
 # include <mmintrin.h>
 # define os_rmb	_mm_lfence()
@@ -437,14 +444,6 @@ for synchronization */
 # define IB_MEMORY_BARRIER_STARTUP_MSG \
 	"Memory barrier is not used"
 #endif
-
-/* internal counter for innodb_sync_spin_loops is adjusted
-because memory barrier is more expensive than an empty loop. */
-#ifdef HAVE_MEMORY_BARRIER
-# define SPIN_WAIT_INCREMENT 2
-#else
-# define SPIN_WAIT_INCREMENT 1
-#endif /* HAVE_MEMORY_BARRIER */
 
 #ifndef UNIV_NONINL
 #include "os0atomic.ic"

@@ -2710,7 +2710,6 @@ buf_page_get_gen(
 	rw_lock_t*	hash_lock;
 	buf_block_t*	fix_block;
 	ulint		retries = 0;
-	BPageMutex*	fix_mutex = NULL;
 	buf_pool_t*	buf_pool = buf_pool_get(page_id);
 
 	ut_ad(mtr->is_active());
@@ -2792,23 +2791,8 @@ loop:
 				increment the fix count to make
 				sure that no state change takes place. */
 				fix_block = block;
-				fix_mutex = buf_page_get_mutex(
-					&fix_block->page);
-
-				if (fsp_is_system_temporary(page_id.space())) {
-					/* Flush thread synchronization for
-					object residing in temporary tablespace
-					is done using fix_count and io_fix state
-					so before changing any of it get the
-					mutex. */
-					mutex_enter(fix_mutex);
-				}
 
 				buf_block_fix(fix_block);
-
-				if (fsp_is_system_temporary(page_id.space())) {
-					mutex_exit(fix_mutex);
-				}
 
 				/* Now safe to release page_hash mutex */
 				rw_lock_x_unlock(hash_lock);
@@ -2862,20 +2846,7 @@ loop:
 		fix_block = block;
 	}
 
-	fix_mutex = buf_page_get_mutex(&fix_block->page);
-
-	if (fsp_is_system_temporary(page_id.space())) {
-		mutex_enter(fix_mutex);
-	}
-
-	/* Flush thread synchronization for object residing in temporary
-	tablespace is done using fix_count and io_fix state so before changing
-	any of it get the mutex. */
 	buf_block_fix(fix_block);
-
-	if (fsp_is_system_temporary(page_id.space())) {
-		mutex_exit(fix_mutex);
-	}
 
 	/* Now safe to release page_hash mutex */
 	rw_lock_s_unlock(hash_lock);
@@ -2888,6 +2859,8 @@ got_block:
 
 		{
 			buf_page_t*	fix_page = &fix_block->page;
+			BPageMutex*	fix_mutex
+				= buf_page_get_mutex(fix_page);
 
 			mutex_enter(fix_mutex);
 
