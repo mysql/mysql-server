@@ -240,7 +240,7 @@ static void init_block(HP_BLOCK *block, uint reclength, ulong min_records,
   records_in_block= max_records / 10;
   if (records_in_block < 10 && max_records)
     records_in_block= 10;
-  if (!records_in_block || (ulong) records_in_block * recbuffer >
+  if (!records_in_block || (ulonglong) records_in_block * recbuffer >
       (my_default_record_cache_size-sizeof(HP_PTRS)*HP_MAX_LEVELS))
     records_in_block= (my_default_record_cache_size - sizeof(HP_PTRS) *
 		      HP_MAX_LEVELS) / recbuffer + 1;
