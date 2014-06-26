@@ -3775,6 +3775,18 @@ innobase_rollback(
 	dberr_t		error;
 	TrxInInnoDB	trx_in_innodb(trx);
 
+	if (!trx_is_started(trx)) {
+
+		ib_logf(IB_LOG_LEVEL_INFO, "NOT STARTED: %p", trx);
+
+		/* Nothing to do. */
+		DBUG_RETURN(convert_error_code_to_mysql(
+				trx->abort
+				? DB_ABORTED : DB_SUCCESS, 0, NULL));
+	}
+
+	ib_logf(IB_LOG_LEVEL_INFO, "STARTED: %p", trx);
+
 	if (rollback_trx
 	    || trx_in_innodb.is_aborted()
 	    || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
@@ -3782,6 +3794,14 @@ innobase_rollback(
 		error = trx_rollback_for_mysql(trx);
 
 		if (trx_in_innodb.is_aborted()) {
+
+			char	buffer[1024];
+
+			ib_logf(IB_LOG_LEVEL_INFO,
+				"Active transaction selected for"
+				" rollback : %s",
+				thd_security_context(
+					thd, buffer, sizeof(buffer), 512));
 
 			error = DB_ABORTED;
 		}
@@ -3849,7 +3869,7 @@ innobase_rollback_to_savepoint(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys->mutex, we have to release the search system
@@ -3897,7 +3917,7 @@ innobase_rollback_to_savepoint_can_release_mdl(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
         /* If transaction has not acquired any locks then it is safe
 	to release MDL after rollback to savepoint */
@@ -3932,7 +3952,7 @@ innobase_release_savepoint(
 
 	trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* TODO: use provided savepoint data area to store savepoint data */
 
@@ -3967,7 +3987,7 @@ innobase_savepoint(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys->mutex, we have to release the search system
@@ -4072,7 +4092,7 @@ innobase_kill_connection(
 
 	if (trx != NULL) {
 
-		TrxInInnoDB	set(trx);
+		TrxInInnoDB	trx_in_innodb(trx);
 
 		/* Cancel a pending lock request if there are any */
 		lock_trx_handle_wait(trx);
@@ -6523,7 +6543,8 @@ ha_innobase::write_row(
 	DBUG_ENTER("ha_innobase::write_row");
 
 	if (trx_in_innodb.is_aborted()) {
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+
+		DBUG_RETURN(innobase_rollback( ht, m_user_thd, true));
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
@@ -7079,7 +7100,8 @@ ha_innobase::update_row(
 	DBUG_ENTER("ha_innobase::update_row");
 
 	if (trx_in_innodb.is_aborted()) {
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+
+		DBUG_RETURN(innobase_rollback( ht, m_user_thd, true));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
@@ -7183,7 +7205,7 @@ ha_innobase::update_row(
 
 func_exit:
 
-	int err = convert_error_code_to_mysql(
+	int	err = convert_error_code_to_mysql(
 		error, m_prebuilt->table->flags, m_user_thd);
 
 	/* If success and no columns were updated. */
@@ -7202,6 +7224,10 @@ func_exit:
 	utility threads: */
 
 	innobase_active_small();
+
+	fprintf(stderr, "WAIT\n");
+	DEBUG_SYNC_C("ha_innobase_update_row_done");
+	fprintf(stderr, "AWAKE\n");
 
 	DBUG_RETURN(err);
 }
@@ -7222,6 +7248,7 @@ ha_innobase::delete_row(
 	DBUG_ENTER("ha_innobase::delete_row");
 
 	if (trx_in_innodb.is_aborted()) {
+
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -7276,6 +7303,7 @@ ha_innobase::delete_all_rows()
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -7530,6 +7558,7 @@ ha_innobase::index_read(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -7774,6 +7803,7 @@ ha_innobase::change_active_index(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -7921,6 +7951,7 @@ ha_innobase::general_fetch(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -8098,6 +8129,7 @@ ha_innobase::rnd_init(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		return(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -8277,8 +8309,11 @@ ha_innobase::ft_init_ext(
 	TrxInInnoDB	trx_in_innodb(trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		int	ret = innobase_rollback(ht, m_user_thd, true);
+
 		my_error(ret, MYF(0));
+
 		return(NULL);
 	}
 
@@ -8421,6 +8456,7 @@ ha_innobase::ft_read(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		return(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -10263,6 +10299,7 @@ ha_innobase::discard_or_import_tablespace(
 	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (trx_in_innodb.is_aborted()) {
+
 		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
 	}
 
@@ -13087,7 +13124,7 @@ innodb_show_status(
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* We let the InnoDB Monitor to output at most MAX_STATUS_SIZE
 	bytes of text. */
@@ -13343,7 +13380,7 @@ ha_innobase::store_lock(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* NOTE: MySQL can call this function with lock 'type' TL_IGNORE!
 	Be careful to ignore TL_IGNORE if we are going to do something with
@@ -13666,7 +13703,7 @@ ha_innobase::get_auto_increment(
 
 	trx = m_prebuilt->trx;
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	/* Note: We can't rely on *first_value since some MySQL engines,
 	in particular the partition engine, don't initialize it to 0 when
@@ -14071,7 +14108,6 @@ innobase_xa_prepare(
 					false - the current SQL statement
 					ended */
 {
-	int		error = 0;
 	trx_t*		trx = check_trx_exists(thd);
 
 	DBUG_ASSERT(hton == innodb_hton_ptr);
@@ -14096,7 +14132,12 @@ innobase_xa_prepare(
 
 	innobase_srv_conc_force_exit_innodb(trx);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
+
+	if (trx_in_innodb.is_aborted()) {
+
+		return(innobase_rollback(hton, thd, true));
+	}
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {
 
@@ -14114,7 +14155,6 @@ innobase_xa_prepare(
 
 		trx_prepare_for_mysql(trx);
 
-		error = 0;
 	} else {
 		/* We just mark the SQL statement ended and do not do a
 		transaction prepare */
@@ -14156,7 +14196,7 @@ innobase_xa_prepare(
                 to handle this case. */
 	}
 
-	return(error);
+	return(0);
 }
 
 /*******************************************************************//**
@@ -14196,7 +14236,7 @@ innobase_commit_by_xid(
 	trx_t*	trx = trx_get_trx_by_xid(xid);
 
 	if (trx != NULL) {
-		TrxInInnoDB	set(trx);
+		TrxInInnoDB	trx_in_innodb(trx);
 
 		innobase_commit_low(trx);
 		trx_free_for_background(trx);

@@ -714,7 +714,7 @@ int thd_tx_is_read_only(const THD *thd)
 extern "C"
 int thd_tx_priority(const THD* thd)
 {
-  return (int) thd->tx_priority;
+  return (int) (thd->thd_tx_priority || thd->tx_priority);
 }
 
 extern "C"
@@ -1390,6 +1390,7 @@ void THD::init(void)
   tx_isolation= (enum_tx_isolation) variables.tx_isolation;
   tx_read_only= variables.tx_read_only;
   tx_priority= false;
+  thd_tx_priority= false;
   update_charset();
   reset_current_stmt_binlog_format_row();
   reset_binlog_local_stmt_filter();

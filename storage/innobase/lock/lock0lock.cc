@@ -1617,6 +1617,17 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 	trx->killed_by = os_thread_get_curr_id();
 
 	m_trx->kill.push_back(trx);
+
+	THD*	thd = trx->mysql_thd;
+
+	if (thd != NULL) {
+
+		char	buffer[1024];
+
+		ib_logf(IB_LOG_LEVEL_INFO,
+			"Will terminate transaction: %s",
+			thd_security_context(thd, buffer, sizeof(buffer), 512));
+	}
 }
 
 /**
@@ -1630,7 +1641,7 @@ RecLock::jump_queue(lock_t* lock, const lock_t* wait_for)
 	ut_ad(m_trx == lock->trx);
 	ut_ad(trx_mutex_own(m_trx));
 	ut_ad(wait_for->trx != m_trx);
-	ut_ad(!trx_is_high_priority(m_trx));
+	ut_ad(trx_is_high_priority(m_trx));
 	ut_ad(m_rec_id.m_heap_no != ULINT32_UNDEFINED);
 
 	/* We need to change the hash bucket list pointers only. */
@@ -1790,11 +1801,23 @@ RecLock::add_to_waitq(const lock_t* wait_for)
 		/* If a high priority transaction has been selected as
 		a victim there is nothing we can do. */
 
-	       	if (!trx_is_high_priority(m_trx) && victim_trx != NULL) {
+	       	if (trx_is_high_priority(m_trx) && victim_trx != NULL) {
 
 			lock_reset_lock_and_trx_wait(lock);
 
 			lock_rec_reset_nth_bit(lock, m_rec_id.m_heap_no);
+
+			if (victim_trx->mysql_thd != NULL) {
+				char	buffer[1024];
+				THD*	thd = victim_trx->mysql_thd;
+
+				ib_logf(IB_LOG_LEVEL_WARN,
+					"High priority transaction selected"
+					" as victim for rollback : %s",
+					thd_security_context(
+						thd, buffer, sizeof(buffer),
+				   		512));
+			}
 
 			return(DB_DEADLOCK);
 		}
@@ -3740,6 +3763,7 @@ lock_table_enqueue_waiting(
 		lock_reset_lock_and_trx_wait(lock);
 
 		return(DB_DEADLOCK);
+
 	} else if (trx->lock.wait_lock == NULL) {
 		/* Deadlock resolution chose another transaction as a victim,
 		and we accidentally got our lock granted! */

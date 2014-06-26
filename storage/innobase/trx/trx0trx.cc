@@ -1189,16 +1189,21 @@ trx_start_low(
 	trx_t*	trx,		/*!< in: transaction */
 	bool	read_write)	/*!< in: true if read-write transaction */
 {
+	ut_ad(!trx->in_rollback);
+	ut_ad(!trx->is_recovered);
+	ut_ad(trx->start_line != 0);
+	ut_ad(trx->start_file != 0);
+	ut_ad(trx->roll_limit == 0);
+	ut_ad(trx->error_state == DB_SUCCESS);
 	ut_ad(trx->rsegs.m_redo.rseg == NULL);
 	ut_ad(trx->rsegs.m_noredo.rseg == NULL);
-
-	ut_ad(trx->start_file != 0);
-	ut_ad(trx->start_line != 0);
-	ut_ad(!trx->is_recovered);
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
 	ut_ad(UT_LIST_GET_LEN(trx->lock.trx_locks) == 0);
-	ut_ad(trx->roll_limit == 0);
-	ut_ad(!trx->in_rollback);
+
+	/* Note: We reset these two on trx start and not on
+	commit like the other member variables because we
+	can't figure out asynchronously whether the trx
+	instance has been reused or not. */
 
 	trx->abort = false;
 	trx->in_innodb &= ~TRX_ASYNC_ROLLBACK_IN_PROGRESS;
@@ -1831,6 +1836,8 @@ trx_commit_in_memory(
 
 	trx->state = TRX_STATE_NOT_STARTED;
 
+	ib_logf(IB_LOG_LEVEL_INFO, "Trx state not started: %p", trx);
+
 	if (mtr != NULL) {
 		if (trx->rsegs.m_redo.insert_undo != NULL) {
 			trx_undo_insert_cleanup(&trx->rsegs.m_redo, false);
@@ -1981,7 +1988,9 @@ trx_commit_low(
 		serialised = false;
 	}
 
-	DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+	if (trx->mysql_thd != NULL) {
+		DEBUG_SYNC_C("before_trx_state_committed_in_memory");
+	}
 
 	trx_commit_in_memory(trx, mtr, serialised);
 }
@@ -3087,14 +3096,40 @@ trx_kill_blocking(trx_t* trx)
 
 		trx_mutex_exit(kill_trx);
 
-		fprintf(stderr, "%lu kill %p\n",
-			os_thread_get_curr_id(), kill_trx);
+		bool	killed;
 
 		if (trx_is_started(kill_trx)) {
 
 			trx_rollback_for_mysql(kill_trx);
 
 			//thd_kill(kill_trx->mysql_thd);
+			killed = true;
+		} else {
+			killed = false;
+		}
+
+		if (kill_trx->mysql_thd != NULL) {
+
+			char	buffer[1024];
+
+			if (killed) {
+				char	buffer2[1024];
+
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Killed transaction : %s",
+					thd_security_context(
+						kill_trx->mysql_thd,
+						buffer2, sizeof(buffer2),
+						512));
+			} else {
+				ib_logf(IB_LOG_LEVEL_INFO,
+					"Transaction completed before"
+					" forced rollback : %s",
+					thd_security_context(
+						kill_trx->mysql_thd,
+						buffer, sizeof(buffer),
+						512));
+			}
 		}
 	}
 
