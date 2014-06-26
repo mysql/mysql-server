@@ -720,27 +720,6 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
     tokudb_alter_ctx *ctx = static_cast<tokudb_alter_ctx *>(ha_alter_info->handler_ctx);
     bool result = false; // success
     THD *thd = ha_thd();
-    MDL_ticket *ticket = table->mdl_ticket;
-    if (ticket->get_type() != MDL_EXCLUSIVE) {
-        // get exclusive lock no matter what
-#if defined(MARIADB_BASE_VERSION)
-        killed_state saved_killed_state = thd->killed;
-        thd->killed = NOT_KILLED;
-        while (wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) && thd->killed)
-            thd->killed = NOT_KILLED;
-        assert(ticket->get_type() == MDL_EXCLUSIVE);
-        if (thd->killed == NOT_KILLED)
-            thd->killed = saved_killed_state;
-#else
-        THD::killed_state saved_killed_state = thd->killed;
-        thd->killed = THD::NOT_KILLED;
-        while (wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED) && thd->killed)
-            thd->killed = THD::NOT_KILLED;
-        assert(ticket->get_type() == MDL_EXCLUSIVE);
-        if (thd->killed == THD::NOT_KILLED)
-            thd->killed = saved_killed_state;
-#endif
-    }
 
     if (commit) {
 #if (50613 <= MYSQL_VERSION_ID && MYSQL_VERSION_ID <= 50699) || \
@@ -768,6 +747,35 @@ bool ha_tokudb::commit_inplace_alter_table(TABLE *altered_table, Alter_inplace_i
     }
 
     if (!commit) {
+        if (table->mdl_ticket->get_type() != MDL_EXCLUSIVE && 
+            (ctx->add_index_changed || ctx->drop_index_changed || ctx->compression_changed)) {
+
+            // get exclusive lock no matter what
+#if defined(MARIADB_BASE_VERSION)
+            killed_state saved_killed_state = thd->killed;
+            thd->killed = NOT_KILLED;
+            for (volatile uint i = 0; wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED); i++) {
+                if (thd->killed != NOT_KILLED)
+                    thd->killed = NOT_KILLED;
+                sleep(1);
+            }
+            assert(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
+            if (thd->killed == NOT_KILLED)
+                thd->killed = saved_killed_state;
+#else
+            THD::killed_state saved_killed_state = thd->killed;
+            thd->killed = THD::NOT_KILLED;
+            for (volatile uint i = 0; wait_while_table_is_used(thd, table, HA_EXTRA_NOT_USED); i++) {
+                if (thd->killed != THD::NOT_KILLED)
+                    thd->killed = THD::NOT_KILLED;
+                sleep(1);
+            }
+            assert(table->mdl_ticket->get_type() == MDL_EXCLUSIVE);
+            if (thd->killed == THD::NOT_KILLED)
+                thd->killed = saved_killed_state;
+#endif
+        }
+
         // abort the alter transaction NOW so that any alters are rolled back. this allows the following restores to work.
         tokudb_trx_data *trx = (tokudb_trx_data *) thd_get_ha_data(thd, tokudb_hton);
         assert(ctx->alter_txn == trx->stmt);
