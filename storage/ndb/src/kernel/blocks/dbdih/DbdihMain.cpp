@@ -6547,21 +6547,13 @@ void Dbdih::removeNodeFromTable(Signal* signal,
    */
   ndbrequire(tabPtr.p->tabLcpStatus == TabRecord::TLS_ACTIVE);
   
-  /**
-   * Save the table
-   * This can be skipped if the status is LCP_INIT_TABLES because
-   * no metadata updates have been done so far, therefore there
-   * are no changes which need to be reverted.
-   */
-  if(c_lcpState.lcpStatus != LCP_INIT_TABLES) 
-  {
-    tabPtr.p->tabCopyStatus = TabRecord::CS_REMOVE_NODE;
-    tabPtr.p->tabUpdateState = TabRecord::US_REMOVE_NODE;
-    tabPtr.p->tabRemoveNode = nodeId;
-    signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
-    signal->theData[1] = tabPtr.i;
-    sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
-  }  
+  tabPtr.p->tabCopyStatus = TabRecord::CS_REMOVE_NODE;
+  tabPtr.p->tabUpdateState = TabRecord::US_REMOVE_NODE;
+  tabPtr.p->tabRemoveNode = nodeId;
+  signal->theData[0] = DihContinueB::ZPACK_TABLE_INTO_PAGES;
+  signal->theData[1] = tabPtr.i;
+  sendSignal(reference(), GSN_CONTINUEB, signal, 2, JBB);
+    
   if(noOfRemainingLcpReplicas == 0){
     jam();
     /**
