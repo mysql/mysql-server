@@ -879,7 +879,7 @@ trx_purge_initiate_truncate(
 			DBUG_SUICIDE(););
 
 	trx_purge_cleanse_purge_queue(undo_trunc);
-	
+
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	if (!success) {
 		/* Note: In case of error we don't enable the rsegs
