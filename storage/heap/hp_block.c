@@ -75,7 +75,7 @@ int hp_get_new_block(HP_BLOCK *block, size_t *alloc_length)
     This doesn't add much overhead - with current values of sizeof(HP_PTRS) 
     and my_default_record_cache_size we get about 1/128 unused memory.
    */
-  *alloc_length= sizeof(HP_PTRS)* i + (ulong) block->records_in_block *
+  *alloc_length= sizeof(HP_PTRS)* i + (ulonglong) block->records_in_block *
                                               block->recbuffer;
   if (!(root=(HP_PTRS*) my_malloc(*alloc_length,MYF(MY_WME))))
     return 1;
