@@ -1,0 +1,167 @@
+From: Terje Røsten <terje.rosten@oracle.com>
+Description: Updates script to use existing my.cnf and not delete it if created from template
+Bug: <TODO>
+
+diff --git a/scripts/mysql_install_db.pl.in b/scripts/mysql_install_db.pl.in
+index 440a977..7d068fc 100644
+--- a/scripts/mysql_install_db.pl.in
++++ b/scripts/mysql_install_db.pl.in
+@@ -75,6 +97,8 @@ Usage: $0 [OPTIONS]
+   --help               Display this help and exit.
+   --ldata=path         The path to the MySQL data directory. Same as --datadir.
+   --no-defaults        Don't read default options from any option file.
++  --keep-my-cnf        Don't try to create my.cnf based on template.
++                       Useful for systems with working, updated my.cnf.
+ EOF1
+   if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
+     print <<EOF2;
+@@ -86,6 +110,7 @@ EOF2
+   print <<EOF3;
+   --rpm                For internal use.  This option is used by RPM files
+                        during the MySQL installation process.
++                       Implies --keep-my-cnf option.
+   --skip-name-resolve  Use IP addresses rather than hostnames when creating
+                        grant table entries.  This option can be useful if
+                        your DNS does not work.
+@@ -149,6 +174,7 @@ sub parse_arguments
+ 
+              "skip-name-resolve",
+              "verbose",
++             "keep-my-cnf",
+              "rpm",
+              "help",
+              "random-passwords",
+@@ -356,13 +382,19 @@ sub tell_root_password {
+ ##############################################################################
+
+ sub generate_random_password {
+-  # On (at least) Linux and Solaris, a "random" device is available, use it:
+-  # cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1
+-  # Without LC_ALL, "tr" may not know the "alnum" character class -
+-  # and there are user profiles which do not have this set.
+-  #
+-  my $password = `cat /dev/urandom | LC_ALL=C tr -dc "[:alnum:]" | fold -w 8  | head -1`;
+-  chomp ($password);
++  # On Linux, Solaris, Max OS X and FreeBSD we have a random device available.
++  my $randfile = "/dev/urandom";
++  open(FD, $randfile) || die "Can't open $randfile for reading: $!";
++  my $password = "";
++  my $pass_len = 16;
++  my $c;
++  while (length($password) < $pass_len) {
++    $c = getc(FD);
++    if ($c =~ /\w/) {
++      $password .= $c;
++    }
++  }
++  close(FD);
+   return $password;
+ }
+
+@@ -399,11 +431,16 @@ $basedir= "@prefix@" if ! $basedir;		# Default
+ # ----------------------------------------------------------------------
+
+ my $print_defaults;
++my $keep_my_cnf = 0;
+
+ if ( $opt->{srcdir} and $opt->{basedir} )
+ {
+   error($opt,"Specify either --basedir or --srcdir, not both");
+ }
++if ( $opt->{rpm} || $opt->{'keep-my-cnf'} )
++{
++  $keep_my_cnf = 1;
++}
+ if ( $opt->{srcdir} )
+ {
+   $opt->{builddir} = $opt->{srcdir} unless $opt->{builddir};
+@@ -425,7 +462,7 @@ my $config_file;
+ my $copy_cfg_file;
+
+ # ----------------------------------------------------------------------
+-# This will be the default config file
++# This will be the default config file (unless creation is unwanted)
+ # ----------------------------------------------------------------------
+
+ my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
+@@ -434,6 +471,11 @@ $config_file= "$basedir/my.$cnfext";
+
+ my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
+ 				  ".", "share","share/mysql","support-files");
++# Distros might move files
++if ((! -r $cfg_template) && (-r "@pkgdatadir@/my-default.cnf")) {
++  $cfg_template = "@pkgdatadir@/my-default.cnf";
++}
++
+ -e $cfg_template or cannot_find_file("my-default.$cnfext");
+
+ $copy_cfg_file= $config_file;
+@@ -443,22 +485,21 @@ if (-e $copy_cfg_file)
+   $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
+   # Too early to print warning here, the user may not notice
+ }
+-open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+-if (open (CFG, "> $copy_cfg_file"))
+-{
+-  while (<TEMPL>)
+-  {
+-    # Remove lines beginning with # *** which are template comments
+-    print CFG $_ unless /^# \*\*\*/;
++
++if ( ! $keep_my_cnf ) {
++  open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
++  if (open (CFG, "> $copy_cfg_file")) {
++    while (<TEMPL>) {
++      # Remove lines beginning with # *** which are template comments
++      print CFG $_ unless /^# \*\*\*/;
++    }
++    close CFG;
++  } else {
++    warning($opt,"Could not write to config file $copy_cfg_file: $!");
++    $failed_write_cfg= 1;
+   }
+-  close CFG;
++  close TEMPL;
+ }
+-else
+-{
+-  warning($opt,"Could not write to config file $copy_cfg_file: $!");
+-  $failed_write_cfg= 1;
+-}
+-close TEMPL;
+
+ # ----------------------------------------------------------------------
+ # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
+@@ -621,7 +662,7 @@ if ( $opt->{'skip-name-resolve'} and $resolved and $resolved =~ /\s/ )
+ }
+
+ # ----------------------------------------------------------------------
+-# Create database directories mysql & test
++# Create database directory mysql
+ # ----------------------------------------------------------------------
+
+ # FIXME The shell variant uses "mkdir -p":
+@@ -654,7 +695,7 @@ if ($opt_user)
+   }
+ }
+
+-foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql", "$opt->{ldata}/test" )
++foreach my $dir ( $opt->{ldata}, "$opt->{ldata}/mysql")
+ {
+   mkdir($dir, 0700) unless -d $dir;
+   if ($opt_user and -w "/")
+@@ -848,7 +889,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
+            "",
+            "Support MySQL by buying support/licenses at http://shop.mysql.com");
+ 
+-    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
++    if ($keep_my_cnf)
++    {
++      report($opt,
++	     "Note: new default config file not created.",
++	     "Please make sure your config file is current");
++    }
++    elsif ($copy_cfg_file eq $config_file and !$failed_write_cfg)
+     {
+       report($opt,
+		"New default config file was created as $config_file and",

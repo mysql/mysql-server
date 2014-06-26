@@ -1,0 +1,102 @@
+#!/bin/bash
+
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+. /usr/share/debconf/confmodule
+
+take_upstart_job_backup () {
+	if [ -e "/etc/init/mysql.conf" ] && [ -d "/var/lib/mysql" ];
+	then
+		mv /etc/init/mysql.conf /var/lib/mysql/.mysql.conf.backup
+	fi
+}
+
+case "$1" in
+	configure)
+
+	if [ -z "$2" ];
+	then
+		set -e
+
+		MYSQLDATA=/var/lib/mysql
+
+		if [ ! -d "${MYSQLDATA}/mysql" -a ! -L "${MYSQLDATA}/mysql" ];
+		then
+			mkdir ${MYSQLDATA}/mysql
+			chown mysql:mysql ${MYSQLDATA}/mysql
+			chmod 700 ${MYSQLDATA}/mysql
+			if [ ! "$(ls -A ${MYSQLDATA}/mysql)" ];
+			then
+				mysql_install_db --user=mysql > /dev/null
+				if [ -f "/usr/my.cnf" ];
+				then
+					rm -f /usr/my.cnf
+				fi
+			fi
+		fi
+
+		db_get mysql-community-server/remove-test-db && RMTESTDB=${RET}
+		if [ -z "${RMTESTDB}" ] || [ "${RMTESTDB}" = "false" ];
+		then
+			RMTESTDB="DROP DATABASE IF EXISTS test;"
+		else
+			RMTESTDB=""
+		fi
+
+		db_get mysql-community-server/root-pass && PASSWD=${RET}
+		if [ ! -z "${PASSWD}" ];
+		then
+			db_set mysql-community-server/root-pass ""
+			db_set mysql-community-server/re-root-pass ""
+			SQL=`mktemp`
+			if [ -f "${SQL}" ];
+			then
+				chmod 700 ${SQL}
+				cat << EOF > ${SQL}
+USE mysql;
+UPDATE user SET password=PASSWORD("${PASSWD}") WHERE user='root';
+DELETE FROM user WHERE user='';
+${RMTESTDB}
+FLUSH PRIVILEGES;
+EOF
+				mysqld --basedir=/usr --bootstrap --user=mysql --skip-grant-tables < $SQL
+				PASSWD=""
+				rm -f ${SQL}
+			fi
+		fi
+
+		set +e
+
+	fi
+
+	;;
+
+	abort-upgrade|abort-remove|abort-configure)
+
+	;;
+
+	*)
+	exit 1
+	;;
+esac
+
+db_stop
+
+take_upstart_job_backup
+
+#DEBHELPER#
+
+exit 0
