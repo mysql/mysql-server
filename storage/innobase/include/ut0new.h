@@ -23,6 +23,85 @@ Instrumented memory allocator.
 Created May 26, 2014 Vasil Dimov
 *******************************************************/
 
+/** Dynamic memory allocation within InnoDB guidelines.
+All dynamic (heap) memory allocations (malloc(3), strdup(3), etc, "new",
+various std:: containers that allocate memory internally), that are done
+within InnoDB are instrumented. This means that InnoDB uses a custom set
+of functions for allocating memory, rather than calling e.g. "new" directly.
+
+Here follows a cheat sheet on what InnoDB functions to use whenever a
+standard one would have been used.
+
+Creating new objects with "new":
+--------------------------------
+Standard:
+  new expression
+  or
+  new(std::nothrow) expression
+InnoDB, default instrumentation:
+  UT_NEW_NOKEY(expression)
+InnoDB, custom instrumentation, preferred:
+  UT_NEW(expression, key)
+
+Destroying objects, created with "new":
+---------------------------------------
+Standard:
+  delete ptr
+InnoDB:
+  UT_DELETE(ptr)
+
+Creating new arrays with "new[]":
+---------------------------------
+Standard:
+  new type[num]
+  or
+  new(std::nothrow) type[num]
+InnoDB, default instrumentation:
+  UT_NEW_ARRAY_NOKEY(type, num)
+InnoDB, custom instrumentation, preferred:
+  UT_NEW_ARRAY(type, num, key)
+
+Destroying arrays, created with "new[]":
+----------------------------------------
+Standard:
+  delete[] ptr
+InnoDB:
+  UT_DELETE_ARRAY(ptr)
+
+Declaring a type with a std:: container, e.g. std::vector:
+----------------------------------------------------------
+Standard:
+  std::vector<t>
+InnoDB:
+  std::vector<t, ut_allocator<t> >
+
+Declaring objects of some std:: type:
+-------------------------------------
+Standard:
+  std::vector<t> v
+InnoDB, default instrumentation:
+  std::vector<t, ut_allocator<t> > v
+InnoDB, custom instrumentation, preferred:
+  std::vector<t, ut_allocator<t> > v(ut_allocator<t>(key))
+
+Raw block allocation (as usual in C++ consider whether using "new" would not
+be more appropriate):
+----------------------------------------------------------------------------
+Standard:
+  malloc(num)
+InnoDB, default instrumentation:
+  ut_malloc_nokey(num)
+InnoDB, custom instrumentation, preferred:
+  ut_malloc(num, key)
+
+Note: the expression passed to UT_NEW() or UT_NEW_NOKEY() must always end
+with (), thus:
+Standard:
+  new int
+InnoDB:
+  UT_NEW_NOKEY(int())
+*/
+
 #ifndef ut0new_h
 #define ut0new_h
 
@@ -40,8 +119,6 @@ Created May 26, 2014 Vasil Dimov
 
 #include "os0thread.h" /* os_thread_sleep() */
 #include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
-
-#ifdef UNIV_PFS_MEMORY
 
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
@@ -113,8 +190,6 @@ PSI_memory_info	pfs_info[pfs_info_size] = {
 
 #endif /* ut0new_cc */
 
-#endif /* UNIV_PFS_MEMORY */
-
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */
 inline
@@ -125,6 +200,8 @@ ut_new_boot()
 	PSI_MEMORY_CALL(register_memory)("innodb", pfs_info, pfs_info_size);
 #endif /* UNIV_PFS_MEMORY */
 }
+
+#ifdef UNIV_PFS_MEMORY
 
 /** A structure that holds the necessary data for performance schema
 accounting. An object of this type is put in front of each allocated block
@@ -144,6 +221,8 @@ struct ut_new_pfx_t {
 	size_t		m_size;
 };
 
+#endif /* UNIV_PFS_MEMORY */
+
 /** Allocator class for allocating memory from inside std::* containers. */
 template <class T>
 class ut_allocator {
@@ -160,8 +239,10 @@ public:
 	explicit
 	ut_allocator(
 		PSI_memory_key	key = PSI_NOT_INSTRUMENTED)
+#ifdef UNIV_PFS_MEMORY
 		:
 		m_key(key)
+#endif /* UNIV_PFS_MEMORY */
 	{
 	}
 
@@ -170,7 +251,9 @@ public:
 	ut_allocator(
 		const ut_allocator<U>&	other)
 	{
+#ifdef UNIV_PFS_MEMORY
 		m_key = other.get_mem_key(NULL);
+#endif /* UNIV_PFS_MEMORY */
 	}
 
 	/** Assignment operator, not used, thus disabled. */
@@ -219,8 +302,11 @@ public:
 		void*			ptr;
 		static const size_t	max_retries = 60;
 		size_t			retries = 0;
-		const size_t		total_bytes
-			= sizeof(ut_new_pfx_t) + n_elements * sizeof(T);
+		size_t			total_bytes = n_elements * sizeof(T);
+
+#ifdef UNIV_PFS_MEMORY
+		total_bytes += sizeof(ut_new_pfx_t);
+#endif /* UNIV_PFS_MEMORY */
 
 		do {
 			if (set_to_zero) {
@@ -247,11 +333,15 @@ public:
 			throw std::bad_alloc();
 		}
 
+#ifdef UNIV_PFS_MEMORY
 		ut_new_pfx_t*	pfx = static_cast<ut_new_pfx_t*>(ptr);
 
 		allocate_trace(total_bytes, file, pfx);
 
 		return(reinterpret_cast<pointer>(pfx + 1));
+#else
+		return(reinterpret_cast<pointer>(ptr));
+#endif /* UNIV_PFS_MEMORY */
 	}
 
 	/** Free a memory allocated by allocate() and trace the deallocation.
@@ -266,11 +356,15 @@ public:
 			return;
 		}
 
+#ifdef UNIV_PFS_MEMORY
 		ut_new_pfx_t*	pfx = static_cast<ut_new_pfx_t*>(ptr) - 1;
 
 		deallocate_trace(pfx);
 
 		free(pfx);
+#else
+		free(ptr);
+#endif /* UNIV_PFS_MEMORY */
 	}
 
 	/** Create an object of type 'T' using the value 'val' over the
@@ -313,6 +407,8 @@ public:
 	};
 
 	/* The following are custom methods, not required by the standard. */
+
+#ifdef UNIV_PFS_MEMORY
 
 	/** Allocate, trace the allocation and construct 'n_elements' objects
 	of type 'T'. If the allocation fails or if some of the constructors
@@ -429,6 +525,7 @@ public:
 	}
 
 private:
+
 	/** Retrieve the size of a memory block allocated by new_array().
 	@param[in]	ptr	pointer returned by new_array().
 	@return size of memory block */
@@ -476,6 +573,8 @@ private:
 	}
 
 	PSI_memory_key	m_key;
+
+#endif /* UNIV_PFS_MEMORY */
 };
 
 /** Compare two allocators of the same type.
