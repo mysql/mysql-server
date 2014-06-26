@@ -5790,7 +5790,7 @@ normal_return:
 
 func_exit:
 	trx->op_info = "";
-	if (UNIV_LIKELY_NULL(heap)) {
+	if (heap != NULL) {
 		mem_heap_free(heap);
 	}
 
@@ -5800,8 +5800,8 @@ func_exit:
 	ut_ad(prebuilt->row_read_type != ROW_READ_WITH_LOCKS
 	      || !did_semi_consistent_read);
 
-	if (UNIV_UNLIKELY(prebuilt->row_read_type != ROW_READ_WITH_LOCKS)) {
-		if (UNIV_UNLIKELY(did_semi_consistent_read)) {
+	if (prebuilt->row_read_type != ROW_READ_WITH_LOCKS) {
+		if (did_semi_consistent_read) {
 			prebuilt->row_read_type = ROW_READ_DID_SEMI_CONSISTENT;
 		} else {
 			prebuilt->row_read_type = ROW_READ_TRY_SEMI_CONSISTENT;

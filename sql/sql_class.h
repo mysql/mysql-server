@@ -2485,6 +2485,12 @@ public:
     Transaction cannot be rolled back must be given priority.
   */
   bool		    tx_priority;
+  /*
+    All transactions executed by this thread will have high
+    priority, independent of tx_priority value.
+  */
+  bool thd_tx_priority;
+
   enum_check_fields count_cuted_fields;
 
   // For user variables replication
