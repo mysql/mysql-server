@@ -247,11 +247,11 @@ int main(int argc, const char *argv[]) {
     locktree *big_lt[n_big];
     for (int i = 0; i < n_big; i++) {
         dict_id = { next_dict_id }; next_dict_id++;
-        big_lt[i] = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+        big_lt[i] = mgr.get_lt(dict_id, dbt_comparator, nullptr);
     }
 
     dict_id = { next_dict_id }; next_dict_id++;
-    locktree *small_lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+    locktree *small_lt = mgr.get_lt(dict_id, dbt_comparator, nullptr);
 
     // create the worker threads
     struct big_arg big_arg = { &mgr, big_lt, n_big, 1000 };

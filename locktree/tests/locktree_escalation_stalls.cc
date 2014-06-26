@@ -228,13 +228,11 @@ int main(int argc, const char *argv[]) {
     mgr.set_max_lock_memory(max_lock_memory);
 
     // create lock trees
-    DESCRIPTOR desc_0 = nullptr;
-    DICTIONARY_ID dict_id_0 = { 1 };
-    locktree *lt_0 = mgr.get_lt(dict_id_0, desc_0, compare_dbts, nullptr);
+    DICTIONARY_ID dict_id_0 = { .dictid = 1 };
+    locktree *lt_0 = mgr.get_lt(dict_id_0, dbt_comparator, nullptr);
 
-    DESCRIPTOR desc_1 = nullptr;
-    DICTIONARY_ID dict_id_1 = { 2 };
-    locktree *lt_1 = mgr.get_lt(dict_id_1, desc_1, compare_dbts, nullptr);
+    DICTIONARY_ID dict_id_1 = { .dictid = 2 };
+    locktree *lt_1 = mgr.get_lt(dict_id_1, dbt_comparator, nullptr);
 
     // create the worker threads
     struct arg big_arg = { &mgr, lt_0, 1000 };

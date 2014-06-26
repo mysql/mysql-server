@@ -98,8 +98,8 @@ void locktree_unit_test::test_simple_lock(void) {
     locktree_manager mgr;
     mgr.create(nullptr, nullptr, nullptr, nullptr);
 
-    DICTIONARY_ID dict_id = { 1 };
-    locktree *lt = mgr.get_lt(dict_id, nullptr, compare_dbts, nullptr);
+    DICTIONARY_ID dict_id = { .dictid = 1 };
+    locktree *lt = mgr.get_lt(dict_id, dbt_comparator, nullptr);
 
     int r;
     TXNID txnid_a = 1001;

@@ -233,32 +233,25 @@ toku_indexer_unlock(DB_INDEXER* indexer) {
 // after grabbing the indexer lock
 bool
 toku_indexer_may_insert(DB_INDEXER* indexer, const DBT* key) {
-    bool retval = false;
+    bool may_insert = false;
     toku_mutex_lock(&indexer->i->indexer_estimate_lock);
+
     // if we have no position estimate, we can't tell, so return false
-    if (indexer->i->position_estimate.data == NULL) {
-        retval = false;
-    }
-    else {
-        FT_HANDLE ft_handle = indexer->i->src_db->i->ft_handle;
-        ft_compare_func keycompare = toku_ft_get_bt_compare(ft_handle);        
-        int r = keycompare(
-            indexer->i->src_db, 
-            &indexer->i->position_estimate, 
-            key
-            );
+    if (indexer->i->position_estimate.data == nullptr) {
+        may_insert = false;
+    } else {
+        DB *db = indexer->i->src_db;
+        const toku::comparator &cmp = toku_ft_get_comparator(db->i->ft_handle);
+        int c = cmp(&indexer->i->position_estimate, key);
+
         // if key > position_estimate, then we know the indexer cursor
         // is past key, and we can safely say that associated values of 
         // key must be inserted into the indexer's db
-        if (r  < 0) {
-            retval = true;
-        }
-        else {
-            retval = false;
-        }
+        may_insert = c < 0;
     }
+
     toku_mutex_unlock(&indexer->i->indexer_estimate_lock);
-    return retval;
+    return may_insert;
 }
 
 void

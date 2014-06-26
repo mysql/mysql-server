@@ -101,7 +101,7 @@ void lock_request_unit_test::test_wait_time_callback(void) {
     locktree lt;
 
     DICTIONARY_ID dict_id = { 1 };
-    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+    lt.create(nullptr, dict_id, dbt_comparator);
 
     TXNID txnid_a = 1001;
     lock_request request_a;

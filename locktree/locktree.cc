@@ -116,12 +116,11 @@ namespace toku {
 // but does nothing based on the value of the reference count - it is
 // up to the user of the locktree to destroy it when it sees fit.
 
-void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id,
-                      DESCRIPTOR desc, ft_compare_func cmp) {
+void locktree::create(locktree_manager *mgr, DICTIONARY_ID dict_id, const comparator &cmp) {
     m_mgr = mgr;
     m_dict_id = dict_id;
 
-    m_cmp.create(cmp, desc);
+    m_cmp.create_from(cmp);
     m_reference_count = 1;
     m_userdata = nullptr;
 
@@ -791,8 +790,8 @@ struct lt_lock_request_info *locktree::get_lock_request_info(void) {
     return &m_lock_request_info;
 }
 
-void locktree::set_descriptor(DESCRIPTOR desc) {
-    m_cmp.set_descriptor(desc);
+void locktree::set_comparator(const comparator &cmp) {
+    m_cmp.inherit(cmp);
 }
 
 locktree_manager *locktree::get_manager(void) const {

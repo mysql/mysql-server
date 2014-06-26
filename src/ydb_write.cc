@@ -951,8 +951,8 @@ env_update_multiple(DB_ENV *env, DB *src_db, DB_TXN *txn,
                 } else if (idx_old == old_keys.size) {
                     cmp = +1;
                 } else {
-                    ft_compare_func cmpfun = toku_db_get_compare_fun(db);
-                    cmp = cmpfun(db, curr_old_key, curr_new_key);
+                    const toku::comparator &cmpfn = toku_db_get_comparator(db);
+                    cmp = cmpfn(curr_old_key, curr_new_key);
                 }
 
                 bool do_del = false;

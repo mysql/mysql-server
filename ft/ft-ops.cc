@@ -3255,8 +3255,9 @@ void toku_ft_set_update(FT_HANDLE ft_handle, ft_update_func update_fun) {
     ft_handle->options.update_fun = update_fun;
 }
 
-ft_compare_func toku_ft_get_bt_compare (FT_HANDLE ft_handle) {
-    return ft_handle->options.compare_fun;
+const toku::comparator &toku_ft_get_comparator(FT_HANDLE ft_handle) {
+    invariant_notnull(ft_handle->ft);
+    return ft_handle->ft->cmp;
 }
 
 static void

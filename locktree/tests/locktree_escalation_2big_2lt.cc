@@ -210,13 +210,10 @@ int main(int argc, const char *argv[]) {
     mgr.set_max_lock_memory(max_lock_memory);
 
     // create lock trees
-    DESCRIPTOR desc[n_lt];
-    DICTIONARY_ID dict_id[n_lt];
     locktree *lt[n_big];
     for (int i = 0; i < n_lt; i++) {
-        desc[i] = nullptr;
-        dict_id[i] = { (uint64_t)i };
-        lt[i] = mgr.get_lt(dict_id[i], desc[i], compare_dbts, nullptr);
+        DICTIONARY_ID dict_id = { .dictid = (uint64_t)i };
+        lt[i] = mgr.get_lt(dict_id, dbt_comparator, nullptr);
         assert(lt[i]);
     }
 

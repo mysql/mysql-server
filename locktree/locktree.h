@@ -183,10 +183,10 @@ namespace toku {
 
         // effect: Get a locktree from the manager. If a locktree exists with the given
         //         dict_id, it is referenced and then returned. If one did not exist, it
-        //         is created. It will use the given descriptor and comparison function
-        //         for comparing keys, and the on_create callback passed to locktree_manager::create()
-        //         will be called with the given extra parameter.
-        locktree *get_lt(DICTIONARY_ID dict_id, DESCRIPTOR desc, ft_compare_func cmp, void *on_create_extra);
+        //         is created. It will use the comparator for comparing keys. The on_create
+        //         callback (passed to locktree_manager::create()) will be called with the
+        //         given extra parameter.
+        locktree *get_lt(DICTIONARY_ID dict_id, const comparator &cmp, void *on_create_extra);
 
         void reference_lt(locktree *lt);
 
@@ -307,8 +307,7 @@ namespace toku {
 
     // A locktree represents the set of row locks owned by all transactions
     // over an open dictionary. Read and write ranges are represented as
-    // a left and right key which are compared with the given descriptor
-    // and comparison fn.
+    // a left and right key which are compared with the given comparator
     //
     // Locktrees are not created and destroyed by the user. Instead, they are
     // referenced and released using the locktree manager.
@@ -324,8 +323,7 @@ namespace toku {
     class locktree {
     public:
         // effect: Creates a locktree
-        void create(locktree_manager *mgr, DICTIONARY_ID dict_id,
-                    DESCRIPTOR desc, ft_compare_func cmp);
+        void create(locktree_manager *mgr, DICTIONARY_ID dict_id, const comparator &cmp);
 
         void destroy(void);
 
@@ -371,7 +369,7 @@ namespace toku {
 
         locktree_manager *get_manager(void) const;
 
-        void set_descriptor(DESCRIPTOR desc);
+        void set_comparator(const comparator &cmp);
 
         int compare(const locktree *lt) const;
 
@@ -389,15 +387,13 @@ namespace toku {
         DICTIONARY_ID m_dict_id;
         uint32_t m_reference_count;
 
-        // use a comparator object that encapsulates an ft compare
-        // function and a descriptor in a fake db. this way we can
-        // pass it around for easy key comparisons.
+        // Since the memory referenced by this comparator is not owned by the
+        // locktree, the user must guarantee it will outlive the locktree.
         //
-        // since this comparator will store a pointer to a descriptor,
-        // the user of the locktree needs to make sure that the descriptor
-        // is valid for as long as the locktree. this is currently
-        // implemented by opening an ft_handle for this locktree and
-        // storing it as userdata below.
+        // The ydb API accomplishes this by opening an ft_handle in the on_create
+        // callback, which will keep the underlying FT (and its descriptor) in memory
+        // for as long as the handle is open. The ft_handle is stored opaquely in the
+        // userdata pointer below. see locktree_manager::get_lt w/ on_create_extra
         comparator m_cmp;
 
         concurrent_tree *m_rangetree;

@@ -108,7 +108,7 @@ void locktree_unit_test::test_conflicts(void) {
     locktree lt;
 
     DICTIONARY_ID dict_id = { 1 };
-    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+    lt.create(nullptr, dict_id, dbt_comparator);
 
     int r;
     TXNID txnid_a = 1001;

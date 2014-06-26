@@ -125,8 +125,8 @@ void toku_ft_handle_get_compression_method(FT_HANDLE, enum toku_compression_meth
 void toku_ft_handle_set_fanout(FT_HANDLE, unsigned int fanout);
 void toku_ft_handle_get_fanout(FT_HANDLE, unsigned int *fanout);
 
-void toku_ft_set_bt_compare(FT_HANDLE, ft_compare_func);
-ft_compare_func toku_ft_get_bt_compare (FT_HANDLE ft_h);
+void toku_ft_set_bt_compare(FT_HANDLE ft_handle, ft_compare_func cmp_func);
+const toku::comparator &toku_ft_get_comparator(FT_HANDLE ft_handle);
 
 void toku_ft_set_redirect_callback(FT_HANDLE ft_h, on_redirect_callback redir_cb, void* extra);
 

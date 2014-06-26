@@ -127,9 +127,8 @@ static inline int db_opened(DB *db) {
     return db->i->opened != 0;
 }
 
-static inline ft_compare_func
-toku_db_get_compare_fun(DB* db) {
-    return toku_ft_get_bt_compare(db->i->ft_handle);
+static inline const toku::comparator &toku_db_get_comparator(DB *db) {
+    return toku_ft_get_comparator(db->i->ft_handle);
 }
 
 int toku_db_pre_acquire_fileops_lock(DB *db, DB_TXN *txn);
