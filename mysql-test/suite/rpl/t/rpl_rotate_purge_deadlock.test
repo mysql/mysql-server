@@ -40,6 +40,8 @@ insert into t1 set f=repeat('b', 4096);
 source include/show_binary_logs.inc;
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';
+--let $wait_condition= SELECT COUNT(*)=0 FROM information_schema.processlist WHERE state LIKE 'debug sync point: at_purge_logs_before_date%'
+--source include/wait_condition.inc
 SET DEBUG_SYNC = 'RESET';
 
 # the first connection finally completes its INSERT
@@ -82,6 +84,8 @@ let $wait_condition=
 --source include/wait_condition.inc
 
 SET DEBUG_SYNC = 'now SIGNAL rotated';
+--let $wait_condition= SELECT COUNT(*)=0 FROM information_schema.processlist WHERE state LIKE 'debug sync point: at_purge_logs_before_date%'
+--source include/wait_condition.inc
 SET DEBUG_SYNC = 'RESET';
 
 connection master;
