@@ -114,7 +114,7 @@ BEGIN
   DECLARE count INT;
   SET count = 1;
 
-  SELECT SLEEP(4);
+  SELECT SLEEP(10);
   CREATE TABLE t1 (f1 INT);
   INSERT INTO t1 VALUES (7894);
   WHILE count <= 5 DO
