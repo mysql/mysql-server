@@ -222,7 +222,7 @@ SELECT count(astext(g) != 'NULL') FROM gis_geometrycollection;
 SELECT count(astext(g2) != 'NULL') FROM gis_geometrycollection_2;
 
 ############################################################################################
-# Checking the spatial testing functions                                                   #
+# Checking the spatial analysis functions                                                  #
 ############################################################################################
 
 --echo #=======================================================================================
