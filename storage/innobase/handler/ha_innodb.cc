@@ -16594,7 +16594,7 @@ static MYSQL_SYSVAR_LONGLONG(max_undo_log_size, innobase_max_undo_log_size,
   " beyond ths size it will be truncated in due-course). ",
   NULL, NULL,
   1024 * 1024 * 1024L,
-  10 * 1024* 1024L,
+  10 * 1024 * 1024L,
   LONGLONG_MAX, 1024 * 1024L);
 
 static MYSQL_SYSVAR_ULONG(undo_purge_lag, srv_undo_purge_lag,

@@ -582,7 +582,7 @@ loop:
 		trx_sys_mutex_exit();
 #endif /* HAVE_ATOMIC_BUILTINS */
 
-		flst_truncate_end(rseg, rseg_hdr + TRX_RSEG_HISTORY,
+		flst_truncate_end(rseg_hdr + TRX_RSEG_HISTORY,
 				  log_hdr + TRX_UNDO_HISTORY_NODE,
 				  n_removed_logs, &mtr);
 
@@ -712,6 +712,52 @@ const char*			undo_trunc_logger_t::s_log_prefix = "undo_";
 const char*			undo_trunc_logger_t::s_log_ext = "trunc.log";
 undo_trunc_t::undo_spaces_t	undo_trunc_t::s_spaces_to_truncate;
 
+/** Cleanse purge queue to remove the rseg that reside in undo-tablespace
+marked for truncate.
+@param[in,out]	undo_trunc	undo truncate tracker */
+static
+void
+trx_purge_cleanse_purge_queue(
+	undo_trunc_t*	undo_trunc)
+{
+	mutex_enter(&purge_sys->pq_mutex);
+	typedef	std::vector<TrxUndoRsegs>	purge_elem_list_t;
+	purge_elem_list_t			purge_elem_list;
+
+	/* Remove rseg instances that are in the purge queue before we start
+	truncate of corresponding UNDO truncate. */
+	while (!purge_sys->purge_queue->empty()) {
+		purge_elem_list.push_back(purge_sys->purge_queue->top());
+		purge_sys->purge_queue->pop();
+	}
+	ut_ad(purge_sys->purge_queue->empty());
+
+	for (purge_elem_list_t::iterator it = purge_elem_list.begin();
+	     it != purge_elem_list.end();
+	     ++it) {
+
+		for (TrxUndoRsegs::iterator it2 = it->begin();
+		     it2 != it->end();
+		     ++it2) {
+
+			if ((*it2)->space
+				== undo_trunc->get_undo_mark_for_trunc()) {
+				it->erase(it2);
+				break;
+			}
+		}
+
+		ulint	size = it->size();
+		if (size != 0) {
+			/* size != 0 suggest that there exist other rsegs that
+			needs processing so add this element to purge queue.
+			Note: Other rseg could be non-redo rsegs. */
+			purge_sys->purge_queue->push(*it);
+		}
+	}
+	mutex_exit(&purge_sys->pq_mutex);
+}
+
 /** Iterate over selected UNDO tablespace and check if all the rsegs
 that resides in the tablespace are free.
 @param[in]	limit		truncate_limit
@@ -832,43 +878,8 @@ trx_purge_initiate_truncate(
 				"ib_undo_trunc_before_truncate");
 			DBUG_SUICIDE(););
 
-	mutex_enter(&purge_sys->pq_mutex);
-	typedef	std::vector<TrxUndoRsegs>	purge_elem_list_t;
-	purge_elem_list_t			purge_elem_list;
-
-	/* Remove rseg instances that are in the purge queue before we start
-	truncate of corresponding UNDO truncate. */
-	while (!purge_sys->purge_queue->empty()) {
-		purge_elem_list.push_back(purge_sys->purge_queue->top());
-		purge_sys->purge_queue->pop();
-	}
-	ut_ad(purge_sys->purge_queue->empty());
-
-	for (purge_elem_list_t::iterator it = purge_elem_list.begin();
-	     it != purge_elem_list.end();
-	     ++it) {
-
-		for (TrxUndoRsegs::iterator it2 = it->begin();
-		     it2 != it->end();
-		     ++it2) {
-
-			if ((*it2)->space
-				== undo_trunc->get_undo_mark_for_trunc()) {
-				it->erase(it2);
-				break;
-			}
-		}
-
-		ulint	size = it->size();
-		if (size != 0) {
-			/* size != 0 suggest that there exist other rsegs that
-			needs processing so add this element to purge queue.
-			Note: Other rseg could be non-redo rsegs. */
-			purge_sys->purge_queue->push(*it);
-		}
-	}
-	mutex_exit(&purge_sys->pq_mutex);
-
+	trx_purge_cleanse_purge_queue(undo_trunc);
+	
 	bool	success = trx_undo_truncate_tablespace(undo_trunc);
 	if (!success) {
 		/* Note: In case of error we don't enable the rsegs
@@ -982,7 +993,7 @@ trx_purge_rseg_get_next_history_log(
 
 	mutex_enter(&(rseg->mutex));
 
-	ut_ad(rseg->last_page_no != FIL_NULL);
+	ut_a(rseg->last_page_no != FIL_NULL);
 
 	purge_sys->iter.trx_no = rseg->last_trx_no + 1;
 	purge_sys->iter.undo_no = 0;

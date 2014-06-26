@@ -154,10 +154,10 @@ struct purge_iter_t {
 					space id. */
 };
 
-/** UNDO log truncate logger. Needed to track state of truncate
-during crash. A DDL_LOG kind of file will be created that will be removed
-on successful truncate but if server crashes before successful truncate
-this file will be used to initiate fix-up action during server start. */
+/** UNDO log truncate logger. Needed to track state of truncate during crash.
+A DDL_LOG kind of file will be created that will be removed on successful
+truncate but if server crashes before successful truncate this file will be
+used to initiate fix-up action during server start. */
 
 class undo_trunc_logger_t {
 public:
@@ -176,8 +176,8 @@ public:
 			return(err);
 		}
 
-		/* Step-2: Create the log file, open it and write magic
-		number of 0 to indicate init phase. */
+		/* Step-2: Create the log file, open it and write 0 to
+		indicate init phase. */
 		bool            ret;
 		os_file_t	handle = os_file_create(
 			innodb_log_file_key, log_file_name, OS_FILE_CREATE,
@@ -221,11 +221,16 @@ public:
 	{
 		dberr_t		err;
 		char*		log_file_name;
+
+		/* Step-1: Create the log file name using the pre-decided
+		prefix/suffix and table id of undo tablepsace to truncate. */
 		err = populate_log_file_name(space_id, log_file_name);
 		if (err != DB_SUCCESS) {
 			return;
 		}
 
+		/* Step-2: Open log file and write magic number to
+		indicate done phase. */
 		bool    ret;
 		os_file_t	handle =
 			os_file_create_simple_no_error_handling(
