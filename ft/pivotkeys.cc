@@ -324,11 +324,13 @@ void ftnode_pivot_keys::_append_dbt(const ftnode_pivot_keys &pivotkeys) {
     REALLOC_N_ALIGNED(64, _num_pivots + pivotkeys._num_pivots, _dbt_keys);
     bool other_fixed = pivotkeys._fixed_format();
     for (int i = 0; i < pivotkeys._num_pivots; i++) {
+        size_t size = other_fixed ? pivotkeys._fixed_keylen :
+                                    pivotkeys._dbt_keys[i].size;
         toku_memdup_dbt(&_dbt_keys[_num_pivots + i],
                         other_fixed ? pivotkeys._fixed_key(i) :
                                       pivotkeys._dbt_keys[i].data,
-                        other_fixed ? pivotkeys._fixed_keylen :
-                                      pivotkeys._dbt_keys[i].size);
+                        size);
+        _total_size += size;
     }
 }
 
@@ -337,6 +339,7 @@ void ftnode_pivot_keys::_append_fixed(const ftnode_pivot_keys &pivotkeys) {
         // other pivotkeys have the same fixed keylen 
         REALLOC_N_ALIGNED(64, (_num_pivots + pivotkeys._num_pivots) * _fixed_keylen_aligned, _fixed_keys);
         memcpy(_fixed_key(_num_pivots), pivotkeys._fixed_keys, pivotkeys._total_size);
+        _total_size += pivotkeys._total_size;
     } else {
         // must convert to dbt format, other pivotkeys have different length'd keys
         _convert_to_dbt_format();
@@ -351,7 +354,6 @@ void ftnode_pivot_keys::append(const ftnode_pivot_keys &pivotkeys) {
         _append_dbt(pivotkeys);
     }
     _num_pivots += pivotkeys._num_pivots;
-    _total_size += pivotkeys._total_size;
 
     sanity_check();
 }
