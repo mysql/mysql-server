@@ -52,7 +52,7 @@ public:
     Get the MESSAGE_OCTET_LENGTH of this condition.
     @return the length in bytes of the message text.
   */
-  int message_octet_length() const
+  size_t message_octet_length() const
   { return m_message_text.length(); }
 
   /**
