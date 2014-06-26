@@ -2108,7 +2108,9 @@ trx_undo_truncate_tablespace(
 		return(success);
 	}
 
-	/* Step-2: Re-initialize tablespace header. */
+	/* Step-2: Re-initialize tablespace header.
+	Avoid REDO logging as we don't want to apply the action if server
+	crashes. For fix-up we have UNDO-truncate-ddl-log. */
 	mtr_t		mtr;
 	mtr_start(&mtr);
 	mtr_set_log_mode(&mtr, MTR_LOG_NO_REDO);

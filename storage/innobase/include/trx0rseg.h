@@ -220,8 +220,8 @@ struct trx_rseg_t {
 	/** TRUE if the last not yet purged log needs purging */
 	ibool				last_del_marks;
 
-	/** If true, then skip allocating this rseg as the tablespace
-	it resides in is marked for truncate. */
+	/** If true, then skip allocating this rseg as it reside in
+	UNDO-tablespace marked for truncate. */
 	bool				skip_allocation;
 };
 
