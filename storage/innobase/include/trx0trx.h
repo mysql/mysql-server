@@ -593,7 +593,7 @@ trx_arbitrate(const trx_t* requestor, const trx_t* holder);
 
 /**
 @param[in] trx		Transaction to check
-@return true if the transaction can rollback */
+@return true if the transaction is a high priority transaction.*/
 UNIV_INLINE
 bool
 trx_is_high_priority(const trx_t* trx);
