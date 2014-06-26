@@ -6296,7 +6296,13 @@ runBug18044717(NDBT_Context* ctx, NDBT_Step* step)
   } while (0);
   ndbout_c("restore original state of cluster and verify that there");
   ndbout_c("is no core due to inconsistent c_lcpStatus/tabLcpStatus");
-  restarter.waitNodesStarted(&master, 1);
+
+  if (restarter.waitNodesStarted(&master, 1))
+  {
+    ndbout_c("master node failed to start");
+    return NDBT_FAILED;
+  }
+
   if (restarter.insertErrorInAllNodes(0))
   {
     result = NDBT_FAILED;
