@@ -27,7 +27,7 @@ max-time: 1000
 cmd: testSRBank
 args: -n NR -l 300 -r 15 T1
 
-max-time: 1800
+max-time: 1000
 cmd: testSRBank
 args: -n Mix -l 300 -r 15 T1
 
@@ -341,7 +341,7 @@ cmd: testSystemRestart
 args: -n Bug45154 D1
 
 # Bug18401154 added on 17.04.2014
-max-time: 1500
+max-time: 900
 cmd: testSystemRestart
 args: -n to D2
 
@@ -403,7 +403,7 @@ cmd: test_event
 args: -r 5000 -n Bug30780 T1
 
 # Bug18401361 added on 17.04.2014
-max-time: 1500
+max-time: 600
 cmd: testBasic
 args: -n Bug54986 D2
 
@@ -493,7 +493,7 @@ cmd: testNodeRestart
 args: -n Bug16007980 T1
 
 # Bug18401826 added on 17.04.2014
-max-time: 1500
+max-time: 900
 cmd: testNodeRestart
 args: -n Bug34702 T1
 
