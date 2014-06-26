@@ -64,6 +64,37 @@ ADD_CUSTOM_TARGET(GenFixPrivs
 )
 
 IF(UNIX)
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
+  COMMAND comp_sql
+  mysql_system_data
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+  sql_commands_system_data.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
+)
+
+ADD_CUSTOM_COMMAND(
+  OUTPUT ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
+  COMMAND comp_sql
+  mysql_system_tables
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+  sql_commands_system_tables.h
+  WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}
+  DEPENDS comp_sql
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
+)
+
+# Add target for the above to be built
+ADD_CUSTOM_TARGET(GenBootstrapPriv
+  ALL
+  DEPENDS ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_data.h
+  ${CMAKE_CURRENT_BINARY_DIR}/sql_commands_system_tables.h
+)
+ENDIF(UNIX)
+
+IF(UNIX)
  FILE(WRITE ${CMAKE_CURRENT_BINARY_DIR}/make_binary_distribution 
    "cd ${CMAKE_BINARY_DIR} && '${CMAKE_CPACK_COMMAND}' -G TGZ --config CPackConfig.cmake\n" )
  EXECUTE_PROCESS(
@@ -71,8 +102,8 @@ IF(UNIX)
 )
 ENDIF()
 
-INSTALL(FILES 
-  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql 
+INSTALL(FILES
+  ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_system_tables_data.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/fill_help_tables.sql
   ${CMAKE_CURRENT_SOURCE_DIR}/mysql_test_data_timezone.sql
@@ -80,6 +111,7 @@ INSTALL(FILES
   ${FIX_PRIVILEGES_SQL}
   DESTINATION ${INSTALL_MYSQLSHAREDIR} COMPONENT Server
 )
+
 
 # TCMalloc hacks
 IF(MALLOC_LIB)
@@ -145,16 +177,6 @@ SET(MYSQLD_USER "mysql")
 
 ENDIF(UNIX)
 
-# Really ugly, one script, "mysql_install_db", needs prefix set to ".",
-# i.e. makes access relative the current directory. This matches
-# the documentation, so better not change this.
-
-IF(INSTALL_LAYOUT MATCHES "STANDALONE")
-  SET(prefix ".")
-ELSE()
-  SET(prefix "${CMAKE_INSTALL_PREFIX}")
-ENDIF()
-
 SET(bindir ${prefix}/${INSTALL_BINDIR})
 SET(sbindir ${prefix}/${INSTALL_SBINDIR})
 SET(scriptdir ${prefix}/${INSTALL_BINDIR})
@@ -165,21 +187,6 @@ IF(INSTALL_LAYOUT MATCHES "STANDALONE")
 ELSE()
   SET(localstatedir ${MYSQL_DATADIR})
 ENDIF()
-
-IF(UNIX)
-  SET(EXT)
-ELSE()
-  SET(EXT ".pl")
-ENDIF()
-CONFIGURE_FILE(${CMAKE_CURRENT_SOURCE_DIR}/mysql_install_db.pl.in
-  ${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT} ESCAPE_QUOTES @ONLY)
-SET(DEST ${INSTALL_SCRIPTDIR})
-
-INSTALL_SCRIPT(
- "${CMAKE_CURRENT_BINARY_DIR}/mysql_install_db${EXT}"
-  DESTINATION ${DEST}
-  COMPONENT Server
-  )
 
 SET(prefix "${CMAKE_INSTALL_PREFIX}")
 SET(sysconfdir ${prefix})

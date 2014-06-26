@@ -102,6 +102,10 @@ static void print_query(FILE *out, const char *query)
       fprintf(out, "\\\"");
       column++;
       break;
+    case '\\':
+      fprintf(out, "\\\\");
+      column++;
+      break;
     default:
       putc(*ptr, out);
       column++;
