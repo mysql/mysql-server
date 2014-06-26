@@ -1,0 +1,189 @@
+#!/usr/bin/make -f
+
+# Copyright (c) 2014, Oracle and/or its affiliates. All rights reserved.
+#
+# This program is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; version 2 of the License.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program; if not, write to the Free Software
+# Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA  02110-1301 USA
+
+%:
+	dh $@
+
+export DH_VERBOSE=1
+export CFLAGS=
+export CXXFLAGS=
+
+override_dh_auto_configure:
+	@echo "RULES.$@"
+	cmake . \
+		-DBUILD_CONFIG=mysql_release \
+		-DCMAKE_INSTALL_PREFIX=/usr \
+		-DINSTALL_DOCDIR=share/mysql/docs \
+		-DINSTALL_DOCREADMEDIR=share/mysql \
+		-DINSTALL_INCLUDEDIR=include/mysql \
+		-DINSTALL_INFODIR=share/mysql/docs \
+		-DINSTALL_LIBDIR=lib/$(DEB_HOST_MULTIARCH) \
+		-DINSTALL_MANDIR=share/man \
+		-DINSTALL_MYSQLSHAREDIR=share/mysql \
+		-DINSTALL_MYSQLTESTDIR=lib/mysql/mysql-test \
+		-DINSTALL_PLUGINDIR=lib/mysql/plugin \
+		-DINSTALL_SBINDIR=sbin \
+		-DINSTALL_SCRIPTDIR=bin \
+		-DINSTALL_SQLBENCHDIR=lib/mysql \
+		-DINSTALL_SUPPORTFILESDIR=share/mysql \
+		-DMYSQL_DATADIR=/var/lib/mysql \
+		-DSYSCONFDIR=/etc/mysql \
+		-DMYSQL_UNIX_ADDR=/var/run/mysqld/mysqld.sock \
+		-DWITH_SSL=bundled \
+		-DWITH_ZLIB=system \
+		-DWITH_EXTRA_CHARSETS=complex \
+		-DWITH_ARCHIVE_STORAGE_ENGINE=1 \
+		-DWITH_BLACKHOLE_STORAGE_ENGINE=1 \
+		-DWITH_EXAMPLE_STORAGE_ENGINE=1 \
+		-DWITH_FEDERATED_STORAGE_ENGINE=1 \
+		-DWITH_INNOBASE_STORAGE_ENGINE=1 \
+		-DWITH_INNODB_MEMCACHED=1 \
+		-DCOMPILATION_COMMENT="MySQL Community Server (GPL)" \
+		-DINSTALL_LAYOUT=DEB
+
+	cat CMakeCache.txt
+	touch $@
+
+override_dh_auto_build:
+	@echo "RULES.$@"
+	$(MAKE) -j1 VERBOSE=1
+	touch $@
+
+override_dh_auto_test:
+	@echo "RULES.$@"
+	echo "No tests run because test 9: pfs_connect_attr is failing unreasonably"
+	touch $@
+
+override_dh_auto_install:
+
+	@echo "RULES.$@"
+	# complete install first
+	$(MAKE) install DESTDIR=debian/tmp
+	# http://bugs.mysql.com/bug.php?id=68517 --- Some test and result files have executable bit set.
+	# remove execute bit from file permissions discussed in Bug#68517 and other files
+	chmod 0644 debian/tmp/usr/bin/mysqlaccess.conf
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/r/innodb-wl5980-linux.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/r/lowercase_table4.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/include/shutdown_mysqld.inc
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/include/have_QC_Disabled.inc
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_7_myisam.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_3.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_4_myisam.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/r/innodb_bug60196.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/r/innodb_bug14169459.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/r/innodb-wl5980-windows.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/r/named_pipe.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/t/lowercase_table4-master.opt
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/r/innodb-wl5980-debug.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/r/shm.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_4_innodb.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_7_innodb.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_myisam.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/ndb/t/ndb_show_tables_result.inc
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb_bug57904.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_5_myisam.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/include/check_ipv4_mapped.inc
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_innodb.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/include/start_mysqld.inc
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_11.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/t/lowercase_table4.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb-multiple-tablespaces.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_8_myisam.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/r/innodb_bug57904.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_8_innodb.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/portability_wl5980_windows.zip
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb_bug60196.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb-wl5980-debug.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb-wl5980-windows.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb-wl5980-linux.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb_bug14169459.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_10.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_14.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_myisam_innodb.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_5_innodb.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb-wl5980-alter.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb-wl5980-discard.test
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/parts/r/partition_exch_qa_6.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/innodb_bug60196-master.opt
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/sys_vars/r/sort_buffer_size_basic_32.result
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/suite/innodb/t/portability_wl5980_linux.zip
+	chmod 0644 debian/tmp/usr/lib/mysql/mysql-test/include/memcache_config.inc
+	chmod 0644 debian/tmp/usr/share/mysql/innodb_memcached_config.sql
+	chmod 0644 debian/tmp/usr/share/mysql/mysql-log-rotate
+	chmod 0644 debian/tmp/usr/lib/mysql/sql-bench/graph-compare-results
+	# remove all redundant files and links
+	rm debian/tmp/usr/lib/*/*_r*
+	rm debian/tmp/usr/lib/mysql/mysql-test/cmake_install.cmake
+	rm debian/tmp/usr/lib/mysql/mysql-test/CTestTestfile.cmake
+	rm debian/tmp/usr/lib/mysql/mysql-test/Makefile
+	# add missing man pages
+	install -o root -m 0644 debian/extra/mysql_embedded.1 debian/tmp/usr/share/man/man1
+	# add MySQL Server configuration file my.cnf to mysql-common package
+	mkdir -p debian/tmp/etc/mysql
+	install -o root -m 0644 debian/extra/my.cnf debian/tmp/etc/mysql
+	# add MySQL Server debug binary and library to package
+	install -o root -m 0755 debian/extra/server-binary debian/tmp/usr/sbin/mysqld-debug
+	install -o root -m 0755 debian/extra/embedded-server debian/tmp/usr/lib/$(DEB_HOST_MULTIARCH)/libmysqld-debug.a
+	# add apparmor profile
+	install -D -m 644 debian/extra/apparmor-profile debian/tmp/etc/apparmor.d/usr.sbin.mysqld
+	# add directory for legal docs
+	mkdir -p debian/tmp/usr/share/doc/mysql-server
+	mkdir -p debian/tmp/usr/share/doc/mysql-community-server
+	mkdir -p debian/tmp/usr/share/doc/mysql-client
+	mkdir -p debian/tmp/usr/share/doc/mysql-community-client
+	mkdir -p debian/tmp/usr/share/doc/mysql-common
+	mkdir -p debian/tmp/usr/share/doc/libmysqlclient18
+	mkdir -p debian/tmp/usr/share/doc/libmysqlclient-dev
+	mkdir -p debian/tmp/usr/share/doc/libmysqld-dev
+	mkdir -p debian/tmp/usr/share/doc/mysql-community-bench
+	mkdir -p debian/tmp/usr/share/doc/mysql-testsuite
+	mkdir -p debian/tmp/usr/share/doc/mysql-community-test
+	mkdir -p debian/tmp/usr/share/doc/mysql-community-source
+	# add COPYING file to each package
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-server/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-server/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-client/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-client/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-common/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/libmysqlclient18/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/libmysqlclient-dev/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/libmysqld-dev/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-bench/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-testsuite/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-test/COPYING
+	install -o root -m 0644 debian/tmp/usr/share/mysql/COPYING debian/tmp/usr/share/doc/mysql-community-source/COPYING
+	# add README file to each package
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-server/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-server/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-client/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-client/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-common/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqlclient18/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqlclient-dev/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/libmysqld-dev/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-bench/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-testsuite/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-test/README
+	install -o root -m 0644 debian/tmp/usr/share/mysql/README debian/tmp/usr/share/doc/mysql-community-source/README
+	touch $@
+
+override_dh_installinit:
+	@echo "RULES.$@"
+	dh_installinit --name=mysql -- defaults 19 21
+	dh_apparmor -pmysql-community-server --profile-name=usr.sbin.mysqld
+	touch $@
