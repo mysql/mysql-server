@@ -98,7 +98,7 @@ void locktree_unit_test::test_create_destroy(void) {
     locktree lt;
     DICTIONARY_ID dict_id = { 1 };
 
-    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+    lt.create(nullptr, dict_id, dbt_comparator);
 
     lt_lock_request_info *info = lt.get_lock_request_info();
     invariant_notnull(info);

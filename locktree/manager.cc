@@ -183,8 +183,8 @@ void locktree_manager::locktree_map_remove(locktree *lt) {
     invariant_zero(r);
 }
 
-locktree *locktree_manager::get_lt(DICTIONARY_ID dict_id, DESCRIPTOR desc,
-        ft_compare_func cmp, void *on_create_extra) {
+locktree *locktree_manager::get_lt(DICTIONARY_ID dict_id,
+                                   const comparator &cmp, void *on_create_extra) {
 
     // hold the mutex around searching and maybe
     // inserting into the locktree map
@@ -193,7 +193,7 @@ locktree *locktree_manager::get_lt(DICTIONARY_ID dict_id, DESCRIPTOR desc,
     locktree *lt = locktree_map_find(dict_id);
     if (lt == nullptr) {
         XCALLOC(lt);
-        lt->create(this, dict_id, desc, cmp);
+        lt->create(this, dict_id, cmp);
 
         // new locktree created - call the on_create callback
         // and put it in the locktree map

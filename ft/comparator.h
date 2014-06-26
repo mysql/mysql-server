@@ -115,6 +115,24 @@ namespace toku {
             _builtin = _cmp == &toku_builtin_compare_fun;
         }
 
+        // inherit the attributes of another comparator, but keep our own
+        // copy of fake_db that is owned separately from the one given.
+        void inherit(const comparator &cmp) {
+            invariant_notnull(_fake_db);
+            invariant_notnull(cmp._cmp);
+            invariant_notnull(cmp._fake_db);
+            _cmp = cmp._cmp;
+            _fake_db->cmp_descriptor = cmp._fake_db->cmp_descriptor;
+            _builtin = cmp._builtin;
+        }
+
+        // like inherit, but doesn't require that the this comparator
+        // was already created
+        void create_from(const comparator &cmp) {
+            XCALLOC(_fake_db);
+            inherit(cmp);
+        }
+
         void destroy() {
             toku_free(_fake_db);
         }
@@ -125,10 +143,6 @@ namespace toku {
 
         ft_compare_func get_compare_func() const {
             return _cmp;
-        }
-
-        void set_descriptor(DESCRIPTOR desc) {
-            _fake_db->cmp_descriptor = desc;
         }
 
         bool valid() const {

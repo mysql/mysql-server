@@ -101,7 +101,7 @@ void locktree_unit_test::test_overlapping_relock(void) {
     locktree lt;
     
     DICTIONARY_ID dict_id = { 1 };
-    lt.create(nullptr, dict_id, nullptr, compare_dbts);
+    lt.create(nullptr, dict_id, dbt_comparator);
 
     const DBT *zero = get_dbt(0);
     const DBT *one = get_dbt(1);

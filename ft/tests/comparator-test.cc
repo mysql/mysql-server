@@ -116,9 +116,21 @@ static void test_desc(void) {
     invariant(c == MAGIC);
 
     // set desc to d2, make sure it gets used
-    cmp.set_descriptor(&d2);
+    toku::comparator cmp2;
+    cmp2.create(magic_compare, &d2);
+    cmp.inherit(cmp2);
     expected_desc = &d2;
     c = cmp(&dbt_a, &dbt_b);
+    invariant(c == MAGIC);
+
+    // go back to using d1, but using the create_from API
+    toku::comparator cmp3, cmp4;
+    cmp3.create(magic_compare, &d1); // cmp3 has d1
+    cmp4.create_from(cmp3); // cmp4 should get d1 from cmp3
+    expected_desc = &d1;
+    c = cmp3(&dbt_a, &dbt_b);
+    invariant(c == MAGIC);
+    c = cmp4(&dbt_a, &dbt_b);
     invariant(c == MAGIC);
 
     cmp.destroy();

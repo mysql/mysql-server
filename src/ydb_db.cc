@@ -390,10 +390,12 @@ toku_db_open(DB * db, DB_TXN * txn, const char *fname, const char *dbname, DBTYP
 // locktree's descriptor pointer if necessary
 static void
 db_set_descriptors(DB *db, FT_HANDLE ft_handle) {
+    const toku::comparator &cmp = toku_ft_get_comparator(ft_handle);
     db->descriptor = toku_ft_get_descriptor(ft_handle);
     db->cmp_descriptor = toku_ft_get_cmp_descriptor(ft_handle);
+    invariant(db->cmp_descriptor == cmp.get_descriptor());
     if (db->i->lt) {
-        db->i->lt->set_descriptor(db->cmp_descriptor);
+        db->i->lt->set_comparator(cmp);
     }
 }
 
@@ -476,7 +478,7 @@ toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t fla
                       db->dbenv->i->cachetable,
                       txn ? db_txn_struct_i(txn)->tokutxn : nullptr);
     if (r != 0) {
-        goto error_cleanup;
+        goto out;
     }
 
     // if the dictionary was opened as a blackhole, mark the
@@ -497,26 +499,27 @@ toku_db_open_iname(DB * db, DB_TXN * txn, const char *iname_in_env, uint32_t fla
             .txn = txn,
             .ft_handle = db->i->ft_handle,
         };
-        db->i->lt = db->dbenv->i->ltm.get_lt(
-                db->i->dict_id,
-                db->cmp_descriptor,
-                toku_ft_get_bt_compare(db->i->ft_handle),
-                &on_create_extra);
+        db->i->lt = db->dbenv->i->ltm.get_lt(db->i->dict_id,
+                                             toku_ft_get_comparator(db->i->ft_handle),
+                                             &on_create_extra);
         if (db->i->lt == nullptr) {
             r = errno;
-            if (r == 0)
+            if (r == 0) {
                 r = EINVAL;
-            goto error_cleanup;
+            }
+            goto out;
         }
     }
-    return 0;
+    r = 0;
  
-error_cleanup:
-    db->i->dict_id = DICTIONARY_ID_NONE;
-    db->i->opened = 0;
-    if (db->i->lt) {
-        db->dbenv->i->ltm.release_lt(db->i->lt);
-        db->i->lt = NULL;
+out:
+    if (r != 0) {
+        db->i->dict_id = DICTIONARY_ID_NONE;
+        db->i->opened = 0;
+        if (db->i->lt) {
+            db->dbenv->i->ltm.release_lt(db->i->lt);
+            db->i->lt = nullptr;
+        }
     }
     return r;
 }
