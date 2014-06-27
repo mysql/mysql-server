@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # -*- cperl -*-
 #
-# Copyright (c) 2007, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -99,6 +99,9 @@ Usage: $0 [OPTIONS]
   --help               Display this help and exit.                     
   --ldata=path         The path to the MySQL data directory. Same as --datadir.
   --no-defaults        Don't read default options from any option file.
+  --keep-my-cnf        Don't try to create my.cnf based on template. 
+                       Useful for systems with working, updated my.cnf.
+                       Deprecated, will be removed in future version.
 EOF1
   if ( $^O !~ m/^(MSWin32|cygwin)$/ ) {
     print <<EOF2;
@@ -173,6 +176,7 @@ sub parse_arguments
 
              "skip-name-resolve",
              "verbose",
+             "keep-my-cnf",
              "rpm",
              "help",
              "random-passwords",
@@ -429,10 +433,15 @@ $basedir= "@prefix@" if ! $basedir;		# Default
 # ----------------------------------------------------------------------
 
 my $print_defaults;
+my $keep_my_cnf = 0;
 
 if ( $opt->{srcdir} and $opt->{basedir} )
 {
   error($opt,"Specify either --basedir or --srcdir, not both");
+}
+if ( $opt->{'keep-my-cnf'} )
+{
+  $keep_my_cnf = 1;
 }
 if ( $opt->{srcdir} )
 {
@@ -455,7 +464,7 @@ my $config_file;
 my $copy_cfg_file;
 
 # ----------------------------------------------------------------------
-# This will be the default config file
+# This will be the default config file (unless creation is unwanted)
 # ----------------------------------------------------------------------
 
 my $cnfext = ( $^O =~ m/^(MSWin32|cygwin)$/ ) ? "ini" : "cnf";
@@ -464,6 +473,11 @@ $config_file= "$basedir/my.$cnfext";
 
 my $cfg_template= find_in_basedir($opt,"file","my-default.$cnfext",
 				  ".", "share","share/mysql","support-files");
+# Distros might move files
+if ((! -r $cfg_template) && (-r "@pkgdatadir@/my-default.cnf")) {
+  $cfg_template = "@pkgdatadir@/my-default.cnf";
+}
+
 -e $cfg_template or cannot_find_file("my-default.$cnfext");
 
 $copy_cfg_file= $config_file;
@@ -473,22 +487,21 @@ if (-e $copy_cfg_file)
   $copy_cfg_file =~ s/my.$cnfext/my-new.$cnfext/;
   # Too early to print warning here, the user may not notice
 }
-open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
-if (open (CFG, "> $copy_cfg_file"))
-{
-  while (<TEMPL>)
-  {
-    # Remove lines beginning with # *** which are template comments
-    print CFG $_ unless /^# \*\*\*/;
+
+if ( ! $keep_my_cnf ) {
+  open (TEMPL, $cfg_template) or error($opt, "Could not open config template $cfg_template");
+  if (open (CFG, "> $copy_cfg_file")) {
+    while (<TEMPL>) {
+      # Remove lines beginning with # *** which are template comments
+      print CFG $_ unless /^# \*\*\*/;
+    }
+    close CFG;
+  } else {
+    warning($opt,"Could not write to config file $copy_cfg_file: $!");
+    $failed_write_cfg= 1;
   }
-  close CFG;
+  close TEMPL;
 }
-else
-{
-  warning($opt,"Could not write to config file $copy_cfg_file: $!");
-  $failed_write_cfg= 1;
-}
-close TEMPL;
 
 # ----------------------------------------------------------------------
 # Now we can get arguments from the groups [mysqld] and [mysql_install_db]
@@ -878,7 +891,13 @@ if ( open(PIPE, "| $mysqld_install_cmd_line") )
            "",
            "Support MySQL by buying support/licenses at http://shop.mysql.com");
 
-    if ($copy_cfg_file eq $config_file and !$failed_write_cfg)
+    if ($keep_my_cnf)
+    {
+      report($opt,
+	     "Note: new default config file not created.",
+	     "Please make sure your config file is current");
+    }
+    elsif ($copy_cfg_file eq $config_file and !$failed_write_cfg)
     {
       report($opt,
 	     "New default config file was created as $config_file and",
