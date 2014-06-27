@@ -1,0 +1,39 @@
+CREATE PROCEDURE create_table_and_insert_rows()
+BEGIN
+DECLARE count INT;
+SET count = 1;
+SELECT SLEEP(10);
+CREATE TABLE t1 (f1 INT);
+INSERT INTO t1 VALUES (7894);
+WHILE count <= 5 DO
+INSERT INTO t1 SELECT * FROM t1;
+SET count = count + 1;
+END WHILE;
+SET count = 1;
+WHILE count <= 10000 DO
+SELECT SQL_NO_CACHE count(*) from t1;
+SET count = count + 1;
+END WHILE;
+END
+$
+CALL create_table_and_insert_rows();
+SELECT SLEEP(4);
+
+ Dynamic tracing ...... started.
+
+ query-parse-start    : 1
+ query-parse-done     : 1
+ select-start         : 1
+ select-done          : 1
+ net-read-start       : 1
+ net-read-done        : 1
+ handler_rdlock_start : 1
+ handler_rdlock_done  : 1
+
+ Expected probe hits  : 8
+ Actual probe hits    : 8
+
+ Dynamic tracing ...... completed.
+
+DROP TABLE t1;
+DROP PROCEDURE create_table_and_insert_rows;

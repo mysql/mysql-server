@@ -385,8 +385,7 @@ lock_loop:
 			ut_delay(ut_rnd_interval(0, srv_spin_wait_delay));
 		}
 
-		i += SPIN_WAIT_INCREMENT;
-		os_rmb;
+		i++;
 	}
 
 	if (i >= srv_n_spin_wait_rounds) {
@@ -481,7 +480,7 @@ rw_lock_x_lock_wait_func(
 		}
 
 		if (i < srv_n_spin_wait_rounds) {
-			i += SPIN_WAIT_INCREMENT;
+			i++;
 			os_rmb;
 			continue;
 		}
@@ -750,8 +749,7 @@ lock_loop:
 						0, srv_spin_wait_delay));
 			}
 
-			i += SPIN_WAIT_INCREMENT;
-			os_rmb;
+			i++;
 		}
 
 		if (i >= srv_n_spin_wait_rounds) {
@@ -854,8 +852,7 @@ lock_loop:
 						0, srv_spin_wait_delay));
 			}
 
-			i += SPIN_WAIT_INCREMENT;
-			os_rmb;
+			i++;
 		}
 
 		if (i >= srv_n_spin_wait_rounds) {
