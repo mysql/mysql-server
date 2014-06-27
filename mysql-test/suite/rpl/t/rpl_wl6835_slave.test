@@ -1,0 +1,71 @@
+--source include/master-slave.inc
+
+####### MASTER #######
+
+CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
+INSERT INTO t1 VALUES (1);
+
+####### SIGCON #######
+
+--let $rpl_connection_name= sigcon
+--let $rpl_server_number= 2
+--source include/rpl_connect.inc
+
+--echo [connection sigcon]
+--let $sync_slave_connection= sigcon
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+
+SET DEBUG_SYNC='ha_innobase_update_row_done WAIT_FOR waiting1';
+
+BEGIN;
+--send UPDATE t1 SET c1=99 WHERE c1=1
+
+####### MASTER #######
+
+--source include/rpl_connection_master.inc
+SET AUTOCOMMIT=1;
+UPDATE t1 SET c1=2 WHERE c1=1;
+
+####### SLAVE #######
+
+--let $rpl_connection_name= slave
+--source include/rpl_connection.inc
+
+# wait for c1 in t1 to be 2
+--let $wait_condition=SELECT COUNT(*)=1 FROM t1 WHERE c1=2
+--source include/wait_condition.inc
+
+# now signal the waiting thread on sigcon to resume
+# and it should end up in an error stating that it
+# was aborted
+SET DEBUG_SYNC='now SIGNAL waiting1';
+
+####### SIGCON #######
+
+--echo [connection sigcon]
+--let $rpl_connection_name= sigcon
+--source include/rpl_connection.inc
+--error ER_ERROR_DURING_COMMIT
+--reap
+--error ER_ERROR_DURING_COMMIT
+COMMIT;
+
+SELECT * FROM t1;
+
+disconnect sigcon;
+
+####### MASTER #######
+
+--connection master
+
+####### SLAVE #######
+
+--let $sync_slave_connection= slave
+--source include/sync_slave_sql_with_master.inc
+SELECT * FROM t1;
+
+--connection master
+DROP TABLE t1;
+
+--source include/rpl_end.inc    
