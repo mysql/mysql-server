@@ -151,7 +151,7 @@ mysql_string_handle mysql_string_to_lowercase(mysql_string_handle string_handle)
   res->set_charset(cs);
   if (cs->casedn_multiply == 1)
   {
-    uint len;
+    size_t len;
     res= copy_if_not_alloced(res, str, str->length());
     len= cs->cset->casedn_str(cs, (char*) res->ptr());
     DBUG_ASSERT(len <= res->length());
@@ -159,7 +159,7 @@ mysql_string_handle mysql_string_to_lowercase(mysql_string_handle string_handle)
   }
   else
   {
-    uint len= str->length() * cs->casedn_multiply;
+    size_t len= str->length() * cs->casedn_multiply;
     res->alloc(len);
     len= cs->cset->casedn(cs, (char*) str->ptr(), str->length(), (char *) res->ptr(), len);
     res->length(len);
