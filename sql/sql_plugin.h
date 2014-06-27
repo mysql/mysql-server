@@ -40,6 +40,7 @@ enum SHOW_COMP_OPTION { SHOW_OPTION_YES, SHOW_OPTION_NO, SHOW_OPTION_DISABLED};
 enum enum_plugin_load_option { PLUGIN_OFF, PLUGIN_ON, PLUGIN_FORCE,
   PLUGIN_FORCE_PLUS_PERMANENT };
 extern const char *global_plugin_typelib_names[];
+extern mysql_mutex_t LOCK_plugin_delete;
 
 #include <my_sys.h>
 #include "sql_list.h"
