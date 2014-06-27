@@ -11,6 +11,10 @@
 --source include/have_innodb_16k.inc
 --source include/have_undo_tablespaces.inc
 
+# TC check if truncate is completed in given time frame. When
+# test is run under valgrind there is no such time assurance. 
+--source include/not_valgrind.inc
+
 ################################################################################
 # Test-case will test following scenarios.
 #
