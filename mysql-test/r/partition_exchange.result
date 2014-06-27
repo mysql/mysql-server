@@ -1604,9 +1604,18 @@ a	b
 99	End of values
 ALTER TABLE tsp REBUILD PARTITION p1;
 ERROR HY000: Found a row in wrong partition from REBUILD/REORGANIZED partition: 1 to non included partition (new definition): 1 a:1 b:First value
+ALTER TABLE tsp REBUILD PARTITION sp3;
 ALTER TABLE tsp REORGANIZE PARTITION p1 INTO
 (PARTITION p1 VALUES LESS THAN (162),
 PARTITION p2 VALUES LESS THAN MAXVALUE);
+ERROR HY000: Found a row in wrong partition from REBUILD/REORGANIZED partition: 1 to non included partition (new definition): 1 a:1 b:First value
+ALTER TABLE tsp REORGANIZE PARTITION p1 INTO
+(PARTITION p01 VALUES LESS THAN (162)
+(SUBPARTITION sp01,
+SUBPARTITION sp02),
+PARTITION p02 VALUES LESS THAN MAXVALUE
+(SUBPARTITION sp03,
+SUBPARTITION sp04));
 ERROR HY000: Found a row in wrong partition from REBUILD/REORGANIZED partition: 1 to non included partition (new definition): 1 a:1 b:First value
 ALTER TABLE tsp ANALYZE PARTITION sp3;
 Table	Op	Msg_type	Msg_text
