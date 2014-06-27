@@ -3982,21 +3982,23 @@ void parse_wkb_data(Geometry *geom, const char *p, size_t num_geoms)
 const void *Geometry::normalize_ring_order()
 {
   Geometry *geo= this;
+  void *ret= NULL;
 
   if (geo->get_type() == Geometry::wkb_polygon)
   {
     Gis_polygon bgeo(geo->get_data_ptr(), geo->get_data_size(),
                      geo->get_flags(), geo->get_srid());
     if (bgeo.set_polygon_ring_order())
-      return NULL;
+      goto exit;
   }
   else if (geo->get_type() == Geometry::wkb_multipolygon)
   {
     Gis_multi_polygon bgeo(geo->get_data_ptr(), geo->get_data_size(),
                            geo->get_flags(), geo->get_srid());
+
     for (size_t i= 0; i < bgeo.size(); i++)
       if (bgeo[i].set_polygon_ring_order())
-        return NULL;
+        goto exit;
   }
   else if (geo->get_type() == Geometry::wkb_geometrycollection)
   {
@@ -4007,5 +4009,7 @@ const void *Geometry::normalize_ring_order()
     DBUG_ASSERT(false);
   }
 
-  return geo->get_data_ptr();
+  ret= geo->get_data_ptr();
+exit:
+  return ret;
 }
