@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,8 @@
 
 #include "mysys_priv.h"
 #include <m_string.h>
+#include "prealloced_array.h"
+#include "mutex_lock.h"
 
 #if defined(_WIN32)
 #define DELIM ';'
@@ -29,9 +31,9 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
   DBUG_ENTER("init_tmpdir");
   DBUG_PRINT("enter", ("pathlist: %s", pathlist ? pathlist : "NULL"));
 
-  mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
-  if (my_init_dynamic_array(&tmpdir->full_list, sizeof(char*), 1, 5))
-    goto err;
+  Prealloced_array<char*, 10, true> full_list(key_memory_MY_TMPDIR_full_list);
+
+  memset(tmpdir, 0, sizeof(*tmpdir));
   if (!pathlist || !pathlist[0])
   {
     /* Get default temporary directory */
@@ -53,44 +55,46 @@ my_bool init_tmpdir(MY_TMPDIR *tmpdir, const char *pathlist)
     length= cleanup_dirname(buff, buff);
     if (!(copy= my_strndup(key_memory_MY_TMPDIR_full_list,
                            buff, length, MYF(MY_WME))) ||
-        insert_dynamic(&tmpdir->full_list, &copy))
+        full_list.push_back(copy))
       DBUG_RETURN(TRUE);
     pathlist=end+1;
   }
   while (*end);
-  freeze_size(&tmpdir->full_list);
-  tmpdir->list=(char **)tmpdir->full_list.buffer;
-  tmpdir->max=tmpdir->full_list.elements-1;
-  tmpdir->cur=0;
-  DBUG_RETURN(FALSE);
 
-err:
-  delete_dynamic(&tmpdir->full_list);           /* Safe to free */
-  mysql_mutex_destroy(&tmpdir->mutex);
-  DBUG_RETURN(TRUE);
+  tmpdir->list=
+    static_cast<char**>(my_malloc(key_memory_MY_TMPDIR_full_list,
+                                  sizeof(char*) * full_list.size(),
+                                  MYF(MY_WME)));
+  if (tmpdir->list == NULL)
+    DBUG_RETURN(TRUE);
+
+  mysql_mutex_init(key_TMPDIR_mutex, &tmpdir->mutex, MY_MUTEX_INIT_FAST);
+  memcpy(tmpdir->list, &full_list[0], sizeof(char*) * full_list.size());
+  tmpdir->max= full_list.size() - 1;
+  tmpdir->cur= 0;
+  DBUG_RETURN(FALSE);
 }
 
 
 char *my_tmpdir(MY_TMPDIR *tmpdir)
 {
-  char *dir;
-  if (!tmpdir->max)
+  if (0 == tmpdir->max)
     return tmpdir->list[0];
-  mysql_mutex_lock(&tmpdir->mutex);
-  dir=tmpdir->list[tmpdir->cur];
-  tmpdir->cur= (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur+1;
-  mysql_mutex_unlock(&tmpdir->mutex);
+
+  Mutex_lock(&tmpdir->mutex);
+  char *dir= tmpdir->list[tmpdir->cur];
+  tmpdir->cur= (tmpdir->cur == tmpdir->max) ? 0 : tmpdir->cur + 1;
+
   return dir;
 }
 
+
 void free_tmpdir(MY_TMPDIR *tmpdir)
 {
-  uint i;
-  if (!tmpdir->full_list.elements)
+  if (tmpdir->list == NULL)
     return;
-  for (i=0; i<=tmpdir->max; i++)
+  for (uint i= 0; i <= tmpdir->max; i++)
     my_free(tmpdir->list[i]);
-  delete_dynamic(&tmpdir->full_list);
+  my_free(tmpdir->list);
   mysql_mutex_destroy(&tmpdir->mutex);
 }
-
