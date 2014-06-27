@@ -3596,7 +3596,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work. */
+		/* We need current binlog position for mysqlbackup to work. */
 
 		if (!read_only) {
 
@@ -13991,7 +13991,7 @@ innobase_xa_prepare(
 		|| !thd_test_options(
 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		/* For ibbackup to work the order of transactions in binlog
+		/* For mysqlbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
 
 		  thread1> prepare; write to binlog; ...
