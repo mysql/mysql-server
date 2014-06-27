@@ -310,7 +310,7 @@ bool com_binlog_dump(THD *thd, char *packet, size_t packet_length)
   String slave_uuid;
   ushort flags= 0;
   const uchar* packet_position= (uchar *) packet;
-  uint packet_bytes_todo= packet_length;
+  size_t packet_bytes_todo= packet_length;
 
   thd->status_var.com_other++;
   thd->enable_slow_log= opt_log_slow_admin_statements;
@@ -360,7 +360,7 @@ bool com_binlog_dump_gtid(THD *thd, char *packet, size_t packet_length)
   uint32 name_size= 0;
   char* gtid_string= NULL;
   const uchar* packet_position= (uchar *) packet;
-  uint packet_bytes_todo= packet_length;
+  size_t packet_bytes_todo= packet_length;
   Sid_map sid_map(NULL/*no sid_lock because this is a completely local object*/);
   Gtid_set slave_gtid_executed(&sid_map);
 

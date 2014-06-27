@@ -59,6 +59,11 @@ struct row_events_stages
   char m_source[COL_SOURCE_SIZE];
   /** Length in bytes of @c m_source. */
   uint m_source_length;
+  bool m_progress;
+  /** Column WORK_COMPLETED. */
+  ulonglong m_work_completed;
+  /** Column WORK_ESTIMATED. */
+  ulonglong m_work_estimated;
 };
 
 /** Position of a cursor on PERFORMANCE_SCHEMA.EVENTS_STAGES_HISTORY. */

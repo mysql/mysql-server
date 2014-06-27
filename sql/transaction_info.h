@@ -341,6 +341,10 @@ public:
   } m_flags;
 
   Transaction_ctx();
+  ~Transaction_ctx()
+  {
+    free_root(&m_mem_root, MYF(0));
+  }
 
   void cleanup()
   {
