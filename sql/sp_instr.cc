@@ -1,4 +1,4 @@
-/* Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2012, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -452,6 +452,7 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
 {
   String sql_query;
   PSI_statement_locker *parent_locker= thd->m_statement_psi;
+  SQL_I_List<Item_trigger_field> *next_trig_list_bkp= NULL;
   sql_query.set_charset(system_charset_info);
 
   get_query(&sql_query);
@@ -466,6 +467,8 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
     return NULL;
   }
 
+  if (m_trig_field_list.elements)
+    next_trig_list_bkp= m_trig_field_list.first->next_trig_field_list;
   // Cleanup current THD from previously held objects before new parsing.
   cleanup_before_parsing(thd);
 
@@ -539,11 +542,22 @@ LEX *sp_lex_instr::parse_expr(THD *thd, sp_head *sp)
       int action_time= sp->m_trg_chistics.action_time;
       GRANT_INFO *grant_table= &ttl->subject_table_grants[event][action_time];
 
-      for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
+      for (Item_trigger_field *trg_field=
+             sp->m_cur_instr_trig_field_items.first;
            trg_field;
            trg_field= trg_field->next_trg_field)
       {
         trg_field->setup_field(thd, ttl->trigger_table, grant_table);
+      }
+     
+      /**
+        Move Item_trigger_field's list to instruction's Item_trigger_field
+        list.
+      */
+      if (sp->m_cur_instr_trig_field_items.elements)
+      {
+        sp->m_cur_instr_trig_field_items.save_and_clear(&m_trig_field_list);
+        m_trig_field_list.first->next_trig_field_list= next_trig_list_bkp;
       }
     }
 
@@ -701,7 +715,7 @@ void sp_lex_instr::cleanup_before_parsing(THD *thd)
   sp_head *sp= thd->sp_runtime_ctx->sp;
 
   if (sp->m_type == SP_TYPE_TRIGGER)
-    sp->m_trg_table_fields.empty();
+    m_trig_field_list.empty();
 }
 
 
@@ -986,8 +1000,8 @@ bool sp_instr_set_trigger_field::on_after_expr_parsing(THD *thd)
   {
     /* Adding m_trigger_field to the list of all Item_trigger_field objects */
     sp_head *sp= thd->sp_runtime_ctx->sp;
-    sp->m_trg_table_fields.link_in_list(m_trigger_field,
-                                        &m_trigger_field->next_trg_field);
+    sp->m_cur_instr_trig_field_items.
+      link_in_list(m_trigger_field, &m_trigger_field->next_trg_field);
   }
 
   return m_value_item == NULL || m_trigger_field == NULL;
