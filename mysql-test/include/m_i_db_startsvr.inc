@@ -9,7 +9,7 @@ rmtree([ "$DDIR" ]);
 EOF
 
 --echo # Execution of mysql_install_db starts............
---exec $BASEDIR/bin/mysql_install_db --no-defaults --datadir=$DDIR --builddir=$BASEDIR --extra-sql-file=$MYSQL_TEST_DIR/t/m_i_db_createschema.sql --defaults-file=$MYSQL_TEST_DIR/t/m_i_db_config.cnf $midparam
+--exec $BASEDIR/bin/mysql_install_db --no-defaults --datadir=$DDIR --basedir=$BASEDIR --extra-sql-file=$MYSQL_TEST_DIR/t/m_i_db_createschema.sql --defaults-file=$MYSQL_TEST_DIR/t/m_i_db_config.cnf $midparam
 --echo # Execution of mysql_install_db ends..............
 --exec echo "restart:--datadir=$DDIR " > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
