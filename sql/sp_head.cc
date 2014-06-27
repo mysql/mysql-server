@@ -1940,7 +1940,7 @@ bool sp_head::show_routine_code(THD *thd)
   field_list.push_back(new Item_uint(NAME_STRING("Pos"), 0, 9));
   // 1024 is for not to confuse old clients
   field_list.push_back(new Item_empty_string("Instruction",
-                                             std::max(buffer.length(), 1024U)));
+                                             std::max<size_t>(buffer.length(), 1024U)));
   if (protocol->send_result_set_metadata(&field_list, Protocol::SEND_NUM_ROWS |
                                          Protocol::SEND_EOF))
     return true;
