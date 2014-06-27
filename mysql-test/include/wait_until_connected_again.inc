@@ -10,11 +10,15 @@ if ($VALGRIND_TEST) {
 let $mysql_errno= 9999;
 while ($mysql_errno)
 {
+
   # Strangely enough, the server might return "Too many connections"
   # while being shutdown, thus 1040 is an "allowed" error
   # See BUG#36228
-  --error 0,1040,1053,2002,2003,2006,2013
+  --error 0,1040,1053,2002,2003,2006,2013,1045
   show status;
+  if ($mysql_errno == 1045){
+    let mysql_errno=0;
+  }
 
   dec $counter;
   if (!$counter)
