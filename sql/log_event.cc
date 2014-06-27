@@ -5159,7 +5159,7 @@ compare_errors:
       {
         if (actual_error == ER_SLAVE_IGNORED_TABLE)
         {
-          if (!slave_ignored_err_throttle.log(thd))
+          if (!slave_ignored_err_throttle.log())
             rli->report(INFORMATION_LEVEL, actual_error,
                         "Could not execute %s event. Detailed error: %s;"
                         " Error log throttle is enabled. This error will not be"
