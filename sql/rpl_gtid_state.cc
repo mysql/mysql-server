@@ -202,43 +202,29 @@ void Gtid_state::update_on_commit(THD *thd)
   DBUG_ENTER("Gtid_state::update_on_commit");
   if (!thd->owned_gtid.is_null())
   {
+    global_sid_lock->rdlock();
     if (!opt_bin_log || (thd->slave_thread && !opt_log_slave_updates))
     {
       Gtid *gtid= &thd->owned_gtid;
-      global_sid_lock->rdlock();
-      if (!executed_gtids.contains_gtid(*gtid))
-      {
-        global_sid_lock->unlock();
-        int err= 0;
-        /*
-          Add transaction owned gtid into global executed_gtids if binlog
-          is disabled, or binlog is enabled and log_slave_updates is
-          disabled with slave SQL thread or slave worker thread.
-        */
-        global_sid_lock->wrlock();
-        if (!(err= executed_gtids.ensure_sidno(gtid->sidno)))
-          err |= executed_gtids._add_gtid(*gtid);
-        if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
-        {
-          /*
-            Slave SQL thread or slave worker thread adds transaction owned
-            gtid into global gtids_only_in_table if binlog is enabled and
-            log_slave_updates is disabled.
-          */
-          if (!(err= gtids_only_in_table.ensure_sidno(gtid->sidno)))
-            err |= gtids_only_in_table._add_gtid(*gtid);
-        }
-        global_sid_lock->unlock();
-        DBUG_ASSERT(err == 0);
-      }
-      else
-      {
-        global_sid_lock->unlock();
-        DBUG_ASSERT(0);
-      }
+#ifndef DBUG_OFF
+      lock_sidno(gtid->sidno);
+      DBUG_ASSERT(!executed_gtids.contains_gtid(*gtid));
+      unlock_sidno(gtid->sidno);
+#endif
+      /*
+        If binlog is disabled, any session adds transaction owned GTID
+        into global executed_gtids.
+        If binlog is enabled and log_slave_updates is disabled, slave
+        SQL thread or slave worker thread adds transaction owned GTID
+        into global executed_gtids and gtids_only_in_table.
+      */
+      lock_sidno(gtid->sidno);
+      executed_gtids._add_gtid(*gtid);
+      if (thd->slave_thread && opt_bin_log && !opt_log_slave_updates)
+        gtids_only_in_table._add_gtid(*gtid);
+      unlock_sidno(gtid->sidno);
     }
 
-    global_sid_lock->rdlock();
     update_owned_gtids_impl(thd, true);
     global_sid_lock->unlock();
   }
