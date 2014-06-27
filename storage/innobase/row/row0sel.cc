@@ -4607,8 +4607,7 @@ release_search_latch_if_needed:
 	mutex. */
 	ut_ad(prebuilt->sql_stat_start || trx->state == TRX_STATE_ACTIVE);
 
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED
-	      || trx->state == TRX_STATE_ACTIVE);
+	ut_ad(!trx_is_started(trx) || trx->state == TRX_STATE_ACTIVE);
 
 	ut_ad(prebuilt->sql_stat_start
 	      || prebuilt->select_lock_type != LOCK_NONE

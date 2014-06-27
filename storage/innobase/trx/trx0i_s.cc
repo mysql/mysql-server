@@ -1287,7 +1287,7 @@ fetch_data_into_cache_low(
 
 		/* Note: Read only transactions that modify temporary
 		tables an have a transaction ID */
-		if (trx->state == TRX_STATE_NOT_STARTED
+		if (!trx_is_started(trx)
 		    || (!rw_trx_list && trx->id != 0 && !trx->read_only)) {
 
 			continue;
