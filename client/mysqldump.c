@@ -5538,19 +5538,36 @@ int main(int argc, char **argv)
       dump_all_tablespaces();
     dump_all_databases();
   }
-  else if (argc > 1 && !opt_databases)
-  {
-    /* Only one database and selected table(s) */
-    if (!opt_alltspcs && !opt_notspcs)
-      dump_tablespaces_for_tables(*argv, (argv + 1), (argc -1));
-    dump_selected_tables(*argv, (argv + 1), (argc - 1));
-  }
   else
   {
-    /* One or more databases, all tables */
-    if (!opt_alltspcs && !opt_notspcs)
-      dump_tablespaces_for_databases(argv);
-    dump_databases(argv);
+    // Check all arguments meet length condition. Currently database and table
+    // names are limited to NAME_LEN bytes and stack-based buffers assumes
+    // that escaped name will be not longer than NAME_LEN*2 + 2 bytes long.
+    int argument;
+    for (argument= 0; argument < argc; argument++)
+    {
+      size_t argument_length= strlen(argv[argument]);
+      if (argument_length > NAME_LEN)
+      {
+        die(EX_CONSCHECK, "[ERROR] Argument '%s' is too long, it cannot be "
+          "name for any table or database.\n", argv[argument]);
+      }
+    }
+
+    if (argc > 1 && !opt_databases)
+    {
+      /* Only one database and selected table(s) */
+      if (!opt_alltspcs && !opt_notspcs)
+        dump_tablespaces_for_tables(*argv, (argv + 1), (argc - 1));
+      dump_selected_tables(*argv, (argv + 1), (argc - 1));
+    }
+    else
+    {
+      /* One or more databases, all tables */
+      if (!opt_alltspcs && !opt_notspcs)
+        dump_tablespaces_for_databases(argv);
+      dump_databases(argv);
+    }
   }
 
   /* if --dump-slave , start the slave sql thread */
