@@ -5395,7 +5395,7 @@ buf_get_free_list_len(void)
 
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
-Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+Inits a page to the buffer buf_pool, for use in mysqlbackup --restore. */
 UNIV_INTERN
 void
 buf_page_init_for_backup_restore(

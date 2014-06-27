@@ -48,7 +48,7 @@ struct fil_space_t;
 typedef std::list<const char*> space_name_list_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and ibbackup it is not the default
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 extern const char*	fil_path_to_mysql_datadir;
 
@@ -426,8 +426,8 @@ exists and the space id in it matches. Replays the create operation if a file
 at that path does not exist yet. If the database directory for the file to be
 created does not exist, then we create the directory, too.
 
-Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
-datadir that we should use in replaying the file operations.
+Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
+the datadir that we should use in replaying the file operations.
 @return end of log record, or NULL if the record was not completely
 contained between ptr and end_ptr */
 UNIV_INTERN
@@ -680,9 +680,9 @@ fil_space_for_table_exists_in_mem(
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
-ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be appllied, but that may have left spaces still too small compared to
-the size stored in the space header. */
+mysqlbackup --apply-log phase we extended the spaces on-demand so that log
+records could be appllied, but that may have left spaces still too small
+compared to the size stored in the space header. */
 UNIV_INTERN
 void
 fil_extend_tablespaces_to_stored_len(void);
