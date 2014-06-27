@@ -14,7 +14,6 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 --echo # On connection 2
 --connection con2
 START TRANSACTION HIGH_PRIORITY;
-# It's hanging here.
 UPDATE t1 SET c1=2 WHERE c1=0;
 COMMIT;
 

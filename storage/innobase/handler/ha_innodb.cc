@@ -2398,8 +2398,11 @@ ha_innobase::update_thd(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	ut_ad(trx->dict_operation_lock_mode == 0);
-	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+	TrxInInnoDB	trx_in_innodb(trx);
+
+	ut_ad(trx_in_innodb.is_aborted()
+	      || (trx->dict_operation_lock_mode == 0
+		  && trx->dict_operation == TRX_DICT_OP_NONE));
 
 	if (m_prebuilt->trx != trx) {
 
@@ -2960,8 +2963,10 @@ innobase_init(
 	innobase_hton->kill_connection = innobase_kill_connection;
 	innobase_hton->savepoint_set = innobase_savepoint;
 	innobase_hton->savepoint_rollback = innobase_rollback_to_savepoint;
+
 	innobase_hton->savepoint_rollback_can_release_mdl =
 				innobase_rollback_to_savepoint_can_release_mdl;
+
 	innobase_hton->savepoint_release = innobase_release_savepoint;
 	innobase_hton->commit = innobase_commit;
 	innobase_hton->rollback = innobase_rollback;
@@ -3533,7 +3538,7 @@ innobase_start_trx_and_assign_read_view(
 
 	/* The transaction should not be active yet, start it */
 
-	ut_ad(trx->state == TRX_STATE_NOT_STARTED);
+	ut_ad(!trx_is_started(trx));
 
 	trx_start_if_not_started_xa(trx, false);
 
@@ -3588,7 +3593,7 @@ innobase_commit(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(hton, thd, true));
+		DBUG_RETURN(innobase_rollback(hton, thd, commit_trx));
 	}
 
 	ut_ad(trx->dict_operation_lock_mode == 0);
@@ -3656,7 +3661,7 @@ innobase_commit(
 			If the binary log is not enabled, or the transaction
 			is not written to the binary log, the file name will
 			be a NULL pointer. */
-			unsigned long long	pos;
+			ulonglong	pos;
 
 			thd_binlog_pos(thd, &trx->mysql_log_file_name, &pos);
 
@@ -3747,8 +3752,11 @@ innobase_rollback(
 
 	trx_t*	trx = check_trx_exists(thd);
 
-	ut_ad(trx->dict_operation_lock_mode == 0);
-	ut_ad(trx->dict_operation == TRX_DICT_OP_NONE);
+	TrxInInnoDB	trx_in_innodb(trx);
+
+	ut_ad(trx_in_innodb.is_aborted()
+	      || (trx->dict_operation_lock_mode == 0
+		  && trx->dict_operation == TRX_DICT_OP_NONE));
 
 	/* Release a possible FIFO ticket and search latch. Since we will
 	reserve the trx_sys->mutex, we have to release the search system
@@ -3773,35 +3781,22 @@ innobase_rollback(
 	trx->fts_next_doc_id = 0;
 
 	dberr_t		error;
-	TrxInInnoDB	trx_in_innodb(trx);
-
-	if (!trx_is_started(trx)) {
-
-		ib_logf(IB_LOG_LEVEL_INFO, "NOT STARTED: %p", trx);
-
-		/* Nothing to do. */
-		DBUG_RETURN(convert_error_code_to_mysql(
-				trx->abort
-				? DB_ABORTED : DB_SUCCESS, 0, NULL));
-	}
-
-	ib_logf(IB_LOG_LEVEL_INFO, "STARTED: %p", trx);
 
 	if (rollback_trx
-	    || trx_in_innodb.is_aborted()
 	    || !thd_test_options(thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN)) {
 
 		error = trx_rollback_for_mysql(trx);
 
-		if (trx_in_innodb.is_aborted()) {
+		if (trx->state == TRX_STATE_FORCED_ROLLBACK) {
 
 			char	buffer[1024];
 
 			ib_logf(IB_LOG_LEVEL_INFO,
-				"Active transaction selected for"
-				" rollback : %s",
+				"Forced rollback : %s",
 				thd_security_context(
 					thd, buffer, sizeof(buffer), 512));
+
+			trx->state = TRX_STATE_NOT_STARTED;
 
 			error = DB_ABORTED;
 		}
@@ -3809,6 +3804,11 @@ innobase_rollback(
 		trx_deregister_from_2pc(trx);
 	} else {
 		error = trx_rollback_last_sql_stat_for_mysql(trx);
+
+		if (trx_in_innodb.is_aborted()) {
+
+			error = DB_ABORTED;
+		}
 	}
 
 	DBUG_RETURN(convert_error_code_to_mysql(error, 0, NULL));
@@ -6544,7 +6544,7 @@ ha_innobase::write_row(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback( ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback( ht, m_user_thd, false));
 	}
 
 	/* Step-1: Validation checks before we commence write_row operation. */
@@ -7092,23 +7092,26 @@ ha_innobase::update_row(
 	const uchar*	old_row,	/*!< in: old row in MySQL format */
 	uchar*		new_row)	/*!< in: new row in MySQL format */
 {
+	int		err;
+
+	{
 	upd_t*		uvect;
 	dberr_t		error;
 	trx_t*		trx = thd_to_trx(m_user_thd);
 	TrxInInnoDB	trx_in_innodb(trx);
 
-	DBUG_ENTER("ha_innobase::update_row");
+	//DBUG_ENTER("ha_innobase::update_row");
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback( ht, m_user_thd, true));
+		return(innobase_rollback( ht, m_user_thd, false));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
 
 	if (srv_read_only_mode && !dict_table_is_intrinsic(m_prebuilt->table)) {
 		ib_senderrf(ha_thd(), IB_LOG_LEVEL_WARN, ER_READ_ONLY_MODE);
-		DBUG_RETURN(HA_ERR_TABLE_READONLY);
+		return(HA_ERR_TABLE_READONLY);
 	} else if (!trx_is_started(trx)) {
 		++trx->will_lock;
 	}
@@ -7131,7 +7134,7 @@ ha_innobase::update_row(
 
 		if (m_upd_buf == NULL) {
 			m_upd_buf_size = 0;
-			DBUG_RETURN(HA_ERR_OUT_OF_MEM);
+			return(HA_ERR_OUT_OF_MEM);
 		}
 	}
 
@@ -7205,7 +7208,7 @@ ha_innobase::update_row(
 
 func_exit:
 
-	int	err = convert_error_code_to_mysql(
+	err = convert_error_code_to_mysql(
 		error, m_prebuilt->table->flags, m_user_thd);
 
 	/* If success and no columns were updated. */
@@ -7225,11 +7228,11 @@ func_exit:
 
 	innobase_active_small();
 
-	fprintf(stderr, "WAIT\n");
-	DEBUG_SYNC_C("ha_innobase_update_row_done");
-	fprintf(stderr, "AWAKE\n");
+	}
 
-	DBUG_RETURN(err);
+	DEBUG_SYNC_C("ha_innobase_update_row_done");
+
+	return(err);
 }
 
 /**********************************************************************//**
@@ -7249,7 +7252,7 @@ ha_innobase::delete_row(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	ut_a(m_prebuilt->trx == trx);
@@ -7304,7 +7307,7 @@ ha_innobase::delete_all_rows()
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	dberr_t	error = row_delete_all_rows(m_prebuilt->table);
@@ -7345,7 +7348,9 @@ ha_innobase::unlock_row(void)
 	But there are some calls to this function from the SQL layer when the
 	transaction is in state TRX_STATE_NOT_STARTED.  The check on
 	m_prebuilt->select_lock_type above gets around this issue. */
-	ut_ad(trx_state_eq(m_prebuilt->trx, TRX_STATE_ACTIVE));
+
+	ut_ad(trx_state_eq(m_prebuilt->trx, TRX_STATE_ACTIVE)
+	      || trx_state_eq(m_prebuilt->trx, TRX_STATE_FORCED_ROLLBACK));
 
 	switch (m_prebuilt->row_read_type) {
 	case ROW_READ_WITH_LOCKS:
@@ -7559,7 +7564,7 @@ ha_innobase::index_read(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	ut_a(m_prebuilt->trx == thd_to_trx(m_user_thd));
@@ -7804,7 +7809,7 @@ ha_innobase::change_active_index(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	active_index = keynr;
@@ -7920,7 +7925,7 @@ ha_innobase::index_read_idx(
 	uint		key_len,	/*!< in: key value length */
 	ha_rkey_function find_flag)/*!< in: search flags from my_base.h */
 {
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (change_active_index(keynr)) {
 
@@ -7952,7 +7957,7 @@ ha_innobase::general_fetch(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	innobase_srv_conc_enter_innodb(m_prebuilt);
@@ -8130,7 +8135,7 @@ ha_innobase::rnd_init(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(ht, m_user_thd, true));
+		return(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	int	err;
@@ -8310,7 +8315,7 @@ ha_innobase::ft_init_ext(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		int	ret = innobase_rollback(ht, m_user_thd, true);
+		int	ret = innobase_rollback(ht, m_user_thd, false);
 
 		my_error(ret, MYF(0));
 
@@ -8457,7 +8462,7 @@ ha_innobase::ft_read(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(ht, m_user_thd, true));
+		return(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	row_prebuilt_t*	ft_prebuilt;
@@ -9459,7 +9464,7 @@ ha_innobase::update_create_info(
 	HA_CREATE_INFO*	create_info)	/*!< in/out: create info */
 {
 	if (!(create_info->used_fields & HA_CREATE_USED_AUTO)) {
-		ha_innobase::info(HA_STATUS_AUTO);
+		info(HA_STATUS_AUTO);
 		create_info->auto_increment_value = stats.auto_increment_value;
 	}
 
@@ -10300,7 +10305,7 @@ ha_innobase::discard_or_import_tablespace(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		DBUG_RETURN(innobase_rollback(ht, m_user_thd, true));
+		DBUG_RETURN(innobase_rollback(ht, m_user_thd, false));
 	}
 
 	trx_start_if_not_started(m_prebuilt->trx, true);
@@ -10392,7 +10397,7 @@ ha_innobase::truncate()
 
 	update_thd(ha_thd());
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (!trx_is_started(m_prebuilt->trx)) {
 		++m_prebuilt->trx->will_lock;
@@ -10482,7 +10487,7 @@ ha_innobase::delete_table(
 
 	trx_t*	parent_trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(parent_trx);
+	TrxInInnoDB	trx_in_innodb(parent_trx);
 
 	/* Remove the to-be-dropped table from the list of modified tables
 	by parent_trx. Otherwise we may end up with an orphaned pointer to
@@ -10696,7 +10701,7 @@ innobase_rename_table(
 
 	DEBUG_SYNC_C("innodb_rename_table_ready");
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	trx_start_if_not_started(trx, true);
 
@@ -10799,7 +10804,7 @@ ha_innobase::rename_table(
 
 	trx_t*	parent_trx = check_trx_exists(thd);
 
-	TrxInInnoDB	set(parent_trx);
+	TrxInInnoDB	trx_in_innodb(parent_trx);
 
 	/* In case MySQL calls this in the middle of a SELECT query, release
 	possible adaptive hash latch to avoid deadlocks of threads */
@@ -10909,7 +10914,7 @@ ha_innobase::records()
 		DBUG_RETURN(HA_POS_ERROR);
 	}
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "counting records";
 
@@ -11111,7 +11116,7 @@ ha_innobase::estimate_rows_upper_bound()
 
 	update_thd(ha_thd());
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "calculating upper bound for table rows";
 
@@ -11907,7 +11912,7 @@ ha_innobase::optimize(
 	HA_CHECK_OPT*	check_opt)	/*!< in: currently ignored */
 {
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	/* FTS-FIXME: Since MySQL doesn't support engine-specific commands,
 	we have to hijack some existing command in order to be able to test
@@ -11956,7 +11961,7 @@ ha_innobase::check(
 	ut_a(m_prebuilt->trx->magic_n == TRX_MAGIC_N);
 	ut_a(m_prebuilt->trx == thd_to_trx(thd));
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (m_prebuilt->mysql_template == NULL) {
 		/* Build the template; we will use a dummy template
@@ -12388,7 +12393,7 @@ ha_innobase::get_foreign_key_list(
 {
 	update_thd(ha_thd());
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "getting list of foreign keys";
 
@@ -12430,7 +12435,7 @@ ha_innobase::get_parent_foreign_key_list(
 {
 	update_thd(ha_thd());
 
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	m_prebuilt->trx->op_info = "getting list of referencing foreign keys";
 
@@ -12588,7 +12593,7 @@ MySQL calls this method at the end of each statement */
 int
 ha_innobase::reset()
 {
-	TrxInInnoDB	set(m_prebuilt->trx);
+	TrxInInnoDB	trx_in_innodb(m_prebuilt->trx);
 
 	if (m_prebuilt->blob_heap) {
 		row_mysql_prebuilt_free_blob_heap(m_prebuilt);
@@ -12631,7 +12636,7 @@ ha_innobase::start_stmt(
 
 	ut_ad(m_prebuilt->table != NULL);
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	if (dict_table_is_intrinsic(m_prebuilt->table)) {
 
@@ -12749,7 +12754,7 @@ ha_innobase::external_lock(
 
 	trx_t*		trx = m_prebuilt->trx;
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	ut_ad(m_prebuilt->table);
 
@@ -13026,7 +13031,7 @@ ha_innobase::transactional_table_lock(
 
 	trx_t*	trx = m_prebuilt->trx;
 
-	TrxInInnoDB	set(trx);
+	TrxInInnoDB	trx_in_innodb(trx);
 
 	m_prebuilt->sql_stat_start = TRUE;
 	m_prebuilt->hint_need_to_fetch_extra_cols = 0;
@@ -14136,7 +14141,7 @@ innobase_xa_prepare(
 
 	if (trx_in_innodb.is_aborted()) {
 
-		return(innobase_rollback(hton, thd, true));
+		return(innobase_rollback(hton, thd, prepare_trx));
 	}
 
 	if (!trx_is_registered_for_2pc(trx) && trx_is_started(trx)) {

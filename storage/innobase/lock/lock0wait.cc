@@ -196,7 +196,6 @@ lock_wait_suspend_thread(
 	srv_slot_t*	slot;
 	double		wait_time;
 	trx_t*		trx;
-	ulint		had_dict_lock;
 	ibool		was_declared_inside_innodb;
 	int64_t		start_time = 0;
 	int64_t		finish_time;
@@ -272,7 +271,7 @@ lock_wait_suspend_thread(
 
 	lock_mutex_exit();
 
-	had_dict_lock = trx->dict_operation_lock_mode;
+	ulint	had_dict_lock = trx->dict_operation_lock_mode;
 
 	switch (had_dict_lock) {
 	case 0:

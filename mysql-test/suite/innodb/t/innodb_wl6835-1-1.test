@@ -23,8 +23,6 @@ COMMIT;
 --echo
 --echo # On connection 1
 --connection con1
-# We should have a error here stating that transaction
-# was aborted.
 --error ER_ERROR_DURING_COMMIT
 COMMIT;
 

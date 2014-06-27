@@ -441,14 +441,11 @@ that is serving a running transaction.
 A running RW transaction must be in trx_sys->rw_trx_list.
 @return TRUE if trx->state == state */
 UNIV_INLINE
-ibool
+bool
 trx_state_eq(
 /*=========*/
 	const trx_t*	trx,	/*!< in: transaction */
-	trx_state_t	state)	/*!< in: state;
-				if state != TRX_STATE_NOT_STARTED
-				asserts that
-				trx->state != TRX_STATE_NOT_STARTED */
+	trx_state_t	state)	/*!< in: state */
 	__attribute__((warn_unused_result));
 # ifdef UNIV_DEBUG
 /**********************************************************************//**
@@ -653,6 +650,7 @@ Check transaction state */
 	case TRX_STATE_COMMITTED_IN_MEMORY:				\
 		continue;						\
 	case TRX_STATE_NOT_STARTED:					\
+	case TRX_STATE_FORCED_ROLLBACK:					\
 		break;							\
 	}								\
 	ut_error;							\
@@ -661,7 +659,8 @@ Check transaction state */
 /** Check if transaction is free so that it can be re-initialized.
 @param t transaction handle */
 #define	assert_trx_is_free(t)	do {					\
-	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED));		\
+	ut_ad(trx_state_eq((t), TRX_STATE_NOT_STARTED)			\
+	      || trx_state_eq((t), TRX_STATE_FORCED_ROLLBACK));		\
 	ut_ad(!trx_is_rseg_updated(trx));				\
 	ut_ad(!MVCC::is_view_active((t)->read_view));			\
 	ut_ad((t)->lock.wait_thr == NULL);				\
@@ -691,6 +690,7 @@ The tranasction must be in the mysql_trx_list. */
 			ut_ad(!(t)->in_rw_trx_list);			\
 			ut_ad((t)->in_mysql_trx_list);			\
 			ut_ad(t_state == TRX_STATE_NOT_STARTED		\
+			      || t_state == TRX_STATE_FORCED_ROLLBACK	\
 			      || t_state == TRX_STATE_ACTIVE);		\
 		} else {						\
 			check_trx_state(t);				\
@@ -798,9 +798,23 @@ struct trx_lock_t {
 					and the trx_t::mutex. */
 };
 
+/** Random value to check for corruption of trx_t */
 static const ulint TRX_MAGIC_N = 91118598;
 
-static const ib_uint32_t TRX_ASYNC_ROLLBACK_IN_PROGRESS = 1 << 31;
+/** Was the transaction rolled back asynchronously or by the
+owning thread. This flag is relevant only if TRX_FORCE_ROLLBACK
+is set.  */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_ASYNC = 1 << 29;
+
+/** State of the forced rollback. This flag is only only if
+TRX_FORCE_ROLLBACK is set */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_COMPLETE = 1 << 30;
+
+/** Mark the transaction for forced rollback */
+static const ib_uint32_t TRX_FORCE_ROLLBACK = 1 << 31;
+
+/** For masking out the above three flags */
+static const ib_uint32_t TRX_FORCE_ROLLBACK_MASK = 0x1FFFFFFF;
 
 /** Type used to store the list of tables that are modified by a given
 transaction. We store pointers to the table objects in memory because
@@ -915,6 +929,7 @@ struct trx_t {
 	Possible states:
 
 	TRX_STATE_NOT_STARTED
+	TRX_STATE_FORCED_ROLLBACK
 	TRX_STATE_ACTIVE
 	TRX_STATE_PREPARED
 	TRX_STATE_COMMITTED_IN_MEMORY (alias below COMMITTED)
@@ -1331,69 +1346,80 @@ public:
 	{
 		trx_mutex_enter(m_trx);
 
-		m_abort = m_trx->abort;
-
 		wait();
 
-		trx_mutex_exit(m_trx);
-	}
-
-	void wait()
-	{
-		ut_ad(trx_mutex_own(m_trx));
-
-		for (;;) {
-
-			if (is_in_async_rollback()) {
-
-				if (m_trx->killed_by
-				    == os_thread_get_curr_id()
-				    || !trx_is_started(m_trx)) {
-
-					break;
-				}
-
-				trx_mutex_exit(m_trx);
-
-				os_thread_sleep(20);
-
-				trx_mutex_enter(m_trx);
-
-			} else {
-
-				break;
-			}
-		}
+		ut_ad((m_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK)
+		      < (TRX_FORCE_ROLLBACK_MASK - 1));
 
 		++m_trx->in_innodb;
-	}
 
-	bool is_in_async_rollback() const
-	{
-		ut_ad(trx_mutex_own(m_trx));
-
-		return(m_trx->in_innodb & TRX_ASYNC_ROLLBACK_IN_PROGRESS);
-	}
-
-	bool is_aborted() const
-	{
-		return(m_abort);
+		trx_mutex_exit(m_trx);
 	}
 
 	~TrxInInnoDB()
 	{
 		trx_mutex_enter(m_trx);
 
-		ut_ad((m_trx->in_innodb & ~TRX_ASYNC_ROLLBACK_IN_PROGRESS) > 0);
+		ut_ad((m_trx->in_innodb & TRX_FORCE_ROLLBACK_MASK) > 0);
 
 		--m_trx->in_innodb;
 
 		trx_mutex_exit(m_trx);
 	}
 
+	bool is_aborted() const
+	{
+		return(m_trx->abort
+		       || m_trx->state == TRX_STATE_FORCED_ROLLBACK);
+	}
+
+private:
+	void wait()
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		while (is_forced_rollback()) {
+
+			if (is_async_rollback() || !is_started()) {
+
+				return;
+			}
+
+			/* Wait for the async rollback to complete */
+
+			trx_mutex_exit(m_trx);
+
+			/* FIXME: Use an event here? */
+
+			os_thread_sleep(20);
+
+			trx_mutex_enter(m_trx);
+		}
+	}
+
+	bool is_started() const
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		return(trx_is_started(m_trx));
+	}
+
+	bool is_async_rollback() const
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		return(m_trx->killed_by == os_thread_get_curr_id());
+	}
+
+	bool is_forced_rollback() const
+	{
+		ut_ad(trx_mutex_own(m_trx));
+
+		return((m_trx->in_innodb & TRX_FORCE_ROLLBACK)) > 0;
+	}
+
 private:
 	trx_t*		m_trx;
-	bool		m_abort;
 };
 
 /** The latch protecting the adaptive search system */

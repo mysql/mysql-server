@@ -1608,9 +1608,14 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 {
 	trx->abort = true;
 
-	ut_ad(!(trx->in_innodb & TRX_ASYNC_ROLLBACK_IN_PROGRESS));
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK));
+	ut_ad(!(trx->in_innodb & TRX_FORCE_ROLLBACK_ASYNC));
 
-	trx->in_innodb |= TRX_ASYNC_ROLLBACK_IN_PROGRESS;
+	/* Note that we will attempt an async rollback. The _ASYNC
+	flag will be cleared if the transaction is rolled back
+	synchronously before we get a chance to do it. */
+
+	trx->in_innodb |= TRX_FORCE_ROLLBACK | TRX_FORCE_ROLLBACK_ASYNC;
 
 	ut_ad(trx->killed_by == 0);
 
@@ -1625,7 +1630,7 @@ RecLock::mark_trx_for_rollback(trx_t* trx)
 		char	buffer[1024];
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"Will terminate transaction: %s",
+			"Blocking transaction: %s",
 			thd_security_context(thd, buffer, sizeof(buffer), 512));
 	}
 }
@@ -1811,9 +1816,9 @@ RecLock::add_to_waitq(const lock_t* wait_for)
 				char	buffer[1024];
 				THD*	thd = victim_trx->mysql_thd;
 
-				ib_logf(IB_LOG_LEVEL_WARN,
+				ib_logf(IB_LOG_LEVEL_INFO,
 					"High priority transaction selected"
-					" as victim for rollback : %s",
+					" for rollback : %s",
 					thd_security_context(
 						thd, buffer, sizeof(buffer),
 				   		512));
@@ -4703,6 +4708,7 @@ struct	PrintNotStarted {
 		/* See state transitions and locking rules in trx0trx.h */
 
 		if (trx_state_eq(trx, TRX_STATE_NOT_STARTED)) {
+
 			fputs("---", m_file);
 			trx_print_latched(m_file, trx, 600);
 		}
@@ -6445,8 +6451,10 @@ lock_unlock_table_autoinc(
 	ut_ad(!lock_mutex_own());
 	ut_ad(!trx_mutex_own(trx));
 	ut_ad(!trx->lock.wait_lock);
+
 	/* This can be invoked on NOT_STARTED, ACTIVE, PREPARED,
 	but not COMMITTED transactions. */
+
 	ut_ad(trx_state_eq(trx, TRX_STATE_NOT_STARTED)
 	      || !trx_state_eq(trx, TRX_STATE_COMMITTED_IN_MEMORY));
 

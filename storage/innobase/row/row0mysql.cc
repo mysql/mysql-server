@@ -2692,6 +2692,8 @@ row_mysql_freeze_data_dictionary_func(
 	const char*	file,	/*!< in: file name */
 	ulint		line)	/*!< in: line number */
 {
+	ut_ad(trx_is_started(trx));
+
 	ut_a(trx->dict_operation_lock_mode == 0);
 
 	rw_lock_s_lock_inline(&dict_operation_lock, 0, file, line);
@@ -3093,13 +3095,15 @@ error_handling:
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(table_name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3195,13 +3199,15 @@ row_table_add_foreign_constraints(
 
 		trx->error_state = DB_SUCCESS;
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_rollback_to_savepoint(trx, NULL);
 		}
 
 		row_drop_table_for_mysql(name, trx, FALSE, true, handler);
 
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -3938,7 +3944,8 @@ row_drop_table_for_mysql(
 	}
 
 	/* This function is called recursively via fts_drop_tables(). */
-	if (trx->state == TRX_STATE_NOT_STARTED) {
+	if (!trx_is_started(trx)) {
+
 		if (!dict_table_is_temporary(table)) {
 			trx_start_for_ddl(trx, TRX_DICT_OP_TABLE);
 		} else {
@@ -4333,8 +4340,10 @@ row_drop_table_for_mysql(
 
 		if (dict_table_has_fts_index(table)
 		    || DICT_TF2_FLAG_IS_SET(table, DICT_TF2_FTS_HAS_DOC_ID)) {
+
 			ut_ad(table->n_ref_count == 0);
-			ut_ad(trx->state != TRX_STATE_NOT_STARTED);
+			ut_ad(trx_is_started(trx));
+
 			err = fts_drop_tables(trx, table);
 
 			if (err != DB_SUCCESS) {
@@ -4501,7 +4510,9 @@ funct_exit:
 	ut_free(filepath);
 
 	if (locked_dictionary) {
-		if (trx->state != TRX_STATE_NOT_STARTED) {
+
+		if (trx_is_started(trx)) {
+
 			trx_commit_for_mysql(trx);
 		}
 
@@ -5180,7 +5191,9 @@ row_rename_table_for_mysql(
 			/* If the first fts_rename fails, the trx would
 			be rolled back and committed, we can't use it any more,
 			so we have to start a new background trx here. */
+
 			ut_a(trx_state_eq(trx, TRX_STATE_NOT_STARTED));
+
 			trx_bg->op_info = "Revert the failing rename"
 					  " for fts aux tables";
 			trx_bg->dict_operation_lock_mode = RW_X_LATCH;
