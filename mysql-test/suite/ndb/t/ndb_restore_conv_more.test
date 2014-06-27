@@ -1,5 +1,6 @@
 -- source include/have_ndb.inc
 -- source include/not_embedded.inc
+-- source include/not_windows.inc
 
 --echo # bug#17275798
 # use a canned backup with NULL char(10) log entries promoted to char(20)
@@ -432,6 +433,90 @@ where x.a = y.a and x.b = y.b and x.c = y.c;
 
 drop table t1old;
 drop table t1;
+
+--echo # bug#18875137: ndb_restore type conversions
+
+--echo # run restore with lossy conversions
+create table text2text (pk int primary key, 
+                        t1 tinytext, t2 text, t3 mediumtext,
+                        t4 text, t5 text, t6 mediumtext)engine=ndb;
+insert into text2text values(1, 
+                        REPEAT("A",255), REPEAT("A",5000), REPEAT("A",65536),
+                        REPEAT("A",5000), REPEAT("A",5000), REPEAT("A",65537));
+insert into text2text values(2, "", "", "", "", "", "");
+# ensure that there is at least one NULL row per fragment so that ndb_restore output is predictable 
+insert into text2text values(3, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(4, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(5, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(6, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(7, 
+                        REPEAT(" -,.;",51), REPEAT(" -,.;",1000), REPEAT(" -,.;",2000),
+                        REPEAT(" -,.;",1000), REPEAT(" -,.;",1000), REPEAT(" -,.;",2001));
+insert into text2text values(8, 
+                        REPEAT("12345",51), REPEAT("12345",1000), REPEAT("12345",2000),
+                        REPEAT("12345",1000), REPEAT("12345",1000), REPEAT("12345",2001));
+insert into text2text values(9, 
+                        REPEAT("abcde",51), REPEAT("abcde",1000), REPEAT("abcde",2000),
+                        REPEAT("abcde",1000), REPEAT("abcde",1000), REPEAT("abcde",2001));
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+drop table text2text;
+create table text2text (pk int primary key, 
+                        t1 text, t2 mediumtext, t3 longtext,
+                        t4 mediumtext, t5 longtext, t6 longtext)engine=ndb;
+
+--echo # run restore
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+select sha1(t1), sha1(t2), sha1(t3), sha1(t4), sha1(t5), sha1(t6) from text2text order by pk;
+
+--echo # restore from larger TEXT to smaller TEXT columns
+drop table text2text;
+create table text2text (pk int primary key, 
+                        t1 tinytext, t2 tinytext, t3 text,
+                        t4 tinytext, t5 mediumtext, t6 text)engine=ndb;
+
+--echo # run restore
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo # ndb_restore fails with error 1
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo # ndb_restore fails with error 1
+
+--echo # restore NULL values into non-nullable columns 
+drop table text2text;
+create table text2text (pk int primary key, 
+                        t1 text not null, t2 mediumtext not null, t3 longtext not null,
+                        t4 mediumtext not null, t5 longtext not null, t6 longtext not null)engine=ndb;
+--echo # run restore
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo # ndb_restore fails with error 1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST1 >> $NDB_TOOLS_OUTPUT
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes --lossy-conversions $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo # ndb_restore fails with error 1
+--exec $NDB_DROP_TABLE --no-defaults -d test text2text\$ST2 >> $NDB_TOOLS_OUTPUT
+
+--echo # restore to text column with different charset 
+drop table text2text;
+create table text2text (pk int primary key, 
+                        t1 text character set utf8, t2 mediumtext character set utf8, t3 longtext character set utf8,
+                        t4 mediumtext character set utf8, t5 longtext character set utf8, t6 longtext character set utf8)engine=ndb;
+
+--echo # run restore
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 1 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo # ndb_restore fails with error 1
+--error 1
+--exec $NDB_RESTORE --no-defaults --core-file=0 -b $the_backup_id -n 2 -r --promote-attributes $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT 2>&1
+--echo # ndb_restore fails with error 1
+
+drop table text2text;
 
 --echo # drop tablespace
 

@@ -345,6 +345,14 @@ Ndb_move_data::check_tables()
         continue;
       }
 
+      if (attr1.type == Attr::TypeBlob &&
+          attr2.type == Attr::TypeBlob)
+      {
+        // TEXT and BLOB conversions
+        CHK1(check_sizes(attr1, attr2) == 0);
+        continue;
+      }
+
       CHK1(check_unsupported(attr1, attr2) == 0);
     }
     CHK1(ret == 0);
@@ -746,6 +754,7 @@ Ndb_move_data::copy_attr(const Attr& attr1, const Attr& attr2)
     if (attr1.type == Attr::TypeBlob &&
         attr2.type == Attr::TypeBlob)
     {
+      // handles TEXT and BLOB conversions 
       CHK1(copy_blob_to_blob(attr1, attr2) == 0);
       break;
     }

@@ -323,6 +323,11 @@ BackupRestore::m_allowed_promotion_attrs[] = {
   {NDBCOL::Text,           NDBCOL::Longvarchar,    check_compat_text_to_char,
    NULL},
 
+  // text to text promotions (uses staging table)
+  // required when part lengths of text columns are not equal 
+  {NDBCOL::Text,           NDBCOL::Text,           check_compat_text_to_text,
+   NULL},
+
   // integral promotions
   {NDBCOL::Tinyint,        NDBCOL::Smallint,       check_compat_promotion,
    convert_integral< Hint8, Hint16>},
@@ -3207,6 +3212,30 @@ BackupRestore::check_compat_text_to_char(const NDBCOL &old_col,
   }
   return ACT_STAGING_LOSSY;
 }
+
+AttrConvType
+BackupRestore::check_compat_text_to_text(const NDBCOL &old_col,
+                                         const NDBCOL &new_col)
+{
+  if(old_col.getCharset() != new_col.getCharset()) 
+  {
+    // conversions between charsets could be lossy
+    info << "Conversion between charsets not supported" << endl;
+    return ACT_UNSUPPORTED;
+  }
+  if(old_col.getPartSize() > new_col.getPartSize())
+  {
+    info << "Conversion from larger TEXT to smaller TEXT not supported" << endl;
+    return ACT_UNSUPPORTED;
+  }
+  if(old_col.getInlineSize() != new_col.getInlineSize()) 
+  {
+    info << "Conversion between TEXT/BLOB columns with different inline sizes not supported" << endl;
+    return ACT_UNSUPPORTED;
+  }
+  return ACT_STAGING_PRESERVING;
+}
+
 
 // ----------------------------------------------------------------------
 // explicit template instantiations

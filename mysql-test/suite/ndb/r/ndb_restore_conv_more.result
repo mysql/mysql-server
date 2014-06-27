@@ -388,6 +388,70 @@ count(*)
 3
 drop table t1old;
 drop table t1;
+# bug#18875137: ndb_restore type conversions
+# run restore with lossy conversions
+create table text2text (pk int primary key, 
+t1 tinytext, t2 text, t3 mediumtext,
+t4 text, t5 text, t6 mediumtext)engine=ndb;
+insert into text2text values(1, 
+REPEAT("A",255), REPEAT("A",5000), REPEAT("A",65536),
+REPEAT("A",5000), REPEAT("A",5000), REPEAT("A",65537));
+insert into text2text values(2, "", "", "", "", "", "");
+insert into text2text values(3, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(4, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(5, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(6, NULL, NULL, NULL, NULL, NULL, NULL);
+insert into text2text values(7, 
+REPEAT(" -,.;",51), REPEAT(" -,.;",1000), REPEAT(" -,.;",2000),
+REPEAT(" -,.;",1000), REPEAT(" -,.;",1000), REPEAT(" -,.;",2001));
+insert into text2text values(8, 
+REPEAT("12345",51), REPEAT("12345",1000), REPEAT("12345",2000),
+REPEAT("12345",1000), REPEAT("12345",1000), REPEAT("12345",2001));
+insert into text2text values(9, 
+REPEAT("abcde",51), REPEAT("abcde",1000), REPEAT("abcde",2000),
+REPEAT("abcde",1000), REPEAT("abcde",1000), REPEAT("abcde",2001));
+# run backup
+drop table text2text;
+create table text2text (pk int primary key, 
+t1 text, t2 mediumtext, t3 longtext,
+t4 mediumtext, t5 longtext, t6 longtext)engine=ndb;
+# run restore
+select sha1(t1), sha1(t2), sha1(t3), sha1(t4), sha1(t5), sha1(t6) from text2text order by pk;
+sha1(t1)	sha1(t2)	sha1(t3)	sha1(t4)	sha1(t5)	sha1(t6)
+2f6b037751fc940d3cc825eb7dcad6e28acab494	33e2a1918af3a4127b5a02cbfa7703061b52dc28	1f76c4b46e1ea5618431a77df20cd1cd33b77a7f	33e2a1918af3a4127b5a02cbfa7703061b52dc28	33e2a1918af3a4127b5a02cbfa7703061b52dc28	16a105a0f80039eab25771afb3e8a28f1552999c
+da39a3ee5e6b4b0d3255bfef95601890afd80709	da39a3ee5e6b4b0d3255bfef95601890afd80709	da39a3ee5e6b4b0d3255bfef95601890afd80709	da39a3ee5e6b4b0d3255bfef95601890afd80709	da39a3ee5e6b4b0d3255bfef95601890afd80709	da39a3ee5e6b4b0d3255bfef95601890afd80709
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL
+NULL	NULL	NULL	NULL	NULL	NULL
+2697c517db6fae70b9ca6cd85c43c8894258975d	2b16210b2c5d2a3b5a0f60f988a178acd71bfa9e	224a9fd951400cfbf2ce0e78b52ab64606bed6d1	2b16210b2c5d2a3b5a0f60f988a178acd71bfa9e	2b16210b2c5d2a3b5a0f60f988a178acd71bfa9e	585e2c54b65384b66072a230efe03a2d865c4cc6
+e88b912905a9080e03ce61aed203276901e1f779	e4ad7efe347c6f70c7f43415949b62b7a71cd4f2	2385f78f32bf94e81dbf7a934451756e3c2f7269	e4ad7efe347c6f70c7f43415949b62b7a71cd4f2	e4ad7efe347c6f70c7f43415949b62b7a71cd4f2	ec62efed101ed03c8e58c0587e45a728d170aecd
+7014ab2d306413cb78f77ab67ec2ee4edd70b64b	052a022499a04de5e03e6283306159db6f963f03	d403bae8cd77c825a74c948a652ed082d68d1e48	052a022499a04de5e03e6283306159db6f963f03	052a022499a04de5e03e6283306159db6f963f03	3cc801e39b33608a5300e1e2274339fa76c750c1
+# restore from larger TEXT to smaller TEXT columns
+drop table text2text;
+create table text2text (pk int primary key, 
+t1 tinytext, t2 tinytext, t3 text,
+t4 tinytext, t5 mediumtext, t6 text)engine=ndb;
+# run restore
+# ndb_restore fails with error 1
+# ndb_restore fails with error 1
+# restore NULL values into non-nullable columns 
+drop table text2text;
+create table text2text (pk int primary key, 
+t1 text not null, t2 mediumtext not null, t3 longtext not null,
+t4 mediumtext not null, t5 longtext not null, t6 longtext not null)engine=ndb;
+# run restore
+# ndb_restore fails with error 1
+# ndb_restore fails with error 1
+# restore to text column with different charset 
+drop table text2text;
+create table text2text (pk int primary key, 
+t1 text character set utf8, t2 mediumtext character set utf8, t3 longtext character set utf8,
+t4 mediumtext character set utf8, t5 longtext character set utf8, t6 longtext character set utf8)engine=ndb;
+# run restore
+# ndb_restore fails with error 1
+# ndb_restore fails with error 1
+drop table text2text;
 # drop tablespace
 alter tablespace ts1
 drop datafile 'datafile1.dat'
