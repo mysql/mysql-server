@@ -59,7 +59,7 @@ Created 9/20/1997 Heikki Tuuri
 
 
 /** This is set to FALSE if the backup was originally taken with the
-ibbackup --include regexp option: then we do not want to create tables in
+mysqlbackup --include regexp option: then we do not want to create tables in
 directories which were not included */
 UNIV_INTERN ibool	recv_replay_file_ops	= TRUE;
 #endif /* !UNIV_HOTBACKUP */
@@ -2056,7 +2056,7 @@ recv_apply_log_recs_for_backup(void)
 
 			/* Extend the tablespace's last file if the page_no
 			does not fall inside its bounds; we assume the last
-			file is auto-extending, and ibbackup copied the file
+			file is auto-extending, and mysqlbackup copied the file
 			when it still was smaller */
 
 			success = fil_extend_space_to_desired_size(
@@ -2427,10 +2427,10 @@ loop:
 #ifdef UNIV_HOTBACKUP
 			if (recv_replay_file_ops) {
 
-				/* In ibbackup --apply-log, replay an .ibd file
-				operation, if possible; note that
-				fil_path_to_mysql_datadir is set in ibbackup to
-				point to the datadir we should use there */
+				/* In mysqlbackup --apply-log, replay an .ibd
+				file operation, if possible; note that
+				fil_path_to_mysql_datadir is set in mysqlbackup
+				to point to the datadir we should use there */
 
 				if (NULL == fil_op_log_parse_or_replay(
 					    body, end_ptr, type,
@@ -3090,17 +3090,17 @@ recv_recovery_from_checkpoint_start_func(
 		if (srv_read_only_mode) {
 
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Cannot restore from ibbackup, InnoDB running "
-				"in read-only mode!");
+				"Cannot restore from mysqlbackup, InnoDB "
+				"running in read-only mode!");
 
 			return(DB_ERROR);
 		}
 
-		/* This log file was created by ibbackup --restore: print
+		/* This log file was created by mysqlbackup --restore: print
 		a note to the user about it */
 
 		ib_logf(IB_LOG_LEVEL_INFO,
-			"The log file was created by ibbackup --apply-log "
+			"The log file was created by mysqlbackup --apply-log "
 			"at %s. The following crash recovery is part of a "
 			"normal restore.",
 			log_hdr_buf + LOG_FILE_WAS_CREATED_BY_HOT_BACKUP);

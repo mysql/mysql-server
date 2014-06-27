@@ -447,7 +447,7 @@ buf_page_create(
 	mtr_t*	mtr);	/*!< in: mini-transaction handle */
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
-Inits a page to the buffer buf_pool, for use in ibbackup --restore. */
+Inits a page to the buffer buf_pool, for use in mysqlbackup --restore. */
 UNIV_INTERN
 void
 buf_page_init_for_backup_restore(
