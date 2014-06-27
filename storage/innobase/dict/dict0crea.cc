@@ -1932,7 +1932,8 @@ dict_create_add_foreigns_to_dictionary(
 exit_loop:
 	trx->op_info = "committing foreign key definitions";
 
-	if (trx->state != TRX_STATE_NOT_STARTED) {
+	if (trx_is_started(trx)) {
+
 		trx_commit(trx);
 	}
 
