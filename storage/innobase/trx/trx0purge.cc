@@ -289,9 +289,9 @@ trx_purge_sys_close(void)
 	rw_lock_free(&purge_sys->latch);
 	mutex_free(&purge_sys->pq_mutex);
 
-	if (purge_sys->purge_queue) {
-		delete purge_sys->purge_queue;
-		purge_sys->purge_queue = 0;
+	if (purge_sys->purge_queue != NULL) {
+		UT_DELETE(purge_sys->purge_queue);
+		purge_sys->purge_queue = NULL;
 	}
 
 	os_event_destroy(purge_sys->event);
