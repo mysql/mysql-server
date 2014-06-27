@@ -113,7 +113,7 @@ completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and ibbackup it is not the default
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 const char*	fil_path_to_mysql_datadir	= ".";
 
@@ -2431,8 +2431,8 @@ fil_recreate_tablespace(
 If desired, also replays the delete or rename operation if the .ibd file
 exists and the space id in it matches.
 
-Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
-datadir that we should use in replaying the file operations.
+Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
+the datadir that we should use in replaying the file operations.
 
 InnoDB recovery does not replay MLOG_FILE_DELETE; MySQL Enterprise Backup does.
 
@@ -2486,11 +2486,11 @@ fil_op_log_parse_or_replay(
 	file operations if recv_replay_file_ops holds. */
 
 	/* Let us try to perform the file operation, if sensible. Note that
-	ibbackup has at this stage already read in all space id info to the
+	mysqlbackup has at this stage already read in all space id info to the
 	fil0fil.cc data structures.
 
 	NOTE that our algorithm is not guaranteed to work correctly if there
-	were renames of tables during the backup. See ibbackup code for more
+	were renames of tables during the backup. See mysqlbackup code for more
 	on the problem. */
 
 	switch (type) {
@@ -4263,7 +4263,7 @@ fil_load_single_table_tablespace(
 			<< "_ibbackup_old_vers_<timestamp> because its size"
 			<< size " is too small (< 4 pages 16 kB each), or the"
 			" space id in the file header is not sensible. This can"
-			" happen in an ibbackup run, and is not dangerous.";
+			" happen in an mysqlbackup run, and is not dangerous.";
 		file.close();
 
 		new_path = fil_make_ibbackup_old_name(filename);
@@ -4294,7 +4294,8 @@ fil_load_single_table_tablespace(
 			"Renaming data file '%s' with space ID " ULINTPF " to"
 			" %s_ibbackup_old_vers_<timestamp> because space %s"
 			" with the same id was scanned earlier. This can happen"
-			" if you have renamed tables during an ibbackup run.",
+			" if you have renamed tables during an mysqlbackup"
+			" run.",
 			filename, space_id, file.name(), space->name);
 		file.close();
 
@@ -4868,9 +4869,9 @@ retry:
 #ifdef UNIV_HOTBACKUP
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
-ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be applied, but that may have left spaces still too small compared to
-the size stored in the space header. */
+mysqlbackup --apply-log phase we extended the spaces on-demand so that log
+records could be applied, but that may have left spaces still too small
+compared to the size stored in the space header. */
 
 void
 fil_extend_tablespaces_to_stored_len(void)
@@ -5378,7 +5379,7 @@ fil_io(
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
 #ifdef UNIV_HOTBACKUP
-	/* In ibbackup do normal i/o, not aio */
+	/* In mysqlbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset, len);
 	} else {
