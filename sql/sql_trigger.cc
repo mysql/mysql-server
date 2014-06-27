@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -735,18 +735,24 @@ bool Table_triggers_list::create_trigger(THD *thd, TABLE_LIST *tables,
   */
   old_field= new_field= table->field;
 
-  for (Item_trigger_field *trg_field= lex->sphead->m_trg_table_fields.first;
-       trg_field; trg_field= trg_field->next_trg_field)
+  for (SQL_I_List<Item_trigger_field> *trig_field_list=
+         lex->sphead->m_list_of_trig_fields_item_lists.first;
+      trig_field_list;
+      trig_field_list= trig_field_list->first->next_trig_field_list)
   {
-    /*
-      NOTE: now we do not check privileges at CREATE TRIGGER time. This will
-      be changed in the future.
-    */
-    trg_field->setup_field(thd, table, NULL);
+    for (Item_trigger_field *trg_field= trig_field_list->first;
+         trg_field; trg_field= trg_field->next_trg_field)
+    {
+      /*
+        NOTE: now we do not check privileges at CREATE TRIGGER time. This will
+        be changed in the future.
+      */
+      trg_field->setup_field(thd, table, NULL);
 
-    if (!trg_field->fixed &&
-        trg_field->fix_fields(thd, (Item **)0))
-      return 1;
+      if (!trg_field->fixed &&
+          trg_field->fix_fields(thd, (Item **)0))
+        return 1;
+    }
   }
 
   /*
@@ -1555,12 +1561,18 @@ bool Table_triggers_list::check_n_load(THD *thd, const char *db,
           SELECT)...
           Anyway some things can be checked only during trigger execution.
         */
-        for (Item_trigger_field *trg_field= sp->m_trg_table_fields.first;
-             trg_field;
-             trg_field= trg_field->next_trg_field)
+        for (SQL_I_List<Item_trigger_field> *trig_field_list=
+               sp->m_list_of_trig_fields_item_lists.first;
+             trig_field_list;
+             trig_field_list= trig_field_list->first->next_trig_field_list)
         {
-          trg_field->setup_field(thd, table,
-            &triggers->subject_table_grants[trg_event][trg_action_time]);
+          for (Item_trigger_field *trg_field= trig_field_list->first;
+               trg_field;
+               trg_field= trg_field->next_trg_field)
+          {
+            trg_field->setup_field(thd, table,
+              &triggers->subject_table_grants[trg_event][trg_action_time]);
+          }
         }
 
         lex_end(&lex);
@@ -2243,15 +2255,21 @@ bool Table_triggers_list::is_fields_updated_in_trigger(MY_BITMAP *used_fields,
   sp_head *sp= bodies[event_type][action_time];
   DBUG_ASSERT(used_fields->n_bits == trigger_table->s->fields);
 
-  for (trg_field= sp->m_trg_table_fields.first; trg_field;
-       trg_field= trg_field->next_trg_field)
+  for (SQL_I_List<Item_trigger_field> *trig_field_list=
+         sp->m_list_of_trig_fields_item_lists.first;
+      trig_field_list;
+      trig_field_list= trig_field_list->first->next_trig_field_list)
   {
-    /* We cannot check fields which does not present in table. */
-    if (trg_field->field_idx != (uint)-1)
+    for (trg_field= trig_field_list->first; trg_field;
+         trg_field= trg_field->next_trg_field)
     {
-      if (bitmap_is_set(used_fields, trg_field->field_idx) &&
-          trg_field->get_settable_routine_parameter())
-        return true;
+      /* We cannot check fields which does not present in table. */
+      if (trg_field->field_idx != (uint)-1)
+      {
+        if (bitmap_is_set(used_fields, trg_field->field_idx) &&
+            trg_field->get_settable_routine_parameter())
+          return true;
+      }
     }
   }
   return false;
@@ -2282,15 +2300,21 @@ void Table_triggers_list::mark_fields_used(trg_event_type event)
     if (!sp)
       continue;
 
-    for (trg_field= sp->m_trg_table_fields.first; trg_field;
-         trg_field= trg_field->next_trg_field)
+    for (SQL_I_List<Item_trigger_field> *trig_field_list=
+           sp->m_list_of_trig_fields_item_lists.first;
+         trig_field_list;
+         trig_field_list= trig_field_list->first->next_trig_field_list)
     {
-      /* We cannot mark fields which does not present in table. */
-      if (trg_field->field_idx != (uint)-1)
+      for (trg_field= trig_field_list->first; trg_field;
+           trg_field= trg_field->next_trg_field)
       {
-        bitmap_set_bit(trigger_table->read_set, trg_field->field_idx);
-        if (trg_field->get_settable_routine_parameter())
-          bitmap_set_bit(trigger_table->write_set, trg_field->field_idx);
+        /* We cannot mark fields which does not present in table. */
+        if (trg_field->field_idx != (uint)-1)
+        {
+          bitmap_set_bit(trigger_table->read_set, trg_field->field_idx);
+          if (trg_field->get_settable_routine_parameter())
+            bitmap_set_bit(trigger_table->write_set, trg_field->field_idx);
+        }
       }
     }
   }
