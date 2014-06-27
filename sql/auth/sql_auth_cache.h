@@ -206,7 +206,7 @@ class GRANT_COLUMN :public Sql_alloc
 public:
   char *column;
   ulong rights;
-  uint key_length;
+  size_t key_length;
   GRANT_COLUMN(String &c,  ulong y);
 };
 

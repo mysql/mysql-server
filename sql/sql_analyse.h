@@ -332,7 +332,7 @@ class select_analyse : public select_send
   field_info   **f_info, **f_end; //< bounds for column data accumulator array
   
   ha_rows      rows; //< counter of original SELECT query output rows
-  uint	       output_str_length; //< max.width for the Optimal_fieldtype column
+  size_t       output_str_length; //< max.width for the Optimal_fieldtype column
 
 public:
   const uint max_tree_elements; //< maximum number of distinct values per column

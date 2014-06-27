@@ -722,7 +722,7 @@ static inline int read_str_at_most_255_bytes(const char **buf,
   Transforms a string into "" or its expression in 0x... form.
 */
 
-char *str_to_hex(char *to, const char *from, uint len)
+char *str_to_hex(char *to, const char *from, size_t len)
 {
   if (len)
   {
@@ -748,7 +748,7 @@ append_query_string(THD *thd, const CHARSET_INFO *csinfo,
                     String const *from, String *to)
 {
   char *beg, *ptr;
-  uint32 const orig_len= to->length();
+  size_t const orig_len= to->length();
   if (to->reserve(orig_len + from->length()*2+3))
     return 1;
 
@@ -5159,7 +5159,7 @@ compare_errors:
       {
         if (actual_error == ER_SLAVE_IGNORED_TABLE)
         {
-          if (!slave_ignored_err_throttle.log(thd))
+          if (!slave_ignored_err_throttle.log())
             rli->report(INFORMATION_LEVEL, actual_error,
                         "Could not execute %s event. Detailed error: %s;"
                         " Error log throttle is enabled. This error will not be"
@@ -7735,7 +7735,7 @@ int User_var_log_event::pack_info(Protocol* protocol)
   size_t id_len= my_strmov_quoted_identifier(this->thd, quoted_id, name, name_len);
   quoted_id[id_len]= '\0';
   uint val_offset= 2 + id_len;
-  uint event_len= val_offset;
+  size_t event_len= val_offset;
 
   if (is_null)
   {
