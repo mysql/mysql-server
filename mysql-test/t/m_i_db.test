@@ -250,11 +250,20 @@ disconnect conn_root;
 use File::Path 'rmtree';
 $DDIR=$ENV{"MYSQL_TMP_DIR"}."/installdb_test";
 rmtree([ "$DDIR" ]);
-$filename=$ENV{"HOME"}."/.mysql_secret";
-$filename=$ENV{"MYSQL_TMP_DIR"}."/readpwd.inc";
-unlink $filename;
-$filename=$ENV{"MYSQL_TMP_DIR"}."/readpwdfilepath.txt";
-unlink $filename;
+$filename1=$ENV{"HOME"}."/.mysql_secret";
+$filename2=$ENV{"MYSQL_TMP_DIR"}."/readpwd.inc";
+$filename3=$ENV{"MYSQL_TMP_DIR"}."/readpwdfilepath.txt";
+$filename4=$ENV{"MYSQL_TMP_DIR"}."/secretfile.txt";
+$filename5=$ENV{"MYSQL_TMP_DIR"}."/m_i_db1.cnf";
+$filename6=$ENV{"MYSQL_TMP_DIR"}."/m_i_db2.cnf";
+$filename7=$ENV{"MYSQL_TMP_DIR"}."/m_i_db3.cnf";
+unlink $filename1;
+unlink $filename2;
+unlink $filename3;
+unlink $filename4;
+unlink $filename5;
+unlink $filename6;
+unlink $filename7;
 EOF
 --exec echo "restart:" > $MYSQLTEST_VARDIR/tmp/mysqld.1.expect
 --enable_reconnect
