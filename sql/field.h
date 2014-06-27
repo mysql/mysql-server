@@ -3584,7 +3584,7 @@ public:
     return TYPE_OK;
   }
   void reset_fields() { memset(&value, 0, sizeof(value)); }
-  uint32 get_field_buffer_size(void) { return value.alloced_length(); }
+  size_t get_field_buffer_size() { return value.alloced_length(); }
 #ifndef WORDS_BIGENDIAN
   static
 #endif
