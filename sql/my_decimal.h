@@ -402,14 +402,14 @@ inline int str2my_decimal(uint mask, const char *str,
 }
 
 
-int str2my_decimal(uint mask, const char *from, uint length,
+int str2my_decimal(uint mask, const char *from, size_t length,
                    const CHARSET_INFO *charset, my_decimal *decimal_value);
 
 #if defined(MYSQL_SERVER) || defined(EMBEDDED_LIBRARY)
 inline
 int string2my_decimal(uint mask, const String *str, my_decimal *d)
 {
-  return str2my_decimal(mask, str->ptr(), str->length(), str->charset(), d);
+  return str2my_decimal(mask, str->ptr(), (uint)str->length(), str->charset(), d);
 }
 
 
