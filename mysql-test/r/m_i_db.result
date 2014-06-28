@@ -46,7 +46,6 @@ mysql
 performance_schema
 test
 set password=password('');
-# Pass path of datadir where datadir does existed earlier with datafiles inside it. Start server and try to login with root credentials.
 # with --insecure where the file HOME/.mysql_secret is not there. Start server and try to login with root credentials
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
@@ -66,7 +65,6 @@ mysql
 performance_schema
 test
 set password=password('');
-# with --insecure and pass path of datadir where datadir does existed earlier with datafiles inside it. Start server and try to login with root credentials.
 # Check the behavior of the option --admin-user
 # Execution of mysql_install_db starts............
 # Execution of mysql_install_db ends..............
