@@ -152,6 +152,9 @@ public:
   bool opt_is_marked() const
   { return m_marked; }
 
+  virtual SQL_I_List<Item_trigger_field>* get_instr_trig_field_list()
+  { return NULL; }
+
 protected:
   /// Show if this instruction is reachable within the SP
   /// (used by SP-optimizer).
@@ -228,6 +231,9 @@ public:
     @return Error status.
   */
   bool validate_lex_and_execute_core(THD *thd, uint *nextp, bool open_tables);
+
+  virtual SQL_I_List<Item_trigger_field>* get_instr_trig_field_list()
+  { return &m_trig_field_list; }
 
 private:
   /**
@@ -408,6 +414,11 @@ private:
     statement enters/leaves prelocked mode on its own.
   */
   TABLE_LIST **m_lex_query_tables_own_last;
+
+  /**
+    List of all the Item_trigger_field's of instruction.
+  */
+  SQL_I_List<Item_trigger_field> m_trig_field_list;
 };
 
 ///////////////////////////////////////////////////////////////////////////
