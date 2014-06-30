@@ -722,6 +722,12 @@ ut_delete_array(
 #define ut_zalloc(n_bytes) \
 	ut_malloc_low(n_bytes, true, PSI_NOT_INSTRUMENTED)
 
+#define ut_realloc(ptr, n_bytes) \
+	({ \
+		ut_free(ptr); \
+	 	ut_malloc(n_bytes); \
+	 })
+
 #define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate(ptr)
 
 #else /* UNIV_PFS_MEMORY */
@@ -743,6 +749,8 @@ ut_delete_array(
 #define ut_malloc(n_bytes) 		::malloc(n_bytes)
 
 #define ut_zalloc(n_bytes)		::calloc(1, n_bytes)
+
+#define ut_realloc(ptr, n_bytes)	::realloc(ptr, n_bytes)
 
 #define ut_free(ptr)			::free(ptr)
 

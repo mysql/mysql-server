@@ -35,54 +35,6 @@ Created 5/11/1994 Heikki Tuuri
 # include <stdlib.h>
 #endif /* !UNIV_HOTBACKUP */
 
-/** The number of attempts to make when trying to allcate memory, pausing
-for 1 second between attempts to allow some memory to be freed. */
-static const int	max_attempts = 60;
-
-#ifndef UNIV_HOTBACKUP
-/** Wrapper for realloc().
-@param[in,out]	ptr	pointer to old memory block or NULL
-@param[in]	size	desired size
-@return own: pointer to new memory block or NULL */
-
-void*
-ut_realloc(
-	void*	ptr,
-	ulint	size)
-{
-	if (size == 0) {
-		free(ptr);
-		return(NULL);
-	}
-
-	void*	new_ptr = realloc(ptr, size);
-
-	for (int retry = 1; ; retry++) {
-		if (new_ptr != NULL) {
-			return(new_ptr);
-		}
-		if (retry > max_attempts) {
-			break;
-		}
-
-		/* Sleep for a second and retry the re-allocation;
-		maybe this is just a temporary shortage of memory */
-
-		os_thread_sleep(1000000);
-
-		new_ptr = realloc(ptr, size);
-	}
-
-	ib_logf(IB_LOG_LEVEL_FATAL,
-		"Cannot re-allocate " ULINTPF " bytes of memory after %d"
-		" tries over %d seconds. OS error: %d-%s. %s",
-		size, max_attempts, max_attempts,
-		errno, strerror(errno), OUT_OF_MEMORY_MSG);
-
-	return(NULL);
-}
-#endif /* !UNIV_HOTBACKUP */
-
 /**********************************************************************//**
 Copies up to size - 1 characters from the NUL-terminated string src to
 dst, NUL-terminating the result. Returns strlen(src), so truncation

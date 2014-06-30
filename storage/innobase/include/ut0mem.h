@@ -67,18 +67,6 @@ UNIV_INLINE
 int
 ut_memcmp(const void* str1, const void* str2, ulint n);
 
-#ifndef UNIV_HOTBACKUP
-/** Wrapper for realloc().
-@param[in,out]	ptr	Pointer to old block or NULL
-@param[in]	size	Desired size
-@return own: pointer to new mem block or NULL */
-
-void*
-ut_realloc(
-	void*	ptr,
-	ulint	size);
-#endif /* !UNIV_HOTBACKUP */
-
 /** Wrapper for strcpy(3).  Copy a NUL-terminated string.
 @param[in,out]	dest	Destination to copy to
 @param[in]	src	Source to copy from
