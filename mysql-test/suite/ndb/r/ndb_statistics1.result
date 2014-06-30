@@ -83,7 +83,7 @@ SELECT * FROM t10000 AS x JOIN t10000 AS y
 ON y.i=x.i AND y.j = x.i;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
 1	SIMPLE	x	p0	ALL	I	NULL	NULL	NULL	10000	100.00	Parent of 2 pushed join@1; Using where with pushed condition (`test`.`x`.`I` is not null)
-1	SIMPLE	y	p0	ref	J,I	J	5	test.x.I	1	100.00	Child of 'x' in pushed join@1; Using where
+1	SIMPLE	y	p0	ref	J,I	J	5	test.x.I	1	5.00	Child of 'x' in pushed join@1; Using where
 Warnings:
 Note	1003	/* select#1 */ select `test`.`x`.`K` AS `K`,`test`.`x`.`I` AS `I`,`test`.`x`.`J` AS `J`,`test`.`y`.`K` AS `K`,`test`.`y`.`I` AS `I`,`test`.`y`.`J` AS `J` from `test`.`t10000` `x` join `test`.`t10000` `y` where ((`test`.`y`.`I` = `test`.`x`.`I`) and (`test`.`y`.`J` = `test`.`x`.`I`))
 EXPLAIN
@@ -137,7 +137,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J = 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	100.00	Using where with pushed condition (`test`.`t10000`.`I` = 0)
+1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	2.50	Using where with pushed condition (`test`.`t10000`.`I` = 0)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`I` = 0))
 EXPLAIN
@@ -155,7 +155,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J < 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	range	J,I	J	5	NULL	2	100.00	Using where with pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` < 1)); Using MRR
+1	SIMPLE	t10000	p0	range	J,I	J	5	NULL	2	2.50	Using where with pushed condition ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` < 1)); Using MRR
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`I` = 0) and (`test`.`t10000`.`J` < 1))
 EXPLAIN
@@ -167,7 +167,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE I = 0 AND J = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	100.00	Using where with pushed condition (`test`.`t10000`.`I` = 0)
+1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	2.50	Using where with pushed condition (`test`.`t10000`.`I` = 0)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 1) and (`test`.`t10000`.`I` = 0))
 EXPLAIN
@@ -185,7 +185,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0 AND K < 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	PRIMARY,J	J	5	const	2	100.00	Using where with pushed condition (`test`.`t10000`.`K` < 1)
+1	SIMPLE	t10000	p0	ref	PRIMARY,J	J	5	const	2	2.50	Using where with pushed condition (`test`.`t10000`.`K` < 1)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 0) and (`test`.`t10000`.`K` < 1))
 EXPLAIN
@@ -197,7 +197,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 0 AND K = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	eq_ref	PRIMARY,J	PRIMARY	4	const	1	100.00	Using where with pushed condition (`test`.`t10000`.`J` = 0)
+1	SIMPLE	t10000	p0	eq_ref	PRIMARY,J	PRIMARY	4	const	1	5.00	Using where with pushed condition (`test`.`t10000`.`J` = 0)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`K` = 1) and (`test`.`t10000`.`J` = 0))
 EXPLAIN
@@ -209,7 +209,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE I <> 0 AND J = 1;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	100.00	Using where with pushed condition (`test`.`t10000`.`I` <> 0)
+1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	99.02	Using where with pushed condition (`test`.`t10000`.`I` <> 0)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 1) and (`test`.`t10000`.`I` <> 0))
 EXPLAIN
@@ -227,7 +227,7 @@ Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` A
 EXPLAIN
 SELECT * FROM t10000 WHERE J = 1 AND I <> 0;
 id	select_type	table	partitions	type	possible_keys	key	key_len	ref	rows	filtered	Extra
-1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	100.00	Using where with pushed condition (`test`.`t10000`.`I` <> 0)
+1	SIMPLE	t10000	p0	ref	J,I	J	5	const	2	99.02	Using where with pushed condition (`test`.`t10000`.`I` <> 0)
 Warnings:
 Note	1003	/* select#1 */ select `test`.`t10000`.`K` AS `K`,`test`.`t10000`.`I` AS `I`,`test`.`t10000`.`J` AS `J` from `test`.`t10000` where ((`test`.`t10000`.`J` = 1) and (`test`.`t10000`.`I` <> 0))
 EXPLAIN
