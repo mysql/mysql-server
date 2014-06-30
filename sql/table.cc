@@ -5766,9 +5766,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
-
-  // optim_join_cond() may point to freed memory of previous execution.
-  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*
