@@ -2485,13 +2485,15 @@ public:
   bool              tx_read_only;
   /*
     Transaction cannot be rolled back must be given priority.
+    When two transactions conflict inside InnoDB, the one with
+    greater priority wins. 
   */
-  bool		    tx_priority;
+  int tx_priority;
   /*
     All transactions executed by this thread will have high
-    priority, independent of tx_priority value.
+    priority mode, independent of tx_priority value.
   */
-  bool thd_tx_priority;
+  int thd_tx_priority;
 
   enum_check_fields count_cuted_fields;
 
