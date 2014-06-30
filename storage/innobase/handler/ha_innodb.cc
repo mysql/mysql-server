@@ -4585,13 +4585,11 @@ innobase_build_index_translation(
 
 	/* The number of index increased, rebuild the mapping table */
 	if (mysql_num_index > share->idx_trans_tbl.array_size) {
-		index_mapping = (dict_index_t**) my_realloc(PSI_INSTRUMENT_ME,
-                                                            index_mapping,
-							mysql_num_index *
-							sizeof(*index_mapping),
-							MYF(MY_ALLOW_ZERO_PTR));
+		index_mapping = (dict_index_t**) ut_realloc(
+			index_mapping,
+			mysql_num_index * sizeof(*index_mapping));
 
-		if (!index_mapping) {
+		if (index_mapping == NULL) {
 			/* Report an error if index_mapping continues to be
 			NULL and mysql_num_index is a non-zero value */
 			sql_print_error("InnoDB: fail to allocate memory for"
@@ -4616,7 +4614,7 @@ innobase_build_index_translation(
 		index_mapping[count] = dict_table_get_index_on_name(
 			ib_table, table->key_info[count].name);
 
-		if (!index_mapping[count]) {
+		if (index_mapping[count] == 0) {
 			sql_print_error("Cannot find index %s in InnoDB"
 					" index dictionary.",
 					table->key_info[count].name);
@@ -4642,7 +4640,7 @@ innobase_build_index_translation(
 func_exit:
 	if (!ret) {
 		/* Build translation table failed. */
-		my_free(index_mapping);
+		ut_free(index_mapping);
 
 		share->idx_trans_tbl.array_size = 0;
 		share->idx_trans_tbl.index_count = 0;
@@ -4674,7 +4672,7 @@ innobase_index_lookup(
 	uint		keynr)	/*!< in: index number for the requested
 				index */
 {
-	if (!share->idx_trans_tbl.index_mapping
+	if (share->idx_trans_tbl.index_mapping == NULL
 	    || keynr >= share->idx_trans_tbl.index_count) {
 		return(NULL);
 	}
@@ -7653,7 +7651,7 @@ ha_innobase::innobase_get_index(
 			/* Can't find index with keynr in the translation
 			table. Only print message if the index translation
 			table exists */
-			if (share->idx_trans_tbl.index_mapping) {
+			if (share->idx_trans_tbl.index_mapping != NULL) {
 				sql_print_warning("InnoDB could not find"
 						  " index %s key no %u for"
 						  " table %s through its"
@@ -11128,7 +11126,7 @@ innobase_get_mysql_key_number_for_index(
 
 	/* If index translation table exists, we will first check
 	the index through index translation table for a match. */
-	if (share->idx_trans_tbl.index_mapping) {
+	if (share->idx_trans_tbl.index_mapping != NULL) {
 		for (i = 0; i < share->idx_trans_tbl.index_count; i++) {
 			if (share->idx_trans_tbl.index_mapping[i] == index) {
 				return(i);
@@ -13141,7 +13139,7 @@ free_share(
 		thr_lock_delete(&share->lock);
 
 		/* Free any memory from index translation table */
-		my_free(share->idx_trans_tbl.index_mapping);
+		ut_free(share->idx_trans_tbl.index_mapping);
 
 		my_free(share);
 
