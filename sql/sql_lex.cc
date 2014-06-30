@@ -2729,7 +2729,7 @@ static void print_table_array(THD *thd, String *str, TABLE_LIST **table,
 
     // Print join condition
     Item *const cond=
-      (curr->select_lex->join && curr->optim_join_cond() != (Item*)1) ?
+      (curr->select_lex->join && curr->select_lex->join->optimized) ?
       curr->optim_join_cond() : curr->join_cond();
     if (cond)
     {
@@ -3042,7 +3042,7 @@ void st_select_lex::print(THD *thd, String *str, enum_query_type query_type)
 
   // Where
   Item *const cur_where=
-    (join && join->where_cond != (Item*)1) ? join->where_cond : m_where_cond;
+    (join && join->optimized) ? join->where_cond : m_where_cond;
 
   if (cur_where || cond_value != Item::COND_UNDEF)
   {
@@ -4219,6 +4219,12 @@ bool SELECT_LEX::get_optimizable_conditions(THD *thd,
                                             Item **new_where,
                                             Item **new_having)
 {
+  /*
+    We want to guarantee that
+    join->optimized is true => conditions are ready for reading.
+    So if we are here, this should hold:
+  */
+  DBUG_ASSERT(!(join && join->optimized));
   if (m_where_cond && !thd->stmt_arena->is_conventional())
   {
     *new_where= m_where_cond->copy_andor_structure(thd);

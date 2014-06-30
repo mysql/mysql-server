@@ -25,6 +25,8 @@
 #include "sql_class.h"
 #include "my_global.h"
 
+using std::list;
+
 pthread_t compress_thread_id= 0;
 static bool terminate_compress_thread= false;
 static bool should_compress= false;
