@@ -28,6 +28,7 @@ PSI_memory_key key_memory_Gtid_set_Interval_chunk;
 
 using std::min;
 using std::max;
+using std::list;
 
 const Gtid_set::String_format Gtid_set::default_string_format=
 {
