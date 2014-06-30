@@ -53,7 +53,7 @@ class page_id_t;
 typedef std::list<const char*> space_name_list_t;
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and ibbackup it is not the default
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 extern const char*	fil_path_to_mysql_datadir;
 
@@ -484,8 +484,8 @@ fil_recreate_tablespace(
 If desired, also replays the delete or rename operation if the .ibd file
 exists and the space id in it matches.
 
-Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
-datadir that we should use in replaying the file operations.
+Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
+the datadir that we should use in replaying the file operations.
 
 InnoDB recovery does not replay MLOG_FILE_DELETE; MySQL Enterprise Backup does.
 
@@ -765,9 +765,9 @@ fil_space_for_table_exists_in_mem(
 #else /* !UNIV_HOTBACKUP */
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
-ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be appllied, but that may have left spaces still too small compared to
-the size stored in the space header. */
+mysqlbackup --apply-log phase we extended the spaces on-demand so that log
+records could be appllied, but that may have left spaces still too small
+compared to the size stored in the space header. */
 
 void
 fil_extend_tablespaces_to_stored_len(void);

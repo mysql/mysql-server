@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or
    modify it under the terms of the GNU General Public License as
@@ -23,11 +23,10 @@
 PSI_memory_key key_memory_Sid_map_Node;
 
 Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
-  : sid_lock(_sid_lock)
+  : sid_lock(_sid_lock),
+    _sidno_to_sid(key_memory_Sid_map_Node), _sorted(key_memory_Sid_map_Node)
 {
   DBUG_ENTER("Sid_map::Sid_map");
-  my_init_dynamic_array(&_sidno_to_sid, sizeof(Node *), 8, 8);
-  my_init_dynamic_array(&_sorted, sizeof(rpl_sidno), 8, 8);
   my_hash_init(&_sid_to_sidno, &my_charset_bin, 20,
                offsetof(Node, sid.bytes), Uuid::BYTE_LENGTH, NULL,
                my_free, 0);
@@ -38,8 +37,6 @@ Sid_map::Sid_map(Checkable_rwlock *_sid_lock)
 Sid_map::~Sid_map()
 {
   DBUG_ENTER("Sid_map::~Sid_map");
-  delete_dynamic(&_sidno_to_sid);
-  delete_dynamic(&_sorted);
   my_hash_free(&_sid_to_sidno);
   DBUG_VOID_RETURN;
 }
@@ -130,9 +127,9 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
 
   node->sidno= sidno;
   node->sid= sid;
-  if (insert_dynamic(&_sidno_to_sid, &node) == 0)
+  if (!_sidno_to_sid.push_back(node))
   {
-    if (insert_dynamic(&_sorted, &sidno) == 0)
+    if (!_sorted.push_back(sidno))
     {
       if (my_hash_insert(&_sid_to_sidno, (uchar *)node) == 0)
       {
@@ -148,13 +145,11 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
           // We have added one element to the end of _sorted.  Now we
           // bubble it down to the sorted position.
           int sorted_i= sidno - 1;
-          rpl_sidno *prev_sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                    rpl_sidno *);
+          rpl_sidno *prev_sorted_p= &_sorted[sorted_i];
           sorted_i--;
           while (sorted_i >= 0)
           {
-            rpl_sidno *sorted_p= dynamic_element(&_sorted, sorted_i,
-                                                 rpl_sidno *);
+            rpl_sidno *sorted_p= &_sorted[sorted_i];
             const rpl_sid &other_sid= sidno_to_sid(*sorted_p);
             if (memcmp(sid.bytes, other_sid.bytes,
                        rpl_sid::BYTE_LENGTH) >= 0)
@@ -167,9 +162,9 @@ enum_return_status Sid_map::add_node(rpl_sidno sidno, const rpl_sid &sid)
           RETURN_OK;
         }
       }
-      pop_dynamic(&_sorted);
+      _sorted.pop_back();
     }
-    pop_dynamic(&_sidno_to_sid);
+    _sidno_to_sid.pop_back();
   }
   my_free(node);
 

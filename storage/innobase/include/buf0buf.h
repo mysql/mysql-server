@@ -538,7 +538,7 @@ buf_page_create(
 
 #else /* !UNIV_HOTBACKUP */
 
-/** Inits a page to the buffer buf_pool, for use in ibbackup --restore.
+/** Inits a page to the buffer buf_pool, for use in mysqlbackup --restore.
 @param[in]	page_id		page id
 @param[in]	page_size	page size
 @param[in,out]	block		block to init */
