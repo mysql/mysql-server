@@ -660,11 +660,11 @@ toku_deserialize_ft_from(int fd,
 {
     struct rbuf rb_0;
     struct rbuf rb_1;
-    uint64_t checkpoint_count_0;
-    uint64_t checkpoint_count_1;
+    uint64_t checkpoint_count_0 = 0;
+    uint64_t checkpoint_count_1 = 0;
     LSN checkpoint_lsn_0;
     LSN checkpoint_lsn_1;
-    uint32_t version_0, version_1, version = 0;
+    uint32_t version_0 = 0, version_1 = 0, version = 0;
     bool h0_acceptable = false;
     bool h1_acceptable = false;
     struct rbuf *rb = NULL;
