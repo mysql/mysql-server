@@ -241,7 +241,8 @@ public:
 		PSI_memory_key	key = PSI_NOT_INSTRUMENTED)
 #ifdef UNIV_PFS_MEMORY
 		:
-		m_key(key)
+		m_key(key),
+		m_max_retries(60)
 #endif /* UNIV_PFS_MEMORY */
 	{
 	}
@@ -250,6 +251,10 @@ public:
 	template <class U>
 	ut_allocator(
 		const ut_allocator<U>&	other)
+#ifdef UNIV_PFS_MEMORY
+		:
+		m_max_retries(60)
+#endif /* UNIV_PFS_MEMORY */
 	{
 #ifdef UNIV_PFS_MEMORY
 		m_key = other.get_mem_key(NULL);
@@ -300,7 +305,6 @@ public:
 		}
 
 		void*			ptr;
-		static const size_t	max_retries = 60;
 		size_t			retries = 0;
 		size_t			total_bytes = n_elements * sizeof(T);
 
@@ -320,13 +324,13 @@ public:
 			}
 
 			retries++;
-		} while (ptr == NULL && retries < max_retries);
+		} while (ptr == NULL && retries < m_max_retries);
 
 		if (ptr == NULL) {
 			ib::fatal()
 				<< "Cannot allocate " << total_bytes
-				<< " bytes of memory after " << max_retries
-				<< " retries over " << max_retries
+				<< " bytes of memory after " << m_max_retries
+				<< " retries over " << m_max_retries
 				<< " seconds. OS error: " << strerror(errno)
 				<< " (" << errno << "). " << OUT_OF_MEMORY_MSG;
 			/* not reached */
@@ -409,6 +413,78 @@ public:
 	/* The following are custom methods, not required by the standard. */
 
 #ifdef UNIV_PFS_MEMORY
+
+	/** realloc(3)-like method.
+	The passed in ptr must have been returned by allocate() and the
+	pointer returned by this method must be passed to deallocate() when
+	no longer needed.
+	@param[in,out]	ptr		old pointer to reallocate
+	@param[in]	n_elements	new number of elements to allocate
+	@param[in]	file		file name of the caller
+	@return newly allocated memory */
+	void*
+	reallocate(
+		void*		ptr,
+		size_type	n_elements,
+		const char*	file)
+	{
+		if (n_elements == 0) {
+			deallocate(ptr);
+			return(NULL);
+		}
+
+		if (ptr == NULL) {
+			try {
+				/* allocate() must throw an exception upon
+				allocation failure to conform to the
+				standard. */
+				return(allocate(n_elements, NULL, file));
+			} catch (...) {
+				return(NULL);
+			}
+		}
+
+		if (n_elements > max_size()) {
+			return(NULL);
+		}
+
+		ut_new_pfx_t*	pfx_old;
+		ut_new_pfx_t*	pfx_new;
+		size_t		retries = 0;
+		size_t		total_bytes;
+
+		pfx_old = reinterpret_cast<ut_new_pfx_t*>(ptr) - 1;
+
+		total_bytes = n_elements * sizeof(T) + sizeof(ut_new_pfx_t);
+
+		do {
+			pfx_new = static_cast<ut_new_pfx_t*>(
+				realloc(pfx_old, total_bytes));
+
+			if (pfx_new == NULL) {
+				os_thread_sleep(1000000 /* 1 second */);
+			}
+
+			retries++;
+		} while (pfx_new == NULL && retries < m_max_retries);
+
+		if (pfx_new == NULL) {
+			ib::fatal()
+				<< "Cannot reallocate " << total_bytes
+				<< " bytes of memory after " << m_max_retries
+				<< " retries over " << m_max_retries
+				<< " seconds. OS error: " << strerror(errno)
+				<< " (" << errno << "). " << OUT_OF_MEMORY_MSG;
+			/* not reached */
+			return(NULL);
+		}
+
+		deallocate_trace(pfx_new);
+
+		allocate_trace(total_bytes, file, pfx_new);
+
+		return(reinterpret_cast<pointer>(pfx_new + 1));
+	}
 
 	/** Allocate, trace the allocation and construct 'n_elements' objects
 	of type 'T'. If the allocation fails or if some of the constructors
@@ -572,7 +648,11 @@ private:
 		PSI_MEMORY_CALL(memory_free)(pfx->m_key, pfx->m_size);
 	}
 
-	PSI_memory_key	m_key;
+	/** Performance schema key. */
+	PSI_memory_key		m_key;
+
+	/** Maximum number of retries to allocate memory. */
+	const size_t	m_max_retries;
 
 #endif /* UNIV_PFS_MEMORY */
 };
@@ -723,10 +803,8 @@ ut_delete_array(
 	ut_malloc_low(n_bytes, true, PSI_NOT_INSTRUMENTED)
 
 #define ut_realloc(ptr, n_bytes) \
-	({ \
-		ut_free(ptr); \
-	 	ut_malloc(n_bytes); \
-	 })
+	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).reallocate(ptr, n_bytes, \
+							    __FILE__)
 
 #define ut_free(ptr)	ut_allocator<byte>(PSI_NOT_INSTRUMENTED).deallocate(ptr)
 
