@@ -1786,11 +1786,13 @@ insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 
 # Replace mixedcase tablename to lowercase for portability
 --replace_result NodeAlias nodealias
+--replace_column 10 # 11 #
 explain select * from NodeAlias where (aliasKey LIKE '491803%'); 
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id; 
 
 # Replace mixedcase tablename to lowercase for portability
 --replace_result NodeAlias nodealias
+--replace_column 10 # 11 #
 explain select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220'); 
 select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id; 
 
@@ -2250,20 +2252,28 @@ select * from t where x in ("","aa","b");
 select * from t where x not in ("","aa","b");
 select * from t where x like "aa?";
 set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
 explain select * from t where x <> "aa";
 select * from t where x <> "aa";
+--replace_column 10 # 11 #
 explain select * from t where "aa" <> x;
 select * from t where "aa" <> x;
+--replace_column 10 # 11 #
 explain select * from t where x between "" and "bb";
 select * from t where x between "" and "bb";
+--replace_column 10 # 11 #
 explain select * from t where x not between "" and "bb";
 select * from t where x not between "" and "bb";
+--replace_column 10 # 11 #
 explain select * from t where x in ("","aa","b");
 select * from t where x in ("","aa","b");
+--replace_column 10 # 11 #
 explain select * from t where x not in ("","aa","b");
 select * from t where x not in ("","aa","b");
+--replace_column 10 # 11 #
 explain select * from t where x like "aa?";
 select * from t where x like "aa?";
+--replace_column 10 # 11 #
 explain select * from t where x not like "aa?";
 select * from t where x not like "aa?";
 select * from t where x like "%a%";
@@ -2278,8 +2288,10 @@ drop table t;
 create table t (pk int primary key, x int) engine = ndb;
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
 explain select * from t where 3 between 1+1 and x order by pk; 
 select * from t where 3 between 1+1 and x order by pk; 
+--replace_column 10 # 11 #
 explain select * from t where 3 between -1 and x order by pk; 
 select * from t where 3 between -1 and x order by pk; 
 drop table t;
@@ -2308,8 +2320,10 @@ create table tx (
   primary key (`a`,`b`)
 ) engine = ndb;
 
+--replace_column 10 # 11 #
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
+--replace_column 10 # 11 #
 explain extended
 select straight_join *
 from tx
@@ -2317,6 +2331,7 @@ from tx
  join tx as t3 on t3.a = tx.c and t3.b = tx.d
  join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 
+--replace_column 10 # 11 #
 explain extended
 select t2.c, count(distinct t2.a)
 from tx
@@ -2324,8 +2339,10 @@ join tx as t2 on tx.a = t2.c and tx.b = t2.d
 where t2.a = 4
 group by t2.c;
 
+--replace_column 10 # 11 #
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
+--replace_column 10 # 11 #
 explain extended
 select t2.c, count(distinct t2.a)
 from tx
@@ -2344,9 +2361,11 @@ create table subq (pk int, i int) engine = ndb;
 insert into subq values (1,3), (3,6), (6,9), (9,1);
 
 # 'Explain extended' to verify that only 'subq.i=3' is pushed
+--replace_column 10 # 11 #
 explain extended 
 select * from t where exists
   (select * from t as subq where subq.i=3 and t.i=3);
+--replace_column 10 # 11 #
 explain extended 
   select * from t where exists
     (select * from subq where subq.i=3 and t.i=3);
@@ -2437,8 +2456,10 @@ drop table t;
 create table escapetest ( emailaddress varchar(255) default null, id int not
 null default '0') engine=ndbcluster;
 insert into escapetest values('test_data@test.org', 1);
+--replace_column 10 # 11 #
 explain select * from escapetest where emailaddress like "test_%";
 select * from escapetest where emailaddress like "test_%";
+--replace_column 10 # 11 #
 explain select * from escapetest where emailaddress like "test|_%" escape '|';
 select * from escapetest where emailaddress like "test|_%" escape '|';
 drop table escapetest;
@@ -2451,6 +2472,7 @@ insert into a values ('abcdefg');
 
 select * from a;                        
 
+--replace_column 10 # 11 #
 explain extended select * from a where a like 'abcdefg%'; 
 
 select * from a where a like 'abcdefg%'; 
