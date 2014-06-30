@@ -1,6 +1,9 @@
-# T1= ({R(Z), R(B)})
-# T2= ({R(C), R(B), W(B)})
-# T3= ({R(B), W(B), C}, HIGH_PRIORITY)
+# Scenario:
+#  T1= ({R(Z), R(B)})
+#  T2= ({R(C), R(B), W(B)})
+#  T3= ({R(B), W(B), C}, HIGH_PRIORITY)
+#
+# Outcome: Wait for T1, abort T2 and commit T3.
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
@@ -30,8 +33,6 @@ UPDATE t1 SET c1=3 WHERE c1=0;
 --echo
 --echo # On connection 1
 --connection con1
---echo sleep
---sleep 3
 --error ER_ERROR_DURING_COMMIT
 COMMIT;
 
@@ -44,10 +45,21 @@ COMMIT;
 --echo # On connection 2
 --connection con2
 --reap
+--error ER_ERROR_DURING_COMMIT
 COMMIT;
 
 --connection default
---query_vertical SELECT * FROM t1
+--let $assert_text= 'There is a 3.0.0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 3 AND t1.c2 = 0 AND t1.c3 = 0, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is no 0.0.0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0 AND t1.c2 = 0 AND t1.c3 = 0, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no 2 in t1.c1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 0
+--source include/assert.inc
 
 DROP TABLE t1;
 
