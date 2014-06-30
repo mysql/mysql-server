@@ -4435,6 +4435,11 @@ public:
   enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
+  /*
+    Next list of Item_trigger_field's in "sp_head::
+    m_list_of_trig_fields_item_lists".
+  */
+  SQL_I_List<Item_trigger_field> *next_trig_field_list;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
   /* Pointer to an instance of Table_trigger_field_support interface */
@@ -4446,7 +4451,7 @@ public:
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     trigger_var_type(trigger_var_type_arg),
+     trigger_var_type(trigger_var_type_arg), next_trig_field_list(NULL),
      field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}
