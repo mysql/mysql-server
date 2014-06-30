@@ -2069,7 +2069,7 @@ err_exit:
 		}
 
 		/* Discard the uncompressed page frame if possible. */
-		if (buf_LRU_free_block(bpage, FALSE, &have_LRU_mutex)) {
+		if (buf_LRU_free_block(bpage, (void *)block_mutex, FALSE, &have_LRU_mutex)) {
 			if (have_LRU_mutex) {
 				mutex_exit(&buf_pool->LRU_list_mutex);
 				have_LRU_mutex = FALSE;
@@ -2843,7 +2843,7 @@ wait_until_unfixed:
 		insert buffer (change buffer) as much as possible. */
 		ulint	page_no	= buf_block_get_page_no(block);
 
-		if (buf_LRU_free_block(&block->page, TRUE, &have_LRU_mutex)) {
+		if (buf_LRU_free_block(&block->page, (void *)block_mutex, TRUE, &have_LRU_mutex)) {
 			mutex_exit(block_mutex);
 			if (mode == BUF_GET_IF_IN_POOL_OR_WATCH) {
 				/* Set the watch, as it would have

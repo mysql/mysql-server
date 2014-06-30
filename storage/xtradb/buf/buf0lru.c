@@ -957,6 +957,7 @@ buf_LRU_free_from_unzip_LRU_list(
 {
 	buf_block_t*	block;
 	ulint		distance;
+	ibool		taken_LRU_mutex = FALSE;
 
 	//ut_ad(buf_pool_mutex_own(buf_pool));
 
@@ -976,6 +977,12 @@ buf_LRU_free_from_unzip_LRU_list(
 	distance = 100 + (n_iterations
 			  * UT_LIST_GET_LEN(buf_pool->unzip_LRU)) / 5;
 
+	if (!*have_LRU_mutex) {
+		mutex_enter(&buf_pool->LRU_list_mutex);
+		taken_LRU_mutex = TRUE;
+		*have_LRU_mutex = TRUE;
+	}
+
 restart:
 	for (block = UT_LIST_GET_LAST(buf_pool->unzip_LRU);
 	     UNIV_LIKELY(block != NULL) && UNIV_LIKELY(distance > 0);
@@ -990,16 +997,28 @@ restart:
 			goto restart;
 		}
 
+		ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
+		ut_a(block->page.buf_pool_index < srv_buf_pool_instances);
 		ut_ad(buf_block_get_state(block) == BUF_BLOCK_FILE_PAGE);
 		ut_ad(block->in_unzip_LRU_list);
 		ut_ad(block->page.in_LRU_list);
 
-		freed = buf_LRU_free_block(&block->page, FALSE, have_LRU_mutex);
+		freed = buf_LRU_free_block(&block->page, (void *)&block->mutex, FALSE, have_LRU_mutex);
 		mutex_exit(&block->mutex);
 
 		if (freed) {
+
+			if (taken_LRU_mutex && *have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				*have_LRU_mutex = FALSE;
+			}
 			return(TRUE);
 		}
+	}
+
+	if (taken_LRU_mutex && *have_LRU_mutex) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		*have_LRU_mutex = FALSE;
 	}
 
 	return(FALSE);
@@ -1024,10 +1043,17 @@ buf_LRU_free_from_common_LRU_list(
 {
 	buf_page_t*	bpage;
 	ulint		distance;
+	ibool		taken_LRU_mutex = FALSE;
 
 	//ut_ad(buf_pool_mutex_own(buf_pool));
 
 	distance = 100 + (n_iterations * buf_pool->curr_size) / 10;
+
+	if (!*have_LRU_mutex) {
+		mutex_enter(&buf_pool->LRU_list_mutex);
+		taken_LRU_mutex = TRUE;
+		*have_LRU_mutex = TRUE;
+	}
 
 restart:
 	for (bpage = UT_LIST_GET_LAST(buf_pool->LRU);
@@ -1048,11 +1074,13 @@ restart:
 			goto restart;
 		}
 
+		ut_ad(mutex_own(&buf_pool->LRU_list_mutex));
 		ut_ad(buf_page_in_file(bpage));
 		ut_ad(bpage->in_LRU_list);
+		ut_a(bpage->buf_pool_index < srv_buf_pool_instances);
 
 		accessed = buf_page_is_accessed(bpage);
-		freed = buf_LRU_free_block(bpage, TRUE, have_LRU_mutex);
+		freed = buf_LRU_free_block(bpage, (void *)block_mutex, TRUE, have_LRU_mutex);
 		mutex_exit(block_mutex);
 
 		if (freed) {
@@ -1062,8 +1090,19 @@ restart:
 			if (!accessed) {
 				++buf_pool->stat.n_ra_pages_evicted;
 			}
+
+			if (taken_LRU_mutex && *have_LRU_mutex) {
+				mutex_exit(&buf_pool->LRU_list_mutex);
+				*have_LRU_mutex = FALSE;
+			}
+
 			return(TRUE);
 		}
+	}
+
+	if (taken_LRU_mutex && *have_LRU_mutex) {
+		mutex_exit(&buf_pool->LRU_list_mutex);
+		*have_LRU_mutex = FALSE;
 	}
 
 	return(FALSE);
@@ -1846,16 +1885,17 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
+	void*		block_mutex, /*!< in: block mutex or NULL */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
 	ibool*		have_LRU_mutex)
 {
 	buf_page_t*	b = NULL;
 	buf_pool_t*	buf_pool = buf_pool_from_bpage(bpage);
-	mutex_t*	block_mutex = buf_page_get_mutex(bpage);
+	//mutex_t*	block_mutex = buf_page_get_mutex(bpage);
 
 	//ut_ad(buf_pool_mutex_own(buf_pool));
-	ut_ad(mutex_own(block_mutex));
+	ut_ad(mutex_own((mutex_t*)block_mutex));
 	ut_ad(buf_page_in_file(bpage));
 	//ut_ad(bpage->in_LRU_list);
 	ut_ad(!bpage->in_flush_list == !bpage->oldest_modification);
@@ -1912,14 +1952,14 @@ alloc:
 #endif /* UNIV_DEBUG */
 
 	/* not to break latch order, must re-enter block_mutex */
-	mutex_exit(block_mutex);
+	mutex_exit((mutex_t*)block_mutex);
 
 	if (!*have_LRU_mutex) {
 		mutex_enter(&buf_pool->LRU_list_mutex); /* optimistic */
 		*have_LRU_mutex = TRUE;
 	}
 	rw_lock_x_lock(&buf_pool->page_hash_latch);
-	mutex_enter(block_mutex);
+	mutex_enter((mutex_t*)block_mutex);
 
 	/* recheck states of block */
 	if (!bpage->in_LRU_list || block_mutex != buf_page_get_mutex(bpage)
@@ -2071,7 +2111,7 @@ not_freed:
 			*have_LRU_mutex = FALSE;
 		}
 		rw_lock_x_unlock(&buf_pool->page_hash_latch);
-		mutex_exit(block_mutex);
+		mutex_exit((mutex_t*)block_mutex);
 
 		/* Remove possible adaptive hash index on the page.
 		The page was declared uninitialized by
@@ -2107,7 +2147,7 @@ not_freed:
 			mutex_enter(&buf_pool->LRU_list_mutex);
 			*have_LRU_mutex = TRUE;
 		}
-		mutex_enter(block_mutex);
+		mutex_enter((mutex_t*)block_mutex);
 
 		if (b) {
 			mutex_enter(&buf_pool->zip_mutex);
@@ -2126,8 +2166,8 @@ not_freed:
 		/* The block_mutex should have been released by
 		buf_LRU_block_remove_hashed_page() when it returns
 		BUF_BLOCK_ZIP_FREE. */
-		ut_ad(block_mutex == &buf_pool->zip_mutex);
-		mutex_enter(block_mutex);
+		ut_ad((mutex_t*)block_mutex == &buf_pool->zip_mutex);
+		mutex_enter((mutex_t*)block_mutex);
 
 		if (*have_LRU_mutex) {
 			mutex_exit(&buf_pool->LRU_list_mutex);

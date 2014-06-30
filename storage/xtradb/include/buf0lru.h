@@ -99,6 +99,7 @@ ibool
 buf_LRU_free_block(
 /*===============*/
 	buf_page_t*	bpage,	/*!< in: block to be freed */
+	void*		block_mutex, /*!< in: block mutex or NULL */
 	ibool		zip,	/*!< in: TRUE if should remove also the
 				compressed page of an uncompressed page */
 	ibool*		have_LRU_mutex)

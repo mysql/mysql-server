@@ -60,7 +60,7 @@ buf_pool_index(
 {
 	ulint	i = buf_pool - buf_pool_ptr;
 	ut_ad(i < MAX_BUFFER_POOLS);
-	ut_ad(i < srv_buf_pool_instances);
+	ut_a(i < srv_buf_pool_instances);
 	return(i);
 }
 
@@ -75,7 +75,7 @@ buf_pool_from_bpage(
 {
 	ulint	i;
 	i = bpage->buf_pool_index;
-	ut_ad(i < srv_buf_pool_instances);
+	ut_a(i < srv_buf_pool_instances);
 	return(&buf_pool_ptr[i]);
 }
 
@@ -1097,7 +1097,7 @@ buf_pool_from_array(
 				buffer pool instance from */
 {
 	ut_ad(index < MAX_BUFFER_POOLS);
-	ut_ad(index < srv_buf_pool_instances);
+	ut_a(index < srv_buf_pool_instances);
 	return(&buf_pool_ptr[index]);
 }
 
