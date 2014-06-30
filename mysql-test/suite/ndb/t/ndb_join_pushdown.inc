@@ -356,6 +356,7 @@ from t1
   straight_join t1 as t2 on t2.a = t1.b+0 and t2.b = t1.c
   straight_join t1 as t3 on t3.a = t1.b and t3.b = t2.b;
 
+--replace_column 10 # 11 #
 explain extended
 select *
 from t1
@@ -434,6 +435,7 @@ connection spj;
 set ndb_join_pushdown=true;
 
 # Table scan
+--replace_column 10 # 11 #
 explain extended select *
 from t1
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d
@@ -445,6 +447,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.d = 3;
 
 # Ordered index scan
+--replace_column 10 # 11 #
 explain extended select * 
 from t1 
 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
@@ -456,6 +459,7 @@ join t1 as t2 on t2.a = t1.c and t2.b = t1.d
 where t1.a > 2 and t1.d = 3;
 
 # Sorted scan of ordered index.
+--replace_column 10 # 11 #
 explain extended select * 
 from t1 join t1 as t2 on t2.a = t1.c and t2.b = t1.d 
 where t1.d = 3 
@@ -894,6 +898,7 @@ explain extended
     y.a=x.d and y.b=x.b;
 
 # 'open' range:
+--replace_column 10 # 11 #
 explain extended 
   select * from t1 x, t1 y where
     (x.a >= 2 or x.a < 3) and
@@ -1194,6 +1199,7 @@ insert into t1 select 1, x1.a * 10+x2.a, 1, 1 from tx as x1 cross join tx as x2;
 --error 0,1193
 set global debug='+d,max_64rows_in_spj_batches';
 
+--replace_column 10 # 11 #
 explain select count(*) from t1 as x1
   join t1 as x2 on x2.a = x1.c and x1.b < 2 
   join t1 as x3 on x3.a = x1.d;
@@ -1429,12 +1435,14 @@ where y.a3=x.d3 and y.b3=x.b3 and
       t1.a = z2.d3;
 
 # Table expressions wo/ parent-child linkage should *not* be executes as a pushed join:
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=0x1f and x.b = 0x1f;
 
 # NOTE: Due to constValue replacement in equality sets, query below are
 # effectively the same as the one above. -> Don't push either
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
 select straight_join * from t1 x, t1 y where y.a=x.b and x.b = 0x1f;
@@ -1832,6 +1840,7 @@ select straight_join *
   from t3 as x join t3 as y on x.b3 = y.b3
   where y.d3 = 0x2f;
 
+--replace_column 10 # 11 #
 explain extended
 select straight_join * 
   from t3 as x join t3 as y on x.c3 = y.c3
@@ -1861,6 +1870,7 @@ select straight_join *
 
 
 ## Not pushable as 'not null' is actually not a single const value
+--replace_column 10 # 11 #
 explain extended
 select straight_join * 
   from t3 as x join t3 as y on x.b3 = y.b3
@@ -1964,6 +1974,7 @@ connection ddl;
 drop index b3 on t3;
 
 connection spj;
+--replace_column 10 # 11 #
 execute stmt1;
 
 # Then recreate it -> original query plan
@@ -2057,6 +2068,7 @@ join t1 as t4 on t4.a = t3.b;
 
 set ndb_join_pushdown=true;
 
+--replace_column 10 # 11 #
 explain extended
 select *
 from t1
@@ -2089,6 +2101,7 @@ xor c > 5;
 ## to 't1.b' should not be pushed as outer referrences are outside
 ## the scope of our JOIN_TAB's
 ##############
+--replace_column 10 # 11 #
 explain extended
 select t1.a, (select straight_join x.a from t1 as x join t1 as y on x.a=y.b where y.a = t1.b) from t1;
 --sorted_result
@@ -2851,6 +2864,7 @@ let $spj_lookups = query_get_value(select sum(val) as Value from ndbinfo.counter
 
 # Root scan should give only one tuple if scan filter is pushed. 
 # Therefore only one lookup on 'y'.
+--replace_column 10 # 11 #
 explain extended select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
 select * from t1 x, t1 y where x.b=y.a and x.c=4;
@@ -2861,6 +2875,7 @@ select * from t1 x, t1 y where x.b=y.a and x.c=4;
 
 # Lookup on y should only give one result tuple if filter is pushed.
 # This should give 3 lookups on 'y' and 1 on 'z', 4 in all.
+--replace_column 10 # 11 #
 explain extended select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
 
 select * from t1 x, t1 y, t1 z where x.b=y.a and y.c=4 and y.b=z.a;
@@ -3011,7 +3026,7 @@ let $old_pruned_scan_count = query_get_value(show status like 'Ndb_pruned_scan_c
 
 # Should not give pruned scan. There will be two sets of bounds that have
 # different distribution keys (t1.a=10 and t1.a=12). 
-
+--replace_column 10 # 11 #
 explain extended select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 select count(*) from t1 t1, t1 t2 where (t1.a = 10 or t1.a=12) and t1.b<13 and t2.a = t1.c and t2.b = t1.c; 
 
@@ -3174,7 +3189,8 @@ connection spj;
 insert into t1 values (0,1,10,20);
 insert into t1 values (1,2,20,30);
 insert into t1 values (2,3,30,40);
-      
+
+--replace_column 10 # 11 #
 explain extended select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
 --sorted_result
 select * from t1 as x join t1 as y join t1 as z on x.u=y.pk and y.a=z.b;
@@ -3396,6 +3412,7 @@ select straight_join count(*) from t1 as x1
 # we had to force the child scan to be non-bushy (serialized by
 # adding artificial parent dependencies)
 # 
+--replace_column 10 # 11 #
 explain extended select straight_join count(*) from t1 as x1 
   join t1 as x2 on x2.b = x1.a
   join t1 as x3 on x3.b = x1.a
@@ -3614,6 +3631,7 @@ select straight_join count(*) from t1 as x0
 
 let $scan_rows = query_get_value(select sum(val) as Value from ndbinfo.counters where block_name='DBSPJ' and counter_name='LOCAL_RANGE_SCANS_SENT', Value, 1);
 
+--replace_column 10 # 11 #
 explain select straight_join count(*) from t1 as x1  
    join t1 as x2 on x1.c=x2.a and x2.d=2
    join t3 as x3 on x1.d=x3.a;  
@@ -3673,6 +3691,7 @@ let $const_pruned_range = query_get_value(select sum(val) as Value from ndbinfo.
 
 set ndb_join_pushdown=on;
 
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
@@ -3740,6 +3759,7 @@ alter table t1 partition by key (b);
 create index ix1 on t1(b,d,a);
 
 connection spj;
+--replace_column 10 # 11 #
 explain extended
 select straight_join * from t1 x, t1 y where y.a=x.d and y.b=x.e;
 
@@ -3820,6 +3840,7 @@ insert into t values
   (7,4), (8,4);
 
 connection spj;
+--replace_column 10 # 11 #
 explain extended
 select distinct straight_join table1.pk FROM 
    t as table1  join
@@ -3851,6 +3872,7 @@ create table t (b int, a int, primary key (a,b)) engine=ndb;
 connection spj;
 insert into t values(0,0);
 
+--replace_column 10 # 11 #
 explain extended
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
 select * from t as t1 join t as t2 on t2.a=t1.a where t1.a < 8 or t1.a >= 8;
@@ -3872,6 +3894,7 @@ create table t (pk1 int, pk2 int, primary key(pk1,pk2)) engine = ndb;
 connection spj;
 insert into t values (1,3), (3,6), (6,9), (9,1);
 
+--replace_column 10 # 11 #
 explain extended
 select * from t as t1 join t as t2
   on t1.pk2 = t2.pk1 
@@ -4216,6 +4239,7 @@ insert into t1 values ('b','b','b','x','x','x','x','x','x','x','x','x','x','x','
 
 insert into t1 values ('c','c','c','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x','x');
 
+--replace_column 10 # 11 #
 explain select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
 
 select count(*) from t1 as x1 join t1 as x2 on x1.b = x2.c;
@@ -4237,6 +4261,7 @@ connection spj;
 insert into t1 values (0x4f, 0x4f, 0x4f, 0x4f);
 
 # Prune key depends on parent row.
+--replace_column 10 # 11 #
 explain select * from t1 as x1 
 	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
 	join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=x2.c;
@@ -4246,6 +4271,7 @@ select * from t1 as x1
 	join t1 as x3 on x3.a=x2.c and x3.b=x1.d and x3.c=x2.c;
 
 # Prune key is fixed.
+--replace_column 10 # 11 #
 explain select * from t1 as x1 
 	join t1 as x2 on x1.c=0x4f and x2.a=0+x1.b and x2.b=x1.b 
 	join t1 as x3 on x3.a=x2.d and x3.b=x1.d and x3.c=0x4f;
@@ -4364,6 +4390,7 @@ insert into t(i,j,k) values
 --error 0,1193
 set global debug='+d,max_4rows_in_spj_batches';
 
+--replace_column 10 # 11 #
 explain
 select straight_join count(*) from 
   t as t1
