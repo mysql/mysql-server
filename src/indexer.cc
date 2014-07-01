@@ -103,7 +103,7 @@ PATENT RIGHTS GRANT:
 #include <ft/leafentry.h>
 #include <ft/ule.h>
 #include <ft/xids.h>
-#include <ft/log-internal.h>
+#include <ft/logger/log-internal.h>
 #include <ft/checkpoint.h>
 #include <portability/toku_atomic.h>
 #include "loader.h"

@@ -110,8 +110,8 @@ PATENT RIGHTS GRANT:
 #include "ft/ft-ops.h"
 #include "ft/serialize/ft-serialize.h"
 #include "ft/serialize/ft_node-serialize.h"
-#include "ft/log-internal.h"
-#include "ft/logger.h"
+#include "ft/logger/log-internal.h"
+#include "ft/logger/logger.h"
 #include "ft/node.h"
 #include "util/bytestring.h"
 

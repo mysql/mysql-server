@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "logcursor.h"
+#include "logger/logcursor.h"
 #include "test.h"
 
 static uint64_t now(void) {

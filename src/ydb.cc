@@ -104,7 +104,7 @@ const char *toku_copyright_string = "Copyright (c) 2007-2013 Tokutek Inc.  All r
 
 #include "ft/ft-flusher.h"
 #include "ft/cachetable.h"
-#include "ft/log.h"
+#include "ft/logger/log.h"
 #include "ft/checkpoint.h"
 #include "ft/loader/loader.h"
 #include "ft/log_header.h"

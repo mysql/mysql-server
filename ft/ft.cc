@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include "ft/ft.h"
 #include "ft/ft-cachetable-wrappers.h"
 #include "ft/ft-internal.h"
-#include "ft/log-internal.h"
+#include "ft/logger/log-internal.h"
 #include "ft/log_header.h"
 #include "ft/node.h"
 #include "ft/serialize/ft-serialize.h"

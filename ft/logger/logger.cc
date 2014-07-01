@@ -96,7 +96,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/serialize/block_table.h"
 #include "ft/ft.h"
-#include "ft/log-internal.h"
+#include "ft/logger/log-internal.h"
 #include "ft/txn_manager.h"
 #include "ft/rollback_log_node_cache.h"
 

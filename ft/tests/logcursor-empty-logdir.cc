@@ -88,7 +88,7 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007, 2008 Tokutek Inc.  All rights reserved."
 
-#include "logcursor.h"
+#include "logger/logcursor.h"
 #include "test.h"
 
 // a logcursor in an empty directory should not find any log entries

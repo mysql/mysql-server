@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/cachetable.h"
 #include "ft/ft-ops.h"
-#include "ft/log.h"
+#include "ft/logger/log.h"
 #include "ft/ybt.h"
 
 typedef struct ft *FT;
