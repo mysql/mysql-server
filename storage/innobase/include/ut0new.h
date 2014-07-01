@@ -120,6 +120,7 @@ InnoDB:
 #define ut0new_h
 
 #include <limits> /* std::numeric_limits */
+#include <map> /* std::map */
 
 #include <stddef.h>
 #include <stdlib.h> /* malloc() */
@@ -134,47 +135,48 @@ InnoDB:
 #include "os0thread.h" /* os_thread_sleep() */
 #include "ut0mem.h" /* OUT_OF_MEMORY_MSG */
 
+/** Map used for default performance schema keys, based on file name of the
+caller. The key is the file name of the caller and the value is a pointer
+to a PSI_memory_key variable to be passed to performance schema methods. */
+typedef std::map<const char*, PSI_memory_key*,
+		ut_strcmp_functor>	mem_keys_auto_t;
+
+/** Map of filename/pfskey, used for tracing allocations that have not
+provided a manually created pfs key. This map is only ever modified (bulk
+insert) at startup in a single-threaded environment by ut_new_boot().
+Later it is only read (only std::map::find() is called) from multithreaded
+environment, thus it is not protected by any latch. */
+extern mem_keys_auto_t	mem_keys_auto;
+
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
-extern PSI_memory_key	mem_key_btr0btr;
-extern PSI_memory_key	mem_key_dict0dict;
-extern PSI_memory_key	mem_key_dict0stats;
 extern PSI_memory_key	mem_key_dict_stats_index_map_t;
 extern PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
-extern PSI_memory_key	mem_key_fil0fil;
 extern PSI_memory_key	mem_key_other;
 extern PSI_memory_key	mem_key_std;
-extern PSI_memory_key	mem_key_sync0debug;
 extern PSI_memory_key	mem_key_sync_debug_latches;
-extern PSI_memory_key	mem_key_trx0trx;
 extern PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
 
-extern const size_t	pfs_info_size;
-extern PSI_memory_info	pfs_info[];
+/** Setup the internal objects needed for UT_NEW() to operate.
+This must be called before the first call to UT_NEW(). */
+void
+ut_new_boot();
 
 #ifdef ut0new_cc
 
-/* Below are the declarations of mem_key_*, pfs_info_size and pfs_info[]
-which only need to go in ut0new.cc, but we have put them here to make
-editing easier - avoid having to edit the above in ut0new.h and the below
-in ut0new.cc */
+/* Below are the declarations of mem_key_* and pfs_info[]
+which only need to go in ut0new.cc, but we have put them here to
+make editing easier - avoid having to edit them in both
+ut0new.h and ut0new.cc */
 
 /** Keys for registering allocations with performance schema.
 Keep this list alphabetically sorted. */
-PSI_memory_key	mem_key_btr0btr;
-PSI_memory_key	mem_key_dict0dict;
-PSI_memory_key	mem_key_dict0stats;
 PSI_memory_key	mem_key_dict_stats_index_map_t;
 PSI_memory_key	mem_key_dict_stats_n_diff_on_level;
-PSI_memory_key	mem_key_fil0fil;
 PSI_memory_key	mem_key_other;
 PSI_memory_key	mem_key_std;
-PSI_memory_key	mem_key_sync0debug;
 PSI_memory_key	mem_key_sync_debug_latches;
-PSI_memory_key	mem_key_trx0trx;
 PSI_memory_key	mem_key_trx_sys_t_rw_trx_ids;
-
-const size_t	pfs_info_size = 12;
 
 /** Auxiliary array of performance schema 'PSI_memory_info'.
 Each allocation appears in
@@ -186,34 +188,65 @@ the list below:
    mem_key_std
 3. Without a specified key, allocations from outside std::* pick up the key
    based on the file name, and if file name is not found in the list below
-   then mem_key_other is used. */
-PSI_memory_info	pfs_info[pfs_info_size] = {
-	{&mem_key_btr0btr, "btr0btr", 0},
-	{&mem_key_dict0dict, "dict0dict", 0},
-	{&mem_key_dict0stats, "dict0stats", 0},
+   then mem_key_other is used.
+NOTE: keep this list alphabetically sorted. */
+PSI_memory_info	pfs_info[] = {
 	{&mem_key_dict_stats_index_map_t, "dict_stats_index_map_t", 0},
 	{&mem_key_dict_stats_n_diff_on_level, "dict_stats_n_diff_on_level", 0},
-	{&mem_key_fil0fil, "fil0fil", 0},
 	{&mem_key_other, "other", 0},
 	{&mem_key_std, "std", 0},
-	{&mem_key_sync0debug, "sync0debug", 0},
 	{&mem_key_sync_debug_latches, "sync_debug_latches", 0},
-	{&mem_key_trx0trx, "trx0trx", 0},
 	{&mem_key_trx_sys_t_rw_trx_ids, "trx_sys_t::rw_trx_ids", 0},
 };
 
-#endif /* ut0new_cc */
+/** Map of filename/pfskey, used for tracing allocations that have not
+provided a manually created pfs key. This map is only ever modified (bulk
+insert) at startup in a single-threaded environment by ut_new_boot().
+Later it is only read (only std::map::find() is called) from multithreaded
+environment, thus it is not protected by any latch. */
+mem_keys_auto_t	mem_keys_auto;
 
 /** Setup the internal objects needed for UT_NEW() to operate.
 This must be called before the first call to UT_NEW(). */
-inline
 void
 ut_new_boot()
 {
 #ifdef UNIV_PFS_MEMORY
-	PSI_MEMORY_CALL(register_memory)("innodb", pfs_info, pfs_info_size);
+	static const char*	auto_names[] = {
+		"btr0btr",
+		"dict0dict",
+		"dict0stats",
+		"fil0fil",
+		"sync0debug",
+		"trx0trx",
+	};
+	static const size_t	n_auto_names = UT_ARR_SIZE(auto_names);
+	static PSI_memory_key	auto_keys[n_auto_names];
+	static PSI_memory_info	pfs_info_auto[n_auto_names];
+
+	for (size_t i = 0; i < n_auto_names; i++) {
+		mem_keys_auto.insert(
+			mem_keys_auto_t::value_type(auto_names[i],
+						    &auto_keys[i]));
+		/* e.g. "btr0btr" */
+		pfs_info_auto[i].m_name = auto_names[i];
+
+		/* a pointer to the pfs key */
+		pfs_info_auto[i].m_key = &auto_keys[i];
+
+		pfs_info_auto[i].m_flags = 0;
+	}
+
+	PSI_MEMORY_CALL(register_memory)("innodb",
+					 pfs_info,
+					 UT_ARR_SIZE(pfs_info));
+	PSI_MEMORY_CALL(register_memory)("innodb",
+					 pfs_info_auto,
+					 n_auto_names);
 #endif /* UNIV_PFS_MEMORY */
 }
+
+#endif /* ut0new_cc */
 
 #ifdef UNIV_PFS_MEMORY
 
@@ -605,10 +638,20 @@ public:
 			len = end - beg;
 		}
 
-		for (size_t i = 0; i < pfs_info_size; i++) {
-			if (strncmp(pfs_info[i].m_name, beg, len) == 0) {
-				return(*pfs_info[i].m_key);
-			}
+		/* e.g. "btr0btr", derived from ".../btr0btr.cc" */
+		char		keyname[FILENAME_MAX];
+
+		ut_ad(len < sizeof(keyname));
+
+		memcpy(keyname, beg, len);
+		keyname[len] = '\0';
+
+		mem_keys_auto_t::const_iterator	el;
+
+		el = mem_keys_auto.find(keyname);
+
+		if (el != mem_keys_auto.end()) {
+			return(*(el->second));
 		}
 
 		return(mem_key_other);
