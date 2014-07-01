@@ -45,7 +45,6 @@ COMMIT;
 --echo # On connection 2
 --connection con2
 --reap
---error ER_ERROR_DURING_COMMIT
 COMMIT;
 
 --connection default
