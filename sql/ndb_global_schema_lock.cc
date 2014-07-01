@@ -15,7 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
-#include "my_global.h"
+#include <my_global.h>
 #include <mysql/plugin.h>
 #include <ndbapi/NdbApi.hpp>
 #include <portlib/NdbTick.h>
@@ -50,12 +50,11 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   NdbOperation *op;
   NdbTransaction *trans= NULL;
   int retry_sleep= 50; /* 50 milliseconds, transaction */
-  NDB_TICKS time_end;
+  NDB_TICKS start;
 
   if (retry_time > 0)
   {
-    time_end= NdbTick_CurrentMillisecond();
-    time_end+= retry_time * 1000;
+    start = NdbTick_getCurrentTicks();
   }
   while (1)
   {
@@ -91,9 +90,12 @@ gsl_lock_ext(THD *thd, Ndb *ndb, NdbError &ndb_error,
   retry:
     if (retry_time == 0)
       goto error_handler;
-    if (retry_time > 0 &&
-        time_end < NdbTick_CurrentMillisecond())
-      goto error_handler;
+    if (retry_time > 0)
+    {
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      if (NdbTick_Elapsed(start,now).seconds() > (Uint64)retry_time)
+        goto error_handler;
+    }
     if (trans)
     {
       ndb->closeTransaction(trans);
@@ -421,10 +423,10 @@ Thd_ndb::has_required_global_schema_lock(const char* func)
 
   // No attempt at taking global schema lock has been done, neither
   // error or trans set -> programming error
-  LEX_STRING* query= thd_query_string(m_thd);
+  LEX_CSTRING query= thd_query_unsafe(m_thd);
   sql_print_error("NDB: programming error, no lock taken while running "
                   "query '%*s' in function '%s'",
-                  (int)query->length, query->str, func);
+                  (int)query.length, query.str, func);
   abort();
   return false;
 #endif

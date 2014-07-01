@@ -573,3 +573,13 @@ NdbBackup::Fail(NdbRestarter& _restarter, int *Fail_codes, const int sz, bool on
   return NDBT_OK;
 }
 
+int
+NdbBackup::abort(unsigned int _backup_id)
+{
+  struct ndb_mgm_reply reply;
+  int result = ndb_mgm_abort_backup(handle, _backup_id, &reply);
+  if (result != 0) 
+    return NDBT_FAILED;
+  return NDBT_OK;
+
+}

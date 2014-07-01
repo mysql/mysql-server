@@ -1,0 +1,8 @@
+# Stop the running server
+# Start server with provoked error in ndbcluster_init()
+# - the mysqld should write an error to the log and shutdown
+# Check the log file for expected error
+# Start server with another provoked error in ndbcluster_init()
+# - the mysqld should write an error to the log and shutdown
+# Check the log file for expected error
+# Cleanup

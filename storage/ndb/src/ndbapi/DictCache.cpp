@@ -506,9 +506,6 @@ GlobalDictCache::chg_ref_count(const NdbTableImpl * impl, int value)
   const char * name = impl->m_internalName.c_str();
   assert(! is_ndb_blob_table(name));
 
-  const Uint32 tableId = impl->m_id;
-  const Uint32 tableVersion = impl->m_version;
-
   const Uint32 len = (Uint32)strlen(name);
   Vector<TableVersion> * vers = 
     m_tableHash.getData(name, len);
@@ -532,13 +529,13 @@ GlobalDictCache::chg_ref_count(const NdbTableImpl * impl, int value)
       if (value == +1)
       {
         DBUG_PRINT("info", ("%s id=%u ver=0x%x: inc old ref count %u",
-                            name, tableId, tableVersion, ver.m_refCount));
+                            name, impl->m_id, impl->m_version, ver.m_refCount));
         ver.m_refCount++;
       }
       else if (value == -1)
       {
         DBUG_PRINT("info", ("%s id=%u ver=0x%x: dec old ref count %u",
-                            name, tableId, tableVersion, ver.m_refCount));
+                            name, impl->m_id, impl->m_version, ver.m_refCount));
         if (ver.m_refCount == 0)
           abort();
         ver.m_refCount--;
