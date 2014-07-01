@@ -2384,7 +2384,7 @@ static void ft_txn_log_insert(FT ft, DBT *key, DBT *val, TOKUTXN txn, bool do_lo
 int toku_ft_insert_unique(FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool do_logging) {
 // Effect: Insert a unique key-val pair into the fractal tree.
 // Return: 0 on success, DB_KEYEXIST if the overwrite constraint failed
-    XIDS message_xids = txn != nullptr ? toku_txn_get_xids(txn) : xids_get_root_xids();
+    XIDS message_xids = txn != nullptr ? toku_txn_get_xids(txn) : toku_xids_get_root_xids();
 
     TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
     txn_manager_state txn_state_for_gc(txn_manager);
@@ -2457,13 +2457,13 @@ void toku_ft_optimize (FT_HANDLE ft_h) {
     if (logger) {
         TXNID oldest = toku_txn_manager_get_oldest_living_xid(logger->txn_manager);
 
-        XIDS root_xids = xids_get_root_xids();
+        XIDS root_xids = toku_xids_get_root_xids();
         XIDS message_xids;
         if (oldest == TXNID_NONE_LIVING) {
             message_xids = root_xids;
         }
         else {
-            int r = xids_create_child(root_xids, &message_xids, oldest);
+            int r = toku_xids_create_child(root_xids, &message_xids, oldest);
             invariant(r == 0);
         }
 
@@ -2483,7 +2483,7 @@ void toku_ft_optimize (FT_HANDLE ft_h) {
                             oldest_referenced_xid_estimate,
                             true);
         toku_ft_root_put_msg(ft_h->ft, msg, &gc_info);
-        xids_destroy(&message_xids);
+        toku_xids_destroy(&message_xids);
     }
 }
 
@@ -2570,7 +2570,7 @@ void toku_ft_maybe_insert (FT_HANDLE ft_h, DBT *key, DBT *val, TOKUTXN txn, bool
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        XIDS message_xids = txn ? toku_txn_get_xids(txn) : xids_get_root_xids();
+        XIDS message_xids = txn ? toku_txn_get_xids(txn) : toku_xids_get_root_xids();
 
         TXN_MANAGER txn_manager = toku_ft_get_txn_manager(ft_h);
         txn_manager_state txn_state_for_gc(txn_manager);
@@ -2641,7 +2641,7 @@ void toku_ft_maybe_update(FT_HANDLE ft_h, const DBT *key, const DBT *update_func
     if (oplsn_valid && oplsn.lsn <= (treelsn = toku_ft_checkpoint_lsn(ft_h->ft)).lsn) {
         // do nothing
     } else {
-        XIDS message_xids = txn ? toku_txn_get_xids(txn) : xids_get_root_xids();
+        XIDS message_xids = txn ? toku_txn_get_xids(txn) : toku_xids_get_root_xids();
         ft_msg msg(key, update_function_extra, FT_UPDATE, ZERO_MSN, message_xids);
         ft_send_update_msg(ft_h, msg, txn);
     }
@@ -2674,7 +2674,7 @@ void toku_ft_maybe_update_broadcast(FT_HANDLE ft_h, const DBT *update_function_e
 
     } else {
         DBT empty_dbt;
-        XIDS message_xids = txn ? toku_txn_get_xids(txn) : xids_get_root_xids();
+        XIDS message_xids = txn ? toku_txn_get_xids(txn) : toku_xids_get_root_xids();
         ft_msg msg(toku_init_dbt(&empty_dbt), update_function_extra, FT_UPDATE_BROADCAST_ALL, ZERO_MSN, message_xids);
         ft_send_update_msg(ft_h, msg, txn);
     }
@@ -2726,7 +2726,7 @@ toku_ft_log_del_multiple (TOKUTXN txn, FT_HANDLE src_ft, FT_HANDLE *fts, uint32_
 }
 
 void toku_ft_maybe_delete(FT_HANDLE ft_h, DBT *key, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging) {
-    XIDS message_xids = xids_get_root_xids(); //By default use committed messages
+    XIDS message_xids = toku_xids_get_root_xids(); //By default use committed messages
     TXNID_PAIR xid = toku_txn_get_txnid(txn);
     if (txn) {
         BYTESTRING keybs = {key->size, (char *) key->data};
@@ -4474,7 +4474,7 @@ toku_dump_ftnode (FILE *file, FT_HANDLE ft_handle, BLOCKNUM blocknum, int depth,
                     int operator()(const ft_msg &msg, bool UU(is_fresh)) {
                         fprintf(file, "%*s xid=%" PRIu64 " %u (type=%d) msn=0x%" PRIu64 "\n",
                                       depth+2, "",
-                                      xids_get_innermost_xid(msg.xids()),
+                                      toku_xids_get_innermost_xid(msg.xids()),
                                       static_cast<unsigned>(toku_dtoh32(*(int*)msg.kdbt()->data)),
                                       msg.type(), msg.msn().msn);
                         return 0;

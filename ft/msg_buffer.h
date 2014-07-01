@@ -90,7 +90,6 @@ PATENT RIGHTS GRANT:
 
 #include "ft/msg.h"
 #include "ft/xids.h"
-#include "ft/xids-internal.h"
 #include "ft/ybt.h"
 
 class message_buffer {

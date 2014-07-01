@@ -132,14 +132,14 @@ run_test(void) {
 
     // test case where we apply a message and the innermost child_id
     // is the same as the innermost committed TXNID    
-    XIDS root_xids = xids_get_root_xids();
+    XIDS root_xids = toku_xids_get_root_xids();
     TXNID root_txnid = 1000;
     TXNID child_id = 10;
     XIDS msg_xids_1;
     XIDS msg_xids_2;
-    r = xids_create_child(root_xids, &msg_xids_1, root_txnid);
+    r = toku_xids_create_child(root_xids, &msg_xids_1, root_txnid);
     assert(r==0);
-    r = xids_create_child(msg_xids_1, &msg_xids_2, child_id);
+    r = toku_xids_create_child(msg_xids_1, &msg_xids_2, child_id);
     assert(r==0);
 
     init_empty_ule(&ule_initial);
@@ -189,9 +189,9 @@ run_test(void) {
         assert(ule->uxrs[3].valp == &val_data_three);
     } 
 
-    xids_destroy(&msg_xids_2);
-    xids_destroy(&msg_xids_1);
-    xids_destroy(&root_xids);
+    toku_xids_destroy(&msg_xids_2);
+    toku_xids_destroy(&msg_xids_1);
+    toku_xids_destroy(&root_xids);
 
 }
 

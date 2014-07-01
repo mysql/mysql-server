@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include <ft/le-cursor.h>
-#include <ft/tokuconst.h>
 #include <ft/ft-ops.h>
 #include <ft/leafentry.h>
 #include <ft/ule.h>
@@ -199,7 +198,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *
     ULEHANDLE ule = prov_info->ule;
 
     // init the xids to the root xid
-    XIDS xids = xids_get_root_xids();
+    XIDS xids = toku_xids_get_root_xids();
 
     // scan the committed stack from bottom to top
     uint32_t num_committed = ule_get_num_committed(ule);
@@ -280,7 +279,7 @@ indexer_undo_do_committed(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info *
             break;
     }
 
-    xids_destroy(&xids);
+    toku_xids_destroy(&xids);
 
     return result;
 }
@@ -312,7 +311,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info
     ULEHANDLE ule = prov_info->ule;
 
     // init the xids to the root xid
-    XIDS xids = xids_get_root_xids();
+    XIDS xids = toku_xids_get_root_xids();
 
     uint32_t num_provisional = prov_info->num_provisional;
     uint32_t num_committed = prov_info->num_committed;
@@ -472,7 +471,7 @@ indexer_undo_do_provisional(DB_INDEXER *indexer, DB *hotdb, struct ule_prov_info
     // then this will need to be handled below exit
     release_txns(ule, prov_states, prov_txns, indexer);
 exit:
-    xids_destroy(&xids);
+    toku_xids_destroy(&xids);
     return result;
 }
 
@@ -496,16 +495,16 @@ static int
 indexer_set_xid(DB_INDEXER *UU(indexer), TXNID this_xid, XIDS *xids_result) {
     int result = 0;
     XIDS old_xids = *xids_result;
-    XIDS new_xids = xids_get_root_xids();
+    XIDS new_xids = toku_xids_get_root_xids();
     if (this_xid != TXNID_NONE) {
         XIDS child_xids;
-        result = xids_create_child(new_xids, &child_xids, this_xid);
-        xids_destroy(&new_xids);
+        result = toku_xids_create_child(new_xids, &child_xids, this_xid);
+        toku_xids_destroy(&new_xids);
         if (result == 0)
             new_xids = child_xids;
     }
     if (result == 0) {
-        xids_destroy(&old_xids);
+        toku_xids_destroy(&old_xids);
         *xids_result = new_xids;
     }
 
@@ -517,9 +516,9 @@ static int
 indexer_append_xid(DB_INDEXER *UU(indexer), TXNID xid, XIDS *xids_result) {
     XIDS old_xids = *xids_result;
     XIDS new_xids;
-    int result = xids_create_child(old_xids, &new_xids, xid);
+    int result = toku_xids_create_child(old_xids, &new_xids, xid);
     if (result == 0) {
-        xids_destroy(&old_xids);
+        toku_xids_destroy(&old_xids);
         *xids_result = new_xids;
     }
     return result;
@@ -682,7 +681,7 @@ indexer_ft_insert_committed(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, DBT *ho
 static int 
 indexer_ft_commit(DB_INDEXER *indexer, DB *hotdb, DBT *hotkey, XIDS xids) {
     int result = 0;
-    if (xids_get_num_xids(xids) > 0) {// send commit only when not the root xid
+    if (toku_xids_get_num_xids(xids) > 0) {// send commit only when not the root xid
         // TEST
         if (indexer->i->test_commit_any) {
             result = indexer->i->test_commit_any(indexer, hotdb, hotkey, xids);

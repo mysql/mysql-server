@@ -306,11 +306,11 @@ flush_to_internal(FT_HANDLE t) {
     memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
     memset(child_messages_is_fresh, 0, 4096*(sizeof child_messages_is_fresh[0]));
 
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123, xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_0, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_0, &xids_234, (TXNID)234);
     CKERR(r);
 
     NONLEAF_CHILDINFO child_bnc = toku_create_empty_nl();
@@ -369,7 +369,7 @@ flush_to_internal(FT_HANDLE t) {
                     assert(found == 0);
                     assert(dummy_cmp(&valdbt, parent_messages[k]->vdbt()) == 0);
                     assert(type == parent_messages[k]->type());
-                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[k]->xids()));
+                    assert(toku_xids_get_innermost_xid(xids) == toku_xids_get_innermost_xid(parent_messages[k]->xids()));
                     assert(parent_messages_is_fresh[k] == is_fresh);
                     parent_messages_present[k]++;
                     found++;
@@ -382,7 +382,7 @@ flush_to_internal(FT_HANDLE t) {
                     assert(found == 0);
                     assert(dummy_cmp(&valdbt, child_messages[k]->vdbt()) == 0);
                     assert(type == child_messages[k]->type());
-                    assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[k]->xids()));
+                    assert(toku_xids_get_innermost_xid(xids) == toku_xids_get_innermost_xid(child_messages[k]->xids()));
                     assert(child_messages_is_fresh[k] == is_fresh);
                     child_messages_present[k]++;
                     found++;
@@ -402,9 +402,9 @@ flush_to_internal(FT_HANDLE t) {
         assert(child_messages_present[i] == 1);
     }
 
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
 
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->kdbt()->data);
@@ -436,11 +436,11 @@ flush_to_internal_multiple(FT_HANDLE t) {
     memset(parent_messages_is_fresh, 0, 4096*(sizeof parent_messages_is_fresh[0]));
     memset(child_messages_is_fresh, 0, 4096*(sizeof child_messages_is_fresh[0]));
 
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123, xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_0, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_0, &xids_234, (TXNID)234);
     CKERR(r);
 
     NONLEAF_CHILDINFO child_bncs[8];
@@ -525,7 +525,7 @@ flush_to_internal_multiple(FT_HANDLE t) {
                         assert(found == 0);
                         assert(dummy_cmp(&valdbt, parent_messages[_i]->vdbt()) == 0);
                         assert(type == parent_messages[_i]->type());
-                        assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(parent_messages[_i]->xids()));
+                        assert(toku_xids_get_innermost_xid(xids) == toku_xids_get_innermost_xid(parent_messages[_i]->xids()));
                         assert(parent_messages_is_fresh[_i] == is_fresh);
                         parent_messages_present[_i]++;
                         found++;
@@ -538,7 +538,7 @@ flush_to_internal_multiple(FT_HANDLE t) {
                         assert(found == 0);
                         assert(dummy_cmp(&valdbt, child_messages[_i]->vdbt()) == 0);
                         assert(type == child_messages[_i]->type());
-                        assert(xids_get_innermost_xid(xids) == xids_get_innermost_xid(child_messages[_i]->xids()));
+                        assert(toku_xids_get_innermost_xid(xids) == toku_xids_get_innermost_xid(child_messages[_i]->xids()));
                         assert(child_messages_is_fresh[_i] == is_fresh);
                         child_messages_present[_i]++;
                         found++;
@@ -559,9 +559,9 @@ flush_to_internal_multiple(FT_HANDLE t) {
         assert(child_messages_present[i] == 1);
     }
 
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
 
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->kdbt()->data);
@@ -605,11 +605,11 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
     int *MALLOC_N(4096,parent_messages_applied);
     memset(parent_messages_applied, 0, 4096*(sizeof parent_messages_applied[0]));
 
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123, xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_0, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_0, &xids_234, (TXNID)234);
     CKERR(r);
     
     BASEMENTNODE child_blbs[8];
@@ -788,9 +788,9 @@ flush_to_leaf(FT_HANDLE t, bool make_leaf_up_to_date, bool use_flush) {
         assert(child_messages_present[i] == 1);
     }
 
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
 
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->kdbt()->data);
@@ -834,11 +834,11 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
     int *MALLOC_N(4096,parent_messages_applied);
     memset(parent_messages_applied, 0, 4096*(sizeof parent_messages_applied[0]));
 
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123, xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_0, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_0, &xids_234, (TXNID)234);
     CKERR(r);
 
     BASEMENTNODE child_blbs[8];
@@ -975,9 +975,9 @@ flush_to_leaf_with_keyrange(FT_HANDLE t, bool make_leaf_up_to_date) {
         }
     }
 
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
 
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->kdbt()->data);
@@ -1023,11 +1023,11 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
     int *MALLOC_N(4096,parent_messages_applied);
     memset(parent_messages_applied, 0, 4096*(sizeof parent_messages_applied[0]));
 
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123, xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_0, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_0, &xids_234, (TXNID)234);
     CKERR(r);
 
     BASEMENTNODE child1_blbs[8], child2_blbs[8];
@@ -1168,9 +1168,9 @@ compare_apply_and_flush(FT_HANDLE t, bool make_leaf_up_to_date) {
         }
     }
 
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
 
     for (i = 0; i < num_parent_messages; ++i) {
         toku_free(parent_messages[i]->kdbt()->data);

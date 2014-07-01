@@ -126,9 +126,9 @@ test_enqueue(int n) {
         char *theval = buildval(thevallen);
         XIDS xids;
         if (i == 0) {
-            xids = xids_get_root_xids();
+            xids = toku_xids_get_root_xids();
         } else {
-            int r = xids_create_child(xids_get_root_xids(), &xids, (TXNID)i);
+            int r = toku_xids_create_child(toku_xids_get_root_xids(), &xids, (TXNID)i);
             assert_zero(r);
         }
         MSN msn = next_dummymsn();
@@ -138,7 +138,7 @@ test_enqueue(int n) {
         DBT k, v;
         ft_msg msg(toku_fill_dbt(&k, thekey, thekeylen), toku_fill_dbt(&v, theval, thevallen), type, msn, xids);
         msg_buffer.enqueue(msg, true, nullptr);
-        xids_destroy(&xids);
+        toku_xids_destroy(&xids);
         toku_free(thekey);
         toku_free(theval);
     }
@@ -163,7 +163,7 @@ test_enqueue(int n) {
             assert((int) msg.kdbt()->size == thekeylen); assert(memcmp(msg.kdbt()->data, thekey, msg.kdbt()->size) == 0);
             assert((int) msg.vdbt()->size == thevallen); assert(memcmp(msg.vdbt()->data, theval, msg.vdbt()->size) == 0);
             assert(i % 256 == (int)type);
-            assert((TXNID)i==xids_get_innermost_xid(msg.xids()));
+            assert((TXNID)i == toku_xids_get_innermost_xid(msg.xids()));
             i += 1;
             toku_free(thekey);
             toku_free(theval);

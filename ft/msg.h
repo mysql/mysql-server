@@ -99,6 +99,8 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_assert.h"
 #include "portability/toku_stdint.h"
 
+#include "ft/xids.h"
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
@@ -193,8 +195,6 @@ ft_msg_type_does_nothing(enum ft_msg_type type)
 {
     return (type == FT_NONE);
 }
-
-typedef struct xids_t *XIDS;
 
 class ft_msg {
 public:

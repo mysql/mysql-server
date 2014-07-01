@@ -218,7 +218,7 @@ struct tokutxn {
     // strictly const.
     DB_TXN *container_db_txn; // reference to DB_TXN that contains this tokutxn
     xid_omt_t *live_root_txn_list; // the root txns live when the root ancestor (self if a root) started.
-    struct xids_t *xids; // Represents the xid list
+    struct XIDS_S *xids; // Represents the xid list
 
     struct tokutxn *snapshot_next;
     struct tokutxn *snapshot_prev;
@@ -319,7 +319,7 @@ void toku_txn_complete_txn(struct tokutxn *txn);
 // Free the memory of a txn
 void toku_txn_destroy_txn(struct tokutxn *txn);
 
-struct xids_t *toku_txn_get_xids(struct tokutxn *txn);
+struct XIDS_S *toku_txn_get_xids(struct tokutxn *txn);
 
 // Force fsync on commit
 void toku_txn_force_fsync_on_commit(struct tokutxn *txn);

@@ -2349,12 +2349,12 @@ static struct leaf_buf *start_leaf (struct dbout *out, const DESCRIPTOR UU(desc)
     lbuf->nkeys = lbuf->ndata = lbuf->dsize = 0;
     lbuf->off = 0;
 
-    lbuf->xids = xids_get_root_xids();
+    lbuf->xids = toku_xids_get_root_xids();
     if (xid != TXNID_NONE) {
         XIDS new_xids = NULL;
-        int r = xids_create_child(lbuf->xids, &new_xids, xid); 
+        int r = toku_xids_create_child(lbuf->xids, &new_xids, xid); 
         assert(r == 0 && new_xids);
-        xids_destroy(&lbuf->xids);
+        toku_xids_destroy(&lbuf->xids);
         lbuf->xids = new_xids;
     }
 
@@ -2988,7 +2988,7 @@ static void finish_leafnode (struct dbout *out, struct leaf_buf *lbuf, int progr
         toku_free(serialized_leaf);
     }
     toku_ftnode_free(&lbuf->node);
-    xids_destroy(&lbuf->xids);
+    toku_xids_destroy(&lbuf->xids);
     toku_free(lbuf);
 
     //printf("Nodewrite %d (%.1f%%):", progress_allocation, 100.0*progress_allocation/PROGRESS_MAX);

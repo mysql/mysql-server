@@ -188,13 +188,13 @@ txn_create_xids(TOKUTXN txn, TOKUTXN parent) {
     XIDS xids;
     XIDS parent_xids;
     if (parent == NULL) {
-        parent_xids = xids_get_root_xids();
+        parent_xids = toku_xids_get_root_xids();
     } else {
         parent_xids = parent->xids;
     }
-    xids_create_unknown_child(parent_xids, &xids);
+    toku_xids_create_unknown_child(parent_xids, &xids);
     TXNID finalized_xid = (parent == NULL) ? txn->txnid.parent_id64 : txn->txnid.child_id64;
-    xids_finalize_with_child(xids, finalized_xid);
+    toku_xids_finalize_with_child(xids, finalized_xid);
     txn->xids = xids;
 }
 
@@ -217,7 +217,7 @@ toku_txn_begin_with_xid (
     TOKUTXN txn;
     // check for case where we are trying to 
     // create too many nested transactions
-    if (!read_only && parent && !xids_can_create_child(parent->xids)) {
+    if (!read_only && parent && !toku_xids_can_create_child(parent->xids)) {
         r = EINVAL;
         goto exit;
     }
@@ -648,7 +648,7 @@ void toku_txn_complete_txn(TOKUTXN txn) {
 void toku_txn_destroy_txn(TOKUTXN txn) {
     txn->open_fts.destroy();
     if (txn->xids) {
-        xids_destroy(&txn->xids);
+        toku_xids_destroy(&txn->xids);
     }
     toku_mutex_destroy(&txn->txn_lock);
     toku_mutex_destroy(&txn->state_lock);
@@ -657,7 +657,7 @@ void toku_txn_destroy_txn(TOKUTXN txn) {
 }
 
 XIDS toku_txn_get_xids (TOKUTXN txn) {
-    if (txn==0) return xids_get_root_xids();
+    if (txn==0) return toku_xids_get_root_xids();
     else return txn->xids;
 }
 

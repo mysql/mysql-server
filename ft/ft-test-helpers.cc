@@ -226,7 +226,7 @@ int toku_testsetup_insert_to_leaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, const
 
     DBT kdbt, vdbt;
     ft_msg msg(toku_fill_dbt(&kdbt, key, keylen), toku_fill_dbt(&vdbt, val, vallen),
-               FT_INSERT, next_dummymsn(), xids_get_root_xids());
+               FT_INSERT, next_dummymsn(), toku_xids_get_root_xids());
 
     static size_t zero_flow_deltas[] = { 0, 0 };
     txn_gc_info gc_info(nullptr, TXNID_NONE, TXNID_NONE, true);
@@ -299,7 +299,7 @@ int toku_testsetup_insert_to_nonleaf (FT_HANDLE ft_handle, BLOCKNUM blocknum, en
     DBT k;
     int childnum = toku_ftnode_which_child(node, toku_fill_dbt(&k, key, keylen), ft_handle->ft->cmp);
 
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     MSN msn = next_dummymsn();
     toku::comparator cmp;
     cmp.create(testhelper_string_key_cmp, nullptr);

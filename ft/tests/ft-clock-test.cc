@@ -324,12 +324,12 @@ test_serialize_nonleaf(void) {
     set_BNC(&sn, 0, toku_create_empty_nl());
     set_BNC(&sn, 1, toku_create_empty_nl());
     //Create XIDS
-    XIDS xids_0 = xids_get_root_xids();
+    XIDS xids_0 = toku_xids_get_root_xids();
     XIDS xids_123;
     XIDS xids_234;
-    r = xids_create_child(xids_0, &xids_123, (TXNID)123);
+    r = toku_xids_create_child(xids_0, &xids_123, (TXNID)123);
     CKERR(r);
-    r = xids_create_child(xids_123, &xids_234, (TXNID)234);
+    r = toku_xids_create_child(xids_123, &xids_234, (TXNID)234);
     CKERR(r);
 
     toku::comparator cmp;
@@ -340,9 +340,9 @@ test_serialize_nonleaf(void) {
     toku_bnc_insert_msg(BNC(&sn, 1), "x", 2, "xval", 5, FT_NONE, next_dummymsn(), xids_234, true, cmp);
 
     //Cleanup:
-    xids_destroy(&xids_0);
-    xids_destroy(&xids_123);
-    xids_destroy(&xids_234);
+    toku_xids_destroy(&xids_0);
+    toku_xids_destroy(&xids_123);
+    toku_xids_destroy(&xids_234);
     cmp.destroy();
 
     FT_HANDLE XMALLOC(ft);
