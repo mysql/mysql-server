@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -18,13 +18,16 @@
  02110-1301  USA
  */
 
+#include <my_config.h>
+
+#include <stdlib.h>
 #ifdef __GNUC__
 /* Required for useconds_t and C99 */
+#undef _XOPEN_SOURCE
 #define _XOPEN_SOURCE 600
 #endif
 
 #include <unistd.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <assert.h>
 #include <time.h>
@@ -66,8 +69,8 @@ void express_nanosec(Uint64 nsec);
 int sleep_microseconds(int);
 
 int main() {
-  struct workqueue *queue; 
-  queue = (struct workqueue *) calloc(1, sizeof(struct workqueue));
+  struct workqueue *queue=
+      (struct workqueue *) calloc(1, sizeof(struct workqueue));
 
   struct threadinfo test0 = { queue, 32768, 1, 0, 0, 0, 10000000, 1000000 };
   struct threadinfo test1 = { queue, 32768, 2, 0, 0, 0, 10000000, 1000000 };

@@ -1,5 +1,5 @@
 /*
- *  Copyright (c) 2010, 2011, Oracle and/or its affiliates. All rights reserved.
+ *  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
  *
  *  This program is free software; you can redistribute it and/or modify
  *  it under the terms of the GNU General Public License as published by
@@ -61,6 +61,32 @@ class PartitionKeyImpl implements PartitionKey {
      * The partition key will actually be constructed when needed, at enlist time.
      */
     public void addIntKey(final Column storeColumn, final int key) {
+        keyPartBuilders.add(new KeyPartBuilder() {
+            public void addKeyPart(BufferManager bufferManager) {
+                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                KeyPart keyPart = new KeyPart(buffer, buffer.limit());
+                keyParts.add(keyPart);
+            }
+        });
+    }
+
+    /** Add a short key to the partition key.
+     * The partition key will actually be constructed when needed, at enlist time.
+     */
+    public void addShortKey(final Column storeColumn, final short key) {
+        keyPartBuilders.add(new KeyPartBuilder() {
+            public void addKeyPart(BufferManager bufferManager) {
+                ByteBuffer buffer = Utility.convertValue(storeColumn, key);
+                KeyPart keyPart = new KeyPart(buffer, buffer.limit());
+                keyParts.add(keyPart);
+            }
+        });
+    }
+
+    /** Add a byte key to the partition key.
+     * The partition key will actually be constructed when needed, at enlist time.
+     */
+    public void addByteKey(final Column storeColumn, final byte key) {
         keyPartBuilders.add(new KeyPartBuilder() {
             public void addKeyPart(BufferManager bufferManager) {
                 ByteBuffer buffer = Utility.convertValue(storeColumn, key);

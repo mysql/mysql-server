@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -404,7 +404,6 @@ Ndbfs::execFSOPENREQ(Signal* signal)
   ndbrequire(file != NULL);
 
   Uint32 userPointer = fsOpenReq->userPointer;
-  
   
   SectionHandle handle(this, signal);
   SegmentedSectionPtr ptr; ptr.setNull();
@@ -1055,7 +1054,10 @@ Ndbfs::createAsyncFile()
     // Print info about all open files
     for (unsigned i = 0; i < theFiles.size(); i++){
       AsyncFile* file = theFiles[i];
-      ndbout_c("%2d (0x%lx): %s", i, (long) file, file->isOpen()?"OPEN":"CLOSED");
+      ndbout_c("%2d (0x%lx): %s",
+               i,
+               (long) file,
+               file->isOpen() ?"OPEN" : "CLOSED");
     }
     ERROR_SET(fatal, NDBD_EXIT_AFS_MAXOPEN,""," Ndbfs::createAsyncFile");
   }
@@ -1094,6 +1096,8 @@ Ndbfs::createIoThread(bool bound)
 
     struct NdbThread* thrptr = thr->doStart();
     globalEmulatorData.theConfiguration->addThread(thrptr, NdbfsThread);
+    thr->set_real_time(
+      globalEmulatorData.theConfiguration->get_io_real_time());
 
     if (bound)
       m_bound_threads_cnt++;

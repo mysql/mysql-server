@@ -1068,7 +1068,7 @@ bool getBit(const Uint32* bitMap,
 void setBit(Uint32* bitMap, int bitMapByteSize,
             int bitNum)
 {
-  assert(bitNum >= 0 && bitNum < (bitMapByteSize * 8));
+  require(bitNum >= 0 && bitNum < (bitMapByteSize * 8));
   bitMap[ bitNum >> 5 ] |= (1 << (bitNum & 31));
 }
 

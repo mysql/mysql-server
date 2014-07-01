@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2011, Oracle and/or its affiliates. All rights
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -17,6 +17,7 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+#include <my_config.h>
 #include <stdio.h>
 #include <pthread.h>
 
@@ -163,14 +164,15 @@ void disconnect_all() {
 
 /* This function has C linkage */
 void print_debug_startup_info() {
-  size_t wi1 = 1 << workitem_class_id; 
+#ifdef DEBUG_OUTPUT
+  size_t wi1 = 1 << workitem_class_id;
   size_t wi2 = sizeof(workitem) - WORKITEM_MIN_INLINE_BUF;
   size_t wi3 = workitem_actual_inline_buffer_size;
-  
   DEBUG_PRINT("  sizeof Ndb           : %lu", sizeof(Ndb));
   DEBUG_PRINT("  sizeof NdbInstance   : %lu", sizeof(NdbInstance));
   DEBUG_PRINT("  sizeof workitem      : %lu (%lu + buffer: %lu)", wi1, wi2, wi3);
   DEBUG_PRINT("  sizeof ExternalValue : %lu", sizeof(ExternalValue));
+#endif
 }
 
 

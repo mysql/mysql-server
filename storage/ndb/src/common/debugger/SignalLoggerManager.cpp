@@ -27,7 +27,7 @@
 #ifdef VM_TRACE_TIME
 static char* mytime()
 {
-  NDB_TICKS t = NdbTick_CurrentMillisecond();
+  Uint64 t = NdbTick_CurrentMillisecond();
   uint s = (t / 1000) % 3600;
   uint ms = t % 1000;
   static char buf[100];

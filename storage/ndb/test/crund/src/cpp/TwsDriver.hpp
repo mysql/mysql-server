@@ -67,6 +67,10 @@ protected:
     virtual void initConnection() = 0;
     virtual void closeConnection() = 0;
     virtual void clearData() = 0;
+
+    // XXX temp compile fixes
+    virtual bool createLoad(const std::string&) { assert(0); return false; }
+    virtual void runLoad(Load&) { assert(0); }
 };
 
 #endif // TwsDriver_hpp
