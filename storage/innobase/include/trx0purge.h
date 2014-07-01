@@ -189,7 +189,7 @@ public:
 
 		ulint	sz = UNIV_PAGE_SIZE;
 		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
-		if (buf == 0) {
+		if (buf == NULL) {
 			os_file_close(handle);
 			delete[] log_file_name;
 			return(DB_OUT_OF_MEMORY);
@@ -246,7 +246,7 @@ public:
 
 		ulint	sz = UNIV_PAGE_SIZE;
 		void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
-		if (buf == 0) {
+		if (buf == NULL) {
 			os_file_close(handle);
 			os_file_delete(innodb_log_file_key, log_file_name);
 			delete[] log_file_name;
@@ -308,7 +308,7 @@ public:
 
 			ulint	sz = UNIV_PAGE_SIZE;
 			void*	buf = ut_zalloc(sz + UNIV_PAGE_SIZE);
-			if (buf == 0) {
+			if (buf == NULL) {
 				os_file_close(handle);
 				os_file_delete(innodb_log_file_key,
 					       log_file_name);
