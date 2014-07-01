@@ -785,6 +785,15 @@ trx_purge_initiate_truncate(
 
 		mutex_enter(&rseg->mutex);
 
+		if (rseg->trx_ref_count > 0) {
+			/* This rseg is still being hold by an active
+			transaction. */
+			all_free = false;
+			mutex_exit(&rseg->mutex);
+			continue;
+		}
+
+		ut_ad(rseg->trx_ref_count == 0);
 		ut_ad(rseg->skip_allocation);
 
 		ulint	size_of_rsegs = rseg->curr_size;

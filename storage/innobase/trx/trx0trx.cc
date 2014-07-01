@@ -1019,6 +1019,7 @@ get_next_redo_rseg(
 	bool look_for_rollover = false;
 #endif /* UNIV_DEBUG */
 
+reallocate:
 	for (;;) {
 		rseg = trx_sys->rseg_array[slot];
 
@@ -1063,6 +1064,18 @@ get_next_redo_rseg(
 		}
 		break;
 	}
+
+	/* By now we have only selected the rseg but not marked it allocated.
+	By marking it allocated we are ensuring that it will never be selected
+	for UNDO truncate purge. */
+	mutex_enter(&rseg->mutex);
+	if (!rseg->skip_allocation) {
+		rseg->trx_ref_count++;
+	} else {
+		mutex_exit(&rseg->mutex);
+		goto reallocate;
+	}
+	mutex_exit(&rseg->mutex);
 
 	ut_ad(!trx_sys_is_noredo_rseg_slot(rseg->id));
 	return(rseg);
@@ -1838,6 +1851,13 @@ trx_commit_in_memory(
 	}
 
 	trx->state = TRX_STATE_NOT_STARTED;
+
+	if (trx->rsegs.m_redo.rseg != NULL) {
+		trx_rseg_t*	rseg = trx->rsegs.m_redo.rseg;
+		mutex_enter(&rseg->mutex);
+		--rseg->trx_ref_count;
+		mutex_exit(&rseg->mutex);
+	}
 
 	if (mtr != NULL) {
 		if (trx->rsegs.m_redo.insert_undo != NULL) {
@@ -3008,21 +3028,12 @@ trx_set_rw_mode(
 	that both threads are synced by acquring trx->mutex to avoid decision
 	based on in-consistent view formed during promotion. */
 
-	/* From a correctness point of view this can be done
-	outside the trx_sys->mutex. However, we have some
-	debug assertions that rely on the invariant that if
-	!read-only and rseg != 0 then the transaction should be
-	on the on the rw-trx-list. It is not an expensive
-	function therefore it should do little harm in lumping
-	it here for the non-debug case. It can always be moved
-	out and the code #ifdefed to handle both variations. */
-
-	mutex_enter(&trx_sys->mutex);
-
 	trx->rsegs.m_redo.rseg = trx_assign_rseg_low(
 		srv_undo_logs, srv_undo_tablespaces, TRX_RSEG_TYPE_REDO);
 
 	ut_ad(trx->rsegs.m_redo.rseg != 0);
+
+	mutex_enter(&trx_sys->mutex);
 
 	ut_ad(trx->id == 0);
 	trx->id = trx_sys_get_new_trx_id();
