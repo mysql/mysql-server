@@ -36,10 +36,10 @@ static bool reinit_cache(IO_CACHE *cache,
 static bool copy_cache(GCS::Message *msg, IO_CACHE *src);
 
 int add_write_set(Transaction_context_log_event *tcle,
-                   std::list<unsigned long> *set)
+                   std::list<uint32> *set)
 {
   DBUG_ENTER("enter_write_set");
-  for (std::list<unsigned long>::iterator it= set->begin();
+  for (std::list<uint32>::iterator it= set->begin();
        it!=set->end();
        ++it)
   {

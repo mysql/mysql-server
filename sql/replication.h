@@ -20,8 +20,6 @@
 #include <list>
 
 typedef struct st_mysql MYSQL;
-typedef unsigned long Row_identifier;
-typedef std::list<Row_identifier> Row_identifier_list;
 
 #ifdef __cplusplus
 extern "C" {
@@ -71,7 +69,7 @@ typedef struct Trans_param {
     This is the list containing the write_set of the transaction
     that is tranferrred for the certification purpose.
   */
-  Row_identifier_list *write_set;
+  std::list<uint32> *write_set;
 } Trans_param;
 
 /**

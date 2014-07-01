@@ -230,7 +230,7 @@ int Trans_delegate::before_commit(THD *thd, bool all,
                                   bool local,
                                   IO_CACHE *stmt_cache_log,
                                   ulonglong cache_log_max_size,
-                                  Row_identifier_list *pke_write_set)
+                                  std::list<uint32> *pke_write_set)
 {
   DBUG_ENTER("Trans_delegate::before_commit");
   Trans_param param = { 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 };

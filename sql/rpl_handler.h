@@ -174,7 +174,7 @@ public:
                     bool local,
                     IO_CACHE *stmt_cache_log,
                     ulonglong cache_log_max_size,
-                    Row_identifier_list *pke_write_set);
+                    std::list<uint32> *pke_write_set);
   int before_rollback(THD *thd, bool all);
   int after_commit(THD *thd, bool all);
   int after_rollback(THD *thd, bool all);

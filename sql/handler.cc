@@ -1720,7 +1720,7 @@ int ha_rollback_low(THD *thd, bool all)
 
   // Deleting the elements from the thread_to_seq_num map.
   delete_transaction_certification_result(thd->thread_id);
-  thd->clear_hash_pke_list(thd->get_write_set());
+  thd->clear_hash_pke_list();
   (void) RUN_HOOK(transaction, before_rollback, (thd, all));
 
   if (ha_info)

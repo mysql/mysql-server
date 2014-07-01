@@ -7022,7 +7022,7 @@ TC_LOG::enum_result MYSQL_BIN_LOG::commit(THD *thd, bool all)
                   thd->get_write_set())))
       DBUG_RETURN(RESULT_ABORTED);
 
-    thd->clear_hash_pke_list(thd->get_write_set());
+    thd->clear_hash_pke_list();
     if (is_running_gcs_rpl())
     {
       // We need to follow GCS certification.
