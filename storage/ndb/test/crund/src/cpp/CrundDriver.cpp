@@ -17,13 +17,16 @@
 
 #include "CrundDriver.hpp"
 
+#include <cstddef>
+#include <cassert>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <cassert>
 
 #include "helpers.hpp"
 #include "string_helpers.hpp"
+
+#include "NdbapiAB.hpp"
 
 using std::cout;
 using std::flush;
@@ -31,110 +34,130 @@ using std::endl;
 using std::ios_base;
 using std::ostringstream;
 using std::string;
-using std::wstring;
-
-using utils::toBool;
-using utils::toInt;
-using utils::toString;
 
 // ----------------------------------------------------------------------
+// intializers/finalizers
+// ----------------------------------------------------------------------
+
+void
+CrundDriver::init() {
+    cout << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+         << endl
+         << "initializing benchmark ..." << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+         << endl;
+
+    assert(myLoads.empty());
+    Driver::init();
+}
+
+void
+CrundDriver::close() {
+    cout << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+         << endl
+         << "closing benchmark ..." << endl
+         << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+         << endl;
+
+    Driver::close();
+    for (Loads::iterator i = myLoads.begin(); i != myLoads.end(); ++i)
+        delete *i;
+    myLoads.clear();
+}
+
+bool
+CrundDriver::createLoad(const string& name) {
+    if (!name.compare("NdbapiAB")) {
+        Load* l = new NdbapiAB(*this);
+        myLoads.push_back(l);
+        return true;
+    }
+    return false;
+}
 
 void
 CrundDriver::initProperties() {
     Driver::initProperties();
 
-    cout << "setting ndb properties ..." << flush;
-
+    cout << endl << "reading crund properties ..." << flush;
     ostringstream msg;
 
-    renewConnection = toBool(props[L"renewConnection"], false);
-    renewOperations = toBool(props[L"renewOperations"], false);
-    logSumOfOps = toBool(props[L"logSumOfOps"], true);
-
-    string lm = toString(props[L"lockMode"]);
-    if (lm.empty()) {
-        lockMode = READ_COMMITTED;
-    } else if (lm.compare("READ_COMMITTED") == 0) {
-        lockMode = READ_COMMITTED;
-    } else if (lm.compare("SHARED") == 0) {
-        lockMode = SHARED;
-    } else if (lm.compare("EXCLUSIVE") == 0) {
-        lockMode = EXCLUSIVE;
-    } else {
-        msg << "[ignored] lockMode:         '" << lm << "'" << endl;
-        lockMode = READ_COMMITTED;
+    vector< string > xm;
+    split(toS(props[L"xMode"]), ',', std::back_inserter(xm));
+    for (vector< string >::iterator i = xm.begin(); i != xm.end(); ++i) {
+        XMode::E m = XMode::valueOf(*i);
+        if (m == XMode::undef) {
+            msg << "[IGNORED] xMode:                '" << m << "'" << endl;
+        } else {
+            xModes.push_back(m);
+        }
     }
 
-    nOpsStart = toInt(props[L"nOpsStart"], 256, 0);
+    const string lm = toS(props[L"lockMode"], L"none");
+    lockMode = LockMode::valueOf(lm);
+    if (lockMode == LockMode::undef) {
+        msg << "[IGNORED] lockMode:             '" << lm << "'" << endl;
+        lockMode = LockMode::none;
+    }
+
+    renewConnection = toB(props[L"renewConnection"], false);
+
+    nOpsStart = toI(props[L"nOpsStart"], 1000, 0);
     if (nOpsStart < 1) {
-        msg << "[ignored] nOpsStart:            '"
-            << toString(props[L"nOpsStart"]) << "'" << endl;
-        nOpsStart = 256;
+        msg << "[IGNORED] nOpsStart:            '"
+            << toS(props[L"nOpsStart"]) << "'" << endl;
+        nOpsStart = 1000;
     }
-    nOpsEnd = toInt(props[L"nOpsEnd"], nOpsStart, 0);
+    nOpsEnd = toI(props[L"nOpsEnd"], nOpsStart, 0);
     if (nOpsEnd < nOpsStart) {
-        msg << "[ignored] nOpsEnd:              '"
-            << toString(props[L"nOpsEnd"]) << "'" << endl;
+        msg << "[IGNORED] nOpsEnd:              '"
+            << toS(props[L"nOpsEnd"]) << "'" << endl;
         nOpsEnd = nOpsStart;
     }
-    nOpsScale = toInt(props[L"nOpsScale"], 2, 0);
+    nOpsScale = toI(props[L"nOpsScale"], 10, 0);
     if (nOpsScale < 2) {
-        msg << "[ignored] nOpsScale:            '"
-            << toString(props[L"nOpsScale"]) << "'" << endl;
-        nOpsScale = 2;
+        msg << "[IGNORED] nOpsScale:            '"
+            << toS(props[L"nOpsScale"]) << "'" << endl;
+        nOpsScale = 10;
     }
 
-    maxVarbinaryBytes = toInt(props[L"maxVarbinaryBytes"], 100, 0);
-    if (maxVarbinaryBytes < 1) {
-        msg << "[ignored] maxVarbinaryBytes:    '"
-            << toString(props[L"maxVarbinaryBytes"]) << "'" << endl;
+    maxVarbinaryBytes = toI(props[L"maxVarbinaryBytes"], 100, 0);
+    if (maxVarbinaryBytes < 0) {
+        msg << "[IGNORED] maxVarbinaryBytes:    '"
+            << toS(props[L"maxVarbinaryBytes"]) << "'" << endl;
         maxVarbinaryBytes = 100;
     }
-    maxVarcharChars = toInt(props[L"maxVarcharChars"], 100, 0);
-    if (maxVarcharChars < 1) {
-        msg << "[ignored] maxVarcharChars:      '"
-            << toString(props[L"maxVarcharChars"]) << "'" << endl;
+    maxVarcharChars = toI(props[L"maxVarcharChars"], 100, 0);
+    if (maxVarcharChars < 0) {
+        msg << "[IGNORED] maxVarcharChars:      '"
+            << toS(props[L"maxVarcharChars"]) << "'" << endl;
         maxVarcharChars = 100;
     }
 
-    maxBlobBytes = toInt(props[L"maxBlobBytes"], 1000, 0);
-    if (maxBlobBytes < 1) {
-        msg << "[ignored] maxBlobBytes:         '"
-            << toString(props[L"maxBlobBytes"]) << "'" << endl;
+    maxBlobBytes = toI(props[L"maxBlobBytes"], 1000, 0);
+    if (maxBlobBytes < 0) {
+        msg << "[IGNORED] maxBlobBytes:         '"
+            << toS(props[L"maxBlobBytes"]) << "'" << endl;
         maxBlobBytes = 1000;
     }
-    maxTextChars = toInt(props[L"maxTextChars"], 1000, 0);
-    if (maxTextChars < 1) {
-        msg << "[ignored] maxTextChars:         '"
-            << toString(props[L"maxTextChars"]) << "'" << endl;
+    maxTextChars = toI(props[L"maxTextChars"], 1000, 0);
+    if (maxTextChars < 0) {
+        msg << "[IGNORED] maxTextChars:         '"
+            << toS(props[L"maxTextChars"]) << "'" << endl;
         maxTextChars = 1000;
     }
 
-    // initialize exclude set
-    const wstring& estr = props[L"exclude"];
-    //cout << "estr='" << toString(estr) << "'" << endl;
-    const size_t len = estr.length();
-    size_t beg = 0, next;
-    while (beg < len
-           && ((next = estr.find_first_of(L",", beg)) != wstring::npos)) {
-        // add substring if not empty
-        if (beg < next) {
-            const wstring& s = estr.substr(beg, next - beg);
-            exclude.insert(toString(s));
-        }
-        beg = next + 1;
-    }
-    // add last substring if any
-    if (beg < len) {
-        const wstring& s = estr.substr(beg, len - beg);
-        exclude.insert(toString(s));
-    }
+    split(toS(props[L"include"]), ',', std::back_inserter(include));
+    split(toS(props[L"exclude"]), ',', std::back_inserter(exclude));
 
-    if (!msg.tellp()) {
+    if (!msg.tellp()) { // or msg.str().empty() if ambigous
         cout << "    [ok: "
              << "nOps=" << nOpsStart << ".." << nOpsEnd << "]" << endl;
     } else {
-        cout << endl << msg.str() << endl;
+        setIgnoredSettings();
+        cout << endl << msg.str() << flush;
     }
 }
 
@@ -142,163 +165,105 @@ void
 CrundDriver::printProperties() {
     Driver::printProperties();
 
-    const ios_base::fmtflags f = cout.flags();
-    // no effect calling manipulator function, not sure why
-    //cout << ios_base::boolalpha;
-    cout.flags(ios_base::boolalpha);
-
-    cout << endl << "crund settings ..." << endl;
-    cout << "renewConnection:                " << renewConnection << endl;
-    cout << "renewOperations:                " << renewOperations << endl;
-    cout << "logSumOfOps:                    " << logSumOfOps << endl;
-    cout << "lockMode:                       " << toStr(lockMode) << endl;
-    cout << "nOpsStart:                      " << nOpsStart << endl;
-    cout << "nOpsEnd:                        " << nOpsEnd << endl;
-    cout << "nOpsScale:                      " << nOpsScale << endl;
-    cout << "maxVarbinaryBytes:              " << maxVarbinaryBytes << endl;
-    cout << "maxVarcharChars:                " << maxVarcharChars << endl;
-    cout << "maxBlobBytes:                   " << maxBlobBytes << endl;
-    cout << "maxTextChars:                   " << maxTextChars << endl;
-    cout << "exclude:                        " << toString(exclude) << endl;
-
-    cout.flags(f);
+    cout << endl << "crund settings ..." << endl
+         << "xModes:                         " << toString(xModes) << endl
+         << "lockMode:                       " << lockMode << endl
+         << "renewConnection:                " << renewConnection << endl
+         << "nOpsStart:                      " << nOpsStart << endl
+         << "nOpsEnd:                        " << nOpsEnd << endl
+         << "nOpsScale:                      " << nOpsScale << endl
+         << "maxVarbinaryBytes:              " << maxVarbinaryBytes << endl
+         << "maxVarcharChars:                " << maxVarcharChars << endl
+         << "maxBlobBytes:                   " << maxBlobBytes << endl
+         << "maxTextChars:                   " << maxTextChars << endl
+         << "include:                        " << toString(include) << endl
+         << "exclude:                        " << toString(exclude) << endl;
 }
 
 // ----------------------------------------------------------------------
+// operations
+// ----------------------------------------------------------------------
 
 void
-CrundDriver::runTests() {
-    cout << endl;
-    initConnection();
-    initOperations();
+CrundDriver::runLoad(Load& load) {
+    connectDB(load);
 
     assert(nOpsStart <= nOpsEnd && nOpsScale > 1);
     for (int i = nOpsStart; i <= nOpsEnd; i *= nOpsScale) {
-        runLoads(i);
-    }
-
-    cout << endl
-         << "------------------------------------------------------------" << endl
-         << endl;
-    clearData();
-    closeOperations();
-    closeConnection();
-}
-
-void
-CrundDriver::runLoads(int nOps) {
-    cout << endl
-         << "------------------------------------------------------------" << endl;
-
-    cout << "running operations ..."
-         << "          [nOps=" << nOps << "]" << endl;
-
-    // log buffers
-    if (logRealTime) {
-        rtimes << nOps;
-        rta = 0L;
-    }
-    if (logCpuTime) {
-        ctimes << nOps;
-        cta = 0L;
-    }
-
-    // pre-run cleanup
-    if (renewConnection) {
-        closeOperations();
-        closeConnection();
-        initConnection();
-        initOperations();
-    } else if (renewOperations) {
-        closeOperations();
-        initOperations();
-    }
-    clearData();
-
-    runOperations(nOps);
-
-    if (logSumOfOps) {
         cout << endl
-             << "total" << endl;
-        if (logRealTime) {
-            cout << "tx real time                    " << rta
-                 << "\tms" << endl;
-        }
-        if (logSumOfOps) {
-            cout << "tx cpu time                     " << cta
-                 << "\tms" << endl;
-        }
+             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+             << endl
+             << "running load ...                [nOps=" << i << "]"
+             << load.getName() << endl
+             << "++++++++++++++++++++++++++++++++++++++++++++++++++++++++++++"
+             << endl;
+        runSeries(load, i);
     }
-
-    // log buffers
-    if (logHeader) {
-        if (logSumOfOps) {
-            header << "\ttotal";
-        }
-        logHeader = false;
-    }
-    if (logRealTime) {
-        if (logSumOfOps) {
-            rtimes << "\t" << rta;
-        }
-        rtimes << endl;
-    }
-    if (logCpuTime) {
-        if (logSumOfOps) {
-            ctimes << "\t" << cta;
-        }
-        ctimes << endl;
-    }
+    
+    disconnectDB(load);
 }
 
 void
-CrundDriver::runOperations(int nOps) {
-    for (Operations::const_iterator i = operations.begin();
-         i != operations.end(); ++i) {
-        // no need for pre-tx cleanup with NDBAPI-based loads
-        //}
-        runOp(**i, nOps);
-    }
+CrundDriver::connectDB(Load& load) {
+    cout << endl
+         << "------------------------------------------------------------"
+         << endl
+         << "init connection ... " << endl
+         << "------------------------------------------------------------"
+         << endl;
+    load.initConnection();
 }
 
 void
-CrundDriver::runOp(const Op& op, int nOps) {
-    const string& name = op.name;
-    if (exclude.find(name) == exclude.end()) {
-        begin(name);
-        op.run(nOps);
-        finish(name);
+CrundDriver::disconnectDB(Load& load) {
+    cout << endl
+         << "------------------------------------------------------------"
+         << endl
+         << "close connection ... " << endl
+         << "------------------------------------------------------------"
+         << endl;
+    load.closeConnection();
+}
+
+void
+CrundDriver::reconnectDB(Load& load) {
+    cout << endl
+         << "------------------------------------------------------------"
+         << endl
+         << "renew connection ... " << endl
+         << "------------------------------------------------------------"
+         << endl;
+    load.closeConnection();
+    load.initConnection();
+}
+
+void
+CrundDriver::runSeries(Load& load, int nOps) {
+    if (nRuns == 0)
+        return; // nothing to do
+    
+    for (int i = 1; i <= nRuns; i++) {
+        // pre-run cleanup
+        if (renewConnection)
+            reconnectDB(load);
+        
+        cout << endl
+             << "------------------------------------------------------------"
+             << endl
+             << "run " << i << " of " << nRuns << " [nOps=" << nOps << "]"
+             << endl
+             << "------------------------------------------------------------"
+             << endl;
+        runOperations(load, nOps);
     }
+    
+    writeLogBuffers(load.getName());
 }
 
-const char*
-CrundDriver::toStr(XMode mode) {
-    switch (mode) {
-    case BULK:
-        return "bulk";
-    case EACH:
-        return "each";
-    case INDY:
-        return "indy";
-    default:
-        assert(false);
-        return "<invalid value>";
-    };
+void
+CrundDriver::runOperations(Load& load, int nOps) {
+    beginOps(nOps);
+    load.clearData();
+    load.runOperations(nOps);
+    finishOps(nOps); 
 }
-
-const char*
-CrundDriver::toStr(LockMode mode) {
-    switch (mode) {
-    case READ_COMMITTED:
-        return "read_committed";
-    case SHARED:
-        return "shared";
-    case EXCLUSIVE:
-        return "exclusive";
-    default:
-        assert(false);
-        return "<invalid value>";
-    };
-}
-
-//---------------------------------------------------------------------------

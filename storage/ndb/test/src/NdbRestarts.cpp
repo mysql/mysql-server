@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -15,6 +15,7 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#include <ndb_global.h>
 #include <NdbRestarts.hpp>
 #include <NDBT.hpp>
 #include <string.h>
@@ -516,7 +517,7 @@ int get50PercentOfNodes(NdbRestarter& restarter,
   // TODO Check nodegroup and return one node from each 
 
   int num50Percent = restarter.getNumDbNodes() / 2;
-  assert(num50Percent <= MAX_NDB_NODES);
+  require(num50Percent <= MAX_NDB_NODES);
 
   // Calculate which nodes to stop, select all even nodes
   for (int i = 0; i < num50Percent; i++){

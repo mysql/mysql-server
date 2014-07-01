@@ -51,7 +51,10 @@ alter table T2
   drop foreign key MYfk1;
 
 alter table t2
-  drop foreign key myFK2;
+  drop foreign key myFK2,
+  algorithm=copy;
+
+show create table t2;
 
 --echo # test upper case parent database and table
 
