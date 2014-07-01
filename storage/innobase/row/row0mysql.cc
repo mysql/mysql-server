@@ -2692,8 +2692,6 @@ row_mysql_freeze_data_dictionary_func(
 	const char*	file,	/*!< in: file name */
 	ulint		line)	/*!< in: line number */
 {
-	ut_ad(trx_is_started(trx));
-
 	ut_a(trx->dict_operation_lock_mode == 0);
 
 	rw_lock_s_lock_inline(&dict_operation_lock, 0, file, line);
