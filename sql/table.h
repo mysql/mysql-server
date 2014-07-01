@@ -1933,6 +1933,8 @@ private:
   /**
      Optimized copy of m_join_cond (valid for one single
      execution). Initialized by SELECT_LEX::get_optimizable_conditions().
+     @todo it would be good to reset it in reinit_before_use(), if
+     reinit_stmt_before_use() had a loop including join nests.
   */
   Item          *m_optim_join_cond;
 public:
