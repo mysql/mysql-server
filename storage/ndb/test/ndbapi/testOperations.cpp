@@ -21,6 +21,8 @@
 #include "UtilTransactions.hpp"
 #include <NdbRestarter.hpp>
 
+template class Vector<int>;
+
 struct OperationTestCase {
   const char * name;
   bool preCond; // start transaction | insert | commit

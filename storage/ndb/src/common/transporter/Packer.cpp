@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -28,6 +28,14 @@ Uint32 MAX_RECEIVED_SIGNALS = 1024;
 #define MAX_RECEIVED_SIGNALS 1024
 #endif
 
+static
+void dump_corrupt_message(const char file[], unsigned line, const Uint32 * msg, size_t len)
+{
+  ndbout << "ERROR: " << file << ": " << line << ": Corrupt message detected!" << endl;
+  ndbout << "-- Message --" << endl;
+  ndbout.hexdump(msg, len) << flush;
+}
+
 Uint32
 TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
                             Uint32 * readPtr,
@@ -44,7 +52,7 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
   Uint32 loop_count = 0; 
   bool doStopReceiving = false;
  
-  if(state == NoHalt || state == HaltOutput){
+  if(likely(state == NoHalt || state == HaltOutput)){
     while ((sizeOfData >= 4 + sizeof(Protocol6)) &&
            (loop_count < MAX_RECEIVED_SIGNALS) &&
 	   doStopReceiving == false) {
@@ -62,23 +70,26 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
 
-      if(messageLenBytes == 0 || messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE){
+      if(unlikely(messageLenBytes == 0 ||
+                  messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE)){
         DEBUG("Message Size = " << messageLenBytes);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return usedData;
       }//if
       
-      if (sizeOfData < messageLenBytes) {
+      if (unlikely(sizeOfData < messageLenBytes)) {
 	break;
       }//if
       
-      if(Protocol6::getCheckSumIncluded(word1)){
+      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
 	const Uint32 tmpLen = messageLen32 - 1;
 	const Uint32 checkSumSent     = readPtr[tmpLen];
 	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
 	
-	if(checkSumComputed != checkSumSent){
+	if(unlikely(checkSumComputed != checkSumSent)){
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
           return usedData;
 	}//if
       }//if
@@ -89,6 +100,12 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       }//if
 #endif
       
+      Uint32 * signalData = &readPtr[3];
+
+      readPtr     += messageLen32;
+      sizeOfData  -= messageLenBytes;
+      usedData    += messageLenBytes;
+
       Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
       
       Uint32 sBlockNum = signalHeader.theSendersBlockRef;
@@ -96,8 +113,6 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       signalHeader.theSendersBlockRef = sBlockNum;
       
       Uint8 prio = Protocol6::getPrio(word1);
-      
-      Uint32 * signalData = &readPtr[3];
       
       if(Protocol6::getSignalIdIncluded(word1) == 0){
 	signalHeader.theSendersSignalId = ~0;
@@ -118,11 +133,14 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
 
+      if (sectionData != readPtr)
+      {
+        report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+        return usedData;
+      }
       doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
-      readPtr     += messageLen32;
-      sizeOfData  -= messageLenBytes;
-      usedData    += messageLenBytes;
     }//while
 
     stopReceiving = doStopReceiving;
@@ -146,25 +164,28 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       const Uint32 messageLenBytes = ((Uint32)messageLen32) << 2;
-      if(messageLenBytes == 0 || messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE){
+      if(unlikely(messageLenBytes == 0 ||
+                  messageLenBytes > MAX_RECV_MESSAGE_BYTESIZE)){
 	DEBUG("Message Size = " << messageLenBytes);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return usedData;
       }//if
       
-      if (sizeOfData < messageLenBytes) {
+      if (unlikely(sizeOfData < messageLenBytes)) {
 	break;
       }//if
       
-      if(Protocol6::getCheckSumIncluded(word1)){
+      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
 	const Uint32 tmpLen = messageLen32 - 1;
 	const Uint32 checkSumSent     = readPtr[tmpLen];
 	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
 	
-	if(checkSumComputed != checkSumSent){
+	if(unlikely(checkSumComputed != checkSumSent)){
 	  
 	  //theTransporters[remoteNodeId]->disconnect();
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
           return usedData;
 	}//if
       }//if
@@ -174,7 +195,12 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	//Do funky stuff
       }//if
 #endif
+      Uint32 * signalData = &readPtr[3];
       
+      readPtr     += messageLen32;
+      sizeOfData  -= messageLenBytes;
+      usedData    += messageLenBytes;
+
       Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
       
       Uint32 rBlockNum = signalHeader.theReceiversBlockNumber;
@@ -185,8 +211,6 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	signalHeader.theSendersBlockRef = sBlockNum;
 	
 	Uint8 prio = Protocol6::getPrio(word1);
-	
-	Uint32 * signalData = &readPtr[3];
 	
 	if(Protocol6::getSignalIdIncluded(word1) == 0){
 	  signalHeader.theSendersSignalId = ~0;
@@ -206,15 +230,17 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
+        if (sectionData != readPtr)
+        {
+          report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+          return usedData;
+        }
 	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
       }//if
-      
-      readPtr     += messageLen32;
-      sizeOfData  -= messageLenBytes;
-      usedData    += messageLenBytes;
     }//while
     
     stopReceiving = doStopReceiving;
@@ -248,21 +274,23 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
       
-      if(messageLen32 == 0 || 
-         messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2))
+      if(unlikely(messageLen32 == 0 || 
+                  messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
       {
         DEBUG("Message Size(words) = " << messageLen32);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return readPtr;
       }//if
       
-      if(Protocol6::getCheckSumIncluded(word1)){
+      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
 	const Uint32 tmpLen = messageLen32 - 1;
 	const Uint32 checkSumSent     = readPtr[tmpLen];
 	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
 	
-	if(checkSumComputed != checkSumSent){
+	if(unlikely(checkSumComputed != checkSumSent)){
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
 	  return readPtr;
 	}//if
       }//if
@@ -272,7 +300,10 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	//Do funky stuff
       }//if
 #endif
+      Uint32 * signalData = &readPtr[3];
       
+      readPtr += messageLen32;
+
       Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
       
       Uint32 sBlockNum = signalHeader.theSendersBlockRef;
@@ -280,8 +311,6 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
       signalHeader.theSendersBlockRef = sBlockNum;
       
       Uint8 prio = Protocol6::getPrio(word1);
-      
-      Uint32 * signalData = &readPtr[3];
       
       if(Protocol6::getSignalIdIncluded(word1) == 0){
 	signalHeader.theSendersSignalId = ~0;
@@ -301,9 +330,14 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	sectionData += sz;
       }
       
+      if (sectionData != readPtr)
+      {
+        report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+        return readPtr;
+      }
       doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       
-      readPtr += messageLen32;
     }//while
   } else {
     /** state = HaltIO || state == HaltInput */
@@ -320,23 +354,25 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 #endif
       
       const Uint16 messageLen32    = Protocol6::getMessageLength(word1);
-      if(messageLen32 == 0 || 
-         messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2))
+      if(unlikely(messageLen32 == 0 || 
+         messageLen32 > (MAX_RECV_MESSAGE_BYTESIZE >> 2)))
       {
 	DEBUG("Message Size(words) = " << messageLen32);
 	report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+        dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
         return readPtr;
       }//if
       
-      if(Protocol6::getCheckSumIncluded(word1)){
+      if(unlikely(Protocol6::getCheckSumIncluded(word1))){
 	const Uint32 tmpLen = messageLen32 - 1;
 	const Uint32 checkSumSent     = readPtr[tmpLen];
 	const Uint32 checkSumComputed = computeChecksum(&readPtr[0], tmpLen);
 	
-	if(checkSumComputed != checkSumSent){
+	if(unlikely(checkSumComputed != checkSumSent)){
 	  
 	  //theTransporters[remoteNodeId]->disconnect();
 	  report_error(remoteNodeId, TE_INVALID_CHECKSUM);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
 	  return readPtr;
 	}//if
       }//if
@@ -346,6 +382,9 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	//Do funky stuff
       }//if
 #endif
+      Uint32 * signalData = &readPtr[3];
+	
+      readPtr += messageLen32;
       
       Protocol6::createSignalHeader(&signalHeader, word1, word2, word3);
       
@@ -357,8 +396,6 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	signalHeader.theSendersBlockRef = sBlockNum;
 	
 	Uint8 prio = Protocol6::getPrio(word1);
-	
-	Uint32 * signalData = &readPtr[3];
 	
 	if(Protocol6::getSignalIdIncluded(word1) == 0){
 	  signalHeader.theSendersSignalId = ~0;
@@ -378,13 +415,18 @@ TransporterRegistry::unpack(TransporterReceiveHandle & recvHandle,
 	  sectionData += sz;
 	}
 
+        if (sectionData != readPtr)
+        {
+          report_error(remoteNodeId, TE_INVALID_MESSAGE_LENGTH);
+          dump_corrupt_message(__FILE__, __LINE__, readPtr, messageLen32);
+          return readPtr;
+        }
 	doStopReceiving = recvHandle.deliver_signal(&signalHeader, prio, signalData, ptr);
       } else {
 	DEBUG("prepareReceive(...) - Discarding message to block: "
 	      << rBlockNum << " from Node: " << remoteNodeId);
       }//if
       
-      readPtr += messageLen32;
     }//while
   }//if
   stopReceiving = doStopReceiving;

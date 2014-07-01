@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -149,8 +149,8 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     conf->scanPtr = req->senderData;
     conf->accPtr = scanPtr.i;
     conf->flag = AccScanConf::ZNOT_EMPTY_FRAGMENT;
-    sendSignal(req->senderRef, GSN_ACC_SCANCONF,
-        signal, AccScanConf::SignalLength, JBB);
+    signal->theData[8] = 0;
+    /* Return ACC_SCANCONF */
     return;
   } while (0);
   if (scanPtr.i != RNIL) {
@@ -158,8 +158,9 @@ Dbtup::execACC_SCANREQ(Signal* signal)
     releaseScanOp(scanPtr);
   }
   // LQH does not handle REF
-  signal->theData[0] = 0x313;
-  sendSignal(req->senderRef, GSN_ACC_SCANREF, signal, 1, JBB);
+  ndbrequire(false);
+  signal->theData[8] = 1; /* Failure */
+  /* Return ACC_SCANREF */
 }
 
 void
@@ -192,11 +193,11 @@ Dbtup::execNEXT_SCANREQ(Signal* signal)
       removeAccLockOp(scan, req->accOperationPtr);
     }
     if (req->scanFlag == NextScanReq::ZSCAN_COMMIT) {
-      NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
-      conf->scanPtr = scan.m_userPtr;
-      unsigned signalLength = 1;
-      sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-		 signal, signalLength, JBB);
+      signal->theData[0] = 0; /* Success */
+      /**
+       * signal->theData[0] = 0 means return signal
+       * NEXT_SCANCONF for NextScanReq::ZSCAN_COMMIT
+       */
       return;
     }
     break;
@@ -280,7 +281,7 @@ Dbtup::execACC_CHECK_SCAN(Signal* signal)
     unsigned signalLength = 3;
     // if TC has ordered scan close, it will be detected here
     sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-        signal, signalLength, JBB);
+               signal, signalLength, JBB);
     return;     // stop
   }
 
@@ -433,16 +434,18 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     conf->localKey[0] = pos.m_key_mm.m_page_no;
     conf->localKey[1] = pos.m_key_mm.m_page_idx;
     unsigned signalLength = 5;
-    if (scan.m_bits & ScanOp::SCAN_LOCK) {
-      sendSignal(scan.m_userRef, GSN_NEXT_SCANCONF,
-          signal, signalLength, JBB);
-    } else {
-      Uint32 blockNo = refToMain(scan.m_userRef);
-      EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
-      jamEntry();
-    }
     // next time look for next entry
     scan.m_state = ScanOp::Next;
+    prepareTUPKEYREQ(pos.m_key_mm.m_page_no,
+                     pos.m_key_mm.m_page_idx,
+                     fragPtr.i);
+    /**
+     * Running the lock code takes some extra execution time, one could
+     * have this effect the number of tuples to read in one time slot.
+     * We decided to ignore this here.
+     */
+    Uint32 blockNo = refToMain(scan.m_userRef);
+    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     return;
   }
   if (scan.m_state == ScanOp::Last ||
@@ -453,8 +456,8 @@ Dbtup::scanReply(Signal* signal, ScanOpPtr scanPtr)
     conf->accOperationPtr = RNIL;
     conf->fragId = RNIL;
     unsigned signalLength = 3;
-    sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-        signal, signalLength, JBB);
+    Uint32 blockNo = refToMain(scan.m_userRef);
+    EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, signalLength);
     return;
   }
   ndbrequire(false);
@@ -777,6 +780,7 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
       // get TUP real page
       jam();
       {
+        PagePtr pagePtr;
         if (pos.m_realpid_mm == RNIL) {
           jam();
           pos.m_realpid_mm = getRealpidCheck(fragPtr.p, key.m_page_no);
@@ -793,7 +797,6 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
             break; // incr loop count
           }
         }
-        PagePtr pagePtr;
 	c_page_pool.getPtr(pagePtr, pos.m_realpid_mm);
 
     nopage:
@@ -1099,12 +1102,10 @@ Dbtup::scanNext(Signal* signal, ScanOpPtr scanPtr)
 	conf->localKey[1] = pos.m_key_mm.m_page_idx;
 	conf->gci = foundGCI;
 	Uint32 blockNo = refToMain(scan.m_userRef);
+	scan.m_state = ScanOp::Next;
 	EXECUTE_DIRECT(blockNo, GSN_NEXT_SCANCONF, signal, 6);
 	jamEntry();
-
 	// TUPKEYREQ handles savepoint stuff
-	loop_count = 32;
-	scan.m_state = ScanOp::Next;
 	return false;
       }
       break; // incr loop count
@@ -1209,14 +1210,17 @@ Dbtup::scanClose(Signal* signal, ScanOpPtr scanPtr)
     list.release(lockPtr);
   }
   // send conf
+  Uint32 blockNo = refToMain(scanPtr.p->m_userRef);
   NextScanConf* const conf = (NextScanConf*)signal->getDataPtrSend();
   conf->scanPtr = scanPtr.p->m_userPtr;
   conf->accOperationPtr = RNIL;
   conf->fragId = RNIL;
   unsigned signalLength = 3;
-  sendSignal(scanPtr.p->m_userRef, GSN_NEXT_SCANCONF,
-      signal, signalLength, JBB);
   releaseScanOp(scanPtr);
+  EXECUTE_DIRECT(blockNo,
+                 GSN_NEXT_SCANCONF,
+                 signal,
+                 signalLength);
 }
 
 void
