@@ -138,22 +138,13 @@ data:  b,b,b,b,b,b,g,g,j,j,j, x, y
 then we would store 5,7,10,11,12 in the array. */
 typedef std::vector<ib_uint64_t, ut_allocator<ib_uint64_t> >	boundaries_t;
 
-/* This is used to arrange the index based on the index name.
-@return true if index_name1 is smaller than index_name2. */
-struct index_cmp
-{
-	bool operator()(const char* index_name1, const char* index_name2) const {
-		return(strcmp(index_name1, index_name2) < 0);
-	}
-};
-
 /** Allocator type used for index_map_t. */
 typedef ut_allocator<std::pair<const char*, dict_index_t*> >
 	index_map_t_allocator;
 
 /** Auxiliary map used for sorting indexes by name in dict_stats_save(). */
-typedef std::map<const char*, dict_index_t*, index_cmp, index_map_t_allocator>
-	index_map_t;
+typedef std::map<const char*, dict_index_t*, ut_strcmp_functor,
+		index_map_t_allocator>	index_map_t;
 
 /*********************************************************************//**
 Checks whether an index should be ignored in stats manipulations:
@@ -2451,7 +2442,7 @@ dict_stats_save(
 
 	dict_index_t*	index;
 	index_map_t	indexes(
-		(index_cmp()),
+		(ut_strcmp_functor()),
 		index_map_t_allocator(mem_key_dict_stats_index_map_t));
 
 	/* Below we do all the modifications in innodb_index_stats in a single
