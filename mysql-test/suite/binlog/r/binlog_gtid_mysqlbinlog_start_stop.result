@@ -198,6 +198,7 @@ INSERT INTO t1 VALUES(2)
 SET TIMESTAMP=1956560400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -229,6 +230,7 @@ INSERT INTO t1 VALUES(2)
 SET TIMESTAMP=1956560400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -313,6 +315,7 @@ INSERT INTO t1 VALUES(1)
 SET TIMESTAMP=1925024400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -344,6 +347,7 @@ INSERT INTO t1 VALUES(1)
 SET TIMESTAMP=1925024400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -399,22 +403,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -484,22 +477,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -559,22 +541,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -645,28 +616,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -709,28 +670,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -783,22 +734,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -869,28 +809,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -943,28 +873,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1155,6 +1075,7 @@ INSERT INTO t1 VALUES(2)
 SET TIMESTAMP=1956560400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1185,6 +1106,7 @@ INSERT INTO t1 VALUES(2)
 SET TIMESTAMP=1956560400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1269,6 +1191,7 @@ INSERT INTO t1 VALUES(1)
 SET TIMESTAMP=1925024400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1300,6 +1223,7 @@ INSERT INTO t1 VALUES(1)
 SET TIMESTAMP=1925024400/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1355,22 +1279,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1440,22 +1353,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1514,22 +1416,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1600,28 +1491,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1663,28 +1544,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1737,22 +1608,11 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
@@ -1823,28 +1683,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
@@ -1897,28 +1747,18 @@ SET TIMESTAMP=1988182800/*!*/;
 COMMIT
 /*!*/;
 SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog */ /*!*/;
-DELIMITER ;
-DELIMITER /*!*/;
 # UUID:#-#
 SET @@SESSION.GTID_NEXT= 'GTID'/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
-SET @@session.pseudo_thread_id=999999999/*!*/;
-SET @@session.foreign_key_checks=1, @@session.sql_auto_is_null=0, @@session.unique_checks=1, @@session.autocommit=1/*!*/;
-SET @@session.sql_mode=1073741824/*!*/;
-SET @@session.auto_increment_increment=1, @@session.auto_increment_offset=1/*!*/;
-/*!\C latin1 *//*!*/;
-SET @@session.character_set_client=8,@@session.collation_connection=8,@@session.collation_server=8/*!*/;
-SET @@session.lc_time_names=0/*!*/;
-SET @@session.collation_database=DEFAULT/*!*/;
 BEGIN
 /*!*/;
-use `test`/*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 INSERT INTO t1 VALUES(4)
 /*!*/;
 SET TIMESTAMP=2019718800/*!*/;
 COMMIT
 /*!*/;
+SET @@SESSION.GTID_NEXT= 'GTID' /* added by mysqlbinlog *//*!*/;
 DELIMITER ;
 # End of log file
 ROLLBACK /* added by mysqlbinlog */;
