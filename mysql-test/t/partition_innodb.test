@@ -703,3 +703,45 @@ ALTER TABLE t1 DISCARD TABLESPACE;
 ALTER TABLE t1 IMPORT TABLESPACE;
 DROP TABLE t1;
 USE test;
+
+--echo #
+--echo # Bug#13737949: CRASH IN HA_PARTITION::INDEX_INIT
+--echo # Bug#18694052: SERVER CRASH IN HA_PARTITION::INIT_RECORD_PRIORITY_QUEUE
+--echo #
+CREATE TABLE t1
+(a INT,
+ b INT,
+ PRIMARY KEY (a))
+ ENGINE = InnoDB
+ PARTITION BY HASH (a) PARTITIONS 3;
+ START TRANSACTION WITH CONSISTENT SNAPSHOT;
+ --connect (con1, localhost, root,,)
+ --echo # con1
+ ALTER TABLE t1 ADD INDEX idx1 (b);
+ --connection default
+ --echo # con default
+ --error ER_TABLE_DEF_CHANGED
+ SELECT b FROM t1 WHERE b = 0;
+ --error ER_TABLE_DEF_CHANGED
+ SELECT b FROM t1 WHERE b = 0;
+ --disconnect con1
+ DROP TABLE t1;
+
+--echo # Same test without partitioning
+CREATE TABLE t1
+(a INT,
+ b INT,
+ PRIMARY KEY (a))
+ ENGINE = InnoDB;
+START TRANSACTION WITH CONSISTENT SNAPSHOT;
+--echo # con1
+--connect (con1, localhost, root,,)
+ALTER TABLE t1 ADD INDEX idx1 (b);
+--connection default
+--echo # con default
+--error ER_TABLE_DEF_CHANGED
+SELECT b FROM t1 WHERE b = 0;
+--error ER_TABLE_DEF_CHANGED
+SELECT b FROM t1 WHERE b = 0;
+--disconnect con1
+DROP TABLE t1;
