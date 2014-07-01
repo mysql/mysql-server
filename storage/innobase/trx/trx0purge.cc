@@ -654,7 +654,7 @@ trx_purge_mark_undo_for_truncate(
 
 	/* Avoid bias selection and so start the scan from immediate next
 	of last selected UNDO tablespace for truncate. */
-	ulint space_id = undo_trunc->scan_start();
+	ulint space_id = undo_trunc->get_scan_start();
 
 	for (ulint i = 1; i <= srv_undo_tablespaces_open; i++) {
 
