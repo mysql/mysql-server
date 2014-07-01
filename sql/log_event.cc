@@ -5398,7 +5398,18 @@ void Start_log_event_v3::print(FILE* file, PRINT_EVENT_INFO* print_event_info)
     my_b_printf(head,"RESET CONNECTION%s\n", print_event_info->delimiter);
 #else
     my_b_printf(head,"ROLLBACK%s\n", print_event_info->delimiter);
+    if (print_event_info->is_gtid_next_set)
+      print_event_info->is_gtid_next_valid= false;
 #endif
+  }
+  // set gtid_next=automatic if we have previously set it to uuid:number
+  if (!print_event_info->is_gtid_next_valid)
+  {
+    my_b_printf(head, "%sAUTOMATIC'%s\n",
+                Gtid_log_event::SET_STRING_PREFIX,
+                print_event_info->delimiter);
+    print_event_info->is_gtid_next_set= false;
+    print_event_info->is_gtid_next_valid= true;
   }
   if (temp_buf &&
       print_event_info->base64_output_mode != BASE64_OUTPUT_NEVER &&
@@ -13957,7 +13968,8 @@ st_print_event_info::st_print_event_info()
    charset_database_number(ILLEGAL_CHARSET_INFO_NUMBER),
    thread_id(0), thread_id_printed(false),
    base64_output_mode(BASE64_OUTPUT_UNSPEC), printed_fd_event(FALSE),
-   have_unflushed_events(FALSE), skipped_event_in_transaction(false)
+   have_unflushed_events(false), skipped_event_in_transaction(false),
+   is_gtid_next_set(false), is_gtid_next_valid(true)
 {
   /*
     Currently we only use static PRINT_EVENT_INFO objects, so zeroed at
