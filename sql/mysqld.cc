@@ -118,9 +118,7 @@
 #include <poll.h>
 #endif
 
-#ifdef HAVE_FESETROUND
 #include <fenv.h>
-#endif
 #include "table_cache.h"                // table_cache_manager
 #include "connection_acceptor.h"        // Connection_acceptor
 #include "connection_handler_impl.h"    // *_connection_handler
@@ -140,9 +138,6 @@ using std::vector;
 #define __GNU_LIBRARY__       // Skip warnings in getopt.h
 #endif
 #include <my_getopt.h>
-#ifdef HAVE_SYSENT_H
-#include <sysent.h>
-#endif
 #ifdef HAVE_PWD_H
 #include <pwd.h>        // For getpwent
 #endif
@@ -157,9 +152,6 @@ using std::vector;
 #endif
 #ifdef HAVE_SYS_UN_H
 #include <sys/un.h>
-#endif
-#ifdef HAVE_SELECT_H
-#include <select.h>
 #endif
 #ifdef HAVE_SYS_SELECT_H
 #include <sys/select.h>
@@ -234,10 +226,8 @@ inline void setup_fpu()
   fedisableexcept(FE_ALL_EXCEPT);
 #endif
 
-#ifdef HAVE_FESETROUND
     /* Set FPU rounding mode to "round-to-nearest" */
   fesetround(FE_TONEAREST);
-#endif /* HAVE_FESETROUND */
 
   /*
     x86 (32-bit) requires FPU precision to be explicitly set to 64 bit

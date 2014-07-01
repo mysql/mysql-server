@@ -117,38 +117,11 @@ support cross-platform development and expose comonly used SQL names. */
 /* We only try to do explicit inlining of functions with gcc and
 Sun Studio */
 
-#ifdef HAVE_STDINT_H
-# define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
-# include <stdint.h>
-#else /* HAVE_STDINT_H */
-# if SIZEOF_LONG_LONG != 8
-#  error sizeof long long is not 8 bytes, InnoDB is unable to define int64_t
-# endif
-typedef long long	        int64_t;
-# define INT64_MAX		0x7FFFFFFFFFFFFFFFLL
-typedef unsigned long long	uint64_t;
-# define UINT64_MAX		(~0ULL)
-typedef unsigned long long	uintmax_t;
-# define UINTMAX_MAX		UINT64_MAX
-#endif
+#define __STDC_LIMIT_MACROS	/* Enable C99 limit macros */
+#include <stdint.h>
 
-#ifdef HAVE_INTTYPES_H
-# define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
-# include <inttypes.h>
-#else /* HAVE_INTTYPES_H */
-# if SIZEOF_LONG_LONG != 8
-#  error sizeof long long is not 8 bytes, InnoDB is unable to define PRId64
-# endif
-# ifndef PRId64
-#  define PRId64		"lld"
-# endif /* PRId64 */
-# ifndef PRIu64
-#  define PRIu64		"llu"
-# endif /* PRIu64 */
-# ifndef PRIuMAX
-#  define PRIuMAX		PRIu64
-# endif /* PRIuMAX */
-#endif /* HAVE_INTTYPES_H */
+#define __STDC_FORMAT_MACROS	/* Enable C99 printf format macros */
+#include <inttypes.h>
 
 /* Following defines are to enable performance schema
 instrumentation in each of four InnoDB modules if
@@ -528,8 +501,7 @@ contains the sum of the following flag and the locally stored len. */
 
 #define UNIV_EXTERN_STORAGE_FIELD (UNIV_SQL_NULL - UNIV_PAGE_SIZE_MAX)
 
-#if defined(__GNUC__) && (__GNUC__ > 2)
-#define HAVE_GCC_GT_2
+#if defined(__GNUC__)
 /* Tell the compiler that variable/function is unused. */
 # define UNIV_UNUSED    __attribute__ ((unused))
 #else
@@ -537,7 +509,7 @@ contains the sum of the following flag and the locally stored len. */
 #endif /* CHECK FOR GCC VER_GT_2 */
 
 /* Some macros to improve branch prediction and reduce cache misses */
-#if defined(COMPILER_HINTS) && defined(HAVE_GCC_GT_2)
+#if defined(COMPILER_HINTS) && defined(__GNUC__)
 /* Tell the compiler that 'expr' probably evaluates to 'constant'. */
 # define UNIV_EXPECT(expr,constant) __builtin_expect(expr, constant)
 /* Tell the compiler that a pointer is likely to be NULL */
