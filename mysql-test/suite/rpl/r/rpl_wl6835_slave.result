@@ -11,6 +11,7 @@ include/sync_slave_sql_with_master.inc
 SET DEBUG_SYNC='ha_innobase_update_row_done WAIT_FOR waiting1';
 BEGIN;
 UPDATE t1 SET c1=99 WHERE c1=0;
+[connection slave]
 [connection master]
 UPDATE t1 SET c1=1 WHERE c1=0;
 [connection slave]
