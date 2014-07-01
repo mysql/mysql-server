@@ -145,7 +145,7 @@ public:
     mysql_mutex_init(key_LOCK_done, &m_lock_done, MY_MUTEX_INIT_FAST);
     mysql_cond_init(key_COND_done, &m_cond_done);
 #ifndef DBUG_OFF
-    /* reuse key_COND_done 'cos a new PSI object would be wasteful in DBUG_ON */
+    /* reuse key_COND_done 'cos a new PSI object would be wasteful in !DBUG_OFF */
     mysql_cond_init(key_COND_done, &m_cond_preempt);
 #endif
     m_queue[FLUSH_STAGE].init(

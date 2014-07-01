@@ -79,9 +79,6 @@ my_bool	net_flush(NET *net);
 #include <pwd.h>
 #endif
 
-#ifdef HAVE_SELECT_H
-#  include <select.h>
-#endif
 #ifdef HAVE_SYS_SELECT_H
 #  include <sys/select.h>
 #endif

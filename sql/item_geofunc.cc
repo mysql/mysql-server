@@ -3639,7 +3639,7 @@ public:
   Geometry *point_intersection_geometry(Geometry *g1, Geometry *g2,
                                         String *result, bool *pdone)
   {
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Geometry *retgeo= NULL;
@@ -3730,7 +3730,7 @@ public:
                                              String *result, bool *pdone)
   {
     Geometry *retgeo= NULL;
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Point_set ptset;
@@ -4040,7 +4040,7 @@ public:
   {
     *pdone= false;
     Geometry *retgeo= NULL;
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     bool isdone= false;
@@ -4118,7 +4118,7 @@ public:
   {
     *pdone= false;
     Geometry *retgeo= NULL;
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
     Geometry::wkbType gt2= g2->get_type();
 #endif
     Point_set ptset;

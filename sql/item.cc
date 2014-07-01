@@ -6192,12 +6192,10 @@ Field *Item::tmp_table_field_from_field_type(TABLE *table, bool fixed_length)
     field= new Field_long((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			  item_name.ptr(), 0, unsigned_flag);
     break;
-#ifdef HAVE_LONG_LONG
   case MYSQL_TYPE_LONGLONG:
     field= new Field_longlong((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			      item_name.ptr(), 0, unsigned_flag);
     break;
-#endif
   case MYSQL_TYPE_FLOAT:
     field= new Field_float((uchar*) 0, max_length, null_ptr, 0, Field::NONE,
 			   item_name.ptr(), decimals, 0, unsigned_flag);
