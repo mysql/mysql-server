@@ -3,7 +3,8 @@
 #  T2= ({R(C), R(B), W(B)})
 #  T3= ({R(B), W(B), C}, HIGH_PRIORITY)
 #
-# Outcome: Wait for T1, abort T2 and commit T3.
+# Outcome: T1 must abort, T3 must commit, T2 must commit
+#          after T3 (no data change).
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY, c2 INT NOT NULL, c3 INT NOT NULL) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0, 0, 0);
