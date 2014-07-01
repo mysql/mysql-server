@@ -2134,6 +2134,34 @@ trx_undo_truncate_tablespace(
 		rseg_header = trx_rsegf_get_new(
 			space_id, rseg->page_no, rseg->page_size, &mtr);
 
+		/* Before re-initialization ensure that we free the existing
+		structure. There can't be any active transactions. */
+		ut_a(UT_LIST_GET_LEN(rseg->update_undo_list) == 0);
+		ut_a(UT_LIST_GET_LEN(rseg->insert_undo_list) == 0);
+
+		trx_undo_t*	undo;
+		trx_undo_t*	next_undo;
+
+		for (undo = UT_LIST_GET_FIRST(rseg->update_undo_cached);
+		     undo != NULL;
+		     undo = next_undo) {
+
+			next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+			UT_LIST_REMOVE(rseg->update_undo_cached, undo);
+			MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
+			trx_undo_mem_free(undo);
+		}
+
+		for (undo = UT_LIST_GET_FIRST(rseg->insert_undo_cached);
+		     undo != NULL;
+		     undo = next_undo) {
+
+			next_undo = UT_LIST_GET_NEXT(undo_list, undo);
+			UT_LIST_REMOVE(rseg->insert_undo_cached, undo);
+			MONITOR_DEC(MONITOR_NUM_UNDO_SLOT_CACHED);
+			trx_undo_mem_free(undo);
+		}
+
 		UT_LIST_INIT(rseg->update_undo_list, &trx_undo_t::undo_list);
 		UT_LIST_INIT(rseg->update_undo_cached, &trx_undo_t::undo_list);
 		UT_LIST_INIT(rseg->insert_undo_list, &trx_undo_t::undo_list);
