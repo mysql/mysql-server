@@ -7474,7 +7474,7 @@ int MYSQL_BIN_LOG::ordered_commit(THD *thd, bool all, bool skip_commit)
   /*
      The group commit Leader may have to wait for follower whose transaction
      is not ready to be preempted. Initially the status is pessimistic.
-     Preemption guarding logics is necessary only when DBUG_ON is set.
+     Preemption guarding logics is necessary only when !DBUG_OFF is set.
      It won't be required for the dbug-off case as long as the follower won't
      execute any thread-specific write access code in this method, which is
      the case as of current.
@@ -8938,7 +8938,7 @@ THD::binlog_prepare_pending_rows_event(TABLE* table, uint32 serv_id,
 }
 
 /* Declare in unnamed namespace. */
-CPP_UNNAMED_NS_START
+namespace {
 
   /**
      Class to handle temporary allocation of memory for row data.
@@ -9060,7 +9060,7 @@ CPP_UNNAMED_NS_START
     uchar *m_ptr[2];
   };
 
-CPP_UNNAMED_NS_END
+} // namespace
 
 int THD::binlog_write_row(TABLE* table, bool is_trans, 
                           uchar const *record,
@@ -9333,7 +9333,7 @@ THD::binlog_row_event_extra_data_eq(const uchar* a,
                    a[EXTRA_ROW_INFO_LEN_OFFSET]) == 0)));
 }
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
 static const char *
 show_query_type(THD::enum_binlog_query_type qtype)
 {
