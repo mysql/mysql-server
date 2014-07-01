@@ -102,26 +102,26 @@ PATENT RIGHTS GRANT:
 // See design documentation for nested transactions at
 // TokuWiki/Imp/TransactionsOverview.
 
-#include <toku_portability.h>
-#include "ft/fttypes.h"
+#include "portability/toku_portability.h"
+
 #include "ft/ft-internal.h"
-#include "ft/msg.h"
 #include "ft/leafentry.h"
 #include "ft/logger.h"
+#include "ft/msg.h"
 #include "ft/txn.h"
 #include "ft/txn_manager.h"
 #include "ft/ule.h"
 #include "ft/ule-internal.h"
 #include "ft/xids.h"
-#include <util/omt.h>
-#include <util/status.h>
-#include <util/scoped_malloc.h>
-#include <util/partitioned_counter.h>
+#include "util/bytestring.h"
+#include "util/omt.h"
+#include "util/partitioned_counter.h"
+#include "util/scoped_malloc.h"
+#include "util/status.h"
 
 #define ULE_DEBUG 0
 
 static uint32_t ule_get_innermost_numbytes(ULE ule, uint32_t keylen);
-
 
 ///////////////////////////////////////////////////////////////////////////////////
 // Engine status

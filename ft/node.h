@@ -88,10 +88,9 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#include "ft/comparator.h"
-#include "ft/cachetable.h"
 #include "ft/bndata.h"
-#include "ft/fttypes.h"
+#include "ft/comparator.h"
+#include "ft/ft.h"
 #include "ft/msg_buffer.h"
 
 /* Pivot keys.
@@ -242,6 +241,7 @@ struct ftnode {
     struct ftnode_partition *bp;
     struct ctpair *ct_pair;
 };
+typedef struct ftnode *FTNODE;
 
 // data of an available partition of a leaf ftnode
 struct ftnode_leaf_basement_node {
@@ -251,6 +251,7 @@ struct ftnode_leaf_basement_node {
     bool stale_ancestor_messages_applied;
     STAT64INFO_S stat64_delta;      // change in stat64 counters since basement was last written to disk
 };
+typedef struct ftnode_leaf_basement_node *BASEMENTNODE;
 
 enum pt_state {  // declare this to be packed so that when used below it will only take 1 byte.
     PT_INVALID = 0,
@@ -277,6 +278,7 @@ struct ftnode_nonleaf_childinfo {
     off_omt_t stale_message_tree;
     uint64_t flow[2];  // current and last checkpoint
 };
+typedef struct ftnode_nonleaf_childinfo *NONLEAF_CHILDINFO;
     
 typedef struct ftnode_child_pointer {
     union {
@@ -298,6 +300,9 @@ struct ftnode_disk_data {
     uint32_t start;
     uint32_t size;
 };
+typedef struct ftnode_disk_data *FTNODE_DISK_DATA;
+
+// TODO: Turn these into functions instead of macros
 #define BP_START(node_dd,i) ((node_dd)[i].start)
 #define BP_SIZE(node_dd,i) ((node_dd)[i].size)
 
@@ -463,7 +468,7 @@ unsigned int toku_bnc_nbytesinbuf(NONLEAF_CHILDINFO bnc);
 int toku_bnc_n_entries(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_size(NONLEAF_CHILDINFO bnc);
 long toku_bnc_memory_used(NONLEAF_CHILDINFO bnc);
-void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, ITEMLEN keylen, const void *data, ITEMLEN datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const toku::comparator &cmp);
+void toku_bnc_insert_msg(NONLEAF_CHILDINFO bnc, const void *key, uint32_t keylen, const void *data, uint32_t datalen, enum ft_msg_type type, MSN msn, XIDS xids, bool is_fresh, const toku::comparator &cmp);
 void toku_bnc_empty(NONLEAF_CHILDINFO bnc);
 void toku_bnc_flush_to_child(FT ft, NONLEAF_CHILDINFO bnc, FTNODE child, TXNID parent_oldest_referenced_xid_known);
 bool toku_bnc_should_promote(FT ft, NONLEAF_CHILDINFO bnc) __attribute__((const, nonnull));
@@ -513,8 +518,6 @@ void toku_ft_leaf_apply_msg(const toku::comparator &cmp, ft_update_func update_f
                             FTNODE node, int target_childnum,
                             const ft_msg &msg, txn_gc_info *gc_info,
                             uint64_t *workdone, STAT64INFO stats_to_update);
-
-CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT ft);
 
 //
 // Message management for orthopush
@@ -602,7 +605,7 @@ static inline void set_BLB(FTNODE node, int i, BASEMENTNODE bn) {
     p->u.leaf = bn;
 }
 
-static inline SUB_BLOCK BSB(FTNODE node, int i) {
+static inline struct sub_block *BSB(FTNODE node, int i) {
     paranoid_invariant(i >= 0);
     paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER p = node->bp[i].ptr;
@@ -610,7 +613,7 @@ static inline SUB_BLOCK BSB(FTNODE node, int i) {
     return p.u.subblock;
 }
 
-static inline void set_BSB(FTNODE node, int i, SUB_BLOCK sb) {
+static inline void set_BSB(FTNODE node, int i, struct sub_block *sb) {
     paranoid_invariant(i >= 0);
     paranoid_invariant(i < node->n_children);
     FTNODE_CHILD_POINTER *p = &node->bp[i].ptr;

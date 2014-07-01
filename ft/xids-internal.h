@@ -97,7 +97,9 @@ PATENT RIGHTS GRANT:
 // ids[num_xids - 1] is the innermost transaction.
 // Should only be accessed by accessor functions xids_xxx, not directly.
 
-#include <portability/toku_stdint.h>
+#include "portability/toku_stdint.h"
+
+#include "ft/txn.h"
 
 // If the xids struct is unpacked, the compiler aligns the ids[] and we waste a lot of space
 typedef struct __attribute__((__packed__)) xids_t {

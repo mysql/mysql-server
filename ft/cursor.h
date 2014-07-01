@@ -220,7 +220,7 @@ bool toku_ft_cursor_uninitialized(FT_CURSOR cursor) __attribute__ ((warn_unused_
 
 void toku_ft_cursor_peek(FT_CURSOR cursor, const DBT **pkey, const DBT **pval);
 
-int toku_ft_cursor_check_restricted_range(FT_CURSOR cursor, bytevec key, ITEMLEN keylen);
+int toku_ft_cursor_check_restricted_range(FT_CURSOR cursor, const void *key, uint32_t keylen);
 
 int toku_ft_cursor_shortcut(FT_CURSOR cursor, int direction, uint32_t index, bn_data *bd,
                             FT_GET_CALLBACK_FUNCTION getf, void *getf_v,

@@ -92,8 +92,16 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <portability/toku_config.h>
-#include <toku_race_tools.h>
+#include "portability/toku_config.h"
+#include "portability/toku_list.h"
+#include "portability/toku_race_tools.h"
+
+#include "ft/cachetable.h"
+#include "ft/comparator.h"
+#include "ft/ft.h"
+#include "ft/ft-ops.h"
+#include "ft/node.h"
+#include "ft/rollback.h"
 
 // Symbol TOKUDB_REVISION is not defined by fractal-tree makefiles, so
 // BUILD_ID of 1000 indicates development build of main, not a release build.  
@@ -102,19 +110,6 @@ PATENT RIGHTS GRANT:
 #else
 #error
 #endif
-
-#include "ft_layout_version.h"
-#include "block_allocator.h"
-#include "cachetable.h"
-#include "toku_list.h"
-#include <util/omt.h>
-#include "leafentry.h"
-#include "compress.h"
-#include <util/omt.h>
-#include "ft/bndata.h"
-#include "ft/comparator.h"
-#include "ft/rollback.h"
-#include "ft/msg_buffer.h"
 
 struct block_table;
 struct ft_search;
@@ -200,6 +195,7 @@ struct ft_header {
 
     STAT64INFO_S on_disk_stats;
 };
+typedef struct ft_header *FT_HEADER;
 
 // ft_header is always the current version.
 struct ft {
@@ -267,7 +263,6 @@ struct ft {
     // - if our attempt fails because the key was not in range of the rightmost leaf, we reset the score back to 0
     uint32_t seqinsert_score;
 };
-typedef struct ft *FT;
 
 // Allocate a DB struct off the stack and only set its comparison
 // descriptor. We don't bother setting any other fields because
@@ -311,6 +306,8 @@ int toku_ftnode_pe_callback(void *ftnode_pv, PAIR_ATTR old_attr, void *extraargs
 bool toku_ftnode_pf_req_callback(void* ftnode_pv, void* read_extraargs);
 int toku_ftnode_pf_callback(void* ftnode_pv, void* UU(disk_data), void* read_extraargs, int fd, PAIR_ATTR* sizep);
 int toku_ftnode_cleaner_callback( void *ftnode_pv, BLOCKNUM blocknum, uint32_t fullhash, void *extraargs);
+
+CACHETABLE_WRITE_CALLBACK get_write_callbacks_for_node(FT ft);
 
 /* serialization code */
 void toku_create_compressed_partition_from_available(FTNODE node, int childnum,
@@ -497,7 +494,7 @@ void toku_create_new_ftnode(FT_HANDLE ft_handle, FTNODE *result, int height, int
 // toku_testsetup_initialize() must be called before any other test_setup_xxx() functions are called.
 void toku_testsetup_initialize(void);
 int toku_testsetup_leaf(FT_HANDLE ft_h, BLOCKNUM *blocknum, int n_children, char **keys, int *keylens);
-int toku_testsetup_nonleaf (FT_HANDLE ft_h, int height, BLOCKNUM *diskoff, int n_children, BLOCKNUM *children, char **keys, int *keylens);
+int toku_testsetup_nonleaf (FT_HANDLE ft_h, int height, BLOCKNUM *blocknum, int n_children, BLOCKNUM *children, char **keys, int *keylens);
 int toku_testsetup_root(FT_HANDLE ft_h, BLOCKNUM);
 int toku_testsetup_get_sersize(FT_HANDLE ft_h, BLOCKNUM); // Return the size on disk.
 int toku_testsetup_insert_to_leaf (FT_HANDLE ft_h, BLOCKNUM, const char *key, int keylen, const char *val, int vallen);
@@ -685,11 +682,11 @@ int toku_upgrade_msn_from_root_to_header(int fd, FT ft) __attribute__((nonnull))
 // The cursor object will have been updated (so that if result==0 the current value is the value being passed)
 //  (If r!=0 then the cursor won't have been updated.)
 // If r!=0, it's up to the callback function to return that value of r.
-// A 'key' bytevec of NULL means that element is not found (effectively infinity or
+// A 'key' pointer of NULL means that element is not found (effectively infinity or
 // -infinity depending on direction)
 // When lock_only is false, the callback does optional lock tree locking and then processes the key and val.
 // When lock_only is true, the callback only does optional lock tree locking.
-typedef int (*FT_GET_CALLBACK_FUNCTION)(ITEMLEN keylen, bytevec key, ITEMLEN vallen, bytevec val, void *extra, bool lock_only);
+typedef int (*FT_GET_CALLBACK_FUNCTION)(uint32_t keylen, const void *key, uint32_t vallen, const void *val, void *extra, bool lock_only);
 
 typedef bool (*FT_CHECK_INTERRUPT_CALLBACK)(void *extra);
 

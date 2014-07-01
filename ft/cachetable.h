@@ -94,7 +94,9 @@ PATENT RIGHTS GRANT:
 
 #include <fcntl.h>
 
-#include "ft/fttypes.h"
+#include "ft/block_table.h"
+#include "ft/logger.h"
+#include "ft/txn.h"
 #include "util/minicron.h"
 
 // Maintain a cache mapping from cachekeys to values (void*)
@@ -159,7 +161,7 @@ uint32_t toku_get_cleaner_iterations_unlocked (CACHETABLE ct);
 // create and initialize a cache table
 // size_limit is the upper limit on the size of the size of the values in the table
 // pass 0 if you want the default
-int toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, TOKULOGGER);
+int toku_cachetable_create(CACHETABLE *result, long size_limit, LSN initial_lsn, struct tokulogger *logger);
 
 // Create a new cachetable.
 // Effects: a new cachetable is created and initialized.
@@ -184,9 +186,9 @@ int toku_cachefile_of_iname_in_env (CACHETABLE ct, const char *iname_in_env, CAC
 // Return the filename
 char *toku_cachefile_fname_in_cwd (CACHEFILE cf);
 
-void toku_cachetable_begin_checkpoint (CHECKPOINTER cp, TOKULOGGER);
+void toku_cachetable_begin_checkpoint (CHECKPOINTER cp, struct tokulogger *logger);
 
-void toku_cachetable_end_checkpoint(CHECKPOINTER cp, TOKULOGGER logger, 
+void toku_cachetable_end_checkpoint(CHECKPOINTER cp, struct tokulogger *logger, 
                                    void (*testcallback_f)(void*),  void * testextra);
 
 // Shuts down checkpoint thread
@@ -544,15 +546,15 @@ void toku_cachefile_unlink_on_close(CACHEFILE cf);
 bool toku_cachefile_is_unlink_on_close(CACHEFILE cf);
 
 // Return the logger associated with the cachefile
-TOKULOGGER toku_cachefile_logger (CACHEFILE);
+struct tokulogger *toku_cachefile_logger(CACHEFILE cf);
 
 // Return the filenum associated with the cachefile
-FILENUM toku_cachefile_filenum (CACHEFILE);
+FILENUM toku_cachefile_filenum(CACHEFILE cf);
 
 // Effect: Return a 32-bit hash key.  The hash key shall be suitable for using with bitmasking for a table of size power-of-two.
-uint32_t toku_cachetable_hash (CACHEFILE cachefile, CACHEKEY key);
+uint32_t toku_cachetable_hash(CACHEFILE cf, CACHEKEY key);
 
-uint32_t toku_cachefile_fullhash_of_header (CACHEFILE cachefile);
+uint32_t toku_cachefile_fullhash_of_header(CACHEFILE cf);
 
 // debug functions
 

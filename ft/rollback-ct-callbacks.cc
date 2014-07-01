@@ -94,7 +94,6 @@ PATENT RIGHTS GRANT:
 
 #include "ft/block_table.h"
 #include "ft/ft-internal.h"
-#include "ft/fttypes.h"
 #include "ft/rollback.h"
 #include "ft/rollback-ct-callbacks.h"
 

@@ -88,7 +88,6 @@ PATENT RIGHTS GRANT:
 
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 
-
 #include "test.h"
 
 static void ba_alloc_at(block_allocator *ba, uint64_t size, uint64_t offset) {

@@ -1131,7 +1131,7 @@ read_compressed_sub_block(struct rbuf *rb, struct sub_block *sb)
     int r = 0;
     sb->compressed_size = rbuf_int(rb);
     sb->uncompressed_size = rbuf_int(rb);
-    bytevec* cp = (bytevec*)&sb->compressed_ptr;
+    const void **cp = (const void **) &sb->compressed_ptr;
     rbuf_literal_bytes(rb, cp, sb->compressed_size);
     sb->xsum = rbuf_int(rb);
     // let's check the checksum
@@ -1212,7 +1212,7 @@ deserialize_ftnode_info(
     struct rbuf rb;
     rbuf_init(&rb, (unsigned char *) sb->uncompressed_ptr, data_size);
 
-    node->max_msn_applied_to_node_on_disk = rbuf_msn(&rb);
+    node->max_msn_applied_to_node_on_disk = rbuf_MSN(&rb);
     (void)rbuf_int(&rb);
     node->flags = rbuf_int(&rb);
     node->height = rbuf_int(&rb);
@@ -1488,7 +1488,7 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
         goto cleanup;
     }
 
-    bytevec magic;
+    const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     if (memcmp(magic, "tokuleaf", 8)!=0 &&
         memcmp(magic, "tokunode", 8)!=0) {
@@ -1556,8 +1556,8 @@ deserialize_ftnode_header_from_rbuf_if_small_enough (FTNODE *ftnode,
     }
 
     // Finish reading compressed the sub_block
-    bytevec* cp;
-    cp = (bytevec*)&sb_node_info.compressed_ptr;
+    const void **cp;
+    cp = (const void **) &sb_node_info.compressed_ptr;
     rbuf_literal_bytes(rb, cp, sb_node_info.compressed_size);
     sb_node_info.xsum = rbuf_int(rb);
     // let's check the checksum
@@ -1954,7 +1954,7 @@ deserialize_and_upgrade_ftnode(FTNODE node,
     // Re-read the magic field from the previous call, since we are
     // restarting with a fresh rbuf.
     {
-        bytevec magic;
+        const void *magic;
         rbuf_literal_bytes(&rb, &magic, 8);              // 1. magic
     }
 
@@ -2036,7 +2036,7 @@ deserialize_ftnode_from_rbuf(
 
     // now start reading from rbuf
     // first thing we do is read the header information
-    bytevec magic;
+    const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     if (memcmp(magic, "tokuleaf", 8)!=0 &&
         memcmp(magic, "tokunode", 8)!=0) {
@@ -2561,7 +2561,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log_p,
     }
 
     //printf("Deserializing %lld datasize=%d\n", off, datasize);
-    bytevec magic;
+    const void *magic;
     rbuf_literal_bytes(rb, &magic, 8);
     lazy_assert(!memcmp(magic, "tokuroll", 8));
 
@@ -2594,7 +2594,7 @@ deserialize_rollback_log_from_rbuf (BLOCKNUM blocknum, ROLLBACK_LOG_NODE *log_p,
     while (rb->ndone < rb->size) {
         struct roll_entry *item;
         uint32_t rollback_fsize = rbuf_int(rb); //Already read 4.  Rest is 4 smaller
-        bytevec item_vec;
+        const void *item_vec;
         rbuf_literal_bytes(rb, &item_vec, rollback_fsize-4);
         unsigned char* item_buf = (unsigned char*)item_vec;
         r = toku_parse_rollback(item_buf, rollback_fsize-4, &item, &result->rollentry_arena);

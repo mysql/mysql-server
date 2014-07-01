@@ -88,10 +88,9 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#include "ft/fttypes.h"
-#include "ft/xids-internal.h"
-#include "ft/xids.h"
 #include "ft/msg.h"
+#include "ft/xids.h"
+#include "ft/xids-internal.h"
 #include "ft/ybt.h"
 
 class message_buffer {

@@ -93,13 +93,15 @@ PATENT RIGHTS GRANT:
 
 // This must be first to make the 64-bit file mode work right in Linux
 #define _FILE_OFFSET_BITS 64
-#include "fttypes.h"
-#include "ybt.h"
+
 #include <db.h>
-#include "cachetable.h"
-#include "log.h"
-#include "compress.h"
+
+#include "ft/cachetable.h"
+#include "ft/comparator.h"
 #include "ft/msg.h"
+#include "ft/ybt.h"
+
+typedef struct ft_handle *FT_HANDLE;
 
 int toku_open_ft_handle (const char *fname, int is_create, FT_HANDLE *, int nodesize, int basementnodesize, enum toku_compression_method compression_method, CACHETABLE, TOKUTXN, int(*)(DB *,const DBT*,const DBT*)) __attribute__ ((warn_unused_result));
 
@@ -128,7 +130,8 @@ void toku_ft_handle_get_fanout(FT_HANDLE, unsigned int *fanout);
 void toku_ft_set_bt_compare(FT_HANDLE ft_handle, ft_compare_func cmp_func);
 const toku::comparator &toku_ft_get_comparator(FT_HANDLE ft_handle);
 
-void toku_ft_set_redirect_callback(FT_HANDLE ft_h, on_redirect_callback redir_cb, void* extra);
+typedef void (*on_redirect_callback)(FT_HANDLE ft_handle, void *extra);
+void toku_ft_set_redirect_callback(FT_HANDLE ft_handle, on_redirect_callback cb, void *extra);
 
 // How updates (update/insert/deletes) work:
 // There are two flavers of upsertdels:  Singleton and broadcast.
@@ -166,6 +169,9 @@ void toku_ft_set_redirect_callback(FT_HANDLE ft_h, on_redirect_callback redir_cb
 // Implementation note: Acquires a write lock on the entire database.
 //  This function works by sending an BROADCAST-UPDATE message containing
 //   the key and the extra.
+typedef int (*ft_update_func)(DB *db, const DBT *key, const DBT *old_val, const DBT *extra,
+                              void (*set_val)(const DBT *new_val, void *set_extra),
+                              void *set_extra);
 void toku_ft_set_update(FT_HANDLE ft_h, ft_update_func update_fun);
 
 int toku_ft_handle_open(FT_HANDLE, const char *fname_in_env,
@@ -181,6 +187,14 @@ int toku_ft_handle_clone(FT_HANDLE *cloned_ft_handle, FT_HANDLE ft_handle, TOKUT
 void toku_ft_handle_close(FT_HANDLE ft_handle);
 // close an ft handle during recovery. the underlying ft must close, and will use the given lsn.
 void toku_ft_handle_close_recovery(FT_HANDLE ft_handle, LSN oplsn);
+
+// At the ydb layer, a DICTIONARY_ID uniquely identifies an open dictionary.
+// With the introduction of the loader (ticket 2216), it is possible for the file that holds
+// an open dictionary to change, so these are now separate and independent unique identifiers (see FILENUM)
+struct DICTIONARY_ID {
+    uint64_t dictid;
+};
+static const DICTIONARY_ID DICTIONARY_ID_NONE = { .dictid = 0 };
 
 int
 toku_ft_handle_open_with_dict_id(
@@ -230,7 +244,7 @@ void toku_ft_delete (FT_HANDLE ft_h, DBT *k, TOKUTXN txn);
 void toku_ft_maybe_delete (FT_HANDLE ft_h, DBT *k, TOKUTXN txn, bool oplsn_valid, LSN oplsn, bool do_logging);
 
 TXNID toku_ft_get_oldest_referenced_xid_estimate(FT_HANDLE ft_h);
-TXN_MANAGER toku_ft_get_txn_manager(FT_HANDLE ft_h);
+struct txn_manager *toku_ft_get_txn_manager(FT_HANDLE ft_h);
 
 struct txn_gc_info;
 void toku_ft_send_insert(FT_HANDLE ft_h, DBT *key, DBT *val, XIDS xids, enum ft_msg_type type, txn_gc_info *gc_info);

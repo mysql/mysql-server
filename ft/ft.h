@@ -91,13 +91,15 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "fttypes.h"
-#include "ybt.h"
 #include <db.h>
-#include "cachetable.h"
-#include "log.h"
-#include "ft-ops.h"
-#include "compress.h"
+
+#include "ft/cachetable.h"
+#include "ft/ft-ops.h"
+#include "ft/log.h"
+#include "ft/ybt.h"
+
+typedef struct ft *FT;
+typedef struct ft_options *FT_OPTIONS;
 
 // unlink a ft from the filesystem with or without a txn.
 // if with a txn, then the unlink happens on commit.
@@ -173,9 +175,17 @@ void toku_ft_update_cmp_descriptor(FT ft);
 DESCRIPTOR toku_ft_get_descriptor(FT_HANDLE ft_handle);
 DESCRIPTOR toku_ft_get_cmp_descriptor(FT_HANDLE ft_handle);
 
+typedef struct {
+    // delta versions in basements could be negative
+    int64_t numrows;
+    int64_t numbytes;
+} STAT64INFO_S, *STAT64INFO;
+static const STAT64INFO_S ZEROSTATS = { .numrows = 0, .numbytes = 0};
+
 void toku_ft_update_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 void toku_ft_decrease_stats(STAT64INFO headerstats, STAT64INFO_S delta);
 
+typedef void (*remove_ft_ref_callback)(FT ft, void *extra);
 void toku_ft_remove_reference(FT ft,
                               bool oplsn_valid, LSN oplsn,
                               remove_ft_ref_callback remove_ref, void *extra);
@@ -220,5 +230,5 @@ struct toku_product_name_strings_struct {
 extern struct toku_product_name_strings_struct toku_product_name_strings;
 extern int tokudb_num_envs;
 
-int toku_keycompare (bytevec key1, ITEMLEN key1len, bytevec key2, ITEMLEN key2len);
+int toku_keycompare (const void *key1, uint32_t key1len, const void *key2, uint32_t key2len);
 int toku_builtin_compare_fun (DB *, const DBT *, const DBT*) __attribute__((__visibility__("default")));

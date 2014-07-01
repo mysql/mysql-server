@@ -225,8 +225,8 @@ void message_buffer::enqueue(const ft_msg &msg, bool is_fresh, int32_t *offset) 
         int next_2 = next_power_of_two(need_space_total);
         _resize(next_2);
     }
-    ITEMLEN keylen = msg.kdbt()->size;
-    ITEMLEN datalen = msg.vdbt()->size;
+    uint32_t keylen = msg.kdbt()->size;
+    uint32_t datalen = msg.vdbt()->size;
     struct buffer_entry *entry = get_buffer_entry(_memory_used);
     entry->type = (unsigned char) msg.type();
     entry->msn = msg.msn();
@@ -256,13 +256,13 @@ bool message_buffer::get_freshness(int32_t offset) const {
 
 ft_msg message_buffer::get_message(int32_t offset, DBT *keydbt, DBT *valdbt) const {
     struct buffer_entry *entry = get_buffer_entry(offset);
-    ITEMLEN keylen = entry->keylen;
-    ITEMLEN vallen = entry->vallen;
+    uint32_t keylen = entry->keylen;
+    uint32_t vallen = entry->vallen;
     enum ft_msg_type type = (enum ft_msg_type) entry->type;
     MSN msn = entry->msn;
     const XIDS xids = (XIDS) &entry->xids_s;
-    bytevec key = xids_get_end_of_array(xids);
-    bytevec val = (uint8_t *) key + entry->keylen;
+    const void *key = xids_get_end_of_array(xids);
+    const void *val = (uint8_t *) key + entry->keylen;
     return ft_msg(toku_fill_dbt(keydbt, key, keylen), toku_fill_dbt(valdbt, val, vallen), type, msn, xids);
 }
 

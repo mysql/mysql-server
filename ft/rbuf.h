@@ -94,7 +94,6 @@ PATENT RIGHTS GRANT:
 
 #include <string.h>
 
-#include "ft/fttypes.h"
 #include "portability/memory.h"
 #include "portability/toku_assert.h"
 #include "portability/toku_htonl.h"
@@ -159,14 +158,14 @@ static unsigned int rbuf_int (struct rbuf *r) {
 #endif
 }
 
-static inline void rbuf_literal_bytes (struct rbuf *r, bytevec *bytes, unsigned int n_bytes) {
+static inline void rbuf_literal_bytes (struct rbuf *r, const void **bytes, unsigned int n_bytes) {
     *bytes =   &r->buf[r->ndone];
     r->ndone+=n_bytes;
     assert(r->ndone<=r->size);
 }
 
 /* Return a pointer into the middle of the buffer. */
-static inline void rbuf_bytes (struct rbuf *r, bytevec *bytes, unsigned int *n_bytes)
+static inline void rbuf_bytes (struct rbuf *r, const void **bytes, unsigned int *n_bytes)
 {
     *n_bytes = rbuf_int(r);
     rbuf_literal_bytes(r, bytes, *n_bytes);
@@ -182,80 +181,12 @@ static inline signed long long rbuf_longlong (struct rbuf *r) {
     return (signed long long)rbuf_ulonglong(r);
 }
 
-static inline DISKOFF rbuf_diskoff (struct rbuf *r) {
-    return rbuf_ulonglong(r);
-}
-
-static inline LSN rbuf_lsn (struct rbuf *r) {
-    LSN lsn = {rbuf_ulonglong(r)};
-    return lsn;
-}
-
-static inline MSN rbuf_msn (struct rbuf *r) {
-    MSN msn = {rbuf_ulonglong(r)};
-    return msn;
-}
-
-static inline BLOCKNUM rbuf_blocknum (struct rbuf *r) {
-    BLOCKNUM result = make_blocknum(rbuf_longlong(r));
-    return result;
-}
-static inline void rbuf_ma_BLOCKNUM (struct rbuf *r, memarena *ma __attribute__((__unused__)), BLOCKNUM *blocknum) {
-    *blocknum = rbuf_blocknum(r);
-}
-
 static inline void rbuf_ma_uint32_t (struct rbuf *r, memarena *ma __attribute__((__unused__)), uint32_t *num) {
     *num = rbuf_int(r);
 }
 
 static inline void rbuf_ma_uint64_t (struct rbuf *r, memarena *ma __attribute__((__unused__)), uint64_t *num) {
     *num = rbuf_ulonglong(r);
-}
-
-
-static inline void rbuf_TXNID (struct rbuf *r, TXNID *txnid) {
-    *txnid = rbuf_ulonglong(r);
-}
-
-static inline void rbuf_TXNID_PAIR (struct rbuf *r, TXNID_PAIR *txnid) {
-    txnid->parent_id64 = rbuf_ulonglong(r);
-    txnid->child_id64 = rbuf_ulonglong(r);
-}
-
-static inline void rbuf_ma_TXNID (struct rbuf *r, memarena *ma __attribute__((__unused__)), TXNID *txnid) {
-    rbuf_TXNID(r, txnid);
-}
-
-static inline void rbuf_ma_TXNID_PAIR (struct rbuf *r, memarena *ma __attribute__((__unused__)), TXNID_PAIR *txnid) {
-    rbuf_TXNID_PAIR(r, txnid);
-}
-
-static inline void rbuf_FILENUM (struct rbuf *r, FILENUM *filenum) {
-    filenum->fileid = rbuf_int(r);
-}
-static inline void rbuf_ma_FILENUM (struct rbuf *r, memarena *ma __attribute__((__unused__)), FILENUM *filenum) {
-    rbuf_FILENUM(r, filenum);
-}
-
-// 2954
-// Don't try to use the same space, malloc it
-static inline void rbuf_FILENUMS(struct rbuf *r, FILENUMS *filenums) {
-    filenums->num = rbuf_int(r);
-    filenums->filenums = (FILENUM *) toku_malloc( filenums->num * sizeof(FILENUM) );
-    assert(filenums->filenums != NULL);
-    for (uint32_t i=0; i < filenums->num; i++) {
-        rbuf_FILENUM(r, &(filenums->filenums[i]));
-    }
-}
-
-// 2954
-static inline void rbuf_ma_FILENUMS (struct rbuf *r, memarena *ma __attribute__((__unused__)), FILENUMS *filenums) {
-    rbuf_ma_uint32_t(r, ma, &(filenums->num));
-    filenums->filenums = (FILENUM *) ma->malloc_from_arena(filenums->num * sizeof(FILENUM));
-    assert(filenums->filenums != NULL);
-    for (uint32_t i=0; i < filenums->num; i++) {
-        rbuf_ma_FILENUM(r, ma, &(filenums->filenums[i]));
-    }
 }
 
 // Don't try to use the same space, malloc it

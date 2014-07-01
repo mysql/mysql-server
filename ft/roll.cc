@@ -96,7 +96,6 @@ PATENT RIGHTS GRANT:
 #include "ft.h"
 #include "ft-ops.h"
 #include "log-internal.h"
-//#include "txn_manager.h"
 #include "xids.h"
 #include "rollback-apply.h"
 

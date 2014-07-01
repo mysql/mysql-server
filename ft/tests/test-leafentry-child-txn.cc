@@ -91,10 +91,9 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 
 #include "test.h"
-#include "fttypes.h"
 
-#include "ule.h"
-#include "ule-internal.h"
+#include "ft/ule.h"
+#include "ft/ule-internal.h"
 
 static void init_empty_ule(ULE ule) {
     ule->num_cuxrs = 0;

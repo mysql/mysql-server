@@ -109,18 +109,18 @@ compare_pairs (FT_HANDLE ft_handle, const DBT *a, const DBT *b) {
 }
 
 static int 
-compare_pair_to_key (FT_HANDLE ft_handle, const DBT *a, bytevec key, ITEMLEN keylen) {
+compare_pair_to_key (FT_HANDLE ft_handle, const DBT *a, const void *key, uint32_t keylen) {
     DBT y;
     return ft_handle->ft->cmp(a, toku_fill_dbt(&y, key, keylen));
 }
 
 static int
-verify_msg_in_child_buffer(FT_HANDLE ft_handle, enum ft_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot)
+verify_msg_in_child_buffer(FT_HANDLE ft_handle, enum ft_msg_type type, MSN msn, const void *key, uint32_t keylen, const void *UU(data), uint32_t UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot)
     __attribute__((warn_unused_result));
 
 UU()
 static int
-verify_msg_in_child_buffer(FT_HANDLE ft_handle, enum ft_msg_type type, MSN msn, bytevec key, ITEMLEN keylen, bytevec UU(data), ITEMLEN UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot) {
+verify_msg_in_child_buffer(FT_HANDLE ft_handle, enum ft_msg_type type, MSN msn, const void *key, uint32_t keylen, const void *UU(data), uint32_t UU(datalen), XIDS UU(xids), const DBT *lesser_pivot, const DBT *greatereq_pivot) {
     int result = 0;
     if (msn.msn == ZERO_MSN.msn)
         result = EINVAL;
@@ -328,8 +328,8 @@ struct verify_msg_fn {
         XIDS xid = msg.xids();
         const void *key = msg.kdbt()->data;
         const void *data = msg.vdbt()->data;
-        ITEMLEN keylen = msg.kdbt()->size;
-        ITEMLEN datalen = msg.vdbt()->size;
+        uint32_t keylen = msg.kdbt()->size;
+        uint32_t datalen = msg.vdbt()->size;
 
         int r = verify_msg_in_child_buffer(ft_handle, type, msn, key, keylen, data, datalen, xid,
                                            curr_less_pivot,

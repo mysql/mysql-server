@@ -91,6 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include <toku_race_tools.h>
 
+#include <ft/txn.h>
 #include <ft/ybt.h>
 
 #include "locktree.h"

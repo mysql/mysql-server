@@ -94,6 +94,7 @@ PATENT RIGHTS GRANT:
 #include <memory.h>
 #include <string.h>
 
+#include <ft/txn.h>
 #include <ft/comparator.h>
 
 #include <portability/toku_pthread.h>

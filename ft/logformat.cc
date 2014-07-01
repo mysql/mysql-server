@@ -854,9 +854,9 @@ int main (int argc, const char *const argv[]) {
     fprintf2(cf, hf, "#ident \"Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved.\"\n");
     fprintf2(cf, pf, "#include <stdint.h>\n");
     fprintf2(cf, pf, "#include <sys/time.h>\n");
-    fprintf2(cf, pf, "#include <ft/fttypes.h>\n");
     fprintf2(cf, pf, "#include <ft/log-internal.h>\n");
     fprintf(hf, "#include <ft/ft-internal.h>\n");
+    fprintf(hf, "#include <util/bytestring.h>\n");
     fprintf(hf, "#include <util/memarena.h>\n");
     generate_enum();
     generate_log_struct();

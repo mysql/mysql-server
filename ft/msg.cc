@@ -90,7 +90,6 @@ PATENT RIGHTS GRANT:
 
 #include "portability/toku_portability.h"
 
-#include "ft/fttypes.h"
 #include "ft/msg.h"
 #include "ft/xids.h"
 #include "ft/ybt.h"
@@ -102,11 +101,11 @@ ft_msg::ft_msg(const DBT *key, const DBT *val, enum ft_msg_type t, MSN m, XIDS x
 }
 
 ft_msg ft_msg::deserialize_from_rbuf(struct rbuf *rb, XIDS *x, bool *is_fresh) {
-    bytevec keyp, valp;
-    ITEMLEN keylen, vallen;
+    const void *keyp, *valp;
+    uint32_t keylen, vallen;
     enum ft_msg_type t = (enum ft_msg_type) rbuf_char(rb);
     *is_fresh = rbuf_char(rb);
-    MSN m = rbuf_msn(rb);
+    MSN m = rbuf_MSN(rb);
     xids_create_from_buffer(rb, x);
     rbuf_bytes(rb, &keyp, &keylen);
     rbuf_bytes(rb, &valp, &vallen);
@@ -116,8 +115,8 @@ ft_msg ft_msg::deserialize_from_rbuf(struct rbuf *rb, XIDS *x, bool *is_fresh) {
 }
 
 ft_msg ft_msg::deserialize_from_rbuf_v13(struct rbuf *rb, MSN m, XIDS *x) {
-    bytevec keyp, valp;
-    ITEMLEN keylen, vallen;
+    const void *keyp, *valp;
+    uint32_t keylen, vallen;
     enum ft_msg_type t = (enum ft_msg_type) rbuf_char(rb);
     xids_create_from_buffer(rb, x);
     rbuf_bytes(rb, &keyp, &keylen);
@@ -169,3 +168,4 @@ void ft_msg::serialize_to_wbuf(struct wbuf *wb, bool is_fresh) const {
     wbuf_nocrc_bytes(wb, _key.data, _key.size);
     wbuf_nocrc_bytes(wb, _val.data, _val.size);
 }
+

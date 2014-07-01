@@ -92,9 +92,11 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include "ft/fttypes.h"
-#include "ft/ft-internal.h"
+#include "ft/block_table.h"
 #include "ft/ft_layout_version.h"
+#include "ft/txn.h"
+
+typedef struct tokulogger *TOKULOGGER;
 
 enum {
     TOKU_LOG_VERSION_1 = 1,
@@ -110,15 +112,15 @@ int toku_logger_open (const char *directory, TOKULOGGER logger);
 int toku_logger_open_with_last_xid(const char *directory, TOKULOGGER logger, TXNID last_xid);
 void toku_logger_shutdown(TOKULOGGER logger);
 int toku_logger_close(TOKULOGGER *loggerp);
-void toku_logger_initialize_rollback_cache(TOKULOGGER logger, FT ft);
-int toku_logger_open_rollback(TOKULOGGER logger, CACHETABLE cachetable, bool create);
+void toku_logger_initialize_rollback_cache(TOKULOGGER logger, struct ft *ft);
+int toku_logger_open_rollback(TOKULOGGER logger, struct cachetable *ct, bool create);
 void toku_logger_close_rollback(TOKULOGGER logger);
 bool toku_logger_rollback_is_open (TOKULOGGER); // return true iff the rollback is open.
 
 void toku_logger_fsync (TOKULOGGER logger);
 void toku_logger_fsync_if_lsn_not_fsynced(TOKULOGGER logger, LSN lsn);
 int toku_logger_is_open(TOKULOGGER logger);
-void toku_logger_set_cachetable (TOKULOGGER logger, CACHETABLE ct);
+void toku_logger_set_cachetable (TOKULOGGER logger, struct cachetable *ct);
 int toku_logger_set_lg_max(TOKULOGGER logger, uint32_t lg_max);
 int toku_logger_get_lg_max(TOKULOGGER logger, uint32_t *lg_maxp);
 int toku_logger_set_lg_bsize(TOKULOGGER logger, uint32_t bsize);
@@ -139,9 +141,23 @@ int toku_logger_restart(TOKULOGGER logger, LSN lastlsn);
 // given LSN and delete them.
 void toku_logger_maybe_trim_log(TOKULOGGER logger, LSN oldest_open_lsn);
 
+// At the ft layer, a FILENUM uniquely identifies an open file.
+struct FILENUM {
+    uint32_t fileid;
+};
+static const FILENUM FILENUM_NONE = { .fileid = UINT32_MAX };
+
+struct FILENUMS {
+    uint32_t num;
+    FILENUM *filenums;
+};
+
 void toku_logger_log_fcreate(TOKUTXN txn, const char *fname, FILENUM filenum, uint32_t mode, uint32_t flags, uint32_t nodesize, uint32_t basementnodesize, enum toku_compression_method compression_method);
 void toku_logger_log_fdelete(TOKUTXN txn, FILENUM filenum);
 void toku_logger_log_fopen(TOKUTXN txn, const char * fname, FILENUM filenum, uint32_t treeflags);
+
+// the log generation code requires a typedef if we want to pass by pointer
+typedef TOKU_XA_XID *XIDP;
 
 int toku_fread_uint8_t (FILE *f, uint8_t *v, struct x1764 *mm, uint32_t *len);
 int toku_fread_uint32_t_nocrclen (FILE *f, uint32_t *v);
@@ -258,4 +274,63 @@ void toku_logger_get_status(TOKULOGGER logger, LOGGER_STATUS s);
 
 int toku_get_version_of_logs_on_disk(const char *log_dir, bool *found_any_logs, uint32_t *version_found);
 
-TXN_MANAGER toku_logger_get_txn_manager(TOKULOGGER logger);
+struct txn_manager *toku_logger_get_txn_manager(TOKULOGGER logger);
+
+// For serialize / deserialize
+
+#include "ft/wbuf.h"
+
+static inline void wbuf_nocrc_FILENUM(struct wbuf *wb, FILENUM fileid) {
+    wbuf_nocrc_uint(wb, fileid.fileid);
+}
+
+static inline void wbuf_FILENUM(struct wbuf *wb, FILENUM fileid) {
+    wbuf_uint(wb, fileid.fileid);
+}
+
+static inline void wbuf_nocrc_FILENUMS(struct wbuf *wb, FILENUMS v) {
+    wbuf_nocrc_uint(wb, v.num);
+    for (uint32_t i = 0; i < v.num; i++) {
+        wbuf_nocrc_FILENUM(wb, v.filenums[i]);
+    }
+}
+
+static inline void wbuf_FILENUMS(struct wbuf *wb, FILENUMS v) {
+    wbuf_uint(wb, v.num);
+    for (uint32_t i = 0; i < v.num; i++) {
+        wbuf_FILENUM(wb, v.filenums[i]);
+    }
+}
+
+static inline void wbuf_nocrc_XIDP (struct wbuf *w, TOKU_XA_XID *xid) {
+    wbuf_nocrc_uint32_t(w, xid->formatID);
+    wbuf_nocrc_uint8_t(w, xid->gtrid_length);
+    wbuf_nocrc_uint8_t(w, xid->bqual_length);
+    wbuf_nocrc_literal_bytes(w, xid->data, xid->gtrid_length+xid->bqual_length);
+}
+
+#include "ft/rbuf.h"
+
+static inline void rbuf_FILENUM(struct rbuf *rb, FILENUM *filenum) {
+    filenum->fileid = rbuf_int(rb);
+}
+static inline void rbuf_ma_FILENUM(struct rbuf *rb, memarena *UU(ma), FILENUM *filenum) {
+    rbuf_FILENUM(rb, filenum);
+}
+
+static inline void rbuf_FILENUMS(struct rbuf *rb, FILENUMS *filenums) {
+    filenums->num = rbuf_int(rb);
+    XMALLOC_N(filenums->num, filenums->filenums);
+    for (uint32_t i = 0; i < filenums->num; i++) {
+        rbuf_FILENUM(rb, &(filenums->filenums[i]));
+    }
+}
+
+static inline void rbuf_ma_FILENUMS(struct rbuf *rb, memarena *ma, FILENUMS *filenums) {
+    rbuf_ma_uint32_t(rb, ma, &(filenums->num));
+    filenums->filenums = (FILENUM *) ma->malloc_from_arena(filenums->num * sizeof(FILENUM));
+    assert(filenums->filenums != NULL);
+    for (uint32_t i = 0; i < filenums->num; i++) {
+        rbuf_ma_FILENUM(rb, ma, &(filenums->filenums[i]));
+    }
+}

@@ -94,8 +94,23 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
+#include <db.h>
+
+#include "portability/toku_assert.h"
+#include "portability/toku_stdint.h"
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+
+// Message Sequence Number (MSN)
+typedef struct __toku_msn { uint64_t msn; } MSN;
+
+// dummy used for message construction, to be filled in when msg is applied to tree
+static const MSN ZERO_MSN = { .msn = 0 };
+
+// first 2^62 values reserved for messages created before Dr. No (for upgrade)
+static const MSN MIN_MSN = { .msn = 1ULL << 62 };
+static const MSN MAX_MSN = { .msn = UINT64_MAX };
 
 /* tree command types */
 enum ft_msg_type {
@@ -214,3 +229,18 @@ private:
     MSN _msn;
     XIDS _xids;
 };
+
+// For serialize / deserialize
+
+#include "ft/wbuf.h"
+
+static inline void wbuf_MSN(struct wbuf *wb, MSN msn) {
+    wbuf_ulonglong(wb, msn.msn);
+}
+
+#include "ft/rbuf.h"
+
+static inline MSN rbuf_MSN(struct rbuf *rb) {
+    MSN msn = { .msn = rbuf_ulonglong(rb) };
+    return msn;
+}

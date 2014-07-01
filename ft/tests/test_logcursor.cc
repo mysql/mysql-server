@@ -92,7 +92,6 @@ PATENT RIGHTS GRANT:
 
 #include "logcursor.h"
 #include "test.h"
-#include "fttypes.h"
 
 #if defined(HAVE_LIMITS_H)
 # include <limits.h>

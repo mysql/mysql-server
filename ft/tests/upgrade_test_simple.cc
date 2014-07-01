@@ -102,7 +102,7 @@ PATENT RIGHTS GRANT:
 static TOKUTXN const null_txn = NULL;
 
 static int
-noop_getf(ITEMLEN UU(keylen), bytevec UU(key), ITEMLEN UU(vallen), bytevec UU(val), void *extra, bool UU(lock_only))
+noop_getf(uint32_t UU(keylen), const void *UU(key), uint32_t UU(vallen), const void *UU(val), void *extra, bool UU(lock_only))
 {
     int *CAST_FROM_VOIDP(calledp, extra);
     (*calledp)++;

@@ -94,12 +94,10 @@ PATENT RIGHTS GRANT:
 #include <memory.h>
 #include <string.h>
 
-#include <portability/toku_htonl.h>
-#include <util/x1764.h>
+#include "portability/toku_htonl.h"
 
-#include "fttypes.h"
-
-#define CRC_INCR
+#include "util/bytestring.h"
+#include "util/x1764.h"
 
 /* When serializing a value, write it into a buffer. */
 /* This code requires that the buffer be big enough to hold whatever you put into it. */
@@ -113,13 +111,13 @@ struct wbuf {
     struct x1764  checksum;    // The checksum state
 };
 
-static inline void wbuf_nocrc_init (struct wbuf *w, void *buf, DISKOFF size) {
+static inline void wbuf_nocrc_init (struct wbuf *w, void *buf, unsigned int size) {
     w->buf = (unsigned char *) buf;
     w->size = size;
     w->ndone = 0;
 }
 
-static inline void wbuf_init (struct wbuf *w, void *buf, DISKOFF size) {
+static inline void wbuf_init (struct wbuf *w, void *buf, unsigned int size) {
     wbuf_nocrc_init(w, buf, size);
     toku_x1764_init(&w->checksum);
 }
@@ -194,7 +192,7 @@ static inline uint8_t* wbuf_nocrc_reserve_literal_bytes(struct wbuf *w, uint32_t
     return dest;
 }
 
-static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
+static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, const void *bytes_bv, uint32_t nbytes) {
     const unsigned char *bytes = (const unsigned char *) bytes_bv;
 #if 0
     { int i; for (i=0; i<nbytes; i++) wbuf_nocrc_char(w, bytes[i]); }
@@ -205,17 +203,17 @@ static inline void wbuf_nocrc_literal_bytes(struct wbuf *w, bytevec bytes_bv, ui
 #endif
 }
 
-static inline void wbuf_literal_bytes(struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
+static inline void wbuf_literal_bytes(struct wbuf *w, const void *bytes_bv, uint32_t nbytes) {
     wbuf_nocrc_literal_bytes(w, bytes_bv, nbytes);
     toku_x1764_add(&w->checksum, &w->buf[w->ndone-nbytes], nbytes);
 }
 
-static void wbuf_nocrc_bytes (struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
+static void wbuf_nocrc_bytes (struct wbuf *w, const void *bytes_bv, uint32_t nbytes) {
     wbuf_nocrc_uint(w, nbytes);
     wbuf_nocrc_literal_bytes(w, bytes_bv, nbytes);
 }
 
-static void wbuf_bytes (struct wbuf *w, bytevec bytes_bv, uint32_t nbytes) {
+static void wbuf_bytes (struct wbuf *w, const void *bytes_bv, uint32_t nbytes) {
     wbuf_uint(w, nbytes);
     wbuf_literal_bytes(w, bytes_bv, nbytes);
 }
@@ -261,74 +259,4 @@ static inline void wbuf_nocrc_uint32_t (struct wbuf *w, uint32_t v) {
 
 static inline void wbuf_uint32_t (struct wbuf *w, uint32_t v) {
     wbuf_uint(w, v);
-}
-
-static inline void wbuf_DISKOFF (struct wbuf *w, DISKOFF off) {
-    wbuf_ulonglong(w, (uint64_t)off);
-}
-
-static inline void wbuf_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
-    wbuf_ulonglong(w, b.b);
-}
-static inline void wbuf_nocrc_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
-    wbuf_nocrc_ulonglong(w, b.b);
-}
-
-static inline void wbuf_nocrc_TXNID (struct wbuf *w, TXNID tid) {
-    wbuf_nocrc_ulonglong(w, tid);
-}
-
-static inline void wbuf_nocrc_TXNID_PAIR (struct wbuf *w, TXNID_PAIR tid) {
-    wbuf_nocrc_ulonglong(w, tid.parent_id64);
-    wbuf_nocrc_ulonglong(w, tid.child_id64);
-}
-
-
-static inline void wbuf_TXNID (struct wbuf *w, TXNID tid) {
-    wbuf_ulonglong(w, tid);
-}
-
-static inline void wbuf_nocrc_XIDP (struct wbuf *w, XIDP xid) {
-    wbuf_nocrc_uint32_t(w, xid->formatID);
-    wbuf_nocrc_uint8_t(w, xid->gtrid_length);
-    wbuf_nocrc_uint8_t(w, xid->bqual_length);
-    wbuf_nocrc_literal_bytes(w, xid->data, xid->gtrid_length+xid->bqual_length);
-}
-
-static inline void wbuf_nocrc_LSN (struct wbuf *w, LSN lsn) {
-    wbuf_nocrc_ulonglong(w, lsn.lsn);
-}
-
-static inline void wbuf_LSN (struct wbuf *w, LSN lsn) {
-    wbuf_ulonglong(w, lsn.lsn);
-}
-
-static inline void wbuf_MSN (struct wbuf *w, MSN msn) {
-    wbuf_ulonglong(w, msn.msn);
-}
-
-static inline void wbuf_nocrc_FILENUM (struct wbuf *w, FILENUM fileid) {
-    wbuf_nocrc_uint(w, fileid.fileid);
-}
-
-static inline void wbuf_FILENUM (struct wbuf *w, FILENUM fileid) {
-    wbuf_uint(w, fileid.fileid);
-}
-
-// 2954
-static inline void wbuf_nocrc_FILENUMS (struct wbuf *w, FILENUMS v) {
-    wbuf_nocrc_uint(w, v.num);
-    uint32_t i;
-    for (i = 0; i < v.num; i++) {
-        wbuf_nocrc_FILENUM(w, v.filenums[i]);
-    }
-}
-
-// 2954
-static inline void wbuf_FILENUMS (struct wbuf *w, FILENUMS v) {
-    wbuf_uint(w, v.num);
-    uint32_t i;
-    for (i = 0; i < v.num; i++) {
-        wbuf_FILENUM(w, v.filenums[i]);
-    }
 }

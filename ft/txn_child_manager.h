@@ -89,10 +89,12 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
+// We should be including ft/txn.h here but that header includes this one,
+// so we don't.
+#include "portability/toku_pthread.h"
+
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
-
-#include "txn_manager.h"
 
 class txn_child_manager {
 public:
@@ -104,14 +106,14 @@ public:
     void suspend();
     void resume();
     void find_tokutxn_by_xid_unlocked(TXNID_PAIR xid, TOKUTXN* result);
-    int iterate(txn_mgr_iter_callback cb, void* extra);
+    int iterate(int (*cb)(TOKUTXN txn, void *extra), void* extra);
 
 private:
     TXNID m_last_xid;
     TOKUTXN m_root;
     toku_mutex_t m_mutex;
 
-friend class txn_child_manager_unit_test;
+    friend class txn_child_manager_unit_test;
 };
 
 
