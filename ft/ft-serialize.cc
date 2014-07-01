@@ -94,6 +94,7 @@ PATENT RIGHTS GRANT:
 #include "ft/compress.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
+#include "ft/ft-serialize.h"
 #include "ft/msg.h"
 
 // not version-sensitive because we only serialize a descriptor using the current layout_version

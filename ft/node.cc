@@ -91,6 +91,7 @@ PATENT RIGHTS GRANT:
 
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
+#include "ft/ft_node-serialize.h"
 #include "ft/node.h"
 #include "ft/rbuf.h"
 #include "ft/wbuf.h"
@@ -1671,6 +1672,11 @@ int toku_ftnode_hot_next_child(FTNODE node, const DBT *k, const toku::comparator
     }
     invariant(low == hi);
     return low;
+}
+
+void toku_ftnode_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p) {
+    FTNODE CAST_FROM_VOIDP(node, value_data);
+    node->ct_pair = p;
 }
 
 static void

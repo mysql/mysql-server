@@ -198,7 +198,6 @@ void toku_ft_set_compression_method(FT ft, enum toku_compression_method method);
 void toku_ft_get_compression_method(FT ft, enum toku_compression_method *methodp);
 void toku_ft_set_fanout(FT ft, unsigned int fanout);
 void toku_ft_get_fanout(FT ft, unsigned int *fanout);
-void toku_node_save_ct_pair(CACHEKEY UU(key), void *value_data, PAIR p);
 
 // mark the ft as a blackhole. any message injections will be a no op.
 void toku_ft_set_blackhole(FT_HANDLE ft_handle);
@@ -207,12 +206,14 @@ void toku_ft_set_blackhole(FT_HANDLE ft_handle);
 //         The difference between the two is MVCC garbage.
 void toku_ft_get_garbage(FT ft, uint64_t *total_space, uint64_t *used_space);
 
+// TODO: Should be in portability
 int get_num_cores(void);
+
+// TODO: Use the cachetable's worker pool instead of something managed by the FT...
 struct toku_thread_pool *get_ft_pool(void);
-void dump_bad_block(unsigned char *vp, uint64_t size);
 
+// TODO: Should be in portability
 int toku_single_process_lock(const char *lock_dir, const char *which, int *lockfd);
-
 int toku_single_process_unlock(int *lockfd);
 
 void tokudb_update_product_name_strings(void);
@@ -229,6 +230,3 @@ struct toku_product_name_strings_struct {
 
 extern struct toku_product_name_strings_struct toku_product_name_strings;
 extern int tokudb_num_envs;
-
-int toku_keycompare (const void *key1, uint32_t key1len, const void *key2, uint32_t key2len);
-int toku_builtin_compare_fun (DB *, const DBT *, const DBT*) __attribute__((__visibility__("default")));

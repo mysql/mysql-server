@@ -1,5 +1,6 @@
-/* -*- mode: C; c-basic-offset: 4; indent-tabs-mode: nil -*- */
+/* -*- mode: C++; c-basic-offset: 4; indent-tabs-mode: nil -*- */
 // vim: ft=cpp:expandtab:ts=8:sw=4:softtabstop=4:
+
 /*
 COPYING CONDITIONS NOTICE:
 
@@ -87,86 +88,25 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
-#ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
+#include "ft/block_table.h"
+#include "ft/ft.h"
 
-#include <db.h>
-#include <string.h>
+size_t toku_serialize_ft_size(struct ft_header *h);
+void toku_serialize_ft_to(int fd, struct ft_header *h, struct block_table *blocktable, CACHEFILE cf);
+void toku_serialize_ft_to_wbuf(struct wbuf *wbuf, struct ft_header *h, DISKOFF translation_location_on_disk, DISKOFF translation_size_on_disk);
+void toku_serialize_descriptor_contents_to_fd(int fd, DESCRIPTOR desc, DISKOFF offset);
+void toku_serialize_descriptor_contents_to_wbuf(struct wbuf *wb, DESCRIPTOR desc);
 
-#include <ft/ybt.h>
-//#include <ft/fttypes.h>
-#include <portability/memory.h>
+int toku_deserialize_ft_from(int fd, LSN max_acceptable_lsn, FT *ft);
 
-typedef int (*ft_compare_func)(DB *db, const DBT *a, const DBT *b);
+// TODO rename
+int deserialize_ft_from_fd_into_rbuf(int fd,
+                                     toku_off_t offset_of_header,
+                                     struct rbuf *rb,
+                                     uint64_t *checkpoint_count,
+                                     LSN *checkpoint_lsn,
+                                     uint32_t *version_p);
 
-int toku_keycompare(const void *key1, uint32_t key1len, const void *key2, uint32_t key2len);
-
-int toku_builtin_compare_fun (DB *, const DBT *, const DBT*) __attribute__((__visibility__("default")));
-
-namespace toku {
-
-    // a comparator object encapsulates the data necessary for 
-    // comparing two keys in a fractal tree. it further understands
-    // that points may be positive or negative infinity.
-
-    class comparator {
-    public:
-        void create(ft_compare_func cmp, DESCRIPTOR desc) {
-            _cmp = cmp;
-            XCALLOC(_fake_db);
-            _fake_db->cmp_descriptor = desc;
-            _builtin = _cmp == &toku_builtin_compare_fun;
-        }
-
-        // inherit the attributes of another comparator, but keep our own
-        // copy of fake_db that is owned separately from the one given.
-        void inherit(const comparator &cmp) {
-            invariant_notnull(_fake_db);
-            invariant_notnull(cmp._cmp);
-            invariant_notnull(cmp._fake_db);
-            _cmp = cmp._cmp;
-            _fake_db->cmp_descriptor = cmp._fake_db->cmp_descriptor;
-            _builtin = cmp._builtin;
-        }
-
-        // like inherit, but doesn't require that the this comparator
-        // was already created
-        void create_from(const comparator &cmp) {
-            XCALLOC(_fake_db);
-            inherit(cmp);
-        }
-
-        void destroy() {
-            toku_free(_fake_db);
-        }
-
-        const DESCRIPTOR_S *get_descriptor() const {
-            return _fake_db->cmp_descriptor;
-        }
-
-        ft_compare_func get_compare_func() const {
-            return _cmp;
-        }
-
-        bool valid() const {
-            return _cmp != nullptr;
-        }
-
-        int operator()(const DBT *a, const DBT *b) const {
-            if (__builtin_expect(!!(toku_dbt_is_infinite(a) || toku_dbt_is_infinite(b)), 0)) {
-                return toku_dbt_infinite_compare(a, b);
-            } else if (_builtin) {
-                return toku_builtin_compare_fun(nullptr, a, b);
-            } else {
-                // yikes, const sadness here
-                return _cmp(const_cast<DB *>(_fake_db), a, b);
-            }
-        }
-
-    private:
-        DB *_fake_db;
-        ft_compare_func _cmp;
-        bool _builtin;
-    };
-
-} /* namespace toku */
+// used by verify
+// TODO rename
+int deserialize_ft_versioned(int fd, struct rbuf *rb, FT *ft, uint32_t version);

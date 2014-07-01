@@ -102,6 +102,8 @@ PATENT RIGHTS GRANT:
 #include "ft/cachetable.h"
 #include "ft/ft.h"
 #include "ft/ft-internal.h"
+#include "ft/ft-serialize.h"
+#include "ft/ft_node-serialize.h"
 #include "ft/node.h"
 
 static int do_dump_data = 1;

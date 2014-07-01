@@ -96,8 +96,8 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_assert.h"
 #include "portability/memory.h"
 
-#include "ft/ft.h"
 #include "ft/ft-internal.h"
+#include "ft/ft_node-serialize.h"
 #include "loader/dbufio.h"
 #include "loader/loader-internal.h"
 

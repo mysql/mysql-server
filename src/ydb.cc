@@ -92,46 +92,36 @@ PATENT RIGHTS GRANT:
 extern const char *toku_patent_string;
 const char *toku_copyright_string = "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved.";
 
-#include <toku_portability.h>
-#include <toku_pthread.h>
-#include <toku_assert.h>
-
 #include <db.h>
-#include <ctype.h>
 #include <errno.h>
-#include <limits.h>
-#include <stdio.h>
-#include <stdlib.h>
 #include <string.h>
-#include <fcntl.h>
-#include <unistd.h>
-#include <memory.h>
 
-#include <sys/stat.h>
-#include <sys/types.h>
+#include "portability/memory.h"
+#include "portability/toku_assert.h"
+#include "portability/toku_portability.h"
+#include "portability/toku_pthread.h"
+#include "portability/toku_stdlib.h"
 
-#include <util/status.h>
-#include <util/context.h>
-
-#include <ft/ft-flusher.h>
-#include <ft/cachetable.h>
-#include <ft/log.h>
-#include <ft/checkpoint.h>
-#include <ft/loader/loader.h>
-#include <ft/log_header.h>
-#include <ft/ft.h>
-#include <ft/txn_manager.h>
-
-#include "ydb.h"
-#include "ydb-internal.h"
-#include "ydb_cursor.h"
-#include "ydb_row_lock.h"
-#include "ydb_env_func.h"
-#include "ydb_db.h"
-#include "ydb_write.h"
-#include "ydb_txn.h"
-#include "loader.h"
-#include "indexer.h"
+#include "ft/ft-flusher.h"
+#include "ft/cachetable.h"
+#include "ft/log.h"
+#include "ft/checkpoint.h"
+#include "ft/loader/loader.h"
+#include "ft/log_header.h"
+#include "ft/ft.h"
+#include "ft/txn_manager.h"
+#include "src/ydb.h"
+#include "src/ydb-internal.h"
+#include "src/ydb_cursor.h"
+#include "src/ydb_row_lock.h"
+#include "src/ydb_env_func.h"
+#include "src/ydb_db.h"
+#include "src/ydb_write.h"
+#include "src/ydb_txn.h"
+#include "src/loader.h"
+#include "src/indexer.h"
+#include "util/status.h"
+#include "util/context.h"
 
 // Include ydb_lib.cc here so that its constructor/destructor gets put into
 // ydb.o, to make sure they don't get erased at link time (when linking to
