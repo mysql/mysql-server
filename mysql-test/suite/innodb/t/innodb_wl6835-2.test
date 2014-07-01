@@ -1,5 +1,8 @@
-# T1=({R(B)})
-# T2=({R(B), W(B), C}, HIGH_PRIORITY).
+# Scenario:
+#  T1=({R(B)})
+#  T2=({R(B), W(B), C}, HIGH_PRIORITY).
+#
+# Outcome: T1 must abort, T2 must commit.
 
 CREATE TABLE t1 (c1 INT NOT NULL PRIMARY KEY) ENGINE=InnoDB;
 INSERT INTO t1 VALUES (0);
@@ -29,7 +32,17 @@ UPDATE t1 SET c1=1 WHERE c1=0;
 COMMIT;
 
 --connection default
---query_vertical SELECT * FROM t1
+--let $assert_text= 'There is a 2 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 2, count, 1] = 1
+--source include/assert.inc
+
+--let $assert_text= 'There is no 1 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 1, count, 1] = 0
+--source include/assert.inc
+
+--let $assert_text= 'There is no 0 in t1'
+--let $assert_cond= [SELECT COUNT(*) AS count FROM t1 WHERE t1.c1 = 0, count, 1] = 0
+--source include/assert.inc
 
 DROP TABLE t1;
 

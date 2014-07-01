@@ -25,8 +25,6 @@ ERROR HY000: Got error 149 during COMMIT
 # On connection 2
 COMMIT;
 ERROR HY000: Got error 149 during COMMIT
-SELECT * FROM t1;
-c1	3
-c2	0
-c3	0
+include/assert.inc ['There is a 3.0.0 in t1']
+include/assert.inc ['There is no 0.0.0 in t1']
 DROP TABLE t1;
