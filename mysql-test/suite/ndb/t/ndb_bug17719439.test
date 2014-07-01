@@ -1,0 +1,45 @@
+###########################################################################################
+# Testing Bug#17719439 THREAD INTERLEAVING IN NDB::INIT CAN CAUSE CRASH AT SIGNAL RECEPTION
+###########################################################################################
+
+-- source include/not_embedded.inc
+-- source include/have_ndb.inc
+# We are using some debug-only features in this test
+--source include/have_debug.inc
+
+--disable_warnings
+DROP TABLE IF EXISTS t1;
+--enable_warnings
+
+#
+# Setup
+#
+let $ndb_mgm_cmd = $NDB_MGM --no-defaults --ndb-connectstring="$NDB_CONNECTSTRING" --verbose=0;
+let $ndb_waiter_cmd = $NDB_WAITER --no-defaults;
+
+connect (con1,localhost,root,,test);
+connect (con2,localhost,root,,test);
+
+connection con1;
+create table t1(  pk1 INT NOT NULL PRIMARY KEY,
+                  attr1 INT NOT NULL,
+                  attr2 INT,
+                  attr3 VARCHAR(1024)
+) ENGINE = ndb;
+connection con2;
+set @save_debug = @@session.debug;
+--echo # Error injection in Ndb::init
+SET SESSION debug="+d,sleep_in_ndbinit";
+--send INSERT INTO t1 VALUES (9410, 9412, NULL, '9412');
+connection con1;
+--echo # Restarting one node
+--exec $ndb_mgm_cmd -e "1 restart -a" >> $NDB_TOOLS_OUTPUT
+--exec $ndb_waiter_cmd  >> $NDB_TOOLS_OUTPUT
+connection con2;
+--reap
+SET SESSION debug=@save_debug;
+select * from t1 order by pk1;
+
+connection con1;
+
+drop table t1;

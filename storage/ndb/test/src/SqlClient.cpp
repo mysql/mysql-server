@@ -66,7 +66,7 @@ bool
 SqlClient::isConnected(){
   if (connected == true)
   {
-    assert(mysql);
+    require(mysql);
     return true;
   }
   return connect() == 0;
@@ -183,7 +183,7 @@ SqlClient::runQuery(const char* sql,
     if (!args.contains(name.c_str()))
     {
       g_err << "param " << i << " missing" << endl;
-      assert(false);
+      require(false);
     }
     PropertiesType t;
     Uint32 val_i;
@@ -204,7 +204,7 @@ SqlClient::runQuery(const char* sql,
       g_debug << " param" << name.c_str() << ": " << val_s << endl;
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
   }
@@ -383,7 +383,7 @@ const char* SqlResultSet::column(const char* col_name){
     g_err << "ERROR: SqlResultSet::column("<< col_name << ")" << endl
           << "There is no row loaded, call next() before "
           << "acessing the column values" << endl;
-    assert(m_curr_row);
+    require(m_curr_row);
   }
   if (!m_curr_row->get(col_name, &value))
     return NULL;
@@ -396,7 +396,7 @@ uint SqlResultSet::columnAsInt(const char* col_name){
     g_err << "ERROR: SqlResultSet::columnAsInt("<< col_name << ")" << endl
           << "There is no row loaded, call next() before "
           << "acessing the column values" << endl;
-    assert(m_curr_row);
+    require(m_curr_row);
   }
   if (!m_curr_row->get(col_name, &value))
     return (uint)-1;
@@ -430,12 +430,12 @@ const char* SqlResultSet::mysqlSqlstate(void){
 
 uint SqlResultSet::get_int(const char* name){
   uint value;
-  assert(get(name, &value));
+  require(get(name, &value));
   return value;
 }
 
 const char* SqlResultSet::get_string(const char* name){
   const char* value;
-  assert(get(name, &value));
+  require(get(name, &value));
   return value;
 }

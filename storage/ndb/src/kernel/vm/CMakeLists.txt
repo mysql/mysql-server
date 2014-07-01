@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2012, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -52,7 +52,7 @@ ADD_CONVENIENCE_LIBRARY(ndbsched
     dummy_nonmt.cpp
 )
 
-IF(NDB_BUILD_NDBMTD)
+IF(WITH_NDBMTD)
   ADD_CONVENIENCE_LIBRARY(ndbsched_mt
     SimulatedBlock_mt.cpp
     TransporterCallback_mt.cpp
@@ -79,7 +79,7 @@ FOREACH(testprog CountingPool DynArr256 IntrusiveList LHLevel)
                 ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)
 ENDFOREACH(testprog)
 
-IF(NDB_BUILD_NDBMTD)
+IF(WITH_NDBMTD)
   ADD_EXECUTABLE(mt-send-t mt-send-t.cpp)
   TARGET_LINK_LIBRARIES(mt-send-t ndbtest ndbkernel ndbsched ndberror
                  ndbtransport ndbmgmcommon ndbmgmapi ndbportlib ndbgeneral)

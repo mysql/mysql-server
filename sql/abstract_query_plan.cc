@@ -331,6 +331,8 @@ namespace AQP
       break;
 
     case JT_ALL:
+    case JT_RANGE:
+    case JT_INDEX_MERGE:
       if (join_tab->use_quick == 2)
       {
         /*

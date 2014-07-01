@@ -507,7 +507,7 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
     send <PING>'s that should be ignored.
   */
   char buf[1024];
-  NDB_TICKS start = NdbTick_CurrentMillisecond();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   while(1)
   {
     if (in.gets(buf,sizeof(buf)) == 0)
@@ -528,9 +528,10 @@ int ndb_logevent_get_next(const NdbLogEventHandle h,
       ndbout_c("skipped: %s", buf);
 
     if(in.timedout())
-        return 0;
+      return 0;
 
-    if ((NdbTick_CurrentMillisecond() - start) > timeout_in_milliseconds)
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
+    if ((NdbTick_Elapsed(start,now)).milliSec() > timeout_in_milliseconds)
       return 0;
 
   };
