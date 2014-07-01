@@ -101,15 +101,15 @@ PATENT RIGHTS GRANT:
 #include <string.h>
 #include <portability/toku_path.h>
 
-#include "ft/block_allocator.h"
-#include "ft/block_table.h"
+#include "ft/serialize/block_allocator.h"
+#include "ft/serialize/block_table.h"
 #include "ft/cachetable.h"
 #include "ft/cachetable-internal.h"
 #include "ft/cursor.h"
 #include "ft/ft.h"
 #include "ft/ft-ops.h"
-#include "ft/ft-serialize.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 #include "ft/log-internal.h"
 #include "ft/logger.h"
 #include "ft/node.h"

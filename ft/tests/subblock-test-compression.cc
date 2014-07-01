@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include <errno.h>
 #include <string.h>
 
-#include "sub_block.h"
+#include "serialize/sub_block.h"
 
 static void
 test_sub_block_compression(void *buf, int total_size, int my_max_sub_blocks, int n_cores, enum toku_compression_method method) {

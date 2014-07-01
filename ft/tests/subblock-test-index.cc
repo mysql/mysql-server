@@ -95,7 +95,7 @@ PATENT RIGHTS GRANT:
 #include <errno.h>
 #include <string.h>
 
-#include "sub_block.h"
+#include "serialize/sub_block.h"
 
 static void
 test_sub_block_index(void) {

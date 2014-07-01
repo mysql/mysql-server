@@ -98,14 +98,14 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_list.h"
 #include "portability/toku_portability.h"
 
-#include "ft/block_allocator.h"
+#include "ft/serialize/block_allocator.h"
 #include "ft/ft-internal.h"
-#include "ft/ft-serialize.h"
-#include "ft/ft_layout_version.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft-serialize.h"
+#include "ft/serialize/ft_layout_version.h"
+#include "ft/serialize/ft_node-serialize.h"
 #include "ft/node.h"
-#include "ft/rbuf.h"
-#include "ft/sub_block.h"
+#include "ft/serialize/rbuf.h"
+#include "ft/serialize/sub_block.h"
 #include "util/threadpool.h"
 
 #include <fcntl.h>

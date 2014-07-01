@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
 #include "ft/cachetable.h"
-#include "ft/sub_block.h"
+#include "ft/serialize/sub_block.h"
 #include "ft/txn.h"
 
 #include "util/memarena.h"

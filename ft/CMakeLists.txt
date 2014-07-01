@@ -24,21 +24,15 @@ add_custom_target(
 
 set(FT_SOURCES
   background_job_manager
-  block_allocator
-  block_table
   bndata
   cachetable
   checkpoint
-  compress
   cursor
   ft
   ft-cachetable-wrappers
   ft-flusher
   ft-hot-flusher
-  ft_node-serialize
-  ft-node-deserialize
   ft-ops
-  ft-serialize
   ft-test-helpers
   ft-verify
   loader/callbacks
@@ -55,14 +49,20 @@ set(FT_SOURCES
   msg_buffer
   node
   pivotkeys
-  quicklz
   recover
   rollback
   rollback-apply
   rollback-ct-callbacks
   rollback_log_node_cache
   roll
-  sub_block
+  serialize/block_allocator
+  serialize/block_table
+  serialize/compress
+  serialize/ft_node-serialize
+  serialize/ft-node-deserialize
+  serialize/ft-serialize
+  serialize/quicklz
+  serialize/sub_block
   txn
   txn_child_manager
   txn_manager

@@ -91,7 +91,7 @@ PATENT RIGHTS GRANT:
 #ident "$Id$"
 
 #include "test.h"
-#include "quicklz.h"
+#include "serialize/quicklz.h"
 
 static void test_qlz_random_i (int i) {
     if (verbose) printf("i=%d\n", i);

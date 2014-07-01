@@ -97,7 +97,7 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_stdint.h"
 #include "portability/toku_stdlib.h"
 
-#include "ft/block_allocator.h"
+#include "ft/serialize/block_allocator.h"
 
 // Here's a very simple implementation.
 // It's not very fast at allocating or freeing.

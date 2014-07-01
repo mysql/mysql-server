@@ -90,13 +90,16 @@ PATENT RIGHTS GRANT:
 #ident "Copyright (c) 2007-2013 Tokutek Inc.  All rights reserved."
 #ident "The technology is licensed by the Massachusetts Institute of Technology, Rutgers State University of New Jersey, and the Research Foundation of State University of New York at Stony Brook under United States of America Serial No. 11/760379 and to the patents and/or patent applications resulting from it."
 
-#include <stdint.h>
-#include <memory.h>
-#include <toku_portability.h>
-#include <toku_race_tools.h>
-#include "growable_array.h"
-#include "../ft/wbuf.h"
 #include <vector>
+
+#include "portability/memory.h"
+#include "portability/toku_portability.h"
+#include "portability/toku_race_tools.h"
+#include "portability/toku_stdint.h"
+
+#include "ft/serialize/wbuf.h"
+#include "util/growable_array.h"
+#include "util/mempool.h"
 
 namespace toku {
 typedef uint32_t node_offset;

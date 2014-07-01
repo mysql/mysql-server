@@ -142,7 +142,7 @@ struct ft_header {
     // LSN of creation of "checkpoint-begin" record in log.
     LSN checkpoint_lsn;
 
-    // see ft_layout_version.h.  maybe don't need this if we assume
+    // see serialize/ft_layout_version.h.  maybe don't need this if we assume
     // it's always the current version after deserializing
     const int layout_version;
     // different (<) from layout_version if upgraded from a previous

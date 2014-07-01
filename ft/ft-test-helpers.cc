@@ -93,7 +93,7 @@ PATENT RIGHTS GRANT:
 #include "ft/ft-cachetable-wrappers.h"
 #include "ft/ft-internal.h"
 #include "ft/ft-flusher.h"
-#include "ft/ft_node-serialize.h"
+#include "ft/serialize/ft_node-serialize.h"
 #include "ft/node.h"
 #include "ft/ule.h"
 

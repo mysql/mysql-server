@@ -88,12 +88,12 @@ PATENT RIGHTS GRANT:
 
 #pragma once
 
-#include "ft/block_table.h"
-#include "ft/node.h"
 #include "ft/ft.h"
-#include "ft/sub_block.h"
-#include "ft/rbuf.h"
-#include "ft/wbuf.h"
+#include "ft/node.h"
+#include "ft/serialize/sub_block.h"
+#include "ft/serialize/rbuf.h"
+#include "ft/serialize/wbuf.h"
+#include "ft/serialize/block_table.h"
 
 unsigned int toku_serialize_ftnode_size(FTNODE node);
 int toku_serialize_ftnode_to_memory(FTNODE node, FTNODE_DISK_DATA *ndd,

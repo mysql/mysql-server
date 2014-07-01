@@ -94,7 +94,7 @@ PATENT RIGHTS GRANT:
 #include <limits.h>
 #include <unistd.h>
 
-#include "ft/block_table.h"
+#include "ft/serialize/block_table.h"
 #include "ft/ft.h"
 #include "ft/log-internal.h"
 #include "ft/txn_manager.h"

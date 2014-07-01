@@ -190,7 +190,7 @@ enum {
 
 // For serialize / deserialize
 
-#include "ft/wbuf.h"
+#include "ft/serialize/wbuf.h"
 
 static inline void wbuf_BLOCKNUM (struct wbuf *w, BLOCKNUM b) {
     wbuf_ulonglong(w, b.b);
@@ -204,7 +204,7 @@ static inline void wbuf_DISKOFF(struct wbuf *wb, DISKOFF off) {
     wbuf_ulonglong(wb, (uint64_t) off);
 }
 
-#include "ft/rbuf.h"
+#include "ft/serialize/rbuf.h"
 
 static inline DISKOFF rbuf_DISKOFF(struct rbuf *rb) {
     return rbuf_ulonglong(rb);

@@ -94,13 +94,13 @@ PATENT RIGHTS GRANT:
 #include "portability/toku_assert.h"
 #include "portability/toku_pthread.h"
 
-#include "ft/block_allocator.h"
-#include "ft/block_table.h"
 #include "ft/ft-internal.h"        // ugly but pragmatic, need access to dirty bits while holding translation lock
 // TODO: reorganize this dependency
 #include "ft/ft-ops.h" // for toku_maybe_truncate_file
-#include "ft/rbuf.h"
-#include "ft/wbuf.h"
+#include "ft/serialize/block_table.h"
+#include "ft/serialize/rbuf.h"
+#include "ft/serialize/wbuf.h"
+#include "ft/serialize/block_allocator.h"
 
 #include "util/nb_mutex.h"
 
