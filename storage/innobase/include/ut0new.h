@@ -84,15 +84,29 @@ InnoDB, default instrumentation:
 InnoDB, custom instrumentation, preferred:
   std::vector<t, ut_allocator<t> > v(ut_allocator<t>(key))
 
-Raw block allocation (as usual in C++ consider whether using "new" would not
-be more appropriate):
-----------------------------------------------------------------------------
+Raw block allocation (as usual in C++, consider whether using "new" would
+not be more appropriate):
+-------------------------------------------------------------------------
 Standard:
   malloc(num)
 InnoDB, default instrumentation:
   ut_malloc_nokey(num)
 InnoDB, custom instrumentation, preferred:
   ut_malloc(num, key)
+
+Raw block resize:
+-----------------
+Standard:
+  realloc(ptr, new_size)
+InnoDB:
+  ut_realloc(ptr, new_size)
+
+Raw block deallocation:
+-----------------------
+Standard:
+  free(ptr)
+InnoDB:
+  ut_free(ptr)
 
 Note: the expression passed to UT_NEW() or UT_NEW_NOKEY() must always end
 with (), thus:
