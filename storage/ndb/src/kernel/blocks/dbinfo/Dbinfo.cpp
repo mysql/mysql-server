@@ -1,4 +1,4 @@
-/* Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -87,9 +87,8 @@ void Dbinfo::sendSTTORRY(Signal* signal)
 {
   signal->theData[0] = 0;
   signal->theData[3] = 1;
-  signal->theData[4] = 3;
-  signal->theData[5] = 255; // No more start phases from missra
-  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 6, JBB);
+  signal->theData[4] = 255; // No more start phases from missra
+  sendSignal(NDBCNTR_REF, GSN_STTORRY, signal, 5, JBB);
 }
 
 void Dbinfo::execDUMP_STATE_ORD(Signal* signal)
@@ -382,8 +381,7 @@ void Dbinfo::execDBINFO_SCANCONF(Signal *signal)
   ndbrequire(conf.cursor_sz == Ndbinfo::ScanCursor::Length);
 
   // Validate tableId
-  const Uint32 tableId= conf.tableId;
-  ndbassert(tableId < (Uint32)Ndbinfo::getNumTables());
+  ndbassert(conf.tableId < (Uint32)Ndbinfo::getNumTables());
 
   const Uint32 resultRef = conf.resultRef;
 

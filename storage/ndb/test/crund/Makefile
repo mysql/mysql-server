@@ -47,12 +47,8 @@ distclean:
 # read the generic settings
 include	env.properties
 
-run.ndbapi:	$(SRC)/NdbapiDriver
-	$(SRC)/NdbapiDriver \
-	-p crundRun.properties -p crundNdbapi.properties
-
-run.tws:	$(SRC)/tws
-	$(SRC)/tws \
-	-p twsRun.properties -p crundNdbapi.properties
+run.c++crund:	$(SRC)/crund
+	$(SRC)/crund \
+	-p crundRun.properties -p crundNdb.properties
 
 #------------------------------------------------------------------------------

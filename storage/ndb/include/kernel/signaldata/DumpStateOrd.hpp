@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -107,6 +107,7 @@ public:
     LqhDumpLcpState = 2303,
     LqhErrorInsert5042 = 2315,
     LqhDumpPoolLevels = 2353,
+    LqhReportCopyInfo = 2354,
 
     AccDumpOneScanRec = 2400,
     AccDumpAllScanRec = 2401,
@@ -172,6 +173,7 @@ public:
     // 7020
     // 7021
     DihDumpPageRecInfo = 7032,
+    DihFragmentsPerNode = 7033,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP
     DihSetTimeBetweenGcp = 7090,
     DihStartLcpImmediately = 7099,
@@ -198,7 +200,9 @@ public:
     SchemaResourceCheckLeak = 4001, // check same as snapshot
 
     TcResourceSnapshot = 2553,
-    TcResourceCheckLeak = 2554
+    TcResourceCheckLeak = 2554,
+
+    RestoreRates = 30000
   };
 public:
   

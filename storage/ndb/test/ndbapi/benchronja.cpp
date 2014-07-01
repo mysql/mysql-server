@@ -283,14 +283,14 @@ error_input:
 void commitTrans(Ndb* aNdb, NdbConnection* aCon)
 {
   int ret = aCon->execute(Commit);
-  assert (ret != -1);
+  require(ret != -1);
   aNdb->closeTransaction(aCon);
 }
 
 void rollbackTrans(Ndb* aNdb, NdbConnection* aCon)
 {
   int ret = aCon->execute(Rollback);
-  assert (ret != -1);
+  require(ret != -1);
   aNdb->closeTransaction(aCon);
 }
 
@@ -304,7 +304,7 @@ void updateNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
   theOperation->equal((Uint32)0, key);
   theOperation->setValue((Uint32)1, (char*)flip);
   int ret = aCon->execute(NoCommit);
-  assert (ret != -1);
+  require(ret != -1);
 }
 
 void updateNoCommitFail(NdbConnection* aCon, unsigned int key)
@@ -317,7 +317,7 @@ void updateNoCommitFail(NdbConnection* aCon, unsigned int key)
   theOperation->equal((Uint32)0, key);
   theOperation->setValue((Uint32)1, (char*)flip);
   int ret = aCon->execute(NoCommit);
-  assert (ret == -1);
+  require(ret == -1);
 }
 
 void deleteNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
@@ -329,7 +329,7 @@ void deleteNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
   theOperation->deleteTuple();
   theOperation->equal((Uint32)0, key);
   int ret = aCon->execute(NoCommit);
-  assert (ret != -1);
+  require(ret != -1);
 }
 
 void insertNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
@@ -345,7 +345,7 @@ void insertNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
   theOperation->setValue((Uint32)2, (char*)&placeholder[0]);
   theOperation->setValue((Uint32)3, (char*)&placeholder[0]);
   int ret = aCon->execute(NoCommit);
-  assert (ret != -1);
+  require(ret != -1);
 }
 
 void writeNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
@@ -361,7 +361,7 @@ void writeNoCommit(NdbConnection* aCon, Uint32* flip, unsigned int key)
   theOperation->setValue((Uint32)2, (char*)&placeholder[0]);
   theOperation->setValue((Uint32)3, (char*)&placeholder[0]);
   int ret = aCon->execute(NoCommit);
-  assert (ret != -1);
+  require(ret != -1);
 }
 
 void readNoCommit(NdbConnection* aCon, Uint32* flip, Uint32 key, int expected_ret)
@@ -374,9 +374,9 @@ void readNoCommit(NdbConnection* aCon, Uint32* flip, Uint32 key, int expected_re
   theOperation->equal((Uint32)0, key);
   theOperation->getValue((Uint32)1, (char*)&readFlip);
   int ret = aCon->execute(NoCommit);
-  assert (ret == expected_ret);
+  require(ret == expected_ret);
   if (ret == 0) 
-    assert (*flip == readFlip);
+    require(*flip == readFlip);
 }
 
 void readDirtyNoCommit(NdbConnection* aCon, Uint32* flip, Uint32 key, int expected_ret)
@@ -389,9 +389,9 @@ void readDirtyNoCommit(NdbConnection* aCon, Uint32* flip, Uint32 key, int expect
   theOperation->equal((Uint32)0, key);
   theOperation->getValue((Uint32)1, (char*)&readFlip);
   int ret = aCon->execute(NoCommit);
-  assert (ret == expected_ret);
+  require(ret == expected_ret);
   if (ret == 0) 
-    assert (*flip == readFlip);
+    require(*flip == readFlip);
 }
 
 void readVerify(Ndb* aNdb, Uint32* flip, Uint32 key, int expected_ret)
@@ -414,9 +414,9 @@ void readDirty(Ndb* aNdb, Uint32* flip, Uint32 key, int expected_ret)
   theOperation->equal((Uint32)0, key);
   theOperation->getValue((Uint32)1, (char*)&readFlip);
   int ret = theTransaction->execute(Commit);
-  assert (ret == expected_ret);
+  require(ret == expected_ret);
   if (ret == 0) 
-    assert (*flip == readFlip);
+    require(*flip == readFlip);
   aNdb->closeTransaction(theTransaction);
 }
 

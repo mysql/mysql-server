@@ -50,7 +50,9 @@ IF(HAVE_JDK)
   ADD_LIBRARY(libndbjtie_unit_tests SHARED
 	ndbjtie_unit_tests_consts.cpp
 	ndbjtie_unit_tests_lib.cpp)
-
+  # Set any special linker flags for shared library
+  SET_TARGET_PROPERTIES(libndbjtie_unit_tests
+    PROPERTIES LINK_FLAGS "${CMAKE_SHARED_LIBRARY_C_FLAGS}")
   SET_TARGET_PROPERTIES(libndbjtie_unit_tests PROPERTIES
 	OUTPUT_NAME "ndbjtie_unit_tests")
   # no other library dependencies

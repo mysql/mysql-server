@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -84,7 +84,7 @@ public:
    */
   static void clear_range(unsigned size, Uint32 data[], unsigned start, unsigned last);
 
-  static Uint32 getWord(unsigned size, Uint32 data[], unsigned word_pos);
+  static Uint32 getWord(unsigned size, const Uint32 data[], unsigned word_pos);
   static void setWord(unsigned size, Uint32 data[],
                       unsigned word_pos, Uint32 new_word);
   /**
@@ -190,12 +190,12 @@ public:
   /**
    * contains - Check if all bits set in data2 are set in data
    */
-  static bool contains(unsigned size, Uint32 data[], const Uint32 data2[]);
+  static bool contains(unsigned size, const Uint32 data[], const Uint32 data2[]);
 
   /**
    * overlaps - Check if any bit set in data is set in data2
    */
-  static bool overlaps(unsigned size, Uint32 data[], const Uint32 data2[]);
+  static bool overlaps(unsigned size, const Uint32 data[], const Uint32 data2[]);
 
   /**
    * getField - Get bitfield at given position and length (max 32 bits)
@@ -370,7 +370,7 @@ BitmaskImpl::clear_range(unsigned size, Uint32 data[],
 
 inline
 Uint32
-BitmaskImpl::getWord(unsigned size, Uint32 data[], unsigned word_pos)
+BitmaskImpl::getWord(unsigned size, const Uint32 data[], unsigned word_pos)
 {
   return data[word_pos];
 }
@@ -732,7 +732,7 @@ BitmaskImpl::bitNOT(unsigned size, Uint32 data[])
 }
 
 inline bool
-BitmaskImpl::contains(unsigned size, Uint32 data[], const Uint32 data2[])
+BitmaskImpl::contains(unsigned size, const Uint32 data[], const Uint32 data2[])
 {
   for (unsigned int i = 0; i < size; i++)
     if ((data[i] & data2[i]) != data2[i])
@@ -741,7 +741,7 @@ BitmaskImpl::contains(unsigned size, Uint32 data[], const Uint32 data2[])
 }
 
 inline bool
-BitmaskImpl::overlaps(unsigned size, Uint32 data[], const Uint32 data2[])
+BitmaskImpl::overlaps(unsigned size, const Uint32 data[], const Uint32 data2[])
 {
   for (unsigned int i = 0; i < size; i++)
     if ((data[i] & data2[i]) != 0)
@@ -929,7 +929,7 @@ public:
   /**
    * Get and set words of bits
    */
-  Uint32 getWord(unsigned word_pos);
+  Uint32 getWord(unsigned word_pos) const;
   void setWord(unsigned word_pos, Uint32 new_word);
   
   /**
@@ -1025,14 +1025,14 @@ public:
   /**
    * contains - Check if all bits set in data2 (that) are also set in data (this)
    */
-  static bool contains(Uint32 data[], const Uint32 data2[]);
-  bool contains(BitmaskPOD<size> that);
+  static bool contains(const Uint32 data[], const Uint32 data2[]);
+  bool contains(BitmaskPOD<size> that) const;
 
   /**
    * overlaps - Check if any bit set in this BitmaskPOD (data) is also set in that (data2)
    */
-  static bool overlaps(Uint32 data[], const Uint32 data2[]);
-  bool overlaps(BitmaskPOD<size> that);
+  static bool overlaps(const Uint32 data[], const Uint32 data2[]);
+  bool overlaps(BitmaskPOD<size> that) const;
 
   /**
    * getText - Return as hex-digits (only for debug routines).
@@ -1201,7 +1201,7 @@ BitmaskPOD<size>::clear()
 
 template <unsigned size>
 inline Uint32
-BitmaskPOD<size>::getWord(unsigned word_pos)
+BitmaskPOD<size>::getWord(unsigned word_pos) const
 {
   return BitmaskImpl::getWord(size, rep.data, word_pos);
 }
@@ -1431,28 +1431,28 @@ BitmaskPOD<size>::getText(char* buf) const
 
 template <unsigned size>
 inline bool
-BitmaskPOD<size>::contains(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::contains(const Uint32 data[], const Uint32 data2[])
 {
   return BitmaskImpl::contains(size, data, data2);
 }
 
 template <unsigned size>
 inline bool
-BitmaskPOD<size>::contains(BitmaskPOD<size> that)
+BitmaskPOD<size>::contains(BitmaskPOD<size> that) const
 {
   return BitmaskPOD<size>::contains(this->rep.data, that.rep.data);
 }
 
 template <unsigned size>
 inline bool
-BitmaskPOD<size>::overlaps(Uint32 data[], const Uint32 data2[])
+BitmaskPOD<size>::overlaps(const Uint32 data[], const Uint32 data2[])
 {
   return BitmaskImpl::overlaps(size, data, data2);
 }
 
 template <unsigned size>
 inline bool
-BitmaskPOD<size>::overlaps(BitmaskPOD<size> that)
+BitmaskPOD<size>::overlaps(BitmaskPOD<size> that) const
 {
   return BitmaskPOD<size>::overlaps(this->rep.data, that.rep.data);
 }
