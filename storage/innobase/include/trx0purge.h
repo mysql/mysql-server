@@ -465,7 +465,7 @@ public:
 
 	/** Get the tablespace id to start scanning from.
 	@return	id of UNDO tablespace to start scanning from. */
-	ulint scan_start()
+	ulint get_scan_start()
 	{
 		return(m_scan_start);
 	}
@@ -516,7 +516,9 @@ public:
 	/** Get purge lag.
 	@return cached purge lag. */
 	ulint get_purge_lag()
-	{ return(m_purge_lag); }
+	{
+		return(m_purge_lag);
+	}
 
 public:
 	/** DDL logger to protect truncate action against server crash. */
