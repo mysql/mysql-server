@@ -24,8 +24,13 @@ abstract public class Load {
     static protected final PrintWriter out = Driver.out;
     static protected final PrintWriter err = Driver.err;
 
+    // short descriptor
+    protected String name;
+    public String getName() {
+        return name;
+    }
+
     // intializers/finalizers
-    abstract public String getName();
     abstract public void init() throws Exception;
     abstract public void close() throws Exception;
 

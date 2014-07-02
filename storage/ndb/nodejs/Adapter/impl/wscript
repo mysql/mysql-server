@@ -2,7 +2,8 @@ def configure(conf):
   conf.env.append_unique("CPPPATH", conf.env.my_inc)
   conf.env.append_unique("CPPPATH", conf.env.ndb_inc)
   conf.env.append_unique("CPPPATH", conf.env.ndb_inc + "/ndbapi")
-  conf.env.append_unique("CPPPATH", "../include")
+  conf.env.append_unique("CPPPATH", "../common/include")
+  conf.env.append_unique("CPPPATH", "../ndb/include")
   conf.env.append_unique('CXXFLAGS', ["-Wall"])
   conf.env.append_unique("LIBPATH", conf.env.my_lib)
   conf.recurse("test")
@@ -14,37 +15,38 @@ def build(ctx):
   obj.lib = [ "ndbclient" , "mysqlclient"]
   
   obj.source = \
-  "src/node_module.cpp " +\
+  "ndb/src/node_module.cpp " +\
   \
-  "src/async_common.cpp " +\
-  "src/unified_debug.cpp " +\
+  "common/src/async_common.cpp " +\
+  "common/src/unified_debug.cpp " +\
   \
-  "src/Record.cpp " +\
-  "src/DBOperationHelper.cpp " +\
-  "src/IndexBoundHelper.cpp " +\
-  "src/DBScanHelper.cpp " +\
-  "src/DBDictionaryImpl.cpp " +\
-  "src/Record_wrapper.cpp " +\
-  "src/Ndb_init_wrapper.cpp " +\
-  "src/Ndb_util_wrapper.cpp " +\
-  "src/Ndb_cluster_connection_wrapper.cpp " + \
-  "src/Ndb_wrapper.cpp " +\
-  "src/NdbError_wrapper.cpp " +\
-  "src/NdbTransaction_wrapper.cpp " +\
-  "src/NdbOperation_wrapper.cpp " +\
-  "src/NdbInterpretedCode_wrapper.cpp " +\
-  "src/NdbScanFilter_wrapper.cpp " +\
-  "src/AsyncNdbContext.cpp " +\
-  "src/AsyncNdbContext_wrapper.cpp " +\
-  "src/NdbTypeEncoders.cpp " +\
-  "src/NdbRecordObject.cpp " +\
-  "src/ColumnProxy.cpp " +\
-  "src/ColumnHandler.cpp " +\
-  "src/ValueObject.cpp " +\
-  "src/ScanImpl.cpp " +\
-  "src/EncoderCharset.cpp " +\
+  "ndb/src/Record.cpp " +\
+  "ndb/src/DBOperationHelper.cpp " +\
+  "ndb/src/IndexBoundHelper.cpp " +\
+  "ndb/src/DBScanHelper.cpp " +\
+  "ndb/src/DBDictionaryImpl.cpp " +\
+  "ndb/src/Record_wrapper.cpp " +\
+  "ndb/src/Ndb_init_wrapper.cpp " +\
+  "ndb/src/Ndb_util_wrapper.cpp " +\
+  "ndb/src/Ndb_cluster_connection_wrapper.cpp " + \
+  "ndb/src/Ndb_wrapper.cpp " +\
+  "ndb/src/NdbError_wrapper.cpp " +\
+  "ndb/src/NdbTransaction_wrapper.cpp " +\
+  "ndb/src/NdbScanOperation_wrapper.cpp " +\
+  "ndb/src/PendingOperationSet_wrapper.cpp " +\
+  "ndb/src/NdbInterpretedCode_wrapper.cpp " +\
+  "ndb/src/NdbScanFilter_wrapper.cpp " +\
+  "ndb/src/AsyncNdbContext.cpp " +\
+  "ndb/src/AsyncNdbContext_wrapper.cpp " +\
+  "ndb/src/NdbTypeEncoders.cpp " +\
+  "ndb/src/NdbRecordObject.cpp " +\
+  "ndb/src/ColumnProxy.cpp " +\
+  "ndb/src/ColumnHandler.cpp " +\
+  "ndb/src/ValueObject.cpp " +\
+  "ndb/src/ScanImpl.cpp " +\
+  "ndb/src/EncoderCharset.cpp " +\
   \
-  "src/mysqlclient_wrapper.cpp " +\
+  "ndb/src/mysqlclient_wrapper.cpp " +\
   ""
   
   ctx.recurse("test")

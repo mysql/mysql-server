@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -109,6 +109,21 @@ void Dblqh::initData()
   c_keyOverloadsPeerNode   = 0;
   c_keyOverloadsSubscriber = 0;
   c_scanSlowDowns          = 0;
+
+  c_fragmentsStarted = 0;
+  c_fragmentsStartedWithCopy = 0;
+
+  c_fragCopyTable = 0;
+  c_fragCopyFrag = 0;
+  c_fragCopyRowsIns = 0;
+  c_fragCopyRowsDel = 0;
+  c_fragBytesCopied = 0;
+
+  c_fragmentCopyStart = 0;
+  c_fragmentsCopied = 0;
+  c_totalCopyRowsIns = 0;
+  c_totalCopyRowsDel = 0;
+  c_totalBytesCopied = 0;
 
 }//Dblqh::initData()
 
@@ -352,7 +367,6 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
   addRecSignal(GSN_TUPSEIZEREF, &Dblqh::execTUPSEIZEREF);
   addRecSignal(GSN_ACCKEYCONF, &Dblqh::execACCKEYCONF);
   addRecSignal(GSN_ACCKEYREF, &Dblqh::execACCKEYREF);
-  addRecSignal(GSN_TUPKEYCONF, &Dblqh::execTUPKEYCONF);
   addRecSignal(GSN_TUPKEYREF, &Dblqh::execTUPKEYREF);
   addRecSignal(GSN_ABORT, &Dblqh::execABORT);
   addRecSignal(GSN_ABORTREQ, &Dblqh::execABORTREQ);
@@ -363,12 +377,8 @@ Dblqh::Dblqh(Block_context& ctx, Uint32 instanceNumber):
 #endif
   addRecSignal(GSN_SCAN_FRAGREQ, &Dblqh::execSCAN_FRAGREQ);
   addRecSignal(GSN_SCAN_NEXTREQ, &Dblqh::execSCAN_NEXTREQ);
-  addRecSignal(GSN_ACC_SCANCONF, &Dblqh::execACC_SCANCONF);
-  addRecSignal(GSN_ACC_SCANREF, &Dblqh::execACC_SCANREF);
   addRecSignal(GSN_NEXT_SCANCONF, &Dblqh::execNEXT_SCANCONF);
   addRecSignal(GSN_NEXT_SCANREF, &Dblqh::execNEXT_SCANREF);
-  addRecSignal(GSN_STORED_PROCCONF, &Dblqh::execSTORED_PROCCONF);
-  addRecSignal(GSN_STORED_PROCREF, &Dblqh::execSTORED_PROCREF);
   addRecSignal(GSN_COPY_FRAGREQ, &Dblqh::execCOPY_FRAGREQ);
   addRecSignal(GSN_COPY_FRAGREF, &Dblqh::execCOPY_FRAGREF);
   addRecSignal(GSN_COPY_FRAGCONF, &Dblqh::execCOPY_FRAGCONF);

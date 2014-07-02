@@ -31,10 +31,10 @@ static void stderror_logger_log(EXTENSION_LOG_LEVEL severity __attribute__((unus
                                 const void* client_cookie,
                                 const char *fmt, ...)
 {
-    (void)client_cookie;
     int len = strlen(fmt);
     bool needlf = (len > 0 && fmt[len - 1] != '\n');
     va_list ap;
+    (void)client_cookie;
     va_start(ap, fmt);
     vfprintf(stderr, fmt, ap);
     va_end(ap);

@@ -460,7 +460,7 @@ select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 
 # Test all types and compare operators
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string = "aaaa" and 
@@ -516,7 +516,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string != "aaaa" and 
@@ -572,7 +572,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string > "aaaa" and 
@@ -628,7 +628,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string >= "aaaa" and 
@@ -684,7 +684,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string < "dddd" and 
@@ -740,7 +740,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string <= "dddd" and 
@@ -800,7 +800,7 @@ order by auto;
 create index medium_index on t1(medium);
 
 # Test all types and compare operators
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string = "aaaa" and 
@@ -856,7 +856,7 @@ time_field = '01:01:01' and
 date_time = '1901-01-01 01:01:01' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string != "aaaa" and 
@@ -912,7 +912,7 @@ time_field != '01:01:01' and
 date_time != '1901-01-01 01:01:01' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string > "aaaa" and 
@@ -968,7 +968,7 @@ time_field > '01:01:01' and
 date_time > '1901-01-01 01:01:01'
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string >= "aaaa" and 
@@ -1024,7 +1024,7 @@ time_field >= '01:01:01' and
 date_time >= '1901-01-01 01:01:01' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string < "dddd" and 
@@ -1080,7 +1080,7 @@ time_field < '04:04:04' and
 date_time < '1904-04-04 04:04:04' 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string <= "dddd" and 
@@ -1137,7 +1137,7 @@ date_time <= '1904-04-04 04:04:04'
 order by auto;
 
 # Test LIKE/NOT LIKE
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string like "b%" and
@@ -1153,7 +1153,7 @@ bin like concat(0xBB, '%') and
 vbin like concat(0xBB, '%')
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where 
 string not like "b%" and
@@ -1170,7 +1170,7 @@ vbin not like concat(0xBB, '%')
 order by auto;
 
 # BETWEEN
---replace_column 9 #
+--replace_column 10 # 11 #
 explain 
 select auto from t1 where
 (string between "aaaa" and "cccc") and 
@@ -1220,7 +1220,7 @@ select auto from t1 where
 (date_time between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where
 ("aaaa" between string and string) and 
@@ -1271,7 +1271,7 @@ select auto from t1 where
 order by auto;
 
 # NOT BETWEEN
---replace_column 9 #
+--replace_column 10 # 11 #
 explain 
 select auto from t1 where
 (string not between "aaaa" and "cccc") and 
@@ -1321,7 +1321,7 @@ select auto from t1 where
 (date_time not between '1901-01-01 01:01:01' and '1903-03-03 03:03:03') 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where
 ("aaaa" not between string and string) and 
@@ -1372,7 +1372,7 @@ select auto from t1 where
 order by auto;
 
 # IN
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where
 string in("aaaa","cccc") and 
@@ -1422,7 +1422,7 @@ time_field in('01:01:01','03:03:03') and
 date_time in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where
 "aaaa" in(string) and 
@@ -1473,7 +1473,7 @@ select auto from t1 where
 order by auto;
 
 # NOT IN
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where
 string not in("aaaa","cccc") and 
@@ -1523,7 +1523,7 @@ time_field not in('01:01:01','03:03:03') and
 date_time not in('1901-01-01 01:01:01','1903-03-03 03:03:03') 
 order by auto;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where
 "aaaa" not in(string) and 
@@ -1633,44 +1633,44 @@ date_time = '1901-01-01 01:01:01';
 select count(*) from t1;
 
 # Various tests 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain 
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 select * from t2 where attr3 is null or attr1 > 2 and pk1= 3 order by pk1;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 select * from t2 where attr3 is not null and attr1 > 2 order by pk1;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 select * from t3 where attr2 >  9223372036854775803 and attr3 != 3 order by pk1;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 select * from t2,t3 where t2.attr1 < 1 and t2.attr2 = t3.attr2 and t3.attr1 < 5 order by t2.pk1;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 select * from t4 where attr1 < 5 and attr2 > 9223372036854775803 and attr3 != 3 order by t4.pk1;
 
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 select * from t3,t4 where t4.attr1 > 1 and t4.attr2 = t3.attr2 and t4.attr3 < 5 order by t4.pk1;
 
 # Some tests that are currently not supported and should not push condition
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select auto from t1 where string = "aaaa" collate latin1_general_ci order by auto;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t2 where (attr1 < 2) = (attr2 < 2) order by pk1;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain
 select * from t3 left join t4 on t4.attr2 = t3.attr2 where t4.attr1 > 1 and t4.attr3 < 5 or t4.attr1 is null order by t4.pk1;
 
@@ -1681,7 +1681,7 @@ insert into t5 (b) values ('jonas'), ('jensing'), ('johan');
 set @@optimizer_switch='engine_condition_pushdown=off';
 select * from t5 where b like '%jo%' order by a;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t5 where b like '%jo%';
 select * from t5 where b like '%jo%' order by a;
 
@@ -1690,10 +1690,10 @@ set @@optimizer_switch='engine_condition_pushdown=off';
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select auto from t1 where date_time like '1902-02-02 %';
 select auto from t1 where date_time like '1902-02-02 %' order by auto;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select auto from t1 where date_time not like '1902-02-02 %';
 select auto from t1 where date_time not like '1902-02-02 %' order by auto;
 
@@ -1784,9 +1784,15 @@ insert into NodeAlias VALUES(null, 7 , '158' , '158' , 0 , '2008-03-10 10:48:57'
 insert into NodeAlias VALUES(null, 8 , '491803%' , '491803%' , 0 , '2008-03-10
 12:22:26');
 
+# Replace mixedcase tablename to lowercase for portability
+--replace_result NodeAlias nodealias
+--replace_column 10 # 11 #
 explain select * from NodeAlias where (aliasKey LIKE '491803%'); 
 select * from NodeAlias where (aliasKey LIKE '491803%') order by id; 
 
+# Replace mixedcase tablename to lowercase for portability
+--replace_result NodeAlias nodealias
+--replace_column 10 # 11 #
 explain select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220'); 
 select * from NodeAlias where ('4918031215220' LIKE aliasKey OR aliasKey LIKE '4918031215220') order by id; 
 
@@ -2246,20 +2252,28 @@ select * from t where x in ("","aa","b");
 select * from t where x not in ("","aa","b");
 select * from t where x like "aa?";
 set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
 explain select * from t where x <> "aa";
 select * from t where x <> "aa";
+--replace_column 10 # 11 #
 explain select * from t where "aa" <> x;
 select * from t where "aa" <> x;
+--replace_column 10 # 11 #
 explain select * from t where x between "" and "bb";
 select * from t where x between "" and "bb";
+--replace_column 10 # 11 #
 explain select * from t where x not between "" and "bb";
 select * from t where x not between "" and "bb";
+--replace_column 10 # 11 #
 explain select * from t where x in ("","aa","b");
 select * from t where x in ("","aa","b");
+--replace_column 10 # 11 #
 explain select * from t where x not in ("","aa","b");
 select * from t where x not in ("","aa","b");
+--replace_column 10 # 11 #
 explain select * from t where x like "aa?";
 select * from t where x like "aa?";
+--replace_column 10 # 11 #
 explain select * from t where x not like "aa?";
 select * from t where x not like "aa?";
 select * from t where x like "%a%";
@@ -2274,8 +2288,10 @@ drop table t;
 create table t (pk int primary key, x int) engine = ndb;
 insert into t values (0,0),(1,1),(2,2),(3,3),(4,4),(5,5);
 set @@optimizer_switch = 'engine_condition_pushdown=on';
+--replace_column 10 # 11 #
 explain select * from t where 3 between 1+1 and x order by pk; 
 select * from t where 3 between 1+1 and x order by pk; 
+--replace_column 10 # 11 #
 explain select * from t where 3 between -1 and x order by pk; 
 select * from t where 3 between -1 and x order by pk; 
 drop table t;
@@ -2284,13 +2300,13 @@ drop table t;
 set @@optimizer_switch = 'engine_condition_pushdown=on';
 create table t (x enum ('yes','yep','no')) engine = ndb;
 insert into t values ('yes'),('yep'),('no');
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t where x like 'yes' order by x;
 select * from t where x like 'yes' order by x;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t where x like 'ye%' order by x;
 select * from t where x like 'ye%' order by x;
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t where x not like 'ye%' order by x;
 select * from t where x not like 'ye%' order by x;
 drop table t;
@@ -2304,8 +2320,10 @@ create table tx (
   primary key (`a`,`b`)
 ) engine = ndb;
 
+--replace_column 10 # 11 #
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
+--replace_column 10 # 11 #
 explain extended
 select straight_join *
 from tx
@@ -2313,6 +2331,7 @@ from tx
  join tx as t3 on t3.a = tx.c and t3.b = tx.d
  join tx as t4 on t4.a = t3.b and t4.b = t2.c;
 
+--replace_column 10 # 11 #
 explain extended
 select t2.c, count(distinct t2.a)
 from tx
@@ -2320,8 +2339,10 @@ join tx as t2 on tx.a = t2.c and tx.b = t2.d
 where t2.a = 4
 group by t2.c;
 
+--replace_column 10 # 11 #
 explain extended select * from tx join tx as t2 on tx.c=1 where t2.c=1;
 
+--replace_column 10 # 11 #
 explain extended
 select t2.c, count(distinct t2.a)
 from tx
@@ -2340,9 +2361,11 @@ create table subq (pk int, i int) engine = ndb;
 insert into subq values (1,3), (3,6), (6,9), (9,1);
 
 # 'Explain extended' to verify that only 'subq.i=3' is pushed
+--replace_column 10 # 11 #
 explain extended 
 select * from t where exists
   (select * from t as subq where subq.i=3 and t.i=3);
+--replace_column 10 # 11 #
 explain extended 
   select * from t where exists
     (select * from subq where subq.i=3 and t.i=3);
@@ -2433,8 +2456,10 @@ drop table t;
 create table escapetest ( emailaddress varchar(255) default null, id int not
 null default '0') engine=ndbcluster;
 insert into escapetest values('test_data@test.org', 1);
+--replace_column 10 # 11 #
 explain select * from escapetest where emailaddress like "test_%";
 select * from escapetest where emailaddress like "test_%";
+--replace_column 10 # 11 #
 explain select * from escapetest where emailaddress like "test|_%" escape '|';
 select * from escapetest where emailaddress like "test|_%" escape '|';
 drop table escapetest;
@@ -2447,6 +2472,7 @@ insert into a values ('abcdefg');
 
 select * from a;                        
 
+--replace_column 10 # 11 #
 explain extended select * from a where a like 'abcdefg%'; 
 
 select * from a where a like 'abcdefg%'; 

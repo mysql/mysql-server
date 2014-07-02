@@ -467,8 +467,7 @@ NdbInfoScanOperation::execDBINFO_SCANCONF(const SimpleSignal * sig)
     // Drop signal that belongs to previous scan
     DBUG_RETURN(true); // Continue waiting
   }
-  const Uint32 tableId = conf->tableId;
-  assert(tableId == m_table->getTableId());
+  assert(conf->tableId == m_table->getTableId());
 
   // Assert all scan settings is unchanged
   assert(conf->colBitmap[0] == (Uint32)~0);

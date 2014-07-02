@@ -1016,6 +1016,11 @@ Ndb::closeTransaction(NdbTransaction* aConnection)
   tCon = theTransactionList;
   theRemainingStartTransactions++;
   
+  DBUG_EXECUTE_IF("ndb_delay_close_txn", {
+    fprintf(stderr, "Ndb::closeTransaction() (%p) taking a break\n", this);
+    NdbSleep_MilliSleep(1000);
+    fprintf(stderr, "Ndb::closeTransaction() resuming\n");
+  });
   DBUG_PRINT("info",("close trans: 0x%lx  transid: 0x%lx",
                      (long) aConnection,
                      (long) aConnection->getTransactionId()));
@@ -1805,14 +1810,23 @@ Ndb::externalizeIndexName(const char * internalIndexName, bool fullyQualifiedNam
     register const char *ptr = internalIndexName;
    
     // Scan name from the end
-    while (*ptr++); ptr--; // strend
+    while (*ptr++)
+    {
+      ;
+    }
+    ptr--; // strend
+
     while (ptr >= internalIndexName && *ptr != table_name_separator)
+    {
       ptr--;
+    }
      
     return ptr + 1;
   }
   else
+  {
     return internalIndexName;
+  }
 }
 
 const char *
@@ -1965,7 +1979,20 @@ Ndb::getSchemaFromInternalName(const char * internalName)
   return ret;
 }
 
-// ToDo set event buffer size
+unsigned Ndb::get_eventbuf_max_alloc()
+{
+    return theEventBuffer->m_max_alloc;
+}
+
+void
+Ndb::set_eventbuf_max_alloc(unsigned sz)
+{
+  if (theEventBuffer != NULL)
+  {
+    theEventBuffer->m_max_alloc = sz;
+  }
+}
+
 NdbEventOperation* Ndb::createEventOperation(const char* eventName)
 {
   DBUG_ENTER("Ndb::createEventOperation");
@@ -2202,8 +2229,7 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             
             Uint32 components = idxName.split(idxNameComponents,
                                               splitString);
-            
-            assert(components == 4);
+            require(components == 4);
             
             primTableObjectId = atoi(idxNameComponents[2].c_str());
             indexName = idxNameComponents[3];
@@ -2244,7 +2270,7 @@ Ndb::getNdbErrorDetail(const NdbError& err, char* buff, Uint32 buffLen) const
             
             Uint32 components = tabName.split(tabNameComponents,
                                               splitString);
-            assert (components == 3);
+            require(components == 3);
             
             /* Now we generate a string of the format
              * <dbname>/<schemaname>/<tabname>/<idxname>

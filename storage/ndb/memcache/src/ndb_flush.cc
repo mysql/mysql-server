@@ -1,6 +1,5 @@
 /*
- Copyright (c) 2011, 2013, Oracle and/or its affiliates. All rights reserved.
- reserved.
+ Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
  
  This program is free software; you can redistribute it and/or
  modify it under the terms of the GNU General Public License
@@ -17,6 +16,9 @@
  Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA
  02110-1301  USA
  */
+
+/* configure defines */
+#include <my_config.h>
 
 /* System headers */
 #define __STDC_FORMAT_MACROS 
@@ -127,7 +129,10 @@ bool scan_delete(NdbInstance *inst, QueryPlan *plan) {
     rescan = false;
     
     NdbTransaction *scanTx = inst->db->startTransaction();
+    if(! scanTx) return false;
+    
     NdbScanOperation *scan = scanTx->getNdbScanOperation(plan->table);
+    if(! scan) return false;
     
     /* Express intent to read with exclusive lock; execute NoCommit */
     scan->readTuplesExclusive();
@@ -244,7 +249,9 @@ bool scan_delete_ext_val(ndb_pipeline *pipeline, NdbInstance *inst,
   op.readColumn(COL_STORE_EXT_SIZE);
   op.readColumn(COL_STORE_EXT_ID);
     
+  if(! scanTx) return false;
   NdbScanOperation *scan = op.scanTable(scanTx, NdbOperation::LM_Exclusive, &opts);
+  if(! scan) return false;
   r = scanTx->execute(NdbTransaction::NoCommit); 
   
   if(r == 0) {   /* Here's the scan loop */

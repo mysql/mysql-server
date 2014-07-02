@@ -33,36 +33,6 @@ var stats_module = require(path.join(api_dir, "stats.js"));
 var stats = stats_module.getWriter(["spi","mysql","DBConnectionPool"]);
 var MySQLTime = require("../common/MySQLTime.js");
 
-/** Convert the raw data in the driver to the type expected by the adapter.
- * @param field the field being processed in the driver
- * @param next the next type converter in the chain
- * @return the value to be passed to the adapter from the driver
- */
-function driverTypeConverter(field, next) {
-//  console.log('MySQLConnectionPool.driverTypeConverter with field', util.inspect(field));
-  var type = field.type;
-  var name = field.name;
-  var value;
-  switch (type) {
-  case 'DATE':
-    value = field.string();
-    return value;
-  case 'TIMESTAMP':
-    value = field.string();
-    if (value === null) {
-      return null;
-    }
-    return value;
-  case 'DATETIME':
-    value = field.string();
-    if (value === null) {
-      return null;
-    }
-    return value;
-  default:
-    return next();
-  }
-}
 /* Translate our properties to the driver's */
 function getDriverProperties(props) {
   var driver = {};
@@ -84,6 +54,14 @@ function getDriverProperties(props) {
   driver.database = props.database;
   driver.debug = props.mysql_debug;
 
+  if (props.mysql_charset) {
+    driver.charset = props.mysql_charset;
+  } else {
+    // by default, use utf-8 multibyte for character encoding
+    driver.charset = 'UTF8MB4';
+  }
+  // allow multiple statements in one query (used to set character set)
+  driver.multipleStatements = true;
   return driver;
 }
 
@@ -164,7 +142,6 @@ exports.DBConnectionPool = function(props) {
   this.domainTypeConverterMap = {};
   this.domainTypeConverterMap.TIMESTAMP = new DomainTypeConverterDateTime();
   this.domainTypeConverterMap.DATETIME = new DomainTypeConverterDateTime();
-  this.driverTypeConverter = driverTypeConverter;
   stats.incr( [ "created" ]);
 };
 
@@ -193,30 +170,12 @@ exports.DBConnectionPool.prototype.getDomainTypeConverter = function(typeName) {
   return this.domainTypeConverterMap[typeName];
 };
 
-exports.DBConnectionPool.prototype.connectSync = function() {
-  var pooledConnection;
-  stats.incr( [ "connect","sync" ]);
-
-  if (this.is_connected) {
-    return;
-  }
-  pooledConnection = mysql.createConnection(this.driverproperties);
-  if (typeof(pooledConnection) === 'undefined') {
-    throw new Error('Fatal internal exception: got undefined pooledConnection for createConnection');
-  }
-  if (pooledConnection === null) {
-    throw new Error('Fatal internal exception: got null pooledConnection for createConnection');
-  }
-  
-  this.pooledConnections[0] = pooledConnection;
-  this.is_connected = true;
-};
-
 exports.DBConnectionPool.prototype.connect = function(user_callback) {
   var callback = user_callback;
   var connectionPool = this;
   var pooledConnection;
-  stats.incr( [ "connect","async" ]);
+  stats.incr( [ "connect" ]);
+  var error;
   
   if (this.is_connected) {
     udebug.log('MySQLConnectionPool.connect is already connected');
@@ -226,7 +185,13 @@ exports.DBConnectionPool.prototype.connect = function(user_callback) {
     pooledConnection.connect(function(err) {
     if (err) {
       stats.incr( [ "connections","failed" ] );
-      callback(err);
+      // create a new Error with a message and this stack
+      error = new Error('Connection failed.');
+      // add cause to the error
+      error.cause = err;
+      // add sqlstate to error
+      error.sqlstate = '08000';
+      callback(error);
     } else {
       stats.incr( [ "connections","succesful" ]);
       connectionPool.pooledConnections[0] = pooledConnection;
@@ -283,7 +248,16 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   var pooledConnection = null;
   var connectionPool = this;
   var newDBSession = null;
+  var charset = connectionPool.driverproperties.charset;
+  var charsetQuery = 
+       'SET character_set_client=\'' + charset +
+    '\';SET character_set_connection=\'' + charset +
+    '\';SET character_set_results=\'' + charset + 
+    '\';';
 
+  function charsetComplete(err) {
+    callback(err, newDBSession);
+  }
   if (this.pooledConnections.length > 0) {
     udebug.log_detail('MySQLConnectionPool.getDBSession before found a pooledConnection for index ' + index + ' in connectionPool; ', 
         ' pooledConnections:', connectionPool.pooledConnections.length,
@@ -299,13 +273,17 @@ exports.DBConnectionPool.prototype.getDBSession = function(index, callback) {
   } else {
     // create a new pooled connection
     var connected_callback = function(err) {
+      if (err) {
+        callback(err);
+        return;
+      }
       newDBSession = new mysqlConnection.DBSession(pooledConnection, connectionPool, index);
       connectionPool.openConnections[index] = pooledConnection;
       udebug.log_detail('MySQLConnectionPool.getDBSession created a new pooledConnection for index ' + index + ' ; ', 
           ' pooledConnections:', connectionPool.pooledConnections.length,
           ' openConnections: ', countOpenConnections(connectionPool));
-      
-      callback(err, newDBSession);
+      // set character set server variables      
+      pooledConnection.query(charsetQuery, charsetComplete);
     };
     // create a new connection
     pooledConnection = mysql.createConnection(this.driverproperties);
