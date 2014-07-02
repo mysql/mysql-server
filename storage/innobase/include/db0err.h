@@ -135,6 +135,14 @@ enum dberr_t {
 	DB_FTS_TOO_MANY_WORDS_IN_PHRASE,
 					/*< Too many words in a phrase */
 
+	DB_ABORTED,			/*!< Transaction was forced to rollback
+					by a higher priority transaction */
+
+	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
+
+	DB_TABLE_CORRUPT,		/*!< Table/clustered index is
+					corrupted */
+
 	/* The following are partial failure codes */
 	DB_FAIL = 1000,
 	DB_OVERFLOW,
@@ -147,24 +155,17 @@ enum dberr_t {
 					changed. Such as index dropped or
 					foreign key dropped */
 
+	DB_NOT_FOUND,			/*!< Generic error code for "Not found"
+					type of errors */
 
 	/* The following are API only error codes. */
 	DB_DATA_MISMATCH = 2000,	/*!< Column update or read failed
 					because the types mismatch */
 
-	DB_SCHEMA_NOT_LOCKED,		/*!< If an API function expects the
+	DB_SCHEMA_NOT_LOCKED		/*!< If an API function expects the
 					schema to be locked in exclusive mode
 					and if it's not then that API function
 					will return this error code */
-
-	DB_NOT_FOUND,			/*!< Generic error code for "Not found"
-					type of errors */
-
-	DB_TABLESPACE_TRUNCATED,	/*!< tablespace was truncated */
-	DB_TABLE_CORRUPT,		/*!< Table/clustered index is
-					corrupted */
-	DB_ABORTED			/*!< Transaction was forced to rollback
-					by a higher priority transaction */
 
 };
 
