@@ -716,6 +716,10 @@ trx_resurrect_insert(
 	ut_d(trx->start_line = __LINE__);
 
 	trx->rsegs.m_redo.rseg = rseg;
+	/* For transactions with active data will not have rseg size = 1
+	or will not qualify for purge limit criteria. So it is safe to increment
+	this trx_ref_count w/o mutex protection. */
+	++trx->rsegs.m_redo.rseg->trx_ref_count;
 	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->rsegs.m_redo.insert_undo = undo;
@@ -840,6 +844,10 @@ trx_resurrect_update(
 	trx_rseg_t*	rseg)	/*!< in/out: rollback segment */
 {
 	trx->rsegs.m_redo.rseg = rseg;
+	/* For transactions with active data will not have rseg size = 1
+	or will not qualify for purge limit criteria. So it is safe to increment
+	this trx_ref_count w/o mutex protection. */
+	++trx->rsegs.m_redo.rseg->trx_ref_count;
 	*trx->xid = undo->xid;
 	trx->id = undo->trx_id;
 	trx->rsegs.m_redo.update_undo = undo;
