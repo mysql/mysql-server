@@ -2456,48 +2456,36 @@ Touches(fid,NULL)
 NULL
 SELECT Touches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Touches(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 SELECT Touches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-Touches(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 SELECT Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Touches(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT Touches(GeomFromText(@star_of_elems),);
@@ -2536,48 +2524,36 @@ ST_Touches(fid,NULL)
 NULL
 SELECT ST_Touches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Touches(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 SELECT ST_Touches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-ST_Touches(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 SELECT ST_Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-ST_Touches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT ST_Touches(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT ST_Touches(GeomFromText(@star_of_elems),);
@@ -2616,48 +2592,36 @@ MBRTouches(fid,NULL)
 NULL
 SELECT MBRTouches(fid,GeomFromText(@star_top)) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-MBRTouches(fid,GeomFromText(@star_top))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 SELECT MBRTouches(GeomFromText(@star_of_elems),fid) FROM gis_geometrycollection,gis_geometrycollection_2
 WHERE fid=103 and fid2=103;
-MBRTouches(GeomFromText(@star_of_elems),fid)
-NULL
+ERROR 22023: Invalid GIS data provided to function st_touches.
 SELECT MBRTouches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRTouches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRTouches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))' at line 1
 SELECT MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'));
-MBRTouches(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT MBRTouches(,);
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near ')' at line 1
 SELECT MBRTouches(GeomFromText(@star_of_elems),);

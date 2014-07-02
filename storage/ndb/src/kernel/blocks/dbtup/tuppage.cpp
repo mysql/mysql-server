@@ -42,7 +42,9 @@ Tup_fixsize_page::alloc_record()
   Uint32 page_idx = next_free_index;
   assert(page_idx + 1 < DATA_WORDS);
 
+#ifdef VM_TRACE
   Uint32 prev = m_data[page_idx] >> 16;
+#endif
   Uint32 next = m_data[page_idx] & 0xFFFF;
 
   assert(prev == 0xFFFF);

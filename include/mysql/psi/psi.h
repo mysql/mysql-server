@@ -202,6 +202,17 @@ typedef struct PSI_sp_locker PSI_sp_locker;
 struct PSI_metadata_lock;
 typedef struct PSI_metadata_lock PSI_metadata_lock;
 
+/**
+  Interface for an instrumented stage progress.
+  This is a public structure, for efficiency.
+*/
+struct PSI_stage_progress
+{
+  ulonglong m_work_completed;
+  ulonglong m_work_estimated;
+};
+typedef struct PSI_stage_progress PSI_stage_progress;
+
 /** Entry point for the performance schema interface. */
 struct PSI_bootstrap
 {
@@ -1134,13 +1145,6 @@ struct PSI_metadata_locker_state_v1
   void *m_wait;
 };
 typedef struct PSI_metadata_locker_state_v1 PSI_metadata_locker_state_v1;
-
-struct PSI_stage_progress
-{
-  ulonglong m_work_completed;
-  ulonglong m_work_estimated;
-};
-typedef struct PSI_stage_progress PSI_stage_progress;
 
 /* Duplicate of NAME_LEN, to avoid dependency on mysql_com.h */
 #define PSI_SCHEMA_NAME_LEN (64 * 3)

@@ -55,10 +55,12 @@ Ndbinfo::Row::check_buffer_space(AttributeHeader& ah) const
 void
 Ndbinfo::Row::check_attribute_type(AttributeHeader& ah, ColumnType type) const
 {
+#ifdef VM_TRACE
   const Table& tab = getTable(m_req.tableId);
   const Uint32 colid = ah.getAttributeId();
   assert(colid < (Uint32)tab.m.ncols);
   assert(tab.col[colid].coltype == type);
+#endif
 }
 
 void

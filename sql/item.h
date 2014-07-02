@@ -677,6 +677,17 @@ class Item : public Parse_tree_node
   int8 is_expensive_cache;
   virtual bool is_expensive_processor(uchar *arg) { return false; }
 
+protected:
+  /**
+     Sets the result value of the function an empty string, using the current
+     character set. No memory is allocated.
+     @retval A pointer to the str_value member.
+   */
+  String *make_empty_result() {
+    str_value.set("", 0, collation.collation);
+    return &str_value; 
+  }
+
 public:
   static void *operator new(size_t size) throw ()
   { return sql_alloc(size); }
@@ -1219,6 +1230,103 @@ protected:
   longlong val_int_from_time();
   longlong val_int_from_datetime();
   double val_real_from_decimal();
+
+
+  /**
+    Get the value to return from val_bool() in case of errors.
+
+    This function is called from val_bool() when an error has occured
+    and we need to return something to abort evaluation of the
+    item. The expected pattern in val_bool() is
+
+      if (<error condition>)
+      {
+        my_error(...)
+        return error_bool();
+      }
+
+    @return The value val_bool() should return.
+  */
+  bool error_bool()
+  {
+    null_value= maybe_null;
+    return false;
+  }
+
+
+  /**
+    Get the value to return from val_decimal() in case of errors.
+
+    @see Item::error_bool
+
+    The expected pattern is to use the buffer given as parameter to
+    val_decimal:
+
+      my_decimal *Item_foo::val_decimal(my_decimal *decimal_buffer)
+      {
+        ...
+        if (<error condition>)
+        {
+          my_error(...)
+          return error_decimal(decimal_buffer);
+        }
+        ...
+      }
+
+    @param decimal_buffer Buffer used for returning value.
+
+    @return The value val_decimal() should return.
+  */
+  my_decimal *error_decimal(my_decimal *decimal_buffer)
+  {
+    if (!maybe_null)
+      my_decimal_set_zero(decimal_buffer);
+    null_value= maybe_null;
+    return null_value ? NULL : decimal_buffer;
+  }
+
+
+  /**
+    Get the value to return from val_int() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_int() should return.
+  */
+  longlong error_int()
+  {
+    null_value= maybe_null;
+    return 0;
+  }
+
+
+  /**
+    Get the value to return from val_real() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_real() should return.
+  */
+  double error_real()
+  {
+    null_value= maybe_null;
+    return 0.0;
+  }
+
+
+  /**
+    Get the value to return from val_str() in case of errors.
+
+    @see Item::error_bool
+
+    @return The value val_str() should return.
+  */
+  String *error_str()
+  {
+    null_value= maybe_null;
+    return null_value ? NULL : make_empty_result();
+  }
+
 
   /**
     Convert val_str() to date in MYSQL_TIME
@@ -4435,6 +4543,11 @@ public:
   enum_trigger_variable_type trigger_var_type;
   /* Next in list of all Item_trigger_field's in trigger */
   Item_trigger_field *next_trg_field;
+  /*
+    Next list of Item_trigger_field's in "sp_head::
+    m_list_of_trig_fields_item_lists".
+  */
+  SQL_I_List<Item_trigger_field> *next_trig_field_list;
   /* Index of the field in the TABLE::field array */
   uint field_idx;
   /* Pointer to an instance of Table_trigger_field_support interface */
@@ -4446,7 +4559,7 @@ public:
                      ulong priv, const bool ro)
     :Item_field(context_arg,
                (const char *)NULL, (const char *)NULL, field_name_arg),
-     trigger_var_type(trigger_var_type_arg),
+     trigger_var_type(trigger_var_type_arg), next_trig_field_list(NULL),
      field_idx((uint)-1), original_privilege(priv),
      want_privilege(priv), table_grants(NULL), read_only (ro)
   {}

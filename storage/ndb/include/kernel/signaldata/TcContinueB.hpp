@@ -50,6 +50,10 @@ private:
     ZNF_CHECK_TRANSACTIONS                 = 19,
     ZSEND_FIRE_TRIG_REQ                    = 20,
     ZSTART_FRAG_SCANS                      = 21
+#ifdef ERROR_INSERT
+    ,ZDEBUG_DELAYED_ABORT                  = 22
+    ,ZDEBUG_DELAY_TCROLLBACKREP            = 23
+#endif
   };
 };
 

@@ -89,8 +89,7 @@ function NdbAutoIncrementHandler(operations) {
   this.autoinc_op_list = [];
   for(i = 0 ; i < operations.length ; i++) { 
     op = operations[i];
-    if(typeof op.tableHandler.autoIncColumnNumber === 'number' && 
-       op.opcode === OP_INSERT) {
+    if(typeof op.tableHandler.autoIncColumnNumber === 'number' && op.needAutoInc) {
       this.values_needed++;    
       this.autoinc_op_list.push(op);
       op.tableHandler.dbTable.autoIncrementCache.prefetch(1);

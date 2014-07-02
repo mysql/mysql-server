@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -811,9 +811,9 @@ bool acl_check_host(const char *host, const char *ip)
     mysql_mutex_unlock(&acl_cache->lock);
     return 0;                                   // Found host
   }
-  for (uint i=0 ; i < acl_wild_hosts.elements ; i++)
+  for (ACL_HOST_AND_IP *acl= acl_wild_hosts->begin();
+       acl != acl_wild_hosts->end(); ++acl)
   {
-    ACL_HOST_AND_IP *acl=dynamic_element(&acl_wild_hosts,i,ACL_HOST_AND_IP*);
     if (acl->compare_hostname(host, ip))
     {
       mysql_mutex_unlock(&acl_cache->lock);
@@ -882,9 +882,9 @@ static bool find_mpvio_user(MPVIO_EXT *mpvio)
   DBUG_PRINT("info", ("entry: %s", mpvio->auth_info.user_name));
   DBUG_ASSERT(mpvio->acl_user == 0);
   mysql_mutex_lock(&acl_cache->lock);
-  for (uint i=0; i < acl_users.elements; i++)
+  for (ACL_USER *acl_user_tmp= acl_users->begin();
+       acl_user_tmp != acl_users->end(); ++acl_user_tmp)
   {
-    ACL_USER *acl_user_tmp= dynamic_element(&acl_users, i, ACL_USER*);
     if ((!acl_user_tmp->user || 
          !strcmp(mpvio->auth_info.user_name, acl_user_tmp->user)) &&
         acl_user_tmp->host.compare_hostname(mpvio->host, mpvio->ip))
@@ -1113,7 +1113,7 @@ bool rsa_auth_status()
 
 
 /* the packet format is described in send_change_user_packet() */
-static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, uint packet_length)
+static bool parse_com_change_user_packet(MPVIO_EXT *mpvio, size_t packet_length)
 {
   NET *net= mpvio->net;
 

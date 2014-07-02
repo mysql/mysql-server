@@ -1840,6 +1840,17 @@ static int open_binary_frm(THD *thd, TABLE_SHARE *share, uchar *head,
               table_field->type() == MYSQL_TYPE_BLOB &&
               table_field->field_length == key_part[i].length)
             continue;
+          /*
+            If the key column is of NOT NULL GEOMETRY type, specifically POINT
+            type whose length is known internally (which is 25). And key part
+            prefix size is equal to the POINT column max size, then we can
+            promote it to primary key.
+          */
+          if (!table_field->real_maybe_null() &&
+              table_field->type() == MYSQL_TYPE_GEOMETRY &&
+              table_field->get_geometry_type() == Field::GEOM_POINT &&
+              key_part[i].length == MAX_LEN_GEOM_POINT_FIELD)
+            continue;
 
 	  if (table_field->real_maybe_null() ||
 	      table_field->key_length() != key_part[i].length)
@@ -2954,7 +2965,8 @@ File create_frm(THD *thd, const char *name, const char *db,
   if ((file= mysql_file_create(key_file_frm,
                                name, CREATE_MODE, create_flags, MYF(0))) >= 0)
   {
-    uint key_length, tmp_key_length, tmp, csid;
+    size_t key_length, tmp_key_length;
+    uint tmp, csid;
     memset(fileinfo, 0, 64);
     /* header */
     fileinfo[0]=(uchar) 254;
@@ -2992,7 +3004,7 @@ File create_frm(THD *thd, const char *name, const char *db,
                                   create_info->extra_size));
     int4store(fileinfo+10,length);
     tmp_key_length= (key_length < 0xffff) ? key_length : 0xffff;
-    int2store(fileinfo+14,tmp_key_length);
+    int2store(fileinfo+14, static_cast<uint16>(tmp_key_length));
     int2store(fileinfo+16,reclength);
     int4store(fileinfo+18, static_cast<uint32>(create_info->max_rows));
     int4store(fileinfo+22, static_cast<uint32>(create_info->min_rows));
@@ -3019,7 +3031,7 @@ File create_frm(THD *thd, const char *name, const char *db,
     fileinfo[44]= (uchar) create_info->stats_auto_recalc;
     fileinfo[45]= 0;
     fileinfo[46]= 0;
-    int4store(fileinfo+47, key_length);
+    int4store(fileinfo+47, static_cast<uint32>(key_length));
     tmp= MYSQL_VERSION_ID;          // Store to avoid warning from int4store
     int4store(fileinfo+51, tmp);
     int4store(fileinfo+55, create_info->extra_size);
@@ -5755,9 +5767,6 @@ void TABLE_LIST::reinit_before_use(THD *thd)
   schema_table_state= NOT_PROCESSED;
 
   mdl_request.ticket= NULL;
-
-  // optim_join_cond() may point to freed memory of previous execution.
-  set_optim_join_cond(join_cond() ? (Item*)1 : NULL);
 }
 
 /*
