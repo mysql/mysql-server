@@ -1,0 +1,19 @@
+!include suite/ndb/my.cnf
+
+[cluster_config]
+SharedGlobalMemory=10M
+
+# Setup an initial logfile group
+# - with non default undo buffer size larger than SharedGlobalMemory
+#   (before fix of BUG#11762867 the system start would fail due to out of
+#    undo buffer memory when trying to create the logfile group)
+# - two undofiles with different file sizes
+InitialLogfileGroup=name=initial_lg1;undo_buffer_size=20M;undofile1.log:32M;undofile2.log:54M
+
+# Also InitialLogFileGroup without undo_buffer_size given would
+# fail to start when SharedGlobalMemory was configured lower than the default
+# value for undo_buffer_size.
+# - no specific testcase added for this combination. Manually tested by
+#   uncommenting line below.
+#InitialLogfileGroup=name=initial_lg1;undofile1.log:32M;undofile2.log:54M
+

@@ -22,7 +22,7 @@ CREATE LOGFILE GROUP lg_1
 CREATE TABLESPACE ts_1
     ADD DATAFILE 'data_1.dat'
     USE LOGFILE GROUP lg_1
-    INITIAL_SIZE 4M
+    INITIAL_SIZE 16M
     ENGINE NDB;
 
 create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
@@ -49,6 +49,7 @@ select count(1) as t6_part_count from information_schema.partitions where table_
 connection default;
 # connection j1;
 
+--replace_column 9 ###
 explain
   select count(*)
   from t6 join t1
@@ -148,10 +149,10 @@ insert into t4(id, data) VALUES
 connection ddl;
 
 alter table t1 algorithm=inplace, reorganize partition;
-alter table t2 algorithm=inplace, reorganize partition;
-alter table t5 algorithm=inplace, max_rows=150000000;
-#alter table t6 algorithm=inplace, reorganize partition;
-send alter table t6 algorithm=inplace, reorganize partition;
+alter online table t2 algorithm=inplace, reorganize partition;
+alter online table t5 algorithm=inplace, max_rows=300000000;
+#alter online table t6 algorithm=inplace, reorganize partition;
+send alter online table t6 algorithm=inplace, reorganize partition;
 
 connection default;
 #send call updateload(300,0);

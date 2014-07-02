@@ -212,8 +212,18 @@ insert into t1 values
 ('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
 ('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
 
+# Scale up datevolume to get better statistics when sampling a single fragment
+insert into t1 select concat(vc, '-0'), i, concat(vc2,'-0') from t1;
+insert into t1 select concat(vc, '-1'), i, concat(vc2,'-1') from t1;
+
+# Add non-matching rows to encourage usage of 'index_merge'
+insert into t1 select concat('#-', vc), 0, concat('2-',vc2) from t1; 
+insert into t1 select concat('$-', vc), 0, concat('3-',vc2) from t1; 
+insert into t1 select concat('%-', vc), 0, concat('4-',vc2) from t1; 
+
 analyze table t1;
 
+--echo As testcase for bug#58280, query should 'index_merge i1,i2'
 --replace_column 10 # 11 #
 explain
 select i,vc from t1
@@ -229,15 +239,10 @@ create table t2(vc varchar(16), i int, vc2 varchar(1024)
   , KEY i2(vc)
  )  ENGINE=ndbcluster;
 
-insert into t2 values
-('1',1,'1'), ('2',2,'2'), ('3',3,'3'), ('4',1,'4'), ('5',2,'5'),
-('6',3,'6'), ('7',1,'7'), ('8',2,'8'), ('9',3,'9'), ('10',1,'10'), 
-('11',2,'11'), ('12',3,'12'), ('13',1,'13'), ('14',2,'14'), ('15',3,'15'),
-('16',1,'16'), ('17',2,'17'), ('x',3,'x'), ('y',1,'y'), ('z',2,'z'),
-('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
-
+insert into t2 select * from t1;
 analyze table t2;
 
+--echo As testcase for bug#58280, query should 'index_merge i1,i2'
 --replace_column 10 # 11 #
 explain
 select i,vc from t2

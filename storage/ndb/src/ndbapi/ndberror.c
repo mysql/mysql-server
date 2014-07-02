@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -205,6 +205,8 @@ ErrorBundle ErrorCodes[] = {
   /* Drop index */
   { 21081, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as parent index of a foreign key" },
   { 21082, HA_ERR_DROP_INDEX_FK, AE, "Drop index not allowed in NDB - used as child index of a foreign key" },
+  /* Misc */
+  { 21090, HA_ERR_CANNOT_ADD_FOREIGN, AE, "Create foreign key failed in NDB - name contains invalid character (/)" },
   
   /**
    * Node shutdown
@@ -525,7 +527,7 @@ ErrorBundle ErrorCodes[] = {
   { 908,  DMEC, IS, "Invalid ordered index tree node size" },
   { 909,  DMEC, IE, "No free index scan op" },
   { 910, HA_ERR_NO_SUCH_TABLE, SE, "Index is being dropped" },
-  { 913,  DMEC, AE, "Invalid index for index state update" },
+  { 913,  DMEC, AE, "Invalid index for index stats update" },
   { 914,  DMEC, IE, "Invalid index stats request" },
   { 915,  DMEC, TR, "No free index stats op" },
   { 916,  DMEC, IE, "Invalid index stats sys tables" },
@@ -543,7 +545,7 @@ ErrorBundle ErrorCodes[] = {
 
   { 1502, DMEC, IE, "Filegroup already exists" },
   { 1503, DMEC, SE, "Out of filegroup records" },
-  { 1504, DMEC, SE, "Out of logbuffer memory" },
+  { 1504, DMEC, SE, "Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)" },
   { 1505, DMEC, IE, "Invalid filegroup" },
   { 1506, DMEC, IE, "Invalid filegroup version" },
   { 1507, DMEC, IE, "File no already inuse" },
@@ -664,6 +666,8 @@ ErrorBundle ErrorCodes[] = {
   { 4102, DMEC, AE, "Type in NdbTamper not correct" },
   { 4103, DMEC, AE, "No schema connections to NDB available and connect failed" },
   { 4104, DMEC, AE, "Ndb Init in wrong state, destroy Ndb object and create a new" },
+  { 4121, DMEC, AE, "Cannot set name twice for an Ndb object" },
+  { 4122, DMEC, AE, "Cannot set name after Ndb object is initialised" },
   { 4105, DMEC, AE, "Too many Ndb objects" },
   { 4106, DMEC, AE, "All Not NULL attribute have not been defined" },
   { 4114, DMEC, AE, "Transaction is already completed" },

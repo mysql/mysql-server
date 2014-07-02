@@ -1,4 +1,4 @@
-# Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -44,7 +44,7 @@ CREATE_MANIFEST(manifest.mf ${CLUSTERJ_JPATEST_EXPORTS} clusterj-jpatest)
 
 CREATE_JAR(clusterj-jpatest ${JAVA_SOURCES} 
   CLASSPATH ${CLASSPATH}
-  MANIFEST ${CMAKE_CURRENT_SOURCE_DIR}/manifest.mf
+  MANIFEST ${CMAKE_CURRENT_BINARY_DIR}/manifest.mf
   ENHANCE ${CMAKE_CURRENT_SOURCE_DIR}/src/main/resources/META-INF/persistence.xml
   DEPENDENCIES clusterjpa.jar
   EXTRA_FILES src/main/resources/META-INF

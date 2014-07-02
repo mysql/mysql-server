@@ -1,0 +1,65 @@
+-- source include/have_ndb.inc
+-- source include/have_binlog_format_mixed_or_row.inc
+
+--echo Reset binlog and show no state held
+reset master;
+select count(1) from mysql.ndb_binlog_index;
+
+--echo Create table for experiments
+use test;
+create table test.t1 (a int primary key, b varchar(1000), c text) engine=ndb;
+
+--echo Basic test that an insert affects Server + Session epochs
+--source ndb_binlog_init_epoch_vals.inc
+insert into test.t1 values (1, repeat("B", 1000), repeat("E", 500));
+--source ndb_binlog_cmp_epoch_vals.inc
+
+--echo Basic test that a read with exclusive lock has no effect
+--source ndb_binlog_init_epoch_vals.inc
+begin;
+select count(1) from test.t1 where a=1 for update;
+commit;
+--source ndb_binlog_cmp_epoch_vals.inc
+
+--echo Basic test that a read with shared lock has no effect
+--source ndb_binlog_init_epoch_vals.inc
+begin;
+select count(1) from test.t1 where a=1 lock in share mode;
+commit;
+--source ndb_binlog_cmp_epoch_vals.inc
+
+--echo Basic test that a committedread has no effect
+--source ndb_binlog_init_epoch_vals.inc
+begin;
+select count(1) from test.t1 where a=1;
+commit;
+--source ndb_binlog_cmp_epoch_vals.inc
+
+--echo Basic test that an update affects Server + Session epochs
+--source ndb_binlog_init_epoch_vals.inc
+update test.t1 set b=repeat("E", 1000), c=repeat("A", 5000) where a=1;
+--source ndb_binlog_cmp_epoch_vals.inc
+
+--echo Basic test that a delete affects Server + Session epochs
+--source ndb_binlog_init_epoch_vals.inc
+delete from test.t1 where a=1;
+--source ndb_binlog_cmp_epoch_vals.inc
+
+--echo Show that server epoch is preserved across connections
+--echo but session epoch is not
+
+--source ndb_binlog_init_epoch_vals.inc
+let $server_epoch= query_get_value(select @init_server_epoch as e, e, 1);
+let $session_epoch= query_get_value(select @init_session_epoch as e, e, 1);
+connect('ExtraConn', '127.0.0.1', 'root',,,$MASTER_MYPORT);
+--source ndb_binlog_init_epoch_vals.inc
+let $new_server_epoch= query_get_value(select @init_server_epoch as e, e, 1);
+let $new_session_epoch= query_get_value(select @init_session_epoch as e, e, 1);
+
+--disable_query_log
+eval select $new_server_epoch >= $server_epoch as server_epoch_preserved;
+eval select $new_session_epoch < $session_epoch as session_epoch_reset;
+--enable_query_log
+
+drop table test.t1;
+

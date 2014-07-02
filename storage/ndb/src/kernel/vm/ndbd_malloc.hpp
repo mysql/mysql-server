@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -17,6 +17,8 @@
 
 #ifndef NDBD_MALLOC_H
 #define NDBD_MALLOC_H
+
+#include <stddef.h>
 
 #define JAM_FILE_ID 234
 

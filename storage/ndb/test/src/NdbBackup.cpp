@@ -294,7 +294,7 @@ NdbBackup::execRestore(bool _restore_data,
 }
 
 int 
-NdbBackup::restore(unsigned _backup_id){
+NdbBackup::restore(unsigned _backup_id, bool restore_meta){
   
   if (!isConnected())
     return -1;
@@ -302,14 +302,16 @@ NdbBackup::restore(unsigned _backup_id){
   if (getStatus() != 0)
     return -1;
 
-  int res; 
-
-  // restore metadata first and data for first node
-  res = execRestore(true, true, ndbNodes[0].node_id, _backup_id);
+  if(restore_meta && // if metadata restore enabled 
+    // restore metadata for first node
+    (execRestore(false, true, ndbNodes[0].node_id, _backup_id) !=0))
+    return -1;
 
   // Restore data once for each node
-  for(unsigned i = 1; i < ndbNodes.size(); i++){
-    res = execRestore(true, false, ndbNodes[i].node_id, _backup_id);
+  for(unsigned i = 0; i < ndbNodes.size(); i++)
+  {
+    if(execRestore(true, false, ndbNodes[i].node_id, _backup_id) != 0)
+      return -1;
   }
   
   return 0;

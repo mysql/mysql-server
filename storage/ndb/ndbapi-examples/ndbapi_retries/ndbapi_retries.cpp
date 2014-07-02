@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2010, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -27,6 +27,9 @@
 //  Application errors (i.e. errors at points marked with APIERROR) 
 //  should be handled by the application programmer.
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 #include <mysql.h>
 #include <mysqld_error.h>
 #include <NdbApi.hpp>
@@ -35,8 +38,18 @@
 // Used for cout
 #include <iostream>  
 
+#ifdef _WIN32
+#include <windows.h>
+// Emulate sleep with Sleep
+static inline
+void sleep(unsigned int seconds)
+{
+  Sleep(seconds/1000);
+}
+#else
 // Used for sleep (use your own version of sleep)
 #include <unistd.h>
+#endif
 #define TIME_TO_SLEEP_BETWEEN_TRANSACTION_RETRIES 1
 
 #define PRINT_ERROR(code,msg) \

@@ -28,7 +28,7 @@ create temporary table spj_counts_at_startup
 --exec bash -c "$LOAD_RQG -d simple.zz -o"
 
 ##
-# run spj_test.yy for 3600 seconds
+# run spj_test.yy for 1800 seconds
 #
 # If you want to reproduce an "run"
 #   add -s <seed value> to command below
@@ -39,10 +39,7 @@ create temporary table spj_counts_at_startup
 #        just at the end)
 #
 let $cmd = $RUN_RQG -g spj_test.yy -t 600;
---echo Calling: $cmd (6 times)
---exec bash -c "$cmd"
---exec bash -c "$cmd"
---exec bash -c "$cmd"
+--echo Calling: $cmd (3 times)
 --exec bash -c "$cmd"
 --exec bash -c "$cmd"
 --exec bash -c "$cmd"

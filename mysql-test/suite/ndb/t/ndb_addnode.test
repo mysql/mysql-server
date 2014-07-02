@@ -18,7 +18,7 @@ CREATE LOGFILE GROUP lg_1
 CREATE TABLESPACE ts_1
     ADD DATAFILE 'data_1.dat'
     USE LOGFILE GROUP lg_1
-    INITIAL_SIZE 4M
+    INITIAL_SIZE 16M
     ENGINE NDB;
 
 create table t1(id int NOT NULL PRIMARY KEY, data char(8)) engine=ndb;
@@ -71,9 +71,10 @@ insert into t4(id, data) VALUES
 (1,'new'), (2,'new'),(3,'new'),(4,'new'),(5,'new'),
 (6,'new'),(7,'new'),(8,'new'),(9,'new'),(10,'new');
 
+alter table t1 algorithm=inplace, add column c int unsigned default null;
 alter online table t1 reorganize partition;
 alter online table t2 reorganize partition;
-alter online table t5 max_rows=100000000;
+alter online table t5 max_rows=300000000;
 alter online table t6 reorganize partition;
 
 select count(1) as t1_part_count from information_schema.partitions where table_schema='test' and table_name='t1';

@@ -850,6 +850,12 @@ protected:
    */
   void setup_wakeup();
 
+  /**
+   * Get receiver thread index for node
+   * MAX_NODES == no receiver thread
+   */
+  Uint32 get_recv_thread_idx(NodeId nodeId);
+
 private:
   NewVARIABLE* NewVarRef;      /* New Base Address Table for block  */
   Uint16       theBATSize;     /* # entries in BAT */
@@ -1377,13 +1383,13 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t1 = NdbTick_getCurrentTicks();
   Uint32 tGsn = m_currentGsn;
-  b->m_currentGsn = gsn;
+  rec_block->m_currentGsn = gsn;
 #endif
   rec_block->executeFunction(gsn, signal);
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t2 = NdbTick_getCurrentTicks();
-  const Uint64 diff NdbTick_Elapsed(t1, t2).microSec();
-  b->addTime(gsn, diff);
+  const Uint64 diff = NdbTick_Elapsed(t1, t2).microSec();
+  rec_block->addTime(gsn, diff);
   m_currentGsn = tGsn;
   subTime(tGsn, diff);
 #endif
@@ -1446,13 +1452,13 @@ SimulatedBlock::EXECUTE_DIRECT(Uint32 block,
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t1 = NdbTick_getCurrentTicks();
   Uint32 tGsn = m_currentGsn;
-  b->m_currentGsn = gsn;
+  rec_block->m_currentGsn = gsn;
 #endif
   rec_block->executeFunction(gsn, signal, f);
 #ifdef VM_TRACE_TIME
   const NDB_TICKS t2 = NdbTick_getCurrentTicks();
   const Uint64 diff = NdbTick_Elapsed(t1,t2).microSec();
-  b->addTime(gsn, diff);
+  rec_block->addTime(gsn, diff);
   m_currentGsn = tGsn;
   subTime(tGsn, diff);
 #endif

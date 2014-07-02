@@ -45,7 +45,8 @@ ENGINE=NDB;
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
 TABLESPACE ts1 STORAGE DISK
-ENGINE=NDB;
+ENGINE=NDB
+PARTITION BY KEY() PARTITIONS 8;
 SHOW CREATE TABLE t1;
 Table	Create Table
 t1	CREATE TABLE `t1` (
@@ -54,6 +55,8 @@ t1	CREATE TABLE `t1` (
   `c` int(11) NOT NULL,
   PRIMARY KEY (`pk1`)
 ) /*!50100 TABLESPACE ts1 STORAGE DISK */ ENGINE=ndbcluster DEFAULT CHARSET=latin1
+/*!50100 PARTITION BY KEY ()
+PARTITIONS 8 */
 INSERT INTO t1 VALUES (0, 0, 0);
 SELECT * FROM t1;
 pk1	b	c
@@ -171,12 +174,12 @@ FROM INFORMATION_SCHEMA.partitions
 WHERE table_name='t1'
 GROUP BY table_name;
 table_name	SUM(table_rows)	SUM(data_length)	MAX(max_data_length)	SUM(data_free)
-t1	501	65536	1048576	2078940
+t1	501	262144	1048576	8345820
 SELECT table_name, table_rows, data_length, max_data_length, data_free
 FROM information_schema.tables
 WHERE table_name='t1';
 table_name	table_rows	data_length	max_data_length	data_free
-t1	501	65536	2097152	2078940
+t1	501	262144	8388608	8345820
 CREATE LOGFILE GROUP lg2
 ADD UNDOFILE 'x.dat'
 INITIAL_SIZE 10y
@@ -699,3 +702,13 @@ undo_buffer_size 2M
 engine=ndb;
 drop logfile group lg1
 engine ndb;
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 128M
+ENGINE=NDB;
+ERROR HY000: Failed to create LOGFILE GROUP
+SHOW WARNINGS;
+Level	Code	Message
+Warning	1296	Got error 1504 'Out of logbuffer memory(specify smaller undo_buffer_size or increase SharedGlobalMemory)' from NDB
+Error	1528	Failed to create LOGFILE GROUP

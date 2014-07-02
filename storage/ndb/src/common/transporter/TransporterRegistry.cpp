@@ -2183,13 +2183,13 @@ bool TransporterRegistry::connect_client(NdbMgmHandle *h)
   if(!mgm_nodeid)
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
-    return false;
+    DBUG_RETURN(false);
   }
   Transporter * t = theTransporters[mgm_nodeid];
   if (!t)
   {
     g_eventLogger->error("%s: %d", __FILE__, __LINE__);
-    return false;
+    DBUG_RETURN(false);
   }
 
   bool res = t->connect_client(connect_ndb_mgmd(h));

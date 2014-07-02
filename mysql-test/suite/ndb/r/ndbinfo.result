@@ -15,6 +15,25 @@ ERROR HY000: Table storage engine 'ndbinfo' does not support the create option '
 
 USE ndbinfo;
 
+SELECT node_id, memory_type, used>0 AND used < total/20 AS used_ok, 
+  used_pages>0 AND used_pages < total_pages/20 AS used_pages_ok, 
+  total, total_pages 
+  FROM ndbinfo.memoryusage WHERE memory_type="Long message buffer"
+  ORDER BY node_id;
+node_id	memory_type	used_ok	used_pages_ok	total	total_pages
+1	Long message buffer	0	0	4194304	16384
+2	Long message buffer	0	0	4194304	16384
+
+SELECT node_id, block_number, block_instance, pool_name, 
+  used>0 AND used < total/20 AS used_ok, 
+  total, high>=used AND high < total/20 AS high_ok, entry_size, config_param1, 
+  config_param2, config_param3, config_param4  
+  FROM ndbinfo.ndb$pools WHERE pool_name="Long message buffer"
+  ORDER BY node_id;
+node_id	block_number	block_instance	pool_name	used_ok	total	high_ok	entry_size	config_param1	config_param2	config_param3	config_param4
+1	254	0	Long message buffer	0	16384	0	256	157	0	0	0
+2	254	0	Long message buffer	0	16384	0	256	157	0	0	0
+
 SHOW CREATE TABLE ndb$tables;
 Table	Create Table
 ndb$tables	CREATE TABLE `ndb$tables` (
@@ -41,9 +60,11 @@ table_id	table_name	comment
 13	transactions	transactions
 14	operations	operations
 15	membership	membership
+16	dict_obj_info	Dictionary object info
+17	frag_mem_use	Per fragment space information
 SELECT COUNT(*) FROM ndb$tables;
 COUNT(*)
-16
+18
 SELECT * FROM ndb$tables WHERE table_id = 2;
 table_id	table_name	comment
 2	test	for testing
@@ -59,11 +80,13 @@ table_id	table_name	comment
 13	transactions	transactions
 14	operations	operations
 15	membership	membership
+16	dict_obj_info	Dictionary object info
+17	frag_mem_use	Per fragment space information
 SELECT * FROM ndb$tables WHERE table_name = 'LOGDESTINATION';
 table_id	table_name	comment
 SELECT COUNT(*) FROM ndb$tables t1, ndb$tables t2 WHERE t1.table_id = t1.table_id;
 COUNT(*)
-256
+324
 
 SELECT table_id, table_name, comment from ndb$tables
   WHERE table_id > 2 AND table_id <= 5 ORDER BY table_id;
@@ -78,7 +101,9 @@ SELECT table_id, table_name FROM ndb$tables ORDER BY table_name;
 table_id	table_name
 1	columns
 8	counters
+16	dict_obj_info
 10	diskpagebuffer
+17	frag_mem_use
 6	logbuffers
 5	logspaces
 15	membership
@@ -143,6 +168,8 @@ table_id
 13
 14
 15
+16
+17
 
 TRUNCATE ndb$tables;
 ERROR HY000: Table 'ndb$tables' is read only
@@ -557,4 +584,172 @@ SELECT DISTINCT(node_id) FROM ndbinfo.counters ORDER BY node_id;
 node_id
 1
 2
+
+Verify there are no ndbinfo views without 'root@localhost' as definer
+select table_schema, table_name, definer from information_schema.views
+  where table_schema = 'ndbinfo' and
+        definer != 'root@localhost';
+table_schema	table_name	definer
+
+create table numbers(
+  i int
+);
+
+insert into numbers values (0),(1),(2),(3),(4),(5),(6),(7),(8),(9);
+
+create table t1(
+  a int not null primary key,
+  b int not null,
+  c1 char(255),
+  vc1 varchar(1024),
+  tx1 text
+)engine=ndbcluster;
+
+insert into t1 select x1.i+x2.i*10+x3.i*100, x1.i-x2.i*10-x3.i*100, repeat('x', 1+x1.i), repeat('y', 1000+x1.i), repeat('z', x1.i*100) from numbers as x1, numbers as x2, numbers as x3;
+
+drop table numbers;
+
+create index ix1 on t1(c1);
+create unique index ix2 on t1(b) using hash;
+
+set @t1_id = (select cast(id as signed integer) from ndbinfo.ndb$dict_obj_info where fq_name REGEXP "def/t1$");
+
+select type, state, parent_obj_type, replace(fq_name, cast(@t1_id as char(10)), "<t1 id>") as fq_name, if(parent_obj_id=@t1_id, "child_of_t1", if(parent_obj_id=0, "root", "error!")) as  nesting from ndbinfo.ndb$dict_obj_info where id >= @t1_id and type <= 6 order by type, id;
+type	state	parent_obj_type	fq_name	nesting
+2	4	0	ndbinfo/def/t1	root
+2	4	2	ndbinfo/def/NDB$BLOB_<t1 id>_4	child_of_t1
+3	4	2	sys/def/<t1 id>/ix2$unique	child_of_t1
+6	4	2	sys/def/<t1 id>/PRIMARY	child_of_t1
+6	4	2	sys/def/<t1 id>/ix1	child_of_t1
+
+
+create view frag_sum as 
+select 
+sum(fixed_elem_alloc_bytes) as fixed_elem_alloc_bytes,
+sum(var_elem_alloc_bytes) as var_elem_alloc_bytes,
+sum(hash_index_alloc_bytes) as hash_index_alloc_bytes
+from ndbinfo.memory_per_fragment;
+
+create view pool_sum as
+select pool_name, block_number, max(entry_size) * sum(used) as used_bytes 
+from  ndbinfo.ndb$pools where pool_name <> "Data memory" 
+or block_number=249 group by pool_name, block_number;
+
+create view check_l2pmap_pools as 
+select min(floor(1000*nodes.total*nodes.entry_size/
+           (pages.used*pages.entry_size))) as l2pmap_ratio 
+from ndbinfo.ndb$pools as pages join ndbinfo.ndb$pools as nodes 
+where pages.node_id=nodes.node_id 
+and pages.block_instance=nodes.block_instance 
+and pages.block_number=nodes.block_number
+and pages.pool_name="L2PMap pages" 
+and nodes.pool_name="L2PMap nodes";
+
+create view l2p_frag_sum as
+select sum(tuple_l2pmap_alloc_bytes) as l2p_sum, 'TUP' as block 
+from ndbinfo.ndb$frag_mem_use 
+union 
+select sum(hash_index_l2pmap_alloc_bytes) as l2p_sum, 'ACC' as block 
+from ndbinfo.ndb$frag_mem_use;
+
+select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
+where pool_name='Index memory';
+used_bytes - hash_index_alloc_bytes
+0
+
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+0
+
+select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
+  where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
+                                      (block='TUP' and block_number=249));
+l2p_sum-used_bytes
+0
+0
+
+select * from check_l2pmap_pools;
+l2pmap_ratio
+996
+
+select * from sum_per_tab;
+fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
+ndbinfo/def/t1	NULL	User table	2000	292	1.0	1	2000	1
+ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
+sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	2000	28	1.0	1	0	1
+
+delete from t1 where a%10=0;
+
+select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
+where pool_name='Index memory';
+used_bytes - hash_index_alloc_bytes
+0
+
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+0
+
+select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
+  where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
+                                      (block='TUP' and block_number=249));
+l2p_sum-used_bytes
+0
+0
+
+select * from check_l2pmap_pools;
+l2pmap_ratio
+996
+
+select * from sum_per_tab;
+fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
+ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
+ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1400	36	1.0	1	1400	1
+sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	1800	28	1.0	1	0	1
+
+update t1 set vc1=repeat('x', a%300), tx1=repeat('y', a*2);
+
+select used_bytes - hash_index_alloc_bytes from pool_sum, frag_sum 
+where pool_name='Index memory';
+used_bytes - hash_index_alloc_bytes
+0
+
+select used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+  from pool_sum, frag_sum 
+  where pool_name='Data memory';
+used_bytes - fixed_elem_alloc_bytes - var_elem_alloc_bytes
+0
+
+select l2p_sum-used_bytes from l2p_frag_sum, pool_sum 
+  where pool_name='L2PMap nodes' and ((block='ACC' and block_number=248) or 
+                                      (block='TUP' and block_number=249));
+l2p_sum-used_bytes
+0
+0
+
+select * from check_l2pmap_pools;
+l2pmap_ratio
+996
+
+select * from sum_per_tab;
+fq_name	parent_fq_name	type	fixed_elem_count	fixed_elem_size_bytes	fixed_elem_alloc_ok	fixed_elem_free_bytes_ok	var_elem_count	var_bytes_ok
+ndbinfo/def/t1	NULL	User table	1800	292	1.0	1	1800	1
+ndbinfo/def/NDB$BLOB_<t1 id>_4	ndbinfo/def/t1	User table	1568	36	1.0	1	1568	1
+sys/def/<t1 id>/PRIMARY	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+sys/def/<t1 id>/ix1	ndbinfo/def/t1	Ordered index	-1	272	1.0	1	0	1
+sys/def/<t1 id>/ix2$unique	ndbinfo/def/t1	Unique hash index	1800	28	1.0	1	0	1
+
+drop table t1;
+drop view l2p_frag_sum;
+drop view check_l2pmap_pools;
+drop view sum_per_tab;
+drop view pool_sum;
+drop view frag_sum;
 
