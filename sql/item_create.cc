@@ -2057,6 +2057,19 @@ protected:
 };
 
 
+class Create_func_release_all_locks : public Create_func_arg0
+{
+public:
+  virtual Item *create(THD *thd);
+
+  static Create_func_release_all_locks s_singleton;
+
+protected:
+  Create_func_release_all_locks() {}
+  virtual ~Create_func_release_all_locks() {}
+};
+
+
 class Create_func_release_lock : public Create_func_arg1
 {
 public:
@@ -4573,6 +4586,15 @@ Create_func_rand::create_native(THD *thd, LEX_STRING name,
 }
 
 
+Create_func_release_all_locks Create_func_release_all_locks::s_singleton;
+
+Item*
+Create_func_release_all_locks::create(THD *thd)
+{
+  return new (thd->mem_root) Item_func_release_all_locks(POS());
+}
+
+
 Create_func_release_lock Create_func_release_lock::s_singleton;
 
 Item*
@@ -5274,6 +5296,7 @@ static Native_func_registry func_array[] =
   { { C_STRING_WITH_LEN("RADIANS") }, BUILDER(Create_func_radians)},
   { { C_STRING_WITH_LEN("RAND") }, BUILDER(Create_func_rand)},
   { { C_STRING_WITH_LEN("RANDOM_BYTES") }, BUILDER(Create_func_random_bytes) },
+  { { C_STRING_WITH_LEN("RELEASE_ALL_LOCKS") }, BUILDER(Create_func_release_all_locks) },
   { { C_STRING_WITH_LEN("RELEASE_LOCK") }, BUILDER(Create_func_release_lock) },
   { { C_STRING_WITH_LEN("REVERSE") }, BUILDER(Create_func_reverse)},
   { { C_STRING_WITH_LEN("ROUND") }, BUILDER(Create_func_round)},

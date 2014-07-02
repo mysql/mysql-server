@@ -405,6 +405,12 @@ int table_events_waits_common::make_metadata_lock_object_columns(PFS_events_wait
       m_row.m_object_schema_length= 0;
       m_row.m_object_name_length= 0;
       break;
+    case MDL_key::USER_LEVEL_LOCK:
+      m_row.m_object_type= "USER LEVEL LOCK";
+      m_row.m_object_type_length= 15;
+      m_row.m_object_schema_length= 0;
+      m_row.m_object_name_length= mdl->name_length();
+      break;
     case MDL_key::NAMESPACE_END:
     default:
       m_row.m_object_type_length= 0;
