@@ -503,25 +503,37 @@ SELECT AsText(ST_Union(g,NULL)) FROM gis_geometrycollection,gis_geometrycollecti
 SELECT AsText(ST_Union(NULL,NULL));
 SELECT AsText(ST_Union(fid,NULL)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(fid,GeomFromText(@star_top))) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText(@star_of_elems),fid)) FROM gis_geometrycollection,gis_geometrycollection_2
        WHERE fid=103 and fid2=103;
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POINT(a 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POINT(! 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Union(GeomFromText('POINT('!' 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POINT(12,34 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('LINESTRING(a 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('LINESTRING(0 0,! 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Union(GeomFromText('LINESTRING('!' 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('LINESTRING(12,34 0,10 10)'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Union(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'),GeomFromText('LINESTRING(0 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ST_Union(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0)'),GeomFromText('LINESTRING(0 0,10 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ST_Union(,));
