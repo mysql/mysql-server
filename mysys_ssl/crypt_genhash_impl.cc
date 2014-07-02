@@ -1,4 +1,4 @@
-/* Copyright (c) 2011, 2012, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2011, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -31,18 +31,7 @@
 
 #include "m_string.h"
 
-/* Pre VS2010 compilers doesn't support stdint.h */
-#ifdef HAVE_STDINT_H
 #include <stdint.h>
-#else
-#ifndef uint32_t
-typedef unsigned long uint32_t;
-#endif
-#ifndef uint8_t
-typedef unsigned char uint8_t;
-#endif
-#endif // !HAVE_STDINT_H
-
 #include <time.h>
 #include <string.h>
 

@@ -1,6 +1,5 @@
 /*
-   Copyright (C) 2007 MySQL AB, 2008 Sun Microsystems, Inc.
-    All rights reserved. Use is subject to license terms.
+   Copyright (c) 2007, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -67,13 +66,15 @@ run_slave_wait(struct Xxx &xxx, struct XxxR &xxxr);
 
 int main(int argc, char** argv)
 {
+  // ndb_init must be called first
+  ndb_init();
+
   if (argc != 8)
   {
     ndbout << "Arguments are <connect_string cluster 1> <connect_string cluster 2> <database> <table name> <primary key> <value of primary key> <attribute to update>.\n";
     exit(-1);
   }
-  // ndb_init must be called first
-  ndb_init();
+
   {
     const char *opt_connectstring1 = argv[1];
     const char *opt_connectstring2 = argv[2];

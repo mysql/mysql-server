@@ -80,8 +80,6 @@ extern "C" {
 #if defined(HAVE_TERMIOS_H)
 #include <termios.h>
 #include <unistd.h>
-#elif defined(HAVE_TERMBITS_H)
-#include <termbits.h>
 #elif defined(HAVE_ASM_TERMBITS_H) && (!defined __GLIBC__ || !(__GLIBC__ > 2 || __GLIBC__ == 2 && __GLIBC_MINOR__ > 0))
 #include <asm/termbits.h>		// Standard linux
 #endif
@@ -1410,9 +1408,7 @@ int main(int argc,char *argv[])
   if (opt_outfile)
     end_tee();
   mysql_end(0);
-#ifndef _lint
   DBUG_RETURN(0);				// Keep compiler happy
-#endif
 }
 
 void mysql_end(int sig)

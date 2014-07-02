@@ -354,8 +354,8 @@ int ndbz_open (ndbzio_stream *s, const char *path, int Flags, File fd)
 
 int write_header(ndbzio_stream *s)
 {
-  char *buffer= (char*)s->outbuf;
-  char *ptr= buffer;
+  uchar *buffer= s->outbuf;
+  uchar *ptr= buffer;
 
   s->block_size= AZ_BUFSIZE_WRITE;
   s->version = (unsigned char)az_magic[1];
@@ -388,7 +388,7 @@ int write_header(ndbzio_stream *s)
   *(ptr + AZ_DIRTY_POS)= (unsigned char)s->dirty; /* Start of Data Block Index Block */
 
   /* Always begin at the begining, and end there as well */
-  if(my_pwrite(s->file, (uchar*) buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
+  if(my_pwrite(s->file, buffer, AZHEADER_SIZE + AZMETA_BUFFER_SIZE, 0,
                MYF(0)) == (size_t)-1)
     return -1;
 

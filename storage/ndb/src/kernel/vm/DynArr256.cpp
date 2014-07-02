@@ -836,8 +836,8 @@ basic(DynArr256& arr, int argc, char* argv[])
       Uint32 val = save[item+1];
       //ndbout_c("get(%d)", idx);
       Uint32 *p = arr.get(idx);
-      assert(p);
-      assert(* p == val);
+      require(p);
+      require(* p == val);
       break;
     }
     case 1:{ // set
@@ -856,7 +856,7 @@ basic(DynArr256& arr, int argc, char* argv[])
 #endif
       //ndbout_c("set(%d, %x)", idx, val);
       Uint32 *p = arr.set(idx);
-      assert(* p);
+      require(p);
       if (item == (len << 1))
       {
 	*p = val;
@@ -864,7 +864,7 @@ basic(DynArr256& arr, int argc, char* argv[])
       }
       else
       {
-	assert(* p == save[item+1]);
+	require(* p == save[item+1]);
 	* p = val;
       }
       save[item] = idx;
@@ -922,7 +922,7 @@ read(DynArr256& arr, int argc, char ** argv)
   for (Uint32 i = 0; i<maxidx; i++)
   {
     Uint32 *ptr = arr.set(i);
-    assert(ptr);
+    require(ptr);
     * ptr = i;
   }
 

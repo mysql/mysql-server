@@ -454,13 +454,6 @@ runRestarter(NDBT_Context* ctx, NDBT_Step* step)
   return result;
 }
 
-#ifdef NDEBUG
-// Some asserts have side effects, and there is no other error handling anyway.
-#define ASSERT_ALWAYS(cond) if(!(cond)){abort();}
-#else
-#define ASSERT_ALWAYS assert
-#endif
-
 static const int nt2StrLen = 20;
 
 static int
@@ -510,25 +503,25 @@ createNegativeSchema(NDBT_Context* ctx, NDBT_Step* step)
     NdbDictionary::Dictionary* const dictionary = ndb->getDictionary();
 
     dictionary->dropTable(tabName);
-    ASSERT_ALWAYS(dictionary->createTable(tabDef) == 0);
+    require(dictionary->createTable(tabDef) == 0);
 
     // Create ordered index on oi1,oi2.
     NdbDictionary::Index ordIdx(ordIdxName);
-    ASSERT_ALWAYS(ordIdx.setTable(tabName) == 0);
+    require(ordIdx.setTable(tabName) == 0);
     ordIdx.setType(NdbDictionary::Index::OrderedIndex);
     ordIdx.setLogging(false);
-    ASSERT_ALWAYS(ordIdx.addColumn(oi1) == 0);
-    ASSERT_ALWAYS(ordIdx.addColumn(oi2) == 0);
-    ASSERT_ALWAYS(dictionary->createIndex(ordIdx, tabDef) == 0);
+    require(ordIdx.addColumn(oi1) == 0);
+    require(ordIdx.addColumn(oi2) == 0);
+    require(dictionary->createIndex(ordIdx, tabDef) == 0);
 
     // Create unique index on ui1,ui2.
     NdbDictionary::Index unqIdx(unqIdxName);
-    ASSERT_ALWAYS(unqIdx.setTable(tabName) == 0);
+    require(unqIdx.setTable(tabName) == 0);
     unqIdx.setType(NdbDictionary::Index::UniqueHashIndex);
     unqIdx.setLogging(true);
-    ASSERT_ALWAYS(unqIdx.addColumn(ui1) == 0);
-    ASSERT_ALWAYS(unqIdx.addColumn(ui2) == 0);
-    ASSERT_ALWAYS(dictionary->createIndex(unqIdx, tabDef) == 0);
+    require(unqIdx.addColumn(ui1) == 0);
+    require(unqIdx.addColumn(ui2) == 0);
+    require(dictionary->createIndex(unqIdx, tabDef) == 0);
   } // for (...
   return NDBT_OK;
 }
@@ -610,22 +603,22 @@ NegativeTest::NegativeTest(NDBT_Context* ctx, NDBT_Step* step)
   m_dictionary = m_ndb->getDictionary();
 
   m_nt1Tab = m_dictionary->getTable("nt1");
-  ASSERT_ALWAYS(m_nt1Tab != NULL);
+  require(m_nt1Tab != NULL);
 
   m_nt1OrdIdx = m_dictionary->getIndex("nt1_oix", "nt1");
-  ASSERT_ALWAYS(m_nt1OrdIdx != NULL);
+  require(m_nt1OrdIdx != NULL);
 
   m_nt1UnqIdx = m_dictionary->getIndex("nt1_uix", "nt1");
-  ASSERT_ALWAYS(m_nt1UnqIdx != NULL);
+  require(m_nt1UnqIdx != NULL);
 
   m_nt2Tab = m_dictionary->getTable("nt2");
-  ASSERT_ALWAYS(m_nt2Tab != NULL);
+  require(m_nt2Tab != NULL);
 
   m_nt2OrdIdx = m_dictionary->getIndex("nt2_oix", "nt2");
-  ASSERT_ALWAYS(m_nt2OrdIdx != NULL);
+  require(m_nt2OrdIdx != NULL);
 
   m_nt2UnqIdx = m_dictionary->getIndex("nt2_uix", "nt2");
-  ASSERT_ALWAYS(m_nt2UnqIdx != NULL);
+  require(m_nt2UnqIdx != NULL);
 }
 
 int
@@ -721,7 +714,7 @@ NegativeTest::runKeyTest() const
 
     const NdbQueryLookupOperationDef* parentOperation
       = builder->readTuple(m_nt1Tab, keyOperands);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     if (builder->linkedValue(parentOperation, "unknown_col") != NULL ||
         builder->getNdbError().code != Err_UnknownColumn)
@@ -745,9 +738,9 @@ NegativeTest::runKeyTest() const
     const NdbQueryOperand* const keyOperands[] =
       {builder->paramValue(), builder->paramValue(), NULL};
 
-    ASSERT_ALWAYS(builder->readTuple(m_nt1Tab, keyOperands) != NULL);
+    require(builder->readTuple(m_nt1Tab, keyOperands) != NULL);
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     const NdbQueryParamValue params[] = {
@@ -802,7 +795,7 @@ NegativeTest::runGraphTest() const
 
     const NdbQueryLookupOperationDef* const parentOperation
       = builder->readTuple(m_nt1Tab, keyOperands);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryOperand* const childOperands[] =
       {builder->linkedValue(parentOperation, "ui1"),
@@ -815,7 +808,7 @@ NegativeTest::runGraphTest() const
         = builder->readTuple(m_nt1Tab, childOperands);
       if (i < 31)
       {
-        ASSERT_ALWAYS(childOperation != NULL);
+        require(childOperation != NULL);
       }
       else if (childOperation != NULL &&
                builder->getNdbError().code != QRY_DEFINITION_TOO_LARGE)
@@ -837,7 +830,7 @@ NegativeTest::runGraphTest() const
 
     const NdbQueryLookupOperationDef* const root1
       = builder->readTuple(m_nt1Tab, keyOperands);
-    ASSERT_ALWAYS(root1 != NULL);
+    require(root1 != NULL);
 
     if (builder->readTuple(m_nt1Tab, keyOperands)!= NULL ||
         builder->getNdbError().code != QRY_UNKNOWN_PARENT)
@@ -923,7 +916,7 @@ NegativeTest::runGraphTest() const
 
     const NdbQueryLookupOperationDef* parentOperation
       = builder->readTuple(m_nt1Tab, keyOperands);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryOperand* const childOperands[] =
       {builder->linkedValue(parentOperation, "ui1"),
@@ -947,7 +940,7 @@ NegativeTest::runGraphTest() const
 
     const NdbQueryTableScanOperationDef* parentOperation
       = builder->scanTable(m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryOperand* const childOperands[] =
       {builder->linkedValue(parentOperation, "ui1"),
@@ -977,21 +970,21 @@ NegativeTest::runGraphTest() const
 
     const NdbQueryLookupOperationDef* rootOperation
       = builder->readTuple(m_nt1Tab, rootKey);
-    ASSERT_ALWAYS(rootOperation != NULL);
+    require(rootOperation != NULL);
 
     const NdbQueryOperand* const leftKey[] =
       {builder->linkedValue(rootOperation, "ui1"), builder->constValue(1), NULL};
 
     const NdbQueryLookupOperationDef* leftOperation
       = builder->readTuple(m_nt1Tab, leftKey);
-    ASSERT_ALWAYS(leftOperation != NULL);
+    require(leftOperation != NULL);
 
     const NdbQueryOperand* const rightKey[] =
       {builder->linkedValue(rootOperation, "ui1"), builder->constValue(1), NULL};
 
     const NdbQueryLookupOperationDef* rightOperation
       = builder->readTuple(m_nt1Tab, rightKey);
-    ASSERT_ALWAYS(rightOperation != NULL);
+    require(rightOperation != NULL);
 
     const NdbQueryOperand* const bottomKey[] =
       {builder->linkedValue(leftOperation, "ui1"),
@@ -1021,10 +1014,10 @@ NegativeTest::runSetBoundTest() const
 
     const NdbQueryIndexScanOperationDef* parentOperation
       = builder->scanIndex(m_nt2OrdIdx, m_nt2Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1038,7 +1031,7 @@ NegativeTest::runSetBoundTest() const
       m_dictionary->createRecord(m_nt2OrdIdx, ordIdxRecSpec,
                                  sizeof ordIdxRecSpec/sizeof ordIdxRecSpec[0],
                                  sizeof(NdbDictionary::RecordSpecification));
-    ASSERT_ALWAYS(ordIdxRecord != NULL);
+    require(ordIdxRecord != NULL);
 
     struct { Uint8 len; char data[nt2StrLen + 10]; } boundRow;
     memset(boundRow.data, 'x', sizeof(boundRow.data));
@@ -1080,10 +1073,10 @@ NegativeTest::runSetBoundTest() const
 
     const NdbQueryIndexScanOperationDef* parentOperation
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1115,10 +1108,10 @@ NegativeTest::runSetBoundTest() const
 
     const NdbQueryTableScanOperationDef* parentOperation
       = builder->scanTable(m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1149,10 +1142,10 @@ NegativeTest::runSetBoundTest() const
 
     const NdbQueryIndexScanOperationDef* parentOperation
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1160,11 +1153,13 @@ NegativeTest::runSetBoundTest() const
 
     const char* resultRow;
 
-    ASSERT_ALWAYS(query->getQueryOperation(0u)
-                  ->setResultRowRef(m_nt1Tab->getDefaultRecord(),
-                                    resultRow, NULL) == 0);
+    require(
+      query->getQueryOperation(0u)->setResultRowRef(
+        m_nt1Tab->getDefaultRecord(),
+        resultRow,
+        NULL) == 0);
 
-    ASSERT_ALWAYS(trans->execute(NoCommit)==0);
+    require(trans->execute(NoCommit)==0);
 
     const int boundRow[] = {1, 1};
 
@@ -1199,10 +1194,10 @@ NegativeTest::runValueTest() const
 
     const NdbQueryTableScanOperationDef* parentOperation
       = builder->scanTable(m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1227,10 +1222,10 @@ NegativeTest::runValueTest() const
 
     const NdbQueryTableScanOperationDef* parentOperation
       = builder->scanTable(m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1259,10 +1254,10 @@ NegativeTest::runValueTest() const
 
     const NdbQueryTableScanOperationDef* parentOperation
       = builder->scanTable(m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();
@@ -1270,9 +1265,11 @@ NegativeTest::runValueTest() const
 
     const char* resultRow;
 
-    ASSERT_ALWAYS(query->getQueryOperation(0u)
-                  ->setResultRowRef(m_nt1Tab->getDefaultRecord(),
-                                    resultRow, NULL) == 0);
+    require(
+      query->getQueryOperation(0u)->setResultRowRef(
+        m_nt1Tab->getDefaultRecord(),
+        resultRow,
+        NULL) == 0);
 
     if (query->getQueryOperation(0u)->setResultRowRef(m_nt1Tab->getDefaultRecord(),
                                                       resultRow, NULL) == 0 ||
@@ -1294,10 +1291,10 @@ NegativeTest::runValueTest() const
 
     const NdbQueryIndexScanOperationDef* parentOperation
       = builder->scanIndex(m_nt1OrdIdx, m_nt1Tab);
-    ASSERT_ALWAYS(parentOperation != NULL);
+    require(parentOperation != NULL);
 
     const NdbQueryDef* const queryDef = builder->prepare();
-    ASSERT_ALWAYS(queryDef != NULL);
+    require(queryDef != NULL);
     builder->destroy();
 
     NdbTransaction* const trans = m_ndb->startTransaction();

@@ -434,38 +434,29 @@ SELECT AsText(Envelope(NULL));
 AsText(Envelope(NULL))
 NULL
 SELECT AsText(Envelope(GeomFromText('POINT(a 0)')));
-AsText(Envelope(GeomFromText('POINT(a 0)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POINT(! 0)')));
-AsText(Envelope(GeomFromText('POINT(! 0)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POINT('!' 0)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)')))' at line 1
 SELECT AsText(Envelope(GeomFromText('POINT(12,34 0)')));
-AsText(Envelope(GeomFromText('POINT(12,34 0)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('LINESTRING(a 0,10 10)')));
-AsText(Envelope(GeomFromText('LINESTRING(a 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('LINESTRING(0 0,! 10)')));
-AsText(Envelope(GeomFromText('LINESTRING(0 0,! 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('LINESTRING('!' 0,10 10)')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)')))' at line 1
 SELECT AsText(Envelope(GeomFromText('LINESTRING(12,34 0,10 10)')));
-AsText(Envelope(GeomFromText('LINESTRING(12,34 0,10 10)')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
-AsText(Envelope(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
-AsText(Envelope(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))')))' at line 1
 SELECT AsText(Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
-AsText(Envelope(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')));
 AsText(Envelope(GeomFromText('GEOMETRYCOLLECTION()')))
 NULL

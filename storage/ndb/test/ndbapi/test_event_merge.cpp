@@ -265,7 +265,7 @@ getcol(uint i)
 {
   if (i < ncol())
     return g_col[i];
-  assert(false);
+  require(false);
   return g_col[0];
 }
 
@@ -306,7 +306,7 @@ maxtab()
 static Tab&
 tab(uint i)
 {
-  assert(i < maxtab() && g_tablst[i] != 0);
+  require(i < maxtab() && g_tablst[i] != 0);
   return *g_tablst[i];
 }
 
@@ -348,7 +348,7 @@ createtable(Tab& t)
       col.setStripeSize(g_opts.blob_version == 1 ? 4 : c.stripesize);
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
     tab.addColumn(col);
@@ -419,7 +419,7 @@ createevent(Tab& t)
   t.evt = 0;
   g_dic = g_ndb->getDictionary();
   NdbDictionary::Event evt(t.evtname);
-  assert(t.tab != 0);
+  require(t.tab != 0);
   evt.setTable(*t.tab);
   evt.addTableEvent(NdbDictionary::Event::TE_ALL);
   uint i;
@@ -554,7 +554,7 @@ cmpcol(const Col& c, const Data& d1, const Data& d2)
       }
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
   }
@@ -597,7 +597,7 @@ operator<<(NdbOut& out, const Data& d)
       {
         char buf[g_charlen + 1];
         uint l = d.ptr[i].uch[0];
-        assert(l <= g_charlen);
+        require(l <= g_charlen);
         memcpy(buf, &d.ptr[i].ch[1], l);
         buf[l] = 0;
         out << "'" << buf << "'";
@@ -624,7 +624,7 @@ operator<<(NdbOut& out, const Data& d)
       }
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
   }
@@ -663,7 +663,7 @@ struct Op { // single or composite
   Uint64 gci; // defined for com op and event
   void init(Kind a_kind, Type a_type = UNDEF) {
     kind = a_kind;
-    assert(kind == OP || kind == EV);
+    require(kind == OP || kind == EV);
     type = a_type;
     next_op = next_com = next_gci = next_ev = next_free = 0;
     free = false;
@@ -755,7 +755,7 @@ struct Counter { // debug aid
   }
   Counter operator --(int) {
     ll3(*this << "--");
-    assert(count != 0);
+    require(count != 0);
     Counter tmp = *this;
     count--;
     return tmp;
@@ -820,16 +820,17 @@ struct Run : public Tab {
   }
   int addgci(Uint64 gci)
   {
-    assert(gcicnt < g_maxgcis);
+    require(gcicnt < g_maxgcis);
     chkrc(gcicnt == 0 || gcinum[gcicnt - 1] < gci);
     gcinum[gcicnt++] = gci;
     return 0;
   }
   void addevtypes(Uint64 gci, Uint32 evtypes, uint i)
   {
-    assert(gcicnt != 0 && gci == gcinum[gcicnt - 1]);
-    assert(evtypes != 0);
-    assert(i < 2);
+    require(gcicnt != 0);
+    require(gci == gcinum[gcicnt - 1]);
+    require(evtypes != 0);
+    require(i < 2);
     gcievtypes[gcicnt - 1][i] |= evtypes;
   }
 };
@@ -845,7 +846,7 @@ maxrun()
 static Run&
 run(uint i)
 {
-  assert(i < maxrun() && g_runlst[i] != 0);
+  require(i < maxrun() && g_runlst[i] != 0);
   return *g_runlst[i];
 }
 
@@ -861,9 +862,9 @@ static Op*
 getop(Op::Kind a_kind, Op::Type a_type = Op::UNDEF)
 {
   if (g_opfree == 0) {
-    assert(g_freeops == 0);
     Op* op = new Op;
-    assert(op != 0);
+    require(g_freeops == 0);
+    require(op != 0);
     op->next_free = g_opfree; // 0
     g_opfree = op;
     op->free = true;
@@ -871,7 +872,7 @@ getop(Op::Kind a_kind, Op::Type a_type = Op::UNDEF)
   }
   Op* op = g_opfree;
   g_opfree = op->next_free;
-  assert(g_freeops != 0);
+  require(g_freeops != 0);
   g_freeops--;
   g_usedops++;
   op->init(a_kind, a_type);
@@ -884,13 +885,13 @@ static void
 freeop(Op* op)
 {
   ll3("freeop: " << op);
-  assert(! op->free);
+  require(! op->free);
   op->freemem();
   op->free = true;
   op->next_free = g_opfree;
   g_opfree = op;
   g_freeops++;
-  assert(g_usedops != 0);
+  require(g_usedops != 0);
   g_usedops--;
 }
 
@@ -946,7 +947,7 @@ resetmem()
   }
   for (uint i = 0; i < maxrun(); i++)
     resetmem(run(i));
-  assert(g_usedops == 0);
+  require(g_usedops == 0);
   g_gciops = g_num_ev = 0;
 }
 
@@ -959,7 +960,7 @@ deleteops() // for memleak checks
     delete tmp_op;
     g_freeops--;
   }
-  assert(g_freeops == 0);
+  require(g_freeops == 0);
 }
 
 struct Comp {
@@ -981,7 +982,7 @@ static int
 checkop(const Op* op, Uint32& pk1)
 {
   Op::Type optype = op->type;
-  assert(optype != Op::UNDEF);
+  require(optype != Op::UNDEF);
   if (optype == Op::NUL)
     return 0;
   chkrc(optype == Op::INS || optype == Op::DEL || optype == Op::UPD);
@@ -1112,7 +1113,7 @@ copyop(const Op* op1, Op* op3)
 static int
 compop(const Op* op1, const Op* op2, Op* op3) // op1 o op2 = op3
 {
-  assert(op1->type != Op::UNDEF && op2->type != Op::UNDEF);
+  require(op1->type != Op::UNDEF && op2->type != Op::UNDEF);
   Comp* comp;
   if (op2->type == Op::NUL) {
     copyop(op1, op3);
@@ -1148,7 +1149,7 @@ compop(const Op* op1, const Op* op2, Op* op3) // op1 o op2 = op3
     compdata(op1->data[0], op2->data[0], res_op->data[0], true, true);
     compdata(op2->data[1], op1->data[1], res_op->data[1], true, true);
   }
-  assert(op1->gci == op2->gci);
+  require(op1->gci == op2->gci);
   res_op->gci = op2->gci;
   Uint32 pk1_tmp;
   reqrc(checkop(res_op, pk1_tmp) == 0);
@@ -1299,28 +1300,28 @@ scantable(Run& r)
       } else {
         int ret;
         ret = bh[i]->getDefined(ind);
-        assert(ret == 0);
+        require(ret == 0);
         if (ind == 0) {
           Data::Txt& txt = *d0.ptr[i].txt;
           Uint64 len64;
           ret = bh[i]->getLength(len64);
-          assert(ret == 0);
+          require(ret == 0);
           txt.len = (uint)len64;
           delete [] txt.val;
           txt.val = new char [txt.len];
           memset(txt.val, 'X', txt.len);
           Uint32 len = txt.len;
           ret = bh[i]->readData(txt.val, len);
-          assert(ret == 0 && len == txt.len);
+          require(ret == 0 && len == txt.len);
           // to see the data, have to execute...
           chkdb(g_con->execute(NoCommit) == 0);
-          assert(memchr(txt.val, 'X', txt.len) == 0);
+          require(memchr(txt.val, 'X', txt.len) == 0);
         }
       }
-      assert(ind >= 0);
+      require(ind >= 0);
       d0.ind[i] = ind;
     }
-    assert(r.pk_op[pk1] == 0);
+    require(r.pk_op[pk1] == 0);
     Op* tot_op = r.pk_op[pk1] = getop(Op::OP);
     copyop(rec_op, tot_op);
     tot_op->type = Op::INS;
@@ -1374,7 +1375,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
       }
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
     d.ind[i] = 0;
@@ -1435,7 +1436,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
         txt.len = u;
         uint j = 0;
         while (j < u) {
-          assert(u > 0);
+          require(u > 0);
           uint k = 1 + urandom(u - 1);
           if (k > u - j)
             k = u - j;
@@ -1446,7 +1447,7 @@ makedata(const Col& c, Data& d, Uint32 pk1, Op::Type optype)
       }
       break;
     default:
-      assert(false);
+      require(false);
       break;
     }
     d.ind[i] = 0;
@@ -1467,15 +1468,15 @@ makeop(const Op* prev_op, Op* op, Uint32 pk1, Op::Type optype)
     if (optype == Op::INS) {
       d1.ind[i] = -1;
     } else if (optype == Op::DEL) {
-      assert(dp.ind[i] >= 0);
+      require(dp.ind[i] >= 0);
       copycol(c, dp, d1);
     } else if (optype == Op::UPD) {
-      assert(dp.ind[i] >= 0);
+      require(dp.ind[i] >= 0);
       if (d0.ind[i] == -1) // not updating this col
         copycol(c, dp, d0); // must keep track of data
       copycol(c, dp, d1);
     } else {
-      assert(false);
+      require(false);
     }
   }
   Uint32 pk1_tmp = ~(Uint32)0;
@@ -1519,7 +1520,7 @@ makeops(Run& r)
     Op* tot_op = r.pk_op[pk1];
     if (tot_op == 0)
       tot_op = r.pk_op[pk1] = getop(Op::OP, Op::NUL);
-    assert(tot_op->type == Op::NUL || tot_op->type == Op::INS);
+    require(tot_op->type == Op::NUL || tot_op->type == Op::INS);
     // add new commit chain to end
     Op* last_gci = tot_op;
     while (last_gci->next_gci != 0)
@@ -1550,7 +1551,7 @@ makeops(Run& r)
         const char* str = g_opstringpart[g_loop % g_opstringparts];
         uint m = (uint)strlen(str);
         uint k = tot_op->num_com + tot_op->num_op;
-        assert(k < m);
+        require(k < m);
         char c = str[k];
         if (c == 'c') {
           if (k + 1 == m)
@@ -1559,7 +1560,7 @@ makeops(Run& r)
         }
         const char* p = "idu";
         const char* q = strchr(p, c);
-        assert(q != 0);
+        require(q != 0);
         optype = (Op::Type)(q - p);
       }
       Op* op = getop(Op::OP);
@@ -1574,7 +1575,7 @@ makeops(Run& r)
       // merge into chain head and total op
       reqrc(compop(com_op, op, com_op) == 0);
       reqrc(compop(tot_op, op, tot_op) == 0);
-      assert(tot_op->type == Op::NUL || tot_op->type == Op::INS);
+      require(tot_op->type == Op::NUL || tot_op->type == Op::INS);
       // counts
       com_op->num_op += 1;
       tot_op->num_op += 1;
@@ -1636,7 +1637,7 @@ addndbop(Run& r, Op* op)
     chkdb(g_op->updateTuple() == 0);
     break;
   default:
-    assert(false);
+    require(false);
     break;
   }
   uint i;
@@ -1655,7 +1656,7 @@ addndbop(Run& r, Op* op)
         continue;
       if (d.noop & (1 << i))
         continue;
-      assert(d.ind[i] >= 0);
+      require(d.ind[i] >= 0);
       if (! c.isblob()) {
         if (d.ind[i] == 0)
           chkdb(g_op->setValue(c.name, (const char*)d.ptr[i].v) == 0);
@@ -1693,11 +1694,11 @@ runops()
       if (tot_op == 0)
         continue;
       if (tot_op->next_gci == 0) {
-        assert(g_loop != 0 && tot_op->type == Op::INS);
+        require(g_loop != 0 && tot_op->type == Op::INS);
         continue;
       }
       // first commit chain
-      assert(tot_op->next_gci != 0);
+      require(tot_op->next_gci != 0);
       gci_op[i][pk1] = tot_op->next_gci;
       left++;
     }
@@ -1712,10 +1713,10 @@ runops()
     // do the ops in one transaction
     chkdb((g_con = g_ndb->startTransaction()) != 0);
     Op* com_op = gci_op[i][pk1]->next_com;
-    assert(com_op != 0);
+    require(com_op != 0);
     // first op in chain
     Op* op = com_op->next_op;
-    assert(op != 0);
+    require(op != 0);
     while (op != 0) {
       ll2("runops:" << *op);
       chkrc(addndbop(r, op) == 0);
@@ -1731,11 +1732,11 @@ runops()
     // next chain
     gci_op[i][pk1] = gci_op[i][pk1]->next_gci;
     if (gci_op[i][pk1] == 0) {
-      assert(left != 0);
+      require(left != 0);
       left--;
     }
   }
-  assert(left == 0);
+  require(left == 0);
   return 0;
 }
 
@@ -1752,13 +1753,14 @@ mergeops(Run& r)
       continue;
     Op* gci_op = tot_op->next_gci;
     if (gci_op == 0) {
-      assert(g_loop != 0 && tot_op->type == Op::INS);
+      require(g_loop != 0 && tot_op->type == Op::INS);
       continue;
     }
     while (gci_op != 0) {
       Op* com_op = gci_op->next_com;
-      assert(com_op != 0 && com_op->next_com == 0);
-      assert(gci_op->gci == com_op->gci);
+      require(com_op != 0);
+      require(com_op->next_com == 0);
+      require(gci_op->gci == com_op->gci);
       Op* last_com = com_op;
       Op* gci_op2 = gci_op->next_gci;
       while (gci_op2 != 0 && gci_op->gci == gci_op2->gci) {
@@ -1771,7 +1773,7 @@ mergeops(Run& r)
         gci_op2 = gci_op2->next_gci;
         freeop(tmp_op);
         mergecnt++;
-        assert(r.gciops != 0 && g_gciops != 0);
+        require(r.gciops != 0 && g_gciops != 0);
         r.gciops--;
         g_gciops--;
       }
@@ -1853,19 +1855,19 @@ geteventdata(Run& r)
       } else {
         NdbBlob* bh = r.ev_bh[j][i];
         ret = bh->getDefined(ind);
-        assert(ret == 0);
+        require(ret == 0);
         if (ind == 0) { // value was returned and is not NULL
           Data::Txt& txt = *d[j].ptr[i].txt;
           Uint64 len64;
           ret = bh->getLength(len64);
-          assert(ret == 0);
+          require(ret == 0);
           txt.len = (uint)len64;
           delete [] txt.val;
           txt.val = new char [txt.len];
           memset(txt.val, 'X', txt.len);
           Uint32 len = txt.len;
           ret = bh->readData(txt.val, len);
-          assert(ret == 0 && len == txt.len);
+          require(ret == 0 && len == txt.len);
         }
       }
       d[j].ind[i] = ind;
@@ -1918,7 +1920,7 @@ runevents()
       if (g_evt_op == 0)
         break;
       Uint64 newgci = g_evt_op->getGCI();
-      assert(newgci != 0);
+      require(newgci != 0);
       g_rec_ev->gci = newgci;
       if (gci != newgci) {
         ll1("new gci: " << gci << " -> " << newgci);
@@ -2007,11 +2009,11 @@ matchevent(Run& r, Op* ev)
       ll2("GCI: " << *gci_op);
       // print details
       Op* com_op = gci_op->next_com;
-      assert(com_op != 0);
+      require(com_op != 0);
       while (com_op != 0) {
         ll2("COM: " << *com_op);
         Op* op = com_op->next_op;
-        assert(op != 0);
+        require(op != 0);
         while (op != 0) {
           ll2("OP : " << *op);
           op = op->next_op;
@@ -2110,10 +2112,10 @@ matchops(Run& r)
       } else {
         ll0("GCI: " << *gci_op);
         Op* com_op = gci_op->next_com;
-        assert(com_op != 0);
+        require(com_op != 0);
         ll0("COM: " << *com_op);
         Op* op = com_op->next_op;
-        assert(op != 0);
+        require(op != 0);
         while (op != 0) {
           ll0("OP : " << *op);
           op = op->next_op;

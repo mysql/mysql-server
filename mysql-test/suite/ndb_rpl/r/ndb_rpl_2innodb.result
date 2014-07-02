@@ -102,7 +102,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -118,7 +118,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -191,7 +191,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(t))
@@ -213,7 +213,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(t))
@@ -278,7 +278,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(t))
@@ -301,7 +301,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY RANGE (YEAR(t))
@@ -547,7 +547,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH ( YEAR(t))
@@ -563,7 +563,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH ( YEAR(t))
@@ -623,7 +623,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=ndbcluster DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH ( YEAR(t))
@@ -641,7 +641,7 @@ t1	CREATE TABLE `t1` (
   `f` float DEFAULT '0',
   `total` bigint(20) unsigned DEFAULT NULL,
   `y` year(4) DEFAULT NULL,
-  `t` date NOT NULL DEFAULT '0000-00-00',
+  `t` date NOT NULL,
   PRIMARY KEY (`t`,`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=latin1
 /*!50100 PARTITION BY HASH ( YEAR(t))
@@ -783,7 +783,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -801,7 +801,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -860,7 +860,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)
@@ -878,7 +878,7 @@ t1	CREATE TABLE `t1` (
   `bc` char(255) DEFAULT NULL,
   `d` decimal(10,4) DEFAULT '0.0000',
   `f` float DEFAULT '0',
-  `total` bigint(20) unsigned NOT NULL DEFAULT '0',
+  `total` bigint(20) unsigned NOT NULL,
   `y` year(4) DEFAULT NULL,
   `t` date DEFAULT NULL,
   PRIMARY KEY (`id`,`total`)

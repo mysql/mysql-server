@@ -26,22 +26,22 @@ insert into t3 values (1,10), (2,10), (3,30), (4, 30);
 insert into t4 values (1,10), (2,10), (3,30), (4, 30);
 
 # Use pk
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t2 where p NOT IN (select p from t1);
 select * from t2 where p NOT IN (select p from t1) order by p;
 
 # Use unique index
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t2 where p NOT IN (select u from t1);
 select * from t2 where p NOT IN (select u from t1) order by p;
 
 # Use ordered index
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t2 where p NOT IN (select o from t1);
 select * from t2 where p NOT IN (select o from t1) order by p;
 
 # Use scan
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t2 where p NOT IN (select p+0 from t1);
 select * from t2 where p NOT IN (select p+0 from t1) order by p;
 
