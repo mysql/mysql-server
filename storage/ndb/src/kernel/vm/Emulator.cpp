@@ -655,7 +655,7 @@ JamEvent::verifyId(Uint32 fileId, const char* pathName)
       names.
     */
     return pathLen >= baseLen &&
-      strcasecmp(pathName+pathLen-baseLen, jamFileNames[fileId]) == 0;
+      native_strcasecmp(pathName+pathLen-baseLen, jamFileNames[fileId]) == 0;
   }
 }
 
