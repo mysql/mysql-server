@@ -144,6 +144,7 @@ status_init(void) {
     STATUS_INIT(CT_SIZE_LEAF,              CACHETABLE_SIZE_LEAF, UINT64, "size leaf", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_SIZE_ROLLBACK,          CACHETABLE_SIZE_ROLLBACK, UINT64, "size rollback", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_SIZE_CACHEPRESSURE,     CACHETABLE_SIZE_CACHEPRESSURE, UINT64, "size cachepressure", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
+    STATUS_INIT(CT_SIZE_CLONED,            CACHETABLE_SIZE_CACHEPRESSURE, UINT64, "size currently cloned data for checkpoint", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_EVICTIONS,              CACHETABLE_EVICTIONS, UINT64, "evictions", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_CLEANER_EXECUTIONS,     CACHETABLE_CLEANER_EXECUTIONS, UINT64, "cleaner executions", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
     STATUS_INIT(CT_CLEANER_PERIOD,         CACHETABLE_CLEANER_PERIOD, UINT64, "cleaner period", TOKU_ENGINE_STATUS|TOKU_GLOBAL_STATUS);
@@ -704,7 +705,7 @@ static void cachetable_only_write_locked_data(
     p->disk_data = disk_data;
     if (is_clone) {
         p->cloned_value_data = NULL;
-        ev->remove_from_size_current(p->cloned_value_size);
+        ev->remove_cloned_data_size(p->cloned_value_size);
         p->cloned_value_size = 0;
     }    
 }
@@ -949,7 +950,7 @@ clone_pair(evictor* ev, PAIR p) {
         ev->change_pair_attr(old_attr, new_attr);
     }
     p->cloned_value_size = clone_size;
-    ev->add_to_size_current(p->cloned_value_size);
+    ev->add_cloned_data_size(p->cloned_value_size);
 }
 
 static void checkpoint_cloned_pair(void* extra) {
@@ -3635,6 +3636,7 @@ int evictor::init(long _size_limit, pair_list* _pl, cachefile_list* _cf_list, KI
     
     m_size_reserved = unreservable_memory(_size_limit);
     m_size_current = 0;
+    m_size_cloned_data = 0;
     m_size_evicting = 0;
 
     m_size_nonleaf = create_partitioned_counter(); 
@@ -3767,6 +3769,22 @@ void evictor::add_to_size_current(long size) {
 //
 void evictor::remove_from_size_current(long size) {
     (void) toku_sync_fetch_and_sub(&m_size_current, size);
+}
+
+//
+// Adds the size of cloned data to necessary variables in the evictor
+//
+void evictor::add_cloned_data_size(long size) {
+    (void) toku_sync_fetch_and_add(&m_size_cloned_data, size);
+    add_to_size_current(size);
+}
+
+//
+// Removes  the size of cloned data to necessary variables in the evictor
+//
+void evictor::remove_cloned_data_size(long size) {
+    (void) toku_sync_fetch_and_sub(&m_size_cloned_data, size);
+    remove_from_size_current(size);
 }
 
 //
@@ -4333,6 +4351,7 @@ void evictor::fill_engine_status() {
     STATUS_VALUE(CT_SIZE_LEAF) = read_partitioned_counter(m_size_leaf);
     STATUS_VALUE(CT_SIZE_ROLLBACK) = read_partitioned_counter(m_size_rollback);
     STATUS_VALUE(CT_SIZE_CACHEPRESSURE) = read_partitioned_counter(m_size_cachepressure);
+    STATUS_VALUE(CT_SIZE_CLONED) = m_size_cloned_data;
     STATUS_VALUE(CT_WAIT_PRESSURE_COUNT) = read_partitioned_counter(m_wait_pressure_count);
     STATUS_VALUE(CT_WAIT_PRESSURE_TIME) = read_partitioned_counter(m_wait_pressure_time);
     STATUS_VALUE(CT_LONG_WAIT_PRESSURE_COUNT) = read_partitioned_counter(m_long_wait_pressure_count);

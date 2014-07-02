@@ -594,6 +594,7 @@ typedef enum {
     CT_SIZE_LEAF,              // number of bytes in cachetable belonging to leaf nodes
     CT_SIZE_ROLLBACK,          // number of bytes in cachetable belonging to rollback nodes
     CT_SIZE_CACHEPRESSURE,     // number of bytes causing cache pressure (sum of buffers and workdone counters)
+    CT_SIZE_CLONED,            // number of bytes of cloned data in the system
     CT_EVICTIONS,
     CT_CLEANER_EXECUTIONS,     // number of times the cleaner thread's loop has executed
     CT_CLEANER_PERIOD,

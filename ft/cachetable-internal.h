@@ -516,8 +516,8 @@ public:
     void add_pair_attr(PAIR_ATTR attr);
     void remove_pair_attr(PAIR_ATTR attr);    
     void change_pair_attr(PAIR_ATTR old_attr, PAIR_ATTR new_attr);
-    void add_to_size_current(long size);
-    void remove_from_size_current(long size);
+    void add_cloned_data_size(long size);
+    void remove_cloned_data_size(long size);
     uint64_t reserve_memory(double fraction, uint64_t upper_bound);
     void release_reserved_memory(uint64_t reserved_memory);
     void run_eviction_thread();
@@ -531,6 +531,8 @@ public:
     void get_state(long *size_current_ptr, long *size_limit_ptr);
     void fill_engine_status();
 private:
+    void add_to_size_current(long size);
+    void remove_from_size_current(long size);
     void run_eviction();
     bool run_eviction_on_pair(PAIR p);
     void try_evict_pair(PAIR p);
@@ -546,6 +548,7 @@ private:
     pair_list* m_pl;
     cachefile_list* m_cf_list;
     int64_t m_size_current;            // the sum of the sizes of the pairs in the cachetable
+    int64_t m_size_cloned_data; // stores amount of cloned data we have, only used for engine status
     // changes to these two values are protected
     // by ev_thread_lock
     int64_t m_size_reserved;           // How much memory is reserved (e.g., by the loader)
