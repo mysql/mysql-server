@@ -413,8 +413,7 @@ public:
 
 	/** Mark the tablespace for truncate.
 	@param[in]	undo_id		tablespace for truncate. */
-	void mark_for_trunc(
-		ulint	undo_id)
+	void mark_for_trunc(ulint undo_id)
 	{
 		m_undo_for_trunc = undo_id;
 
@@ -434,8 +433,7 @@ public:
 
 	/** Add rseg to truncate vector.
 	@param[in,out]	rseg	rseg for truncate */
-	void add_rseg_to_trunc(
-		trx_rseg_t*	rseg)
+	void add_rseg_to_trunc(trx_rseg_t* rseg)
 	{
 		m_rseg_for_trunc.push_back(rseg);
 	}
@@ -449,6 +447,7 @@ public:
 	}
 
 	/** Get ith registered rseg.
+	@param[in]	id	index of rseg to get.
 	@return reference to registered rseg. */
 	trx_rseg_t* get_ith_rseg(ulint id)
 	{
@@ -474,16 +473,14 @@ public:
 	truncate log)
 	@param	space_id	space id of the undo tablespace to check for.
 	@return true if fix up is needed else false */
-	bool needs_fix_up(
-		ulint	space_id)
+	bool needs_fix_up(ulint	space_id)
 	{
 		return(undo_logger.is_log_present(space_id));
 	}
 
 	/** Add undo tablespace to truncate vector.
 	@param[in]	space_id	space id of tablespace to truncate */
-	static void add_space_to_trunc_list(
-		ulint	space_id)
+	static void add_space_to_trunc_list(ulint space_id)
 	{
 		s_spaces_to_truncate.push_back(space_id);
 	}
@@ -497,8 +494,7 @@ public:
 	/** Is tablespace marked for truncate.
 	@param[in]	space_id	space id to check
 	@return true if marked for truncate, else false. */
-	static bool is_tablespace_truncated(
-		ulint	space_id)
+	static bool is_tablespace_truncated(ulint space_id)
 	{
 		return(std::find(s_spaces_to_truncate.begin(),
 				 s_spaces_to_truncate.end(),
