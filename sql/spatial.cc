@@ -771,7 +771,7 @@ uint Geometry::collection_init_from_opresult(String *bin,
 
 Geometry::Geometry(const Geometry &geo)
 {
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   wkbType geotype= geo.get_geotype();
 #endif
   DBUG_ASSERT(is_valid_geotype(geotype) &&
@@ -799,13 +799,13 @@ Geometry::~Geometry()
     problem we want to address/avoid by forbiding throwing exceptions in
     destructors of Geometry classes.
 
-    Since DBUG_ASSERT only works when DBUG_OFF and _lint not defined, the
-    try/catch is only enabled here depending on the same conditions, so that
+    Since DBUG_ASSERT only works when DBUG_OFF is not defined, the
+    try/catch is only enabled here depending on the same condition, so that
     in release builds we don't have the overhead of the try-catch statement.
 
     This is true also for destructors of children classes of Geometry.
   */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   try
   {
 #endif
@@ -829,7 +829,7 @@ Geometry::~Geometry()
 
     donate_data();
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   }
   catch (...)
   {
@@ -849,7 +849,7 @@ Geometry &Geometry::operator=(const Geometry &rhs)
   if (this == &rhs)
     return *this;
 
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   Geometry::wkbType geotype= rhs.get_geotype();
 #endif
   DBUG_ASSERT((is_bg_adapter() || rhs.is_bg_adapter()) &&
@@ -1395,7 +1395,7 @@ Gis_polygon::Gis_polygon(const void *wkb, size_t nbytes,
 Gis_polygon::~Gis_polygon()
 {
   /* See ~Geometry() for why we do try-catch like this. */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   try
   {
 #endif
@@ -1423,7 +1423,7 @@ Gis_polygon::~Gis_polygon()
       given to us, we don't own it; otherwise the two pieces are already freed
       above.
      */
-#if !defined(DBUG_OFF) && !defined(_lint)
+#if !defined(DBUG_OFF)
   }
   catch (...)
   {

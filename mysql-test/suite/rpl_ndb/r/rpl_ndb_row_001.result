@@ -53,4 +53,5 @@ SELECT n FROM t1;
 n
 3456
 DROP TABLE t1;
+# mysql.user table restored to original values.
 include/rpl_end.inc

@@ -23,12 +23,14 @@ my $bindir = $ENV{MTR_BINDIR} || $basedir; # Out of source set MTR_BINDIR
 #
 my $clusterj_jpa_jar = my_find_file($bindir,
                                 ["storage/ndb/clusterj/clusterj-openjpa", 
+                                 "share/java",
                                  "share/mysql/java",             # install unix
                                  "lib/java"],                    # install windows
                                 "clusterjpa-*.jar", NOT_REQUIRED);
 
 my $clusterj_jpa_test_jar = my_find_file($bindir,
                                     ["storage/ndb/clusterj/clusterj-jpatest", 
+                                     "share/java",
                                      "share/mysql/java",             # install unix
                                      "lib/java"],                    # install windows
                                     "clusterj-jpatest-*.jar", NOT_REQUIRED);
