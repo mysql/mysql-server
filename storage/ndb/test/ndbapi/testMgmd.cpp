@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2009, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2009, 2014, Oracle and/or its affiliates. All rights reserved.
 
 
    This program is free software; you can redistribute it and/or modify
@@ -1440,6 +1440,7 @@ int main(int argc, const char** argv)
   testMgmd.setRunAllTables(true);
   testMgmd.setConnectCluster(false);
 
+#ifdef NDB_USE_GET_ENV
   char buf1[255], buf2[255];
   if (NdbEnv_GetEnv("NDB_MGMD_VALGRIND_EXE", buf1, sizeof(buf1))) {
     exe_valgrind = buf1;
@@ -1448,6 +1449,7 @@ int main(int argc, const char** argv)
   if (NdbEnv_GetEnv("NDB_MGMD_VALGRIND_ARG", buf2, sizeof(buf2))) {
     arg_valgrind = buf2;
   }
+#endif
 
   return testMgmd.execute(argc, argv);
 }

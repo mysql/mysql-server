@@ -113,7 +113,8 @@ Dbtup::alloc_fix_rec(EmulatedJamBuffer* jamBuf,
   }
 
   Uint32 page_offset= alloc_tuple_from_page(regFragPtr, (Fix_page*)pagePtr.p);
-  
+
+  regFragPtr->m_fixedElemCount++;
   *out_frag_page_id= pagePtr.p->frag_page_id;
   key->m_page_no = pagePtr.i;
   key->m_page_idx = page_offset;
@@ -193,6 +194,8 @@ void Dbtup::free_fix_rec(Fragrecord* regFragPtr,
 {
   Uint32 free= regPagePtr->free_record(key->m_page_idx);
   PagePtr pagePtr((Page*)regPagePtr, key->m_page_no);
+  ndbassert(regFragPtr->m_fixedElemCount > 0);
+  regFragPtr->m_fixedElemCount--;
   
   if(free == 1)
   {
@@ -247,6 +250,7 @@ Dbtup::alloc_fix_rowid(Uint32 * err,
       free_pages.remove(pagePtr);
     }
     
+    regFragPtr->m_fixedElemCount++;
     *out_frag_page_id= page_no;
     key->m_page_no = pagePtr.i;
     key->m_page_idx = idx;

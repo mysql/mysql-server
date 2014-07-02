@@ -1,5 +1,5 @@
 /*
-  Copyright (c) 2010, 2013, Oracle and/or its affiliates. All rights reserved.
+  Copyright (c) 2010, 2014, Oracle and/or its affiliates. All rights reserved.
 
   This program is free software; you can redistribute it and/or modify
   it under the terms of the GNU General Public License as published by
@@ -707,7 +707,7 @@ struct NdbapiAB::IndexScanOp : NdbapiOp< xMode > {
 
     IndexScanOp(string name, NdbapiAB& load, const D::Index* index)
         : super(name, load),
-          index(index), forceSend(true), op(NULL) {
+          index(index), forceSend(true), op(0) {
     }
 
     virtual void run(const Ids& id) {
@@ -1352,7 +1352,7 @@ struct NdbapiAB::B_clearA : UpdateOp< xMode > {
     }
     virtual void setValues(int id) {
         super::load.setKeyAB(super::op, id); // set first
-        super::load.setAIdB(super::op, NULL);
+        super::load.setAIdB(super::op, 0);
     }
 };
 

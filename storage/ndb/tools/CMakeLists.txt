@@ -1,4 +1,4 @@
-# Copyright (c) 2008, 2013, Oracle and/or its affiliates. All rights reserved.
+# Copyright (c) 2008, 2014, Oracle and/or its affiliates. All rights reserved.
 #
 # This program is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -16,7 +16,8 @@
 
 INCLUDE(${CMAKE_SOURCE_DIR}/storage/ndb/config/type_ndbapitools.cmake)
 INCLUDE_DIRECTORIES(
-  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi)
+  ${CMAKE_SOURCE_DIR}/storage/ndb/src/ndbapi
+  ${CMAKE_SOURCE_DIR}/storage/ndb/include/kernel/signaldata)
 
 MYSQL_ADD_EXECUTABLE(ndb_waiter
   waiter.cpp
@@ -81,11 +82,11 @@ ADD_EXECUTABLE(ndbinfo_sql
 )
 TARGET_LINK_LIBRARIES(ndbinfo_sql ndbclient_static)
 GET_TARGET_PROPERTY(NDBINFO_SQL_EXE ndbinfo_sql LOCATION)
-ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql
+ADD_CUSTOM_COMMAND(OUTPUT ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql
                    COMMAND ${NDBINFO_SQL_EXE} ARGS > ndbinfo.sql
                    DEPENDS ndbinfo_sql)
 ADD_CUSTOM_TARGET(ndbinfo_sql_run ALL
-				  DEPENDS ${PROJECT_SOURCE_DIR}/storage/ndb/tools/ndbinfo.sql)
+                  DEPENDS ${PROJECT_BINARY_DIR}/storage/ndb/tools/ndbinfo.sql)
 
 MYSQL_ADD_EXECUTABLE(ndb_index_stat
   ndb_index_stat.cpp

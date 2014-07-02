@@ -1,0 +1,220 @@
+include/master-slave.inc
+Warnings:
+Note	####	Sending passwords in plain text without SSL/TLS is extremely insecure.
+Note	####	Storing MySQL user name or password information in the master info repository is not secure and is therefore not recommended. Please consider using the USER and PASSWORD connection options for START SLAVE; see the 'START SLAVE Syntax' in the MySQL Manual for more information.
+[connection master]
+use test;
+create table test.t1 (a int primary key, content varchar(1000)) engine=ndb;
+reset master;
+call mtr.add_suppression("NDB Slave : At SQL thread start applying epoch .*");
+STOP SLAVE;
+CHANGE MASTER TO MASTER_LOG_POS=4;
+START SLAVE;
+Capture current count of epoch decline warnings
+insert into test.t1 values (6, repeat('B', 1000));
+insert into test.t1 values (5, repeat('B', 1000));
+insert into test.t1 values (4, repeat('B', 1000));
+insert into test.t1 values (3, repeat('B', 1000));
+insert into test.t1 values (2, repeat('B', 1000));
+insert into test.t1 values (1, repeat('B', 1000));
+Expect that we have at least 2 epochs logged.
+select count(1) > 1 from 
+(select distinct epoch from mysql.ndb_binlog_index) as logged_epochs;
+count(1) > 1
+1
+Any slave positioning warnings?
+Should be none
+lower_warn_count
+0
+lower_err_count
+0
+repeat_err_count
+0
+skipped_err_count
+0
+Now stop and manually replay old binlog.
+stop slave;
+change master to master_log_pos=4;
+start slave;
+Any slave positioning warnings?
+Should be one
+lower_warn_count
+1
+lower_err_count
+0
+repeat_err_count
+0
+skipped_err_count
+0
+Repeat
+stop slave;
+change master to master_log_pos=4;
+start slave;
+Any slave positioning warnings?
+Should be two
+lower_warn_count
+2
+lower_err_count
+0
+repeat_err_count
+0
+skipped_err_count
+0
+Now try re-positioning after RESET SLAVE
+STOP SLAVE;
+RESET SLAVE;
+include/rpl_start_slaves.inc
+Any slave positioning warnings?
+Should be two, e.g. no extras after the RESET SLAVE
+This avoids warnings when slave context has been explicitly reset
+lower_warn_count
+2
+lower_err_count
+0
+repeat_err_count
+0
+skipped_err_count
+0
+Now get unexpected epoch back-step using fault injection
+on the Master.
+call mtr.add_suppression("NDB Binlog injector cycling gcis .*");
+set @old_debug = @@global.debug;
+set global debug="";
+set global debug="+d,ndb_binlog_injector_cycle_gcis";
+show variables like 'debug';
+Variable_name	Value
+debug	d,ndb_binlog_injector_cycle_gcis
+Let's make some epochs
+insert into test.t1 values (6 + 6, repeat('E', 1000));
+insert into test.t1 values (5 + 6, repeat('E', 1000));
+insert into test.t1 values (4 + 6, repeat('E', 1000));
+insert into test.t1 values (3 + 6, repeat('E', 1000));
+insert into test.t1 values (2 + 6, repeat('E', 1000));
+insert into test.t1 values (1 + 6, repeat('E', 1000));
+call mtr.add_suppression("NDB Slave : SQL thread stopped as applying epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
+Check that slave stopped with an error
+include/wait_for_slave_sql_error.inc [errno=1296]
+Let's look at the warnings and errors now...
+lower_warn_count
+2
+lower_err_count
+1
+repeat_err_count
+0
+skipped_err_count
+0
+Now check that we can manually restart the slave
+set global debug = @old_debug;
+reset master;
+stop slave;
+change master to master_log_pos=4;
+start slave;
+insert into test.t1 values (13, repeat('A', 1000));
+Check slave warnings now, should be no extras
+e.g. 2 warnings, 1 error
+lower_warn_count
+2
+lower_err_count
+1
+repeat_err_count
+0
+skipped_err_count
+0
+delete from test.t1;
+Now get unexpected epoch repeat using fault-injection on the master
+call mtr.add_suppression("NDB Binlog injector repeating gcis .*");
+set @old_debug = @@global.debug;
+set global debug="";
+set global debug="+d,ndb_binlog_injector_repeat_gcis";
+show variables like 'debug';
+Variable_name	Value
+debug	d,ndb_binlog_injector_repeat_gcis
+Let's make some epochs
+insert into test.t1 values (6, repeat('E', 1000));
+insert into test.t1 values (5, repeat('E', 1000));
+insert into test.t1 values (4, repeat('E', 1000));
+insert into test.t1 values (3, repeat('E', 1000));
+insert into test.t1 values (2, repeat('E', 1000));
+insert into test.t1 values (1, repeat('E', 1000));
+call mtr.add_suppression("NDB Slave : SQL thread stopped as attempted to reapply already committed epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
+Check that slave stopped with an error
+include/wait_for_slave_sql_error.inc [errno=1296]
+Let's look at the warnings and errors now...
+Should be increase in repeat error count.
+lower_warn_count
+2
+lower_err_count
+1
+repeat_err_count
+1
+skipped_err_count
+0
+Now check that we can manually restart the slave
+set global debug = @old_debug;
+reset master;
+stop slave;
+change master to master_log_pos=4;
+start slave;
+insert into test.t1 values (13, repeat('A', 1000));
+Check slave warnings now, should be no extras
+lower_warn_count
+3
+lower_err_count
+1
+repeat_err_count
+1
+skipped_err_count
+0
+delete from test.t1;
+Now get skipped epoch using fault injection on the slave
+set @old_debug = @@global.debug;
+set global debug="";
+set global debug="+d,ndb_slave_fail_marking_epoch_committed";
+show variables like 'debug';
+Variable_name	Value
+debug	d,ndb_slave_fail_marking_epoch_committed
+Let's make some epochs
+insert into test.t1 values (6, repeat('E', 1000));
+insert into test.t1 values (5, repeat('E', 1000));
+insert into test.t1 values (4, repeat('E', 1000));
+insert into test.t1 values (3, repeat('E', 1000));
+insert into test.t1 values (2, repeat('E', 1000));
+insert into test.t1 values (1, repeat('E', 1000));
+call mtr.add_suppression("NDB Slave : SQL thread stopped as attempting to apply new epoch .*");
+call mtr.add_suppression("Slave SQL: Could not execute .* HA_ERR_ROWS_EVENT_APPLY; .*");
+call mtr.add_suppression("Slave: Got error 173 .*");
+Check that slave stopped with an error
+include/wait_for_slave_sql_error.inc [errno=1296]
+Let's look at the warnings and errors now...
+Should be increase in repeat error count.
+lower_warn_count
+3
+lower_err_count
+1
+repeat_err_count
+1
+skipped_err_count
+1
+Now check that we can manually restart the slave
+set global debug = @old_debug;
+reset master;
+stop slave;
+change master to master_log_pos=4;
+start slave;
+insert into test.t1 values (13, repeat('A', 1000));
+Check slave warnings now, should be no extras
+lower_warn_count
+3
+lower_err_count
+1
+repeat_err_count
+1
+skipped_err_count
+1
+drop table test.server_error_log;
+drop table test.t1;
+include/rpl_end.inc

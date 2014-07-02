@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2003, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2003, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -20,10 +20,14 @@
 #include <signaldata/AttrInfo.hpp>
 
 #ifdef VM_TRACE
+#ifdef NDB_USE_GET_ENV
 #include <NdbEnv.h>
 #define INT_DEBUG(x) \
   { const char* tmp = NdbEnv_GetEnv("INT_DEBUG", (char*)0, 0); \
   if (tmp != 0 && strlen(tmp) != 0) { ndbout << "INT:"; ndbout_c x; } }
+#else
+#define INT_DEBUG(x)
+#endif
 #else
 #define INT_DEBUG(x)
 #endif

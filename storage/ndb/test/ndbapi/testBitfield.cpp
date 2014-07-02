@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2004, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2004, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -159,7 +159,7 @@ create_random_table(Ndb* pNdb)
       memset(defbuf, 0, (length + 7)/8);
       for (Uint32 j = 0; j < len/8; j++)
         defbuf[j] = 0x63;
-      col.setDefaultValue(defbuf, (len + 7)/8);
+      col.setDefaultValue(defbuf, 4*((len + 31)/32));
       col.setLength(len); length -= len;
       int nullable = (rand() >> 16) & 1;
       col.setNullable(nullable); length -= nullable;

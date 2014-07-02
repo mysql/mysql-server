@@ -166,12 +166,21 @@ public:
     DihAllAllowNodeStart = 7016,
     DihMinTimeBetweenLCP = 7017,
     DihMaxTimeBetweenLCP = 7018,
-    // Checks whether add frag failure was cleaned up.
-    // Should NOT be used while commands involving addFragReq
-    // are being performed
-    DihAddFragFailCleanedUp = 7019,
+    // Check if blocks are done with handling the failure of another node.
+    DihTcSumaNodeFailCompleted = 7019, // DIH+TC+SUMA
     // 7020
     // 7021
+    // 7022
+    // 7023
+    /*
+      Checks whether add frag failure was cleaned up.
+      Should NOT be used while commands involving addFragReq
+      are being performed.
+      NB: This value is only intended for use in test cases. If used 
+      interactively, it is likely to crash the node. It should therefore
+      *not* be described in end-user documentation.
+    */
+    DihAddFragFailCleanedUp = 7024,
     DihDumpPageRecInfo = 7032,
     DihFragmentsPerNode = 7033,
     EnableUndoDelayDataWrite = 7080, // DIH+ACC+TUP

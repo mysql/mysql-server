@@ -790,3 +790,168 @@ alter table t2
 show create table t2;
 
 drop table t2, t1;
+
+--echo # bug#18662582 - NDB_FK_DISABLE.TEST FAILS TO DROP FOREIGN KEY
+
+create table t1 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+create table t2 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+alter table t2 add constraint fkname foreign key (a) references t1 (a);
+
+create table t3 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+alter table t3 add constraint fkname foreign key (a) references t2 (a);
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2 algorithm=inplace, drop foreign key nosuchfk;
+
+alter table t2 algorithm=inplace, drop foreign key fkname;
+
+alter table t3 algorithm=inplace, drop foreign key fkname;
+
+drop table t1, t2, t3;
+
+create table t1 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+create table t2 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+alter table t2 add constraint fkname foreign key (a) references t1 (a);
+
+create table t3 (
+  a int, primary key using hash (a)
+) engine = ndb;
+
+alter table t3 add constraint fkname foreign key (a) references t2 (a);
+
+--error ER_CANT_DROP_FIELD_OR_KEY
+alter table t2 algorithm=copy, drop foreign key nosuchfk;
+
+alter table t2 algorithm=copy, drop foreign key fkname;
+
+alter table t3 algorithm=copy, drop foreign key fkname;
+
+drop table t1, t2, t3;
+
+--echo # bug#18824753 - NDB_RESTORE FAILS WITH FKS WITH SAME NAME
+
+create table t1 (a int primary key) engine=ndb;
+create table t2 (a int primary key) engine=ndb;
+create table t3 (a int primary key) engine=ndb;
+create table t4 (a int primary key) engine=ndb;
+
+alter table t2
+  add constraint foreign key myfk (a) references t1 (a);
+alter table t4
+  add constraint foreign key myfk (a) references t3 (a);
+
+--error ER_CANNOT_ADD_FOREIGN
+alter table t4
+  add constraint foreign key `11/22/myfk` (a) references t3 (a);
+show warnings;
+
+--echo # run backup
+--source include/ndb_backup.inc
+
+drop table t2, t1;
+drop table t4, t3;
+
+--echo # run restore meta
+--exec $NDB_RESTORE --no-defaults -b $the_backup_id -n 1 -m $NDB_BACKUPS-$the_backup_id >> $NDB_TOOLS_OUTPUT
+
+show create table t2;
+show create table t4;
+
+drop table t2, t1;
+drop table t4, t3;
+
+--echo # bug18825966 - ADDING FK TO TABLE WITH DATA GIVES INTERNAL ERROR 208
+
+create table t1 (
+  c0 int,
+  c1 int,
+  primary key using hash (c1)
+) engine=ndb;
+
+create table t2 (
+  c0 int,
+  primary key using hash (c0)
+) engine=ndb;
+
+insert into t1 (c1) values (1);
+insert into t2 (c0) values (1);
+
+alter table t2 add constraint foreign key fk (c0) references t1 (c1);
+
+drop table t2, t1;
+
+create table t1 (
+  c0 int,
+  c1 int,
+  c2 int,
+  c3 int,
+  c4 int,
+  c5 int,
+  primary key (c2,c5)
+) engine=ndb;
+
+create table t2 (
+  c0 int,
+  c1 int,
+  c2 int,
+  c3 int,
+  c4 int,
+  c5 int,
+  primary key (c1,c4)
+) engine=ndb;
+
+insert into t1 (c2,c5) values (1,10),(2,20),(3,30);
+insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
+
+alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 (c1,c4) values (4,40);
+
+drop table t2, t1;
+
+create table t1 (
+  c0 int,
+  c1 int,
+  c2 int not null,
+  c3 int,
+  c4 int,
+  c5 int not null,
+  primary key (c0),
+  unique key using hash (c2,c5)
+) engine=ndb;
+
+create table t2 (
+  c0 int,
+  c1 int,
+  c2 int,
+  c3 int,
+  c4 int,
+  c5 int,
+  primary key (c1,c4)
+) engine=ndb;
+
+insert into t1 (c0,c2,c5) values (1,1,10),(2,2,20),(3,3,30);
+insert into t2 (c1,c4) values (1,10),(2,20),(3,30);
+
+alter table t2 add constraint foreign key fk (c1,c4) references t1 (c2,c5);
+
+--error ER_NO_REFERENCED_ROW_2
+insert into t2 (c1,c4) values (4,40);
+
+drop table t2, t1;

@@ -61,7 +61,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2a1'
+'ForeignKey'	'XX/XX/fkb2a1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -93,7 +93,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2a1'
+'ForeignKey'	'XX/XX/fkb2a1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -124,7 +124,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2a1'
+'ForeignKey'	'XX/XX/fkb2a1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -201,7 +201,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2a1'
+'ForeignKey'	'XX/XX/fkb2a1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -286,7 +286,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2c2c1b1'
+'ForeignKey'	'XX/XX/fkb2c2c1b1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -318,7 +318,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2c2c1b1'
+'ForeignKey'	'XX/XX/fkb2c2c1b1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -406,7 +406,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2c2c1b1'
+'ForeignKey'	'XX/XX/fkb2c2c1b1'
 # show counts
 select count(*) from t1;
 count(*)
@@ -478,7 +478,7 @@ where type in ('''ForeignKey''','''FKParentTrigger''','''FKChildTrigger''');
 type	name
 'FKChildTrigger'	'NDB$FK_XX_CHILD_XX'
 'FKParentTrigger'	'NDB$FK_XX_PARENT_XX'
-'ForeignKey'	'fkb2c2b1c1'
+'ForeignKey'	'XX/XX/fkb2c2b1c1'
 # show counts
 select count(*) from t1;
 count(*)

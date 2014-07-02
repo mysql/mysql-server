@@ -16,15 +16,14 @@
    Foundation, Inc., 51 Franklin St, Fifth Floor, Boston, MA 02110-1301  USA
 */
 
+#ifdef _WIN32
+#include <winsock2.h>
+#endif
 #include <mysql.h>
 #include <ndbapi/NdbApi.hpp>
 #include <mgmapi.h>
 #include <stdio.h>
 #include <stdlib.h>
-
-/*
- * export LD_LIBRARY_PATH=../../../libmysql_r/.libs:../../../ndb/src/.libs
- */
 
 #define MGMERROR(h) \
 { \
@@ -74,7 +73,7 @@ int main(int argc, char** argv)
     exit(-1);
   }
   if (ndb_mgm_set_connectstring(h1, connectstring1) == -1 ||
-      ndb_mgm_set_connectstring(h2, connectstring1))
+      ndb_mgm_set_connectstring(h2, connectstring2))
   {
     printf("Unable to set connectstring\n");
     exit(-1);

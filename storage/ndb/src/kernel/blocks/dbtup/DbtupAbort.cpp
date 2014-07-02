@@ -90,7 +90,10 @@ Dbtup::do_tup_abort_operation(Signal* signal,
         if (sz)
         {
           jam();
+          ndbassert(fragPtrP->m_varWordsFree >= pageP->free_space);
+          fragPtrP->m_varWordsFree -= pageP->free_space;
           pageP->shrink_entry(idx, sz);
+          // Adds the new free space value for the page to the fragment total.
           update_free_page_list(fragPtrP, vpage);
         }
         else

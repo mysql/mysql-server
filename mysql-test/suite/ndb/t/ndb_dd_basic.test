@@ -80,12 +80,16 @@ ENGINE=NDB;
 
 ########################################
 # Create a table using this tablespace
+# Specify number of partitions in order to make
+# output from INFORMATION_SCHEMA.PARTITIONS
+# independent of ndbd/ndbmtd and ThreadConfig.
 ########################################
 
 CREATE TABLE t1
 (pk1 INT NOT NULL PRIMARY KEY, b INT NOT NULL, c INT NOT NULL)
 TABLESPACE ts1 STORAGE DISK
-ENGINE=NDB;
+ENGINE=NDB
+PARTITION BY KEY() PARTITIONS 8;
 
 SHOW CREATE TABLE t1;
 
@@ -678,3 +682,17 @@ drop logfile group lg1
 engine ndb;
 
 #End 5.1 test case
+
+#
+# BUG#11762867
+# - create logfile group with too large undo_buffer_size
+#   in order to show the improved ndb error message indicating
+#   "too large undo_buffer_size or too small GlobalSharedMemory"
+#
+--error ER_CREATE_FILEGROUP_FAILED
+CREATE LOGFILE GROUP lg1
+ADD UNDOFILE 'undofile.dat'
+INITIAL_SIZE 16M
+UNDO_BUFFER_SIZE = 128M
+ENGINE=NDB;
+SHOW WARNINGS;

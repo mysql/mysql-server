@@ -1,0 +1,172 @@
+--source include/have_ndb.inc
+--source suite/ndb_rpl/ndb_master-slave.inc
+
+connection slave;
+
+show global variables like 'ndb_slave_conflict_role';
+
+#show slave status;
+
+--let $status_items=Slave_SQL_Running
+--source include/show_slave_status.inc
+stop slave sql_thread;
+--source include/show_slave_status.inc
+
+--echo Show set-to-same state is ok
+set global ndb_slave_conflict_role = NONE;
+
+--echo Now transition through all status, including set-to-self
+set global ndb_slave_conflict_role = "PRIMARY";
+show global variables like 'ndb_slave_conflict_role';
+set global ndb_slave_conflict_role = "PRIMARY";
+set global ndb_slave_conflict_role = "SECONDARY";
+show global variables like 'ndb_slave_conflict_role';
+set global ndb_slave_conflict_role = "SECONDARY";
+set global ndb_slave_conflict_role = "NONE";
+set global ndb_slave_conflict_role = "SECONDARY";
+set global ndb_slave_conflict_role = "PRIMARY";
+set global ndb_slave_conflict_role = "NONE";
+set global ndb_slave_conflict_role = "PASS";
+show global variables like 'ndb_slave_conflict_role';
+set global ndb_slave_conflict_role = "PASS";
+set global ndb_slave_conflict_role = "NONE";
+
+
+--echo Now test illegal transitions
+set global ndb_slave_conflict_role = "PRIMARY";
+--error 1220
+set global ndb_slave_conflict_role = "PASS";
+show global variables like 'ndb_slave_conflict_role';
+
+
+set global ndb_slave_conflict_role = "SECONDARY";
+--error 1220
+set global ndb_slave_conflict_role = "PASS";
+show global variables like 'ndb_slave_conflict_role';
+
+
+set global ndb_slave_conflict_role = "NONE";
+set global ndb_slave_conflict_role = "PASS";
+--error 1220
+set global ndb_slave_conflict_role = "PRIMARY";
+show global variables like 'ndb_slave_conflict_role';
+
+--error 1220
+set global ndb_slave_conflict_role = "SECONDARY";
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = "NONE";
+
+--echo Now test transitions not possible due to 
+--echo Slave SQL thread running
+
+start slave sql_thread;
+--source include/show_slave_status.inc
+
+--echo From NONE
+set global ndb_slave_conflict_role = "NONE";
+--error 1220
+set global ndb_slave_conflict_role = "PRIMARY";
+show global variables like 'ndb_slave_conflict_role';
+
+--error 1220
+set global ndb_slave_conflict_role = "SECONDARY";
+show global variables like 'ndb_slave_conflict_role';
+
+--error 1220
+set global ndb_slave_conflict_role = "PASS";
+show global variables like 'ndb_slave_conflict_role';
+
+stop slave sql_thread;
+
+--echo From PRIMARY
+set global ndb_slave_conflict_role = "PRIMARY";
+
+start slave sql_thread;
+
+set global ndb_slave_conflict_role = "PRIMARY";
+--error 1220
+set global ndb_slave_conflict_role = "SECONDARY";
+show global variables like 'ndb_slave_conflict_role';
+--error 1220
+set global ndb_slave_conflict_role = "NONE";
+show global variables like 'ndb_slave_conflict_role';
+--error 1220
+set global ndb_slave_conflict_role = "PASS";
+show global variables like 'ndb_slave_conflict_role';
+
+stop slave sql_thread;
+
+--echo From SECONDARY
+set global ndb_slave_conflict_role = "SECONDARY";
+
+start slave sql_thread;
+
+set global ndb_slave_conflict_role = "SECONDARY";
+--error 1220
+set global ndb_slave_conflict_role = "PRIMARY";
+show global variables like 'ndb_slave_conflict_role';
+--error 1220
+set global ndb_slave_conflict_role = "NONE";
+show global variables like 'ndb_slave_conflict_role';
+--error 1220
+set global ndb_slave_conflict_role = "PASS";
+show global variables like 'ndb_slave_conflict_role';
+
+stop slave sql_thread;
+
+--echo From PASS
+set global ndb_slave_conflict_role = "NONE";
+set global ndb_slave_conflict_role = "PASS";
+
+start slave sql_thread;
+
+set global ndb_slave_conflict_role = "PASS";
+--error 1220
+set global ndb_slave_conflict_role = "PRIMARY";
+show global variables like 'ndb_slave_conflict_role';
+--error 1220
+set global ndb_slave_conflict_role = "SECONDARY";
+show global variables like 'ndb_slave_conflict_role';
+--error 1220
+set global ndb_slave_conflict_role = "NONE";
+show global variables like 'ndb_slave_conflict_role';
+
+stop slave sql_thread;
+
+set global ndb_slave_conflict_role = "NONE";
+
+--echo Test some aliases for role names
+
+set global ndb_slave_conflict_role = PR;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = S;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = N;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = PA;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = 0;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = 2;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = 1;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = 0;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = 3;
+show global variables like 'ndb_slave_conflict_role';
+
+set global ndb_slave_conflict_role = NON;
+
+start slave sql_thread;
+
+--source include/rpl_end.inc
