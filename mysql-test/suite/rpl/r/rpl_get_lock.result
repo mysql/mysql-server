@@ -31,9 +31,6 @@ Note	1003	/* select#1 */ select is_free_lock('lock') AS `is_free_lock("lock")`,i
 select is_free_lock("lock2");
 is_free_lock("lock2")
 1
-select is_free_lock(NULL);
-is_free_lock(NULL)
-NULL
 drop table t1;
 include/sync_slave_sql_with_master.inc
 include/rpl_end.inc
