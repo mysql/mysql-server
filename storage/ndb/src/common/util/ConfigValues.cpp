@@ -154,6 +154,8 @@ ConfigValues::getString(Uint32 index) const {
 
 bool
 ConfigValues::ConstIterator::openSection(Uint32 key, Uint32 no){
+  // Nested section are not in use. See also ConfigValuesFactory::openSection().
+  assert(m_currentSection == 0);
   Uint32 curr = m_currentSection;
   
   Entry tmp;
@@ -383,6 +385,13 @@ ConfigValuesFactory::shrink(){
 
 bool
 ConfigValuesFactory::openSection(Uint32 key, Uint32 no){
+  /*
+    NOTE: The code seems to suggest that sections could be nested, so that
+    you could open a section and then call openSection() again to open
+    a subsection. But this pattern is currently not in use. The assert below 
+    prevents accidential use of nested sections.
+  */
+  assert(m_currentSection == 0);
   ConfigValues::Entry tmp;
   const Uint32 parent = m_currentSection;
 

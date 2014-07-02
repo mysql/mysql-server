@@ -152,8 +152,7 @@ SELECT Area(GeomFromText(@star_elem_vertical));
 Area(GeomFromText(@star_elem_vertical))
 200
 SELECT Area(GeomFromText('POLYGON((0 0,5 5))'));
-Area(GeomFromText('POLYGON((0 0,5 5))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_area.
 SELECT Area(GeomFromText('POLYGON((0 0,0 5,5 5))'));
 Area(GeomFromText('POLYGON((0 0,0 5,5 5))'))
 12.5
@@ -185,8 +184,7 @@ SELECT Area(GeomFromText(@star_of_elems));
 Area(GeomFromText(@star_of_elems))
 377.5
 SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,5 5)))'));
-Area(GeomFromText('MULTIPOLYGON(((0 0,5 5)))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_area.
 SELECT Area(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))'));
 Area(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))'))
 12.5
@@ -431,38 +429,29 @@ SELECT Area(NULL);
 Area(NULL)
 NULL
 SELECT Area(GeomFromText('POINT(a 0)'));
-Area(GeomFromText('POINT(a 0)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POINT(! 0)'));
-Area(GeomFromText('POINT(! 0)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POINT('!' 0)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0)'))' at line 1
 SELECT Area(GeomFromText('POINT(12,34 0)'));
-Area(GeomFromText('POINT(12,34 0)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('LINESTRING(a 0,10 10)'));
-Area(GeomFromText('LINESTRING(a 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('LINESTRING(0 0,! 10)'));
-Area(GeomFromText('LINESTRING(0 0,! 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('LINESTRING('!' 0,10 10)'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10)'))' at line 1
 SELECT Area(GeomFromText('LINESTRING(12,34 0,10 10)'));
-Area(GeomFromText('LINESTRING(12,34 0,10 10)'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'));
-Area(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'));
-Area(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))'));
 ERROR 42000: You have an error in your SQL syntax; check the manual that corresponds to your MySQL server version for the right syntax to use near '!' 0,10 10,10 0,0 0))'))' at line 1
 SELECT Area(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'));
-Area(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))'))
-NULL
+ERROR 22023: Invalid GIS data provided to function st_geometryfromtext.
 SELECT Area(GeomFromText('GEOMETRYCOLLECTION()'));
 Area(GeomFromText('GEOMETRYCOLLECTION()'))
 0

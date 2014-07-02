@@ -80,35 +80,35 @@ analyze table t1, t2;
 # TEST: key equal constant
 
 --echo # must use b1x
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1
   where b1 = 5 and c1 = 5;
 
 --echo # must use c2x
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t2
   where b2 = 5 and c2 = 5;
 
 # TEST: keys equal constant in join
 
 --echo # must use b1x, c2x
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1, t2
   where c1 = c2 and b1 = 5 and b2 = 5;
 
 --echo # must use c2x, b1x
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1, t2
   where b1 = b2 and c1 = 5 and c2 = 5;
 
 # TEST: join via keys of different selectivity
 
 --echo # must use t1, c2x
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1, t2
   where c1 = c2;
 --echo # must use t2, b1x
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select * from t1, t2
   where b1 = b2;
 
@@ -118,15 +118,15 @@ explain select * from t1, t2
 # wl4124_todo: result is wrong until HA_KEYREAD_ONLY is set
 
 --echo # should NOT say: Using index for group-by
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select distinct (a1) from t1;
 
 --echo # must say: Using index for group by
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select distinct (b1) from t1;
 
 --echo # must say: Using index for group by
---replace_column 9 #
+--replace_column 10 # 11 #
 explain select distinct (c1) from t1;
 
 # TEST: end

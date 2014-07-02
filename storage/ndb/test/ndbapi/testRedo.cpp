@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2012, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2012, 2013, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -397,9 +397,7 @@ run_latency_ops(NDBT_Context* ctx, NDBT_Step* step, OpLat& oplat, int upval, Ndb
     HugoOperations ops(*pTab);
     ops.setQuiet();
 
-    MicroSecondTimer timer_start;
-    MicroSecondTimer timer_stop;
-    require(NdbTick_getMicroTimer(&timer_start) == 0);
+    const NDB_TICKS timer_start = NdbTick_getCurrentTicks();
 
     CHK2(ops.startTransaction(pNdb) == 0, ops.getNdbError());
 
@@ -433,8 +431,8 @@ run_latency_ops(NDBT_Context* ctx, NDBT_Step* step, OpLat& oplat, int upval, Ndb
       CHK2(err.status == NdbError::TemporaryError, err);
     }
 
-    require(NdbTick_getMicroTimer(&timer_stop) == 0);
-    NDB_TICKS tt = NdbTick_getMicrosPassed(timer_start, timer_stop);
+    const NDB_TICKS timer_stop = NdbTick_getCurrentTicks();
+    Uint64 tt = NdbTick_Elapsed(timer_start, timer_stop).microSec();
     require(tt > 0);
     double td = (double)tt;
     int i0 = get_err410(ctx);

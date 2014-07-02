@@ -164,7 +164,7 @@ insert into t1 values(6, 'AAA');
 # 6
 select * from t1 order by p;
 # plan too flaky
-#--replace_column 9 #
+#--replace_column 10 # 11 #
 #explain select * from t1 where a = 'zZz' order by p;
 # 2
 select * from t1 where a = 'aAa' order by p;
@@ -193,7 +193,7 @@ insert into t1 values(6, 'AAA');
 # 6
 select * from t1 order by p;
 # plan too flaky
-#--replace_column 9 #
+#--replace_column 10 # 11 #
 #explain select * from t1 where a = 'zZz' order by p;
 # 6
 select * from t1 where a = 'aAa' order by p;

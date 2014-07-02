@@ -42,3 +42,8 @@ cmd: testUpgrade
 args: -n Upgrade_Mixed_MGMD_API_NDBD T2
 max-time: 1200
 
+cmd: testUpgrade
+args: -n Upgrade_SR_ManyTablesMaxFrag T1
+max-time: 6000
+
+

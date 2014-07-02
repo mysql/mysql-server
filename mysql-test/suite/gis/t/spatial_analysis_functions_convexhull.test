@@ -147,6 +147,7 @@ SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=114;
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ConvexHull(GeomFromText(@star)));
 SELECT AsText(ConvexHull(GeomFromText(@star_elem_vertical)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,5 5))')));
 SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,0 5,5 5))')));
 SELECT AsText(ConvexHull(GeomFromText('POLYGON((5 2,5 5,2 8,5 2))')));
@@ -163,6 +164,7 @@ SELECT AsText(ConvexHull(g)) FROM gis_geometrycollection WHERE fid=100;
 --echo # multipolygon
 --echo #------------------------------------------------------------------------------------
 SELECT AsText(ConvexHull(GeomFromText(@star_of_elems)));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,5 5)))')));
 SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 0,0 5,5 5)))')));
 SELECT AsText(ConvexHull(GeomFromText('MULTIPOLYGON(((0 10,10 0,0 0)),((0 0,10 10,10 0)))')));
@@ -279,20 +281,29 @@ SELECT AsText(ConvexHull(GeomFromWKB(0x00000000070000000100000000030000000100000
 --echo # Invalid function calls
 --echo #====================================================================================
 SELECT AsText(ConvexHull(NULL));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POINT(a 0)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POINT(! 0)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ConvexHull(GeomFromText('POINT('!' 0)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POINT(12,34 0)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('LINESTRING(a 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('LINESTRING(0 0,! 10)')));
 --error ER_PARSE_ERROR
 SELECT AsText(ConvexHull(GeomFromText('LINESTRING('!' 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('LINESTRING(12,34 0,10 10)')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POLYGON((a 0,10 10,10 0,0 0))')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POLYGON((0 0,! 10,10 0,0 0))')));
 --error ER_PARSE_ERROR
 SELECT AsText(ConvexHull(GeomFromText('POLYGON(('!' 0,10 10,10 0,0 0))')));
+--error ER_GIS_INVALID_DATA
 SELECT AsText(ConvexHull(GeomFromText('POLYGON((12,34 0,10 10,10 0,0 0))')));
 SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION()')));
 SELECT AsText(ConvexHull(GeomFromText('GEOMETRYCOLLECTION(GEOMETRYCOLLECTION())')));

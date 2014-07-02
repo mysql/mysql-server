@@ -1,7 +1,7 @@
 #ifndef SQL_SORT_INCLUDED
 #define SQL_SORT_INCLUDED
 
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -18,6 +18,7 @@
 
 #include "m_string.h"                           /* memset */
 #include "my_global.h"                          /* uchar */
+#include "my_compiler.h"                        /* MY_GNUC_PREREQ */
 #include "my_base.h"                            /* ha_rows */
 #include "my_sys.h"                             /* qsort2_cmp */
 #include "sql_array.h"

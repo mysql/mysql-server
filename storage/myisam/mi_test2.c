@@ -1,4 +1,4 @@
-/* Copyright (c) 2000, 2013, Oracle and/or its affiliates. All rights reserved.
+/* Copyright (c) 2000, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -76,8 +76,6 @@ int main(int argc, char *argv[])
 
   filename= "test2";
   get_options(argc,argv);
-  if (! async_io)
-    my_disable_async_io=1;
 
   reclength=STANDARD_LENGTH+60+(use_blob ? 8 : 0);
   blob_pos=STANDARD_LENGTH+60;

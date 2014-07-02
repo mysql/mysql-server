@@ -213,6 +213,8 @@ insert into t1 values
 ('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
 
 analyze table t1;
+
+--replace_column 10 # 11 #
 explain
 select i,vc from t1
   where i>=1 or vc > '0';
@@ -235,6 +237,8 @@ insert into t2 values
 ('1000',3,'1000'), ('2000',3,'2000'), ('10000',3,'10000');
 
 analyze table t2;
+
+--replace_column 10 # 11 #
 explain
 select i,vc from t2
   where i>=1 or vc > '0';
