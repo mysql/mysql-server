@@ -16591,7 +16591,7 @@ static MYSQL_SYSVAR_LONGLONG(max_undo_log_size, innobase_max_undo_log_size,
 
 static MYSQL_SYSVAR_ULONG(undo_purge_lag, srv_undo_purge_lag,
   PLUGIN_VAR_OPCMDARG,
-  "Dictates rate at which UNDO records are purge. Value N means"
+  "Dictates rate at which UNDO records are purged. Value N means"
   " purge on every Nth iteration of purge invocation",
   NULL, NULL, 128, 1, 128, 0);
 
