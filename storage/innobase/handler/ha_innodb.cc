@@ -3596,7 +3596,7 @@ innobase_commit(
 		/* We were instructed to commit the whole transaction, or
 		this is an SQL statement end and autocommit is on */
 
-		/* We need current binlog position for ibbackup to work. */
+		/* We need current binlog position for mysqlbackup to work. */
 
 		if (!read_only) {
 
@@ -6622,8 +6622,7 @@ no_commit:
 	innobase_srv_conc_enter_innodb(prebuilt);
 
 	/* Step-5: Execute insert graph that will result in actual insert. */
-	error = row_insert_for_mysql(
-		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_insert_for_mysql((byte*) record, prebuilt);
 
 	DEBUG_SYNC(user_thd, "ib_after_row_insert");
 
@@ -7093,8 +7092,7 @@ ha_innobase::update_row(
 
 	innobase_srv_conc_enter_innodb(prebuilt);
 
-	error = row_update_for_mysql(
-		(byte*) old_row, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_update_for_mysql((byte*) old_row, prebuilt);
 
 	/* We need to do some special AUTOINC handling for the following case:
 
@@ -7196,8 +7194,7 @@ ha_innobase::delete_row(
 
 	innobase_srv_conc_enter_innodb(prebuilt);
 
-	error = row_update_for_mysql(
-		(byte*) record, prebuilt, thd_to_innodb_session(user_thd));
+	error = row_update_for_mysql((byte*) record, prebuilt);
 
 	innobase_srv_conc_exit_innodb(prebuilt);
 
@@ -7551,8 +7548,7 @@ ha_innobase::index_read(
 			prebuilt->session = thd_to_innodb_session(user_thd);
 
 			ret = row_search_no_mvcc(
-				buf, mode, prebuilt, match_mode, 0,
-				prebuilt->session);
+				buf, mode, prebuilt, match_mode, 0);
 		}
 
 		innobase_srv_conc_exit_innodb(prebuilt);
@@ -7843,8 +7839,7 @@ ha_innobase::general_fetch(
 		ret = row_search_mvcc(buf, 0, prebuilt, match_mode, direction);
 	} else {
 		ret = row_search_no_mvcc(
-			buf, 0, prebuilt, match_mode, direction,
-			prebuilt->session);
+			buf, 0, prebuilt, match_mode, direction);
 	}
 
 	innobase_srv_conc_exit_innodb(prebuilt);
@@ -10766,9 +10761,7 @@ ha_innobase::records()
 	build_template(false);
 
 	/* Count the records in the clustered index */
-	ret = row_scan_index_for_mysql(
-		prebuilt, index, false, &n_rows,
-		thd_to_innodb_session(user_thd));
+	ret = row_scan_index_for_mysql(prebuilt, index, false, &n_rows);
 	reset_template();
 	switch (ret) {
 	case DB_SUCCESS:
@@ -11947,8 +11940,7 @@ ha_innobase::check(
 			ret = row_count_rtree_recs(prebuilt, &n_rows);
 		} else {
 			ret = row_scan_index_for_mysql(
-				prebuilt, index, true, &n_rows,
-				thd_to_innodb_session(thd));
+				prebuilt, index, true, &n_rows);
 		}
 
 		DBUG_EXECUTE_IF(
@@ -13991,7 +13983,7 @@ innobase_xa_prepare(
 		|| !thd_test_options(
 			thd, OPTION_NOT_AUTOCOMMIT | OPTION_BEGIN))) {
 
-		/* For ibbackup to work the order of transactions in binlog
+		/* For mysqlbackup to work the order of transactions in binlog
 		and InnoDB must be the same. Consider the situation
 
 		  thread1> prepare; write to binlog; ...
@@ -15705,8 +15697,7 @@ checkpoint_now_set(
 			log_make_checkpoint_at(LSN_MAX, TRUE);
 			fil_flush_file_spaces(FIL_TYPE_LOG);
 		}
-		fil_write_flushed_lsn_to_data_files(log_sys->lsn, 0);
-		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
+		fil_write_flushed_lsn(log_sys->lsn);
 	}
 }
 

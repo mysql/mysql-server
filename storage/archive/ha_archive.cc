@@ -409,7 +409,7 @@ unsigned int ha_archive::pack_row_v1(uchar *record)
 int ha_archive::read_data_header(azio_stream *file_to_read)
 {
   int error;
-  unsigned long ret;
+  size_t ret;
   uchar data_buffer[DATA_BUFFER_SIZE];
   DBUG_ENTER("ha_archive::read_data_header");
 
@@ -426,7 +426,7 @@ int ha_archive::read_data_header(azio_stream *file_to_read)
 
   if (ret != DATA_BUFFER_SIZE)
   {
-    DBUG_PRINT("ha_archive", ("Reading, expected %d got %lu", 
+    DBUG_PRINT("ha_archive", ("Reading, expected %d got %zu",
                               DATA_BUFFER_SIZE, ret));
     DBUG_RETURN(1);
   }
@@ -1201,7 +1201,7 @@ int ha_archive::unpack_row(azio_stream *file_to_read, uchar *record)
 {
   DBUG_ENTER("ha_archive::unpack_row");
 
-  unsigned int read;
+  size_t read;
   int error;
   uchar size_buffer[ARCHIVE_ROW_HEADER_SIZE], *size_buffer_p= size_buffer;
   unsigned int row_len;
@@ -1271,7 +1271,7 @@ int ha_archive::get_row_version3(azio_stream *file_to_read, uchar *buf)
 
 int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf)
 {
-  unsigned int read;
+  size_t read;
   int error;
   uint *ptr, *end;
   char *last;
@@ -1287,8 +1287,8 @@ int ha_archive::get_row_version2(azio_stream *file_to_read, uchar *buf)
 
   if (read != table->s->reclength)
   {
-    DBUG_PRINT("ha_archive::get_row_version2", ("Read %u bytes expected %u", 
-                                                read, 
+    DBUG_PRINT("ha_archive::get_row_version2", ("Read %zu bytes expected %u",
+                                                read,
                                                 (unsigned int)table->s->reclength));
     DBUG_RETURN(HA_ERR_CRASHED_ON_USAGE);
   }

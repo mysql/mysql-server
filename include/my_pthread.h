@@ -67,7 +67,7 @@ typedef void * (__cdecl *pthread_handler)(void *);
 
 int pthread_create(pthread_t *, const pthread_attr_t *, pthread_handler, void *);
 int pthread_attr_init(pthread_attr_t *connect_att);
-int pthread_attr_setstacksize(pthread_attr_t *connect_att,DWORD stack);
+int pthread_attr_setstacksize(pthread_attr_t *connect_att, size_t stack);
 int pthread_attr_getstacksize(pthread_attr_t *connect_att, size_t *stack);
 int pthread_attr_destroy(pthread_attr_t *connect_att);
 
@@ -168,9 +168,7 @@ static inline int pthread_attr_getguardsize(pthread_attr_t *attr,
 #else /* Normal threads */
 
 #include <pthread.h>
-#ifdef HAVE_SCHED_H
 #include <sched.h>
-#endif
 #ifdef HAVE_SYNCH_H
 #include <synch.h>
 #endif
@@ -260,9 +258,7 @@ struct st_my_thread_var
   mysql_mutex_t mutex;
   mysql_mutex_t * volatile current_mutex;
   mysql_cond_t * volatile current_cond;
-  pthread_t pthread_self;
   my_thread_id id;
-  int cmp_length;
   int volatile abort;
   my_bool init;
   struct st_my_thread_var *next,**prev;
@@ -277,7 +273,6 @@ struct st_my_thread_var
 extern struct st_my_thread_var *_my_thread_var(void) __attribute__ ((const));
 extern int set_mysys_var(struct st_my_thread_var *mysys_var);
 extern void **my_thread_var_dbug();
-extern uint my_thread_end_wait_time;
 #define my_thread_var (_my_thread_var())
 #define my_errno my_thread_var->thr_errno
 

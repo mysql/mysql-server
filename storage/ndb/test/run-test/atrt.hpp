@@ -285,7 +285,7 @@ static inline char* replace_drive_letters(const char* path) {
     if(path[i] && path[i+1]) {
       if( (!i || isspace(path[i-1]) || ispunct(path[i-1])) && path[i+1] == ':')
 {
-        assert(path[i+2] == '/');
+        require(path[i+2] == '/');
         j += BaseString::snprintf(retval + j, retval_len - 1, "%s/%c", cygdrive, path[i]);
         i++;
         continue;

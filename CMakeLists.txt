@@ -223,8 +223,6 @@ IF(DISABLE_SHARED)
   SET(WITHOUT_DYNAMIC_PLUGINS 1)
 ENDIF()
 OPTION(ENABLED_PROFILING "Enable profiling" ON)
-OPTION(CYBOZU "" OFF)
-OPTION(BACKUP_TEST "" OFF)
 OPTION(WITHOUT_SERVER OFF)
 IF(UNIX)
   OPTION(WITH_VALGRIND "Valgrind instrumentation" OFF)
@@ -232,7 +230,7 @@ ENDIF()
 IF(NOT WITHOUT_SERVER)
   OPTION (WITH_UNIT_TESTS "Compile MySQL with unit tests" ON)
 ENDIF()
-MARK_AS_ADVANCED(CYBOZU BACKUP_TEST WITHOUT_SERVER DISABLE_SHARED)
+MARK_AS_ADVANCED(WITHOUT_SERVER DISABLE_SHARED)
 
 
 include(CheckCSourceCompiles)
@@ -417,11 +415,8 @@ IF(NOT CMAKE_BUILD_TYPE
     AND NOT CMAKE_GENERATOR MATCHES "Xcode") 
     # This is the case of no CMAKE_BUILD_TYPE choosen, typical for VS and Xcode
     # or if custom C flags are set. In VS and Xcode for non-Debug configurations 
-    # DBUG_OFF is already correctly set. Use DBUG_OFF for Makefile based projects 
-    # without build type too, unless user specifically requests DBUG. 
-    IF(NOT CMAKE_C_FLAGS MATCHES "-DDBUG_ON")
-      ADD_DEFINITIONS(-DDBUG_OFF)
-    ENDIF()
+    # DBUG_OFF is already correctly set.
+    ADD_DEFINITIONS(-DDBUG_OFF)
 ENDIF()
 
 # Add safemutex for debug configurations
