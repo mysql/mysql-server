@@ -1,5 +1,5 @@
 /*
-   Copyright (c) 2005, 2013, Oracle and/or its affiliates. All rights reserved.
+   Copyright (c) 2005, 2014, Oracle and/or its affiliates. All rights reserved.
 
    This program is free software; you can redistribute it and/or modify
    it under the terms of the GNU General Public License as published by
@@ -224,8 +224,6 @@ Pgman::execSTTOR(Signal* signal)
       m_cleanup_loop_on = true;
     }
     break;
-  case 7:
-    break;
   default:
     break;
   }
@@ -239,10 +237,9 @@ Pgman::sendSTTORRY(Signal* signal)
   signal->theData[0] = 0;
   signal->theData[3] = 1;
   signal->theData[4] = 3;
-  signal->theData[5] = 7;
-  signal->theData[6] = 255; // No more start phases from missra
+  signal->theData[5] = 255; // No more start phases from missra
   BlockReference cntrRef = !isNdbMtLqh() ? NDBCNTR_REF : PGMAN_REF;
-  sendSignal(cntrRef, GSN_STTORRY, signal, 7, JBB);
+  sendSignal(cntrRef, GSN_STTORRY, signal, 6, JBB);
 }
 
 void
@@ -1063,8 +1060,8 @@ Pgman::process_callback(Signal* signal, Ptr<Page_entry> ptr)
 #ifdef ERROR_INSERT
       if (req_ptr.p->m_flags & Page_request::DELAY_REQ)
       {
-	Uint64 now = NdbTick_CurrentMillisecond();
-	if (now < req_ptr.p->m_delay_until_time)
+	const NDB_TICKS now = NdbTick_getCurrentTicks();
+	if (NdbTick_Compare(now,req_ptr.p->m_delay_until_time) < 0)
 	{
 	  break;
 	}
@@ -1680,7 +1677,7 @@ Pgman::get_page_no_lirs(EmulatedJamBuffer* jamBuf, Signal* signal,
   thrjam(jamBuf);
 
 #ifdef VM_TRACE
-  Ptr<Page_request> tmp = { &page_req, RNIL};
+  Ptr<Page_request> tmp(&page_req, RNIL);
 
   D(">get_page");
   D(ptr);
@@ -1947,7 +1944,7 @@ Pgman::map_file_no(Uint32 file_no, Uint32 fd)
   m_file_map.first(it);
   m_file_map.next(it, file_no);
 
-  assert(*it.data == ((1u << 31) | file_no));
+  ndbassert(*it.data == ((1u << 31) | file_no));
   *it.data = fd;
   D("map_file_no:" << V(file_no) << V(fd));
 }
@@ -2206,7 +2203,7 @@ Page_cache_client::update_lsn(Local_key key, Uint64 lsn)
   D("update_lsn" << V(file_no) << V(page_no) << V(lsn));
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  assert(found);
+  require(found);
 
   m_pgman->update_lsn(m_jamBuf, entry_ptr, m_block, lsn);
 }
@@ -2225,8 +2222,7 @@ Page_cache_client::drop_page(Local_key key, Uint32 page_id)
   D("drop_page" << V(file_no) << V(page_no));
 
   bool found = m_pgman->find_page_entry(entry_ptr, file_no, page_no);
-  assert(found);
-  assert(entry_ptr.p->m_real_page_i == page_id);
+  require(found && entry_ptr.p->m_real_page_i == page_id);
 
   return m_pgman->drop_page(entry_ptr);
 }

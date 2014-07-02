@@ -1574,7 +1574,7 @@ String *Item_func_left::val_str(String *str)
 
   /* must be longlong to avoid truncation */
   longlong length= args[1]->val_int();
-  uint char_pos;
+  size_t char_pos;
 
   if ((null_value=(args[0]->null_value || args[1]->null_value)))
     return 0;
@@ -4046,7 +4046,7 @@ String* Item_func_export_set::val_str(String* str)
   const String *no= args[2]->val_str(&no_buf);
   const String *sep= NULL;
 
-  uint num_set_values = 64;
+  ulonglong num_set_values = 64;
   str->length(0);
   str->set_charset(collation.collation);
 
@@ -4062,7 +4062,7 @@ String* Item_func_export_set::val_str(String* str)
   */
   switch(arg_count) {
   case 5:
-    num_set_values = (uint) args[4]->val_int();
+    num_set_values = static_cast<ulonglong>(args[4]->val_int());
     if (num_set_values > 64)
       num_set_values=64;
     if (args[4]->null_value)
@@ -4092,8 +4092,8 @@ String* Item_func_export_set::val_str(String* str)
   }
   null_value= false;
 
-  const ulong max_allowed_packet= current_thd->variables.max_allowed_packet;
-  const uint num_separators= num_set_values > 0 ? num_set_values - 1 : 0;
+  const ulonglong max_allowed_packet= current_thd->variables.max_allowed_packet;
+  const ulonglong num_separators= num_set_values > 0 ? num_set_values - 1 : 0;
   const ulonglong max_total_length=
     num_set_values * max(yes->length(), no->length()) +
     num_separators * sep->length();
@@ -4103,7 +4103,7 @@ String* Item_func_export_set::val_str(String* str)
     push_warning_printf(current_thd, Sql_condition::SL_WARNING,
                         ER_WARN_ALLOWED_PACKET_OVERFLOWED,
                         ER(ER_WARN_ALLOWED_PACKET_OVERFLOWED),
-                        func_name(), max_allowed_packet);
+                        func_name(), static_cast<long>(max_allowed_packet));
     null_value= true;
     return NULL;
   }

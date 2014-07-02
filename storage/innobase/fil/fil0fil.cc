@@ -113,7 +113,7 @@ completes, we decrement the count and return the file node to the LRU-list if
 the count drops to zero. */
 
 /** When mysqld is run, the default directory "." is the mysqld datadir,
-but in the MySQL Embedded Server Library and ibbackup it is not the default
+but in the MySQL Embedded Server Library and mysqlbackup it is not the default
 directory, and we must set the base file path explicitly */
 const char*	fil_path_to_mysql_datadir	= ".";
 
@@ -1880,20 +1880,14 @@ fil_set_max_space_id_if_bigger(
 	mutex_exit(&fil_system->mutex);
 }
 
-/****************************************************************//**
-Writes the flushed lsn and the latest archived log number to the page header
-of the first page of a data file of the system tablespace (space 0),
-which is uncompressed. */
-static __attribute__((warn_unused_result))
+/** Write the flushed LSN to the page header of the first page in the
+system tablespace.
+@param[in]	lsn	flushed LSN
+@return DB_SUCCESS or error number */
+
 dberr_t
-fil_write_lsn_and_arch_no_to_file(
-/*==============================*/
-	ulint	space,		/*!< in: space to write to */
-	ulint	sum_of_sizes,	/*!< in: combined size of previous files
-				in space, in database pages */
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no __attribute__((unused)))
-				/*!< in: archived log number to write */
+fil_write_flushed_lsn(
+	lsn_t	lsn)
 {
 	byte*	buf1;
 	byte*	buf;
@@ -1902,7 +1896,7 @@ fil_write_lsn_and_arch_no_to_file(
 	buf1 = static_cast<byte*>(ut_malloc(2 * UNIV_PAGE_SIZE));
 	buf = static_cast<byte*>(ut_align(buf1, UNIV_PAGE_SIZE));
 
-	const page_id_t	page_id(space, sum_of_sizes);
+	const page_id_t	page_id(TRX_SYS_SPACE, 0);
 
 	err = fil_read(page_id, univ_page_size, 0, univ_page_size.physical(),
 		       buf);
@@ -1912,67 +1906,13 @@ fil_write_lsn_and_arch_no_to_file(
 
 		err = fil_write(page_id, univ_page_size, 0,
 				univ_page_size.physical(), buf);
+
+		fil_flush_file_spaces(FIL_TYPE_TABLESPACE);
 	}
 
 	::ut_free(buf1);
 
 	return(err);
-}
-
-/****************************************************************//**
-Writes the flushed lsn and the latest archived log number to the page
-header of the first page of each data file in the system tablespace.
-@return DB_SUCCESS or error number */
-
-dberr_t
-fil_write_flushed_lsn_to_data_files(
-/*================================*/
-	lsn_t	lsn,		/*!< in: lsn to write */
-	ulint	arch_log_no)	/*!< in: latest archived log file number */
-{
-	mutex_enter(&fil_system->mutex);
-
-	for (fil_space_t* space = UT_LIST_GET_FIRST(fil_system->space_list);
-	     space != NULL;
-	     space = UT_LIST_GET_NEXT(space_list, space)) {
-
-		/* We only write the lsn to all existing data files which have
-		been open during the lifetime of the mysqld process; they are
-		represented by the space objects in the tablespace memory
-		cache. Note that all data files in the system tablespace 0
-		and the UNDO log tablespaces (if separate) are always open. */
-
-		if (space->purpose == FIL_TYPE_TABLESPACE
-		    && !fil_is_user_tablespace_id(space->id)) {
-			ulint	sum_of_sizes = 0;
-
-			for (fil_node_t* node = UT_LIST_GET_FIRST(space->chain);
-			     node != NULL;
-			     node = UT_LIST_GET_NEXT(chain, node)) {
-
-				dberr_t		err;
-
-				mutex_exit(&fil_system->mutex);
-
-				err = fil_write_lsn_and_arch_no_to_file(
-					space->id, sum_of_sizes, lsn,
-					arch_log_no);
-
-				if (err != DB_SUCCESS) {
-
-					return(err);
-				}
-
-				mutex_enter(&fil_system->mutex);
-
-				sum_of_sizes += node->size;
-			}
-		}
-	}
-
-	mutex_exit(&fil_system->mutex);
-
-	return(DB_SUCCESS);
 }
 
 /*================ SINGLE-TABLE TABLESPACES ==========================*/
@@ -2431,8 +2371,8 @@ fil_recreate_tablespace(
 If desired, also replays the delete or rename operation if the .ibd file
 exists and the space id in it matches.
 
-Note that ibbackup --apply-log sets fil_path_to_mysql_datadir to point to the
-datadir that we should use in replaying the file operations.
+Note that mysqlbackup --apply-log sets fil_path_to_mysql_datadir to point to
+the datadir that we should use in replaying the file operations.
 
 InnoDB recovery does not replay MLOG_FILE_DELETE; MySQL Enterprise Backup does.
 
@@ -2486,11 +2426,11 @@ fil_op_log_parse_or_replay(
 	file operations if recv_replay_file_ops holds. */
 
 	/* Let us try to perform the file operation, if sensible. Note that
-	ibbackup has at this stage already read in all space id info to the
+	mysqlbackup has at this stage already read in all space id info to the
 	fil0fil.cc data structures.
 
 	NOTE that our algorithm is not guaranteed to work correctly if there
-	were renames of tables during the backup. See ibbackup code for more
+	were renames of tables during the backup. See mysqlbackup code for more
 	on the problem. */
 
 	switch (type) {
@@ -3901,26 +3841,25 @@ fil_open_single_table_tablespace(
 			" multiple places;", tablename);
 		if (df_default.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Default location; %s, LSN=" LSN_PF
+				"Default location; %s"
 				", Space ID=%lu, Flags=%lu",
 				df_default.filepath(),
-				df_default.flushed_lsn(),
 				(ulong) df_default.space_id(),
 				(ulong) df_default.flags());
 		}
 		if (df_remote.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Remote location; %s, LSN=" LSN_PF
+				"Remote location; %s"
 				", Space ID=%lu, Flags=%lu",
-				df_remote.filepath(), df_remote.flushed_lsn(),
+				df_remote.filepath(),
 				(ulong) df_remote.space_id(),
 				(ulong) df_remote.flags());
 		}
 		if (df_dict.is_open()) {
 			ib_logf(IB_LOG_LEVEL_ERROR,
-				"Dictionary location; %s, LSN=" LSN_PF
+				"Dictionary location; %s"
 				", Space ID=%lu, Flags=%lu",
-				df_dict.filepath(), df_dict.flushed_lsn(),
+				df_dict.filepath(),
 				(ulong) df_dict.space_id(),
 				(ulong) df_dict.flags());
 		}
@@ -4263,7 +4202,7 @@ fil_load_single_table_tablespace(
 			<< "_ibbackup_old_vers_<timestamp> because its size"
 			<< size " is too small (< 4 pages 16 kB each), or the"
 			" space id in the file header is not sensible. This can"
-			" happen in an ibbackup run, and is not dangerous.";
+			" happen in an mysqlbackup run, and is not dangerous.";
 		file.close();
 
 		new_path = fil_make_ibbackup_old_name(filename);
@@ -4294,7 +4233,8 @@ fil_load_single_table_tablespace(
 			"Renaming data file '%s' with space ID " ULINTPF " to"
 			" %s_ibbackup_old_vers_<timestamp> because space %s"
 			" with the same id was scanned earlier. This can happen"
-			" if you have renamed tables during an ibbackup run.",
+			" if you have renamed tables during an mysqlbackup"
+			" run.",
 			filename, space_id, file.name(), space->name);
 		file.close();
 
@@ -4868,9 +4808,9 @@ retry:
 #ifdef UNIV_HOTBACKUP
 /********************************************************************//**
 Extends all tablespaces to the size stored in the space header. During the
-ibbackup --apply-log phase we extended the spaces on-demand so that log records
-could be applied, but that may have left spaces still too small compared to
-the size stored in the space header. */
+mysqlbackup --apply-log phase we extended the spaces on-demand so that log
+records could be applied, but that may have left spaces still too small
+compared to the size stored in the space header. */
 
 void
 fil_extend_tablespaces_to_stored_len(void)
@@ -5378,7 +5318,7 @@ fil_io(
 	ut_a((len % OS_FILE_LOG_BLOCK_SIZE) == 0);
 
 #ifdef UNIV_HOTBACKUP
-	/* In ibbackup do normal i/o, not aio */
+	/* In mysqlbackup do normal i/o, not aio */
 	if (type == OS_FILE_READ) {
 		ret = os_file_read(node->handle, buf, offset, len);
 	} else {

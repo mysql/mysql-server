@@ -54,40 +54,54 @@ ThreadConfig::init()
 
 /**
  * For each millisecond that has passed since this function was last called:
- *   Scan the job buffer and increment the internalMillisecCounter 
- *      with 1 to keep track of where we are
+ *   Scan the job buffer and increment the internalTicksCounter 
+ *      with 1ms to keep track of where we are
  */
 inline
 void 
 ThreadConfig::scanTimeQueue()
 {
-  unsigned int maxCounter;
-  Uint64 currMilliSecond;
-  maxCounter = 0;
-  currMilliSecond = NdbTick_CurrentMillisecond();
-  if (currMilliSecond < globalData.internalMillisecCounter) {
+  unsigned int maxCounter = 0;
+  const NDB_TICKS currTicks = NdbTick_getCurrentTicks();
+
+  if (NdbTick_Compare(currTicks, globalData.internalTicksCounter) < 0) {
 //--------------------------------------------------------------------
 // This could occur around 2036 or if the operator decides to change
 // time backwards. We cannot know how long time has past since last
 // time and we make a best try with 0 milliseconds.
 //--------------------------------------------------------------------
-    g_eventLogger->warning("Time moved backwards with %llu ms",
-                           globalData.internalMillisecCounter-currMilliSecond);
-    globalData.internalMillisecCounter = currMilliSecond;
+    const Uint64 backward = 
+      NdbTick_Elapsed(currTicks, globalData.internalTicksCounter).milliSec();
+
+    // Silently ignore sub millisecond backticks.
+    // Such 'noise' is unfortunately common even for monotonic timers.
+    if (backward > 0)
+    {
+      g_eventLogger->warning("Time moved backwards with %llu ms", backward);
+      globalData.internalTicksCounter = currTicks;
+      assert(backward < 100 || !NdbTick_IsMonotonic()); 
+    }
+    return;
   }//if
-  if (currMilliSecond > (globalData.internalMillisecCounter + 1500)) {
+
+  Uint64 elapsed = 
+    NdbTick_Elapsed(globalData.internalTicksCounter,currTicks).milliSec();
+  if (elapsed > 1500) {
 //--------------------------------------------------------------------
 // Time has moved forward more than a second. Either it could happen
 // if operator changed the time or if the OS has misbehaved badly.
 // We set the new time to one second from the past.
 //--------------------------------------------------------------------
-    g_eventLogger->warning("Time moved forward with %llu ms",
-                           currMilliSecond-globalData.internalMillisecCounter);
-    globalData.internalMillisecCounter = currMilliSecond - 1000;
+    g_eventLogger->warning("Time moved forward with %llu ms", elapsed);
+    elapsed -= 1000;
+    globalData.internalTicksCounter = 
+      NdbTick_AddMilliseconds(globalData.internalTicksCounter,elapsed);
   }//if
-  while (((currMilliSecond - globalData.internalMillisecCounter) > 0) &&
+  while ((elapsed > 0) &&
          (maxCounter < 20)){
-    globalData.internalMillisecCounter++;
+    globalData.internalTicksCounter = 
+      NdbTick_AddMilliseconds(globalData.internalTicksCounter,1);
+    elapsed--;
     maxCounter++;
     globalTimeQueue.scanTable();
   }//while
@@ -105,16 +119,18 @@ ThreadConfig::scanTimeQueue()
 // The timeout value in this call is calculated as (10 ms - laptime)
 // This would make ndb use less cpu while improving response time.
 //--------------------------------------------------------------------
-void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
+void ThreadConfig::ipControlLoop(NdbThread* pThis)
 {
+  Uint32 thread_index = globalEmulatorData.theConfiguration->addThread(pThis,
+                                                                 BlockThread);
   globalEmulatorData.theConfiguration->setAllLockCPU(true);
 
   Uint32 execute_loop_constant =
         globalEmulatorData.theConfiguration->schedulerExecutionTimer();
   Uint32 min_spin_time = 
     globalEmulatorData.theConfiguration->schedulerSpinTimer();
-  struct MicroSecondTimer start_micro, end_micro, statistics_start_micro;
-  struct MicroSecondTimer yield_micro;
+  NDB_TICKS start_ticks, end_ticks, statistics_start_ticks;
+  NDB_TICKS yield_ticks;
   Uint32 no_exec_loops = 0;
   Uint32 no_extra_loops = 0;
   Uint32 tot_exec_time = 0;
@@ -123,22 +139,19 @@ void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
   Uint32 micros_passed;
   bool spinning;
   bool yield_flag= FALSE;
-  int res1 = 0;
-  int res2 = 0;
-  int res3 = 0;
   Uint32 i = 0;
   Uint32 exec_again;
 
 //--------------------------------------------------------------------
 // initialise the counter that keeps track of the current millisecond
 //--------------------------------------------------------------------
-  globalData.internalMillisecCounter = NdbTick_CurrentMillisecond();
+  globalData.internalTicksCounter = NdbTick_getCurrentTicks();
 
   Uint32 *watchCounter = globalData.getWatchDogPtr();
   globalEmulatorData.theWatchDog->registerWatchedThread(watchCounter, 0);
 
-  res1 = NdbTick_getMicroTimer(&start_micro);
-  yield_micro = statistics_start_micro = end_micro = start_micro;
+  start_ticks = NdbTick_getCurrentTicks();
+  yield_ticks = statistics_start_ticks = end_ticks = start_ticks;
   while (1)
   {
     timeOutMillis = 0;
@@ -187,14 +200,12 @@ void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
         if (min_spin_time && !yield_flag)
         {
           if (spinning)
-            res2 = NdbTick_getMicroTimer(&end_micro);
-          if (!(res1 + res2))
-          {
-            micros_passed = 
-              (Uint32)NdbTick_getMicrosPassed(start_micro, end_micro);
-            if (micros_passed < min_spin_time)
-              timeOutMillis = 0;
-          }
+            end_ticks = NdbTick_getCurrentTicks();
+
+          micros_passed = 
+            (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
+          if (micros_passed < min_spin_time)
+            timeOutMillis = 0;
         }
       }
       if (spinning && timeOutMillis > 0 && i++ >= 20)
@@ -215,7 +226,7 @@ void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
           globalEmulatorData.theConfiguration->yield_main(thread_index, TRUE);
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
           globalEmulatorData.theConfiguration->yield_main(thread_index, FALSE);
-          res3= NdbTick_getMicroTimer(&yield_micro);
+          yield_ticks = NdbTick_getCurrentTicks();
         }
         else
           poll_flag= globalTransporterRegistry.pollReceive(timeOutMillis);
@@ -238,9 +249,8 @@ void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
 // signals for at least a configured time while there are more
 // signals to receive.
 //--------------------------------------------------------------------
-    res1= NdbTick_getMicroTimer(&start_micro);
-    if ((res1 + res3) || 
-        ((Uint32)NdbTick_getMicrosPassed(start_micro, yield_micro) > 10000))
+    start_ticks = NdbTick_getCurrentTicks();
+    if ((NdbTick_Elapsed(yield_ticks, start_ticks).microSec() > 10000))
       yield_flag= TRUE;
     exec_again= 0;
     do
@@ -262,16 +272,15 @@ void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
 //--------------------------------------------------------------------
       if (!execute_loop_constant && !min_spin_time)
         break;
-      res2= NdbTick_getMicroTimer(&end_micro);
-      if (res2)
-        break;
-      micros_passed = (Uint32)NdbTick_getMicrosPassed(start_micro, end_micro);
+
+      end_ticks = NdbTick_getCurrentTicks();
+      micros_passed = (Uint32)NdbTick_Elapsed(start_ticks, end_ticks).microSec();
       tot_exec_time += micros_passed;
       if (no_exec_loops++ >= 8192)
       {
         Uint32 expired_time = 
-          (Uint32)NdbTick_getMicrosPassed(statistics_start_micro, end_micro);
-        statistics_start_micro = end_micro;
+          (Uint32)NdbTick_Elapsed(statistics_start_ticks, end_ticks).microSec();
+        statistics_start_ticks = end_ticks;
         globalScheduler.reportThreadConfigLoop(expired_time,
                                                execute_loop_constant,
                                                &no_exec_loops,
@@ -300,7 +309,7 @@ void ThreadConfig::ipControlLoop(NdbThread*, Uint32 thread_index)
 
       no_extra_loops++;
       tot_extra_time += micros_passed;
-      start_micro = end_micro;
+      start_ticks = end_ticks;
       globalData.incrementWatchDogCounter(8);
       globalTransporterRegistry.performReceive();
     } while (1);
@@ -310,7 +319,7 @@ out:
   globalTransporterRegistry.performSend();
 
   globalEmulatorData.theWatchDog->unregisterWatchedThread(0);
-
+  globalEmulatorData.theConfiguration->removeThread(pThis);
 }//ThreadConfig::ipControlLoop()
 
 int

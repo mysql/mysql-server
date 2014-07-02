@@ -1540,6 +1540,7 @@ public:
      * @note preferred way is using setTable(const NdbDictionary::Table&)
      *       or constructor with table object parameter
      */
+    int setTable(const NdbDictionary::Table *table);
     int setTable(const char *tableName);
     /**
      * Get table name for events
@@ -2394,6 +2395,9 @@ public:
      * Drop table given retrieved Table instance
      * @param table Table to drop
      * @return 0 if successful otherwise -1.
+     *
+     * @note dropTable() drops indexes and foreign keys
+     * where the table is child or parent
      */
     int dropTable(Table & table);
 

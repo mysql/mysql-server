@@ -69,7 +69,7 @@ HugoCalculator::HugoCalculator(const NdbDictionary::Table& tab) : m_tab(tab) {
   ndbout << "updatesCol = " << m_updatesCol << endl;
 #endif
   // Check that idCol is not conflicting with updatesCol
-  assert(m_idCol != m_updatesCol && m_idCol != -1 && m_updatesCol != -1);
+  require(m_idCol != m_updatesCol && m_idCol != -1 && m_updatesCol != -1);
 }
 
 Int32
@@ -241,7 +241,7 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Varbinary:
   case NdbDictionary::Column::Varchar:
     len = calc_len(myRand(&seed), len - 1);
-    assert(len < 256);
+    require(len < 256);
     * outlen = len + 1;
     * buf = len;
     dst++;
@@ -249,7 +249,7 @@ HugoCalculator::calcValue(int record,
   case NdbDictionary::Column::Longvarchar:
   case NdbDictionary::Column::Longvarbinary:
     len = calc_len(myRand(&seed), len - 2);
-    assert(len < 65536);
+    require(len < 65536);
     * outlen = len + 2;
     int2store(buf, len);
     dst += 2;
@@ -493,7 +493,7 @@ HugoCalculator::equalForRow(Uint8 * pRow,
       Uint32 real_len;
       const char * value = calcValue(rowId, attrId, 0, buf,
                                      len, &real_len);
-      assert(value != 0); // NULLable PK not supported...
+      require(value != 0); // NULLable PK not supported...
       Uint32 off = 0;
       bool ret = NdbDictionary::getOffset(pRecord, attrId, off);
       if (!ret)
@@ -540,7 +540,7 @@ HugoCalculator::setValues(Uint8 * pRow,
       }
       else
       {
-        assert(attr->getNullable());
+        require(attr->getNullable());
         NdbDictionary::setNull(pRecord, (char*)pRow, attrId, true);
       }
     }

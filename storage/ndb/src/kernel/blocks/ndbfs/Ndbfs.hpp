@@ -105,7 +105,13 @@ private:
   // Limit for max number of AsyncFiles created
   Uint32 m_maxFiles;
 
+// Temporary work-around for Bug #18055285 LOTS OF TESTS FAILS IN CLUB MADNESS WITH NEW GCC 4.8.2 -O3
+// disabling optimization for readWriteRequest() from gcc 4.8 and up
+#if (__GNUC__ * 1000 + __GNUC_MINOR__) >= 4008
+  void readWriteRequest(  int action, Signal * signal ) __attribute__((optimize(0)));
+#else
   void readWriteRequest(  int action, Signal * signal );
+#endif
 
   static Uint32 translateErrno(int aErrno);
 

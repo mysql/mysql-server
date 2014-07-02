@@ -37,7 +37,6 @@
 #include "sql_parse.h"
 #include "my_bit.h"
 #include "lock.h"
-#include "abstract_query_plan.h"
 #include "opt_explain_format.h"  // Explain_format_flags
 #include "opt_costmodel.h"
 #include "sql_join_buffer.h"     // JOIN_CACHE
@@ -145,8 +144,6 @@ JOIN::optimize()
 
   Prepare_error_tracker tracker(thd);
 
-  optimized= true;
-
   DEBUG_SYNC(thd, "before_join_optimize");
 
   THD_STAGE_INFO(thd, stage_optimizing);
@@ -178,6 +175,9 @@ JOIN::optimize()
 
   if (select_lex->get_optimizable_conditions(thd, &where_cond, &having_cond))
     DBUG_RETURN(1);
+
+  optimized= true;
+
   tables_list= select_lex->get_table_list();
 
   /* dump_TABLE_LIST_graph(select_lex, select_lex->leaf_tables); */
@@ -602,24 +602,6 @@ JOIN::optimize()
     }
     // Test if we can use an index instead of sorting
     test_skip_sort();
-
-    /**
-     * Push joins to handler(s) whenever possible.
-     * The handlers will inspect the QEP through the
-     * AQP (Abstract Query Plan), and extract from it
-     * whatewer it might implement of pushed execution.
-     * It is the responsibility if the handler to store any
-     * information it need for later execution of pushed queries.
-     *
-     * Currently pushed joins are only implemented by NDB.
-     * It only make sense to try pushing if > 1 non-const tables.
-     */
-    if (!plan_is_single_table())
-    {
-      const AQP::Join_plan plan(this);
-      if (ha_make_pushed_joins(thd, &plan))
-        DBUG_RETURN(1);
-    }
   }
 
 
@@ -7494,7 +7476,7 @@ update_ref_and_keys(THD *thd, Key_use_array *keyuse,JOIN_TAB *join_tab,
 {
   uint	and_level,i,found_eq_constant;
   Key_field *key_fields, *end, *field;
-  uint sz;
+  size_t sz;
   uint m= max(select_lex->max_equal_elems, 1U);
   
   /* 

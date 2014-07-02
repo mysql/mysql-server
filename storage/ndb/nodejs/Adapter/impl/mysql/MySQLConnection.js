@@ -32,6 +32,41 @@ var mysql  = require("mysql"),
     op_stats = stats_module.getWriter(["spi","mysql","DBOperation"]),
     mysql_code_to_sqlstate_map = require("../common/MysqlErrToSQLStateMap");
     
+/** Convert the raw data in the driver to the type expected by the adapter.
+ * Felix driver would normally convert DATE, DATETIME, and TIMESTAMP to
+ * javascript Date on reading. But the driver does not currently support
+ * fractional seconds. This type converter overrides the default and
+ * passes the raw string value to the adapter.
+ * @param field the field being processed in the driver
+ * @param next the next type converter in the chain
+ * @return the value to be passed to the adapter from the driver
+ */
+function driverTypeConverter(field, next) {
+//console.log('MySQLConnectionPool.driverTypeConverter with field', util.inspect(field));
+  var type = field.type;
+  var name = field.name;
+  var value;
+  switch (type) {
+  case 'DATE':
+    value = field.string();
+    return value;
+  case 'TIMESTAMP':
+    value = field.string();
+    if (value === null) {
+      return null;
+    }
+    return value;
+  case 'DATETIME':
+    value = field.string();
+    if (value === null) {
+      return null;
+    }
+    return value;
+  default:
+    return next();
+  }
+}
+
 /** MySQLConnection wraps a mysql connection and implements the DBSession contract.
  *  @param pooledConnection the felix connection to wrap
  *  @param connectionPool the associated connection pool
@@ -447,7 +482,6 @@ function ReadOperation(dbSession, dbTableHandler, sql, keys, callback) {
   this.keys = keys;
   this.callback = callback;
   this.result = {};
-  this.typeCast = dbSession.connectionPool.driverTypeConverter;
   op_stats.incr( [ "created","read" ]);
 
   function onRead(err, rows) {
@@ -499,7 +533,7 @@ function ReadOperation(dbSession, dbTableHandler, sql, keys, callback) {
     connection.query(
         {sql: this.sql, 
           values: this.keys,
-          typeCast: this.typeCast
+          typeCast: driverTypeConverter
         }, 
         onRead);
   };
@@ -513,7 +547,6 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
   this.parameters = parameters;
   this.callback = callback;
   this.result = {};
-  this.typeCast = dbSession.connectionPool.driverTypeConverter;
   op_stats.incr( [ "created","scan" ]);
 
   function onScan(err, rows) {
@@ -545,7 +578,7 @@ function ScanOperation(dbSession, dbTableHandler, sql, parameters, callback) {
     connection.query(
         {sql: this.sql, 
           values: this.parameters,
-          typeCast: this.typeCast
+          typeCast: driverTypeConverter
         },
         onScan);
   };

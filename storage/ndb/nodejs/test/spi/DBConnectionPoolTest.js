@@ -1,5 +1,5 @@
 /*
- Copyright (c) 2012, Oracle and/or its affiliates. All rights
+ Copyright (c) 2013, Oracle and/or its affiliates. All rights
  reserved.
  
  This program is free software; you can redistribute it and/or
@@ -19,7 +19,6 @@
  */
 
 "use strict";
-/*global spi_module, path, suites_dir, spi_doc_dir, harness, assert */
 
 try {
   require("./suite_config.js");
@@ -28,56 +27,54 @@ try {
 var spi_lib = require("./lib.js"),
     doc_parser  = require(path.join(suites_dir, "lib", "doc_parser"));
     
-
-
 /***** 
-  t2:  get a connection
-  t3:  get a session
-  t4:  verify that the connection implements all documented methods
+  t1:  get a connection
+  t2:  get a session
+  t3:  verify that the connection implements all documented methods
 *****/
 
-var t2 = new harness.ConcurrentSubTest("connect");
-var t4 = new harness.ConcurrentSubTest("PublicFunctions");
-var t3 = new harness.ConcurrentTest("openDBSession");
-
-function runSPIDocTest(dbConnection, testCase) {
-  var docFile = path.join(spi_doc_dir, "DBConnectionPool");
-  var functionList = doc_parser.listFunctions(docFile);
-  var tester = new doc_parser.ClassTester(dbConnection, "DBConnectionPool");
-  tester.test(functionList, testCase);
-}
+var t1 = new harness.ConcurrentTest("connect");
+var t2 = new harness.ConcurrentTest("openDBSession");
+var t3 = new harness.SerialTest("PublicFunctions");
 
 
-t3.run = function() {
-  // work around bug where ConcurrentSubTest doesn't have its own result obj
-  t2.result = this.result; 
-  t4.result = this.result;
-    
-  function onSession(err, dbSession) {
-    t3.errorIfError(err);
-    dbSession.close();
-    t3.failOnError();
-  }
-
-  function onConnect(err, connection) {
-    if(err) {
-      t2.fail(err);
-      t3.fail();
-    }
-    else {
-      t2.pass();
-      runSPIDocTest(connection, t4);
-    }
-    
-    connection.getDBSession(spi_lib.allocateSessionSlot(), onSession);
-  }
-
-  spi_lib.getConnectionPool(onConnect);
+t1.run = function() {  
+  spi_lib.getConnectionPool(function(err, connection) {
+    t1.errorIfError(err);
+    t1.failOnError();
+  });
 };
 
 
+t2.run = function() {
+  spi_lib.fail_openDBSession(t2, function(err, dbSession) {
+    dbSession.close(function() {
+      t2.pass();
+    });
+  });
+};
+
+
+t3.run = function() {
+  spi_lib.fail_openDBSession(t3, function(err, dbSession) {
+    var dbConnPool, docFile, functionList, tester;
+    try {
+      dbConnPool = dbSession.getConnectionPool();
+      docFile = path.join(spi_doc_dir, "DBConnectionPool");
+      functionList = doc_parser.listFunctions(docFile);
+      tester = new doc_parser.ClassTester(dbConnPool, "DBConnectionPool");
+      tester.test(functionList, t3);
+      dbSession.close(function() {
+        t3.failOnError();
+      });
+    } catch(e) {
+      t3.fail(e);
+    }  
+  });
+};
 
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/
-module.exports.tests = [ t2, t3, t4 ];
+module.exports.tests = [ t1, t2, t3 ];
+
 

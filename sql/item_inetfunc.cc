@@ -113,7 +113,7 @@ String* Item_func_inet_ntoa::val_str(String* str)
   str->length(0);
 
   uchar buf[8];
-  int4store(buf, n);
+  int4store(buf, static_cast<uint32>(n));
 
   /* Now we can assume little endian. */
 

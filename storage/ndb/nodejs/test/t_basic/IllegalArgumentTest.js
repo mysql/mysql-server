@@ -112,79 +112,145 @@ t5.run = function() {
 var t11 = new harness.SerialTest("testPersistNoArgumentNoCallback");
 t11.run = function() {
   var testCase = this;
-  fail_openSession(testCase, function(session) {
-    try {
-      session.persist();
-      testCase.fail('t11 persist with no arguments must fail.');
-    } catch(err) {
-      testCase.pass();
-    }
-  });
+  var promise;
+  function test_api(session) {
+    return session.persist();
+  }
+  function fail_to_openSession(err) {
+    // fail_openSession has already failed this test so we need to fail it
+    testCase.fail('t11 openSession failed:' + err);
+  }
+  function test_api_fulfill() {
+    testCase.fail('t11 persist with no arguments must fail.');
+  }
+  function test_api_reject(err) {
+    testCase.errorIfNull('t11 error message does not contain \'User error\': ' + err.message, 
+        err.message.match('User error'));
+    testCase.failOnError();
+  }
+  promise = fail_openSession(testCase);
+  promise.then(test_api, fail_to_openSession).
+    then(test_api_fulfill, test_api_reject);
 };
 
 var t12 = new harness.SerialTest("testRemoveNoArgumentNoCallback");
 t12.run = function() {
   var testCase = this;
-  fail_openSession(testCase, function(session) {
-    try {
-      session.remove();
-      testCase.fail('t12 remove with no arguments must fail.');
-    } catch(err) {
-      testCase.pass();
-    }
-  });
+  var promise;
+  function test_api(session) {
+    return session.remove();
+  }
+  function test_api_fulfill() {
+    testCase.fail('t12 remove with no arguments must fail.');
+  }
+  function fail_to_openSession(err) {
+    // fail_openSession has already failed this test so we need to fail it
+    testCase.fail('t12 openSession failed:' + err);
+  }
+  function test_api_reject(err) {
+    testCase.errorIfNull('t12 error message does not contain \'User error\': ' + err.message, 
+        err.message.match('User error'));
+    testCase.failOnError();
+  }
+  promise = fail_openSession(testCase);
+  promise.then(test_api, fail_to_openSession).
+    then(test_api_fulfill, test_api_reject);
 };
 
 var t13 = new harness.SerialTest("testSaveNoArgumentNoCallback");
 t13.run = function() {
   var testCase = this;
-  fail_openSession(testCase, function(session) {
-    try {
-      session.save();
-      testCase.fail('t13 save with no argument must fail.');
-    } catch(err) {
-      testCase.pass();
-    }
-  });
+  var promise;
+  function test_api(session) {
+    return session.save();
+  }
+  function fail_to_openSession(err) {
+    // fail_openSession has already failed this test so we need to fail it
+    testCase.fail('t13 openSession failed:' + err);
+  }
+  function test_api_fulfill() {
+    testCase.fail('t12 save with no arguments must fail.');
+  }
+  function test_api_reject(err) {
+    testCase.errorIfNull('t13 error message does not contain \'User error\': ' + err.message, 
+        err.message.match('User error'));
+    testCase.failOnError();
+  }
+  promise = fail_openSession(testCase);
+  promise.then(test_api, fail_to_openSession).
+    then(test_api_fulfill, test_api_reject);
 };
 
 var t14 = new harness.SerialTest("testUpdateNoArgumentNoCallback");
 t14.run = function() {
   var testCase = this;
-  fail_openSession(testCase, function(session) {
-    try {
-      session.update();
-      testCase.fail('t14 update with no arguments must fail.');
-    } catch(err) {
-      testCase.pass();
-    }
-  });
+  var promise;
+  function test_api(session) {
+    return session.update();
+  }
+  function fail_to_openSession(err) {
+    // fail_openSession has already failed this test so we need to fail it
+    testCase.fail('t14 openSession failed:' + err);
+  }
+  function test_api_fulfill() {
+    testCase.fail('t14 update with no arguments must fail.');
+  }
+  function test_api_reject(err) {
+    testCase.errorIfNull('t14 error message does not contain \'User error\': ' + err.message, 
+        err.message.match('User error'));
+    testCase.failOnError();
+  }
+  promise = fail_openSession(testCase);
+  promise.then(test_api, fail_to_openSession).
+    then(test_api_fulfill, test_api_reject);
 };
 
 var t15 = new harness.SerialTest("testFindNoArgumentNoCallback");
 t15.run = function() {
   var testCase = this;
-  fail_openSession(testCase, function(session) {
-    try {
-      session.find();
-      testCase.fail('t15 find with no arguments must fail.');
-    } catch(err) {
-      testCase.pass();
-    }
-  });
+  var promise;
+  function test_api(session) {
+    return session.find();
+  }
+  function fail_to_openSession(err) {
+    // fail_openSession has already failed this test so we need to fail it
+    testCase.fail('t15 openSession failed:' + err);
+  }
+  function test_api_fulfill() {
+    testCase.fail('t15 find with no arguments must fail.');
+  }
+  function test_api_reject(err) {
+    testCase.errorIfNull('t15 error message does not contain \'User error\': ' + err.message, 
+        err.message.match('User error'));
+    testCase.failOnError();
+  }
+  promise = fail_openSession(testCase);
+  promise.then(test_api, fail_to_openSession).
+    then(test_api_fulfill, test_api_reject);
 };
 
 var t16 = new harness.SerialTest("testFindUndefinedSecondArgumentNoCallback");
 t16.run = function() {
   var testCase = this;
-  fail_openSession(testCase, function(session) {
-    try {
-      session.find(global.t_basic);
-      testCase.fail('t16 find with undefined second argument must fail.');
-    } catch(err) {
-      testCase.pass();
-    }
-  });
+  var promise;
+  function test_api(session) {
+    return session.find('t_basic');
+  }
+  function fail_to_openSession(err) {
+    // fail_openSession has already failed this test so we need to fail it
+    testCase.fail('t16 openSession failed:' + err);
+  }
+  function test_api_fulfill() {
+    testCase.fail('t16 find with no second argument must fail.');
+  }
+  function test_api_reject(err) {
+    testCase.errorIfNull('t16 error message does not contain \'User error\': ' + err.message, 
+        err.message.match('User error'));
+    testCase.failOnError();
+  }
+  promise = fail_openSession(testCase);
+  promise.then(test_api, fail_to_openSession).
+    then(test_api_fulfill, test_api_reject);
 };
 
 /*************** EXPORT THE TOP-LEVEL GROUP ********/

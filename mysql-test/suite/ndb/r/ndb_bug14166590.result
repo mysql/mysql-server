@@ -1,0 +1,17 @@
+DROP TABLE IF EXISTS t1;
+create table t1(  pk1 INT NOT NULL PRIMARY KEY,
+attr1 INT NOT NULL UNIQUE,
+attr2 INT,
+attr3 VARCHAR(1024)
+) ENGINE = ndb;
+INSERT INTO t1 VALUES (9410, 9412, 9412, '9412');
+begin;
+select * from t1 where attr1 = 9412 order by pk1;
+pk1	attr1	attr2	attr3
+9410	9412	9412	9412
+begin;
+select * from t1 where pk1 = 9410 order by pk1;
+pk1	attr1	attr2	attr3
+9410	9412	9412	9412
+commit;
+drop table t1;

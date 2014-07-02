@@ -1563,7 +1563,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
     case GSN_STOP_REF:{
       const StopRef * const ref = CAST_CONSTPTR(StopRef, signal->getDataPtr());
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-      assert(nodeId == sendNodeId);
+      require(nodeId == sendNodeId);
       if (ref->errorCode == StopRef::MultiNodeShutdownNotMaster)
       {
         assert(use_master_node);
@@ -1579,7 +1579,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const StopConf * const ref = CAST_CONSTPTR(StopConf, signal->getDataPtr());
 #endif
       const NodeId nodeId = refToNode(signal->header.theSendersBlockRef);
-      assert(nodeId == sendNodeId);
+      require(nodeId == sendNodeId);
       stoppedNodes.bitOR(ndb_nodes_to_stop);
       break;
     }
@@ -1594,7 +1594,7 @@ int MgmtSrvr::sendSTOP_REQ(const Vector<NodeId> &node_ids,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      require(len == NodeBitmask::Size); // only full length in ndbapi
       NodeBitmask mask;
       mask.assign(len, rep->theAllNodes);
       stoppedNodes.bitOR(mask);
@@ -1843,7 +1843,7 @@ bool MgmtSrvr::is_any_node_starting()
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = getNodeInfo(nodeId);
-    if((node.m_state.startLevel == NodeState::SL_STARTING))
+    if (node.m_state.startLevel == NodeState::SL_STARTING)
       return true; // At least one node was starting
   }
   return false; // No node was starting
@@ -1856,7 +1856,7 @@ bool MgmtSrvr::is_cluster_single_user()
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB))
   {
     node = getNodeInfo(nodeId);
-    if((node.m_state.startLevel == NodeState::SL_SINGLEUSER))
+    if (node.m_state.startLevel == NodeState::SL_SINGLEUSER)
       return true; // Cluster is in single user modes
   }
   return false; // Cluster is not in single user mode
@@ -1907,8 +1907,8 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     *stopCount = nodes.count();
   
   // start up the nodes again
-  const NDB_TICKS waitTime = 12000;
-  const NDB_TICKS startTime = NdbTick_CurrentMillisecond();
+  const Uint64 waitTime = 12000;
+  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
   for (unsigned i = 0; i < node_ids.size(); i++)
   {
     NodeId nodeId= node_ids[i];
@@ -1918,7 +1918,7 @@ int MgmtSrvr::restartNodes(const Vector<NodeId> &node_ids,
     ndbout_c("Waiting for %d not started", nodeId);
 #endif
     while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
-           (NdbTick_CurrentMillisecond() - startTime) < waitTime)
+           NdbTick_Elapsed(startTime,NdbTick_getCurrentTicks()).milliSec() < waitTime)
     {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 mysql_version = 0;
@@ -1986,8 +1986,9 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
    * so we wait for all nodes to be contactable
    */
   NodeId nodeId = 0;
-  const NDB_TICKS waitTime = 12000;
-  const NDB_TICKS startTime = NdbTick_CurrentMillisecond();
+  const Uint64 waitTime = 12000;
+  const NDB_TICKS startTime = NdbTick_getCurrentTicks();
+
 
   while(getNextNodeId(&nodeId, NDB_MGM_NODE_TYPE_NDB)) {
     if (!nodes.get(nodeId))
@@ -1998,7 +1999,7 @@ int MgmtSrvr::restartDB(bool nostart, bool initialStart,
     ndbout_c("Waiting for %d not started", nodeId);
 #endif
     while (s != NDB_MGM_NODE_STATUS_NOT_STARTED &&
-           (NdbTick_CurrentMillisecond() - startTime) < waitTime)
+           NdbTick_Elapsed(startTime,NdbTick_getCurrentTicks()).milliSec() < waitTime)
     {
       Uint32 startPhase = 0, version = 0, dynamicId = 0, nodeGroup = 0;
       Uint32 mysql_version = 0;
@@ -2347,7 +2348,7 @@ MgmtSrvr::setEventReportingLevelImpl(int nodeId_arg,
       const NodeFailRep * const rep =
 	CAST_CONSTPTR(NodeFailRep, signal->getDataPtr());
       Uint32 len = NodeFailRep::getNodeMaskLength(signal->getLength());
-      assert(len == NodeBitmask::Size); // only full length in ndbapi
+      require(len == NodeBitmask::Size); // only full length in ndbapi
       NdbNodeBitmask mask;
       // only care about data nodes
       mask.assign(NdbNodeBitmask::Size, rep->theNodes);
@@ -3143,10 +3144,11 @@ MgmtSrvr::NodeIdReservations::set(NodeId n, unsigned timeout)
   check_array(n);
 
   Reservation& r = m_reservations[n];
-  assert(r.m_timeout == 0 && r.m_start == 0); // Dont't allow double set
+  // Dont't allow double set
+  assert(r.m_timeout == 0 && !NdbTick_IsValid(r.m_start));
 
   r.m_timeout = timeout;
-  r.m_start = NdbTick_CurrentMillisecond();
+  r.m_start = NdbTick_getCurrentTicks();
 }
 
 
@@ -3174,10 +3176,11 @@ MgmtSrvr::NodeIdReservations::clear(NodeId n)
   check_array(n);
 
   Reservation& r = m_reservations[n];
-  assert(r.m_timeout != 0 && r.m_start != 0); // Dont't allow double clear
+  // Dont't allow double clear
+  assert(r.m_timeout != 0 && NdbTick_IsValid(r.m_start));
 
   r.m_timeout = 0;
-  r.m_start = 0;
+  NdbTick_Invalidate(&r.m_start);
 }
 
 
@@ -3187,7 +3190,8 @@ MgmtSrvr::NodeIdReservations::has_timedout(NodeId n, NDB_TICKS now) const
   check_array(n);
 
   const Reservation& r = m_reservations[n];
-  if (r.m_timeout && (now - r.m_start) > r.m_timeout)
+  if (r.m_timeout && 
+      NdbTick_Elapsed(r.m_start,now).milliSec() > r.m_timeout)
     return true;
   return false;
 }
@@ -3494,7 +3498,7 @@ MgmtSrvr::try_alloc(NodeId id,
   assert(type == NDB_MGM_NODE_TYPE_NDB ||
          type == NDB_MGM_NODE_TYPE_API);
 
-  const NDB_TICKS start = NdbTick_CurrentMillisecond();
+  const NDB_TICKS start = NdbTick_getCurrentTicks();
   while (true)
   {
     int res = alloc_node_id_req(id, type, timeout_ms);
@@ -3509,8 +3513,9 @@ MgmtSrvr::try_alloc(NodeId id,
     if (res == NO_CONTACT_WITH_DB_NODES &&
         type == NDB_MGM_NODE_TYPE_API)
     {
-      const NDB_TICKS retry_timeout = 3000; // milliseconds
-      NDB_TICKS elapsed = NdbTick_CurrentMillisecond() - start;
+      const Uint64 retry_timeout = 3000; // milliseconds
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      const Uint64 elapsed = NdbTick_Elapsed(start,now).milliSec();
       if (elapsed > retry_timeout)
       {
         /*
@@ -3616,7 +3621,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
                              enum ndb_mgm_node_type type,
                              const struct sockaddr* client_addr,
                              int& error_code, BaseString& error_string,
-                              Uint32 timeout_s)
+                             Uint32 timeout_s)
 {
   if (m_opts.no_nodeid_checks)
   {
@@ -3662,11 +3667,12 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   /* Make sure that config is confirmed before allocating nodeid */
   Uint32 timeout_ms = timeout_s * 1000;
   {
-    Uint64 stop = NdbTick_CurrentMillisecond() + timeout_ms;
+    const NDB_TICKS start = NdbTick_getCurrentTicks();
     BaseString getconfig_message;
     while (!m_config_manager->get_packed_config(type, 0, getconfig_message))
     {
-      if (NdbTick_CurrentMillisecond() > stop)
+      const NDB_TICKS now = NdbTick_getCurrentTicks();
+      if (NdbTick_Elapsed(start,now).milliSec() > timeout_ms)
       {
         error_code = NDB_MGM_ALLOCID_ERROR;
         error_string.append("Unable to allocate nodeid as configuration"
@@ -3711,7 +3717,7 @@ MgmtSrvr::alloc_node_id_impl(NodeId& nodeid,
   /* Check timeout of nodeid reservations for NDB */
   if (type == NDB_MGM_NODE_TYPE_NDB)
   {
-    const NDB_TICKS now = NdbTick_CurrentMillisecond();
+    const NDB_TICKS now = NdbTick_getCurrentTicks();
     for (unsigned i = 0; i < nodes.size(); i++)
     {
       const NodeId ndb_nodeid = nodes[i].id;
@@ -4521,7 +4527,9 @@ MgmtSrvr::request_events(NdbNodeBitmask nodes, Uint32 reports_per_node,
                          Vector<SimpleSignal>& events)
 {
   int nodes_counter[MAX_NDB_NODES];
+#ifndef NDEBUG
   NdbNodeBitmask save = nodes;
+#endif
   SignalSender ss(theFacade);
   ss.lock();
 

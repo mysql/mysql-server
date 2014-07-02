@@ -776,7 +776,7 @@ bool Explain_union_result::explain_table_name()
   int last_length= (int)log10((double)last_select->select_number)+1;
 
   SELECT_LEX *sl= select_lex->master_unit()->first_select();
-  uint len= 6, lastop= 0;
+  size_t len= 6, lastop= 0;
   char table_name_buffer[NAME_LEN];
   memcpy(table_name_buffer, STRING_WITH_LEN("<union"));
   /*
@@ -909,7 +909,7 @@ bool Explain_table_base::explain_key_and_len_index(int key, uint key_length,
 
   char buff_key_len[24];
   const KEY *key_info= table->key_info + key;
-  const int length= longlong2str(key_length, buff_key_len, 10) - buff_key_len;
+  const size_t length= longlong2str(key_length, buff_key_len, 10) - buff_key_len;
   const bool ret= explain_key_parts(key, key_parts);
   return (ret || fmt->entry()->col_key.set(key_info->name) ||
           fmt->entry()->col_key_len.set(buff_key_len, length));
